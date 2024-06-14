@@ -104,9 +104,9 @@ class SessionView:
             if not previous:
                 return
             if previous.status == "queued" and operation.status == "running":
-                self.set_execution_time(operation.cell_id, "start")
+                self.save_execution_time(operation, "start")
             if previous.status == "running" and operation.status == "idle":
-                self.set_execution_time(operation.cell_id, "end")
+                self.save_execution_time(operation, "end")
 
         elif isinstance(operation, Variables):
             self.variable_operations = operation
@@ -166,17 +166,22 @@ class SessionView:
                 outputs[cell_id] = as_list(cell_op.console)
         return outputs
 
-    def set_execution_time(
-        self, cell_id: CellId_t, event: Literal["start", "end"]
+    def save_execution_time(
+        self, operation: MessageOperation, event: Literal["start", "end"]
     ) -> None:
         """Updates execution time for given cell."""
+        if not isinstance(operation, CellOp):
+            return
+        cell_id = operation.cell_id
+
         if event == "start":
-            time_elapsed = time.time()
+            time_elapsed = operation.timestamp
         elif event == "end":
             start = self.last_execution_time.get(cell_id)
             start = start if start else 0
             time_elapsed = time.time() - start
             time_elapsed = round(time_elapsed * 1000)
+
         self.last_execution_time[cell_id] = time_elapsed
 
     @property
