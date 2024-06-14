@@ -4,7 +4,12 @@ import unittest
 from datetime import date
 from typing import Any, Dict
 
+import pytest
+
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
+
+HAS_DEPS = DependencyManager.has_pandas()
 
 
 class TestDefaultTable(unittest.TestCase):
@@ -186,3 +191,10 @@ class TestColumnarDefaultTable(unittest.TestCase):
             {"name": "Alice", "age": 30, "birth_year": date(1994, 5, 24)},
         ]
         assert sorted_data == expected_data
+
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    def test_get_unique_column_values(self) -> None:
+        unique_values = self.manager.get_unique_column_values("age")
+        assert unique_values == [22, 25, 28, 30, 35]

@@ -37,6 +37,7 @@ type PluginFunctions = {
     has_more: boolean;
     total_rows: number;
     row_headers: Array<[string, string[]]>;
+    supports_code_sample: boolean;
   }>;
   get_column_values: (req: { column: string }) => Promise<{
     values: unknown[];
@@ -70,6 +71,7 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
         has_more: z.boolean(),
         total_rows: z.number(),
         row_headers: z.array(z.tuple([z.string(), z.array(z.any())])),
+        supports_code_sample: z.boolean(),
       }),
     ),
     get_column_values: rpc.input(z.object({ column: z.string() })).output(
@@ -117,7 +119,8 @@ export const DataFrameComponent = memo(
       () => get_dataframe({}),
       [value?.transforms],
     );
-    const { url, has_more, total_rows, row_headers } = data || {};
+    const { url, has_more, total_rows, row_headers, supports_code_sample } =
+      data || {};
 
     const [internalValue, setInternalValue] = useState<Transformations>(
       value || EMPTY,
@@ -131,10 +134,12 @@ export const DataFrameComponent = memo(
               <FunctionSquareIcon className="w-3 h-3 mr-2" />
               Transform
             </TabsTrigger>
-            <TabsTrigger value="code" className="text-xs py-1">
-              <Code2Icon className="w-3 h-3 mr-2" />
-              Code
-            </TabsTrigger>
+            {supports_code_sample && (
+              <TabsTrigger value="code" className="text-xs py-1">
+                <Code2Icon className="w-3 h-3 mr-2" />
+                Code
+              </TabsTrigger>
+            )}
           </TabsList>
           <TabsContent
             value="transform"
@@ -152,12 +157,14 @@ export const DataFrameComponent = memo(
               getColumnValues={get_column_values}
             />
           </TabsContent>
-          <TabsContent
-            value="code"
-            className="mt-1 border rounded-t overflow-hidden"
-          >
-            <CodePanel dataframeName={dataframeName} transforms={value} />
-          </TabsContent>
+          {supports_code_sample && (
+            <TabsContent
+              value="code"
+              className="mt-1 border rounded-t overflow-hidden"
+            >
+              <CodePanel dataframeName={dataframeName} transforms={value} />
+            </TabsContent>
+          )}
         </Tabs>
         {error && <ErrorBanner error={error} />}
         {has_more && total_rows != null && (

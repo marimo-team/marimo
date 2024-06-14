@@ -1,21 +1,26 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { DataType } from "@/core/kernel/messages";
+import { logNever } from "@/utils/assertNever";
+
 /**
  * Strongly typed string/number
  */
 export type ColumnId = (string | number) & { __columnId: "columnId" };
+
+export type NumPyType = string;
 
 /**
  * List of column Id and their data types
  *
  * We cannot use a js map, since maps don't preserve keys as ints (e.g. "1" and 1 are the same key)
  */
-export type RawColumnDataTypes = Array<[ColumnId, string]>;
+export type RawColumnDataTypes = Array<[ColumnId, NumPyType]>;
 /**
  * Map of column Id and their data types
  * ES6 maps preserve keys as ints (e.g. "1" and 1 are different keys)
  */
-export type ColumnDataTypes = Map<ColumnId, string>;
+export type ColumnDataTypes = Map<ColumnId, NumPyType>;
 
 export const NUMPY_DTYPES = [
   "int8",
@@ -40,6 +45,42 @@ export const NUMPY_DTYPES = [
   "datetime64",
   "timedelta64",
 ] as const;
+
+export function numpyTypeToDataType(
+  nptype: (typeof NUMPY_DTYPES)[number],
+): DataType {
+  switch (nptype) {
+    case "int8":
+    case "int16":
+    case "int32":
+    case "int64":
+    case "uint8":
+    case "uint16":
+    case "uint32":
+    case "uint64":
+      return "integer";
+    case "float16":
+    case "float32":
+    case "float64":
+    case "float128":
+      return "number";
+    case "complex64":
+    case "complex128":
+    case "complex256":
+    case "object":
+    case "string_":
+    case "unicode_":
+      return "string";
+    case "bool":
+      return "boolean";
+    case "datetime64":
+    case "timedelta64":
+      return "date";
+    default:
+      logNever(nptype);
+      return "unknown";
+  }
+}
 
 export const AGGREGATION_FNS = [
   "count",

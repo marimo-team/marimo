@@ -167,3 +167,8 @@ class TestPyArrowTableManagerFactory(unittest.TestCase):
         sorted_df = self.manager.sort_values("A", descending=True).data
         expected_df = self.data.sort_by([("A", "descending")])
         assert sorted_df.equals(expected_df)
+
+    def test_get_unique_column_values(self) -> None:
+        column = "B"
+        unique_values = self.manager.get_unique_column_values(column)
+        assert unique_values == ["a", "b", "c"]

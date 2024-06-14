@@ -1,9 +1,21 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import abc
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, List, Literal, Optional, Union
+from typing import (
+    Any,
+    Generic,
+    List,
+    Literal,
+    Optional,
+    TypeVar,
+    Union,
+)
+
+# Could be a DataFrame from pandas, polars, pyarrow, DataFrameProtocol, etc.
+DataFrameType = TypeVar("DataFrameType")
 
 ColumnId = Union[str, int]
 ColumnIds = List[ColumnId]
@@ -138,3 +150,60 @@ Transform = Union[
 @dataclass
 class Transformations:
     transforms: List[Transform]
+
+
+T = TypeVar("T")
+
+
+class TransformHandler(abc.ABC, Generic[T]):
+    @staticmethod
+    @abc.abstractmethod
+    def supports_code_sample() -> bool:
+        raise NotImplementedError
+
+    @staticmethod
+    @abc.abstractmethod
+    def handle_column_conversion(
+        df: T, transform: ColumnConversionTransform
+    ) -> T:
+        raise NotImplementedError
+
+    @staticmethod
+    @abc.abstractmethod
+    def handle_rename_column(df: T, transform: RenameColumnTransform) -> T:
+        raise NotImplementedError
+
+    @staticmethod
+    @abc.abstractmethod
+    def handle_sort_column(df: T, transform: SortColumnTransform) -> T:
+        raise NotImplementedError
+
+    @staticmethod
+    @abc.abstractmethod
+    def handle_filter_rows(df: T, transform: FilterRowsTransform) -> T:
+        raise NotImplementedError
+
+    @staticmethod
+    @abc.abstractmethod
+    def handle_group_by(df: T, transform: GroupByTransform) -> T:
+        raise NotImplementedError
+
+    @staticmethod
+    @abc.abstractmethod
+    def handle_aggregate(df: T, transform: AggregateTransform) -> T:
+        raise NotImplementedError
+
+    @staticmethod
+    @abc.abstractmethod
+    def handle_select_columns(df: T, transform: SelectColumnsTransform) -> T:
+        raise NotImplementedError
+
+    @staticmethod
+    @abc.abstractmethod
+    def handle_shuffle_rows(df: T, transform: ShuffleRowsTransform) -> T:
+        raise NotImplementedError
+
+    @staticmethod
+    @abc.abstractmethod
+    def handle_sample_rows(df: T, transform: SampleRowsTransform) -> T:
+        raise NotImplementedError

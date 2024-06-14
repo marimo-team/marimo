@@ -1,5 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
-from marimo._plugins.ui._impl.dataframes.transforms import Transformations
+from __future__ import annotations
+
+from marimo._plugins.ui._impl.dataframes.transforms.types import (
+    Transformations,
+)
 from marimo._utils.parse_dataclass import parse_raw
 
 

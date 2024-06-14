@@ -188,7 +188,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onDelete,
 }) => {
   return (
-    <div className="flex flex-col overflow-y-hidden w-[150px] shadow-xs h-full">
+    <div className="flex flex-col overflow-y-hidden w-[180px] shadow-xs h-full">
       <div className="flex flex-col overflow-y-auto flex-grow">
         {items.map((item, idx) => {
           return (

@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.6.12"
+__generated_with = "0.6.18"
 app = marimo.App(width="full")
 
 
@@ -128,6 +128,25 @@ def __(mo):
     return
 
 
+@app.cell
+def __(mo):
+    mo.md("## mo.ui.dataframe")
+    return
+
+
+@app.cell
+def __(mo, pl_dataframe):
+    pl_dataframe_prime = mo.ui.dataframe(pl_dataframe)
+    pl_dataframe_prime
+    return pl_dataframe_prime,
+
+
+@app.cell
+def __(pl_dataframe_prime):
+    pl_dataframe_prime.value
+    return
+
+
 @app.cell(hide_code=True)
 def __(mo):
     mo.md("## mo.ui.table")
@@ -209,11 +228,13 @@ def __(mo):
 
 
 @app.cell
-def __(dask_dfda):
+def __():
     import dask.dataframe as dd
 
-    dask_df = dd.read_csv("https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv")
-    dask_dfda
+    dask_df = dd.read_csv(
+        "https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv"
+    )
+    dask_df
     return dask_df, dd
 
 
@@ -223,7 +244,10 @@ def __():
 
     ibis.options.interactive = True
 
-    ibis_data = ibis.read_csv("https://raw.githubusercontent.com/mwaskom/seaborn-data/master/penguins.csv", table_name="penguins")
+    ibis_data = ibis.read_csv(
+        "https://raw.githubusercontent.com/mwaskom/seaborn-data/master/penguins.csv",
+        table_name="penguins",
+    )
     ibis_data
     return ibis, ibis_data
 

@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import inspect
 import sys
+from dataclasses import dataclass
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -14,23 +14,22 @@ from typing import (
     Union,
 )
 
-from marimo._dependencies.dependencies import DependencyManager
-from marimo._plugins.core.web_component import JSONType
-from marimo._plugins.ui._impl.dataframes.handlers import TransformsContainer
-from marimo._plugins.ui._impl.dataframes.transforms import Transformations
-from marimo._plugins.ui._impl.tables.pandas_table import (
-    PandasTableManagerFactory,
-)
-from marimo._plugins.ui._impl.tables.table_manager import ColumnName
-
-if TYPE_CHECKING:
-    import pandas as pd
-
-from dataclasses import dataclass
-
 import marimo._output.data.data as mo_data
 from marimo._output.rich_help import mddoc
+from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._plugins.ui._impl.dataframes.transforms.apply import (
+    TransformsContainer,
+    get_handler_for_dataframe,
+)
+from marimo._plugins.ui._impl.dataframes.transforms.types import (
+    DataFrameType,
+    Transformations,
+)
+from marimo._plugins.ui._impl.tables.table_manager import ColumnName
+from marimo._plugins.ui._impl.tables.utils import (
+    get_table_manager,
+)
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._utils.parse_dataclass import parse_raw
 
@@ -41,6 +40,7 @@ class GetDataFrameResponse:
     has_more: bool
     total_rows: int
     row_headers: List[tuple[str, List[str | int | float]]]
+    supports_code_sample: bool
 
 
 @dataclass
@@ -73,23 +73,15 @@ class GetDataFrameError(Exception):
 
 
 @mddoc
-class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
+class dataframe(UIElement[Dict[str, Any], DataFrameType]):
     """
     Run transformations on a DataFrame or series.
-    Currently only Pandas DataFrames are supported.
-
-    For Polars DataFrames, you can convert to a Pandas DataFrame.
-    However the returned DataFrame will still be a Pandas DataFrame,
-    so you will need to convert back to a Polars DataFrame if you want.
+    Currently only Pandas or Polars DataFrames are supported.
 
     **Example.**
 
     ```python
     dataframe = mo.ui.dataframe(data)
-    ```
-
-    ```python
-    dataframe = mo.ui.dataframe(polars_df.to_pandas())
     ```
 
     **Attributes.**
@@ -110,17 +102,12 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
 
     def __init__(
         self,
-        df: pd.DataFrame,
-        on_change: Optional[Callable[[pd.DataFrame], None]] = None,
+        df: DataFrameType,
+        on_change: Optional[Callable[[DataFrameType], None]] = None,
         page_size: Optional[int] = 5,
     ) -> None:
-        DependencyManager.require_pandas("to use the dataframe plugin")
-        import pandas as pd
-
-        if not isinstance(df, pd.DataFrame):
-            raise ValueError(
-                "Dataframe plugin only supports Pandas DataFrames"
-            )
+        # This will raise an error if the dataframe type is not supported.
+        handler = get_handler_for_dataframe(df)
 
         # HACK: this is a hack to get the name of the variable that was passed
         dataframe_name = "df"
@@ -138,8 +125,11 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
             pass
 
         self._data = df
-        self._manager = PandasTableManagerFactory.create()(df)
-        self._transform_container = TransformsContainer(df)
+        self._handler = handler
+        self._manager = get_table_manager(df)
+        self._transform_container = TransformsContainer[DataFrameType](
+            df, handler
+        )
         self._error: Optional[str] = None
 
         super().__init__(
@@ -152,7 +142,7 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
             args={
                 "columns": self._get_column_types(),
                 "dataframe-name": dataframe_name,
-                "total": len(df),
+                "total": self._manager.get_num_rows(),
                 "page-size": page_size,
             },
             functions=(
@@ -175,22 +165,24 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
         )
 
     def _get_column_types(self) -> List[List[Union[str, int]]]:
-        return [[name, dtype] for name, dtype in self._data.dtypes.items()]  # type: ignore
+        return [
+            [name, dtype]
+            for name, dtype in self._manager.get_field_types().items()
+        ]
 
     def get_dataframe(self, _args: EmptyArgs) -> GetDataFrameResponse:
         if self._error is not None:
             raise GetDataFrameError(self._error)
 
-        manager = PandasTableManagerFactory.create()(
-            self._value.head(self.DISPLAY_LIMIT)
-        )
+        manager = get_table_manager(self._value).limit(self.DISPLAY_LIMIT)
         url = mo_data.csv(manager.to_csv()).url
-        total_rows = len(self._value)
+        total_rows = manager.get_num_rows(force=True) or self.DISPLAY_LIMIT
         return GetDataFrameResponse(
             url=url,
             total_rows=total_rows,
             has_more=total_rows > self.DISPLAY_LIMIT,
             row_headers=manager.get_row_headers(),
+            supports_code_sample=self._handler.supports_code_sample(),
         )
 
     def get_column_values(
@@ -199,12 +191,13 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
         """Get all the unique values in a column."""
         LIMIT = 500
 
-        if args.column not in self._data.columns:
+        columns = self._manager.get_column_names()
+        if args.column not in columns:
             raise ColumnNotFound(args.column)
 
         # We get the unique values from the original dataframe, not the
         # transformed one
-        unique_values = self._data[args.column].unique().tolist()
+        unique_values = self._manager.get_unique_column_values(args.column)
         if len(unique_values) <= LIMIT:
             return GetColumnValuesResponse(
                 values=list(sorted(unique_values, key=str)),
@@ -216,7 +209,7 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
                 too_many_values=True,
             )
 
-    def _convert_value(self, value: Dict[str, Any]) -> pd.DataFrame:
+    def _convert_value(self, value: Dict[str, Any]) -> DataFrameType:
         if value is None:
             self._error = None
             return self._data

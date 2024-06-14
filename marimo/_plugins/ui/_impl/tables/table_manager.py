@@ -5,7 +5,7 @@ import abc
 from typing import Any, Dict, Generic, Optional, TypeVar
 
 import marimo._output.data.data as mo_data
-from marimo._data.models import ColumnSummary, DataType
+from marimo._data.models import ColumnSummary, DataType, NumpyType
 from marimo._plugins.core.web_component import JSONType
 
 T = TypeVar("T")
@@ -13,6 +13,7 @@ T = TypeVar("T")
 ColumnName = str
 FieldType = DataType
 FieldTypes = Dict[ColumnName, FieldType]
+NumpyTypes = Dict[ColumnName, NumpyType]
 
 
 class TableManager(abc.ABC, Generic[T]):
@@ -96,6 +97,10 @@ class TableManager(abc.ABC, Generic[T]):
 
     @abc.abstractmethod
     def get_column_names(self) -> list[str]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_unique_column_values(self, column: str) -> list[str | int | float]:
         raise NotImplementedError
 
 

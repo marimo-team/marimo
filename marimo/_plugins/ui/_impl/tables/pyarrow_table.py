@@ -155,6 +155,13 @@ class PyArrowTableManagerFactory(TableManagerFactory):
             def get_column_names(self) -> list[str]:
                 return self.data.schema.names
 
+            def get_unique_column_values(
+                self, column: str
+            ) -> list[str | int | float]:
+                idx = self.data.schema.get_field_index(column)
+                col: Any = self.data.column(idx)
+                return pc.unique(col).to_pylist()  # type: ignore[attr-defined, no-any-return]
+
             def sort_values(
                 self, by: ColumnName, descending: bool
             ) -> PyArrowTableManager:

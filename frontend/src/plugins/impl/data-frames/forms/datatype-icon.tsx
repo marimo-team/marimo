@@ -18,11 +18,12 @@ export const DataTypeIcon: React.FC<Props> = ({ type }) => {
       type.startsWith("int") ||
       type.startsWith("float") ||
       type.startsWith("uint") ||
+      type.startsWith("number") ||
       type.startsWith("complex")
     ) {
       return <BinaryIcon size={14} />;
     }
-    if (type.startsWith("object")) {
+    if (type.startsWith("object") || type.startsWith("string")) {
       return <CaseSensitiveIcon size={14} />;
     }
     if (type.startsWith("date") || type.startsWith("time")) {

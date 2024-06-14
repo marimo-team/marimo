@@ -10,9 +10,17 @@ import type { AppConfig } from "../config/config-schema";
 import type { ColumnPreviewSummary } from "../datasets/types";
 import type { JsonString } from "@/utils/json/base64";
 
+export type DataType =
+  | "string"
+  | "boolean"
+  | "integer"
+  | "number"
+  | "date"
+  | "unknown";
+
 export interface DataTableColumn {
   name: string;
-  type: "string" | "boolean" | "integer" | "number" | "date" | "unknown";
+  type: DataType;
 }
 
 export interface DataTable {

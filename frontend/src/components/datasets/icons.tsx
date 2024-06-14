@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { DataType } from "@/core/kernel/messages";
 import {
   ToggleLeftIcon,
   CalendarIcon,
@@ -8,14 +9,6 @@ import {
   ListOrderedIcon,
   type LucideIcon,
 } from "lucide-react";
-
-export type DataType =
-  | "string"
-  | "boolean"
-  | "integer"
-  | "number"
-  | "date"
-  | "unknown";
 
 /**
  * Maps a data type to an icon.

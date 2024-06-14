@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import List, Literal, Optional, Union
 
 DataType = Literal["string", "boolean", "integer", "number", "date", "unknown"]
+NumpyType = str
 
 
 @dataclass
