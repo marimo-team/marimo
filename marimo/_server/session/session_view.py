@@ -48,7 +48,7 @@ class SessionView:
         # Map of cell id to the last code that was executed in that cell.
         self.last_executed_code: dict[CellId_t, str] = {}
         # Map of cell id to the last cell execution time
-        self.last_execution_time: dict[CellId_t, float | None] = {}
+        self.last_execution_time: dict[CellId_t, float] = {}
 
     def _add_ui_value(self, name: str, value: Any) -> None:
         self.ui_values[name] = value

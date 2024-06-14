@@ -251,7 +251,7 @@ export type OperationMessage =
         /**
          * The last execution time
          */
-        last_execution_time: Record<CellId, number | undefined> | undefined;
+        last_execution_time: Record<CellId, number> | undefined;
         /**
          * App config
          */

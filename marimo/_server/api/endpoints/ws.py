@@ -115,7 +115,7 @@ class WebsocketHandler(SessionConsumer):
         resumed: bool,
         ui_values: dict[str, JSONType],
         last_executed_code: dict[CellId_t, str],
-        last_execution_time: dict[CellId_t, float | None],
+        last_execution_time: dict[CellId_t, float],
     ) -> None:
         """Communicates to the client that the kernel is ready.
 
