@@ -81,7 +81,7 @@ class TestPandasHandler:
         transform = ColumnConversionTransform(
             type=TransformType.COLUMN_CONVERSION,
             column_id="A",
-            data_type="int",
+            data_type="int64",
             errors="raise",
         )
         result = apply(df, transform)
