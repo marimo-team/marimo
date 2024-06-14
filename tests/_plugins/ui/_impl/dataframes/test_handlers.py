@@ -1,6 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from unittest.mock import Mock
+
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
@@ -32,6 +34,9 @@ if HAS_DEPS:
     import pandas as pd
     import polars as pl
     import polars.testing as pl_testing
+else:
+    pd = Mock()
+    pl = Mock()
 
 
 def apply(df: DataFrameType, transform: Transform) -> DataFrameType:

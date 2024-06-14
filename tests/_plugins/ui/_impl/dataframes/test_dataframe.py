@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from unittest.mock import Mock
 
 import pytest
 
@@ -21,6 +22,9 @@ HAS_DEPS = (
 if HAS_DEPS:
     import pandas as pd
     import polars as pl
+else:
+    pd = Mock()
+    pl = Mock()
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
