@@ -1,9 +1,10 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING, Any, Optional
 
-from marimo._messaging.ops import KernelReady
+from marimo._messaging.ops import CellOp, KernelReady
 from marimo._server.sessions import Session
 from marimo._utils.parse_dataclass import parse_raw
 from tests._server.conftest import get_session_manager
@@ -24,6 +25,7 @@ def create_response(
         "resumed": False,
         "ui_values": {},
         "last_executed_code": {},
+        "last_execution_time": {},
         "configs": [{"disabled": False, "hide_code": False}],
         "app_config": {"width": "full"},
     }
@@ -56,6 +58,7 @@ def assert_kernel_ready_response(
     assert data.ui_values == expected.ui_values
     assert data.configs == expected.configs
     assert data.app_config == expected.app_config
+    assert data.last_execution_time == expected.last_execution_time
 
 
 def get_session(client: TestClient, session_id: str) -> Optional[Session]:
@@ -68,7 +71,16 @@ def test_refresh_session(client: TestClient) -> None:
         assert_kernel_ready_response(data, create_response({}))
 
     # Check the session still exists after closing the websocket
-    assert get_session(client, "123")
+    session = get_session(client, "123")
+    session_view = session.session_view
+    assert session
+
+    # Mimic cell execution time save
+    cell_op = CellOp("Hbol")
+    session_view.save_execution_time(cell_op, "start")
+    time.sleep(0.123)
+    session_view.save_execution_time(cell_op, "end")
+    last_exec_time = session_view.last_execution_time["Hbol"]
 
     # New session with new ID (simulates refresh)
     # We should resume the current session
@@ -78,7 +90,15 @@ def test_refresh_session(client: TestClient) -> None:
         assert data == {"op": "reconnected", "data": {}}
         # Resume the session
         data = websocket.receive_json()
-        assert_kernel_ready_response(data, create_response({"resumed": True}))
+        assert_kernel_ready_response(
+            data,
+            create_response(
+                {
+                    "resumed": True,
+                    "last_execution_time": {"Hbol": last_exec_time},
+                }
+            ),
+        )
         # Send a value to the kernel
         response = client.post(
             "/api/kernel/set_ui_element_value",
@@ -111,6 +131,7 @@ def test_refresh_session(client: TestClient) -> None:
                         "ui-element-2": "value2",
                     },
                     "resumed": True,
+                    "last_execution_time": {"Hbol": last_exec_time},
                 }
             ),
         )
