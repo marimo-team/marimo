@@ -19,6 +19,9 @@ import { Button } from "../ui/button";
 import { ChevronsDownUpIcon, ChevronsUpDownIcon } from "lucide-react";
 import { Tooltip } from "../ui/tooltip";
 import { useExpandedOutput } from "@/core/cells/outputs";
+import { invariant } from "@/utils/invariant";
+import { CsvViewer } from "./file-tree/renderers";
+import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 
 /**
  * Renders an output based on an OutputMessage.
@@ -44,9 +47,11 @@ export const OutputRenderer: React.FC<{
   // TODO(akshayka): audio; pdf; text/csv; excel?; text/css; text/javascript
   switch (message.mimetype) {
     case "text/html":
+      invariant(typeof message.data === "string", "Expected string data");
       return <HtmlOutput className={channel} html={message.data} />;
 
     case "text/plain":
+      invariant(typeof message.data === "string", "Expected string data");
       return <TextOutput channel={channel} text={message.data} />;
 
     case "application/json":
@@ -62,17 +67,28 @@ export const OutputRenderer: React.FC<{
     case "image/bmp":
     case "image/gif":
     case "image/jpeg":
+      invariant(typeof message.data === "string", "Expected string data");
       return <ImageOutput className={channel} src={message.data} alt="" />;
 
     case "video/mp4":
     case "video/mpeg":
+      invariant(typeof message.data === "string", "Expected string data");
       return <VideoOutput className={channel} src={message.data} />;
 
     case "application/vnd.marimo+error":
+      invariant(Array.isArray(message.data), "Expected array data");
       return <MarimoErrorOutput errors={message.data} />;
 
+    case "text/csv":
+      invariant(typeof message.data === "string", "Expected string data");
+      return <CsvViewer contents={message.data} />;
+    case "text/markdown":
+      invariant(typeof message.data === "string", "Expected string data");
+      return (
+        <LazyAnyLanguageCodeMirror value={message.data} language="markdown" />
+      );
     default:
-      logNever(message);
+      logNever(message.mimetype);
       return null;
   }
 });

@@ -6,13 +6,14 @@ import re
 from html import escape, unescape
 from typing import (
     TYPE_CHECKING,
-    Annotated,
     Mapping,
     Sequence,
     TypeVar,
     Union,
     cast,
 )
+
+from marimo._utils.typing import Annotated
 
 if TYPE_CHECKING:
     import sys

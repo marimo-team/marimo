@@ -1,7 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Literal
+
+from marimo._utils.typing import Annotated
 
 # It is convenient to write mimetypes as strings,
 # but can lead to typos. This literal type

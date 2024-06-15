@@ -7,7 +7,6 @@ from collections.abc import Mapping, Sequence
 from decimal import Decimal
 from enum import Enum
 from typing import (
-    Annotated,
     Any,
     ClassVar,
     Dict,
@@ -23,6 +22,7 @@ from typing import (
 )
 
 from marimo._server.models.base import to_camel_case
+from marimo._utils.typing import Annotated
 
 
 def python_type_name(py_type: Any) -> str:
@@ -111,7 +111,7 @@ def python_type_to_openapi_type(
             ),
         }
     elif origin is Literal:
-        return {"enum": list(get_args(py_type))}
+        return {"enum": list(get_args(py_type)), "type": "string"}
     elif origin is NotRequired:
         return python_type_to_openapi_type(
             get_args(py_type)[0], processed_classes, camel_case
@@ -215,11 +215,7 @@ def dataclass_to_openapi_spec(
         properties[field_name] = python_type_to_openapi_type(
             field_type, processed_classes, camel_case
         )
-        if (
-            field.default is dataclasses.MISSING
-            and field.default_factory is dataclasses.MISSING
-            and not _is_optional(field_type)
-        ):
+        if not _is_optional(field_type):
             required.append(field_name)
 
     # Handle ClassVar that might be initialized already

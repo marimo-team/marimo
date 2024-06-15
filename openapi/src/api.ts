@@ -3,6 +3,17 @@
  * Do not make direct changes to the file.
  */
 
+/** OneOf type helpers */
+type Without<T, U> = { [P in Exclude<keyof T, keyof U>]?: never };
+type XOR<T, U> = T | U extends object
+  ? (Without<T, U> & U) | (Without<U, T> & T)
+  : T | U;
+type OneOf<T extends any[]> = T extends [infer Only]
+  ? Only
+  : T extends [infer A, infer B, ...infer Rest]
+    ? OneOf<[XOR<A, B>, ...Rest]>
+    : never;
+
 export interface paths {
   "/@file/{filename_and_length}": {
     get: {
@@ -709,7 +720,7 @@ export interface components {
       /** @enum {string} */
       name: "alert";
       title: string;
-      /** @enum {unknown|null} */
+      /** @enum {string|null} */
       variant?: "danger" | null;
     };
     AppMetadata: {
@@ -726,13 +737,13 @@ export interface components {
       };
     };
     Banner: {
-      /** @enum {unknown|null} */
+      /** @enum {string|null} */
       action?: "restart" | null;
       description: string;
       /** @enum {string} */
       name: "banner";
       title: string;
-      /** @enum {unknown|null} */
+      /** @enum {string|null} */
       variant?: "danger" | null;
     };
     BaseResponse: {
@@ -743,12 +754,13 @@ export interface components {
       | "stdout"
       | "stderr"
       | "stdin"
+      | "pdb"
       | "output"
       | "marimo-error"
       | "media";
     CellConfig: {
-      disabled?: boolean;
-      hideCode?: boolean;
+      disabled: boolean;
+      hide_code: boolean;
     };
     CellOp: {
       cell_id: string;
@@ -761,15 +773,23 @@ export interface components {
       output?: components["schemas"]["CellOutput"];
       stale_inputs?: boolean | null;
       status?: components["schemas"]["CellStatus"];
-      timestamp?: number;
+      timestamp: number;
     };
     CellOutput: {
       channel: components["schemas"]["CellChannel"];
-      data: string | components["schemas"]["Error"][];
+      data: OneOf<
+        [
+          string,
+          components["schemas"]["Error"][],
+          {
+            [key: string]: unknown;
+          },
+        ]
+      >;
       mimetype: components["schemas"]["MimeType"];
-      timestamp?: number;
+      timestamp: number;
     };
-    /** @enum {unknown} */
+    /** @enum {string} */
     CellStatus: "idle" | "queued" | "running" | "disabled-transitively";
     CodeCompletionRequest: {
       cellId: string;
@@ -813,11 +833,12 @@ export interface components {
     };
     CycleError: {
       edges_with_vars: [string, string[], string][];
-      type?: string;
+      /** @enum {string} */
+      type: "cycle";
     };
     DataColumnPreview: {
       chart_code?: string | null;
-      chart_max_rows_errors?: boolean;
+      chart_max_rows_errors: boolean;
       chart_spec?: string | null;
       column_name: string;
       error?: string | null;
@@ -838,7 +859,7 @@ export interface components {
       name: string;
       type: components["schemas"]["DataType"];
     };
-    /** @enum {unknown} */
+    /** @enum {string} */
     DataType: "string" | "boolean" | "integer" | "number" | "date" | "unknown";
     Datasets: {
       /** @enum {string} */
@@ -848,7 +869,8 @@ export interface components {
     DeleteNonlocalError: {
       cells: string[];
       name: string;
-      type?: string;
+      /** @enum {string} */
+      type: "delete-nonlocal";
     };
     DeleteRequest: {
       cellId: string;
@@ -910,7 +932,7 @@ export interface components {
       mimeType?: string | null;
     };
     FileInfo: {
-      children?: components["schemas"]["FileInfo"][];
+      children: components["schemas"]["FileInfo"][];
       id: string;
       isDirectory: boolean;
       isMarimoFile: boolean;
@@ -970,7 +992,7 @@ export interface components {
       status: components["schemas"]["HumanReadableStatus"];
     };
     HumanReadableStatus: {
-      /** @enum {unknown} */
+      /** @enum {string} */
       code: "ok" | "error";
       message?: string | null;
       title?: string | null;
@@ -1004,8 +1026,8 @@ export interface components {
       app_config: {
         app_title?: string | null;
         layout_file?: string | null;
-        /** @enum {unknown} */
-        width?: "normal" | "compact" | "medium" | "full";
+        /** @enum {string} */
+        width: "normal" | "compact" | "medium" | "full";
       };
       cell_ids: string[];
       codes: string[];
@@ -1043,7 +1065,8 @@ export interface components {
     MarimoAncestorStoppedError: {
       msg: string;
       raising_cell: string;
-      type?: string;
+      /** @enum {string} */
+      type: "ancestor-stopped";
     };
     MarimoConfig: {
       ai: {
@@ -1058,12 +1081,12 @@ export interface components {
         copilot: boolean;
       };
       display: {
-        /** @enum {unknown} */
+        /** @enum {string} */
         cell_output: "above" | "below";
         code_editor_font_size: number;
-        /** @enum {unknown} */
+        /** @enum {string} */
         default_width: "normal" | "compact" | "medium" | "full";
-        /** @enum {unknown} */
+        /** @enum {string} */
         theme: "light" | "dark" | "system";
       };
       experimental: {
@@ -1076,22 +1099,22 @@ export interface components {
         overrides: {
           [key: string]: string;
         };
-        /** @enum {unknown} */
+        /** @enum {string} */
         preset: "default" | "vim";
       };
       package_management: {
-        /** @enum {unknown} */
+        /** @enum {string} */
         manager: "pip" | "rye" | "uv" | "poetry" | "pixi";
       };
       runtime: {
         auto_instantiate: boolean;
-        /** @enum {unknown} */
+        /** @enum {string} */
         auto_reload: "off" | "lazy" | "autorun";
-        /** @enum {unknown} */
+        /** @enum {string} */
         on_cell_change: "lazy" | "autorun";
       };
       save: {
-        /** @enum {unknown} */
+        /** @enum {string} */
         autosave: "off" | "after_delay";
         autosave_delay: number;
         format_on_save: boolean;
@@ -1105,7 +1128,8 @@ export interface components {
       exception_type: string;
       msg: string;
       raising_cell?: string | null;
-      type?: string;
+      /** @enum {string} */
+      type: "exception";
     };
     MarimoFile: {
       initializationId?: string | null;
@@ -1115,11 +1139,13 @@ export interface components {
       sessionId?: string | null;
     };
     MarimoInterruptionError: {
-      type?: string;
+      /** @enum {string} */
+      type: "interruption";
     };
     MarimoSyntaxError: {
       msg: string;
-      type?: string;
+      /** @enum {string} */
+      type: "syntax";
     };
     MessageOperation:
       | components["schemas"]["CellOp"]
@@ -1143,7 +1169,7 @@ export interface components {
       | components["schemas"]["QueryParamsClear"]
       | components["schemas"]["Datasets"]
       | components["schemas"]["DataColumnPreview"];
-    /** @enum {unknown} */
+    /** @enum {string} */
     MimeType:
       | "application/json"
       | "application/vnd.marimo+error"
@@ -1169,7 +1195,8 @@ export interface components {
     MultipleDefinitionError: {
       cells: string[];
       name: string;
-      type?: string;
+      /** @enum {string} */
+      type: "multiple-defs";
     };
     NonNestedLiteral: number | string | boolean;
     OpenFileRequest: {
@@ -1255,7 +1282,7 @@ export interface components {
     };
     SetUIElementValueRequest: {
       objectIds: string[];
-      token?: string;
+      token: string;
       values: unknown[];
     };
     SetUserConfigRequest: {
@@ -1281,11 +1308,12 @@ export interface components {
     };
     StopRequest: Record<string, never>;
     SuccessResponse: {
-      success?: boolean;
+      success: boolean;
     };
     UnknownError: {
       msg: string;
-      type?: string;
+      /** @enum {string} */
+      type: "unknown";
     };
     UpdateComponentValuesRequest: {
       objectIds: string[];
@@ -1312,7 +1340,7 @@ export interface components {
       variables: components["schemas"]["VariableDeclaration"][];
     };
     WorkspaceFilesRequest: {
-      includeMarkdown?: boolean;
+      includeMarkdown: boolean;
     };
     WorkspaceFilesResponse: {
       files: components["schemas"]["MarimoFile"][];

@@ -1,14 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { OperationMessageData } from "./handlers";
+
+import { OperationMessageData } from "./messages";
 
 export const queryParamHandlers = {
-  append: (data: OperationMessageData<"query-params-append">["data"]) => {
+  append: (data: OperationMessageData<"query-params-append">) => {
     const url = new URL(window.location.href);
     url.searchParams.append(data.key, data.value);
     window.history.pushState({}, "", `${url.pathname}${url.search}`);
     return;
   },
-  set: (data: OperationMessageData<"query-params-set">["data"]) => {
+  set: (data: OperationMessageData<"query-params-set">) => {
     const url = new URL(window.location.href);
     if (Array.isArray(data.value)) {
       url.searchParams.delete(data.key);
@@ -19,7 +20,7 @@ export const queryParamHandlers = {
     window.history.pushState({}, "", `${url.pathname}${url.search}`);
     return;
   },
-  delete: (data: OperationMessageData<"query-params-delete">["data"]) => {
+  delete: (data: OperationMessageData<"query-params-delete">) => {
     const url = new URL(window.location.href);
     if (data.value == null) {
       url.searchParams.delete(data.key);

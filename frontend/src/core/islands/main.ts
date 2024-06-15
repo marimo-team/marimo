@@ -27,6 +27,7 @@ import { defineCustomElement } from "../dom/defineCustomElement";
 import { MarimoIslandElement } from "./components/web-components";
 import { RuntimeState } from "../kernel/RuntimeState";
 import { sendComponentValues } from "../network/requests";
+import { RequestId } from "../network/DeferredRequestRegistry";
 
 /**
  * Main entry point for the js bundle for embedded marimo apps.
@@ -82,7 +83,10 @@ export async function initialize() {
         handleRemoveUIElements(msg.data);
         return;
       case "function-call-result":
-        FUNCTIONS_REGISTRY.resolve(msg.data.function_call_id, msg.data);
+        FUNCTIONS_REGISTRY.resolve(
+          msg.data.function_call_id as RequestId,
+          msg.data,
+        );
         return;
       case "cell-op":
         handleCellOperation(msg.data, actions.handleCellMessage);
@@ -113,6 +117,8 @@ export async function initialize() {
         return;
       case "query-params-clear":
         queryParamHandlers.clear();
+        return;
+      case "reconnected":
         return;
       default:
         logNever(msg);

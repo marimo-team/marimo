@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import dataclasses
 import inspect
-from typing import TYPE_CHECKING, Annotated, Any, Literal, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Literal, Mapping, Optional
 
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._utils.deep_merge import deep_merge
+from marimo._utils.typing import Annotated
 
 CellId_t = str
 

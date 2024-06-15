@@ -1,16 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { generateColumns } from "@/components/data-table/columns";
-import { DataTable } from "@/components/data-table/data-table";
 import { sendFileDetails, sendUpdateFile } from "@/core/network/requests";
 import { FileInfo } from "@/core/network/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
-import { parseCsvData } from "@/plugins/impl/vega/loader";
 import { useTheme } from "@/theme/useTheme";
-import { Objects } from "@/utils/objects";
 import { EditorView, keymap } from "@codemirror/view";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button } from "../inputs/Inputs";
 import { CopyIcon, DownloadIcon, SaveIcon } from "lucide-react";
 import { renderShortcut } from "@/components/shortcuts/renderShortcut";
@@ -19,6 +15,7 @@ import { downloadBlob, downloadByURL } from "@/utils/download";
 import { Base64String, base64ToDataURL } from "@/utils/json/base64";
 import { hotkeysAtom } from "@/core/config/config";
 import { useAtomValue } from "jotai";
+import { ImageViewer, CsvViewer, AudioViewer, VideoViewer } from "./renderers";
 
 interface Props {
   file: FileInfo;
@@ -220,55 +217,6 @@ export const FileViewer: React.FC<Props> = ({ file }) => {
       </div>
     </>
   );
-};
-
-const CsvViewer: React.FC<{ contents: string }> = ({ contents }) => {
-  const data = useMemo(() => parseCsvData(contents), [contents]);
-  const columns = useMemo(
-    () =>
-      generateColumns({
-        items: data,
-        rowHeaders: [],
-        selection: null,
-        showColumnSummaries: false,
-      }),
-    [data],
-  );
-
-  return (
-    <DataTable
-      data={data}
-      columns={columns}
-      wrapperClassName="h-full justify-between pb-1 px-1"
-      pagination={true}
-      pageSize={10}
-      className="rounded-none border-b flex overflow-hidden"
-      rowSelection={Objects.EMPTY}
-    />
-  );
-};
-
-const ImageViewer: React.FC<{ base64: Base64String; mime: string }> = ({
-  mime,
-  base64,
-}) => {
-  return <img src={base64ToDataURL(base64, mime)} alt="Preview" />;
-};
-
-const AudioViewer: React.FC<{ base64: Base64String; mime: string }> = ({
-  mime,
-  base64,
-}) => {
-  // eslint-disable-next-line jsx-a11y/media-has-caption
-  return <audio controls={true} src={base64ToDataURL(base64, mime)} />;
-};
-
-const VideoViewer: React.FC<{ base64: Base64String; mime: string }> = ({
-  mime,
-  base64,
-}) => {
-  // eslint-disable-next-line jsx-a11y/media-has-caption
-  return <video controls={true} src={base64ToDataURL(base64, mime)} />;
 };
 
 const isMedia = (mime: string) => {

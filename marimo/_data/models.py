@@ -4,7 +4,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta  # noqa: TCH003
 from decimal import Decimal
-from typing import Annotated, List, Literal, Optional, Union
+from typing import List, Literal, Optional, Union
+
+from marimo._utils.typing import Annotated
 
 DataType = Annotated[
     Literal["string", "boolean", "integer", "number", "date", "unknown"],

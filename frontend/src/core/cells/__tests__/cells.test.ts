@@ -274,7 +274,7 @@ describe("cell reducer", () => {
     // Receive queued messages
     actions.handleCellMessage({
       cell_id: firstCellId,
-      output: null,
+      output: undefined,
       console: null,
       status: "queued",
       stale_inputs: null,
@@ -291,7 +291,7 @@ describe("cell reducer", () => {
     // Receive running messages
     actions.handleCellMessage({
       cell_id: firstCellId,
-      output: null,
+      output: undefined,
       console: null,
       status: "running",
       stale_inputs: null,
@@ -308,14 +308,14 @@ describe("cell reducer", () => {
     // Console messages shouldn't transition status
     actions.handleCellMessage({
       cell_id: firstCellId,
-      output: null,
+      output: undefined,
       console: {
         channel: "stdout",
         mimetype: "text/plain",
         data: "hello!",
         timestamp: 0,
       },
-      status: null,
+      status: undefined,
       stale_inputs: null,
       timestamp: new Date(22).getTime() as Seconds,
     });
@@ -398,7 +398,7 @@ describe("cell reducer", () => {
     // Queue
     actions.handleCellMessage({
       cell_id: firstCellId,
-      output: null,
+      output: undefined,
       console: null,
       status: "queued",
       stale_inputs: null,
@@ -409,7 +409,7 @@ describe("cell reducer", () => {
     // Running
     actions.handleCellMessage({
       cell_id: firstCellId,
-      output: null,
+      output: undefined,
       console: null,
       status: "running",
       stale_inputs: null,
@@ -453,7 +453,7 @@ describe("cell reducer", () => {
     // Queue
     actions.handleCellMessage({
       cell_id: firstCellId,
-      output: null,
+      output: undefined,
       console: null,
       status: "queued",
       stale_inputs: null,
@@ -464,7 +464,7 @@ describe("cell reducer", () => {
     // Running
     actions.handleCellMessage({
       cell_id: firstCellId,
-      output: null,
+      output: undefined,
       console: null,
       status: "running",
       stale_inputs: null,
@@ -523,7 +523,7 @@ describe("cell reducer", () => {
     // Receive queued messages
     actions.handleCellMessage({
       cell_id: secondCell,
-      output: null,
+      output: undefined,
       console: null,
       status: "queued",
       stale_inputs: null,
@@ -540,9 +540,9 @@ describe("cell reducer", () => {
     // Receive stale message
     actions.handleCellMessage({
       cell_id: secondCell,
-      output: null,
+      output: undefined,
       console: null,
-      status: null,
+      status: undefined,
       stale_inputs: true,
       timestamp: new Date(20).getTime() as Seconds,
     });
@@ -612,7 +612,10 @@ describe("cell reducer", () => {
     const firstCellId = cells[0].id;
     let cell = cells[0];
     // Starts empty
-    expect(cell.config).toEqual({});
+    expect(cell.config).toEqual({
+      disabled: false,
+      hide_code: false,
+    });
 
     actions.updateCellConfig({
       cellId: firstCellId,
@@ -646,7 +649,7 @@ describe("cell reducer", () => {
     // Receive queued messages
     actions.handleCellMessage({
       cell_id: firstCellId,
-      output: null,
+      output: undefined,
       console: null,
       status: "queued",
       stale_inputs: null,
@@ -665,7 +668,7 @@ describe("cell reducer", () => {
     // Receive idle message
     actions.handleCellMessage({
       cell_id: firstCellId,
-      output: null,
+      output: undefined,
       console: null,
       status: "idle",
       stale_inputs: null,
@@ -706,7 +709,7 @@ describe("cell reducer", () => {
     // Receive queued message
     actions.handleCellMessage({
       cell_id: firstCellId,
-      output: null,
+      output: undefined,
       console: null,
       status: "queued",
       stale_inputs: null,
@@ -720,7 +723,7 @@ describe("cell reducer", () => {
     // Receive running message
     actions.handleCellMessage({
       cell_id: firstCellId,
-      output: null,
+      output: undefined,
       console: null,
       status: "running",
       stale_inputs: null,
@@ -771,7 +774,7 @@ describe("cell reducer", () => {
     // Receive queued messages
     actions.handleCellMessage({
       cell_id: firstCellId,
-      output: null,
+      output: undefined,
       console: null,
       status: "queued",
       stale_inputs: null,
@@ -784,7 +787,7 @@ describe("cell reducer", () => {
     // Receive running messages
     actions.handleCellMessage({
       cell_id: firstCellId,
-      output: null,
+      output: undefined,
       console: null,
       status: "running",
       stale_inputs: null,
@@ -797,9 +800,9 @@ describe("cell reducer", () => {
     // Add console
     actions.handleCellMessage({
       cell_id: firstCellId,
-      output: null,
+      output: undefined,
       console: STDOUT,
-      status: null,
+      status: undefined,
       stale_inputs: null,
       timestamp: new Date(22).getTime() as Seconds,
     });
@@ -815,9 +818,9 @@ describe("cell reducer", () => {
     // Ask via stdin
     actions.handleCellMessage({
       cell_id: firstCellId,
-      output: null,
+      output: undefined,
       console: STD_IN_1,
-      status: null,
+      status: undefined,
       stale_inputs: null,
       timestamp: new Date(22).getTime() as Seconds,
     });
@@ -846,9 +849,9 @@ describe("cell reducer", () => {
     // Ask via stdin, again
     actions.handleCellMessage({
       cell_id: firstCellId,
-      output: null,
+      output: undefined,
       console: STD_IN_2,
-      status: null,
+      status: undefined,
       stale_inputs: null,
       timestamp: new Date(22).getTime() as Seconds,
     });
@@ -907,9 +910,9 @@ describe("cell reducer", () => {
     // Add console
     actions.handleCellMessage({
       cell_id: firstCellId,
-      output: null,
+      output: undefined,
       console: [OLD_STDOUT],
-      status: null,
+      status: undefined,
       stale_inputs: null,
       timestamp: new Date(1).getTime() as Seconds,
     });
@@ -926,7 +929,7 @@ describe("cell reducer", () => {
     // Receive queued messages
     actions.handleCellMessage({
       cell_id: firstCellId,
-      output: null,
+      output: undefined,
       console: null,
       status: "queued",
       stale_inputs: null,
@@ -940,7 +943,7 @@ describe("cell reducer", () => {
     // Receive running messages
     actions.handleCellMessage({
       cell_id: firstCellId,
-      output: null,
+      output: undefined,
       console: [], // Backend sends an empty array to clearu
       status: "running",
       stale_inputs: null,
@@ -954,7 +957,7 @@ describe("cell reducer", () => {
     // Add console
     actions.handleCellMessage({
       cell_id: firstCellId,
-      output: null,
+      output: undefined,
       console: [STDOUT],
       status: "idle",
       stale_inputs: null,

@@ -22,7 +22,6 @@ import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import type { SessionId } from "../kernel/session";
 import { useBannersActions } from "../errors/state";
 import { useAlertActions } from "../alerts/state";
-import { generateUUID } from "@/utils/uuid";
 import { createWsUrl } from "./createWsUrl";
 import { useSetAppConfig } from "../config/config";
 import {
@@ -33,6 +32,9 @@ import {
 import { queryParamHandlers } from "../kernel/queryParamHandlers";
 import type { JsonString } from "@/utils/json/base64";
 import { useDatasetsActions } from "../datasets/state";
+import { RequestId } from "../network/DeferredRequestRegistry";
+import { VariableName } from "../variables/types";
+import { CellId } from "../cells/ids";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -83,10 +85,13 @@ export function useMarimoWebSocket(opts: {
         return;
 
       case "completion-result":
-        AUTOCOMPLETER.resolve(msg.data.completion_id, msg.data);
+        AUTOCOMPLETER.resolve(msg.data.completion_id as RequestId, msg.data);
         return;
       case "function-call-result":
-        FUNCTIONS_REGISTRY.resolve(msg.data.function_call_id, msg.data);
+        FUNCTIONS_REGISTRY.resolve(
+          msg.data.function_call_id as RequestId,
+          msg.data,
+        );
         return;
       case "cell-op":
         handleCellOperation(msg.data, handleCellMessage);
@@ -95,17 +100,19 @@ export function useMarimoWebSocket(opts: {
       case "variables":
         setVariables(
           msg.data.variables.map((v) => ({
-            name: v.name,
-            declaredBy: v.declared_by,
-            usedBy: v.used_by,
+            name: v.name as VariableName,
+            declaredBy: v.declared_by as CellId[],
+            usedBy: v.used_by as CellId[],
           })),
         );
-        filterDatasetsFromVariables(msg.data.variables.map((v) => v.name));
+        filterDatasetsFromVariables(
+          msg.data.variables.map((v) => v.name as VariableName),
+        );
         return;
       case "variable-values":
         setMetadata(
           msg.data.variables.map((v) => ({
-            name: v.name,
+            name: v.name as VariableName,
             dataType: v.datatype,
             value: v.value,
           })),
@@ -121,10 +128,7 @@ export function useMarimoWebSocket(opts: {
         });
         return;
       case "banner":
-        addBanner({
-          ...msg.data,
-          id: generateUUID(),
-        });
+        addBanner(msg.data);
         return;
       case "missing-package-alert":
         addPackageAlert({
@@ -159,6 +163,9 @@ export function useMarimoWebSocket(opts: {
         return;
       case "data-column-preview":
         addColumnPreview(msg.data);
+        return;
+
+      case "reconnected":
         return;
 
       default:

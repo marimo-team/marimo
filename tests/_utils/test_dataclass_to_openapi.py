@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Annotated, Any, ClassVar, List, Literal, Optional, Union
+from typing import Any, ClassVar, List, Literal, Optional, Union
 
 from marimo._utils.dataclass_to_openapi import (
     python_type_to_openapi_type,
 )
+from marimo._utils.typing import Annotated
 
 
 @dataclasses.dataclass
@@ -38,7 +39,7 @@ def test_dataclass_to_openapi() -> None:
                     "street": {"type": "string"},
                     "city": {"type": "string"},
                     "zip_code": {"type": "integer", "nullable": True},
-                    "kind": {"enum": ["home", "work"]},
+                    "kind": {"enum": ["home", "work"], "type": "string"},
                 },
                 "required": ["street", "city", "kind"],
             },
@@ -57,7 +58,7 @@ def test_dataclass_to_openapi_with_camelcase() -> None:
             "street": {"type": "string"},
             "city": {"type": "string"},
             "zipCode": {"type": "integer", "nullable": True},
-            "kind": {"enum": ["home", "work"]},
+            "kind": {"enum": ["home", "work"], "type": "string"},
         },
         "required": ["street", "city", "kind"],
     }
@@ -91,7 +92,11 @@ Colors = Annotated[
 def test_named_union() -> None:
     openapi_spec = python_type_to_openapi_type(Colors, {}, camel_case=False)
     assert openapi_spec == {
-        "oneOf": [{"enum": ["red"]}, {"enum": ["green"]}, {"enum": ["blue"]}]
+        "oneOf": [
+            {"enum": ["red"], "type": "string"},
+            {"enum": ["green"], "type": "string"},
+            {"enum": ["blue"], "type": "string"},
+        ]
     }
 
 

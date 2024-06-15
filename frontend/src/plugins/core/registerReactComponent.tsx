@@ -168,7 +168,7 @@ function PluginSlotInternal<T>(
         });
         if (response.status.code !== "ok") {
           Logger.error(response.status);
-          throw new Error(response.status.message);
+          throw new Error(response.status.message || "Unknown error");
         }
         return prettyParse(output, response.return_value);
       };

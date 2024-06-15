@@ -1,4 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import { invariant } from "@/utils/invariant";
 import { CellMessage, OutputMessage } from "../kernel/messages";
 import { CellId } from "./ids";
 import { fromUnixTime } from "date-fns";
@@ -16,22 +17,18 @@ export function getCellLogsForMessage(cell: CellMessage): CellLog[] {
 
   for (const output of outputs) {
     if (output.mimetype === "text/plain") {
+      invariant(typeof output.data === "string", "expected string");
+      const isError =
+        output.channel === "stderr" || output.channel === "marimo-error";
       switch (output.channel) {
         case "stdout":
-          logs.push({
-            timestamp: output.timestamp,
-            level: "stdout",
-            message: output.data,
-            cellId: cell.cell_id,
-          });
-          break;
         case "stderr":
         case "marimo-error":
           logs.push({
-            timestamp: output.timestamp,
-            level: "stderr",
+            timestamp: output.timestamp || Date.now(),
+            level: isError ? "stderr" : "stdout",
             message: output.data,
-            cellId: cell.cell_id,
+            cellId: cell.cell_id as CellId,
           });
           break;
         default:

@@ -31,7 +31,7 @@ import {
 } from "lucide-react";
 import type { ActionButton } from "./types";
 import { MultiIcon } from "@/components/icons/multi-icon";
-import type { CellConfig, CellData, CellStatus } from "@/core/cells/types";
+import type { CellData } from "@/core/cells/types";
 import type { CellId } from "@/core/cells/ids";
 import { saveCellConfig } from "@/core/network/requests";
 import type { EditorView } from "@codemirror/view";
@@ -50,6 +50,7 @@ import { MarkdownIcon, PythonIcon } from "../cell/code/icons";
 import { aiEnabledAtom, autoInstantiateAtom } from "@/core/config/config";
 import { useDeleteCellCallback } from "../cell/useDeleteCell";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
+import { CellConfig, CellStatus } from "@/core/network/types";
 
 export interface CellActionButtonProps
   extends Pick<CellData, "name" | "config"> {
@@ -98,7 +99,7 @@ export function useCellActionButtons({ cell }: Props) {
   };
 
   const toggleHideCode = async () => {
-    const newConfig: CellConfig = { hide_code: !config.hide_code };
+    const newConfig: Partial<CellConfig> = { hide_code: !config.hide_code };
     await saveCellConfig({ configs: { [cellId]: newConfig } });
     updateCellConfig({ cellId, config: newConfig });
 
@@ -166,7 +167,7 @@ export function useCellActionButtons({ cell }: Props) {
           status === "running" ||
           status === "queued" ||
           status === "disabled-transitively" ||
-          config.disabled === true,
+          config.disabled,
         handle: () => runCell(),
       },
       {
@@ -226,7 +227,7 @@ export function useCellActionButtons({ cell }: Props) {
         ) : (
           <EyeOffIcon size={13} strokeWidth={1.5} />
         ),
-        label: config.hide_code === true ? "Show code" : "Hide code",
+        label: config.hide_code ? "Show code" : "Hide code",
         handle: toggleHideCode,
         hotkey: "cell.hideCode",
       },
@@ -236,7 +237,7 @@ export function useCellActionButtons({ cell }: Props) {
         ) : (
           <ZapOffIcon size={13} strokeWidth={1.5} />
         ),
-        label: config.disabled === true ? "Enable cell" : "Disable cell",
+        label: config.disabled ? "Enable cell" : "Disable cell",
         rightElement: (
           <Switch
             data-testid="cell-disable-switch"

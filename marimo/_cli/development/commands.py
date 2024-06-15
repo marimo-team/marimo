@@ -41,6 +41,8 @@ def _generate_schema() -> dict[str, Any]:
         CellChannel,
         data.NonNestedLiteral,
         data.DataType,
+        CellConfig,
+        MarimoConfig,
         # Errors
         errors.CycleError,
         errors.MultipleDefinitionError,
@@ -91,8 +93,6 @@ def _generate_schema() -> dict[str, Any]:
         requests.AppMetadata,
         home.MarimoFile,
         files.FileInfo,
-        MarimoConfig,
-        CellConfig,
         requests.ExecutionRequest,
         snippets.SnippetSection,
         snippets.Snippet,
@@ -147,7 +147,6 @@ def _generate_schema() -> dict[str, Any]:
         requests.SetUserConfigRequest,
         requests.StopRequest,
     ]
-    dont_camel_case = {MarimoConfig}
 
     processed_classes: Dict[Any, str] = {
         JSONType: "JSONType",
@@ -166,15 +165,6 @@ def _generate_schema() -> dict[str, Any]:
         }
     }
 
-    for cls in REQUEST_RESPONSES:
-        # Remove self from the list
-        # since it may not have been processed yet
-        if cls in processed_classes:
-            del processed_classes[cls]
-        component_schemas[python_type_name(cls)] = python_type_to_openapi_type(
-            cls, processed_classes, camel_case=cls not in dont_camel_case
-        )
-
     for cls in MESSAGES:
         # Remove self from the list
         # since it may not have been processed yet
@@ -182,6 +172,15 @@ def _generate_schema() -> dict[str, Any]:
             del processed_classes[cls]
         component_schemas[python_type_name(cls)] = python_type_to_openapi_type(
             cls, processed_classes, camel_case=False
+        )
+
+    for cls in REQUEST_RESPONSES:
+        # Remove self from the list
+        # since it may not have been processed yet
+        if cls in processed_classes:
+            del processed_classes[cls]
+        component_schemas[python_type_name(cls)] = python_type_to_openapi_type(
+            cls, processed_classes, camel_case=True
         )
 
     schemas = SchemaGenerator(

@@ -12,7 +12,6 @@ import time
 from dataclasses import asdict, dataclass, field
 from types import ModuleType
 from typing import (
-    Annotated,
     Any,
     ClassVar,
     Dict,
@@ -41,6 +40,7 @@ from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import get_context
 from marimo._runtime.layout.layout import LayoutConfig
+from marimo._utils.typing import Annotated
 
 LOGGER = loggers.marimo_logger()
 

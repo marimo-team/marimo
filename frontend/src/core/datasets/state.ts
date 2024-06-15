@@ -64,7 +64,9 @@ const {
     const names = new Set(variableNames);
     // Filter out tables that come from variables that are not in the list
     const tables = state.tables.filter((table) => {
-      return table.variable_name && names.has(table.variable_name);
+      return (
+        table.variable_name && names.has(table.variable_name as VariableName)
+      );
     });
     return { ...state, tables };
   },

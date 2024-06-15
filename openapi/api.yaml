@@ -27,6 +27,7 @@ components:
           enum:
           - danger
           nullable: true
+          type: string
       required:
       - title
       - description
@@ -70,6 +71,7 @@ components:
           enum:
           - restart
           nullable: true
+          type: string
         description:
           type: string
         name:
@@ -82,6 +84,7 @@ components:
           enum:
           - danger
           nullable: true
+          type: string
       required:
       - title
       - description
@@ -99,6 +102,7 @@ components:
       - stdout
       - stderr
       - stdin
+      - pdb
       - output
       - marimo-error
       - media
@@ -107,8 +111,11 @@ components:
       properties:
         disabled:
           type: boolean
-        hideCode:
+        hide_code:
           type: boolean
+      required:
+      - disabled
+      - hide_code
       type: object
     CellOp:
       properties:
@@ -138,6 +145,7 @@ components:
           type: number
       required:
       - cell_id
+      - timestamp
       - name
       type: object
     CellOutput:
@@ -150,6 +158,8 @@ components:
           - items:
               $ref: '#/components/schemas/Error'
             type: array
+          - additionalProperties: {}
+            type: object
         mimetype:
           $ref: '#/components/schemas/MimeType'
         timestamp:
@@ -158,6 +168,7 @@ components:
       - channel
       - mimetype
       - data
+      - timestamp
       type: object
     CellStatus:
       enum:
@@ -165,6 +176,7 @@ components:
       - queued
       - running
       - disabled-transitively
+      type: string
     CodeCompletionRequest:
       properties:
         cellId:
@@ -288,9 +300,12 @@ components:
             type: array
           type: array
         type:
+          enum:
+          - cycle
           type: string
       required:
       - edges_with_vars
+      - type
       type: object
     DataColumnPreview:
       properties:
@@ -319,6 +334,7 @@ components:
       required:
       - table_name
       - column_name
+      - chart_max_rows_errors
       - name
       type: object
     DataTable:
@@ -363,6 +379,7 @@ components:
       - number
       - date
       - unknown
+      type: string
     Datasets:
       properties:
         name:
@@ -386,10 +403,13 @@ components:
         name:
           type: string
         type:
+          enum:
+          - delete-nonlocal
           type: string
       required:
       - name
       - cells
+      - type
       type: object
     DeleteRequest:
       properties:
@@ -558,6 +578,7 @@ components:
       - name
       - isDirectory
       - isMarimoFile
+      - children
       type: object
     FileListRequest:
       properties:
@@ -685,6 +706,7 @@ components:
           enum:
           - ok
           - error
+          type: string
         message:
           nullable: true
           type: string
@@ -714,6 +736,7 @@ components:
             - installing
             - installed
             - failed
+            type: string
           type: object
       required:
       - packages
@@ -765,6 +788,9 @@ components:
               - compact
               - medium
               - full
+              type: string
+          required:
+          - width
           type: object
         cell_ids:
           items:
@@ -846,10 +872,13 @@ components:
         raising_cell:
           type: string
         type:
+          enum:
+          - ancestor-stopped
           type: string
       required:
       - msg
       - raising_cell
+      - type
       type: object
     MarimoConfig:
       properties:
@@ -887,6 +916,7 @@ components:
               enum:
               - above
               - below
+              type: string
             code_editor_font_size:
               type: integer
             default_width:
@@ -895,11 +925,13 @@ components:
               - compact
               - medium
               - full
+              type: string
             theme:
               enum:
               - light
               - dark
               - system
+              type: string
           required:
           - theme
           - code_editor_font_size
@@ -926,6 +958,7 @@ components:
               enum:
               - default
               - vim
+              type: string
           required:
           - preset
           - overrides
@@ -939,6 +972,7 @@ components:
               - uv
               - poetry
               - pixi
+              type: string
           required:
           - manager
           type: object
@@ -951,10 +985,12 @@ components:
               - 'off'
               - lazy
               - autorun
+              type: string
             on_cell_change:
               enum:
               - lazy
               - autorun
+              type: string
           required:
           - auto_instantiate
           - auto_reload
@@ -966,6 +1002,7 @@ components:
               enum:
               - 'off'
               - after_delay
+              type: string
             autosave_delay:
               type: integer
             format_on_save:
@@ -981,6 +1018,7 @@ components:
               oneOf:
               - enum:
                 - default
+                type: string
               - type: string
             follow_symlink:
               type: boolean
@@ -1010,10 +1048,13 @@ components:
           nullable: true
           type: string
         type:
+          enum:
+          - exception
           type: string
       required:
       - msg
       - exception_type
+      - type
       type: object
     MarimoFile:
       properties:
@@ -1037,16 +1078,23 @@ components:
     MarimoInterruptionError:
       properties:
         type:
+          enum:
+          - interruption
           type: string
+      required:
+      - type
       type: object
     MarimoSyntaxError:
       properties:
         msg:
           type: string
         type:
+          enum:
+          - syntax
           type: string
       required:
       - msg
+      - type
       type: object
     MessageOperation:
       oneOf:
@@ -1088,6 +1136,7 @@ components:
       - text/plain
       - text/markdown
       - text/csv
+      type: string
     MissingPackageAlert:
       properties:
         isolated:
@@ -1114,10 +1163,13 @@ components:
         name:
           type: string
         type:
+          enum:
+          - multiple-defs
           type: string
       required:
       - name
       - cells
+      - type
       type: object
     NonNestedLiteral:
       oneOf:
@@ -1350,6 +1402,7 @@ components:
       required:
       - objectIds
       - values
+      - token
       type: object
     SetUserConfigRequest:
       properties:
@@ -1413,15 +1466,20 @@ components:
       properties:
         success:
           type: boolean
+      required:
+      - success
       type: object
     UnknownError:
       properties:
         msg:
           type: string
         type:
+          enum:
+          - unknown
           type: string
       required:
       - msg
+      - type
       type: object
     UpdateComponentValuesRequest:
       properties:
@@ -1498,6 +1556,8 @@ components:
       properties:
         includeMarkdown:
           type: boolean
+      required:
+      - includeMarkdown
       type: object
     WorkspaceFilesResponse:
       properties:

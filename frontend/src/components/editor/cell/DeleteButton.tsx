@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { Trash2Icon } from "lucide-react";
 import { Tooltip } from "../../ui/tooltip";
-import { CellStatus } from "../../../core/cells/types";
 import { Button } from "../../ui/button";
 import { cn } from "../../../utils/cn";
+import { CellStatus } from "@/core/network/types";
 
 export const DeleteButton = (props: {
   status: CellStatus;
