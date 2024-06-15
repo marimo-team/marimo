@@ -12,6 +12,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from types import ModuleType
 from typing import (
+    Annotated,
     Any,
     ClassVar,
     Dict,
@@ -260,7 +261,7 @@ class CellOp(Op):
 
 
 @dataclass
-class HumanReadableStatus(Op):
+class HumanReadableStatus:
     """Human-readable status."""
 
     code: Literal["ok", "error"]
@@ -521,33 +522,36 @@ class QueryParamsClear(Op):
     name: ClassVar[str] = "query-params-clear"
 
 
-MessageOperation = Union[
-    # Cell operations
-    CellOp,
-    FunctionCallResult,
-    RemoveUIElements,
-    # Notebook operations
-    Reload,
-    Reconnected,
-    Interrupted,
-    CompletedRun,
-    KernelReady,
-    # Editor operations
-    CompletionResult,
-    # Alerts
-    Alert,
-    Banner,
-    MissingPackageAlert,
-    InstallingPackageAlert,
-    # Variables
-    Variables,
-    VariableValues,
-    # Query params
-    QueryParamsSet,
-    QueryParamsAppend,
-    QueryParamsDelete,
-    QueryParamsClear,
-    # Datasets
-    Datasets,
-    DataColumnPreview,
+MessageOperation = Annotated[
+    Union[
+        # Cell operations
+        CellOp,
+        FunctionCallResult,
+        RemoveUIElements,
+        # Notebook operations
+        Reload,
+        Reconnected,
+        Interrupted,
+        CompletedRun,
+        KernelReady,
+        # Editor operations
+        CompletionResult,
+        # Alerts
+        Alert,
+        Banner,
+        MissingPackageAlert,
+        InstallingPackageAlert,
+        # Variables
+        Variables,
+        VariableValues,
+        # Query params
+        QueryParamsSet,
+        QueryParamsAppend,
+        QueryParamsDelete,
+        QueryParamsClear,
+        # Datasets
+        Datasets,
+        DataColumnPreview,
+    ],
+    "MessageOperation",
 ]

@@ -1,11 +1,14 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Dict, Type
+from typing import Any, Dict
 
 import click
 from starlette.schemas import SchemaGenerator
 
+import marimo._data.models as data
+import marimo._messaging.errors as errors
+import marimo._messaging.ops as ops
 import marimo._runtime.requests as requests
 import marimo._server.models.completion as completion
 import marimo._server.models.export as export
@@ -14,15 +17,76 @@ import marimo._server.models.home as home
 import marimo._server.models.models as models
 import marimo._snippets.snippets as snippets
 from marimo import __version__
-from marimo._ast.cell import CellConfig
+from marimo._ast.cell import CellConfig, CellStatusType
 from marimo._config.config import MarimoConfig
+from marimo._messaging.cell_output import CellChannel, CellOutput
+from marimo._messaging.mimetypes import KnownMimeType
+from marimo._output.mime import MIME
+from marimo._plugins.core.web_component import JSONType
 from marimo._server.api.router import build_routes
-from marimo._utils.dataclass_to_openapi import dataclass_to_openapi_spec
+from marimo._utils.dataclass_to_openapi import (
+    python_type_name,
+    python_type_to_openapi_type,
+)
 
 
 def _generate_schema() -> dict[str, Any]:
-    # dataclass components that we can generate schemas for
-    COMPONENTS = [
+    # dataclass components used in websocket messages
+    # these are always snake_case
+    MESSAGES = [
+        # Base
+        MIME,
+        CellStatusType,
+        KnownMimeType,
+        CellChannel,
+        data.NonNestedLiteral,
+        data.DataType,
+        # Errors
+        errors.CycleError,
+        errors.MultipleDefinitionError,
+        errors.DeleteNonlocalError,
+        errors.MarimoInterruptionError,
+        errors.MarimoAncestorStoppedError,
+        errors.MarimoExceptionRaisedError,
+        errors.MarimoSyntaxError,
+        errors.UnknownError,
+        errors.Error,
+        # Outputs
+        CellOutput,
+        # Data
+        data.DataTableColumn,
+        data.DataTable,
+        data.ColumnSummary,
+        # Operations
+        ops.CellOp,
+        ops.HumanReadableStatus,
+        ops.FunctionCallResult,
+        ops.RemoveUIElements,
+        ops.Interrupted,
+        ops.CompletedRun,
+        ops.KernelReady,
+        ops.CompletionResult,
+        ops.Alert,
+        ops.MissingPackageAlert,
+        ops.InstallingPackageAlert,
+        ops.Reconnected,
+        ops.Banner,
+        ops.Reload,
+        ops.VariableDeclaration,
+        ops.VariableValue,
+        ops.Variables,
+        ops.VariableValues,
+        ops.Datasets,
+        ops.DataColumnPreview,
+        ops.QueryParamsSet,
+        ops.QueryParamsAppend,
+        ops.QueryParamsDelete,
+        ops.QueryParamsClear,
+        ops.MessageOperation,
+    ]
+
+    # dataclass components used in requests/responses
+    REQUEST_RESPONSES = [
         # Sub components
         requests.AppMetadata,
         home.MarimoFile,
@@ -56,7 +120,6 @@ def _generate_schema() -> dict[str, Any]:
         home.WorkspaceFilesRequest,
         home.WorkspaceFilesResponse,
         models.BaseResponse,
-        models.BaseResponse,
         models.FormatRequest,
         models.FormatResponse,
         models.InstantiateRequest,
@@ -84,19 +147,41 @@ def _generate_schema() -> dict[str, Any]:
         requests.SetUserConfigRequest,
         requests.StopRequest,
     ]
-
     dont_camel_case = {MarimoConfig}
 
-    processed_classes: Dict[Type[Any], str] = {}
+    processed_classes: Dict[Any, str] = {
+        JSONType: "JSONType",
+    }
+    component_schemas: Dict[str, Any] = {
+        # Hand-written schema to avoid circular dependencies
+        "JSONType": {
+            "oneOf": [
+                {"type": "string"},
+                {"type": "number"},
+                {"type": "object"},
+                {"type": "array"},
+                {"type": "boolean"},
+                {"type": "null"},
+            ]
+        }
+    }
 
-    component_schemas: Dict[str, Any] = {}
-    for cls in COMPONENTS:
+    for cls in REQUEST_RESPONSES:
         # Remove self from the list
         # since it may not have been processed yet
         if cls in processed_classes:
             del processed_classes[cls]
-        component_schemas[cls.__name__] = dataclass_to_openapi_spec(
+        component_schemas[python_type_name(cls)] = python_type_to_openapi_type(
             cls, processed_classes, camel_case=cls not in dont_camel_case
+        )
+
+    for cls in MESSAGES:
+        # Remove self from the list
+        # since it may not have been processed yet
+        if cls in processed_classes:
+            del processed_classes[cls]
+        component_schemas[python_type_name(cls)] = python_type_to_openapi_type(
+            cls, processed_classes, camel_case=False
         )
 
     schemas = SchemaGenerator(

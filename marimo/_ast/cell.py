@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import dataclasses
 import inspect
-from typing import TYPE_CHECKING, Any, Literal, Mapping, Optional
+from typing import TYPE_CHECKING, Annotated, Any, Literal, Mapping, Optional
 
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._utils.deep_merge import deep_merge
@@ -61,7 +61,10 @@ CellConfigKeys = frozenset(
 # queued: cell is queued to run
 # running: cell is running
 # disabled-transitively: cell is disabled because a parent is disabled
-CellStatusType = Literal["idle", "queued", "running", "disabled-transitively"]
+CellStatusType = Annotated[
+    Literal["idle", "queued", "running", "disabled-transitively"],
+    "CellStatus",
+]
 
 
 @dataclasses.dataclass

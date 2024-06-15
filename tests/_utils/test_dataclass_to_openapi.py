@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, List, Literal, Optional
+from typing import Annotated, Any, ClassVar, List, Literal, Optional, Union
 
-from marimo._utils.dataclass_to_openapi import dataclass_to_openapi_spec
+from marimo._utils.dataclass_to_openapi import (
+    python_type_to_openapi_type,
+)
 
 
 @dataclasses.dataclass
@@ -24,7 +26,7 @@ class Person:
 
 
 def test_dataclass_to_openapi() -> None:
-    openapi_spec = dataclass_to_openapi_spec(Person)
+    openapi_spec = python_type_to_openapi_type(Person, {}, camel_case=False)
     assert openapi_spec == {
         "type": "object",
         "properties": {
@@ -48,7 +50,7 @@ def test_dataclass_to_openapi() -> None:
 
 
 def test_dataclass_to_openapi_with_camelcase() -> None:
-    openapi_spec = dataclass_to_openapi_spec(Address, camel_case=True)
+    openapi_spec = python_type_to_openapi_type(Address, {}, camel_case=True)
     assert openapi_spec == {
         "type": "object",
         "properties": {
@@ -69,7 +71,7 @@ class Node:
 
 
 def test_recursive_dataclass_to_openapi() -> None:
-    openapi_spec = dataclass_to_openapi_spec(Node)
+    openapi_spec = python_type_to_openapi_type(Node, {}, camel_case=False)
     assert openapi_spec == {
         "type": "object",
         "properties": {
@@ -78,4 +80,53 @@ def test_recursive_dataclass_to_openapi() -> None:
             "right": {"$ref": "#/components/schemas/Node", "nullable": True},
         },
         "required": ["value"],
+    }
+
+
+Colors = Annotated[
+    Union[Literal["red"], Literal["green"], Literal["blue"]], "colors"
+]
+
+
+def test_named_union() -> None:
+    openapi_spec = python_type_to_openapi_type(Colors, {}, camel_case=False)
+    assert openapi_spec == {
+        "oneOf": [{"enum": ["red"]}, {"enum": ["green"]}, {"enum": ["blue"]}]
+    }
+
+
+@dataclasses.dataclass
+class Theme:
+    primary_color: Colors
+    secondary_color: Optional[Colors]
+
+
+def test_nested_named_union() -> None:
+    openapi_spec = python_type_to_openapi_type(
+        Theme, {Colors: "colors"}, camel_case=False
+    )
+    assert openapi_spec == {
+        "type": "object",
+        "properties": {
+            "primary_color": {"$ref": "#/components/schemas/colors"},
+            "secondary_color": {
+                "$ref": "#/components/schemas/colors",
+                "nullable": True,
+            },
+        },
+        "required": ["primary_color"],
+    }
+
+
+@dataclasses.dataclass
+class Dog:
+    name: ClassVar[str] = "dog"
+
+
+def test_class_var() -> None:
+    openapi_spec = python_type_to_openapi_type(Dog, {}, camel_case=False)
+    assert openapi_spec == {
+        "type": "object",
+        "properties": {"name": {"type": "string", "enum": ["dog"]}},
+        "required": ["name"],
     }

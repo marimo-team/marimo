@@ -1,11 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Protocol
 
 from marimo._messaging.mimetypes import KnownMimeType
 
 
+@dataclass
 class MIME(Protocol):
     """Protocol for instantiating objects using marimo's media viewer.
 

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import Annotated, Optional, Union
 
 from marimo._ast.cell import CellId_t
 from marimo._runtime.dataflow import EdgeWithVar
@@ -61,13 +61,16 @@ class UnknownError:
     type: str = "unknown"
 
 
-Error = Union[
-    CycleError,
-    MultipleDefinitionError,
-    DeleteNonlocalError,
-    MarimoAncestorStoppedError,
-    MarimoExceptionRaisedError,
-    MarimoInterruptionError,
-    MarimoSyntaxError,
-    UnknownError,
+Error = Annotated[
+    Union[
+        CycleError,
+        MultipleDefinitionError,
+        DeleteNonlocalError,
+        MarimoAncestorStoppedError,
+        MarimoExceptionRaisedError,
+        MarimoInterruptionError,
+        MarimoSyntaxError,
+        UnknownError,
+    ],
+    "Error",
 ]

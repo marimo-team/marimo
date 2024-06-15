@@ -6,6 +6,7 @@ import re
 from html import escape, unescape
 from typing import (
     TYPE_CHECKING,
+    Annotated,
     Mapping,
     Sequence,
     TypeVar,
@@ -27,15 +28,18 @@ from marimo._output.md import md
 from marimo._output.mime import MIME
 from marimo._plugins.core.json_encoder import WebComponentEncoder
 
-JSONType: TypeAlias = Union[
-    Mapping[str, "JSONType"],
-    Sequence["JSONType"],
-    str,
-    int,
-    float,
-    bool,
-    MIME,  # MIME is a JSONType since we have a custom JSONEncoder for it
-    None,
+JSONType: TypeAlias = Annotated[
+    Union[
+        Mapping[str, "JSONType"],
+        Sequence["JSONType"],
+        str,
+        int,
+        float,
+        bool,
+        MIME,  # MIME is a JSONType since we have a custom JSONEncoder for it
+        None,
+    ],
+    "JSONType",
 ]
 
 

@@ -13,6 +13,25 @@ components:
       - includeOtherCode
       - code
       type: object
+    Alert:
+      properties:
+        description:
+          type: string
+        name:
+          enum:
+          - alert
+          type: string
+        title:
+          type: string
+        variant:
+          enum:
+          - danger
+          nullable: true
+      required:
+      - title
+      - description
+      - name
+      type: object
     AppMetadata:
       properties:
         cliArgs:
@@ -45,6 +64,29 @@ components:
       - queryParams
       - cliArgs
       type: object
+    Banner:
+      properties:
+        action:
+          enum:
+          - restart
+          nullable: true
+        description:
+          type: string
+        name:
+          enum:
+          - banner
+          type: string
+        title:
+          type: string
+        variant:
+          enum:
+          - danger
+          nullable: true
+      required:
+      - title
+      - description
+      - name
+      type: object
     BaseResponse:
       properties:
         success:
@@ -52,6 +94,15 @@ components:
       required:
       - success
       type: object
+    CellChannel:
+      enum:
+      - stdout
+      - stderr
+      - stdin
+      - output
+      - marimo-error
+      - media
+      type: string
     CellConfig:
       properties:
         disabled:
@@ -59,6 +110,61 @@ components:
         hideCode:
           type: boolean
       type: object
+    CellOp:
+      properties:
+        cell_id:
+          type: string
+        console:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CellOutput'
+          - items:
+              $ref: '#/components/schemas/CellOutput'
+            type: array
+        name:
+          enum:
+          - cell-op
+          type: string
+        output:
+          $ref: '#/components/schemas/CellOutput'
+          nullable: true
+        stale_inputs:
+          nullable: true
+          type: boolean
+        status:
+          $ref: '#/components/schemas/CellStatus'
+          nullable: true
+        timestamp:
+          type: number
+      required:
+      - cell_id
+      - name
+      type: object
+    CellOutput:
+      properties:
+        channel:
+          $ref: '#/components/schemas/CellChannel'
+        data:
+          oneOf:
+          - type: string
+          - items:
+              $ref: '#/components/schemas/Error'
+            type: array
+        mimetype:
+          $ref: '#/components/schemas/MimeType'
+        timestamp:
+          type: number
+      required:
+      - channel
+      - mimetype
+      - data
+      type: object
+    CellStatus:
+      enum:
+      - idle
+      - queued
+      - running
+      - disabled-transitively
     CodeCompletionRequest:
       properties:
         cellId:
@@ -72,6 +178,91 @@ components:
       - document
       - cellId
       type: object
+    ColumnSummary:
+      properties:
+        'false':
+          nullable: true
+          type: integer
+        max:
+          $ref: '#/components/schemas/NonNestedLiteral'
+          nullable: true
+        mean:
+          $ref: '#/components/schemas/NonNestedLiteral'
+          nullable: true
+        median:
+          $ref: '#/components/schemas/NonNestedLiteral'
+          nullable: true
+        min:
+          $ref: '#/components/schemas/NonNestedLiteral'
+          nullable: true
+        nulls:
+          nullable: true
+          type: integer
+        p25:
+          $ref: '#/components/schemas/NonNestedLiteral'
+          nullable: true
+        p5:
+          $ref: '#/components/schemas/NonNestedLiteral'
+          nullable: true
+        p75:
+          $ref: '#/components/schemas/NonNestedLiteral'
+          nullable: true
+        p95:
+          $ref: '#/components/schemas/NonNestedLiteral'
+          nullable: true
+        std:
+          $ref: '#/components/schemas/NonNestedLiteral'
+          nullable: true
+        total:
+          nullable: true
+          type: integer
+        'true':
+          nullable: true
+          type: integer
+        unique:
+          nullable: true
+          type: integer
+      type: object
+    CompletedRun:
+      properties:
+        name:
+          enum:
+          - completed-run
+          type: string
+      required:
+      - name
+      type: object
+    CompletionResult:
+      properties:
+        completion_id:
+          type: string
+        name:
+          enum:
+          - completion-result
+          type: string
+        options:
+          items:
+            properties:
+              completion_info:
+                nullable: true
+                type: string
+              name:
+                type: string
+              type:
+                type: string
+            required:
+            - name
+            - type
+            type: object
+          type: array
+        prefix_length:
+          type: integer
+      required:
+      - completion_id
+      - prefix_length
+      - options
+      - name
+      type: object
     CreationRequest:
       properties:
         executionRequests:
@@ -84,6 +275,122 @@ components:
       - executionRequests
       - setUiElementValueRequest
       type: object
+    CycleError:
+      properties:
+        edges_with_vars:
+          items:
+            prefixItems:
+            - type: string
+            - items:
+                type: string
+              type: array
+            - type: string
+            type: array
+          type: array
+        type:
+          type: string
+      required:
+      - edges_with_vars
+      type: object
+    DataColumnPreview:
+      properties:
+        chart_code:
+          nullable: true
+          type: string
+        chart_max_rows_errors:
+          type: boolean
+        chart_spec:
+          nullable: true
+          type: string
+        column_name:
+          type: string
+        error:
+          nullable: true
+          type: string
+        name:
+          enum:
+          - data-column-preview
+          type: string
+        summary:
+          $ref: '#/components/schemas/ColumnSummary'
+          nullable: true
+        table_name:
+          type: string
+      required:
+      - table_name
+      - column_name
+      - name
+      type: object
+    DataTable:
+      properties:
+        columns:
+          items:
+            $ref: '#/components/schemas/DataTableColumn'
+          type: array
+        name:
+          type: string
+        num_columns:
+          nullable: true
+          type: integer
+        num_rows:
+          nullable: true
+          type: integer
+        source:
+          type: string
+        variable_name:
+          nullable: true
+          type: string
+      required:
+      - source
+      - name
+      - columns
+      type: object
+    DataTableColumn:
+      properties:
+        name:
+          type: string
+        type:
+          $ref: '#/components/schemas/DataType'
+      required:
+      - name
+      - type
+      type: object
+    DataType:
+      enum:
+      - string
+      - boolean
+      - integer
+      - number
+      - date
+      - unknown
+    Datasets:
+      properties:
+        name:
+          enum:
+          - datasets
+          type: string
+        tables:
+          items:
+            $ref: '#/components/schemas/DataTable'
+          type: array
+      required:
+      - tables
+      - name
+      type: object
+    DeleteNonlocalError:
+      properties:
+        cells:
+          items:
+            type: string
+          type: array
+        name:
+          type: string
+        type:
+          type: string
+      required:
+      - name
+      - cells
+      type: object
     DeleteRequest:
       properties:
         cellId:
@@ -91,6 +398,16 @@ components:
       required:
       - cellId
       type: object
+    Error:
+      oneOf:
+      - $ref: '#/components/schemas/CycleError'
+      - $ref: '#/components/schemas/MultipleDefinitionError'
+      - $ref: '#/components/schemas/DeleteNonlocalError'
+      - $ref: '#/components/schemas/MarimoAncestorStoppedError'
+      - $ref: '#/components/schemas/MarimoExceptionRaisedError'
+      - $ref: '#/components/schemas/MarimoInterruptionError'
+      - $ref: '#/components/schemas/MarimoSyntaxError'
+      - $ref: '#/components/schemas/UnknownError'
     ExecuteMultipleRequest:
       properties:
         cellIds:
@@ -344,12 +661,63 @@ components:
       - functionName
       - args
       type: object
+    FunctionCallResult:
+      properties:
+        function_call_id:
+          type: string
+        name:
+          enum:
+          - function-call-result
+          type: string
+        return_value:
+          $ref: '#/components/schemas/JSONType'
+        status:
+          $ref: '#/components/schemas/HumanReadableStatus'
+      required:
+      - function_call_id
+      - return_value
+      - status
+      - name
+      type: object
+    HumanReadableStatus:
+      properties:
+        code:
+          enum:
+          - ok
+          - error
+        message:
+          nullable: true
+          type: string
+        title:
+          nullable: true
+          type: string
+      required:
+      - code
+      type: object
     InstallMissingPackagesRequest:
       properties:
         manager:
           type: string
       required:
       - manager
+      type: object
+    InstallingPackageAlert:
+      properties:
+        name:
+          enum:
+          - installing-package-alert
+          type: string
+        packages:
+          additionalProperties:
+            enum:
+            - queued
+            - installing
+            - installed
+            - failed
+          type: object
+      required:
+      - packages
+      - name
       type: object
     InstantiateRequest:
       properties:
@@ -363,6 +731,125 @@ components:
       required:
       - objectIds
       - values
+      type: object
+    Interrupted:
+      properties:
+        name:
+          enum:
+          - interrupted
+          type: string
+      required:
+      - name
+      type: object
+    JSONType:
+      oneOf:
+      - type: string
+      - type: number
+      - type: object
+      - type: array
+      - type: boolean
+      - type: 'null'
+    KernelReady:
+      properties:
+        app_config:
+          properties:
+            app_title:
+              nullable: true
+              type: string
+            layout_file:
+              nullable: true
+              type: string
+            width:
+              enum:
+              - normal
+              - compact
+              - medium
+              - full
+          type: object
+        cell_ids:
+          items:
+            type: string
+          type: array
+        codes:
+          items:
+            type: string
+          type: array
+        configs:
+          items:
+            $ref: '#/components/schemas/CellConfig'
+          type: array
+        last_executed_code:
+          additionalProperties:
+            type: string
+          nullable: true
+          type: object
+        last_execution_time:
+          additionalProperties:
+            type: number
+          nullable: true
+          type: object
+        layout:
+          nullable: true
+          properties:
+            data:
+              additionalProperties: {}
+              type: object
+            type:
+              type: string
+          required:
+          - type
+          - data
+          type: object
+        name:
+          enum:
+          - kernel-ready
+          type: string
+        names:
+          items:
+            type: string
+          type: array
+        resumed:
+          type: boolean
+        ui_values:
+          additionalProperties:
+            nullable: true
+            oneOf:
+            - additionalProperties:
+                $ref: '#/components/schemas/JSONType'
+              type: object
+            - items:
+                $ref: '#/components/schemas/JSONType'
+              type: array
+            - type: string
+            - type: integer
+            - type: number
+            - type: boolean
+            - $ref: '#/components/schemas/MIME'
+          nullable: true
+          type: object
+      required:
+      - cell_ids
+      - codes
+      - names
+      - configs
+      - resumed
+      - app_config
+      - name
+      type: object
+    MIME:
+      properties: {}
+      type: object
+    MarimoAncestorStoppedError:
+      properties:
+        msg:
+          type: string
+        raising_cell:
+          type: string
+        type:
+          type: string
+      required:
+      - msg
+      - raising_cell
       type: object
     MarimoConfig:
       properties:
@@ -513,6 +1000,21 @@ components:
       - ai
       - experimental
       type: object
+    MarimoExceptionRaisedError:
+      properties:
+        exception_type:
+          type: string
+        msg:
+          type: string
+        raising_cell:
+          nullable: true
+          type: string
+        type:
+          type: string
+      required:
+      - msg
+      - exception_type
+      type: object
     MarimoFile:
       properties:
         initializationId:
@@ -532,6 +1034,107 @@ components:
       - path
       - lastModified
       type: object
+    MarimoInterruptionError:
+      properties:
+        type:
+          type: string
+      type: object
+    MarimoSyntaxError:
+      properties:
+        msg:
+          type: string
+        type:
+          type: string
+      required:
+      - msg
+      type: object
+    MessageOperation:
+      oneOf:
+      - $ref: '#/components/schemas/CellOp'
+      - $ref: '#/components/schemas/FunctionCallResult'
+      - $ref: '#/components/schemas/RemoveUIElements'
+      - $ref: '#/components/schemas/Reload'
+      - $ref: '#/components/schemas/Reconnected'
+      - $ref: '#/components/schemas/Interrupted'
+      - $ref: '#/components/schemas/CompletedRun'
+      - $ref: '#/components/schemas/KernelReady'
+      - $ref: '#/components/schemas/CompletionResult'
+      - $ref: '#/components/schemas/Alert'
+      - $ref: '#/components/schemas/Banner'
+      - $ref: '#/components/schemas/MissingPackageAlert'
+      - $ref: '#/components/schemas/InstallingPackageAlert'
+      - $ref: '#/components/schemas/Variables'
+      - $ref: '#/components/schemas/VariableValues'
+      - $ref: '#/components/schemas/QueryParamsSet'
+      - $ref: '#/components/schemas/QueryParamsAppend'
+      - $ref: '#/components/schemas/QueryParamsDelete'
+      - $ref: '#/components/schemas/QueryParamsClear'
+      - $ref: '#/components/schemas/Datasets'
+      - $ref: '#/components/schemas/DataColumnPreview'
+    MimeType:
+      enum:
+      - application/json
+      - application/vnd.marimo+error
+      - image/png
+      - image/svg+xml
+      - image/tiff
+      - image/avif
+      - image/bmp
+      - image/gif
+      - image/jpeg
+      - video/mp4
+      - video/mpeg
+      - text/html
+      - text/plain
+      - text/markdown
+      - text/csv
+    MissingPackageAlert:
+      properties:
+        isolated:
+          type: boolean
+        name:
+          enum:
+          - missing-package-alert
+          type: string
+        packages:
+          items:
+            type: string
+          type: array
+      required:
+      - packages
+      - isolated
+      - name
+      type: object
+    MultipleDefinitionError:
+      properties:
+        cells:
+          items:
+            type: string
+          type: array
+        name:
+          type: string
+        type:
+          type: string
+      required:
+      - name
+      - cells
+      type: object
+    NonNestedLiteral:
+      oneOf:
+      - type: integer
+      - type: number
+      - format: date
+        type: string
+      - format: time
+        type: string
+      - format: date-time
+        type: string
+      - format: duration
+        type: string
+      - type: string
+      - type: boolean
+      - format: byte
+        type: string
     OpenFileRequest:
       properties:
         path:
@@ -552,6 +1155,64 @@ components:
       - tableName
       - columnName
       type: object
+    QueryParamsAppend:
+      properties:
+        key:
+          type: string
+        name:
+          enum:
+          - query-params-append
+          type: string
+        value:
+          type: string
+      required:
+      - key
+      - value
+      - name
+      type: object
+    QueryParamsClear:
+      properties:
+        name:
+          enum:
+          - query-params-clear
+          type: string
+      required:
+      - name
+      type: object
+    QueryParamsDelete:
+      properties:
+        key:
+          type: string
+        name:
+          enum:
+          - query-params-delete
+          type: string
+        value:
+          nullable: true
+          type: string
+      required:
+      - key
+      - name
+      type: object
+    QueryParamsSet:
+      properties:
+        key:
+          type: string
+        name:
+          enum:
+          - query-params-set
+          type: string
+        value:
+          oneOf:
+          - type: string
+          - items:
+              type: string
+            type: array
+      required:
+      - key
+      - value
+      - name
+      type: object
     ReadCodeResponse:
       properties:
         contents:
@@ -567,6 +1228,36 @@ components:
           type: array
       required:
       - files
+      type: object
+    Reconnected:
+      properties:
+        name:
+          enum:
+          - reconnected
+          type: string
+      required:
+      - name
+      type: object
+    Reload:
+      properties:
+        name:
+          enum:
+          - reload
+          type: string
+      required:
+      - name
+      type: object
+    RemoveUIElements:
+      properties:
+        cell_id:
+          type: string
+        name:
+          enum:
+          - remove-ui-elements
+          type: string
+      required:
+      - cell_id
+      - name
       type: object
     RenameFileRequest:
       properties:
@@ -723,6 +1414,15 @@ components:
         success:
           type: boolean
       type: object
+    UnknownError:
+      properties:
+        msg:
+          type: string
+        type:
+          type: string
+      required:
+      - msg
+      type: object
     UpdateComponentValuesRequest:
       properties:
         objectIds:
@@ -735,6 +1435,64 @@ components:
       required:
       - objectIds
       - values
+      type: object
+    VariableDeclaration:
+      properties:
+        declared_by:
+          items:
+            type: string
+          type: array
+        name:
+          type: string
+        used_by:
+          items:
+            type: string
+          type: array
+      required:
+      - name
+      - declared_by
+      - used_by
+      type: object
+    VariableValue:
+      properties:
+        datatype:
+          nullable: true
+          type: string
+        name:
+          type: string
+        value:
+          nullable: true
+          type: string
+      required:
+      - name
+      type: object
+    VariableValues:
+      properties:
+        name:
+          enum:
+          - variable-values
+          type: string
+        variables:
+          items:
+            $ref: '#/components/schemas/VariableValue'
+          type: array
+      required:
+      - variables
+      - name
+      type: object
+    Variables:
+      properties:
+        name:
+          enum:
+          - variables
+          type: string
+        variables:
+          items:
+            $ref: '#/components/schemas/VariableDeclaration'
+          type: array
+      required:
+      - variables
+      - name
       type: object
     WorkspaceFilesRequest:
       properties:
@@ -752,7 +1510,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.6.17
+  version: 0.6.19
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

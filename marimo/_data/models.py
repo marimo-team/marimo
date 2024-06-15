@@ -4,9 +4,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta  # noqa: TCH003
 from decimal import Decimal
-from typing import List, Literal, Optional, Union
+from typing import Annotated, List, Literal, Optional, Union
 
-DataType = Literal["string", "boolean", "integer", "number", "date", "unknown"]
+DataType = Annotated[
+    Literal["string", "boolean", "integer", "number", "date", "unknown"],
+    "DataType",
+]
 NumpyType = str
 
 
@@ -49,7 +52,10 @@ class DataTable:
 
 NumericLiteral = Union[int, float, Decimal]
 TemporalLiteral = Union[date, time, datetime, timedelta]
-NonNestedLiteral = Union[NumericLiteral, TemporalLiteral, str, bool, bytes]
+NonNestedLiteral = Annotated[
+    Union[NumericLiteral, TemporalLiteral, str, bool, bytes],
+    "NonNestedLiteral",
+]
 
 
 @dataclass
@@ -67,8 +73,8 @@ class ColumnSummary:
     mean: Optional[NonNestedLiteral] = None
     median: Optional[NonNestedLiteral] = None
     std: Optional[NonNestedLiteral] = None
-    true: Optional[NonNestedLiteral] = None
-    false: Optional[NonNestedLiteral] = None
+    true: Optional[int] = None
+    false: Optional[int] = None
     p5: Optional[NonNestedLiteral] = None
     p25: Optional[NonNestedLiteral] = None
     # p50 is the median
