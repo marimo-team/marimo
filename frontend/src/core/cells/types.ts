@@ -47,7 +47,7 @@ export function createCell({
 }
 
 export function createCellRuntimeState(
-  state?: Partial<CellRuntimeState>
+  state?: Partial<CellRuntimeState>,
 ): CellRuntimeState {
   const auto_instantiate = getUserConfig().runtime.auto_instantiate;
   return {
