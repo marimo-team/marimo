@@ -150,6 +150,7 @@ export function outputIsStale(
     "status" | "output" | "runStartTimestamp" | "interrupted" | "staleInputs"
   >,
   edited: boolean,
+  uninstantiated?: boolean,
 ): boolean {
   const { status, output, runStartTimestamp, interrupted, staleInputs } = cell;
 
@@ -159,7 +160,7 @@ export function outputIsStale(
   }
 
   // If edited, the cell's output is stale
-  if (edited) {
+  if (edited || uninstantiated) {
     return true;
   }
 

@@ -24,6 +24,7 @@ export interface CellStatusComponentProps
   disabled: boolean;
   staleInputs: boolean;
   elapsedTime: number | null;
+  uninstantiated: boolean;
 }
 
 export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
@@ -35,6 +36,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
   interrupted,
   elapsedTime,
   runStartTimestamp,
+  uninstantiated,
 }) => {
   if (!editing) {
     return null;
@@ -158,13 +160,15 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
   }
 
   // outdated: cell needs to be re-run
-  if (edited || interrupted || staleInputs) {
+  if (edited || interrupted || staleInputs || uninstantiated) {
     const elapsedTimeStr = formatElapsedTime(elapsedTime);
 
     // Customize tooltips based on why the cell needs to be re-run
     let title = "";
     let timerTitle = "";
-    if (interrupted) {
+    if (uninstantiated) {
+      title = "This cell has not yet been run";
+    } else if (interrupted) {
       title = "This cell was interrupted when it was last run";
       timerTitle = `This cell ran for ${elapsedTimeStr} before being interrupted`;
     } else if (edited) {
@@ -172,7 +176,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
       timerTitle = `This cell took ${elapsedTimeStr} to run`;
     } else {
       // staleInputs
-      title = "This cell has not been run with the latest inputs.";
+      title = "This cell has not been run with the latest inputs";
       timerTitle = `This cell took ${elapsedTimeStr} to run`;
     }
 

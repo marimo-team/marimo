@@ -155,20 +155,28 @@ const CellComponent = (
   const editorView = useRef<EditorView | null>(null);
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
 
+  const uninstantiated =
+    !userConfig.runtime.auto_instantiate && !runElapsedTimeMs;
   const disabledOrAncestorDisabled =
     cellConfig.disabled || status === "disabled-transitively";
   const needsRun =
-    edited || interrupted || (staleInputs && !disabledOrAncestorDisabled);
+    edited ||
+    interrupted ||
+    (staleInputs && !disabledOrAncestorDisabled) ||
+    uninstantiated;
   const loading = status === "running" || status === "queued";
+
   const outputStale = outputIsStale(
     { status, output, runStartTimestamp, interrupted, staleInputs },
     edited,
+    uninstantiated,
   );
 
   // console output is cleared immediately on run, so check for queued instead
   // of loading to determine staleness
   const consoleOutputStale =
-    (status === "queued" || edited || staleInputs) && !interrupted;
+    (status === "queued" || edited || staleInputs || uninstantiated) &&
+    !interrupted;
   const editing = mode === "edit";
 
   // Performs side-effects that must run whenever the cell is run, but doesn't
@@ -451,6 +459,7 @@ const CellComponent = (
               disabled={cellConfig.disabled ?? false}
               elapsedTime={runElapsedTimeMs}
               runStartTimestamp={runStartTimestamp}
+              uninstantiated={uninstantiated}
             />
             <div className="flex align-bottom">
               <RunButton
