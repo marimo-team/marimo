@@ -1,7 +1,7 @@
 import pytest
 
 from marimo._runtime.copy import (
-    RoError,
+    ReadOnlyError,
     ShallowCopy,
     ZeroCopy,
     _Copy,
@@ -37,7 +37,7 @@ def test_shadow_wrap_ro_attr() -> None:
     assert shadow.__class__.__name__ == "namespace"
     assert shadow.attr == 1
     # assignment should fail
-    with pytest.raises(RoError):
+    with pytest.raises(ReadOnlyError):
         shadow.attr = 2
 
 
@@ -47,7 +47,7 @@ def test_shadow_wrap_ro_get() -> None:
 
     assert base == shadow
     # assignment should fail
-    with pytest.raises(RoError):
+    with pytest.raises(ReadOnlyError):
         shadow[0] = 2
 
 
