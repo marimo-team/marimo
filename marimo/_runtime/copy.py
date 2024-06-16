@@ -27,7 +27,7 @@ class CloneError(Exception):
     """Thrown when strict execution fail to deep copy or clone."""
 
 
-class RoError(Exception):
+class ReadOnlyError(Exception):
     """Thrown when attempting to modify a read-only object."""
 
 
@@ -46,7 +46,7 @@ class ShallowCopy(_Copy[T]):
 
 
 def _ro_fail() -> None:
-    raise RoError(
+    raise ReadOnlyoError(
         "Weakly copied objects are directly read only."
         " Modification is not encouraged, but is"
         " possible by utilizing the marimo.unwrap_copy() function."
@@ -78,6 +78,9 @@ def shadow_wrap(ref_cls: Type[_Copy[T]], base: T) -> T:
     accessed with unwrap_copy(). The internal class is named as a hint for this
     reason, although most times this will be invisible.
     """
+
+    # Apply attributes as slots reflection, but remove the attributes that are
+    # set explicitly by the wrapper class (or not allowed like __dict__).
     slots = set(dir(base)) - set(
         [
             "__new__",
