@@ -9,7 +9,7 @@ import signal
 import threading
 import traceback
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, Union
 
 from marimo._ast.cell import (
     CellId_t,
@@ -17,7 +17,7 @@ from marimo._ast.cell import (
 )
 from marimo._config.config import ExecutionType, OnCellChangeType
 from marimo._loggers import marimo_logger
-from marimo._messaging.errors import MarimoStrictExecutionError
+from marimo._messaging.errors import Error, MarimoStrictExecutionError
 from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime import dataflow
 from marimo._runtime.control_flow import (
@@ -45,12 +45,15 @@ def cell_filename(cell_id: CellId_t) -> str:
     return f"<cell-{cell_id}>"
 
 
+ErrorObjects = Union[BaseException, Error]
+
+
 @dataclass
 class RunResult:
     # Raw output of cell: last expression
     output: Any
     # Exception raised by cell, if any
-    exception: Optional[BaseException]
+    exception: Optional[ErrorObjects]
     # Accumulated output: via imperative mo.output.append()
     accumulated_output: Any = None
 
@@ -139,7 +142,7 @@ class Runner:
         # whether the runner has been interrupted
         self.interrupted = False
         # mapping from cell_id to exception it raised
-        self.exceptions: dict[CellId_t, BaseException] = {}
+        self.exceptions: dict[CellId_t, ErrorObjects] = {}
 
         # each cell's position in the run queue
         self._run_position = {
