@@ -13,7 +13,6 @@ from typing import (
     ForwardRef,
     List,
     Literal,
-    NotRequired,
     Type,
     Union,
     get_args,
@@ -22,7 +21,7 @@ from typing import (
 )
 
 from marimo._server.models.base import to_camel_case
-from marimo._utils.typing import Annotated
+from marimo._utils.typing import Annotated, NotRequired
 
 
 def python_type_name(py_type: Any) -> str:
@@ -31,7 +30,7 @@ def python_type_name(py_type: Any) -> str:
         maybe_name = py_type.__metadata__[0]
         if isinstance(maybe_name, str):
             return maybe_name
-    return py_type.__name__
+    return py_type.__name__  # ignore[no-any-return]
 
 
 def python_type_to_openapi_type(
@@ -210,25 +209,29 @@ def dataclass_to_openapi_spec(
     required: List[str] = []
 
     for field in fields:
-        field_name = to_camel_case(field.name) if camel_case else field.name
+        cased_field_name = (
+            to_camel_case(field.name) if camel_case else field.name
+        )
         field_type = type_hints[field.name]
-        properties[field_name] = python_type_to_openapi_type(
+        properties[cased_field_name] = python_type_to_openapi_type(
             field_type, processed_classes, camel_case
         )
         if not _is_optional(field_type):
-            required.append(field_name)
+            required.append(cased_field_name)
 
     # Handle ClassVar that might be initialized already
-    for field, type_hint in type_hints.items():
-        field_name = to_camel_case(field) if camel_case else field
+    for field_name, type_hint in type_hints.items():
+        cased_field_name = (
+            to_camel_case(field_name) if camel_case else field_name
+        )
         if get_origin(type_hint) is ClassVar:
             # Literal type
-            value = getattr(cls, field)
-            properties[field_name] = {
+            value = getattr(cls, field_name)
+            properties[cased_field_name] = {
                 "type": "string",
                 "enum": [value] if isinstance(value, str) else value,
             }
-            required.append(field_name)
+            required.append(cased_field_name)
 
     schema: Dict[str, Any] = {
         "type": "object",

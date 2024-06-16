@@ -1,14 +1,18 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta  # noqa: TCH003
 from decimal import Decimal
 from typing import List, Literal, Optional, Union
 
-from marimo._utils.typing import Annotated
+if sys.version_info < (3, 10):
+    from typing_extensions import Annotated, TypeAlias
+else:
+    from typing import Annotated, TypeAlias
 
-DataType = Annotated[
+DataType: TypeAlias = Annotated[
     Literal["string", "boolean", "integer", "number", "date", "unknown"],
     "DataType",
 ]
@@ -54,7 +58,7 @@ class DataTable:
 
 NumericLiteral = Union[int, float, Decimal]
 TemporalLiteral = Union[date, time, datetime, timedelta]
-NonNestedLiteral = Annotated[
+NonNestedLiteral: TypeAlias = Annotated[
     Union[NumericLiteral, TemporalLiteral, str, bool, bytes],
     "NonNestedLiteral",
 ]
