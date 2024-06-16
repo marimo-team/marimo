@@ -8,6 +8,7 @@ from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
     MarimoExceptionRaisedError,
     MarimoInterruptionError,
+    MarimoStrictExecutionError,
 )
 from marimo._messaging.ops import (
     CellOp,
@@ -126,6 +127,15 @@ def _broadcast_outputs(
             channel=CellChannel.OUTPUT,
             mimetype=formatted_output.mimetype,
             data=formatted_output.data,
+            cell_id=cell.cell_id,
+            status=cell.status,
+        )
+    elif isinstance(run_result.exception, MarimoStrictExecutionError):
+        LOGGER.debug("Cell %s raised a strict error", cell.cell_id)
+        # Cell never runs, so clear console
+        CellOp.broadcast_error(
+            data=[run_result.output],
+            clear_console=True,
             cell_id=cell.cell_id,
             status=cell.status,
         )

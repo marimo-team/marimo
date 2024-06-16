@@ -144,7 +144,7 @@ export const MarimoErrorOutput = ({
           <Fragment key={idx}>
             <p>{error.msg}</p>
             <Tip>
-              Something is wrong with your declaration of {error.ref}. Fix any
+              Something is wrong with your declaration of `{error.ref}`. Fix any
               discrepancies, or turn off strict execution.
             </Tip>
           </Fragment>
@@ -153,8 +153,10 @@ export const MarimoErrorOutput = ({
             {error.msg}
             <CellLinkError cellId={error.blamed_cell} />
             <Tip>
-              Ensure that <CellLinkError cellId={error.blamed_cell} />
-              defines the variable {error.ref}, or turn off strict execution.
+              Ensure that&nbsp;
+              <CellLinkError cellId={error.blamed_cell} />
+              &nbsp;defines the variable {error.ref}, or turn off strict
+              execution.
             </Tip>
           </div>
         );
@@ -166,7 +168,7 @@ export const MarimoErrorOutput = ({
           <div key={idx}>
             {error.msg}
             (<CellLinkError cellId={error.raising_cell} />
-            blames
+            &nbsp;blames&nbsp;
             <CellLinkError cellId={error.blamed_cell} />)
           </div>
         );

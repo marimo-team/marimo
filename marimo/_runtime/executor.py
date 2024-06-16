@@ -34,16 +34,6 @@ PRIMITIVES = (weakref.ref, str, numbers.Number, type(None))
 EXECUTION_TYPES: dict[str, Type[Executor]] = {}
 
 
-class MarimoStrictExecutionError(BaseException):
-    """Error raised when a cell cannot be evaluated due to missing
-    definitions."""
-
-    def __init__(self, message: str, ref: str, blaming_cell: str) -> None:
-        super().__init__(message)
-        self.ref = ref
-        self.blaming_cell = blaming_cell
-
-
 class MarimoNameError(NameError):
     """Wrap a name error to rethrow later."""
 

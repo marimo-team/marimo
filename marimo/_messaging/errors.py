@@ -69,6 +69,14 @@ class UnknownError:
     type: str = "unknown"
 
 
+@dataclass
+class MarimoStrictExecutionError:
+    msg: str
+    ref: str
+    blamed_cell: CellId_t
+    type: str = "strict-exception"
+
+
 Error = Union[
     CycleError,
     MultipleDefinitionError,
@@ -76,6 +84,7 @@ Error = Union[
     MarimoAncestorStoppedError,
     MarimoAncestorPreventedError,
     MarimoExceptionRaisedError,
+    MarimoStrictExecutionError,
     MarimoInterruptionError,
     MarimoSyntaxError,
     UnknownError,
