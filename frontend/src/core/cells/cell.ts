@@ -8,7 +8,7 @@ import { Seconds, Time } from "@/utils/time";
 
 export function transitionCell(
   cell: CellRuntimeState,
-  message: CellMessage,
+  message: CellMessage
 ): CellRuntimeState {
   const nextCell = { ...cell };
 
@@ -42,9 +42,10 @@ export function transitionCell(
     case "idle":
       if (cell.runStartTimestamp) {
         nextCell.runElapsedTimeMs = Time.fromSeconds(
-          (message.timestamp - cell.runStartTimestamp) as Seconds,
+          (message.timestamp - cell.runStartTimestamp) as Seconds
         ).toMilliseconds();
         nextCell.runStartTimestamp = null;
+        nextCell.staleInputs = false;
       }
       nextCell.debuggerActive = false;
       break;
@@ -116,7 +117,7 @@ export function transitionCell(
   const newConsoleOutputs = [message.console].flat().filter(Boolean);
   const pdbOutputs = newConsoleOutputs.filter(
     (output): output is Extract<OutputMessage, { channel: "pdb" }> =>
-      output.channel === "pdb",
+      output.channel === "pdb"
   );
   const hasPdbOutput = pdbOutputs.length > 0;
   if (hasPdbOutput && pdbOutputs.some((output) => output.data === "start")) {
@@ -129,7 +130,7 @@ export function transitionCell(
 // Should be called when a cell's code is registered with the kernel for
 // execution.
 export function prepareCellForExecution(
-  cell: CellRuntimeState,
+  cell: CellRuntimeState
 ): CellRuntimeState {
   const nextCell = { ...cell };
 
@@ -149,8 +150,7 @@ export function outputIsStale(
     CellRuntimeState,
     "status" | "output" | "runStartTimestamp" | "interrupted" | "staleInputs"
   >,
-  edited: boolean,
-  uninstantiated?: boolean,
+  edited: boolean
 ): boolean {
   const { status, output, runStartTimestamp, interrupted, staleInputs } = cell;
 
@@ -160,7 +160,7 @@ export function outputIsStale(
   }
 
   // If edited, the cell's output is stale
-  if (edited || uninstantiated) {
+  if (edited) {
     return true;
   }
 

@@ -145,7 +145,7 @@ const CellComponent = (
     config: cellConfig,
     name,
   }: CellProps,
-  ref: React.ForwardedRef<CellHandle>,
+  ref: React.ForwardedRef<CellHandle>
 ) => {
   useCellRenderCount().countRender();
 
@@ -155,28 +155,21 @@ const CellComponent = (
   const editorView = useRef<EditorView | null>(null);
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
 
-  const uninstantiated =
-    !userConfig.runtime.auto_instantiate && !runElapsedTimeMs;
   const disabledOrAncestorDisabled =
     cellConfig.disabled || status === "disabled-transitively";
   const needsRun =
-    edited ||
-    interrupted ||
-    (staleInputs && !disabledOrAncestorDisabled) ||
-    uninstantiated;
+    edited || interrupted || (staleInputs && !disabledOrAncestorDisabled);
   const loading = status === "running" || status === "queued";
 
   const outputStale = outputIsStale(
     { status, output, runStartTimestamp, interrupted, staleInputs },
-    edited,
-    uninstantiated,
+    edited
   );
 
   // console output is cleared immediately on run, so check for queued instead
   // of loading to determine staleness
   const consoleOutputStale =
-    (status === "queued" || edited || staleInputs || uninstantiated) &&
-    !interrupted;
+    (status === "queued" || edited || staleInputs) && !interrupted;
   const editing = mode === "edit";
 
   // Performs side-effects that must run whenever the cell is run, but doesn't
@@ -199,7 +192,7 @@ const CellComponent = (
       },
       registerRun: prepareToRunEffects,
     }),
-    [editorView, prepareToRunEffects],
+    [editorView, prepareToRunEffects]
   );
 
   // Callback to get the editor view.
@@ -219,11 +212,11 @@ const CellComponent = (
 
   const createBelow = useCallback(
     () => createNewCell({ cellId, before: false }),
-    [cellId, createNewCell],
+    [cellId, createNewCell]
   );
   const createAbove = useCallback(
     () => createNewCell({ cellId, before: true }),
-    [cellId, createNewCell],
+    [cellId, createNewCell]
   );
 
   // Close completion when focus leaves the cell's subtree.
@@ -267,7 +260,7 @@ const CellComponent = (
       editorView.current.focus();
       return;
     },
-    [cellRef, editorView],
+    [cellRef, editorView]
   );
 
   const outputArea = (
@@ -392,6 +385,9 @@ const CellComponent = (
   };
 
   const hasOutput = !isOutputEmpty(output);
+
+  const uninstantiated =
+    !userConfig.runtime.auto_instantiate && !runElapsedTimeMs;
 
   return (
     <CellActionsContextMenu
