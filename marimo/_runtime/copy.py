@@ -46,7 +46,7 @@ class ShallowCopy(_Copy[T]):
 
 
 def _ro_fail() -> None:
-    raise ReadOnlyoError(
+    raise ReadOnlyError(
         "Weakly copied objects are directly read only."
         " Modification is not encouraged, but is"
         " possible by utilizing the marimo.unwrap_copy() function."
