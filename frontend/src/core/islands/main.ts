@@ -40,6 +40,12 @@ export async function initialize() {
   const islands = document.querySelectorAll<HTMLElement>(
     MarimoIslandElement.tagName,
   );
+
+  // If no islands are found, we can skip the rest of the initialization.
+  if (islands.length === 0) {
+    return;
+  }
+
   for (const island of islands) {
     island.classList.add(MarimoIslandElement.styleNamespace);
   }

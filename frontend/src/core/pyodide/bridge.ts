@@ -37,7 +37,13 @@ import { getInitialAppMode } from "../mode";
 const { handleResponseReturnNull } = API;
 
 export class PyodideBridge implements RunRequests, EditRequests {
-  static INSTANCE = new PyodideBridge();
+  static get INSTANCE(): PyodideBridge {
+    const KEY = "_marimo_private_PyodideBridge";
+    if (!window[KEY]) {
+      window[KEY] = new PyodideBridge();
+    }
+    return window[KEY] as PyodideBridge;
+  }
 
   private rpc!: ReturnType<typeof getWorkerRPC<WorkerSchema>>;
   private saveRpc!: ReturnType<typeof getWorkerRPC<SaveWorkerSchema>>;
