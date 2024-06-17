@@ -698,7 +698,6 @@ components:
           $ref: '#/components/schemas/HumanReadableStatus'
       required:
       - function_call_id
-      - return_value
       - status
       - name
       type: object

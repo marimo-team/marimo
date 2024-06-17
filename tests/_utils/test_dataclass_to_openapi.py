@@ -4,9 +4,8 @@ import dataclasses
 from typing import Any, ClassVar, List, Literal, Optional, Union
 
 from marimo._utils.dataclass_to_openapi import (
-    python_type_to_openapi_type,
+    PythonTypeToOpenAPI,
 )
-from marimo._utils.typing import Annotated
 
 
 @dataclasses.dataclass
@@ -27,7 +26,9 @@ class Person:
 
 
 def test_dataclass_to_openapi() -> None:
-    openapi_spec = python_type_to_openapi_type(Person, {}, camel_case=False)
+    openapi_spec = PythonTypeToOpenAPI(
+        name_overrides={}, camel_case=False
+    ).convert(Person, processed_classes={})
     assert openapi_spec == {
         "type": "object",
         "properties": {
@@ -51,7 +52,9 @@ def test_dataclass_to_openapi() -> None:
 
 
 def test_dataclass_to_openapi_with_camelcase() -> None:
-    openapi_spec = python_type_to_openapi_type(Address, {}, camel_case=True)
+    openapi_spec = PythonTypeToOpenAPI(
+        name_overrides={}, camel_case=True
+    ).convert(Address, processed_classes={})
     assert openapi_spec == {
         "type": "object",
         "properties": {
@@ -72,7 +75,9 @@ class Node:
 
 
 def test_recursive_dataclass_to_openapi() -> None:
-    openapi_spec = python_type_to_openapi_type(Node, {}, camel_case=False)
+    openapi_spec = PythonTypeToOpenAPI(
+        name_overrides={}, camel_case=False
+    ).convert(Node, processed_classes={})
     assert openapi_spec == {
         "type": "object",
         "properties": {
@@ -84,13 +89,13 @@ def test_recursive_dataclass_to_openapi() -> None:
     }
 
 
-Colors = Annotated[
-    Union[Literal["red"], Literal["green"], Literal["blue"]], "colors"
-]
+Colors = Union[Literal["red"], Literal["green"], Literal["blue"]]
 
 
 def test_named_union() -> None:
-    openapi_spec = python_type_to_openapi_type(Colors, {}, camel_case=False)
+    openapi_spec = PythonTypeToOpenAPI(
+        name_overrides={}, camel_case=False
+    ).convert(Colors, processed_classes={})
     assert openapi_spec == {
         "oneOf": [
             {"enum": ["red"], "type": "string"},
@@ -107,9 +112,9 @@ class Theme:
 
 
 def test_nested_named_union() -> None:
-    openapi_spec = python_type_to_openapi_type(
-        Theme, {Colors: "colors"}, camel_case=False
-    )
+    openapi_spec = PythonTypeToOpenAPI(
+        name_overrides={Colors: "colors"}, camel_case=False
+    ).convert(Theme, {Colors: "colors"})
     assert openapi_spec == {
         "type": "object",
         "properties": {
@@ -129,7 +134,9 @@ class Dog:
 
 
 def test_class_var() -> None:
-    openapi_spec = python_type_to_openapi_type(Dog, {}, camel_case=False)
+    openapi_spec = PythonTypeToOpenAPI(
+        name_overrides={}, camel_case=False
+    ).convert(Dog, {})
     assert openapi_spec == {
         "type": "object",
         "properties": {"name": {"type": "string", "enum": ["dog"]}},

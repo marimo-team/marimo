@@ -3,16 +3,10 @@ from __future__ import annotations
 
 import dataclasses
 import inspect
-import sys
 from typing import TYPE_CHECKING, Any, Literal, Mapping, Optional
 
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._utils.deep_merge import deep_merge
-
-if sys.version_info < (3, 10):
-    from typing_extensions import Annotated, TypeAlias
-else:
-    from typing import Annotated, TypeAlias
 
 CellId_t = str
 
@@ -67,10 +61,7 @@ CellConfigKeys = frozenset(
 # queued: cell is queued to run
 # running: cell is running
 # disabled-transitively: cell is disabled because a parent is disabled
-CellStatusType: TypeAlias = Annotated[
-    Literal["idle", "queued", "running", "disabled-transitively"],
-    "CellStatus",
-]
+CellStatusType = Literal["idle", "queued", "running", "disabled-transitively"]
 
 
 @dataclasses.dataclass

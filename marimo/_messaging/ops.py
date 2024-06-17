@@ -40,7 +40,6 @@ from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import get_context
 from marimo._runtime.layout.layout import LayoutConfig
-from marimo._utils.typing import Annotated
 
 LOGGER = loggers.marimo_logger()
 
@@ -522,36 +521,33 @@ class QueryParamsClear(Op):
     name: ClassVar[str] = "query-params-clear"
 
 
-MessageOperation = Annotated[
-    Union[
-        # Cell operations
-        CellOp,
-        FunctionCallResult,
-        RemoveUIElements,
-        # Notebook operations
-        Reload,
-        Reconnected,
-        Interrupted,
-        CompletedRun,
-        KernelReady,
-        # Editor operations
-        CompletionResult,
-        # Alerts
-        Alert,
-        Banner,
-        MissingPackageAlert,
-        InstallingPackageAlert,
-        # Variables
-        Variables,
-        VariableValues,
-        # Query params
-        QueryParamsSet,
-        QueryParamsAppend,
-        QueryParamsDelete,
-        QueryParamsClear,
-        # Datasets
-        Datasets,
-        DataColumnPreview,
-    ],
-    "MessageOperation",
+MessageOperation = Union[
+    # Cell operations
+    CellOp,
+    FunctionCallResult,
+    RemoveUIElements,
+    # Notebook operations
+    Reload,
+    Reconnected,
+    Interrupted,
+    CompletedRun,
+    KernelReady,
+    # Editor operations
+    CompletionResult,
+    # Alerts
+    Alert,
+    Banner,
+    MissingPackageAlert,
+    InstallingPackageAlert,
+    # Variables
+    Variables,
+    VariableValues,
+    # Query params
+    QueryParamsSet,
+    QueryParamsAppend,
+    QueryParamsDelete,
+    QueryParamsClear,
+    # Datasets
+    Datasets,
+    DataColumnPreview,
 ]

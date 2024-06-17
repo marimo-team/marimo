@@ -25,8 +25,7 @@ from marimo._output.mime import MIME
 from marimo._plugins.core.web_component import JSONType
 from marimo._server.api.router import build_routes
 from marimo._utils.dataclass_to_openapi import (
-    python_type_name,
-    python_type_to_openapi_type,
+    PythonTypeToOpenAPI,
 )
 
 
@@ -166,24 +165,42 @@ def _generate_schema() -> dict[str, Any]:
             ]
         }
     }
+    # We must override the names of some Union Types,
+    # otherwise, their __name__ is "Union"
+    name_overrides: Dict[Any, str] = {
+        JSONType: "JSONType",
+        errors.Error: "Error",
+        KnownMimeType: "MimeType",
+        data.DataType: "DataType",
+        data.NonNestedLiteral: "NonNestedLiteral",
+        CellStatusType: "CellStatus",
+        CellChannel: "CellChannel",
+        ops.MessageOperation: "MessageOperation",
+    }
 
+    converter = PythonTypeToOpenAPI(
+        camel_case=False, name_overrides=name_overrides
+    )
     for cls in MESSAGES:
         # Remove self from the list
         # since it may not have been processed yet
         if cls in processed_classes:
             del processed_classes[cls]
-        component_schemas[python_type_name(cls)] = python_type_to_openapi_type(
-            cls, processed_classes, camel_case=False
-        )
+        name = name_overrides.get(cls, cls.__name__)  # type: ignore[attr-defined]
+        component_schemas[name] = converter.convert(cls, processed_classes)
+        processed_classes[cls] = name
 
+    converter = PythonTypeToOpenAPI(
+        camel_case=True, name_overrides=name_overrides
+    )
     for cls in REQUEST_RESPONSES:
         # Remove self from the list
         # since it may not have been processed yet
         if cls in processed_classes:
             del processed_classes[cls]
-        component_schemas[python_type_name(cls)] = python_type_to_openapi_type(
-            cls, processed_classes, camel_case=True
-        )
+        name = name_overrides.get(cls, cls.__name__)  # type: ignore[attr-defined]
+        component_schemas[name] = converter.convert(cls, processed_classes)
+        processed_classes[cls] = name
 
     schemas = SchemaGenerator(
         {

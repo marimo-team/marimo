@@ -6,7 +6,6 @@ from typing import Literal, Optional, Union
 
 from marimo._ast.cell import CellId_t
 from marimo._runtime.dataflow import EdgeWithVar
-from marimo._utils.typing import Annotated
 
 
 @dataclass
@@ -78,18 +77,15 @@ class MarimoStrictExecutionError:
     type: Literal["strict-exception"] = "strict-exception"
 
 
-Error = Annotated[
-    Union[
-        CycleError,
-        MultipleDefinitionError,
-        DeleteNonlocalError,
-        MarimoAncestorStoppedError,
-        MarimoAncestorPreventedError,
-        MarimoExceptionRaisedError,
-        MarimoStrictExecutionError,
-        MarimoInterruptionError,
-        MarimoSyntaxError,
-        UnknownError,
-    ],
-    "Error",
+Error = Union[
+    CycleError,
+    MultipleDefinitionError,
+    DeleteNonlocalError,
+    MarimoAncestorStoppedError,
+    MarimoAncestorPreventedError,
+    MarimoExceptionRaisedError,
+    MarimoStrictExecutionError,
+    MarimoInterruptionError,
+    MarimoSyntaxError,
+    UnknownError,
 ]

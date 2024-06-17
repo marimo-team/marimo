@@ -13,8 +13,6 @@ from typing import (
     cast,
 )
 
-from marimo._utils.typing import Annotated
-
 if TYPE_CHECKING:
     import sys
 
@@ -29,20 +27,16 @@ from marimo._output.md import md
 from marimo._output.mime import MIME
 from marimo._plugins.core.json_encoder import WebComponentEncoder
 
-JSONType: TypeAlias = Annotated[
-    Union[
-        Mapping[str, "JSONType"],
-        Sequence["JSONType"],
-        str,
-        int,
-        float,
-        bool,
-        MIME,  # MIME is a JSONType since we have a custom JSONEncoder for it
-        None,
-    ],
-    "JSONType",
+JSONType: TypeAlias = Union[
+    Mapping[str, "JSONType"],
+    Sequence["JSONType"],
+    str,
+    int,
+    float,
+    bool,
+    MIME,  # MIME is a JSONType since we have a custom JSONEncoder for it
+    None,
 ]
-
 
 S = TypeVar("S", bound=JSONType)
 

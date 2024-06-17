@@ -94,7 +94,7 @@ dev = [
     "pytest-asyncio~=0.23.4",
     "types-Markdown~=3.6.0.20240316",
     "types-PyYAML~=6.0.12.20240311",
-    "mypy~=1.7.0",
+    "mypy~=1.10.0",
     "ruff~=0.3.6",
     "typos~=1.17.1",
     # For docs
