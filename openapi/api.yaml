@@ -424,41 +424,9 @@ components:
       - $ref: '#/components/schemas/MultipleDefinitionError'
       - $ref: '#/components/schemas/DeleteNonlocalError'
       - $ref: '#/components/schemas/MarimoAncestorStoppedError'
-      - properties:
-          blamed_cell:
-            type: string
-          msg:
-            type: string
-          raising_cell:
-            type: string
-          type:
-            enum:
-            - ancestor-prevented
-            type: string
-        required:
-        - msg
-        - raising_cell
-        - blamed_cell
-        - type
-        type: object
+      - $ref: '#/components/schemas/MarimoAncestorPreventedError'
       - $ref: '#/components/schemas/MarimoExceptionRaisedError'
-      - properties:
-          blamed_cell:
-            type: string
-          msg:
-            type: string
-          ref:
-            type: string
-          type:
-            enum:
-            - strict-exception
-            type: string
-        required:
-        - msg
-        - ref
-        - blamed_cell
-        - type
-        type: object
+      - $ref: '#/components/schemas/MarimoStrictExecutionError'
       - $ref: '#/components/schemas/MarimoInterruptionError'
       - $ref: '#/components/schemas/MarimoSyntaxError'
       - $ref: '#/components/schemas/UnknownError'
@@ -899,6 +867,24 @@ components:
     MIME:
       properties: {}
       type: object
+    MarimoAncestorPreventedError:
+      properties:
+        blamed_cell:
+          type: string
+        msg:
+          type: string
+        raising_cell:
+          type: string
+        type:
+          enum:
+          - ancestor-prevented
+          type: string
+      required:
+      - msg
+      - raising_cell
+      - blamed_cell
+      - type
+      type: object
     MarimoAncestorStoppedError:
       properties:
         msg:
@@ -1116,6 +1102,24 @@ components:
           - interruption
           type: string
       required:
+      - type
+      type: object
+    MarimoStrictExecutionError:
+      properties:
+        blamed_cell:
+          type: string
+        msg:
+          type: string
+        ref:
+          type: string
+        type:
+          enum:
+          - strict-exception
+          type: string
+      required:
+      - msg
+      - ref
+      - blamed_cell
       - type
       type: object
     MarimoSyntaxError:

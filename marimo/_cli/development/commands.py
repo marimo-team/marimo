@@ -49,6 +49,8 @@ def _generate_schema() -> dict[str, Any]:
         errors.DeleteNonlocalError,
         errors.MarimoInterruptionError,
         errors.MarimoAncestorStoppedError,
+        errors.MarimoAncestorPreventedError,
+        errors.MarimoStrictExecutionError,
         errors.MarimoExceptionRaisedError,
         errors.MarimoSyntaxError,
         errors.UnknownError,

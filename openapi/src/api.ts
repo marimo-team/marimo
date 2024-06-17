@@ -880,21 +880,9 @@ export interface components {
       | components["schemas"]["MultipleDefinitionError"]
       | components["schemas"]["DeleteNonlocalError"]
       | components["schemas"]["MarimoAncestorStoppedError"]
-      | {
-          blamed_cell: string;
-          msg: string;
-          raising_cell: string;
-          /** @enum {string} */
-          type: "ancestor-prevented";
-        }
+      | components["schemas"]["MarimoAncestorPreventedError"]
       | components["schemas"]["MarimoExceptionRaisedError"]
-      | {
-          blamed_cell: string;
-          msg: string;
-          ref: string;
-          /** @enum {string} */
-          type: "strict-exception";
-        }
+      | components["schemas"]["MarimoStrictExecutionError"]
       | components["schemas"]["MarimoInterruptionError"]
       | components["schemas"]["MarimoSyntaxError"]
       | components["schemas"]["UnknownError"];
@@ -1076,6 +1064,13 @@ export interface components {
       } | null;
     };
     MIME: Record<string, never>;
+    MarimoAncestorPreventedError: {
+      blamed_cell: string;
+      msg: string;
+      raising_cell: string;
+      /** @enum {string} */
+      type: "ancestor-prevented";
+    };
     MarimoAncestorStoppedError: {
       msg: string;
       raising_cell: string;
@@ -1155,6 +1150,13 @@ export interface components {
     MarimoInterruptionError: {
       /** @enum {string} */
       type: "interruption";
+    };
+    MarimoStrictExecutionError: {
+      blamed_cell: string;
+      msg: string;
+      ref: string;
+      /** @enum {string} */
+      type: "strict-exception";
     };
     MarimoSyntaxError: {
       msg: string;

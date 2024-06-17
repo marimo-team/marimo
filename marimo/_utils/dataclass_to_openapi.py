@@ -30,7 +30,7 @@ def python_type_name(py_type: Any) -> str:
         maybe_name = py_type.__metadata__[0]
         if isinstance(maybe_name, str):
             return maybe_name
-    return py_type.__name__  # ignore[no-any-return]
+    return py_type.__name__  # type: ignore[no-any-return]
 
 
 def python_type_to_openapi_type(
