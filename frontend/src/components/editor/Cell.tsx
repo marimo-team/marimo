@@ -15,7 +15,7 @@ import { saveCellConfig, sendRun, sendStdin } from "@/core/network/requests";
 import { autocompletionKeymap } from "@/core/codemirror/cm";
 import { UserConfig } from "../../core/config/config-schema";
 import { CellData, CellRuntimeState } from "../../core/cells/types";
-import { CellActions } from "../../core/cells/cells";
+import { CellActions, isUninstantiated } from "../../core/cells/cells";
 import { derefNotNull } from "../../utils/dereference";
 import { OutputArea } from "./Output";
 import { ConsoleOutput } from "./output/ConsoleOutput";
@@ -157,8 +157,21 @@ const CellComponent = (
 
   const disabledOrAncestorDisabled =
     cellConfig.disabled || status === "disabled-transitively";
+
+  const uninstantiated = isUninstantiated(
+    userConfig.runtime.auto_instantiate,
+    runElapsedTimeMs,
+    status,
+    errored,
+    interrupted,
+    stopped,
+  );
+
   const needsRun =
-    edited || interrupted || (staleInputs && !disabledOrAncestorDisabled);
+    uninstantiated ||
+    edited ||
+    interrupted ||
+    (staleInputs && !disabledOrAncestorDisabled);
   const loading = status === "running" || status === "queued";
 
   const outputStale = outputIsStale(
@@ -387,9 +400,6 @@ const CellComponent = (
   };
 
   const hasOutput = !isOutputEmpty(output);
-
-  const uninstantiated =
-    !userConfig.runtime.auto_instantiate && !runElapsedTimeMs;
 
   return (
     <CellActionsContextMenu

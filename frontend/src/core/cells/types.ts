@@ -5,7 +5,6 @@ import { Outline } from "./outline";
 import { CellId } from "./ids";
 import { DEFAULT_CELL_NAME } from "./names";
 import { Milliseconds, Seconds } from "@/utils/time";
-import { getUserConfig } from "../config/config";
 import { CellConfig, CellStatus } from "../network/types";
 
 /**
@@ -39,13 +38,12 @@ export function createCell({
 export function createCellRuntimeState(
   state?: Partial<CellRuntimeState>,
 ): CellRuntimeState {
-  const auto_instantiate = getUserConfig().runtime.auto_instantiate;
   return {
     outline: null,
     output: null,
     consoleOutputs: [],
     status: "idle" as CellStatus,
-    staleInputs: !auto_instantiate,
+    staleInputs: false,
     interrupted: false,
     errored: false,
     stopped: false,
