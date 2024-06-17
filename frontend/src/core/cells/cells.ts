@@ -499,15 +499,24 @@ const {
     });
   },
   setCells: (state, cells: CellData[]) => {
+    const cellData = Object.fromEntries(cells.map((cell) => [cell.id, cell]));
+
+    const cellRuntime = Object.fromEntries(
+      cells.map((cell) => [
+        cell.id,
+        createCellRuntimeState({
+          staleInputs: !cellData[cell.id].lastExecutionTime,
+        }),
+      ]),
+    );
+
     return {
       ...state,
       cellIds: cells.map((cell) => cell.id),
-      cellData: Object.fromEntries(cells.map((cell) => [cell.id, cell])),
+      cellData: cellData,
+      cellRuntime: cellRuntime,
       cellHandles: Object.fromEntries(
         cells.map((cell) => [cell.id, createRef()]),
-      ),
-      cellRuntime: Object.fromEntries(
-        cells.map((cell) => [cell.id, createCellRuntimeState()]),
       ),
     };
   },

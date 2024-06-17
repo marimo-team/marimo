@@ -160,6 +160,7 @@ const CellComponent = (
   const needsRun =
     edited || interrupted || (staleInputs && !disabledOrAncestorDisabled);
   const loading = status === "running" || status === "queued";
+
   const outputStale = outputIsStale(
     { status, output, runStartTimestamp, interrupted, staleInputs },
     edited,
@@ -387,6 +388,9 @@ const CellComponent = (
 
   const hasOutput = !isOutputEmpty(output);
 
+  const uninstantiated =
+    !userConfig.runtime.auto_instantiate && !runElapsedTimeMs;
+
   return (
     <CellActionsContextMenu
       cellId={cellId}
@@ -453,6 +457,7 @@ const CellComponent = (
               disabled={cellConfig.disabled ?? false}
               elapsedTime={runElapsedTimeMs}
               runStartTimestamp={runStartTimestamp}
+              uninstantiated={uninstantiated}
             />
             <div className="flex align-bottom">
               <RunButton
