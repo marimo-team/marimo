@@ -9,6 +9,7 @@ import {
   useCallback,
   useImperativeHandle,
   useRef,
+  useEffect,
 } from "react";
 
 import { saveCellConfig, sendRun, sendStdin } from "@/core/network/requests";
@@ -145,7 +146,7 @@ const CellComponent = (
     config: cellConfig,
     name,
   }: CellProps,
-  ref: React.ForwardedRef<CellHandle>,
+  ref: React.ForwardedRef<CellHandle>
 ) => {
   useCellRenderCount().countRender();
 
@@ -163,7 +164,7 @@ const CellComponent = (
 
   const outputStale = outputIsStale(
     { status, output, runStartTimestamp, interrupted, staleInputs },
-    edited,
+    edited
   );
 
   // console output is cleared immediately on run, so check for queued instead
@@ -192,7 +193,7 @@ const CellComponent = (
       },
       registerRun: prepareToRunEffects,
     }),
-    [editorView, prepareToRunEffects],
+    [editorView, prepareToRunEffects]
   );
 
   // Callback to get the editor view.
@@ -212,11 +213,11 @@ const CellComponent = (
 
   const createBelow = useCallback(
     () => createNewCell({ cellId, before: false }),
-    [cellId, createNewCell],
+    [cellId, createNewCell]
   );
   const createAbove = useCallback(
     () => createNewCell({ cellId, before: true }),
-    [cellId, createNewCell],
+    [cellId, createNewCell]
   );
 
   // Close completion when focus leaves the cell's subtree.
@@ -260,7 +261,7 @@ const CellComponent = (
       editorView.current.focus();
       return;
     },
-    [cellRef, editorView],
+    [cellRef, editorView]
   );
 
   const outputArea = (
@@ -388,6 +389,30 @@ const CellComponent = (
 
   const uninstantiated =
     !userConfig.runtime.auto_instantiate && !runElapsedTimeMs;
+
+  // Dynamic favicon for run feedback
+  useEffect(() => {
+    let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "icon";
+      document.getElementsByTagName("head")[0].appendChild(link);
+    }
+    if (status === "running" || status === "queued") {
+      link.href = "./circle-play.ico";
+      return;
+    } else if (errored || stopped || interrupted) {
+      link.href = "./circle-x.ico";
+    } else {
+      link.href = "./circle-check.ico";
+    }
+    setTimeout(() => {
+      link.href = "./favicon.ico";
+    }, 5000);
+    return () => {
+      link.href = "./favicon.ico";
+    };
+  }, [status, errored, stopped, interrupted]);
 
   return (
     <CellActionsContextMenu
