@@ -1,5 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { repl } from "../../utils/repl";
 import type { CellId, UIElementId } from "../cells/ids";
 import {
   ValueType,

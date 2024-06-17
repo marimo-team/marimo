@@ -5,7 +5,6 @@ import {
 } from "../dom/events";
 import { UI_ELEMENT_REGISTRY, UIElementRegistry } from "../dom/uiregistry";
 import { RunRequests } from "../network/types";
-import { repl } from "@/utils/repl";
 import { Logger } from "@/utils/Logger";
 
 /**
