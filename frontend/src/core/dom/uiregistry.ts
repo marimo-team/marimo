@@ -1,5 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { repl } from "../../utils/repl";
 import type { CellId, UIElementId } from "../cells/ids";
 import {
   ValueType,
@@ -31,10 +30,15 @@ export class UIElementRegistry {
   /**
    * Shared instance of UIElementRegistry since this must be a singleton.
    */
-  static readonly INSTANCE = new UIElementRegistry();
+  static get INSTANCE(): UIElementRegistry {
+    const KEY = "_marimo_private_UIElementRegistry";
+    if (!window[KEY]) {
+      window[KEY] = new UIElementRegistry();
+    }
+    return window[KEY] as UIElementRegistry;
+  }
 
   private constructor() {
-    repl(UIElementRegistry.INSTANCE, "UIElementRegistry");
     this.entries = new Map();
   }
 

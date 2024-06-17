@@ -53,6 +53,8 @@ class TestExecution:
                 er2 := ExecutionRequest(cell_id="2", code="z = x + y"),
             ]
         )
+
+        assert not k.errors
         assert k.globals["x"] == 1
         assert k.globals["y"] == 2
         assert k.globals["z"] == 3
@@ -603,15 +605,24 @@ class TestExecution:
                 exec_req.get(
                     "from runtime_data.cell_ui_element import make_slider"
                 ),
+                exec_req.get("import weakref"),
                 exec_req.get("_, defs = make_slider.run()"),
                 exec_req.get("_, second_defs = make_slider.run()"),
-                exec_req.get("counter = [0]"),
+                exec_req.get(
+                    """
+                        class namespace:
+                            ...
+                        ns = namespace()
+                        ns.count = 0
+                        ref = weakref.ref(ns)
+                        """
+                ),
                 er := exec_req.get("slider_value = defs['slider'].value + 1"),
-                exec_req.get("second_defs; counter[0] += 1"),
+                exec_req.get("second_defs; ref().count += 1"),
             ]
         )
         assert k.globals["defs"]["slider"].value == 0
-        assert k.globals["counter"][0] == 1
+        assert k.globals["ns"].count == 1
         assert k.globals["slider_value"] == 1
         element_id = k.globals["defs"]["slider"]._id
 
@@ -626,7 +637,7 @@ class TestExecution:
         assert k.globals["slider_value"] == 6
         # reactive execution on the slider in `defs` shouldn't trigger reactive
         # execution on `second_defs`
-        assert k.globals["counter"][0] == 1
+        assert k.globals["ns"].count == 1
 
     async def test_set_ui_element_value_not_found_doesnt_fail(
         self,
@@ -701,10 +712,14 @@ class TestExecution:
 
                     pickle_output = None
                     pickle_output = pickle.dumps(foo)
+                    post_pickle_var = 1
                     """
                 ),
             ]
         )
+        assert not k.errors
+        assert "post_pickle_var" in k.globals
+        assert k.globals["post_pickle_var"] == 1
         assert k.globals["pickle_output"] is not None
 
     def test_sys_path_updated(self, tmp_path: pathlib.Path) -> None:
@@ -807,6 +822,169 @@ class TestExecution:
         assert "exc" not in k.graph.cells[er_1.cell_id].refs
         assert "exc" not in k.graph.cells[er_1.cell_id].defs
         assert "e" in k.globals
+
+
+class TestStrictExecution:
+    @staticmethod
+    async def test_cell_lambda(
+        strict_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = strict_kernel
+        await k.run(
+            [
+                exec_req.get("""Y = 1"""),
+                exec_req.get(
+                    """
+                  _x = 1
+                  X = 1
+                  L = lambda x: x + _x + X + Y
+                  """
+                ),
+                exec_req.get(
+                    """
+                V = L(1)
+                V
+                """
+                ),
+            ]
+        )
+        assert not k.errors
+        assert "X" in k.globals
+        assert "Y" in k.globals
+        assert "L" in k.globals
+        assert "V" in k.globals
+        assert k.globals["V"] == 4
+
+    @staticmethod
+    async def test_cell_indirect_lambda(
+        strict_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = strict_kernel
+        await k.run(
+            [
+                exec_req.get("""Y = 1"""),
+                exec_req.get(
+                    """
+                  _x = 1
+                  X = 1
+                  L = [lambda x: x + _x + X + Y]
+                  """
+                ),
+                exec_req.get("V = L[0](1)"),
+            ]
+        )
+        assert not k.errors
+        assert "X" in k.globals
+        assert "Y" in k.globals
+        assert "L" in k.globals
+        assert "V" in k.globals
+        assert k.globals["V"] == 4
+
+    @staticmethod
+    async def test_cell_indirect_private(
+        strict_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = strict_kernel
+        await k.run(
+            [
+                exec_req.get("""
+                             Y = 1
+                             _y = 1
+                             def f(x):
+                                return x + _y
+                             """),
+                exec_req.get(
+                    """
+                  _x = 1
+                  X = 1
+                  L = [lambda x: f(x + _x + X + Y)]
+                  """
+                ),
+                exec_req.get("V = L[0](1)"),
+            ]
+        )
+        assert not k.errors
+        assert "X" in k.globals
+        assert "Y" in k.globals
+        assert "L" in k.globals
+        assert "V" in k.globals
+        assert "f" in k.globals
+        assert k.globals["V"] == 5
+
+    @staticmethod
+    async def test_cell_copy_works(
+        strict_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = strict_kernel
+        await k.run(
+            [
+                exec_req.get("""
+                             class namespace:
+                                ...
+                             X = namespace()
+                             X.count = 1
+                             """),
+                exec_req.get(
+                    """
+                  X.count += 1
+                  V0 = X.count
+                  """
+                ),
+                exec_req.get(
+                    """
+                  X.count += 10
+                  V1 = X.count
+                  """
+                ),
+            ]
+        )
+        assert not k.errors
+        assert "X" in k.globals
+        assert "V0" in k.globals
+        assert "V1" in k.globals
+        assert k.globals["X"].count == 1
+        assert k.globals["V0"] == 2
+        assert k.globals["V1"] == 11
+
+    @staticmethod
+    async def test_cell_zero_copy_works(
+        strict_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = strict_kernel
+        await k.run(
+            [
+                exec_req.get("""
+                             import marimo as mo
+                             class namespace:
+                                ...
+                             X = namespace()
+                             X.count = 1
+                             X = mo._runtime.copy.zero_copy(X)
+                             """),
+                exec_req.get(
+                    """
+                  mo._runtime.copy.unwrap_copy(X).count += 1
+                  V0 = X.count
+                  """
+                ),
+                exec_req.get(
+                    """
+                  mo._runtime.copy.unwrap_copy(X).count += 10
+                  V1 = X.count
+                  """
+                ),
+            ]
+        )
+        assert not k.errors
+        assert "X" in k.globals
+        assert "V0" in k.globals
+        assert "V1" in k.globals
+        assert k.globals["X"].count == 12
+        assert k.globals["V0"] in (2, 12)
+        if k.globals["V0"] == 2:
+            assert k.globals["V1"] == 12
+        else:
+            assert k.globals["V1"] == 11
 
 
 class TestStoredOutput:
@@ -912,13 +1090,15 @@ class TestDisable:
             [
                 exec_req.get(
                     """
+                        import weakref
                         class namespace:
                             ...
                         ns = namespace()
                         ns.count = 0
+                        ref = weakref.ref(ns)
                         """
                 ),
-                (er_2 := exec_req.get("ns.count += 1")),
+                er_2 := exec_req.get("ref().count += 1"),
             ]
         )
         assert k.globals["ns"].count == 1
@@ -948,17 +1128,17 @@ class TestDisable:
         graph = k.graph
         await k.run(
             [
-                (
-                    er_1 := exec_req.get(
-                        """
+                er_1 := exec_req.get(
+                    """
                         class namespace:
                             ...
                         ns = namespace()
                         ns.count = 0
+                        import weakref
+                        ref = weakref.ref(ns)
                         """
-                    )
                 ),
-                er_2 := exec_req.get("ns.count += 1"),
+                er_2 := exec_req.get("ref().count += 1"),
             ]
         )
         assert k.globals["ns"].count == 1
@@ -978,6 +1158,8 @@ class TestDisable:
                         ...
                     ns = namespace()
                     ns.count = 10
+                    import weakref
+                    ref = weakref.ref(ns)
                     """,
                 )
             ]

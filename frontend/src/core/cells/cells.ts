@@ -758,7 +758,7 @@ const cellErrorsAtom = atom((get) => {
         // but nothing the user can take action on.
         invariant(Array.isArray(cell.output.data), "Expected array data");
         const nonAncestorErrors = cell.output.data.filter(
-          (error) => error.type !== "ancestor-stopped",
+          (error) => !error.type.includes("ancestor"),
         );
 
         if (nonAncestorErrors.length > 0) {

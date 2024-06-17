@@ -103,7 +103,19 @@ def test_assign_same_name() -> None:
     v.visit(mod)
     assert v.defs == set(["x"])
     assert v.refs == set(["x"])
-    assert v.variable_data == {"x": VariableData(kind="variable")}
+    assert v.variable_data == {
+        "x": VariableData(kind="variable", required_refs={"x"})
+    }
+
+    expr = "x=1; x = x"
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(expr)
+    v.visit(mod)
+    assert v.defs == set(["x"])
+    assert v.refs == set()
+    assert v.variable_data == {
+        "x": VariableData(kind="variable", required_refs={"x"})
+    }
 
     expr = "(x := x)"
     v = visitor.ScopedVisitor()
@@ -111,7 +123,9 @@ def test_assign_same_name() -> None:
     v.visit(mod)
     assert v.defs == set(["x"])
     assert v.refs == set(["x"])
-    assert v.variable_data == {"x": VariableData(kind="variable")}
+    assert v.variable_data == {
+        "x": VariableData(kind="variable", required_refs={"x"})
+    }
 
     expr = "x += x"
     v = visitor.ScopedVisitor()
@@ -119,7 +133,9 @@ def test_assign_same_name() -> None:
     v.visit(mod)
     assert v.defs == set(["x"])
     assert v.refs == set(["x"])
-    assert v.variable_data == {"x": VariableData(kind="variable")}
+    assert v.variable_data == {
+        "x": VariableData(kind="variable", required_refs={"x"})
+    }
 
     expr = "def f(): x = x; return x"
     v = visitor.ScopedVisitor()
@@ -127,7 +143,9 @@ def test_assign_same_name() -> None:
     v.visit(mod)
     assert v.defs == set(["f"])
     assert v.refs == set(["x"])
-    assert v.variable_data == {"f": VariableData(kind="function")}
+    assert v.variable_data == {
+        "f": VariableData(kind="function", required_refs={"x"})
+    }
 
     expr = "class F(): x = x"
     v = visitor.ScopedVisitor()
@@ -135,7 +153,9 @@ def test_assign_same_name() -> None:
     v.visit(mod)
     assert v.defs == set(["F"])
     assert v.refs == set(["x"])
-    assert v.variable_data == {"F": VariableData(kind="class")}
+    assert v.variable_data == {
+        "F": VariableData(kind="class", required_refs={"x"})
+    }
 
     expr = "{x: x}"
     v = visitor.ScopedVisitor()
@@ -243,7 +263,7 @@ def test_walrus_leaks_to_global_in_comprehension() -> None:
         "b": VariableData(kind="variable"),
         "c": VariableData(kind="variable"),
         "d": VariableData(kind="variable"),
-        "foo": VariableData(kind="function"),
+        "foo": VariableData(kind="function", required_refs={"a"}),
     }
 
 
@@ -292,7 +312,7 @@ def test_walrus_in_comp_in_fn_block_does_not_leak_to_global() -> None:
     assert v.defs == set(["f"])  # x should _not_ leak to global scope
     assert v.refs == set(["range"])  # x should leak to f's scope
     assert v.variable_data == {
-        "f": VariableData(kind="function"),
+        "f": VariableData(kind="function", required_refs={"range"}),
     }
 
 
@@ -334,7 +354,7 @@ def test_function_with_args() -> None:
     assert v.defs == set(["foo"])
     assert v.refs == set("z")
     assert v.variable_data == {
-        "foo": VariableData(kind="function"),
+        "foo": VariableData(kind="function", required_refs={"z"}),
     }
 
 
@@ -350,8 +370,9 @@ def test_function_with_defaults() -> None:
     v.visit(mod)
     assert v.defs == set(["foo"])
     assert v.refs == set(["x", "y", "a"])
+    # TODO: Are these required refs?
     assert v.variable_data == {
-        "foo": VariableData(kind="function"),
+        "foo": VariableData(kind="function", required_refs={"x", "y", "a"}),
     }
 
 
@@ -370,7 +391,7 @@ def test_async_function_def() -> None:
     assert v.defs == set(["foo", "x"])
     assert v.refs == set("z")
     assert v.variable_data == {
-        "foo": VariableData(kind="function"),
+        "foo": VariableData(kind="function", required_refs={"z"}),
         "x": VariableData(kind="variable"),
     }
 
@@ -389,7 +410,7 @@ def test_global_def() -> None:
     assert v.defs == set(["foo", "x"])
     assert v.refs == set()
     assert v.variable_data == {
-        "foo": VariableData(kind="function"),
+        "foo": VariableData(kind="function", required_refs={"x"}),
         "x": VariableData(kind="variable"),
     }
 
@@ -408,7 +429,7 @@ def test_global_ref() -> None:
     assert v.defs == set(["foo"])
     assert v.refs == set(["x", "print"])
     assert v.variable_data == {
-        "foo": VariableData(kind="function"),
+        "foo": VariableData(kind="function", required_refs={"x", "print"}),
     }
 
 
@@ -428,7 +449,7 @@ def test_nested_local_def_and_global_ref() -> None:
     assert v.defs == set(["foo"])
     assert v.refs == set(["x", "print"])
     assert v.variable_data == {
-        "foo": VariableData(kind="function"),
+        "foo": VariableData(kind="function", required_refs={"x", "print"}),
     }
 
 
@@ -810,3 +831,30 @@ def test_type_var_generic_function() -> None:
     assert v.defs == set(["test"])
     # U should not be a ref
     assert v.refs == set()
+
+
+def test_private_ref_requirement_caught() -> None:
+    code = "\n".join(
+        [
+            "x = 1",
+            "_x = 1",
+            "def foo():",
+            "  z = _x + x + X",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert len(v.defs & set(["foo", "x"])) == 2
+    assert len(v.defs - set(["foo", "x"])) == 1
+    (private,) = v.defs - set(["foo", "x"])
+    assert private.startswith("_")
+    assert private.endswith("_x")
+    assert v.refs == set(["X"])
+    assert v.variable_data == {
+        private: VariableData(kind="variable"),
+        "x": VariableData(kind="variable"),
+        "foo": VariableData(
+            kind="function", required_refs={"X", "x", private}
+        ),
+    }
