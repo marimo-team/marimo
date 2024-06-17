@@ -22,7 +22,9 @@ const themeAtom = atom((get) => {
     // If it has data-theme=dark or data-mode=dark on the body, use dark mode.
     if (
       document.body.dataset.theme === "dark" ||
-      document.body.dataset.mode === "dark"
+      document.body.dataset.mode === "dark" ||
+      document.body.dataset.vscodeThemeKind === "vscode-dark" ||
+      document.body.dataset.vscodeThemeKind === "vscode-high-contrast"
     ) {
       return "dark";
     }

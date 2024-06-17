@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 from starlette.exceptions import HTTPException
+from starlette.responses import PlainTextResponse
 
 from marimo import _loggers
 from marimo._ast import codegen
@@ -154,7 +155,7 @@ async def open_file(
 async def save(
     *,
     request: Request,
-) -> BaseResponse:
+) -> PlainTextResponse:
     """
     requestBody:
         content:
@@ -165,16 +166,16 @@ async def save(
         200:
             description: Save the current app
             content:
-                application/json:
+                text/plain:
                     schema:
-                        $ref: "#/components/schemas/SuccessResponse"
+                        type: string
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=SaveNotebookRequest)
     session = app_state.require_current_session()
-    session.app_file_manager.save(body)
+    contents = session.app_file_manager.save(body)
 
-    return SuccessResponse()
+    return PlainTextResponse(content=contents)
 
 
 @router.post("/save_app_config")
@@ -182,7 +183,7 @@ async def save(
 async def save_app_config(
     *,
     request: Request,
-) -> BaseResponse:
+) -> PlainTextResponse:
     """
     requestBody:
         content:
@@ -193,13 +194,13 @@ async def save_app_config(
         200:
             description: Save the app configuration
             content:
-                application/json:
+                text/plain:
                     schema:
-                        $ref: "#/components/schemas/SuccessResponse"
+                        type: string
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=SaveAppConfigurationRequest)
     session = app_state.require_current_session()
-    session.app_file_manager.save_app_config(body.config)
+    contents = session.app_file_manager.save_app_config(body.config)
 
-    return SuccessResponse()
+    return PlainTextResponse(content=contents)

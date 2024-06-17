@@ -91,7 +91,7 @@ class AppFileManager:
         names: list[str],
         configs: list[CellConfig],
         app_config: _AppConfig,
-    ) -> None:
+    ) -> str:
         LOGGER.debug("Saving app to %s", filename)
         if filename.endswith(".md"):
             # TODO: Remember just proof of concept, potentially needs
@@ -116,6 +116,8 @@ class AppFileManager:
 
         if self._is_unnamed():
             self.rename(filename)
+
+        return contents
 
     def _load_app(self, path: Optional[str]) -> InternalApp:
         """Read the app from the file."""
@@ -185,20 +187,21 @@ class AppFileManager:
         except AttributeError:
             return None
 
-    def save_app_config(self, config: Dict[str, Any]) -> None:
+    def save_app_config(self, config: Dict[str, Any]) -> str:
         """Save the app configuration."""
         # Update the file with the latest app config
         # TODO(akshayka): Only change the `app = marimo.App` line (at top level
         # of file), instead of overwriting the whole file.
         new_config = self.app.update_config(config)
         if self.filename is not None:
-            self._save_file(
+            return self._save_file(
                 self.filename,
                 list(self.app.cell_manager.codes()),
                 list(self.app.cell_manager.names()),
                 list(self.app.cell_manager.configs()),
                 new_config,
             )
+        return ""
 
     def save(self, request: SaveNotebookRequest) -> None:
         """Save the current app."""
