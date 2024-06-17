@@ -1401,12 +1401,15 @@ components:
           items:
             type: string
           type: array
+        persist:
+          type: boolean
       required:
       - cellIds
       - codes
       - names
       - configs
       - filename
+      - persist
       type: object
     SaveUserConfigurationRequest:
       properties:
@@ -2014,9 +2017,9 @@ paths:
       responses:
         200:
           content:
-            application/json:
+            text/plain:
               schema:
-                $ref: '#/components/schemas/SuccessResponse'
+                type: string
           description: Save the current app
   /api/kernel/save_app_config:
     post:
@@ -2028,9 +2031,9 @@ paths:
       responses:
         200:
           content:
-            application/json:
+            text/plain:
               schema:
-                $ref: '#/components/schemas/SuccessResponse'
+                type: string
           description: Save the app configuration
   /api/kernel/save_user_config:
     post:

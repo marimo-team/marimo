@@ -37,6 +37,9 @@ import { RequestId } from "../network/DeferredRequestRegistry";
  * Initialize the Marimo app.
  */
 export async function initialize() {
+  // This will display all the static HTML content.
+  initializePlugins();
+
   // Add 'marimo' class name to all `marimo-island` elements.
   const islands = document.querySelectorAll<HTMLElement>(
     MarimoIslandElement.tagName,
@@ -50,9 +53,6 @@ export async function initialize() {
   for (const island of islands) {
     island.classList.add(MarimoIslandElement.styleNamespace);
   }
-
-  // This will display all the static HTML content.
-  initializePlugins();
 
   const actions = createNotebookActions((action) => {
     store.set(notebookAtom, (state) => notebookReducer(state, action));

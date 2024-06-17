@@ -100,6 +100,8 @@ class SaveNotebookRequest:
     filename: str
     # layout of app
     layout: Optional[Dict[str, Any]] = None
+    # persist the file to disk
+    persist: bool = True
 
     # Validate same length
     def __post_init__(self) -> None:
