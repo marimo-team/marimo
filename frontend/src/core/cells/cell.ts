@@ -45,7 +45,6 @@ export function transitionCell(
           (message.timestamp - cell.runStartTimestamp) as Seconds,
         ).toMilliseconds();
         nextCell.runStartTimestamp = null;
-        nextCell.staleInputs = false;
       }
       nextCell.debuggerActive = false;
       break;
