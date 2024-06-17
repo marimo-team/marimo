@@ -13,7 +13,13 @@ export class VirtualFileTracker {
   /**
    * Shared instance of VirtualFileTracker since this must be a singleton.
    */
-  static readonly INSTANCE = new VirtualFileTracker();
+  static get INSTANCE(): VirtualFileTracker {
+    const KEY = "_marimo_private_VirtualFileTracker";
+    if (!window[KEY]) {
+      window[KEY] = new VirtualFileTracker();
+    }
+    return window[KEY] as VirtualFileTracker;
+  }
 
   virtualFiles = new Map<CellId, Set<string>>();
 

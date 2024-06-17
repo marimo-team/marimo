@@ -31,7 +31,13 @@ export class UIElementRegistry {
   /**
    * Shared instance of UIElementRegistry since this must be a singleton.
    */
-  static readonly INSTANCE = new UIElementRegistry();
+  static get INSTANCE(): UIElementRegistry {
+    const KEY = "_marimo_private_UIElementRegistry";
+    if (!window[KEY]) {
+      window[KEY] = new UIElementRegistry();
+    }
+    return window[KEY] as UIElementRegistry;
+  }
 
   private constructor() {
     repl(UIElementRegistry.INSTANCE, "UIElementRegistry");

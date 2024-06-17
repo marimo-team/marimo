@@ -12,10 +12,18 @@ import { Logger } from "@/utils/Logger";
  * Manager to track running cells.
  */
 export class RuntimeState {
+  private hasStarted = false;
+
   /**
    * Shared instance of RuntimeState since this must be a singleton.
    */
-  static readonly INSTANCE = new RuntimeState(UI_ELEMENT_REGISTRY);
+  static get INSTANCE(): RuntimeState {
+    const KEY = "_marimo_private_RuntimeState";
+    if (!window[KEY]) {
+      window[KEY] = new RuntimeState(UI_ELEMENT_REGISTRY);
+    }
+    return window[KEY] as RuntimeState;
+  }
 
   /**
    * ObjectIds of UIElements whose values need to be updated in the kernel
@@ -37,15 +45,25 @@ export class RuntimeState {
    * Start listening for events from UIElements
    */
   start(sendComponentValues: RunRequests["sendComponentValues"]) {
+    if (this.hasStarted) {
+      Logger.warn("RuntimeState already started");
+      return;
+    }
     this._sendComponentValues = sendComponentValues;
     document.addEventListener(marimoValueReadyEvent, this.handleReadyEvent);
+    this.hasStarted = true;
   }
 
   /**
    * Stop listening for events from UIElements
    */
   stop() {
+    if (!this.hasStarted) {
+      Logger.warn("RuntimeState already stopped");
+      return;
+    }
     document.removeEventListener(marimoValueReadyEvent, this.handleReadyEvent);
+    this.hasStarted = false;
   }
 
   private handleReadyEvent = (e: MarimoValueReadyEventType) => {
