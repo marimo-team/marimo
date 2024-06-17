@@ -199,7 +199,7 @@ class PythonTypeToOpenAPI:
         schema_name = self.name_overrides.get(cls, cls.__name__)
         processed_classes[cls] = schema_name
 
-        type_hints = get_type_hints(cls, include_extras=True)
+        type_hints = get_type_hints(cls)
         fields: tuple[dataclasses.Field[Any], ...] = dataclasses.fields(cls)
         properties: Dict[str, Dict[str, Any]] = {}
         required: List[str] = []
