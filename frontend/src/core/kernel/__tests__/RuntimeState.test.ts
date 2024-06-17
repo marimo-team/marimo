@@ -32,7 +32,14 @@ describe("RuntimeState", () => {
     );
   });
 
+  test("it can only start once", () => {
+    runtimeState.start(mockSendComponentValues);
+    runtimeState.start(mockSendComponentValues);
+    expect(addEventListenerSpy).toHaveBeenCalledTimes(1);
+  });
+
   test("stop should remove event listener", () => {
+    runtimeState.start(mockSendComponentValues);
     runtimeState.stop();
     expect(removeEventListenerSpy).toHaveBeenCalledWith(
       marimoValueReadyEvent,
