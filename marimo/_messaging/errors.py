@@ -39,7 +39,7 @@ class MarimoAncestorPreventedError:
     msg: str
     raising_cell: CellId_t
     blamed_cell: CellId_t
-    type: str = "ancestor-prevented"
+    type: Literal["ancestor-prevented"] = "ancestor-prevented"
 
 
 @dataclass
@@ -75,7 +75,7 @@ class MarimoStrictExecutionError:
     msg: str
     ref: str
     blamed_cell: CellId_t
-    type: str = "strict-exception"
+    type: Literal["strict-exception"] = "strict-exception"
 
 
 Error = Annotated[

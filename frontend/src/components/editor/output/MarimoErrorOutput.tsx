@@ -153,10 +153,10 @@ export const MarimoErrorOutput = ({
         ) : (
           <div key={idx}>
             {error.msg}
-            <CellLinkError cellId={error.blamed_cell} />
+            <CellLinkError cellId={error.blamed_cell as CellId} />
             <Tip>
               Ensure that&nbsp;
-              <CellLinkError cellId={error.blamed_cell} />
+              <CellLinkError cellId={error.blamed_cell as CellId} />
               &nbsp;defines the variable {error.ref}, or turn off strict
               execution.
             </Tip>
@@ -169,9 +169,9 @@ export const MarimoErrorOutput = ({
         return (
           <div key={idx}>
             {error.msg}
-            (<CellLinkError cellId={error.raising_cell} />
+            (<CellLinkError cellId={error.raising_cell as CellId} />
             &nbsp;blames&nbsp;
-            <CellLinkError cellId={error.blamed_cell} />)
+            <CellLinkError cellId={error.blamed_cell as CellId} />)
           </div>
         );
       case "ancestor-stopped":

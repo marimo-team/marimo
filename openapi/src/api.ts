@@ -880,7 +880,21 @@ export interface components {
       | components["schemas"]["MultipleDefinitionError"]
       | components["schemas"]["DeleteNonlocalError"]
       | components["schemas"]["MarimoAncestorStoppedError"]
+      | {
+          blamed_cell: string;
+          msg: string;
+          raising_cell: string;
+          /** @enum {string} */
+          type: "ancestor-prevented";
+        }
       | components["schemas"]["MarimoExceptionRaisedError"]
+      | {
+          blamed_cell: string;
+          msg: string;
+          ref: string;
+          /** @enum {string} */
+          type: "strict-exception";
+        }
       | components["schemas"]["MarimoInterruptionError"]
       | components["schemas"]["MarimoSyntaxError"]
       | components["schemas"]["UnknownError"];
