@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/accordion";
 import { Fragment } from "react";
 import { CellLinkError } from "../links/cell-link";
+import { CellId } from "@/core/cells/ids";
 
 const Tip = (props: {
   className?: string;
@@ -65,13 +66,13 @@ export const MarimoErrorOutput = ({
             <ul className="list-disc">
               {error.edges_with_vars.map((edge) => (
                 <li className={liStyle} key={`${edge[0]}-${edge[1]}`}>
-                  <CellLinkError cellId={edge[0]} />
+                  <CellLinkError cellId={edge[0] as CellId} />
                   <span className="text-muted-foreground">
                     {" -> "}
                     {edge[1].length == 1 ? edge[1] : edge[1].join(", ")}
                     {" -> "}
                   </span>
-                  <CellLinkError cellId={edge[2]} />
+                  <CellLinkError cellId={edge[2] as CellId} />
                 </li>
               ))}
             </ul>
@@ -88,7 +89,7 @@ export const MarimoErrorOutput = ({
             <ul className="list-disc">
               {error.cells.map((cid) => (
                 <li className={liStyle} key={cid}>
-                  <CellLinkError cellId={cid} />
+                  <CellLinkError cellId={cid as CellId} />
                 </li>
               ))}
             </ul>
@@ -106,7 +107,7 @@ export const MarimoErrorOutput = ({
             <div className="mt-4">
               {`The variable '${error.name}' can't be deleted because it was defined by another cell ` +
                 `(`}
-              <CellLinkError cellId={error.cells[0]} />
+              <CellLinkError cellId={error.cells[0] as CellId} />
               {")"}
             </div>
             <Tip>
@@ -132,10 +133,11 @@ export const MarimoErrorOutput = ({
         ) : (
           <div key={idx}>
             {error.msg}
-            <CellLinkError cellId={error.raising_cell} />
+            <CellLinkError cellId={error.raising_cell as CellId} />
             <Tip>
-              Fix the error in <CellLinkError cellId={error.raising_cell} />, or
-              handle the exception in with a try/except block.
+              Fix the error in{" "}
+              <CellLinkError cellId={error.raising_cell as CellId} />, or handle
+              the exception in with a try/except block.
             </Tip>
           </div>
         );
@@ -151,10 +153,10 @@ export const MarimoErrorOutput = ({
         ) : (
           <div key={idx}>
             {error.msg}
-            <CellLinkError cellId={error.blamed_cell} />
+            <CellLinkError cellId={error.blamed_cell as CellId} />
             <Tip>
               Ensure that&nbsp;
-              <CellLinkError cellId={error.blamed_cell} />
+              <CellLinkError cellId={error.blamed_cell as CellId} />
               &nbsp;defines the variable {error.ref}, or turn off strict
               execution.
             </Tip>
@@ -167,9 +169,9 @@ export const MarimoErrorOutput = ({
         return (
           <div key={idx}>
             {error.msg}
-            (<CellLinkError cellId={error.raising_cell} />
+            (<CellLinkError cellId={error.raising_cell as CellId} />
             &nbsp;blames&nbsp;
-            <CellLinkError cellId={error.blamed_cell} />)
+            <CellLinkError cellId={error.blamed_cell as CellId} />)
           </div>
         );
       case "ancestor-stopped":
@@ -179,7 +181,7 @@ export const MarimoErrorOutput = ({
         return (
           <div key={idx}>
             {error.msg}
-            <CellLinkError cellId={error.raising_cell} />
+            <CellLinkError cellId={error.raising_cell as CellId} />
           </div>
         );
 

@@ -260,7 +260,7 @@ class CellOp(Op):
 
 
 @dataclass
-class HumanReadableStatus(Op):
+class HumanReadableStatus:
     """Human-readable status."""
 
     code: Literal["ok", "error"]

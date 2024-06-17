@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React, { memo, useRef, useState } from "react";
-import { CellConfig, CellRuntimeState } from "@/core/cells/types";
+import { CellRuntimeState } from "@/core/cells/types";
 import { CellId, HTMLCellId } from "@/core/cells/ids";
 import { OutputArea } from "@/components/editor/Output";
 import { ICellRendererPlugin, ICellRendererProps } from "../types";
@@ -30,6 +30,7 @@ import {
 import { downloadHTMLAsImage } from "@/utils/download";
 import { downloadAsHTML } from "@/core/static/download-html";
 import { isPyodide } from "@/core/pyodide/utils";
+import { CellConfig } from "@/core/network/types";
 
 type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;

@@ -58,7 +58,7 @@ class CounterWidget(anywidget.AnyWidget):
 base_widget = CounterWidget()
 
 are_same = mo.as_html(base_widget).text == mo.as_html(base_widget).text
-are_different = mo.as_html(CounterWidget()) != mo.as_html(CounterWidget())
+are_different = mo.as_html(CounterWidget()) is not mo.as_html(CounterWidget())
 as_marimo_element = mo.ui.anywidget(base_widget)
 """
                 )

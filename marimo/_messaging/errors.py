@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import Literal, Optional, Union
 
 from marimo._ast.cell import CellId_t
 from marimo._runtime.dataflow import EdgeWithVar
@@ -11,26 +11,26 @@ from marimo._runtime.dataflow import EdgeWithVar
 @dataclass
 class CycleError:
     edges_with_vars: tuple[EdgeWithVar, ...]
-    type: str = "cycle"
+    type: Literal["cycle"] = "cycle"
 
 
 @dataclass
 class MultipleDefinitionError:
     name: str
     cells: tuple[CellId_t, ...]
-    type: str = "multiple-defs"
+    type: Literal["multiple-defs"] = "multiple-defs"
 
 
 @dataclass
 class DeleteNonlocalError:
     name: str
     cells: tuple[CellId_t, ...]
-    type: str = "delete-nonlocal"
+    type: Literal["delete-nonlocal"] = "delete-nonlocal"
 
 
 @dataclass
 class MarimoInterruptionError:
-    type: str = "interruption"
+    type: Literal["interruption"] = "interruption"
 
 
 @dataclass
@@ -38,14 +38,14 @@ class MarimoAncestorPreventedError:
     msg: str
     raising_cell: CellId_t
     blamed_cell: CellId_t
-    type: str = "ancestor-prevented"
+    type: Literal["ancestor-prevented"] = "ancestor-prevented"
 
 
 @dataclass
 class MarimoAncestorStoppedError:
     msg: str
     raising_cell: CellId_t
-    type: str = "ancestor-stopped"
+    type: Literal["ancestor-stopped"] = "ancestor-stopped"
 
 
 @dataclass
@@ -54,19 +54,19 @@ class MarimoExceptionRaisedError:
     exception_type: str
     # None for if raising_cell is the current cell
     raising_cell: Optional[CellId_t]
-    type: str = "exception"
+    type: Literal["exception"] = "exception"
 
 
 @dataclass
 class MarimoSyntaxError:
     msg: str
-    type: str = "syntax"
+    type: Literal["syntax"] = "syntax"
 
 
 @dataclass
 class UnknownError:
     msg: str
-    type: str = "unknown"
+    type: Literal["unknown"] = "unknown"
 
 
 @dataclass
@@ -74,7 +74,7 @@ class MarimoStrictExecutionError:
     msg: str
     ref: str
     blamed_cell: CellId_t
-    type: str = "strict-exception"
+    type: Literal["strict-exception"] = "strict-exception"
 
 
 Error = Union[

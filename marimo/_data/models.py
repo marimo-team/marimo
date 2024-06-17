@@ -67,8 +67,8 @@ class ColumnSummary:
     mean: Optional[NonNestedLiteral] = None
     median: Optional[NonNestedLiteral] = None
     std: Optional[NonNestedLiteral] = None
-    true: Optional[NonNestedLiteral] = None
-    false: Optional[NonNestedLiteral] = None
+    true: Optional[int] = None
+    false: Optional[int] = None
     p5: Optional[NonNestedLiteral] = None
     p25: Optional[NonNestedLiteral] = None
     # p50 is the median

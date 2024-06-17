@@ -3,8 +3,8 @@ import type { RefObject } from "react";
 import { Logger } from "../../utils/Logger";
 import { type CellId, HTMLCellId } from "./ids";
 import type { CellHandle } from "@/components/editor/Cell";
-import type { CellConfig } from "./types";
 import { goToVariableDefinition } from "../codemirror/go-to-definition/commands";
+import { CellConfig } from "../network/types";
 
 export function focusAndScrollCellIntoView({
   cellId,

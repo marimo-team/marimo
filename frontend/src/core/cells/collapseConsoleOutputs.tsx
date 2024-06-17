@@ -63,6 +63,7 @@ function handleCarriageReturns(
   const carriagePattern = new RegExp("\r[^\n]", "g");
   // collapse carriage returns in the final output's data
   let text = lastOutput.data;
+  invariant(typeof text === "string", "expected string");
   let carriageIdx = text.search(carriagePattern);
   while (carriageIdx > -1) {
     // find the newline character preceding the carriage return, if any
@@ -73,9 +74,9 @@ function handleCarriageReturns(
         break;
       }
     }
-    const postCarriageText = text.slice(carriageIdx + 1);
+    const postCarriageText: string = text.slice(carriageIdx + 1);
     const prefix = text.slice(0, newlineIdx + 1);
-    const intermediateText = text.slice(newlineIdx + 1, carriageIdx);
+    const intermediateText: string = text.slice(newlineIdx + 1, carriageIdx);
     text =
       intermediateText.length <= postCarriageText.length
         ? prefix + postCarriageText
@@ -96,8 +97,9 @@ function truncateHead(consoleOutputs: OutputMessage[], limit: number) {
   let nLines = 0;
   let i;
   for (i = consoleOutputs.length - 1; i >= 0 && nLines < limit; i--) {
-    const output = consoleOutputs[i];
+    const output: OutputMessage = consoleOutputs[i];
     if (output.mimetype === "text/plain") {
+      invariant(typeof output.data === "string", "expected string");
       nLines += output.data.split("\n").length;
     } else {
       nLines++;
@@ -117,6 +119,7 @@ function truncateHead(consoleOutputs: OutputMessage[], limit: number) {
   };
   const output = consoleOutputs[cutoff];
   if (output.mimetype == "text/plain") {
+    invariant(typeof output.data === "string", "expected string");
     const output_lines = output.data.split("\n");
     const nLinesAfterOutput = nLines - output_lines.length;
     const nLinesToKeep = limit - nLinesAfterOutput;

@@ -97,7 +97,7 @@ const COLUMNS = [
           </div>
           <div
             className="text-ellipsis overflow-hidden whitespace-nowrap"
-            title={value}
+            title={value ?? ""}
           >
             {value}
           </div>

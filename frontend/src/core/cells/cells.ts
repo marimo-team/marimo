@@ -3,7 +3,6 @@ import { atom, useAtom, useAtomValue } from "jotai";
 import { type ReducerWithoutAction, createRef } from "react";
 import type { CellMessage } from "../kernel/messages";
 import {
-  type CellConfig,
   type CellRuntimeState,
   type CellData,
   createCell,
@@ -37,6 +36,8 @@ import {
   splitEditor,
   updateEditorCodeFromPython,
 } from "../codemirror/language/utils";
+import { invariant } from "@/utils/invariant";
+import { CellConfig } from "../network/types";
 
 /**
  * The state of the notebook.
@@ -460,7 +461,7 @@ const {
     });
   },
   handleCellMessage: (state, message: CellMessage) => {
-    const cellId = message.cell_id;
+    const cellId = message.cell_id as CellId;
     const nextState = updateCellRuntimeState(state, cellId, (cell) => {
       return transitionCell(cell, message);
     });
@@ -755,6 +756,7 @@ const cellErrorsAtom = atom((get) => {
         // Filter out ancestor-stopped errors
         // These are errors that are caused by a cell that was stopped,
         // but nothing the user can take action on.
+        invariant(Array.isArray(cell.output.data), "Expected array data");
         const nonAncestorErrors = cell.output.data.filter(
           (error) => !error.type.includes("ancestor"),
         );

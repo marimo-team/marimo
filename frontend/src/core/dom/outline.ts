@@ -3,6 +3,7 @@
 import { Logger } from "@/utils/Logger";
 import { OutputMessage } from "../kernel/messages";
 import { Outline } from "../cells/outline";
+import { invariant } from "@/utils/invariant";
 
 function getOutline(html: string): Outline {
   const items: Outline["items"] = [];
@@ -50,6 +51,7 @@ export function parseOutline(output: OutputMessage | null): Outline | null {
   }
 
   try {
+    invariant(typeof output.data === "string", "expected string");
     return getOutline(output.data);
   } catch {
     Logger.error("Failed to parse outline");

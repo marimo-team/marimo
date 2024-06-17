@@ -38,7 +38,6 @@ JSONType: TypeAlias = Union[
     None,
 ]
 
-
 S = TypeVar("S", bound=JSONType)
 
 

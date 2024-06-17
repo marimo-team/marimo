@@ -8,13 +8,15 @@ import { NameCellContentEditable } from "../actions/name-cell-input";
 import { CellId } from "@/core/cells/ids";
 import { Input } from "@/components/ui/input";
 import { AnsiUp } from "ansi_up";
+import { WithResponse } from "@/core/cells/types";
+import { invariant } from "@/utils/invariant";
 
 const ansiUp = new AnsiUp();
 
 interface Props {
   cellId: CellId;
   cellName: string;
-  consoleOutputs: OutputMessage[];
+  consoleOutputs: Array<WithResponse<OutputMessage>>;
   stale: boolean;
   debuggerActive: boolean;
   onSubmitDebugger: (text: string, index: number) => void;
@@ -89,6 +91,11 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
         const original_idx = consoleOutputs.length - idx - 1;
 
         if (output.channel === "stdin") {
+          invariant(
+            typeof output.data === "string",
+            "Expected data to be a string",
+          );
+
           if (output.response == null) {
             return (
               <div key={idx} className="flex gap-2 items-center">
