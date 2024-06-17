@@ -22,9 +22,10 @@ from tests.conftest import ExecReqProvider
 async def test_reload_function(
     tmp_path: pathlib.Path,
     py_modname: str,
-    k: Kernel,
+    execution_kernel: Kernel,
     exec_req: ExecReqProvider,
 ):
+    k = execution_kernel
     sys.path.append(str(tmp_path))
     py_file = tmp_path / pathlib.Path(py_modname + ".py")
     py_file.write_text(
@@ -70,9 +71,10 @@ async def test_reload_function(
 async def test_reload_nested_module_function(
     tmp_path: pathlib.Path,
     py_modname: str,
-    k: Kernel,
+    execution_kernel: Kernel,
     exec_req: ExecReqProvider,
 ):
+    k = execution_kernel
     sys.path.append(str(tmp_path))
     b = tmp_path / (b_name := random_modname())
     b.mkdir()
@@ -124,9 +126,10 @@ async def test_reload_nested_module_function(
 async def test_reload_nested_module_import_module(
     tmp_path: pathlib.Path,
     py_modname: str,
-    k: Kernel,
+    execution_kernel: Kernel,
     exec_req: ExecReqProvider,
 ):
+    k = execution_kernel
     sys.path.append(str(tmp_path))
     b = tmp_path / (b_name := random_modname())
     b.mkdir()
@@ -184,9 +187,10 @@ async def test_reload_nested_module_import_module(
 async def test_reload_nested_module_import_module_autorun(
     tmp_path: pathlib.Path,
     py_modname: str,
-    k: Kernel,
+    execution_kernel: Kernel,
     exec_req: ExecReqProvider,
 ):
+    k = execution_kernel
     sys.path.append(str(tmp_path))
     b = tmp_path / (b_name := random_modname())
     b.mkdir()
@@ -239,9 +243,10 @@ async def test_reload_nested_module_import_module_autorun(
 
 async def test_reload_package(
     tmp_path: pathlib.Path,
-    k: Kernel,
+    execution_kernel: Kernel,
     exec_req: ExecReqProvider,
 ):
+    k = execution_kernel
     sys.path.append(str(tmp_path))
     b = tmp_path / (b_name := random_modname())
     b.mkdir()
@@ -286,9 +291,10 @@ async def test_reload_package(
 async def test_reload_third_party(
     tmp_path: pathlib.Path,
     py_modname: str,
-    k: Kernel,
+    execution_kernel: Kernel,
     exec_req: ExecReqProvider,
 ):
+    k = execution_kernel
     # make sure that importing a third-party package like numpy doesn't
     # break the module finder
     sys.path.append(str(tmp_path))
@@ -338,9 +344,10 @@ async def test_reload_third_party(
 async def test_reload_with_modified_cell(
     tmp_path: pathlib.Path,
     py_modname: str,
-    k: Kernel,
+    execution_kernel: Kernel,
     exec_req: ExecReqProvider,
 ):
+    k = execution_kernel
     sys.path.append(str(tmp_path))
     py_file = tmp_path / pathlib.Path(py_modname + ".py")
     py_file.write_text(

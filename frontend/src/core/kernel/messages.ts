@@ -52,10 +52,22 @@ export type MarimoError =
       msg: string;
       raising_cell?: CellId;
     }
+  | {
+      type: "ancestor-prevented";
+      msg: string;
+      raising_cell: CellId;
+      blamed_cell: CellId;
+    }
   | { type: "ancestor-stopped"; msg: string; raising_cell: CellId }
   | { type: "cycle"; edges_with_vars: Array<[CellId, string[], CellId]> }
   | { type: "multiple-defs"; name: string; cells: CellId[] }
   | { type: "delete-nonlocal"; name: string; cells: CellId[] }
+  | {
+      type: "strict-exception";
+      msg: string;
+      ref: string;
+      blamed_cell: CellId;
+    }
   | { type: "unknown"; msg?: string };
 
 export type OutputMessage =

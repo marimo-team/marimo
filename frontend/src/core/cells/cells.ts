@@ -756,7 +756,7 @@ const cellErrorsAtom = atom((get) => {
         // These are errors that are caused by a cell that was stopped,
         // but nothing the user can take action on.
         const nonAncestorErrors = cell.output.data.filter(
-          (error) => error.type !== "ancestor-stopped",
+          (error) => !error.type.includes("ancestor"),
         );
 
         if (nonAncestorErrors.length > 0) {

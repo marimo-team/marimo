@@ -8,8 +8,9 @@ from tests.conftest import ExecReqProvider
 
 
 async def test_virtual_file_creation(
-    k: Kernel, exec_req: ExecReqProvider
+    execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = execution_kernel
     await k.run(
         [
             exec_req.get(
@@ -28,8 +29,9 @@ async def test_virtual_file_creation(
 
 
 async def test_virtual_file_deletion(
-    k: Kernel, exec_req: ExecReqProvider
+    execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = execution_kernel
     await k.run(
         [
             er := exec_req.get(
@@ -51,8 +53,9 @@ async def test_virtual_file_deletion(
 
 
 async def test_cached_virtual_file_not_deleted(
-    k: Kernel, exec_req: ExecReqProvider
+    execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = execution_kernel
     await k.run(
         [
             exec_req.get(
@@ -94,8 +97,9 @@ async def test_cached_virtual_file_not_deleted(
 
 
 async def test_cell_deletion_clears_vfiles(
-    k: Kernel, exec_req: ExecReqProvider
+    execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = execution_kernel
     await k.run(
         [
             exec_req.get(
@@ -125,8 +129,9 @@ async def test_cell_deletion_clears_vfiles(
 
 
 async def test_vfile_refcount_incremented(
-    k: Kernel, exec_req: ExecReqProvider
+    execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = execution_kernel
     await k.run(
         [
             exec_req.get(
@@ -159,8 +164,9 @@ async def test_vfile_refcount_incremented(
 
 
 async def test_vfile_refcount_decremented(
-    k: Kernel, exec_req: ExecReqProvider
+    execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = execution_kernel
     await k.run(
         [
             exec_req.get(
@@ -201,8 +207,9 @@ async def test_vfile_refcount_decremented(
 
 
 async def test_cached_vfile_disposal(
-    k: Kernel, exec_req: ExecReqProvider
+    execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = execution_kernel
     await k.run(
         [
             exec_req.get(
@@ -210,18 +217,26 @@ async def test_cached_vfile_disposal(
                 import io
                 import marimo as mo
                 import functools
+                import weakref
                 """
             ),
             exec_req.get(
                 """
-                vfiles = []
+                class namespace:
+                  ...
+                vfiles = namespace()
+                vfiles.files = []
+                ref = weakref.ref(vfiles)
+
                 def create_vfile(arg):
                     del arg
                     bytestream = io.BytesIO(b"hello world")
                     return mo.pdf(bytestream)
                 """
             ),
-            append_vfile := exec_req.get("vfiles.append(create_vfile(1))"),
+            append_vfile := exec_req.get(
+                "ref().files.append(create_vfile(1))"
+            ),
         ]
     )
     ctx = get_context()
@@ -232,7 +247,7 @@ async def test_cached_vfile_disposal(
     assert ctx.virtual_file_registry.refcount(vfile) == 1
 
     # clear the list, refcount should be decremented
-    await k.run([exec_req.get("vfiles[:] = []")])
+    await k.run([exec_req.get("ref().files[:] = []")])
     # NB: this test may be flaky! refcount decremented when `__del__` is called
     # but we can't rely on when it will be called.
     await k.run([exec_req.get("import gc; gc.collect()")])
@@ -245,8 +260,9 @@ async def test_cached_vfile_disposal(
 
 
 async def test_virtual_files_not_supported(
-    k: Kernel, exec_req: ExecReqProvider
+    execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = execution_kernel
     get_context().virtual_files_supported = False
 
     await k.run(

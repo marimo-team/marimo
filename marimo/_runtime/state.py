@@ -16,14 +16,21 @@ class State(Generic[T]):
     def __init__(self, value: T, allow_self_loops: bool = False) -> None:
         self._value = value
         self.allow_self_loops = allow_self_loops
+        self._set_value = SetFunctor(self)
 
     def __call__(self) -> T:
         return self._value
 
-    def _set_value(self, update: T | Callable[[T], T]) -> None:
-        """Update the state and register the update with the kernel"""
-        self._value = (
-            update(self._value)
+
+class SetFunctor(Generic[T]):
+    """Typed function tied to a state instance"""
+
+    def __init__(self, state: State[T]):
+        self._state = state
+
+    def __call__(self, update: T | Callable[[T], T]) -> None:
+        self._state._value = (
+            update(self._state._value)
             if isinstance(update, (types.MethodType, types.FunctionType))
             else update
         )
@@ -31,7 +38,7 @@ class State(Generic[T]):
             ctx = get_context()
         except ContextNotInitializedError:
             return
-        ctx.register_state_update(self)
+        ctx.register_state_update(self._state)
 
 
 @mddoc

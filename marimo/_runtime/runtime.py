@@ -21,8 +21,8 @@ from uuid import uuid4
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t
 from marimo._ast.compiler import compile_cell
-from marimo._ast.visitor import Name, is_local
-from marimo._config.config import MarimoConfig, OnCellChangeType
+from marimo._ast.visitor import Name
+from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
 from marimo._data.preview_column import get_column_preview
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import Error, MarimoSyntaxError, UnknownError
@@ -111,6 +111,7 @@ from marimo._server.types import QueueType
 from marimo._utils.platform import is_pyodide
 from marimo._utils.signals import restore_signals
 from marimo._utils.typed_connection import TypedConnection
+from marimo._utils.variables import is_local
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -333,6 +334,9 @@ class Kernel:
         self.reactive_execution_mode: OnCellChangeType = user_config[
             "runtime"
         ]["on_cell_change"]
+        self.execution_type: ExecutionType = user_config.get(
+            "experimental", {}
+        ).get("execution_type", "relaxed")
         self._update_runtime_from_user_config(user_config)
 
         # Set up the execution context
@@ -632,6 +636,10 @@ class Kernel:
         get_context().cell_lifecycle_registry.dispose(
             cell_id, deletion=deletion
         )
+        for descendent in self.graph.descendants(cell_id):
+            get_context().cell_lifecycle_registry.dispose(
+                descendent, deletion=deletion
+            )
         RemoveUIElements(cell_id=cell_id).broadcast()
 
     def _deactivate_cell(self, cell_id: CellId_t) -> set[CellId_t]:
@@ -931,6 +939,7 @@ class Kernel:
             excluded_cells=set(self.errors.keys()),
             debugger=self.debugger,
             execution_mode=self.reactive_execution_mode,
+            execution_type=self.execution_type,
             execution_context=self._install_execution_context,
             preparation_hooks=PREPARATION_HOOKS + [invalidate_state],
             pre_execution_hooks=PRE_EXECUTION_HOOKS,

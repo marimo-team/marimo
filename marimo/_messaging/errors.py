@@ -34,6 +34,14 @@ class MarimoInterruptionError:
 
 
 @dataclass
+class MarimoAncestorPreventedError:
+    msg: str
+    raising_cell: CellId_t
+    blamed_cell: CellId_t
+    type: str = "ancestor-prevented"
+
+
+@dataclass
 class MarimoAncestorStoppedError:
     msg: str
     raising_cell: CellId_t
@@ -61,12 +69,22 @@ class UnknownError:
     type: str = "unknown"
 
 
+@dataclass
+class MarimoStrictExecutionError:
+    msg: str
+    ref: str
+    blamed_cell: CellId_t
+    type: str = "strict-exception"
+
+
 Error = Union[
     CycleError,
     MultipleDefinitionError,
     DeleteNonlocalError,
     MarimoAncestorStoppedError,
+    MarimoAncestorPreventedError,
     MarimoExceptionRaisedError,
+    MarimoStrictExecutionError,
     MarimoInterruptionError,
     MarimoSyntaxError,
     UnknownError,

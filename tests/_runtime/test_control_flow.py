@@ -7,7 +7,8 @@ from marimo._runtime.runner import cell_runner
 from marimo._runtime.runtime import Kernel
 
 
-async def test_stop_false(k: Kernel) -> None:
+async def test_stop_false(execution_kernel: Kernel) -> None:
+    k = execution_kernel
     await k.run(
         [
             ExecutionRequest(
@@ -22,7 +23,8 @@ async def test_stop_false(k: Kernel) -> None:
     assert k.globals["z"] == 2
 
 
-async def test_stop_true(k: Kernel) -> None:
+async def test_stop_true(execution_kernel: Kernel) -> None:
+    k = execution_kernel
     # Populate the kernel and its globals
     await k.run(
         [
@@ -51,7 +53,8 @@ async def test_stop_true(k: Kernel) -> None:
     assert "z" not in k.globals
 
 
-async def test_stop_output(k: Kernel) -> None:
+async def test_stop_output(execution_kernel: Kernel) -> None:
+    k = execution_kernel
     # Run a cell through the kernel to populate graph
     await k.run(
         [
