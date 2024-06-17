@@ -40,7 +40,6 @@ export class UIElementRegistry {
   }
 
   private constructor() {
-    repl(UIElementRegistry.INSTANCE, "UIElementRegistry");
     this.entries = new Map();
   }
 

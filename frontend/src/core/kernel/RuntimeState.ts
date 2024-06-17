@@ -30,9 +30,7 @@ export class RuntimeState {
    */
   private _sendComponentValues: RunRequests["sendComponentValues"] | undefined;
 
-  constructor(private uiElementRegistry: UIElementRegistry) {
-    repl(RuntimeState.INSTANCE, "RuntimeState");
-  }
+  constructor(private uiElementRegistry: UIElementRegistry) {}
 
   private get sendComponentValues(): RunRequests["sendComponentValues"] {
     if (!this._sendComponentValues) {

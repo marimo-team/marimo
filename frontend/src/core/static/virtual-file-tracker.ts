@@ -24,7 +24,7 @@ export class VirtualFileTracker {
   virtualFiles = new Map<CellId, Set<string>>();
 
   private constructor() {
-    repl(VirtualFileTracker.INSTANCE, "VirtualFileTracker");
+    // Private
   }
 
   track(message: Pick<CellMessage, "cell_id" | "output">): void {
