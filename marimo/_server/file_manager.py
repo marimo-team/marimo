@@ -91,6 +91,8 @@ class AppFileManager:
         names: list[str],
         configs: list[CellConfig],
         app_config: _AppConfig,
+        # Whether or not to persist the app to the file system
+        persist: bool,
     ) -> str:
         LOGGER.debug("Saving app to %s", filename)
         if filename.endswith(".md"):
@@ -112,7 +114,9 @@ class AppFileManager:
                 config=app_config,
                 header_comments=header_comments,
             )
-        self._create_file(filename, contents)
+
+        if persist:
+            self._create_file(filename, contents)
 
         if self._is_unnamed():
             self.rename(filename)
@@ -166,6 +170,7 @@ class AppFileManager:
                 list(self.app.cell_manager.names()),
                 list(self.app.cell_manager.configs()),
                 self.app.config,
+                persist=True,
             )
 
     def read_layout_config(self) -> Optional[LayoutConfig]:
@@ -200,10 +205,11 @@ class AppFileManager:
                 list(self.app.cell_manager.names()),
                 list(self.app.cell_manager.configs()),
                 new_config,
+                persist=True,
             )
         return ""
 
-    def save(self, request: SaveNotebookRequest) -> None:
+    def save(self, request: SaveNotebookRequest) -> str:
         """Save the current app."""
         cell_ids, codes, configs, names, filename, layout = (
             request.cell_ids,
@@ -241,7 +247,12 @@ class AppFileManager:
             # deleting state that the user might want to keep
             self.app.update_config({"layout_file": None})
         return self._save_file(
-            filename, codes, names, configs, self.app.config
+            filename,
+            codes,
+            names,
+            configs,
+            self.app.config,
+            persist=request.persist,
         )
 
     def to_code(self) -> str:

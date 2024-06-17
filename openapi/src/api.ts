@@ -517,7 +517,7 @@ export interface paths {
         /** @description Save the current app */
         200: {
           content: {
-            "application/json": components["schemas"]["SuccessResponse"];
+            "text/plain": string;
           };
         };
       };
@@ -534,7 +534,7 @@ export interface paths {
         /** @description Save the app configuration */
         200: {
           content: {
-            "application/json": components["schemas"]["SuccessResponse"];
+            "text/plain": string;
           };
         };
       };
@@ -990,7 +990,7 @@ export interface components {
       function_call_id: string;
       /** @enum {string} */
       name: "function-call-result";
-      return_value: components["schemas"]["JSONType"];
+      return_value?: components["schemas"]["JSONType"];
       status: components["schemas"]["HumanReadableStatus"];
     };
     HumanReadableStatus: {
@@ -1285,6 +1285,7 @@ export interface components {
         [key: string]: unknown;
       } | null;
       names: string[];
+      persist: boolean;
     };
     SaveUserConfigurationRequest: {
       config: components["schemas"]["MarimoConfig"];
