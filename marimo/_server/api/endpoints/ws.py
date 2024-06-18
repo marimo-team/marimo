@@ -13,6 +13,7 @@ from marimo._ast.cell import CellConfig, CellId_t
 from marimo._messaging.ops import (
     Alert,
     Banner,
+    CompletionResult,
     FocusCell,
     KernelReady,
     MessageOperation,
@@ -91,6 +92,9 @@ async def websocket_endpoint(
 KIOSK_ONLY_OPERATIONS = {
     FocusCell.name,
     UpdateCellCodes.name,
+}
+KIOSK_EXCLUDED_OPERATIONS = {
+    CompletionResult.name,
 }
 
 
@@ -391,6 +395,12 @@ class WebsocketHandler(SessionConsumer):
                     if op in KIOSK_ONLY_OPERATIONS and not self.kiosk:
                         LOGGER.debug(
                             "Ignoring operation %s, not in kiosk mode",
+                            op,
+                        )
+                        continue
+                    if op in KIOSK_EXCLUDED_OPERATIONS and self.kiosk:
+                        LOGGER.debug(
+                            "Ignoring operation %s, in kiosk mode",
                             op,
                         )
                         continue

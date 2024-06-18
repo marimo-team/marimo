@@ -292,6 +292,9 @@ class Session:
         user_config_manager: UserConfigManager,
         virtual_files_supported: bool,
     ) -> Session:
+        """
+        Create a new session.
+        """
         configs = app_file_manager.app.cell_manager.config_map()
         use_multiprocessing = mode == SessionMode.EDIT
         queue_manager = QueueManager(use_multiprocessing)
@@ -330,6 +333,8 @@ class Session:
         # and we want to continue the session without a consumer.
         self.session_consumer: Optional[SessionConsumer] = None
         # Map of kiosk consumers to their unsubscribe functions
+        # Kiosk consumers are consumers have edit permissions but are not
+        # the main session consumer.
         self.kiosk_consumers: Dict[SessionConsumer, Callable[[], None]] = {}
         self._queue_manager = queue_manager
         self.kernel_manager = kernel_manager
@@ -369,9 +374,11 @@ class Session:
         self.heartbeat_task = asyncio.create_task(_heartbeat())
 
     def try_interrupt(self) -> None:
+        """Try to interrupt the kernel."""
         self.kernel_manager.interrupt_kernel()
 
     def put_control_request(self, request: requests.ControlRequest) -> None:
+        """Put a control request in the control queue."""
         self._queue_manager.control_queue.put(request)
         if isinstance(request, SetUIElementValueRequest):
             self._queue_manager.set_ui_element_queue.put(request)
@@ -392,9 +399,11 @@ class Session:
     def put_completion_request(
         self, request: requests.CodeCompletionRequest
     ) -> None:
+        """Put a code completion request in the completion queue."""
         self._queue_manager.completion_queue.put(request)
 
     def put_input(self, text: str) -> None:
+        """Put an input() request in the input queue."""
         self._queue_manager.input_queue.put(text)
         self.session_view.add_stdin(text)
 
@@ -422,11 +431,17 @@ class Session:
             )
 
     def maybe_disconnect_consumer(self) -> None:
+        """
+        Disconnect the main session consumer if it connected.
+        """
         if self.session_consumer is not None:
             self.disconnect_consumer(self.session_consumer)
 
     def connect_consumer(self, session_consumer: SessionConsumer) -> None:
-        """Connect or resume the session with a new consumer"""
+        """
+        Connect or resume the session with a new consumer
+        Raises an error if there is already a consumer connected
+        """
         assert (
             self.session_consumer is None
         ), "Expecting no existing session consumer"
@@ -455,19 +470,29 @@ class Session:
             unsubscribe()
 
     def get_current_state(self) -> SessionView:
+        """Return the current state of the session."""
         return self.session_view
 
     def connection_state(self) -> ConnectionState:
+        """Return the connection state of the session."""
         if self.session_consumer is None:
             return ConnectionState.ORPHANED
         return self.session_consumer.connection_state()
 
     def write_operation(self, operation: MessageOperation) -> None:
+        """Write an operation to the session consumer and the session view."""
         self.session_view.add_operation(operation)
         if self.session_consumer is not None:
             self.session_consumer.write_operation(operation)
+        for kiosk_consumer in self.kiosk_consumers:
+            kiosk_consumer.write_operation(operation)
 
     def close(self) -> None:
+        """
+        Close the session.
+
+        This will close the session consumer, kernel, and all kiosk consumers.
+        """
         # Close the session consumer if it exists
         if self.session_consumer is not None:
             self.session_consumer.on_stop()
@@ -478,6 +503,8 @@ class Session:
             unsubscribe()
         # Close the kernel
         self.message_distributor.stop()
+        if self.heartbeat_task:
+            self.heartbeat_task.cancel()
         self.kernel_manager.close_kernel()
 
     def instantiate(self, request: InstantiateRequest) -> None:
