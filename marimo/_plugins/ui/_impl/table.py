@@ -298,4 +298,6 @@ class table(
             result = result.search(args.query)
         if args.sort:
             result = result.sort_values(args.sort.by, args.sort.descending)
+        # Save the manager to be used for selection
+        self._manager = result
         return result.limit(TableManager.DEFAULT_LIMIT).to_data()
