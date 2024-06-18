@@ -160,7 +160,7 @@ const AddCellButtons: React.FC = () => {
 
   const buttonClass = cn(
     "mb-0 rounded-none px-4 sm:px-8 md:px-10 lg:px-16 tracking-wide",
-    "hover:bg-accent hover:text-accent-foreground font-semibold uppercase text-xs",
+    "hover:bg-accent hover:text-accent-foreground font-semibold uppercase text-xs"
   );
 
   const renderBody = () => {
@@ -217,7 +217,7 @@ const AddCellButtons: React.FC = () => {
         className={cn(
           "shadow-sm border border-border rounded transition-all duration-200 overflow-hidden divide-x divide-border flex",
           !isAiButtonOpen && "opacity-0 group-hover:opacity-100 w-fit",
-          isAiButtonOpen && "opacity-100 w-full max-w-4xl shadow-lg",
+          isAiButtonOpen && "opacity-100 w-full max-w-4xl shadow-lg"
         )}
       >
         {renderBody()}

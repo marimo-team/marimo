@@ -9,7 +9,6 @@ import {
   useCallback,
   useImperativeHandle,
   useRef,
-  useEffect,
 } from "react";
 
 import { saveCellConfig, sendRun, sendStdin } from "@/core/network/requests";
@@ -165,7 +164,7 @@ const CellComponent = (
     status,
     errored,
     interrupted,
-    stopped,
+    stopped
   );
 
   const needsRun =
@@ -401,33 +400,6 @@ const CellComponent = (
   };
 
   const hasOutput = !isOutputEmpty(output);
-
-  const uninstantiated =
-    !userConfig.runtime.auto_instantiate && !runElapsedTimeMs;
-
-  // Dynamic favicon for run feedback
-  useEffect(() => {
-    let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-    if (!link) {
-      link = document.createElement("link");
-      link.rel = "icon";
-      document.getElementsByTagName("head")[0].appendChild(link);
-    }
-    if (status === "running" || status === "queued") {
-      link.href = "./circle-play.ico";
-      return;
-    } else if (errored || stopped || interrupted) {
-      link.href = "./circle-x.ico";
-    } else {
-      link.href = "./circle-check.ico";
-    }
-    setTimeout(() => {
-      link.href = "./favicon.ico";
-    }, 5000);
-    return () => {
-      link.href = "./favicon.ico";
-    };
-  }, [status, errored, stopped, interrupted]);
 
   return (
     <CellActionsContextMenu
