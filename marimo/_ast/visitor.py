@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from typing import Literal, Optional
 from uuid import uuid4
 
+from marimo._utils.variables import is_local
+
 Name = str
 
 
@@ -29,12 +31,20 @@ class ImportData:
 class VariableData:
     kind: Literal["function", "class", "import", "variable"] = "variable"
 
+    # If kind == function or class, it may be dependent on externally defined
+    # variables.
+    #
+    # NB: This is populated by `ScopedVisitor.ref_stack`. Ref stack holds the
+    # references required for the current context, it's more general than a
+    # "block", since it covers all variable level interactions.
+    # e.g.
+    # >> x = foo + bar
+    # x has the required refs foo and bar, and ref_stack holds that context
+    # while traversing the tree.
+    required_refs: set[Name] = field(default_factory=set)
+
     # For kind == import
     import_data: Optional[ImportData] = None
-
-
-def is_local(name: str) -> bool:
-    return name.startswith("_") and not name.startswith("__")
 
 
 @dataclass
@@ -64,7 +74,7 @@ class ObscuredScope:
 
 @dataclass
 class RefData:
-    """Metadata about variables referenced but not defined by a cell"""
+    """Metadata about variables referenced but not defined by a cell."""
 
     # Whether the ref was deleted
     deleted: bool
@@ -75,6 +85,8 @@ class RefData:
 class ScopedVisitor(ast.NodeVisitor):
     def __init__(self, mangle_prefix: Optional[str] = None) -> None:
         self.block_stack: list[Block] = [Block()]
+        # Names to be loaded into a variable required_refs
+        self.ref_stack: list[set[Name]] = [set()]
         self.obscured_scope_stack: list[ObscuredScope] = []
         # Mapping from referenced names to their metadata
         self._refs: dict[Name, RefData] = {}
@@ -152,6 +164,7 @@ class ScopedVisitor(ast.NodeVisitor):
             deleted=deleted,
             parent_blocks=self.block_stack[:-1],
         )
+        self.ref_stack[-1].add(name)
 
     def _remove_ref(self, name: Name) -> None:
         """Remove a referenced name."""
@@ -281,20 +294,53 @@ class ScopedVisitor(ast.NodeVisitor):
             # Other nodes that don't introduce a new scope
             super().generic_visit(node)
 
+    def _visit_and_get_refs(self, node: ast.AST) -> set[Name]:
+        """Create a ref scope for the variable to be declared (e.g. function,
+        class), visit the children the node, propagate the refs to the higher
+        scope and then return the refs."""
+        self.ref_stack.append(set())
+        self.generic_visit(node)
+        refs = self.ref_stack.pop()
+        # The scope a level up from the one just investigated also is dependent
+        # on these refs. Consider the case:
+        # >> def foo():
+        # >>   def bar(): <- current scope
+        # >>     print(x)
+        #
+        # the variable `foo` needs to be aware that it may require the ref `x`
+        # during execution.
+        self.ref_stack[-1].update(refs)
+        return refs
+
     # ClassDef and FunctionDef nodes don't have ast.Name nodes as children
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         node.name = self._if_local_then_mangle(node.name)
-        self._define(node.name, VariableData(kind="class"))
-        self.generic_visit(node)
+        refs = self._visit_and_get_refs(node)
+        self._define(
+            node.name,
+            VariableData(kind="class", required_refs=refs),
+        )
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         node.name = self._if_local_then_mangle(node.name)
-        self._define(node.name, VariableData(kind="function"))
-        self.generic_visit(node)
+        refs = self._visit_and_get_refs(node)
+        self._define(
+            node.name,
+            VariableData(kind="function", required_refs=refs),
+        )
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         node.name = self._if_local_then_mangle(node.name)
-        self._define(node.name, VariableData(kind="function"))
+        refs = self._visit_and_get_refs(node)
+        self._define(
+            node.name,
+            VariableData(kind="function", required_refs=refs),
+        )
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        # Inject the dummy name `_lambda` into ref scope to denote there's a
+        # callable that might require additional refs.
+        self.ref_stack[-1].add("_lambda")
         self.generic_visit(node)
 
     def visit_arg(self, node: ast.arg) -> None:
@@ -333,19 +379,32 @@ class ScopedVisitor(ast.NodeVisitor):
         #   x = x
         #
         # Handling value first is required to register `x` as a ref.
+        self.ref_stack.append(set())
         self.visit(node.value)
         for target in node.targets:
             self.visit(target)
+        refs = self.ref_stack.pop()
+        self.ref_stack[-1].update(refs)
 
     def visit_AugAssign(self, node: ast.AugAssign) -> None:
+        # Augmented assign (has op)
+        # e.g., x += 1
+        self.ref_stack.append(set())
         self.visit(node.value)
         self.visit(node.target)
+        refs = self.ref_stack.pop()
+        self.ref_stack[-1].update(refs)
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
+        # Annotated assign
+        # e.g., x: int = 0
+        self.ref_stack.append(set())
         if node.value is not None:
             self.visit(node.value)
         self.visit(node.annotation)
         self.visit(node.target)
+        refs = self.ref_stack.pop()
+        self.ref_stack[-1].update(refs)
 
     def visit_NamedExpr(self, node: ast.NamedExpr) -> None:
         self.visit(node.value)
@@ -397,7 +456,12 @@ class ScopedVisitor(ast.NodeVisitor):
 
         if isinstance(node.ctx, ast.Store):
             node.id = self._if_local_then_mangle(node.id)
-            self._define(node.id, VariableData(kind="variable"))
+            self._define(
+                node.id,
+                VariableData(
+                    kind="variable", required_refs=self.ref_stack[-1]
+                ),
+            )
         elif (
             isinstance(node.ctx, ast.Load)
             and not self._is_defined(node.id)
@@ -422,6 +486,19 @@ class ScopedVisitor(ast.NodeVisitor):
                 elif block.is_defined(node.id):
                     break
 
+        # Handle refs on the block scope level, or capture cell level
+        # references.
+        if (
+            isinstance(node.ctx, ast.Load)
+            and self._is_defined(node.id)
+            and node.id not in self.ref_stack[-1]
+            and (
+                node.id not in self.block_stack[-1].defs
+                or len(self.block_stack) == 1
+            )
+        ):
+            self.ref_stack[-1].add(node.id)
+
         self.generic_visit(node)
 
     def visit_Global(self, node: ast.Global) -> None:
@@ -431,6 +508,7 @@ class ScopedVisitor(ast.NodeVisitor):
         ]
         for name in node.names:
             self.block_stack[-1].global_names.add(name)
+            self._add_ref(name, deleted=False)
 
     def visit_Import(self, node: ast.Import) -> None:
         for alias_node in node.names:
@@ -475,7 +553,10 @@ class ScopedVisitor(ast.NodeVisitor):
         def visit_MatchAs(self, node: ast.MatchAs) -> None:
             if node.name is not None:
                 node.name = self._if_local_then_mangle(node.name)
-                self._define(node.name, VariableData(kind="variable"))
+                self._define(
+                    node.name,
+                    VariableData(kind="variable"),
+                )
             if node.pattern is not None:
                 # pattern may contain additional MatchAs statements in it
                 self.visit(node.pattern)
@@ -483,7 +564,10 @@ class ScopedVisitor(ast.NodeVisitor):
         def visit_MatchMapping(self, node: ast.MatchMapping) -> None:
             if node.rest is not None:
                 node.rest = self._if_local_then_mangle(node.rest)
-                self._define(node.rest, VariableData(kind="variable"))
+                self._define(
+                    node.rest,
+                    VariableData(kind="variable"),
+                )
             for key in node.keys:
                 self.visit(key)
             for pattern in node.patterns:
@@ -492,13 +576,21 @@ class ScopedVisitor(ast.NodeVisitor):
         def visit_MatchStar(self, node: ast.MatchStar) -> None:
             if node.name is not None:
                 node.name = self._if_local_then_mangle(node.name)
-                self._define(node.name, VariableData(kind="variable"))
+                self._define(
+                    node.name,
+                    VariableData(kind="variable"),
+                )
 
     if sys.version_info >= (3, 12):
 
         def visit_TypeVar(self, node: ast.TypeVar) -> None:
             # node.name is a str, not an ast.Name node
-            self._define(node.name, VariableData(kind="variable"))
+            self._define(
+                node.name,
+                VariableData(
+                    kind="variable", required_refs=self.ref_stack[-1]
+                ),
+            )
             if isinstance(node.bound, tuple):
                 for name in node.bound:
                     self.visit(name)
@@ -507,8 +599,18 @@ class ScopedVisitor(ast.NodeVisitor):
 
         def visit_ParamSpec(self, node: ast.ParamSpec) -> None:
             # node.name is a str, not an ast.Name node
-            self._define(node.name, VariableData(kind="variable"))
+            self._define(
+                node.name,
+                VariableData(
+                    kind="variable", required_refs=self.ref_stack[-1]
+                ),
+            )
 
         def visit_TypeVarTuple(self, node: ast.TypeVarTuple) -> None:
             # node.name is a str, not an ast.Name node
-            self._define(node.name, VariableData(kind="variable"))
+            self._define(
+                node.name,
+                VariableData(
+                    kind="variable", required_refs=self.ref_stack[-1]
+                ),
+            )

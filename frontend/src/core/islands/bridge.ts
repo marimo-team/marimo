@@ -17,12 +17,12 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   /**
    * Lazy singleton instance of the IslandsPyodideBridge.
    */
-  private static _instance: IslandsPyodideBridge | undefined;
-  public static get INSTANCE() {
-    if (!IslandsPyodideBridge._instance) {
-      IslandsPyodideBridge._instance = new IslandsPyodideBridge();
+  static get INSTANCE(): IslandsPyodideBridge {
+    const KEY = "_marimo_private_IslandsPyodideBridge";
+    if (!window[KEY]) {
+      window[KEY] = new IslandsPyodideBridge();
     }
-    return IslandsPyodideBridge._instance;
+    return window[KEY] as IslandsPyodideBridge;
   }
 
   private rpc: ReturnType<typeof getWorkerRPC<WorkerSchema>>;

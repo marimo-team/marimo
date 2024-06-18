@@ -1,10 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { logNever } from "@/utils/assertNever";
-import { CellMessage, OutputMessage } from "../kernel/messages";
+import { CellMessage } from "../kernel/messages";
 import { CellRuntimeState } from "./types";
 import { collapseConsoleOutputs } from "./collapseConsoleOutputs";
 import { parseOutline } from "../dom/outline";
 import { Seconds, Time } from "@/utils/time";
+import { invariant } from "@/utils/invariant";
 
 export function transitionCell(
   cell: CellRuntimeState,
@@ -37,7 +38,7 @@ export function transitionCell(
         nextCell.consoleOutputs = [];
       }
       nextCell.stopped = false;
-      nextCell.runStartTimestamp = message.timestamp;
+      nextCell.runStartTimestamp = message.timestamp as Seconds;
       break;
     case "idle":
       if (cell.runStartTimestamp) {
@@ -45,6 +46,7 @@ export function transitionCell(
           (message.timestamp - cell.runStartTimestamp) as Seconds,
         ).toMilliseconds();
         nextCell.runStartTimestamp = null;
+        nextCell.staleInputs = false;
       }
       nextCell.debuggerActive = false;
       break;
@@ -52,6 +54,8 @@ export function transitionCell(
       break;
     case "disabled-transitively":
       // Everything should already be up to date from prepareCellForExecution
+      break;
+    case undefined:
       break;
     default:
       logNever(message.status);
@@ -66,15 +70,19 @@ export function transitionCell(
   // Handle errors: marimo includes an error output when a cell is interrupted
   // or errored
   if (
-    message.output !== null &&
+    message.output != null &&
     message.output.mimetype === "application/vnd.marimo+error"
   ) {
+    invariant(
+      Array.isArray(message.output.data),
+      "Expected error output data to be an array",
+    );
     if (message.output.data.some((error) => error.type === "interruption")) {
       // Interrupted helps distinguish that the cell is stale
       nextCell.interrupted = true;
       didInterruptFromThisMessage = true;
     } else if (
-      message.output.data.some((error) => error.type === "ancestor-stopped")
+      message.output.data.some((error) => error.type.includes("ancestor"))
     ) {
       // The cell didn't run, but it was intentional, so don't count as
       // errored.
@@ -106,7 +114,9 @@ export function transitionCell(
     // existing console outputs.
     consoleOutputs = Array.isArray(message.console)
       ? message.console
-      : collapseConsoleOutputs([...consoleOutputs, message.console]);
+      : collapseConsoleOutputs(
+          [...consoleOutputs, message.console].filter(Boolean),
+        );
   }
   nextCell.consoleOutputs = consoleOutputs;
   // Derive outline from output
@@ -115,8 +125,7 @@ export function transitionCell(
   // Transition PDB
   const newConsoleOutputs = [message.console].flat().filter(Boolean);
   const pdbOutputs = newConsoleOutputs.filter(
-    (output): output is Extract<OutputMessage, { channel: "pdb" }> =>
-      output.channel === "pdb",
+    (output) => output.channel === "pdb",
   );
   const hasPdbOutput = pdbOutputs.length > 0;
   if (hasPdbOutput && pdbOutputs.some((output) => output.data === "start")) {

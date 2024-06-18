@@ -1,7 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { CellMessage } from "../kernel/messages";
 import { CellId } from "../cells/ids";
-import { repl } from "@/utils/repl";
 
 // Virtual files are of the form /@file/<file-name>.<extension>
 const VIRTUAL_FILE_REGEX = /\/@file\/([^\s/]+)\.([\dA-Za-z]+)/g;
@@ -13,16 +12,23 @@ export class VirtualFileTracker {
   /**
    * Shared instance of VirtualFileTracker since this must be a singleton.
    */
-  static readonly INSTANCE = new VirtualFileTracker();
+  static get INSTANCE(): VirtualFileTracker {
+    const KEY = "_marimo_private_VirtualFileTracker";
+    if (!window[KEY]) {
+      window[KEY] = new VirtualFileTracker();
+    }
+    return window[KEY] as VirtualFileTracker;
+  }
 
   virtualFiles = new Map<CellId, Set<string>>();
 
   private constructor() {
-    repl(VirtualFileTracker.INSTANCE, "VirtualFileTracker");
+    // Private
   }
 
   track(message: Pick<CellMessage, "cell_id" | "output">): void {
-    const { cell_id, output } = message;
+    const output = message.output;
+    const cell_id = message.cell_id as CellId;
     if (!output) {
       return;
     }

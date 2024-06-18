@@ -2,24 +2,22 @@
 
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import { useAtomValue } from "jotai";
-
-interface Banner {
-  id: string;
-  title: string;
-  description: string;
-  variant?: "danger";
-  action?: "restart";
-}
+import { Banner } from "../kernel/messages";
+import { generateUUID } from "@/utils/uuid";
+import { Identified } from "@/utils/typed";
 
 interface BannerState {
-  banners: Banner[];
+  banners: Array<Identified<Banner>>;
 }
 
 const { valueAtom: bannersAtom, useActions } = createReducerAndAtoms(
   () => ({ banners: [] }) as BannerState,
   {
     addBanner: (state, banner: Banner) => {
-      return { ...state, banners: [...state.banners, banner] };
+      return {
+        ...state,
+        banners: [...state.banners, { ...banner, id: generateUUID() }],
+      };
     },
     removeBanner: (state, id: string) => {
       return {

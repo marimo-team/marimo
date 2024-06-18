@@ -7,6 +7,15 @@ export type AiCompletionRequest = schemas["AiCompletionRequest"];
 export type AppMetadata = schemas["AppMetadata"];
 export type BaseResponse = schemas["BaseResponse"];
 export type CellConfig = schemas["CellConfig"];
+/**
+ * The status of a cell.
+ *
+ * queued: queued by the kernel.
+ * running: currently executing.
+ * idle: not running.
+ * disabled-transitively: disabled because an ancestor was disabled.
+ */
+export type CellStatus = schemas["CellStatus"];
 export type CodeCompletionRequest = schemas["CodeCompletionRequest"];
 export type CreationRequest = schemas["CreationRequest"];
 export type DeleteRequest = schemas["DeleteRequest"];
@@ -49,7 +58,7 @@ export type SaveNotebookRequest = schemas["SaveNotebookRequest"];
 export type SaveUserConfigurationRequest =
   schemas["SaveUserConfigurationRequest"];
 export interface SetCellConfigRequest {
-  configs: Record<CellId, CellConfig>;
+  configs: Record<CellId, Partial<CellConfig>>;
 }
 export type SetUIElementValueRequest = schemas["SetUIElementValueRequest"];
 export type SetUserConfigRequest = schemas["SetUserConfigRequest"];

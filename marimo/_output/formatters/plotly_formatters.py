@@ -34,11 +34,12 @@ class PlotlyFormatter(FormatterFactory):
         import plotly.io as pio  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
         resolved_config: dict[str, Any] = {}
-        try:
-            default_renderer: Any = pio.renderers[pio.renderers.default]
-            resolved_config = default_renderer.config or {}
-        except AttributeError:
-            pass
+        if pio.renderers.default:
+            try:
+                default_renderer: Any = pio.renderers[pio.renderers.default]
+                resolved_config = default_renderer.config or {}
+            except AttributeError:
+                pass
 
         return Html(
             build_stateless_plugin(

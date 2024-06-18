@@ -11,7 +11,9 @@ import { DeferredRequestRegistry } from "@/core/network/DeferredRequestRegistry"
 import { CodeCompletionRequest } from "@/core/network/types";
 import "../../../components/editor/documentation.css";
 
-function constructCompletionInfoNode(innerHtml?: string): HTMLElement | null {
+function constructCompletionInfoNode(
+  innerHtml?: string | null,
+): HTMLElement | null {
   if (!innerHtml) {
     return null;
   }
@@ -77,7 +79,7 @@ export const Autocompleter = {
     limitToType?: "tooltip";
     excludeTypes?: string[];
     exactName?: string;
-  }): (Tooltip & { html?: string }) | undefined {
+  }): (Tooltip & { html?: string | null }) | undefined {
     const firstOption = getFirstOption(message.options, exactName);
     if (!firstOption) {
       return undefined;

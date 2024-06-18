@@ -27,6 +27,7 @@ import { defineCustomElement } from "../dom/defineCustomElement";
 import { MarimoIslandElement } from "./components/web-components";
 import { RuntimeState } from "../kernel/RuntimeState";
 import { sendComponentValues } from "../network/requests";
+import { RequestId } from "../network/DeferredRequestRegistry";
 
 /**
  * Main entry point for the js bundle for embedded marimo apps.
@@ -36,16 +37,22 @@ import { sendComponentValues } from "../network/requests";
  * Initialize the Marimo app.
  */
 export async function initialize() {
+  // This will display all the static HTML content.
+  initializePlugins();
+
   // Add 'marimo' class name to all `marimo-island` elements.
   const islands = document.querySelectorAll<HTMLElement>(
     MarimoIslandElement.tagName,
   );
+
+  // If no islands are found, we can skip the rest of the initialization.
+  if (islands.length === 0) {
+    return;
+  }
+
   for (const island of islands) {
     island.classList.add(MarimoIslandElement.styleNamespace);
   }
-
-  // This will display all the static HTML content.
-  initializePlugins();
 
   const actions = createNotebookActions((action) => {
     store.set(notebookAtom, (state) => notebookReducer(state, action));
@@ -82,7 +89,10 @@ export async function initialize() {
         handleRemoveUIElements(msg.data);
         return;
       case "function-call-result":
-        FUNCTIONS_REGISTRY.resolve(msg.data.function_call_id, msg.data);
+        FUNCTIONS_REGISTRY.resolve(
+          msg.data.function_call_id as RequestId,
+          msg.data,
+        );
         return;
       case "cell-op":
         handleCellOperation(msg.data, actions.handleCellMessage);
@@ -113,6 +123,8 @@ export async function initialize() {
         return;
       case "query-params-clear":
         queryParamHandlers.clear();
+        return;
+      case "reconnected":
         return;
       default:
         logNever(msg);

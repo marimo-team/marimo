@@ -148,7 +148,10 @@ export const GraphSelectionPanel: React.FC<{
                   declaredBy={variable.declaredBy}
                   name={variable.name}
                 />
-                <div className="truncate col-span-2" title={variable.value}>
+                <div
+                  className="truncate col-span-2"
+                  title={variable.value ?? ""}
+                >
                   {variable.value}
                   <span className="ml-1 truncate text-foreground/60 font-mono">
                     ({variable.dataType})
@@ -235,7 +238,10 @@ export const GraphSelectionPanel: React.FC<{
                 <div className="truncate text-foreground/60 font-mono">
                   {variable.dataType}
                 </div>
-                <div className="truncate col-span-2" title={variable.value}>
+                <div
+                  className="truncate col-span-2"
+                  title={variable.value ?? ""}
+                >
                   {variable.value}
                 </div>
               </React.Fragment>

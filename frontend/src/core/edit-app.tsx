@@ -162,6 +162,7 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       filename,
       configs,
       layout: getSerializedLayout(),
+      persist: true,
     }).then(() => {
       if (userInitiated) {
         toast({ title: "Notebook saved" });

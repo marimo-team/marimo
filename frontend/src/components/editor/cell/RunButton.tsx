@@ -4,9 +4,9 @@ import { Button } from "@/components/editor/inputs/Inputs";
 import { Tooltip } from "../../ui/tooltip";
 import { renderShortcut } from "../../shortcuts/renderShortcut";
 import { cn } from "../../../utils/cn";
-import { CellConfig, CellStatus } from "../../../core/cells/types";
 import { sendInterrupt } from "@/core/network/requests";
 import { useShouldShowInterrupt } from "./useShouldShowInterrupt";
+import { CellStatus, CellConfig } from "@/core/network/types";
 
 function computeColor(
   appClosed: boolean,

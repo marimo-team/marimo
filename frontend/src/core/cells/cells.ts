@@ -3,7 +3,6 @@ import { atom, useAtom, useAtomValue } from "jotai";
 import { type ReducerWithoutAction, createRef } from "react";
 import type { CellMessage } from "../kernel/messages";
 import {
-  type CellConfig,
   type CellRuntimeState,
   type CellData,
   createCell,
@@ -37,6 +36,9 @@ import {
   splitEditor,
   updateEditorCodeFromPython,
 } from "../codemirror/language/utils";
+import { invariant } from "@/utils/invariant";
+import { CellConfig, CellStatus } from "../network/types";
+import { getUserConfig } from "@/core/config/config";
 
 /**
  * The state of the notebook.
@@ -460,7 +462,7 @@ const {
     });
   },
   handleCellMessage: (state, message: CellMessage) => {
-    const cellId = message.cell_id;
+    const cellId = message.cell_id as CellId;
     const nextState = updateCellRuntimeState(state, cellId, (cell) => {
       return transitionCell(cell, message);
     });
@@ -501,12 +503,7 @@ const {
     const cellData = Object.fromEntries(cells.map((cell) => [cell.id, cell]));
 
     const cellRuntime = Object.fromEntries(
-      cells.map((cell) => [
-        cell.id,
-        createCellRuntimeState({
-          staleInputs: !cellData[cell.id].lastExecutionTime,
-        }),
-      ]),
+      cells.map((cell) => [cell.id, createCellRuntimeState()]),
     );
 
     return {
@@ -755,8 +752,9 @@ const cellErrorsAtom = atom((get) => {
         // Filter out ancestor-stopped errors
         // These are errors that are caused by a cell that was stopped,
         // but nothing the user can take action on.
+        invariant(Array.isArray(cell.output.data), "Expected array data");
         const nonAncestorErrors = cell.output.data.filter(
-          (error) => error.type !== "ancestor-stopped",
+          (error) => !error.type.includes("ancestor"),
         );
 
         if (nonAncestorErrors.length > 0) {
@@ -865,13 +863,44 @@ export const getCellEditorView = (cellId: CellId) => {
   return cellHandles[cellId].current?.editorView;
 };
 
+export function isUninstantiated(
+  autoInstantiate: boolean,
+  executionTime: number | null,
+  status: CellStatus,
+  errored: boolean,
+  interrupted: boolean,
+  stopped: boolean,
+) {
+  return (
+    // autorun on startup is off ...
+    !autoInstantiate &&
+    // hasn't run ...
+    executionTime === null &&
+    // isn't currently queued/running &&
+    status !== "queued" &&
+    status !== "running" &&
+    // and isn't in an error state.
+    !(errored || interrupted || stopped)
+  );
+}
+
 /**
  * Cells that are stale and can be run.
  */
 export function staleCellIds(state: NotebookState) {
+  const autoInstantiate = getUserConfig().runtime.auto_instantiate;
+
   const { cellIds, cellData, cellRuntime } = state;
   return cellIds.filter(
     (cellId) =>
+      isUninstantiated(
+        autoInstantiate,
+        cellData[cellId].lastExecutionTime,
+        cellRuntime[cellId].status,
+        cellRuntime[cellId].errored,
+        cellRuntime[cellId].interrupted,
+        cellRuntime[cellId].stopped,
+      ) ||
       cellData[cellId].edited ||
       cellRuntime[cellId].interrupted ||
       (cellRuntime[cellId].staleInputs &&

@@ -6,7 +6,7 @@ from __future__ import annotations
 import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Any, Sequence, Union
+from typing import Any, Dict, Sequence, Union
 
 from marimo._messaging.errors import Error
 from marimo._messaging.mimetypes import KnownMimeType
@@ -18,6 +18,7 @@ class CellChannel(str, Enum):
     STDOUT = "stdout"
     STDERR = "stderr"
     STDIN = "stdin"
+    PDB = "pdb"
     OUTPUT = "output"
     MARIMO_ERROR = "marimo-error"
     MEDIA = "media"
@@ -31,7 +32,7 @@ class CellOutput:
     # descriptive name about the kind of output: e.g., stdout, stderr, ...
     channel: CellChannel
     mimetype: KnownMimeType
-    data: Union[str, Sequence[Error]]
+    data: Union[str, Sequence[Error], Dict[str, Any]]
     timestamp: float = field(default_factory=lambda: time.time())
 
     def asdict(self) -> dict[str, Any]:

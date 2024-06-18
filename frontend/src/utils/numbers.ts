@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 export function prettyNumber(
-  value: number | string | undefined | null,
+  value: number | string | undefined | null | boolean,
 ): string {
   if (value === undefined || value === null) {
     return "";
@@ -9,6 +9,10 @@ export function prettyNumber(
 
   if (typeof value === "string") {
     return value;
+  }
+
+  if (typeof value === "boolean") {
+    return String(value);
   }
 
   return value.toLocaleString(undefined, {

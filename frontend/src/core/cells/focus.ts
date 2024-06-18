@@ -3,7 +3,7 @@ import { atom } from "jotai";
 import type { CellId } from "./ids";
 import { type NotebookState, notebookAtom } from "./cells";
 import type { EditorView } from "@codemirror/view";
-import type { CellConfig, CellStatus } from "./types";
+import { CellConfig, CellStatus } from "../network/types";
 
 /**
  * Holds state for the last focused cell.

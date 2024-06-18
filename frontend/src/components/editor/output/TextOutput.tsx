@@ -8,7 +8,7 @@ const ansiUp = new AnsiUp();
 
 interface Props {
   text: string;
-  channel?: OutputChannel | "stdin";
+  channel?: OutputChannel;
 }
 
 export const TextOutput = ({ text, channel }: Props): JSX.Element => {

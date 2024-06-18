@@ -79,8 +79,8 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     return ColumnSummary(
                         total=total,
                         nulls=col.null_count(),
-                        true=col.sum(),
-                        false=total - col.sum(),
+                        true=cast(int, col.sum()),
+                        false=cast(int, total - col.sum()),
                     )
                 if col.is_temporal():
                     return ColumnSummary(

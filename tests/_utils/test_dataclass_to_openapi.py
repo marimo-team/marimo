@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, List, Literal, Optional
+from typing import Any, ClassVar, List, Literal, Optional, Union
 
-from marimo._utils.dataclass_to_openapi import dataclass_to_openapi_spec
+from marimo._utils.dataclass_to_openapi import (
+    PythonTypeToOpenAPI,
+)
 
 
 @dataclasses.dataclass
@@ -24,7 +26,9 @@ class Person:
 
 
 def test_dataclass_to_openapi() -> None:
-    openapi_spec = dataclass_to_openapi_spec(Person)
+    openapi_spec = PythonTypeToOpenAPI(
+        name_overrides={}, camel_case=False
+    ).convert(Person, processed_classes={})
     assert openapi_spec == {
         "type": "object",
         "properties": {
@@ -36,7 +40,7 @@ def test_dataclass_to_openapi() -> None:
                     "street": {"type": "string"},
                     "city": {"type": "string"},
                     "zip_code": {"type": "integer", "nullable": True},
-                    "kind": {"enum": ["home", "work"]},
+                    "kind": {"enum": ["home", "work"], "type": "string"},
                 },
                 "required": ["street", "city", "kind"],
             },
@@ -48,14 +52,16 @@ def test_dataclass_to_openapi() -> None:
 
 
 def test_dataclass_to_openapi_with_camelcase() -> None:
-    openapi_spec = dataclass_to_openapi_spec(Address, camel_case=True)
+    openapi_spec = PythonTypeToOpenAPI(
+        name_overrides={}, camel_case=True
+    ).convert(Address, processed_classes={})
     assert openapi_spec == {
         "type": "object",
         "properties": {
             "street": {"type": "string"},
             "city": {"type": "string"},
             "zipCode": {"type": "integer", "nullable": True},
-            "kind": {"enum": ["home", "work"]},
+            "kind": {"enum": ["home", "work"], "type": "string"},
         },
         "required": ["street", "city", "kind"],
     }
@@ -69,7 +75,9 @@ class Node:
 
 
 def test_recursive_dataclass_to_openapi() -> None:
-    openapi_spec = dataclass_to_openapi_spec(Node)
+    openapi_spec = PythonTypeToOpenAPI(
+        name_overrides={}, camel_case=False
+    ).convert(Node, processed_classes={})
     assert openapi_spec == {
         "type": "object",
         "properties": {
@@ -78,4 +86,59 @@ def test_recursive_dataclass_to_openapi() -> None:
             "right": {"$ref": "#/components/schemas/Node", "nullable": True},
         },
         "required": ["value"],
+    }
+
+
+Colors = Union[Literal["red"], Literal["green"], Literal["blue"]]
+
+
+def test_named_union() -> None:
+    openapi_spec = PythonTypeToOpenAPI(
+        name_overrides={}, camel_case=False
+    ).convert(Colors, processed_classes={})
+    assert openapi_spec == {
+        "oneOf": [
+            {"enum": ["red"], "type": "string"},
+            {"enum": ["green"], "type": "string"},
+            {"enum": ["blue"], "type": "string"},
+        ]
+    }
+
+
+@dataclasses.dataclass
+class Theme:
+    primary_color: Colors
+    secondary_color: Optional[Colors]
+
+
+def test_nested_named_union() -> None:
+    openapi_spec = PythonTypeToOpenAPI(
+        name_overrides={Colors: "colors"}, camel_case=False
+    ).convert(Theme, {Colors: "colors"})
+    assert openapi_spec == {
+        "type": "object",
+        "properties": {
+            "primary_color": {"$ref": "#/components/schemas/colors"},
+            "secondary_color": {
+                "$ref": "#/components/schemas/colors",
+                "nullable": True,
+            },
+        },
+        "required": ["primary_color"],
+    }
+
+
+@dataclasses.dataclass
+class Dog:
+    name: ClassVar[str] = "dog"
+
+
+def test_class_var() -> None:
+    openapi_spec = PythonTypeToOpenAPI(
+        name_overrides={}, camel_case=False
+    ).convert(Dog, {})
+    assert openapi_spec == {
+        "type": "object",
+        "properties": {"name": {"type": "string", "enum": ["dog"]}},
+        "required": ["name"],
     }

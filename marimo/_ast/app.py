@@ -20,8 +20,6 @@ from marimo._ast.cell import (
     Cell,
     CellConfig,
     CellId_t,
-    execute_cell,
-    execute_cell_async,
 )
 from marimo._ast.compiler import cell_factory
 from marimo._ast.errors import (
@@ -36,6 +34,10 @@ from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.types import NoopStream
 from marimo._output.rich_help import mddoc
 from marimo._runtime import dataflow
+from marimo._runtime.executor import (
+    execute_cell,
+    execute_cell_async,
+)
 from marimo._runtime.patches import patch_main_module_context
 
 if TYPE_CHECKING:
@@ -272,7 +274,7 @@ class App:
                     self._execution_context = ExecutionContext(
                         cell_id=cid, setting_element_value=False
                     )
-                    outputs[cid] = execute_cell(cell._cell, glbls)
+                    outputs[cid] = execute_cell(cell._cell, glbls, self._graph)
                     for hook in post_execute_hooks:
                         hook()
             return self._outputs_and_defs(outputs, glbls)
@@ -294,7 +296,9 @@ class App:
                     self._execution_context = ExecutionContext(
                         cell_id=cid, setting_element_value=False
                     )
-                    outputs[cid] = await execute_cell_async(cell._cell, glbls)
+                    outputs[cid] = await execute_cell_async(
+                        cell._cell, glbls, self._graph
+                    )
                     for hook in post_execute_hooks:
                         hook()
                     self._execution_context = None

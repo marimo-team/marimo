@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { expect, describe, it } from "vitest";
 import { outputIsStale } from "../cell";
-import { CellStatus } from "../types";
 import { OutputMessage } from "@/core/kernel/messages";
 import { Seconds } from "@/utils/time";
+import { CellStatus } from "@/core/network/types";
 
 const STATUSES: CellStatus[] = [
   "queued",

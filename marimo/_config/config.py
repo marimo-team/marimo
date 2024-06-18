@@ -67,6 +67,7 @@ class KeymapConfig(TypedDict, total=False):
 
 
 OnCellChangeType = Literal["lazy", "autorun"]
+ExecutionType = Literal["relaxed", "strict"]
 
 
 @mddoc
@@ -86,6 +87,9 @@ class RuntimeConfig(TypedDict):
     - `on_cell_change`: if `lazy`, cells will be marked stale when their
       ancestors run but won't autorun; if `autorun`, cells will automatically
       run when their ancestors run.
+    - `execution_type`: if `relaxed`, marimo will not clone cell declarations;
+      if `strict` marimo will clone cell declarations by default, avoiding
+      hidden potential state build up.
     """
 
     auto_instantiate: bool

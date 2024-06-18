@@ -50,7 +50,10 @@ const props: CellProps = {
   updateCellConfig: Logger.log,
   setStdinResponse: Logger.log,
   clearSerializedEditorState: Logger.log,
-  config: {},
+  config: {
+    hide_code: false,
+    disabled: false,
+  },
   userConfig: defaultUserConfig(),
 };
 
@@ -173,6 +176,7 @@ export const Disabled: Story = {
           runElapsedTimeMs={20 as Milliseconds}
           config={{
             disabled: true,
+            hide_code: false,
           }}
           output={{
             channel: "output",
@@ -257,6 +261,7 @@ export const DisabledAndStaleStatus: Story = {
           runElapsedTimeMs={20 as Milliseconds}
           config={{
             disabled: true,
+            hide_code: false,
           }}
           status="disabled-transitively"
           staleInputs={true}

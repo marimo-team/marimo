@@ -29,6 +29,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return marimoClient
         .POST("/api/kernel/save", {
           body: request,
+          parseAs: "text",
         })
         .then(handleResponseReturnNull);
     },
@@ -88,6 +89,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return marimoClient
         .POST("/api/kernel/save_app_config", {
           body: request,
+          parseAs: "text",
         })
         .then(handleResponseReturnNull);
     },

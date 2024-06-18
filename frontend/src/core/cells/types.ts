@@ -5,21 +5,7 @@ import { Outline } from "./outline";
 import { CellId } from "./ids";
 import { DEFAULT_CELL_NAME } from "./names";
 import { Milliseconds, Seconds } from "@/utils/time";
-import { getUserConfig } from "../config/config";
-
-/**
- * The status of a cell.
- *
- * queued: queued by the kernel.
- * running: currently executing.
- * idle: not running.
- * disabled-transitively: disabled because an ancestor was disabled.
- */
-export type CellStatus =
-  | "queued"
-  | "running"
-  | "idle"
-  | "disabled-transitively";
+import { CellConfig, CellStatus } from "../network/types";
 
 /**
  * Create a new cell with default state.
@@ -31,12 +17,15 @@ export function createCell({
   lastCodeRun = null,
   lastExecutionTime = null,
   edited = false,
-  config = {},
+  config,
   serializedEditorState = null,
 }: Partial<CellData> & { id: CellId }): CellData {
   return {
     id: id,
-    config: config,
+    config: config || {
+      hide_code: false,
+      disabled: false,
+    },
     name: name,
     code: code,
     edited: edited,
@@ -49,13 +38,12 @@ export function createCell({
 export function createCellRuntimeState(
   state?: Partial<CellRuntimeState>,
 ): CellRuntimeState {
-  const auto_instantiate = getUserConfig().runtime.auto_instantiate;
   return {
     outline: null,
     output: null,
     consoleOutputs: [],
     status: "idle" as CellStatus,
-    staleInputs: !auto_instantiate,
+    staleInputs: false,
     interrupted: false,
     errored: false,
     stopped: false,
@@ -93,7 +81,7 @@ export interface CellRuntimeState {
   /** TOC outline */
   outline: Outline | null;
   /** messages encoding the cell's console outputs. */
-  consoleOutputs: OutputMessage[];
+  consoleOutputs: Array<WithResponse<OutputMessage>>;
   /** current status of the cell */
   status: CellStatus;
   /** whether the cell has stale inputs*/
@@ -115,13 +103,10 @@ export interface CellRuntimeState {
   debuggerActive: boolean;
 }
 
-export interface CellConfig {
+export type WithResponse<T> = T & {
   /**
-   * If true, the cell and its descendants are unable to run.
+   * This is not saved to the server, but we update this field
+   * after sending the message to the kernel.
    */
-  disabled?: boolean;
-  /**
-   * If true, the cell's code is hidden from the notebook.
-   */
-  hide_code?: boolean;
-}
+  response?: string;
+};

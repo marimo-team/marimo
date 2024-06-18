@@ -15,8 +15,8 @@ import {
 import { saveCellConfig, sendRun, sendStdin } from "@/core/network/requests";
 import { autocompletionKeymap } from "@/core/codemirror/cm";
 import { UserConfig } from "../../core/config/config-schema";
-import { CellConfig, CellData, CellRuntimeState } from "../../core/cells/types";
-import { CellActions } from "../../core/cells/cells";
+import { CellData, CellRuntimeState } from "../../core/cells/types";
+import { CellActions, isUninstantiated } from "../../core/cells/cells";
 import { derefNotNull } from "../../utils/dereference";
 import { OutputArea } from "./Output";
 import { ConsoleOutput } from "./output/ConsoleOutput";
@@ -158,8 +158,21 @@ const CellComponent = (
 
   const disabledOrAncestorDisabled =
     cellConfig.disabled || status === "disabled-transitively";
+
+  const uninstantiated = isUninstantiated(
+    userConfig.runtime.auto_instantiate,
+    runElapsedTimeMs,
+    status,
+    errored,
+    interrupted,
+    stopped,
+  );
+
   const needsRun =
-    edited || interrupted || (staleInputs && !disabledOrAncestorDisabled);
+    uninstantiated ||
+    edited ||
+    interrupted ||
+    (staleInputs && !disabledOrAncestorDisabled);
   const loading = status === "running" || status === "queued";
 
   const outputStale = outputIsStale(
@@ -303,11 +316,13 @@ const CellComponent = (
     "cell.moveUp": () => moveCell({ cellId, before: true }),
     "cell.moveDown": () => moveCell({ cellId, before: false }),
     "cell.hideCode": () => {
-      const newConfig: CellConfig = { hide_code: !cellConfig.hide_code };
+      const nextHideCode = !cellConfig.hide_code;
       // Fire-and-forget
-      void saveCellConfig({ configs: { [cellId]: newConfig } });
-      updateCellConfig({ cellId, config: newConfig });
-      if (newConfig.hide_code) {
+      void saveCellConfig({
+        configs: { [cellId]: { hide_code: nextHideCode } },
+      });
+      updateCellConfig({ cellId, config: { hide_code: nextHideCode } });
+      if (nextHideCode) {
         // Move focus from the editor to the cell
         editorView.current?.contentDOM.blur();
         cellRef.current?.focus();

@@ -3,7 +3,10 @@ from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
 
-async def test_set_and_get_state(k: Kernel, exec_req: ExecReqProvider) -> None:
+async def test_set_and_get_state(
+    execution_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    k = execution_kernel
     await k.run(
         [
             exec_req.get("import marimo as mo"),
@@ -23,8 +26,9 @@ async def test_set_and_get_state(k: Kernel, exec_req: ExecReqProvider) -> None:
 
 
 async def test_set_and_get_iteration(
-    k: Kernel, exec_req: ExecReqProvider
+    execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = execution_kernel
     await k.run(
         [
             exec_req.get("import marimo as mo"),
@@ -43,7 +47,10 @@ async def test_set_and_get_iteration(
     assert k.globals["x"] == 5
 
 
-async def test_no_self_loops(k: Kernel, exec_req: ExecReqProvider) -> None:
+async def test_no_self_loops(
+    execution_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    k = execution_kernel
     await k.run(
         [
             exec_req.get("import marimo as mo"),
@@ -55,7 +62,10 @@ async def test_no_self_loops(k: Kernel, exec_req: ExecReqProvider) -> None:
     assert k.globals["x"] == 0
 
 
-async def test_allow_self_loops(k: Kernel, exec_req: ExecReqProvider) -> None:
+async def test_allow_self_loops(
+    execution_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    k = execution_kernel
     await k.run(
         [
             exec_req.get("import marimo as mo"),
@@ -76,8 +86,9 @@ async def test_allow_self_loops(k: Kernel, exec_req: ExecReqProvider) -> None:
 
 
 async def test_update_with_function(
-    k: Kernel, exec_req: ExecReqProvider
+    execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = execution_kernel
     await k.run(
         [
             exec_req.get("import marimo as mo"),
@@ -91,8 +102,9 @@ async def test_update_with_function(
 
 
 async def test_set_to_callable_object(
-    k: Kernel, exec_req: ExecReqProvider
+    execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = execution_kernel
     await k.run(
         [
             exec_req.get("import marimo as mo"),
@@ -115,30 +127,38 @@ async def test_set_to_callable_object(
     assert not k.globals["x"].called
 
 
-async def test_non_stale_not_run(k: Kernel, exec_req: ExecReqProvider) -> None:
+async def test_non_stale_not_run(
+    execution_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    k = execution_kernel
     await k.run(
         [
             exec_req.get("import marimo as mo"),
+            exec_req.get("import weakref"),
             exec_req.get(
                 """
                 class ns:
                     ...
                 private = ns()
                 private.counter = 0
+                ref = weakref.ref(private)
                 """
             ),
             exec_req.get("state, set_state = mo.state(0)"),
             exec_req.get("set_state(1); x = 0"),
             # this cell runs as a result of the dag; the setter above
             # shouldn't cause it to re-run, even though it calls the getter
-            exec_req.get("x; private.counter += state()"),
+            exec_req.get("x; ref().counter += state()"),
         ]
     )
 
     assert k.globals["private"].counter == 1
 
 
-async def test_cancelled_not_run(k: Kernel, exec_req: ExecReqProvider) -> None:
+async def test_cancelled_not_run(
+    execution_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    k = execution_kernel
     await k.run(
         [
             exec_req.get("import marimo as mo"),
@@ -154,8 +174,9 @@ async def test_cancelled_not_run(k: Kernel, exec_req: ExecReqProvider) -> None:
 
 
 async def test_set_state_with_overridden_eq(
-    k: Kernel, exec_req: ExecReqProvider
+    execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = execution_kernel
     create_class = """
     class A:
         def __eq__(self, other):
@@ -181,3 +202,19 @@ async def test_set_state_with_overridden_eq(
     )
 
     assert type(k.globals["x"]).__name__ == "A"
+
+
+async def test_set_state_not_strict_copied(
+    strict_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    k = strict_kernel
+    await k.run(
+        [
+            exec_req.get("import marimo as mo"),
+            exec_req.get("state, set_state = mo.state(None)"),
+            exec_req.get("a, b = state, set_state"),
+        ]
+    )
+
+    assert id(k.globals["a"]) == id(k.globals["state"])
+    assert id(k.globals["b"]) == id(k.globals["set_state"])

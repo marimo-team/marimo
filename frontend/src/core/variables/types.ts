@@ -12,11 +12,11 @@ export interface Variable {
   /**
    * String representation of the value.
    */
-  value?: string;
+  value?: string | null;
   /**
    * Type of the value.
    */
-  dataType?: string;
+  dataType?: string | null;
 }
 
 export type Variables = Record<VariableName, Variable>;

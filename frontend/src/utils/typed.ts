@@ -13,3 +13,5 @@ export type TypedNumber<T> = number & { __type__: T };
  * It is used to distinguish between different types of strings.
  */
 export type TypedString<T> = string & { __type__: T };
+
+export type Identified<T> = { id: string } & T;

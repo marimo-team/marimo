@@ -77,7 +77,7 @@ def test_save_file(client: TestClient) -> None:
         },
     )
     assert response.status_code == 200, response.text
-    assert response.json()["success"] is True
+    assert "import marimo" in response.text
     file_contents = open(filename).read()
     assert "import marimo as mo" in file_contents
     assert "@app.cell(hide_code=True)" in file_contents
@@ -133,7 +133,7 @@ def test_save_with_header(client: TestClient) -> None:
     )
 
     assert response.status_code == 200, response.text
-    assert response.json()["success"] is True
+    assert "import marimo" in response.text
     file_contents = open(filename).read()
     assert "import marimo as mo" in file_contents
     assert file_contents.startswith(header.rstrip()), "Header was removed"
@@ -176,7 +176,7 @@ def test_save_with_invalid_file(client: TestClient) -> None:
     )
 
     assert response.status_code == 200, response.text
-    assert response.json()["success"] is True
+    assert "import marimo" in response.text
     file_contents = open(filename).read()
     assert file_contents.startswith("import marimo"), "Header was not removed"
     assert "@app.cell(hide_code=True)" in file_contents
@@ -223,6 +223,6 @@ def test_save_app_config(client: TestClient) -> None:
         },
     )
     assert response.status_code == 200, response.text
-    assert response.json()["success"] is True
+    assert "import marimo" in response.text
     file_contents = open(filename).read()
     assert 'marimo.App(width="medium"' in file_contents

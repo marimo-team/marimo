@@ -2,7 +2,7 @@
 import { Base64String, DataURLString, JsonString } from "@/utils/json/base64";
 import { CellId } from "../cells/ids";
 import { OutputMessage } from "../kernel/messages";
-import { CellConfig } from "../cells/types";
+import { CellConfig } from "../network/types";
 
 export interface StaticNotebookState {
   cellIds: CellId[];

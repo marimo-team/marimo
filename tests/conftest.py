@@ -130,11 +130,27 @@ def k() -> Generator[Kernel, None, None]:
 # kernel configured with runtime=lazy
 @pytest.fixture
 def lazy_kernel(k: Kernel) -> Kernel:
+    k.execution_type = "relaxed"
     k.reactive_execution_mode = "lazy"
     return k
 
 
-@pytest.fixture(params=["k", "lazy_kernel"])
+# kernel configured with strict execution
+@pytest.fixture
+def strict_kernel() -> Generator[Kernel, None, None]:
+    mocked = MockedKernel()
+    mocked.k.execution_type = "strict"
+    mocked.k.reactive_execution_mode = "autorun"
+    yield mocked.k
+    mocked.teardown()
+
+
+@pytest.fixture(params=["k", "strict_kernel"])
+def execution_kernel(request: Any) -> Kernel:
+    return request.getfixturevalue(request.param)
+
+
+@pytest.fixture(params=["k", "strict_kernel", "lazy_kernel"])
 def any_kernel(request: Any) -> Kernel:
     return request.getfixturevalue(request.param)
 
