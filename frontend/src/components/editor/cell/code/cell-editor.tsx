@@ -306,7 +306,7 @@ const CellEditorInternal = ({
         editorViewRef.current?.focus();
         editorViewRef.current?.dom.scrollIntoView({
           behavior: "smooth",
-          block: "center",
+          block: "nearest",
         });
       });
     }
