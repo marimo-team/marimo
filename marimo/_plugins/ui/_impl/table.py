@@ -63,7 +63,13 @@ class ColumnSummaries:
 
 
 @dataclass
-class SortValuesArgs:
+class SearchTableArgs:
+    query: Optional[str] = None
+    sort: Optional[SortArgs] = None
+
+
+@dataclass
+class SortArgs:
     by: ColumnName
     descending: bool
 
@@ -230,9 +236,9 @@ class table(
                     function=self.get_column_summaries,
                 ),
                 Function(
-                    name=self.sort_values.__name__,
-                    arg_cls=SortValuesArgs,
-                    function=self.sort_values,
+                    name=self.search.__name__,
+                    arg_cls=SearchTableArgs,
+                    function=self.search,
                 ),
             ),
         )
@@ -286,9 +292,10 @@ class table(
 
         return ColumnSummaries(summaries)
 
-    def sort_values(self, args: SortValuesArgs) -> Union[JSONType, str]:
-        return (
-            self._unfiltered_manager.sort_values(args.by, args.descending)
-            .limit(TableManager.DEFAULT_LIMIT)
-            .to_data()
-        )
+    def search(self, args: SearchTableArgs) -> Union[JSONType, str]:
+        result = self._unfiltered_manager
+        if args.query:
+            result = result.search(args.query)
+        if args.sort:
+            result = result.sort_values(args.sort.by, args.sort.descending)
+        return result.limit(TableManager.DEFAULT_LIMIT).to_data()

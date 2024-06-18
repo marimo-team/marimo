@@ -92,7 +92,28 @@ class PyArrowTableManagerFactory(TableManagerFactory):
             def limit(self, num: int) -> PyArrowTableManager:
                 if num < 0:
                     raise ValueError("Limit must be a positive integer")
+                if num >= self.data.num_rows:
+                    return PyArrowTableManager(self.data)
                 return PyArrowTableManager(self.data.take(list(range(num))))
+
+            def search(self, query: str) -> TableManager[Any]:
+                query = query.lower()
+                import pyarrow.compute as pc
+
+                masks: list[Any] = []
+                for column in self.data.columns:  # type: ignore
+                    # Cast to string to handle non-string columns
+                    column = pc.cast(column, pa.string())  # type: ignore
+                    mask: pa.BooleanArray = pc.match_substring(  # type: ignore
+                        column, query, ignore_case=True
+                    )
+                    masks.append(mask)
+
+                # Combine the masks using logical OR
+                combined_mask: pa.BooleanArray = masks[0]
+                for mask in masks[1:]:
+                    combined_mask = pc.or_(combined_mask, mask)  # type: ignore
+                return PyArrowTableManager(self.data.filter(combined_mask))
 
             def get_summary(self, column: str) -> ColumnSummary:
                 # If column is not in the dataframe, return an empty summary

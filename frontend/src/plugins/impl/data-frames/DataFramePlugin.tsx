@@ -168,7 +168,7 @@ export const DataFrameComponent = memo(
         </Tabs>
         {error && <ErrorBanner error={error} />}
         {has_more && total_rows != null && (
-          <Banner>
+          <Banner className="shadow-none!">
             Result clipped. Total rows {prettyNumber(total_rows)}.
           </Banner>
         )}
@@ -183,7 +183,13 @@ export const DataFrameComponent = memo(
           rowHeaders={row_headers || Arrays.EMPTY}
           showDownload={false}
           download_as={Functions.THROW}
-          sort_values={sort_values}
+          enableSearch={false}
+          search={({ sort }) => {
+            if (sort) {
+              return sort_values(sort);
+            }
+            return Promise.resolve(url || "");
+          }}
           showColumnSummaries={false}
           get_column_summaries={getColumnSummaries}
           value={Arrays.EMPTY}

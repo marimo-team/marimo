@@ -25,7 +25,7 @@ class TestPyArrowTableManagerFactory(unittest.TestCase):
                 # Integer
                 "A": [1, 2, 3],
                 # String
-                "B": ["a", "b", "c"],
+                "B": ["aaa", "b", "c"],
                 # Float
                 "C": [1.0, 2.0, 3.0],
                 # Boolean
@@ -88,7 +88,7 @@ class TestPyArrowTableManagerFactory(unittest.TestCase):
         complex_data = pa.table(
             {
                 "A": [1, 2, 3],
-                "B": ["a", "b", "c"],
+                "B": ["aaa", "b", "c"],
                 "C": [1.0, 2.0, 3.0],
                 "D": [True, False, True],
                 "E": [None, None, None],
@@ -110,6 +110,10 @@ class TestPyArrowTableManagerFactory(unittest.TestCase):
         limited_manager = self.manager.limit(1)
         expected_data = self.data.take([0])
         assert limited_manager.data == expected_data
+
+    def test_limit_more_than_num_rows(self) -> None:
+        limited_manager = self.manager.limit(500)
+        assert limited_manager.data == self.data
 
     def test_summary_integer(self) -> None:
         column = "A"
@@ -171,4 +175,10 @@ class TestPyArrowTableManagerFactory(unittest.TestCase):
     def test_get_unique_column_values(self) -> None:
         column = "B"
         unique_values = self.manager.get_unique_column_values(column)
-        assert unique_values == ["a", "b", "c"]
+        assert unique_values == ["aaa", "b", "c"]
+
+    def test_search(self) -> None:
+        manager = self.factory.create()(self.data)
+        assert manager.search("aaa").get_num_rows() == 1
+        assert manager.search("true").get_num_rows() == 2
+        assert manager.search("baz").get_num_rows() == 0

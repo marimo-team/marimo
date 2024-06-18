@@ -76,6 +76,10 @@ class TableManager(abc.ABC, Generic[T]):
     def limit(self, num: int) -> TableManager[Any]:
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def search(self, query: str) -> TableManager[Any]:
+        raise NotImplementedError
+
     @staticmethod
     @abc.abstractmethod
     def is_type(value: Any) -> bool:

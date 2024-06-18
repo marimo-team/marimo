@@ -96,6 +96,38 @@ class DefaultTableManager(TableManager[JsonTableData]):
             )
         return DefaultTableManager(self.data[:num])
 
+    def search(self, query: str) -> DefaultTableManager:
+        query = query.lower()
+        if isinstance(self.data, dict):
+            mask: List[bool] = []
+            for row in range(self.get_num_rows() or 0):
+                mask.append(
+                    any(
+                        query in str(self.data[key][row]).lower()
+                        for key in self.data.keys()
+                    )
+                )
+            results: JsonTableData = {
+                key: [value[i] for i, match in enumerate(mask) if match]
+                for key, value in self.data.items()
+            }
+            return DefaultTableManager(results)
+        if isinstance(self.data, list):
+            return DefaultTableManager(
+                [
+                    row
+                    for row in self._normalize_data(self.data)
+                    if any(query in str(v).lower() for v in row.values())
+                ]
+            )
+        return DefaultTableManager(
+            [
+                row
+                for row in self._normalize_data(self.data)
+                if any(query in str(v).lower() for v in row.values())
+            ]
+        )
+
     def get_row_headers(self) -> list[tuple[str, list[str | int | float]]]:
         return []
 

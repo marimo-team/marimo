@@ -116,6 +116,19 @@ class TestDefaultTable(unittest.TestCase):
         ]
         assert sorted_data == expected_data
 
+    def test_search(self) -> None:
+        searched_manager = self.manager.search("alice")
+        expected_data = [
+            {"name": "Alice", "age": 30, "birth_year": date(1994, 5, 24)},
+        ]
+        assert searched_manager.data == expected_data
+
+        searched_manager = self.manager.search("1994")
+        expected_data = [
+            {"name": "Alice", "age": 30, "birth_year": date(1994, 5, 24)},
+        ]
+        assert searched_manager.data == expected_data
+
 
 class TestColumnarDefaultTable(unittest.TestCase):
     def setUp(self) -> None:
@@ -198,3 +211,19 @@ class TestColumnarDefaultTable(unittest.TestCase):
     def test_get_unique_column_values(self) -> None:
         unique_values = self.manager.get_unique_column_values("age")
         assert unique_values == [22, 25, 28, 30, 35]
+
+    def test_search(self) -> None:
+        searched_manager = self.manager.search("alice")
+        expected_data = {
+            "name": ["Alice"],
+            "age": [30],
+            "birth_year": [date(1994, 5, 24)],
+        }
+        assert searched_manager.data == expected_data
+
+        searched_manager = self.manager.search("1994")
+        expected_data = {
+            "name": ["Alice"],
+            "age": [30],
+            "birth_year": [date(1994, 5, 24)],
+        }

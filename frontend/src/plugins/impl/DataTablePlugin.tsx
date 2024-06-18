@@ -23,7 +23,14 @@ import { Logger } from "@/utils/Logger";
 import { LoadingTable } from "@/components/data-table/loading-table";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { ColumnHeaderSummary } from "@/components/data-table/types";
-import { OnChangeFn, SortingState } from "@tanstack/react-table";
+import {
+  OnChangeFn,
+  RowSelectionState,
+  SortingState,
+} from "@tanstack/react-table";
+import { TooltipProvider } from "@radix-ui/react-tooltip";
+import useEvent from "react-use-event-hook";
+import { Functions } from "@/utils/functions";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -54,9 +61,12 @@ type Functions = {
   get_column_summaries: (opts: {}) => Promise<{
     summaries: ColumnHeaderSummary[];
   }>;
-  sort_values: <T>(req: {
-    by: string | null;
-    descending: boolean;
+  search: <T>(req: {
+    sort?: {
+      by: string;
+      descending: boolean;
+    };
+    query?: string;
   }) => Promise<TableData<T>>;
 };
 
@@ -102,37 +112,61 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         ),
       }),
     ),
-    sort_values: rpc
-      .input(z.object({ by: z.string().nullable(), descending: z.boolean() }))
+    search: rpc
+      .input(
+        z.object({
+          sort: z
+            .object({ by: z.string(), descending: z.boolean() })
+            .optional(),
+          query: z.string().optional(),
+        }),
+      )
       .output(z.union([z.string(), z.array(z.object({}).passthrough())])),
   })
   .renderer((props) => {
     return (
-      <LoadingDataTableComponent
-        {...props.data}
-        {...props.functions}
-        data={props.data.data}
-        value={props.value}
-        setValue={props.setValue}
-      />
+      <TooltipProvider>
+        <LoadingDataTableComponent
+          {...props.data}
+          {...props.functions}
+          enableSearch={true}
+          data={props.data.data}
+          value={props.value}
+          setValue={props.setValue}
+        />
+      </TooltipProvider>
     );
   });
 
 interface DataTableProps<T> extends Data<T>, Functions {
   className?: string;
+  // Selection
   value: S;
   setValue: (value: S) => void;
+  // Search
+  enableSearch: boolean;
+}
+
+interface DataTableSearchProps {
+  // Sorting
   sorting: SortingState;
-  setSorting?: OnChangeFn<SortingState>;
+  setSorting: OnChangeFn<SortingState>;
+  // Searching
+  searchQuery: string | undefined;
+  setSearchQuery: ((query: string) => void) | undefined;
+  reloading: boolean;
 }
 
 export const LoadingDataTableComponent = memo(
   <T extends {}>(
     props: Omit<DataTableProps<T>, "sorting"> & { data: TableData<T> },
   ) => {
-    const sortValues = props.sort_values;
+    const search = props.search;
+    // Sorting/searching state
     const [sorting, setSorting] = useState<SortingState>([]);
+    const [searchQuery, setSearchQuery] = useState<string>("");
 
+    // Data loading
     const { data, loading, error } = useAsyncData<T[]>(async () => {
       // If there is no data, return an empty array
       if (props.totalRows === 0) {
@@ -142,17 +176,24 @@ export const LoadingDataTableComponent = memo(
       // Table data is a url string or an array of objects
       let tableData = props.data;
 
+      if (sorting.length > 1) {
+        Logger.warn("Multiple sort columns are not supported");
+      }
+
       // If we have sort configuration, fetch the sorted data
-      if (sorting.length > 0) {
-        if (sorting.length > 1) {
-          Logger.warn("Multiple sort columns are not supported");
-        }
-        const sortedData = await sortValues<T>({
-          by: sorting[0].id,
-          descending: sorting[0].desc,
+      if (sorting.length > 0 || searchQuery) {
+        const searchResults = await search<T>({
+          sort:
+            sorting.length > 0
+              ? {
+                  by: sorting[0].id,
+                  descending: sorting[0].desc,
+                }
+              : undefined,
+          query: searchQuery,
         });
 
-        tableData = sortedData;
+        tableData = searchResults;
       }
 
       // If we already have the data, return it
@@ -166,8 +207,9 @@ export const LoadingDataTableComponent = memo(
         { type: "csv", parse: getVegaFieldTypes(props.fieldTypes) },
         { handleBigInt: true },
       );
-    }, [sorting, sortValues, props.fieldTypes, props.data]);
+    }, [sorting, search, searchQuery, props.fieldTypes, props.data]);
 
+    // Column summaries
     const { data: columnSummaries, error: columnSummariesError } =
       useAsyncData(() => {
         if (props.totalRows === 0) {
@@ -211,6 +253,9 @@ export const LoadingDataTableComponent = memo(
           columnSummaries={columnSummaries?.summaries}
           sorting={sorting}
           setSorting={setSorting}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          reloading={loading}
         />
       </>
     );
@@ -232,16 +277,20 @@ const DataTableComponent = ({
   showColumnSummaries,
   fieldTypes,
   download_as: downloadAs,
-  sort_values: sortValues,
   columnSummaries,
   className,
   setValue,
   sorting,
   setSorting,
-}: DataTableProps<unknown> & {
-  data: unknown[];
-  columnSummaries?: ColumnHeaderSummary[];
-}): JSX.Element => {
+  enableSearch,
+  searchQuery,
+  setSearchQuery,
+  reloading,
+}: DataTableProps<unknown> &
+  DataTableSearchProps & {
+    data: unknown[];
+    columnSummaries?: ColumnHeaderSummary[];
+  }): JSX.Element => {
   const resultsAreClipped = hasMore && totalRows > 0;
 
   const chartSpecModel = useMemo(() => {
@@ -266,6 +315,31 @@ const DataTableComponent = ({
 
   const rowSelection = Object.fromEntries((value || []).map((v) => [v, true]));
 
+  const handleRowSelectionChange: OnChangeFn<RowSelectionState> = useEvent(
+    (updater) => {
+      if (selection === "single") {
+        const nextValue = Functions.asUpdater(updater)({});
+        setValue(Object.keys(nextValue).slice(0, 1));
+      }
+
+      if (selection === "multi") {
+        const nextValue = Functions.asUpdater(updater)(rowSelection);
+        setValue(Object.keys(nextValue));
+      }
+    },
+  );
+
+  // We need to clear the selection when reloading
+  // Currently, our selection is index-based,
+  // so we can't rely on the data to be the same
+  // We can remove this when we have a stable key for each row
+  useEffect(() => {
+    // If reloading and has a selection, clear the selection
+    if (reloading && value.length > 0) {
+      setValue([]);
+    }
+  }, [reloading, value, setValue]);
+
   return (
     <>
       {hasMore && totalRows && (
@@ -285,21 +359,11 @@ const DataTableComponent = ({
             pageSize={pageSize}
             rowSelection={rowSelection}
             downloadAs={showDownload ? downloadAs : undefined}
-            onRowSelectionChange={(updater) => {
-              if (selection === "single") {
-                const nextValue =
-                  typeof updater === "function" ? updater({}) : updater;
-                setValue(Object.keys(nextValue).slice(0, 1));
-              }
-
-              if (selection === "multi") {
-                const nextValue =
-                  typeof updater === "function"
-                    ? updater(rowSelection)
-                    : updater;
-                setValue(Object.keys(nextValue));
-              }
-            }}
+            enableSearch={enableSearch}
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+            reloading={reloading}
+            onRowSelectionChange={handleRowSelectionChange}
           />
         </Labeled>
       </ColumnChartContext.Provider>

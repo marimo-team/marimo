@@ -90,6 +90,9 @@ class DataFrameProtocolTableManager(TableManager[DataFrameLike]):
     def limit(self, num: int) -> TableManager[Union[pa.Table, pa.RecordBatch]]:
         return self._ensure_delegate().limit(num)
 
+    def search(self, query: str) -> TableManager[Any]:
+        return self._ensure_delegate().search(query)
+
     def get_summary(self, column: str) -> ColumnSummary:
         return self._ensure_delegate().get_summary(column)
 

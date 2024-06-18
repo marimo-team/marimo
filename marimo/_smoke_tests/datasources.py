@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.6.13"
+__generated_with = "0.6.19"
 app = marimo.App(width="full")
 
 
@@ -60,6 +60,18 @@ def __(df):
 @app.cell
 def __(mo, polars_df):
     mo.ui.table(polars_df)
+    return
+
+
+@app.cell
+def __(mo, pyarrow_df):
+    mo.ui.table(pyarrow_df)
+    return
+
+
+@app.cell
+def __(df, mo):
+    mo.ui.table(df)
     return
 
 
