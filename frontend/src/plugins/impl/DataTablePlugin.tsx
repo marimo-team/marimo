@@ -194,6 +194,9 @@ export const LoadingDataTableComponent = memo(
         });
 
         tableData = searchResults;
+      } else {
+        // Send an empty search to clear the backend search state
+        void search<T>({});
       }
 
       // If we already have the data, return it
