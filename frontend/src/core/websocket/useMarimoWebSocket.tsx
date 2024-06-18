@@ -232,6 +232,7 @@ export function useMarimoWebSocket(opts: {
      * Handle a close event. We may want to reconnect.
      */
     onClose: (e) => {
+      Logger.warn("WebSocket closed", e.code, e.reason);
       switch (e.reason) {
         case "MARIMO_ALREADY_CONNECTED":
           setConnection({
@@ -247,7 +248,6 @@ export function useMarimoWebSocket(opts: {
         case "MARIMO_NO_SESSION_ID":
         case "MARIMO_NO_SESSION":
         case "MARIMO_SHUTDOWN":
-          Logger.warn("WebSocket closed", e.reason);
           setConnection({
             state: WebSocketState.CLOSED,
             code: WebSocketClosedReason.KERNEL_DISCONNECTED,
@@ -271,7 +271,6 @@ export function useMarimoWebSocket(opts: {
           // - computer might have just woken from sleep
           //
           // so try reconnecting.
-          Logger.warn("WebSocket closed", e.code, e.reason);
           setConnection({ state: WebSocketState.CONNECTING });
           tryReconnecting(e.code, e.reason);
       }

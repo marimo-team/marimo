@@ -26,6 +26,7 @@ def create_response(
         "ui_values": {},
         "last_executed_code": {},
         "last_execution_time": {},
+        "kiosk": False,
         "configs": [{"disabled": False, "hide_code": False}],
         "app_config": {"width": "full"},
     }

@@ -32,10 +32,10 @@ const sessionId = (() => {
       }
       params.delete("session_id");
     });
-    Logger.log("Connecting to existing session", { sessionId: id });
+    Logger.debug("Connecting to existing session", { sessionId: id });
     return id;
   }
-  Logger.log("Starting a new session", { sessionId: id });
+  Logger.debug("Starting a new session", { sessionId: id });
   return generateSessionId();
 })();
 

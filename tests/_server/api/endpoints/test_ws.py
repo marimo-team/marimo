@@ -8,6 +8,7 @@ import pytest
 from starlette.websockets import WebSocketDisconnect
 
 from marimo._messaging.ops import KernelReady
+from marimo._server.api.endpoints.ws import WebSocketCodes
 from marimo._server.model import SessionMode
 from marimo._server.sessions import SessionManager
 from marimo._utils.parse_dataclass import parse_raw
@@ -30,6 +31,7 @@ def create_response(
         "ui_values": {},
         "last_executed_code": {},
         "last_execution_time": {},
+        "kiosk": False,
         "configs": [{"disabled": False, "hide_code": False}],
         "app_config": {"width": "full"},
     }
@@ -57,6 +59,7 @@ def assert_kernel_ready_response(
     assert data.ui_values == expected.ui_values
     assert data.configs == expected.configs
     assert data.app_config == expected.app_config
+    assert data.kiosk == expected.kiosk
 
 
 def assert_parse_ready_response(raw_data: dict[str, Any]) -> None:
@@ -152,7 +155,6 @@ def test_fails_on_multiple_connections_with_same_file(
     client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
-@pytest.mark.asyncio
 async def test_file_watcher_calls_reload(client: TestClient) -> None:
     session_manager: SessionManager = get_session_manager(client)
     with client.websocket_connect("/ws?session_id=123") as websocket:
@@ -174,7 +176,6 @@ async def test_file_watcher_calls_reload(client: TestClient) -> None:
     client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
-@pytest.mark.asyncio
 async def test_query_params(client: TestClient) -> None:
     with client.websocket_connect(
         "/ws?session_id=123&foo=1&bar=2&bar=3&baz=4"
@@ -190,3 +191,35 @@ async def test_query_params(client: TestClient) -> None:
             "baz": "4",
         }
     client.post("/api/kernel/shutdown", headers=HEADERS)
+
+
+async def test_connect_kiosk_without_session(client: TestClient) -> None:
+    with pytest.raises(WebSocketDisconnect) as exc_info:  # noqa: PT012
+        with client.websocket_connect(
+            "/ws?session_id=123&kiosk=true"
+        ) as websocket:
+            websocket.receive_json()
+            raise AssertionError()
+    assert exc_info.value.code == WebSocketCodes.NORMAL_CLOSE
+    assert exc_info.value.reason == "MARIMO_NO_SESSION"
+    client.post("/api/kernel/shutdown", headers=HEADERS)
+
+
+async def test_connect_kiosk_with_session(client: TestClient) -> None:
+    # Create the first session
+    with client.websocket_connect("/ws?session_id=123") as websocket:
+        data = websocket.receive_json()
+        assert_kernel_ready_response(data)
+
+        # Connect by the same session id in kiosk mode
+        with client.websocket_connect(
+            "/ws?session_id=123&kiosk=true"
+        ) as other_websocket:
+            data = other_websocket.receive_json()
+            assert_kernel_ready_response(
+                data, create_response({"kiosk": True, "resumed": True})
+            )
+        client.post("/api/kernel/shutdown", headers=HEADERS)
+
+
+# session_manager.mode = SessionMode.RUN

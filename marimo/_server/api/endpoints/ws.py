@@ -127,7 +127,7 @@ class WebsocketHandler(SessionConsumer):
         # to be sent to the frontend
         self.message_queue: asyncio.Queue[KernelMessage]
 
-    async def _write_kernel_ready(
+    def _write_kernel_ready(
         self,
         session: Session,
         resumed: bool,
@@ -176,7 +176,7 @@ class WebsocketHandler(SessionConsumer):
             last_executed_code = {}
             last_execution_time = {}
 
-        await self.message_queue.put(
+        self.message_queue.put_nowait(
             (
                 KernelReady.name,
                 serialize(
@@ -197,9 +197,7 @@ class WebsocketHandler(SessionConsumer):
             )
         )
 
-    async def _reconnect_session(
-        self, session: "Session", replay: bool
-    ) -> None:
+    def _reconnect_session(self, session: "Session", replay: bool) -> None:
         """Reconnect to an existing session (kernel).
 
         A websocket can be closed when a user's computer goes to sleep,
@@ -231,7 +229,7 @@ class WebsocketHandler(SessionConsumer):
             f"Replaying {len(operations)} operations to the consumer",
         )
 
-        await self._write_kernel_ready(
+        self._write_kernel_ready(
             session=session,
             resumed=True,
             ui_values=session.get_current_state().ui_values,
@@ -250,11 +248,18 @@ class WebsocketHandler(SessionConsumer):
             LOGGER.debug("Replaying operation %s", serialize(op))
             self.write_operation(op)
 
-    async def _connect_kiosk(self, session: Session) -> None:
+    def _connect_kiosk(self, session: Session) -> None:
         """Connect to a kiosk session.
 
-        A kiosk session is a read-only session that is connected to a
-        frontend. It is used when there is an active editor session.
+        A kiosk session is a write-ish session that is connected to a
+        frontend. It can set UI elements and interact with the sidebar,
+        but cannot change or execute code. This is not a permission limitation,
+        but rather we don't have full multi-player support yet.
+
+        Kiosk mode is useful when the user is using an editor (VSCode or VIM)
+        that does not easily support our reactive frontend or our panels.
+        The user uses VSCode or VIM to write code, and the
+        marimo kiosk/frontend to visualize the output.
         """
 
         self.status = ConnectionState.OPEN
@@ -266,7 +271,7 @@ class WebsocketHandler(SessionConsumer):
             f"Replaying {len(operations)} operations to the kiosk consumer",
         )
 
-        await self._write_kernel_ready(
+        self._write_kernel_ready(
             session=session,
             resumed=True,
             ui_values=session.get_current_state().ui_values,
@@ -308,7 +313,7 @@ class WebsocketHandler(SessionConsumer):
                 )
             return
 
-        async def get_session() -> Session:
+        def get_session() -> Session:
             # 1. If we are in kiosk mode, connect to the existing session
             if self.kiosk:
                 kiosk_session = mgr.get_session(session_id)
@@ -322,7 +327,7 @@ class WebsocketHandler(SessionConsumer):
                     )
                 self.status = ConnectionState.OPEN
                 LOGGER.debug("Connecting to kiosk session")
-                await self._connect_kiosk(kiosk_session)
+                self._connect_kiosk(kiosk_session)
                 return kiosk_session
 
             # 2. Handle reconnection
@@ -336,7 +341,7 @@ class WebsocketHandler(SessionConsumer):
                 LOGGER.debug("Reconnecting session %s", session_id)
                 # In case there is a lingering connection, close it
                 existing_session.maybe_disconnect_consumer()
-                await self._reconnect_session(existing_session, replay=False)
+                self._reconnect_session(existing_session, replay=False)
                 return existing_session
 
             # 3. Handle resume
@@ -347,7 +352,7 @@ class WebsocketHandler(SessionConsumer):
             )
             if resumable_session is not None:
                 LOGGER.debug("Resuming session %s", session_id)
-                await self._reconnect_session(resumable_session, replay=True)
+                self._reconnect_session(resumable_session, replay=True)
                 return resumable_session
 
             # 4. Create a new session
@@ -376,7 +381,7 @@ class WebsocketHandler(SessionConsumer):
             )
             self.status = ConnectionState.OPEN
             # Let the frontend know it can instantiate the app.
-            await self._write_kernel_ready(
+            self._write_kernel_ready(
                 new_session,
                 resumed=False,
                 ui_values={},
@@ -386,7 +391,7 @@ class WebsocketHandler(SessionConsumer):
             )
             return new_session
 
-        await get_session()
+        get_session()
 
         async def listen_for_messages() -> None:
             while True:
