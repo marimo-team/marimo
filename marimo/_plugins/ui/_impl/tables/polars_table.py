@@ -63,26 +63,40 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     raise ValueError("Limit must be a positive integer")
                 return PolarsTableManager(self.data.head(num))
 
+            def search(self, query: str) -> TableManager[Any]:
+                query = query.lower()
+
+                expressions = [
+                    pl.col(column).str.contains("(?i)" + query)
+                    for column in self.data.columns
+                ]
+                or_expr = expressions[0]
+                for expr in expressions[1:]:
+                    or_expr = or_expr | expr
+
+                filtered = self.data.filter(or_expr)
+                return PolarsTableManager(filtered)
+
             def get_summary(self, column: str) -> ColumnSummary:
                 # If column is not in the dataframe, return an empty summary
                 if column not in self.data.columns:
                     return ColumnSummary()
                 col = self.data[column]
                 total = len(col)
-                if col.is_utf8():
+                if col.dtype == pl.String:
                     return ColumnSummary(
                         total=total,
                         nulls=col.null_count(),
                         unique=col.n_unique(),
                     )
-                if col.is_boolean():
+                if col.dtype == pl.Boolean:
                     return ColumnSummary(
                         total=total,
                         nulls=col.null_count(),
                         true=cast(int, col.sum()),
                         false=cast(int, total - col.sum()),
                     )
-                if col.is_temporal():
+                if col.dtype.is_temporal():
                     return ColumnSummary(
                         total=total,
                         nulls=col.null_count(),
@@ -98,7 +112,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 return ColumnSummary(
                     total=total,
                     nulls=col.null_count(),
-                    unique=col.n_unique() if col.is_integer() else None,
+                    unique=col.n_unique() if col.dtype.is_integer() else None,
                     min=cast(NonNestedLiteral, col.min()),
                     max=cast(NonNestedLiteral, col.max()),
                     mean=cast(NonNestedLiteral, col.mean()),
@@ -133,15 +147,15 @@ class PolarsTableManagerFactory(TableManagerFactory):
 
             @staticmethod
             def _get_field_type(column: pl.Series) -> FieldType:
-                if column.is_utf8():
+                if column.dtype == pl.String:
                     return "string"
-                elif column.is_boolean():
+                elif column.dtype == pl.Boolean:
                     return "boolean"
-                elif column.is_integer():
+                elif column.dtype.is_integer():
                     return "integer"
-                elif column.is_float() or column.is_numeric():
+                elif column.dtype.is_float() or column.dtype.is_numeric():
                     return "number"
-                elif column.is_temporal():
+                elif column.dtype.is_temporal():
                     return "date"
                 else:
                     return "unknown"

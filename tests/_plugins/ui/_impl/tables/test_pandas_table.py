@@ -342,3 +342,19 @@ class TestPandasTableManager(unittest.TestCase):
     def test_get_unique_column_values(self) -> None:
         column = "B"
         assert self.manager.get_unique_column_values(column) == ["a", "b", "c"]
+
+    def test_search(self) -> None:
+        import pandas as pd
+
+        df = pd.DataFrame(
+            {
+                "A": [1, 2, 3],
+                "B": ["foo", "bar", "baz"],
+                "C": [True, False, True],
+            }
+        )
+        manager = self.factory.create()(df)
+        assert manager.search("foo").get_num_rows() == 1
+        assert manager.search("a").get_num_rows() == 2
+        assert manager.search("true").get_num_rows() == 2
+        assert manager.search("food").get_num_rows() == 0

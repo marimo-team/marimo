@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { PluralWord } from "@/utils/pluralize";
 
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;
@@ -20,7 +21,7 @@ export const DataTablePagination = <TData,>({
     const selected = table.getSelectedRowModel().rows.length;
     const isAllSelected = table.getIsAllRowsSelected();
     const isAllPageSelected = table.getIsAllPageRowsSelected();
-    const count = table.getFilteredRowModel().rows.length;
+    const numRows = table.getFilteredRowModel().rows.length;
 
     if (isAllPageSelected && !isAllSelected) {
       return (
@@ -33,7 +34,7 @@ export const DataTablePagination = <TData,>({
             className="mb-0 h-6"
             onClick={() => table.toggleAllRowsSelected(true)}
           >
-            Select all {prettyNumber(count)}
+            Select all {prettyNumber(numRows)}
           </Button>
         </>
       );
@@ -56,7 +57,11 @@ export const DataTablePagination = <TData,>({
       );
     }
 
-    return <span>{prettyNumber(count)} items</span>;
+    return (
+      <span>
+        {prettyNumber(numRows)} {new PluralWord("row").pluralize(numRows)}
+      </span>
+    );
   };
   const currentPage = Math.min(
     table.getState().pagination.pageIndex + 1,
@@ -66,9 +71,7 @@ export const DataTablePagination = <TData,>({
 
   return (
     <div className="flex flex-1 items-center justify-between px-2">
-      <div className="text-sm text-muted-foreground h-6 flex items-baseline">
-        {renderTotal()}
-      </div>
+      <div className="text-sm text-muted-foreground">{renderTotal()}</div>
       <div className="flex items-center space-x-2">
         <Button
           size="xs"

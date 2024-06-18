@@ -174,9 +174,9 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
         if self._error is not None:
             raise GetDataFrameError(self._error)
 
-        manager = get_table_manager(self._value).limit(self.DISPLAY_LIMIT)
-        url = mo_data.csv(manager.to_csv()).url
+        manager = get_table_manager(self._value)
         total_rows = manager.get_num_rows(force=True) or self.DISPLAY_LIMIT
+        url = mo_data.csv(manager.limit(self.DISPLAY_LIMIT).to_csv()).url
         return GetDataFrameResponse(
             url=url,
             total_rows=total_rows,

@@ -6,6 +6,8 @@ from typing import Any
 
 import pytest
 
+from marimo._plugins import ui
+from marimo._plugins.ui._impl.table import SearchTableArgs, SortArgs
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
 from marimo._plugins.ui._impl.utils.dataframe import TableData
 from marimo._runtime.runtime import Kernel
@@ -202,3 +204,52 @@ def test_sort_dict_of_tuples(dtm: DefaultTableManager):
         {"key1": 17, "key2": 8, "key3": 65, "key4": 2, "key5": 9},
     ]
     assert sorted_data == _normalize_data(expected_data)
+
+
+def test_value():
+    data = ["banana", "apple", "cherry", "date", "elderberry"]
+    data = _normalize_data(data)
+    table = ui.table(data)
+    assert list(table.value) == []
+
+
+def test_value_with_selection():
+    data = ["banana", "apple", "cherry", "date", "elderberry"]
+    data = _normalize_data(data)
+    table = ui.table(data)
+    assert list(table._convert_value(["0", "2"])) == [
+        {"value": "banana"},
+        {"value": "cherry"},
+    ]
+
+
+def test_value_with_sorting_then_selection():
+    data = ["banana", "apple", "cherry", "date", "elderberry"]
+    data = _normalize_data(data)
+    table = ui.table(data)
+
+    table.search(SearchTableArgs(sort=SortArgs("value", descending=True)))
+    assert list(table._convert_value(["0"])) == [
+        {"value": "elderberry"},
+    ]
+
+    table.search(SearchTableArgs(sort=SortArgs("value", descending=False)))
+    assert list(table._convert_value(["0"])) == [
+        {"value": "apple"},
+    ]
+
+
+def test_value_with_search_then_selection():
+    data = ["banana", "apple", "cherry", "date", "elderberry"]
+    data = _normalize_data(data)
+    table = ui.table(data)
+
+    table.search(SearchTableArgs(query="apple"))
+    assert list(table._convert_value(["0"])) == [
+        {"value": "apple"},
+    ]
+
+    table.search(SearchTableArgs(query="banana"))
+    assert list(table._convert_value(["0"])) == [
+        {"value": "banana"},
+    ]

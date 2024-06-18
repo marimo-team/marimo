@@ -128,6 +128,18 @@ class PandasTableManagerFactory(TableManagerFactory):
                     raise ValueError("Limit must be a positive integer")
                 return PandasTableManager(self.data.head(num))
 
+            def search(self, query: str) -> TableManager[Any]:
+                query = query.lower()
+
+                def contains_query(series: pd.Series[Any]) -> pd.Series[bool]:
+                    def search(s: Any) -> bool:
+                        return query in str(s).lower()
+
+                    return series.map(search)
+
+                mask = self.data.apply(contains_query)
+                return PandasTableManager(self.data.loc[mask.any(axis=1)])
+
             @staticmethod
             def _get_field_type(
                 series: pd.Series[Any] | pd.DataFrame,

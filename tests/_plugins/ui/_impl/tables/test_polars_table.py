@@ -209,3 +209,19 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         column = "A"
         unique_values = self.manager.get_unique_column_values(column)
         assert unique_values == [1, 2, 3]
+
+    def test_search(self) -> None:
+        import polars as pl
+
+        df = pl.DataFrame(
+            {
+                "A": [1, 2, 3],
+                "B": ["foo", "bar", "baz"],
+                "C": [True, False, True],
+            }
+        )
+        manager = self.factory.create()(df)
+        assert manager.search("foo").get_num_rows() == 1
+        assert manager.search("a").get_num_rows() == 2
+        assert manager.search("true").get_num_rows() == 2
+        assert manager.search("food").get_num_rows() == 0

@@ -93,7 +93,7 @@ exports[`renderZodSchema > should render a form 1`] = `
           </div>
           <div>
             <button
-              class="disabled:opacity-50 disabled:pointer-events-none inline-flex mb-1 items-center justify-center font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background opacity-80 hover:opacity-100 active:opacity-100 h-7 px-2 rounded-md text-xs hover:text-accent-foreground"
+              class="disabled:opacity-50 disabled:pointer-events-none inline-flex items-center justify-center font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background opacity-80 hover:opacity-100 active:opacity-100 h-7 px-2 rounded-md text-xs hover:text-accent-foreground"
               data-testid="marimo-plugin-data-frames-add-array-item"
             >
               <svg
@@ -970,7 +970,7 @@ exports[`renderZodSchema > should render a form 8`] = `
       class="flex flex-row align-start"
     >
       <button
-        class="disabled:opacity-50 disabled:pointer-events-none inline-flex mb-1 items-center justify-center font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-input shadow-smSolid active:shadow-xsSolid h-7 px-2 rounded-md text-xs"
+        class="disabled:opacity-50 disabled:pointer-events-none inline-flex items-center justify-center font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-input shadow-smSolid active:shadow-xsSolid h-7 px-2 rounded-md text-xs"
         data-testid="marimo-plugin-data-frames-random-number-button"
       >
         <svg
@@ -1049,7 +1049,7 @@ exports[`renderZodSchema > should render a form 9`] = `
       class="flex flex-row align-start"
     >
       <button
-        class="disabled:opacity-50 disabled:pointer-events-none inline-flex mb-1 items-center justify-center font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-input shadow-smSolid active:shadow-xsSolid h-7 px-2 rounded-md text-xs"
+        class="disabled:opacity-50 disabled:pointer-events-none inline-flex items-center justify-center font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-input shadow-smSolid active:shadow-xsSolid h-7 px-2 rounded-md text-xs"
         data-testid="marimo-plugin-data-frames-random-number-button"
       >
         <svg
