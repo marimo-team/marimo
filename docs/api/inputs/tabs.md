@@ -22,7 +22,7 @@
 
     @app.cell
     def __():
-        mo.tabs(
+        mo.ui.tabs(
             {
                 "📈 Sales": bar,
                 "📊 Subscriptions": bar,
