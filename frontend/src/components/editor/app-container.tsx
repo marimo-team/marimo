@@ -2,7 +2,12 @@
 
 import { WebSocketState } from "@/core/websocket/types";
 import { cn } from "@/utils/cn";
-import React, { PropsWithChildren, useEffect } from "react";
+import React, {
+  PropsWithChildren,
+  useCallback,
+  useEffect,
+  useMemo,
+} from "react";
 import { StatusOverlay } from "./header/status";
 import { AppConfig } from "@/core/config/config-schema";
 import { WrappedWithSidebar } from "./renderers/vertical-layout/sidebar/wrapped-with-sidebar";
@@ -25,40 +30,44 @@ export const AppContainer: React.FC<PropsWithChildren<Props>> = ({
   const errors = useCellErrors();
 
   // Dynamically update favicon for run feedback
-  const favicon = document.querySelector(
-    "link[rel~='icon']"
-  ) as HTMLLinkElement;
+  let favicon: HTMLLinkElement | null =
+    document.querySelector("link[rel~='icon']");
 
-  const favicons: Record<string, string> = {
-    idle: "./favicon.ico",
-    success: "./circle-check.ico",
-    running: "./circle-play.ico",
-    error: "./circle-x.ico",
-  };
+  if (!favicon) {
+    favicon = document.createElement("link");
+    favicon.rel = "icon";
+    document.getElementsByTagName("head")[0].append(favicon);
+  }
 
-  const resetFaviconIfComplete = () => {
+  const favicons: Record<string, string> = useMemo(
+    () => ({
+      idle: "./favicon.ico",
+      success: "./circle-check.ico",
+      running: "./circle-play.ico",
+      error: "./circle-x.ico",
+    }),
+    [],
+  );
+
+  const resetFaviconIfComplete = useCallback(() => {
     if (!isRunning && document.visibilityState == "visible") {
       setTimeout(() => {
-        favicon.href = favicons["idle"];
+        favicon.href = favicons.idle;
       }, 3000);
     }
-  };
+  }, [favicon, favicons.idle, isRunning]);
 
   useEffect(() => {
     if (isRunning) {
-      favicon.href = favicons["running"];
+      favicon.href = favicons.running;
       return;
     }
-    if (errors.length > 0) {
-      favicon.href = favicons["error"];
-    } else {
-      favicon.href = favicons["success"];
-    }
+    favicon.href = errors.length > 0 ? favicons.error : favicons.success;
     resetFaviconIfComplete();
     return () => {
-      favicon.href = favicons["idle"];
+      favicon.href = favicons.idle;
     };
-  }, [isRunning]);
+  }, [isRunning, errors, favicon, favicons, resetFaviconIfComplete]);
 
   useEventListener(document, "visibilitychange", (_) => {
     resetFaviconIfComplete();
@@ -75,7 +84,7 @@ export const AppContainer: React.FC<PropsWithChildren<Props>> = ({
               connectionState === WebSocketState.CLOSED && "disconnected",
               "bg-background w-full h-full text-textColor",
               "flex flex-col overflow-y-auto overflow-x-hidden",
-              width === "full" && "config-width-full"
+              width === "full" && "config-width-full",
             )}
           >
             {children}
