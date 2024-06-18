@@ -28,7 +28,7 @@ Python (>=3.8) installed.
 - Install [pnpm](https://github.com/pnpm/pnpm) == 8.x
   - `npm install -g pnpm@8`
 - Install [GNU Make](https://www.gnu.org/software/make/) (you may already have it installed)
-- Install [Python](https://www.python.org/) >= 3.8. (You may already it installed. To see your version, use `python -v` at the command line.)
+- Install [Python](https://www.python.org/) >= 3.8. (You may already it installed. To see your version, use `python -V` at the command line.)
 
 And you'll need [pre-commit](https://pre-commit.com/) to run some validation checks:
 
