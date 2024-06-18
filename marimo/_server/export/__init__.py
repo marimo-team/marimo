@@ -108,10 +108,7 @@ async def run_app_until_completion(
     class NoopSessionConsumer(SessionConsumer):
         def on_start(
             self,
-            check_alive: Callable[[], None],
         ) -> Callable[[KernelMessage], None]:
-            del check_alive
-
             def listener(message: KernelMessage) -> None:
                 if message[0] == "completed-run":
                     instantiated_event.set()
@@ -121,7 +118,7 @@ async def run_app_until_completion(
         def on_stop(self) -> None:
             pass
 
-        async def write_operation(self, op: MessageOperation) -> None:
+        def write_operation(self, op: MessageOperation) -> None:
             pass
 
         def connection_state(self) -> ConnectionState:

@@ -646,6 +646,18 @@ components:
       required:
       - success
       type: object
+    FocusCell:
+      properties:
+        cell_id:
+          type: string
+        name:
+          enum:
+          - focus-cell
+          type: string
+      required:
+      - cell_id
+      - name
+      type: object
     FormatRequest:
       properties:
         codes:
@@ -805,6 +817,8 @@ components:
           items:
             $ref: '#/components/schemas/CellConfig'
           type: array
+        kiosk:
+          type: boolean
         last_executed_code:
           additionalProperties:
             type: string
@@ -861,6 +875,7 @@ components:
       - configs
       - resumed
       - app_config
+      - kiosk
       - name
       type: object
     MIME:
@@ -1156,6 +1171,8 @@ components:
       - $ref: '#/components/schemas/QueryParamsClear'
       - $ref: '#/components/schemas/Datasets'
       - $ref: '#/components/schemas/DataColumnPreview'
+      - $ref: '#/components/schemas/FocusCell'
+      - $ref: '#/components/schemas/UpdateCellCodes'
     MimeType:
       enum:
       - application/json
@@ -1520,6 +1537,25 @@ components:
       required:
       - msg
       - type
+      type: object
+    UpdateCellCodes:
+      properties:
+        cell_ids:
+          items:
+            type: string
+          type: array
+        codes:
+          items:
+            type: string
+          type: array
+        name:
+          enum:
+          - update-cell-codes
+          type: string
+      required:
+      - cell_ids
+      - codes
+      - name
       type: object
     UpdateComponentValuesRequest:
       properties:

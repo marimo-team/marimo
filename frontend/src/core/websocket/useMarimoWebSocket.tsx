@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { WebSocketClosedReason, WebSocketState } from "./types";
-import { useAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import { connectionAtom } from "../network/connection";
 import { useWebSocket } from "@/core/websocket/useWebSocket";
 import { logNever } from "@/utils/assertNever";
@@ -35,6 +35,8 @@ import { useDatasetsActions } from "../datasets/state";
 import { RequestId } from "../network/DeferredRequestRegistry";
 import { VariableName } from "../variables/types";
 import { CellId } from "../cells/ids";
+import { kioskModeAtom } from "../mode";
+import { focusAndScrollCellOutputIntoView } from "../cells/scrollCellIntoView";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -49,7 +51,7 @@ export function useMarimoWebSocket(opts: {
   const { autoInstantiate, sessionId, setCells } = opts;
   const { showBoundary } = useErrorBoundary();
 
-  const { handleCellMessage } = useCellActions();
+  const { handleCellMessage, setCellCodes } = useCellActions();
   const setAppConfig = useSetAppConfig();
   const { setVariables, setMetadata } = useVariablesActions();
   const { addColumnPreview } = useDatasetsActions();
@@ -58,6 +60,7 @@ export function useMarimoWebSocket(opts: {
   const [connection, setConnection] = useAtom(connectionAtom);
   const { addBanner } = useBannersActions();
   const { addPackageAlert } = useAlertActions();
+  const setKioskMode = useSetAtom(kioskModeAtom);
 
   const handleMessage = (e: MessageEvent<JsonString<OperationMessage>>) => {
     const msg = jsonParseWithSpecialChar(e.data);
@@ -73,6 +76,7 @@ export function useMarimoWebSocket(opts: {
           setAppConfig,
           onError: showBoundary,
         });
+        setKioskMode(msg.data.kiosk);
         return;
 
       case "completed-run":
@@ -168,6 +172,16 @@ export function useMarimoWebSocket(opts: {
       case "reconnected":
         return;
 
+      case "focus-cell":
+        focusAndScrollCellOutputIntoView(msg.data.cell_id as CellId);
+        return;
+      case "update-cell-codes":
+        setCellCodes({
+          codes: msg.data.codes,
+          ids: msg.data.cell_ids as CellId[],
+        });
+        return;
+
       default:
         logNever(msg);
     }
@@ -229,6 +243,9 @@ export function useMarimoWebSocket(opts: {
           return;
 
         case "MARIMO_WRONG_KERNEL_ID":
+        case "MARIMO_NO_FILE_KEY":
+        case "MARIMO_NO_SESSION_ID":
+        case "MARIMO_NO_SESSION":
         case "MARIMO_SHUTDOWN":
           Logger.warn("WebSocket closed", e.reason);
           setConnection({
@@ -254,6 +271,7 @@ export function useMarimoWebSocket(opts: {
           // - computer might have just woken from sleep
           //
           // so try reconnecting.
+          Logger.warn("WebSocket closed", e.code, e.reason);
           setConnection({ state: WebSocketState.CONNECTING });
           tryReconnecting(e.code, e.reason);
       }

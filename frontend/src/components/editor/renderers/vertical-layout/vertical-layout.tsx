@@ -7,7 +7,7 @@ import { ICellRendererPlugin, ICellRendererProps } from "../types";
 import { VerticalLayoutWrapper } from "./vertical-layout-wrapper";
 import { z } from "zod";
 import { useDelayVisibility } from "./useDelayVisibility";
-import { AppMode } from "@/core/mode";
+import { AppMode, kioskModeAtom } from "@/core/mode";
 import { ReadonlyPythonCode } from "@/components/editor/code/readonly-python-code";
 import {
   ChevronDown,
@@ -31,6 +31,7 @@ import { downloadHTMLAsImage } from "@/utils/download";
 import { downloadAsHTML } from "@/core/static/download-html";
 import { isPyodide } from "@/core/pyodide/utils";
 import { CellConfig } from "@/core/network/types";
+import { useAtomValue } from "jotai";
 
 type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;
@@ -41,6 +42,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
   mode,
 }) => {
   const { invisible } = useDelayVisibility(cells.length, mode);
+  const kioskMode = useAtomValue(kioskModeAtom);
 
   const urlParams = new URLSearchParams(window.location.search);
   const showCodeDefault = urlParams.get("show-code");
@@ -53,6 +55,10 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
 
   const evaluateCanShowCode = () => {
     const cellsHaveCode = cells.some((cell) => Boolean(cell.code));
+
+    if (kioskMode) {
+      return true;
+    }
 
     // Only show code if in read mode and there is at least one cell with code
 
@@ -84,6 +90,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
           interrupted={cell.interrupted}
           staleInputs={cell.staleInputs}
           name={cell.name}
+          kiosk={kioskMode}
         />
       ))}
       {mode === "read" && (
@@ -180,6 +187,7 @@ interface VerticalCellProps
   mode: AppMode;
   showCode: boolean;
   name: string;
+  kiosk: boolean;
 }
 
 const VerticalCell = memo(
@@ -198,6 +206,7 @@ const VerticalCell = memo(
     showCode,
     mode,
     name,
+    kiosk,
   }: VerticalCellProps) => {
     const cellRef = useRef<HTMLDivElement>(null);
 
@@ -213,17 +222,16 @@ const VerticalCell = memo(
     );
 
     const className = cn("Cell", "hover-actions-parent", {
-      published: !showCode,
+      published: !showCode && !kiosk,
       interactive: mode === "edit",
       "has-error": errored,
       stopped: stopped,
     });
 
     const HTMLId = HTMLCellId.create(cellId);
-    const hidden = errored || interrupted || stopped;
 
     // Read mode and show code
-    if (mode === "read" && showCode) {
+    if ((mode === "read" && showCode) || kiosk) {
       return (
         <div tabIndex={-1} id={HTMLId} ref={cellRef} className={className}>
           <OutputArea
@@ -235,7 +243,7 @@ const VerticalCell = memo(
           />
           <div className="tray">
             <ReadonlyPythonCode
-              initiallyHideCode={config.hide_code}
+              initiallyHideCode={config.hide_code || kiosk}
               code={code}
             />
           </div>
@@ -250,6 +258,8 @@ const VerticalCell = memo(
         </div>
       );
     }
+
+    const hidden = errored || interrupted || stopped;
 
     return hidden ? null : (
       <div tabIndex={-1} id={HTMLId} ref={cellRef} className={className}>

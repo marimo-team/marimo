@@ -14,6 +14,7 @@ even if its socket is closed.
 
 from __future__ import annotations
 
+import asyncio
 import multiprocessing as mp
 import os
 import queue
@@ -25,20 +26,27 @@ import threading
 from multiprocessing import connection
 from multiprocessing.queues import Queue as MPQueue
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Dict, Optional
 from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t
 from marimo._cli.print import red
 from marimo._config.manager import UserConfigManager
-from marimo._messaging.ops import Alert, MessageOperation, Reload
+from marimo._messaging.ops import (
+    Alert,
+    FocusCell,
+    MessageOperation,
+    Reload,
+    UpdateCellCodes,
+)
 from marimo._messaging.types import KernelMessage
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import requests, runtime
 from marimo._runtime.requests import (
     AppMetadata,
     CreationRequest,
+    ExecuteMultipleRequest,
     ExecutionRequest,
     SerializedCLIArgs,
     SerializedQueryParams,
@@ -321,6 +329,8 @@ class Session:
         # This can be optional in case a consumer gets disconnected,
         # and we want to continue the session without a consumer.
         self.session_consumer: Optional[SessionConsumer] = None
+        # Map of kiosk consumers to their unsubscribe functions
+        self.kiosk_consumers: Dict[SessionConsumer, Callable[[], None]] = {}
         self._queue_manager = queue_manager
         self.kernel_manager = kernel_manager
         self.session_view = SessionView()
@@ -335,16 +345,28 @@ class Session:
             lambda msg: self.session_view.add_raw_operation(msg[1])
         )
         self.connect_consumer(session_consumer)
-        self.message_distributor.start()
 
-    def _check_alive(self) -> None:
-        if not self.kernel_manager.is_alive():
-            LOGGER.debug("Closing session because kernel died")
-            self.close()
-            print()
-            print_tabbed(red("The Python kernel died unexpectedly."))
-            print()
-            sys.exit()
+        self.message_distributor.start()
+        self._start_heartbeat()
+
+    def _start_heartbeat(self) -> None:
+        def _check_alive() -> None:
+            if not self.kernel_manager.is_alive():
+                LOGGER.debug("Closing session because kernel died")
+                self.close()
+                print()
+                print_tabbed(red("The Python kernel died unexpectedly."))
+                print()
+                sys.exit()
+
+        # Start a heartbeat task, which checks if the kernel is alive
+        # every second
+        async def _heartbeat() -> None:
+            while True:
+                await asyncio.sleep(1)
+                _check_alive()
+
+        self.heartbeat_task = asyncio.create_task(_heartbeat())
 
     def try_interrupt(self) -> None:
         self.kernel_manager.interrupt_kernel()
@@ -353,6 +375,18 @@ class Session:
         self._queue_manager.control_queue.put(request)
         if isinstance(request, SetUIElementValueRequest):
             self._queue_manager.set_ui_element_queue.put(request)
+        # Propagate the control request to the kiosk consumers
+        if isinstance(request, ExecuteMultipleRequest):
+            operation = UpdateCellCodes(
+                cell_ids=request.cell_ids,
+                codes=request.codes,
+            )
+            for kiosk_consumer in self.kiosk_consumers:
+                kiosk_consumer.write_operation(operation)
+                if len(request.cell_ids) == 1:
+                    kiosk_consumer.write_operation(
+                        FocusCell(cell_id=request.cell_ids[0])
+                    )
         self.session_view.add_control_request(request)
 
     def put_completion_request(
@@ -364,19 +398,32 @@ class Session:
         self._queue_manager.input_queue.put(text)
         self.session_view.add_stdin(text)
 
-    def disconnect_consumer(self) -> None:
-        """Stop the session consumer but keep the kernel running"""
-        assert (
+    def disconnect_consumer(self, session_consumer: SessionConsumer) -> None:
+        """
+        Stop the session consumer but keep the kernel running.
+
+        This will disconnect the main session consumer,
+        or a kiosk consumer.
+        """
+        if (
             self.session_consumer is not None
-        ), "Expecting a session consumer to pause"
-        LOGGER.debug("Disconnecting session consumer")
-        self.session_consumer.on_stop()
-        self.unsubscribe_consumer()
-        self.session_consumer = None
+            and self.session_consumer is session_consumer
+        ):
+            self.session_consumer.on_stop()
+            self.unsubscribe_consumer()
+            self.session_consumer = None
+            LOGGER.debug("Disconnecting session consumer")
+        elif session_consumer in self.kiosk_consumers:
+            self._disconnect_kiosk_consumer(session_consumer)
+            LOGGER.debug("Disconnecting kiosk consumer")
+        else:
+            LOGGER.warning(
+                "Tried to disconnect a consumer that was not connected"
+            )
 
     def maybe_disconnect_consumer(self) -> None:
         if self.session_consumer is not None:
-            self.disconnect_consumer()
+            self.disconnect_consumer(self.session_consumer)
 
     def connect_consumer(self, session_consumer: SessionConsumer) -> None:
         """Connect or resume the session with a new consumer"""
@@ -386,10 +433,26 @@ class Session:
 
         self.session_consumer = session_consumer
 
-        subscribe = self.session_consumer.on_start(self._check_alive)
+        subscribe = self.session_consumer.on_start()
         self.unsubscribe_consumer = self.message_distributor.add_consumer(
             subscribe
         )
+
+    def connect_kiosk_consumer(
+        self, session_consumer: SessionConsumer
+    ) -> None:
+        """Connect a kiosk consumer to the session"""
+        subscribe = session_consumer.on_start()
+        unsubscribe = self.message_distributor.add_consumer(subscribe)
+        self.kiosk_consumers[session_consumer] = unsubscribe
+
+    def _disconnect_kiosk_consumer(
+        self, session_consumer: SessionConsumer
+    ) -> None:
+        """Disconnect a kiosk consumer from the session"""
+        if session_consumer in self.kiosk_consumers:
+            unsubscribe = self.kiosk_consumers.pop(session_consumer)
+            unsubscribe()
 
     def get_current_state(self) -> SessionView:
         return self.session_view
@@ -399,19 +462,23 @@ class Session:
             return ConnectionState.ORPHANED
         return self.session_consumer.connection_state()
 
-    async def write_operation(self, operation: MessageOperation) -> None:
+    def write_operation(self, operation: MessageOperation) -> None:
         self.session_view.add_operation(operation)
         if self.session_consumer is not None:
-            await self.session_consumer.write_operation(operation)
+            self.session_consumer.write_operation(operation)
 
     def close(self) -> None:
-        # Could be no consumer if we already disconnect, but the session
-        # is running in the background
+        # Close the session consumer if it exists
         if self.session_consumer is not None:
             self.session_consumer.on_stop()
+        self.unsubscribe_consumer()
+        # Close all kiosk consumers
+        for kiosk_consumer, unsubscribe in self.kiosk_consumers.items():
+            kiosk_consumer.on_stop()
+            unsubscribe()
+        # Close the kernel
         self.message_distributor.stop()
         self.kernel_manager.close_kernel()
-        self.unsubscribe_consumer()
 
     def instantiate(self, request: InstantiateRequest) -> None:
         """Instantiate the app."""
@@ -618,6 +685,15 @@ class SessionManager:
                 return True
         return False
 
+    def get_session_for_key(self, key: MarimoFileKey) -> Optional[Session]:
+        for session in self.sessions.values():
+            if (
+                session.app_file_manager.path == os.path.abspath(key)
+                or session.initialization_id == key
+            ) and session.connection_state() == ConnectionState.OPEN:
+                return session
+        return None
+
     async def start_lsp_server(self) -> None:
         """Starts the lsp server if it is not already started.
 
@@ -631,7 +707,7 @@ class SessionManager:
 
         if alert is not None:
             for _, session in self.sessions.items():
-                await session.write_operation(alert)
+                session.write_operation(alert)
             return
 
     def close_session(self, session_id: SessionId) -> bool:
@@ -681,7 +757,7 @@ class SessionManager:
             LOGGER.debug(f"{path} was modified")
             for _, session in self.sessions.items():
                 session.app_file_manager.reload()
-                await session.write_operation(Reload())
+                session.write_operation(Reload())
 
         LOGGER.debug("Starting file watcher for %s", file_path)
         self.watcher = FileWatcher.create(Path(file_path), on_file_changed)

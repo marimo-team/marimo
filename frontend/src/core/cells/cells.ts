@@ -471,6 +471,28 @@ const {
       cellLogs: [...nextState.cellLogs, ...getCellLogsForMessage(message)],
     };
   },
+  setCellCodes: (state, action: { codes: string[]; ids: CellId[] }) => {
+    invariant(
+      action.codes.length === action.ids.length,
+      "Expected codes and ids to have the same length",
+    );
+
+    for (let i = 0; i < action.codes.length; i++) {
+      const cellId = action.ids[i];
+      const code = action.codes[i];
+
+      state = updateCellData(state, cellId, (cell) => {
+        return {
+          ...cell,
+          code,
+          edited: false,
+          lastCodeRun: code,
+        };
+      });
+    }
+
+    return state;
+  },
   setStdinResponse: (
     state,
     action: { cellId: CellId; response: string; outputIndex: number },

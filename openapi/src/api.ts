@@ -967,6 +967,11 @@ export interface components {
       message?: string | null;
       success: boolean;
     };
+    FocusCell: {
+      cell_id: string;
+      /** @enum {string} */
+      name: "focus-cell";
+    };
     FormatRequest: {
       codes: {
         [key: string]: string;
@@ -1034,6 +1039,7 @@ export interface components {
       cell_ids: string[];
       codes: string[];
       configs: components["schemas"]["CellConfig"][];
+      kiosk: boolean;
       last_executed_code?: {
         [key: string]: string;
       } | null;
@@ -1184,7 +1190,9 @@ export interface components {
       | components["schemas"]["QueryParamsDelete"]
       | components["schemas"]["QueryParamsClear"]
       | components["schemas"]["Datasets"]
-      | components["schemas"]["DataColumnPreview"];
+      | components["schemas"]["DataColumnPreview"]
+      | components["schemas"]["FocusCell"]
+      | components["schemas"]["UpdateCellCodes"];
     /** @enum {string} */
     MimeType:
       | "application/json"
@@ -1331,6 +1339,12 @@ export interface components {
       msg: string;
       /** @enum {string} */
       type: "unknown";
+    };
+    UpdateCellCodes: {
+      cell_ids: string[];
+      codes: string[];
+      /** @enum {string} */
+      name: "update-cell-codes";
     };
     UpdateComponentValuesRequest: {
       objectIds: string[];

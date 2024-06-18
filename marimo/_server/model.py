@@ -38,7 +38,6 @@ class SessionConsumer(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def on_start(
         self,
-        check_alive: Callable[[], None],
     ) -> Callable[[KernelMessage], None]:
         """
         Start the session consumer
@@ -51,7 +50,7 @@ class SessionConsumer(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def write_operation(self, op: MessageOperation) -> None:
+    def write_operation(self, op: MessageOperation) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod

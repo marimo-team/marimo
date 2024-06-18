@@ -13,9 +13,11 @@ from marimo._ast.cell import CellConfig, CellId_t
 from marimo._messaging.ops import (
     Alert,
     Banner,
+    FocusCell,
     KernelReady,
     MessageOperation,
     Reconnected,
+    UpdateCellCodes,
     serialize,
 )
 from marimo._messaging.types import KernelMessage, NoopStream
@@ -38,6 +40,7 @@ router = APIRouter()
 
 SESSION_QUERY_PARAM_KEY = "session_id"
 FILE_QUERY_PARAM_KEY = "file"
+KIOSK_QUERY_PARAM_KEY = "kiosk"
 
 
 class WebSocketCodes(IntEnum):
@@ -73,13 +76,22 @@ async def websocket_endpoint(
         )
         return
 
+    kiosk = app_state.query_params(KIOSK_QUERY_PARAM_KEY) == "true"
+
     await WebsocketHandler(
         websocket=websocket,
         manager=app_state.session_manager,
         session_id=session_id,
         mode=app_state.mode,
         file_key=file_key,
+        kiosk=kiosk,
     ).start()
+
+
+KIOSK_ONLY_OPERATIONS = {
+    FocusCell.name,
+    UpdateCellCodes.name,
+}
 
 
 class WebsocketHandler(SessionConsumer):
@@ -96,6 +108,7 @@ class WebsocketHandler(SessionConsumer):
         session_id: str,
         mode: SessionMode,
         file_key: MarimoFileKey,
+        kiosk: bool,
     ):
         self.websocket = websocket
         self.manager = manager
@@ -103,6 +116,7 @@ class WebsocketHandler(SessionConsumer):
         self.file_key = file_key
         self.mode = mode
         self.status: ConnectionState
+        self.kiosk = kiosk
         self.cancel_close_handle: Optional[asyncio.TimerHandle] = None
         self.heartbeat_task: Optional[asyncio.Task[None]] = None
         # Messages from the kernel are put in this queue
@@ -116,6 +130,7 @@ class WebsocketHandler(SessionConsumer):
         ui_values: dict[str, JSONType],
         last_executed_code: dict[CellId_t, str],
         last_execution_time: dict[CellId_t, float],
+        kiosk: bool,
     ) -> None:
         """Communicates to the client that the kernel is ready.
 
@@ -172,6 +187,7 @@ class WebsocketHandler(SessionConsumer):
                         last_executed_code=last_executed_code,
                         last_execution_time=last_execution_time,
                         app_config=app.config,
+                        kiosk=kiosk,
                     )
                 ),
             )
@@ -193,11 +209,11 @@ class WebsocketHandler(SessionConsumer):
         session.connect_consumer(self)
 
         # Write reconnected message
-        await self.write_operation(Reconnected())
+        self.write_operation(Reconnected())
 
         # If not replaying, just send a toast
         if not replay:
-            await self.write_operation(
+            self.write_operation(
                 Alert(
                     title="Reconnected",
                     description="You have reconnected to an existing session.",
@@ -217,8 +233,9 @@ class WebsocketHandler(SessionConsumer):
             ui_values=session.get_current_state().ui_values,
             last_executed_code=session.get_current_state().last_executed_code,
             last_execution_time=session.get_current_state().last_execution_time,
+            kiosk=self.kiosk,
         )
-        await self.write_operation(
+        self.write_operation(
             Banner(
                 title="Reconnected",
                 description="You have reconnected to an existing session.",
@@ -227,7 +244,36 @@ class WebsocketHandler(SessionConsumer):
 
         for op in operations:
             LOGGER.debug("Replaying operation %s", serialize(op))
-            await self.write_operation(op)
+            self.write_operation(op)
+
+    async def _connect_kiosk(self, session: Session) -> None:
+        """Connect to a kiosk session.
+
+        A kiosk session is a read-only session that is connected to a
+        frontend. It is used when there is an active editor session.
+        """
+
+        self.status = ConnectionState.OPEN
+        session.connect_kiosk_consumer(self)
+
+        operations = session.get_current_state().operations
+        # Replay the current session view
+        LOGGER.debug(
+            f"Replaying {len(operations)} operations to the kiosk consumer",
+        )
+
+        await self._write_kernel_ready(
+            session=session,
+            resumed=True,
+            ui_values=session.get_current_state().ui_values,
+            last_executed_code=session.get_current_state().last_executed_code,
+            last_execution_time=session.get_current_state().last_execution_time,
+            kiosk=True,
+        )
+
+        for op in operations:
+            LOGGER.debug("Replaying operation %s", serialize(op))
+            self.write_operation(op)
 
     async def start(self) -> None:
         # Accept the websocket connection
@@ -243,8 +289,10 @@ class WebsocketHandler(SessionConsumer):
         LOGGER.debug("Existing sessions: %s", mgr.sessions)
 
         # Only one frontend can be connected at a time in edit mode.
-        if mgr.mode == SessionMode.EDIT and mgr.any_clients_connected(
-            self.file_key
+        if (
+            mgr.mode == SessionMode.EDIT
+            and mgr.any_clients_connected(self.file_key)
+            and not self.kiosk
         ):
             LOGGER.debug(
                 "Refusing connection; a frontend is already connected."
@@ -257,7 +305,23 @@ class WebsocketHandler(SessionConsumer):
             return
 
         async def get_session() -> Session:
-            # 1. Handle reconnection
+            # 1. If we are in kiosk mode, connect to the existing session
+            if self.kiosk:
+                kiosk_session = mgr.get_session(session_id)
+                if kiosk_session is None:
+                    LOGGER.debug(
+                        "Session %s not found for kiosk",
+                        session_id,
+                    )
+                    raise WebSocketDisconnect(
+                        WebSocketCodes.NORMAL_CLOSE, "MARIMO_NO_SESSION"
+                    )
+                self.status = ConnectionState.OPEN
+                LOGGER.debug("Connecting to kiosk session")
+                await self._connect_kiosk(kiosk_session)
+                return kiosk_session
+
+            # 2. Handle reconnection
 
             # The session already exists, but it was disconnected.
             # This can happen in local development when the client
@@ -271,7 +335,7 @@ class WebsocketHandler(SessionConsumer):
                 await self._reconnect_session(existing_session, replay=False)
                 return existing_session
 
-            # 2. Handle resume
+            # 3. Handle resume
 
             # Get resumable possible resumable session
             resumable_session = mgr.maybe_resume_session(
@@ -282,7 +346,7 @@ class WebsocketHandler(SessionConsumer):
                 await self._reconnect_session(resumable_session, replay=True)
                 return resumable_session
 
-            # 3. Create a new session
+            # 4. Create a new session
 
             # If the client refreshed their page, there will be one
             # existing session with a closed socket for a different session
@@ -314,6 +378,7 @@ class WebsocketHandler(SessionConsumer):
                 ui_values={},
                 last_executed_code={},
                 last_execution_time={},
+                kiosk=False,
             )
             return new_session
 
@@ -323,6 +388,12 @@ class WebsocketHandler(SessionConsumer):
             while True:
                 (op, data) = await self.message_queue.get()
                 try:
+                    if op in KIOSK_ONLY_OPERATIONS and not self.kiosk:
+                        LOGGER.debug(
+                            "Ignoring operation %s, not in kiosk mode",
+                            op,
+                        )
+                        continue
                     await self.websocket.send_text(
                         json.dumps(
                             {
@@ -354,7 +425,7 @@ class WebsocketHandler(SessionConsumer):
                 # Disconnect the consumer
                 session = self.manager.get_session(self.session_id)
                 if session:
-                    session.disconnect_consumer()
+                    session.disconnect_consumer(self)
 
                 if self.manager.mode == SessionMode.RUN:
                     # When the websocket is closed, we wait TTL_SECONDS before
@@ -398,23 +469,14 @@ class WebsocketHandler(SessionConsumer):
 
     def on_start(
         self,
-        check_alive: Callable[[], None],
     ) -> Callable[[KernelMessage], None]:
-        # Start a heartbeat task
-        async def _heartbeat() -> None:
-            while True:
-                await asyncio.sleep(1)
-                check_alive()
-
-        self.heartbeat_task = asyncio.create_task(_heartbeat())
-
         def listener(response: KernelMessage) -> None:
             self.message_queue.put_nowait(response)
 
         return listener
 
-    async def write_operation(self, op: MessageOperation) -> None:
-        await self.message_queue.put((op.name, serialize(op)))
+    def write_operation(self, op: MessageOperation) -> None:
+        self.message_queue.put_nowait((op.name, serialize(op)))
 
     def on_stop(self) -> None:
         # Cancel the heartbeat task, reader

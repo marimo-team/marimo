@@ -85,6 +85,8 @@ def _generate_schema() -> dict[str, Any]:
         ops.QueryParamsAppend,
         ops.QueryParamsDelete,
         ops.QueryParamsClear,
+        ops.UpdateCellCodes,
+        ops.FocusCell,
         ops.MessageOperation,
     ]
 

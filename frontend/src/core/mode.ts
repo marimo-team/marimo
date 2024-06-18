@@ -12,7 +12,6 @@ import { Logger } from "@/utils/Logger";
  * - `edit`: A user is editing the notebook. Can switch to present mode.
  * - `present`: A user is presenting the notebook, it looks like read mode but with some editing features. Cannot switch to present mode.
  * - `home`: A user is in the home page.
- * - `island`: A user is interacting with marimo from an external application.
  */
 export type AppMode = "read" | "edit" | "present" | "home";
 
@@ -90,3 +89,5 @@ export const viewStateAtom = atom<ViewState>({
   mode: initialMode,
   cellAnchor: null,
 });
+
+export const kioskModeAtom = atom<boolean>(false);
