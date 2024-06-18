@@ -190,14 +190,19 @@ class table(
         ] = None,
     ) -> None:
         self._data = data
+        # Holds the original data
         self._manager = get_table_manager(data)
-        self._unfiltered_manager = self._manager
-        self._filtered_manager: Optional[TableManager[Any]] = None
+        # Holds the data after filtering (sort, search, limit etc.)
+        self._filtered_manager = self._manager
+        # Holds the data after selection and filtering
+        self._selected_manager: Optional[TableManager[Any]] = None
 
         totalRows = self._manager.get_num_rows(force=True) or 0
         hasMore = totalRows > TableManager.DEFAULT_LIMIT
         if hasMore:
-            self._manager = self._manager.limit(TableManager.DEFAULT_LIMIT)
+            self._filtered_manager = self._filtered_manager.limit(
+                TableManager.DEFAULT_LIMIT
+            )
 
         # pagination defaults to True if there are more than 10 rows
         if pagination is None:
@@ -210,7 +215,7 @@ class table(
             label=label,
             initial_value=[],
             args={
-                "data": self._manager.to_data(),
+                "data": self._filtered_manager.to_data(),
                 "has-more": hasMore,
                 "total-rows": totalRows,
                 "pagination": pagination,
@@ -253,16 +258,16 @@ class table(
         self, value: list[str]
     ) -> Union[List[JSONType], "pd.DataFrame", "pl.DataFrame"]:
         indices = [int(v) for v in value]
-        self._filtered_manager = self._manager.select_rows(indices)
+        self._selected_manager = self._filtered_manager.select_rows(indices)
         self._has_any_selection = len(indices) > 0
-        return self._filtered_manager.data  # type: ignore[no-any-return]
+        return self._selected_manager.data  # type: ignore[no-any-return]
 
     def download_as(self, args: DownloadAsArgs) -> str:
         # download selected rows if there are any, otherwise use all rows
         manager = (
-            self._filtered_manager
-            if self._filtered_manager and self._has_any_selection
-            else self._manager
+            self._selected_manager
+            if self._selected_manager and self._has_any_selection
+            else self._filtered_manager
         )
 
         ext = args.format
@@ -276,8 +281,8 @@ class table(
     def get_column_summaries(self, args: EmptyArgs) -> ColumnSummaries:
         del args
         summaries: List[ColumnSummary] = []
-        for column in self._unfiltered_manager.get_column_names():
-            summary = self._unfiltered_manager.get_summary(column)
+        for column in self._filtered_manager.get_column_names():
+            summary = self._filtered_manager.get_summary(column)
             summaries.append(
                 ColumnSummary(
                     column=column,
@@ -293,11 +298,19 @@ class table(
         return ColumnSummaries(summaries)
 
     def search(self, args: SearchTableArgs) -> Union[JSONType, str]:
-        result = self._unfiltered_manager
+        # Start with the original manager, then filter
+        result = self._manager
+
+        # If no query or sort, return nothing
+        # The frontend will just show the original data
+        if not args.query and not args.sort:
+            self._filtered_manager = self._manager
+            return []
+
         if args.query:
             result = result.search(args.query)
         if args.sort:
             result = result.sort_values(args.sort.by, args.sort.descending)
         # Save the manager to be used for selection
-        self._manager = result
+        self._filtered_manager = result
         return result.limit(TableManager.DEFAULT_LIMIT).to_data()
