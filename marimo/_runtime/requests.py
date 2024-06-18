@@ -114,7 +114,7 @@ class CreationRequest:
 
 
 @dataclass
-class DeleteRequest:
+class DeleteCellRequest:
     cell_id: CellId_t
 
 
@@ -151,7 +151,7 @@ ControlRequest = Union[
     ExecuteMultipleRequest,
     ExecuteStaleRequest,
     CreationRequest,
-    DeleteRequest,
+    DeleteCellRequest,
     FunctionCallRequest,
     SetCellConfigRequest,
     SetUserConfigRequest,

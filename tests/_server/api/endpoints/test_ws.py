@@ -222,4 +222,25 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
         client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
-# session_manager.mode = SessionMode.RUN
+async def test_cannot_connect_kiosk_with_run_session(
+    client: TestClient,
+) -> None:
+    # Create the first session
+    session_manager = get_session_manager(client)
+    session_manager.mode = SessionMode.RUN
+    with client.websocket_connect("/ws?session_id=123") as websocket:
+        data = websocket.receive_json()
+        assert_kernel_ready_response(data)
+
+        # Connect by the same session id in kiosk mode
+        with pytest.raises(WebSocketDisconnect) as exc_info:  # noqa: PT012
+            with client.websocket_connect(
+                "/ws?session_id=123&kiosk=true"
+            ) as other_websocket:
+                data = other_websocket.receive_json()
+                raise AssertionError()
+        assert exc_info.value.code == WebSocketCodes.FORBIDDEN
+        assert exc_info.value.reason == "MARIMO_KIOSK_NOT_ALLOWED"
+
+    client.post("/api/kernel/shutdown", headers=HEADERS)
+    session_manager.mode = SessionMode.EDIT

@@ -394,6 +394,13 @@ components:
       - tables
       - name
       type: object
+    DeleteCellRequest:
+      properties:
+        cellId:
+          type: string
+      required:
+      - cellId
+      type: object
     DeleteNonlocalError:
       properties:
         cells:
@@ -410,13 +417,6 @@ components:
       - name
       - cells
       - type
-      type: object
-    DeleteRequest:
-      properties:
-        cellId:
-          type: string
-      required:
-      - cellId
       type: object
     Error:
       oneOf:
@@ -1173,6 +1173,7 @@ components:
       - $ref: '#/components/schemas/DataColumnPreview'
       - $ref: '#/components/schemas/FocusCell'
       - $ref: '#/components/schemas/UpdateCellCodes'
+      - $ref: '#/components/schemas/UpdateCellIdsRequest'
     MimeType:
       enum:
       - application/json
@@ -1555,6 +1556,20 @@ components:
       required:
       - cell_ids
       - codes
+      - name
+      type: object
+    UpdateCellIdsRequest:
+      properties:
+        cell_ids:
+          items:
+            type: string
+          type: array
+        name:
+          enum:
+          - update-cell-ids
+          type: string
+      required:
+      - cell_ids
       - name
       type: object
     UpdateComponentValuesRequest:
@@ -2137,6 +2152,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Send input to the stdin stream
+  /api/kernel/sync/cell_ids:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCellIdsRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Sync cell ids
   /api/status:
     get:
       responses:

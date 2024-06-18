@@ -47,6 +47,7 @@ KIOSK_QUERY_PARAM_KEY = "kiosk"
 class WebSocketCodes(IntEnum):
     ALREADY_CONNECTED = 1003
     NORMAL_CLOSE = 1000
+    FORBIDDEN = 1008
 
 
 @router.websocket("/ws")
@@ -316,6 +317,11 @@ class WebsocketHandler(SessionConsumer):
         def get_session() -> Session:
             # 1. If we are in kiosk mode, connect to the existing session
             if self.kiosk:
+                if self.mode is not SessionMode.EDIT:
+                    LOGGER.debug("Kiosk mode is only supported in edit mode")
+                    raise WebSocketDisconnect(
+                        WebSocketCodes.FORBIDDEN, "MARIMO_KIOSK_NOT_ALLOWED"
+                    )
                 kiosk_session = mgr.get_session(session_id)
                 if kiosk_session is None:
                     LOGGER.debug(

@@ -20,7 +20,7 @@ from marimo._runtime.dataflow import EdgeWithVar
 from marimo._runtime.requests import (
     AppMetadata,
     CreationRequest,
-    DeleteRequest,
+    DeleteCellRequest,
     ExecutionRequest,
     SetCellConfigRequest,
     SetUIElementValueRequest,
@@ -89,7 +89,7 @@ class TestExecution:
             await k.run([er2])
         assert k.globals["z"] == 2
 
-        await k.delete(DeleteRequest(cell_id="1"))
+        await k.delete(DeleteCellRequest(cell_id="1"))
         assert k.globals["x"] == 2
         assert "y" not in k.globals
         if k.lazy():
@@ -97,7 +97,7 @@ class TestExecution:
             await k.run([er2])
         assert "z" not in k.globals
 
-        await k.delete(DeleteRequest(cell_id="0"))
+        await k.delete(DeleteCellRequest(cell_id="0"))
         assert "x" not in k.globals
         assert "y" not in k.globals
         assert "z" not in k.globals
@@ -384,7 +384,7 @@ class TestExecution:
         assert k.errors["1"] == (MultipleDefinitionError("x", ("0",)),)
 
         # issue delete request for cell 1 to clear error and run cell 0
-        await k.delete(DeleteRequest(cell_id="1"))
+        await k.delete(DeleteCellRequest(cell_id="1"))
         if k.lazy():
             assert k.graph.cells[er.cell_id].stale
             await k.run([er])
@@ -464,7 +464,7 @@ class TestExecution:
         _check_edges(k.errors["0"][0], [("0", ["x"], "1"), ("1", ["y"], "0")])
 
         # break cycle by deleting cell
-        await k.delete(DeleteRequest(cell_id="1"))
+        await k.delete(DeleteCellRequest(cell_id="1"))
         assert not k.errors
 
     async def test_delete_nonlocal_error(self, any_kernel: Kernel) -> None:
@@ -507,7 +507,7 @@ class TestExecution:
 
         # Delete the cell that defines x. There shouldn't be any more errors
         # because x no longer exists.
-        await k.delete(DeleteRequest(cell_id="0"))
+        await k.delete(DeleteCellRequest(cell_id="0"))
         assert not k.errors
 
         # Add x back in.

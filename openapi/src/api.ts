@@ -620,6 +620,23 @@ export interface paths {
       };
     };
   };
+  "/api/kernel/sync/cell_ids": {
+    post: {
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["UpdateCellIdsRequest"];
+        };
+      };
+      responses: {
+        /** @description Sync cell ids */
+        200: {
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+  };
   "/api/status": {
     get: {
       responses: {
@@ -866,14 +883,14 @@ export interface components {
       name: "datasets";
       tables: components["schemas"]["DataTable"][];
     };
+    DeleteCellRequest: {
+      cellId: string;
+    };
     DeleteNonlocalError: {
       cells: string[];
       name: string;
       /** @enum {string} */
       type: "delete-nonlocal";
-    };
-    DeleteRequest: {
-      cellId: string;
     };
     Error:
       | components["schemas"]["CycleError"]
@@ -1192,7 +1209,8 @@ export interface components {
       | components["schemas"]["Datasets"]
       | components["schemas"]["DataColumnPreview"]
       | components["schemas"]["FocusCell"]
-      | components["schemas"]["UpdateCellCodes"];
+      | components["schemas"]["UpdateCellCodes"]
+      | components["schemas"]["UpdateCellIdsRequest"];
     /** @enum {string} */
     MimeType:
       | "application/json"
@@ -1345,6 +1363,11 @@ export interface components {
       codes: string[];
       /** @enum {string} */
       name: "update-cell-codes";
+    };
+    UpdateCellIdsRequest: {
+      cell_ids: string[];
+      /** @enum {string} */
+      name: "update-cell-ids";
     };
     UpdateComponentValuesRequest: {
       objectIds: string[];

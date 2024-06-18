@@ -536,6 +536,19 @@ class UpdateCellCodes(Op):
     codes: List[str]
 
 
+@dataclass
+class UpdateCellIdsRequest(Op):
+    """
+    Update the cell ID ordering of the cells in the notebook.
+
+    Right now we send the entire list of cell IDs,
+    but in the future we might want to send change-deltas.
+    """
+
+    name: ClassVar[str] = "update-cell-ids"
+    cell_ids: List[CellId_t]
+
+
 MessageOperation = Union[
     # Cell operations
     CellOp,
@@ -568,4 +581,5 @@ MessageOperation = Union[
     # Kiosk specific
     FocusCell,
     UpdateCellCodes,
+    UpdateCellIdsRequest,
 ]
