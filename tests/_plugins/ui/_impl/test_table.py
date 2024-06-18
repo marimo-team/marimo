@@ -253,3 +253,7 @@ def test_value_with_search_then_selection():
     assert list(table._convert_value(["0"])) == [
         {"value": "banana"},
     ]
+
+    # empty search
+    table.search(SearchTableArgs())
+    assert list(table._convert_value(["2"])) == [{"value": "cherry"}]
