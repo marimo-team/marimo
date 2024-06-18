@@ -210,7 +210,7 @@ def test_value():
     data = ["banana", "apple", "cherry", "date", "elderberry"]
     data = _normalize_data(data)
     table = ui.table(data)
-    table.value = []
+    assert list(table.value) == []
 
 
 def test_value_with_selection():
