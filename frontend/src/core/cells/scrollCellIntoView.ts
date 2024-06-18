@@ -63,7 +63,7 @@ export function focusAndScrollCellIntoView({
 
   element.scrollIntoView({
     behavior: "smooth",
-    block: "center",
+    block: "nearest",
   });
 }
 
