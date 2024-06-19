@@ -14,3 +14,11 @@ export const HideInKioskMode: React.FC<Props> = ({ children }) => {
   }
   return children;
 };
+
+export const ShowInKioskMode: React.FC<Props> = ({ children }) => {
+  const kioskMode = useAtomValue(kioskModeAtom);
+  if (kioskMode) {
+    return children;
+  }
+  return null;
+};

@@ -51,7 +51,7 @@ export function useMarimoWebSocket(opts: {
   const { autoInstantiate, sessionId, setCells } = opts;
   const { showBoundary } = useErrorBoundary();
 
-  const { handleCellMessage, setCellCodes } = useCellActions();
+  const { handleCellMessage, setCellCodes, setCellIds } = useCellActions();
   const setAppConfig = useSetAppConfig();
   const { setVariables, setMetadata } = useVariablesActions();
   const { addColumnPreview } = useDatasetsActions();
@@ -181,7 +181,9 @@ export function useMarimoWebSocket(opts: {
           ids: msg.data.cell_ids as CellId[],
         });
         return;
-
+      case "update-cell-ids":
+        setCellIds({ cellIds: msg.data.cell_ids as CellId[] });
+        return;
       default:
         logNever(msg);
     }

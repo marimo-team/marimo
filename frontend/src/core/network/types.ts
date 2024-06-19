@@ -61,6 +61,7 @@ export interface SetCellConfigRequest {
   configs: Record<CellId, Partial<CellConfig>>;
 }
 export type SetUIElementValueRequest = schemas["SetUIElementValueRequest"];
+export type UpdateCellIdsRequest = schemas["UpdateCellIdsRequest"];
 export type SetUserConfigRequest = schemas["SetUserConfigRequest"];
 export type ShutdownSessionRequest = schemas["ShutdownSessionRequest"];
 export type Snippet = schemas["Snippet"];
@@ -101,6 +102,7 @@ export interface EditRequests {
   saveAppConfig: (request: SaveAppConfigurationRequest) => Promise<null>;
   saveCellConfig: (request: SetCellConfigRequest) => Promise<null>;
   sendRestart: () => Promise<null>;
+  syncCellIds: (request: UpdateCellIdsRequest) => Promise<null>;
   sendInstallMissingPackages: (
     request: InstallMissingPackagesRequest,
   ) => Promise<null>;

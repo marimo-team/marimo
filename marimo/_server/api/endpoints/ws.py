@@ -19,6 +19,7 @@ from marimo._messaging.ops import (
     MessageOperation,
     Reconnected,
     UpdateCellCodes,
+    UpdateCellIdsRequest,
     serialize,
 )
 from marimo._messaging.types import KernelMessage, NoopStream
@@ -93,6 +94,7 @@ async def websocket_endpoint(
 KIOSK_ONLY_OPERATIONS = {
     FocusCell.name,
     UpdateCellCodes.name,
+    UpdateCellIdsRequest.name,
 }
 KIOSK_EXCLUDED_OPERATIONS = {
     CompletionResult.name,

@@ -37,8 +37,10 @@ import {
   updateEditorCodeFromPython,
 } from "../codemirror/language/utils";
 import { invariant } from "@/utils/invariant";
-import { CellConfig, CellStatus } from "../network/types";
+import { CellConfig, CellStatus, UpdateCellIdsRequest } from "../network/types";
 import { getUserConfig } from "@/core/config/config";
+import { syncCellIds } from "../network/requests";
+import { kioskModeAtom } from "../mode";
 
 /**
  * The state of the notebook.
@@ -471,6 +473,32 @@ const {
       cellLogs: [...nextState.cellLogs, ...getCellLogsForMessage(message)],
     };
   },
+  setCellIds: (state, action: { cellIds: CellId[] }) => {
+    // Create new cell data and runtime states for the new cell IDs
+    const nextCellData = { ...state.cellData };
+    const nextCellRuntime = { ...state.cellRuntime };
+    const nextCellHandles = { ...state.cellHandles };
+
+    for (const cellId of action.cellIds) {
+      if (!(cellId in state.cellData)) {
+        nextCellData[cellId] = createCell({ id: cellId });
+      }
+      if (!(cellId in state.cellRuntime)) {
+        nextCellRuntime[cellId] = createCellRuntimeState();
+      }
+      if (!(cellId in state.cellHandles)) {
+        nextCellHandles[cellId] = createRef();
+      }
+    }
+
+    return {
+      ...state,
+      cellIds: action.cellIds,
+      cellData: nextCellData,
+      cellRuntime: nextCellRuntime,
+      cellHandles: nextCellHandles,
+    };
+  },
   setCellCodes: (state, action: { codes: string[]; ids: CellId[] }) => {
     invariant(
       action.codes.length === action.ids.length,
@@ -760,7 +788,7 @@ export {
 
 /// ATOMS
 
-const cellIdsAtom = atom((get) => get(notebookAtom).cellIds);
+export const cellIdsAtom = atom((get) => get(notebookAtom).cellIds);
 
 export const hasOnlyOneCellAtom = atom((get) => get(cellIdsAtom).length === 1);
 
@@ -954,6 +982,32 @@ export function useCellActions() {
  * Map of cell actions
  */
 export type CellActions = ReturnType<typeof createActions>;
+
+export const CellEffects = {
+  onCellIdsChange: (cellIds: CellId[], prevCellIds: CellId[]) => {
+    const kioskMode = store.get(kioskModeAtom);
+    if (kioskMode) {
+      return;
+    }
+    // If cellIds is empty, return early
+    if (cellIds.length === 0) {
+      return;
+    }
+    // If prevCellIds is empty, also return early
+    // this means that the notebook was just created
+    if (prevCellIds.length === 0) {
+      return;
+    }
+
+    // If they are different references, send an update to the server
+    if (cellIds !== prevCellIds) {
+      // "name" property is not actually required
+      void syncCellIds({
+        cell_ids: cellIds,
+      } as unknown as UpdateCellIdsRequest);
+    }
+  },
+};
 
 /**
  * This is exported for testing purposes only.
