@@ -55,3 +55,8 @@ def test_memory(client: TestClient) -> None:
     assert memory["free"] > 0
     cpu = response.json()["cpu"]
     assert cpu["percent"] >= 0
+    computer = response.json()["server"]
+    assert computer["memory"] > 0
+    # None, no active session
+    computer = response.json()["kernel"]
+    assert computer["memory"] is None

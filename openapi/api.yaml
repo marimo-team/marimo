@@ -2146,6 +2146,11 @@ paths:
                     required:
                     - percent
                     type: object
+                  kernel:
+                    properties:
+                      memory:
+                        type: integer
+                    type: object
                   memory:
                     properties:
                       available:
@@ -2164,6 +2169,13 @@ paths:
                     - percent
                     - used
                     - free
+                    type: object
+                  server:
+                    properties:
+                      memory:
+                        type: integer
+                    required:
+                    - memory
                     type: object
                 required:
                 - memory

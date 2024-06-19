@@ -39,7 +39,13 @@ export const MachineStats: React.FC = (props) => {
 
   return (
     <div className="flex gap-3">
-      {data && <MemoryUsageBar memory={data.memory} />}
+      {data && (
+        <MemoryUsageBar
+          memory={data.memory}
+          kernel={data.kernel}
+          server={data.server}
+        />
+      )}
       {data && <CPUBar cpu={data.cpu} />}
       <BackendConnection connection={connection.state} />
     </div>
@@ -67,18 +73,33 @@ const BackendConnection: React.FC<{ connection: WebSocketState }> = ({
   );
 };
 
-const MemoryUsageBar: React.FC<{ memory: UsageResponse["memory"] }> = ({
-  memory,
-}) => {
+const MemoryUsageBar: React.FC<{
+  memory: UsageResponse["memory"];
+  kernel: UsageResponse["kernel"];
+  server: UsageResponse["server"];
+}> = ({ memory, kernel, server }) => {
   const { percent, total, used } = memory;
   const roundedPercent = Math.round(percent);
   return (
     <Tooltip
       delayDuration={200}
       content={
-        <span>
-          <b>Memory:</b> {asGB(used)} / {asGB(total)} GB ({roundedPercent}%)
-        </span>
+        <div className="flex flex-col gap-1">
+          <span>
+            <b>computer memory:</b> {asGB(used)} / {asGB(total)} GB (
+            {roundedPercent}%)
+          </span>
+          {server?.memory && (
+            <span>
+              <b>marimo server:</b> {asGBorMB(server.memory)}
+            </span>
+          )}
+          {kernel?.memory && (
+            <span>
+              <b>kernel:</b> {asGBorMB(kernel.memory)}
+            </span>
+          )}
+        </div>
       }
     >
       <div className="flex items-center gap-1">
@@ -116,6 +137,21 @@ const Bar: React.FC<{ percent: number }> = ({ percent }) => {
     </div>
   );
 };
+
+function asGBorMB(bytes: number): string {
+  if (bytes > 1024 * 1024 * 1024) {
+    return `${asGB(bytes)} GB`;
+  }
+  return `${asMB(bytes)} MB`;
+}
+
+function asMB(bytes: number) {
+  // 0 decimal places
+  const format = new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 0,
+  });
+  return format.format(bytes / (1024 * 1024));
+}
 
 function asGB(bytes: number) {
   // At most 2 decimal places

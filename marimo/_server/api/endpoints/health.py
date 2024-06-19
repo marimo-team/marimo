@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from multiprocessing import Process
+from typing import TYPE_CHECKING, Optional
 
 from starlette.authentication import requires
 from starlette.responses import JSONResponse, PlainTextResponse
@@ -128,6 +129,18 @@ async def usage(request: Request) -> JSONResponse:
                                     - percent
                                     - used
                                     - free
+                            server:
+                                type: object
+                                properties:
+                                    memory:
+                                        type: integer
+                                required:
+                                    - memory
+                            kernel:
+                                type: object
+                                properties:
+                                    memory:
+                                        type: integer
                             cpu:
                                 type: object
                                 properties:
@@ -140,20 +153,51 @@ async def usage(request: Request) -> JSONResponse:
                             - cpu
 
     """  # noqa: E501
-    del request
     import psutil
 
     memory = psutil.virtual_memory()
     cpu = psutil.cpu_percent(interval=1)
 
+    # Server memory (and children)
+    main_process = psutil.Process()
+    server_memory = main_process.memory_info().rss
+    children = main_process.children(recursive=True)
+    for child in children:
+        try:
+            server_memory += child.memory_info().rss
+        except psutil.NoSuchProcess:
+            pass
+
+    # Kernel memory
+    kernel_memory: Optional[int] = None
+    session = AppState(request).get_current_session()
+    if session and isinstance(session.kernel_manager.kernel_task, Process):
+        kernel_process = psutil.Process(session.kernel_manager.kernel_task.pid)
+        kernel_memory = kernel_process.memory_info().rss
+        kernel_children = kernel_process.children(recursive=True)
+        for child in kernel_children:
+            try:
+                kernel_memory += child.memory_info().rss
+            except psutil.NoSuchProcess:
+                pass
+
     return JSONResponse(
         {
+            # computer memory
             "memory": {
                 "total": memory.total,
                 "available": memory.available,
                 "percent": memory.percent,
                 "used": memory.used,
                 "free": memory.free,
+            },
+            # marimo server
+            "server": {
+                "memory": server_memory,
+            },
+            # marimo kernel (for the given session)
+            "kernel": {
+                "memory": kernel_memory,
             },
             "cpu": {
                 "percent": cpu,
