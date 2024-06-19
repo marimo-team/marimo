@@ -10,6 +10,7 @@ import { prettyError } from "@/utils/errors";
 import { useCompletion } from "ai/react";
 import ReactCodeMirror, { EditorView } from "@uiw/react-codemirror";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/python";
+import { asURL } from "@/utils/url";
 
 const extensions = [customPythonLanguageSupport(), EditorView.lineWrapping];
 
@@ -30,7 +31,7 @@ export const AddCellWithAI: React.FC<{
     handleInputChange,
     handleSubmit,
   } = useCompletion({
-    api: "/api/ai/completion",
+    api: asURL(`api/ai/completion`).toString(),
     headers: API.headers(),
     streamMode: "text",
     body: {

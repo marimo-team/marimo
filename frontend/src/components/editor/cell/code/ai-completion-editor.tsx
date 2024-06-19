@@ -19,6 +19,7 @@ import { includeOtherCellsAtom } from "@/core/ai/state";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import { useTheme } from "@/theme/useTheme";
+import { asURL } from "@/utils/url";
 
 const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
@@ -58,7 +59,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
     handleInputChange,
     handleSubmit,
   } = useCompletion({
-    api: "/api/ai/completion",
+    api: asURL("api/ai/completion").toString(),
     headers: API.headers(),
     streamMode: "text",
     body: {
