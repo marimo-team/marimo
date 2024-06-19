@@ -60,6 +60,7 @@ import { updateQueryParams } from "@/utils/urls";
 import { AppHeader } from "@/components/editor/header/app-header";
 import { AppContainer } from "../components/editor/app-container";
 import { useJotaiEffect } from "./state/jotai";
+import { Paths } from "@/utils/paths";
 
 interface AppProps {
   userConfig: UserConfig;
@@ -125,7 +126,8 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       .then(() => {
         setFilename(name);
         // Set document title: app_title takes precedence, then filename, then default
-        document.title = appConfig.app_title || name || "Untitled Notebook";
+        document.title =
+          appConfig.app_title || Paths.basename(name) || "Untitled Notebook";
         return name;
       })
       .catch((error) => {
@@ -137,7 +139,10 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   // Update document title whenever filename or app_title changes
   useEffect(() => {
     // Set document title: app_title takes precedence, then filename, then default
-    document.title = appConfig.app_title || filename || "Untitled Notebook";
+    document.title =
+      appConfig.app_title ||
+      Paths.basename(filename ?? "") ||
+      "Untitled Notebook";
   }, [appConfig.app_title, filename]);
 
   const cells = notebookCells(notebook);
