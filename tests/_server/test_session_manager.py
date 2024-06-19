@@ -14,7 +14,9 @@ from marimo._server.sessions import LspServer, Session, SessionManager
 
 @pytest.fixture
 def mock_session_consumer():
-    return Mock(spec=SessionConsumer)
+    mock = Mock(spec=SessionConsumer)
+    mock.consumer_id = "test_consumer_id"
+    return mock
 
 
 @pytest.fixture

@@ -412,12 +412,18 @@ class Session:
 
         # Start a heartbeat task, which checks if the kernel is alive
         # every second
+
         async def _heartbeat() -> None:
             while True:
                 await asyncio.sleep(1)
                 _check_alive()
 
-        self.heartbeat_task = asyncio.create_task(_heartbeat())
+        try:
+            loop = asyncio.get_event_loop()
+            self.heartbeat_task = loop.create_task(_heartbeat())
+        except RuntimeError:
+            # This can happen if there is no event loop running
+            self.heartbeat_task = None
 
     def try_interrupt(self) -> None:
         """Try to interrupt the kernel."""
@@ -656,6 +662,8 @@ class SessionManager:
         for session in self.sessions.values():
             if session_id in session.room.consumers.values():
                 return session
+
+        return None
 
     def get_session_by_file_key(
         self, file_key: MarimoFileKey

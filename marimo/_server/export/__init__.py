@@ -130,7 +130,7 @@ async def run_app_until_completion(
     session = Session.create(
         # Any initialization ID will do
         initialization_id="_any_",
-        session_consumer=NoopSessionConsumer(),
+        session_consumer=NoopSessionConsumer(consumer_id="noop"),
         # Run in EDIT mode so that console outputs are captured
         mode=SessionMode.EDIT,
         app_metadata=AppMetadata(
