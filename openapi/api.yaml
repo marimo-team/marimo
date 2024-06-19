@@ -1920,7 +1920,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/DeleteRequest'
+              $ref: '#/components/schemas/DeleteCellRequest'
       responses:
         200:
           content:

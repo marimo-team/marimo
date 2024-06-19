@@ -330,7 +330,7 @@ export interface paths {
     post: {
       requestBody?: {
         content: {
-          "application/json": components["schemas"]["DeleteRequest"];
+          "application/json": components["schemas"]["DeleteCellRequest"];
         };
       };
       responses: {

@@ -63,7 +63,7 @@ async def delete_cell(request: Request) -> BaseResponse:
         content:
             application/json:
                 schema:
-                    $ref: "#/components/schemas/DeleteRequest"
+                    $ref: "#/components/schemas/DeleteCellRequest"
     responses:
         200:
             description: Delete a cell
