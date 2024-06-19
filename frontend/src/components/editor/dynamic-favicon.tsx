@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { useCellErrors } from "@/core/cells/cells";
 import { useEventListener } from "@/hooks/useEventListener";
+import { usePrevious } from "@dnd-kit/utilities";
 import { useEffect } from "react";
 
 const FAVICONS = {
@@ -62,6 +63,11 @@ export const DynamicFavicon = (props: Props) => {
   }
 
   useEffect(() => {
+    // No change on startup (autorun enabled or not)
+    // Treat the default marimo favicon as "idle"
+    if (!isRunning && favicon.href.includes("favicon")) {
+      return;
+    }
     // When notebook is running, display running favicon
     if (isRunning) {
       favicon.href = FAVICONS.running;
@@ -84,9 +90,13 @@ export const DynamicFavicon = (props: Props) => {
     };
   }, [isRunning, errors, favicon]);
 
+  // Send user notification when run has completed
+  const prevRunning = usePrevious(isRunning) ?? isRunning;
   useEffect(() => {
-    maybeSendNotification(errors.length);
-  }, [errors]);
+    if (prevRunning && !isRunning) {
+      maybeSendNotification(errors.length);
+    }
+  }, [errors, prevRunning, isRunning]);
 
   // When notebook comes back in focus, reset favicon
   useEventListener(window, "focus", (_) => {
