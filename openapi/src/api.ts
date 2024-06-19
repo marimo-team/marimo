@@ -651,12 +651,18 @@ export interface paths {
               cpu: {
                 percent: number;
               };
+              kernel?: {
+                memory?: number;
+              };
               memory: {
                 available: number;
                 free: number;
                 percent: number;
                 total: number;
                 used: number;
+              };
+              server?: {
+                memory: number;
               };
             };
           };
