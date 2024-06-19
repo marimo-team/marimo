@@ -29,6 +29,7 @@ import { ConfigButton } from "../app-config/app-config-button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { MarkdownIcon } from "@/components/editor/cell/code/icons";
+import { asURL } from "@/utils/url";
 
 function tabTarget(path: string) {
   // Consistent tab target so we open in the same tab when clicking on the same notebook
@@ -97,7 +98,7 @@ const HomePage: React.FC = () => {
         />
       </div>
       <div className="flex flex-col gap-8 max-w-5xl container pt-10 pb-20 z-10">
-        <img src="/logo.png" alt="Marimo Logo" className="w-64 mb-4" />
+        <img src="logo.png" alt="marimo logo" className="w-64 mb-4" />
         <CreateNewNotebook />
         <NotebookList
           header="Running notebooks"
@@ -177,8 +178,8 @@ const NotebookList: React.FC<{
           // We want to keep the sessionId in this case
           const isNewNotebook = isSessionId(file.path);
           const href = isNewNotebook
-            ? `/?file=${file.initializationId}&session_id=${file.path}`
-            : `/?file=${file.path}`;
+            ? asURL(`?file=${file.initializationId}&session_id=${file.path}`)
+            : asURL(`?file=${file.path}`);
 
           const isMarkdown = file.path.endsWith(".md");
 
@@ -186,7 +187,7 @@ const NotebookList: React.FC<{
             <a
               className="py-2 px-4 hover:bg-[var(--blue-2)] hover:text-primary transition-all duration-300 cursor-pointer group relative"
               key={file.path}
-              href={href}
+              href={href.toString()}
               target={tabTarget(file.initializationId || file.path)}
             >
               <div className="flex flex-col justify-between">
@@ -283,7 +284,7 @@ const CreateNewNotebook: React.FC = () => {
       text-primary hover:bg-[var(--blue-2)] shadow-smAccent border
       transition-all duration-300 cursor-pointer
       "
-      href={`/?file=${initializationId}`}
+      href={asURL(`?file=${initializationId}`).toString()}
       target={tabTarget(initializationId)}
     >
       <h2 className="text-lg font-semibold">Create a new notebook</h2>

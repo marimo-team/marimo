@@ -35,6 +35,20 @@ describe("asURL function", () => {
       const result = asURL(path);
       expect(result.toString()).toBe("https://example.com/path/to/resource");
     });
+
+    test("relative with query params", () => {
+      const path = "path/to/resource?query=param";
+      const result = asURL(path);
+      expect(result.toString()).toBe(
+        "https://example.com/path/to/resource?query=param",
+      );
+    });
+
+    test("just query params", () => {
+      const path = "?query=param";
+      const result = asURL(path);
+      expect(result.toString()).toBe("https://example.com/?query=param");
+    });
   });
 
   describe("when document.baseURI is set", () => {
@@ -47,16 +61,14 @@ describe("asURL function", () => {
     });
 
     test('should handle relative path starting with "./"', () => {
-      const path = "./path/to/resource";
-      const result = asURL(path);
+      const result = asURL("./path/to/resource");
       expect(result.toString()).toBe(
         "https://example.com/base/path/to/resource",
       );
     });
 
     test('should handle absolute path starting with "/"', () => {
-      const path = "/path/to/resource";
-      const result = asURL(path);
+      const result = asURL("/path/to/resource");
       expect(result.toString()).toBe("https://example.com/path/to/resource");
     });
 
@@ -67,11 +79,22 @@ describe("asURL function", () => {
     });
 
     test('should handle relative path without "./"', () => {
-      const path = "path/to/resource";
-      const result = asURL(path);
+      const result = asURL("path/to/resource");
       expect(result.toString()).toBe(
         "https://example.com/base/path/to/resource",
       );
+    });
+
+    test("relative with query params", () => {
+      const result = asURL("path/to/resource?query=param");
+      expect(result.toString()).toBe(
+        "https://example.com/base/path/to/resource?query=param",
+      );
+    });
+
+    test("just query params", () => {
+      const result = asURL("?query=param");
+      expect(result.toString()).toBe("https://example.com/base/?query=param");
     });
   });
 });

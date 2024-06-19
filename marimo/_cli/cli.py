@@ -236,6 +236,14 @@ edit_help_msg = "\n".join(
     type=str,
     help=token_password_message,
 )
+@click.option(
+    "--base-url",
+    default="",
+    show_default=True,
+    type=str,
+    help="Base URL for the server. Should start with a /.",
+    callback=validators.base_url,
+)
 @click.argument("name", required=False)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def edit(
@@ -245,6 +253,7 @@ def edit(
     headless: bool,
     token: bool,
     token_password: Optional[str],
+    base_url: str,
     name: Optional[str],
     args: tuple[str],
 ) -> None:
@@ -287,6 +296,7 @@ def edit(
         watch=False,
         cli_args=parse_args(args),
         auth_token=_resolve_token(token, token_password),
+        base_url=base_url,
     )
 
 
@@ -334,6 +344,14 @@ def edit(
     type=str,
     help=token_password_message,
 )
+@click.option(
+    "--base-url",
+    default="",
+    show_default=True,
+    type=str,
+    help="Base URL for the server. Should start with a /.",
+    callback=validators.base_url,
+)
 def new(
     port: Optional[int],
     host: str,
@@ -341,6 +359,7 @@ def new(
     headless: bool,
     token: bool,
     token_password: Optional[str],
+    base_url: str,
 ) -> None:
     start(
         file_router=AppFileRouter.new_file(),
@@ -355,6 +374,7 @@ def new(
         watch=False,
         cli_args={},
         auth_token=_resolve_token(token, token_password),
+        base_url=base_url,
     )
 
 
