@@ -163,7 +163,10 @@ async def usage(request: Request) -> JSONResponse:
     server_memory = main_process.memory_info().rss
     children = main_process.children(recursive=True)
     for child in children:
-        server_memory += child.memory_info().rss
+        try:
+            server_memory += child.memory_info().rss
+        except psutil.NoSuchProcess:
+            pass
 
     # Kernel memory
     kernel_memory: Optional[int] = None
@@ -173,7 +176,10 @@ async def usage(request: Request) -> JSONResponse:
         kernel_memory = kernel_process.memory_info().rss
         kernel_children = kernel_process.children(recursive=True)
         for child in kernel_children:
-            kernel_memory += child.memory_info().rss
+            try:
+                kernel_memory += child.memory_info().rss
+            except psutil.NoSuchProcess:
+                pass
 
     return JSONResponse(
         {
