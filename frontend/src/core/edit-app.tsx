@@ -57,6 +57,7 @@ import { getSessionId } from "./kernel/session";
 import { updateQueryParams } from "@/utils/urls";
 import { AppHeader } from "@/components/editor/header/app-header";
 import { AppContainer } from "../components/editor/app-container";
+import { Paths } from "@/utils/paths";
 
 interface AppProps {
   userConfig: UserConfig;
@@ -68,7 +69,6 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   const { setCells, updateCellCode } = useCellActions();
   const [viewState, setViewState] = useAtom(viewStateAtom);
   const [filename, setFilename] = useFilename();
-  const filetitle = filename ? filename.split("/").pop() : null;
   const [lastSavedNotebook, setLastSavedNotebook] =
     useState<LastSavedNotebook>();
   const layout = useLayoutState();
@@ -121,7 +121,7 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
         setFilename(name);
         // Set document title: app_title takes precedence, then filename, then default
         document.title =
-          appConfig.app_title || filetitle || "Untitled Notebook";
+          appConfig.app_title || Paths.basename(name) || "Untitled Notebook";
         return name;
       })
       .catch((error) => {
@@ -133,8 +133,11 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   // Update document title whenever filename or app_title changes
   useEffect(() => {
     // Set document title: app_title takes precedence, then filename, then default
-    document.title = appConfig.app_title || filetitle || "Untitled Notebook";
-  }, [appConfig.app_title, filetitle]);
+    document.title =
+      appConfig.app_title ||
+      Paths.basename(filename ?? "") ||
+      "Untitled Notebook";
+  }, [appConfig.app_title, filename]);
 
   const cells = notebookCells(notebook);
   const cellIds = cells.map((cell) => cell.id);
