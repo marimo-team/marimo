@@ -52,7 +52,7 @@ import { useRunStaleCells } from "../components/editor/cell/useRunCells";
 import { formatAll } from "./codemirror/format";
 import { cn } from "@/utils/cn";
 import { isStaticNotebook } from "./static/static-state";
-import { useFilename } from "./saving/filename";
+import { useFilename, useFiletitle } from "./saving/filename";
 import { getSessionId } from "./kernel/session";
 import { updateQueryParams } from "@/utils/urls";
 import { AppHeader } from "@/components/editor/header/app-header";
@@ -68,6 +68,7 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   const { setCells, updateCellCode } = useCellActions();
   const [viewState, setViewState] = useAtom(viewStateAtom);
   const [filename, setFilename] = useFilename();
+  const [filetitle] = useFiletitle();
   const [lastSavedNotebook, setLastSavedNotebook] =
     useState<LastSavedNotebook>();
   const layout = useLayoutState();
@@ -119,7 +120,8 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       .then(() => {
         setFilename(name);
         // Set document title: app_title takes precedence, then filename, then default
-        document.title = appConfig.app_title || name || "Untitled Notebook";
+        document.title =
+          appConfig.app_title || filetitle || "Untitled Notebook";
         return name;
       })
       .catch((error) => {
@@ -131,8 +133,8 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   // Update document title whenever filename or app_title changes
   useEffect(() => {
     // Set document title: app_title takes precedence, then filename, then default
-    document.title = appConfig.app_title || filename || "Untitled Notebook";
-  }, [appConfig.app_title, filename]);
+    document.title = appConfig.app_title || filetitle || "Untitled Notebook";
+  }, [appConfig.app_title, filetitle]);
 
   const cells = notebookCells(notebook);
   const cellIds = cells.map((cell) => cell.id);
