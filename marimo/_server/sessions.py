@@ -400,6 +400,7 @@ class Session:
         self.message_distributor.start()
         self.heartbeat_task: Optional[asyncio.Task[Any]] = None
         self._start_heartbeat()
+        self._closed = False
 
     def _start_heartbeat(self) -> None:
         def _check_alive() -> None:
@@ -498,6 +499,8 @@ class Session:
 
     def connection_state(self) -> ConnectionState:
         """Return the connection state of the session."""
+        if self._closed:
+            return ConnectionState.CLOSED
         if self.room.main_consumer is None:
             return ConnectionState.ORPHANED
         return self.room.main_consumer.connection_state()
@@ -513,6 +516,7 @@ class Session:
 
         This will close the session consumer, kernel, and all kiosk consumers.
         """
+        self._closed = True
         # Close the room
         self.room.close()
         # Close the kernel
