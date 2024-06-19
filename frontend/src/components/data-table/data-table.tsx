@@ -2,12 +2,14 @@
 import React, { memo, useEffect, useState } from "react";
 import {
   ColumnDef,
+  ColumnFiltersState,
   OnChangeFn,
   PaginationState,
   RowSelectionState,
   SortingState,
   flexRender,
   getCoreRowModel,
+  getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
@@ -50,6 +52,8 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   enableSearch?: boolean;
   searchQuery?: string;
   onSearchQueryChange?: (query: string) => void;
+  filters?: ColumnFiltersState;
+  onFiltersChange?: OnChangeFn<ColumnFiltersState>;
   reloading?: boolean;
 }
 
@@ -68,6 +72,8 @@ const DataTableInternal = <TData,>({
   enableSearch = false,
   searchQuery,
   onSearchQueryChange,
+  filters,
+  onFiltersChange,
   reloading,
 }: DataTableProps<TData>) => {
   const [isSearchEnabled, setIsSearchEnabled] = React.useState<boolean>(false);
@@ -93,10 +99,15 @@ const DataTableInternal = <TData,>({
     onSortingChange: setSorting,
     manualSorting: true,
     getSortedRowModel: getSortedRowModel(),
+    // filtering
+    manualFiltering: true,
+    getFilteredRowModel: getFilteredRowModel(),
+    onColumnFiltersChange: onFiltersChange,
     // selection
     onRowSelectionChange: onRowSelectionChange,
     state: {
       sorting,
+      columnFilters: filters,
       pagination: pagination
         ? { ...paginationState, pageSize: pageSize }
         : { pageIndex: 0, pageSize: data.length },

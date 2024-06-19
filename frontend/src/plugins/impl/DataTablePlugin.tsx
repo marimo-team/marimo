@@ -12,7 +12,7 @@ import { Alert, AlertTitle } from "@/components/ui/alert";
 import { rpc } from "../core/rpc";
 import { createPlugin } from "../core/builder";
 import { vegaLoadData } from "./vega/loader";
-import { VegaType } from "./vega/vega-loader";
+import { DataType } from "./vega/vega-loader";
 import { getVegaFieldTypes } from "./vega/utils";
 import { Arrays } from "@/utils/arrays";
 import { Banner } from "./common/error-banner";
@@ -24,6 +24,7 @@ import { LoadingTable } from "@/components/data-table/loading-table";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { ColumnHeaderSummary } from "@/components/data-table/types";
 import {
+  ColumnFiltersState,
   OnChangeFn,
   RowSelectionState,
   SortingState,
@@ -31,6 +32,11 @@ import {
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import useEvent from "react-use-event-hook";
 import { Functions } from "@/utils/functions";
+import { ConditionSchema, ConditionType } from "./data-frames/schema";
+import {
+  ColumnFilterValue,
+  filterToFilterCondition,
+} from "@/components/data-table/filters";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -52,7 +58,7 @@ interface Data<T> {
   showDownload: boolean;
   showColumnSummaries: boolean;
   rowHeaders: Array<[string, string[]]>;
-  fieldTypes?: Record<string, VegaType> | null;
+  fieldTypes?: Record<string, DataType> | null;
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -67,6 +73,7 @@ type Functions = {
       descending: boolean;
     };
     query?: string;
+    filters?: ConditionType[];
   }) => Promise<TableData<T>>;
 };
 
@@ -119,6 +126,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             .object({ by: z.string(), descending: z.boolean() })
             .optional(),
           query: z.string().optional(),
+          filters: z.array(ConditionSchema).optional(),
         }),
       )
       .output(z.union([z.string(), z.array(z.object({}).passthrough())])),
@@ -145,6 +153,8 @@ interface DataTableProps<T> extends Data<T>, Functions {
   setValue: (value: S) => void;
   // Search
   enableSearch: boolean;
+  // Filters
+  enableFilters?: boolean;
 }
 
 interface DataTableSearchProps {
@@ -155,6 +165,9 @@ interface DataTableSearchProps {
   searchQuery: string | undefined;
   setSearchQuery: ((query: string) => void) | undefined;
   reloading: boolean;
+  // Filters
+  filters?: ColumnFiltersState;
+  setFilters?: OnChangeFn<ColumnFiltersState>;
 }
 
 export const LoadingDataTableComponent = memo(
@@ -165,6 +178,7 @@ export const LoadingDataTableComponent = memo(
     // Sorting/searching state
     const [sorting, setSorting] = useState<SortingState>([]);
     const [searchQuery, setSearchQuery] = useState<string>("");
+    const [filters, setFilters] = useState<ColumnFiltersState>([]);
 
     // Data loading
     const { data, loading, error } = useAsyncData<T[]>(async () => {
@@ -181,7 +195,8 @@ export const LoadingDataTableComponent = memo(
       }
 
       // If we have sort configuration, fetch the sorted data
-      if (sorting.length > 0 || searchQuery) {
+      if (sorting.length > 0 || searchQuery || filters.length > 0) {
+        console.warn("searching", { sorting, searchQuery, filters });
         const searchResults = await search<T>({
           sort:
             sorting.length > 0
@@ -191,6 +206,12 @@ export const LoadingDataTableComponent = memo(
                 }
               : undefined,
           query: searchQuery,
+          filters: filters.flatMap((filter) => {
+            return filterToFilterCondition(
+              filter.id,
+              filter.value as ColumnFilterValue,
+            );
+          }),
         });
 
         tableData = searchResults;
@@ -210,7 +231,7 @@ export const LoadingDataTableComponent = memo(
         { type: "csv", parse: getVegaFieldTypes(props.fieldTypes) },
         { handleBigInt: true },
       );
-    }, [sorting, search, searchQuery, props.fieldTypes, props.data]);
+    }, [sorting, search, filters, searchQuery, props.fieldTypes, props.data]);
 
     // Column summaries
     const { data: columnSummaries, error: columnSummariesError } =
@@ -258,6 +279,8 @@ export const LoadingDataTableComponent = memo(
           setSorting={setSorting}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
+          filters={filters}
+          setFilters={setFilters}
           reloading={loading}
         />
       </>
@@ -288,6 +311,8 @@ const DataTableComponent = ({
   enableSearch,
   searchQuery,
   setSearchQuery,
+  filters,
+  setFilters,
   reloading,
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
@@ -312,8 +337,9 @@ const DataTableComponent = ({
         rowHeaders: generateIndexColumns(rowHeaders),
         selection,
         showColumnSummaries: showColumnSummaries,
+        fieldTypes: fieldTypes ?? {},
       }),
-    [data, selection, rowHeaders, showColumnSummaries],
+    [data, selection, fieldTypes, rowHeaders, showColumnSummaries],
   );
 
   const rowSelection = Object.fromEntries((value || []).map((v) => [v, true]));
@@ -365,6 +391,8 @@ const DataTableComponent = ({
             enableSearch={enableSearch}
             searchQuery={searchQuery}
             onSearchQueryChange={setSearchQuery}
+            filters={filters}
+            onFiltersChange={setFilters}
             reloading={reloading}
             onRowSelectionChange={handleRowSelectionChange}
           />

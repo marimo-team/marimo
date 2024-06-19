@@ -65,6 +65,8 @@ const buttonVariants = cva(
           "active:text-accent-foreground",
         ),
         link: "underline-offset-4 hover:underline text-link",
+        linkDestructive:
+          "underline-offset-4 hover:underline text-destructive underline-destructive",
       },
       size: {
         default: "h-10 py-2 px-4",

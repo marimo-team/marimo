@@ -6,8 +6,10 @@ import {
 } from "./column-header";
 import { Checkbox } from "../ui/checkbox";
 import { MimeCell } from "./mime-cell";
-import { TableColumnSummary } from "./column-summary";
 import { uniformSample } from "./uniformSample";
+import { DataType } from "@/core/kernel/messages";
+import { TableColumnSummary } from "./column-summary";
+import { FilterType } from "./filters";
 
 interface ColumnInfo {
   key: string;
@@ -66,11 +68,13 @@ export function generateColumns<T>({
   rowHeaders,
   selection,
   showColumnSummaries,
+  fieldTypes,
 }: {
   items: T[];
   rowHeaders: Array<ColumnDef<T>>;
   selection: "single" | "multi" | null;
   showColumnSummaries: boolean;
+  fieldTypes?: Record<string, DataType>;
 }): Array<ColumnDef<T>> {
   const columnInfo = getColumnInfo(items);
 
@@ -109,6 +113,11 @@ export function generateColumns<T>({
         return <MimeCell value={value} />;
       },
       enableSorting: info.type === "primitive",
+      enableColumnFilter: !!getFilterTypeForFieldType(fieldTypes?.[info.key]),
+      meta: {
+        type: info.type,
+        filterType: getFilterTypeForFieldType(fieldTypes?.[info.key]),
+      },
     }),
   );
 
@@ -177,4 +186,26 @@ function isPrimitiveOrNullish(value: unknown): boolean {
   }
   const isObject = typeof value === "object";
   return !isObject;
+}
+
+function getFilterTypeForFieldType(
+  type: DataType | undefined,
+): FilterType | undefined {
+  if (type === undefined) {
+    return undefined;
+  }
+  switch (type) {
+    case "string":
+      return "text";
+    case "number":
+      return "number";
+    case "integer":
+      return "number";
+    case "date":
+      return "date";
+    case "boolean":
+      return "boolean";
+    default:
+      return undefined;
+  }
 }
