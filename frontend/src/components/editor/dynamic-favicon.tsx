@@ -90,7 +90,7 @@ export const DynamicFavicon = (props: Props) => {
 
   // When notebook comes back in focus, reset favicon
   useEventListener(window, "focus", (_) => {
-    if (document.visibilityState === "visible" && document.hasFocus()) {
+    if (!isRunning) {
       favicon.href = FAVICONS.idle;
     }
   });
