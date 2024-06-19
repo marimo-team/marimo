@@ -5,15 +5,6 @@ import { getFilenameFromDOM } from "../dom/htmlUtils";
 
 const filenameAtom = atom<string | null>(getFilenameFromDOM());
 
-const filetitleAtom = atom((get) => {
-  const filename = get(filenameAtom);
-  return filename ? filename.split("/").pop() : null;
-});
-
 export function useFilename() {
   return useAtom(filenameAtom);
-}
-
-export function useFiletitle() {
-  return useAtom(filetitleAtom);
 }

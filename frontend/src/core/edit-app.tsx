@@ -52,7 +52,7 @@ import { useRunStaleCells } from "../components/editor/cell/useRunCells";
 import { formatAll } from "./codemirror/format";
 import { cn } from "@/utils/cn";
 import { isStaticNotebook } from "./static/static-state";
-import { useFilename, useFiletitle } from "./saving/filename";
+import { useFilename } from "./saving/filename";
 import { getSessionId } from "./kernel/session";
 import { updateQueryParams } from "@/utils/urls";
 import { AppHeader } from "@/components/editor/header/app-header";
@@ -68,7 +68,7 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   const { setCells, updateCellCode } = useCellActions();
   const [viewState, setViewState] = useAtom(viewStateAtom);
   const [filename, setFilename] = useFilename();
-  const [filetitle] = useFiletitle();
+  const filetitle = filename ? filename.split("/").pop() : null;
   const [lastSavedNotebook, setLastSavedNotebook] =
     useState<LastSavedNotebook>();
   const layout = useLayoutState();
