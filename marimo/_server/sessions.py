@@ -26,7 +26,7 @@ import threading
 from multiprocessing import connection
 from multiprocessing.queues import Queue as MPQueue
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Dict, Optional
 from uuid import uuid4
 
 from marimo import _loggers
@@ -55,7 +55,7 @@ from marimo._runtime.requests import (
 from marimo._server.exceptions import InvalidSessionException
 from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter, MarimoFileKey
-from marimo._server.ids import SessionId
+from marimo._server.ids import ConsumerId, SessionId
 from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
 from marimo._server.models.models import InstantiateRequest
 from marimo._server.recents import RecentFilesManager
@@ -272,6 +272,58 @@ class KernelManager:
         return self._read_conn
 
 
+class Room:
+    """
+    A room is a collection of SessionConsumers
+    that can be used to broadcast messages to all
+    of them.
+    """
+
+    def __init__(self) -> None:
+        self.main_consumer: Optional[SessionConsumer] = None
+        self.consumers: Dict[SessionConsumer, ConsumerId] = {}
+        self.disposables: Dict[SessionConsumer, Disposable] = {}
+
+    def add_consumer(
+        self,
+        consumer: SessionConsumer,
+        dispose: Disposable,
+        consumer_id: ConsumerId,
+        # Whether the consumer is the main session consumer
+        # We only allow one main consumer, the rest are kiosk consumers
+        main: bool,
+    ) -> None:
+        self.consumers[consumer] = consumer_id
+        self.disposables[consumer] = dispose
+        if main:
+            assert (
+                self.main_consumer is None
+            ), "Main session consumer already exists"
+            self.main_consumer = consumer
+
+    def remove_consumer(self, consumer: SessionConsumer) -> None:
+        assert consumer in self.consumers, "Consumer not in room"
+
+        if consumer == self.main_consumer:
+            self.main_consumer = None
+        self.consumers.pop(consumer)
+        disposable = self.disposables.pop(consumer)
+        consumer.on_stop()
+        disposable.dispose()
+
+    def broadcast(self, operation: MessageOperation) -> None:
+        for consumer in self.consumers:
+            consumer.write_operation(operation)
+
+    def close(self) -> None:
+        for consumer in self.consumers:
+            disposable = self.disposables.pop(consumer)
+            consumer.on_stop()
+            disposable.dispose()
+        self.consumers = {}
+        self.main_consumer = None
+
+
 class Session:
     """A client session.
 
@@ -329,13 +381,7 @@ class Session:
         self.initialization_id = initialization_id
         self._queue_manager: QueueManager
         self.app_file_manager = app_file_manager
-        # This can be optional in case a consumer gets disconnected,
-        # and we want to continue the session without a consumer.
-        self.session_consumer: Optional[SessionConsumer] = None
-        # Map of kiosk consumers to their unsubscribe functions
-        # Kiosk consumers are consumers have edit permissions but are not
-        # the main session consumer.
-        self.kiosk_consumers: Dict[SessionConsumer, Callable[[], None]] = {}
+        self.room = Room()
         self._queue_manager = queue_manager
         self.kernel_manager = kernel_manager
         self.session_view = SessionView()
@@ -349,7 +395,7 @@ class Session:
         self.message_distributor.add_consumer(
             lambda msg: self.session_view.add_raw_operation(msg[1])
         )
-        self.connect_consumer(session_consumer)
+        self.connect_consumer(session_consumer, main=True)
 
         self.message_distributor.start()
         self._start_heartbeat()
@@ -382,18 +428,16 @@ class Session:
         self._queue_manager.control_queue.put(request)
         if isinstance(request, SetUIElementValueRequest):
             self._queue_manager.set_ui_element_queue.put(request)
-        # Propagate the control request to the kiosk consumers
+        # Propagate the control request to the room
         if isinstance(request, ExecuteMultipleRequest):
-            operation = UpdateCellCodes(
-                cell_ids=request.cell_ids,
-                codes=request.codes,
+            self.room.broadcast(
+                UpdateCellCodes(
+                    cell_ids=request.cell_ids,
+                    codes=request.codes,
+                )
             )
-            for kiosk_consumer in self.kiosk_consumers:
-                kiosk_consumer.write_operation(operation)
-                if len(request.cell_ids) == 1:
-                    kiosk_consumer.write_operation(
-                        FocusCell(cell_id=request.cell_ids[0])
-                    )
+            if len(request.cell_ids) == 1:
+                self.room.broadcast(FocusCell(cell_id=request.cell_ids[0]))
         self.session_view.add_control_request(request)
 
     def put_completion_request(
@@ -414,60 +458,32 @@ class Session:
         This will disconnect the main session consumer,
         or a kiosk consumer.
         """
-        if (
-            self.session_consumer is not None
-            and self.session_consumer is session_consumer
-        ):
-            self.session_consumer.on_stop()
-            self.unsubscribe_consumer()
-            self.session_consumer = None
-            LOGGER.debug("Disconnecting session consumer")
-        elif session_consumer in self.kiosk_consumers:
-            self._disconnect_kiosk_consumer(session_consumer)
-            LOGGER.debug("Disconnecting kiosk consumer")
-        else:
-            LOGGER.warning(
-                "Tried to disconnect a consumer that was not connected"
-            )
+        self.room.remove_consumer(session_consumer)
 
     def maybe_disconnect_consumer(self) -> None:
         """
         Disconnect the main session consumer if it connected.
         """
-        if self.session_consumer is not None:
-            self.disconnect_consumer(self.session_consumer)
+        if self.room.main_consumer is not None:
+            self.disconnect_consumer(self.room.main_consumer)
 
-    def connect_consumer(self, session_consumer: SessionConsumer) -> None:
-        """
-        Connect or resume the session with a new consumer
-        Raises an error if there is already a consumer connected
-        """
-        assert (
-            self.session_consumer is None
-        ), "Expecting no existing session consumer"
-
-        self.session_consumer = session_consumer
-
-        subscribe = self.session_consumer.on_start()
-        self.unsubscribe_consumer = self.message_distributor.add_consumer(
-            subscribe
-        )
-
-    def connect_kiosk_consumer(
-        self, session_consumer: SessionConsumer
+    def connect_consumer(
+        self, session_consumer: SessionConsumer, *, main: bool
     ) -> None:
-        """Connect a kiosk consumer to the session"""
+        """
+        Connect or resume the session with a new consumer.
+
+        If its the main consumer and one already exists,
+        an exception is raised.
+        """
         subscribe = session_consumer.on_start()
-        unsubscribe = self.message_distributor.add_consumer(subscribe)
-        self.kiosk_consumers[session_consumer] = unsubscribe
-
-    def _disconnect_kiosk_consumer(
-        self, session_consumer: SessionConsumer
-    ) -> None:
-        """Disconnect a kiosk consumer from the session"""
-        if session_consumer in self.kiosk_consumers:
-            unsubscribe = self.kiosk_consumers.pop(session_consumer)
-            unsubscribe()
+        unsubscribe_consumer = self.message_distributor.add_consumer(subscribe)
+        self.room.add_consumer(
+            session_consumer,
+            unsubscribe_consumer,
+            session_consumer.consumer_id,
+            main=main,
+        )
 
     def get_current_state(self) -> SessionView:
         """Return the current state of the session."""
@@ -475,17 +491,14 @@ class Session:
 
     def connection_state(self) -> ConnectionState:
         """Return the connection state of the session."""
-        if self.session_consumer is None:
+        if self.room.main_consumer is None:
             return ConnectionState.ORPHANED
-        return self.session_consumer.connection_state()
+        return self.room.main_consumer.connection_state()
 
     def write_operation(self, operation: MessageOperation) -> None:
         """Write an operation to the session consumer and the session view."""
         self.session_view.add_operation(operation)
-        if self.session_consumer is not None:
-            self.session_consumer.write_operation(operation)
-        for kiosk_consumer in self.kiosk_consumers:
-            kiosk_consumer.write_operation(operation)
+        self.room.broadcast(operation)
 
     def close(self) -> None:
         """
@@ -493,14 +506,8 @@ class Session:
 
         This will close the session consumer, kernel, and all kiosk consumers.
         """
-        # Close the session consumer if it exists
-        if self.session_consumer is not None:
-            self.session_consumer.on_stop()
-        self.unsubscribe_consumer()
-        # Close all kiosk consumers
-        for kiosk_consumer, unsubscribe in self.kiosk_consumers.items():
-            kiosk_consumer.on_stop()
-            unsubscribe()
+        # Close the room
+        self.room.close()
         # Close the kernel
         self.message_distributor.stop()
         if self.heartbeat_task:
@@ -530,7 +537,7 @@ class Session:
             self,
             {
                 "connection_state": self.connection_state(),
-                "consumer": self.session_consumer,
+                "room": self.room,
             },
         )
 
@@ -641,7 +648,22 @@ class SessionManager:
         return self.sessions[session_id]
 
     def get_session(self, session_id: SessionId) -> Optional[Session]:
-        return self.sessions.get(session_id)
+        session = self.sessions.get(session_id)
+        if session:
+            return session
+
+        # Search for kiosk sessions
+        for session in self.sessions.values():
+            if session_id in session.room.consumers.values():
+                return session
+
+    def get_session_by_file_key(
+        self, file_key: MarimoFileKey
+    ) -> Optional[Session]:
+        for session in self.sessions.values():
+            if session.initialization_id == file_key:
+                return session
+        return None
 
     def maybe_resume_session(
         self, new_session_id: SessionId, file_key: MarimoFileKey

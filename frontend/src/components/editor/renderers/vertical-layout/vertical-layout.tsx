@@ -221,8 +221,11 @@ const VerticalCell = memo(
       false,
     );
 
+    // Kiosk and not presenting
+    const kioskFull = kiosk && mode !== "present";
+
     const className = cn("Cell", "hover-actions-parent", {
-      published: !showCode && !kiosk,
+      published: !showCode && !kioskFull,
       interactive: mode === "edit",
       "has-error": errored,
       stopped: stopped,
@@ -231,7 +234,7 @@ const VerticalCell = memo(
     const HTMLId = HTMLCellId.create(cellId);
 
     // Read mode and show code
-    if ((mode === "read" && showCode) || kiosk) {
+    if ((mode === "read" && showCode) || kioskFull) {
       return (
         <div tabIndex={-1} id={HTMLId} ref={cellRef} className={className}>
           <OutputArea

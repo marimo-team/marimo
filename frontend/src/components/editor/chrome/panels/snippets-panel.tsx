@@ -28,6 +28,7 @@ import { useCellActions } from "@/core/cells/cells";
 import { cn } from "@/utils/cn";
 import { ContributeSnippetButton } from "../components/contribute-snippet-button";
 import { Spinner } from "@/components/icons/spinner";
+import { HideInKioskMode } from "../../kiosk-mode";
 
 const extensions = [EditorView.lineWrapping];
 
@@ -128,15 +129,17 @@ const SnippetViewer: React.FC<{ snippet: Snippet }> = ({ snippet }) => {
       </div>
       <div className="px-2 py-2 space-y-4 overflow-auto flex-1">
         <div className="flex justify-end">
-          <Button
-            className="float-right"
-            size="xs"
-            variant="outline"
-            onClick={handleInsertSnippet}
-          >
-            Insert snippet
-            <BetweenHorizontalStartIcon className="ml-2 h-4 w-4" />
-          </Button>
+          <HideInKioskMode>
+            <Button
+              className="float-right"
+              size="xs"
+              variant="outline"
+              onClick={handleInsertSnippet}
+            >
+              Insert snippet
+              <BetweenHorizontalStartIcon className="ml-2 h-4 w-4" />
+            </Button>
+          </HideInKioskMode>
         </div>
         {snippet.sections.map((section) => {
           const { code, html, id } = section;
@@ -157,18 +160,20 @@ const SnippetViewer: React.FC<{ snippet: Snippet }> = ({ snippet }) => {
               className="relative hover-actions-parent pr-2"
               key={`${snippet.title}-${id}`}
             >
-              <Tooltip content="Insert snippet">
-                <Button
-                  className="absolute -top-2 -right-1 z-10 hover-action px-2 bg-background"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    handleInsertCode(code);
-                  }}
-                >
-                  <BetweenHorizontalStartIcon className="h-5 w-5" />
-                </Button>
-              </Tooltip>
+              <HideInKioskMode>
+                <Tooltip content="Insert snippet">
+                  <Button
+                    className="absolute -top-2 -right-1 z-10 hover-action px-2 bg-background"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      handleInsertCode(code);
+                    }}
+                  >
+                    <BetweenHorizontalStartIcon className="h-5 w-5" />
+                  </Button>
+                </Tooltip>
+              </HideInKioskMode>
               <LazyAnyLanguageCodeMirror
                 key={`${snippet.title}-${id}`}
                 theme={theme === "dark" ? "dark" : "light"}

@@ -28,6 +28,7 @@ from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.params import QueryParams
 from marimo._server.api.deps import AppState
 from marimo._server.file_router import MarimoFileKey
+from marimo._server.ids import ConsumerId
 from marimo._server.model import (
     ConnectionState,
     SessionConsumer,
@@ -130,6 +131,8 @@ class WebsocketHandler(SessionConsumer):
         # to be sent to the frontend
         self.message_queue: asyncio.Queue[KernelMessage]
 
+        super().__init__(consumer_id=ConsumerId(session_id))
+
     def _write_kernel_ready(
         self,
         session: Session,
@@ -211,7 +214,7 @@ class WebsocketHandler(SessionConsumer):
             self.cancel_close_handle.cancel()
 
         self.status = ConnectionState.OPEN
-        session.connect_consumer(self)
+        session.connect_consumer(self, main=True)
 
         # Write reconnected message
         self.write_operation(Reconnected())
@@ -266,7 +269,7 @@ class WebsocketHandler(SessionConsumer):
         """
 
         self.status = ConnectionState.OPEN
-        session.connect_kiosk_consumer(self)
+        session.connect_consumer(self, main=False)
 
         operations = session.get_current_state().operations
         # Replay the current session view
@@ -327,8 +330,14 @@ class WebsocketHandler(SessionConsumer):
                 kiosk_session = mgr.get_session(session_id)
                 if kiosk_session is None:
                     LOGGER.debug(
-                        "Session %s not found for kiosk",
+                        "Kiosk session not found for session id %s",
                         session_id,
+                    )
+                    kiosk_session = mgr.get_session_by_file_key(self.file_key)
+                if kiosk_session is None:
+                    LOGGER.debug(
+                        "Kiosk session not found for file key %s",
+                        self.file_key,
                     )
                     raise WebSocketDisconnect(
                         WebSocketCodes.NORMAL_CLOSE, "MARIMO_NO_SESSION"
