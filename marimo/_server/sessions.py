@@ -398,6 +398,7 @@ class Session:
         self.connect_consumer(session_consumer, main=True)
 
         self.message_distributor.start()
+        self.heartbeat_task: Optional[asyncio.Task[Any]] = None
         self._start_heartbeat()
 
     def _start_heartbeat(self) -> None:
