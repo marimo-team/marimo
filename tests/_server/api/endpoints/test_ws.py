@@ -219,7 +219,7 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
             assert_kernel_ready_response(
                 data, create_response({"kiosk": True, "resumed": True})
             )
-        client.post("/api/kernel/shutdown", headers=HEADERS)
+    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 async def test_cannot_connect_kiosk_with_run_session(
