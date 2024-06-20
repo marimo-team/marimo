@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useId } from "react";
+import { useId, useState } from "react";
 import { z } from "zod";
 
 import { IPlugin, IPluginProps, Setter } from "../types";
@@ -54,6 +54,19 @@ interface MultiselectProps extends Data {
 
 const Multiselect = (props: MultiselectProps): JSX.Element => {
   const id = useId();
+  const [filteredOptions, setFilteredOptions] = useState(props.options);
+
+  const filterOptions = (search: string) => {
+    if (!search) {
+      setFilteredOptions(props.options);
+      return;
+    }
+    setFilteredOptions(
+      props.options.filter(
+        (option) => multiselectFilterFn(option, search) === 1,
+      ),
+    );
+  };
 
   function setValue(newValues: T) {
     if (props.maxSelections != null && newValues.length > props.maxSelections) {
@@ -68,19 +81,22 @@ const Multiselect = (props: MultiselectProps): JSX.Element => {
         displayValue={(option) => option}
         placeholder="Select..."
         multiple={true}
-        filterFn={multiselectFilterFn}
         className={cn({
           "w-full": props.fullWidth,
         })}
         value={props.value}
         onValueChange={(newValues) => setValue(newValues || [])}
+        shouldFilter={false}
+        customFilterFn={filterOptions}
       >
+        {/* List virtualization */}
         <Virtuoso
           style={{ height: "200px" }}
-          totalCount={props.options.length}
+          totalCount={filteredOptions.length}
+          overscan={25}
           itemContent={(i: number) => (
-            <ComboboxItem key={props.options[i]} value={props.options[i]}>
-              {props.options[i]}
+            <ComboboxItem key={filteredOptions[i]} value={filteredOptions[i]}>
+              {filteredOptions[i]}
             </ComboboxItem>
           )}
         />
