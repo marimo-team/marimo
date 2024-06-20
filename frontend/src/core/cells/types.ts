@@ -67,7 +67,7 @@ export interface CellData {
   edited: boolean;
   /** snapshot of code that was last run */
   lastCodeRun: string | null;
-  /** last execution time */
+  /** execution time on session start / resume */
   lastExecutionTime: number | null;
   /** cell configuration */
   config: CellConfig;
