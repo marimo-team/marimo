@@ -895,7 +895,10 @@ export function staleCellIds(state: NotebookState) {
     (cellId) =>
       isUninstantiated(
         autoInstantiate,
-        cellData[cellId].lastExecutionTime,
+        // runElapstedTimeMs is what we've seen in this session
+        cellRuntime[cellId].runElapsedTimeMs ??
+          // lastExecutionTime is what was seen on session start/resume
+          cellData[cellId].lastExecutionTime,
         cellRuntime[cellId].status,
         cellRuntime[cellId].errored,
         cellRuntime[cellId].interrupted,
