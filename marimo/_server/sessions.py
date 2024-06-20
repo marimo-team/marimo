@@ -366,13 +366,18 @@ class Session:
 
     def disconnect_consumer(self) -> None:
         """Stop the session consumer but keep the kernel running"""
-        assert (
-            self.session_consumer is not None
-        ), "Expecting a session consumer to pause"
+        if self.session_consumer is None:
+            LOGGER.debug(
+                "Expecting a session consumer to pause, but none found"
+            )
+            return
+
         LOGGER.debug("Disconnecting session consumer")
-        self.session_consumer.on_stop()
-        self.unsubscribe_consumer()
-        self.session_consumer = None
+        try:
+            self.session_consumer.on_stop()
+        finally:
+            self.unsubscribe_consumer()
+            self.session_consumer = None
 
     def maybe_disconnect_consumer(self) -> None:
         if self.session_consumer is not None:
