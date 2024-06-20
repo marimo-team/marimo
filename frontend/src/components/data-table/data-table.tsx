@@ -53,6 +53,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   enableSearch?: boolean;
   searchQuery?: string;
   onSearchQueryChange?: (query: string) => void;
+  enableFilters?: boolean;
   filters?: ColumnFiltersState;
   onFiltersChange?: OnChangeFn<ColumnFiltersState>;
   reloading?: boolean;
@@ -73,6 +74,7 @@ const DataTableInternal = <TData,>({
   enableSearch = false,
   searchQuery,
   onSearchQueryChange,
+  enableFilters = false,
   filters,
   onFiltersChange,
   reloading,
@@ -102,6 +104,7 @@ const DataTableInternal = <TData,>({
     getSortedRowModel: getSortedRowModel(),
     // filtering
     manualFiltering: true,
+    enableColumnFilters: enableFilters,
     getFilteredRowModel: getFilteredRowModel(),
     onColumnFiltersChange: onFiltersChange,
     // selection

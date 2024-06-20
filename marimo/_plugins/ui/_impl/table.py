@@ -233,6 +233,7 @@ class table(
                 "selection": (
                     selection if self._manager.supports_selection() else None
                 ),
+                "show-filters": self._manager.supports_filters(),
                 "show-download": self._manager.supports_download(),
                 "show-column-summaries": show_column_summaries,
                 "row-headers": self._manager.get_row_headers(),

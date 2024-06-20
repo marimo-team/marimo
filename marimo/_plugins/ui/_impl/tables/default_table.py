@@ -50,6 +50,9 @@ class DefaultTableManager(TableManager[JsonTableData]):
             or DependencyManager.has_pyarrow()
         )
 
+    def supports_filters(self) -> bool:
+        return False
+
     def to_data(self) -> JSONType:
         return self._normalize_data(self.data)
 

@@ -56,6 +56,7 @@ interface Data<T> {
   pageSize: number;
   selection: "single" | "multi" | null;
   showDownload: boolean;
+  showFilters: boolean;
   showColumnSummaries: boolean;
   rowHeaders: Array<[string, string[]]>;
   fieldTypes?: Record<string, DataType> | null;
@@ -91,6 +92,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       pageSize: z.number().default(10),
       selection: z.enum(["single", "multi"]).nullable().default(null),
       showDownload: z.boolean().default(false),
+      showFilters: z.boolean().default(false),
       showColumnSummaries: z.boolean().default(true),
       rowHeaders: z.array(z.tuple([z.string(), z.array(z.any())])),
       fieldTypes: z
@@ -196,7 +198,6 @@ export const LoadingDataTableComponent = memo(
 
       // If we have sort configuration, fetch the sorted data
       if (sorting.length > 0 || searchQuery || filters.length > 0) {
-        console.warn("searching", { sorting, searchQuery, filters });
         const searchResults = await search<T>({
           sort:
             sorting.length > 0
@@ -298,6 +299,7 @@ const DataTableComponent = ({
   pageSize,
   selection,
   value,
+  showFilters,
   showDownload,
   rowHeaders,
   showColumnSummaries,
@@ -391,6 +393,7 @@ const DataTableComponent = ({
             enableSearch={enableSearch}
             searchQuery={searchQuery}
             onSearchQueryChange={setSearchQuery}
+            enableFilters={showFilters}
             filters={filters}
             onFiltersChange={setFilters}
             reloading={reloading}
