@@ -277,6 +277,7 @@ def test_session_disconnect_reconnect() -> None:
     assert session.connection_state() == ConnectionState.CLOSED
 
 
+@save_and_restore_main
 def test_session_with_kiosk_consumers() -> None:
     session_consumer: Any = MagicMock()
     session_consumer.connection_state.return_value = ConnectionState.OPEN
