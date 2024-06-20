@@ -6,6 +6,7 @@ import { IPlugin, IPluginProps, Setter } from "../types";
 import { Combobox, ComboboxItem } from "../../components/ui/combobox";
 import { Labeled } from "./common/labeled";
 import { cn } from "@/utils/cn";
+import { Virtuoso } from "react-virtuoso";
 
 interface Data {
   label: string | null;
@@ -74,11 +75,15 @@ const Multiselect = (props: MultiselectProps): JSX.Element => {
         value={props.value}
         onValueChange={(newValues) => setValue(newValues || [])}
       >
-        {props.options.map((option) => (
-          <ComboboxItem key={option} value={option}>
-            {option}
-          </ComboboxItem>
-        ))}
+        <Virtuoso
+          style={{ height: "200px" }}
+          totalCount={props.options.length}
+          itemContent={(i: number) => (
+            <ComboboxItem key={props.options[i]} value={props.options[i]}>
+              {props.options[i]}
+            </ComboboxItem>
+          )}
+        />
       </Combobox>
     </Labeled>
   );

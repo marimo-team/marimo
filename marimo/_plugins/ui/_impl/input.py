@@ -914,17 +914,6 @@ class multiselect(UIElement[List[str], List[object]]):
         full_width: bool = False,
         max_selections: Optional[int] = None,
     ) -> None:
-        if len(options) > multiselect._MAX_OPTIONS:
-            raise ValueError(
-                "The maximum number of options allowed "
-                f"is {multiselect._MAX_OPTIONS}, but your multiselect has "
-                f"{len(options)} options. "
-                "If you really want to expose that many options, consider "
-                "using `mo.ui.text()` to let the user type an option name, "
-                "and `mo.ui.table()` to present the options matching the "
-                "user's query.",
-            )
-
         if not isinstance(options, dict):
             options = {option: option for option in options}
 
