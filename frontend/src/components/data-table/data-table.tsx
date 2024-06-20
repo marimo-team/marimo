@@ -167,6 +167,13 @@ const DataTableInternal = <TData,>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
+                  onClick={() => {
+                    // If we have any row selected, make the row
+                    // toggle selection on click
+                    if (table.getIsSomeRowsSelected()) {
+                      row.toggleSelected();
+                    }
+                  }}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
