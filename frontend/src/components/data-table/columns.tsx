@@ -113,7 +113,8 @@ export function generateColumns<T>({
         return <MimeCell value={value} />;
       },
       enableSorting: info.type === "primitive",
-      enableColumnFilter: !!getFilterTypeForFieldType(fieldTypes?.[info.key]),
+      // Remove any default filtering
+      filterFn: undefined,
       meta: {
         type: info.type,
         filterType: getFilterTypeForFieldType(fieldTypes?.[info.key]),

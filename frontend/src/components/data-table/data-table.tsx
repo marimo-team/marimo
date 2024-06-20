@@ -32,6 +32,7 @@ import { useDebounce } from "@uidotdev/usehooks";
 import useEvent from "react-use-event-hook";
 import { Tooltip } from "../ui/tooltip";
 import { Spinner } from "../icons/spinner";
+import { FilterPills } from "./filter-pills";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
@@ -143,7 +144,8 @@ const DataTableInternal = <TData,>({
   };
 
   return (
-    <div className={cn(wrapperClassName, "flex flex-col space-y-2")}>
+    <div className={cn(wrapperClassName, "flex flex-col space-y-1")}>
+      <FilterPills filters={filters} table={table} />
       <div className={cn(className || "rounded-md border")}>
         {onSearchQueryChange && enableSearch && (
           <SearchBar
@@ -190,7 +192,7 @@ const DataTableInternal = <TData,>({
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center justify-between flex-shrink-0">
+      <div className="flex items-center justify-between flex-shrink-0 pt-1">
         {onSearchQueryChange && enableSearch && (
           <Tooltip content="Search">
             <Button

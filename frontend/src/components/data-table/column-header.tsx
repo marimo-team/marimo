@@ -27,8 +27,7 @@ import { Button } from "../ui/button";
 import { useRef, useState } from "react";
 import { NumberField } from "../ui/number-field";
 import { Input } from "../ui/input";
-import { ColumnFilterForType, Filter, FilterType } from "./filters";
-import { c } from "vite/dist/node/types.d-aGj9QkWt";
+import { ColumnFilterForType, Filter } from "./filters";
 
 interface DataTableColumnHeaderProps<TData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {
@@ -41,12 +40,37 @@ export const DataTableColumnHeader = <TData, TValue>({
   header,
   className,
 }: DataTableColumnHeaderProps<TData, TValue>) => {
-  if (!column.getCanSort()) {
+  if (!column.getCanSort() && !column.getCanFilter()) {
     return <div className={cn(className)}>{header}</div>;
   }
 
   const AscIcon = ArrowDownNarrowWideIcon;
   const DescIcon = ArrowDownWideNarrowIcon;
+
+  const renderSorts = () => {
+    if (!column.getCanSort()) {
+      return null;
+    }
+    return (
+      <>
+        <DropdownMenuItem onClick={() => column.toggleSorting(false)}>
+          <AscIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+          Asc
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => column.toggleSorting(true)}>
+          <DescIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+          Desc
+        </DropdownMenuItem>
+        {column.getIsSorted() && (
+          <DropdownMenuItem onClick={() => column.clearSorting()}>
+            <ChevronsUpDown className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+            Clear sort
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+      </>
+    );
+  };
 
   return (
     <DropdownMenu modal={false}>
@@ -77,24 +101,7 @@ export const DataTableColumnHeader = <TData, TValue>({
         </div>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
-        <DropdownMenuItem onClick={() => column.toggleSorting(false)}>
-          <AscIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-          Asc
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => column.toggleSorting(true)}>
-          <DescIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-          Desc
-        </DropdownMenuItem>
-        {column.getIsSorted() && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => column.clearSorting()}>
-              <ChevronsUpDown className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-              Clear sort
-            </DropdownMenuItem>
-          </>
-        )}
-        <DropdownMenuSeparator />
+        {renderSorts()}
         <DropdownMenuItem
           onClick={() => navigator.clipboard.writeText(column.id)}
         >
@@ -166,6 +173,7 @@ export const DropdownMenuItemFilter = <TData, TValue>({
   if (filterType === "boolean") {
     return (
       <>
+        <DropdownMenuSeparator />
         <DropdownMenuSub>
           {filterMenuItem}
           <DropdownMenuPortal>
@@ -191,6 +199,7 @@ export const DropdownMenuItemFilter = <TData, TValue>({
   if (filterType === "text") {
     return (
       <>
+        <DropdownMenuSeparator />
         <DropdownMenuSub>
           {filterMenuItem}
           <DropdownMenuPortal>
@@ -204,9 +213,10 @@ export const DropdownMenuItemFilter = <TData, TValue>({
     );
   }
 
-  if (filterType === "number") {
+  if (filterType === "boolean" || filterType === "number") {
     return (
       <>
+        <DropdownMenuSeparator />
         <DropdownMenuSub>
           {filterMenuItem}
           <DropdownMenuPortal>
@@ -236,19 +246,18 @@ const NumberRangeFilter = <TData, TValue>({
   const minRef = useRef<HTMLInputElement>(null);
   const maxRef = useRef<HTMLInputElement>(null);
 
-  // TODO: this is not setting correctly
-  const handleApply = () => {
+  const handleApply = (opts: { min?: number; max?: number } = {}) => {
     column.setFilterValue(
       Filter.number({
-        min: min,
-        max: max,
+        min: opts.min ?? min,
+        max: opts.max ?? max,
       }),
     );
   };
 
   return (
     <div className="flex flex-col gap-1 pt-3 px-2">
-      <div className="flex gap-2 items-center">
+      <div className="flex gap-1 items-center">
         <NumberField
           ref={minRef}
           value={min}
@@ -256,13 +265,13 @@ const NumberRangeFilter = <TData, TValue>({
           placeholder="min"
           onKeyDown={(e) => {
             if (e.key === "Enter") {
-              handleApply();
+              handleApply({ min: Number.parseFloat(e.currentTarget.value) });
             }
             if (e.key === "Tab") {
               maxRef.current?.focus();
             }
           }}
-          className="shadow-none! border-border hover:shadow-none!"
+          className="shadow-none! border-border hover:shadow-none! w-[150px]"
         />
         <MinusIcon className="h-5 w-5 text-muted-foreground" />
         <NumberField
@@ -271,18 +280,18 @@ const NumberRangeFilter = <TData, TValue>({
           onChange={(value) => setMax(value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
-              handleApply();
+              handleApply({ max: Number.parseFloat(e.currentTarget.value) });
             }
             if (e.key === "Tab") {
               minRef.current?.focus();
             }
           }}
           placeholder="max"
-          className="shadow-none! border-border hover:shadow-none!"
+          className="shadow-none! border-border hover:shadow-none! w-[150px]"
         />
       </div>
       <div className="flex gap-2 px-2 justify-between">
-        <Button variant="link" size="sm" onClick={handleApply}>
+        <Button variant="link" size="sm" onClick={() => handleApply()}>
           Apply
         </Button>
         <Button
@@ -336,7 +345,7 @@ const TextFilter = <TData, TValue>({
         className="shadow-none! border-border hover:shadow-none!"
       />
       <div className="flex gap-2 px-2 justify-between">
-        <Button variant="link" size="sm" onClick={handleApply}>
+        <Button variant="link" size="sm" onClick={() => handleApply()}>
           Apply
         </Button>
         <Button
