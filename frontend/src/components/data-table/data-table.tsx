@@ -241,10 +241,10 @@ const SearchBar = (props: {
 
   useEffect(() => {
     if (hidden) {
-      // Reset
+      // Closing, reset
       setInternalValue("");
     } else {
-      // Focus
+      // Opening, focus
       ref.current?.focus();
     }
   }, [hidden]);
@@ -267,7 +267,6 @@ const SearchBar = (props: {
             onHide();
           }
         }}
-        autoFocus={true}
         onChange={(e) => setInternalValue(e.target.value)}
         placeholder="Search"
       />
