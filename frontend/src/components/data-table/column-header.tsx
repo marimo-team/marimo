@@ -28,6 +28,7 @@ import { useRef, useState } from "react";
 import { NumberField } from "../ui/number-field";
 import { Input } from "../ui/input";
 import { ColumnFilterForType, Filter } from "./filters";
+import { logNever } from "@/utils/assertNever";
 
 interface DataTableColumnHeaderProps<TData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {
@@ -213,7 +214,7 @@ export const DropdownMenuItemFilter = <TData, TValue>({
     );
   }
 
-  if (filterType === "boolean" || filterType === "number") {
+  if (filterType === "number") {
     return (
       <>
         <DropdownMenuSeparator />
@@ -230,6 +231,16 @@ export const DropdownMenuItemFilter = <TData, TValue>({
     );
   }
 
+  if (filterType === "select") {
+    // Not implemented
+    return null;
+  }
+  if (filterType === "date") {
+    // Not implemented
+    return null;
+  }
+
+  logNever(filterType);
   return null;
 };
 

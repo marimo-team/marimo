@@ -184,6 +184,7 @@ export const DataFrameComponent = memo(
           showDownload={false}
           download_as={Functions.THROW}
           enableSearch={false}
+          showFilters={false}
           search={({ sort }) => {
             if (sort) {
               return sort_values(sort);
