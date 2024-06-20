@@ -18,6 +18,8 @@ import {
   notebookIsRunningAtom,
   useCellActions,
   useNotebook,
+  CellEffects,
+  cellIdsAtom,
 } from "./cells/cells";
 import {
   canUndoDeletes,
@@ -57,6 +59,7 @@ import { getSessionId } from "./kernel/session";
 import { updateQueryParams } from "@/utils/urls";
 import { AppHeader } from "@/components/editor/header/app-header";
 import { AppContainer } from "../components/editor/app-container";
+import { useJotaiEffect } from "./state/jotai";
 import { Paths } from "@/utils/paths";
 
 interface AppProps {
@@ -66,6 +69,9 @@ interface AppProps {
 
 export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   const notebook = useNotebook();
+
+  useJotaiEffect(cellIdsAtom, CellEffects.onCellIdsChange);
+
   const { setCells, updateCellCode } = useCellActions();
   const [viewState, setViewState] = useAtom(viewStateAtom);
   const [filename, setFilename] = useFilename();

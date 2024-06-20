@@ -51,6 +51,7 @@ import { aiEnabledAtom, autoInstantiateAtom } from "@/core/config/config";
 import { useDeleteCellCallback } from "../cell/useDeleteCell";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { CellConfig, CellStatus } from "@/core/network/types";
+import { kioskModeAtom } from "@/core/mode";
 
 export interface CellActionButtonProps
   extends Pick<CellData, "name" | "config"> {
@@ -83,8 +84,9 @@ export function useCellActionButtons({ cell }: Props) {
   const aiEnabled = useAtomValue(aiEnabledAtom);
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const cellIds = useCellIds();
+  const kioskMode = useAtomValue(kioskModeAtom);
 
-  if (!cell) {
+  if (!cell || kioskMode) {
     return [];
   }
 

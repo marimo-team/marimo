@@ -405,6 +405,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     await this.putControlRequest(request);
     return null;
   };
+  syncCellIds = throwNotImplemented;
   getUsageStats = throwNotImplemented;
   getRecentFiles = throwNotImplemented;
   getWorkspaceFiles = throwNotImplemented;

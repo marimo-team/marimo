@@ -11,6 +11,7 @@ import { useUserConfig } from "@/core/config/config";
 import { ZapIcon, ZapOffIcon } from "lucide-react";
 import { saveUserConfig } from "@/core/network/requests";
 import { UserConfig } from "@/core/config/config-schema";
+import { ShowInKioskMode } from "../../kiosk-mode";
 
 export const Footer: React.FC = () => {
   const { selectedPanel } = useChromeState();
@@ -102,6 +103,19 @@ export const Footer: React.FC = () => {
       </FooterItem>
 
       <div className="mx-auto" />
+
+      <ShowInKioskMode>
+        <Tooltip
+          content={
+            <div className="w-[200px]">
+              Kiosk mode is enabled. This allows you to view the outputs of the
+              cells without the ability to edit them.
+            </div>
+          }
+        >
+          <span className="text-muted-foreground text-sm mr-4">kiosk mode</span>
+        </Tooltip>
+      </ShowInKioskMode>
 
       <MachineStats />
     </footer>

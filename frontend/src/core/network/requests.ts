@@ -29,6 +29,7 @@ export const {
   sendComponentValues,
   sendRename,
   sendRestart,
+  syncCellIds,
   sendSave,
   sendStdin,
   sendFormat,

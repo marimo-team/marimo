@@ -85,6 +85,9 @@ def _generate_schema() -> dict[str, Any]:
         ops.QueryParamsAppend,
         ops.QueryParamsDelete,
         ops.QueryParamsClear,
+        ops.UpdateCellCodes,
+        ops.UpdateCellIdsRequest,
+        ops.FocusCell,
         ops.MessageOperation,
     ]
 
@@ -137,7 +140,7 @@ def _generate_schema() -> dict[str, Any]:
         models.UpdateComponentValuesRequest,
         requests.CodeCompletionRequest,
         requests.CreationRequest,
-        requests.DeleteRequest,
+        requests.DeleteCellRequest,
         requests.ExecuteMultipleRequest,
         requests.ExecuteStaleRequest,
         requests.ExecutionRequest,

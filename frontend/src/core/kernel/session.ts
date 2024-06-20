@@ -2,6 +2,7 @@
 import { init } from "@paralleldrive/cuid2";
 import { TypedString } from "@/utils/typed";
 import { updateQueryParams } from "@/utils/urls";
+import { Logger } from "@/utils/Logger";
 
 export type SessionId = TypedString<"SessionId">;
 
@@ -24,10 +25,17 @@ const sessionId = (() => {
   if (isSessionId(id)) {
     // Remove the session_id from the URL
     updateQueryParams((params) => {
+      // Keep the session_id if we are in kiosk mode
+      // this is so we can resume the same session if the user refreshes the page
+      if (params.has("kiosk")) {
+        return;
+      }
       params.delete("session_id");
     });
+    Logger.debug("Connecting to existing session", { sessionId: id });
     return id;
   }
+  Logger.debug("Starting a new session", { sessionId: id });
   return generateSessionId();
 })();
 

@@ -24,6 +24,7 @@ import { AppConfig } from "@/core/config/config-schema";
 import { useShouldShowInterrupt } from "../cell/useShouldShowInterrupt";
 import { CommandPaletteButton } from "./command-palette-button";
 import { cn } from "@/utils/cn";
+import { HideInKioskMode } from "../kiosk-mode";
 
 interface ControlsProps {
   filename: string | null;
@@ -100,25 +101,27 @@ export const Controls = ({
           appWidth === "compact" && "xl:flex-row items-end",
         )}
       >
-        {closed ? (
-          <RecoveryButton
-            filename={filename}
-            getCellsAsJSON={getCellsAsJSON}
-            needsSave={needsSave}
-          />
-        ) : (
-          <Tooltip content={renderShortcut("global.save")}>
-            <Button
-              data-testid="save-button"
-              id="save-button"
-              shape="rectangle"
-              color={needsSave ? "yellow" : "hint-green"}
-              onClick={handleSaveClick}
-            >
-              <SaveIcon strokeWidth={1.5} size={18} />
-            </Button>
-          </Tooltip>
-        )}
+        <HideInKioskMode>
+          {closed ? (
+            <RecoveryButton
+              filename={filename}
+              getCellsAsJSON={getCellsAsJSON}
+              needsSave={needsSave}
+            />
+          ) : (
+            <Tooltip content={renderShortcut("global.save")}>
+              <Button
+                data-testid="save-button"
+                id="save-button"
+                shape="rectangle"
+                color={needsSave ? "yellow" : "hint-green"}
+                onClick={handleSaveClick}
+              >
+                <SaveIcon strokeWidth={1.5} size={18} />
+              </Button>
+            </Tooltip>
+          )}
+        </HideInKioskMode>
 
         <Tooltip content={renderShortcut("global.hideCode")}>
           <Button
@@ -141,17 +144,19 @@ export const Controls = ({
 
         <div />
 
-        <div className="flex flex-col gap-2 items-center">
-          {undoControl}
-          {!closed && (
-            <RunControlButton
-              running={running}
-              needsRun={needsRun}
-              onRun={onRun}
-              onInterrupt={onInterrupt}
-            />
-          )}
-        </div>
+        <HideInKioskMode>
+          <div className="flex flex-col gap-2 items-center">
+            {undoControl}
+            {!closed && (
+              <RunControlButton
+                running={running}
+                needsRun={needsRun}
+                onRun={onRun}
+                onInterrupt={onInterrupt}
+              />
+            )}
+          </div>
+        </HideInKioskMode>
       </div>
     </>
   );

@@ -76,6 +76,7 @@ def create_session(
                     last_executed_code={},
                     last_execution_time={},
                     app_config=app.config,
+                    kiosk=False,
                 )
             ),
         )

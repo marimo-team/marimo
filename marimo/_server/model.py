@@ -5,6 +5,8 @@ import abc
 from enum import Enum
 from typing import TYPE_CHECKING, Callable
 
+from marimo._server.ids import ConsumerId
+
 if TYPE_CHECKING:
     from marimo._messaging.ops import MessageOperation
     from marimo._messaging.types import KernelMessage
@@ -35,10 +37,12 @@ class SessionConsumer(metaclass=abc.ABCMeta):
     connection types. Currently we consume a session via WebSocket
     """
 
+    def __init__(self, consumer_id: ConsumerId) -> None:
+        self.consumer_id = consumer_id
+
     @abc.abstractmethod
     def on_start(
         self,
-        check_alive: Callable[[], None],
     ) -> Callable[[KernelMessage], None]:
         """
         Start the session consumer
@@ -51,7 +55,7 @@ class SessionConsumer(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def write_operation(self, op: MessageOperation) -> None:
+    def write_operation(self, op: MessageOperation) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod

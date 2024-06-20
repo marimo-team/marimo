@@ -394,6 +394,13 @@ components:
       - tables
       - name
       type: object
+    DeleteCellRequest:
+      properties:
+        cellId:
+          type: string
+      required:
+      - cellId
+      type: object
     DeleteNonlocalError:
       properties:
         cells:
@@ -410,13 +417,6 @@ components:
       - name
       - cells
       - type
-      type: object
-    DeleteRequest:
-      properties:
-        cellId:
-          type: string
-      required:
-      - cellId
       type: object
     Error:
       oneOf:
@@ -646,6 +646,18 @@ components:
       required:
       - success
       type: object
+    FocusCell:
+      properties:
+        cell_id:
+          type: string
+        name:
+          enum:
+          - focus-cell
+          type: string
+      required:
+      - cell_id
+      - name
+      type: object
     FormatRequest:
       properties:
         codes:
@@ -805,6 +817,8 @@ components:
           items:
             $ref: '#/components/schemas/CellConfig'
           type: array
+        kiosk:
+          type: boolean
         last_executed_code:
           additionalProperties:
             type: string
@@ -861,6 +875,7 @@ components:
       - configs
       - resumed
       - app_config
+      - kiosk
       - name
       type: object
     MIME:
@@ -1156,6 +1171,9 @@ components:
       - $ref: '#/components/schemas/QueryParamsClear'
       - $ref: '#/components/schemas/Datasets'
       - $ref: '#/components/schemas/DataColumnPreview'
+      - $ref: '#/components/schemas/FocusCell'
+      - $ref: '#/components/schemas/UpdateCellCodes'
+      - $ref: '#/components/schemas/UpdateCellIdsRequest'
     MimeType:
       enum:
       - application/json
@@ -1521,6 +1539,39 @@ components:
       - msg
       - type
       type: object
+    UpdateCellCodes:
+      properties:
+        cell_ids:
+          items:
+            type: string
+          type: array
+        codes:
+          items:
+            type: string
+          type: array
+        name:
+          enum:
+          - update-cell-codes
+          type: string
+      required:
+      - cell_ids
+      - codes
+      - name
+      type: object
+    UpdateCellIdsRequest:
+      properties:
+        cell_ids:
+          items:
+            type: string
+          type: array
+        name:
+          enum:
+          - update-cell-ids
+          type: string
+      required:
+      - cell_ids
+      - name
+      type: object
     UpdateComponentValuesRequest:
       properties:
         objectIds:
@@ -1869,7 +1920,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/DeleteRequest'
+              $ref: '#/components/schemas/DeleteCellRequest'
       responses:
         200:
           content:
@@ -2101,6 +2152,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Send input to the stdin stream
+  /api/kernel/sync/cell_ids:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCellIdsRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Sync cell ids
   /api/status:
     get:
       responses:

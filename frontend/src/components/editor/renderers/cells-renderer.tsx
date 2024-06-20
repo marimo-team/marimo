@@ -3,8 +3,9 @@ import { flattenNotebookCells, useNotebook } from "@/core/cells/cells";
 import React, { PropsWithChildren, memo } from "react";
 import { cellRendererPlugins } from "./plugins";
 import { AppConfig } from "@/core/config/config-schema";
-import { AppMode } from "@/core/mode";
+import { AppMode, kioskModeAtom } from "@/core/mode";
 import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
+import { useAtomValue } from "jotai";
 
 interface Props {
   appConfig: AppConfig;
@@ -16,9 +17,10 @@ export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(
     const notebook = useNotebook();
     const { selectedLayout, layoutData } = useLayoutState();
     const { setCurrentLayoutData } = useLayoutActions();
+    const kioskMode = useAtomValue(kioskModeAtom);
 
     // Just render children if we are in edit mode
-    if (mode === "edit") {
+    if (mode === "edit" && !kioskMode) {
       return children;
     }
 

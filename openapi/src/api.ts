@@ -330,7 +330,7 @@ export interface paths {
     post: {
       requestBody?: {
         content: {
-          "application/json": components["schemas"]["DeleteRequest"];
+          "application/json": components["schemas"]["DeleteCellRequest"];
         };
       };
       responses: {
@@ -620,6 +620,23 @@ export interface paths {
       };
     };
   };
+  "/api/kernel/sync/cell_ids": {
+    post: {
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["UpdateCellIdsRequest"];
+        };
+      };
+      responses: {
+        /** @description Sync cell ids */
+        200: {
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+  };
   "/api/status": {
     get: {
       responses: {
@@ -872,14 +889,14 @@ export interface components {
       name: "datasets";
       tables: components["schemas"]["DataTable"][];
     };
+    DeleteCellRequest: {
+      cellId: string;
+    };
     DeleteNonlocalError: {
       cells: string[];
       name: string;
       /** @enum {string} */
       type: "delete-nonlocal";
-    };
-    DeleteRequest: {
-      cellId: string;
     };
     Error:
       | components["schemas"]["CycleError"]
@@ -973,6 +990,11 @@ export interface components {
       message?: string | null;
       success: boolean;
     };
+    FocusCell: {
+      cell_id: string;
+      /** @enum {string} */
+      name: "focus-cell";
+    };
     FormatRequest: {
       codes: {
         [key: string]: string;
@@ -1040,6 +1062,7 @@ export interface components {
       cell_ids: string[];
       codes: string[];
       configs: components["schemas"]["CellConfig"][];
+      kiosk: boolean;
       last_executed_code?: {
         [key: string]: string;
       } | null;
@@ -1190,7 +1213,10 @@ export interface components {
       | components["schemas"]["QueryParamsDelete"]
       | components["schemas"]["QueryParamsClear"]
       | components["schemas"]["Datasets"]
-      | components["schemas"]["DataColumnPreview"];
+      | components["schemas"]["DataColumnPreview"]
+      | components["schemas"]["FocusCell"]
+      | components["schemas"]["UpdateCellCodes"]
+      | components["schemas"]["UpdateCellIdsRequest"];
     /** @enum {string} */
     MimeType:
       | "application/json"
@@ -1337,6 +1363,17 @@ export interface components {
       msg: string;
       /** @enum {string} */
       type: "unknown";
+    };
+    UpdateCellCodes: {
+      cell_ids: string[];
+      codes: string[];
+      /** @enum {string} */
+      name: "update-cell-codes";
+    };
+    UpdateCellIdsRequest: {
+      cell_ids: string[];
+      /** @enum {string} */
+      name: "update-cell-ids";
     };
     UpdateComponentValuesRequest: {
       objectIds: string[];

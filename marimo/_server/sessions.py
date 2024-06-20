@@ -14,6 +14,7 @@ even if its socket is closed.
 
 from __future__ import annotations
 
+import asyncio
 import multiprocessing as mp
 import os
 import queue
@@ -25,20 +26,27 @@ import threading
 from multiprocessing import connection
 from multiprocessing.queues import Queue as MPQueue
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t
 from marimo._cli.print import red
 from marimo._config.manager import UserConfigManager
-from marimo._messaging.ops import Alert, MessageOperation, Reload
+from marimo._messaging.ops import (
+    Alert,
+    FocusCell,
+    MessageOperation,
+    Reload,
+    UpdateCellCodes,
+)
 from marimo._messaging.types import KernelMessage
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import requests, runtime
 from marimo._runtime.requests import (
     AppMetadata,
     CreationRequest,
+    ExecuteMultipleRequest,
     ExecutionRequest,
     SerializedCLIArgs,
     SerializedQueryParams,
@@ -47,7 +55,7 @@ from marimo._runtime.requests import (
 from marimo._server.exceptions import InvalidSessionException
 from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter, MarimoFileKey
-from marimo._server.ids import SessionId
+from marimo._server.ids import ConsumerId, SessionId
 from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
 from marimo._server.models.models import InstantiateRequest
 from marimo._server.recents import RecentFilesManager
@@ -264,6 +272,58 @@ class KernelManager:
         return self._read_conn
 
 
+class Room:
+    """
+    A room is a collection of SessionConsumers
+    that can be used to broadcast messages to all
+    of them.
+    """
+
+    def __init__(self) -> None:
+        self.main_consumer: Optional[SessionConsumer] = None
+        self.consumers: Dict[SessionConsumer, ConsumerId] = {}
+        self.disposables: Dict[SessionConsumer, Disposable] = {}
+
+    def add_consumer(
+        self,
+        consumer: SessionConsumer,
+        dispose: Disposable,
+        consumer_id: ConsumerId,
+        # Whether the consumer is the main session consumer
+        # We only allow one main consumer, the rest are kiosk consumers
+        main: bool,
+    ) -> None:
+        self.consumers[consumer] = consumer_id
+        self.disposables[consumer] = dispose
+        if main:
+            assert (
+                self.main_consumer is None
+            ), "Main session consumer already exists"
+            self.main_consumer = consumer
+
+    def remove_consumer(self, consumer: SessionConsumer) -> None:
+        assert consumer in self.consumers, "Consumer not in room"
+
+        if consumer == self.main_consumer:
+            self.main_consumer = None
+        self.consumers.pop(consumer)
+        disposable = self.disposables.pop(consumer)
+        consumer.on_stop()
+        disposable.dispose()
+
+    def broadcast(self, operation: MessageOperation) -> None:
+        for consumer in self.consumers:
+            consumer.write_operation(operation)
+
+    def close(self) -> None:
+        for consumer in self.consumers:
+            disposable = self.disposables.pop(consumer)
+            consumer.on_stop()
+            disposable.dispose()
+        self.consumers = {}
+        self.main_consumer = None
+
+
 class Session:
     """A client session.
 
@@ -284,6 +344,9 @@ class Session:
         user_config_manager: UserConfigManager,
         virtual_files_supported: bool,
     ) -> Session:
+        """
+        Create a new session.
+        """
         configs = app_file_manager.app.cell_manager.config_map()
         use_multiprocessing = mode == SessionMode.EDIT
         queue_manager = QueueManager(use_multiprocessing)
@@ -318,9 +381,7 @@ class Session:
         self.initialization_id = initialization_id
         self._queue_manager: QueueManager
         self.app_file_manager = app_file_manager
-        # This can be optional in case a consumer gets disconnected,
-        # and we want to continue the session without a consumer.
-        self.session_consumer: Optional[SessionConsumer] = None
+        self.room = Room()
         self._queue_manager = queue_manager
         self.kernel_manager = kernel_manager
         self.session_view = SessionView()
@@ -334,84 +395,135 @@ class Session:
         self.message_distributor.add_consumer(
             lambda msg: self.session_view.add_raw_operation(msg[1])
         )
-        self.connect_consumer(session_consumer)
-        self.message_distributor.start()
+        self.connect_consumer(session_consumer, main=True)
 
-    def _check_alive(self) -> None:
-        if not self.kernel_manager.is_alive():
-            LOGGER.debug("Closing session because kernel died")
-            self.close()
-            print()
-            print_tabbed(red("The Python kernel died unexpectedly."))
-            print()
-            sys.exit()
+        self.message_distributor.start()
+        self.heartbeat_task: Optional[asyncio.Task[Any]] = None
+        self._start_heartbeat()
+        self._closed = False
+
+    def _start_heartbeat(self) -> None:
+        def _check_alive() -> None:
+            if not self.kernel_manager.is_alive():
+                LOGGER.debug("Closing session because kernel died")
+                self.close()
+                print()
+                print_tabbed(red("The Python kernel died unexpectedly."))
+                print()
+                sys.exit()
+
+        # Start a heartbeat task, which checks if the kernel is alive
+        # every second
+
+        async def _heartbeat() -> None:
+            while True:
+                await asyncio.sleep(1)
+                _check_alive()
+
+        try:
+            loop = asyncio.get_event_loop()
+            self.heartbeat_task = loop.create_task(_heartbeat())
+        except RuntimeError:
+            # This can happen if there is no event loop running
+            self.heartbeat_task = None
 
     def try_interrupt(self) -> None:
+        """Try to interrupt the kernel."""
         self.kernel_manager.interrupt_kernel()
 
     def put_control_request(self, request: requests.ControlRequest) -> None:
+        """Put a control request in the control queue."""
         self._queue_manager.control_queue.put(request)
         if isinstance(request, SetUIElementValueRequest):
             self._queue_manager.set_ui_element_queue.put(request)
+        # Propagate the control request to the room
+        if isinstance(request, ExecuteMultipleRequest):
+            self.room.broadcast(
+                UpdateCellCodes(
+                    cell_ids=request.cell_ids,
+                    codes=request.codes,
+                )
+            )
+            if len(request.cell_ids) == 1:
+                self.room.broadcast(FocusCell(cell_id=request.cell_ids[0]))
         self.session_view.add_control_request(request)
 
     def put_completion_request(
         self, request: requests.CodeCompletionRequest
     ) -> None:
+        """Put a code completion request in the completion queue."""
         self._queue_manager.completion_queue.put(request)
 
     def put_input(self, text: str) -> None:
+        """Put an input() request in the input queue."""
         self._queue_manager.input_queue.put(text)
         self.session_view.add_stdin(text)
 
-    def disconnect_consumer(self) -> None:
-        """Stop the session consumer but keep the kernel running"""
-        assert (
-            self.session_consumer is not None
-        ), "Expecting a session consumer to pause"
-        LOGGER.debug("Disconnecting session consumer")
-        self.session_consumer.on_stop()
-        self.unsubscribe_consumer()
-        self.session_consumer = None
+    def disconnect_consumer(self, session_consumer: SessionConsumer) -> None:
+        """
+        Stop the session consumer but keep the kernel running.
+
+        This will disconnect the main session consumer,
+        or a kiosk consumer.
+        """
+        self.room.remove_consumer(session_consumer)
 
     def maybe_disconnect_consumer(self) -> None:
-        if self.session_consumer is not None:
-            self.disconnect_consumer()
+        """
+        Disconnect the main session consumer if it connected.
+        """
+        if self.room.main_consumer is not None:
+            self.disconnect_consumer(self.room.main_consumer)
 
-    def connect_consumer(self, session_consumer: SessionConsumer) -> None:
-        """Connect or resume the session with a new consumer"""
-        assert (
-            self.session_consumer is None
-        ), "Expecting no existing session consumer"
+    def connect_consumer(
+        self, session_consumer: SessionConsumer, *, main: bool
+    ) -> None:
+        """
+        Connect or resume the session with a new consumer.
 
-        self.session_consumer = session_consumer
-
-        subscribe = self.session_consumer.on_start(self._check_alive)
-        self.unsubscribe_consumer = self.message_distributor.add_consumer(
-            subscribe
+        If its the main consumer and one already exists,
+        an exception is raised.
+        """
+        subscribe = session_consumer.on_start()
+        unsubscribe_consumer = self.message_distributor.add_consumer(subscribe)
+        self.room.add_consumer(
+            session_consumer,
+            unsubscribe_consumer,
+            session_consumer.consumer_id,
+            main=main,
         )
 
     def get_current_state(self) -> SessionView:
+        """Return the current state of the session."""
         return self.session_view
 
     def connection_state(self) -> ConnectionState:
-        if self.session_consumer is None:
+        """Return the connection state of the session."""
+        if self._closed:
+            return ConnectionState.CLOSED
+        if self.room.main_consumer is None:
             return ConnectionState.ORPHANED
-        return self.session_consumer.connection_state()
+        return self.room.main_consumer.connection_state()
 
-    async def write_operation(self, operation: MessageOperation) -> None:
+    def write_operation(self, operation: MessageOperation) -> None:
+        """Write an operation to the session consumer and the session view."""
         self.session_view.add_operation(operation)
-        if self.session_consumer is not None:
-            await self.session_consumer.write_operation(operation)
+        self.room.broadcast(operation)
 
     def close(self) -> None:
-        # Could be no consumer if we already disconnect, but the session
-        # is running in the background
-        if self.session_consumer is not None:
-            self.session_consumer.on_stop()
+        """
+        Close the session.
+
+        This will close the session consumer, kernel, and all kiosk consumers.
+        """
+        self._closed = True
+        # Close the room
+        self.room.close()
+        # Close the kernel
         self.message_distributor.stop()
+        if self.heartbeat_task:
+            self.heartbeat_task.cancel()
         self.kernel_manager.close_kernel()
-        self.unsubscribe_consumer()
 
     def instantiate(self, request: InstantiateRequest) -> None:
         """Instantiate the app."""
@@ -436,7 +548,7 @@ class Session:
             self,
             {
                 "connection_state": self.connection_state(),
-                "consumer": self.session_consumer,
+                "room": self.room,
             },
         )
 
@@ -547,7 +659,24 @@ class SessionManager:
         return self.sessions[session_id]
 
     def get_session(self, session_id: SessionId) -> Optional[Session]:
-        return self.sessions.get(session_id)
+        session = self.sessions.get(session_id)
+        if session:
+            return session
+
+        # Search for kiosk sessions
+        for session in self.sessions.values():
+            if session_id in session.room.consumers.values():
+                return session
+
+        return None
+
+    def get_session_by_file_key(
+        self, file_key: MarimoFileKey
+    ) -> Optional[Session]:
+        for session in self.sessions.values():
+            if session.initialization_id == file_key:
+                return session
+        return None
 
     def maybe_resume_session(
         self, new_session_id: SessionId, file_key: MarimoFileKey
@@ -618,6 +747,15 @@ class SessionManager:
                 return True
         return False
 
+    def get_session_for_key(self, key: MarimoFileKey) -> Optional[Session]:
+        for session in self.sessions.values():
+            if (
+                session.app_file_manager.path == os.path.abspath(key)
+                or session.initialization_id == key
+            ) and session.connection_state() == ConnectionState.OPEN:
+                return session
+        return None
+
     async def start_lsp_server(self) -> None:
         """Starts the lsp server if it is not already started.
 
@@ -631,7 +769,7 @@ class SessionManager:
 
         if alert is not None:
             for _, session in self.sessions.items():
-                await session.write_operation(alert)
+                session.write_operation(alert)
             return
 
     def close_session(self, session_id: SessionId) -> bool:
@@ -681,7 +819,7 @@ class SessionManager:
             LOGGER.debug(f"{path} was modified")
             for _, session in self.sessions.items():
                 session.app_file_manager.reload()
-                await session.write_operation(Reload())
+                session.write_operation(Reload())
 
         LOGGER.debug("Starting file watcher for %s", file_path)
         self.watcher = FileWatcher.create(Path(file_path), on_file_changed)

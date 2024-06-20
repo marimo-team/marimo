@@ -4,7 +4,7 @@ import CodeMirror, {
   EditorView,
   ReactCodeMirrorProps,
 } from "@uiw/react-codemirror";
-import { CopyIcon, EyeIcon } from "lucide-react";
+import { CopyIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Events } from "@/utils/events";
 import { toast } from "@/components/ui/use-toast";
@@ -32,7 +32,12 @@ export const ReadonlyPythonCode = memo(
         )}
       >
         {hideCode && <HideCodeButton onClick={() => setHideCode(false)} />}
-        {!hideCode && <FloatingCopyButton text={code} />}
+        {!hideCode && (
+          <div className="absolute top-0 right-0 my-1 mx-2 z-10 hover-action flex gap-2">
+            <CopyButton text={code} />
+            <EyeCloseButton onClick={() => setHideCode(true)} />
+          </div>
+        )}
         <CodeMirror
           {...rest}
           className={cn("cm", hideCode && "opacity-20 h-8 overflow-hidden")}
@@ -49,20 +54,28 @@ export const ReadonlyPythonCode = memo(
 );
 ReadonlyPythonCode.displayName = "ReadonlyPythonCode";
 
-const FloatingCopyButton = (props: { text: string }) => {
+const CopyButton = (props: { text: string }) => {
   const copy = Events.stopPropagation(() => {
     navigator.clipboard.writeText(props.text);
     toast({ title: "Copied to clipboard" });
   });
 
   return (
+    <Button onClick={copy} size="xs" className="py-0" variant="secondary">
+      <CopyIcon size={14} strokeWidth={1.5} />
+    </Button>
+  );
+};
+
+const EyeCloseButton = (props: { onClick: () => void }) => {
+  return (
     <Button
-      onClick={copy}
-      className="absolute top-0 right-0 m-2 z-10 hover-action"
+      onClick={props.onClick}
       size="xs"
+      className="py-0"
       variant="secondary"
     >
-      <CopyIcon size={14} strokeWidth={1.5} />
+      <EyeOffIcon size={14} strokeWidth={1.5} />
     </Button>
   );
 };

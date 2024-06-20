@@ -342,6 +342,8 @@ class KernelReady(Op):
     last_execution_time: Optional[Dict[CellId_t, float]]
     # App config
     app_config: _AppConfig
+    # Whether the kernel is kiosk mode
+    kiosk: bool
 
 
 @dataclass
@@ -521,6 +523,32 @@ class QueryParamsClear(Op):
     name: ClassVar[str] = "query-params-clear"
 
 
+@dataclass
+class FocusCell(Op):
+    name: ClassVar[str] = "focus-cell"
+    cell_id: CellId_t
+
+
+@dataclass
+class UpdateCellCodes(Op):
+    name: ClassVar[str] = "update-cell-codes"
+    cell_ids: List[CellId_t]
+    codes: List[str]
+
+
+@dataclass
+class UpdateCellIdsRequest(Op):
+    """
+    Update the cell ID ordering of the cells in the notebook.
+
+    Right now we send the entire list of cell IDs,
+    but in the future we might want to send change-deltas.
+    """
+
+    name: ClassVar[str] = "update-cell-ids"
+    cell_ids: List[CellId_t]
+
+
 MessageOperation = Union[
     # Cell operations
     CellOp,
@@ -550,4 +578,8 @@ MessageOperation = Union[
     # Datasets
     Datasets,
     DataColumnPreview,
+    # Kiosk specific
+    FocusCell,
+    UpdateCellCodes,
+    UpdateCellIdsRequest,
 ]

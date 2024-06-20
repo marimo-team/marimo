@@ -18,6 +18,13 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .POST("/api/kernel/restart_session")
         .then(handleResponseReturnNull);
     },
+    syncCellIds: (request) => {
+      return marimoClient
+        .POST("/api/kernel/sync/cell_ids", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
+    },
     sendRename: (request) => {
       return marimoClient
         .POST("/api/kernel/rename", {

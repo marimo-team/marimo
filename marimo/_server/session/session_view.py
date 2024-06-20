@@ -186,11 +186,15 @@ class SessionView:
 
     @property
     def operations(self) -> list[MessageOperation]:
-        all_ops: list[MessageOperation] = [
-            self.variable_operations,
-            VariableValues(variables=list(self.variable_values.values())),
-            self.datasets,
-        ]
+        all_ops: list[MessageOperation] = []
+        if self.variable_operations.variables:
+            all_ops.append(self.variable_operations)
+        if self.variable_values:
+            all_ops.append(
+                VariableValues(variables=list(self.variable_values.values()))
+            )
+        if self.datasets.tables:
+            all_ops.append(self.datasets)
         all_ops.extend(self.cell_operations.values())
         return all_ops
 

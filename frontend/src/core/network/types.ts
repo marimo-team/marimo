@@ -18,7 +18,7 @@ export type CellConfig = schemas["CellConfig"];
 export type CellStatus = schemas["CellStatus"];
 export type CodeCompletionRequest = schemas["CodeCompletionRequest"];
 export type CreationRequest = schemas["CreationRequest"];
-export type DeleteRequest = schemas["DeleteRequest"];
+export type DeleteCellRequest = schemas["DeleteCellRequest"];
 export type ExecuteMultipleRequest = schemas["ExecuteMultipleRequest"];
 export type ExecutionRequest = schemas["ExecutionRequest"];
 export type ExportAsHTMLRequest = schemas["ExportAsHTMLRequest"];
@@ -61,6 +61,7 @@ export interface SetCellConfigRequest {
   configs: Record<CellId, Partial<CellConfig>>;
 }
 export type SetUIElementValueRequest = schemas["SetUIElementValueRequest"];
+export type UpdateCellIdsRequest = schemas["UpdateCellIdsRequest"];
 export type SetUserConfigRequest = schemas["SetUserConfigRequest"];
 export type ShutdownSessionRequest = schemas["ShutdownSessionRequest"];
 export type Snippet = schemas["Snippet"];
@@ -95,12 +96,13 @@ export interface EditRequests {
   sendInterrupt: () => Promise<null>;
   sendShutdown: () => Promise<null>;
   sendFormat: (request: FormatRequest) => Promise<FormatResponse>;
-  sendDeleteCell: (request: DeleteRequest) => Promise<null>;
+  sendDeleteCell: (request: DeleteCellRequest) => Promise<null>;
   sendCodeCompletionRequest: (request: CodeCompletionRequest) => Promise<null>;
   saveUserConfig: (request: SaveUserConfigurationRequest) => Promise<null>;
   saveAppConfig: (request: SaveAppConfigurationRequest) => Promise<null>;
   saveCellConfig: (request: SetCellConfigRequest) => Promise<null>;
   sendRestart: () => Promise<null>;
+  syncCellIds: (request: UpdateCellIdsRequest) => Promise<null>;
   sendInstallMissingPackages: (
     request: InstallMissingPackagesRequest,
   ) => Promise<null>;

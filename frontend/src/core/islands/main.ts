@@ -67,6 +67,13 @@ export async function initialize() {
       case "installing-package-alert":
       case "completion-result":
       case "reload":
+      case "update-cell-codes":
+      case "update-cell-ids":
+      case "focus-cell":
+      case "variables":
+      case "variable-values":
+      case "data-column-preview":
+      case "datasets":
         // Unsupported
         return;
       case "kernel-ready":
@@ -96,11 +103,6 @@ export async function initialize() {
         return;
       case "cell-op":
         handleCellOperation(msg.data, actions.handleCellMessage);
-        return;
-      case "variables":
-      case "variable-values":
-      case "data-column-preview":
-      case "datasets":
         return;
       case "alert":
         // TODO: support toast with islands

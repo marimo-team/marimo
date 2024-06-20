@@ -67,6 +67,24 @@ export function focusAndScrollCellIntoView({
   });
 }
 
+export function focusAndScrollCellOutputIntoView(cellId: CellId) {
+  const element = document.getElementById(HTMLCellId.create(cellId));
+  if (!element) {
+    Logger.warn("scrollCellIntoView: element not found");
+    return;
+  }
+
+  element.classList.add("focus-outline");
+  setTimeout(() => {
+    element.classList.remove("focus-outline");
+  }, 2000);
+
+  element.scrollIntoView({
+    behavior: "smooth",
+    block: "center",
+  });
+}
+
 /**
  * Scroll to bottom and top of page.
  *
