@@ -318,7 +318,6 @@ class table(
             return []
 
         if args.filters:
-            # TODO: don't allow no polars and pandas to get here
             handler = get_handler_for_dataframe(self._manager.data)
             data = handler.handle_filter_rows(
                 result.data,
