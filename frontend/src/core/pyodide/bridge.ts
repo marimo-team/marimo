@@ -13,6 +13,7 @@ import type {
   FileUpdateResponse,
   FormatResponse,
   RunRequests,
+  SaveUserConfigurationRequest,
   Snippets,
 } from "../network/types";
 import type { IReconnectingWebSocket } from "../websocket/types";
@@ -23,7 +24,7 @@ import { createShareableLink } from "./share";
 import { PyodideRouter } from "./router";
 import { getMarimoVersion } from "../dom/marimo-tag";
 import { getWorkerRPC } from "./rpc";
-import { API, marimoClient } from "../network/api";
+import { API } from "../network/api";
 import { parseUserConfig } from "../config/config-schema";
 import { throwNotImplemented } from "@/utils/functions";
 import type { WorkerSchema } from "./worker/worker";
@@ -33,8 +34,6 @@ import { generateUUID } from "@/utils/uuid";
 import { store } from "../state/jotai";
 import { notebookIsRunningAtom } from "../cells/cells";
 import { getInitialAppMode } from "../mode";
-
-const { handleResponseReturnNull } = API;
 
 export class PyodideBridge implements RunRequests, EditRequests {
   static get INSTANCE(): PyodideBridge {
@@ -251,9 +250,11 @@ export class PyodideBridge implements RunRequests, EditRequests {
       payload: request,
     });
 
-    return marimoClient
-      .POST("/api/kernel/save_user_config", { body: request })
-      .then(handleResponseReturnNull);
+    return API.post<SaveUserConfigurationRequest>(
+      "/kernel/save_user_config",
+      request,
+      { baseUrl: "/" },
+    );
   };
 
   saveAppConfig: EditRequests["saveAppConfig"] = async (request) => {
