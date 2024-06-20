@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
-import { VegaType } from "@/plugins/impl/vega/vega-loader";
+import { DataType } from "@/plugins/impl/vega/vega-loader";
 import { mint, orange, slate } from "@radix-ui/colors";
 import { ColumnHeaderSummary } from "./types";
 
@@ -13,7 +13,7 @@ export class ColumnChartSpecModel<T> {
 
   constructor(
     private readonly data: T[],
-    private readonly fieldTypes: Record<string, VegaType>,
+    private readonly fieldTypes: Record<string, DataType>,
     readonly summaries: ColumnHeaderSummary[],
     private readonly opts: {
       includeCharts: boolean;

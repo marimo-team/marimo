@@ -31,6 +31,9 @@ class PolarsTableManagerFactory(TableManagerFactory):
             def to_json(self) -> bytes:
                 return self.data.write_json(row_oriented=True).encode("utf-8")
 
+            def supports_filters(self) -> bool:
+                return True
+
             def select_rows(
                 self, indices: list[int]
             ) -> TableManager[pl.DataFrame]:

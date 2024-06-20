@@ -2,12 +2,14 @@
 import React, { memo, useEffect, useState } from "react";
 import {
   ColumnDef,
+  ColumnFiltersState,
   OnChangeFn,
   PaginationState,
   RowSelectionState,
   SortingState,
   flexRender,
   getCoreRowModel,
+  getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
@@ -30,6 +32,7 @@ import { useDebounce } from "@uidotdev/usehooks";
 import useEvent from "react-use-event-hook";
 import { Tooltip } from "../ui/tooltip";
 import { Spinner } from "../icons/spinner";
+import { FilterPills } from "./filter-pills";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
@@ -50,6 +53,9 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   enableSearch?: boolean;
   searchQuery?: string;
   onSearchQueryChange?: (query: string) => void;
+  showFilters?: boolean;
+  filters?: ColumnFiltersState;
+  onFiltersChange?: OnChangeFn<ColumnFiltersState>;
   reloading?: boolean;
 }
 
@@ -68,6 +74,9 @@ const DataTableInternal = <TData,>({
   enableSearch = false,
   searchQuery,
   onSearchQueryChange,
+  showFilters = false,
+  filters,
+  onFiltersChange,
   reloading,
 }: DataTableProps<TData>) => {
   const [isSearchEnabled, setIsSearchEnabled] = React.useState<boolean>(false);
@@ -93,10 +102,16 @@ const DataTableInternal = <TData,>({
     onSortingChange: setSorting,
     manualSorting: true,
     getSortedRowModel: getSortedRowModel(),
+    // filtering
+    manualFiltering: true,
+    enableColumnFilters: showFilters,
+    getFilteredRowModel: getFilteredRowModel(),
+    onColumnFiltersChange: onFiltersChange,
     // selection
     onRowSelectionChange: onRowSelectionChange,
     state: {
       sorting,
+      columnFilters: filters,
       pagination: pagination
         ? { ...paginationState, pageSize: pageSize }
         : { pageIndex: 0, pageSize: data.length },
@@ -132,7 +147,8 @@ const DataTableInternal = <TData,>({
   };
 
   return (
-    <div className={cn(wrapperClassName, "flex flex-col space-y-2")}>
+    <div className={cn(wrapperClassName, "flex flex-col space-y-1")}>
+      <FilterPills filters={filters} table={table} />
       <div className={cn(className || "rounded-md border")}>
         {onSearchQueryChange && enableSearch && (
           <SearchBar
@@ -151,6 +167,13 @@ const DataTableInternal = <TData,>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
+                  onClick={() => {
+                    // If we have any row selected, make the row
+                    // toggle selection on click
+                    if (table.getIsSomeRowsSelected()) {
+                      row.toggleSelected();
+                    }
+                  }}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
@@ -179,7 +202,7 @@ const DataTableInternal = <TData,>({
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center justify-between flex-shrink-0">
+      <div className="flex items-center justify-between flex-shrink-0 pt-1">
         {onSearchQueryChange && enableSearch && (
           <Tooltip content="Search">
             <Button
@@ -218,10 +241,10 @@ const SearchBar = (props: {
 
   useEffect(() => {
     if (hidden) {
-      // Reset
+      // Closing, reset
       setInternalValue("");
     } else {
-      // Focus
+      // Opening, focus
       ref.current?.focus();
     }
   }, [hidden]);
@@ -244,7 +267,6 @@ const SearchBar = (props: {
             onHide();
           }
         }}
-        autoFocus={true}
         onChange={(e) => setInternalValue(e.target.value)}
         placeholder="Search"
       />

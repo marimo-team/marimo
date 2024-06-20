@@ -5,9 +5,10 @@ from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 
+from marimo._messaging.ops import UpdateCellIdsRequest
 from marimo._runtime.requests import (
     CodeCompletionRequest,
-    DeleteRequest,
+    DeleteCellRequest,
     InstallMissingPackagesRequest,
     SetCellConfigRequest,
 )
@@ -62,7 +63,7 @@ async def delete_cell(request: Request) -> BaseResponse:
         content:
             application/json:
                 schema:
-                    $ref: "#/components/schemas/DeleteRequest"
+                    $ref: "#/components/schemas/DeleteCellRequest"
     responses:
         200:
             description: Delete a cell
@@ -72,9 +73,32 @@ async def delete_cell(request: Request) -> BaseResponse:
                         $ref: "#/components/schemas/SuccessResponse"
     """
     app_state = AppState(request)
-    body = await parse_request(request, cls=DeleteRequest)
+    body = await parse_request(request, cls=DeleteCellRequest)
     app_state.require_current_session().put_control_request(body)
 
+    return SuccessResponse()
+
+
+@router.post("/sync/cell_ids")
+@requires("edit")
+async def sync_cell_ids(request: Request) -> BaseResponse:
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/UpdateCellIdsRequest"
+    responses:
+        200:
+            description: Sync cell ids
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
+    app_state = AppState(request)
+    body = await parse_request(request, cls=UpdateCellIdsRequest)
+    app_state.require_current_session().write_operation(body)
     return SuccessResponse()
 
 

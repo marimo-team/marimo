@@ -161,6 +161,7 @@
 
   /* Focus state */
   &.focus-outline {
+    transition: all 0.6s;
     border-color: var(--blue-8) !important;
 
     /* custom shadow until our theme overrides can support colored shadow */

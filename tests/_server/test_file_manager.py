@@ -108,14 +108,17 @@ def test_rename_create_new_file(app_file_manager: AppFileManager) -> None:
 
 def test_rename_different_filetype(app_file_manager: AppFileManager) -> None:
     initial_filename = app_file_manager.filename
+    assert initial_filename
     assert initial_filename.endswith(".py")
-    with open(app_file_manager.filename, "r") as f:
+    with open(initial_filename, "r") as f:
         contents = f.read()
         assert "app = marimo.App()" in contents
         assert "marimo-version" not in contents
     app_file_manager.rename(initial_filename[:-3] + ".md")
-    assert app_file_manager.filename.endswith(".md")
-    with open(app_file_manager.filename, "r") as f:
+    next_filename = app_file_manager.filename
+    assert next_filename
+    assert next_filename.endswith(".md")
+    with open(next_filename, "r") as f:
         contents = f.read()
         assert "marimo-version" in contents
         assert "app = marimo.App()" not in contents

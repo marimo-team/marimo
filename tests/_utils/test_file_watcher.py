@@ -1,16 +1,15 @@
 # Test for PollingFileWatcher
+from __future__ import annotations
+
 import asyncio
 import os
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import List
 
-import pytest
-
 from marimo._utils.file_watcher import PollingFileWatcher
 
 
-@pytest.mark.asyncio
 async def test_polling_file_watcher() -> None:
     with NamedTemporaryFile(delete=False) as tmp_file:
         tmp_path = Path(tmp_file.name)

@@ -31,7 +31,7 @@ export const DataTablePagination = <TData,>({
             size="xs"
             data-testid="select-all-button"
             variant="link"
-            className="mb-0 h-6"
+            className="h-4"
             onClick={() => table.toggleAllRowsSelected(true)}
           >
             Select all {prettyNumber(numRows)}
@@ -48,7 +48,7 @@ export const DataTablePagination = <TData,>({
             size="xs"
             data-testid="clear-selection-button"
             variant="link"
-            className="mb-0 h-6"
+            className="h-4"
             onClick={() => table.toggleAllRowsSelected(false)}
           >
             Clear selection
@@ -72,7 +72,7 @@ export const DataTablePagination = <TData,>({
   return (
     <div className="flex flex-1 items-center justify-between px-2">
       <div className="text-sm text-muted-foreground">{renderTotal()}</div>
-      <div className="flex items-center space-x-2">
+      <div className="flex items-end space-x-2">
         <Button
           size="xs"
           variant="outline"

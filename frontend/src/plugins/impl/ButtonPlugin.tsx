@@ -41,10 +41,11 @@ export class ButtonPlugin implements IPlugin<number, Data> {
         className={cn({
           "w-full": fullWidth,
         })}
-        onClick={() => {
+        onClick={(evt) => {
           if (disabled) {
             return;
           }
+          evt.stopPropagation();
           props.setValue((v) => v + 1);
         }}
         type="submit"

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 
 import pytest
 
@@ -85,6 +86,7 @@ def test_pandas_encoding() -> None:
     assert encoded_other == '["a", "b", "c"]'
 
 
+@dataclass
 class MockMIMEObject:
     def _mime_(self) -> tuple[str, str]:
         return "text/plain", "data"
@@ -94,6 +96,18 @@ def test_mime_encoding() -> None:
     mime_obj = MockMIMEObject()
     encoded = json.dumps(mime_obj, cls=WebComponentEncoder)
     assert encoded == '{"mimetype": "text/plain", "data": "data"}'
+
+
+@dataclass
+class MockDataclass:
+    a: int
+    b: str
+
+
+def test_dataclass_encoding() -> None:
+    dataclass_obj = MockDataclass(1, "hello")
+    encoded = json.dumps(dataclass_obj, cls=WebComponentEncoder)
+    assert encoded == '{"a": 1, "b": "hello"}'
 
 
 def test_bytes_encoding() -> None:

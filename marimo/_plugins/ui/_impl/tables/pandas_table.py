@@ -33,6 +33,9 @@ class PandasTableManagerFactory(TableManagerFactory):
             def to_json(self) -> bytes:
                 return self.data.to_json(orient="records").encode("utf-8")
 
+            def supports_filters(self) -> bool:
+                return True
+
             def select_rows(
                 self, indices: list[int]
             ) -> TableManager[pd.DataFrame]:

@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { runDuringPresentMode } from "@/core/mode";
+import { kioskModeAtom, runDuringPresentMode } from "@/core/mode";
 import { downloadBlob, downloadHTMLAsImage } from "@/utils/download";
-import { useSetAtom } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import {
   ImageIcon,
   CommandIcon,
@@ -59,6 +59,7 @@ export function useNotebookActions() {
   const { openModal, closeModal } = useImperativeModal();
   const { openApplication } = useChromeActions();
   const { selectedPanel } = useChromeState();
+  const kioskMode = useAtomValue(kioskModeAtom);
 
   const notebook = useNotebook();
   const { updateCellConfig, undoDeleteCell } = useCellActions();
@@ -205,7 +206,7 @@ export function useNotebookActions() {
     {
       icon: <ZapIcon size={14} strokeWidth={1.5} />,
       label: "Enable all cells",
-      hidden: disabledCells.length === 0,
+      hidden: disabledCells.length === 0 || kioskMode,
       handle: async () => {
         const ids = disabledCells.map((cell) => cell.id);
         const newConfigs = Objects.fromEntries(
@@ -222,7 +223,7 @@ export function useNotebookActions() {
     {
       icon: <ZapOffIcon size={14} strokeWidth={1.5} />,
       label: "Disable all cells",
-      hidden: enabledCells.length === 0,
+      hidden: enabledCells.length === 0 || kioskMode,
       handle: async () => {
         const ids = enabledCells.map((cell) => cell.id);
         const newConfigs = Objects.fromEntries(
@@ -239,7 +240,7 @@ export function useNotebookActions() {
     {
       icon: <Undo2Icon size={14} strokeWidth={1.5} />,
       label: "Undo cell deletion",
-      hidden: !canUndoDeletes(notebook),
+      hidden: !canUndoDeletes(notebook) || kioskMode,
       handle: () => {
         undoDeleteCell();
       },

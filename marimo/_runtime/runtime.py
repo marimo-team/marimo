@@ -82,7 +82,7 @@ from marimo._runtime.requests import (
     CodeCompletionRequest,
     ControlRequest,
     CreationRequest,
-    DeleteRequest,
+    DeleteCellRequest,
     ExecuteMultipleRequest,
     ExecuteStaleRequest,
     ExecutionRequest,
@@ -676,7 +676,7 @@ class Kernel:
     def mutate_graph(
         self,
         execution_requests: Sequence[ExecutionRequest],
-        deletion_requests: Sequence[DeleteRequest],
+        deletion_requests: Sequence[DeleteCellRequest],
     ) -> set[CellId_t]:
         """Add and remove cells to/from the graph.
 
@@ -970,7 +970,7 @@ class Kernel:
         # TODO(akshayka): Send VariableValues message for any globals
         # bound to this state object (just like UI elements)
 
-    async def delete(self, request: DeleteRequest) -> None:
+    async def delete(self, request: DeleteCellRequest) -> None:
         """Delete a cell from kernel and graph."""
         cell_id = request.cell_id
         if cell_id in self.graph.cells:
@@ -1408,7 +1408,7 @@ class Kernel:
                     status=status,
                 ).broadcast()
                 CompletedRun().broadcast()
-            elif isinstance(request, DeleteRequest):
+            elif isinstance(request, DeleteCellRequest):
                 await self.delete(request)
             elif isinstance(request, InstallMissingPackagesRequest):
                 await self.install_missing_packages(request)

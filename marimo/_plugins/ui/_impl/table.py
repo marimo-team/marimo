@@ -21,6 +21,14 @@ from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._plugins.ui._impl.dataframes.transforms.apply import (
+    get_handler_for_dataframe,
+)
+from marimo._plugins.ui._impl.dataframes.transforms.types import (
+    Condition,
+    FilterRowsTransform,
+    TransformType,
+)
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
     TableManager,
@@ -66,6 +74,7 @@ class ColumnSummaries:
 class SearchTableArgs:
     query: Optional[str] = None
     sort: Optional[SortArgs] = None
+    filters: Optional[List[Condition]] = None
 
 
 @dataclass
@@ -224,6 +233,7 @@ class table(
                 "selection": (
                     selection if self._manager.supports_selection() else None
                 ),
+                "show-filters": self._manager.supports_filters(),
                 "show-download": self._manager.supports_download(),
                 "show-column-summaries": show_column_summaries,
                 "row-headers": self._manager.get_row_headers(),
@@ -303,10 +313,21 @@ class table(
 
         # If no query or sort, return nothing
         # The frontend will just show the original data
-        if not args.query and not args.sort:
+        if not args.query and not args.sort and not args.filters:
             self._filtered_manager = self._manager
             return []
 
+        if args.filters:
+            handler = get_handler_for_dataframe(self._manager.data)
+            data = handler.handle_filter_rows(
+                result.data,
+                FilterRowsTransform(
+                    type=TransformType.FILTER_ROWS,
+                    where=args.filters,
+                    operation="keep_rows",
+                ),
+            )
+            result = get_table_manager(data)
         if args.query:
             result = result.search(args.query)
         if args.sort:

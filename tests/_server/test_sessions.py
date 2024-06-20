@@ -202,7 +202,7 @@ def test_session() -> None:
     )
 
     # Assert startup
-    assert session.session_consumer == session_consumer
+    assert session.room.main_consumer == session_consumer
     assert session._queue_manager == queue_manager
     assert session.kernel_manager == kernel_manager
     session_consumer.on_start.assert_called_once()
@@ -210,7 +210,6 @@ def test_session() -> None:
     assert session.connection_state() == ConnectionState.OPEN
 
     session.close()
-    session_consumer.connection_state.return_value = ConnectionState.CLOSED
 
     # Assert shutdown
     assert kernel_manager.kernel_task is not None
@@ -247,22 +246,22 @@ def test_session_disconnect_reconnect() -> None:
     )
 
     # Assert startup
-    assert session.session_consumer == session_consumer
+    assert session.room.main_consumer == session_consumer
     session_consumer.on_start.assert_called_once()
     assert session_consumer.on_stop.call_count == 0
 
-    session.disconnect_consumer()
+    session.disconnect_consumer(session_consumer)
 
     # Assert shutdown of consumer
-    assert session.session_consumer is None
+    assert session.room.main_consumer is None
     session_consumer.on_start.assert_called_once()
     session_consumer.on_stop.assert_called_once()
     assert session.connection_state() == ConnectionState.ORPHANED
 
     # Reconnect
     new_session_consumer = MagicMock()
-    session.connect_consumer(new_session_consumer)
-    assert session.session_consumer == new_session_consumer
+    session.connect_consumer(new_session_consumer, main=True)
+    assert session.room.main_consumer == new_session_consumer
     new_session_consumer.on_start.assert_called_once()
     assert new_session_consumer.on_stop.call_count == 0
 
@@ -276,3 +275,65 @@ def test_session_disconnect_reconnect() -> None:
     new_session_consumer.on_start.assert_called_once()
     new_session_consumer.on_stop.assert_called_once()
     assert session.connection_state() == ConnectionState.CLOSED
+
+
+@save_and_restore_main
+def test_session_with_kiosk_consumers() -> None:
+    session_consumer: Any = MagicMock()
+    session_consumer.connection_state.return_value = ConnectionState.OPEN
+    queue_manager = QueueManager(use_multiprocessing=False)
+    kernel_manager = KernelManager(
+        queue_manager,
+        SessionMode.RUN,
+        {},
+        app_metadata,
+        UserConfigManager(),
+        virtual_files_supported=True,
+    )
+
+    # Instantiate a Session
+    session = Session(
+        "test",
+        session_consumer,
+        queue_manager,
+        kernel_manager,
+        AppFileManager.from_app(InternalApp(App())),
+    )
+
+    # Assert startup
+    assert session.room.main_consumer == session_consumer
+    assert session._queue_manager == queue_manager
+    assert session.kernel_manager == kernel_manager
+    session_consumer.on_start.assert_called_once()
+    assert session_consumer.on_stop.call_count == 0
+    assert session.connection_state() == ConnectionState.OPEN
+
+    # Create a kiosk consumer
+    kiosk_consumer: Any = MagicMock()
+    kiosk_consumer.connection_state.return_value = ConnectionState.OPEN
+    session.connect_consumer(kiosk_consumer, main=False)
+
+    # Assert startup of kiosk consumer
+    assert session.room.main_consumer != kiosk_consumer
+    assert kiosk_consumer in session.room.consumers
+    kiosk_consumer.on_start.assert_called_once()
+    assert kiosk_consumer.on_stop.call_count == 0
+    assert session.connection_state() == ConnectionState.OPEN
+
+    session.close()
+    session_consumer.connection_state.return_value = ConnectionState.CLOSED
+    kiosk_consumer.connection_state.return_value = ConnectionState.CLOSED
+
+    # Assert shutdown
+    assert kernel_manager.kernel_task is not None
+    kernel_manager.kernel_task.join()
+    assert not kernel_manager.is_alive()
+    assert queue_manager.input_queue.empty()
+    assert queue_manager.control_queue.empty()
+    session_consumer.on_start.assert_called_once()
+    session_consumer.on_stop.assert_called_once()
+    kiosk_consumer.on_start.assert_called_once()
+    kiosk_consumer.on_stop.assert_called_once()
+    assert session.connection_state() == ConnectionState.CLOSED
+    assert not session.room.consumers
+    assert session.room.main_consumer is None
