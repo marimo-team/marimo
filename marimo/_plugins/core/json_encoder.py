@@ -15,9 +15,6 @@ class WebComponentEncoder(JSONEncoder):
 
     def default(self, o: Any) -> Any:
         obj = o
-        if dataclasses.is_dataclass(obj):
-            return dataclasses.asdict(obj)
-
         # Handle numpy objects
         if DependencyManager.has_numpy():
             import numpy as np
@@ -69,6 +66,10 @@ class WebComponentEncoder(JSONEncoder):
         if hasattr(obj, "_mime_"):
             (mimetype, data) = obj._mime_()
             return {"mimetype": mimetype, "data": data}
+
+        # Must come after MIME objects
+        if dataclasses.is_dataclass(obj):
+            return dataclasses.asdict(obj)
 
         # Handle bytes objects
         if isinstance(obj, bytes):
