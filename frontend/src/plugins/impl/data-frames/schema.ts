@@ -79,6 +79,7 @@ export const ConditionSchema = z
     value: z.any().describe(FieldOptions.of({ label: "Value" })),
   })
   .describe(FieldOptions.of({ direction: "row", special: "column_filter" }));
+export type ConditionType = z.infer<typeof ConditionSchema>;
 
 const FilterRowsTransformSchema = z.object({
   type: z.literal("filter_rows"),

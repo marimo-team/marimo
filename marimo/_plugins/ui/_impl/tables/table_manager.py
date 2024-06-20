@@ -42,6 +42,10 @@ class TableManager(abc.ABC, Generic[T]):
         return True
 
     @abc.abstractmethod
+    def supports_filters(self) -> bool:
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def sort_values(
         self, by: ColumnName, descending: bool
     ) -> TableManager[Any]:

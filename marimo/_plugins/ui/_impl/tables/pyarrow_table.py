@@ -51,6 +51,11 @@ class PyArrowTableManagerFactory(TableManagerFactory):
                     )
                 return PyArrowTableManager(self.data.take(indices))
 
+            def supports_filters(self) -> bool:
+                # Does't support filters until we
+                # have a PyArrowTransformHandler
+                return False
+
             def select_columns(
                 self, columns: list[str]
             ) -> PyArrowTableManager:

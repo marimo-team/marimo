@@ -2,6 +2,7 @@
 // @ts-expect-error - no types
 import * as vl from "vega-loader";
 import { DataFormat } from "./types";
+import { DataType } from "@/core/kernel/messages";
 
 // Re-export the vega-loader functions to add TypeScript types
 
@@ -33,15 +34,9 @@ export function createLoader(): {
   return vl.loader();
 }
 
-export type VegaType =
-  | "boolean"
-  | "integer"
-  | "number"
-  | "date"
-  | "string"
-  | "unknown";
+export type FieldTypes = Record<string, DataType>;
 
-export type FieldTypes = Record<string, VegaType>;
-
-export const typeParsers: Record<VegaType, (value: string) => unknown> =
+export const typeParsers: Record<DataType, (value: string) => unknown> =
   vl.typeParsers;
+
+export type { DataType } from "@/core/kernel/messages";

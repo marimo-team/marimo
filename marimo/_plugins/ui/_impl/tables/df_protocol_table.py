@@ -56,6 +56,10 @@ class DataFrameProtocolTableManager(TableManager[DataFrameLike]):
             )
         return self._delegate
 
+    def supports_filters(self) -> bool:
+        # Does't support filters until pyarrow supports it
+        return False
+
     def to_csv(self) -> bytes:
         return self._ensure_delegate().to_csv()
 
