@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { z } from "zod";
 
 import { IPlugin, IPluginProps, Setter } from "../types";
@@ -55,6 +55,11 @@ interface MultiselectProps extends Data {
 const Multiselect = (props: MultiselectProps): JSX.Element => {
   const id = useId();
   const [filteredOptions, setFilteredOptions] = useState(props.options);
+
+  useEffect(() => {
+    setFilteredOptions(props.options);
+    return () => setFilteredOptions([]);
+  }, [props.options]);
 
   const filterOptions = (search: string) => {
     if (!search) {
