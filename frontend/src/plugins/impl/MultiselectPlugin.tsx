@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useEffect, useId, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { z } from "zod";
 
 import { IPlugin, IPluginProps, Setter } from "../types";
@@ -54,24 +54,16 @@ interface MultiselectProps extends Data {
 
 const Multiselect = (props: MultiselectProps): JSX.Element => {
   const id = useId();
-  const [filteredOptions, setFilteredOptions] = useState(props.options);
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
-  useEffect(() => {
-    setFilteredOptions(props.options);
-    return () => setFilteredOptions([]);
-  }, [props.options]);
-
-  const filterOptions = (search: string) => {
-    if (!search) {
-      setFilteredOptions(props.options);
-      return;
+  const filteredOptions = useMemo(() => {
+    if (!searchQuery) {
+      return props.options;
     }
-    setFilteredOptions(
-      props.options.filter(
-        (option) => multiselectFilterFn(option, search) === 1,
-      ),
+    return props.options.filter(
+      (option) => multiselectFilterFn(option, searchQuery) === 1,
     );
-  };
+  }, [props.options, searchQuery]);
 
   function setValue(newValues: T) {
     if (props.maxSelections != null && newValues.length > props.maxSelections) {
@@ -92,19 +84,28 @@ const Multiselect = (props: MultiselectProps): JSX.Element => {
         value={props.value}
         onValueChange={(newValues) => setValue(newValues || [])}
         shouldFilter={false}
-        customFilterFn={filterOptions}
+        search={searchQuery}
+        onSearchChange={setSearchQuery}
       >
-        {/* List virtualization */}
-        <Virtuoso
-          style={{ height: "200px" }}
-          totalCount={filteredOptions.length}
-          overscan={25}
-          itemContent={(i: number) => (
-            <ComboboxItem key={filteredOptions[i]} value={filteredOptions[i]}>
-              {filteredOptions[i]}
+        {filteredOptions.length > 200 ? (
+          // List virtualization
+          <Virtuoso
+            style={{ height: "200px" }}
+            totalCount={filteredOptions.length}
+            overscan={50}
+            itemContent={(i: number) => (
+              <ComboboxItem key={filteredOptions[i]} value={filteredOptions[i]}>
+                {filteredOptions[i]}
+              </ComboboxItem>
+            )}
+          />
+        ) : (
+          filteredOptions.map((option) => (
+            <ComboboxItem key={option} value={option}>
+              {option}
             </ComboboxItem>
-          )}
-        />
+          ))
+        )}
       </Combobox>
     </Labeled>
   );

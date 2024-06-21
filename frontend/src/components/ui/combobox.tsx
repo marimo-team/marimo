@@ -43,12 +43,10 @@ type ComboboxFilterProps =
   | {
       shouldFilter?: true;
       filterFn?: React.ComponentProps<typeof Command>["filter"];
-      customFilterFn?: never;
     }
   | {
       shouldFilter?: false;
       filterFn?: never;
-      customFilterFn?: (search: string) => void;
     };
 
 type ComboboxValueProps<TValue> =
@@ -84,7 +82,6 @@ export const Combobox = <TValue,>({
   multiple = false,
   shouldFilter = true,
   filterFn,
-  customFilterFn,
   open: openProp,
   defaultOpen,
   onOpenChange,
@@ -190,7 +187,7 @@ export const Combobox = <TValue,>({
               rootClassName={"px-1 h-8"}
               autoFocus={true}
               value={search}
-              onValueChange={customFilterFn ?? onSearchChange}
+              onValueChange={onSearchChange}
             />
             <CommandList className="max-h-60 py-.5">
               <CommandEmpty>{emptyState}</CommandEmpty>
