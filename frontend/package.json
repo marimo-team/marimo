@@ -117,6 +117,7 @@
     "react-resizable-panels": "2.0.19",
     "react-use-event-hook": "^0.9.6",
     "react-vega": "^7.6.0",
+    "react-virtuoso": "^4.7.11",
     "reactflow": "^11.11.3",
     "rpc-anywhere": "^1.7.0",
     "string-dedent": "^3.0.1",

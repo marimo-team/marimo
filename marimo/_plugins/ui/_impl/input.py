@@ -901,7 +901,7 @@ class multiselect(UIElement[List[str], List[object]]):
     - `max_selections`: maximum number of items that can be selected
     """
 
-    _MAX_OPTIONS: Final[int] = 1000
+    _MAX_OPTIONS: Final[int] = 100000
     _name: Final[str] = "marimo-multiselect"
 
     def __init__(

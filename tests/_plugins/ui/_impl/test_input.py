@@ -303,7 +303,7 @@ def test_multiselect() -> None:
 
 def test_multiselect_too_many_options() -> None:
     with pytest.raises(ValueError) as e:
-        ui.multiselect(options={str(i): i for i in range(2000)})
+        ui.multiselect(options={str(i): i for i in range(200000)})
 
     assert "maximum number" in str(e.value)
 

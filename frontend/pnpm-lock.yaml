@@ -317,6 +317,9 @@ dependencies:
   react-vega:
     specifier: ^7.6.0
     version: 7.6.0(react@18.3.1)(vega-lite@5.18.1)(vega@5.28.0)
+  react-virtuoso:
+    specifier: ^4.7.11
+    version: 4.7.11(react-dom@18.3.1)(react@18.3.1)
   reactflow:
     specifier: ^11.11.3
     version: 11.11.3(@types/react@18.3.3)(react-dom@18.3.1)(react@18.3.1)
@@ -16495,6 +16498,17 @@ packages:
       vega: 5.28.0
       vega-embed: 6.23.0(vega-lite@5.18.1)(vega@5.28.0)
       vega-lite: 5.18.1(vega@5.28.0)
+    dev: false
+
+  /react-virtuoso@4.7.11(react-dom@18.3.1)(react@18.3.1):
+    resolution: {integrity: sha512-Kdn9qEtQI2ulEuBMzW2BTkDsfijB05QUd6lpZ1K36oyA3k65Cz4lG4EKrh2pCfUafX4C2uMSZOwzMOhbrMOTFA==}
+    engines: {node: '>=10'}
+    peerDependencies:
+      react: '>=16 || >=17 || >= 18'
+      react-dom: '>=16 || >=17 || >= 18'
+    dependencies:
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
     dev: false
 
   /react-window@1.8.10(react-dom@18.3.1)(react@18.3.1):

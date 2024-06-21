@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useId } from "react";
+import { useId, useMemo, useState } from "react";
 import { z } from "zod";
 
 import { IPlugin, IPluginProps, Setter } from "../types";
 import { Combobox, ComboboxItem } from "../../components/ui/combobox";
 import { Labeled } from "./common/labeled";
 import { cn } from "@/utils/cn";
+import { Virtuoso } from "react-virtuoso";
 
 interface Data {
   label: string | null;
@@ -53,6 +54,16 @@ interface MultiselectProps extends Data {
 
 const Multiselect = (props: MultiselectProps): JSX.Element => {
   const id = useId();
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
+  const filteredOptions = useMemo(() => {
+    if (!searchQuery) {
+      return props.options;
+    }
+    return props.options.filter(
+      (option) => multiselectFilterFn(option, searchQuery) === 1,
+    );
+  }, [props.options, searchQuery]);
 
   function setValue(newValues: T) {
     if (props.maxSelections != null && newValues.length > props.maxSelections) {
@@ -67,18 +78,34 @@ const Multiselect = (props: MultiselectProps): JSX.Element => {
         displayValue={(option) => option}
         placeholder="Select..."
         multiple={true}
-        filterFn={multiselectFilterFn}
         className={cn({
           "w-full": props.fullWidth,
         })}
         value={props.value}
         onValueChange={(newValues) => setValue(newValues || [])}
+        shouldFilter={false}
+        search={searchQuery}
+        onSearchChange={setSearchQuery}
       >
-        {props.options.map((option) => (
-          <ComboboxItem key={option} value={option}>
-            {option}
-          </ComboboxItem>
-        ))}
+        {filteredOptions.length > 200 ? (
+          // List virtualization
+          <Virtuoso
+            style={{ height: "200px" }}
+            totalCount={filteredOptions.length}
+            overscan={50}
+            itemContent={(i: number) => (
+              <ComboboxItem key={filteredOptions[i]} value={filteredOptions[i]}>
+                {filteredOptions[i]}
+              </ComboboxItem>
+            )}
+          />
+        ) : (
+          filteredOptions.map((option) => (
+            <ComboboxItem key={option} value={option}>
+              {option}
+            </ComboboxItem>
+          ))
+        )}
       </Combobox>
     </Labeled>
   );
