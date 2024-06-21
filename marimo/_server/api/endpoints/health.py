@@ -156,7 +156,9 @@ async def usage(request: Request) -> JSONResponse:
     import psutil
 
     memory = psutil.virtual_memory()
-    cpu = psutil.cpu_percent(interval=1)
+    # interval=None is nonblocking; first value is meaningless but after
+    # that it's useful.
+    cpu = psutil.cpu_percent(interval=None)
 
     # Server memory (and children)
     main_process = psutil.Process()

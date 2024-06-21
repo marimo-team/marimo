@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 from enum import IntEnum
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
@@ -290,6 +290,49 @@ class WebsocketHandler(SessionConsumer):
             LOGGER.debug("Replaying operation %s", serialize(op))
             self.write_operation(op)
 
+    def _on_disconnect(
+        self,
+        e: Exception,
+        cleanup_fn: Callable[[], Any],
+    ) -> None:
+        LOGGER.debug(
+            "Websocket disconnected for session %s with exception %s, type %s",
+            self.session_id,
+            str(e),
+            type(e),
+        )
+
+        # Change the status
+        self.status = ConnectionState.CLOSED
+        # Disconnect the consumer
+        session = self.manager.get_session(self.session_id)
+        if session:
+            session.disconnect_consumer(self)
+
+        if self.manager.mode == SessionMode.RUN:
+            # When the websocket is closed, we wait TTL_SECONDS before
+            # closing the session. This is to prevent the session from
+            # being closed if the during an intermittent network issue.
+            def _close() -> None:
+                if self.status != ConnectionState.OPEN:
+                    LOGGER.debug(
+                        "Closing session %s (TTL EXPIRED)",
+                        self.session_id,
+                    )
+                    # wait until TTL is expired before calling the cleanup
+                    # function
+                    cleanup_fn()
+                    self.manager.close_session(self.session_id)
+
+            session = self.manager.get_session(self.session_id)
+            cancellation_handle = asyncio.get_event_loop().call_later(
+                Session.TTL_SECONDS, _close
+            )
+            if session is not None:
+                self.cancel_close_handle = cancellation_handle
+        else:
+            cleanup_fn()
+
     async def start(self) -> None:
         # Accept the websocket connection
         await self.websocket.accept()
@@ -413,27 +456,27 @@ class WebsocketHandler(SessionConsumer):
         async def listen_for_messages() -> None:
             while True:
                 (op, data) = await self.message_queue.get()
+
+                if op in KIOSK_ONLY_OPERATIONS and not self.kiosk:
+                    LOGGER.debug(
+                        "Ignoring operation %s, not in kiosk mode",
+                        op,
+                    )
+                    continue
+                if op in KIOSK_EXCLUDED_OPERATIONS and self.kiosk:
+                    LOGGER.debug(
+                        "Ignoring operation %s, in kiosk mode",
+                        op,
+                    )
+                    continue
+
                 try:
-                    if op in KIOSK_ONLY_OPERATIONS and not self.kiosk:
-                        LOGGER.debug(
-                            "Ignoring operation %s, not in kiosk mode",
-                            op,
-                        )
-                        continue
-                    if op in KIOSK_EXCLUDED_OPERATIONS and self.kiosk:
-                        LOGGER.debug(
-                            "Ignoring operation %s, in kiosk mode",
-                            op,
-                        )
-                        continue
-                    await self.websocket.send_text(
-                        json.dumps(
-                            {
-                                "op": op,
-                                "data": data,
-                            },
-                            cls=WebComponentEncoder,
-                        )
+                    text = json.dumps(
+                        {
+                            "op": op,
+                            "data": data,
+                        },
+                        cls=WebComponentEncoder,
                     )
                 except TypeError as e:
                     # This is a deserialization error
@@ -441,48 +484,36 @@ class WebsocketHandler(SessionConsumer):
                         "Failed to send message to frontend: %s", str(e)
                     )
                     LOGGER.error("Message: %s", data)
+                    continue
+
+                try:
+                    await self.websocket.send_text(text)
+                except WebSocketDisconnect as e:
+                    self._on_disconnect(
+                        e,
+                        cleanup_fn=lambda: listen_for_disconnect_task.cancel(),
+                    )
+                except RuntimeError as e:
+                    # Starlette can raise a runtime error if a message is sent
+                    # when the socket is closed. In case the disconnection
+                    # error hasn't made its way to listen_for_disconnect, do
+                    # the cleanup here.
+                    if (
+                        self.websocket.application_state
+                        == WebSocketState.DISCONNECTED
+                    ):
+                        self._on_disconnect(
+                            e,
+                            cleanup_fn=lambda: listen_for_disconnect_task.cancel(),  # noqa: E501
+                        )
 
         async def listen_for_disconnect() -> None:
             try:
                 await self.websocket.receive_text()
             except WebSocketDisconnect as e:
-                LOGGER.debug(
-                    "Websocket disconnected for session %s with exception %s",
-                    self.session_id,
-                    str(e),
+                self._on_disconnect(
+                    e, cleanup_fn=lambda: listen_for_messages_task.cancel()
                 )
-
-                # Change the status
-                self.status = ConnectionState.CLOSED
-                # Disconnect the consumer
-                session = self.manager.get_session(self.session_id)
-                if session:
-                    session.disconnect_consumer(self)
-
-                if self.manager.mode == SessionMode.RUN:
-                    # When the websocket is closed, we wait TTL_SECONDS before
-                    # closing the session. This is to prevent the session from
-                    # being closed if the during an intermittent network issue.
-                    def _close() -> None:
-                        if self.status != ConnectionState.OPEN:
-                            LOGGER.debug(
-                                "Closing session %s (TTL EXPIRED)",
-                                self.session_id,
-                            )
-                            # wait until TTL is expired before canceling the
-                            # listener task
-                            listen_for_messages_task.cancel()
-                            self.manager.close_session(self.session_id)
-
-                    session = self.manager.get_session(self.session_id)
-                    cancellation_handle = asyncio.get_event_loop().call_later(
-                        Session.TTL_SECONDS, _close
-                    )
-                    if session is not None:
-                        self.cancel_close_handle = cancellation_handle
-                else:
-                    # Stop listening for messages -- kernel will be torn down
-                    listen_for_messages_task.cancel()
 
         listen_for_messages_task = asyncio.create_task(listen_for_messages())
         listen_for_disconnect_task = asyncio.create_task(
