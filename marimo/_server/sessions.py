@@ -302,7 +302,11 @@ class Room:
             self.main_consumer = consumer
 
     def remove_consumer(self, consumer: SessionConsumer) -> None:
-        assert consumer in self.consumers, "Consumer not in room"
+        if consumer not in self.consumers:
+            LOGGER.debug(
+                "Attempted to remove a consumer that was not in room."
+            )
+            return
 
         if consumer == self.main_consumer:
             self.main_consumer = None
