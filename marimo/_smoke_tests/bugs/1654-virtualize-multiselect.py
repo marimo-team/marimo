@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 import marimo
 
 __generated_with = "0.6.19"
@@ -38,13 +39,25 @@ def __(md_list, mo):
 
 @app.cell
 def __(lg_list, mo):
-    mo.ui.multiselect(lg_list, label="Large list with 1000 items")
+    mo.ui.multiselect(lg_list, label="Large list with 1K items")
     return
 
 
 @app.cell
 def __(mo, xl_list):
-    mo.ui.multiselect(xl_list, label="Large list with 10000 items")
+    mo.ui.multiselect(xl_list, label="XL list with 10K items")
+    return
+
+
+@app.cell
+def __(mo, xxl_list):
+    mo.ui.multiselect(xxl_list, label="XXL list with 100K items")
+    return
+
+
+@app.cell
+def __(mo, xxxl_list):
+    mo.ui.multiselect(xxxl_list, label="XXXL list with 200K items")
     return
 
 
@@ -56,7 +69,18 @@ def __():
     md_list = [f"Row {i}" for i in range(RANGE // 20)]
     lg_list = [f"Row {i}" for i in range(RANGE // 10)]
     xl_list = [f"Row {i}" for i in range(RANGE)]
-    return RANGE, lg_list, md_list, sm_list, xl_list, xs_list
+    xxl_list = [f"Row {i}" for i in range(RANGE * 10)]
+    xxxl_list = [f"Row {i}" for i in range(RANGE * 20)]
+    return (
+        RANGE,
+        lg_list,
+        md_list,
+        sm_list,
+        xl_list,
+        xs_list,
+        xxl_list,
+        xxxl_list,
+    )
 
 
 if __name__ == "__main__":
