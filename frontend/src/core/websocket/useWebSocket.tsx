@@ -37,7 +37,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
             startClosed: true,
             // long timeout -- the server can become slow when many notebooks
             // are open.
-            connectionTimeout: 60_000,
+            connectionTimeout: 10_000,
           });
 
     onOpen && socket.addEventListener("open", onOpen);
