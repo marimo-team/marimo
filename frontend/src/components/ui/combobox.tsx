@@ -45,7 +45,7 @@ type ComboboxFilterProps =
       filterFn?: React.ComponentProps<typeof Command>["filter"];
     }
   | {
-      shouldFilter?: false;
+      shouldFilter: false;
       filterFn?: never;
     };
 
