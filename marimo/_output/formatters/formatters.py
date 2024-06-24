@@ -17,6 +17,7 @@ from marimo._output.formatters.pandas_formatters import PandasFormatter
 from marimo._output.formatters.plotly_formatters import PlotlyFormatter
 from marimo._output.formatters.seaborn_formatters import SeabornFormatter
 from marimo._output.formatters.structures import StructuresFormatter
+from marimo._output.formatters.npndarray_formatters import NpndarrayFormatter
 
 # Map from formatter factory's package name to formatter, for third-party
 # modules. These formatters will be registered if and when their associated
@@ -32,6 +33,7 @@ THIRD_PARTY_FACTORIES: dict[str, FormatterFactory] = {
     HoloViewsFormatter.package_name(): HoloViewsFormatter(),
     IPythonFormatter.package_name(): IPythonFormatter(),
     AnyWidgetFormatter.package_name(): AnyWidgetFormatter(),
+    NpndarrayFormatter.package_name() : NpndarrayFormatter()
 }
 
 # Formatters for builtin types and other things that don't require a
