@@ -21,7 +21,6 @@ from marimo._ast.cell import (
     Cell,
     CellConfig,
     CellId_t,
-    CellImpl,
 )
 from marimo._ast.compiler import cell_factory
 from marimo._ast.errors import (
@@ -153,7 +152,7 @@ class App:
         self._initialized = False
 
         self._app_uuid = str(uuid4())
-        self._pending_ui_element_updates: list[UIElement] = []
+        self._pending_ui_element_updates: list[UIElement[Any, Any]] = []
         self._cached_outputs: dict[CellId_t, Any] | None = None
         self._cached_defs: Mapping[str, object] | None = None
 
@@ -284,10 +283,8 @@ class App:
     def _run_sync(
         self,
         post_execute_hooks: list[Callable[..., Any]],
-        skipped_cells: set[CellId_t],
+        cells_to_run: set[CellId_t] | None,
     ) -> tuple[Sequence[Any], Mapping[str, Any]]:
-        from marimo._runtime.context.types import get_context
-
         # No need to provide `file`, `input_override` here, since this
         # function is only called when running as a script
         with patch_main_module_context() as module:
@@ -299,7 +296,7 @@ class App:
                 if cell is None:
                     continue
 
-                if cid in skipped_cells:
+                if cells_to_run is not None and cid not in cells_to_run:
                     assert self._cached_defs is not None
                     assert self._cached_outputs is not None
                     outputs[cid] = self._cached_outputs[cid]
@@ -323,10 +320,8 @@ class App:
     async def _run_async(
         self,
         post_execute_hooks: list[Callable[..., Any]],
-        skipped_cells: set[CellId_t],
+        cells_to_run: set[CellId_t] | None = None,
     ) -> tuple[Sequence[Any], Mapping[str, Any]]:
-        from marimo._runtime.context.types import get_context
-
         # No need to provide `file`, `input_override` here, since this
         # function is only called when running as a script
         with patch_main_module_context() as module:
@@ -338,7 +333,7 @@ class App:
                 if cell is None:
                     continue
 
-                if cid in skipped_cells:
+                if cells_to_run is not None and cid not in cells_to_run:
                     assert self._cached_defs is not None
                     assert self._cached_outputs is not None
                     outputs[cid] = self._cached_outputs[cid]
@@ -363,13 +358,12 @@ class App:
         return self._outputs_and_defs(outputs, glbls)
 
     def _run_internal(
-        self, skipped_cells: set[CellId_t]
+        self, cells_to_run: set[CellId_t] | None = None
     ) -> tuple[Sequence[Any], Mapping[str, Any]]:
         from marimo._runtime.context.script_context import (
             initialize_script_context,
         )
         from marimo._runtime.context.types import (
-            get_context,
             runtime_context_installed,
             teardown_context,
         )
@@ -425,13 +419,13 @@ class App:
                     return asyncio.run(
                         self._run_async(
                             post_execute_hooks=post_execute_hooks,
-                            skipped_cells=skipped_cells,
+                            cells_to_run=cells_to_run,
                         )
                     )
                 else:
                     return self._run_sync(
                         post_execute_hooks=post_execute_hooks,
-                        skipped_cells=skipped_cells,
+                        cells_to_run=cells_to_run,
                     )
 
         finally:
@@ -439,7 +433,7 @@ class App:
                 teardown_context()
 
     def run(self) -> tuple[Sequence[Any], Mapping[str, Any]]:
-        return self._run_internal(skipped_cells=set())
+        return self._run_internal()
 
     async def _run_cell_async(
         self, cell: Cell, kwargs: dict[str, Any]
@@ -457,7 +451,7 @@ class App:
         output, defs = self._runner.run_cell_sync(cell._cell.cell_id, kwargs)
         return output, _Namespace(defs, owner=self)
 
-    def _register_ui_element_update(self, value: UIElement) -> None:
+    def _register_ui_element_update(self, value: UIElement[Any, Any]) -> None:
         if value not in self._pending_ui_element_updates:
             self._pending_ui_element_updates.append(value)
 
@@ -474,13 +468,12 @@ class App:
                         updated_names.add(name)
                         defining_cells |= self._graph.get_defining_cells(name)
                         break
-            ancestors = dataflow.transitive_closure(
+            descendants = dataflow.transitive_closure(
                 self._graph,
                 defining_cells,
-                children=False,
-                inclusive=True,
+                inclusive=False,
             )
-            self._run_internal(skipped_cells=ancestors)
+            self._run_internal(cells_to_run=descendants)
         elif self._cached_outputs is None:
             self.run()
 
