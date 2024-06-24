@@ -238,7 +238,6 @@ class CellOp(Op):
         data: Sequence[Error],
         clear_console: bool,
         cell_id: CellId_t,
-        status: Optional[CellStatusType],
     ) -> None:
         console: Optional[list[CellOutput]] = [] if clear_console else None
         CellOp(
@@ -249,7 +248,7 @@ class CellOp(Op):
                 data=data,
             ),
             console=console,
-            status=status,
+            status=None,
         ).broadcast()
 
     @staticmethod

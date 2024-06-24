@@ -128,7 +128,7 @@ def _broadcast_outputs(
             mimetype=formatted_output.mimetype,
             data=formatted_output.data,
             cell_id=cell.cell_id,
-            status=cell.status,
+            status=None,
         )
     elif isinstance(run_result.exception, MarimoStrictExecutionError):
         LOGGER.debug("Cell %s raised a strict error", cell.cell_id)
@@ -137,7 +137,6 @@ def _broadcast_outputs(
             data=[run_result.output],
             clear_console=True,
             cell_id=cell.cell_id,
-            status=cell.status,
         )
     elif isinstance(run_result.exception, MarimoInterrupt):
         LOGGER.debug("Cell %s was interrupted", cell.cell_id)
@@ -147,7 +146,6 @@ def _broadcast_outputs(
             data=[MarimoInterruptionError()],
             clear_console=False,
             cell_id=cell.cell_id,
-            status=cell.status,
         )
     elif run_result.exception is not None:
         LOGGER.debug(
@@ -176,7 +174,6 @@ def _broadcast_outputs(
             ],
             clear_console=False,
             cell_id=cell.cell_id,
-            status=cell.status,
         )
 
 
