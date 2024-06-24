@@ -11,6 +11,7 @@ export function useAutoSave(opts: {
   config: UserConfig;
   connStatus: ConnectionStatus;
   needsSave: boolean;
+  kioskMode: boolean;
   onSave: () => void;
 }) {
   const {
@@ -20,11 +21,17 @@ export function useAutoSave(opts: {
     connStatus,
     cellNames,
     needsSave,
+    kioskMode,
     onSave,
   } = opts;
   const autosaveTimeoutId = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    // If kiosk mode is enabled, do not autosave
+    if (kioskMode) {
+      return;
+    }
+
     if (config.save.autosave === "after_delay") {
       if (autosaveTimeoutId.current !== null) {
         clearTimeout(autosaveTimeoutId.current);
@@ -52,6 +59,7 @@ export function useAutoSave(opts: {
     config.save,
     connStatus.state,
     onSave,
+    kioskMode,
     needsSave,
   ]);
 }
