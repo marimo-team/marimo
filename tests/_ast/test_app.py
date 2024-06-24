@@ -1,4 +1,5 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 from __future__ import annotations
 
 import subprocess
@@ -6,7 +7,6 @@ import textwrap
 from typing import TYPE_CHECKING, Any
 
 import pytest
-
 from marimo._ast.app import App, _AppConfig
 from marimo._ast.errors import (
     CycleError,
@@ -15,6 +15,8 @@ from marimo._ast.errors import (
     UnparsableError,
 )
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._output.formatting import as_html
+from marimo._plugins.stateless.flex import vstack
 
 if TYPE_CHECKING:
     import pathlib
@@ -352,7 +354,8 @@ class TestApp:
 
         @app.cell
         def __() -> tuple[Any]:
-            def foo() -> None: ...
+            def foo() -> None:
+                ...
 
             return (foo,)
 
@@ -485,3 +488,38 @@ def test_cli_args(tmp_path: pathlib.Path) -> None:
     assert "value1" in output
     assert "bar" in output
     assert "value2" in output
+
+
+class TestAppComposition:
+    def test_app_as_html(self) -> None:
+        app = App()
+
+        @app.cell
+        def __() -> None:
+            "hello"
+
+        @app.cell
+        def __() -> None:
+            "world"
+
+        app_html = as_html(app).text
+        assert app_html == vstack(["hello", "world"]).text
+
+    def test_app_as_html_none_stripped(self) -> None:
+        app = App()
+
+        @app.cell
+        def __() -> None:
+            "hello"
+
+        @app.cell
+        def __() -> None:
+            None
+
+        @app.cell
+        def __() -> None:
+            "world"
+
+        app_html = as_html(app).text
+        # None shouldn't show up in output
+        assert app_html == vstack(["hello", "world"]).text
