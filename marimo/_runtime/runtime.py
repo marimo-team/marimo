@@ -838,7 +838,6 @@ class Kernel:
                 data=self.errors[cid],
                 clear_console=True,
                 cell_id=cid,
-                status=None,
             )
 
         Variables(

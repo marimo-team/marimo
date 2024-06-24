@@ -28,7 +28,6 @@ def _send_interrupt_errors(runner: cell_runner.Runner) -> None:
                 # reflect a previous run and should be cleared
                 clear_console=True,
                 cell_id=cid,
-                status="idle",
             )
 
 
@@ -36,7 +35,12 @@ def _send_cancellation_errors(runner: cell_runner.Runner) -> None:
     for raising_cell in runner.cells_cancelled:
         for cid in runner.cells_cancelled[raising_cell]:
             # `cid` was not run
-            runner.graph.cells[cid].set_status("idle")
+            cell = runner.graph.cells[cid]
+            if cell.status != "idle":
+                # the cell raising an exception will already be
+                # idle, but its descendants won't be.
+                cell.set_status("idle")
+
             exception = runner.exceptions[raising_cell]
             data: Error
             if isinstance(exception, MarimoStopError):
@@ -74,7 +78,6 @@ def _send_cancellation_errors(runner: cell_runner.Runner) -> None:
                 # reflect a previous run and should be cleared
                 clear_console=True,
                 cell_id=cid,
-                status="idle",
             )
 
 
