@@ -84,6 +84,21 @@ class KernelRuntimeContext(RuntimeContext):
     def register_state_update(self, state: State[Any]) -> None:
         return self._kernel.register_state_update(state)
 
+    @contextmanager
+    def with_cell_id(self, cell_id: CellId_t) -> Iterator[None]:
+        old = self.execution_context
+        try:
+            if old is not None:
+                setting_element_value = old.setting_element_value
+            else:
+                setting_element_value = False
+            self._kernel.execution_context = ExecutionContext(
+                cell_id=cell_id, setting_element_value=setting_element_value
+            )
+            yield
+        finally:
+            self._kernel.execution_context = old
+
 
 def initialize_kernel_context(
     kernel: Kernel,

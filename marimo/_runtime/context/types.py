@@ -117,6 +117,11 @@ class RuntimeContext(abc.ABC):
     def register_state_update(self, state: State[Any]) -> None:
         pass
 
+    @contextmanager
+    @abc.abstractmethod
+    def with_cell_id(self, cell_id: CellId_t) -> Iterator[None]:
+        pass
+
 
 class _ThreadLocalContext(threading.local):
     """Thread-local container that holds thread/session-specific state."""

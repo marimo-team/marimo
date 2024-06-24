@@ -12,7 +12,7 @@ if sys.version_info < (3, 10):
 else:
     from typing import TypeAlias
 
-from marimo._ast.app import _Namespace
+from marimo._ast.app import App, _Namespace
 from marimo._ast.cell import CellId_t
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import get_context
@@ -92,6 +92,16 @@ class UIElementRegistry:
             elif isinstance(
                 value, _Namespace
             ) and self._find_bindings_in_namespace(object_id, value):
+                bindings.add(name)
+            elif (
+                isinstance(value, App)
+                and value._cached_defs is not None
+                and self._find_bindings_in_namespace(
+                    object_id, value._cached_defs
+                )
+            ):
+                # app composition -- only one level of nesting is currently
+                # supported
                 bindings.add(name)
         return bindings
 
