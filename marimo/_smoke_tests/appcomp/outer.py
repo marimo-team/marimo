@@ -1,4 +1,5 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
 __generated_with = "0.6.22"
@@ -39,6 +40,24 @@ def __(mo):
 def __(app, mo):
     tabs = mo.ui.tabs({"🧮": app, "📝": mo.md("Hello world")}); tabs
     return tabs,
+
+
+@app.cell
+def __(mo):
+    mo.md(rf"## Render an app that uses function calls")
+    return
+
+
+@app.cell
+def __():
+    from make_table import app as table_app
+    return table_app,
+
+
+@app.cell
+def __(table_app):
+    table_app
+    return
 
 
 @app.cell
