@@ -28,7 +28,7 @@ import {
   notebookNeedsSave,
 } from "./cells/utils";
 import type { AppConfig, UserConfig } from "./config/config-schema";
-import { toggleAppMode, viewStateAtom } from "./mode";
+import { kioskModeAtom, toggleAppMode, viewStateAtom } from "./mode";
 import { useHotkey } from "../hooks/useHotkey";
 import { useImperativeModal } from "../components/modal/ImperativeModal";
 import {
@@ -83,6 +83,7 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   const isEditing = viewState.mode === "edit";
   const isPresenting = viewState.mode === "present";
   const isRunning = useAtomValue(notebookIsRunningAtom);
+  const kioskMode = useAtomValue(kioskModeAtom);
 
   function alertSaveFailed() {
     openAlert("Failed to save notebook: not connected to a kernel.");
@@ -154,6 +155,10 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
 
   // Save the notebook with the given filename
   const saveNotebook = useEvent((filename: string, userInitiated: boolean) => {
+    if (kioskMode) {
+      return;
+    }
+
     // Don't save if there are no cells
     if (codes.length === 0) {
       return;
@@ -217,6 +222,7 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
     cellNames: cellNames,
     connStatus: connection,
     config: userConfig,
+    kioskMode: kioskMode,
   });
 
   useEventListener(window, "beforeunload", (e: BeforeUnloadEvent) => {
