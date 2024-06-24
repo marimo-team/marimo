@@ -183,7 +183,7 @@ class Exporter:
         # as long as it isn't the default.
         metadata.update(
             {
-                k: v
+                k: str(v)
                 for k, v in file_manager.app.config.asdict().items()
                 if k not in ignored_keys and v != _AppConfig.__dict__[k]
             }
