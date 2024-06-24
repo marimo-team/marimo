@@ -280,6 +280,8 @@ class App:
 
         return (self._flatten_outputs(outputs), self._cached_defs)
 
+    # should be kept synchronized with _run_async
+    # TODO(akshayka): DRY these functions
     def _run_sync(
         self,
         post_execute_hooks: list[Callable[..., Any]],
@@ -300,10 +302,13 @@ class App:
                     assert self._cached_defs is not None
                     assert self._cached_outputs is not None
                     outputs[cid] = self._cached_outputs[cid]
-                    glbls |= {
-                        name: self._cached_defs[name]
-                        for name in cell.defs
-                        if name in self._cached_defs
+                    glbls = {
+                        **glbls,
+                        **{
+                            name: self._cached_defs[name]
+                            for name in cell.defs
+                            if name in self._cached_defs
+                        },
                     }
                     continue
 
@@ -337,10 +342,13 @@ class App:
                     assert self._cached_defs is not None
                     assert self._cached_outputs is not None
                     outputs[cid] = self._cached_outputs[cid]
-                    glbls |= {
-                        name: self._cached_defs[name]
-                        for name in cell.defs
-                        if name in self._cached_defs
+                    glbls = {
+                        **glbls,
+                        **{
+                            name: self._cached_defs[name]
+                            for name in cell.defs
+                            if name in self._cached_defs
+                        },
                     }
                     continue
 

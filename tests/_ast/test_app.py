@@ -578,10 +578,12 @@ class TestAppComposition:
                 [(dropdown_element._id, ["second"])]
             )
         )
+        assert token != k.globals["token"]
+        assert not app._pending_ui_element_updates
+
         # make sure ui element value updated
         assert dropdown_element.value == "second"
         # make sure cell referencing app re-ran
-        assert token != k.globals["token"]
 
         html = as_html(app).text
         assert "value is first" not in html
