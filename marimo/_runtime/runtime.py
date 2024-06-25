@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, cast
 from uuid import uuid4
 
 from marimo import _loggers
+from marimo._ast.app import App
 from marimo._ast.cell import CellConfig, CellId_t
 from marimo._ast.compiler import compile_cell
 from marimo._ast.visitor import Name
@@ -1125,12 +1126,19 @@ class Kernel:
 
             variable_values: list[VariableValue] = []
             for name in bound_names:
-                # subtracting self.graph.definitions[name]: never rerun the
-                # cell that created the name
+                # TODO update variable values even for namespaces? lenses? etc
                 variable_values.append(
                     VariableValue(name=name, value=component)
                 )
+                if name in self.globals and isinstance(
+                    self.globals[name], App
+                ):
+                    self.globals[name]._register_ui_element_update(
+                        value=component
+                    )
                 try:
+                    # subtracting self.graph.definitions[name]: never rerun the
+                    # cell that created the name
                     referring_cells.update(
                         self.graph.get_referring_cells(name)
                         - self.graph.get_defining_cells(name)
@@ -1237,6 +1245,9 @@ class Kernel:
                 # elements associated with its owning cell. But that
                 # means we won't be able to restore their values
                 # on reconnection.
+                #
+                # TODO(akshayka): Do UI elements created in function calls
+                # get cleared from the FE registry? This could be a leak.
                 try:
                     response = function(request.args)
                     if asyncio.iscoroutine(response):

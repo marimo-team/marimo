@@ -14,6 +14,7 @@ from typing import (
     Mapping,
     Optional,
 )
+from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast.cell import (
@@ -33,7 +34,9 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.types import NoopStream
 from marimo._output.rich_help import mddoc
+from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime import dataflow
+from marimo._runtime.context.types import get_context
 from marimo._runtime.executor import (
     execute_cell,
     execute_cell_async,
@@ -103,8 +106,11 @@ class CellData:
 
 
 class _Namespace(Mapping[str, object]):
-    def __init__(self, dictionary: dict[str, object]) -> None:
+    def __init__(
+        self, dictionary: dict[str, object], owner: Cell | App
+    ) -> None:
         self._dict = dictionary
+        self._owner = owner
 
     def __getitem__(self, item: str) -> object:
         return self._dict[item]
@@ -144,6 +150,11 @@ class App:
 
         self._unparsable = False
         self._initialized = False
+
+        self._app_uuid = str(uuid4())
+        self._pending_ui_element_updates: list[UIElement[Any, Any]] = []
+        self._cached_outputs: dict[CellId_t, Any] | None = None
+        self._cached_defs: Mapping[str, object] | None = None
 
     def cell(
         self,
@@ -236,32 +247,46 @@ class App:
         finally:
             self._initialized = True
 
+    def _flatten_outputs(self, outputs: dict[CellId_t, Any]) -> Sequence[Any]:
+        return tuple(
+            outputs[cid]
+            for cid in self._cell_manager.valid_cell_ids()
+            if not self._graph.is_disabled(cid)
+        )
+
     def _outputs_and_defs(
         self, outputs: dict[CellId_t, Any], glbls: dict[str, Any]
-    ) -> tuple[Sequence[Any], dict[str, Any]]:
-        # Return
+    ) -> tuple[Sequence[Any], _Namespace]:
+        # Returns
         # - the outputs, sorted in the order that cells were added to the
         #   graph
         # - dict of defs -> values
-        return (
-            tuple(
-                outputs[cid]
-                for cid in self._cell_manager.valid_cell_ids()
-                if not self._graph.is_disabled(cid)
-            ),
-            # omit defs that were never defined at runtime, eg due to
-            # conditional definitions like
-            #
-            # if cond:
-            #   x = 0
-            {name: glbls[name] for name in self._defs if name in glbls},
+
+        # Cache the outputs keyed by cell ID
+        self._cached_outputs = outputs
+
+        # Cache only def values, not all of glbls
+        # omit defs that were never defined at runtime, eg due to
+        # conditional definitions like
+        #
+        # if cond:
+        #   x = 0
+        self._cached_defs = _Namespace(
+            dictionary={
+                name: glbls[name] for name in self._defs if name in glbls
+            },
+            owner=self,
         )
 
-    def _run_sync(
-        self, post_execute_hooks: list[Callable[..., Any]]
-    ) -> tuple[Sequence[Any], dict[str, Any]]:
-        from marimo._runtime.context.types import ExecutionContext
+        return (self._flatten_outputs(outputs), self._cached_defs)
 
+    # should be kept synchronized with _run_async
+    # TODO(akshayka): DRY these functions
+    def _run_sync(
+        self,
+        post_execute_hooks: list[Callable[..., Any]],
+        cells_to_run: set[CellId_t] | None,
+    ) -> tuple[Sequence[Any], Mapping[str, Any]]:
         # No need to provide `file`, `input_override` here, since this
         # function is only called when running as a script
         with patch_main_module_context() as module:
@@ -270,20 +295,38 @@ class App:
             outputs: dict[CellId_t, Any] = {}
             for cid in self._execution_order:
                 cell = self._cell_manager.cell_data_at(cid).cell
+                if cell is None:
+                    continue
+
+                if cells_to_run is not None and cid not in cells_to_run:
+                    assert self._cached_defs is not None
+                    assert self._cached_outputs is not None
+                    outputs[cid] = self._cached_outputs[cid]
+                    glbls = {
+                        **glbls,
+                        **{
+                            name: self._cached_defs[name]
+                            for name in cell.defs
+                            if name in self._cached_defs
+                        },
+                    }
+                    continue
+
                 if cell is not None and not self._graph.is_disabled(cid):
-                    self._execution_context = ExecutionContext(
-                        cell_id=cid, setting_element_value=False
-                    )
-                    outputs[cid] = execute_cell(cell._cell, glbls, self._graph)
-                    for hook in post_execute_hooks:
-                        hook()
-            return self._outputs_and_defs(outputs, glbls)
+                    with get_context().with_cell_id(
+                        self._app_uuid + "-" + cid
+                    ):
+                        output = execute_cell(cell._cell, glbls, self._graph)
+                        for hook in post_execute_hooks:
+                            hook()
+                    outputs[cid] = output
+        return self._outputs_and_defs(outputs, glbls)
 
     async def _run_async(
-        self, post_execute_hooks: list[Callable[..., Any]]
-    ) -> tuple[Sequence[Any], dict[str, Any]]:
-        from marimo._runtime.context.types import ExecutionContext
-
+        self,
+        post_execute_hooks: list[Callable[..., Any]],
+        cells_to_run: set[CellId_t] | None = None,
+    ) -> tuple[Sequence[Any], Mapping[str, Any]]:
         # No need to provide `file`, `input_override` here, since this
         # function is only called when running as a script
         with patch_main_module_context() as module:
@@ -292,20 +335,39 @@ class App:
             outputs: dict[CellId_t, Any] = {}
             for cid in self._execution_order:
                 cell = self._cell_manager.cell_data_at(cid).cell
+                if cell is None:
+                    continue
+
+                if cells_to_run is not None and cid not in cells_to_run:
+                    assert self._cached_defs is not None
+                    assert self._cached_outputs is not None
+                    outputs[cid] = self._cached_outputs[cid]
+                    glbls = {
+                        **glbls,
+                        **{
+                            name: self._cached_defs[name]
+                            for name in cell.defs
+                            if name in self._cached_defs
+                        },
+                    }
+                    continue
+
                 if cell is not None and not self._graph.is_disabled(cid):
-                    self._execution_context = ExecutionContext(
-                        cell_id=cid, setting_element_value=False
-                    )
-                    outputs[cid] = await execute_cell_async(
-                        cell._cell, glbls, self._graph
-                    )
-                    for hook in post_execute_hooks:
-                        hook()
-                    self._execution_context = None
+                    with get_context().with_cell_id(
+                        self._app_uuid + "-" + cid
+                    ):
+                        output = await execute_cell_async(
+                            cell._cell, glbls, self._graph
+                        )
+                        for hook in post_execute_hooks:
+                            hook()
+                    outputs[cid] = output
 
-            return self._outputs_and_defs(outputs, glbls)
+        return self._outputs_and_defs(outputs, glbls)
 
-    def run(self) -> tuple[Sequence[Any], dict[str, Any]]:
+    def _run_internal(
+        self, cells_to_run: set[CellId_t] | None = None
+    ) -> tuple[Sequence[Any], Mapping[str, Any]]:
         from marimo._runtime.context.script_context import (
             initialize_script_context,
         )
@@ -356,15 +418,30 @@ class App:
 
                 post_execute_hooks.append(close_figures)
 
-            if is_async:
-                return asyncio.run(
-                    self._run_async(post_execute_hooks=post_execute_hooks)
-                )
-            else:
-                return self._run_sync(post_execute_hooks=post_execute_hooks)
+            # Provide a unique identifier for UI element prefixes so UI
+            # elements for an app don't get removed from the frontend on re-run
+            #
+            # TODO(akshayka): Do repeated runs cause a leak on the frontend?
+            with get_context().provide_ui_ids(prefix=str(uuid4())):
+                if is_async:
+                    return asyncio.run(
+                        self._run_async(
+                            post_execute_hooks=post_execute_hooks,
+                            cells_to_run=cells_to_run,
+                        )
+                    )
+                else:
+                    return self._run_sync(
+                        post_execute_hooks=post_execute_hooks,
+                        cells_to_run=cells_to_run,
+                    )
+
         finally:
             if installed_script_context:
                 teardown_context()
+
+    def run(self) -> tuple[Sequence[Any], Mapping[str, Any]]:
+        return self._run_internal()
 
     async def _run_cell_async(
         self, cell: Cell, kwargs: dict[str, Any]
@@ -373,14 +450,52 @@ class App:
         output, defs = await self._runner.run_cell_async(
             cell._cell.cell_id, kwargs
         )
-        return output, _Namespace(defs)
+        return output, _Namespace(defs, owner=self)
 
     def _run_cell_sync(
         self, cell: Cell, kwargs: dict[str, Any]
     ) -> tuple[Any, _Namespace]:
         self._maybe_initialize()
         output, defs = self._runner.run_cell_sync(cell._cell.cell_id, kwargs)
-        return output, _Namespace(defs)
+        return output, _Namespace(defs, owner=self)
+
+    def _register_ui_element_update(self, value: UIElement[Any, Any]) -> None:
+        if value not in self._pending_ui_element_updates:
+            self._pending_ui_element_updates.append(value)
+
+    def _mime_(self) -> tuple[KnownMimeType, str]:
+        from marimo._plugins.stateless.flex import vstack
+
+        if self._pending_ui_element_updates and self._cached_defs:
+            updated_names: set[str] = set()
+            defining_cells = set()
+            while self._pending_ui_element_updates:
+                element = self._pending_ui_element_updates.pop()
+                for name, value in self._cached_defs.items():
+                    if value is element:
+                        updated_names.add(name)
+                        defining_cells |= self._graph.get_defining_cells(name)
+                        break
+            descendants = dataflow.transitive_closure(
+                self._graph,
+                defining_cells,
+                inclusive=False,
+            )
+            self._run_internal(cells_to_run=descendants)
+        elif self._cached_outputs is None:
+            self.run()
+
+        assert self._cached_outputs is not None
+        return (
+            "text/html",
+            vstack(
+                [
+                    o
+                    for o in self._flatten_outputs(self._cached_outputs)
+                    if o is not None
+                ]
+            ).text,
+        )
 
 
 class CellManager:
@@ -563,6 +678,11 @@ class InternalApp:
     @property
     def execution_context(self) -> ExecutionContext | None:
         return self._app._execution_context
+
+    def set_execution_context(
+        self, execution_context: ExecutionContext | None
+    ) -> None:
+        self._app._execution_context = execution_context
 
     @property
     def runner(self) -> dataflow.Runner:
