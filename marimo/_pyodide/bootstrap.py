@@ -5,6 +5,7 @@ import json
 from typing import TYPE_CHECKING, Callable
 
 from marimo._messaging.ops import KernelReady, serialize
+from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._runtime.requests import (
     AppMetadata,
     CreationRequest,
@@ -47,7 +48,9 @@ def create_session(
     user_config: MarimoConfig,
 ) -> tuple[PyodideSession, PyodideBridge]:
     def write_kernel_message(op: KernelMessage) -> None:
-        message_callback(json.dumps({"op": op[0], "data": op[1]}))
+        message_callback(
+            json.dumps({"op": op[0], "data": op[1]}, cls=WebComponentEncoder)
+        )
 
     # Lazy import to decrease startup time
     from marimo._config.config import merge_default_config
