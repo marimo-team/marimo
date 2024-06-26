@@ -112,6 +112,8 @@ export function useDatasetsActions() {
   return useActions();
 }
 
+export {datasetsAtom};
+
 export const exportedForTesting = {
   reducer,
   createActions,

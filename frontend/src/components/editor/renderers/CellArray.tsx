@@ -24,7 +24,7 @@ import { PackageAlert } from "@/components/editor/package-alert";
 import { useDeleteCellCallback } from "../cell/useDeleteCell";
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/ui/button";
-import { SparklesIcon, SquareCodeIcon, SquareMIcon } from "lucide-react";
+import { DatabaseIcon, SparklesIcon, SquareCodeIcon, SquareMIcon } from "lucide-react";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { aiEnabledAtom, autoInstantiateAtom } from "@/core/config/config";
 import { useAtomValue } from "jotai";
@@ -195,6 +195,23 @@ const AddCellButtons: React.FC = () => {
         >
           <SquareMIcon className="mr-2 size-4" />
           Markdown
+        </Button>
+        <Button
+          className={buttonClass}
+          variant="text"
+          size="sm"
+          onClick={() => {
+            maybeAddMarimoImport(autoInstantiate, createNewCell);
+
+            createNewCell({
+              cellId: "__end__",
+              before: false,
+              code: 'mo.sql(rf"""select * from """)',
+            });
+          }}
+        >
+          <DatabaseIcon className="mr-2 size-4" />
+          SQL
         </Button>
         {aiEnabled && (
           <Button

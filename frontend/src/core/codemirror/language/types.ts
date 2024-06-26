@@ -11,7 +11,7 @@ import { MovementCallbacks } from "../cells/extensions";
  * you're writing Markdown, but it will actually be transformed into Python.
  */
 export interface LanguageAdapter {
-  type: "python" | "markdown";
+  type: "python" | "markdown" | "sql";
   transformIn(code: string): [string, number];
   transformOut(code: string): [string, number];
   isSupported(code: string): boolean;

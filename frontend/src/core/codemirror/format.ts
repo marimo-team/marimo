@@ -13,10 +13,10 @@ import {
 import { StateEffect } from "@codemirror/state";
 import { getUserConfig } from "../config/config";
 import {
-  LanguageAdapters,
   languageAdapterState,
   switchLanguage,
 } from "./language/extension";
+import { LanguageAdapters } from "./language/LanguageAdapters";
 import type { LanguageAdapter } from "./language/types";
 
 export const formattingChangeEffect = StateEffect.define<boolean>();

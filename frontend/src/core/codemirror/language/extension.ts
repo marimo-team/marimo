@@ -6,9 +6,7 @@ import {
   StateField,
 } from "@codemirror/state";
 import { LanguageAdapter } from "./types";
-import { PythonLanguageAdapter } from "./python";
 import { EditorView, Panel, keymap, showPanel } from "@codemirror/view";
-import { MarkdownLanguageAdapter } from "./markdown";
 import { clamp } from "@/utils/math";
 import { CompletionConfig } from "@/core/config/config-schema";
 import {
@@ -23,19 +21,9 @@ import { formattingChangeEffect } from "../format";
 import { getEditorCodeAsPython } from "./utils";
 import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { CodeMirrorSetupOpts } from "../cm";
-
-export const LanguageAdapters: Record<
-  LanguageAdapter["type"],
-  () => LanguageAdapter
-> = {
-  python: () => new PythonLanguageAdapter(),
-  markdown: () => new MarkdownLanguageAdapter(),
-};
-
-const LANGUAGES: LanguageAdapter[] = [
-  LanguageAdapters.python(),
-  LanguageAdapters.markdown(),
-];
+import { getLanguageAdapters, LanguageAdapters } from "./LanguageAdapters";
+import { createPanel } from "../react-dom/createPanel";
+import { LanguagePanelComponent } from "./panel";
 
 const languageCompartment = new Compartment();
 
@@ -64,9 +52,10 @@ export const languageAdapterState = StateField.define<LanguageAdapter>({
 
 // Keymap to toggle between languages
 function languageToggle(completionConfig: CompletionConfig) {
+  const languages = getLanguageAdapters();
   // Cycle through the language to find the next one that supports the code
   const findNextLanguage = (code: string, index: number): LanguageAdapter => {
-    const language = LANGUAGES[index % LANGUAGES.length];
+    const language = languages[index % languages.length];
     if (language.isSupported(code)) {
       return language;
     }
@@ -81,7 +70,7 @@ function languageToggle(completionConfig: CompletionConfig) {
         run: (cm) => {
           // Find the next language
           const currentLanguage = cm.state.field(languageAdapterState);
-          const currentLanguageIndex = LANGUAGES.findIndex(
+          const currentLanguageIndex = languages.findIndex(
             (l) => l.type === currentLanguage.type,
           );
           const code = cm.state.doc.toString();
@@ -151,17 +140,7 @@ function updateLanguageAdapterAndCode(
 }
 
 function createLanguagePanel(view: EditorView): Panel {
-  const dom = document.createElement("div");
-  dom.textContent = view.state.field(languageAdapterState).type;
-  dom.style.padding = "0.2rem 0.5rem";
-  dom.style.display = "flex";
-  dom.style.justifyContent = "flex-end";
-  return {
-    dom,
-    update(update) {
-      dom.textContent = update.state.field(languageAdapterState).type;
-    },
-  };
+  return createPanel(view, LanguagePanelComponent);
 }
 
 /**
@@ -211,6 +190,9 @@ export function adaptiveLanguageConfiguration(
   ];
 }
 
+/**
+ * Get the best language given the editors current code.
+ */
 export function getInitialLanguageAdapter(state: EditorView["state"]) {
   const doc = getEditorCodeAsPython({ state });
   // Empty doc defaults to Python
@@ -220,6 +202,9 @@ export function getInitialLanguageAdapter(state: EditorView["state"]) {
 
   if (LanguageAdapters.markdown().isSupported(doc)) {
     return LanguageAdapters.markdown();
+  }
+  if (LanguageAdapters.sql().isSupported(doc)) {
+    return LanguageAdapters.sql();
   }
 
   return LanguageAdapters.python();
@@ -236,6 +221,10 @@ export function switchLanguage(
   updateLanguageAdapterAndCode(view, newLanguage());
 }
 
+/**
+ * Reconfigure the editor view with
+ * the new language extensions
+ */
 export function reconfigureLanguageEffect(
   view: EditorView,
   completionConfig: CompletionConfig,
