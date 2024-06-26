@@ -289,7 +289,7 @@ const DatasetColumnItem: React.FC<{
       onSelect={() => onExpandColumn(table, column)}
     >
       <div className="flex flex-row gap-2 items-center pl-6 flex-1">
-        <Icon className="h-3 w-3" strokeWidth={1.5} />
+        <Icon className="flex-shrink-0 h-3 w-3" strokeWidth={1.5} />
         <span>{column.name}</span>
       </div>
       <Tooltip content="Copy column name" delayDuration={400}>
