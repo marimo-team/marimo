@@ -142,7 +142,7 @@ export const MarimoErrorOutput = ({
           </div>
         );
       case "strict-exception":
-        return error.blamed_cell == null ? (
+        return error.blamed_cell === null ? (
           <Fragment key={idx}>
             <p>{error.msg}</p>
             <Tip>
@@ -157,7 +157,7 @@ export const MarimoErrorOutput = ({
             <Tip>
               Ensure that&nbsp;
               <CellLinkError cellId={error.blamed_cell as CellId} />
-              &nbsp;defines the variable {error.ref}, or turn off strict
+              &nbsp;defines the variable `{error.ref}`, or turn off strict
               execution.
             </Tip>
           </div>
@@ -166,7 +166,12 @@ export const MarimoErrorOutput = ({
         titleContents = "Ancestor prevented from running";
         alertVariant = "default";
         textColor = "text-secondary-foreground";
-        return (
+        return error.blamed_cell === null ? (
+          <div key={idx}>
+            {error.msg}
+            (<CellLinkError cellId={error.raising_cell as CellId} />)
+          </div>
+        ) : (
           <div key={idx}>
             {error.msg}
             (<CellLinkError cellId={error.raising_cell as CellId} />

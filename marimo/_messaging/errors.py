@@ -37,7 +37,7 @@ class MarimoInterruptionError:
 class MarimoAncestorPreventedError:
     msg: str
     raising_cell: CellId_t
-    blamed_cell: CellId_t
+    blamed_cell: Optional[CellId_t]
     type: Literal["ancestor-prevented"] = "ancestor-prevented"
 
 
@@ -73,7 +73,7 @@ class UnknownError:
 class MarimoStrictExecutionError:
     msg: str
     ref: str
-    blamed_cell: CellId_t
+    blamed_cell: Optional[CellId_t]
     type: Literal["strict-exception"] = "strict-exception"
 
 

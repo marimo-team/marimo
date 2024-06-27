@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+import textwrap
 from typing import TYPE_CHECKING, Sequence
 
 import pytest
@@ -11,6 +12,7 @@ from marimo._messaging.errors import (
     CycleError,
     DeleteNonlocalError,
     Error,
+    MarimoStrictExecutionError,
     MultipleDefinitionError,
 )
 from marimo._messaging.ops import CellOp
@@ -428,9 +430,16 @@ class TestExecution:
         )
         assert "x" not in k.globals
         assert "y" not in k.globals
-        assert set(k.errors.keys()) == {"0", "1"}
+        if k.execution_type == "strict":
+            # 2 isn't valid in strict mode because it will refuse to execute
+            # due to missing x.
+            assert set(k.errors.keys()) == {"0", "1", "2"}
+        else:
+            assert set(k.errors.keys()) == {"0", "1"}
         assert len(k.errors["0"]) == 1
         assert len(k.errors["1"]) == 1
+        if k.execution_type == "strict":
+            assert len(k.errors["2"]) == 1
         _check_edges(k.errors["0"][0], [("0", ["x"], "1"), ("1", ["y"], "0")])
         _check_edges(k.errors["1"][0], [("0", ["x"], "1"), ("1", ["y"], "0")])
 
@@ -467,7 +476,12 @@ class TestExecution:
 
         # break cycle by deleting cell
         await k.delete(DeleteCellRequest(cell_id="1"))
-        assert not k.errors
+        if k.execution_type == "strict":
+            # Still invalid in strict mode because y is missing.
+            assert set(k.errors.keys()) == {"0"}
+            assert isinstance(k.errors["0"][0], MarimoStrictExecutionError)
+        else:
+            assert not k.errors
 
     async def test_delete_nonlocal_error(self, any_kernel: Kernel) -> None:
         k = any_kernel
@@ -480,7 +494,10 @@ class TestExecution:
         )
         assert "y" not in k.globals
         assert "z" not in k.globals
-        assert set(k.errors.keys()) == {"1"}
+        if k.execution_type == "strict":
+            assert set(k.errors.keys()) == {"1", "2"}
+        else:
+            assert set(k.errors.keys()) == {"1"}
         assert k.errors["1"] == (DeleteNonlocalError("x", ("0",)),)
 
         # fix cell 1, should run cell 1 and 2
@@ -510,7 +527,8 @@ class TestExecution:
         # Delete the cell that defines x. There shouldn't be any more errors
         # because x no longer exists.
         await k.delete(DeleteCellRequest(cell_id="0"))
-        assert not k.errors
+        if k.execution_type != "strict":
+            assert not k.errors
 
         # Add x back in.
         await k.run([ExecutionRequest(cell_id="2", code="x=0")])
@@ -993,6 +1011,35 @@ class TestStrictExecution:
             assert k.globals["V1"] == 12
         else:
             assert k.globals["V1"] == 11
+
+    @staticmethod
+    async def test_wont_execute_bad_ref(execution_kernel: Kernel) -> None:
+        k = execution_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent("""
+                    try:
+                        missing
+                    except:
+                        pass
+                    x = 1
+                    """),
+                ),
+            ]
+        )
+
+        if k.execution_type == "strict":
+            assert "x" not in k.globals
+            assert set(k.errors.keys()) == {"0"}
+            assert len(k.errors["0"]) == 1
+            assert isinstance(k.errors["0"][0], MarimoStrictExecutionError)
+            assert k.errors["0"][0].ref == "missing"
+        # Check that normal execution still runs the block
+        else:
+            assert "x" in k.globals
+            assert not k.errors
 
 
 class TestStoredOutput:
