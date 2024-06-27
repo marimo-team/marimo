@@ -26,7 +26,12 @@ from marimo._ast.visitor import Name
 from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
 from marimo._data.preview_column import get_column_preview
 from marimo._messaging.cell_output import CellChannel
-from marimo._messaging.errors import Error, MarimoSyntaxError, UnknownError
+from marimo._messaging.errors import (
+    Error,
+    MarimoStrictExecutionError,
+    MarimoSyntaxError,
+    UnknownError,
+)
 from marimo._messaging.ops import (
     Alert,
     CellOp,
@@ -932,6 +937,13 @@ class Kernel:
                             isolated=is_python_isolated(),
                         ).broadcast()
 
+        def propagate_kernel_errors(
+            runner: cell_runner.Runner,
+        ) -> None:
+            for cell_id, error in runner.exceptions.items():
+                if isinstance(error, MarimoStrictExecutionError):
+                    self.errors[cell_id] = (error,)
+
         runner = cell_runner.Runner(
             roots=roots,
             graph=self.graph,
@@ -944,7 +956,8 @@ class Kernel:
             preparation_hooks=PREPARATION_HOOKS + [invalidate_state],
             pre_execution_hooks=PRE_EXECUTION_HOOKS,
             post_execution_hooks=POST_EXECUTION_HOOKS,
-            on_finish_hooks=ON_FINISH_HOOKS + [broadcast_missing_packages],
+            on_finish_hooks=ON_FINISH_HOOKS
+            + [broadcast_missing_packages, propagate_kernel_errors],
         )
 
         # I/O

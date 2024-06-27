@@ -350,8 +350,8 @@ class Runner:
             try:
                 (blamed_cell, *_) = self.graph.get_defining_cells(e.ref)
             except KeyError:
-                # This should never happen, but just in case
-                blamed_cell = e.ref
+                # The reference is not found anywhere else in the graph
+                blamed_cell = None
 
             output = MarimoStrictExecutionError(
                 f"marimo was unable to resolve "
