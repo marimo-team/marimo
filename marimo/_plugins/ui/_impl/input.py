@@ -52,6 +52,12 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
     number = mo.ui.number(start=1, stop=10, step=2)
     ```
 
+    Or from a dataframe series:
+
+    ```python
+    number = mo.ui.number.from_series(df["column_name"])
+    ```
+
     **Attributes.**
 
     - `value`: the value of the number, possibly `None`
@@ -141,6 +147,12 @@ class slider(UIElement[Numeric, Numeric]):
 
     ```python
     slider = mo.ui.slider(start=1, stop=10, step=2)
+    ```
+
+    Or from a dataframe series:
+
+    ```python
+    slider = mo.ui.slider.from_series(df["column_name"])
     ```
 
     **Attributes.**
@@ -317,6 +329,12 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
 
     ```python
     range_slider = mo.ui.range_slider(start=1, stop=10, step=2, value=[2, 6])
+    ```
+
+    Or from a dataframe series:
+
+    ```python
+    range_slider = mo.ui.range_slider.from_series(df["column_name"])
     ```
 
     **Attributes.**
@@ -560,6 +578,12 @@ class radio(UIElement[Optional[str], Any]):
         value="one",
         label="pick a number",
     )
+    ```
+
+    Or from a dataframe series:
+
+    ```python
+    radiogroup = mo.ui.radio.from_series(df["column_name"])
     ```
 
     **Attributes.**
@@ -820,6 +844,12 @@ class dropdown(UIElement[List[str], Any]):
     )
     ```
 
+    Or from a dataframe series:
+
+    ```python
+    dropdown = mo.ui.dropdown.from_series(df["column_name"])
+    ```
+
     **Attributes.**
 
     - `value`: the selected value, or `None` if no selection
@@ -932,6 +962,12 @@ class multiselect(UIElement[List[str], List[object]]):
     multiselect = mo.ui.multiselect(
         options=["a", "b", "c"], label="choose some options"
     )
+    ```
+
+    Or from a dataframe series:
+
+    ```python
+    multiselect = mo.ui.multiselect.from_series(df["column_name"])
     ```
 
     **Attributes.**
@@ -1408,6 +1444,12 @@ class date(UIElement[str, dt.date]):
         start="2022-01-01",
         stop="2022-12-31",
     )
+    ```
+
+    Or from a dataframe series:
+
+    ```python
+    date = mo.ui.date.from_series(df["column_name"])
     ```
 
     **Attributes.**
