@@ -56,7 +56,7 @@ const remoteDefaultFileStore: FileStore = {
   readFile() {
     const baseURI = document.baseURI;
     return fetch(`${baseURI}files/wasm-intro.py`)
-      .then((res) => res.text())
+      .then((res) => (res.ok ? res.text() : null))
       .catch(() => null);
   },
 };
