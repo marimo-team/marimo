@@ -1,11 +1,15 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import datetime
 from typing import Any
 
 import pytest
 
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
+
+HAS_PANDAS = DependencyManager.has_pandas()
 
 
 def test_number_init() -> None:
@@ -45,6 +49,18 @@ def test_number_invalid_bounds() -> None:
         ui.number(1, 0)
 
     assert "Invalid bounds" in str(e.value)
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+def test_number_from_dataframe() -> None:
+    import pandas as pd
+
+    df = pd.DataFrame({"A": [1, 2, 3]})
+    number = ui.number.from_series(df["A"], step=0.1)
+    assert number.start == 1
+    assert number.stop == 3
+    assert number.value == 1
+    assert number.step == 0.1
 
 
 def test_slider_init() -> None:
@@ -127,6 +143,18 @@ def test_slider_out_of_bounds() -> None:
         ui.slider(1, 10, value=0)
 
     assert "out of bounds" in str(e.value)
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+def test_slider_from_dataframe() -> None:
+    import pandas as pd
+
+    df = pd.DataFrame({"A": [1, 2, 3]})
+    slider = ui.slider.from_series(df["A"], step=0.1)
+    assert slider.start == 1
+    assert slider.stop == 3
+    assert slider.value == 1
+    assert slider.step == 0.1
 
 
 def test_range_slider_init() -> None:
@@ -214,6 +242,18 @@ def test_range_slider_out_of_bounds() -> None:
     assert "out of bounds" in str(e.value)
 
 
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+def test_range_slider_from_dataframe() -> None:
+    import pandas as pd
+
+    df = pd.DataFrame({"A": [1, 2, 3]})
+    slider = ui.range_slider.from_series(df["A"], step=0.1)
+    assert slider.start == 1
+    assert slider.stop == 3
+    assert slider.value == [1, 3]
+    assert slider.step == 0.1
+
+
 def test_text() -> None:
     assert ui.text().value == ""
     assert ui.text(value="hello world").value == "hello world"
@@ -242,6 +282,20 @@ def test_radio() -> None:
     assert radio.value == 2
 
 
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+def test_radio_from_dataframe() -> None:
+    import pandas as pd
+
+    df = pd.DataFrame({"A": ["a", "b", "c"]})
+    radio = ui.radio.from_series(df["A"], value="b")
+    assert radio.options == {
+        "a": "a",
+        "b": "b",
+        "c": "c",
+    }
+    assert radio.value == "b"
+
+
 def test_dropdown() -> None:
     dd = ui.dropdown(options=["1", "2", "3"])
     assert dd.value is None
@@ -261,6 +315,20 @@ def test_dropdown_too_many_options() -> None:
         ui.dropdown(options={str(i): i for i in range(2000)})
 
     assert "maximum number" in str(e.value)
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+def test_dropdown_from_dataframe() -> None:
+    import pandas as pd
+
+    df = pd.DataFrame({"A": ["a", "b", "c"]})
+    dd = ui.dropdown.from_series(df["A"], value="b")
+    assert dd.options == {
+        "a": "a",
+        "b": "b",
+        "c": "c",
+    }
+    assert dd.value == "b"
 
 
 def test_multiselect() -> None:
@@ -308,6 +376,20 @@ def test_multiselect_too_many_options() -> None:
     assert "maximum number" in str(e.value)
 
 
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+def test_multiselect_from_dataframe() -> None:
+    import pandas as pd
+
+    df = pd.DataFrame({"A": ["a", "b", "c"]})
+    ms = ui.multiselect.from_series(df["A"], value=["b"])
+    assert ms.options == {
+        "a": "a",
+        "b": "b",
+        "c": "c",
+    }
+    assert ms.value == ["b"]
+
+
 def test_button() -> None:
     assert ui.button().value is None
     assert ui.button(value=1).value == 1
@@ -345,4 +427,32 @@ def test_form_in_array_retains_on_change() -> None:
 
 
 # TODO(akshayka): test file
-# TODO(akshayka): test date
+
+
+def test_date() -> None:
+    date = ui.date()
+    today = date.value
+    assert today == datetime.date.today()
+
+    date._update("2024-01-01")
+    assert date.value == datetime.date(2024, 1, 1)
+
+    date = ui.date(value="2024-01-01")
+    assert date.value == datetime.date(2024, 1, 1)
+
+    date = ui.date(value="2024-01-01")
+    date._update("2024-01-02")
+    assert date.value == datetime.date(2024, 1, 2)
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+def test_date_from_dataframe() -> None:
+    import pandas as pd
+
+    df = pd.DataFrame(
+        {"A": [pd.Timestamp("2024-01-01"), pd.Timestamp("2024-01-02")]}
+    )
+    date = ui.date.from_series(df["A"], value=datetime.date(2024, 1, 2))
+    assert date.value == datetime.date(2024, 1, 2)
+    assert date.start == datetime.date(2024, 1, 1)
+    assert date.stop == datetime.date(2024, 1, 2)

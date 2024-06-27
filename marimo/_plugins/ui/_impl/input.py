@@ -23,6 +23,12 @@ from typing import (
 )
 
 from marimo import _loggers
+from marimo._data.series import (
+    DataFrameSeries,
+    get_category_series_info,
+    get_date_series_info,
+    get_number_series_info,
+)
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import S as JSONTypeBound, UIElement
@@ -111,6 +117,14 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
                 "full-width": full_width,
             },
             on_change=on_change,
+        )
+
+    @staticmethod
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> "number":
+        """Create a number picker from a dataframe series."""
+        info = get_number_series_info(series)
+        return number(
+            start=info.min, stop=info.max, label=info.label, **kwargs
         )
 
     def _convert_value(self, value: Optional[Numeric]) -> Optional[Numeric]:
@@ -280,6 +294,14 @@ class slider(UIElement[Numeric, Numeric]):
                 on_change=on_change,
             )
 
+    @staticmethod
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> "slider":
+        """Create a slider from a dataframe series."""
+        info = get_number_series_info(series)
+        return slider(
+            start=info.min, stop=info.max, label=info.label, **kwargs
+        )
+
     def _convert_value(self, value: Numeric) -> Numeric:
         if self._mapping is not None:
             return cast(Numeric, self._dtype(self._mapping[int(value)]))
@@ -446,6 +468,14 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
                 on_change=on_change,
             )
 
+    @staticmethod
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> "range_slider":
+        """Create a range slider from a dataframe series."""
+        info = get_number_series_info(series)
+        return range_slider(
+            start=info.min, stop=info.max, label=info.label, **kwargs
+        )
+
     def _convert_value(self, value: List[Numeric]) -> Sequence[Numeric]:
         if self._mapping is not None:
             return cast(
@@ -571,6 +601,16 @@ class radio(UIElement[Optional[str], Any]):
                 "inline": inline,
             },
             on_change=on_change,
+        )
+
+    @staticmethod
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> "radio":
+        """Create a radio group from a dataframe series."""
+        info = get_category_series_info(series)
+        return radio(
+            options=info.categories,
+            label=info.label,
+            **kwargs,
         )
 
     def _convert_value(self, value: Optional[str]) -> Any:
@@ -856,6 +896,16 @@ class dropdown(UIElement[List[str], Any]):
             on_change=on_change,
         )
 
+    @staticmethod
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> "dropdown":
+        """Create a dropdown from a dataframe series."""
+        info = get_category_series_info(series)
+        return dropdown(
+            options=info.categories,
+            label=info.label,
+            **kwargs,
+        )
+
     def _convert_value(self, value: list[str]) -> Any:
         if value:
             assert len(value) == 1
@@ -949,6 +999,16 @@ class multiselect(UIElement[List[str], List[object]]):
                 "max-selections": max_selections,
             },
             on_change=on_change,
+        )
+
+    @staticmethod
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> "multiselect":
+        """Create a multiselect from a dataframe series."""
+        info = get_category_series_info(series)
+        return multiselect(
+            options=info.categories,
+            label=info.label,
+            **kwargs,
         )
 
     def _convert_value(self, value: list[str]) -> list[object]:
@@ -1426,6 +1486,17 @@ class date(UIElement[str, dt.date]):
                 "full-width": full_width,
             },
             on_change=on_change,
+        )
+
+    @staticmethod
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> "date":
+        """Create a date picker from a dataframe series."""
+        info = get_date_series_info(series)
+        return date(
+            start=info.min,
+            stop=info.max,
+            label=info.label,
+            **kwargs,
         )
 
     def _convert_value(self, value: str) -> dt.date:
