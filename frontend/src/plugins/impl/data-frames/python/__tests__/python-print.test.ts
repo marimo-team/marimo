@@ -126,6 +126,28 @@ describe("pythonPrint", () => {
     expect(result2).toMatchInlineSnapshot(
       `"df.groupby(["my_column", "my_column2", 3]).sum()"`,
     );
+
+    const transform3: TransformType = {
+      type: "group_by",
+      column_ids: ["my_column"] as ColumnId[],
+      aggregation: "mean",
+      drop_na: false,
+    };
+    const result3 = pythonPrint("df", transform3);
+    expect(result3).toMatchInlineSnapshot(
+      `"df.groupby(["my_column"]).mean(numeric_only=True)"`,
+    );
+
+    const transform4: TransformType = {
+      type: "group_by",
+      column_ids: ["my_column"] as ColumnId[],
+      aggregation: "median",
+      drop_na: false,
+    };
+    const result4 = pythonPrint("df", transform4);
+    expect(result4).toMatchInlineSnapshot(
+      `"df.groupby(["my_column"]).median(numeric_only=True)"`,
+    );
   });
 });
 
