@@ -44,8 +44,11 @@ class TestDataframes:
 
         assert subject.value is df
         assert subject._component_args["columns"] == [
-            ["A", "integer"],
-            ["B", "string"],
+            ["A", "integer", "i64"],
+            ["B", "string", "str"],
+        ] or subject._component_args["columns"] == [
+            ["A", "integer", "int64"],
+            ["B", "string", "object"],
         ]
         assert subject.get_column_values(
             GetColumnValuesArgs(column="A")
@@ -71,8 +74,8 @@ class TestDataframes:
 
         assert subject.value is df
         assert subject._component_args["columns"] == [
-            [1, "integer"],
-            [2, "string"],
+            [1, "integer", "int64"],
+            [2, "string", "object"],
         ]
 
         assert subject.get_column_values(
