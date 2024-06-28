@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import weakref
 from typing import TYPE_CHECKING, Any, Dict
 
@@ -31,6 +33,7 @@ T = Dict[str, Any]
 class anywidget(UIElement[T, T]):
     """
     Create a UIElement from an AnyWidget.
+    This proxies all the widget's attributes and methods.
 
     **Example.**
 
@@ -38,10 +41,16 @@ class anywidget(UIElement[T, T]):
     from drawdata import ScatterWidget
     import marimo as mo
 
-    widget = mo.ui.anywidget(ScatterWidget())
+    scatter = ScatterWidget()
+    scatter = mo.ui.anywidget(scatter)
 
     # In another cell, access its value
-    widget.value
+    # This works for all widgets
+    scatter.value
+
+    # Or attributes specifically on the ScatterWidget
+    scatter.data_as_pandas
+    scatter.data_as_polars
     ```
 
     **Attributes.**
@@ -93,3 +102,7 @@ class anywidget(UIElement[T, T]):
 
     def _convert_value(self, value: T) -> T:
         return value
+
+    # Proxy all the widget's attributes
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self.widget, name)
