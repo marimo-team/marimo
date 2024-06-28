@@ -46,6 +46,10 @@ class DateSeriesInfo:
     label: str
 
 
+def _get_name(series: DataFrameSeries) -> str:
+    return str(series.name) if series.name is not None else ""
+
+
 def get_number_series_info(series: Any) -> NumberSeriesInfo:
     """
     Get the summary of a numeric series.
@@ -64,7 +68,7 @@ def get_number_series_info(series: Any) -> NumberSeriesInfo:
             return NumberSeriesInfo(
                 min=validate_number(series.min()),
                 max=validate_number(series.max()),
-                label=str(series.name),
+                label=_get_name(series),
             )
 
     if DependencyManager.has_polars():
@@ -74,7 +78,7 @@ def get_number_series_info(series: Any) -> NumberSeriesInfo:
             return NumberSeriesInfo(
                 min=validate_number(series.min()),
                 max=validate_number(series.max()),
-                label=str(series.name),
+                label=_get_name(series),
             )
 
     raise ValueError("Unsupported series type. Expected pandas or polars.")
@@ -90,7 +94,7 @@ def get_category_series_info(series: Any) -> CategorySeriesInfo:
         if isinstance(series, pd.Series):
             return CategorySeriesInfo(
                 categories=sorted(series.unique().tolist()),
-                label=str(series.name),
+                label=_get_name(series),
             )
 
     if DependencyManager.has_polars():
@@ -99,7 +103,7 @@ def get_category_series_info(series: Any) -> CategorySeriesInfo:
         if isinstance(series, pl.Series):
             return CategorySeriesInfo(
                 categories=sorted(series.unique().to_list()),
-                label=str(series.name),
+                label=_get_name(series),
             )
 
     raise ValueError("Unsupported series type. Expected pandas or polars.")
@@ -122,7 +126,7 @@ def get_date_series_info(series: Any) -> DateSeriesInfo:
             return DateSeriesInfo(
                 min=validate_date(series.min()),
                 max=validate_date(series.max()),
-                label=str(series.name),
+                label=_get_name(series),
             )
 
     if DependencyManager.has_polars():
@@ -132,7 +136,7 @@ def get_date_series_info(series: Any) -> DateSeriesInfo:
             return DateSeriesInfo(
                 min=validate_date(series.min()),
                 max=validate_date(series.max()),
-                label=str(series.name),
+                label=_get_name(series),
             )
 
     raise ValueError("Unsupported series type. Expected pandas or polars.")
