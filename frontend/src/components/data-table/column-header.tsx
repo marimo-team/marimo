@@ -41,6 +41,10 @@ export const DataTableColumnHeader = <TData, TValue>({
   header,
   className,
 }: DataTableColumnHeaderProps<TData, TValue>) => {
+  if (!header) {
+    return null;
+  }
+
   if (!column.getCanSort() && !column.getCanFilter()) {
     return <div className={cn(className)}>{header}</div>;
   }
@@ -104,7 +108,11 @@ export const DataTableColumnHeader = <TData, TValue>({
       <DropdownMenuContent align="start">
         {renderSorts()}
         <DropdownMenuItem
-          onClick={() => navigator.clipboard.writeText(column.id)}
+          onClick={() =>
+            navigator.clipboard.writeText(
+              typeof header === "string" ? header : column.id,
+            )
+          }
         >
           <CopyIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
           Copy column name

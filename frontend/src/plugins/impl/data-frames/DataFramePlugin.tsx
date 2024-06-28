@@ -36,7 +36,7 @@ type PluginFunctions = {
     url: string;
     has_more: boolean;
     total_rows: number;
-    row_headers: Array<[string, string[]]>;
+    row_headers: string[];
     supports_code_sample: boolean;
   }>;
   get_column_values: (req: { column: string }) => Promise<{
@@ -70,7 +70,7 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
         url: z.string(),
         has_more: z.boolean(),
         total_rows: z.number(),
-        row_headers: z.array(z.tuple([z.string(), z.array(z.any())])),
+        row_headers: z.array(z.string()),
         supports_code_sample: z.boolean(),
       }),
     ),

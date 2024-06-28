@@ -9,6 +9,7 @@ declare module "@tanstack/react-table" {
   //allows us to define custom properties for our columns
   interface ColumnMeta<TData extends RowData, TValue> {
     type?: "primitive" | "mime";
+    rowHeader?: boolean;
     filterType?: FilterType;
   }
 }

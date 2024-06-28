@@ -46,7 +46,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
 
             def get_row_headers(
                 self,
-            ) -> list[tuple[str, list[str | int | float]]]:
+            ) -> list[str]:
                 return []
 
             @staticmethod
