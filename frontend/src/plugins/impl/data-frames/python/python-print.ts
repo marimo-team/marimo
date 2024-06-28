@@ -78,7 +78,13 @@ export function pythonPrint(dfName: string, transform: TransformType): string {
         listOfStrings(column_ids),
         drop_na ? "dropna=True" : "",
       );
-      return `${dfName}.groupby(${args}).${aggregation}()`;
+      let aggArgs = "";
+      if (aggregation === "mean") {
+        aggArgs = "numeric_only=True";
+      } else if (aggregation === "median") {
+        aggArgs = "numeric_only=True";
+      }
+      return `${dfName}.groupby(${args}).${aggregation}(${aggArgs})`;
     }
     case "select_columns": {
       const { column_ids } = transform;
