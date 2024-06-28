@@ -21,7 +21,6 @@ import { DelayMount } from "@/components/utils/delay-mount";
 import {
   ColumnHeaderSummary,
   FieldTypesWithExternalType,
-  FieldTypesWithExternalType,
 } from "@/components/data-table/types";
 import {
   ColumnFiltersState,
