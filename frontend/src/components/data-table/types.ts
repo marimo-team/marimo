@@ -1,4 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { DataType } from "@/core/kernel/messages";
+
 export interface ColumnHeaderSummary {
   column: string | number;
   min?: number | string | undefined | null;
@@ -8,3 +11,9 @@ export interface ColumnHeaderSummary {
   true?: number | null;
   false?: number | null;
 }
+
+export type FieldTypesWithExternalType = Record<
+  string,
+  [DataType, externalType: string]
+>;
+export type FieldTypes = Record<string, DataType>;

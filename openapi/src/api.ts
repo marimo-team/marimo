@@ -879,6 +879,7 @@ export interface components {
       variable_name?: string | null;
     };
     DataTableColumn: {
+      external_type: string;
       name: string;
       type: components["schemas"]["DataType"];
     };
@@ -1094,7 +1095,7 @@ export interface components {
     };
     MIME: Record<string, never>;
     MarimoAncestorPreventedError: {
-      blamed_cell: string;
+      blamed_cell?: string | null;
       msg: string;
       raising_cell: string;
       /** @enum {string} */
@@ -1181,7 +1182,7 @@ export interface components {
       type: "interruption";
     };
     MarimoStrictExecutionError: {
-      blamed_cell: string;
+      blamed_cell?: string | null;
       msg: string;
       ref: string;
       /** @enum {string} */

@@ -2,18 +2,17 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, Dict, Generic, Optional, TypeVar
+from typing import Any, Dict, Generic, Optional, Tuple, TypeVar
 
 import marimo._output.data.data as mo_data
-from marimo._data.models import ColumnSummary, DataType, NumpyType
+from marimo._data.models import ColumnSummary, DataType, ExternalDataType
 from marimo._plugins.core.web_component import JSONType
 
 T = TypeVar("T")
 
 ColumnName = str
 FieldType = DataType
-FieldTypes = Dict[ColumnName, FieldType]
-NumpyTypes = Dict[ColumnName, NumpyType]
+FieldTypes = Dict[ColumnName, Tuple[FieldType, ExternalDataType]]
 
 
 class TableManager(abc.ABC, Generic[T]):

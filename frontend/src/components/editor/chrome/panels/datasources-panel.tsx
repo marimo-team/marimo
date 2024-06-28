@@ -305,6 +305,9 @@ const DatasetColumnItem: React.FC<{
           />
         </Button>
       </Tooltip>
+      <span className="text-xs text-muted-foreground">
+        {column.external_type}
+      </span>
     </CommandItem>
   );
 };

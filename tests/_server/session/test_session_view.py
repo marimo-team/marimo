@@ -38,7 +38,7 @@ updated_output = CellOutput(
     mimetype="text/plain",
 )
 
-initial_status = "running"
+initial_status: CellStatusType = "running"
 updated_status: CellStatusType = "running"
 
 
@@ -243,7 +243,13 @@ def test_add_datasets() -> None:
                     DataTable(
                         source="Local",
                         name="table1",
-                        columns=[DataTableColumn(name="col1", type="boolean")],
+                        columns=[
+                            DataTableColumn(
+                                name="col1",
+                                type="boolean",
+                                external_type="BOOL",
+                            )
+                        ],
                         num_rows=1,
                         num_columns=1,
                         variable_name="df1",
@@ -251,7 +257,13 @@ def test_add_datasets() -> None:
                     DataTable(
                         source="Local",
                         name="table2",
-                        columns=[DataTableColumn(name="col2", type="integer")],
+                        columns=[
+                            DataTableColumn(
+                                name="col2",
+                                type="integer",
+                                external_type="BOOL",
+                            )
+                        ],
                         num_rows=2,
                         num_columns=2,
                         variable_name="df2",
@@ -276,7 +288,11 @@ def test_add_datasets() -> None:
                         source="Local",
                         name="table2",
                         columns=[
-                            DataTableColumn(name="new_col", type="boolean")
+                            DataTableColumn(
+                                name="new_col",
+                                type="boolean",
+                                external_type="BOOL",
+                            )
                         ],
                         num_rows=20,
                         num_columns=20,

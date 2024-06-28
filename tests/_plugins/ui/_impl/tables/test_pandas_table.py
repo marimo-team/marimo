@@ -129,12 +129,12 @@ class TestPandasTableManager(unittest.TestCase):
         import pandas as pd
 
         expected_field_types = {
-            "A": "integer",
-            "B": "string",
-            "C": "number",
-            "D": "boolean",
-            "E": "date",
-            "F": "string",
+            "A": ("integer", "int64"),
+            "B": ("string", "object"),
+            "C": ("number", "float64"),
+            "D": ("boolean", "bool"),
+            "E": ("date", "datetime64[ns]"),
+            "F": ("string", "object"),
         }
         assert self.manager.get_field_types() == expected_field_types
 
@@ -165,16 +165,16 @@ class TestPandasTableManager(unittest.TestCase):
             }
         )
         expected_field_types = {
-            "A": "integer",
-            "B": "string",
-            "C": "number",
-            "D": "boolean",
-            "E": "unknown",
-            "F": "string",
-            "G": "string",
-            "H": "date",
-            "I": "string",
-            "J": "string",
+            "A": ("integer", "int64"),
+            "B": ("string", "object"),
+            "C": ("number", "float64"),
+            "D": ("boolean", "bool"),
+            "E": ("unknown", "complex128"),
+            "F": ("string", "object"),
+            "G": ("string", "object"),
+            "H": ("date", "datetime64[ns]"),
+            "I": ("string", "timedelta64[ns]"),
+            "J": ("string", "interval[int64, right]"),
         }
         assert (
             self.factory.create()(complex_data).get_field_types()
@@ -193,7 +193,7 @@ class TestPandasTableManager(unittest.TestCase):
         )
         data = data.rename(columns={"A": "B"})
         expected_field_types = {
-            "B": "string",
+            "B": ("string", "object"),
         }
         assert (
             self.factory.create()(data).get_field_types()
@@ -209,7 +209,7 @@ class TestPandasTableManager(unittest.TestCase):
         )
         data = data.rename(columns={"A": "B"})
         expected_field_types = {
-            "B": "string",
+            "B": ("string", "object"),
         }
         assert (
             self.factory.create()(data).get_field_types()
@@ -225,7 +225,7 @@ class TestPandasTableManager(unittest.TestCase):
         )
         data = data.rename(columns={"A": "B"})
         expected_field_types = {
-            "B": "string",
+            "B": ("string", "object"),
         }
         assert (
             self.factory.create()(data).get_field_types()

@@ -77,11 +77,11 @@ class TestPyArrowTableManagerFactory(unittest.TestCase):
         import pyarrow as pa
 
         expected_field_types = {
-            "A": "integer",
-            "B": "string",
-            "C": "number",
-            "D": "boolean",
-            "E": "date",
+            "A": ("integer", "int64"),
+            "B": ("string", "string"),
+            "C": ("number", "double"),
+            "D": ("boolean", "bool"),
+            "E": ("date", "timestamp[us]"),
         }
         assert self.manager.get_field_types() == expected_field_types
 
@@ -95,11 +95,11 @@ class TestPyArrowTableManagerFactory(unittest.TestCase):
             }  # type: ignore
         )
         expected_field_types = {
-            "A": "integer",
-            "B": "string",
-            "C": "number",
-            "D": "boolean",
-            "E": "unknown",
+            "A": ("integer", "int64"),
+            "B": ("string", "string"),
+            "C": ("number", "double"),
+            "D": ("boolean", "bool"),
+            "E": ("unknown", "null"),
         }
         assert (
             self.factory.create()(complex_data).get_field_types()

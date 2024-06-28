@@ -10,6 +10,7 @@ import { uniformSample } from "./uniformSample";
 import { DataType } from "@/core/kernel/messages";
 import { TableColumnSummary } from "./column-summary";
 import { FilterType } from "./filters";
+import { FieldTypesWithExternalType } from "./types";
 
 interface ColumnInfo {
   key: string;
@@ -74,7 +75,7 @@ export function generateColumns<T>({
   rowHeaders: string[];
   selection: "single" | "multi" | null;
   showColumnSummaries: boolean;
-  fieldTypes?: Record<string, DataType>;
+  fieldTypes?: FieldTypesWithExternalType;
 }): Array<ColumnDef<T>> {
   const columnInfo = getColumnInfo(items);
   const rowHeadersSet = new Set(rowHeaders);
@@ -130,7 +131,8 @@ export function generateColumns<T>({
       meta: {
         type: info.type,
         rowHeader: rowHeadersSet.has(info.key),
-        filterType: getFilterTypeForFieldType(fieldTypes?.[info.key]),
+        filterType: getFilterTypeForFieldType(fieldTypes?.[info.key]?.[0]),
+        dtype: fieldTypes?.[info.key]?.[1],
       },
     }),
   );

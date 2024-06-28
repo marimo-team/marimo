@@ -363,6 +363,8 @@ components:
       type: object
     DataTableColumn:
       properties:
+        external_type:
+          type: string
         name:
           type: string
         type:
@@ -370,6 +372,7 @@ components:
       required:
       - name
       - type
+      - external_type
       type: object
     DataType:
       enum:
@@ -884,6 +887,7 @@ components:
     MarimoAncestorPreventedError:
       properties:
         blamed_cell:
+          nullable: true
           type: string
         msg:
           type: string
@@ -896,7 +900,6 @@ components:
       required:
       - msg
       - raising_cell
-      - blamed_cell
       - type
       type: object
     MarimoAncestorStoppedError:
@@ -1121,6 +1124,7 @@ components:
     MarimoStrictExecutionError:
       properties:
         blamed_cell:
+          nullable: true
           type: string
         msg:
           type: string
@@ -1133,7 +1137,6 @@ components:
       required:
       - msg
       - ref
-      - blamed_cell
       - type
       type: object
     MarimoSyntaxError:
@@ -1661,7 +1664,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.6.19
+  version: 0.6.23
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

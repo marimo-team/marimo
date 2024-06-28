@@ -77,6 +77,8 @@ export const DataTableColumnHeader = <TData, TValue>({
     );
   };
 
+  const dtype = column.columnDef.meta?.dtype;
+
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild={true}>
@@ -106,6 +108,12 @@ export const DataTableColumnHeader = <TData, TValue>({
         </div>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
+        {dtype && (
+          <div className="flex-1 px-2 text-xs text-muted-foreground font-bold">
+            {dtype}
+          </div>
+        )}
+        <DropdownMenuSeparator />
         {renderSorts()}
         <DropdownMenuItem
           onClick={() =>

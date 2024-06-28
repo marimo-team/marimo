@@ -1,9 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Tuple
 
-from marimo._data.models import ColumnSummary
+from marimo._data.models import ColumnSummary, ExternalDataType
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
     FieldType,
@@ -107,7 +107,7 @@ class PandasTableManagerFactory(TableManagerFactory):
             @staticmethod
             def _get_field_type(
                 series: pd.Series[Any] | pd.DataFrame,
-            ) -> FieldType:
+            ) -> Tuple[FieldType, ExternalDataType]:
                 # If a df has duplicate columns, it won't be a series, but
                 # a dataframe. In this case, we take the dtype of the columns
                 if isinstance(series, pd.DataFrame):
@@ -116,24 +116,24 @@ class PandasTableManagerFactory(TableManagerFactory):
                     dtype = str(series.dtype)
 
                 if dtype.startswith("interval"):
-                    return "string"
+                    return ("string", dtype)
                 if dtype.startswith("int") or dtype.startswith("uint"):
-                    return "integer"
+                    return ("integer", dtype)
                 if dtype.startswith("float"):
-                    return "number"
+                    return ("number", dtype)
                 if dtype == "object":
-                    return "string"
+                    return ("string", dtype)
                 if dtype == "bool":
-                    return "boolean"
+                    return ("boolean", dtype)
                 if dtype == "datetime64[ns]":
-                    return "date"
+                    return ("date", dtype)
                 if dtype == "timedelta64[ns]":
-                    return "string"
+                    return ("string", dtype)
                 if dtype == "category":
-                    return "string"
+                    return ("string", dtype)
                 if dtype.startswith("complex"):
-                    return "unknown"
-                return "unknown"
+                    return ("unknown", dtype)
+                return ("unknown", dtype)
 
             def get_summary(self, column: str) -> ColumnSummary:
                 # If column is not in the dataframe, return an empty summary
