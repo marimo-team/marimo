@@ -98,10 +98,10 @@ def test_as_html_opinionated_formatter():
     html = as_html(pl_df)
     assert "<marimo-table" in html.text
 
-    # With plain DataFrame
+    # With pandas DataFrame + Plain
     html = as_html(Plain(pd_df))
     assert "<marimo-table" not in html.text
 
-    # With plain DataFrame + Plain
+    # With polars DataFrame + Plain
     html = as_html(Plain(pl_df))
     assert "<marimo-table" not in html.text
