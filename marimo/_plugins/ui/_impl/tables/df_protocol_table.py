@@ -82,7 +82,7 @@ class DataFrameProtocolTableManager(TableManager[DataFrameLike]):
 
     def get_row_headers(
         self,
-    ) -> list[tuple[str, list[str | int | float]]]:
+    ) -> list[str]:
         return []
 
     def get_field_types(self) -> FieldTypes:

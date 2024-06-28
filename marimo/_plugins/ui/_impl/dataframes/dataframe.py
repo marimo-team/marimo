@@ -39,7 +39,9 @@ class GetDataFrameResponse:
     url: str
     has_more: bool
     total_rows: int
-    row_headers: List[tuple[str, List[str | int | float]]]
+    # List of column names that are actually row headers
+    # This really only applies to Pandas, that has special index columns
+    row_headers: List[str]
     supports_code_sample: bool
 
 

@@ -2,10 +2,7 @@
 import { memo, useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { DataTable } from "../../components/data-table/data-table";
-import {
-  generateColumns,
-  generateIndexColumns,
-} from "../../components/data-table/columns";
+import { generateColumns } from "../../components/data-table/columns";
 import { Labeled } from "./common/labeled";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { Alert, AlertTitle } from "@/components/ui/alert";
@@ -58,7 +55,7 @@ interface Data<T> {
   showDownload: boolean;
   showFilters: boolean;
   showColumnSummaries: boolean;
-  rowHeaders: Array<[string, string[]]>;
+  rowHeaders: string[];
   fieldTypes?: Record<string, DataType> | null;
 }
 
@@ -94,7 +91,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       showDownload: z.boolean().default(false),
       showFilters: z.boolean().default(false),
       showColumnSummaries: z.boolean().default(true),
-      rowHeaders: z.array(z.tuple([z.string(), z.array(z.any())])),
+      rowHeaders: z.array(z.string()),
       fieldTypes: z
         .record(
           z.enum(["boolean", "integer", "number", "date", "string", "unknown"]),
@@ -336,7 +333,7 @@ const DataTableComponent = ({
     () =>
       generateColumns({
         items: data,
-        rowHeaders: generateIndexColumns(rowHeaders),
+        rowHeaders: rowHeaders,
         selection,
         showColumnSummaries: showColumnSummaries,
         fieldTypes: fieldTypes ?? {},
