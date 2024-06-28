@@ -60,12 +60,14 @@ base_widget = CounterWidget()
 are_same = mo.as_html(base_widget).text == mo.as_html(base_widget).text
 are_different = mo.as_html(CounterWidget()) is not mo.as_html(CounterWidget())
 as_marimo_element = mo.ui.anywidget(base_widget)
+x = as_marimo_element.count
 """
                 )
             ]
         )
         assert k.globals["are_same"] is True
         assert k.globals["are_different"] is True
+        assert k.globals["x"] == 10
         assert isinstance(k.globals["base_widget"], _anywidget.AnyWidget)
         assert "marimo-anywidget" in k.globals["as_marimo_element"].text
 
@@ -101,9 +103,11 @@ as_marimo_element = mo.ui.anywidget(base_widget)
                 exec_req.get(
                     """
                     w_value = w.value
+                    w_count = w.count
                     """
                 ),
             ]
         )
         assert isinstance(k.globals["w"], anywidget)
         assert k.globals["w_value"]["count"] == 10
+        assert k.globals["w_count"] == 10
