@@ -168,7 +168,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
 
     def _get_column_types(self) -> List[List[Union[str, int]]]:
         return [
-            [name, dtype]
+            [name, dtype[0], dtype[1]]
             for name, dtype in self._manager.get_field_types().items()
         ]
 

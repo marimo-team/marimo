@@ -78,11 +78,11 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         import polars as pl
 
         expected_field_types = {
-            "A": "integer",
-            "B": "string",
-            "C": "number",
-            "D": "boolean",
-            "E": "date",
+            "A": ("integer", "i64"),
+            "B": ("string", "str"),
+            "C": ("number", "f64"),
+            "D": ("boolean", "bool"),
+            "E": ("date", "datetime[μs]"),
         }
         assert self.manager.get_field_types() == expected_field_types
 
@@ -113,16 +113,16 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             }
         )
         expected_field_types = {
-            "A": "integer",
-            "B": "string",
-            "C": "number",
-            "D": "boolean",
-            "E": "unknown",
-            "F": "unknown",
-            "G": "unknown",
-            "H": "date",
-            "I": "string",
-            "J": "string",
+            "A": ("integer", "i64"),
+            "B": ("string", "str"),
+            "C": ("number", "f64"),
+            "D": ("boolean", "bool"),
+            "E": ("unknown", "object"),
+            "F": ("unknown", "null"),
+            "G": ("unknown", "object"),
+            "H": ("date", "datetime[μs]"),
+            "I": ("string", "str"),
+            "J": ("string", "str"),
         }
         assert (
             self.factory.create()(complex_data).get_field_types()

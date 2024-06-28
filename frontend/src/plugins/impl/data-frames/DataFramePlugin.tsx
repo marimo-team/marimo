@@ -6,7 +6,7 @@ import { TransformPanel } from "./panel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Code2Icon, FunctionSquareIcon } from "lucide-react";
 import { CodePanel } from "./python/code-panel";
-import { ColumnDataTypes, RawColumnDataTypes } from "./types";
+import { ColumnDataTypes, ColumnId } from "./types";
 import { createPlugin } from "@/plugins/core/builder";
 import { rpc } from "@/plugins/core/rpc";
 import { useAsyncData } from "@/hooks/useAsyncData";
@@ -59,8 +59,12 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
       dataframeName: z.string(),
       pageSize: z.number().default(5),
       columns: z
-        .array(z.tuple([z.string().or(z.number()), z.string()]))
-        .transform((value) => new Map(value as RawColumnDataTypes)),
+        .array(z.tuple([z.string().or(z.number()), z.string(), z.string()]))
+        .transform((value) => {
+          const map = new Map<ColumnId, string>();
+          value.forEach(([key, dtype]) => map.set(key as ColumnId, dtype));
+          return map;
+        }),
     }),
   )
   .withFunctions<PluginFunctions>({

@@ -10,6 +10,7 @@ declare module "@tanstack/react-table" {
   interface ColumnMeta<TData extends RowData, TValue> {
     type?: "primitive" | "mime";
     rowHeader?: boolean;
+    dtype?: string;
     filterType?: FilterType;
   }
 }

@@ -1,9 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any, Tuple, cast
 
-from marimo._data.models import ColumnSummary, NonNestedLiteral
+from marimo._data.models import (
+    ColumnSummary,
+    ExternalDataType,
+    NonNestedLiteral,
+)
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
     FieldType,
@@ -149,18 +153,21 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 return PolarsTableManager(sorted_data)
 
             @staticmethod
-            def _get_field_type(column: pl.Series) -> FieldType:
+            def _get_field_type(
+                column: pl.Series,
+            ) -> Tuple[FieldType, ExternalDataType]:
+                dtype_string = column.dtype._string_repr()
                 if column.dtype == pl.String:
-                    return "string"
+                    return ("string", dtype_string)
                 elif column.dtype == pl.Boolean:
-                    return "boolean"
+                    return ("boolean", dtype_string)
                 elif column.dtype.is_integer():
-                    return "integer"
+                    return ("integer", dtype_string)
                 elif column.dtype.is_float() or column.dtype.is_numeric():
-                    return "number"
+                    return ("number", dtype_string)
                 elif column.dtype.is_temporal():
-                    return "date"
+                    return ("date", dtype_string)
                 else:
-                    return "unknown"
+                    return ("unknown", dtype_string)
 
         return PolarsTableManager

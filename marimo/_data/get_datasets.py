@@ -29,7 +29,11 @@ def _get_data_table(value: object, variable_name: str) -> Optional[DataTable]:
             return None
 
         columns = [
-            DataTableColumn(name=column_name, type=column_type)
+            DataTableColumn(
+                name=column_name,
+                type=column_type[0],
+                external_type=column_type[1],
+            )
             for column_name, column_type in table.get_field_types().items()
         ]
         return DataTable(
