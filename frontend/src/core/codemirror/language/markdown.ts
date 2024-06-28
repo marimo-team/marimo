@@ -228,7 +228,17 @@ const emojiCompletionSource: CompletionSource = async (context) => {
 const getEmojiList = once(async (): Promise<Completion[]> => {
   const emojiList = await fetch(
     "https://unpkg.com/emojilib@3.0.11/dist/emoji-en-US.json",
-  ).then((res) => res.json() as unknown as Record<string, string[]>);
+  )
+    .then((res) => {
+      if (!res.ok) {
+        throw new Error("Failed to fetch emoji list");
+      }
+      return res.json() as unknown as Record<string, string[]>;
+    })
+    .catch(() => {
+      // If we can't fetch the emoji list, just return an empty list
+      return {};
+    });
 
   return Object.entries(emojiList).map(([emoji, names]) => ({
     shortcode: names[0],
