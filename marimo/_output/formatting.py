@@ -274,6 +274,7 @@ def as_html(value: object) -> Html:
         raise ValueError(f"Unsupported mimetype {mimetype}")
 
 
+@mddoc
 def plain(value: Any) -> Plain:
     """
     Wrap a value to indicate that it should be displayed

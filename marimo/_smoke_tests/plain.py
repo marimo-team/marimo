@@ -31,5 +31,17 @@ def __(df, mo):
     return
 
 
+@app.cell
+def __(df, mo):
+    mo.hstack(["hstack", mo.vstack(["vstack", df])])
+    return
+
+
+@app.cell
+def __(df, mo):
+    mo.hstack(["hstack", mo.vstack(["vstack", mo.plain(df)])])
+    return
+
+
 if __name__ == "__main__":
     app.run()
