@@ -48,6 +48,7 @@ def test_number_series(
         response = get_number_series_info(df["B"])
 
 
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_get_with_no_name() -> None:
     series = pd.Series([1, 2, 3])
     series.name = None
