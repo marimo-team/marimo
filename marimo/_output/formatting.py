@@ -113,6 +113,7 @@ def get_formatter(
         if child_formatter:
 
             def plain_formatter(obj: T) -> tuple[KnownMimeType, str]:
+                assert child_formatter is not None
                 return child_formatter(cast(Plain, obj).child)
 
             return plain_formatter
