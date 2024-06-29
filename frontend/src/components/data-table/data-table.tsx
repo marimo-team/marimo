@@ -33,6 +33,7 @@ import useEvent from "react-use-event-hook";
 import { Tooltip } from "../ui/tooltip";
 import { Spinner } from "../icons/spinner";
 import { FilterPills } from "./filter-pills";
+import { ColumnWrappingFeature } from "./column-wrapping/feature";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
@@ -92,6 +93,7 @@ const DataTableInternal = <TData,>({
   }, [pageSize, paginationState.pageSize]);
 
   const table = useReactTable({
+    _features: [ColumnWrappingFeature],
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
@@ -178,7 +180,12 @@ const DataTableInternal = <TData,>({
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
                       key={cell.id}
-                      className="whitespace-nowrap truncate max-w-[300px]"
+                      className={cn(
+                        "whitespace-nowrap truncate max-w-[300px]",
+                        cell.column.getColumnWrapping &&
+                          cell.column.getColumnWrapping() === "wrap" &&
+                          "whitespace-normal min-w-[200px]",
+                      )}
                       title={String(cell.getValue())}
                     >
                       {flexRender(

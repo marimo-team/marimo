@@ -9,6 +9,8 @@ import {
   FilterX,
   MinusIcon,
   SearchIcon,
+  WrapTextIcon,
+  AlignJustifyIcon,
 } from "lucide-react";
 
 import { cn } from "@/utils/cn";
@@ -79,6 +81,35 @@ export const DataTableColumnHeader = <TData, TValue>({
 
   const dtype = column.columnDef.meta?.dtype;
 
+  const renderColumnWrapping = () => {
+    if (!column.getCanWrap?.() || !column.getColumnWrapping) {
+      return null;
+    }
+
+    const wrap = column.getColumnWrapping();
+    if (wrap === "wrap") {
+      return (
+        <DropdownMenuItem
+          onClick={() => column.toggleColumnWrapping("nowrap")}
+          className="flex items-center"
+        >
+          <AlignJustifyIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+          No wrap text
+        </DropdownMenuItem>
+      );
+    }
+
+    return (
+      <DropdownMenuItem
+        onClick={() => column.toggleColumnWrapping("wrap")}
+        className="flex items-center"
+      >
+        <WrapTextIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+        Wrap text
+      </DropdownMenuItem>
+    );
+  };
+
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild={true}>
@@ -125,6 +156,7 @@ export const DataTableColumnHeader = <TData, TValue>({
           <CopyIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
           Copy column name
         </DropdownMenuItem>
+        {renderColumnWrapping()}
         <DropdownMenuItemFilter column={column} />
       </DropdownMenuContent>
     </DropdownMenu>
