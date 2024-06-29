@@ -7,7 +7,7 @@ import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.formatters.formatters import register_formatters
-from marimo._output.formatting import Plain, get_formatter
+from marimo._output.formatting import Plain, as_html, get_formatter
 
 
 def test_path_finder_find_spec() -> None:
@@ -31,8 +31,6 @@ def test_formatters_with_opinionated_formatter() -> None:
 
     import pandas as pd
     import polars as pl
-
-    register_formatters()
 
     pd_df = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "a", "a"]})
     pl_df = pl.DataFrame({"A": [1, 2, 3], "B": ["a", "a", "a"]})
@@ -87,12 +85,8 @@ def test_as_html_opinionated_formatter():
     import pandas as pd
     import polars as pl
 
-    register_formatters()
-
     pd_df = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "a", "a"]})
     pl_df = pl.DataFrame({"A": [1, 2, 3], "B": ["a", "a", "a"]})
-
-    from marimo._output.formatting import as_html
 
     # With pandas DataFrame
     html = as_html(pd_df)
