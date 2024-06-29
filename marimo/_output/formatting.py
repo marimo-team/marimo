@@ -23,7 +23,7 @@ import traceback
 import types
 from dataclasses import dataclass
 from html import escape
-from typing import Any, Callable, Optional, Tuple, Type, TypeVar
+from typing import Any, Callable, Optional, Tuple, Type, TypeVar, cast
 
 from marimo import _loggers as loggers
 from marimo._messaging.mimetypes import KnownMimeType
@@ -38,6 +38,7 @@ T = TypeVar("T")
 # we use Tuple instead of the builtin tuple for py3.8 compatibility
 Formatter = Callable[[T], Tuple[KnownMimeType, str]]
 FORMATTERS: dict[Type[Any], Formatter[Any]] = {}
+OPINIONATED_FORMATTERS: dict[Type[Any], Formatter[Any]] = {}
 LOGGER = loggers.marimo_logger()
 
 
@@ -63,7 +64,36 @@ def formatter(t: Type[Any]) -> Callable[[Formatter[T]], Formatter[T]]:
     return register_format
 
 
-def get_formatter(obj: T) -> Optional[Formatter[T]]:
+def opinionated_formatter(
+    t: Type[Any],
+) -> Callable[[Formatter[T]], Formatter[T]]:
+    """Register an opinionated formatter function for a type
+
+    Decorator to register a custom formatter for a given type.
+
+    For example, to register a formatter for a class Foo with a string
+    attribute data:
+
+    ```
+    @opinionated_formatter(Foo)
+    def show_df(foo: Foo) -> tuple[str, str]:
+        return table(foo)._mime_()
+    ```
+    """
+
+    def register_format(f: Formatter[T]) -> Formatter[T]:
+        OPINIONATED_FORMATTERS[t] = f
+        return f
+
+    return register_format
+
+
+def get_formatter(
+    obj: T,
+    # Include opinionated formatters by default
+    # (e.g., for pandas, polars, arrow, etc.)
+    include_opinionated: bool = True,
+) -> Optional[Formatter[T]]:
     from marimo._runtime.context import ContextNotInitializedError, get_context
 
     try:
@@ -77,6 +107,20 @@ def get_formatter(obj: T) -> Optional[Formatter[T]]:
             # Install formatters when marimo is being used without
             # a kernel (eg, in a unit test or when run as a Python script)
             register_formatters()
+
+    if isinstance(obj, Plain):
+        child_formatter = get_formatter(obj.child, include_opinionated=False)
+        if child_formatter:
+
+            def plain_formatter(obj: T) -> tuple[KnownMimeType, str]:
+                assert child_formatter is not None
+                return child_formatter(cast(Plain, obj).child)
+
+            return plain_formatter
+
+    if include_opinionated:
+        if type(obj) in OPINIONATED_FORMATTERS:
+            return OPINIONATED_FORMATTERS[type(obj)]
 
     if type(obj) in FORMATTERS:
         return FORMATTERS[type(obj)]
@@ -229,3 +273,36 @@ def as_html(value: object) -> Html:
         )
     else:
         raise ValueError(f"Unsupported mimetype {mimetype}")
+
+
+@mddoc
+def plain(value: Any) -> Plain:
+    """
+    Wrap a value to indicate that it should be displayed
+    without any opinionated formatting.
+
+    This is the best way to opt out of marimo's
+    default dataframe rendering.
+
+    **Example.**
+
+    ```python
+    df = data.cars()
+    mo.plain(df)
+    ```
+
+    **Args.**
+
+    - `value`: Any value
+    """
+    return Plain(value)
+
+
+class Plain:
+    """
+    Wrapper around a value to indicate that it should be displayed
+    without any opinionated formatting.
+    """
+
+    def __init__(self, child: Any):
+        self.child = child

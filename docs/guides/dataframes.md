@@ -33,6 +33,17 @@ df = pd.read_json(
 df
 ```
 
+By default the dataframe is displayed using `mo.ui.table`, which provides a
+a rich, interactive table view. You can also use `mo.plain` to revert to the
+to the default HTML representation.
+
+```python
+df = pd.read_json(
+    "https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json"
+)
+mo.plain(df)
+```
+
 **Rich displays.**
 You can display dataframes in rich tables or charts using the
 [`mo.ui.table`](/api/inputs/table/) or [`mo.ui.altair_chart`](/api/plotting/)
