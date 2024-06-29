@@ -32,6 +32,8 @@ def test_formatters_with_opinionated_formatter() -> None:
     import pandas as pd
     import polars as pl
 
+    register_formatters()
+
     pd_df = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "a", "a"]})
     pl_df = pl.DataFrame({"A": [1, 2, 3], "B": ["a", "a", "a"]})
 
@@ -84,6 +86,8 @@ def test_as_html_opinionated_formatter():
 
     import pandas as pd
     import polars as pl
+
+    register_formatters()
 
     pd_df = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "a", "a"]})
     pl_df = pl.DataFrame({"A": [1, 2, 3], "B": ["a", "a", "a"]})
