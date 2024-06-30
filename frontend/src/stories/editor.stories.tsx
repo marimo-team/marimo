@@ -74,7 +74,15 @@ export const Primary: Story = {
 export const DefaultPython: Story = {
   render: () => (
     <div className="m-20 w-[60%] overflow-hidden">
-      <CodeMirror extensions={[python(), copilotBundle()]} />
+      <CodeMirror
+        extensions={[
+          python(),
+          copilotBundle({
+            activate_on_typing: true,
+            copilot: false,
+          }),
+        ]}
+      />
       <CopilotConfig />
     </div>
   ),
