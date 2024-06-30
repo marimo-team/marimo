@@ -9,7 +9,7 @@ if sys.version_info < (3, 11):
 else:
     from typing import NotRequired
 
-from typing import Any, Dict, Literal, TypedDict, Union, cast
+from typing import Any, Dict, Literal, Optional, TypedDict, Union, cast
 
 from marimo._output.rich_help import mddoc
 from marimo._utils.deep_merge import deep_merge
@@ -32,6 +32,7 @@ class CompletionConfig(TypedDict):
 
     activate_on_typing: bool
     copilot: bool
+    codeium_api_key: NotRequired[Optional[str]]
 
 
 @mddoc

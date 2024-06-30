@@ -1117,6 +1117,7 @@ export interface components {
       };
       completion: {
         activate_on_typing: boolean;
+        codeium_api_key?: string | null;
         copilot: boolean;
       };
       display: {

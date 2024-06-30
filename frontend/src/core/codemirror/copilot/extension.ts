@@ -7,18 +7,46 @@ import {
   getCopilotClient,
 } from "./client";
 import { inlineSuggestion } from "codemirror-extension-inline-suggestion";
+import {
+  copilotPlugin,
+  Language,
+  codeiumOtherDocumentsConfig,
+} from "@valtown/codemirror-codeium";
 import { isCopilotEnabled } from "./state";
 import { getCodes } from "./getCodes";
+import { CompletionConfig } from "@/core/config/config-schema";
 
-export const copilotBundle = (): Extension => {
+export const copilotBundle = (config: CompletionConfig): Extension => {
   if (process.env.NODE_ENV === "test") {
     return [];
   }
 
   return [
+    config.codeium_api_key
+      ? [
+          copilotPlugin({
+            apiKey: config.codeium_api_key,
+            language: Language.PYTHON,
+          }),
+          codeiumOtherDocumentsConfig.of({
+            override: async () => {
+              return [
+                {
+                  text: getCodes(""),
+                  language: Language.PYTHON,
+                  editorLanguage: "python",
+                },
+              ];
+            },
+          }),
+        ]
+      : [],
     inlineSuggestion({
-      delay: 500, // default is 500ms
+      delay: 200, // default is 500ms
       fetchFn: async (view) => {
+        if (config.codeium_api_key) {
+          return "";
+        }
         if (!isCopilotEnabled()) {
           return "";
         }

@@ -25,6 +25,7 @@ export const UserConfigSchema = z
       .object({
         activate_on_typing: z.boolean().default(true),
         copilot: z.boolean().default(false),
+        codeium_api_key: z.string().nullish(),
       })
       .default({}),
     save: z

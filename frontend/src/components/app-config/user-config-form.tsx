@@ -500,12 +500,10 @@ export const UserConfigForm: React.FC = () => {
                 <FormLabel>Base URL</FormLabel>
                 <FormControl>
                   <Input
-                    data-testid="code-editor-font-size-input"
+                    data-testid="ai-base-url-input"
                     className="m-0 inline-flex"
-                    {...field}
-                    value={field.value}
                     placeholder="https://api.openai.com"
-                    onChange={(e) => field.onChange(e.target.value)}
+                    {...field}
                   />
                 </FormControl>
                 <FormMessage />
@@ -516,17 +514,15 @@ export const UserConfigForm: React.FC = () => {
             control={form.control}
             disabled={isWasm}
             name="ai.open_ai.model"
-            render={({ field: { value, onChange, ...field } }) => (
+            render={({ field }) => (
               <FormItem className={formItemClasses}>
                 <FormLabel>Model</FormLabel>
                 <FormControl>
                   <Input
-                    data-testid="code-editor-font-size-input"
+                    data-testid="ai-model-input"
                     className="m-0 inline-flex"
-                    {...field}
-                    defaultValue={value}
                     placeholder="gpt-3.5-turbo"
-                    onBlur={(e) => onChange(e.target.value)}
+                    {...field}
                   />
                 </FormControl>
                 <FormMessage />
@@ -535,6 +531,38 @@ export const UserConfigForm: React.FC = () => {
           />
         </div>
         <div className="flex flex-col gap-3">
+          <SettingSubtitle>Codeium Copilot</SettingSubtitle>
+          <p className="text-sm text-muted-secondary">
+            To get a Codeium API key, follow{" "}
+            <a
+              className="text-link hover:underline"
+              href="https://docs.marimo.io/guides/ai_completion.html#codeium-copilot"
+              target="_blank"
+              rel="noreferrer"
+            >
+              these instructions
+            </a>
+            .
+          </p>
+          <FormField
+            control={form.control}
+            name="completion.codeium_api_key"
+            render={({ field }) => (
+              <FormItem className={formItemClasses}>
+                <FormLabel>API Key</FormLabel>
+                <FormControl>
+                  <Input
+                    data-testid="codeium-api-key-input"
+                    className="m-0 inline-flex"
+                    placeholder="key"
+                    {...field}
+                    value={field.value || ""}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
           <SettingSubtitle>GitHub Copilot</SettingSubtitle>
           <FormField
             control={form.control}

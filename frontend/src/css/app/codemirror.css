@@ -137,3 +137,43 @@
 
   @apply text-xs;
 }
+
+.cm-ghostText,
+.cm-ghostText * {
+  opacity: 0.6;
+  filter: grayscale(20%);
+  cursor: pointer;
+}
+
+.cm-ghostText:hover {
+  background: var(--gray-3);
+}
+
+.cm-codeium-cycle {
+  font-size: 9px;
+  background-color: var(--sky-3);
+  padding: 2px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.cm-codeium-cycle-key {
+  font-size: 9px;
+  font-family: monospace;
+  display: inline-block;
+  padding: 2px;
+  border-radius: 2px;
+  border: none;
+  background-color: var(--sky-7);
+  margin-left: 5px;
+}
+
+.cm-codeium-cycle-key:hover {
+  background-color: var(--sky-9);
+}
+
+.cm-codeium-cycle-explanation {
+  font-family: monospace;
+  display: inline-block;
+  padding: 2px;
+}
