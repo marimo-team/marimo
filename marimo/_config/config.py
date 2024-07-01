@@ -31,7 +31,7 @@ class CompletionConfig(TypedDict):
     """
 
     activate_on_typing: bool
-    copilot: bool
+    copilot: Union[bool, Literal["github", "codeium"]]
     codeium_api_key: NotRequired[Optional[str]]
 
 

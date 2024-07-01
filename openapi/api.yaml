@@ -945,7 +945,12 @@ components:
               nullable: true
               type: string
             copilot:
-              type: boolean
+              oneOf:
+              - type: boolean
+              - enum:
+                - github
+                - codeium
+                type: string
           required:
           - activate_on_typing
           - copilot

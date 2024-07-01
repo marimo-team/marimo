@@ -37,6 +37,7 @@ marimo using `pip` if you need Copilot.
 
 ```toml
 [completion]
+copilot = "codeium"
 codeium_api_key = ""
 ```
 

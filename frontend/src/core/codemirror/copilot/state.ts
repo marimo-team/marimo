@@ -22,11 +22,11 @@ function getIsLastSignedIn() {
 export function isCopilotEnabled() {
   const copilot = getIsLastSignedIn();
   const userConfig = getUserConfig();
-  return copilot && userConfig.completion.copilot;
+  return copilot && userConfig.completion.copilot === "github";
 }
 
 export function waitForEnabledCopilot() {
   return waitFor(userConfigAtom, (value) => {
-    return value.completion.copilot;
+    return value.completion.copilot === "github";
   });
 }
