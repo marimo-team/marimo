@@ -32,7 +32,7 @@ repos:
     hooks:
       - id: biome-format
         args: [--config-path, frontend/biome.json]
-        additional_dependencies: ["@biomejs/biome@1.7.3"]
+        additional_dependencies: ["@biomejs/biome@1.8.3"]
         exclude: |
           (?x)^(
             docs/_static/.*|
