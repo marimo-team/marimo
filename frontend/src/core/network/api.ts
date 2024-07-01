@@ -120,7 +120,8 @@ export const marimoClient = createMarimoClient({
 });
 
 marimoClient.use({
-  onRequest: (req) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onRequest: (req: any) => {
     for (const [key, value] of Object.entries(API.headers())) {
       req.headers.set(key, value);
     }

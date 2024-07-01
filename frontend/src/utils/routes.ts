@@ -1,11 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { match, Match, MatchFunction } from "path-to-regexp";
+import { match, Match, MatchFunction, ParamData } from "path-to-regexp";
 
 export class TinyRouter {
   private routes: Array<{
     template: string;
-    pathFunction: MatchFunction;
+    pathFunction: MatchFunction<ParamData>;
   }>;
 
   constructor(templates: string[]) {
@@ -17,7 +17,7 @@ export class TinyRouter {
     });
   }
 
-  match(location: Location): [Match, template: string] | false {
+  match(location: Location): [Match<ParamData>, template: string] | false {
     for (const { pathFunction, template } of this.routes) {
       const match =
         pathFunction(location.hash) || pathFunction(location.pathname);
