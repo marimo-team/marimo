@@ -2,7 +2,6 @@
 import { CellId } from "@/core/cells/ids";
 import { sendRun } from "@/core/network/requests";
 import { staleCellIds, useCellActions, useNotebook } from "@/core/cells/cells";
-import { derefNotNull } from "@/utils/dereference";
 import useEvent from "react-use-event-hook";
 import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
 import { Logger } from "@/utils/Logger";
