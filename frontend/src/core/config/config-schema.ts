@@ -24,7 +24,16 @@ export const UserConfigSchema = z
     completion: z
       .object({
         activate_on_typing: z.boolean().default(true),
-        copilot: z.boolean().default(false),
+        copilot: z
+          .union([z.boolean(), z.enum(["github", "codeium"])])
+          .default(false)
+          .transform((copilot) => {
+            if (copilot === true) {
+              return "github";
+            }
+            return copilot;
+          }),
+        codeium_api_key: z.string().nullish(),
       })
       .default({}),
     save: z

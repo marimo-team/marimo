@@ -19,6 +19,28 @@ _Get started with Copilot_:
 _Note_: Copilot is not yet available in our conda distribution; please install
 marimo using `pip` if you need Copilot.
 
+## Codeium Copilot
+
+1. Go to the Codeium website and sign up for an account: <https://codeium.com/>
+2. Install the browser extension: <https://codeium.com/chrome_tutorial>
+3. Open the settings for the chrome extension and click on "Get Token"
+
+<img src="https://github.com/Exafunction/codeium.jupyter/raw/main/img/1-extension-token.png">
+
+4. Right click on the extension window and select "Inspect" to open the dev tools for the extension. Then click on "Network"
+5. Copy the token and paste it the input area, and then press "Enter Token"
+6. This should log a new API request in the network tab. Click on "Preview" to get the API key.
+
+<img src="https://github.com/Exafunction/codeium.jupyter/raw/main/img/2-api-key.png">
+
+7. Paste the API key in the marimo settings in the UI, or add it to your `~/.marimo.toml`:
+
+```toml
+[completion]
+copilot = "codeium"
+codeium_api_key = ""
+```
+
 ## Using AI to modify cells
 
 This feature is currently experimental and is not enabled by default. To enable it:

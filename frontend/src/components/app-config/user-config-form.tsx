@@ -22,7 +22,6 @@ import { useUserConfig } from "../../core/config/config";
 import { NativeSelect } from "../ui/native-select";
 import { KEYMAP_PRESETS } from "@/core/codemirror/keymaps/keymaps";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
-import { Switch } from "../ui/switch";
 import { SettingTitle, SettingDescription, SettingSubtitle } from "./common";
 import { THEMES } from "@/theme/useTheme";
 import { isPyodide } from "@/core/pyodide/utils";
@@ -55,6 +54,53 @@ export const UserConfigForm: React.FC = () => {
 
   const isWasm = isPyodide();
 
+  const renderCopilotProvider = () => {
+    const copilot = form.getValues("completion.copilot");
+    if (copilot === false) {
+      return null;
+    }
+    if (copilot === "codeium") {
+      return (
+        <>
+          <p className="text-sm text-muted-secondary">
+            To get a Codeium API key, follow{" "}
+            <a
+              className="text-link hover:underline"
+              href="https://docs.marimo.io/guides/ai_completion.html#codeium-copilot"
+              target="_blank"
+              rel="noreferrer"
+            >
+              these instructions
+            </a>
+            .
+          </p>
+          <FormField
+            control={form.control}
+            name="completion.codeium_api_key"
+            render={({ field }) => (
+              <FormItem className={formItemClasses}>
+                <FormLabel>API Key</FormLabel>
+                <FormControl>
+                  <Input
+                    data-testid="codeium-api-key-input"
+                    className="m-0 inline-flex"
+                    placeholder="key"
+                    {...field}
+                    value={field.value || ""}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </>
+      );
+    }
+    if (copilot === "github") {
+      return <CopilotConfig />;
+    }
+  };
+
   return (
     <Form {...form}>
       <form
@@ -68,29 +114,26 @@ export const UserConfigForm: React.FC = () => {
             Settings applied to all marimo notebooks
           </SettingDescription>
         </div>
-        <div className="flex flex-col gap-3">
-          <SettingSubtitle>Editor</SettingSubtitle>
-          <div>
-            <FormField
-              control={form.control}
-              name="save.autosave"
-              render={({ field }) => (
-                <FormItem className={formItemClasses}>
-                  <FormLabel className="font-normal">Autosave</FormLabel>
-                  <FormControl>
-                    <Checkbox
-                      data-testid="autosave-checkbox"
-                      checked={field.value === "after_delay"}
-                      disabled={field.disabled}
-                      onCheckedChange={(checked) => {
-                        field.onChange(checked ? "after_delay" : "off");
-                      }}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-          </div>
+        <SettingGroup title="Editor">
+          <FormField
+            control={form.control}
+            name="save.autosave"
+            render={({ field }) => (
+              <FormItem className={formItemClasses}>
+                <FormLabel className="font-normal">Autosave</FormLabel>
+                <FormControl>
+                  <Checkbox
+                    data-testid="autosave-checkbox"
+                    checked={field.value === "after_delay"}
+                    disabled={field.disabled}
+                    onCheckedChange={(checked) => {
+                      field.onChange(checked ? "after_delay" : "off");
+                    }}
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
           <FormField
             control={form.control}
             name="save.autosave_delay"
@@ -119,27 +162,25 @@ export const UserConfigForm: React.FC = () => {
               </FormItem>
             )}
           />
-          <div>
-            <FormField
-              control={form.control}
-              name="save.format_on_save"
-              render={({ field }) => (
-                <FormItem className={formItemClasses}>
-                  <FormLabel className="font-normal">Format on save</FormLabel>
-                  <FormControl>
-                    <Checkbox
-                      data-testid="format-on-save-checkbox"
-                      checked={field.value}
-                      disabled={field.disabled}
-                      onCheckedChange={(checked) => {
-                        field.onChange(checked);
-                      }}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-          </div>
+          <FormField
+            control={form.control}
+            name="save.format_on_save"
+            render={({ field }) => (
+              <FormItem className={formItemClasses}>
+                <FormLabel className="font-normal">Format on save</FormLabel>
+                <FormControl>
+                  <Checkbox
+                    data-testid="format-on-save-checkbox"
+                    checked={field.value}
+                    disabled={field.disabled}
+                    onCheckedChange={(checked) => {
+                      field.onChange(checked);
+                    }}
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
           <FormField
             control={form.control}
             name="formatting.line_length"
@@ -240,9 +281,8 @@ export const UserConfigForm: React.FC = () => {
               </div>
             )}
           />
-        </div>
-        <div className="flex flex-col gap-3">
-          <SettingSubtitle>Display</SettingSubtitle>
+        </SettingGroup>
+        <SettingGroup title="Display">
           <FormField
             control={form.control}
             name="display.default_width"
@@ -357,10 +397,9 @@ export const UserConfigForm: React.FC = () => {
               </div>
             )}
           />
-        </div>
+        </SettingGroup>
 
-        <div className="flex flex-col gap-3">
-          <SettingSubtitle>Package Management</SettingSubtitle>
+        <SettingGroup title="Package Management">
           <FormField
             control={form.control}
             disabled={isWasm}
@@ -387,9 +426,8 @@ export const UserConfigForm: React.FC = () => {
               </FormItem>
             )}
           />
-        </div>
-        <div className="flex flex-col gap-3">
-          <SettingSubtitle>Runtime</SettingSubtitle>
+        </SettingGroup>
+        <SettingGroup title="Runtime">
           <FormField
             control={form.control}
             name="runtime.auto_instantiate"
@@ -475,9 +513,8 @@ export const UserConfigForm: React.FC = () => {
               </div>
             )}
           />
-        </div>
-        <div className="flex flex-col gap-3">
-          <SettingSubtitle>AI Assist</SettingSubtitle>
+        </SettingGroup>
+        <SettingGroup title="AI Assist">
           <p className="text-sm text-muted-secondary">
             Add an API key to <Kbd className="inline">~/.marimo.toml</Kbd> to
             activate marimo's AI assistant; see{" "}
@@ -500,12 +537,10 @@ export const UserConfigForm: React.FC = () => {
                 <FormLabel>Base URL</FormLabel>
                 <FormControl>
                   <Input
-                    data-testid="code-editor-font-size-input"
+                    data-testid="ai-base-url-input"
                     className="m-0 inline-flex"
-                    {...field}
-                    value={field.value}
                     placeholder="https://api.openai.com"
-                    onChange={(e) => field.onChange(e.target.value)}
+                    {...field}
                   />
                 </FormControl>
                 <FormMessage />
@@ -516,52 +551,82 @@ export const UserConfigForm: React.FC = () => {
             control={form.control}
             disabled={isWasm}
             name="ai.open_ai.model"
-            render={({ field: { value, onChange, ...field } }) => (
+            render={({ field }) => (
               <FormItem className={formItemClasses}>
                 <FormLabel>Model</FormLabel>
                 <FormControl>
                   <Input
-                    data-testid="code-editor-font-size-input"
+                    data-testid="ai-model-input"
                     className="m-0 inline-flex"
-                    {...field}
-                    defaultValue={value}
                     placeholder="gpt-3.5-turbo"
-                    onBlur={(e) => onChange(e.target.value)}
+                    {...field}
                   />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-        </div>
-        <div className="flex flex-col gap-3">
-          <SettingSubtitle>GitHub Copilot</SettingSubtitle>
+        </SettingGroup>
+        <SettingGroup title="AI Code Completion">
+          <p className="text-sm text-muted-secondary">
+            You may use GitHub Copilot or Codeium for AI code completion.
+          </p>
+
           <FormField
             control={form.control}
-            disabled={isWasm}
             name="completion.copilot"
             render={({ field }) => (
-              <div className="flex flex-col gap-2">
-                <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+              <div className="flex flex-col space-y-1">
+                <FormItem className={formItemClasses}>
+                  <FormLabel>Provider</FormLabel>
                   <FormControl>
-                    <Switch
-                      data-testid="copilot-switch"
-                      size={"sm"}
-                      checked={field.value}
-                      disabled={field.disabled}
-                      onCheckedChange={(checked) => {
-                        field.onChange(Boolean(checked));
+                    <NativeSelect
+                      data-testid="copilot-select"
+                      onChange={(e) => {
+                        if (e.target.value === "none") {
+                          field.onChange(false);
+                        } else {
+                          field.onChange(e.target.value);
+                        }
                       }}
-                    />
+                      value={
+                        field.value === true
+                          ? "github"
+                          : field.value === false
+                            ? "none"
+                            : field.value
+                      }
+                      disabled={field.disabled}
+                      className="inline-flex mr-2"
+                    >
+                      {["none", "github", "codeium"].map((option) => (
+                        <option value={option} key={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </NativeSelect>
                   </FormControl>
-                  <FormLabel className="font-normal flex">Enable</FormLabel>
+                  <FormMessage />
                 </FormItem>
-                {field.value && <CopilotConfig />}
               </div>
             )}
           />
-        </div>
+
+          {renderCopilotProvider()}
+        </SettingGroup>
       </form>
     </Form>
+  );
+};
+
+const SettingGroup = ({
+  title,
+  children,
+}: { title: string; children: React.ReactNode }) => {
+  return (
+    <div className="flex flex-col gap-3">
+      <SettingSubtitle>{title}</SettingSubtitle>
+      {children}
+    </div>
   );
 };

@@ -1117,7 +1117,8 @@ export interface components {
       };
       completion: {
         activate_on_typing: boolean;
-        copilot: boolean;
+        codeium_api_key?: string | null;
+        copilot: boolean | ("github" | "codeium");
       };
       display: {
         /** @enum {string} */

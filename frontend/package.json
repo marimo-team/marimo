@@ -76,6 +76,7 @@
     "@uidotdev/usehooks": "^2.4.1",
     "@uiw/codemirror-extensions-langs": "^4.22.1",
     "@uiw/react-codemirror": "^4.22.1",
+    "@valtown/codemirror-codeium": "^1.0.1",
     "ai": "^3.1.23",
     "ansi_up": "^6.0.2",
     "blob-polyfill": "^7.0.20220408",
