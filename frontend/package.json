@@ -202,7 +202,7 @@
     "stylelint-config-standard": "^36.0.0",
     "tailwindcss": "^3.4.3",
     "turbo": "^2.0.3",
-    "typescript": "^5.4.5",
+    "typescript": "^5.5.2",
     "vite": "^5.2.12",
     "vite-tsconfig-paths": "^4.3.2",
     "vitest": "^1.6.0"
