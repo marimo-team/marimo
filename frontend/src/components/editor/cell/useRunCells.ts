@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { CellId } from "@/core/cells/ids";
 import { sendRun } from "@/core/network/requests";
-import { staleCellIds, useNotebook } from "@/core/cells/cells";
+import { staleCellIds, useCellActions, useNotebook } from "@/core/cells/cells";
 import { derefNotNull } from "@/utils/dereference";
 import useEvent from "react-use-event-hook";
 import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
@@ -36,19 +36,25 @@ export function useRunCell(cellId: CellId | undefined) {
  */
 function useRunCells() {
   const notebook = useNotebook();
+  const { prepareForRun } = useCellActions();
 
   const runCells = useEvent(async (cellIds: CellId[]) => {
     if (cellIds.length === 0) {
       return;
     }
 
-    const { cellHandles } = notebook;
+    const { cellHandles, cellData } = notebook;
 
     const codes: string[] = [];
     for (const cellId of cellIds) {
-      const ref = derefNotNull(cellHandles[cellId]);
-      codes.push(getEditorCodeAsPython(ref.editorView));
-      ref.registerRun();
+      const ref = cellHandles[cellId];
+      if (ref.current) {
+        codes.push(getEditorCodeAsPython(ref.current.editorView));
+        ref.current.registerRun();
+      } else {
+        prepareForRun({ cellId });
+        codes.push(cellData[cellId].code);
+      }
     }
 
     await sendRun({ cellIds: cellIds, codes: codes }).catch((error) => {
