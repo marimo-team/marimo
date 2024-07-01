@@ -20,6 +20,15 @@ class PolarsFormatter(FormatterFactory):
         def _show_marimo_dataframe(
             df: pl.DataFrame,
         ) -> tuple[KnownMimeType, str]:
+            # If has structured don't display in the table
+            for col in df.get_columns():
+                if (
+                    col.dtype == pl.Struct
+                    or col.dtype == pl.List
+                    or col.dtype == pl.Array
+                ):
+                    return ("text/html", df._repr_html_())
+
             return table(df, selection=None, pagination=True)._mime_()
 
 
