@@ -74,7 +74,7 @@ class TestExportHTML:
     )
     async def test_export_watch(self, temp_marimo_file: str) -> None:
         temp_out_file = temp_marimo_file.replace(".py", ".html")
-        p = subprocess.Popen(  # noqa: ASYNC101
+        p = subprocess.Popen(  # noqa: ASYNC101 ASYNC220
             [
                 "marimo",
                 "export",
@@ -98,7 +98,7 @@ class TestExportHTML:
         assert not path.exists(temp_out_file)
 
         # Modify file
-        with open(temp_marimo_file, "a") as f:  # noqa: ASYNC101
+        with open(temp_marimo_file, "a") as f:  # noqa: ASYNC101 ASYNC230
             f.write("\n# comment\n")
 
         assert p.poll() is None
@@ -258,7 +258,7 @@ class TestExportScript:
     )
     async def test_export_watch_script(self, temp_marimo_file: str) -> None:
         temp_out_file = temp_marimo_file.replace(".py", ".script.py")
-        p = subprocess.Popen(  # noqa: ASYNC101
+        p = subprocess.Popen(  # noqa: ASYNC101 ASYNC220
             [
                 "marimo",
                 "export",
@@ -282,7 +282,7 @@ class TestExportScript:
         assert not path.exists(temp_out_file)
 
         # Modify file
-        with open(temp_marimo_file, "a") as f:  # noqa: ASYNC101
+        with open(temp_marimo_file, "a") as f:  # noqa: ASYNC101 ASYNC230
             f.write("\n# comment\n")
 
         assert p.poll() is None
@@ -367,7 +367,7 @@ class TestExportMarkdown:
     )
     async def test_export_watch_script(self, temp_marimo_file: str) -> None:
         temp_out_file = temp_marimo_file.replace(".md", ".script.md")
-        p = subprocess.Popen(  # noqa: ASYNC101
+        p = subprocess.Popen(  # noqa: ASYNC101 ASYNC220
             [
                 "marimo",
                 "export",
@@ -391,7 +391,7 @@ class TestExportMarkdown:
         assert not path.exists(temp_out_file)
 
         # Modify file
-        with open(temp_marimo_file, "a") as f:  # noqa: ASYNC101
+        with open(temp_marimo_file, "a") as f:  # noqa: ASYNC101 ASYNC230
             f.write("\n# comment\n")
 
         assert p.poll() is None

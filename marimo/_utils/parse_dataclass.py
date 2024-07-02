@@ -40,7 +40,7 @@ def _build_value(value: Any, cls: Type[T]) -> T:
     elif origin_cls in (list, set):
         (arg_type,) = get_args(cls)
         return origin_cls(_build_value(v, arg_type) for v in value)  # type: ignore # noqa: E501
-    elif origin_cls == tuple:
+    elif origin_cls is tuple:
         arg_types = get_args(cls)
         if len(arg_types) == 2 and isinstance(arg_types[1], type(Ellipsis)):
             return origin_cls(_build_value(v, arg_types[0]) for v in value)  # type: ignore # noqa: E501
@@ -48,7 +48,7 @@ def _build_value(value: Any, cls: Type[T]) -> T:
             return origin_cls(  # type: ignore # noqa: E501
                 _build_value(v, t) for v, t in zip(value, arg_types)
             )
-    elif origin_cls == dict:
+    elif origin_cls is dict:
         key_type, value_type = get_args(cls)
         return origin_cls(  # type: ignore[no-any-return]
             **{

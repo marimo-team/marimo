@@ -95,7 +95,7 @@ dev = [
     "types-Markdown~=3.6.0.20240316",
     "types-PyYAML~=6.0.12.20240311",
     "mypy~=1.10.0",
-    "ruff~=0.3.6",
+    "ruff~=0.5.0",
     "typos~=1.17.1",
     # For docs
     "pypandoc~=1.11",
