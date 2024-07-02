@@ -440,7 +440,12 @@ class VariableValue:
             self.value = None
 
     def _stringify(self, value: object) -> str:
-        return str(value)[:50]
+        try:
+            return str(value)[:50]
+        except BaseException:
+            # Catch-all: some libraries like Polars have bugs and raise
+            # BaseExceptions, which shouldn't crash the kernel
+            return "<UNKNOWN>"
 
     def _format_value(self, value: object) -> str:
         resolved = value

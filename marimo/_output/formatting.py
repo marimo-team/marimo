@@ -166,7 +166,8 @@ def try_format(obj: Any) -> FormattedOutput:
         try:
             mimetype, data = formatter(obj)
             return FormattedOutput(mimetype=mimetype, data=data)
-        except Exception:  # noqa: E722
+        except BaseException:  # noqa: E722
+            # Catching base exception so we're robust to bugs in libraries
             return FormattedOutput(
                 mimetype="text/plain",
                 data="",
