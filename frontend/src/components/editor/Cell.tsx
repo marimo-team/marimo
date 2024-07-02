@@ -224,11 +224,13 @@ const CellComponent = (
   });
 
   const createBelow = useCallback(
-    () => createNewCell({ cellId, before: false }),
+    (opts: { code?: string } = {}) =>
+      createNewCell({ cellId, before: false, ...opts }),
     [cellId, createNewCell],
   );
   const createAbove = useCallback(
-    () => createNewCell({ cellId, before: true }),
+    (opts: { code?: string } = {}) =>
+      createNewCell({ cellId, before: true, ...opts }),
     [cellId, createNewCell],
   );
 
@@ -423,7 +425,7 @@ const CellComponent = (
       >
         {userConfig.display.cell_output === "above" && outputArea}
         <div className="tray">
-          <div className="absolute flex flex-col gap-[2px] justify-center h-full left-[-34px] z-2 hover-action">
+          <div className="absolute flex flex-col gap-[2px] justify-center h-full left-[-34px] z-2">
             <CreateCellButton
               tooltipContent={renderShortcut("cell.createAbove")}
               appClosed={appClosed}

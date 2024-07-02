@@ -1,7 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { PlusIcon } from "lucide-react";
+import { DatabaseIcon, PlusIcon } from "lucide-react";
 import { Button } from "@/components/editor/inputs/Inputs";
 import { Tooltip } from "../../ui/tooltip";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+} from "@/components/ui/context-menu";
+import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
+import { MarkdownIcon } from "./code/icons";
+import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
+import { cn } from "@/utils/cn";
 
 export const CreateCellButton = ({
   appClosed,
@@ -10,20 +20,68 @@ export const CreateCellButton = ({
 }: {
   appClosed: boolean;
   tooltipContent: React.ReactNode;
-  onClick?: () => void;
+  onClick: ((opts: { code: string }) => void) | undefined;
 }) => {
   return (
-    <Tooltip content={tooltipContent} usePortal={false}>
-      <Button
-        onClick={onClick}
-        className={`ShoulderButton ${appClosed ? " inactive-button" : ""}`}
-        shape="circle"
-        size="small"
-        color="hint-green"
-        data-testid="create-cell-button"
-      >
-        <PlusIcon strokeWidth={1.8} />
-      </Button>
-    </Tooltip>
+    <CreateCellButtonContextMenu onClick={onClick}>
+      <Tooltip content={tooltipContent} usePortal={false}>
+        <Button
+          onClick={() => onClick?.({ code: "" })}
+          className={cn(
+            "shoulder-button hover-action",
+            appClosed && " inactive-button",
+          )}
+          shape="circle"
+          size="small"
+          color="hint-green"
+          data-testid="create-cell-button"
+        >
+          <PlusIcon strokeWidth={1.8} />
+        </Button>
+      </Tooltip>
+    </CreateCellButtonContextMenu>
+  );
+};
+
+const CreateCellButtonContextMenu = (props: {
+  onClick: ((opts: { code: string }) => void) | undefined;
+  children: React.ReactNode;
+}) => {
+  const { children, onClick } = props;
+
+  if (!onClick) {
+    return children;
+  }
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger>{children}</ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem
+          key="markdown"
+          onSelect={(evt) => {
+            evt.stopPropagation();
+            onClick({ code: new MarkdownLanguageAdapter().defaultCode });
+          }}
+        >
+          <div className="mr-3">
+            <MarkdownIcon />
+          </div>
+          Markdown cell
+        </ContextMenuItem>
+        <ContextMenuItem
+          key="sql"
+          onSelect={(evt) => {
+            evt.stopPropagation();
+            onClick({ code: new SQLLanguageAdapter().defaultCode });
+          }}
+        >
+          <div className="mr-3">
+            <DatabaseIcon size={13} strokeWidth={1.5} />
+          </div>
+          SQL cell
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 };
