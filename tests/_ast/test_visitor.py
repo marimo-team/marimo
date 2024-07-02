@@ -905,3 +905,17 @@ def test_sql_multiple_tables() -> None:
     v.visit(mod)
     assert v.defs == set(["df"])
     assert v.refs == set(["cars", "cars2", "mo"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_from_another_module() -> None:
+    code = "\n".join(
+        [
+            "df = lib.sql('select * from cars')",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["df"])
+    assert v.refs == set(["lib"])

@@ -341,8 +341,11 @@ class ScopedVisitor(ast.NodeVisitor):
     def visit_Call(self, node: ast.Call) -> None:
         # If the call name is sql and has one argument, and the argument is
         # a string literal, then it's likely to be a SQL query.
+        # It must also come from the `mo` module.
         if (
             isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "mo"
             and node.func.attr == "sql"
             and len(node.args) == 1
             and isinstance(node.args[0], ast.Constant)
