@@ -4,9 +4,9 @@ import { Switch } from "@/components/ui/switch";
 import { formatEditorViews } from "@/core/codemirror/format";
 import {
   canToggleToLanguage,
-  getEditorViewMode,
+  getCurrentLanguageAdapter,
   toggleToLanguage,
-} from "@/core/codemirror/commands";
+} from "@/core/codemirror/language/commands";
 import {
   hasOnlyOneCellAtom,
   useCellActions,
@@ -231,7 +231,7 @@ export function useCellActionButtons({ cell }: Props) {
         label: "View as Python",
         // If we're in markdown mode, we should use the markdown hotkey
         hotkey:
-          getEditorViewMode(editorView) === "markdown"
+          getCurrentLanguageAdapter(editorView) === "markdown"
             ? "cell.viewAsMarkdown"
             : undefined,
         hidden: !canToggleToLanguage(editorView, "python"),

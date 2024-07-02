@@ -2,7 +2,7 @@
 import { EditorView, keymap } from "@codemirror/view";
 import type { CellId } from "../cells/ids";
 import { formatEditorViews } from "./format";
-import { toggleToLanguage } from "./commands";
+import { toggleToLanguage } from "./language/commands";
 import { smartScrollIntoView } from "../../utils/scroll";
 import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { invariant } from "@/utils/invariant";

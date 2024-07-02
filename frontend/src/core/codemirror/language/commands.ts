@@ -1,15 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { EditorView } from "@codemirror/view";
-import { getEditorCodeAsPython } from "./language/utils";
-import { languageAdapterState, switchLanguage } from "./language/extension";
-import { LanguageAdapters } from "./language/LanguageAdapters";
-import type { LanguageAdapterType } from "./language/types";
+import { getEditorCodeAsPython } from "./utils";
+import { languageAdapterState, switchLanguage } from "./extension";
+import { LanguageAdapters } from "./LanguageAdapters";
+import type { LanguageAdapterType } from "./types";
 
 /**
  * Get the current mode of the editor view.
  */
-export function getEditorViewMode(
+export function getCurrentLanguageAdapter(
   editorView: EditorView | null,
 ): LanguageAdapterType {
   if (!editorView) {
@@ -25,7 +25,7 @@ export function canToggleToLanguage(
   editorView: EditorView | null,
   language: LanguageAdapterType,
 ): boolean {
-  if (!editorView || getEditorViewMode(editorView) === language) {
+  if (!editorView || getCurrentLanguageAdapter(editorView) === language) {
     return false;
   }
 

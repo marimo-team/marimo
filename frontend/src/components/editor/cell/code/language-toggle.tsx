@@ -39,6 +39,7 @@ export const LanguageToggles: React.FC<LanguageTogglesProps> = ({
       <LanguageToggle
         editorView={editorView}
         currentLanguageAdapter={currentLanguageAdapter}
+        // Prefer showing markdown over SQL when both are supported
         canSwitchToLanguage={
           canUseSQL && currentLanguageAdapter === "python" && !canUseMarkdown
         }
