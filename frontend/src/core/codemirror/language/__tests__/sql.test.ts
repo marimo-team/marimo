@@ -6,6 +6,23 @@ const adapter = new SQLLanguageAdapter();
 
 describe("SQLLanguageAdapter", () => {
   describe("transformIn", () => {
+    it("empty", () => {
+      const [innerCode, offset] = adapter.transformIn("");
+      expect(innerCode).toBe("");
+      expect(offset).toBe(0);
+      const out = adapter.transformOut(innerCode);
+      expect(out).toMatchInlineSnapshot(`
+        [
+          "_df = mo.sql(
+            f"""
+
+            """
+        )",
+          24,
+        ]
+      `);
+    });
+
     it("should extract inner SQL from triple double-quoted strings", () => {
       const pythonCode = '_df = mo.sql("""select * from {df}""")';
       const [innerCode, offset] = adapter.transformIn(pythonCode);
@@ -89,7 +106,7 @@ describe("SQLLanguageAdapter", () => {
       ).toBe(true);
       expect(adapter.isSupported("my_df = mo.sql('')")).toBe(true);
       expect(adapter.isSupported('df = mo.sql("")')).toBe(true);
-      expect(adapter.isSupported(SQLLanguageAdapter.getDefaultCode())).toBe(
+      expect(adapter.isSupported(new SQLLanguageAdapter().defaultCode)).toBe(
         true,
       );
     });

@@ -25,8 +25,15 @@ import { getLanguageAdapters, LanguageAdapters } from "./LanguageAdapters";
 import { createPanel } from "../react-dom/createPanel";
 import { LanguagePanelComponent } from "./panel";
 
+/**
+ * Compartment to keep track of the current language and extension.
+ * When the language changes, the extensions inside the compartment will be updated.
+ */
 const languageCompartment = new Compartment();
 
+/**
+ * State effect to set the language adapter.
+ */
 const setLanguageAdapter = StateEffect.define<LanguageAdapter>();
 
 /**
@@ -44,14 +51,18 @@ export const languageAdapterState = StateField.define<LanguageAdapter>({
     }
     return value;
   },
+  // Only show the panel if the language is not python
   provide: (field) =>
-    showPanel.from(field, (value) =>
-      value.type === "python" ? null : createLanguagePanel,
-    ),
+    showPanel.from(field, (value) => {
+      if (value.type === "python") {
+        return null;
+      }
+      return createLanguagePanel;
+    }),
 });
 
 // Keymap to toggle between languages
-function languageToggle(completionConfig: CompletionConfig) {
+function languageToggle() {
   const languages = getLanguageAdapters();
   // Cycle through the language to find the next one that supports the code
   const findNextLanguage = (code: string, index: number): LanguageAdapter => {
@@ -177,7 +188,7 @@ export function adaptiveLanguageConfiguration(
     placeholderState.of(placeholderType),
     movementCallbacksState.of(cellMovementCallbacks),
     // Language adapter
-    languageToggle(completionConfig),
+    languageToggle(),
     languageCompartment.of(
       LanguageAdapters.python().getExtension(
         completionConfig,
@@ -194,9 +205,9 @@ export function adaptiveLanguageConfiguration(
  * Get the best language given the editors current code.
  */
 export function getInitialLanguageAdapter(state: EditorView["state"]) {
-  const doc = getEditorCodeAsPython({ state });
+  const doc = getEditorCodeAsPython({ state }).trim();
   // Empty doc defaults to Python
-  if (!doc.trim()) {
+  if (!doc) {
     return LanguageAdapters.python();
   }
 
@@ -223,7 +234,10 @@ export function switchLanguage(
 
 /**
  * Reconfigure the editor view with
- * the new language extensions
+ * the new language extensions.
+ *
+ * This is used when the language changes
+ * (e.g. switching from markdown to python).
  */
 export function reconfigureLanguageEffect(
   view: EditorView,

@@ -352,9 +352,13 @@ class ScopedVisitor(ast.NodeVisitor):
                 import duckdb
 
                 # Add all tables in the query to the ref scope
-                tables = duckdb.get_table_names(sql)
-                for table in tables:
-                    self._add_ref(table, deleted=False)
+                try:
+                    tables = duckdb.get_table_names(sql)
+                    for table in tables:
+                        self._add_ref(table, deleted=False)
+                except duckdb.ParserException:
+                    # The user's sql query may have a syntax error
+                    pass
 
         # Recursively visit the arguments
         for arg in node.args:

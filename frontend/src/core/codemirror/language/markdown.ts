@@ -16,7 +16,11 @@ import { enhancedMarkdownExtension } from "../markdown/extension";
 import { CompletionConfig } from "@/core/config/config-schema";
 import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { indentOneTab } from "./utils/indentOneTab";
-import { QuotePrefixKind, QUOTE_PREFIX_KINDS, splitQuotePrefix } from "./utils/quotes";
+import {
+  QuotePrefixKind,
+  QUOTE_PREFIX_KINDS,
+  splitQuotePrefix,
+} from "./utils/quotes";
 
 const quoteKinds = [
   ['"""', '"""'],
@@ -42,13 +46,22 @@ const regexes = pairs.map(
  * Language adapter for Markdown.
  */
 export class MarkdownLanguageAdapter implements LanguageAdapter {
-  type = "markdown" as const;
+  readonly type = "markdown";
+  readonly defaultCode = 'mo.md(rf"""\n""")';
 
   lastQuotePrefix: QuotePrefixKind = "";
 
   transformIn(pythonCode: string): [string, number] {
     if (!this.isSupported(pythonCode)) {
       throw new Error("Not supported");
+    }
+
+    pythonCode = pythonCode.trim();
+
+    // empty string
+    if (pythonCode === "") {
+      this.lastQuotePrefix = "rf";
+      return ["", 0];
     }
 
     for (const [start, regex] of regexes) {
@@ -76,7 +89,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
 
     const isOneLine = !code.includes("\n");
     if (isOneLine) {
-      const escapedCode = code.replaceAll('"', '\\"');
+      const escapedCode = code.replaceAll('"', String.raw`\"`);
       const start = `mo.md(${prefix}"`;
       const end = `")`;
       return [start + escapedCode + end, start.length];
@@ -84,7 +97,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
 
     // Multiline code
     const start = `mo.md(\n    ${prefix}"""\n`;
-    const escapedCode = code.replaceAll('"""', '\\"""');
+    const escapedCode = code.replaceAll('"""', String.raw`\"""`);
     const end = `\n    """\n)`;
     return [start + indentOneTab(escapedCode) + end, start.length + 1];
   }
@@ -156,7 +169,6 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
     ];
   }
 }
-
 
 const emojiCompletionSource: CompletionSource = async (context) => {
   // Check if the cursor is at a position where an emoji can be inserted

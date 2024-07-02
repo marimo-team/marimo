@@ -37,6 +37,7 @@ import { useBoolean } from "@/hooks/useBoolean";
 import { AddCellWithAI } from "../ai/add-cell-with-ai";
 import { Milliseconds } from "@/utils/time";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
+import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
 
 interface CellArrayProps {
   notebook: NotebookState;
@@ -195,7 +196,7 @@ const AddCellButtons: React.FC = () => {
             createNewCell({
               cellId: "__end__",
               before: false,
-              code: 'mo.md(rf"""\n""")',
+              code: new MarkdownLanguageAdapter().defaultCode,
             });
           }}
         >
@@ -212,7 +213,7 @@ const AddCellButtons: React.FC = () => {
             createNewCell({
               cellId: "__end__",
               before: false,
-              code: SQLLanguageAdapter.getDefaultCode(),
+              code: new SQLLanguageAdapter().defaultCode,
             });
           }}
         >

@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { LanguageAdapter } from "./types";
+import { LanguageAdapter, LanguageAdapterType } from "./types";
 import { PythonLanguageAdapter } from "./python";
 import { MarkdownLanguageAdapter } from "./markdown";
 import { SQLLanguageAdapter } from "./sql";
 
 export const LanguageAdapters: Record<
-  LanguageAdapter["type"], () => LanguageAdapter
+  LanguageAdapterType,
+  () => LanguageAdapter
 > = {
   python: () => new PythonLanguageAdapter(),
   markdown: () => new MarkdownLanguageAdapter(),
@@ -13,5 +14,5 @@ export const LanguageAdapters: Record<
 };
 
 export function getLanguageAdapters() {
-  return Object.values(LanguageAdapters).map(la => la());
+  return Object.values(LanguageAdapters).map((la) => la());
 }

@@ -19,7 +19,10 @@ export function splitQuotePrefix(quote: string): [QuotePrefixKind, string] {
   return ["", quote];
 }
 
-export function upgradePrefixKind(kind: QuotePrefixKind, code: string): QuotePrefixKind {
+export function upgradePrefixKind(
+  kind: QuotePrefixKind,
+  code: string,
+): QuotePrefixKind {
   const containsSubstitution = code.includes("{") && code.includes("}");
 
   // If there is no substitution, keep the same prefix

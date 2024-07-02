@@ -45,15 +45,11 @@ const regexes = pairs.map(
  * Language adapter for SQL.
  */
 export class SQLLanguageAdapter implements LanguageAdapter {
-  type = "sql" as const;
+  readonly type = "sql";
+  readonly defaultCode = `_df = mo.sql(f"""select * from """)`;
 
-  lastQuotePrefix: QuotePrefixKind = "";
-  static DEFAULT_DATAFRAME_NAME = "_df";
-  dataframeName: string | undefined;
-
-  public static getDefaultCode(): string {
-    return `_df = mo.sql(f"""select * from """)`;
-  }
+  dataframeName = "_df";
+  lastQuotePrefix: QuotePrefixKind = "f";
 
   transformIn(pythonCode: string): [string, number] {
     if (!this.isSupported(pythonCode)) {
@@ -62,11 +58,16 @@ export class SQLLanguageAdapter implements LanguageAdapter {
 
     pythonCode = pythonCode.trim();
 
+    // Handle empty strings
+    if (pythonCode === "") {
+      this.lastQuotePrefix = "f";
+      return ["", 0];
+    }
+
     for (const [start, regex] of regexes) {
       const match = pythonCode.match(regex);
       if (match) {
-        const dataframe =
-          match.groups?.dataframe || SQLLanguageAdapter.DEFAULT_DATAFRAME_NAME;
+        const dataframe = match.groups?.dataframe || this.dataframeName;
         const innerCode = match.groups?.sql || "";
 
         const [quotePrefix, quoteType] = splitQuotePrefix(start);

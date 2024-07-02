@@ -1,12 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { downloadCellOutput } from "@/components/export/export-output-button";
 import { Switch } from "@/components/ui/switch";
+import { formatEditorViews } from "@/core/codemirror/format";
 import {
-  canToggleMarkdown,
-  formatEditorViews,
+  canToggleToLanguage,
   getEditorViewMode,
-  toggleMarkdown,
-} from "@/core/codemirror/format";
+  toggleToLanguage,
+} from "@/core/codemirror/commands";
 import {
   hasOnlyOneCellAtom,
   useCellActions,
@@ -28,6 +28,7 @@ import {
   EyeIcon,
   EyeOffIcon,
   SparklesIcon,
+  DatabaseIcon,
 } from "lucide-react";
 import type { ActionButton } from "./types";
 import { MultiIcon } from "@/components/icons/multi-icon";
@@ -201,26 +202,45 @@ export function useCellActionButtons({ cell }: Props) {
         },
       },
       {
-        icon:
-          getEditorViewMode(editorView) === "python" ? (
-            <MarkdownIcon />
-          ) : (
-            <PythonIcon />
-          ),
-        label:
-          getEditorViewMode(editorView) === "python"
-            ? "View as Markdown"
-            : "View as Python",
+        icon: <MarkdownIcon />,
+        label: "View as Markdown",
         hotkey: "cell.viewAsMarkdown",
-        hidden:
-          !canToggleMarkdown(editorView) &&
-          getEditorViewMode(editorView) !== "markdown",
+        hidden: !canToggleToLanguage(editorView, "markdown"),
         handle: () => {
           if (!editorView) {
             return;
           }
           maybeAddMarimoImport(autoInstantiate, createCell);
-          toggleMarkdown(cellId, editorView, updateCellCode);
+
+          toggleToLanguage(editorView, "markdown");
+        },
+      },
+      {
+        icon: <DatabaseIcon size={13} strokeWidth={1.5} />,
+        label: "View as SQL",
+        hidden: !canToggleToLanguage(editorView, "sql"),
+        handle: () => {
+          if (!editorView) {
+            return;
+          }
+          toggleToLanguage(editorView, "sql");
+        },
+      },
+      {
+        icon: <PythonIcon />,
+        label: "View as Python",
+        // If we're in markdown mode, we should use the markdown hotkey
+        hotkey:
+          getEditorViewMode(editorView) === "markdown"
+            ? "cell.viewAsMarkdown"
+            : undefined,
+        hidden: !canToggleToLanguage(editorView, "python"),
+        handle: () => {
+          if (!editorView) {
+            return;
+          }
+          maybeAddMarimoImport(autoInstantiate, createCell);
+          toggleToLanguage(editorView, "python");
         },
       },
       {

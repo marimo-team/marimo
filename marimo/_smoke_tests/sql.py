@@ -21,6 +21,7 @@ def __(mo):
 
 @app.cell
 def __(data, mo):
+    # Create a slider with the range of car cylinders
     cars = data.cars()
     cylinders = mo.ui.slider.from_series(cars["Cylinders"])
     cylinders
@@ -41,6 +42,7 @@ def __(cylinders, mo):
 
 @app.cell
 def __(alt, df, mo):
+    # Chart the filtered cars
     mo.ui.altair_chart(
         alt.Chart(df)
         .mark_point()
@@ -50,7 +52,7 @@ def __(alt, df, mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("## Airports")
     return
@@ -64,9 +66,57 @@ def __(data):
 
 @app.cell
 def __(mo):
+    less_airports = mo.sql(
+        f"""
+        select * from airports limit 2
+        """
+    )
+    return less_airports,
+
+
+@app.cell
+def __(less_airports):
+    len(less_airports)
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md("## Google Sheets")
+    return
+
+
+@app.cell
+def __():
+    sheet = "https://docs.google.com/spreadsheets/export?format=csv&id=1GuEPkwjdICgJ31Ji3iUoarirZNDbPxQj_kf7fd4h4Ro"
+    return sheet,
+
+
+@app.cell
+def __(mo, sheet):
+    job_types = mo.sql(
+        f"""
+        SELECT DISTINCT current_job_title
+        FROM read_csv_auto('{sheet}', normalize_names=True)
+        """
+    )
+    return job_types,
+
+
+@app.cell
+def __(job_types, mo):
+    job_title = mo.ui.dropdown.from_series(job_types["current_job_title"])
+    job_title
+    return job_title,
+
+
+@app.cell
+def __(job_title, mo, sheet):
     _df = mo.sql(
         f"""
-        select * from airports limit 10
+        SELECT *
+        FROM read_csv_auto('{sheet}', normalize_names=True)
+        WHERE current_job_title == '{job_title.value}'
         """
     )
     return
@@ -82,9 +132,21 @@ def __(mo):
 def __(duckdb):
     duckdb.get_table_names(
         f"""
-    SELECT "Name", "Miles_per_Gallon", "Cylinders", "Horsepower"
-    FROM cars
-    """
+        SELECT "Name", "Miles_per_Gallon", "Cylinders", "Horsepower"
+        FROM cars
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def __(duckdb, job_title, sheet):
+    duckdb.get_table_names(
+        f"""
+        SELECT *
+        FROM read_csv_auto('{sheet}', normalize_names=True)
+        WHERE current_job_title == '{job_title.value}'
+        """
     )
     return
 
