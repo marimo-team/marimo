@@ -663,7 +663,7 @@ def normalize_sql_f_string(node: ast.JoinedStr) -> str:
         elif isinstance(part, ast.Constant):
             return part.s
         else:
-            # Just add placeholder for {...} expressions
-            return "''"
+            # Just add '_' as a placeholder for {...} expressions
+            return "'_'"
 
     return "".join(print_part(part) for part in node.values)
