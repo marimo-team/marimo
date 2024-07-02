@@ -331,7 +331,8 @@ const CellEditorInternal = ({
   return (
     <AiCompletionEditor
       enabled={aiCompletionCell === cellId}
-      currentCode={code}
+      currentCode={editorViewRef.current?.state.doc.toString() ?? code}
+      currentLanguageAdapter={languageAdapter}
       declineChange={() => {
         setAiCompletionCell(null);
         editorViewRef.current?.focus();

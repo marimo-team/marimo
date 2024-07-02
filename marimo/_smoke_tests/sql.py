@@ -151,5 +151,19 @@ def __(duckdb, job_title, sheet):
     return
 
 
+@app.cell
+def __(cars, mo):
+    grouped_cars_by_origin = mo.sql(
+        """
+        SELECT "Origin", COUNT(*) AS "Count"
+        FROM cars
+        GROUP BY "Origin"
+        LIMIT 100
+
+        """
+    )
+    return grouped_cars_by_origin,
+
+
 if __name__ == "__main__":
     app.run()

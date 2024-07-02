@@ -40,7 +40,7 @@ def __(content, item, mo, openai, openaikey):
     result = None
     if item.value:
         response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4-turbo",
             messages=[
                 {
                     "role": "system",
@@ -62,7 +62,7 @@ def __(content, item, mo, openai, openaikey):
     result = None
     if item.value:
         response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4-turbo",
             messages=[
                 {
                     "role": "system",
@@ -103,7 +103,7 @@ def __(mo, openai, superhero):
 
     if superhero.value:
         catchphraseResponse = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4-turbo",
             messages=[
                 {"role": "system", "content": "You are a creative assistant."},
                 {
