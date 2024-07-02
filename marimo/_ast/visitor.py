@@ -664,6 +664,6 @@ def normalize_sql_f_string(node: ast.JoinedStr) -> str:
             return part.s
         else:
             # Just add placeholder for {...} expressions
-            return "_placeholder_"
+            return "0"
 
     return "".join(print_part(part) for part in node.values)
