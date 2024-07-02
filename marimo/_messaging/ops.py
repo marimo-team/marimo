@@ -324,7 +324,7 @@ class CompletedRun(Op):
 
 @dataclass
 class KernelCapabilities:
-    sql: bool = field(init=False)
+    sql: bool = False
 
     def __post_init__(self) -> None:
         self.sql = DependencyManager.has_duckdb()

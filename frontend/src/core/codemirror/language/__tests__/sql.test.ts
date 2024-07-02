@@ -1,10 +1,18 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { expect, describe, it } from "vitest";
+import { expect, describe, it, beforeAll } from "vitest";
 import { SQLLanguageAdapter } from "../sql";
+import { store } from "@/core/state/jotai";
+import { capabilitiesAtom } from "@/core/config/capabilities";
 
 const adapter = new SQLLanguageAdapter();
 
 describe("SQLLanguageAdapter", () => {
+  beforeAll(() => {
+    store.set(capabilitiesAtom, {
+      sql: true,
+    });
+  });
+
   describe("transformIn", () => {
     it("empty", () => {
       const [innerCode, offset] = adapter.transformIn("");
