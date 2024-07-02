@@ -15,3 +15,13 @@ def test_value_html() -> None:
     variable_value = VariableValue(name="h", value=h)
     assert variable_value.datatype == "Html"
     assert variable_value.value == h.text
+
+
+def test_variable_value_broken_str() -> None:
+    class Broken:
+        def __str__(self) -> str:
+            raise BaseException
+
+    variable_value = VariableValue(name="o", value=Broken())
+    assert variable_value.datatype == "Broken"
+    assert variable_value.value == "<UNKNOWN>"

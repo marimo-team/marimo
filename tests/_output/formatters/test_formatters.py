@@ -6,8 +6,15 @@ import os.path
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.formatters import register_formatters
-from marimo._output.formatting import Plain, as_html, get_formatter
+from marimo._output.formatting import (
+    Plain,
+    as_html,
+    formatter,
+    get_formatter,
+    try_format,
+)
 
 
 def test_path_finder_find_spec() -> None:
@@ -103,3 +110,18 @@ def test_as_html_opinionated_formatter():
     # With polars DataFrame + Plain
     html = as_html(Plain(pl_df))
     assert "<marimo-table" not in html.text
+
+
+def test_broken_formatter():
+    class _ClsForBrokenFormatter: ...
+
+    def _format(cls: _ClsForBrokenFormatter) -> tuple[KnownMimeType, str]:
+        del cls
+        raise BaseException("Broken Formatter")
+
+    formatter(_ClsForBrokenFormatter)(_format)
+
+    obj = _ClsForBrokenFormatter()
+    formatted = try_format(obj)
+    assert formatted.traceback is not None
+    assert "Broken Formatter" in formatted.traceback
