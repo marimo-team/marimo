@@ -15612,14 +15612,14 @@ packages:
       is-wsl: 2.2.0
     dev: true
 
-  /openapi-fetch@0.10.2:
-    resolution: {integrity: sha512-GCzgKIZchnxZRnztiOlRTKk9tQT0NHvs5MNXYFtOwG7xaj1iCJOGDsTLbn/2QUP37PjGTT890qERFjvmjxzQMg==}
+  /openapi-fetch@0.9.7:
+    resolution: {integrity: sha512-NMp/GEmWSGO0b2d731IdGXcMP2PF85Rk1q+oy2Mx/DYMdP3pgTZTRamKxgZpkHhM4iOVsyD1iP5HKL9Fr6CH2Q==}
     dependencies:
-      openapi-typescript-helpers: 0.0.9
+      openapi-typescript-helpers: 0.0.8
     dev: false
 
-  /openapi-typescript-helpers@0.0.9:
-    resolution: {integrity: sha512-BO2TvIDAO/FPVKz1Nj2gy+pUOHfaoENdK5UP3H0Jbh0VXBf3dwYMs58ZwOjiezrbHA2LamdquoyQgahTPvIxGA==}
+  /openapi-typescript-helpers@0.0.8:
+    resolution: {integrity: sha512-1eNjQtbfNi5Z/kFhagDIaIRj6qqDzhjNJKz8cmMW0CVdGwT6e1GLbAfgI0d28VTJa1A8jz82jm/4dG8qNoNS8g==}
     dev: false
 
   /optimist@0.3.7:
@@ -20404,5 +20404,5 @@ packages:
     resolution: {directory: ../openapi, type: directory}
     name: '@marimo-team/marimo-api'
     dependencies:
-      openapi-fetch: 0.10.2
+      openapi-fetch: 0.9.7
     dev: false
