@@ -368,11 +368,7 @@ class ScopedVisitor(ast.NodeVisitor):
                     # The user's sql query may have a syntax error
                     pass
 
-        # Recursively visit the arguments
-        for arg in node.args:
-            self.visit(arg)
-        for keyword in node.keywords:
-            self.visit(keyword.value)
+        # Visit arguments, keyword args, etc.
         self.generic_visit(node)
 
     def visit_Lambda(self, node: ast.Lambda) -> None:
