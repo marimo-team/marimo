@@ -930,7 +930,7 @@ def test_print_f_string() -> None:
     joined_str = ast.parse("f'select * from cars where name = {name}'")
     assert (
         normalize_sql_f_string(joined_str.body[0].value)  # type: ignore
-        == "select * from cars where name = 0"
+        == "select * from cars where name = ''"
     )
 
 
