@@ -348,7 +348,7 @@ class ScopedVisitor(ast.NodeVisitor):
             and isinstance(node.args[0], ast.Constant)
         ):
             sql = node.args[0].s
-            if isinstance(sql, str) and DependencyManager.has_duckdb():
+            if isinstance(sql, str) and DependencyManager.has_duckdb() and sql:
                 import duckdb
 
                 # Add all tables in the query to the ref scope
@@ -356,7 +356,7 @@ class ScopedVisitor(ast.NodeVisitor):
                     tables = duckdb.get_table_names(sql)
                     for table in tables:
                         self._add_ref(table, deleted=False)
-                except duckdb.ParserException:
+                except (duckdb.ParserException, duckdb.InvalidInputException):
                     # The user's sql query may have a syntax error
                     pass
 

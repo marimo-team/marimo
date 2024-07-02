@@ -8,6 +8,7 @@ import pytest
 
 from marimo._ast import visitor
 from marimo._ast.visitor import ImportData, VariableData
+from marimo._dependencies.dependencies import DependencyManager
 
 
 def test_assign_simple() -> None:
@@ -860,6 +861,10 @@ def test_private_ref_requirement_caught() -> None:
     }
 
 
+HAS_DEPS = DependencyManager.has_duckdb()
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_statement() -> None:
     code = "\n".join(
         [
@@ -870,9 +875,10 @@ def test_sql_statement() -> None:
     mod = ast.parse(code)
     v.visit(mod)
     assert v.defs == set(["df"])
-    assert v.refs == set(["cars"])
+    assert v.refs == set(["cars", "mo"])
 
 
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_empty_statement() -> None:
     code = "\n".join(
         [
@@ -883,9 +889,10 @@ def test_sql_empty_statement() -> None:
     mod = ast.parse(code)
     v.visit(mod)
     assert v.defs == set([])
-    assert v.refs == set([])
+    assert v.refs == set(["mo"])
 
 
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_multiple_tables() -> None:
     code = "\n".join(
         [
@@ -897,4 +904,4 @@ def test_sql_multiple_tables() -> None:
     mod = ast.parse(code)
     v.visit(mod)
     assert v.defs == set(["df"])
-    assert v.refs == set(["cars", "cars2"])
+    assert v.refs == set(["cars", "cars2", "mo"])
