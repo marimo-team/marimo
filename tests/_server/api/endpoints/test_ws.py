@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Optional
 import pytest
 from starlette.websockets import WebSocketDisconnect
 
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import KernelReady
 from marimo._server.api.endpoints.ws import WebSocketCodes
 from marimo._server.model import SessionMode
@@ -34,6 +35,9 @@ def create_response(
         "kiosk": False,
         "configs": [{"disabled": False, "hide_code": False}],
         "app_config": {"width": "full"},
+        "capabilities": {
+            "sql": DependencyManager.has_duckdb(),
+        },
     }
     response.update(partial_response)
     return response
@@ -60,6 +64,7 @@ def assert_kernel_ready_response(
     assert data.configs == expected.configs
     assert data.app_config == expected.app_config
     assert data.kiosk == expected.kiosk
+    assert data.capabilities == expected.capabilities
 
 
 def assert_parse_ready_response(raw_data: dict[str, Any]) -> None:
@@ -164,7 +169,7 @@ async def test_file_watcher_calls_reload(client: TestClient) -> None:
         unsubscribe = session_manager.start_file_watcher()
         filename = session_manager.file_router.get_unique_file_key()
         assert filename
-        with open(filename, "a") as f:  # noqa: ASYNC101
+        with open(filename, "a") as f:  # noqa: ASYNC101 ASYNC230
             f.write("\n# test")
             f.close()
         assert session_manager.watcher

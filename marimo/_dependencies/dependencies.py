@@ -68,6 +68,21 @@ class DependencyManager:
             ) from None
 
     @staticmethod
+    def require_duckdb(why: str) -> None:
+        """
+        Raise an ModuleNotFoundError if duckdb is not installed.
+
+        Args:
+            why: A string of the form "for <reason>" that will be appended
+
+        """
+        if not DependencyManager.has_duckdb():
+            raise ModuleNotFoundError(
+                f"duckdb is required {why}. "
+                + "You can install it with 'pip install duckdb'"
+            ) from None
+
+    @staticmethod
     def require_pillow(why: str) -> None:
         """
         Raise an ModuleNotFoundError if pillow is not installed.
@@ -146,6 +161,11 @@ class DependencyManager:
     def has_altair() -> bool:
         """Return True if altair is installed."""
         return importlib.util.find_spec("altair") is not None
+
+    @staticmethod
+    def has_duckdb() -> bool:
+        """Return True if duckdb is installed."""
+        return importlib.util.find_spec("duckdb") is not None
 
     @staticmethod
     def has_pillow() -> bool:

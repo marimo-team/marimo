@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Literal, Optional
 from uuid import uuid4
 
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.variables import is_local
 
 Name = str
@@ -336,6 +337,38 @@ class ScopedVisitor(ast.NodeVisitor):
             node.name,
             VariableData(kind="function", required_refs=refs),
         )
+
+    def visit_Call(self, node: ast.Call) -> None:
+        # If the call name is sql and has one argument, and the argument is
+        # a string literal, then it's likely to be a SQL query.
+        # It must also come from the `mo` module.
+        if (
+            isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "mo"
+            and node.func.attr == "sql"
+            and len(node.args) == 1
+            and isinstance(node.args[0], ast.Constant)
+        ):
+            sql = node.args[0].s
+            if isinstance(sql, str) and DependencyManager.has_duckdb() and sql:
+                import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+
+                # Add all tables in the query to the ref scope
+                try:
+                    tables = duckdb.get_table_names(sql)
+                    for table in tables:
+                        self._add_ref(table, deleted=False)
+                except (duckdb.ParserException, duckdb.InvalidInputException):
+                    # The user's sql query may have a syntax error
+                    pass
+
+        # Recursively visit the arguments
+        for arg in node.args:
+            self.visit(arg)
+        for keyword in node.keywords:
+            self.visit(keyword.value)
+        self.generic_visit(node)
 
     def visit_Lambda(self, node: ast.Lambda) -> None:
         # Inject the dummy name `_lambda` into ref scope to denote there's a

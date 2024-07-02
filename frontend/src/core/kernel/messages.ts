@@ -32,3 +32,5 @@ export type OperationMessageData<T extends OperationMessageType> = Omit<
   Extract<schemas["MessageOperation"], { name: T }>,
   "name"
 >;
+
+export type Capabilities = OperationMessageData<"kernel-ready">["capabilities"];

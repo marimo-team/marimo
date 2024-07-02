@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Optional
 
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import KernelReady
 from marimo._utils.parse_dataclass import parse_raw
 from tests._server.mocks import token_header
@@ -26,6 +27,9 @@ def create_response(
         "kiosk": False,
         "configs": [{"disabled": False, "hide_code": False}],
         "app_config": {"width": "full"},
+        "capabilities": {
+            "sql": DependencyManager.has_duckdb(),
+        },
     }
     response.update(partial_response)
     return response
@@ -53,6 +57,7 @@ def assert_kernel_ready_response(
     assert data.configs == expected.configs
     assert data.app_config == expected.app_config
     assert data.kiosk == expected.kiosk
+    assert data.capabilities == expected.capabilities
 
 
 def assert_parse_ready_response(raw_data: dict[str, Any]) -> None:

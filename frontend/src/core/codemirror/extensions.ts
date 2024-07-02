@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { EditorView, keymap } from "@codemirror/view";
 import type { CellId } from "../cells/ids";
-import { formatEditorViews, toggleMarkdown } from "./format";
+import { formatEditorViews } from "./format";
+import { toggleToLanguage } from "./language/commands";
 import { smartScrollIntoView } from "../../utils/scroll";
 import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { invariant } from "@/utils/invariant";
@@ -29,7 +30,7 @@ export function formatKeymapExtension(
       key: hotkeys.getHotkey("cell.viewAsMarkdown").key,
       preventDefault: true,
       run: (ev) => {
-        const response = toggleMarkdown(cellId, ev, updateCellCode);
+        const response = toggleToLanguage(ev, "markdown");
         if (response === "markdown") {
           afterToggleMarkdown();
         }

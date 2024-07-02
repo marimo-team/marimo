@@ -4,6 +4,7 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING, Any, Optional
 
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import CellOp, KernelReady
 from marimo._server.sessions import Session
 from marimo._utils.parse_dataclass import parse_raw
@@ -29,6 +30,9 @@ def create_response(
         "kiosk": False,
         "configs": [{"disabled": False, "hide_code": False}],
         "app_config": {"width": "full"},
+        "capabilities": {
+            "sql": DependencyManager.has_duckdb(),
+        },
     }
     response.update(partial_response)
     return response
@@ -60,6 +64,7 @@ def assert_kernel_ready_response(
     assert data.configs == expected.configs
     assert data.app_config == expected.app_config
     assert data.last_execution_time == expected.last_execution_time
+    assert data.capabilities == expected.capabilities
 
 
 def get_session(client: TestClient, session_id: str) -> Optional[Session]:

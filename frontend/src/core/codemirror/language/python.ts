@@ -26,7 +26,8 @@ import { MovementCallbacks } from "../cells/extensions";
  * Language adapter for Python.
  */
 export class PythonLanguageAdapter implements LanguageAdapter {
-  type = "python" as const;
+  readonly type = "python";
+  readonly defaultCode = "";
 
   transformIn(code: string): [string, number] {
     return [code, 0];

@@ -24,13 +24,21 @@ import { PackageAlert } from "@/components/editor/package-alert";
 import { useDeleteCellCallback } from "../cell/useDeleteCell";
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/ui/button";
-import { SparklesIcon, SquareCodeIcon, SquareMIcon } from "lucide-react";
+import {
+  DatabaseIcon,
+  SparklesIcon,
+  SquareCodeIcon,
+  SquareMIcon,
+} from "lucide-react";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { aiEnabledAtom, autoInstantiateAtom } from "@/core/config/config";
 import { useAtomValue } from "jotai";
 import { useBoolean } from "@/hooks/useBoolean";
 import { AddCellWithAI } from "../ai/add-cell-with-ai";
 import { Milliseconds } from "@/utils/time";
+import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
+import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
+import { capabilitiesAtom } from "@/core/config/capabilities";
 
 interface CellArrayProps {
   notebook: NotebookState;
@@ -157,6 +165,7 @@ const AddCellButtons: React.FC = () => {
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const [isAiButtonOpen, isAiButtonOpenActions] = useBoolean(false);
   const aiEnabled = useAtomValue(aiEnabledAtom);
+  const sqlCapabilities = useAtomValue(capabilitiesAtom).sql;
 
   const buttonClass = cn(
     "mb-0 rounded-none px-4 sm:px-8 md:px-10 lg:px-16 tracking-wide",
@@ -189,13 +198,32 @@ const AddCellButtons: React.FC = () => {
             createNewCell({
               cellId: "__end__",
               before: false,
-              code: 'mo.md(rf"""\n""")',
+              code: new MarkdownLanguageAdapter().defaultCode,
             });
           }}
         >
           <SquareMIcon className="mr-2 size-4" />
           Markdown
         </Button>
+        {sqlCapabilities && (
+          <Button
+            className={buttonClass}
+            variant="text"
+            size="sm"
+            onClick={() => {
+              maybeAddMarimoImport(autoInstantiate, createNewCell);
+
+              createNewCell({
+                cellId: "__end__",
+                before: false,
+                code: new SQLLanguageAdapter().defaultCode,
+              });
+            }}
+          >
+            <DatabaseIcon className="mr-2 size-4" />
+            SQL
+          </Button>
+        )}
         {aiEnabled && (
           <Button
             className={buttonClass}

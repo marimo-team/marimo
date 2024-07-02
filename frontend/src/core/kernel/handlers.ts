@@ -4,7 +4,7 @@ import { Objects } from "@/utils/objects";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import { LayoutData, LayoutState, initialLayoutState } from "../layout/layout";
 import { sendInstantiate } from "../network/requests";
-import { CellMessage, OperationMessageData } from "./messages";
+import { Capabilities, CellMessage, OperationMessageData } from "./messages";
 import { LayoutType } from "@/components/editor/renderers/types";
 import { AppConfig } from "../config/config-schema";
 import { CellData, createCell } from "../cells/types";
@@ -20,12 +20,19 @@ export function handleKernelReady(
       layoutView: LayoutType;
       data: LayoutData;
     }) => void;
+    setCapabilities: (capabilities: Capabilities) => void;
     setAppConfig: (config: AppConfig) => void;
     onError: (error: Error) => void;
   },
 ) {
-  const { autoInstantiate, setCells, setLayoutData, onError, setAppConfig } =
-    opts;
+  const {
+    autoInstantiate,
+    setCells,
+    setLayoutData,
+    onError,
+    setAppConfig,
+    setCapabilities,
+  } = opts;
 
   const {
     codes,
@@ -38,6 +45,7 @@ export function handleKernelReady(
     last_executed_code,
     last_execution_time = {},
     app_config,
+    capabilities,
   } = data;
   const lastExecutedCode = last_executed_code || {};
   const lastExecutionTime = last_execution_time || {};
@@ -81,6 +89,7 @@ export function handleKernelReady(
   setAppConfig({
     ...app_config,
   } as AppConfig);
+  setCapabilities(capabilities);
 
   // If resumed, we don't need to instantiate the UI elements,
   // and we should read in th existing values from the kernel.

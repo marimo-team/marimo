@@ -82,6 +82,7 @@ export async function initialize() {
           setCells: actions.setCells,
           setLayoutData: Functions.NOOP,
           setAppConfig: Functions.NOOP,
+          setCapabilities: Functions.NOOP,
           onError: Logger.error,
         });
         // Define the custom element for the marimo-island tag.

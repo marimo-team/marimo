@@ -37,6 +37,7 @@ import { VariableName } from "../variables/types";
 import { CellId } from "../cells/ids";
 import { kioskModeAtom } from "../mode";
 import { focusAndScrollCellOutputIntoView } from "../cells/scrollCellIntoView";
+import { capabilitiesAtom } from "../config/capabilities";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -61,6 +62,7 @@ export function useMarimoWebSocket(opts: {
   const { addBanner } = useBannersActions();
   const { addPackageAlert } = useAlertActions();
   const setKioskMode = useSetAtom(kioskModeAtom);
+  const setCapabilities = useSetAtom(capabilitiesAtom);
 
   const handleMessage = (e: MessageEvent<JsonString<OperationMessage>>) => {
     const msg = jsonParseWithSpecialChar(e.data);
@@ -74,6 +76,7 @@ export function useMarimoWebSocket(opts: {
           setCells,
           setLayoutData,
           setAppConfig,
+          setCapabilities,
           onError: showBoundary,
         });
         setKioskMode(msg.data.kiosk);

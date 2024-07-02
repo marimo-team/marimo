@@ -14,6 +14,8 @@ marimo is designed to be:
     5. fun
 """
 
+from __future__ import annotations
+
 __all__ = [
     "App",
     "Cell",
@@ -58,6 +60,7 @@ __all__ = [
     "state",
     "status",
     "stop",
+    "sql",
     "style",
     "tabs",
     "tree",
@@ -109,3 +112,4 @@ from marimo._runtime.control_flow import MarimoStopError, stop
 from marimo._runtime.runtime import cli_args, defs, query_params, refs
 from marimo._runtime.state import state
 from marimo._server.asgi import create_asgi_app
+from marimo._sql import sql
