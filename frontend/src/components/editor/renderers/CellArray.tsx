@@ -39,6 +39,8 @@ import { Milliseconds } from "@/utils/time";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
 import { capabilitiesAtom } from "@/core/config/capabilities";
+import { Tooltip } from "@/components/ui/tooltip";
+import { Kbd } from "@/components/ui/kbd";
 
 interface CellArrayProps {
   notebook: NotebookState;
@@ -205,11 +207,23 @@ const AddCellButtons: React.FC = () => {
           <SquareMIcon className="mr-2 size-4" />
           Markdown
         </Button>
-        {sqlCapabilities && (
+        <Tooltip
+          content={
+            sqlCapabilities ? null : (
+              <span>
+                Requires duckdb:{" "}
+                <Kbd className="inline">pip install duckdb</Kbd>
+              </span>
+            )
+          }
+          delayDuration={100}
+          asChild={false}
+        >
           <Button
             className={buttonClass}
             variant="text"
             size="sm"
+            disabled={!sqlCapabilities}
             onClick={() => {
               maybeAddMarimoImport(autoInstantiate, createNewCell);
 
@@ -223,18 +237,23 @@ const AddCellButtons: React.FC = () => {
             <DatabaseIcon className="mr-2 size-4" />
             SQL
           </Button>
-        )}
-        {aiEnabled && (
+        </Tooltip>
+        <Tooltip
+          content={aiEnabled ? null : <span>Enable via settings</span>}
+          delayDuration={100}
+          asChild={false}
+        >
           <Button
             className={buttonClass}
             variant="text"
             size="sm"
+            disabled={!aiEnabled}
             onClick={isAiButtonOpenActions.toggle}
           >
             <SparklesIcon className="mr-2 size-4" />
             Generate with AI
           </Button>
-        )}
+        </Tooltip>
       </>
     );
   };

@@ -47,7 +47,7 @@ const regexes = pairs.map(
  */
 export class MarkdownLanguageAdapter implements LanguageAdapter {
   readonly type = "markdown";
-  readonly defaultCode = 'mo.md(rf"""\n""")';
+  readonly defaultCode = 'mo.md(r"""\n""")';
 
   lastQuotePrefix: QuotePrefixKind = "";
 
@@ -60,7 +60,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
 
     // empty string
     if (pythonCode === "") {
-      this.lastQuotePrefix = "rf";
+      this.lastQuotePrefix = "r";
       return ["", 0];
     }
 

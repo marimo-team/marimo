@@ -1,4 +1,5 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
 __generated_with = "0.6.25"
@@ -30,7 +31,7 @@ def __(data, mo):
 
 
 @app.cell
-def __(cylinders, mo):
+def __(cars, cylinders, mo):
     df = mo.sql(
         f"""
         SELECT "Name", "Miles_per_Gallon", "Cylinders", "Horsepower"
@@ -66,7 +67,7 @@ def __(data):
 
 
 @app.cell
-def __(mo):
+def __(airports, mo):
     less_airports = mo.sql(
         f"""
         select * from airports limit 2
@@ -160,7 +161,6 @@ def __(cars, mo):
         FROM cars
         GROUP BY "Origin"
         LIMIT 100
-
         """
     )
     return grouped_cars_by_origin,

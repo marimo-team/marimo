@@ -13,8 +13,8 @@ describe("MarkdownLanguageAdapter", () => {
       const out = adapter.transformOut(innerCode);
       expect(out).toMatchInlineSnapshot(`
         [
-          "mo.md(rf"")",
-          9,
+          "mo.md(r"")",
+          8,
         ]
       `);
     });
