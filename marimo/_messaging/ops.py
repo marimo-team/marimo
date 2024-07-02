@@ -28,6 +28,7 @@ from marimo import _loggers as loggers
 from marimo._ast.app import _AppConfig
 from marimo._ast.cell import CellConfig, CellId_t, CellStatusType
 from marimo._data.models import ColumnSummary, DataTable
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.completion_option import CompletionOption
 from marimo._messaging.errors import Error
@@ -322,6 +323,14 @@ class CompletedRun(Op):
 
 
 @dataclass
+class KernelCapabilities:
+    sql: bool = field(init=False)
+
+    def __post_init__(self) -> None:
+        self.sql = DependencyManager.has_duckdb()
+
+
+@dataclass
 class KernelReady(Op):
     """Kernel is ready for execution."""
 
@@ -343,6 +352,8 @@ class KernelReady(Op):
     app_config: _AppConfig
     # Whether the kernel is kiosk mode
     kiosk: bool
+    # Kernel capabilities
+    capabilities: KernelCapabilities
 
 
 @dataclass

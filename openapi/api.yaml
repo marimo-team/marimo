@@ -808,6 +808,13 @@ components:
           required:
           - width
           type: object
+        capabilities:
+          properties:
+            sql:
+              type: boolean
+          required:
+          - sql
+          type: object
         cell_ids:
           items:
             type: string
@@ -879,6 +886,7 @@ components:
       - resumed
       - app_config
       - kiosk
+      - capabilities
       - name
       type: object
     MIME:
@@ -1672,7 +1680,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.6.24
+  version: 0.6.25
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

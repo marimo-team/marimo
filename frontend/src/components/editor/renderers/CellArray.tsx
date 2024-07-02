@@ -24,13 +24,19 @@ import { PackageAlert } from "@/components/editor/package-alert";
 import { useDeleteCellCallback } from "../cell/useDeleteCell";
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/ui/button";
-import { DatabaseIcon, SparklesIcon, SquareCodeIcon, SquareMIcon } from "lucide-react";
+import {
+  DatabaseIcon,
+  SparklesIcon,
+  SquareCodeIcon,
+  SquareMIcon,
+} from "lucide-react";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { aiEnabledAtom, autoInstantiateAtom } from "@/core/config/config";
 import { useAtomValue } from "jotai";
 import { useBoolean } from "@/hooks/useBoolean";
 import { AddCellWithAI } from "../ai/add-cell-with-ai";
 import { Milliseconds } from "@/utils/time";
+import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
 
 interface CellArrayProps {
   notebook: NotebookState;
@@ -206,7 +212,7 @@ const AddCellButtons: React.FC = () => {
             createNewCell({
               cellId: "__end__",
               before: false,
-              code: 'mo.sql(rf"""select * from """)',
+              code: SQLLanguageAdapter.getDefaultCode(),
             });
           }}
         >

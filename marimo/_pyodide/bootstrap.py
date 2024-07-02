@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Callable
 
-from marimo._messaging.ops import KernelReady, serialize
+from marimo._messaging.ops import KernelCapabilities, KernelReady, serialize
 from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._runtime.requests import (
     AppMetadata,
@@ -80,6 +80,7 @@ def create_session(
                     last_execution_time={},
                     app_config=app.config,
                     kiosk=False,
+                    capabilities=KernelCapabilities(),
                 )
             ),
         )

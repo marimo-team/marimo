@@ -15,6 +15,7 @@ from marimo._messaging.ops import (
     Banner,
     CompletionResult,
     FocusCell,
+    KernelCapabilities,
     KernelReady,
     MessageOperation,
     Reconnected,
@@ -198,6 +199,7 @@ class WebsocketHandler(SessionConsumer):
                         last_execution_time=last_execution_time,
                         app_config=app.config,
                         kiosk=kiosk,
+                        capabilities=KernelCapabilities(),
                     )
                 ),
             )

@@ -9,9 +9,13 @@ import { indentOneTab } from "./utils/indentOneTab";
 import { autocompletion, CompletionSource } from "@codemirror/autocomplete";
 import { store } from "@/core/state/jotai";
 import { datasetsAtom } from "@/core/datasets/state";
-import { QUOTE_PREFIX_KINDS, QuotePrefixKind, splitQuotePrefix, upgradePrefixKind } from "./utils/quotes";
+import {
+  QUOTE_PREFIX_KINDS,
+  QuotePrefixKind,
+  splitQuotePrefix,
+  upgradePrefixKind,
+} from "./utils/quotes";
 
-// TODO: force one?
 const quoteKinds = [
   ['"""', '"""'],
   ["'''", "'''"],
@@ -20,16 +24,20 @@ const quoteKinds = [
 ];
 
 // explode into all combinations
+// only f is supported
 const pairs = QUOTE_PREFIX_KINDS.flatMap((prefix) =>
   quoteKinds.map(([start, end]) => [prefix + start, end]),
 );
 
 const regexes = pairs.map(
   ([start, end]) =>
-    // mo.sql( + any number of spaces + start + capture + any number of spaces + end)
+    // df = mo.sql( space + start + capture + space + end)
     [
       start,
-      new RegExp(`^mo\\.sql\\(\\s*${start}(.*)${end}\\s*\\)$`, "s"),
+      new RegExp(
+        `^(?<dataframe>\\w*)\\s*=\\s*mo\\.sql\\(\\s*${start}(?<sql>.*)${end}\\s*\\)$`,
+        "s",
+      ),
     ] as const,
 );
 
@@ -40,20 +48,31 @@ export class SQLLanguageAdapter implements LanguageAdapter {
   type = "sql" as const;
 
   lastQuotePrefix: QuotePrefixKind = "";
+  static DEFAULT_DATAFRAME_NAME = "_df";
+  dataframeName: string | undefined;
+
+  public static getDefaultCode(): string {
+    return `_df = mo.sql(f"""select * from """)`;
+  }
 
   transformIn(pythonCode: string): [string, number] {
     if (!this.isSupported(pythonCode)) {
       throw new Error("Not supported");
     }
 
+    pythonCode = pythonCode.trim();
+
     for (const [start, regex] of regexes) {
       const match = pythonCode.match(regex);
       if (match) {
-        const innerCode = match[1];
+        const dataframe =
+          match.groups?.dataframe || SQLLanguageAdapter.DEFAULT_DATAFRAME_NAME;
+        const innerCode = match.groups?.sql || "";
 
         const [quotePrefix, quoteType] = splitQuotePrefix(start);
         // store the quote prefix for later when we transform out
         this.lastQuotePrefix = quotePrefix;
+        this.dataframeName = dataframe;
         const unescapedCode = innerCode.replaceAll(`\\${quoteType}`, quoteType);
 
         const offset = pythonCode.indexOf(innerCode);
@@ -70,8 +89,8 @@ export class SQLLanguageAdapter implements LanguageAdapter {
     const prefix = upgradePrefixKind(this.lastQuotePrefix, code);
 
     // Multiline code
-    const start = `mo.sql(\n    ${prefix}"""\n`;
-    const escapedCode = code.replaceAll('"""', '\\"""');
+    const start = `${this.dataframeName} = mo.sql(\n    ${prefix}"""\n`;
+    const escapedCode = code.replaceAll('"""', String.raw`\"""`);
     const end = `\n    """\n)`;
     return [start + indentOneTab(escapedCode) + end, start.length + 1];
   }
@@ -81,20 +100,11 @@ export class SQLLanguageAdapter implements LanguageAdapter {
       return true;
     }
 
-    if (pythonCode.trim() === "mo.sql()") {
-      return true;
-    }
-
-    const lines = pythonCode
-      .trim()
-      .split("\n")
-      .map((line) => line.startsWith("mo.sql("))
-      .filter(Boolean);
-    if (lines.length > 1) {
-      // more than line starting with mo.sql(; as a heuristic,
-      // don't show "view as sql"
+    // not 2 mo.sql calls
+    if (pythonCode.split("mo.sql").length > 2) {
       return false;
     }
+
     return regexes.some(([, regex]) => regex.test(pythonCode));
   }
 
@@ -118,14 +128,14 @@ export class SQLLanguageAdapter implements LanguageAdapter {
 
 function tablesCompletionSource(): CompletionSource {
   return (ctx) => {
-    const schema: Record<string, string[]> = {}
-    const datasets = store.get(datasetsAtom)
+    const schema: Record<string, string[]> = {};
+    const datasets = store.get(datasetsAtom);
     for (const table of datasets.tables) {
-      schema[table.name] = table.columns.map((column) => column.name)
+      schema[table.name] = table.columns.map((column) => column.name);
     }
 
     return schemaCompletionSource({
-      schema
-    })(ctx)
-  }
+      schema,
+    })(ctx);
+  };
 }

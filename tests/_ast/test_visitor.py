@@ -858,3 +858,43 @@ def test_private_ref_requirement_caught() -> None:
             kind="function", required_refs={"X", "x", private}
         ),
     }
+
+
+def test_sql_statement() -> None:
+    code = "\n".join(
+        [
+            "df = mo.sql('select * from cars')",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["df"])
+    assert v.refs == set(["cars"])
+
+
+def test_sql_empty_statement() -> None:
+    code = "\n".join(
+        [
+            "mo.sql('')",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set([])
+    assert v.refs == set([])
+
+
+def test_sql_multiple_tables() -> None:
+    code = "\n".join(
+        [
+            "df = mo.sql('select * from cars left join"
+            " cars2 on cars.id = cars2.id')",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["df"])
+    assert v.refs == set(["cars", "cars2"])
