@@ -7,17 +7,17 @@
   "postUpdateOptions": ["pnpmDedupe"],
   "python": {
     "enabled": true,
-    "packagePatterns": [".*sphinx.*"]
+    "packagePatterns": [".*sphinx.*", ".*ruff.*"]
   },
   "pre-commit": {
     "enabled": true
   },
   "pep621": {
-    "enabled": false
+    "enabled": true
   },
   "packageRules": [
     {
-      "depTypeList": ["peerDependencies"],
+      "depTypeList": ["peerDependencies", "project.dependencies"],
       "enabled": false
     },
     {
