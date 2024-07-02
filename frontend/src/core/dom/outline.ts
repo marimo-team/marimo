@@ -50,6 +50,10 @@ export function parseOutline(output: OutputMessage | null): Outline | null {
     return null;
   }
 
+  if (output.data == null) {
+    return null;
+  }
+
   try {
     invariant(typeof output.data === "string", "expected string");
     return getOutline(output.data);
