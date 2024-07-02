@@ -348,9 +348,14 @@ class ScopedVisitor(ast.NodeVisitor):
             and node.func.value.id == "mo"
             and node.func.attr == "sql"
             and len(node.args) == 1
-            and isinstance(node.args[0], ast.Constant)
         ):
-            sql = node.args[0].s
+            first_arg = node.args[0]
+            sql: Optional[str] = None
+            if isinstance(first_arg, ast.Constant):
+                sql = first_arg.s
+            elif isinstance(first_arg, ast.JoinedStr):
+                sql = normalize_sql_f_string(first_arg)
+
             if isinstance(sql, str) and DependencyManager.has_duckdb() and sql:
                 import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
@@ -647,3 +652,18 @@ class ScopedVisitor(ast.NodeVisitor):
                     kind="variable", required_refs=self.ref_stack[-1]
                 ),
             )
+
+
+def normalize_sql_f_string(node: ast.JoinedStr) -> str:
+    def print_part(part: ast.expr) -> str:
+        if isinstance(part, ast.FormattedValue):
+            return print_part(part.value)
+        elif isinstance(part, ast.JoinedStr):
+            return normalize_sql_f_string(part)
+        elif isinstance(part, ast.Constant):
+            return part.s
+        else:
+            # Just add placeholder for {...} expressions
+            return "_placeholder_"
+
+    return "".join(print_part(part) for part in node.values)

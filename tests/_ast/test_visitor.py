@@ -7,7 +7,11 @@ from inspect import cleandoc
 import pytest
 
 from marimo._ast import visitor
-from marimo._ast.visitor import ImportData, VariableData
+from marimo._ast.visitor import (
+    ImportData,
+    VariableData,
+    normalize_sql_f_string,
+)
 from marimo._dependencies.dependencies import DependencyManager
 
 
@@ -876,6 +880,44 @@ def test_sql_statement() -> None:
     v.visit(mod)
     assert v.defs == set(["df"])
     assert v.refs == set(["cars", "mo"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_statement_with_f_string() -> None:
+    code = "\n".join(
+        [
+            "df = mo.sql(f'select * from cars where name = {name}')",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["df"])
+    assert v.refs == set(["cars", "mo", "name"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_statement_with_rf_string() -> None:
+    code = "\n".join(
+        [
+            "df = mo.sql(rf'select * from cars where name = {name}')",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["df"])
+    assert v.refs == set(["cars", "mo", "name"])
+
+
+def test_print_f_string() -> None:
+    import ast
+
+    joined_str = ast.parse("f'select * from cars where name = {name}'")
+    assert (
+        normalize_sql_f_string(joined_str.body[0].value)  # type: ignore
+        == "select * from cars where name = _placeholder_"
+    )
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
