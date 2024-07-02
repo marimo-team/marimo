@@ -417,7 +417,6 @@ import random
 random.randint(0, 1000)
 ```
 
-
 ### Create a counter button
 
 **Use cases.** A counter button, i.e. a button that counts the number of times
