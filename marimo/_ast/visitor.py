@@ -349,7 +349,7 @@ class ScopedVisitor(ast.NodeVisitor):
         ):
             sql = node.args[0].s
             if isinstance(sql, str) and DependencyManager.has_duckdb() and sql:
-                import duckdb
+                import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
                 # Add all tables in the query to the ref scope
                 try:

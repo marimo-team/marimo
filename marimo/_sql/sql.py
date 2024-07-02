@@ -26,7 +26,7 @@ def sql(query: str) -> Any:
     """
     DependencyManager.require_duckdb("to execute sql")
 
-    import duckdb
+    import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
     if DependencyManager.has_polars():
         df = duckdb.execute(query=query).pl()

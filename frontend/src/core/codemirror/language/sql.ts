@@ -15,6 +15,7 @@ import {
   splitQuotePrefix,
   upgradePrefixKind,
 } from "./utils/quotes";
+import { capabilitiesAtom } from "@/core/config/capabilities";
 
 const quoteKinds = [
   ['"""', '"""'],
@@ -97,6 +98,11 @@ export class SQLLanguageAdapter implements LanguageAdapter {
   }
 
   isSupported(pythonCode: string): boolean {
+    const sqlCapabilities = store.get(capabilitiesAtom).sql;
+    if (!sqlCapabilities) {
+      return false;
+    }
+
     if (pythonCode.trim() === "") {
       return true;
     }
