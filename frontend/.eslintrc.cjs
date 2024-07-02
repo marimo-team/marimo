@@ -87,6 +87,7 @@ module.exports = {
     "jsx-a11y/click-events-have-key-events": "off",
     "storybook/no-redundant-story-name": "off",
     // Turn of unicorn rules that don't have autofixes or that we don't want
+    "unicorn/prefer-string-raw": "off",
     "unicorn/consistent-function-scoping": "off",
     "unicorn/expiring-todo-comments": "off",
     "unicorn/filename-case": "off",
