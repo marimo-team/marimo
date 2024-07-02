@@ -87,6 +87,7 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
               position: position,
             },
           });
+
           return response.completions.map((c) => c.displayText)[0] ?? "";
         },
       }),

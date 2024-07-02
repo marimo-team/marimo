@@ -558,7 +558,7 @@ export const UserConfigForm: React.FC = () => {
                   <Input
                     data-testid="ai-model-input"
                     className="m-0 inline-flex"
-                    placeholder="gpt-3.5-turbo"
+                    placeholder="gpt-4-turbo"
                     {...field}
                   />
                 </FormControl>

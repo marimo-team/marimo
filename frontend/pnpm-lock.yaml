@@ -17,12 +17,15 @@ dependencies:
   '@codemirror/lang-python':
     specifier: ^6.1.6
     version: 6.1.6(@codemirror/view@6.28.3)
+  '@codemirror/lang-sql':
+    specifier: ^6.7.0
+    version: 6.7.0(@codemirror/view@6.28.3)
   '@codemirror/language':
     specifier: ^6.10.2
     version: 6.10.2
   '@codemirror/language-data':
     specifier: ^6.5.1
-    version: 6.5.1(@codemirror/view@6.28.3)(@lezer/common@1.2.1)
+    version: 6.5.1(@codemirror/view@6.28.3)
   '@codemirror/lint':
     specifier: ^6.8.1
     version: 6.8.1
@@ -2199,17 +2202,17 @@ packages:
       - '@codemirror/view'
     dev: false
 
-  /@codemirror/lang-sql@6.5.4(@codemirror/view@6.28.3)(@lezer/common@1.2.1):
-    resolution: {integrity: sha512-5Gq7fYtT/5HbNyIG7a8vYaqOYQU3JbgtBe3+derkrFUXRVcjkf8WVgz++PIbMFAQsOFMDdDR+uiNM8ZRRuXH+w==}
+  /@codemirror/lang-sql@6.7.0(@codemirror/view@6.28.3):
+    resolution: {integrity: sha512-KMXp6rtyPYz6RaElvkh/77ClEAoQoHRPZo0zutRRialeFs/B/X8YaUJBCnAV2zqyeJPLZ4hgo48mG8TKoNXfZA==}
     dependencies:
       '@codemirror/autocomplete': 6.16.3(@codemirror/language@6.10.2)(@codemirror/state@6.4.1)(@codemirror/view@6.28.3)(@lezer/common@1.2.1)
       '@codemirror/language': 6.10.2
       '@codemirror/state': 6.4.1
+      '@lezer/common': 1.2.1
       '@lezer/highlight': 1.2.0
       '@lezer/lr': 1.4.1
     transitivePeerDependencies:
       - '@codemirror/view'
-      - '@lezer/common'
     dev: false
 
   /@codemirror/lang-vue@0.1.2:
@@ -2255,7 +2258,7 @@ packages:
       - '@codemirror/view'
     dev: false
 
-  /@codemirror/language-data@6.5.1(@codemirror/view@6.28.3)(@lezer/common@1.2.1):
+  /@codemirror/language-data@6.5.1(@codemirror/view@6.28.3):
     resolution: {integrity: sha512-0sWxeUSNlBr6OmkqybUTImADFUP0M3P0IiSde4nc24bz/6jIYzqYSgkOSLS+CBIoW1vU8Q9KUWXscBXeoMVC9w==}
     dependencies:
       '@codemirror/lang-angular': 0.1.2
@@ -2273,7 +2276,7 @@ packages:
       '@codemirror/lang-python': 6.1.6(@codemirror/view@6.28.3)
       '@codemirror/lang-rust': 6.0.1
       '@codemirror/lang-sass': 6.0.2(@codemirror/view@6.28.3)
-      '@codemirror/lang-sql': 6.5.4(@codemirror/view@6.28.3)(@lezer/common@1.2.1)
+      '@codemirror/lang-sql': 6.7.0(@codemirror/view@6.28.3)
       '@codemirror/lang-vue': 0.1.2
       '@codemirror/lang-wast': 6.0.1
       '@codemirror/lang-xml': 6.0.2(@codemirror/view@6.28.3)
@@ -2282,7 +2285,6 @@ packages:
       '@codemirror/legacy-modes': 6.4.0
     transitivePeerDependencies:
       - '@codemirror/view'
-      - '@lezer/common'
     dev: false
 
   /@codemirror/language@6.10.2:
@@ -9503,11 +9505,11 @@ packages:
       '@codemirror/lang-python': 6.1.6(@codemirror/view@6.28.3)
       '@codemirror/lang-rust': 6.0.1
       '@codemirror/lang-sass': 6.0.2(@codemirror/view@6.28.3)
-      '@codemirror/lang-sql': 6.5.4(@codemirror/view@6.28.3)(@lezer/common@1.2.1)
+      '@codemirror/lang-sql': 6.7.0(@codemirror/view@6.28.3)
       '@codemirror/lang-vue': 0.1.2
       '@codemirror/lang-wast': 6.0.1
       '@codemirror/lang-xml': 6.0.2(@codemirror/view@6.28.3)
-      '@codemirror/language-data': 6.5.1(@codemirror/view@6.28.3)(@lezer/common@1.2.1)
+      '@codemirror/language-data': 6.5.1(@codemirror/view@6.28.3)
       '@codemirror/legacy-modes': 6.4.0
       '@nextjournal/lang-clojure': 1.0.0
       '@replit/codemirror-lang-csharp': 6.2.0(@codemirror/autocomplete@6.16.3)(@codemirror/language@6.10.2)(@codemirror/state@6.4.1)(@codemirror/view@6.28.3)(@lezer/common@1.2.1)(@lezer/highlight@1.2.0)(@lezer/lr@1.4.1)

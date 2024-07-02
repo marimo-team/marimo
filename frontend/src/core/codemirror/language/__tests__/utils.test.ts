@@ -43,6 +43,12 @@ describe("getEditorCodeAsPython", () => {
     const result = getEditorCodeAsPython(mockEditor, 0, 5);
     expect(result).toEqual("print");
   });
+
+  it("should return a slice of the editor text when one position is specified", () => {
+    const mockEditor = createEditor("print('Hello, World!')");
+    const result = getEditorCodeAsPython(mockEditor, 5);
+    expect(result).toEqual("('Hello, World!')");
+  });
 });
 
 describe("updateEditorCodeFromPython", () => {

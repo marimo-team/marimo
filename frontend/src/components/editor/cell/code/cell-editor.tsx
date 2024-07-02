@@ -18,13 +18,12 @@ import type { CellRuntimeState, CellData } from "@/core/cells/types";
 import type { UserConfig } from "@/core/config/config-schema";
 import type { Theme } from "@/theme/useTheme";
 import {
-  LanguageAdapters,
   getInitialLanguageAdapter,
   languageAdapterState,
   reconfigureLanguageEffect,
   switchLanguage,
 } from "@/core/codemirror/language/extension";
-import { LanguageToggle } from "./language-toggle";
+import { LanguageToggles } from "./language-toggle";
 import { cn } from "@/utils/cn";
 import { saveCellConfig } from "@/core/network/requests";
 import { HideCodeButton } from "../../code/readonly-python-code";
@@ -33,7 +32,7 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { mergeRefs } from "@/utils/mergeRefs";
 import { lastFocusedCellIdAtom } from "@/core/cells/focus";
-import type { LanguageAdapter } from "@/core/codemirror/language/types";
+import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { autoInstantiateAtom } from "@/core/config/config";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
@@ -86,12 +85,8 @@ const CellEditorInternal = ({
   editorViewRef,
   hidden,
 }: CellEditorProps) => {
-  const [canUseMarkdown, setCanUseMarkdown] = useState(() => {
-    return LanguageAdapters.markdown().isSupported(code);
-  });
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
-  const [languageAdapter, setLanguageAdapter] =
-    useState<LanguageAdapter["type"]>();
+  const [languageAdapter, setLanguageAdapter] = useState<LanguageAdapterType>();
   const setLastFocusedCellId = useSetAtom(lastFocusedCellIdAtom);
   // DOM node where the editorView will be mounted
   const editorViewParentRef = useRef<HTMLDivElement>(null);
@@ -196,13 +191,7 @@ const CellEditorInternal = ({
 
         return {
           update(view) {
-            const code = view.state.doc.toString();
             const languageAdapter = view.state.field(languageAdapterState);
-            // If its not markdown, set if we can use markdown
-            if (languageAdapter.type !== "markdown") {
-              setCanUseMarkdown(LanguageAdapters.markdown().isSupported(code));
-            }
-
             // Set the language adapter
             setLanguageAdapter(languageAdapter.type);
           },
@@ -342,7 +331,8 @@ const CellEditorInternal = ({
   return (
     <AiCompletionEditor
       enabled={aiCompletionCell === cellId}
-      currentCode={code}
+      currentCode={editorViewRef.current?.state.doc.toString() ?? code}
+      currentLanguageAdapter={languageAdapter}
       declineChange={() => {
         setAiCompletionCell(null);
         editorViewRef.current?.focus();
@@ -372,13 +362,13 @@ const CellEditorInternal = ({
         className="relative w-full"
         onFocus={() => setLastFocusedCellId(cellId)}
       >
-        {canUseMarkdown && !hidden && (
-          <div className="absolute top-1 right-1">
-            <LanguageToggle
+        {!hidden && (
+          <div className="absolute top-1 right-5">
+            <LanguageToggles
+              code={code}
               editorView={editorViewRef.current}
-              languageAdapter={languageAdapter}
-              canUseMarkdown={canUseMarkdown}
-              onAfterToggleMarkdown={afterToggleMarkdown}
+              currentLanguageAdapter={languageAdapter}
+              onAfterToggle={afterToggleMarkdown}
             />
           </div>
         )}

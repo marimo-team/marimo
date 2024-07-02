@@ -53,8 +53,8 @@ This feature is currently experimental and is not enabled by default. To enable 
 [ai.open_ai]
 # Get your API key from https://platform.openai.com/account/api-keys
 api_key = "sk-..."
-# Choose a model, we recommend "gpt-3.5-turbo"
-model = "gpt-3.5-turbo"
+# Choose a model, we recommend "gpt-4-turbo"
+model = "gpt-4-turbo"
 # Change the base_url if you are using a different OpenAI-compatible API
 base_url = "https://api.openai.com"
 ```

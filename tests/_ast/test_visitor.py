@@ -7,7 +7,12 @@ from inspect import cleandoc
 import pytest
 
 from marimo._ast import visitor
-from marimo._ast.visitor import ImportData, VariableData
+from marimo._ast.visitor import (
+    ImportData,
+    VariableData,
+    normalize_sql_f_string,
+)
+from marimo._dependencies.dependencies import DependencyManager
 
 
 def test_assign_simple() -> None:
@@ -858,3 +863,115 @@ def test_private_ref_requirement_caught() -> None:
             kind="function", required_refs={"X", "x", private}
         ),
     }
+
+
+HAS_DEPS = DependencyManager.has_duckdb()
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_statement() -> None:
+    code = "\n".join(
+        [
+            "df = mo.sql('select * from cars')",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["df"])
+    assert v.refs == set(["cars", "mo"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_statement_with_marimo_sql() -> None:
+    code = "\n".join(
+        [
+            "df = marimo.sql('select * from cars')",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["df"])
+    assert v.refs == set(["cars", "marimo"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_statement_with_f_string() -> None:
+    code = "\n".join(
+        [
+            "df = mo.sql(f'select * from cars where name = {name}')",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["df"])
+    assert v.refs == set(["cars", "mo", "name"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_statement_with_rf_string() -> None:
+    code = "\n".join(
+        [
+            "df = mo.sql(rf'select * from cars where name = {name}')",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["df"])
+    assert v.refs == set(["cars", "mo", "name"])
+
+
+def test_print_f_string() -> None:
+    import ast
+
+    joined_str = ast.parse("f'select * from cars where name = {name}'")
+    assert (
+        normalize_sql_f_string(joined_str.body[0].value)  # type: ignore
+        == "select * from cars where name = '_'"
+    )
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_empty_statement() -> None:
+    code = "\n".join(
+        [
+            "mo.sql('')",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set([])
+    assert v.refs == set(["mo"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_multiple_tables() -> None:
+    code = "\n".join(
+        [
+            "df = mo.sql('select * from cars left join"
+            " cars2 on cars.id = cars2.id')",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["df"])
+    assert v.refs == set(["cars", "cars2", "mo"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_from_another_module() -> None:
+    code = "\n".join(
+        [
+            "df = lib.sql('select * from cars')",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["df"])
+    assert v.refs == set(["lib"])

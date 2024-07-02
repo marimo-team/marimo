@@ -1060,6 +1060,9 @@ export interface components {
         /** @enum {string} */
         width: "normal" | "compact" | "medium" | "full";
       };
+      capabilities: {
+        sql: boolean;
+      };
       cell_ids: string[];
       codes: string[];
       configs: components["schemas"]["CellConfig"][];

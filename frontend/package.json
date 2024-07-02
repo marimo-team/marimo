@@ -17,6 +17,7 @@
     "@codemirror/commands": "^6.6.0",
     "@codemirror/lang-markdown": "^6.2.5",
     "@codemirror/lang-python": "^6.1.6",
+    "@codemirror/lang-sql": "^6.7.0",
     "@codemirror/language": "^6.10.2",
     "@codemirror/language-data": "^6.5.1",
     "@codemirror/lint": "^6.8.1",
