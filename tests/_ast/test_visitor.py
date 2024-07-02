@@ -883,6 +883,20 @@ def test_sql_statement() -> None:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_statement_with_marimo_sql() -> None:
+    code = "\n".join(
+        [
+            "df = marimo.sql('select * from cars')",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["df"])
+    assert v.refs == set(["cars", "marimo"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_statement_with_f_string() -> None:
     code = "\n".join(
         [

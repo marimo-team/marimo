@@ -345,7 +345,7 @@ class ScopedVisitor(ast.NodeVisitor):
         if (
             isinstance(node.func, ast.Attribute)
             and isinstance(node.func.value, ast.Name)
-            and node.func.value.id == "mo"
+            and (node.func.value.id == "mo" or node.func.value.id == "marimo")
             and node.func.attr == "sql"
             and len(node.args) == 1
         ):
