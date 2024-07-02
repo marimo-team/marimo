@@ -661,7 +661,7 @@ def normalize_sql_f_string(node: ast.JoinedStr) -> str:
         elif isinstance(part, ast.JoinedStr):
             return normalize_sql_f_string(part)
         elif isinstance(part, ast.Constant):
-            return part.s
+            return str(part.s)
         else:
             # Just add '_' as a placeholder for {...} expressions
             return "'_'"

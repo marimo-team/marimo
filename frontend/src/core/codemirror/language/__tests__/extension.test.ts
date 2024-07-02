@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import {
   adaptiveLanguageConfiguration,
   getInitialLanguageAdapter,
@@ -7,6 +7,8 @@ import {
 import { EditorState } from "@codemirror/state";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { MovementCallbacks } from "../../cells/extensions";
+import { store } from "@/core/state/jotai";
+import { capabilitiesAtom } from "@/core/config/capabilities";
 
 function createState(content: string) {
   const state = EditorState.create({
@@ -29,6 +31,12 @@ function createState(content: string) {
 }
 
 describe("getInitialLanguageAdapter", () => {
+  beforeAll(() => {
+    store.set(capabilitiesAtom, {
+      sql: true,
+    });
+  });
+
   it("should return python", () => {
     let state = createState("def f():\n  return 1");
     expect(getInitialLanguageAdapter(state).type).toBe("python");
