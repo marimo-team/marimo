@@ -59,7 +59,7 @@ async def index(request: Request) -> HTMLResponse:
         or app_state.session_manager.file_router.get_unique_file_key()
     )
 
-    with open(index_html, "r") as f:  # noqa: ASYNC101
+    with open(index_html, "r") as f:  # noqa: ASYNC101 ASYNC230
         html = f.read()
 
     if not file_key:

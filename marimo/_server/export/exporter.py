@@ -49,7 +49,7 @@ class Exporter:
         cell_ids = list(file_manager.app.cell_manager.cell_ids())
         filename = get_filename(file_manager)
 
-        with open(index_html_file, "r") as f:  # noqa: ASYNC101
+        with open(index_html_file, "r") as f:  # noqa: ASYNC101 ASYNC230
             index_html = f.read()
 
         files: dict[str, str] = {}
