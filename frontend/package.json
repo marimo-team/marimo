@@ -77,7 +77,7 @@
     "@uidotdev/usehooks": "^2.4.1",
     "@uiw/codemirror-extensions-langs": "^4.22.2",
     "@uiw/react-codemirror": "^4.22.2",
-    "@valtown/codemirror-codeium": "^1.0.1",
+    "@valtown/codemirror-codeium": "^1.0.2",
     "ai": "^3.2.16",
     "ansi_up": "^6.0.2",
     "class-variance-authority": "^0.7.0",

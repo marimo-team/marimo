@@ -198,8 +198,8 @@ dependencies:
     specifier: ^4.22.2
     version: 4.22.2(@babel/runtime@7.24.4)(@codemirror/autocomplete@6.16.3)(@codemirror/language@6.10.2)(@codemirror/lint@6.8.1)(@codemirror/search@6.5.6)(@codemirror/state@6.4.1)(@codemirror/theme-one-dark@6.1.2)(@codemirror/view@6.28.3)(codemirror@6.0.1)(react-dom@18.3.1)(react@18.3.1)
   '@valtown/codemirror-codeium':
-    specifier: ^1.0.1
-    version: 1.0.1(@codemirror/autocomplete@6.16.3)(@codemirror/state@6.4.1)(@codemirror/view@6.28.3)
+    specifier: ^1.0.2
+    version: 1.0.2(@codemirror/autocomplete@6.16.3)(@codemirror/state@6.4.1)(@codemirror/view@6.28.3)
   ai:
     specifier: ^3.2.16
     version: 3.2.16(react@18.3.1)(zod@3.23.8)
@@ -9558,8 +9558,8 @@ packages:
   /@ungap/structured-clone@1.2.0:
     resolution: {integrity: sha512-zuVdFrMJiuCDQUMCzQaD6KL28MjnqqN8XnAqiEq9PNm/hCPTSGfrXCOfwj1ow4LFb/tNymJPwsNbVePc1xFqrQ==}
 
-  /@valtown/codemirror-codeium@1.0.1(@codemirror/autocomplete@6.16.3)(@codemirror/state@6.4.1)(@codemirror/view@6.28.3):
-    resolution: {integrity: sha512-/OEiRmErQKk9i37nENgtChvTqC+xX4KWiHDpwl5O8hLsW9nAgDOMRfeVH9K249+IRgdCWToT9RySLOtpkcX4sQ==}
+  /@valtown/codemirror-codeium@1.0.2(@codemirror/autocomplete@6.16.3)(@codemirror/state@6.4.1)(@codemirror/view@6.28.3):
+    resolution: {integrity: sha512-/EX9Q118PQ1BahyJFF4znZg3o7WOWogQGxAZjLwaYQ/EKpo7+CvpVjVP6ieT6GGRrfK5YMBS4DtdKgCjKN9Okg==}
     peerDependencies:
       '@codemirror/autocomplete': ^6
       '@codemirror/state': ^6
