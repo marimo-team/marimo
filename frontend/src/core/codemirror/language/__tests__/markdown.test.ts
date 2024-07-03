@@ -55,12 +55,6 @@ describe("MarkdownLanguageAdapter", () => {
     });
 
     it("should unescape code blocks", () => {
-      // f"""
-      const pythonCode = String.raw`mo.md(f"""This is some \"""content\"""!""")`;
-      const [innerCode, offset] = adapter.transformIn(pythonCode);
-      expect(innerCode).toBe(`This is some """content"""!`);
-      expect(offset).toBe(10);
-
       // """
       const pythonCode2 = String.raw`mo.md("""This is some \"""content\"""!""")`;
       const [innerCode2, offset2] = adapter.transformIn(pythonCode2);
@@ -202,22 +196,6 @@ describe("MarkdownLanguageAdapter", () => {
       expect(offset).toBe(9);
     });
 
-    it("should not downgrade a f-string", () => {
-      const code = "Normal markdown";
-      adapter.lastQuotePrefix = "f";
-      const [wrappedCode, offset] = adapter.transformOut(code);
-      expect(wrappedCode).toBe('mo.md(f"Normal markdown")');
-      expect(offset).toBe(8);
-    });
-
-    it("should not downgrade a rf-string", () => {
-      const code = "Normal markdown";
-      adapter.lastQuotePrefix = "rf";
-      const [wrappedCode, offset] = adapter.transformOut(code);
-      expect(wrappedCode).toBe('mo.md(rf"Normal markdown")');
-      expect(offset).toBe(9);
-    });
-
     it("should preserve r strings", () => {
       const code = String.raw`$\nu = \mathllap{}\cdot\mathllap{\alpha}$`;
       adapter.lastQuotePrefix = "r";
@@ -235,6 +213,11 @@ describe("MarkdownLanguageAdapter", () => {
       expect(adapter.isSupported("mo.md()")).toBe(true);
       expect(adapter.isSupported("mo.md('')")).toBe(true);
       expect(adapter.isSupported('mo.md("")')).toBe(true);
+    });
+
+    it("should return false for unsupported markdown string formats", () => {
+      expect(adapter.isSupported("mo.md(f'hello world')")).toBe(false);
+      expect(adapter.isSupported('mo.md(f"hello world")')).toBe(false);
     });
 
     it("should return false for unsupported string formats", () => {

@@ -16,11 +16,7 @@ import { enhancedMarkdownExtension } from "../markdown/extension";
 import { CompletionConfig } from "@/core/config/config-schema";
 import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { indentOneTab } from "./utils/indentOneTab";
-import {
-  QuotePrefixKind,
-  QUOTE_PREFIX_KINDS,
-  splitQuotePrefix,
-} from "./utils/quotes";
+import { QuotePrefixKind, splitQuotePrefix } from "./utils/quotes";
 
 const quoteKinds = [
   ['"""', '"""'],
@@ -28,8 +24,14 @@ const quoteKinds = [
   ['"', '"'],
   ["'", "'"],
 ];
+
 // explode into all combinations
-const pairs = QUOTE_PREFIX_KINDS.flatMap((prefix) =>
+//
+// A note on f-strings:
+//
+// f-strings are not yet supported due to bad interactions with
+// string escaping, LaTeX, and loss of Python syntax highlighting
+const pairs = ["", "r"].flatMap((prefix) =>
   quoteKinds.map(([start, end]) => [prefix + start, end]),
 );
 
@@ -89,7 +91,10 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
 
     const isOneLine = !code.includes("\n");
     if (isOneLine) {
-      const escapedCode = code.replaceAll('"', String.raw`\"`);
+      // This logic breaks f-strings:
+      //
+      // https://github.com/marimo-team/marimo/issues/1727
+      const escapedCode = code.replaceAll('"', '\\"');
       const start = `mo.md(${prefix}"`;
       const end = `")`;
       return [start + escapedCode + end, start.length];
