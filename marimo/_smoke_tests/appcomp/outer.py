@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.6.22"
+__generated_with = "0.6.26"
 app = marimo.App()
 
 
@@ -19,18 +19,12 @@ def __(mo):
 
 
 @app.cell
-def __(app):
-    app
+async def __(app):
+    await app.embed()
     return
 
 
 @app.cell
-def __(app):
-    app
-    return
-
-
-@app.cell(hide_code=True)
 def __(mo):
     mo.md("## Render an app inside tabs")
     return

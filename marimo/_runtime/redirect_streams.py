@@ -52,12 +52,18 @@ def redirect_streams(
     stderr: Stderr | None,
     stdin: Stdin | None,
 ) -> Iterator[None]:
+    cell_id_old = stream.cell_id
+    print("installed cell id ", cell_id)
+    # TODO
+    if cell_id_old is not None:
+        yield
+        return
     stream.cell_id = cell_id
     if stdout is None or stderr is None:
         try:
             yield
         finally:
-            stream.cell_id = None
+            stream.cell_id = cell_id_old
         return
 
     # NB: Python doesn't allow monkey patching methods builtins, so
@@ -78,4 +84,4 @@ def redirect_streams(
         sys.stdout = py_stdout
         sys.stderr = py_stderr
         sys.stdin = py_stdin
-        stream.cell_id = None
+        stream.cell_id = cell_id_old

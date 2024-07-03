@@ -15,6 +15,7 @@ import threading
 import time
 import traceback
 from multiprocessing import connection
+from types import ModuleType
 from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, cast
 from uuid import uuid4
 
@@ -268,9 +269,9 @@ class Kernel:
     - stdout: replacement for sys.stdout
     - stderr: replacement for sys.stderr
     - stdin: replacement for sys.stdin
-    - input_override: a function that overrides the builtin input() function
-    - debugger_override: a replacement for the built-in Pdb
+    - module: module in which to execute code
     - enqueue_control_request: callback to enqueue control requests
+    - debugger_override: a replacement for the built-in Pdb
     """
 
     def __init__(
@@ -282,8 +283,12 @@ class Kernel:
         stdout: Stdout | None,
         stderr: Stderr | None,
         stdin: Stdin | None,
+        module: ModuleType,
         enqueue_control_request: Callable[[ControlRequest], None],
-        input_override: Callable[[Any], str] = input_override,
+        preparation_hooks=None,
+        pre_execution_hooks=None,
+        post_execution_hooks=None,
+        on_finish_hooks=None,
         debugger_override: marimo_pdb.MarimoPdb | None = None,
     ) -> None:
         self.app_metadata = app_metadata
@@ -294,6 +299,28 @@ class Kernel:
         self.stderr = stderr
         self.stdin = stdin
         self.enqueue_control_request = enqueue_control_request
+        self._runner_hooks = {
+            "preparation": (
+                preparation_hooks
+                if preparation_hooks is not None
+                else PREPARATION_HOOKS
+            ),
+            "pre_execution": (
+                pre_execution_hooks
+                if pre_execution_hooks is not None
+                else PRE_EXECUTION_HOOKS
+            ),
+            "post_execution": (
+                post_execution_hooks
+                if post_execution_hooks is not None
+                else POST_EXECUTION_HOOKS
+            ),
+            "on_finish": (
+                on_finish_hooks
+                if on_finish_hooks is not None
+                else ON_FINISH_HOOKS
+            ),
+        }
         self._globals_lock = threading.RLock()
         self._completion_worker_started = False
 
@@ -301,9 +328,7 @@ class Kernel:
         if self.debugger is not None:
             patches.patch_pdb(self.debugger)
 
-        self._module = patches.patch_main_module(
-            file=self.app_metadata.filename, input_override=input_override
-        )
+        self._module = module
         if self.app_metadata.filename is not None:
             # TODO(akshayka): When a file is renamed / moved to another folder,
             # we need to update sys.path.
@@ -460,6 +485,7 @@ class Kernel:
         self.execution_context = ExecutionContext(
             cell_id, setting_element_value
         )
+        print("installing execution context ", cell_id)
         with get_context().provide_ui_ids(str(cell_id)), redirect_streams(
             cell_id,
             stream=self.stream,
@@ -888,13 +914,16 @@ class Kernel:
         # sys.modules. Races can still happen, but this should help in most
         # common cases. We could also be more aggressive and run this before
         # every cell, or even before pickle.dump/pickle.dumps()
-        patches.patch_sys_module(self._module)
-        while cell_ids := await self._run_cells_internal(cell_ids):
-            LOGGER.debug("Running state updates ...")
-            if self.lazy() and cell_ids:
-                self.graph.set_stale(cell_ids)
-                break
-        LOGGER.debug("Finished run.")
+        print("in running ...")
+        with patches.patch_main_module_context(self._module):
+            print("starting run loop")
+            while cell_ids := await self._run_cells_internal(cell_ids):
+                print("running state updates")
+                LOGGER.debug("Running state updates ...")
+                if self.lazy() and cell_ids:
+                    self.graph.set_stale(cell_ids)
+                    break
+            LOGGER.debug("Finished run.")
 
     async def _run_cells_internal(self, roots: set[CellId_t]) -> set[CellId_t]:
         """Run cells, send outputs to frontends
@@ -902,6 +931,7 @@ class Kernel:
         Returns set of cells that need to be re-run due to state updates.
         """
 
+        print("roots: ", roots)
         # Some hooks that are leaky and require the kernel
         # Free cell state ahead of running to relieve memory pressure
         #
@@ -953,19 +983,24 @@ class Kernel:
             execution_mode=self.reactive_execution_mode,
             execution_type=self.execution_type,
             execution_context=self._install_execution_context,
-            preparation_hooks=PREPARATION_HOOKS + [invalidate_state],
-            pre_execution_hooks=PRE_EXECUTION_HOOKS,
-            post_execution_hooks=POST_EXECUTION_HOOKS,
-            on_finish_hooks=ON_FINISH_HOOKS
-            + [broadcast_missing_packages, propagate_kernel_errors],
+            preparation_hooks=self._runner_hooks["preparation"]
+            + [invalidate_state],
+            pre_execution_hooks=self._runner_hooks["pre_execution"],
+            post_execution_hooks=self._runner_hooks["post_execution"],
+            on_finish_hooks=(
+                self._runner_hooks["on_finish"]
+                + [broadcast_missing_packages, propagate_kernel_errors]
+            ),
         )
 
+        print("running runner")
         # I/O
         #
         # TODO(akshayka): when no logger is configured, log output is not
         #                 redirected to frontend (it's printed to console),
         #                 which is incorrect
         await runner.run_all()
+        print("finished runner")
         cells_with_stale_state = runner.resolve_state_updates(
             self.state_updates
         )
@@ -1499,7 +1534,9 @@ def launch_kernel(
         stdout=stdout,
         stderr=stderr,
         stdin=stdin,
-        input_override=input_override,
+        module=patches.patch_main_module(
+            file=app_metadata.filename, input_override=input_override
+        ),
         debugger_override=debugger,
         user_config=user_config,
         enqueue_control_request=lambda req: control_queue.put_nowait(req),

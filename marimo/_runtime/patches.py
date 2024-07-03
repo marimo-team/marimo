@@ -116,15 +116,9 @@ del Loader; del MetaPathFinder
     )
 
 
-def patch_main_module(
+def create_main_module(
     file: str | None, input_override: Callable[[Any], str] | None
 ) -> types.ModuleType:
-    """Patches __main__ module
-
-    - Makes functions pickleable
-    - Loads some overrides and mocks into globals
-    """
-
     # Every kernel gets its own main module, whose __dict__ attribute
     # serves as the global namespace
     _module = types.ModuleType(
@@ -143,6 +137,19 @@ def patch_main_module(
             "__file__", sys.modules["__main__"].__file__
         )
 
+    return _module
+
+
+def patch_main_module(
+    file: str | None, input_override: Callable[[Any], str] | None
+) -> types.ModuleType:
+    """Patches __main__ module
+
+    - Makes functions pickleable
+    - Loads some overrides and mocks into globals
+    """
+    _module = create_main_module(file, input_override)
+
     # TODO(akshayka): In run mode, this can introduce races between different
     # kernel threads, since they each share sys.modules. Unfortunately, Python
     # doesn't provide a way for different threads to have their own sys.modules
@@ -160,10 +167,11 @@ def patch_main_module(
 
 @contextlib.contextmanager
 def patch_main_module_context(
-    file: str | None = None, input_override: Callable[[Any], str] | None = None
+    module: types.ModuleType,
 ) -> Iterator[types.ModuleType]:
     main = sys.modules["__main__"]
     try:
-        yield patch_main_module(file, input_override)
+        sys.modules["__main__"] = module
+        yield module
     finally:
         sys.modules["__main__"] = main

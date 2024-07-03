@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable
 import random
 import string
+import sys
 from dataclasses import asdict, dataclass
 from typing import (
     TYPE_CHECKING,
@@ -21,6 +23,7 @@ from marimo._ast.cell import (
     Cell,
     CellConfig,
     CellId_t,
+    CellImpl,
 )
 from marimo._ast.compiler import cell_factory
 from marimo._ast.errors import (
@@ -29,19 +32,18 @@ from marimo._ast.errors import (
     MultipleDefinitionError,
     UnparsableError,
 )
-from marimo._config.config import WidthType
-from marimo._dependencies.dependencies import DependencyManager
+from marimo._config.config import DEFAULT_CONFIG, WidthType
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.types import NoopStream
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime import dataflow
 from marimo._runtime.context.types import get_context
-from marimo._runtime.executor import (
-    execute_cell,
-    execute_cell_async,
+from marimo._runtime.patches import (
+    create_main_module,
 )
-from marimo._runtime.patches import patch_main_module_context
+from marimo._runtime.requests import AppMetadata, ExecutionRequest
+from marimo._runtime.runner import cell_runner
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -127,6 +129,15 @@ class _Namespace(Mapping[str, object]):
         return tree(self._dict)._mime_()
 
 
+class _AppOutput:
+    def __init__(self, mimetype: KnownMimeType, data: str) -> None:
+        self.mimetype: KnownMimeType = mimetype
+        self.data = data
+
+    def _mime_(self) -> tuple[KnownMimeType, str]:
+        return (self.mimetype, self.data)
+
+
 @mddoc
 class App:
     """A marimo app.
@@ -153,7 +164,7 @@ class App:
 
         self._app_uuid = str(uuid4())
         self._pending_ui_element_updates: list[UIElement[Any, Any]] = []
-        self._cached_outputs: dict[CellId_t, Any] | None = None
+        self._cached_outputs: dict[CellId_t, Any] = {}
         self._cached_defs: Mapping[str, object] | None = None
 
     def cell(
@@ -208,6 +219,11 @@ class App:
         self._unparsable = True
 
     def _maybe_initialize(self) -> None:
+        from marimo._runtime.runtime import Kernel
+        from marimo._runtime.runner.hooks_post_execution import (
+            _reset_matplotlib_context,
+        )
+
         if self._unparsable:
             raise RuntimeError(
                 "This notebook has cells with syntax errors, "
@@ -217,6 +233,8 @@ class App:
         if self._initialized:
             return
 
+        # TODO: just register cells on the kernel ...
+        # TODO: namespacing of cells?
         # Add cells to graph
         for cell_id, cell in self._cell_manager.valid_cells():
             self._graph.register_cell(cell_id, cell._cell)
@@ -247,23 +265,40 @@ class App:
         finally:
             self._initialized = True
 
+        def cache_output(
+            cell: CellImpl,
+            runner: cell_runner.Runner,
+            run_result: cell_runner.RunResult,
+        ):
+            del runner
+            self._cached_outputs[cell.cell_id] = run_result.output
+
+        filename = "<unknown>"
+        self._kernel = Kernel(
+            cell_configs={},
+            app_metadata=AppMetadata({}, {}, filename),
+            stream=get_context().stream,
+            stdout=None,
+            stderr=None,
+            stdin=None,
+            module=create_main_module(filename, None),
+            user_config=DEFAULT_CONFIG,
+            enqueue_control_request=lambda _: None,
+            post_execution_hooks=[cache_output, _reset_matplotlib_context],
+        )
+
     def _flatten_outputs(self, outputs: dict[CellId_t, Any]) -> Sequence[Any]:
         return tuple(
             outputs[cid]
-            for cid in self._cell_manager.valid_cell_ids()
-            if not self._graph.is_disabled(cid)
+            for cid in self._kernel.graph.cells.keys()
+            if not self._kernel.graph.is_disabled(cid)
         )
 
-    def _outputs_and_defs(
-        self, outputs: dict[CellId_t, Any], glbls: dict[str, Any]
-    ) -> tuple[Sequence[Any], _Namespace]:
+    def _process_outputs_and_defs(self) -> tuple[Sequence[Any], _Namespace]:
         # Returns
         # - the outputs, sorted in the order that cells were added to the
         #   graph
         # - dict of defs -> values
-
-        # Cache the outputs keyed by cell ID
-        self._cached_outputs = outputs
 
         # Cache only def values, not all of glbls
         # omit defs that were never defined at runtime, eg due to
@@ -271,6 +306,7 @@ class App:
         #
         # if cond:
         #   x = 0
+        glbls = self._kernel.globals
         self._cached_defs = _Namespace(
             dictionary={
                 name: glbls[name] for name in self._defs if name in glbls
@@ -278,96 +314,30 @@ class App:
             owner=self,
         )
 
-        return (self._flatten_outputs(outputs), self._cached_defs)
+        return (self._flatten_outputs(self._cached_outputs), self._cached_defs)
 
-    # should be kept synchronized with _run_async
-    # TODO(akshayka): DRY these functions
-    def _run_sync(
-        self,
-        post_execute_hooks: list[Callable[..., Any]],
-        cells_to_run: set[CellId_t] | None,
+    async def _kernel_run(
+        self, cells_to_run: set[CellId_t]
     ) -> tuple[Sequence[Any], Mapping[str, Any]]:
-        # No need to provide `file`, `input_override` here, since this
-        # function is only called when running as a script
-        with patch_main_module_context() as module:
-            glbls = module.__dict__
-            # Execute cells and collect outputs
-            outputs: dict[CellId_t, Any] = {}
-            for cid in self._execution_order:
-                cell = self._cell_manager.cell_data_at(cid).cell
-                if cell is None:
-                    continue
-
-                if cells_to_run is not None and cid not in cells_to_run:
-                    assert self._cached_defs is not None
-                    assert self._cached_outputs is not None
-                    outputs[cid] = self._cached_outputs[cid]
-                    glbls = {
-                        **glbls,
-                        **{
-                            name: self._cached_defs[name]
-                            for name in cell.defs
-                            if name in self._cached_defs
-                        },
-                    }
-                    continue
-
-                if cell is not None and not self._graph.is_disabled(cid):
-                    with get_context().with_cell_id(
-                        self._app_uuid + "-" + cid
-                    ):
-                        output = execute_cell(cell._cell, glbls, self._graph)
-                        for hook in post_execute_hooks:
-                            hook()
-                    outputs[cid] = output
-        return self._outputs_and_defs(outputs, glbls)
-
-    async def _run_async(
-        self,
-        post_execute_hooks: list[Callable[..., Any]],
-        cells_to_run: set[CellId_t] | None = None,
-    ) -> tuple[Sequence[Any], Mapping[str, Any]]:
-        # No need to provide `file`, `input_override` here, since this
-        # function is only called when running as a script
-        with patch_main_module_context() as module:
-            glbls = module.__dict__
-            # Execute cells and collect outputs
-            outputs: dict[CellId_t, Any] = {}
-            for cid in self._execution_order:
-                cell = self._cell_manager.cell_data_at(cid).cell
-                if cell is None:
-                    continue
-
-                if cells_to_run is not None and cid not in cells_to_run:
-                    assert self._cached_defs is not None
-                    assert self._cached_outputs is not None
-                    outputs[cid] = self._cached_outputs[cid]
-                    glbls = {
-                        **glbls,
-                        **{
-                            name: self._cached_defs[name]
-                            for name in cell.defs
-                            if name in self._cached_defs
-                        },
-                    }
-                    continue
-
-                if cell is not None and not self._graph.is_disabled(cid):
-                    with get_context().with_cell_id(
-                        self._app_uuid + "-" + cid
-                    ):
-                        output = await execute_cell_async(
-                            cell._cell, glbls, self._graph
-                        )
-                        for hook in post_execute_hooks:
-                            hook()
-                    outputs[cid] = output
-
-        return self._outputs_and_defs(outputs, glbls)
+        execution_requests = [
+            ExecutionRequest(
+                cell_id=self._app_uuid + "-" + cid, code=cell._cell.code
+            )
+            for cid in cells_to_run
+            if (cell := self._cell_manager.cell_data_at(cid).cell) is not None
+        ]
+        print("about to run")
+        await self._kernel.run(execution_requests)
+        print("finished running")
+        return self._process_outputs_and_defs()
 
     def _run_internal(
-        self, cells_to_run: set[CellId_t] | None = None
-    ) -> tuple[Sequence[Any], Mapping[str, Any]]:
+        self,
+        cells_to_run: set[CellId_t],
+    ) -> (
+        tuple[Sequence[Any], Mapping[str, Any]]
+        | Awaitable[tuple[Sequence[Any], Mapping[str, Any]]]
+    ):
         from marimo._runtime.context.script_context import (
             initialize_script_context,
         )
@@ -381,18 +351,6 @@ class App:
                 "This app can't be run because it has unparsable cells."
             )
         self._maybe_initialize()
-
-        is_async = False
-        for cell in self._cell_manager.cells():
-            if cell is None:
-                raise RuntimeError(
-                    "Unparsable cell encountered. This is a bug in marimo, "
-                    "please raise an issue."
-                )
-
-            if cell._is_coroutine():
-                is_async = True
-                break
 
         installed_script_context = False
         try:
@@ -412,36 +370,39 @@ class App:
             if not FORMATTERS:
                 register_formatters()
 
-            post_execute_hooks = []
-            if DependencyManager.has_matplotlib():
-                from marimo._output.mpl import close_figures
-
-                post_execute_hooks.append(close_figures)
-
             # Provide a unique identifier for UI element prefixes so UI
             # elements for an app don't get removed from the frontend on re-run
             #
             # TODO(akshayka): Do repeated runs cause a leak on the frontend?
             with get_context().provide_ui_ids(prefix=str(uuid4())):
-                if is_async:
+                in_event_loop = False
+                try:
+                    asyncio.get_running_loop()
+                    in_event_loop = True
+                except RuntimeError:
+                    ...
+
+                if in_event_loop:
                     return asyncio.run(
-                        self._run_async(
-                            post_execute_hooks=post_execute_hooks,
+                        self._kernel_run(
                             cells_to_run=cells_to_run,
                         )
                     )
                 else:
-                    return self._run_sync(
-                        post_execute_hooks=post_execute_hooks,
-                        cells_to_run=cells_to_run,
-                    )
+                    # Returns an awaitable that the user must await
+                    return self._kernel_run(cells_to_run=cells_to_run)
 
         finally:
             if installed_script_context:
                 teardown_context()
 
-    def run(self) -> tuple[Sequence[Any], Mapping[str, Any]]:
-        return self._run_internal()
+    def run(
+        self,
+    ) -> (
+        tuple[Sequence[Any], Mapping[str, Any]]
+        | Awaitable[tuple[Sequence[Any], Mapping[str, Any]]]
+    ):
+        return self._run_internal(cells_to_run=set(self._execution_order))
 
     async def _run_cell_async(
         self, cell: Cell, kwargs: dict[str, Any]
@@ -463,8 +424,10 @@ class App:
         if value not in self._pending_ui_element_updates:
             self._pending_ui_element_updates.append(value)
 
-    def _mime_(self) -> tuple[KnownMimeType, str]:
+    async def embed(self) -> _AppOutput:
         from marimo._plugins.stateless.flex import vstack
+
+        self._maybe_initialize()
 
         if self._pending_ui_element_updates and self._cached_defs:
             updated_names: set[str] = set()
@@ -481,12 +444,16 @@ class App:
                 defining_cells,
                 inclusive=False,
             )
-            self._run_internal(cells_to_run=descendants)
-        elif self._cached_outputs is None:
-            self.run()
+
+            await self._kernel_run(cells_to_run=descendants)
+
+        elif not self._cached_outputs:
+            print("RUNNING ", self._execution_order)
+            await self._kernel_run(set(self._execution_order))
 
         assert self._cached_outputs is not None
-        return (
+        print("FINISHED RUNNING")
+        return _AppOutput(
             "text/html",
             vstack(
                 [
