@@ -56,7 +56,7 @@ export const UserConfigForm: React.FC = () => {
 
   const renderCopilotProvider = () => {
     const copilot = form.getValues("completion.copilot");
-    if (!copilot) {
+    if (copilot === false) {
       return null;
     }
     if (copilot === "codeium") {
@@ -590,11 +590,11 @@ export const UserConfigForm: React.FC = () => {
                         }
                       }}
                       value={
-                        field.value
+                        field.value === true
                           ? "github"
-                          : field.value
-                            ? field.value
-                            : "none"
+                          : field.value === false
+                            ? "none"
+                            : field.value
                       }
                       disabled={field.disabled}
                       className="inline-flex mr-2"
