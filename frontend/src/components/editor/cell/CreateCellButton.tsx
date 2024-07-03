@@ -9,7 +9,7 @@ import {
   ContextMenuItem,
 } from "@/components/ui/context-menu";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
-import { MarkdownIcon } from "./code/icons";
+import { MarkdownIcon, PythonIcon } from "./code/icons";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
 import { cn } from "@/utils/cn";
 
@@ -57,6 +57,19 @@ const CreateCellButtonContextMenu = (props: {
     <ContextMenu>
       <ContextMenuTrigger>{children}</ContextMenuTrigger>
       <ContextMenuContent>
+        <ContextMenuItem
+          key="python"
+          onSelect={(evt) => {
+            evt.stopPropagation();
+            onClick({ code: "" });
+          }}
+        >
+          <div className="mr-3">
+            <PythonIcon />
+          </div>
+          Python cell
+        </ContextMenuItem>
+
         <ContextMenuItem
           key="markdown"
           onSelect={(evt) => {
