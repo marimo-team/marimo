@@ -119,7 +119,7 @@ class batch(_batch_base):
     **Example.**
 
     In the below example, `user_info` is a UI Element whose output is markdown
-    and whose value is a dict with keys `'name'` and '`birthday`'
+    and whose value is a dict with keys `'name'` and `'birthday'`
     (and values equal to the values of their corresponding elements).
 
 
