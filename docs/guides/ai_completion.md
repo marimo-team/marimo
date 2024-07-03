@@ -23,17 +23,17 @@ marimo using `pip` if you need Copilot.
 
 1. Go to the Codeium website and sign up for an account: <https://codeium.com/>
 2. Install the browser extension: <https://codeium.com/chrome_tutorial>
-3. Open the settings for the chrome extension and click on "Get Token"
+3. Open the settings for the Chrome extension and click on "Get Token"
 
 <img src="https://github.com/Exafunction/codeium.jupyter/raw/main/img/1-extension-token.png">
 
-4. Right click on the extension window and select "Inspect" to open the dev tools for the extension. Then click on "Network"
-5. Copy the token and paste it the input area, and then press "Enter Token"
-6. This should log a new API request in the network tab. Click on "Preview" to get the API key.
+4. Right-click on the extension window and select "Inspect" to open the developer tools for the extension. Then click on "Network"
+5. Copy the token and paste it into the input area, and then press "Enter Token"
+6. This action will log a new API request in the **Network** tab. Click on "Preview" to get the API key.
 
 <img src="https://github.com/Exafunction/codeium.jupyter/raw/main/img/2-api-key.png">
 
-7. Paste the API key in the marimo settings in the UI, or add it to your `~/.marimo.toml`:
+7. Paste the API key in the marimo settings in the UI, or add it to your `~/.marimo.toml` file as follows:
 
 ```toml
 [completion]
