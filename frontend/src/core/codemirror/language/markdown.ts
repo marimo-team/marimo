@@ -16,11 +16,7 @@ import { enhancedMarkdownExtension } from "../markdown/extension";
 import { CompletionConfig } from "@/core/config/config-schema";
 import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { indentOneTab } from "./utils/indentOneTab";
-import {
-  QuotePrefixKind,
-  QUOTE_PREFIX_KINDS,
-  splitQuotePrefix,
-} from "./utils/quotes";
+import { QuotePrefixKind, splitQuotePrefix } from "./utils/quotes";
 
 const quoteKinds = [
   ['"""', '"""'],
@@ -28,9 +24,15 @@ const quoteKinds = [
   ['"', '"'],
   ["'", "'"],
 ];
+
 // explode into all combinations
-const pairs = QUOTE_PREFIX_KINDS.flatMap((prefix) =>
-  quoteKinds.map(([start, end]) => [prefix + start, end]),
+//
+// A note on f-strings:
+//
+// f-strings are not yet supported due to bad interactions with
+// string escaping, LaTeX, and loss of Python syntax highlighting
+const pairs = ["", "r"].flatMap((prefix) =>
+  quoteKinds.map(([start, end]) => [prefix + start, end])
 );
 
 const regexes = pairs.map(
@@ -39,7 +41,7 @@ const regexes = pairs.map(
     [
       start,
       new RegExp(`^mo\\.md\\(\\s*${start}(.*)${end}\\s*\\)$`, "s"),
-    ] as const,
+    ] as const
 );
 
 /**
@@ -89,7 +91,10 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
 
     const isOneLine = !code.includes("\n");
     if (isOneLine) {
-      const escapedCode = code.replaceAll('"', String.raw`\"`);
+      // This logic breaks f-strings:
+      //
+      // https://github.com/marimo-team/marimo/issues/1727
+      const escapedCode = code.replaceAll('"', '\\"');
       const start = `mo.md(${prefix}"`;
       const end = `")`;
       return [start + escapedCode + end, start.length];
@@ -126,7 +131,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
 
   getExtension(
     _completionConfig: CompletionConfig,
-    hotkeys: HotkeyProvider,
+    hotkeys: HotkeyProvider
   ): Extension[] {
     return [
       markdown({
@@ -191,7 +196,7 @@ const emojiCompletionSource: CompletionSource = async (context) => {
 // everything works fine, except for autocompletion of emojis
 const getEmojiList = once(async (): Promise<Completion[]> => {
   const emojiList = await fetch(
-    "https://unpkg.com/emojilib@3.0.11/dist/emoji-en-US.json",
+    "https://unpkg.com/emojilib@3.0.11/dist/emoji-en-US.json"
   )
     .then((res) => {
       if (!res.ok) {
