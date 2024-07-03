@@ -32,7 +32,7 @@ const quoteKinds = [
 // f-strings are not yet supported due to bad interactions with
 // string escaping, LaTeX, and loss of Python syntax highlighting
 const pairs = ["", "r"].flatMap((prefix) =>
-  quoteKinds.map(([start, end]) => [prefix + start, end])
+  quoteKinds.map(([start, end]) => [prefix + start, end]),
 );
 
 const regexes = pairs.map(
@@ -41,7 +41,7 @@ const regexes = pairs.map(
     [
       start,
       new RegExp(`^mo\\.md\\(\\s*${start}(.*)${end}\\s*\\)$`, "s"),
-    ] as const
+    ] as const,
 );
 
 /**
@@ -131,7 +131,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
 
   getExtension(
     _completionConfig: CompletionConfig,
-    hotkeys: HotkeyProvider
+    hotkeys: HotkeyProvider,
   ): Extension[] {
     return [
       markdown({
@@ -196,7 +196,7 @@ const emojiCompletionSource: CompletionSource = async (context) => {
 // everything works fine, except for autocompletion of emojis
 const getEmojiList = once(async (): Promise<Completion[]> => {
   const emojiList = await fetch(
-    "https://unpkg.com/emojilib@3.0.11/dist/emoji-en-US.json"
+    "https://unpkg.com/emojilib@3.0.11/dist/emoji-en-US.json",
   )
     .then((res) => {
       if (!res.ok) {
