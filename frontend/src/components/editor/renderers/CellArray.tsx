@@ -35,7 +35,7 @@ import { aiEnabledAtom, autoInstantiateAtom } from "@/core/config/config";
 import { useAtomValue } from "jotai";
 import { useBoolean } from "@/hooks/useBoolean";
 import { AddCellWithAI } from "../ai/add-cell-with-ai";
-import { Milliseconds } from "@/utils/time";
+import type { Milliseconds } from "@/utils/time";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
 import { capabilitiesAtom } from "@/core/config/capabilities";
@@ -170,7 +170,7 @@ const AddCellButtons: React.FC = () => {
   const sqlCapabilities = useAtomValue(capabilitiesAtom).sql;
 
   const buttonClass = cn(
-    "mb-0 rounded-none px-4 sm:px-8 md:px-10 lg:px-16 tracking-wide",
+    "mb-0 rounded-none sm:px-4 md:px-5 lg:px-8 tracking-wide no-wrap whitespace-nowrap",
     "hover:bg-accent hover:text-accent-foreground font-semibold uppercase text-xs",
   );
 
@@ -187,7 +187,7 @@ const AddCellButtons: React.FC = () => {
           size="sm"
           onClick={() => createNewCell({ cellId: "__end__", before: false })}
         >
-          <SquareCodeIcon className="mr-2 size-4" />
+          <SquareCodeIcon className="mr-2 size-4 flex-shrink-0" />
           Code
         </Button>
         <Button
@@ -204,7 +204,7 @@ const AddCellButtons: React.FC = () => {
             });
           }}
         >
-          <SquareMIcon className="mr-2 size-4" />
+          <SquareMIcon className="mr-2 size-4 flex-shrink-0" />
           Markdown
         </Button>
         <Tooltip
@@ -234,7 +234,7 @@ const AddCellButtons: React.FC = () => {
               });
             }}
           >
-            <DatabaseIcon className="mr-2 size-4" />
+            <DatabaseIcon className="mr-2 size-4 flex-shrink-0" />
             SQL
           </Button>
         </Tooltip>
@@ -250,7 +250,7 @@ const AddCellButtons: React.FC = () => {
             disabled={!aiEnabled}
             onClick={isAiButtonOpenActions.toggle}
           >
-            <SparklesIcon className="mr-2 size-4" />
+            <SparklesIcon className="mr-2 size-4 flex-shrink-0" />
             Generate with AI
           </Button>
         </Tooltip>
