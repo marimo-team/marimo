@@ -37,7 +37,11 @@ import {
   updateEditorCodeFromPython,
 } from "../codemirror/language/utils";
 import { invariant } from "@/utils/invariant";
-import { CellConfig, CellStatus, UpdateCellIdsRequest } from "../network/types";
+import type {
+  CellConfig,
+  CellStatus,
+  UpdateCellIdsRequest,
+} from "../network/types";
 import { getUserConfig } from "@/core/config/config";
 import { syncCellIds } from "../network/requests";
 import { kioskModeAtom } from "../mode";
@@ -279,7 +283,11 @@ const {
     }
 
     const cellKey = state.cellIds[0];
-    state.cellHandles[cellKey].current?.editorView.focus();
+    const cellData = state.cellData[cellKey];
+    const cellHandle = state.cellHandles[cellKey];
+    if (!cellData.config.hide_code) {
+      cellHandle.current?.editorView.focus();
+    }
     scrollToTop();
     return state;
   },
@@ -289,7 +297,11 @@ const {
     }
 
     const cellKey = state.cellIds[state.cellIds.length - 1];
-    state.cellHandles[cellKey].current?.editorView.focus();
+    const cellData = state.cellData[cellKey];
+    const cellHandle = state.cellHandles[cellKey];
+    if (!cellData.config.hide_code) {
+      cellHandle.current?.editorView.focus();
+    }
     scrollToBottom();
     return state;
   },
