@@ -20,7 +20,6 @@ import {
   indentUnit,
   syntaxHighlighting,
 } from "@codemirror/language";
-import { lintKeymap } from "@codemirror/lint";
 import {
   drawSelection,
   dropCursor,
