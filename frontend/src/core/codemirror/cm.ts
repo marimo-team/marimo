@@ -20,7 +20,6 @@ import {
   indentUnit,
   syntaxHighlighting,
 } from "@codemirror/language";
-import { lintKeymap } from "@codemirror/lint";
 import {
   drawSelection,
   dropCursor,
@@ -143,7 +142,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
     indentOnInput(),
     indentUnit.of("    "),
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-    keymap.of([...foldKeymap, ...lintKeymap]),
+    keymap.of(foldKeymap),
 
     ///// Language Support
     adaptiveLanguageConfiguration(opts),
