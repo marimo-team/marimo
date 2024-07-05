@@ -40,7 +40,7 @@
       "packagePatterns": [".*radix.*"],
       "groupName": "all radix dependencies",
       "groupSlug": "all-radix",
-      "matchUpdateTypes": ["minor", "patch", "major"]
+      "matchUpdateTypes": ["patch"]
     },
     {
       "packagePatterns": [".*storybook.*"],
