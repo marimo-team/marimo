@@ -66,6 +66,7 @@ class RuntimeContext(abc.ABC):
     stream: Stream
     stdout: Stdout | None
     stderr: Stderr | None
+    children: list[RuntimeContext]
 
     @property
     @abc.abstractmethod
@@ -121,6 +122,26 @@ class RuntimeContext(abc.ABC):
     @abc.abstractmethod
     def with_cell_id(self, cell_id: CellId_t) -> Iterator[None]:
         pass
+
+    def add_child(self, runtime_context: RuntimeContext) -> None:
+        if runtime_context not in self.children:
+            self.children.append(runtime_context)
+
+    def remove_child(self, runtime_context: RuntimeContext) -> None:
+        self.children.remove(runtime_context)
+        assert runtime_context not in self.children
+
+    @contextmanager
+    def install(self) -> Iterator[None]:
+        global _THREAD_LOCAL_CONTEXT
+        old_ctx = _THREAD_LOCAL_CONTEXT.runtime_context
+        try:
+            _THREAD_LOCAL_CONTEXT.runtime_context = self
+            print("OVERRODE CTX! with ", self)
+            yield
+        finally:
+            _THREAD_LOCAL_CONTEXT.runtime_context = old_ctx
+            print("UNDID CTX!")
 
 
 class _ThreadLocalContext(threading.local):

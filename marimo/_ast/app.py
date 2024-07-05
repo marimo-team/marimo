@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable
 import random
 import string
-import sys
+import weakref
+from collections.abc import Awaitable
 from dataclasses import asdict, dataclass
 from typing import (
     TYPE_CHECKING,
@@ -19,12 +19,7 @@ from typing import (
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._ast.cell import (
-    Cell,
-    CellConfig,
-    CellId_t,
-    CellImpl,
-)
+from marimo._ast.cell import Cell, CellConfig, CellId_t, CellImpl
 from marimo._ast.compiler import cell_factory
 from marimo._ast.errors import (
     CycleError,
@@ -39,9 +34,7 @@ from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime import dataflow
 from marimo._runtime.context.types import get_context
-from marimo._runtime.patches import (
-    create_main_module,
-)
+from marimo._runtime.patches import create_main_module
 from marimo._runtime.requests import AppMetadata, ExecutionRequest
 from marimo._runtime.runner import cell_runner
 
@@ -219,10 +212,14 @@ class App:
         self._unparsable = True
 
     def _maybe_initialize(self) -> None:
-        from marimo._runtime.runtime import Kernel
+        from marimo._runtime.context.kernel_context import (
+            create_kernel_context,
+        )
+        from marimo._runtime.context.utils import running_in_notebook
         from marimo._runtime.runner.hooks_post_execution import (
             _reset_matplotlib_context,
         )
+        from marimo._runtime.runtime import Kernel
 
         if self._unparsable:
             raise RuntimeError(
@@ -274,10 +271,11 @@ class App:
             self._cached_outputs[cell.cell_id] = run_result.output
 
         filename = "<unknown>"
+        ctx = get_context()
         self._kernel = Kernel(
             cell_configs={},
             app_metadata=AppMetadata({}, {}, filename),
-            stream=get_context().stream,
+            stream=ctx.stream,
             stdout=None,
             stderr=None,
             stdin=None,
@@ -287,11 +285,31 @@ class App:
             post_execution_hooks=[cache_output, _reset_matplotlib_context],
         )
 
+        if running_in_notebook():
+            self._runtime_context = create_kernel_context(
+                kernel=self._kernel,
+                stream=ctx.stream,
+                stdout=None,
+                stderr=None,
+                virtual_files_supported=True,
+            )
+            ctx.add_child(self._runtime_context)
+            finalizer = weakref.finalize(
+                self, ctx.remove_child, self._runtime_context
+            )
+            finalizer.atexit = False
+        else:
+            self._runtime_context = ctx
+
     def _flatten_outputs(self, outputs: dict[CellId_t, Any]) -> Sequence[Any]:
+        def _app_cell_id(cid: str) -> str:
+            return self._app_uuid + "-" + cid
+
         return tuple(
-            outputs[cid]
-            for cid in self._kernel.graph.cells.keys()
-            if not self._kernel.graph.is_disabled(cid)
+            outputs[_app_cell_id(cid)]
+            for cid in self._cell_manager.valid_cell_ids()
+            if not self._kernel.graph.is_disabled(_app_cell_id(cid))
+            and _app_cell_id(cid) in outputs
         )
 
     def _process_outputs_and_defs(self) -> tuple[Sequence[Any], _Namespace]:
@@ -327,7 +345,13 @@ class App:
             if (cell := self._cell_manager.cell_data_at(cid).cell) is not None
         ]
         print("about to run")
-        await self._kernel.run(execution_requests)
+        from marimo._runtime.context.types import get_context
+
+        print("outer get_context()", get_context())
+        print("self._runtime_context: ", self._runtime_context)
+        with self._runtime_context.install():
+            print("inner get_context()", get_context())
+            await self._kernel.run(execution_requests)
         print("finished running")
         return self._process_outputs_and_defs()
 
@@ -429,6 +453,7 @@ class App:
 
         self._maybe_initialize()
 
+        # TODO: update to make working
         if self._pending_ui_element_updates and self._cached_defs:
             updated_names: set[str] = set()
             defining_cells = set()

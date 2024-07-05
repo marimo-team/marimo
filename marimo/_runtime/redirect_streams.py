@@ -53,11 +53,13 @@ def redirect_streams(
     stdin: Stdin | None,
 ) -> Iterator[None]:
     cell_id_old = stream.cell_id
-    print("installed cell id ", cell_id)
-    # TODO
+
     if cell_id_old is not None:
-        yield
-        return
+        try:
+            yield
+        finally:
+            return
+
     stream.cell_id = cell_id
     if stdout is None or stderr is None:
         try:

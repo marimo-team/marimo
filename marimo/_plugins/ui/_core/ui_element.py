@@ -262,6 +262,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         except ContextNotInitializedError:
             return self._value
 
+        print("execution_context: ", ctx.execution_context)
         print(".value: cid ", ctx.execution_context.cell_id)
         if (
             ctx.execution_context is not None

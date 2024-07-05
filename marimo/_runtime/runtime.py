@@ -486,6 +486,9 @@ class Kernel:
             cell_id, setting_element_value
         )
         print("installing execution context ", cell_id)
+        print(
+            "self.execution_context.cell_id ", self.execution_context.cell_id
+        )
         with get_context().provide_ui_ids(str(cell_id)), redirect_streams(
             cell_id,
             stream=self.stream,
@@ -493,6 +496,10 @@ class Kernel:
             stderr=self.stderr,
             stdin=self.stdin,
         ):
+            print(
+                "execution context has cid",
+                get_context().execution_context.cell_id,
+            )
             modules = None
             try:
                 if self.module_reloader is not None:
@@ -932,6 +939,7 @@ class Kernel:
         """
 
         print("roots: ", roots)
+
         # Some hooks that are leaky and require the kernel
         # Free cell state ahead of running to relieve memory pressure
         #

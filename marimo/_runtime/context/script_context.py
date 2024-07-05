@@ -118,5 +118,6 @@ def initialize_script_context(app: InternalApp, stream: Stream) -> None:
         stream=stream,
         stdout=None,
         stderr=None,
+        children=[],
     )
     initialize_context(runtime_context=runtime_context)
