@@ -143,7 +143,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
     indentOnInput(),
     indentUnit.of("    "),
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-    keymap.of([...foldKeymap, ...lintKeymap]),
+    keymap.of(foldKeymap),
 
     ///// Language Support
     adaptiveLanguageConfiguration(opts),
