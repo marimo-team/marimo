@@ -11,8 +11,9 @@ class NpndarrayFormatter(FormatterFactory):
         return "np.ndarray class type"
 
     def register(self) -> None:
-        from marimo._output import formatting
         import numpy as np
+
+        from marimo._output import formatting
 
         @formatting.formatter(np.ndarray)
         def _show_npndarray_plot(plot: np.ndarray) -> tuple[KnownMimeType, str]:

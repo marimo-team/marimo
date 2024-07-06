@@ -17,11 +17,11 @@ from marimo._output.formatters.holoviews_formatters import HoloViewsFormatter
 from marimo._output.formatters.ipython_formatters import IPythonFormatter
 from marimo._output.formatters.leafmap_formatters import LeafmapFormatter
 from marimo._output.formatters.matplotlib_formatters import MatplotlibFormatter
+from marimo._output.formatters.npndarray_formatters import NpndarrayFormatter
 from marimo._output.formatters.pandas_formatters import PandasFormatter
 from marimo._output.formatters.plotly_formatters import PlotlyFormatter
 from marimo._output.formatters.seaborn_formatters import SeabornFormatter
 from marimo._output.formatters.structures import StructuresFormatter
-from marimo._output.formatters.npndarray_formatters import NpndarrayFormatter
 
 # Map from formatter factory's package name to formatter, for third-party
 # modules. These formatters will be registered if and when their associated
