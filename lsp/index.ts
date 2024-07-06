@@ -17,7 +17,10 @@ if (argv.help) {
 let serverPort: number = parseInt(argv.port) || 3000;
 
 let languageServers: Record<string, string[]> = {
-  copilot: ["node", path.join(__dirname, "copilot", "dist", "language-server.js")],
+  copilot: [
+    "node",
+    path.join(__dirname, "copilot", "dist", "language-server.js"),
+  ],
 };
 
 const wss = new WebSocketServer(
