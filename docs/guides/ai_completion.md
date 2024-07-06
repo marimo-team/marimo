@@ -19,6 +19,28 @@ _Get started with Copilot_:
 _Note_: Copilot is not yet available in our conda distribution; please install
 marimo using `pip` if you need Copilot.
 
+## Codeium Copilot
+
+1. Go to the Codeium website and sign up for an account: <https://codeium.com/>
+2. Install the browser extension: <https://codeium.com/chrome_tutorial>
+3. Open the settings for the Chrome extension and click on "Get Token"
+
+<img src="https://github.com/Exafunction/codeium.jupyter/raw/main/img/1-extension-token.png">
+
+4. Right-click on the extension window and select "Inspect" to open the developer tools for the extension. Then click on "Network"
+5. Copy the token and paste it into the input area, and then press "Enter Token"
+6. This action will log a new API request in the **Network** tab. Click on "Preview" to get the API key.
+
+<img src="https://github.com/Exafunction/codeium.jupyter/raw/main/img/2-api-key.png">
+
+7. Paste the API key in the marimo settings in the UI, or add it to your `~/.marimo.toml` file as follows:
+
+```toml
+[completion]
+copilot = "codeium"
+codeium_api_key = ""
+```
+
 ## Using AI to modify cells
 
 This feature is currently experimental and is not enabled by default. To enable it:
@@ -31,8 +53,8 @@ This feature is currently experimental and is not enabled by default. To enable 
 [ai.open_ai]
 # Get your API key from https://platform.openai.com/account/api-keys
 api_key = "sk-..."
-# Choose a model, we recommend "gpt-3.5-turbo"
-model = "gpt-3.5-turbo"
+# Choose a model, we recommend "gpt-4-turbo"
+model = "gpt-4-turbo"
 # Change the base_url if you are using a different OpenAI-compatible API
 base_url = "https://api.openai.com"
 ```

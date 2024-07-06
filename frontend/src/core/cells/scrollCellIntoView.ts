@@ -4,7 +4,7 @@ import { Logger } from "../../utils/Logger";
 import { type CellId, HTMLCellId } from "./ids";
 import type { CellHandle } from "@/components/editor/Cell";
 import { goToVariableDefinition } from "../codemirror/go-to-definition/commands";
-import { CellConfig } from "../network/types";
+import type { CellConfig } from "../network/types";
 
 export function focusAndScrollCellIntoView({
   cellId,
@@ -93,9 +93,11 @@ export function focusAndScrollCellOutputIntoView(cellId: CellId) {
  * manually to the bottom/top is reliable.
  */
 export function scrollToBottom() {
-  window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+  const app = document.getElementById("App");
+  app?.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
 }
 
 export function scrollToTop() {
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  const app = document.getElementById("App");
+  app?.scrollTo({ top: 0, behavior: "smooth" });
 }

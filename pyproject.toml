@@ -37,8 +37,8 @@ dependencies = [
     "websockets >= 10.0.0,<13.0.0",
     # python <=3.10 compatibility
     "typing_extensions>=4.4.0; python_version < \"3.11\"",
-    # for rst parsing
-    "docutils>=0.17.0",
+    # for rst parsing; lowerbound determined by awscli requiring < 0.17,
+    "docutils>=0.16.0",
     # to show RAM, CPU usage, other system utilities
     "psutil>=5.0",
     # required dependency in Starlette for SessionMiddleware support
@@ -95,7 +95,7 @@ dev = [
     "types-Markdown~=3.6.0.20240316",
     "types-PyYAML~=6.0.12.20240311",
     "mypy~=1.10.0",
-    "ruff~=0.3.6",
+    "ruff~=0.5.0",
     "typos~=1.17.1",
     # For docs
     "pypandoc~=1.11",
@@ -159,10 +159,12 @@ exclude = [
     "marimo/_test_utils/codegen_data",
     "marimo/_test_utils/_tutorials",
     "marimo/_static/files/wasm-intro.py",
+    "tests/_ast/app_data",
     "tests/_ast/codegen_data",
     "tests/_ast/cell_data",
     "tests/_cli/ipynb_data",
     "tests/_runtime/runtime_data",
+    "tests/_ast/test_app.py",
     "frontend",
     "docs",
     "build",
@@ -262,6 +264,7 @@ fixture-parentheses = false
 strict = true
 exclude = [
     'examples',
+    'tests/_ast/app_data',
     'tests/_ast/codegen_data',
     'tests/_ast/cell_data',
     'tests/_cli/ipynb_data',
@@ -280,7 +283,7 @@ ignore_errors = true
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra -q -v --ignore tests/_cli/ipynb_data --ignore tests/_ast/codegen_data"
+addopts = "-ra -q -v --ignore tests/_cli/ipynb_data --ignore tests/_ast/codegen_data --ignore tests/_ast/app_data"
 testpaths = [
     "tests",
 ]

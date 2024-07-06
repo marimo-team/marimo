@@ -2,7 +2,7 @@
 
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import type { DatasetsState } from "./types";
-import { useAtomValue } from "jotai";
+import { atom, useAtomValue } from "jotai";
 import { VariableName } from "../variables/types";
 import { DataColumnPreview } from "../kernel/messages";
 import { previewDatasetColumn } from "../network/requests";
@@ -105,12 +105,16 @@ const {
  */
 export const useDatasets = () => useAtomValue(datasetsAtom);
 
+export const datasetTablesAtom = atom((get) => get(datasetsAtom).tables);
+
 /**
  * React hook to get the datasets actions.
  */
 export function useDatasetsActions() {
   return useActions();
 }
+
+export { datasetsAtom };
 
 export const exportedForTesting = {
   reducer,

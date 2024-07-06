@@ -42,17 +42,27 @@ export const OutputRenderer: React.FC<{
     }
   }, [message.mimetype, message.data]);
 
-  const channel = message.channel;
+  const { channel, data, mimetype } = message;
+
+  if (data == null) {
+    return null;
+  }
 
   // TODO(akshayka): audio; pdf; text/csv; excel?; text/css; text/javascript
-  switch (message.mimetype) {
+  switch (mimetype) {
     case "text/html":
-      invariant(typeof message.data === "string", "Expected string data");
-      return <HtmlOutput className={channel} html={message.data} />;
+      invariant(
+        typeof data === "string",
+        `Expected string data for mime=${mimetype}. Got ${typeof data}`,
+      );
+      return <HtmlOutput className={channel} html={data} />;
 
     case "text/plain":
-      invariant(typeof message.data === "string", "Expected string data");
-      return <TextOutput channel={channel} text={message.data} />;
+      invariant(
+        typeof data === "string",
+        `Expected string data for mime=${mimetype}. Got ${typeof data}`,
+      );
+      return <TextOutput channel={channel} text={data} />;
 
     case "application/json":
       // TODO: format is 'auto', but should make configurable once cells can
@@ -67,28 +77,38 @@ export const OutputRenderer: React.FC<{
     case "image/bmp":
     case "image/gif":
     case "image/jpeg":
-      invariant(typeof message.data === "string", "Expected string data");
-      return <ImageOutput className={channel} src={message.data} alt="" />;
+      invariant(
+        typeof data === "string",
+        `Expected string data for mime=${mimetype}. Got ${typeof data}`,
+      );
+      return <ImageOutput className={channel} src={data} alt="" />;
 
     case "video/mp4":
     case "video/mpeg":
-      invariant(typeof message.data === "string", "Expected string data");
-      return <VideoOutput className={channel} src={message.data} />;
+      invariant(
+        typeof data === "string",
+        `Expected string data for mime=${mimetype}. Got ${typeof data}`,
+      );
+      return <VideoOutput className={channel} src={data} />;
 
     case "application/vnd.marimo+error":
-      invariant(Array.isArray(message.data), "Expected array data");
-      return <MarimoErrorOutput errors={message.data} />;
+      invariant(Array.isArray(data), "Expected array data");
+      return <MarimoErrorOutput errors={data} />;
 
     case "text/csv":
-      invariant(typeof message.data === "string", "Expected string data");
-      return <CsvViewer contents={message.data} />;
-    case "text/markdown":
-      invariant(typeof message.data === "string", "Expected string data");
-      return (
-        <LazyAnyLanguageCodeMirror value={message.data} language="markdown" />
+      invariant(
+        typeof data === "string",
+        `Expected string data for mime=${mimetype}. Got ${typeof data}`,
       );
+      return <CsvViewer contents={data} />;
+    case "text/markdown":
+      invariant(
+        typeof data === "string",
+        `Expected string data for mime=${mimetype}. Got ${typeof data}`,
+      );
+      return <LazyAnyLanguageCodeMirror value={data} language="markdown" />;
     default:
-      logNever(message.mimetype);
+      logNever(mimetype);
       return null;
   }
 });

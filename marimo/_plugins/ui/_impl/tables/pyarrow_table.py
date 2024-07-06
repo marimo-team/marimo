@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import io
-from typing import Any, Union, cast
+from typing import Any, Tuple, Union, cast
 
-from marimo._data.models import ColumnSummary
+from marimo._data.models import ColumnSummary, ExternalDataType
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
     FieldType,
@@ -75,7 +75,7 @@ class PyArrowTableManagerFactory(TableManagerFactory):
 
             def get_row_headers(
                 self,
-            ) -> list[tuple[str, list[str | int | float]]]:
+            ) -> list[str]:
                 return []
 
             @staticmethod
@@ -127,7 +127,7 @@ class PyArrowTableManagerFactory(TableManagerFactory):
                 idx = self.data.schema.get_field_index(column)
                 col: Any = self.data.column(idx)
 
-                field_type = self._get_field_type(col)
+                field_type = self._get_field_type(col)[0]
                 if field_type == "unknown":
                     return ColumnSummary()
                 if field_type == "string":
@@ -197,24 +197,27 @@ class PyArrowTableManagerFactory(TableManagerFactory):
                 return PyArrowTableManager(sorted_data)
 
             @staticmethod
-            def _get_field_type(column: pa.Array[Any, Any]) -> FieldType:
+            def _get_field_type(
+                column: pa.Array[Any, Any],
+            ) -> Tuple[FieldType, ExternalDataType]:
+                dtype_string = str(column.type)
                 if isinstance(column, pa.NullArray):
-                    return "unknown"
+                    return ("unknown", dtype_string)
                 elif pa.types.is_string(column.type):
-                    return "string"
+                    return ("string", dtype_string)
                 elif pa.types.is_boolean(column.type):
-                    return "boolean"
+                    return ("boolean", dtype_string)
                 elif pa.types.is_integer(column.type):
-                    return "integer"
+                    return ("integer", dtype_string)
                 elif pa.types.is_floating(column.type) or pa.types.is_decimal(
                     column.type
                 ):
-                    return "number"
+                    return ("number", dtype_string)
                 elif pa.types.is_date(column.type) or pa.types.is_timestamp(
                     column.type
                 ):
-                    return "date"
+                    return ("date", dtype_string)
                 else:
-                    return "unknown"
+                    return ("unknown", dtype_string)
 
         return PyArrowTableManager

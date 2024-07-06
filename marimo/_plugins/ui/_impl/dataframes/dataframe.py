@@ -39,7 +39,9 @@ class GetDataFrameResponse:
     url: str
     has_more: bool
     total_rows: int
-    row_headers: List[tuple[str, List[str | int | float]]]
+    # List of column names that are actually row headers
+    # This really only applies to Pandas, that has special index columns
+    row_headers: List[str]
     supports_code_sample: bool
 
 
@@ -166,7 +168,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
 
     def _get_column_types(self) -> List[List[Union[str, int]]]:
         return [
-            [name, dtype]
+            [name, dtype[0], dtype[1]]
             for name, dtype in self._manager.get_field_types().items()
         ]
 

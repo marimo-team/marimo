@@ -1,9 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
 
-from marimo._data.models import ColumnSummary
+from marimo._data.models import ColumnSummary, ExternalDataType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.dataframe_protocol import (
     Column,
@@ -82,7 +82,7 @@ class DataFrameProtocolTableManager(TableManager[DataFrameLike]):
 
     def get_row_headers(
         self,
-    ) -> list[tuple[str, list[str | int | float]]]:
+    ) -> list[str]:
         return []
 
     def get_field_types(self) -> FieldTypes:
@@ -122,24 +122,24 @@ class DataFrameProtocolTableManager(TableManager[DataFrameLike]):
         return self._ensure_delegate().sort_values(by, descending)
 
     @staticmethod
-    def _get_field_type(column: Column) -> FieldType:
+    def _get_field_type(column: Column) -> Tuple[FieldType, ExternalDataType]:
         kind = column.dtype[0]
         if kind == DtypeKind.BOOL:
-            return "boolean"
+            return ("boolean", "BOOL")
         elif kind == DtypeKind.INT:
-            return "integer"
+            return ("integer", "INT")
         elif kind == DtypeKind.UINT:
-            return "integer"
+            return ("integer", "UINT")
         elif kind == DtypeKind.FLOAT:
-            return "number"
+            return ("number", "FLOAT")
         elif kind == DtypeKind.STRING:
-            return "string"
+            return ("string", "STRING")
         elif kind == DtypeKind.DATETIME:
-            return "date"
+            return ("date", "DATETIME")
         elif kind == DtypeKind.CATEGORICAL:
-            return "string"
+            return ("string", "CATEGORICAL")
         else:
-            return "unknown"
+            return ("unknown", "UNKNOWN")
 
 
 # Copied from Altair

@@ -172,6 +172,7 @@ class CellImpl:
     def set_status(
         self, status: CellStatusType, stream: Stream | None = None
     ) -> None:
+        """Set execution status and broadcast to frontends."""
         from marimo._messaging.ops import CellOp
         from marimo._runtime.context import (
             ContextNotInitializedError,

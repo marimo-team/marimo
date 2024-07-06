@@ -28,6 +28,7 @@ from marimo import _loggers as loggers
 from marimo._ast.app import _AppConfig
 from marimo._ast.cell import CellConfig, CellId_t, CellStatusType
 from marimo._data.models import ColumnSummary, DataTable
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.completion_option import CompletionOption
 from marimo._messaging.errors import Error
@@ -238,7 +239,6 @@ class CellOp(Op):
         data: Sequence[Error],
         clear_console: bool,
         cell_id: CellId_t,
-        status: Optional[CellStatusType],
     ) -> None:
         console: Optional[list[CellOutput]] = [] if clear_console else None
         CellOp(
@@ -249,7 +249,7 @@ class CellOp(Op):
                 data=data,
             ),
             console=console,
-            status=status,
+            status=None,
         ).broadcast()
 
     @staticmethod
@@ -323,6 +323,14 @@ class CompletedRun(Op):
 
 
 @dataclass
+class KernelCapabilities:
+    sql: bool = False
+
+    def __post_init__(self) -> None:
+        self.sql = DependencyManager.has_duckdb()
+
+
+@dataclass
 class KernelReady(Op):
     """Kernel is ready for execution."""
 
@@ -344,6 +352,8 @@ class KernelReady(Op):
     app_config: _AppConfig
     # Whether the kernel is kiosk mode
     kiosk: bool
+    # Kernel capabilities
+    capabilities: KernelCapabilities
 
 
 @dataclass
@@ -441,7 +451,12 @@ class VariableValue:
             self.value = None
 
     def _stringify(self, value: object) -> str:
-        return str(value)[:50]
+        try:
+            return str(value)[:50]
+        except BaseException:
+            # Catch-all: some libraries like Polars have bugs and raise
+            # BaseExceptions, which shouldn't crash the kernel
+            return "<UNKNOWN>"
 
     def _format_value(self, value: object) -> str:
         resolved = value

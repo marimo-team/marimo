@@ -2,17 +2,13 @@
 import { memo, useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { DataTable } from "../../components/data-table/data-table";
-import {
-  generateColumns,
-  generateIndexColumns,
-} from "../../components/data-table/columns";
+import { generateColumns } from "../../components/data-table/columns";
 import { Labeled } from "./common/labeled";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { rpc } from "../core/rpc";
 import { createPlugin } from "../core/builder";
 import { vegaLoadData } from "./vega/loader";
-import { DataType } from "./vega/vega-loader";
 import { getVegaFieldTypes } from "./vega/utils";
 import { Arrays } from "@/utils/arrays";
 import { Banner } from "./common/error-banner";
@@ -22,7 +18,10 @@ import { ColumnChartContext } from "@/components/data-table/column-summary";
 import { Logger } from "@/utils/Logger";
 import { LoadingTable } from "@/components/data-table/loading-table";
 import { DelayMount } from "@/components/utils/delay-mount";
-import { ColumnHeaderSummary } from "@/components/data-table/types";
+import {
+  ColumnHeaderSummary,
+  FieldTypesWithExternalType,
+} from "@/components/data-table/types";
 import {
   ColumnFiltersState,
   OnChangeFn,
@@ -37,6 +36,7 @@ import {
   ColumnFilterValue,
   filterToFilterCondition,
 } from "@/components/data-table/filters";
+import { Objects } from "@/utils/objects";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -58,8 +58,8 @@ interface Data<T> {
   showDownload: boolean;
   showFilters: boolean;
   showColumnSummaries: boolean;
-  rowHeaders: Array<[string, string[]]>;
-  fieldTypes?: Record<string, DataType> | null;
+  rowHeaders: string[];
+  fieldTypes?: FieldTypesWithExternalType | null;
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -94,10 +94,20 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       showDownload: z.boolean().default(false),
       showFilters: z.boolean().default(false),
       showColumnSummaries: z.boolean().default(true),
-      rowHeaders: z.array(z.tuple([z.string(), z.array(z.any())])),
+      rowHeaders: z.array(z.string()),
       fieldTypes: z
         .record(
-          z.enum(["boolean", "integer", "number", "date", "string", "unknown"]),
+          z.tuple([
+            z.enum([
+              "boolean",
+              "integer",
+              "number",
+              "date",
+              "string",
+              "unknown",
+            ]),
+            z.string(),
+          ]),
         )
         .nullish(),
     }),
@@ -226,10 +236,15 @@ export const LoadingDataTableComponent = memo(
         return tableData;
       }
 
+      const withoutExternalTypes = Objects.mapValues(
+        props.fieldTypes ?? {},
+        ([type]) => type,
+      );
+
       // Otherwise, load the data from the URL
       return vegaLoadData(
         tableData,
-        { type: "csv", parse: getVegaFieldTypes(props.fieldTypes) },
+        { type: "csv", parse: getVegaFieldTypes(withoutExternalTypes) },
         { handleBigInt: true },
       );
     }, [sorting, search, filters, searchQuery, props.fieldTypes, props.data]);
@@ -327,16 +342,25 @@ const DataTableComponent = ({
     if (!fieldTypes || !data || !columnSummaries) {
       return ColumnChartSpecModel.EMPTY;
     }
-    return new ColumnChartSpecModel(data, fieldTypes, columnSummaries, {
-      includeCharts: !resultsAreClipped,
-    });
+    const fieldTypesWithoutExternalTypes = Objects.mapValues(
+      fieldTypes,
+      ([type]) => type,
+    );
+    return new ColumnChartSpecModel(
+      data,
+      fieldTypesWithoutExternalTypes,
+      columnSummaries,
+      {
+        includeCharts: !resultsAreClipped,
+      },
+    );
   }, [data, fieldTypes, columnSummaries, resultsAreClipped]);
 
   const columns = useMemo(
     () =>
       generateColumns({
         items: data,
-        rowHeaders: generateIndexColumns(rowHeaders),
+        rowHeaders: rowHeaders,
         selection,
         showColumnSummaries: showColumnSummaries,
         fieldTypes: fieldTypes ?? {},

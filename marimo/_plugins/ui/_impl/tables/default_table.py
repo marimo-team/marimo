@@ -131,7 +131,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
             ]
         )
 
-    def get_row_headers(self) -> list[tuple[str, list[str | int | float]]]:
+    def get_row_headers(self) -> list[str]:
         return []
 
     def _as_table_manager(self) -> TableManager[Any]:

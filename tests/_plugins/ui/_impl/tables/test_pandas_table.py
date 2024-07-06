@@ -89,10 +89,7 @@ class TestPandasTableManager(unittest.TestCase):
             index=pd.to_datetime(["2021-01-01", "2021-06-01", "2021-09-01"]),
         )
         manager = self.factory.create()(data)
-        expected_headers = [
-            ("", ["2021-01-01", "2021-06-01", "2021-09-01"]),
-        ]
-        assert manager.get_row_headers() == expected_headers
+        assert manager.get_row_headers() == [""]
 
     def test_get_row_headers_timedelta_index(self) -> None:
         import pandas as pd
@@ -106,10 +103,7 @@ class TestPandasTableManager(unittest.TestCase):
             index=pd.to_timedelta(["1 days", "2 days", "3 days"]),
         )
         manager = self.factory.create()(data)
-        expected_headers = [
-            ("", ["1 days", "2 days", "3 days"]),
-        ]
-        assert manager.get_row_headers() == expected_headers
+        assert manager.get_row_headers() == [""]
 
     def test_get_row_headers_multi_index(self) -> None:
         import pandas as pd
@@ -125,11 +119,7 @@ class TestPandasTableManager(unittest.TestCase):
             ),
         )
         manager = self.factory.create()(data)
-        expected_headers = [
-            ("X", ["a", "b", "c"]),
-            ("Y", [1, 2, 3]),
-        ]
-        assert manager.get_row_headers() == expected_headers
+        assert manager.get_row_headers() == ["X", "Y"]
 
     def test_is_type(self) -> None:
         assert self.manager.is_type(self.data)
@@ -139,12 +129,12 @@ class TestPandasTableManager(unittest.TestCase):
         import pandas as pd
 
         expected_field_types = {
-            "A": "integer",
-            "B": "string",
-            "C": "number",
-            "D": "boolean",
-            "E": "date",
-            "F": "string",
+            "A": ("integer", "int64"),
+            "B": ("string", "object"),
+            "C": ("number", "float64"),
+            "D": ("boolean", "bool"),
+            "E": ("date", "datetime64[ns]"),
+            "F": ("string", "object"),
         }
         assert self.manager.get_field_types() == expected_field_types
 
@@ -175,16 +165,16 @@ class TestPandasTableManager(unittest.TestCase):
             }
         )
         expected_field_types = {
-            "A": "integer",
-            "B": "string",
-            "C": "number",
-            "D": "boolean",
-            "E": "unknown",
-            "F": "string",
-            "G": "string",
-            "H": "date",
-            "I": "string",
-            "J": "string",
+            "A": ("integer", "int64"),
+            "B": ("string", "object"),
+            "C": ("number", "float64"),
+            "D": ("boolean", "bool"),
+            "E": ("unknown", "complex128"),
+            "F": ("string", "object"),
+            "G": ("string", "object"),
+            "H": ("date", "datetime64[ns]"),
+            "I": ("string", "timedelta64[ns]"),
+            "J": ("string", "interval[int64, right]"),
         }
         assert (
             self.factory.create()(complex_data).get_field_types()
@@ -203,7 +193,7 @@ class TestPandasTableManager(unittest.TestCase):
         )
         data = data.rename(columns={"A": "B"})
         expected_field_types = {
-            "B": "string",
+            "B": ("string", "object"),
         }
         assert (
             self.factory.create()(data).get_field_types()
@@ -219,7 +209,7 @@ class TestPandasTableManager(unittest.TestCase):
         )
         data = data.rename(columns={"A": "B"})
         expected_field_types = {
-            "B": "string",
+            "B": ("string", "object"),
         }
         assert (
             self.factory.create()(data).get_field_types()
@@ -235,7 +225,7 @@ class TestPandasTableManager(unittest.TestCase):
         )
         data = data.rename(columns={"A": "B"})
         expected_field_types = {
-            "B": "string",
+            "B": ("string", "object"),
         }
         assert (
             self.factory.create()(data).get_field_types()
@@ -338,6 +328,20 @@ class TestPandasTableManager(unittest.TestCase):
         sorted_df = self.manager.sort_values("A", descending=True).data
         expected_df = self.data.sort_values("A", ascending=False)
         assert sorted_df.equals(expected_df)
+
+    def test_sort_values_with_index(self) -> None:
+        import pandas as pd
+
+        data = pd.DataFrame(
+            {
+                "A": [1, 3, 2],
+            },
+            index=[1, 3, 2],
+        )
+        data.index.name = "index"
+        manager = self.factory.create()(data)
+        sorted_df = manager.sort_values("A", descending=True).data
+        assert sorted_df.index.tolist() == [3, 2, 1]
 
     def test_get_unique_column_values(self) -> None:
         column = "B"

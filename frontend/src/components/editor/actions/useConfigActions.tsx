@@ -74,18 +74,30 @@ export function useConfigActions() {
       },
     },
     {
-      label: config.completion.copilot
-        ? "Config > Disable GitHub Copilot"
-        : "Config > Enable GitHub Copilot",
+      label: "Config > Disable GitHub Copilot",
       handle: () => {
         handleUserConfig({
           ...config,
           completion: {
             ...config.completion,
-            copilot: !config.completion.copilot,
+            copilot: false,
           },
         });
       },
+      hidden: config.completion.copilot !== "github",
+    },
+    {
+      label: "Config > Enable GitHub Copilot",
+      handle: () => {
+        handleUserConfig({
+          ...config,
+          completion: {
+            ...config.completion,
+            copilot: "github",
+          },
+        });
+      },
+      hidden: config.completion.copilot === "github",
     },
   ];
 

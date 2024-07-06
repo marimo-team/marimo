@@ -20,11 +20,15 @@ from marimo._messaging.streams import (
     ThreadSafeStdout,
     ThreadSafeStream,
 )
+from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime.context import teardown_context
 from marimo._runtime.context.kernel_context import initialize_kernel_context
 from marimo._runtime.marimo_pdb import MarimoPdb
 from marimo._runtime.requests import AppMetadata, ExecutionRequest
 from marimo._runtime.runtime import Kernel
+
+# register import hooks for third-party module formatters
+register_formatters()
 
 
 @dataclasses.dataclass

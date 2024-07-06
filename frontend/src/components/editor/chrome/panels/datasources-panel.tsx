@@ -10,12 +10,16 @@ import { Command, CommandInput, CommandItem } from "@/components/ui/command";
 import { CommandList } from "cmdk";
 
 import { cn } from "@/utils/cn";
-import { useDatasets, useDatasetsActions } from "@/core/datasets/state";
+import {
+  datasetTablesAtom,
+  useDatasets,
+  useDatasetsActions,
+} from "@/core/datasets/state";
 import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 import { Button } from "@/components/ui/button";
-import { useCellActions } from "@/core/cells/cells";
+import { cellIdsAtom, useCellActions } from "@/core/cells/cells";
 import { lastFocusedCellIdAtom } from "@/core/cells/focus";
-import { useAtomValue } from "jotai";
+import { atom, useAtomValue } from "jotai";
 import { Tooltip } from "@/components/ui/tooltip";
 import { PanelEmptyState } from "./empty-state";
 import { previewDatasetColumn } from "@/core/network/requests";
@@ -36,16 +40,44 @@ import {
   DataTable,
   DataTableColumn,
 } from "@/core/kernel/messages";
+import { variablesAtom } from "@/core/variables/state";
+import { sortBy } from "lodash-es";
+
+const sortedTablesAtom = atom((get) => {
+  const tables = get(datasetTablesAtom);
+  const variables = get(variablesAtom);
+  const cellIds = get(cellIdsAtom);
+
+  // Sort tables by the index of the variable they are defined in
+  return sortBy(tables, (table) => {
+    // Put at the top
+    if (!table.variable_name) {
+      return -1;
+    }
+    const variable = Object.values(variables).find(
+      (v) => v.name === table.variable_name,
+    );
+    if (!variable) {
+      return 0;
+    }
+
+    const index = cellIds.indexOf(variable.declaredBy[0]);
+    if (index === -1) {
+      return 0;
+    }
+    return index;
+  });
+});
 
 export const DataSourcesPanel: React.FC = () => {
   const [searchValue, setSearchValue] = React.useState<string>("");
 
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const lastFocusedCellId = useAtomValue(lastFocusedCellIdAtom);
-  const { tables, expandedColumns, expandedTables, columnsPreviews } =
-    useDatasets();
+  const { expandedColumns, expandedTables, columnsPreviews } = useDatasets();
   const { toggleTable, toggleColumn, closeAllColumns } = useDatasetsActions();
   const { createNewCell } = useCellActions();
+  const tables = useAtomValue(sortedTablesAtom);
 
   if (tables.length === 0) {
     return (
@@ -289,7 +321,7 @@ const DatasetColumnItem: React.FC<{
       onSelect={() => onExpandColumn(table, column)}
     >
       <div className="flex flex-row gap-2 items-center pl-6 flex-1">
-        <Icon className="h-3 w-3" strokeWidth={1.5} />
+        <Icon className="flex-shrink-0 h-3 w-3" strokeWidth={1.5} />
         <span>{column.name}</span>
       </div>
       <Tooltip content="Copy column name" delayDuration={400}>
@@ -305,6 +337,9 @@ const DatasetColumnItem: React.FC<{
           />
         </Button>
       </Tooltip>
+      <span className="text-xs text-muted-foreground">
+        {column.external_type}
+      </span>
     </CommandItem>
   );
 };

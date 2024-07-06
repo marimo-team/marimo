@@ -7,7 +7,9 @@ from decimal import Decimal
 from typing import List, Literal, Optional, Union
 
 DataType = Literal["string", "boolean", "integer", "number", "date", "unknown"]
-NumpyType = str
+# This is the data type based on the source library
+# e.g. polars, pandas, numpy, etc.
+ExternalDataType = str
 
 
 @dataclass
@@ -22,6 +24,7 @@ class DataTableColumn:
 
     name: str
     type: DataType
+    external_type: ExternalDataType
 
 
 @dataclass

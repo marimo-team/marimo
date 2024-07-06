@@ -10,6 +10,7 @@ import { uniformSample } from "./uniformSample";
 import { DataType } from "@/core/kernel/messages";
 import { TableColumnSummary } from "./column-summary";
 import { FilterType } from "./filters";
+import { FieldTypesWithExternalType } from "./types";
 
 interface ColumnInfo {
   key: string;
@@ -37,7 +38,7 @@ function getColumnInfo<T>(items: T[]): ColumnInfo[] {
     }
     // We will be a bit defensive and assume values are not homogeneous.
     // If any is a mimetype, then we will treat it as a mimetype (i.e. not sortable)
-    Object.entries(item as object).forEach(([key, value]) => {
+    Object.entries(item as object).forEach(([key, value], idx) => {
       const currentValue = keys.get(key);
       if (!currentValue) {
         // Set for the first time
@@ -71,16 +72,17 @@ export function generateColumns<T>({
   fieldTypes,
 }: {
   items: T[];
-  rowHeaders: Array<ColumnDef<T>>;
+  rowHeaders: string[];
   selection: "single" | "multi" | null;
   showColumnSummaries: boolean;
-  fieldTypes?: Record<string, DataType>;
+  fieldTypes?: FieldTypesWithExternalType;
 }): Array<ColumnDef<T>> {
   const columnInfo = getColumnInfo(items);
+  const rowHeadersSet = new Set(rowHeaders);
 
   const columns = columnInfo.map(
-    (info): ColumnDef<T> => ({
-      id: info.key,
+    (info, idx): ColumnDef<T> => ({
+      id: info.key || `__m_column__${idx}`,
       // Use an accessorFn instead of an accessorKey because column names
       // may have periods in them ...
       // https://github.com/TanStack/table/issues/1671
@@ -89,6 +91,11 @@ export function generateColumns<T>({
         return (row as any)[info.key];
       },
       header: ({ column }) => {
+        // Row headers have no summaries
+        if (rowHeadersSet.has(info.key)) {
+          return <DataTableColumnHeader header={info.key} column={column} />;
+        }
+
         if (!showColumnSummaries) {
           return <DataTableColumnHeader header={info.key} column={column} />;
         }
@@ -102,6 +109,11 @@ export function generateColumns<T>({
         );
       },
       cell: ({ renderValue, getValue }) => {
+        // Row headers are bold
+        if (rowHeadersSet.has(info.key)) {
+          return <b>{String(renderValue())}</b>;
+        }
+
         const value = getValue();
         if (isPrimitiveOrNullish(value)) {
           const rendered = renderValue();
@@ -112,19 +124,18 @@ export function generateColumns<T>({
         }
         return <MimeCell value={value} />;
       },
-      enableSorting: info.type === "primitive",
+      // Only enable sorting for primitive types and non-row headers
+      enableSorting: info.type === "primitive" && !rowHeadersSet.has(info.key),
       // Remove any default filtering
       filterFn: undefined,
       meta: {
         type: info.type,
-        filterType: getFilterTypeForFieldType(fieldTypes?.[info.key]),
+        rowHeader: rowHeadersSet.has(info.key),
+        filterType: getFilterTypeForFieldType(fieldTypes?.[info.key]?.[0]),
+        dtype: fieldTypes?.[info.key]?.[1],
       },
     }),
   );
-
-  if (rowHeaders.length > 0) {
-    columns.unshift(...rowHeaders);
-  }
 
   if (selection === "single" || selection === "multi") {
     columns.unshift({
@@ -156,29 +167,6 @@ export function generateColumns<T>({
   }
 
   return columns;
-}
-
-/**
- * Turn rowHeaders into a list of columns
- */
-export function generateIndexColumns<T>(
-  rowHeaders: Array<[string, string[]]>,
-): Array<ColumnDef<T>> {
-  return rowHeaders.map(
-    ([title, keys], idx): ColumnDef<T> => ({
-      id: `_row_header_${idx}`,
-      accessorFn: (_row, idx) => {
-        return keys[idx];
-      },
-      header: ({ column }) => {
-        return <DataTableColumnHeader header={title} column={column} />;
-      },
-      cell: ({ renderValue }) => {
-        return <b>{String(renderValue())}</b>;
-      },
-      enableSorting: false,
-    }),
-  );
 }
 
 function isPrimitiveOrNullish(value: unknown): boolean {

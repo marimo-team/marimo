@@ -20,12 +20,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import { useTheme } from "@/theme/useTheme";
 import { asURL } from "@/utils/url";
+import { LanguageAdapterType } from "@/core/codemirror/language/types";
 
 const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
 
 interface Props {
   currentCode: string;
+  currentLanguageAdapter: LanguageAdapterType | undefined;
   onChange: (code: string) => void;
   declineChange: () => void;
   acceptChange: (rightHandCode: string) => void;
@@ -40,6 +42,7 @@ const baseExtensions = [customPythonLanguageSupport(), EditorView.lineWrapping];
 
 export const AiCompletionEditor: React.FC<Props> = ({
   onChange,
+  currentLanguageAdapter,
   currentCode,
   declineChange,
   acceptChange,
@@ -65,6 +68,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
     body: {
       includeOtherCode: includeOtherCells ? getCodes(currentCode) : "",
       code: currentCode,
+      language: currentLanguageAdapter,
     },
     onError: (error) => {
       toast({

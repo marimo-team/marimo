@@ -46,20 +46,26 @@ const Tooltip: React.FC<
   tabIndex,
   side,
   ...rootProps
-}) => (
-  <TooltipRoot disableHoverableContent={true} {...rootProps}>
-    <TooltipTrigger asChild={asChild} tabIndex={tabIndex}>
-      {children}
-    </TooltipTrigger>
-    {usePortal ? (
-      <TooltipPrimitive.TooltipPortal>
+}) => {
+  if (content == null || content === "") {
+    return children;
+  }
+
+  return (
+    <TooltipRoot disableHoverableContent={true} {...rootProps}>
+      <TooltipTrigger asChild={asChild} tabIndex={tabIndex}>
+        {children}
+      </TooltipTrigger>
+      {usePortal ? (
+        <TooltipPrimitive.TooltipPortal>
+          <TooltipContent side={side}>{content}</TooltipContent>
+        </TooltipPrimitive.TooltipPortal>
+      ) : (
         <TooltipContent side={side}>{content}</TooltipContent>
-      </TooltipPrimitive.TooltipPortal>
-    ) : (
-      <TooltipContent side={side}>{content}</TooltipContent>
-    )}
-  </TooltipRoot>
-);
+      )}
+    </TooltipRoot>
+  );
+};
 
 export {
   Tooltip,

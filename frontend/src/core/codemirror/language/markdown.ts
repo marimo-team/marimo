@@ -6,7 +6,6 @@ import { languages } from "@codemirror/language-data";
 import { parseMixed } from "@lezer/common";
 import { python, pythonLanguage } from "@codemirror/lang-python";
 import dedent from "string-dedent";
-import { logNever } from "@/utils/assertNever";
 import {
   Completion,
   CompletionSource,
@@ -16,9 +15,8 @@ import { once } from "lodash-es";
 import { enhancedMarkdownExtension } from "../markdown/extension";
 import { CompletionConfig } from "@/core/config/config-schema";
 import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
-
-const prefixKinds = ["", "f", "r", "fr", "rf"] as const;
-type PrefixKind = (typeof prefixKinds)[number];
+import { indentOneTab } from "./utils/indentOneTab";
+import { QuotePrefixKind, splitQuotePrefix } from "./utils/quotes";
 
 const quoteKinds = [
   ['"""', '"""'],
@@ -26,8 +24,14 @@ const quoteKinds = [
   ['"', '"'],
   ["'", "'"],
 ];
+
 // explode into all combinations
-const pairs = prefixKinds.flatMap((prefix) =>
+//
+// A note on f-strings:
+//
+// f-strings are not yet supported due to bad interactions with
+// string escaping, LaTeX, and loss of Python syntax highlighting
+const pairs = ["", "r"].flatMap((prefix) =>
   quoteKinds.map(([start, end]) => [prefix + start, end]),
 );
 
@@ -44,13 +48,22 @@ const regexes = pairs.map(
  * Language adapter for Markdown.
  */
 export class MarkdownLanguageAdapter implements LanguageAdapter {
-  type = "markdown" as const;
+  readonly type = "markdown";
+  readonly defaultCode = 'mo.md(r"""\n""")';
 
-  lastQuotePrefix: PrefixKind = "";
+  lastQuotePrefix: QuotePrefixKind = "";
 
   transformIn(pythonCode: string): [string, number] {
     if (!this.isSupported(pythonCode)) {
       throw new Error("Not supported");
+    }
+
+    pythonCode = pythonCode.trim();
+
+    // empty string
+    if (pythonCode === "") {
+      this.lastQuotePrefix = "r";
+      return ["", 0];
     }
 
     for (const [start, regex] of regexes) {
@@ -74,11 +87,13 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
 
   transformOut(code: string): [string, number] {
     // Get the quote type from the last transformIn
-    // const prefix = upgradePrefixKind(this.lastQuotePrefix, code);
     const prefix = this.lastQuotePrefix;
 
     const isOneLine = !code.includes("\n");
     if (isOneLine) {
+      // This logic breaks f-strings:
+      //
+      // https://github.com/marimo-team/marimo/issues/1727
       const escapedCode = code.replaceAll('"', '\\"');
       const start = `mo.md(${prefix}"`;
       const end = `")`;
@@ -87,7 +102,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
 
     // Multiline code
     const start = `mo.md(\n    ${prefix}"""\n`;
-    const escapedCode = code.replaceAll('"""', '\\"""');
+    const escapedCode = code.replaceAll('"""', String.raw`\"""`);
     const end = `\n    """\n)`;
     return [start + indentOneTab(escapedCode) + end, start.length + 1];
   }
@@ -160,52 +175,6 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
   }
 }
 
-// Remove the f, r, fr, rf prefixes from the quote
-function splitQuotePrefix(quote: string): [PrefixKind, string] {
-  // start with the longest prefix
-  const prefixKindsByLength = [...prefixKinds].sort(
-    (a, b) => b.length - a.length,
-  );
-  for (const prefix of prefixKindsByLength) {
-    if (quote.startsWith(prefix)) {
-      return [prefix, quote.slice(prefix.length)];
-    }
-  }
-  return ["", quote];
-}
-
-export function upgradePrefixKind(kind: PrefixKind, code: string): PrefixKind {
-  const containsSubstitution = code.includes("{") && code.includes("}");
-
-  // If there is no substitution, keep the same prefix
-  if (!containsSubstitution) {
-    return kind;
-  }
-
-  // If there is a substitution, upgrade to an f-string
-  switch (kind) {
-    case "":
-      return "f";
-    case "r":
-      return "rf";
-    case "f":
-    case "rf":
-    case "fr":
-      return kind;
-    default:
-      logNever(kind);
-      return "f";
-  }
-}
-
-// Indent each line by one tab
-function indentOneTab(code: string): string {
-  return code
-    .split("\n")
-    .map((line) => (line.trim() === "" ? line : `    ${line}`))
-    .join("\n");
-}
-
 const emojiCompletionSource: CompletionSource = async (context) => {
   // Check if the cursor is at a position where an emoji can be inserted
   if (!context.explicit && !context.matchBefore(/:\w*$/)) {
@@ -228,7 +197,17 @@ const emojiCompletionSource: CompletionSource = async (context) => {
 const getEmojiList = once(async (): Promise<Completion[]> => {
   const emojiList = await fetch(
     "https://unpkg.com/emojilib@3.0.11/dist/emoji-en-US.json",
-  ).then((res) => res.json() as unknown as Record<string, string[]>);
+  )
+    .then((res) => {
+      if (!res.ok) {
+        throw new Error("Failed to fetch emoji list");
+      }
+      return res.json() as unknown as Record<string, string[]>;
+    })
+    .catch(() => {
+      // If we can't fetch the emoji list, just return an empty list
+      return {};
+    });
 
   return Object.entries(emojiList).map(([emoji, names]) => ({
     shortcode: names[0],

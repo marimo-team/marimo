@@ -77,11 +77,11 @@ class TestDataFrameProtocolTableManager(unittest.TestCase):
         import pyarrow as pa
 
         expected_field_types = {
-            "A": "integer",
-            "B": "string",
-            "C": "number",
-            "D": "boolean",
-            "E": "date",
+            "A": ("integer", "INT"),
+            "B": ("string", "STRING"),
+            "C": ("number", "FLOAT"),
+            "D": ("boolean", "BOOL"),
+            "E": ("date", "DATETIME"),
         }
         assert self.manager.get_field_types() == expected_field_types
 
@@ -94,10 +94,10 @@ class TestDataFrameProtocolTableManager(unittest.TestCase):
             }  # type: ignore
         )
         expected_field_types = {
-            "A": "integer",
-            "B": "string",
-            "C": "number",
-            "D": "boolean",
+            "A": ("integer", "INT"),
+            "B": ("string", "STRING"),
+            "C": ("number", "FLOAT"),
+            "D": ("boolean", "BOOL"),
         }
         assert (
             DataFrameProtocolTableManager(

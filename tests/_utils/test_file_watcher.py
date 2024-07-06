@@ -28,7 +28,7 @@ async def test_polling_file_watcher() -> None:
 
     # Wait a bit and then modify the file
     await asyncio.sleep(0.2)
-    with open(tmp_path, "w") as f:  # noqa: ASYNC101
+    with open(tmp_path, "w") as f:  # noqa: ASYNC101 ASYNC230
         f.write("modification")
 
     # Wait for the watcher to detect the change

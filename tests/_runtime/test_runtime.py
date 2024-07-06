@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+import textwrap
 from typing import TYPE_CHECKING, Sequence
 
 import pytest
@@ -11,8 +12,10 @@ from marimo._messaging.errors import (
     CycleError,
     DeleteNonlocalError,
     Error,
+    MarimoStrictExecutionError,
     MultipleDefinitionError,
 )
+from marimo._messaging.ops import CellOp
 from marimo._messaging.types import NoopStream
 from marimo._plugins.ui._core.ids import IDProvider
 from marimo._plugins.ui._core.ui_element import UIElement
@@ -26,7 +29,8 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
 )
 from marimo._runtime.runtime import Kernel
-from tests.conftest import ExecReqProvider
+from marimo._utils.parse_dataclass import parse_raw
+from tests.conftest import ExecReqProvider, MockedKernel
 
 if TYPE_CHECKING:
     import pathlib
@@ -426,9 +430,16 @@ class TestExecution:
         )
         assert "x" not in k.globals
         assert "y" not in k.globals
-        assert set(k.errors.keys()) == {"0", "1"}
+        if k.execution_type == "strict":
+            # 2 isn't valid in strict mode because it will refuse to execute
+            # due to missing x.
+            assert set(k.errors.keys()) == {"0", "1", "2"}
+        else:
+            assert set(k.errors.keys()) == {"0", "1"}
         assert len(k.errors["0"]) == 1
         assert len(k.errors["1"]) == 1
+        if k.execution_type == "strict":
+            assert len(k.errors["2"]) == 1
         _check_edges(k.errors["0"][0], [("0", ["x"], "1"), ("1", ["y"], "0")])
         _check_edges(k.errors["1"][0], [("0", ["x"], "1"), ("1", ["y"], "0")])
 
@@ -465,7 +476,12 @@ class TestExecution:
 
         # break cycle by deleting cell
         await k.delete(DeleteCellRequest(cell_id="1"))
-        assert not k.errors
+        if k.execution_type == "strict":
+            # Still invalid in strict mode because y is missing.
+            assert set(k.errors.keys()) == {"0"}
+            assert isinstance(k.errors["0"][0], MarimoStrictExecutionError)
+        else:
+            assert not k.errors
 
     async def test_delete_nonlocal_error(self, any_kernel: Kernel) -> None:
         k = any_kernel
@@ -478,7 +494,10 @@ class TestExecution:
         )
         assert "y" not in k.globals
         assert "z" not in k.globals
-        assert set(k.errors.keys()) == {"1"}
+        if k.execution_type == "strict":
+            assert set(k.errors.keys()) == {"1", "2"}
+        else:
+            assert set(k.errors.keys()) == {"1"}
         assert k.errors["1"] == (DeleteNonlocalError("x", ("0",)),)
 
         # fix cell 1, should run cell 1 and 2
@@ -508,7 +527,8 @@ class TestExecution:
         # Delete the cell that defines x. There shouldn't be any more errors
         # because x no longer exists.
         await k.delete(DeleteCellRequest(cell_id="0"))
-        assert not k.errors
+        if k.execution_type != "strict":
+            assert not k.errors
 
         # Add x back in.
         await k.run([ExecutionRequest(cell_id="2", code="x=0")])
@@ -887,12 +907,14 @@ class TestStrictExecution:
         k = strict_kernel
         await k.run(
             [
-                exec_req.get("""
+                exec_req.get(
+                    """
                              Y = 1
                              _y = 1
                              def f(x):
                                 return x + _y
-                             """),
+                             """
+                ),
                 exec_req.get(
                     """
                   _x = 1
@@ -918,12 +940,14 @@ class TestStrictExecution:
         k = strict_kernel
         await k.run(
             [
-                exec_req.get("""
+                exec_req.get(
+                    """
                              class namespace:
                                 ...
                              X = namespace()
                              X.count = 1
-                             """),
+                             """
+                ),
                 exec_req.get(
                     """
                   X.count += 1
@@ -953,14 +977,16 @@ class TestStrictExecution:
         k = strict_kernel
         await k.run(
             [
-                exec_req.get("""
+                exec_req.get(
+                    """
                              import marimo as mo
                              class namespace:
                                 ...
                              X = namespace()
                              X.count = 1
                              X = mo._runtime.copy.zero_copy(X)
-                             """),
+                             """
+                ),
                 exec_req.get(
                     """
                   mo._runtime.copy.unwrap_copy(X).count += 1
@@ -985,6 +1011,35 @@ class TestStrictExecution:
             assert k.globals["V1"] == 12
         else:
             assert k.globals["V1"] == 11
+
+    @staticmethod
+    async def test_wont_execute_bad_ref(execution_kernel: Kernel) -> None:
+        k = execution_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent("""
+                    try:
+                        missing
+                    except:
+                        pass
+                    x = 1
+                    """),
+                ),
+            ]
+        )
+
+        if k.execution_type == "strict":
+            assert "x" not in k.globals
+            assert set(k.errors.keys()) == {"0"}
+            assert len(k.errors["0"]) == 1
+            assert isinstance(k.errors["0"][0], MarimoStrictExecutionError)
+            assert k.errors["0"][0].ref == "missing"
+        # Check that normal execution still runs the block
+        else:
+            assert "x" in k.globals
+            assert not k.errors
 
 
 class TestStoredOutput:
@@ -1620,3 +1675,178 @@ class TestAsyncIO:
         )
         assert not k.errors
         assert k.globals["res"] == "done"
+
+
+class TestStateTransitions:
+    async def test_statuses_not_repeated_ok_run(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = mocked_kernel.k
+        await k.run(
+            [
+                exec_req.get("x = 0"),
+            ]
+        )
+
+        cell_ops = [
+            parse_raw(op_data, CellOp)
+            for op_name, op_data in mocked_kernel.stream.messages
+            if op_name == "cell-op"
+        ]
+
+        n_queued = sum([1 for op in cell_ops if op.status == "queued"])
+        assert n_queued == 1
+
+        n_running = sum([1 for op in cell_ops if op.status == "running"])
+        assert n_running == 1
+
+        n_idle = sum([1 for op in cell_ops if op.status == "idle"])
+        assert n_idle == 1
+
+    async def test_statuses_not_repeated_on_stop(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = mocked_kernel.k
+        await k.run(
+            [
+                exec_req.get("import marimo as mo; mo.stop(True)"),
+            ]
+        )
+
+        cell_ops = [
+            parse_raw(op_data, CellOp)
+            for op_name, op_data in mocked_kernel.stream.messages
+            if op_name == "cell-op"
+        ]
+
+        n_queued = sum([1 for op in cell_ops if op.status == "queued"])
+        assert n_queued == 1
+
+        n_running = sum([1 for op in cell_ops if op.status == "running"])
+        assert n_running == 1
+
+        n_idle = sum([1 for op in cell_ops if op.status == "idle"])
+        assert n_idle == 1
+
+    async def test_statuses_not_repeated_on_interruption(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = mocked_kernel.k
+        await k.run(
+            [
+                exec_req.get(
+                    "from marimo._runtime.control_flow import MarimoInterrupt; raise MarimoInterrupt()"  # noqa: E501
+                ),
+            ]
+        )
+
+        cell_ops = [
+            parse_raw(op_data, CellOp)
+            for op_name, op_data in mocked_kernel.stream.messages
+            if op_name == "cell-op"
+        ]
+
+        n_queued = sum([1 for op in cell_ops if op.status == "queued"])
+        assert n_queued == 1
+
+        n_running = sum([1 for op in cell_ops if op.status == "running"])
+        assert n_running == 1
+
+        n_idle = sum([1 for op in cell_ops if op.status == "idle"])
+        assert n_idle == 1
+
+    async def test_statuses_not_repeated_on_exception(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = mocked_kernel.k
+        await k.run(
+            [
+                exec_req.get("raise ValueError"),
+            ]
+        )
+
+        cell_ops = [
+            parse_raw(op_data, CellOp)
+            for op_name, op_data in mocked_kernel.stream.messages
+            if op_name == "cell-op"
+        ]
+
+        n_queued = sum([1 for op in cell_ops if op.status == "queued"])
+        assert n_queued == 1
+
+        n_running = sum([1 for op in cell_ops if op.status == "running"])
+        assert n_running == 1
+
+        n_idle = sum([1 for op in cell_ops if op.status == "idle"])
+        assert n_idle == 1
+
+    async def test_descendant_status_reset_to_idle_on_error(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = mocked_kernel.k
+        await k.run(
+            [
+                er_1 := exec_req.get("x = 0; raise ValueError"),
+                er_2 := exec_req.get("x"),
+            ]
+        )
+
+        cell_ops = [
+            parse_raw(op_data, CellOp)
+            for op_name, op_data in mocked_kernel.stream.messages
+            if op_name == "cell-op"
+        ]
+
+        # er_1 and er_2
+        n_queued = sum([1 for op in cell_ops if op.status == "queued"])
+        assert n_queued == 2
+
+        # only er_1 runs
+        n_running = sum([1 for op in cell_ops if op.status == "running"])
+        assert n_running == 1
+
+        # er_1 and er_2
+        n_idle = sum([1 for op in cell_ops if op.status == "idle"])
+        assert n_idle == 2
+
+        assert k.graph.cells[er_1.cell_id].status == "idle"
+        assert k.graph.cells[er_2.cell_id].status == "idle"
+
+    async def test_descendant_status_reset_to_idle_on_interrupt(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = mocked_kernel.k
+        await k.run(
+            [
+                er_1 := exec_req.get(
+                    """
+                    from marimo._runtime.control_flow import MarimoInterrupt
+
+                    x = 0
+                    raise MarimoInterrupt
+                    """
+                ),
+                er_2 := exec_req.get("x"),
+            ]
+        )
+
+        cell_ops = [
+            parse_raw(op_data, CellOp)
+            for op_name, op_data in mocked_kernel.stream.messages
+            if op_name == "cell-op"
+        ]
+
+        # er_1 and er_2
+        n_queued = sum([1 for op in cell_ops if op.status == "queued"])
+        assert n_queued == 2
+
+        # only er_1 runs
+        n_running = sum([1 for op in cell_ops if op.status == "running"])
+        assert n_running == 1
+
+        # er_1 and er_2
+        n_idle = sum([1 for op in cell_ops if op.status == "idle"])
+        assert n_idle == 2
+
+        assert k.graph.cells[er_1.cell_id].status == "idle"
+        assert k.graph.cells[er_2.cell_id].status == "idle"

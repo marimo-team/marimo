@@ -879,6 +879,7 @@ export interface components {
       variable_name?: string | null;
     };
     DataTableColumn: {
+      external_type: string;
       name: string;
       type: components["schemas"]["DataType"];
     };
@@ -1059,6 +1060,9 @@ export interface components {
         /** @enum {string} */
         width: "normal" | "compact" | "medium" | "full";
       };
+      capabilities: {
+        sql: boolean;
+      };
       cell_ids: string[];
       codes: string[];
       configs: components["schemas"]["CellConfig"][];
@@ -1094,7 +1098,7 @@ export interface components {
     };
     MIME: Record<string, never>;
     MarimoAncestorPreventedError: {
-      blamed_cell: string;
+      blamed_cell?: string | null;
       msg: string;
       raising_cell: string;
       /** @enum {string} */
@@ -1116,7 +1120,8 @@ export interface components {
       };
       completion: {
         activate_on_typing: boolean;
-        copilot: boolean;
+        codeium_api_key?: string | null;
+        copilot: boolean | ("github" | "codeium");
       };
       display: {
         /** @enum {string} */
@@ -1181,7 +1186,7 @@ export interface components {
       type: "interruption";
     };
     MarimoStrictExecutionError: {
-      blamed_cell: string;
+      blamed_cell?: string | null;
       msg: string;
       ref: string;
       /** @enum {string} */

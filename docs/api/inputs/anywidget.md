@@ -51,6 +51,9 @@ widget = mo.ui.anywidget(CounterWidget())
 
 # In another cell, you can access the widget's value
 widget.value
+
+# You can also access the widget's specific properties
+widget.count
 ```
 
 ## Importing a widget
@@ -63,6 +66,10 @@ widget = mo.ui.anywidget(ScatterWidget())
 
 # In another cell, you can access the widget's value
 widget.value
+
+# You can also access the widget's specific properties
+widget.data
+widget.data_as_polars
 ```
 
 ---

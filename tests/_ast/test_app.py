@@ -1,4 +1,5 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 from __future__ import annotations
 
 import subprocess
@@ -6,7 +7,6 @@ import textwrap
 from typing import TYPE_CHECKING, Any
 
 import pytest
-
 from marimo._ast.app import App, _AppConfig
 from marimo._ast.errors import (
     CycleError,
@@ -15,6 +15,11 @@ from marimo._ast.errors import (
     UnparsableError,
 )
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._output.formatting import as_html
+from marimo._plugins.stateless.flex import vstack
+from marimo._runtime.requests import SetUIElementValueRequest
+from marimo._runtime.runtime import Kernel
+from tests.conftest import ExecReqProvider
 
 if TYPE_CHECKING:
     import pathlib
@@ -352,7 +357,8 @@ class TestApp:
 
         @app.cell
         def __() -> tuple[Any]:
-            def foo() -> None: ...
+            def foo() -> None:
+                ...
 
             return (foo,)
 
@@ -485,3 +491,141 @@ def test_cli_args(tmp_path: pathlib.Path) -> None:
     assert "value1" in output
     assert "bar" in output
     assert "value2" in output
+
+
+class TestAppComposition:
+    def test_app_as_html(self) -> None:
+        app = App()
+
+        @app.cell
+        def __() -> None:
+            "hello"
+
+        @app.cell
+        def __() -> None:
+            "world"
+
+        app_html = as_html(app).text
+        assert app_html == vstack(["hello", "world"]).text
+
+    def test_app_as_html_none_stripped(self) -> None:
+        app = App()
+
+        @app.cell
+        def __() -> None:
+            "hello"
+
+        @app.cell
+        def __() -> None:
+            None
+
+        @app.cell
+        def __() -> None:
+            "world"
+
+        app_html = as_html(app).text
+        # None shouldn't show up in output
+        assert app_html == vstack(["hello", "world"]).text
+
+    def test_app_as_html_is_cached(self) -> None:
+        app = App()
+
+        @app.cell
+        def __() -> None:
+            import random
+
+            random.randint(0, 10000)
+
+        # the app should only run once
+        assert as_html(app).text == as_html(app).text
+
+    async def test_app_comp_basic(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from app_data.ui_element_dropdown import app
+                    """
+                ),
+                exec_req.get(
+                    """
+                    import random
+
+                    token = random.randint(0, 10000)
+                    app
+                    """
+                ),
+            ]
+        )
+        assert not k.errors
+
+        # store the token value now, so we can make sure it changes later,
+        # ie can make sure cell re-ran
+        token = k.globals["token"]
+        app = k.globals["app"]
+        # dropdown has name d in app
+        dropdown_element = app._cached_defs["d"]
+        assert dropdown_element.value == "first"
+
+        html = as_html(app).text
+        assert "value is first" in html
+        assert "value is second" not in html
+
+        await k.set_ui_element_value(
+            SetUIElementValueRequest.from_ids_and_values(
+                [(dropdown_element._id, ["second"])]
+            )
+        )
+        assert token != k.globals["token"]
+        assert not app._pending_ui_element_updates
+
+        # make sure ui element value updated
+        assert dropdown_element.value == "second"
+        # make sure cell referencing app re-ran
+
+        html = as_html(app).text
+        assert "value is first" not in html
+        assert "value is second" in html
+
+    async def test_app_comp_multiple_ui_elements(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from app_data.calculator import app
+                    """
+                ),
+                exec_req.get(
+                    """
+                    app
+                    """
+                ),
+            ]
+        )
+        assert not k.errors
+
+        app = k.globals["app"]
+        # two number inputs: x and y
+        x = app._cached_defs["x"]
+        y = app._cached_defs["y"]
+        assert x.value == 1
+        assert y.value == 1
+
+        # testing that only descendants of the updated UI elements run,
+        # and that the other UI element is not reset
+        await k.set_ui_element_value(
+            SetUIElementValueRequest.from_ids_and_values([(x._id, 2)])
+        )
+        assert x.value == 2
+        assert y.value == 1
+
+        await k.set_ui_element_value(
+            SetUIElementValueRequest.from_ids_and_values([(y._id, 3)])
+        )
+
+        assert x.value == 2
+        assert y.value == 3

@@ -6,6 +6,19 @@ const adapter = new MarkdownLanguageAdapter();
 
 describe("MarkdownLanguageAdapter", () => {
   describe("transformIn", () => {
+    it("empty", () => {
+      const [innerCode, offset] = adapter.transformIn("");
+      expect(innerCode).toBe("");
+      expect(offset).toBe(0);
+      const out = adapter.transformOut(innerCode);
+      expect(out).toMatchInlineSnapshot(`
+        [
+          "mo.md(r"")",
+          8,
+        ]
+      `);
+    });
+
     it("should extract inner Markdown from triple double-quoted strings", () => {
       const pythonCode = 'mo.md("""# Markdown Title\n\nSome content here.""")';
       const [innerCode, offset] = adapter.transformIn(pythonCode);
@@ -42,35 +55,29 @@ describe("MarkdownLanguageAdapter", () => {
     });
 
     it("should unescape code blocks", () => {
-      // f"""
-      const pythonCode = 'mo.md(f"""This is some \\"""content\\"""!""")';
-      const [innerCode, offset] = adapter.transformIn(pythonCode);
-      expect(innerCode).toBe(`This is some """content"""!`);
-      expect(offset).toBe(10);
-
       // """
-      const pythonCode2 = 'mo.md("""This is some \\"""content\\"""!""")';
+      const pythonCode2 = String.raw`mo.md("""This is some \"""content\"""!""")`;
       const [innerCode2, offset2] = adapter.transformIn(pythonCode2);
       expect(innerCode2).toBe(`This is some """content"""!`);
       expect(offset2).toBe(9);
 
       // "
-      const pythonCode3 = 'mo.md("This is some \\"content\\"!")';
+      const pythonCode3 = String.raw`mo.md("This is some \"content\"!")`;
       const [innerCode3, offset3] = adapter.transformIn(pythonCode3);
       expect(innerCode3).toBe(`This is some "content"!`);
       expect(offset3).toBe(7);
 
       // '
-      const pythonCode4 = "mo.md('This is some \\'content\\'!')";
+      const pythonCode4 = String.raw`mo.md('This is some \'content\'!')`;
       const [innerCode4, offset4] = adapter.transformIn(pythonCode4);
       expect(innerCode4).toBe(`This is some 'content'!`);
       expect(offset4).toBe(7);
     });
 
     it("should handle strings with escaped quotes", () => {
-      const pythonCode = 'mo.md("""Markdown with an escaped \\"quote\\"""")';
+      const pythonCode = String.raw`mo.md("""Markdown with an escaped \"quote\"""")`;
       const [innerCode, offset] = adapter.transformIn(pythonCode);
-      expect(innerCode).toBe('Markdown with an escaped \\"quote\\"');
+      expect(innerCode).toBe(String.raw`Markdown with an escaped \"quote\"`);
       expect(offset).toBe('mo.md("""'.length);
     });
 
@@ -140,7 +147,9 @@ describe("MarkdownLanguageAdapter", () => {
     it("should preserve escaped characters", () => {
       const pythonCode = `mo.md(r"$\\nu = \\mathllap{}\\cdot\\mathllap{\\alpha}$")`;
       const [innerCode, offset] = adapter.transformIn(pythonCode);
-      expect(innerCode).toBe("$\\nu = \\mathllap{}\\cdot\\mathllap{\\alpha}$");
+      expect(innerCode).toBe(
+        String.raw`$\nu = \mathllap{}\cdot\mathllap{\alpha}$`,
+      );
       expect(offset).toBe(8);
     });
   });
@@ -187,24 +196,8 @@ describe("MarkdownLanguageAdapter", () => {
       expect(offset).toBe(9);
     });
 
-    it("should not downgrade a f-string", () => {
-      const code = "Normal markdown";
-      adapter.lastQuotePrefix = "f";
-      const [wrappedCode, offset] = adapter.transformOut(code);
-      expect(wrappedCode).toBe('mo.md(f"Normal markdown")');
-      expect(offset).toBe(8);
-    });
-
-    it("should not downgrade a rf-string", () => {
-      const code = "Normal markdown";
-      adapter.lastQuotePrefix = "rf";
-      const [wrappedCode, offset] = adapter.transformOut(code);
-      expect(wrappedCode).toBe('mo.md(rf"Normal markdown")');
-      expect(offset).toBe(9);
-    });
-
     it("should preserve r strings", () => {
-      const code = "$\\nu = \\mathllap{}\\cdot\\mathllap{\\alpha}$";
+      const code = String.raw`$\nu = \mathllap{}\cdot\mathllap{\alpha}$`;
       adapter.lastQuotePrefix = "r";
       const [wrappedCode, offset] = adapter.transformOut(code);
       const pythonCode = `mo.md(r"$\\nu = \\mathllap{}\\cdot\\mathllap{\\alpha}$")`;
@@ -220,6 +213,11 @@ describe("MarkdownLanguageAdapter", () => {
       expect(adapter.isSupported("mo.md()")).toBe(true);
       expect(adapter.isSupported("mo.md('')")).toBe(true);
       expect(adapter.isSupported('mo.md("")')).toBe(true);
+    });
+
+    it("should return false for unsupported markdown string formats", () => {
+      expect(adapter.isSupported("mo.md(f'hello world')")).toBe(false);
+      expect(adapter.isSupported('mo.md(f"hello world")')).toBe(false);
     });
 
     it("should return false for unsupported string formats", () => {

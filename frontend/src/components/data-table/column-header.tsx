@@ -9,6 +9,8 @@ import {
   FilterX,
   MinusIcon,
   SearchIcon,
+  WrapTextIcon,
+  AlignJustifyIcon,
 } from "lucide-react";
 
 import { cn } from "@/utils/cn";
@@ -41,6 +43,10 @@ export const DataTableColumnHeader = <TData, TValue>({
   header,
   className,
 }: DataTableColumnHeaderProps<TData, TValue>) => {
+  if (!header) {
+    return null;
+  }
+
   if (!column.getCanSort() && !column.getCanFilter()) {
     return <div className={cn(className)}>{header}</div>;
   }
@@ -73,6 +79,37 @@ export const DataTableColumnHeader = <TData, TValue>({
     );
   };
 
+  const dtype = column.columnDef.meta?.dtype;
+
+  const renderColumnWrapping = () => {
+    if (!column.getCanWrap?.() || !column.getColumnWrapping) {
+      return null;
+    }
+
+    const wrap = column.getColumnWrapping();
+    if (wrap === "wrap") {
+      return (
+        <DropdownMenuItem
+          onClick={() => column.toggleColumnWrapping("nowrap")}
+          className="flex items-center"
+        >
+          <AlignJustifyIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+          No wrap text
+        </DropdownMenuItem>
+      );
+    }
+
+    return (
+      <DropdownMenuItem
+        onClick={() => column.toggleColumnWrapping("wrap")}
+        className="flex items-center"
+      >
+        <WrapTextIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+        Wrap text
+      </DropdownMenuItem>
+    );
+  };
+
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild={true}>
@@ -102,13 +139,24 @@ export const DataTableColumnHeader = <TData, TValue>({
         </div>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
+        {dtype && (
+          <div className="flex-1 px-2 text-xs text-muted-foreground font-bold">
+            {dtype}
+          </div>
+        )}
+        <DropdownMenuSeparator />
         {renderSorts()}
         <DropdownMenuItem
-          onClick={() => navigator.clipboard.writeText(column.id)}
+          onClick={() =>
+            navigator.clipboard.writeText(
+              typeof header === "string" ? header : column.id,
+            )
+          }
         >
           <CopyIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
           Copy column name
         </DropdownMenuItem>
+        {renderColumnWrapping()}
         <DropdownMenuItemFilter column={column} />
       </DropdownMenuContent>
     </DropdownMenu>

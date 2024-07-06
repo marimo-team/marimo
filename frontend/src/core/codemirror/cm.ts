@@ -20,7 +20,6 @@ import {
   indentUnit,
   syntaxHighlighting,
 } from "@codemirror/language";
-import { lintKeymap } from "@codemirror/lint";
 import {
   drawSelection,
   dropCursor,
@@ -110,7 +109,7 @@ const startCompletionAtEndOfLine = (cm: EditorView): boolean => {
 
 // Based on codemirror's basicSetup extension
 export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
-  const { theme, hotkeys } = opts;
+  const { theme, hotkeys, completionConfig } = opts;
 
   return [
     ///// View
@@ -134,7 +133,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
     theme === "dark" ? oneDark : [],
 
     hintTooltip(),
-    copilotBundle(),
+    copilotBundle(completionConfig),
     foldGutter(),
     closeBrackets(),
     // to avoid clash with charDeleteBackward keymap
@@ -143,7 +142,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
     indentOnInput(),
     indentUnit.of("    "),
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-    keymap.of([...foldKeymap, ...lintKeymap]),
+    keymap.of(foldKeymap),
 
     ///// Language Support
     adaptiveLanguageConfiguration(opts),

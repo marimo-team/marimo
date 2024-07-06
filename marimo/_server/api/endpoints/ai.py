@@ -16,6 +16,7 @@ from marimo._server.models.completion import (
     AiCompletionRequest,
 )
 from marimo._server.router import APIRouter
+from marimo._utils.assert_never import assert_never
 
 if TYPE_CHECKING:
     from openai import OpenAI, Stream  # type: ignore[import-not-found]
@@ -69,28 +70,65 @@ def get_openai_client(config: MarimoConfig) -> "OpenAI":
 
 def get_model(config: MarimoConfig) -> str:
     model: str = (
-        config.get("ai", {}).get("open_ai", {}).get("model", "gpt-3.5-turbo")
+        config.get("ai", {}).get("open_ai", {}).get("model", "gpt-4-turbo")
     )
     if not model:
-        model = "gpt-3.5-turbo"
+        model = "gpt-4-turbo"
     return model
 
 
 def make_stream_response(
     response: Stream[ChatCompletionChunk],
 ) -> Generator[str, None, None]:
+    original_content = ""
+    buffer: str = ""
+    in_code_fence = False
     # If it starts or ends with markdown, remove it
     for chunk in response:
         content = chunk.choices[0].delta.content
-        if content:
-            if content.startswith("```python"):
-                yield content[9:]
-            if content.startswith("```"):
-                yield content[4:]
-            elif content.endswith("```"):
-                yield content[:-3]
-            else:
-                yield content or ""
+        if not content:
+            continue
+
+        buffer += content
+        original_content += content
+        first_newline = buffer.find("\n")
+
+        # Open code-fence, with no newline
+        # wait for the next newline
+        if (
+            buffer.startswith("```")
+            and first_newline == -1
+            and not in_code_fence
+        ):
+            continue
+
+        if (
+            buffer.startswith("```")
+            and first_newline > 0
+            and not in_code_fence
+        ):
+            # And also ends with ```
+            if buffer.endswith("```"):
+                yield buffer[first_newline + 1 : -3]
+                buffer = ""
+                in_code_fence = False
+                continue
+
+            yield buffer[first_newline + 1 :]
+            buffer = ""
+            in_code_fence = True
+            continue
+
+        if buffer.endswith("```") and in_code_fence:
+            yield buffer[:-3]
+            buffer = ""
+            in_code_fence = False
+            continue
+
+        yield buffer
+        buffer = ""
+
+    LOGGER.debug(f"Completion content: {original_content}")
 
 
 @router.post("/completion")
@@ -122,17 +160,30 @@ async def ai_completion(
     body = await parse_request(request, cls=AiCompletionRequest)
     client = get_openai_client(config)
 
-    system_prompt = (
-        "You are a helpful assistant that can answer questions "
-        "about python code. You can only output python code. "
-        "1. Do not describe the code, just write the code."
-        "2. Do not output markdown or backticks."
-        "3. When using matplotlib to show plots,"
-        "use plt.gca() instead of plt.show()."
-        "4. If an import already exists, do not import it again."
-        "5. If a variable is already defined, use another name, or"
-        "make it private by adding an underscore at the beginning."
-    )
+    if body.language == "python":
+        system_prompt = (
+            "You are a helpful assistant that can answer questions "
+            "about python code. You can only output python code. "
+            "1. Do not describe the code, just write the code."
+            "2. Do not output markdown or backticks."
+            "3. When using matplotlib to show plots,"
+            "use plt.gca() instead of plt.show()."
+            "4. If an import already exists, do not import it again."
+            "5. If a variable is already defined, use another name, or"
+            "make it private by adding an underscore at the beginning."
+        )
+    elif body.language == "markdown":
+        system_prompt = (
+            "You are a helpful assistant that can answer questions "
+            "about markdown. You can only output markdown."
+        )
+    elif body.language == "sql":
+        system_prompt = (
+            "You are a helpful assistant that can answer questions "
+            "about sql. You can only output sql."
+        )
+    else:
+        assert_never(body.language)
 
     prompt = body.prompt
     if body.include_other_code:

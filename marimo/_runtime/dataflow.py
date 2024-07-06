@@ -362,7 +362,7 @@ class DirectedGraph:
                                 processed.add(maybe_private)
 
         if inclusive:
-            return processed
+            return processed | refs
         return processed - refs
 
 

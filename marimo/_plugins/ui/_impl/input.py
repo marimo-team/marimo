@@ -23,6 +23,12 @@ from typing import (
 )
 
 from marimo import _loggers
+from marimo._data.series import (
+    DataFrameSeries,
+    get_category_series_info,
+    get_date_series_info,
+    get_number_series_info,
+)
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import S as JSONTypeBound, UIElement
@@ -44,6 +50,12 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
 
     ```python
     number = mo.ui.number(start=1, stop=10, step=2)
+    ```
+
+    Or from a dataframe series:
+
+    ```python
+    number = mo.ui.number.from_series(df["column_name"])
     ```
 
     **Attributes.**
@@ -113,6 +125,14 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
             on_change=on_change,
         )
 
+    @staticmethod
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> "number":
+        """Create a number picker from a dataframe series."""
+        info = get_number_series_info(series)
+        return number(
+            start=info.min, stop=info.max, label=info.label, **kwargs
+        )
+
     def _convert_value(self, value: Optional[Numeric]) -> Optional[Numeric]:
         """Value is `None` if user uses keyboard to delete contents of input"""
         return value
@@ -127,6 +147,12 @@ class slider(UIElement[Numeric, Numeric]):
 
     ```python
     slider = mo.ui.slider(start=1, stop=10, step=2)
+    ```
+
+    Or from a dataframe series:
+
+    ```python
+    slider = mo.ui.slider.from_series(df["column_name"])
     ```
 
     **Attributes.**
@@ -280,6 +306,14 @@ class slider(UIElement[Numeric, Numeric]):
                 on_change=on_change,
             )
 
+    @staticmethod
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> "slider":
+        """Create a slider from a dataframe series."""
+        info = get_number_series_info(series)
+        return slider(
+            start=info.min, stop=info.max, label=info.label, **kwargs
+        )
+
     def _convert_value(self, value: Numeric) -> Numeric:
         if self._mapping is not None:
             return cast(Numeric, self._dtype(self._mapping[int(value)]))
@@ -295,6 +329,12 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
 
     ```python
     range_slider = mo.ui.range_slider(start=1, stop=10, step=2, value=[2, 6])
+    ```
+
+    Or from a dataframe series:
+
+    ```python
+    range_slider = mo.ui.range_slider.from_series(df["column_name"])
     ```
 
     **Attributes.**
@@ -446,6 +486,14 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
                 on_change=on_change,
             )
 
+    @staticmethod
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> "range_slider":
+        """Create a range slider from a dataframe series."""
+        info = get_number_series_info(series)
+        return range_slider(
+            start=info.min, stop=info.max, label=info.label, **kwargs
+        )
+
     def _convert_value(self, value: List[Numeric]) -> Sequence[Numeric]:
         if self._mapping is not None:
             return cast(
@@ -532,6 +580,12 @@ class radio(UIElement[Optional[str], Any]):
     )
     ```
 
+    Or from a dataframe series:
+
+    ```python
+    radiogroup = mo.ui.radio.from_series(df["column_name"])
+    ```
+
     **Attributes.**
 
     - `value`: the value of the selected radio option
@@ -571,6 +625,16 @@ class radio(UIElement[Optional[str], Any]):
                 "inline": inline,
             },
             on_change=on_change,
+        )
+
+    @staticmethod
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> "radio":
+        """Create a radio group from a dataframe series."""
+        info = get_category_series_info(series)
+        return radio(
+            options=info.categories,
+            label=info.label,
+            **kwargs,
         )
 
     def _convert_value(self, value: Optional[str]) -> Any:
@@ -780,6 +844,12 @@ class dropdown(UIElement[List[str], Any]):
     )
     ```
 
+    Or from a dataframe series:
+
+    ```python
+    dropdown = mo.ui.dropdown.from_series(df["column_name"])
+    ```
+
     **Attributes.**
 
     - `value`: the selected value, or `None` if no selection
@@ -856,6 +926,16 @@ class dropdown(UIElement[List[str], Any]):
             on_change=on_change,
         )
 
+    @staticmethod
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> "dropdown":
+        """Create a dropdown from a dataframe series."""
+        info = get_category_series_info(series)
+        return dropdown(
+            options=info.categories,
+            label=info.label,
+            **kwargs,
+        )
+
     def _convert_value(self, value: list[str]) -> Any:
         if value:
             assert len(value) == 1
@@ -882,6 +962,12 @@ class multiselect(UIElement[List[str], List[object]]):
     multiselect = mo.ui.multiselect(
         options=["a", "b", "c"], label="choose some options"
     )
+    ```
+
+    Or from a dataframe series:
+
+    ```python
+    multiselect = mo.ui.multiselect.from_series(df["column_name"])
     ```
 
     **Attributes.**
@@ -949,6 +1035,16 @@ class multiselect(UIElement[List[str], List[object]]):
                 "max-selections": max_selections,
             },
             on_change=on_change,
+        )
+
+    @staticmethod
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> "multiselect":
+        """Create a multiselect from a dataframe series."""
+        info = get_category_series_info(series)
+        return multiselect(
+            options=info.categories,
+            label=info.label,
+            **kwargs,
         )
 
     def _convert_value(self, value: list[str]) -> list[object]:
@@ -1350,6 +1446,12 @@ class date(UIElement[str, dt.date]):
     )
     ```
 
+    Or from a dataframe series:
+
+    ```python
+    date = mo.ui.date.from_series(df["column_name"])
+    ```
+
     **Attributes.**
 
     - `value`: a str (YYYY-MM-DD) or `datetime.date` object of the chosen date
@@ -1426,6 +1528,17 @@ class date(UIElement[str, dt.date]):
                 "full-width": full_width,
             },
             on_change=on_change,
+        )
+
+    @staticmethod
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> "date":
+        """Create a date picker from a dataframe series."""
+        info = get_date_series_info(series)
+        return date(
+            start=info.min,
+            stop=info.max,
+            label=info.label,
+            **kwargs,
         )
 
     def _convert_value(self, value: str) -> dt.date:

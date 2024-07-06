@@ -1,7 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 """The marimo library.
 
-marimo is a Python library for making reactive notebooks that double as apps.
+The marimo library brings marimo notebooks to life with powerful
+UI elements to interact with and transform data, dynamic markdown,
+and more.
 
 marimo is designed to be:
 
@@ -11,6 +13,8 @@ marimo is designed to be:
     4. seamless
     5. fun
 """
+
+from __future__ import annotations
 
 __all__ = [
     "App",
@@ -41,6 +45,7 @@ __all__ = [
     "mpl",
     "nav_menu",
     "output",
+    "plain",
     "plain_text",
     "pdf",
     "query_params",
@@ -55,6 +60,7 @@ __all__ = [
     "state",
     "status",
     "stop",
+    "sql",
     "style",
     "tabs",
     "tree",
@@ -62,13 +68,13 @@ __all__ = [
     "video",
     "vstack",
 ]
-__version__ = "0.6.22"
+__version__ = "0.7.0"
 
 from marimo._ast.app import App
 from marimo._ast.cell import Cell
 from marimo._islands.island_generator import MarimoIslandGenerator
 from marimo._output.doc import doc
-from marimo._output.formatting import as_html
+from marimo._output.formatting import as_html, plain
 from marimo._output.hypertext import Html
 from marimo._output.justify import center, left, right
 from marimo._output.md import md
@@ -106,3 +112,4 @@ from marimo._runtime.control_flow import MarimoStopError, stop
 from marimo._runtime.runtime import cli_args, defs, query_params, refs
 from marimo._runtime.state import state
 from marimo._server.asgi import create_asgi_app
+from marimo._sql import sql

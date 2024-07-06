@@ -1,9 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Tuple
 
-from marimo._data.models import ColumnSummary
+from marimo._data.models import ColumnSummary, ExternalDataType
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
     FieldType,
@@ -26,8 +26,9 @@ class PandasTableManagerFactory(TableManagerFactory):
             type = "pandas"
 
             def to_csv(self) -> bytes:
+                has_headers = len(self.get_row_headers()) > 0
                 return self.data.to_csv(
-                    index=False,
+                    index=has_headers,
                 ).encode("utf-8")
 
             def to_json(self) -> bytes:
@@ -48,7 +49,7 @@ class PandasTableManagerFactory(TableManagerFactory):
 
             def get_row_headers(
                 self,
-            ) -> list[tuple[str, list[str | int | float]]]:
+            ) -> list[str]:
                 return PandasTableManager._get_row_headers_for_index(
                     self.data.index
                 )
@@ -60,8 +61,9 @@ class PandasTableManagerFactory(TableManagerFactory):
             @staticmethod
             def _get_row_headers_for_index(
                 index: pd.Index[Any],
-            ) -> list[tuple[str, list[str | int | float]]]:
-                if isinstance(index, pd.RangeIndex):
+            ) -> list[str]:
+                # Ignore if it's the default index with no name
+                if index.name is None and isinstance(index, pd.RangeIndex):
                     return []
 
                 if isinstance(index, pd.MultiIndex):
@@ -75,48 +77,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                         )
                     return headers
 
-                # we only care about the index if it has a name
-                # or if it is type 'object'
-                # otherwise, it may look like meaningless number
-                if isinstance(index, pd.Index):
-                    dtype = str(index.dtype)
-                    if (
-                        index.name
-                        or dtype == "object"
-                        or dtype == "string"
-                        or dtype == "category"
-                    ):
-                        name = str(index.name) if index.name else ""
-                        return [(name, index.tolist())]  # type: ignore[list-item]
-
-                if isinstance(index, pd.DatetimeIndex):
-                    # Format to Y-m-d if the time is 00:00:00
-                    formatted: list[str] = index.strftime(
-                        "%Y-%m-%d %H:%M:%S"
-                    ).tolist()
-                    if all(time.endswith(" 00:00:00") for time in formatted):
-                        return [
-                            (
-                                index.name or "",
-                                index.strftime("%Y-%m-%d").tolist(),
-                            )
-                        ]
-                    return [
-                        (
-                            index.name or "",
-                            index.strftime("%Y-%m-%d %H:%M:%S").tolist(),
-                        )
-                    ]
-
-                if isinstance(index, pd.TimedeltaIndex):
-                    return [
-                        (
-                            index.name or "",
-                            index.astype(str).tolist(),
-                        )
-                    ]
-
-                return []
+                return [str(index.name or "")]
 
             def get_field_types(self) -> FieldTypes:
                 return {
@@ -146,7 +107,7 @@ class PandasTableManagerFactory(TableManagerFactory):
             @staticmethod
             def _get_field_type(
                 series: pd.Series[Any] | pd.DataFrame,
-            ) -> FieldType:
+            ) -> Tuple[FieldType, ExternalDataType]:
                 # If a df has duplicate columns, it won't be a series, but
                 # a dataframe. In this case, we take the dtype of the columns
                 if isinstance(series, pd.DataFrame):
@@ -155,24 +116,24 @@ class PandasTableManagerFactory(TableManagerFactory):
                     dtype = str(series.dtype)
 
                 if dtype.startswith("interval"):
-                    return "string"
+                    return ("string", dtype)
                 if dtype.startswith("int") or dtype.startswith("uint"):
-                    return "integer"
+                    return ("integer", dtype)
                 if dtype.startswith("float"):
-                    return "number"
+                    return ("number", dtype)
                 if dtype == "object":
-                    return "string"
+                    return ("string", dtype)
                 if dtype == "bool":
-                    return "boolean"
+                    return ("boolean", dtype)
                 if dtype == "datetime64[ns]":
-                    return "date"
+                    return ("date", dtype)
                 if dtype == "timedelta64[ns]":
-                    return "string"
+                    return ("string", dtype)
                 if dtype == "category":
-                    return "string"
+                    return ("string", dtype)
                 if dtype.startswith("complex"):
-                    return "unknown"
-                return "unknown"
+                    return ("unknown", dtype)
+                return ("unknown", dtype)
 
             def get_summary(self, column: str) -> ColumnSummary:
                 # If column is not in the dataframe, return an empty summary

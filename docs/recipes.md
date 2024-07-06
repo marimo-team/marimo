@@ -127,7 +127,7 @@ mo.md(f"Hello, {form.value}!")
 backend (Python), marimo requires you to
 [assign UI elements to global variables](guides/interactivity.md).
 But sometimes you don't know the number of elements to make until runtime:
-for example, maybe you want o make a list of sliders, and the number of sliders
+for example, maybe you want to make a list of sliders, and the number of sliders
 to make depends on the value of some other UI element.
 
 You might be tempted to create a Python list of UI elements,
@@ -417,7 +417,6 @@ import random
 random.randint(0, 1000)
 ```
 
-
 ### Create a counter button
 
 **Use cases.** A counter button, i.e. a button that counts the number of times
@@ -502,7 +501,7 @@ button
 # the button acts as a trigger: every time it is clicked, this cell is run
 button
 
-# Replace with your custom lgic
+# Replace with your custom logic
 import random
 random.randint(0, 100)
 ```
