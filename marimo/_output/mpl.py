@@ -17,11 +17,11 @@ import io
 from typing import Optional
 
 import matplotlib.pyplot as plt  # type: ignore
+from matplotlib._pylab_helpers import Gcf
 from matplotlib.backend_bases import (  # type: ignore
     FigureCanvasBase,
     FigureManagerBase,
 )
-from matplotlib._pylab_helpers import Gcf
 from matplotlib.backends.backend_agg import FigureCanvasAgg  # type: ignore
 
 from marimo._messaging.cell_output import CellChannel
