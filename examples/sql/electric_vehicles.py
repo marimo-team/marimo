@@ -18,14 +18,14 @@ def __(mo):
 
 @app.cell
 def __(mo):
-    all = mo.sql(
+    evs = mo.sql(
         f"""
         create or replace table evs as
             from 'https://datasets.marimo.app/gov/Electric_Vehicle_Population_Data.csv';
         select * from evs
         """
     )
-    return all,
+    return evs,
 
 
 @app.cell
