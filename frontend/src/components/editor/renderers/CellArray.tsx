@@ -41,6 +41,7 @@ import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Kbd } from "@/components/ui/kbd";
+import { isPyodide } from "@/core/pyodide/utils";
 
 interface CellArrayProps {
   notebook: NotebookState;
@@ -207,37 +208,39 @@ const AddCellButtons: React.FC = () => {
           <SquareMIcon className="mr-2 size-4 flex-shrink-0" />
           Markdown
         </Button>
-        <Tooltip
-          content={
-            sqlCapabilities ? null : (
-              <span>
-                Requires duckdb:{" "}
-                <Kbd className="inline">pip install duckdb</Kbd>
-              </span>
-            )
-          }
-          delayDuration={100}
-          asChild={false}
-        >
-          <Button
-            className={buttonClass}
-            variant="text"
-            size="sm"
-            disabled={!sqlCapabilities}
-            onClick={() => {
-              maybeAddMarimoImport(autoInstantiate, createNewCell);
-
-              createNewCell({
-                cellId: "__end__",
-                before: false,
-                code: new SQLLanguageAdapter().defaultCode,
-              });
-            }}
+        {!isPyodide() && (
+          <Tooltip
+            content={
+              sqlCapabilities ? null : (
+                <span>
+                  Requires duckdb:{" "}
+                  <Kbd className="inline">pip install duckdb</Kbd>
+                </span>
+              )
+            }
+            delayDuration={100}
+            asChild={false}
           >
-            <DatabaseIcon className="mr-2 size-4 flex-shrink-0" />
-            SQL
-          </Button>
-        </Tooltip>
+            <Button
+              className={buttonClass}
+              variant="text"
+              size="sm"
+              disabled={!sqlCapabilities}
+              onClick={() => {
+                maybeAddMarimoImport(autoInstantiate, createNewCell);
+
+                createNewCell({
+                  cellId: "__end__",
+                  before: false,
+                  code: new SQLLanguageAdapter().defaultCode,
+                });
+              }}
+            >
+              <DatabaseIcon className="mr-2 size-4 flex-shrink-0" />
+              SQL
+            </Button>
+          </Tooltip>
+        )}
         <Tooltip
           content={aiEnabled ? null : <span>Enable via settings</span>}
           delayDuration={100}
