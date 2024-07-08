@@ -8,6 +8,10 @@ def test_parse_args_no_args():
     assert parse_args(("")) == {}
 
 
+def test_parse_args_non_dashed():
+    assert parse_args(("foo", "bar")) == {}
+
+
 def test_parse_args_with_integer():
     args = ("--count=10",)
     expected = {"count": 10}

@@ -26,7 +26,7 @@ def parse_args(
     for arg in args:
         if arg.startswith(("-", "--")):
             new_args.append(arg)
-        else:
+        elif new_args:
             new_args[-1] += f" {arg}"
 
     for arg in new_args:
