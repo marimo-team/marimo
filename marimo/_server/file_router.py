@@ -9,6 +9,8 @@ from marimo import _loggers
 from marimo._config.config import WidthType
 from marimo._server.api.status import HTTPException, HTTPStatus
 from marimo._server.file_manager import AppFileManager
+from marimo._server.files.os_file_system import natural_sort_file
+from marimo._server.models.files import FileInfo
 from marimo._server.models.home import MarimoFile
 from marimo._utils.marimo_path import MarimoPath
 
@@ -112,9 +114,9 @@ class AppFileRouter(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def files(self) -> List[MarimoFile]:
+    def files(self) -> List[FileInfo]:
         """
-        Get all files.
+        Get all files in a recursive tree.
         """
         pass
 
@@ -127,7 +129,7 @@ class NewFileAppFileRouter(AppFileRouter):
         return None
 
     @property
-    def files(self) -> List[MarimoFile]:
+    def files(self) -> List[FileInfo]:
         return []
 
 
@@ -136,8 +138,18 @@ class ListOfFilesAppFileRouter(AppFileRouter):
         self._files = files
 
     @property
-    def files(self) -> List[MarimoFile]:
-        return self._files
+    def files(self) -> List[FileInfo]:
+        return [
+            FileInfo(
+                id=file.path,
+                name=file.name,
+                path=file.path,
+                last_modified=file.last_modified,
+                is_directory=False,
+                is_marimo_file=True,
+            )
+            for file in self._files
+        ]
 
     def get_unique_file_key(self) -> Optional[MarimoFileKey]:
         if len(self.files) == 1:
@@ -146,7 +158,12 @@ class ListOfFilesAppFileRouter(AppFileRouter):
 
     def maybe_get_single_file(self) -> Optional[MarimoFile]:
         if len(self.files) == 1:
-            return self.files[0]
+            file = self.files[0]
+            return MarimoFile(
+                name=file.name,
+                path=file.path,
+                last_modified=file.last_modified,
+            )
         return None
 
 
@@ -154,7 +171,7 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
     def __init__(self, directory: str, include_markdown: bool) -> None:
         self.directory = directory
         self.include_markdown = include_markdown
-        self._lazy_files: Optional[List[MarimoFile]] = None
+        self._lazy_files: Optional[List[FileInfo]] = None
 
     def toggle_markdown(
         self, include_markdown: bool
@@ -166,60 +183,67 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
             )
         return self
 
+    def mark_stale(self) -> None:
+        self._lazy_files = None
+
     @property
-    def files(self) -> List[MarimoFile]:
+    def files(self) -> List[FileInfo]:
         if self._lazy_files is None:
             self._lazy_files = self._load_files()
         return self._lazy_files
 
-    def _load_files(self) -> List[MarimoFile]:
-        directory = self.directory
-        # Recursively find all .py files that contain the string "marimo.App"
-        # Max depth of 5 to avoid searching the entire filesystem
+    def _load_files(self) -> List[FileInfo]:
+        def recurse(
+            directory: str, depth: int = 0
+        ) -> Optional[List[FileInfo]]:
+            if depth > MAX_DEPTH:
+                return None
+            entries = os.listdir(directory)
+            files: List[FileInfo] = []
+            folders: List[FileInfo] = []
+            for entry in entries:
+                full_path = os.path.join(directory, entry)
+                if os.path.isdir(full_path):
+                    if entry in skip_dirs or depth == MAX_DEPTH:
+                        continue
+                    children = recurse(full_path, depth + 1)
+                    if children:
+                        folders.append(
+                            FileInfo(
+                                id=full_path,
+                                path=full_path,
+                                name=entry,
+                                is_directory=True,
+                                is_marimo_file=False,
+                                children=children,
+                            )
+                        )
+                else:
+                    if any(
+                        entry.endswith(ext) for ext in allowed_extensions
+                    ) and self._is_marimo_app(full_path):
+                        files.append(
+                            FileInfo(
+                                id=full_path,
+                                path=full_path,
+                                name=entry,
+                                is_directory=False,
+                                is_marimo_file=True,
+                                last_modified=os.path.getmtime(full_path),
+                            )
+                        )
+            # Sort folders then files, based on natural sort (alpha, then num)
+            return sorted(folders, key=natural_sort_file) + sorted(
+                files, key=natural_sort_file
+            )
+
         MAX_DEPTH = 5
-        files: List[MarimoFile] = []
         skip_dirs = {".git", ".venv", "__pycache__", "node_modules"}
         allowed_extensions = (
             {".py", ".md"} if self.include_markdown else {".py"}
         )
 
-        LOGGER.debug("Searching directory %s", directory)
-        cwd = os.getcwd()
-        for root, dirnames, filenames in os.walk(directory, topdown=True):
-            # Skip directories that are too deep
-            depth = root[len(directory) :].count(os.sep)
-            if depth >= MAX_DEPTH:
-                # mutating `dirnames` like this prunes all the dirs in it
-                # from the search
-                dirnames[:] = []
-                continue
-            # Skip directories that we don't want to search
-            root_name = os.path.basename(root)
-            if root_name in skip_dirs:
-                continue
-            # Iterate over all files in the directory
-            for filename in filenames:
-                if not any(
-                    filename.endswith(ext) for ext in allowed_extensions
-                ):
-                    continue
-                full_path = os.path.join(root, filename)
-                shortest_path = (
-                    os.path.relpath(full_path, cwd)
-                    if full_path.startswith(cwd)
-                    else full_path
-                )
-                # Python files must contain "marimo.App", or markdown files
-                if self._is_marimo_app(full_path):
-                    files.append(
-                        MarimoFile(
-                            name=filename,
-                            path=shortest_path,
-                            last_modified=os.path.getmtime(full_path),
-                        )
-                    )
-        LOGGER.debug("Found %d files in directory %s", len(files), directory)
-        return files
+        return recurse(self.directory) or []
 
     def _is_marimo_app(self, full_path: str) -> bool:
         try:
@@ -228,7 +252,7 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
             if path.is_markdown():
                 return "marimo-version:" in contents
             if path.is_python():
-                return "marimo.App" in contents
+                return "marimo.App" in contents and "import marimo" in contents
             return False
         except Exception as e:
             LOGGER.debug("Error reading file %s: %s", full_path, e)

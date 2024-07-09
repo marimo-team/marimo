@@ -14,6 +14,7 @@ from marimo._server.model import ConnectionState
 from marimo._server.models.home import (
     MarimoFile,
     RecentFilesResponse,
+    RunningNotebooksResponse,
     ShutdownSessionRequest,
     WorkspaceFilesRequest,
     WorkspaceFilesResponse,
@@ -74,13 +75,18 @@ async def workspace_files(
     session_manager = AppState(request).session_manager
 
     # Maybe enable markdown
+    root = ""
     if isinstance(session_manager.file_router, LazyListOfFilesAppFileRouter):
+        # Mark stale in case new files are added
+        session_manager.file_router.mark_stale()
+        # Toggle markdown
         session_manager.file_router = (
             session_manager.file_router.toggle_markdown(body.include_markdown)
         )
+        root = session_manager.file_router.directory
 
     files = session_manager.file_router.files
-    return WorkspaceFilesResponse(files=files)
+    return WorkspaceFilesResponse(files=files, root=root)
 
 
 def _get_active_sessions(app_state: AppState) -> List[MarimoFile]:
@@ -108,7 +114,7 @@ def _get_active_sessions(app_state: AppState) -> List[MarimoFile]:
 async def running_notebooks(
     *,
     request: Request,
-) -> WorkspaceFilesResponse:
+) -> RunningNotebooksResponse:
     """
     responses:
         200:
@@ -116,10 +122,10 @@ async def running_notebooks(
             content:
                 application/json:
                     schema:
-                        $ref: "#/components/schemas/WorkspaceFilesResponse"
+                        $ref: "#/components/schemas/RunningNotebooksResponse"
     """
     app_state = AppState(request)
-    return WorkspaceFilesResponse(files=_get_active_sessions(app_state))
+    return RunningNotebooksResponse(files=_get_active_sessions(app_state))
 
 
 @router.post("/shutdown_session")
@@ -127,7 +133,7 @@ async def running_notebooks(
 async def shutdown_session(
     *,
     request: Request,
-) -> WorkspaceFilesResponse:
+) -> RunningNotebooksResponse:
     """
     requestBody:
         content:
@@ -140,9 +146,9 @@ async def shutdown_session(
             content:
                 application/json:
                     schema:
-                        $ref: "#/components/schemas/WorkspaceFilesResponse"
+                        $ref: "#/components/schemas/RunningNotebooksResponse"
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=ShutdownSessionRequest)
     app_state.session_manager.close_session(body.session_id)
-    return WorkspaceFilesResponse(files=_get_active_sessions(app_state))
+    return RunningNotebooksResponse(files=_get_active_sessions(app_state))

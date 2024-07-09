@@ -75,6 +75,7 @@ export type UsageResponse =
   paths["/api/usage"]["get"]["responses"]["200"]["content"]["application/json"];
 export type WorkspaceFilesRequest = schemas["WorkspaceFilesRequest"];
 export type WorkspaceFilesResponse = schemas["WorkspaceFilesResponse"];
+export type RunningNotebooksResponse = schemas["RunningNotebooksResponse"];
 
 /**
  * Requests sent to the BE during run/edit mode.
@@ -129,10 +130,10 @@ export interface EditRequests {
   getWorkspaceFiles: (
     request: WorkspaceFilesRequest,
   ) => Promise<WorkspaceFilesResponse>;
-  getRunningNotebooks: () => Promise<WorkspaceFilesResponse>;
+  getRunningNotebooks: () => Promise<RunningNotebooksResponse>;
   shutdownSession: (
     request: ShutdownSessionRequest,
-  ) => Promise<WorkspaceFilesResponse>;
+  ) => Promise<RunningNotebooksResponse>;
   exportAsHTML: (request: ExportAsHTMLRequest) => Promise<string>;
   exportAsMarkdown: (request: ExportAsMarkdownRequest) => Promise<string>;
 }
