@@ -15,6 +15,7 @@
   hotkeys
   dataframes
   plotting
+  sql
   state
   integrating_with_marimo/index
   apps

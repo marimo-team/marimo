@@ -310,7 +310,11 @@ def __(mo):
         - `markdown`: how to write markdown, with interpolated values and
            LaTeX
         - `plots`: how plotting works in marimo
+        - `sql`: how to use SQL
+        - `layout`: layout elements in marimo
         - `fileformat`: how marimo's file format works
+        - `markdown-format`: for using `.md` files in marimo
+        - `for-jupyter-users`: if you are coming from Jupyter
 
         Start a tutorial with `marimo tutorial`; for example,
 
