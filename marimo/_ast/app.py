@@ -35,7 +35,11 @@ from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime import dataflow
 from marimo._runtime.context.types import get_context
 from marimo._runtime.patches import create_main_module
-from marimo._runtime.requests import AppMetadata, ExecutionRequest
+from marimo._runtime.requests import (
+    AppMetadata,
+    ExecutionRequest,
+    SetUIElementValueRequest,
+)
 from marimo._runtime.runner import cell_runner
 
 if TYPE_CHECKING:
@@ -444,35 +448,18 @@ class App:
         output, defs = self._runner.run_cell_sync(cell._cell.cell_id, kwargs)
         return output, _Namespace(defs, owner=self)
 
-    def _register_ui_element_update(self, value: UIElement[Any, Any]) -> None:
-        if value not in self._pending_ui_element_updates:
-            self._pending_ui_element_updates.append(value)
+    async def _set_ui_element_value(
+        self, request: SetUIElementValueRequest
+    ) -> None:
+        assert self._kernel is not None
+        await self._kernel.set_ui_element_value(request)
 
     async def embed(self) -> _AppOutput:
         from marimo._plugins.stateless.flex import vstack
 
         self._maybe_initialize()
 
-        # TODO: update to make working
-        if self._pending_ui_element_updates and self._cached_defs:
-            updated_names: set[str] = set()
-            defining_cells = set()
-            while self._pending_ui_element_updates:
-                element = self._pending_ui_element_updates.pop()
-                for name, value in self._cached_defs.items():
-                    if value is element:
-                        updated_names.add(name)
-                        defining_cells |= self._graph.get_defining_cells(name)
-                        break
-            descendants = dataflow.transitive_closure(
-                self._graph,
-                defining_cells,
-                inclusive=False,
-            )
-
-            await self._kernel_run(cells_to_run=descendants)
-
-        elif not self._cached_outputs:
+        if not self._cached_outputs:
             print("RUNNING ", self._execution_order)
             await self._kernel_run(set(self._execution_order))
 

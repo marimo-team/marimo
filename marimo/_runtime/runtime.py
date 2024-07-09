@@ -1106,8 +1106,9 @@ class Kernel:
         # of another parent element is resolved to its parent. In particular,
         # interacting with a view triggers reactive execution through the
         # source (parent).
+        ctx = get_context()
         resolved_requests: dict[str, Any] = {}
-        ui_element_registry = get_context().ui_element_registry
+        ui_element_registry = ctx.ui_element_registry
         for object_id, value in request.ids_and_values:
             try:
                 resolved_id, resolved_value = ui_element_registry.resolve_lens(
@@ -1133,6 +1134,25 @@ class Kernel:
                     value,
                 )
             except KeyError:
+                # TODO(akshayka): See if it exists in the registry of a child
+                # context; if found, call set_ui_element_request on the child
+                # context and resolve bindings for the containing app object;
+                # would be more graceful if App was just a UI element, but
+                # don't want to deal with that right now ...
+                for child_context in ctx.children:
+                    if (
+                        app := child_context.set_ui_element_request(value)
+                    ) != None:
+                        bindings = [
+                            name
+                            for name, value in self.globals.items()
+                            if value is app
+                        ]
+                        for binding in bindings:
+                            referring_cells.update(
+                                self.graph.get_referring_cells(binding)
+                            )
+
                 # KeyError: A UI element may go out of scope if it was not
                 # assigned to a global variable
                 LOGGER.debug("Could not find UIElement with id %s", object_id)
@@ -1174,9 +1194,7 @@ class Kernel:
 
             bound_names = (
                 name
-                for name in get_context().ui_element_registry.bound_names(
-                    object_id
-                )
+                for name in ctx.ui_element_registry.bound_names(object_id)
                 if not is_local(name)
             )
 
@@ -1186,12 +1204,6 @@ class Kernel:
                 variable_values.append(
                     VariableValue(name=name, value=component)
                 )
-                if name in self.globals and isinstance(
-                    self.globals[name], App
-                ):
-                    self.globals[name]._register_ui_element_update(
-                        value=component
-                    )
                 try:
                     # subtracting self.graph.definitions[name]: never rerun the
                     # cell that created the name
