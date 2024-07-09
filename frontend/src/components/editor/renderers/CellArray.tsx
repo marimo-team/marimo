@@ -242,7 +242,9 @@ const AddCellButtons: React.FC = () => {
           </Tooltip>
         )}
         <Tooltip
-          content={aiEnabled ? null : <span>Enable via settings</span>}
+          content={
+            aiEnabled ? null : <span>Enable via settings under AI Assist</span>
+          }
           delayDuration={100}
           asChild={false}
         >
