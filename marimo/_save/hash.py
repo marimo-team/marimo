@@ -1,13 +1,22 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
 
 import ast
 import base64
 import hashlib
 import numbers
 import types
+from typing import TYPE_CHECKING, Optional
 
 from marimo._ast.visitor import ScopedVisitor
-from marimo._save.cache import ValidCacheSha
+from marimo._save.cache import Cache, ValidCacheSha
+
+if TYPE_CHECKING:
+    from types import CodeType
+
+    from marimo._ast.cell import CellId_t, CellImpl
+    from marimo._runtime.dataflow import DirectedGraph
+    from marimo._save.loaders import Loader
 
 BASE_PRIMITIVES = (str, numbers.Number, type(None))
 
@@ -25,12 +34,14 @@ BASE_PRIMITIVES = (str, numbers.Number, type(None))
 # other
 
 
-def hash_module(code):
+def hash_module(code: Optional[CodeType]) -> bytes:
+    if not code:
+        return b"0" * 32
+
     sha = hashlib.sha256()
 
-    def process(code_obj):
+    def process(code_obj: CodeType) -> None:
         # Recursively hash the constants that are also code objects
-        const_hashes = []
         for const in code_obj.co_consts:
             if isinstance(const, types.CodeType):
                 process(const)
@@ -45,7 +56,7 @@ def hash_module(code):
     return sha.digest()
 
 
-def hash_raw_module(module):
+def hash_raw_module(module: ast.Module) -> bytes:
     return hash_module(
         compile(
             module,
@@ -56,11 +67,13 @@ def hash_raw_module(module):
     )
 
 
-def hash_cell_impl(cell):
+def hash_cell_impl(cell: CellImpl) -> bytes:
     return hash_module(cell.body) + hash_module(cell.last_expr)
 
 
-def build_execution_hash(graph, cell_id):
+def build_execution_hash(
+    graph: DirectedGraph, cell_id: CellId_t
+) -> Optional[ValidCacheSha]:
     sha = hashlib.sha256()
     ancestors = graph.ancestors(cell_id)
     references = sorted(
@@ -71,14 +84,10 @@ def build_execution_hash(graph, cell_id):
     return ValidCacheSha(sha, "ExecutionPath")
 
 
-def build_bare_ref_predicate(ref):
-    glbl = globals()
-    return ref in glbl and not isinstance(glbl[ref], BASE_PRIMITIVES)
-
-
-def build_content_hash(graph, visitor):
+def build_content_hash(
+    graph: DirectedGraph, visitor: ScopedVisitor
+) -> Optional[ValidCacheSha]:
     sha = hashlib.sha256()
-    predicate = lambda *_: False
     for ref in sorted(
         graph.get_transitive_references(visitor.defs, inclusive=False)
     ):
@@ -95,7 +104,14 @@ def build_content_hash(graph, visitor):
     return ValidCacheSha(sha, "ContentAddressed")
 
 
-def hash_context(module, graph, cell_id, loader=None, context=None):
+def hash_context(
+    module: ast.Module,
+    graph: DirectedGraph,
+    cell_id: CellId_t,
+    *,
+    context: Optional[ast.Module] = None,
+    loader: Loader,
+) -> Cache:
     # Empty name, so we can match and fill in cell context on load.
     visitor = ScopedVisitor("")
     visitor.visit(module)
