@@ -23,6 +23,7 @@ import {
   ExternalLinkIcon,
   PlayCircleIcon,
   PowerOffIcon,
+  RefreshCcwIcon,
   SearchIcon,
 } from "lucide-react";
 import { ShutdownButton } from "../editor/controls/shutdown-button";
@@ -70,16 +71,14 @@ function tabTarget(path: string) {
 const HomePage: React.FC = () => {
   const [includeMarkdown, setIncludeMarkdown] = useAtom(includeMarkdownAtom);
   const [searchText, setSearchText] = useState("");
-
-  const fileResponse = useAsyncData(async () => {
-    const [workspace, recents] = await Promise.all([
-      getWorkspaceFiles({ includeMarkdown: includeMarkdown }),
-      getRecentFiles(),
-    ]);
-    return { workspace, recents };
-  }, [includeMarkdown]);
-
   const [nonce, setNonce] = useState(0);
+
+  const recentsResponse = useAsyncData(() => getRecentFiles(), []);
+  const workspaceResponse = useAsyncData(
+    () => getWorkspaceFiles({ includeMarkdown }),
+    [includeMarkdown],
+  );
+
   useInterval(
     () => {
       setNonce((nonce) => nonce + 1);
@@ -93,17 +92,22 @@ const HomePage: React.FC = () => {
     return Maps.keyBy(response.files, (file) => file.path);
   }, [nonce]);
 
-  const error = fileResponse.error || runningResponse.error;
-  if (error) {
-    throw error;
+  const response = combineAsyncData(
+    recentsResponse,
+    workspaceResponse,
+    runningResponse,
+  );
+
+  if (response.error) {
+    throw response.error;
   }
 
-  const data = combineAsyncData(fileResponse, runningResponse).data;
+  const data = response.data;
   if (!data) {
     return <Spinner centered={true} size="xlarge" />;
   }
 
-  const [{ workspace, recents }, running] = data;
+  const [recents, workspace, running] = data;
 
   return (
     <Suspense>
@@ -158,7 +162,11 @@ const HomePage: React.FC = () => {
               }
             >
               Workspace
-              {fileResponse.loading && <Spinner size="small" />}
+              <RefreshCcwIcon
+                className="w-4 h-4 ml-1 cursor-pointer opacity-70 hover:opacity-100"
+                onClick={() => workspaceResponse.reload()}
+              />
+              {workspaceResponse.loading && <Spinner size="small" />}
             </Header>
             <div className="flex flex-col divide-y divide-[var(--slate-3)] border rounded overflow-hidden max-h-[48rem] overflow-y-auto shadow-sm bg-background">
               <NotebookFileTree
@@ -352,7 +360,7 @@ const Header: React.FC<{
 }> = ({ Icon, control, children }) => {
   return (
     <div className="flex items-center justify-between gap-2">
-      <h2 className="flex items-center gap-2 text-xl font-semibold text-muted-foreground">
+      <h2 className="flex items-center gap-2 text-xl font-semibold text-muted-foreground select-none">
         <Icon className="h-5 w-5" />
         {children}
       </h2>
