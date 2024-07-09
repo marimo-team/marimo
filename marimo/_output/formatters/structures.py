@@ -49,7 +49,7 @@ class StructuresFormatter(FormatterFactory):
                 # Special case for matplotlib:
                 #
                 # plt.plot() returns a list of lines 2D objects, one for each
-                # line, which typically have identitical figures. Without this
+                # line, which typically have identical figures. Without this
                 # special case, if a plot had (say) 5 lines, it would be shown
                 # 5 times.
                 import matplotlib.artist  # type: ignore
