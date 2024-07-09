@@ -6,12 +6,19 @@ components:
           type: string
         includeOtherCode:
           type: string
+        language:
+          enum:
+          - python
+          - markdown
+          - sql
+          type: string
         prompt:
           type: string
       required:
       - prompt
       - includeOtherCode
       - code
+      - language
       type: object
     Alert:
       properties:
@@ -570,7 +577,7 @@ components:
           type: boolean
         isMarimoFile:
           type: boolean
-        lastModifiedDate:
+        lastModified:
           nullable: true
           type: number
         name:
@@ -1115,6 +1122,7 @@ components:
           nullable: true
           type: string
         lastModified:
+          nullable: true
           type: number
         name:
           type: string
@@ -1126,7 +1134,6 @@ components:
       required:
       - name
       - path
-      - lastModified
       type: object
     MarimoInterruptionError:
       properties:
@@ -1406,6 +1413,15 @@ components:
       - cellIds
       - codes
       type: object
+    RunningNotebooksResponse:
+      properties:
+        files:
+          items:
+            $ref: '#/components/schemas/MarimoFile'
+          type: array
+      required:
+      - files
+      type: object
     SaveAppConfigurationRequest:
       properties:
         config:
@@ -1673,14 +1689,17 @@ components:
       properties:
         files:
           items:
-            $ref: '#/components/schemas/MarimoFile'
+            $ref: '#/components/schemas/FileInfo'
           type: array
+        root:
+          type: string
       required:
+      - root
       - files
       type: object
 info:
   title: marimo API
-  version: 0.6.25
+  version: 0.7.1
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -1889,7 +1908,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WorkspaceFilesResponse'
+                $ref: '#/components/schemas/RunningNotebooksResponse'
           description: Get the running files
   /api/home/shutdown_session:
     post:
@@ -1903,7 +1922,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WorkspaceFilesResponse'
+                $ref: '#/components/schemas/RunningNotebooksResponse'
           description: Shutdown the current session
   /api/home/workspace_files:
     post:

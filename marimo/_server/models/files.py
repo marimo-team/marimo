@@ -14,7 +14,7 @@ class FileInfo:
     name: str
     is_directory: bool
     is_marimo_file: bool
-    last_modified_date: Optional[float] = None
+    last_modified: Optional[float] = None
     children: List["FileInfo"] = field(default_factory=list)
 
 

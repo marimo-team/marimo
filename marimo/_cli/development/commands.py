@@ -120,6 +120,7 @@ def _generate_schema() -> dict[str, Any]:
         files.FileUpdateRequest,
         files.FileUpdateResponse,
         home.RecentFilesResponse,
+        home.RunningNotebooksResponse,
         home.ShutdownSessionRequest,
         home.WorkspaceFilesRequest,
         home.WorkspaceFilesResponse,
