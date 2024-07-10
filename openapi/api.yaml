@@ -1178,6 +1178,7 @@ components:
       oneOf:
       - $ref: '#/components/schemas/CellOp'
       - $ref: '#/components/schemas/FunctionCallResult'
+      - $ref: '#/components/schemas/SendUIElementMessage'
       - $ref: '#/components/schemas/RemoveUIElements'
       - $ref: '#/components/schemas/Reload'
       - $ref: '#/components/schemas/Reconnected'
@@ -1471,6 +1472,25 @@ components:
       required:
       - config
       type: object
+    SendUIElementMessage:
+      properties:
+        buffers:
+          items:
+            type: string
+          nullable: true
+          type: array
+        message:
+          $ref: '#/components/schemas/JSONType'
+        name:
+          enum:
+          - send-ui-element-message
+          type: string
+        ui_element:
+          type: string
+      required:
+      - ui_element
+      - name
+      type: object
     SetCellConfigRequest:
       properties:
         configs:
@@ -1699,7 +1719,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.7.1
+  version: 0.7.2
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

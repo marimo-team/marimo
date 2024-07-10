@@ -2,16 +2,21 @@
 from __future__ import annotations
 
 import weakref
-from typing import TYPE_CHECKING, Any, Dict
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 import marimo._output.data.data as mo_data
+from marimo import _loggers
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._runtime.functions import Function
 
 if TYPE_CHECKING:
     from anywidget import (  # type: ignore [import-not-found,unused-ignore]  # noqa: E501
         AnyWidget,
     )
+
+LOGGER = _loggers.marimo_logger()
 
 
 # Weak dictionary
@@ -27,6 +32,12 @@ def from_anywidget(widget: "AnyWidget") -> UIElement[Any, Any]:
 
 
 T = Dict[str, Any]
+
+
+@dataclass
+class SendToWidgetArgs:
+    content: Any
+    buffers: Optional[Any] = None
 
 
 @mddoc
@@ -89,6 +100,8 @@ class anywidget(UIElement[T, T]):
         js: str = widget._esm if hasattr(widget, "_esm") else ""  # type: ignore [unused-ignore]  # noqa: E501
         css: str = widget._css if hasattr(widget, "_css") else ""  # type: ignore [unused-ignore]  # noqa: E501
 
+        self.widget.comm = maybe_create_comm(self)
+
         super().__init__(
             component_name="marimo-anywidget",
             initial_value=args,
@@ -98,7 +111,22 @@ class anywidget(UIElement[T, T]):
                 "css": css,
             },
             on_change=on_change,
+            functions=(
+                Function(
+                    name="send_to_widget",
+                    arg_cls=SendToWidgetArgs,
+                    function=self.receive_from_frontend,
+                ),
+            ),
         )
+
+    def send_to_frontend(
+        self, value: T, buffers: Optional[Any] = None
+    ) -> None:
+        self.send_message(value, buffers)
+
+    def receive_from_frontend(self, args: SendToWidgetArgs) -> None:
+        self.widget._handle_custom_msg(args.content, args.buffers)
 
     def _convert_value(self, value: T) -> T:
         return value
@@ -106,3 +134,33 @@ class anywidget(UIElement[T, T]):
     # Proxy all the widget's attributes
     def __getattr__(self, name: str) -> Any:
         return getattr(self.widget, name)
+
+
+def maybe_create_comm(widget: "anywidget") -> Any:
+    try:
+        from comm.base_comm import BaseComm
+
+        class MarimoComm(BaseComm):
+            def publish_msg(
+                self,
+                msg_type: str,
+                data: Any = None,
+                metadata: Any = None,
+                buffers: Any = None,
+                **keys: Any,
+            ) -> None:
+                del metadata
+                del keys
+                if (
+                    msg_type == "comm_msg"
+                    and "method" in data
+                    and data["method"] == "custom"
+                ):
+                    if "content" in data:
+                        widget.send_to_frontend(data["content"], buffers)
+                    else:
+                        LOGGER.warning("No content in custom message")
+
+        return MarimoComm()
+    except ImportError:
+        LOGGER.warning("Comm is not available")

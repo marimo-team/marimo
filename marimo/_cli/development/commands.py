@@ -64,6 +64,7 @@ def _generate_schema() -> dict[str, Any]:
         ops.CellOp,
         ops.HumanReadableStatus,
         ops.FunctionCallResult,
+        ops.SendUIElementMessage,
         ops.RemoveUIElements,
         ops.Interrupted,
         ops.CompletedRun,

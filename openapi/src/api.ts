@@ -1202,6 +1202,7 @@ export interface components {
     MessageOperation:
       | components["schemas"]["CellOp"]
       | components["schemas"]["FunctionCallResult"]
+      | components["schemas"]["SendUIElementMessage"]
       | components["schemas"]["RemoveUIElements"]
       | components["schemas"]["Reload"]
       | components["schemas"]["Reconnected"]
@@ -1331,6 +1332,13 @@ export interface components {
     };
     SaveUserConfigurationRequest: {
       config: components["schemas"]["MarimoConfig"];
+    };
+    SendUIElementMessage: {
+      buffers?: string[] | null;
+      message?: components["schemas"]["JSONType"];
+      /** @enum {string} */
+      name: "send-ui-element-message";
+      ui_element: string;
     };
     SetCellConfigRequest: {
       configs: {

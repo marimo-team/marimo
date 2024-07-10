@@ -1,22 +1,53 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { UIElementId } from "../cells/ids";
+import type { UIElementId } from "../cells/ids";
+
+export function defineCustomEvent<T extends string>(eventName: T) {
+  return <D>() => ({
+    TYPE: eventName,
+    is(event: Event): event is CustomEvent<D> {
+      return event.type === eventName;
+    },
+    create(init: CustomEventInit<D>) {
+      return new CustomEvent(eventName, init);
+    },
+  });
+}
 
 export type ValueType = unknown;
 
-export type MarimoValueInputEventType = CustomEvent<{
+export const MarimoValueInputEvent = defineCustomEvent("marimo-value-input")<{
   value: ValueType;
   element: HTMLElement;
-}>;
-export const marimoValueInputEvent = "marimo-value-input";
+}>();
+export type MarimoValueInputEventType = ReturnType<
+  typeof MarimoValueInputEvent.create
+>;
 
-export type MarimoValueUpdateEventType = CustomEvent<{
+export const MarimoValueUpdateEvent = defineCustomEvent("marimo-value-update")<{
   value: ValueType;
   element: HTMLElement;
-}>;
-export const marimoValueUpdateEvent = "marimo-value-update";
+}>();
+export type MarimoValueUpdateEventType = ReturnType<
+  typeof MarimoValueUpdateEvent.create
+>;
 
-export type MarimoValueReadyEventType = CustomEvent<{ objectId: UIElementId }>;
-export const marimoValueReadyEvent = "marimo-value-ready";
+export const MarimoValueReadyEvent = defineCustomEvent("marimo-value-ready")<{
+  objectId: UIElementId;
+}>();
+export type MarimoValueReadyEventType = ReturnType<
+  typeof MarimoValueReadyEvent.create
+>;
+
+export const MarimoIncomingMessageEvent = defineCustomEvent(
+  "marimo-incoming-message",
+)<{
+  objectId: UIElementId;
+  message: unknown;
+  buffers: DataView[] | undefined;
+}>();
+export type MarimoIncomingMessageEventType = ReturnType<
+  typeof MarimoIncomingMessageEvent.create
+>;
 
 /**
  * Create a custom event to communicate a change in value
@@ -38,7 +69,7 @@ export function createInputEvent(
   value: ValueType,
   element: HTMLElement,
 ): MarimoValueInputEventType {
-  return new CustomEvent(marimoValueInputEvent, {
+  return MarimoValueInputEvent.create({
     bubbles: true, // bubble to tell marimo that a value has changed
     composed: true,
     detail: { value: value, element: element },
@@ -48,14 +79,16 @@ export function createInputEvent(
 // Augment the global namespace to include the custom events
 declare global {
   interface HTMLElementEventMap {
-    "marimo-value-input": MarimoValueInputEventType;
-    "marimo-value-update": MarimoValueUpdateEventType;
-    "marimo-value-ready": MarimoValueReadyEventType;
+    [MarimoValueInputEvent.TYPE]: MarimoValueInputEventType;
+    [MarimoValueUpdateEvent.TYPE]: MarimoValueUpdateEventType;
+    [MarimoValueReadyEvent.TYPE]: MarimoValueReadyEventType;
+    [MarimoIncomingMessageEvent.TYPE]: MarimoIncomingMessageEventType;
   }
 
   interface DocumentEventMap {
-    "marimo-value-input": MarimoValueInputEventType;
-    "marimo-value-update": MarimoValueUpdateEventType;
-    "marimo-value-ready": MarimoValueReadyEventType;
+    [MarimoValueInputEvent.TYPE]: MarimoValueInputEventType;
+    [MarimoValueUpdateEvent.TYPE]: MarimoValueUpdateEventType;
+    [MarimoValueReadyEvent.TYPE]: MarimoValueReadyEventType;
+    [MarimoIncomingMessageEvent.TYPE]: MarimoIncomingMessageEventType;
   }
 }

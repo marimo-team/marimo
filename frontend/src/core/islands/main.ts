@@ -27,7 +27,9 @@ import { defineCustomElement } from "../dom/defineCustomElement";
 import { MarimoIslandElement } from "./components/web-components";
 import { RuntimeState } from "../kernel/RuntimeState";
 import { sendComponentValues } from "../network/requests";
-import { RequestId } from "../network/DeferredRequestRegistry";
+import type { RequestId } from "../network/DeferredRequestRegistry";
+import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
+import type { UIElementId } from "../cells/ids";
 
 /**
  * Main entry point for the js bundle for embedded marimo apps.
@@ -93,6 +95,14 @@ export async function initialize() {
         return;
       case "interrupted":
         return;
+      case "send-ui-element-message":
+        UI_ELEMENT_REGISTRY.broadcastMessage(
+          msg.data.ui_element as UIElementId,
+          msg.data.message,
+          msg.data.buffers,
+        );
+        return;
+
       case "remove-ui-elements":
         handleRemoveUIElements(msg.data);
         return;
