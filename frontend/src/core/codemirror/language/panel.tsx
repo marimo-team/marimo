@@ -19,7 +19,7 @@ export const LanguagePanelComponent: React.FC<{
           onChange={(e) => (languageAdapter.dataframeName = e.target.value)}
           onBlur={(e) => {
             // Normalize the name to a valid variable name
-            const name = normalizeName(e.target.value);
+            const name = normalizeName(e.target.value, false);
             languageAdapter.dataframeName = name;
             e.target.value = name;
 

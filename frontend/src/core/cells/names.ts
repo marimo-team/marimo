@@ -49,7 +49,7 @@ const DISALLOWED_NAMES = new Set([
 /**
  * Make's name pythonic - removes spaces, special characters and makes lowercase
  */
-export function normalizeName(name: string) {
+export function normalizeName(name: string, lowercase = true): string {
   name = name.trim();
   if (!name) {
     return DEFAULT_CELL_NAME;
@@ -58,7 +58,8 @@ export function normalizeName(name: string) {
   if (/^\d/.test(name)) {
     name = `_${name}`;
   }
-  return name.replaceAll(/\W/g, "_").toLowerCase();
+  name = name.replaceAll(/\W/g, "_");
+  return lowercase ? name.toLowerCase() : name;
 }
 
 /**
