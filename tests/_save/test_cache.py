@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import textwrap
+
 from marimo._ast.app import App
+from marimo._runtime.requests import ExecutionRequest
+from marimo._runtime.runtime import Kernel
 
 
 class TestScriptCache:
@@ -47,3 +51,47 @@ class TestScriptCache:
             return X, Y, persistent_cache
 
         app.run()
+
+
+class TestAppCache:
+    async def test_cache_miss(self, any_kernel: Kernel) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent("""
+                from marimo._save.save import persistent_cache
+                from tests._save.mocks import MockLoader
+
+                with persistent_cache(name="one") as cache:
+                    Y = 9
+                    X = 10
+                """),
+                ),
+            ]
+        )
+        assert k.globals["Y"] == 9
+        assert k.globals["X"] == 10
+
+    async def test_cache_hit(self, any_kernel: Kernel) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent("""
+                from marimo._save.save import persistent_cache
+                from tests._save.mocks import MockLoader
+
+                with persistent_cache(
+                    name="one", _loader=MockLoader(data={"X": 7, "Y": 8})
+                ) as cache:
+                    Y = 9
+                    X = 10
+                """),
+                ),
+            ]
+        )
+        assert k.globals["X"] == 7
+        assert k.globals["Y"] == 8
