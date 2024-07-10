@@ -2,7 +2,10 @@
 import { EditorView, keymap } from "@codemirror/view";
 import type { CellId } from "../cells/ids";
 import { formatEditorViews } from "./format";
-import { toggleToLanguage } from "./language/commands";
+import {
+  getCurrentLanguageAdapter,
+  toggleToLanguage,
+} from "./language/commands";
 import { smartScrollIntoView } from "../../utils/scroll";
 import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { invariant } from "@/utils/invariant";
@@ -30,7 +33,13 @@ export function formatKeymapExtension(
       key: hotkeys.getHotkey("cell.viewAsMarkdown").key,
       preventDefault: true,
       run: (ev) => {
-        const response = toggleToLanguage(ev, "markdown");
+        const currentLanguage = getCurrentLanguageAdapter(ev);
+        if (currentLanguage !== "markdown" && currentLanguage !== "python") {
+          return false;
+        }
+        const destinationLanguage =
+          currentLanguage === "python" ? "markdown" : "python";
+        const response = toggleToLanguage(ev, destinationLanguage);
         if (response === "markdown") {
           afterToggleMarkdown();
         }
