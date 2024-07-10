@@ -6,13 +6,8 @@ import {
   shutdownSession,
 } from "@/core/network/requests";
 import { combineAsyncData, useAsyncData } from "@/hooks/useAsyncData";
-import React, {
-  Suspense,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import type React from "react";
+import { Suspense, useContext, useEffect, useRef, useState } from "react";
 import { Spinner } from "../icons/spinner";
 import {
   BookTextIcon,
@@ -28,7 +23,7 @@ import {
 } from "lucide-react";
 import { ShutdownButton } from "../editor/controls/shutdown-button";
 import {
-  SessionId,
+  type SessionId,
   generateSessionId,
   getSessionId,
   isSessionId,
@@ -40,17 +35,22 @@ import { assertExists } from "@/utils/assertExists";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
-import { FileInfo, MarimoFile } from "@/core/network/types";
+import type { FileInfo, MarimoFile } from "@/core/network/types";
 import { ConfigButton } from "../app-config/app-config-button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { MarkdownIcon } from "@/components/editor/cell/code/icons";
 import { asURL } from "@/utils/url";
 import { timeAgo } from "@/utils/dates";
-import { NodeApi, NodeRendererProps, Tree, TreeApi } from "react-arborist";
+import {
+  type NodeApi,
+  type NodeRendererProps,
+  Tree,
+  type TreeApi,
+} from "react-arborist";
 import { cn } from "@/utils/cn";
 import {
-  FileType,
+  type FileType,
   guessFileType,
   FILE_TYPE_ICONS,
 } from "../editor/file-tree/types";
@@ -62,6 +62,7 @@ import {
 } from "../home/state";
 import { Maps } from "@/utils/maps";
 import { Input } from "../ui/input";
+import { Paths } from "@/utils/paths";
 
 function tabTarget(path: string) {
   // Consistent tab target so we open in the same tab when clicking on the same notebook
@@ -276,9 +277,10 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
       );
     }
 
-    const relativePath = node.data.path.startsWith(root)
-      ? node.data.path.slice(root.length + 1)
-      : node.data.path;
+    const relativePath =
+      node.data.path.startsWith(root) && Paths.isAbsolute(node.data.path)
+        ? node.data.path.slice(root.length + 1)
+        : node.data.path;
 
     const isMarkdown = relativePath.endsWith(".md");
 
