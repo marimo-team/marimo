@@ -463,8 +463,8 @@ def __():
         ),
         "Code Formatting": (
             """
-            If you have [black](https://github.com/psf/black) installed, you can format a cell with
-            the keyboard shortcut `Ctrl/Cmd+b`.
+            If you have [ruff](https://github.com/astral-sh/ruff) installed,
+            you can format a cell with the keyboard shortcut `Ctrl/Cmd+b`.
             """
         ),
         "Command Palette": (
