@@ -71,6 +71,13 @@ can reconstruct your layout.
 
 ### Slides layout
 
-If you prefer a slideshow-like experience, you can use the slides layout.
+If you prefer a slideshow-like experience, you can use the slides layout. Enable the slides layout in the app preview, via the same dropdown as above.
 
-Enable the slides layout in the app preview, via the same dropdown as above.
+Unlike the grid layout, the slides are much less customizable:
+
+- The order of the slides is determined by the order of the cells in the notebook.
+- The slides do not support drag-and-drop rearrangement or resizing.
+- All outputs are shown and all code is hidden.
+
+If you need more control over the layout, please file an issue on [GitHub](https://github.com/marimo-team/marimo/issues),
+so we can properly prioritize this feature.
