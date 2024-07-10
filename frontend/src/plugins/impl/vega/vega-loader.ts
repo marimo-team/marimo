@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 // @ts-expect-error - no types
 import * as vl from "vega-loader";
-import { DataFormat } from "./types";
-import { DataType } from "@/core/kernel/messages";
+import type { DataFormat } from "./types";
+import type { DataType } from "@/core/kernel/messages";
 
 // Re-export the vega-loader functions to add TypeScript types
 

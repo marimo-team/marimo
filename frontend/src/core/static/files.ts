@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { StaticVirtualFiles } from "./types";
+import type { StaticVirtualFiles } from "./types";
 import { deserializeBlob } from "@/utils/blob";
 import { getStaticVirtualFiles } from "./static-state";
+import type { DataURLString } from "@/utils/json/base64";
 
 /**
  * Patch fetch to resolve virtual files
@@ -45,7 +46,8 @@ export function patchVegaLoader(
   },
   files: StaticVirtualFiles = getStaticVirtualFiles(),
 ) {
-  const originalHttp = loader.http;
+  // const originalHttp = loader.http.bind(loader);
+  const originalHttp = loader.http.bind(loader);
 
   loader.http = async (url: string) => {
     if (files[url]) {
@@ -54,7 +56,18 @@ export function patchVegaLoader(
       return blob.text();
     }
 
-    return originalHttp(url);
+    try {
+      return await originalHttp(url);
+    } catch (error) {
+      // If its a data URL, just return the data
+      if (url.startsWith("data:")) {
+        return deserializeBlob(url as DataURLString).then((blob) =>
+          blob.text(),
+        );
+      }
+      // Re-throw the error
+      throw error;
+    }
   };
 
   return () => {
