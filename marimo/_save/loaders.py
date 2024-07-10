@@ -12,6 +12,15 @@ from marimo._save.cache import CACHE_PREFIX, Cache, CacheType
 if TYPE_CHECKING:
     from marimo._ast.visitor import Name
 
+INCONSISTENT_CACHE_BOILER_PLATE = (
+    "The cache state does not match "
+    "expectations, this can be due to file "
+    "corruption or an incompatible marimo "
+    "version. Alternatively, this may be a bug"
+    " in marimo. Please file an issue at "
+    "github.com/marimo-team/marimo/issues"
+)
+
 
 class Loader(ABC):
     """Loaders are responsible for saving and loading persistent caches.
@@ -42,8 +51,8 @@ class Loader(ABC):
             )
         loaded = self.load_cache(hashed_context, cache_type)
         # TODO: Consider more robust verification
-        assert loaded.hash == hashed_context
-        assert set(defs) == set(loaded.defs)
+        assert loaded.hash == hashed_context, INCONSISTENT_CACHE_BOILER_PLATE
+        assert set(defs) == set(loaded.defs), INCONSISTENT_CACHE_BOILER_PLATE
         return Cache(loaded.defs, hashed_context, cache_type, True)
 
     @abstractmethod
@@ -68,7 +77,7 @@ class Loader(ABC):
 
 
 class PickleLoader(Loader):
-    """General loader for serialable objects."""
+    """General loader for serializable objects."""
 
     def build_path(self, hashed_context: str, cache_type: CacheType) -> Path:
         return Path(f"{super().build_path(hashed_context, cache_type)}.pickle")
@@ -77,10 +86,15 @@ class PickleLoader(Loader):
         return os.path.exists(self.build_path(hashed_context, cache_type))
 
     def load_cache(self, hashed_context: str, cache_type: CacheType) -> Cache:
-        assert self.cache_hit(hashed_context, cache_type)
+        assert self.cache_hit(
+            hashed_context, cache_type
+        ), INCONSISTENT_CACHE_BOILER_PLATE
         with open(self.build_path(hashed_context, cache_type), "rb") as handle:
             cache = pickle.load(handle)
-            assert isinstance(cache, Cache), "Excepted cache object"
+            assert isinstance(cache, Cache), (
+                "Excepted cache object, got" f"{type(cache)} ",
+                INCONSISTENT_CACHE_BOILER_PLATE,
+            )
             return cache
 
     def save_cache(self, cache: Cache) -> None:

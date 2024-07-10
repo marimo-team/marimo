@@ -18,6 +18,14 @@ from marimo._save.cache import Cache, contextual_defs
 from marimo._save.hash import hash_context
 from marimo._save.loaders import Loader, PickleLoader
 
+UNEXPECTED_FAILURE_BOILERPLATE = (
+    "— this is"
+    " unexpected and is likely a bug in marimo. "
+    "Please file an issue at "
+    "https://github.com/marimo-team/marimo/issues"
+)
+
+
 if TYPE_CHECKING:
     from types import FrameType, TracebackType
 
@@ -138,10 +146,15 @@ class persistent_cache(object):
                 return self._old_trace
             elif i > 1:
                 raise CacheException(
-                    "persistent_cache must be invoked from cell level "
+                    "`persistent_cache` must be invoked from cell level "
                     "(cannot be in a function or class)"
                 )
-        raise CacheException("persistent_cache could not resolve block")
+        raise CacheException(
+            (
+                "`persistent_cache` could not resolve block"
+                f"{UNEXPECTED_FAILURE_BOILERPLATE}"
+            )
+        )
 
     def __exit__(
         self,
@@ -151,7 +164,9 @@ class persistent_cache(object):
     ) -> bool:
         sys.settrace(self._old_trace)  # Clear to previous set trace.
         if not self._entered_trace:
-            raise CacheException("Unexpected block format.")
+            raise CacheException(
+                ("Unexpected block format" f"{UNEXPECTED_FAILURE_BOILERPLATE}")
+            )
 
         # Backfill the loaded values into global scope.
         if self._cache and self._cache.hit:
@@ -163,9 +178,10 @@ class persistent_cache(object):
 
         # NB: exception is a type.
         if exception:
-            assert not isinstance(
-                instance, SkipWithBlock
-            ), "Cache was not correctly set."
+            assert not isinstance(instance, SkipWithBlock), (
+                "Cache was not correctly set"
+                f"{UNEXPECTED_FAILURE_BOILERPLATE}"
+            )
             if isinstance(instance, BaseException):
                 raise instance from CacheException("Failure during save.")
             raise exception
