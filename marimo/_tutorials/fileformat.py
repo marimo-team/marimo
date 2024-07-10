@@ -195,7 +195,7 @@ def __():
         the generated code. For example, whitespace, line breaks, and so on are
         all preserved exactly. This means that you can touch up formatting in
         your text editor, either manually or using automated formatters like 
-        Black, and be confident that your changes will be preserved.
+        Ruff, and be confident that your changes will be preserved.
         """,
         "Cell functions can have names": """
         If you want to, you can replace the default names for cell functions 
