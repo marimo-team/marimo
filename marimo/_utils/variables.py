@@ -12,4 +12,4 @@ def is_mangled_local(name: str, cell_id: CellId_t) -> bool:
 
 
 def is_local(name: str) -> bool:
-    return name.startswith("_") and not name.startswith("__")
+    return name == "__" or (name.startswith("_") and not name.startswith("__"))
