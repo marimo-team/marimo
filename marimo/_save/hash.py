@@ -6,7 +6,7 @@ import base64
 import hashlib
 import numbers
 import types
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ast.visitor import ScopedVisitor
 from marimo._save.cache import Cache, ValidCacheSha
@@ -85,19 +85,19 @@ def build_execution_hash(
 
 
 def build_content_hash(
-    graph: DirectedGraph, visitor: ScopedVisitor
+    graph: DirectedGraph, visitor: ScopedVisitor, defs: dict[str, Any]
 ) -> Optional[ValidCacheSha]:
     sha = hashlib.sha256()
     for ref in sorted(
         graph.get_transitive_references(visitor.defs, inclusive=False)
     ):
-        if ref not in globals():
+        if ref not in defs:
             # Key lookup for mypy
-            if ref in globals()["__builtins__"]:
+            if ref in defs["__builtins__"]:
                 continue
             return None
         else:
-            value = globals()[ref]
+            value = defs[ref]
         if isinstance(value, BASE_PRIMITIVES):
             sha.update(str(value).encode("utf8"))
             continue
@@ -109,6 +109,7 @@ def hash_context(
     module: ast.Module,
     graph: DirectedGraph,
     cell_id: CellId_t,
+    defs: dict[str, Any],
     *,
     context: Optional[ast.Module] = None,
     loader: Loader,
@@ -118,7 +119,7 @@ def hash_context(
     visitor.visit(module)
 
     # Attempt content hash
-    valid_cache_sha = build_content_hash(graph, visitor)
+    valid_cache_sha = build_content_hash(graph, visitor, defs)
     if not valid_cache_sha:
         # Execution path hash
         valid_cache_sha = build_execution_hash(graph, cell_id)

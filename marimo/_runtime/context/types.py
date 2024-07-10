@@ -52,6 +52,9 @@ def get_global_context() -> GlobalContext:
 class ExecutionContext:
     cell_id: CellId_t
     setting_element_value: bool
+    # Cell ID corresponding to local graph object, and not prefixed in script
+    # context.
+    local_cell_id: Optional[CellId_t] = None
     # output object set imperatively
     output: Optional[list[Html]] = None
 
@@ -119,7 +122,9 @@ class RuntimeContext(abc.ABC):
 
     @contextmanager
     @abc.abstractmethod
-    def with_cell_id(self, cell_id: CellId_t) -> Iterator[None]:
+    def with_cell_id(
+        self, cell_id: CellId_t, local_cell_id: Optional[CellId_t] = None
+    ) -> Iterator[None]:
         pass
 
 

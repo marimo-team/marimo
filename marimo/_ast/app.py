@@ -314,7 +314,7 @@ class App:
 
                 if cell is not None and not self._graph.is_disabled(cid):
                     with get_context().with_cell_id(
-                        self._app_uuid + "-" + cid
+                        self._app_uuid + "-" + cid, cid
                     ):
                         output = execute_cell(cell._cell, glbls, self._graph)
                         for hook in post_execute_hooks:

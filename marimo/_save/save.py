@@ -16,7 +16,7 @@ from marimo._runtime.context import get_context
 from marimo._save.ast import ExtractWithBlock
 from marimo._save.cache import Cache, contextual_defs
 from marimo._save.hash import hash_context
-from marimo._save.loaders import PickleLoader
+from marimo._save.loaders import Loader, PickleLoader
 
 if TYPE_CHECKING:
     from types import FrameType, TracebackType
@@ -53,15 +53,19 @@ class persistent_cache(object):
         *,
         save_path: str = "outputs",
         name: str,
+        _loader: Optional[Loader] = None,
     ) -> None:
-        # TODO: consider construction injection
-        self._loader = PickleLoader(name, save_path)
         self.name = name
+        if _loader:
+            self._loader = _loader
+        else:
+            self._loader = PickleLoader(name, save_path)
 
         self._skipped = True
         self._cache: Optional[Cache] = None
         self._entered_trace = False
         self._old_trace: Optional[TraceFunction] = None
+        self._frame: Optional[FrameType] = None
 
     def __enter__(self) -> Self:
         sys.settrace(lambda *_args, **_keys: None)
@@ -74,7 +78,7 @@ class persistent_cache(object):
         return self
 
     def trace(
-        self, _frame: FrameType, _event: str, _arg: Any
+        self, with_frame: FrameType, _event: str, _arg: Any
     ) -> Union[TraceFunction | None]:
         # General flow is as follows:
         #   1) Follow the stack trace backwards to the first instance of a
@@ -88,12 +92,19 @@ class persistent_cache(object):
         self._entered_trace = True
         stack = traceback.extract_stack()
         if not self._skipped:
+            # Raising on the first valid line, prevents a bug where whitespace
+            # on With changes behavior. This might be an issue with Python's
+            # parser? Noticed when lint/ format broke things.
+            if self._cache and self._cache.hit:
+                raise SkipWithBlock()
+
             return self._old_trace
 
         # This only executes on the first line of code in the block. If the
         # cache is hit, the block terminates early with a SkipWithBlock
         # exception, if the block is not hit, self._skipped is set to False,
         # causing this function to terminate before reaching this block.
+        self._frame = with_frame
         for i, frame in enumerate(stack[::-1]):
             _filename, lineno, function_name, _code = frame
             if function_name == "<module>":
@@ -102,20 +113,25 @@ class persistent_cache(object):
                     ctx.execution_context is not None
                 ), "Could not resolve context for cache."
                 graph = ctx.graph
-                cell_id = ctx.execution_context.cell_id
+                # cell ids are unique in execution context, having a UUID in
+                # script mode to ensure this- but the local_cell_id is what's
+                # tied to the graph.
+                cell_id = (
+                    ctx.execution_context.local_cell_id
+                    or ctx.execution_context.cell_id
+                )
                 pre_module, save_module = ExtractWithBlock(lineno - 1).visit(
-                    ast.parse(ctx.graph.cells[cell_id].code).body  # type: ignore[arg-type]
+                    ast.parse(graph.cells[cell_id].code).body  # type: ignore[arg-type]
                 )
 
                 self._cache = hash_context(
                     save_module,
                     graph,
                     cell_id,
+                    {**globals(), **with_frame.f_locals},
                     loader=self._loader,
                     context=pre_module,
                 )
-                if self._cache.hit:
-                    raise SkipWithBlock()
 
                 self.cache_type = self._cache
                 self._skipped = False
@@ -139,8 +155,9 @@ class persistent_cache(object):
 
         # Backfill the loaded values into global scope.
         if self._cache and self._cache.hit:
+            assert self._frame is not None
             for lookup, var in contextual_defs(self._cache):
-                globals()[var] = self._cache.defs[lookup]
+                self._frame.f_locals[var] = self._cache.defs[lookup]
             # Return true to suppress the SkipWithBlock exception.
             return True
 
@@ -150,12 +167,13 @@ class persistent_cache(object):
                 instance, SkipWithBlock
             ), "Cache was not correctly set."
             if isinstance(instance, BaseException):
-                raise instance
+                raise instance from CacheException("Failure during save.")
             raise exception
 
         # Fill the cache object and save.
         assert self._cache is not None
+        assert self._frame is not None
         for lookup, var in contextual_defs(self._cache):
-            self._cache.defs[lookup] = globals()[var]
+            self._cache.defs[lookup] = self._frame.f_locals[var]
         self._loader.save_cache(self._cache)
         return False

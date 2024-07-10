@@ -116,7 +116,8 @@ class ExtractWithBlock(ast.NodeTransformer):
                     "persistent_cache cannot be invoked within a block "
                     "(try moving the block within the persistent_cache scope)."
                 )
-        elif len(on_line) == 1:
+        # Intentionally not elif (on_line can be added in previous block)
+        if len(on_line) == 1:
             assert isinstance(on_line[0], ast.With), "Unexpected block."
             return clean_to_modules(pre_block, on_line[0])
         # It should be possible to relate the lines with the AST,
