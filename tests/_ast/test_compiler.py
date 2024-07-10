@@ -21,7 +21,7 @@ class TestParseCell:
 
     @staticmethod
     def test_local_variables() -> None:
-        code = "_, y = f(x)\ndef _foo():\n  _bar = 0\nimport _secret_module as module"  # noqa: E501
+        code = "__ = 10\n_, y = f(x)\ndef _foo():\n  _bar = 0\nimport _secret_module as module"  # noqa: E501
         cell = compile_cell(code)
         assert cell.defs == {"module", "y"}
         assert cell.refs == {"f", "x"}
@@ -29,9 +29,9 @@ class TestParseCell:
 
     @staticmethod
     def test_dunder_dunder_excluded() -> None:
-        code = "__ = 10; __name__ = 20"
+        code = "__name__ = 20"
         cell = compile_cell(code)
-        assert cell.defs == {"__", "__name__"}
+        assert cell.defs == {"__name__"}
         assert cell.refs == set()
 
     @staticmethod
