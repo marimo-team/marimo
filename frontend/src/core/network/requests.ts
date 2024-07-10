@@ -1,13 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { IslandsPyodideBridge } from "../islands/bridge";
 import { isIslands } from "../islands/utils";
-import { PyodideBridge } from "../pyodide/bridge";
-import { isPyodide } from "../pyodide/utils";
+import { PyodideBridge } from "../wasm/bridge";
+import { isWasm } from "../wasm/utils";
 import { isStaticNotebook } from "../static/static-state";
 import { createNetworkRequests } from "./requests-network";
 import { createStaticRequests } from "./requests-static";
 import { createErrorToastingRequests } from "./requests-toasting";
-import { EditRequests, RunRequests } from "./types";
+import type { EditRequests, RunRequests } from "./types";
 
 function getRequest(): EditRequests & RunRequests {
   if (isIslands()) {
@@ -16,7 +16,7 @@ function getRequest(): EditRequests & RunRequests {
     return IslandsPyodideBridge.INSTANCE;
   }
 
-  const base = isPyodide()
+  const base = isWasm()
     ? PyodideBridge.INSTANCE
     : isStaticNotebook()
       ? createStaticRequests()

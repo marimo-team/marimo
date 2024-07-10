@@ -41,7 +41,7 @@ import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Kbd } from "@/components/ui/kbd";
-import { isPyodide } from "@/core/pyodide/utils";
+import { isWasm } from "@/core/wasm/utils";
 
 interface CellArrayProps {
   notebook: NotebookState;
@@ -208,7 +208,7 @@ const AddCellButtons: React.FC = () => {
           <SquareMIcon className="mr-2 size-4 flex-shrink-0" />
           Markdown
         </Button>
-        {!isPyodide() && (
+        {!isWasm() && (
           <Tooltip
             content={
               sqlCapabilities ? null : (

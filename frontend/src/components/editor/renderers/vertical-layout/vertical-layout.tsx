@@ -1,13 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { memo, useRef, useState } from "react";
-import { CellRuntimeState } from "@/core/cells/types";
-import { CellId, HTMLCellId } from "@/core/cells/ids";
+import type React from "react";
+import { memo, useRef, useState } from "react";
+import type { CellRuntimeState } from "@/core/cells/types";
+import { type CellId, HTMLCellId } from "@/core/cells/ids";
 import { OutputArea } from "@/components/editor/Output";
-import { ICellRendererPlugin, ICellRendererProps } from "../types";
+import type { ICellRendererPlugin, ICellRendererProps } from "../types";
 import { VerticalLayoutWrapper } from "./vertical-layout-wrapper";
 import { z } from "zod";
 import { useDelayVisibility } from "./useDelayVisibility";
-import { AppMode, kioskModeAtom } from "@/core/mode";
+import { type AppMode, kioskModeAtom } from "@/core/mode";
 import { ReadonlyPythonCode } from "@/components/editor/code/readonly-python-code";
 import {
   ChevronDown,
@@ -29,8 +30,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { downloadHTMLAsImage } from "@/utils/download";
 import { downloadAsHTML } from "@/core/static/download-html";
-import { isPyodide } from "@/core/pyodide/utils";
-import { CellConfig } from "@/core/network/types";
+import { isWasm } from "@/core/wasm/utils";
+import type { CellConfig } from "@/core/network/types";
 import { useAtomValue } from "jotai";
 
 type VerticalLayout = null;
@@ -47,9 +48,9 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
   const urlParams = new URLSearchParams(window.location.search);
   const showCodeDefault = urlParams.get("show-code");
   const [showCode, setShowCode] = useState(() => {
-    // Default to showing code if the notebook is static
+    // Default to showing code if the notebook is static or wasm
     return showCodeDefault === null
-      ? isStaticNotebook() || isPyodide()
+      ? isStaticNotebook() || isWasm()
       : showCodeDefault === "true";
   });
 

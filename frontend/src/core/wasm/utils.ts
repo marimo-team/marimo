@@ -3,6 +3,6 @@
 /**
  * Whether the current environment is Pyodide/WASM
  */
-export function isPyodide() {
+export function isWasm() {
   return document.querySelector("marimo-wasm") !== null;
 }

@@ -3,8 +3,8 @@ import { Spinner } from "@/components/icons/spinner";
 import { Tooltip } from "@/components/ui/tooltip";
 import { connectionAtom } from "@/core/network/connection";
 import { getUsageStats } from "@/core/network/requests";
-import { UsageResponse } from "@/core/network/types";
-import { isPyodide } from "@/core/pyodide/utils";
+import type { UsageResponse } from "@/core/network/types";
+import { isWasm } from "@/core/wasm/utils";
 import { WebSocketState } from "@/core/websocket/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useInterval } from "@/hooks/useInterval";
@@ -16,7 +16,8 @@ import {
   MemoryStickIcon,
   PowerOffIcon,
 } from "lucide-react";
-import React, { useState } from "react";
+import type React from "react";
+import { useState } from "react";
 
 export const MachineStats: React.FC = (props) => {
   const [nonce, setNonce] = useState(0);
@@ -28,7 +29,7 @@ export const MachineStats: React.FC = (props) => {
   );
 
   const { data } = useAsyncData(async () => {
-    if (isPyodide()) {
+    if (isWasm()) {
       return null;
     }
     if (connection.state !== WebSocketState.OPEN) {

@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
+import type React from "react";
 import {
   Select,
   SelectContent,
@@ -9,24 +9,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { LayoutType } from "./types";
+import type { LayoutType } from "./types";
 import {
   SquareIcon,
   Grid3x3Icon,
   ListIcon,
   PresentationIcon,
 } from "lucide-react";
-import { isPyodide } from "@/core/pyodide/utils";
+import { isWasm } from "@/core/wasm/utils";
 import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
 import { logNever } from "@/utils/assertNever";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 
 export const LayoutSelect: React.FC = () => {
   const { selectedLayout } = useLayoutState();
   const { setLayoutView } = useLayoutActions();
   const layouts: LayoutType[] = ["vertical", "grid", "slides"];
 
-  // Layouts are not supported in Pyodide
-  if (isPyodide()) {
+  // Layouts are not supported in WASM mode by default,
+  // unless the feature flag is enabled
+  if (isWasm() && !getFeatureFlag("wasm_layouts")) {
     return null;
   }
 
