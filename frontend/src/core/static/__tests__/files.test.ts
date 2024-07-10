@@ -1,15 +1,35 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, afterEach, expect, it, vi } from "vitest";
+// @vitest-environment jsdom
+import { describe, expect, it, vi, beforeAll, afterAll } from "vitest";
 import { patchFetch, patchVegaLoader } from "../files";
-import { DataURLString } from "@/utils/json/base64";
+import type { DataURLString } from "@/utils/json/base64";
+import { createLoader } from "@/plugins/impl/vega/vega-loader";
+import http from "node:http";
+
+// Start a tiny server to serve virtual files
+const server = http.createServer((request, response) => {
+  if (request.url === "/@file/remote-content.txt") {
+    response.writeHead(200, { "Content-Type": "text/plain" });
+    response.end("Remote content");
+  } else {
+    response.writeHead(404);
+    response.end();
+  }
+});
+
+const host = "127.0.0.1";
+const port = 4321;
+const remoteURL = `http://${host}:${port}/@file/remote-content.txt`;
+
+beforeAll(async () => {
+  server.listen(port, host);
+});
+
+afterAll(async () => {
+  server.close();
+});
 
 describe("patchFetch", () => {
-  const originalFetch = window.fetch;
-
-  afterEach(() => {
-    window.fetch = originalFetch; // Restore original fetch after each test
-  });
-
   it("should return a blob response when a virtual file is fetched", async () => {
     const virtualFiles = {
       "/@file/virtual-file.txt":
@@ -18,7 +38,7 @@ describe("patchFetch", () => {
 
     patchFetch(virtualFiles);
 
-    const response = await fetch("/@file/virtual-file.txt");
+    const response = await window.fetch("/@file/virtual-file.txt");
     const blob = await response.blob();
     const text = await blob.text();
 
@@ -27,20 +47,18 @@ describe("patchFetch", () => {
   });
 
   it("should fallback to original fetch for non-virtual files", async () => {
-    const mockResponse = new Response("Not a virtual file");
-    window.fetch = vi.fn().mockResolvedValue(mockResponse);
+    vi.spyOn(window, "fetch");
 
     const unpatch = patchFetch({}); // No virtual files
-
-    const response = await fetch("/@file/non-virtual-file.txt");
+    const response = await window.fetch(remoteURL);
     const text = await response.text();
-
     unpatch();
+
     expect(window.fetch).toHaveBeenCalledWith(
-      "/@file/non-virtual-file.txt",
+      "http://127.0.0.1:4321/@file/remote-content.txt",
       undefined,
     );
-    expect(text).toBe("Not a virtual file");
+    expect(text).toBe("Remote content");
   });
 });
 
@@ -51,9 +69,7 @@ describe("patchVegaLoader", () => {
         "data:application/json;base64,eyJrZXkiOiAidmFsdWUifQ==" as DataURLString,
     };
 
-    const loader = {
-      http: vi.fn((url) => Promise.resolve(`Original content for ${url}`)),
-    };
+    const loader = createLoader();
     patchVegaLoader(loader, virtualFiles);
 
     const content = await loader.http("virtual-file.json");
@@ -61,15 +77,12 @@ describe("patchVegaLoader", () => {
   });
 
   it("should fallback to original http method for non-virtual files", async () => {
-    const loader = {
-      http: vi.fn((url) => Promise.resolve(`Original content for ${url}`)),
-    };
+    const loader = createLoader();
 
     const unpatch = patchVegaLoader(loader, {});
-    const content = await loader.http("non-virtual-file.json");
+    const content = await loader.http(remoteURL);
     unpatch(); // Restore the original http function
 
-    expect(content).toBe("Original content for non-virtual-file.json");
-    expect(loader.http).toHaveBeenCalledWith("non-virtual-file.json");
+    expect(content).toBe("Remote content");
   });
 });

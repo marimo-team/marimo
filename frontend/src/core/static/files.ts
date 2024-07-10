@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { StaticVirtualFiles } from "./types";
+import type { StaticVirtualFiles } from "./types";
 import { deserializeBlob } from "@/utils/blob";
 import { getStaticVirtualFiles } from "./static-state";
 
@@ -45,7 +45,8 @@ export function patchVegaLoader(
   },
   files: StaticVirtualFiles = getStaticVirtualFiles(),
 ) {
-  const originalHttp = loader.http;
+  // const originalHttp = loader.http.bind(loader);
+  const originalHttp = loader.http.bind(loader);
 
   loader.http = async (url: string) => {
     if (files[url]) {
