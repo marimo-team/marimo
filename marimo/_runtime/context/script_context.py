@@ -100,6 +100,10 @@ class ScriptRuntimeContext(RuntimeContext):
         finally:
             self._app.set_execution_context(old)
 
+    @property
+    def app(self) -> InternalApp:
+        return self._app
+
 
 def initialize_script_context(app: InternalApp, stream: Stream) -> None:
     """Initializes thread-local/session-specific context.

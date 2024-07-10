@@ -485,10 +485,6 @@ class Kernel:
         self.execution_context = ExecutionContext(
             cell_id, setting_element_value
         )
-        print("installing execution context ", cell_id)
-        print(
-            "self.execution_context.cell_id ", self.execution_context.cell_id
-        )
         with get_context().provide_ui_ids(str(cell_id)), redirect_streams(
             cell_id,
             stream=self.stream,
@@ -496,10 +492,6 @@ class Kernel:
             stderr=self.stderr,
             stdin=self.stdin,
         ):
-            print(
-                "execution context has cid",
-                get_context().execution_context.cell_id,
-            )
             modules = None
             try:
                 if self.module_reloader is not None:
@@ -921,11 +913,8 @@ class Kernel:
         # sys.modules. Races can still happen, but this should help in most
         # common cases. We could also be more aggressive and run this before
         # every cell, or even before pickle.dump/pickle.dumps()
-        print("in running ...")
         with patches.patch_main_module_context(self._module):
-            print("starting run loop")
             while cell_ids := await self._run_cells_internal(cell_ids):
-                print("running state updates")
                 LOGGER.debug("Running state updates ...")
                 if self.lazy() and cell_ids:
                     self.graph.set_stale(cell_ids)
@@ -937,9 +926,6 @@ class Kernel:
 
         Returns set of cells that need to be re-run due to state updates.
         """
-
-        print("roots: ", roots)
-
         # Some hooks that are leaky and require the kernel
         # Free cell state ahead of running to relieve memory pressure
         #
@@ -1001,14 +987,12 @@ class Kernel:
             ),
         )
 
-        print("running runner")
         # I/O
         #
         # TODO(akshayka): when no logger is configured, log output is not
         #                 redirected to frontend (it's printed to console),
         #                 which is incorrect
         await runner.run_all()
-        print("finished runner")
         cells_with_stale_state = runner.resolve_state_updates(
             self.state_updates
         )
@@ -1095,10 +1079,12 @@ class Kernel:
 
     async def set_ui_element_value(
         self, request: SetUIElementValueRequest
-    ) -> None:
+    ) -> bool:
         """Set the value of a UI element bound to a global variable.
 
         Runs cells that reference the UI element by name.
+
+        Returns True if any ui elements were set, False otherwise
         """
         updated_components: list[UIElement[Any, Any]] = []
 
@@ -1108,6 +1094,7 @@ class Kernel:
         # source (parent).
         ctx = get_context()
         resolved_requests: dict[str, Any] = {}
+        referring_cells: set[CellId_t] = set()
         ui_element_registry = ctx.ui_element_registry
         for object_id, value in request.ids_and_values:
             try:
@@ -1115,6 +1102,27 @@ class Kernel:
                     object_id, value
                 )
             except (KeyError, RuntimeError):
+                # Attempt to set the UI element in a child context (app).
+                for child_context in ctx.children:
+                    if (
+                        child_context.app is not None
+                        and await child_context.app.set_ui_element_value(
+                            SetUIElementValueRequest(
+                                object_ids=[object_id], values=[value]
+                            )
+                        )
+                    ):
+                        bindings = [
+                            name
+                            for name, value in self.globals.items()
+                            # child_context.app is an InternalApp object
+                            if value is child_context.app._app
+                        ]
+                        for binding in bindings:
+                            referring_cells.update(
+                                self.graph.get_referring_cells(binding)
+                            )
+
                 # KeyError: Trying to access an unnamed UIElement
                 # RuntimeError: UIElement was deleted somehow
                 LOGGER.debug(
@@ -1124,7 +1132,6 @@ class Kernel:
             resolved_requests[resolved_id] = resolved_value
         del request
 
-        referring_cells: set[CellId_t] = set()
         for object_id, value in resolved_requests.items():
             try:
                 component = ui_element_registry.get_object(object_id)
@@ -1134,25 +1141,6 @@ class Kernel:
                     value,
                 )
             except KeyError:
-                # TODO(akshayka): See if it exists in the registry of a child
-                # context; if found, call set_ui_element_request on the child
-                # context and resolve bindings for the containing app object;
-                # would be more graceful if App was just a UI element, but
-                # don't want to deal with that right now ...
-                for child_context in ctx.children:
-                    if (
-                        app := child_context.set_ui_element_request(value)
-                    ) != None:
-                        bindings = [
-                            name
-                            for name, value in self.globals.items()
-                            if value is app
-                        ]
-                        for binding in bindings:
-                            referring_cells.update(
-                                self.graph.get_referring_cells(binding)
-                            )
-
                 # KeyError: A UI element may go out of scope if it was not
                 # assigned to a global variable
                 LOGGER.debug("Could not find UIElement with id %s", object_id)
@@ -1253,6 +1241,8 @@ class Kernel:
                 traceback.print_exc(file=tmpio)
                 tmpio.seek(0)
                 write_traceback(tmpio.read())
+
+        return bool(updated_components) or bool(referring_cells)
 
     def get_ui_initial_value(self, object_id: str) -> Any:
         """Get an initial value for a UIElement, if any

@@ -31,8 +31,9 @@ def __(mo):
 
 
 @app.cell
-def __(app, mo):
-    tabs = mo.ui.tabs({"🧮": app, "📝": mo.md("Hello world")}); tabs
+async def __(app, mo):
+    tabs = mo.ui.tabs({"🧮": await app.embed(), "📝": mo.md("Hello world")})
+    tabs
     return tabs,
 
 

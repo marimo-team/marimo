@@ -292,6 +292,7 @@ class App:
         if running_in_notebook():
             self._runtime_context = create_kernel_context(
                 kernel=self._kernel,
+                app=InternalApp(self),
                 stream=ctx.stream,
                 stdout=None,
                 stderr=None,
@@ -348,15 +349,9 @@ class App:
             for cid in cells_to_run
             if (cell := self._cell_manager.cell_data_at(cid).cell) is not None
         ]
-        print("about to run")
-        from marimo._runtime.context.types import get_context
 
-        print("outer get_context()", get_context())
-        print("self._runtime_context: ", self._runtime_context)
         with self._runtime_context.install():
-            print("inner get_context()", get_context())
             await self._kernel.run(execution_requests)
-        print("finished running")
         return self._process_outputs_and_defs()
 
     def _run_internal(
@@ -450,9 +445,10 @@ class App:
 
     async def _set_ui_element_value(
         self, request: SetUIElementValueRequest
-    ) -> None:
+    ) -> bool:
         assert self._kernel is not None
-        await self._kernel.set_ui_element_value(request)
+        with self._runtime_context.install():
+            return await self._kernel.set_ui_element_value(request)
 
     async def embed(self) -> _AppOutput:
         from marimo._plugins.stateless.flex import vstack
@@ -460,11 +456,9 @@ class App:
         self._maybe_initialize()
 
         if not self._cached_outputs:
-            print("RUNNING ", self._execution_order)
             await self._kernel_run(set(self._execution_order))
 
         assert self._cached_outputs is not None
-        print("FINISHED RUNNING")
         return _AppOutput(
             "text/html",
             vstack(
@@ -707,3 +701,8 @@ class InternalApp:
         self, cell: Cell, kwargs: dict[str, Any]
     ) -> tuple[Any, _Namespace]:
         return self._app._run_cell_sync(cell, kwargs)
+
+    async def set_ui_element_value(
+        self, request: SetUIElementValueRequest
+    ) -> bool:
+        return await self._app._set_ui_element_value(request)

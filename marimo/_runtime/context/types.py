@@ -18,6 +18,7 @@ from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
 from marimo._runtime.functions import FunctionRegistry
 
 if TYPE_CHECKING:
+    from marimo._ast.app import InternalApp
     from marimo._ast.cell import CellId_t
     from marimo._messaging.types import Stream
     from marimo._output.hypertext import Html
@@ -137,11 +138,14 @@ class RuntimeContext(abc.ABC):
         old_ctx = _THREAD_LOCAL_CONTEXT.runtime_context
         try:
             _THREAD_LOCAL_CONTEXT.runtime_context = self
-            print("OVERRODE CTX! with ", self)
             yield
         finally:
             _THREAD_LOCAL_CONTEXT.runtime_context = old_ctx
-            print("UNDID CTX!")
+
+    @property
+    @abc.abstractmethod
+    def app(self) -> InternalApp:
+        pass
 
 
 class _ThreadLocalContext(threading.local):
