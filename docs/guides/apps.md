@@ -53,12 +53,24 @@ grid to arrange them on the page.
 Enable the grid editor in the app preview, via a dropdown:
 
 <div align="center">
-<figure>
-<blockquote class="twitter-tweet" data-media-max-width="560"><p lang="en" dir="ltr">New feature! Drag-and-drop notebook outputs to build an app using our grid editor.<br><br>Shipping in our next release — stay tuned! <a href="https://t.co/DQpstGAmKh">pic.twitter.com/DQpstGAmKh</a></p>&mdash; marimo (@marimo_io) <a href="https://twitter.com/marimo_io/status/1762595771504116221?ref_src=twsrc%5Etfw">February 27, 2024</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
-</figure>
-<figcaption>Grid layout lets you drag and drop outputs to construct your app</figcaption>
+  <figure>
+    <blockquote class="twitter-tweet" data-media-max-width="560">
+      <p lang="en" dir="ltr">
+        <a href="https://t.co/DQpstGAmKh">pic.twitter.com/DQpstGAmKh</a>
+      </p>&mdash; marimo (@marimo_io)
+      <a href="https://twitter.com/marimo_io/status/1762595771504116221?ref_src=twsrc%5Etfw">February 27, 2024</a>
+    </blockquote>
+    <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+  </figure>
+  <figcaption>Grid layout lets you drag and drop outputs to construct your app</figcaption>
 </div>
 
 marimo saves metadata about your constructed layout in a `layouts` folder;
 make sure to include this folder when sharing your notebook so that others
 can reconstruct your layout.
+
+### Slides layout
+
+If you prefer a slideshow-like experience, you can use the slides layout.
+
+Enable the slides layout in the app preview, via the same dropdown as above.

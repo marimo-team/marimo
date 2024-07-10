@@ -10,14 +10,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { LayoutType } from "./types";
-import { SquareIcon, Grid3x3Icon, ListIcon } from "lucide-react";
+import {
+  SquareIcon,
+  Grid3x3Icon,
+  ListIcon,
+  PresentationIcon,
+} from "lucide-react";
 import { isPyodide } from "@/core/pyodide/utils";
 import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
+import { logNever } from "@/utils/assertNever";
 
 export const LayoutSelect: React.FC = () => {
   const { selectedLayout } = useLayoutState();
   const { setLayoutView } = useLayoutActions();
-  const layouts: LayoutType[] = ["vertical", "grid"];
+  const layouts: LayoutType[] = ["vertical", "grid", "slides"];
 
   // Layouts are not supported in Pyodide
   if (isPyodide()) {
@@ -59,7 +65,10 @@ function renderIcon(layoutType: LayoutType) {
       return <ListIcon className="h-4 w-4" />;
     case "grid":
       return <Grid3x3Icon className="h-4 w-4" />;
+    case "slides":
+      return <PresentationIcon className="h-4 w-4" />;
     default:
+      logNever(layoutType);
       return <SquareIcon className="h-4 w-4" />;
   }
 }
@@ -70,7 +79,10 @@ function displayName(layoutType: LayoutType) {
       return "Vertical";
     case "grid":
       return "Grid";
+    case "slides":
+      return "Slides";
     default:
+      logNever(layoutType);
       return "Unknown";
   }
 }
