@@ -70,9 +70,9 @@ describe("patchVegaLoader", () => {
     };
 
     const loader = createLoader();
-    patchVegaLoader(loader, virtualFiles);
-
+    const unpatch = patchVegaLoader(loader, virtualFiles);
     const content = await loader.http("virtual-file.json");
+    unpatch();
     expect(content).toBe('{"key": "value"}');
   });
 
@@ -84,5 +84,15 @@ describe("patchVegaLoader", () => {
     unpatch(); // Restore the original http function
 
     expect(content).toBe("Remote content");
+  });
+
+  it("should work with data URIs", async () => {
+    const loader = createLoader();
+    const unpatch = patchVegaLoader(loader, {});
+    const content = await loader.http(
+      "data:application/json;base64,eyJrZXkiOiAidmFsdWUifQ==",
+    );
+    unpatch();
+    expect(content).toBe('{"key": "value"}');
   });
 });
