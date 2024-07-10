@@ -1295,13 +1295,15 @@ class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
     Selecting multiple files:
 
     ```python
-    file_browser = mo.ui.file_browser(path="path/to/dir", multiple=True)
+    file_browser = mo.ui.file_browser(
+        initial_path="path/to/dir", multiple=True
+    )
 
     # Access the selected file path(s):
-    file_browser.value[index]
-
-    # Or:
     file_browser.path(index)
+
+    # Get name of selected file(s)
+    file_browser.name(index)
     ```
 
     **Attributes.**
