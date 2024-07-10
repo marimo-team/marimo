@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { PropsWithChildren } from "react";
+import type React from "react";
+import type { PropsWithChildren } from "react";
 import { useAsyncData } from "@/hooks/useAsyncData";
-import { isPyodide } from "./utils";
+import { isWasm } from "./utils";
 import { PyodideBridge } from "./bridge";
 import { LargeSpinner } from "@/components/icons/large-spinner";
 
@@ -9,7 +10,7 @@ import { LargeSpinner } from "@/components/icons/large-spinner";
  * HOC to load Pyodide before rendering children, if necessary.
  */
 export const PyodideLoader: React.FC<PropsWithChildren> = ({ children }) => {
-  if (!isPyodide()) {
+  if (!isWasm()) {
     return children;
   }
 

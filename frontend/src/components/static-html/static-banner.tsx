@@ -3,7 +3,7 @@
 /* eslint-disable react/jsx-no-target-blank */
 
 import { isStaticNotebook } from "@/core/static/static-state";
-import React from "react";
+import type React from "react";
 import { Button } from "../ui/button";
 import { toast } from "../ui/use-toast";
 import { getMarimoCode } from "@/core/dom/marimo-tag";
@@ -18,7 +18,7 @@ import {
   DialogTrigger,
 } from "../ui/dialog";
 import { CopyIcon, DownloadIcon } from "lucide-react";
-import { createShareableLink } from "@/core/pyodide/share";
+import { createShareableLink } from "@/core/wasm/share";
 
 export const StaticBanner: React.FC = () => {
   if (!isStaticNotebook()) {
@@ -38,6 +38,7 @@ export const StaticBanner: React.FC = () => {
           href="https://github.com/marimo-team/marimo"
           target="_blank"
           className="underline"
+          rel="noreferrer"
         >
           marimo
         </a>
@@ -82,6 +83,7 @@ const StaticBannerDialog = ({ code }: { code: string }) => {
               href="https://github.com/marimo-team/marimo"
               target="_blank"
               className="text-link hover:underline"
+              rel="noreferrer"
             >
               marimo
             </a>
@@ -109,6 +111,7 @@ const StaticBannerDialog = ({ code }: { code: string }) => {
               href={wasmLink}
               target="_blank"
               className="text-link hover:underline"
+              rel="noreferrer"
             >
               {wasmLink.slice(0, 40)}...
             </a>

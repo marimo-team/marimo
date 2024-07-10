@@ -34,14 +34,14 @@ import {
   saveCellConfig,
 } from "@/core/network/requests";
 import { Objects } from "@/utils/objects";
-import { ActionButton } from "./types";
+import type { ActionButton } from "./types";
 import { downloadAsHTML } from "@/core/static/download-html";
 import { toast } from "@/components/ui/use-toast";
 import { useFilename } from "@/core/saving/filename";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { ShareStaticNotebookModal } from "@/components/static-html/share-modal";
 import { useRestartKernel } from "./useRestartKernel";
-import { createShareableLink } from "@/core/pyodide/share";
+import { createShareableLink } from "@/core/wasm/share";
 import { useChromeActions, useChromeState } from "../chrome/state";
 import { PANEL_ICONS, PANEL_TYPES } from "../chrome/types";
 import { startCase } from "lodash-es";

@@ -46,12 +46,12 @@ import { cn } from "@/utils/cn";
 import { FileViewer } from "./file-viewer";
 import { treeAtom, openStateAtom } from "./state";
 import { useFileExplorerUpload } from "./upload";
-import { isPyodide } from "@/core/pyodide/utils";
+import { isWasm } from "@/core/wasm/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { Spinner } from "@/components/icons/spinner";
 import type { RequestingTree } from "./requesting-tree";
-import { FilePath } from "@/utils/paths";
+import type { FilePath } from "@/utils/paths";
 
 const RequestingTreeContext = React.createContext<RequestingTree | null>(null);
 
@@ -352,8 +352,8 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
               <CopyIcon className="mr-2" size={14} strokeWidth={1.5} />
               Copy snippet to clipboard
             </DropdownMenuItem>
-            {/* Not shown in Pyodide */}
-            {node.data.isMarimoFile && !isPyodide() && (
+            {/* Not shown in WASM */}
+            {node.data.isMarimoFile && !isWasm() && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={handleOpenMarimoFile}>

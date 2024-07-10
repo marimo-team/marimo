@@ -10,7 +10,10 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { saveUserConfig } from "@/core/network/requests";
-import { UserConfig, UserConfigSchema } from "../../core/config/config-schema";
+import {
+  type UserConfig,
+  UserConfigSchema,
+} from "../../core/config/config-schema";
 import { NativeSelect } from "../ui/native-select";
 import { cn } from "@/utils/cn";
 import { sendInstallMissingPackages } from "@/core/network/requests";
@@ -29,14 +32,14 @@ import {
   PackageCheckIcon,
   XIcon,
 } from "lucide-react";
-import React from "react";
+import type React from "react";
 import { Button } from "../ui/button";
-import { PackageInstallationStatus } from "@/core/kernel/messages";
+import type { PackageInstallationStatus } from "@/core/kernel/messages";
 import { logNever } from "@/utils/assertNever";
 import { useUserConfig } from "@/core/config/config";
-import { isPyodide } from "@/core/pyodide/utils";
+import { isWasm } from "@/core/wasm/utils";
 import {
-  PackageManagerName,
+  type PackageManagerName,
   PackageManagerNames,
 } from "../../core/config/config-schema";
 import { Logger } from "@/utils/Logger";
@@ -94,7 +97,7 @@ export const PackageAlert: React.FC = (props) => {
                     clearPackageAlert={() => clearPackageAlert(packageAlert.id)}
                   />
 
-                  {isPyodide() ? null : (
+                  {isWasm() ? null : (
                     <>
                       <span className="px-2 text-sm">with</span>{" "}
                       <PackageManagerForm />
