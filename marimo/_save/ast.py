@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import ast
-from typing import Any, Sequence, Union
+from typing import Any, Sequence, Union, cast
 
 
 class BlockException(Exception):
@@ -10,15 +10,18 @@ class BlockException(Exception):
 
 
 def compiled_ast(block: Sequence[Union[ast.AST | ast.stmt]]) -> ast.Module:
-    return compile(
-        ast.Module(block, type_ignores=[]),
-        # <ast> is non-standard as a filename, but easier to debug than
-        # <module> everywhere.
-        "<ast>",
-        mode="exec",
-        flags=ast.PyCF_ONLY_AST | ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
-        optimize=0,
-        dont_inherit=True,
+    return cast(
+        ast.Module,
+        compile(
+            ast.Module(block, type_ignores=[]),
+            # <ast> is non-standard as a filename, but easier to debug than
+            # <module> everywhere.
+            "<ast>",
+            mode="exec",
+            flags=ast.PyCF_ONLY_AST | ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
+            optimize=0,
+            dont_inherit=True,
+        ),
     )
 
 
@@ -71,7 +74,7 @@ class ExtractWithBlock(ast.NodeTransformer):
         super().__init__(*arg, **kwargs)
         self.target_line = line
 
-    def generic_visit(self, node: ast.AST) -> tuple[ast.Module, ast.Module]:
+    def generic_visit(self, node: ast.AST) -> tuple[ast.Module, ast.Module]:  #  type: ignore[override]
         pre_block = []
 
         # There are a few strange edges cases like:
@@ -104,7 +107,7 @@ class ExtractWithBlock(ast.NodeTransformer):
                     # captures the case where the target line number was not
                     # exactly hit.
                     return ExtractWithBlock(self.target_line).generic_visit(
-                        previous.body
+                        previous.body  # type: ignore[arg-type]
                     )
                 except BlockException:
                     on_line.append(previous)

@@ -92,7 +92,8 @@ def build_content_hash(
         graph.get_transitive_references(visitor.defs, inclusive=False)
     ):
         if ref not in globals():
-            if ref in __builtins__:
+            # Key lookup for mypy
+            if ref in globals()["__builtins__"]:
                 continue
             return None
         else:

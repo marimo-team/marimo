@@ -8,7 +8,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Optional,
-    Self,
     Type,
     Union,
 )
@@ -23,6 +22,7 @@ if TYPE_CHECKING:
     from types import FrameType, TracebackType
 
     from _typeshed import TraceFunction
+    from typing_extensions import Self
 
 
 class SkipWithBlock(Exception):
@@ -104,7 +104,7 @@ class persistent_cache(object):
                 graph = ctx.graph
                 cell_id = ctx.execution_context.cell_id
                 pre_module, save_module = ExtractWithBlock(lineno - 1).visit(
-                    ast.parse(ctx.graph.cells[cell_id].code).body
+                    ast.parse(ctx.graph.cells[cell_id].code).body  # type: ignore[arg-type]
                 )
 
                 self._cache = hash_context(
