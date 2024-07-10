@@ -138,9 +138,9 @@ class anywidget(UIElement[T, T]):
 
 def maybe_create_comm(widget: "anywidget") -> Any:
     try:
-        from comm.base_comm import BaseComm
+        from comm.base_comm import BaseComm  # type: ignore
 
-        class MarimoComm(BaseComm):
+        class MarimoComm(BaseComm):  # type: ignore
             def publish_msg(
                 self,
                 msg_type: str,
