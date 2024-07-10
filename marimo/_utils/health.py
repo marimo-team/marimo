@@ -36,7 +36,7 @@ def get_required_modules_list() -> dict[str, str]:
         "starlette",
         "websockets",
         "typing-extensions",
-        "black",
+        "ruff",
     ]
 
     package_versions: dict[str, str] = {}
