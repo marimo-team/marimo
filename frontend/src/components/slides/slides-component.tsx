@@ -1,7 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import "./carousel.css";
-
 import React, { PropsWithChildren, useEffect } from "react";
 import { Swiper, SwiperSlide, SwiperRef } from "swiper/react";
 import {
@@ -15,14 +13,27 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/cn";
 import { useEventListener } from "@/hooks/useEventListener";
 
-interface CarouselComponentProps {
+import "./slides.css";
+import "swiper/css";
+import "swiper/css/virtual";
+import "swiper/css/keyboard";
+import "swiper/css/navigation";
+import "swiper/css/pagination";
+import "swiper/css/scrollbar";
+
+interface SlidesComponentProps {
+  className?: string;
+  forceKeyboardNavigation?: boolean;
   index?: string | null;
   height?: string | number | null;
 }
-const CarouselComponent = ({
+
+const SlidesComponent = ({
+  className,
   children,
   height,
-}: PropsWithChildren<CarouselComponentProps>): JSX.Element => {
+  forceKeyboardNavigation = false,
+}: PropsWithChildren<SlidesComponentProps>): JSX.Element => {
   const el = React.useRef<SwiperRef>(null);
   const [isFullscreen, setIsFullscreen] = React.useState(false);
 
@@ -44,7 +55,10 @@ const CarouselComponent = ({
   return (
     <Swiper
       ref={el}
-      className="relative w-full border rounded bg-background mo-carousel"
+      className={cn(
+        "relative w-full border rounded bg-background mo-slides-theme",
+        className,
+      )}
       spaceBetween={50}
       style={{
         height: isFullscreen ? "100%" : height || "550px",
@@ -58,7 +72,7 @@ const CarouselComponent = ({
       simulateTouch={false}
       keyboard={{
         // Only enable keyboard controls when in fullscreen
-        enabled: isFullscreen,
+        enabled: isFullscreen || forceKeyboardNavigation,
       }}
       navigation={true}
       pagination={{
@@ -67,6 +81,9 @@ const CarouselComponent = ({
       virtual={true}
     >
       {React.Children.map(children, (child, index) => {
+        if (child == null) {
+          return null;
+        }
         return (
           <SwiperSlide key={index}>
             <div
@@ -92,7 +109,7 @@ const CarouselComponent = ({
       <Button
         variant="link"
         size="sm"
-        data-testid="marimo-plugin-carousel-fullscreen"
+        data-testid="marimo-plugin-slides-fullscreen"
         onClick={async () => {
           if (!el.current) {
             return;
@@ -115,4 +132,4 @@ const CarouselComponent = ({
   );
 };
 
-export default CarouselComponent;
+export default SlidesComponent;
