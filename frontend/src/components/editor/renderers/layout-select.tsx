@@ -19,14 +19,16 @@ import {
 import { isWasm } from "@/core/wasm/utils";
 import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
 import { logNever } from "@/utils/assertNever";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 
 export const LayoutSelect: React.FC = () => {
   const { selectedLayout } = useLayoutState();
   const { setLayoutView } = useLayoutActions();
   const layouts: LayoutType[] = ["vertical", "grid", "slides"];
 
-  // Layouts are not supported in Pyodide
-  if (isWasm()) {
+  // Layouts are not supported in WASM mode by default,
+  // unless the feature flag is enabled
+  if (isWasm() && !getFeatureFlag("wasm_layouts")) {
     return null;
   }
 
