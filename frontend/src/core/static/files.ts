@@ -50,8 +50,9 @@ export function patchVegaLoader(
   const originalHttp = loader.http.bind(loader);
 
   loader.http = async (url: string) => {
-    if (files[url]) {
-      const base64 = files[url];
+    const pathname = new URL(url, document.baseURI).pathname;
+    if (files[url] || files[pathname]) {
+      const base64 = files[url] || files[pathname];
       const blob = await deserializeBlob(base64);
       return blob.text();
     }
