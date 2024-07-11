@@ -11,10 +11,10 @@ date-released: "2023-08-15"
 identifiers:
   - description: "This is the collection of archived snapshots of all versions of marimo"
     type: doi
-    value: 10.5281/zenodo.123456
+    value: 10.5281/zenodo.<number>
   - description: "This is the archived snapshot of version 0.7.2 of marimo"
     type: doi
-    value: 10.5281/zenodo.123457
+    value: 10.5281/zenodo.<number>
 keywords:
   - python
   - research
