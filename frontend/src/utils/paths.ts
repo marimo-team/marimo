@@ -1,10 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { TypedString } from "./typed";
+import type { TypedString } from "./typed";
 
 export type FilePath = TypedString<"FilePath">;
 
 export const Paths = {
+  isAbsolute: (path: string): boolean => {
+    return (
+      path.startsWith("/") || path.startsWith("\\") || path.startsWith("C:\\")
+    );
+  },
   dirname: (path: string) => {
     return PathBuilder.guessDeliminator(path).dirname(path as FilePath);
   },
