@@ -271,8 +271,18 @@ class App:
             runner: cell_runner.Runner,
             run_result: cell_runner.RunResult,
         ):
+            from marimo._plugins.stateless.flex import vstack
+
             del runner
-            self._cached_outputs[cell.cell_id] = run_result.output
+            if (
+                run_result.output is None
+                and run_result.accumulated_output is not None
+            ):
+                self._cached_outputs[cell.cell_id] = vstack(
+                    run_result.accumulated_output
+                )
+            else:
+                self._cached_outputs[cell.cell_id] = run_result.output
 
         filename = "<unknown>"
         ctx = get_context()
