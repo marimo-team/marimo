@@ -106,6 +106,10 @@ from marimo._runtime.runner.hooks import (
     PRE_EXECUTION_HOOKS,
     PREPARATION_HOOKS,
 )
+from marimo._runtime.runner.hooks_on_finish import OnFinishHookType
+from marimo._runtime.runner.hooks_post_execution import PostExecutionHookType
+from marimo._runtime.runner.hooks_pre_execution import PreExecutionHookType
+from marimo._runtime.runner.hooks_preparation import PreparationHookType
 from marimo._runtime.state import State
 from marimo._runtime.utils.set_ui_element_request_manager import (
     SetUIElementRequestManager,
@@ -284,10 +288,10 @@ class Kernel:
         stdin: Stdin | None,
         module: ModuleType,
         enqueue_control_request: Callable[[ControlRequest], None],
-        preparation_hooks=None,
-        pre_execution_hooks=None,
-        post_execution_hooks=None,
-        on_finish_hooks=None,
+        preparation_hooks: list[PreparationHookType] | None = None,
+        pre_execution_hooks: list[PreExecutionHookType] | None = None,
+        post_execution_hooks: list[PostExecutionHookType] | None = None,
+        on_finish_hooks: list[OnFinishHookType] | None = None,
         debugger_override: marimo_pdb.MarimoPdb | None = None,
     ) -> None:
         self.app_metadata = app_metadata
@@ -298,28 +302,26 @@ class Kernel:
         self.stderr = stderr
         self.stdin = stdin
         self.enqueue_control_request = enqueue_control_request
-        self._runner_hooks = {
-            "preparation": (
-                preparation_hooks
-                if preparation_hooks is not None
-                else PREPARATION_HOOKS
-            ),
-            "pre_execution": (
-                pre_execution_hooks
-                if pre_execution_hooks is not None
-                else PRE_EXECUTION_HOOKS
-            ),
-            "post_execution": (
-                post_execution_hooks
-                if post_execution_hooks is not None
-                else POST_EXECUTION_HOOKS
-            ),
-            "on_finish": (
-                on_finish_hooks
-                if on_finish_hooks is not None
-                else ON_FINISH_HOOKS
-            ),
-        }
+
+        self._preparation_hooks = (
+            preparation_hooks
+            if preparation_hooks is not None
+            else PREPARATION_HOOKS
+        )
+        self._pre_execution_hooks = (
+            pre_execution_hooks
+            if pre_execution_hooks is not None
+            else PRE_EXECUTION_HOOKS
+        )
+        self._post_execution_hooks = (
+            post_execution_hooks
+            if post_execution_hooks is not None
+            else POST_EXECUTION_HOOKS
+        )
+        self._on_finish_hooks = (
+            on_finish_hooks if on_finish_hooks is not None else ON_FINISH_HOOKS
+        )
+
         self._globals_lock = threading.RLock()
         self._completion_worker_started = False
 
@@ -977,12 +979,11 @@ class Kernel:
             execution_mode=self.reactive_execution_mode,
             execution_type=self.execution_type,
             execution_context=self._install_execution_context,
-            preparation_hooks=self._runner_hooks["preparation"]
-            + [invalidate_state],
-            pre_execution_hooks=self._runner_hooks["pre_execution"],
-            post_execution_hooks=self._runner_hooks["post_execution"],
+            preparation_hooks=self._preparation_hooks + [invalidate_state],
+            pre_execution_hooks=self._pre_execution_hooks,
+            post_execution_hooks=self._post_execution_hooks,
             on_finish_hooks=(
-                self._runner_hooks["on_finish"]
+                self._on_finish_hooks
                 + [broadcast_missing_packages, propagate_kernel_errors]
             ),
         )

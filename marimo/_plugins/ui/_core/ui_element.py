@@ -26,6 +26,7 @@ from marimo._runtime.functions import Function
 
 if TYPE_CHECKING:
     from marimo._plugins.ui._impl.input import form as form_plugin
+    from marimo._runtime.context.types import RuntimeContext
 
 # S: Type of frontend value
 #   - the initial value sent to the frontend must be of type S
@@ -179,6 +180,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         except (ids.NoIDProviderException, ContextNotInitializedError):
             self._id = self._random_id
 
+        self._ctx: RuntimeContext | None
         try:
             # cache the context in case the UI element is constructed
             # in a nested context -- so that if the UI element is accessed

@@ -35,6 +35,7 @@ from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime import dataflow
 from marimo._runtime.context.types import (
     ContextNotInitializedError,
+    RuntimeContext,
     get_context,
 )
 from marimo._runtime.patches import create_main_module
@@ -306,6 +307,7 @@ class App:
             post_execution_hooks=[cache_output, _reset_matplotlib_context],
         )
 
+        self._runtime_context: RuntimeContext
         if isinstance(ctx, KernelRuntimeContext):
             self._runtime_context = create_kernel_context(
                 kernel=self._kernel,

@@ -1,6 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import Callable
+
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
 from marimo._data.get_datasets import get_datasets_from_variables
@@ -25,6 +27,10 @@ from marimo._runtime.runner import cell_runner
 from marimo._utils.flatten import flatten
 
 LOGGER = _loggers.marimo_logger()
+
+PostExecutionHookType = Callable[
+    [CellImpl, cell_runner.Runner, cell_runner.RunResult], None
+]
 
 
 def _set_status_idle(
@@ -189,7 +195,7 @@ def _reset_matplotlib_context(
         exec("__marimo__._output.mpl.close_figures()", runner.glbls)
 
 
-POST_EXECUTION_HOOKS = [
+POST_EXECUTION_HOOKS: list[PostExecutionHookType] = [
     _set_status_idle,
     _store_reference_to_output,
     _broadcast_variables,

@@ -11,25 +11,20 @@ import traceback
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, Union
 
-from marimo._ast.cell import (
-    CellId_t,
-    CellImpl,
-)
+from marimo._ast.cell import CellId_t, CellImpl
 from marimo._config.config import ExecutionType, OnCellChangeType
 from marimo._loggers import marimo_logger
 from marimo._messaging.errors import Error, MarimoStrictExecutionError
 from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime import dataflow
-from marimo._runtime.control_flow import (
-    MarimoInterrupt,
-    MarimoStopError,
-)
+from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.executor import (
     MarimoMissingRefError,
     execute_cell,
     execute_cell_async,
 )
 from marimo._runtime.marimo_pdb import MarimoPdb
+from marimo._runtime.runner.hooks_preparation import PreparationHookType
 
 LOGGER = marimo_logger()
 
@@ -37,6 +32,11 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from marimo._runtime.context.types import ExecutionContext
+    from marimo._runtime.runner.hooks_on_finish import OnFinishHookType
+    from marimo._runtime.runner.hooks_post_execution import (
+        PostExecutionHookType,
+    )
+    from marimo._runtime.runner.hooks_pre_execution import PreExecutionHookType
     from marimo._runtime.state import State
 
 
@@ -78,14 +78,10 @@ class Runner:
             [CellId_t], contextlib._GeneratorContextManager[ExecutionContext]
         ]
         | None = None,
-        preparation_hooks: Sequence[Callable[["Runner"], Any]] | None = None,
-        pre_execution_hooks: Sequence[Callable[[CellImpl, "Runner"], Any]]
-        | None = None,
-        post_execution_hooks: Sequence[
-            Callable[[CellImpl, "Runner", RunResult], Any]
-        ]
-        | None = None,
-        on_finish_hooks: Sequence[Callable[["Runner"], Any]] | None = None,
+        preparation_hooks: Sequence[PreparationHookType] | None = None,
+        pre_execution_hooks: Sequence[PreExecutionHookType] | None = None,
+        post_execution_hooks: Sequence[PostExecutionHookType] | None = None,
+        on_finish_hooks: Sequence[OnFinishHookType] | None = None,
     ):
         self.graph = graph
         self.debugger = debugger
