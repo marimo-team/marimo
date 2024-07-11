@@ -5,7 +5,6 @@ import asyncio
 import random
 import string
 import weakref
-from collections.abc import Awaitable
 from dataclasses import asdict, dataclass
 from typing import (
     TYPE_CHECKING,
@@ -47,7 +46,7 @@ from marimo._runtime.requests import (
 from marimo._runtime.runner import cell_runner
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Awaitable, Sequence
 
     from marimo._runtime.context.types import ExecutionContext
 
@@ -278,7 +277,7 @@ class App:
             cell: CellImpl,
             runner: cell_runner.Runner,
             run_result: cell_runner.RunResult,
-        ):
+        ) -> None:
             from marimo._plugins.stateless.flex import vstack
 
             del runner

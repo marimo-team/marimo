@@ -15,7 +15,6 @@ import threading
 import time
 import traceback
 from multiprocessing import connection
-from types import ModuleType
 from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, cast
 from uuid import uuid4
 
@@ -121,6 +120,7 @@ from marimo._utils.variables import is_local
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
+    from types import ModuleType
 
     from marimo._plugins.ui._core.ui_element import UIElement
 
@@ -925,6 +925,7 @@ class Kernel:
 
         Returns set of cells that need to be re-run due to state updates.
         """
+
         # Some hooks that are leaky and require the kernel
         # Free cell state ahead of running to relieve memory pressure
         #

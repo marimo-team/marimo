@@ -54,11 +54,13 @@ def redirect_streams(
 ) -> Iterator[None]:
     cell_id_old = stream.cell_id
 
+    # In a nested context; NOOP so messages still reach the top-level cell.
     if cell_id_old is not None:
         try:
             yield
         finally:
-            return
+            ...
+        return
 
     stream.cell_id = cell_id
     if stdout is None or stderr is None:

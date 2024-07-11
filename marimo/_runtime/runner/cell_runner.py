@@ -20,7 +20,6 @@ from marimo._loggers import marimo_logger
 from marimo._messaging.errors import Error, MarimoStrictExecutionError
 from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime import dataflow
-from marimo._runtime.context.types import get_context
 from marimo._runtime.control_flow import (
     MarimoInterrupt,
     MarimoStopError,
