@@ -27,7 +27,7 @@ class TestHash:
     # Note: Hash may change based on byte code, so pin to particular version
     @staticmethod
     @pytest.mark.skipif(
-        "sys.version_info < (3, 11) and sys.version_info > (3, 11)"
+        "sys.version_info < (3, 11) or sys.version_info >= (3, 12)"
     )
     def test_content_reproducibility() -> None:
         app = App()
@@ -95,7 +95,7 @@ class TestHash:
 
     @staticmethod
     @pytest.mark.skipif(
-        "sys.version_info < (3, 11) and sys.version_info > (3, 11)"
+        "sys.version_info < (3, 11) or sys.version_info >= (3, 12)"
     )
     def test_execution_reproducibility() -> None:
         app = App()
