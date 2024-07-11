@@ -539,7 +539,7 @@ export const UserConfigForm: React.FC = () => {
                   <Input
                     data-testid="ai-base-url-input"
                     className="m-0 inline-flex"
-                    placeholder="https://api.openai.com"
+                    placeholder="https://api.openai.com/v1"
                     {...field}
                   />
                 </FormControl>
