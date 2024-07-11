@@ -1,18 +1,20 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { repl } from "@/utils/repl";
-import { UserConfig } from "vite";
+import type { UserConfig } from "vite";
 import { saveUserConfig } from "../network/requests";
 import { getUserConfig } from "./config";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface ExperimentalFeatures {
-  // Add new feature flags here
   markdown: boolean;
+  wasm_layouts: boolean;
+  // Add new feature flags here
 }
 
 const defaultValues: ExperimentalFeatures = {
   markdown: true,
+  wasm_layouts: false,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(

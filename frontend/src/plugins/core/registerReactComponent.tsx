@@ -9,28 +9,24 @@
  */
 import React, {
   createRef,
-  ReactNode,
-  SetStateAction,
+  type ReactNode,
+  type SetStateAction,
   Suspense,
   useEffect,
   useImperativeHandle,
   useMemo,
   useState,
 } from "react";
-import ReactDOM, { Root } from "react-dom/client";
+import ReactDOM, { type Root } from "react-dom/client";
 
-import {
-  createInputEvent,
-  marimoValueUpdateEvent,
-  MarimoValueUpdateEventType,
-} from "@/core/dom/events";
+import { createInputEvent, MarimoValueUpdateEvent } from "@/core/dom/events";
 import { defineCustomElement } from "../../core/dom/defineCustomElement";
 import {
   parseAttrValue,
   parseDataset,
   parseInitialValue,
 } from "../../core/dom/htmlUtils";
-import { IPlugin } from "../types";
+import type { IPlugin } from "../types";
 import { Objects } from "../../utils/objects";
 import { renderError } from "./BadPlugin";
 import { renderHTML } from "./RenderHTML";
@@ -39,12 +35,13 @@ import { Logger } from "../../utils/Logger";
 import { useTheme } from "@/theme/useTheme";
 import { FUNCTIONS_REGISTRY } from "@/core/functions/FunctionRegistry";
 import { getUIElementObjectId } from "@/core/dom/ui-element";
-import { PluginFunctions } from "./rpc";
-import { ZodSchema } from "zod";
+import type { PluginFunctions } from "./rpc";
+import type { ZodSchema } from "zod";
 import useEvent from "react-use-event-hook";
 import { Functions } from "@/utils/functions";
 import { StyleNamespace } from "@/theme/namespace";
 import { UIElementRegistry } from "@/core/dom/uiregistry";
+import { useEventListener } from "@/hooks/useEventListener";
 
 export interface PluginSlotHandle {
   /**
@@ -100,14 +97,16 @@ function PluginSlotInternal<T>(
     },
   }));
 
+  // Listen to value updates
+  useEventListener(hostElement, MarimoValueUpdateEvent.TYPE, (e) => {
+    if (e.detail.element === hostElement) {
+      setValue(e.detail.value as T);
+    }
+  });
+
+  // We create a mutation observer to listen for changes to the host element's attributes
+  // and update the plugin's data accordingly
   useEffect(() => {
-    const handleValue = (e: MarimoValueUpdateEventType) => {
-      if (e.detail.element === hostElement) {
-        setValue(e.detail.value as T);
-      }
-    };
-    // We create a mutation observer to listen for changes to the host element's attributes
-    // and update the plugin's data accordingly
     const observer = new MutationObserver((mutations) => {
       const hasAttributeMutation = mutations.some(
         (mutation) =>
@@ -119,15 +118,13 @@ function PluginSlotInternal<T>(
       }
     });
 
-    // Create listeners
-    hostElement.addEventListener(marimoValueUpdateEvent, handleValue);
+    // Create listener
     observer.observe(hostElement, {
       attributes: true, // configure it to listen to attribute changes
     });
 
     return () => {
-      // Remove listeners
-      hostElement.removeEventListener(marimoValueUpdateEvent, handleValue);
+      // Remove listener
       observer.disconnect();
     };
   }, [hostElement, plugin.validator]);

@@ -276,6 +276,25 @@ class TestApp:
         app.run()
 
     @staticmethod
+    def test_dunder_rewritten_as_local() -> None:
+        app = App()
+
+        @app.cell
+        def _() -> None:
+            __ = 1  # noqa: F841
+            return
+
+        @app.cell
+        def _() -> None:
+            __  # type: ignore
+            return
+
+        with pytest.raises(NameError) as e:
+            app.run()
+
+        assert "'__' is not defined" in str(e.value)
+
+    @staticmethod
     def test_app_width_config() -> None:
         app = App(width="full")
         assert app._config.width == "full"

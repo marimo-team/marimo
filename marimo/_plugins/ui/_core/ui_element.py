@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import abc
+import base64
 import copy
 import uuid
 import weakref
@@ -12,6 +13,7 @@ from typing import (
     Callable,
     Generic,
     Optional,
+    Sequence,
     TypeVar,
     cast,
 )
@@ -388,6 +390,24 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
             validate=validate,
             on_change=on_change,
         )
+
+    def send_message(
+        self, message: JSONType, buffers: Optional[Sequence[bytes]]
+    ) -> None:
+        """
+        Send a message to the element rendered on the frontend
+        from the backend.
+        """
+
+        from marimo._messaging.ops import SendUIElementMessage
+
+        SendUIElementMessage(
+            ui_element=self._id,
+            message=message,
+            buffers=[
+                base64.b64encode(buffer).decode() for buffer in (buffers or [])
+            ],
+        ).broadcast()
 
     def _update(self, value: S) -> None:
         """Update value, given a value from the frontend

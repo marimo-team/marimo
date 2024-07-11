@@ -38,11 +38,13 @@ export class CarouselPlugin implements IStatelessPlugin<Data> {
 
   render(props: IStatelessPluginProps<Data>): JSX.Element {
     return (
-      <LazyCarouselComponent {...props.data}>
+      <LazySlidesComponent {...props.data}>
         {props.children}
-      </LazyCarouselComponent>
+      </LazySlidesComponent>
     );
   }
 }
 
-const LazyCarouselComponent = React.lazy(() => import("./CarouselComponent"));
+const LazySlidesComponent = React.lazy(
+  () => import("../../../components/slides/slides-component"),
+);

@@ -51,7 +51,7 @@ class OSFileSystem(FileSystem):
                     is_directory=is_directory,
                     is_marimo_file=not is_directory
                     and self._is_marimo_file(entry.path),
-                    last_modified_date=entry_stat.st_mtime,
+                    last_modified=entry_stat.st_mtime,
                 )
                 if is_directory:
                     folders.append(info)
@@ -71,7 +71,7 @@ class OSFileSystem(FileSystem):
             name=os.path.basename(path),
             is_directory=is_directory,
             is_marimo_file=not is_directory and self._is_marimo_file(path),
-            last_modified_date=stat.st_mtime,
+            last_modified=stat.st_mtime,
         )
 
     def get_details(

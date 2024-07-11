@@ -36,7 +36,7 @@ export interface ICellRendererProps<L> {
   setLayout: (layout: L) => void;
 }
 
-export type LayoutType = "grid" | "vertical";
+export type LayoutType = "grid" | "vertical" | "slides";
 
 /**
  * A cell renderer plugin.

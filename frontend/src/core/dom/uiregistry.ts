@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { CellId, UIElementId } from "../cells/ids";
 import {
-  ValueType,
-  marimoValueUpdateEvent,
-  marimoValueReadyEvent,
+  type ValueType,
+  MarimoIncomingMessageEvent,
+  MarimoValueReadyEvent,
+  MarimoValueUpdateEvent,
 } from "./events";
 import { parseInitialValue } from "./htmlUtils";
 
@@ -127,6 +128,38 @@ export class UIElementRegistry {
     return entry === undefined ? undefined : entry.value;
   }
 
+  broadcastMessage(
+    objectId: UIElementId,
+    message: unknown,
+    buffers: string[] | undefined | null,
+  ): void {
+    const entry = this.entries.get(objectId);
+    if (entry !== undefined) {
+      const base64ToDataView = (base64: string) => {
+        const bytes = window.atob(base64);
+        const buffer = new ArrayBuffer(bytes.length);
+        const view = new DataView(buffer);
+        for (let i = 0; i < bytes.length; i++) {
+          view.setUint8(i, bytes.charCodeAt(i));
+        }
+        return view;
+      };
+      entry.elements.forEach((element) => {
+        element.dispatchEvent(
+          MarimoIncomingMessageEvent.create({
+            bubbles: false, // only the intended target gets the message
+            composed: true,
+            detail: {
+              objectId: objectId,
+              message: message,
+              buffers: buffers ? buffers.map(base64ToDataView) : undefined,
+            },
+          }),
+        );
+      });
+    }
+  }
+
   /**
    * Broadcast `value` to instances of the component with id `objectId`
    *
@@ -148,7 +181,7 @@ export class UIElementRegistry {
       entry.elements.forEach((element) => {
         if (element !== initiator) {
           element.dispatchEvent(
-            new CustomEvent(marimoValueUpdateEvent, {
+            MarimoValueUpdateEvent.create({
               bubbles: false, // only the intended target gets the message
               composed: true,
               detail: { value: value, element: element },
@@ -158,7 +191,7 @@ export class UIElementRegistry {
       });
 
       document.dispatchEvent(
-        new CustomEvent(marimoValueReadyEvent, {
+        MarimoValueReadyEvent.create({
           bubbles: true,
           composed: true,
           detail: {

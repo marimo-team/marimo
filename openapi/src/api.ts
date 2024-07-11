@@ -269,7 +269,7 @@ export interface paths {
         /** @description Get the running files */
         200: {
           content: {
-            "application/json": components["schemas"]["WorkspaceFilesResponse"];
+            "application/json": components["schemas"]["RunningNotebooksResponse"];
           };
         };
       };
@@ -286,7 +286,7 @@ export interface paths {
         /** @description Shutdown the current session */
         200: {
           content: {
-            "application/json": components["schemas"]["WorkspaceFilesResponse"];
+            "application/json": components["schemas"]["RunningNotebooksResponse"];
           };
         };
       };
@@ -736,6 +736,8 @@ export interface components {
     AiCompletionRequest: {
       code: string;
       includeOtherCode: string;
+      /** @enum {string} */
+      language: "python" | "markdown" | "sql";
       prompt: string;
     };
     Alert: {
@@ -962,7 +964,7 @@ export interface components {
       id: string;
       isDirectory: boolean;
       isMarimoFile: boolean;
-      lastModifiedDate?: number | null;
+      lastModified?: number | null;
       name: string;
       path: string;
     };
@@ -1176,7 +1178,7 @@ export interface components {
     };
     MarimoFile: {
       initializationId?: string | null;
-      lastModified: number;
+      lastModified?: number | null;
       name: string;
       path: string;
       sessionId?: string | null;
@@ -1200,6 +1202,7 @@ export interface components {
     MessageOperation:
       | components["schemas"]["CellOp"]
       | components["schemas"]["FunctionCallResult"]
+      | components["schemas"]["SendUIElementMessage"]
       | components["schemas"]["RemoveUIElements"]
       | components["schemas"]["Reload"]
       | components["schemas"]["Reconnected"]
@@ -1308,6 +1311,9 @@ export interface components {
       cellIds: string[];
       codes: string[];
     };
+    RunningNotebooksResponse: {
+      files: components["schemas"]["MarimoFile"][];
+    };
     SaveAppConfigurationRequest: {
       config: {
         [key: string]: unknown;
@@ -1326,6 +1332,13 @@ export interface components {
     };
     SaveUserConfigurationRequest: {
       config: components["schemas"]["MarimoConfig"];
+    };
+    SendUIElementMessage: {
+      buffers?: string[] | null;
+      message?: components["schemas"]["JSONType"];
+      /** @enum {string} */
+      name: "send-ui-element-message";
+      ui_element: string;
     };
     SetCellConfigRequest: {
       configs: {
@@ -1408,7 +1421,8 @@ export interface components {
       includeMarkdown: boolean;
     };
     WorkspaceFilesResponse: {
-      files: components["schemas"]["MarimoFile"][];
+      files: components["schemas"]["FileInfo"][];
+      root: string;
     };
   };
   responses: never;

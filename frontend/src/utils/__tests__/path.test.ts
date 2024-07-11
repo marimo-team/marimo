@@ -1,8 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
-import { FilePath, PathBuilder, Paths } from "../paths";
+import { type FilePath, PathBuilder, Paths } from "../paths";
 
 describe("Paths", () => {
+  it("isAbsolute", () => {
+    expect(Paths.isAbsolute("/")).toBe(true);
+    expect(Paths.isAbsolute("/user/docs/Letter.txt")).toBe(true);
+    expect(Paths.isAbsolute("C:\\user\\docs\\Letter.txt")).toBe(true);
+    expect(Paths.isAbsolute("user/docs/Letter.txt")).toBe(false);
+  });
+
   describe("dirname", () => {
     it("should return the directory path of a given path", () => {
       expect(Paths.dirname("/user/docs/Letter.txt")).toBe("/user/docs");

@@ -68,9 +68,9 @@ statically analyzing your code.
 
 **Compatible with expensive notebooks.** You can optionally disable expensive cells to
 prevent them from automatically running, or configure the runtime to be
-lazy and mark affected stales as stale instead of automatically running them.
+lazy and mark affected cells as stale instead of automatically running them.
 
-**Batteries-included.** marimo comes with GitHub Copilot, Black code
+**Batteries-included.** marimo comes with GitHub Copilot, Ruff code
 formatting, HTML export, fast code completion, a [VS Code
 extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo),
 and many more quality-of-life features.

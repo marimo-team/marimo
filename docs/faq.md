@@ -119,7 +119,7 @@ re-running cells.
 
 ## Using marimo
 
-<a name="faq-notebook-library"></a>
+<a name="faq-notebook-or-library"></a>
 
 ### Is marimo a notebook or a library?
 

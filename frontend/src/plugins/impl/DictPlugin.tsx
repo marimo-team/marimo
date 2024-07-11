@@ -4,10 +4,10 @@ import { z } from "zod";
 
 import { getUIElementObjectId } from "../../core/dom/ui-element";
 import {
-  marimoValueInputEvent,
-  MarimoValueInputEventType,
+  MarimoValueInputEvent,
+  type MarimoValueInputEventType,
 } from "../../core/dom/events";
-import { IPlugin, IPluginProps, Setter } from "../types";
+import type { IPlugin, IPluginProps, Setter } from "../types";
 
 // key => value updates
 type T = Record<string, unknown> | null;
@@ -71,9 +71,9 @@ const Dict = ({
         return nextValue;
       });
     };
-    document.addEventListener(marimoValueInputEvent, handleUpdate);
+    document.addEventListener(MarimoValueInputEvent.TYPE, handleUpdate);
     return () => {
-      document.removeEventListener(marimoValueInputEvent, handleUpdate);
+      document.removeEventListener(MarimoValueInputEvent.TYPE, handleUpdate);
     };
   }, [elementIds, setValue]);
 

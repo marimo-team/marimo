@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/form";
 import {
   APP_WIDTHS,
-  UserConfig,
+  type UserConfig,
   UserConfigSchema,
 } from "../../core/config/config-schema";
 import { Checkbox } from "../ui/checkbox";
@@ -24,7 +24,7 @@ import { KEYMAP_PRESETS } from "@/core/codemirror/keymaps/keymaps";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
 import { SettingTitle, SettingDescription, SettingSubtitle } from "./common";
 import { THEMES } from "@/theme/useTheme";
-import { isPyodide } from "@/core/pyodide/utils";
+import { isWasm } from "@/core/wasm/utils";
 import { PackageManagerNames } from "../../core/config/config-schema";
 import { Kbd } from "../ui/kbd";
 import { NumberField } from "@/components/ui/number-field";
@@ -52,7 +52,7 @@ export const UserConfigForm: React.FC = () => {
     });
   };
 
-  const isWasm = isPyodide();
+  const isWasmRuntime = isWasm();
 
   const renderCopilotProvider = () => {
     const copilot = form.getValues("completion.copilot");
@@ -402,7 +402,7 @@ export const UserConfigForm: React.FC = () => {
         <SettingGroup title="Package Management">
           <FormField
             control={form.control}
-            disabled={isWasm}
+            disabled={isWasmRuntime}
             name="package_management.manager"
             render={({ field }) => (
               <FormItem className={formItemClasses}>
@@ -493,7 +493,7 @@ export const UserConfigForm: React.FC = () => {
                       data-testid="auto-reload-select"
                       onChange={(e) => field.onChange(e.target.value)}
                       value={field.value}
-                      disabled={isWasm}
+                      disabled={isWasmRuntime}
                       className="inline-flex mr-2"
                     >
                       {["off", "lazy", "autorun"].map((option) => (
@@ -530,7 +530,7 @@ export const UserConfigForm: React.FC = () => {
           </p>
           <FormField
             control={form.control}
-            disabled={isWasm}
+            disabled={isWasmRuntime}
             name="ai.open_ai.base_url"
             render={({ field }) => (
               <FormItem className={formItemClasses}>
@@ -549,7 +549,7 @@ export const UserConfigForm: React.FC = () => {
           />
           <FormField
             control={form.control}
-            disabled={isWasm}
+            disabled={isWasmRuntime}
             name="ai.open_ai.model"
             render={({ field }) => (
               <FormItem className={formItemClasses}>

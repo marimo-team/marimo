@@ -73,7 +73,7 @@ def create_session(
                     names=tuple(app.cell_manager.names()),
                     configs=tuple(app.cell_manager.configs()),
                     cell_ids=tuple(app.cell_manager.cell_ids()),
-                    layout=None,
+                    layout=app_file_manager.read_layout_config(),
                     resumed=False,
                     ui_values={},
                     last_executed_code={},

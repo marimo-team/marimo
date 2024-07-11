@@ -18,7 +18,7 @@ import type {
 } from "../network/types";
 import type { IReconnectingWebSocket } from "../websocket/types";
 import { fallbackFileStore, notebookFileStore } from "./store";
-import { isPyodide } from "./utils";
+import { isWasm } from "./utils";
 import { Deferred } from "@/utils/Deferred";
 import { createShareableLink } from "./share";
 import { PyodideRouter } from "./router";
@@ -52,59 +52,61 @@ export class PyodideBridge implements RunRequests, EditRequests {
   public initialized = new Deferred<void>();
 
   private constructor() {
-    if (isPyodide()) {
-      // Create a worker
-      const worker = new Worker(
-        // eslint-disable-next-line unicorn/relative-url-style
-        new URL("./worker/worker.ts", import.meta.url),
-        {
-          type: "module",
-          // Pass the version to the worker
-          /* @vite-ignore */
-          name: getMarimoVersion(),
-        },
-      );
-
-      // Create save worker
-      const saveWorker = new Worker(
-        // eslint-disable-next-line unicorn/relative-url-style
-        new URL("./worker/save-worker.ts", import.meta.url),
-        {
-          type: "module",
-          // Pass the version
-          /* @vite-ignore */
-          name: getMarimoVersion(),
-        },
-      );
-
-      // Create the RPC
-      this.rpc = getWorkerRPC<WorkerSchema>(worker);
-      this.saveRpc = getWorkerRPC<SaveWorkerSchema>(saveWorker);
-
-      // Listeners
-      this.rpc.addMessageListener("ready", () => {
-        this.startSession();
-      });
-      this.rpc.addMessageListener("initialized", () => {
-        this.setInterruptBuffer();
-        this.initialized.resolve();
-      });
-      this.rpc.addMessageListener("initializedError", ({ error }) => {
-        // If already resolved, show a toast
-        if (this.initialized.status === "resolved") {
-          Logger.error(error);
-          toast({
-            title: "Error initializing",
-            description: error,
-            variant: "danger",
-          });
-        }
-        this.initialized.reject(new Error(error));
-      });
-      this.rpc.addMessageListener("kernelMessage", ({ message }) => {
-        this.messageConsumer?.(message);
-      });
+    if (!isWasm()) {
+      return;
     }
+
+    // Create a worker
+    const worker = new Worker(
+      // eslint-disable-next-line unicorn/relative-url-style
+      new URL("./worker/worker.ts", import.meta.url),
+      {
+        type: "module",
+        // Pass the version to the worker
+        /* @vite-ignore */
+        name: getMarimoVersion(),
+      },
+    );
+
+    // Create save worker
+    const saveWorker = new Worker(
+      // eslint-disable-next-line unicorn/relative-url-style
+      new URL("./worker/save-worker.ts", import.meta.url),
+      {
+        type: "module",
+        // Pass the version
+        /* @vite-ignore */
+        name: getMarimoVersion(),
+      },
+    );
+
+    // Create the RPC
+    this.rpc = getWorkerRPC<WorkerSchema>(worker);
+    this.saveRpc = getWorkerRPC<SaveWorkerSchema>(saveWorker);
+
+    // Listeners
+    this.rpc.addMessageListener("ready", () => {
+      this.startSession();
+    });
+    this.rpc.addMessageListener("initialized", () => {
+      this.setInterruptBuffer();
+      this.initialized.resolve();
+    });
+    this.rpc.addMessageListener("initializedError", ({ error }) => {
+      // If already resolved, show a toast
+      if (this.initialized.status === "resolved") {
+        Logger.error(error);
+        toast({
+          title: "Error initializing",
+          description: error,
+          variant: "danger",
+        });
+      }
+      this.initialized.reject(new Error(error));
+    });
+    this.rpc.addMessageListener("kernelMessage", ({ message }) => {
+      this.messageConsumer?.(message);
+    });
   }
 
   private async startSession() {

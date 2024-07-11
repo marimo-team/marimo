@@ -22,6 +22,10 @@ describe("normalizeName", () => {
     expect(normalizeName("Some name 10")).toBe("some_name_10");
     expect(normalizeName("10 names")).toBe("_10_names");
   });
+
+  it("should remove special characters and not make lowercase", () => {
+    expect(normalizeName("Test Name!", false)).toBe("Test_Name_");
+  });
 });
 
 describe("getValidName", () => {

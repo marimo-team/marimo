@@ -4,9 +4,10 @@ import { z } from "zod";
 import { IStatelessPlugin, IStatelessPluginProps } from "../stateless-plugin";
 import { TriangleIcon } from "lucide-react";
 import { cn } from "@/utils/cn";
+import { prettyNumber } from "@/utils/numbers";
 
 interface Data {
-  value: string;
+  value?: string | number | boolean | null;
   label?: string;
   caption?: string;
   bordered?: boolean;
@@ -17,7 +18,7 @@ export class StatPlugin implements IStatelessPlugin<Data> {
   tagName = "marimo-stat";
 
   validator = z.object({
-    value: z.string(),
+    value: z.union([z.string(), z.number(), z.boolean()]).optional(),
     label: z.string().optional(),
     caption: z.string().optional(),
     bordered: z.boolean().default(false),
@@ -36,6 +37,26 @@ export const StatComponent: React.FC<Data> = ({
   bordered,
   direction,
 }) => {
+  const renderPrettyValue = () => {
+    if (value == null) {
+      return <i>No value</i>;
+    }
+
+    if (typeof value === "string") {
+      return value;
+    }
+
+    if (typeof value === "number") {
+      return prettyNumber(value);
+    }
+
+    if (typeof value === "boolean") {
+      return value ? "True" : "False";
+    }
+
+    return String(value);
+  };
+
   return (
     <div
       className={cn(
@@ -49,7 +70,7 @@ export const StatComponent: React.FC<Data> = ({
         </div>
       )}
       <div className="p-6 pt-0">
-        <div className="text-2xl font-bold">{value}</div>
+        <div className="text-2xl font-bold">{renderPrettyValue()}</div>
         {caption && (
           <p className="pt-1 text-xs text-muted-foreground flex align-center">
             {direction === "increase" && (

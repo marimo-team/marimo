@@ -4,8 +4,8 @@ import type { UIElementRegistry } from "./uiregistry";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { Objects } from "@/utils/objects";
 import { UIElementId } from "../cells/ids";
-import { isPyodide } from "../pyodide/utils";
-import { PyodideRouter } from "../pyodide/router";
+import { isWasm } from "../wasm/utils";
+import { PyodideRouter } from "../wasm/router";
 
 /**
  * Parse an attribute value as JSON.
@@ -50,8 +50,8 @@ export function serializeInitialValue(value: unknown) {
 }
 
 export function getFilenameFromDOM() {
-  // If we are running in Pyodide, we can get the filename from the URL
-  if (isPyodide()) {
+  // If we are running in WASM, we can get the filename from the URL
+  if (isWasm()) {
     const filename = PyodideRouter.getFilename();
     if (filename) {
       return filename;
