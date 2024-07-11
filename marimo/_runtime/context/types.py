@@ -68,6 +68,7 @@ class RuntimeContext(abc.ABC):
     stdout: Stdout | None
     stderr: Stderr | None
     children: list[RuntimeContext]
+    parent: RuntimeContext | None
 
     @property
     @abc.abstractmethod

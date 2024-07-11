@@ -3,7 +3,7 @@
 import marimo
 
 __generated_with = "0.6.26"
-app = marimo.App()
+app = marimo.App(width="medium")
 
 
 @app.cell
@@ -20,7 +20,20 @@ def __(mo):
 
 @app.cell
 async def __(app):
-    await app.embed()
+    result = await app.embed()
+    result.output
+    return result,
+
+
+@app.cell
+def __(result):
+    result.defs["x"].value
+    return
+
+
+@app.cell
+def __(result):
+    result.defs["y"].value
     return
 
 
@@ -32,7 +45,7 @@ def __(mo):
 
 @app.cell
 async def __(app, mo):
-    tabs = mo.ui.tabs({"🧮": await app.embed(), "📝": mo.md("Hello world")})
+    tabs = mo.ui.tabs({"🧮": (await app.embed()).output, "📝": mo.md("Hello world")})
     tabs
     return tabs,
 
@@ -50,8 +63,20 @@ def __():
 
 
 @app.cell
-def __(table_app):
-    table_app
+async def __(table_app):
+    table_app_results = await table_app.embed()
+    return table_app_results,
+
+
+@app.cell
+def __(table_app_results):
+    table_app_results.output
+    return
+
+
+@app.cell
+def __(table_app_results):
+    table_app_results.defs
     return
 
 

@@ -23,9 +23,17 @@ def __(mo):
 
 
 @app.cell
+def __(mo, result):
+    x_plus_y = result.defs['x'].value + result.defs['y'].value
+    mo.md(f"The middle app has calculated `x_plus_y` ... try retrieving it")
+    return x_plus_y,
+
+
+@app.cell
 async def __(app):
-    await app.embed()
-    return
+    result = await app.embed()
+    result.output
+    return result,
 
 
 if __name__ == "__main__":

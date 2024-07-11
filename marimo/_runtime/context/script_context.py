@@ -105,5 +105,6 @@ def initialize_script_context(app: InternalApp, stream: Stream) -> None:
         stdout=None,
         stderr=None,
         children=[],
+        parent=None,
     )
     initialize_context(runtime_context=runtime_context)

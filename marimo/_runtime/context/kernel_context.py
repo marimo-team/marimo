@@ -100,6 +100,7 @@ def create_kernel_context(
     stderr: Stderr | None,
     virtual_files_supported: bool = True,
     app: InternalApp | None = None,
+    parent: KernelRuntimeContext | None = None,
 ) -> KernelRuntimeContext:
     from marimo._plugins.ui._core.registry import UIElementRegistry
     from marimo._runtime.virtual_file import VirtualFileRegistry
@@ -116,6 +117,7 @@ def create_kernel_context(
         stdout=stdout,
         stderr=stderr,
         children=[],
+        parent=parent,
     )
 
 

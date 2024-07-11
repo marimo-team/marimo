@@ -12,8 +12,17 @@ def __():
 
 @app.cell
 async def __(middle):
-    await middle.embed()
-    return
+    result = await middle.embed()
+    result.output
+    return result,
+
+
+app._unparsable_cell(
+    r"""
+    result.defs[]
+    """,
+    name="__"
+)
 
 
 if __name__ == "__main__":

@@ -30,10 +30,14 @@ from marimo._ast.errors import (
 from marimo._config.config import DEFAULT_CONFIG, WidthType
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.types import NoopStream
+from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime import dataflow
-from marimo._runtime.context.types import get_context
+from marimo._runtime.context.types import (
+    ContextNotInitializedError,
+    get_context,
+)
 from marimo._runtime.patches import create_main_module
 from marimo._runtime.requests import (
     AppMetadata,
@@ -126,13 +130,10 @@ class _Namespace(Mapping[str, object]):
         return tree(self._dict)._mime_()
 
 
-class _AppOutput:
-    def __init__(self, mimetype: KnownMimeType, data: str) -> None:
-        self.mimetype: KnownMimeType = mimetype
-        self.data = data
-
-    def _mime_(self) -> tuple[KnownMimeType, str]:
-        return (self.mimetype, self.data)
+@dataclass
+class AppEmbedResult:
+    output: Html
+    defs: Mapping[str, object]
 
 
 @mddoc
@@ -151,7 +152,15 @@ class App:
         # a TypeError.
         self._config = _AppConfig.from_untrusted_dict(kwargs)
 
-        self._cell_manager = CellManager()
+        try:
+            # nested applications get a unique cell prefix to disambiguate
+            # their graph from other graphs
+            get_context()
+            cell_prefix = str(uuid4())
+        except ContextNotInitializedError:
+            cell_prefix = ""
+
+        self._cell_manager = CellManager(prefix=cell_prefix)
         self._graph = dataflow.DirectedGraph()
         self._execution_context: ExecutionContext | None = None
         self._runner = dataflow.Runner(self._graph)
@@ -159,10 +168,9 @@ class App:
         self._unparsable = False
         self._initialized = False
 
-        self._app_uuid = str(uuid4())
         self._pending_ui_element_updates: list[UIElement[Any, Any]] = []
         self._cached_outputs: dict[CellId_t, Any] = {}
-        self._cached_defs: Mapping[str, object] | None = None
+        self._cached_defs: Mapping[str, object] = {}
 
     def cell(
         self,
@@ -217,9 +225,9 @@ class App:
 
     def _maybe_initialize(self) -> None:
         from marimo._runtime.context.kernel_context import (
+            KernelRuntimeContext,
             create_kernel_context,
         )
-        from marimo._runtime.context.utils import running_in_notebook
         from marimo._runtime.runner.hooks_post_execution import (
             _reset_matplotlib_context,
         )
@@ -299,7 +307,7 @@ class App:
             post_execution_hooks=[cache_output, _reset_matplotlib_context],
         )
 
-        if running_in_notebook():
+        if isinstance(ctx, KernelRuntimeContext):
             self._runtime_context = create_kernel_context(
                 kernel=self._kernel,
                 app=InternalApp(self),
@@ -307,6 +315,7 @@ class App:
                 stdout=None,
                 stderr=None,
                 virtual_files_supported=True,
+                parent=ctx,
             )
             ctx.add_child(self._runtime_context)
             finalizer = weakref.finalize(
@@ -317,14 +326,10 @@ class App:
             self._runtime_context = ctx
 
     def _flatten_outputs(self, outputs: dict[CellId_t, Any]) -> Sequence[Any]:
-        def _app_cell_id(cid: str) -> str:
-            return self._app_uuid + "-" + cid
-
         return tuple(
-            outputs[_app_cell_id(cid)]
+            outputs[cid]
             for cid in self._cell_manager.valid_cell_ids()
-            if not self._kernel.graph.is_disabled(_app_cell_id(cid))
-            and _app_cell_id(cid) in outputs
+            if not self._kernel.graph.is_disabled(cid) and cid in outputs
         )
 
     def _process_outputs_and_defs(self) -> tuple[Sequence[Any], _Namespace]:
@@ -353,9 +358,7 @@ class App:
         self, cells_to_run: set[CellId_t]
     ) -> tuple[Sequence[Any], Mapping[str, Any]]:
         execution_requests = [
-            ExecutionRequest(
-                cell_id=self._app_uuid + "-" + cid, code=cell._cell.code
-            )
+            ExecutionRequest(cell_id=cid, code=cell._cell.code)
             for cid in cells_to_run
             if (cell := self._cell_manager.cell_data_at(cid).cell) is not None
         ]
@@ -364,7 +367,7 @@ class App:
             await self._kernel.run(execution_requests)
         return self._process_outputs_and_defs()
 
-    def _run_internal(
+    def _run_as_script(
         self,
         cells_to_run: set[CellId_t],
     ) -> (
@@ -403,27 +406,22 @@ class App:
             if not FORMATTERS:
                 register_formatters()
 
-            # Provide a unique identifier for UI element prefixes so UI
-            # elements for an app don't get removed from the frontend on re-run
-            #
-            # TODO(akshayka): Do repeated runs cause a leak on the frontend?
-            with get_context().provide_ui_ids(prefix=str(uuid4())):
-                in_event_loop = False
-                try:
-                    asyncio.get_running_loop()
-                    in_event_loop = True
-                except RuntimeError:
-                    ...
+            in_event_loop = False
+            try:
+                asyncio.get_running_loop()
+                in_event_loop = True
+            except RuntimeError:
+                ...
 
-                if in_event_loop:
-                    return asyncio.run(
-                        self._kernel_run(
-                            cells_to_run=cells_to_run,
-                        )
+            if in_event_loop:
+                return asyncio.run(
+                    self._kernel_run(
+                        cells_to_run=cells_to_run,
                     )
-                else:
-                    # Returns an awaitable that the user must await
-                    return self._kernel_run(cells_to_run=cells_to_run)
+                )
+            else:
+                # Returns an awaitable that the user must await
+                return self._kernel_run(cells_to_run=cells_to_run)
 
         finally:
             if installed_script_context:
@@ -435,7 +433,7 @@ class App:
         tuple[Sequence[Any], Mapping[str, Any]]
         | Awaitable[tuple[Sequence[Any], Mapping[str, Any]]]
     ):
-        return self._run_internal(cells_to_run=set(self._execution_order))
+        return self._run_as_script(cells_to_run=set(self._execution_order))
 
     async def _run_cell_async(
         self, cell: Cell, kwargs: dict[str, Any]
@@ -460,7 +458,7 @@ class App:
         with self._runtime_context.install():
             return await self._kernel.set_ui_element_value(request)
 
-    async def embed(self) -> _AppOutput:
+    async def embed(self) -> AppEmbedResult:
         from marimo._plugins.stateless.flex import vstack
 
         self._maybe_initialize()
@@ -468,16 +466,15 @@ class App:
         if not self._cached_outputs:
             await self._kernel_run(set(self._execution_order))
 
-        assert self._cached_outputs is not None
-        return _AppOutput(
-            "text/html",
-            vstack(
+        return AppEmbedResult(
+            output=vstack(
                 [
                     o
                     for o in self._flatten_outputs(self._cached_outputs)
                     if o is not None
                 ]
-            ).text,
+            ),
+            defs=self._cached_defs,
         )
 
 
@@ -489,14 +486,17 @@ class CellManager:
     provides methods to access them.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, prefix: str = "") -> None:
         self._cell_data: dict[CellId_t, CellData] = {}
+        self.prefix = prefix
         self.unparsable = False
         self.random_seed = random.Random(42)
 
     def create_cell_id(self) -> CellId_t:
         # 4 random letters
-        return "".join(self.random_seed.choices(string.ascii_letters, k=4))
+        return self.prefix + "".join(
+            self.random_seed.choices(string.ascii_letters, k=4)
+        )
 
     def cell_decorator(
         self,
