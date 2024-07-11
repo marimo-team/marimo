@@ -317,14 +317,12 @@ class Runner:
                     # by user anyway.
                     return_value = await return_value_future
             else:
-                print("executing cell")
                 return_value = execute_cell(
                     cell,
                     self.glbls,
                     self.graph,
                     execution_type=self.execution_type,
                 )
-            print("got ret value ", return_value)
             run_result = RunResult(output=return_value, exception=None)
         except (MarimoInterrupt, asyncio.exceptions.CancelledError) as e:
             # User interrupt
@@ -407,7 +405,6 @@ class Runner:
 
     async def run_all(self) -> None:
         for prep_hook in self.preparation_hooks:
-            print("running prep ", prep_hook)
             prep_hook(self)
 
         while self.pending():
@@ -418,17 +415,11 @@ class Runner:
                 continue
             cell = self.graph.cells[cell_id]
             for pre_hook in self.pre_execution_hooks:
-                print("pre hook ", pre_hook)
                 pre_hook(cell, self)
             if self.execution_context is not None:
-                print("running cell: ", cell_id)
-                print("stream cell id ", get_context().stream.cell_id)
                 with self.execution_context(cell_id) as exc_ctx:
-                    print("new stream cell id ", get_context().stream.cell_id)
                     run_result = await self.run(cell_id)
                     run_result.accumulated_output = exc_ctx.output
-                print("ran cell, output ", run_result.output)
-                print("ran cell, output ", run_result.exception)
             else:
                 run_result = await self.run(cell_id)
             for post_hook in self.post_execution_hooks:
