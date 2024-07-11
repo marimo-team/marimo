@@ -2,7 +2,7 @@ abstract: "marimo is a reactive notebook for Python — runs reproducible experi
 authors:
   - family-names: Agrawal
     given-names: Akshay
-    orcid: "https://orcid.org/<insert-number>"
+    orcid: "https://orcid.org/0009-0004-6472-0055"
   - family-names: Scolnick
     given-names: Myles
     orcid: "https://orcid.org/0009-0003-4254-9632"
