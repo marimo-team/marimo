@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ast.visitor import ScopedVisitor
 from marimo._save.cache import Cache, ValidCacheSha
+from marimo._utils.variables import is_local_then_mangle
 
 if TYPE_CHECKING:
     from types import CodeType
@@ -20,22 +21,11 @@ if TYPE_CHECKING:
 
 BASE_PRIMITIVES = (str, numbers.Number, type(None))
 
-# marimo: __marimo__.__version__
-# Module refs
-# UI refs
-# get_context().ui_element_registry._bindings
-# State refs
-# Need the same for state
-
-# depth == 1
-
-# "pure" Function refs
-# primitive refs
-# other
-
 
 def hash_module(code: Optional[CodeType]) -> bytes:
     if not code:
+        # SHA256 hash of 32 zero bytes, in the case of no code object
+        # Artifact of typing for mypy, but reasonable fallback.
         return b"0" * 32
 
     sha = hashlib.sha256()
@@ -57,6 +47,7 @@ def hash_module(code: Optional[CodeType]) -> bytes:
 
 
 def hash_raw_module(module: ast.Module) -> bytes:
+    # AST has to be compiled to code object prior to process.
     return hash_module(
         compile(
             module,
@@ -74,6 +65,7 @@ def hash_cell_impl(cell: CellImpl) -> bytes:
 def build_execution_hash(
     graph: DirectedGraph, cell_id: CellId_t
 ) -> Optional[ValidCacheSha]:
+    # Execution path works by just analyzing the input cells to hash.
     sha = hashlib.sha256()
     ancestors = graph.ancestors(cell_id)
     references = sorted(
@@ -85,19 +77,28 @@ def build_execution_hash(
 
 
 def build_content_hash(
-    graph: DirectedGraph, visitor: ScopedVisitor, defs: dict[str, Any]
+    graph: DirectedGraph,
+    cell_id: CellId_t,
+    visitor: ScopedVisitor,
+    defs: dict[str, Any],
 ) -> Optional[ValidCacheSha]:
+    # Content addressed hash is valid if every reference is accounted for and
+    # can be shown to be a primitive value.
     sha = hashlib.sha256()
     for ref in sorted(
         graph.get_transitive_references(visitor.defs, inclusive=False)
+        | visitor.refs
     ):
+        ref = is_local_then_mangle(ref, cell_id)
         if ref not in defs:
-            # Key lookup for mypy
             if ref in defs["__builtins__"]:
                 continue
+            # ref is somehow not defined, because of unexpected execution path,
+            # do not utilize content hash in this case.
             return None
         else:
             value = defs[ref]
+        # TODO: Hash module, and maybe recursively explore containers.
         if isinstance(value, BASE_PRIMITIVES):
             sha.update(str(value).encode("utf8"))
             continue
@@ -105,7 +106,7 @@ def build_content_hash(
     return ValidCacheSha(sha, "ContentAddressed")
 
 
-def hash_context(
+def cache_attempt_from_hash(
     module: ast.Module,
     graph: DirectedGraph,
     cell_id: CellId_t,
@@ -114,12 +115,48 @@ def hash_context(
     context: Optional[ast.Module] = None,
     loader: Loader,
 ) -> Cache:
+    """Hash the context of the module, and return a cache object.
+
+    Hashing occurs 2 exclusive methods, content addressed, and execution path:
+
+    1) "Content Addressed" hashing is used when all references are known and
+    are shown to be primitive types (like a "pure" function).
+
+    2) "Execution Path" hashing is when objects may contain state or other
+    hidden values that are difficult to hash deterministically. For this, the
+    code used to produce the object is used as the basis of the hash. It
+    follows that code which does not change, will produce the same output. This
+    draws inspiration from hashing methods in Nix. One notable difference
+    between these methods is that Nix sandboxes all execution, preventing
+    external file access, and internet. Sources of non-determinism are not
+    accounted for in this implementation, and are left to the user.
+
+    In both cases, as long as the module is deterministic, the output will be
+    deterministic.
+
+    TODO: Account for UI and state.
+
+    Args:
+      - module: The code content to create a hash for (e.g. persistent_cache,
+        the body of the `With` statement).
+      - graph: The dataflow graph of the notebook.
+      - cell_id: The cell id attached to the module.
+      - defs: The definitions of (globals) available in execution context.
+      - context: The "context" of the module, is a module corresponding
+        additional execution context for the cell. For instance, in
+        persistent_cache case, this applies to the code prior to invocation,
+        but still in the same cell.
+      - loader: The loader object to create/ save a cache object.
+
+    Returns:
+      - A cache object that may, or may not be fully populated.
+    """
     # Empty name, so we can match and fill in cell context on load.
-    visitor = ScopedVisitor("")
+    visitor = ScopedVisitor("", ignore_local=True)
     visitor.visit(module)
 
     # Attempt content hash
-    valid_cache_sha = build_content_hash(graph, visitor, defs)
+    valid_cache_sha = build_content_hash(graph, cell_id, visitor, defs)
     if not valid_cache_sha:
         # Execution path hash
         valid_cache_sha = build_execution_hash(graph, cell_id)

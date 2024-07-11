@@ -17,7 +17,7 @@ from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime.context import get_context
 from marimo._save.ast import ExtractWithBlock
 from marimo._save.cache import Cache, contextual_defs
-from marimo._save.hash import hash_context
+from marimo._save.hash import cache_attempt_from_hash
 from marimo._save.loaders import Loader, PickleLoader
 
 # Many assertions are for typing and should always pass. This message is a
@@ -136,7 +136,7 @@ class persistent_cache(object):
                     ast.parse(graph.cells[cell_id].code).body  # type: ignore[arg-type]
                 )
 
-                self._cache = hash_context(
+                self._cache = cache_attempt_from_hash(
                     save_module,
                     graph,
                     cell_id,
