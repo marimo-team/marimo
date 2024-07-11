@@ -82,24 +82,6 @@ class ScriptRuntimeContext(RuntimeContext):
         del state
         return
 
-    @contextmanager
-    def with_cell_id(self, cell_id: CellId_t) -> Iterator[None]:
-        old = self.execution_context
-        try:
-            if old is not None:
-                setting_element_value = old.setting_element_value
-            else:
-                setting_element_value = False
-            self._app.set_execution_context(
-                ExecutionContext(
-                    cell_id=cell_id,
-                    setting_element_value=setting_element_value,
-                )
-            )
-            yield
-        finally:
-            self._app.set_execution_context(old)
-
     @property
     def app(self) -> InternalApp:
         return self._app

@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, cast
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._ast.app import App
 from marimo._ast.cell import CellConfig, CellId_t
 from marimo._ast.compiler import compile_cell
 from marimo._ast.visitor import Name
