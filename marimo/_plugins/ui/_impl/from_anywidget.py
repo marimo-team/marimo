@@ -100,7 +100,7 @@ class anywidget(UIElement[T, T]):
         js: str = widget._esm if hasattr(widget, "_esm") else ""  # type: ignore [unused-ignore]  # noqa: E501
         css: str = widget._css if hasattr(widget, "_css") else ""  # type: ignore [unused-ignore]  # noqa: E501
 
-        self.widget.comm = maybe_create_comm(self)
+        self.widget.comm = _maybe_create_comm(self)
 
         super().__init__(
             component_name="marimo-anywidget",
@@ -115,17 +115,17 @@ class anywidget(UIElement[T, T]):
                 Function(
                     name="send_to_widget",
                     arg_cls=SendToWidgetArgs,
-                    function=self.receive_from_frontend,
+                    function=self._receive_from_frontend,
                 ),
             ),
         )
 
-    def send_to_frontend(
+    def _send_to_frontend(
         self, value: T, buffers: Optional[Any] = None
     ) -> None:
         self.send_message(value, buffers)
 
-    def receive_from_frontend(self, args: SendToWidgetArgs) -> None:
+    def _receive_from_frontend(self, args: SendToWidgetArgs) -> None:
         self.widget._handle_custom_msg(args.content, args.buffers)
 
     def _convert_value(self, value: T) -> T:
@@ -136,7 +136,7 @@ class anywidget(UIElement[T, T]):
         return getattr(self.widget, name)
 
 
-def maybe_create_comm(widget: "anywidget") -> Any:
+def _maybe_create_comm(widget: "anywidget") -> Any:
     try:
         from comm.base_comm import BaseComm  # type: ignore
 
@@ -157,7 +157,7 @@ def maybe_create_comm(widget: "anywidget") -> Any:
                     and data["method"] == "custom"
                 ):
                     if "content" in data:
-                        widget.send_to_frontend(data["content"], buffers)
+                        widget._send_to_frontend(data["content"], buffers)
                     else:
                         LOGGER.warning("No content in custom message")
 
