@@ -309,6 +309,16 @@ class RemoveUIElements(Op):
 
 
 @dataclass
+class SendUIElementMessage(Op):
+    """Send a message to a UI element."""
+
+    name: ClassVar[str] = "send-ui-element-message"
+    ui_element: str
+    message: JSONType
+    buffers: Optional[Sequence[str]]
+
+
+@dataclass
 class Interrupted(Op):
     """Written when the kernel is interrupted by the user."""
 
@@ -568,6 +578,7 @@ MessageOperation = Union[
     # Cell operations
     CellOp,
     FunctionCallResult,
+    SendUIElementMessage,
     RemoveUIElements,
     # Notebook operations
     Reload,

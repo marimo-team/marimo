@@ -30,15 +30,15 @@ def sql(query: str) -> Any:
     import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
     if DependencyManager.has_polars():
-        df = duckdb.execute(query=query).pl()
-        t = table.table(df, selection=None, page_size=5, pagination=True)
+        pl_df = duckdb.execute(query=query).pl()
+        t = table.table(pl_df, selection=None, page_size=5, pagination=True)
         output.replace(t)
-        return df
+        return pl_df
     if DependencyManager.has_pandas():
-        df = duckdb.execute(query=query).df()
-        t = table.table(df, selection=None, page_size=5, pagination=True)
+        pd_df = duckdb.execute(query=query).df()
+        t = table.table(pd_df, selection=None, page_size=5, pagination=True)
         output.replace(t)
-        return df
+        return pd_df
 
     raise ModuleNotFoundError(
         "pandas or polars is required to execute sql. "

@@ -4,7 +4,10 @@ import { Logger } from "../../utils/Logger";
 import { Functions } from "../../utils/functions";
 import { UIElementId } from "../cells/ids";
 import { defineCustomElement } from "./defineCustomElement";
-import { MarimoValueInputEventType, marimoValueInputEvent } from "./events";
+import {
+  MarimoValueInputEvent,
+  type MarimoValueInputEventType,
+} from "./events";
 import { UI_ELEMENT_REGISTRY } from "./uiregistry";
 
 import "./ui-element.css";
@@ -68,11 +71,11 @@ export function initializeUIElement() {
    * COMMUNICATION
    * Communication between marimo and the child of a UIElement is facilitated
    * by two events:
-   *   1. marimoValueInputEvent: the child publishes its value by dispatching
-   *      a marimoValueInputEvent, with `detail` set to
+   *   1. MarimoValueInputEvent: the child publishes its value by dispatching
+   *      a MarimoValueInputEvent, with `detail` set to
    *      `{ value: <the new value> }`;
-   *   2. marimoValueUpdateEvent: the UIElement node broadcasts a
-   *      marimoValueUpdateEvent to every element registered under its
+   *   2. MarimoValueUpdateEvent: the UIElement node broadcasts a
+   *      MarimoValueUpdateEvent to every element registered under its
    *      objectId when a new value is available; the targets of these
    *      events (i.e., the child node of each UIElement in the equivalence
    *      class of the objectId) are responsible for listening to these
@@ -136,14 +139,20 @@ export function initializeUIElement() {
 
         // Listen to marimo input events provided by the child element: these
         // events are signals to this UIElement that our value should change.
-        document.addEventListener(marimoValueInputEvent, this.inputListener);
+        document.addEventListener(
+          MarimoValueInputEvent.TYPE,
+          this.inputListener,
+        );
       }
     }
 
     disconnectedCallback() {
       if (this.initialized) {
         // Unregister everything
-        document.removeEventListener(marimoValueInputEvent, this.inputListener);
+        document.removeEventListener(
+          MarimoValueInputEvent.TYPE,
+          this.inputListener,
+        );
         const objectId = UIElementId.parseOrThrow(this);
         UI_ELEMENT_REGISTRY.removeInstance(
           objectId,
