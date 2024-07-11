@@ -31,12 +31,12 @@ class TestHash:
             from marimo._save.save import persistent_cache
             from tests._save.mocks import MockLoader
 
-            exepected_hash = "vi8ruEJL5Wja4sNnDwJZV8b0FGEOHOn_LOJY8RG51W4"
+            expected_hash = "vi8ruEJL5Wja4sNnDwJZV8b0FGEOHOn_LOJY8RG51W4"
 
-            return exepected_hash, persistent_cache, MockLoader
+            return expected_hash, persistent_cache, MockLoader
 
         @app.cell
-        def one(exepected_hash, persistent_cache, MockLoader) -> tuple[int]:
+        def one(expected_hash, persistent_cache, MockLoader) -> tuple[int]:
             _a = 1
             with persistent_cache(
                 name="one", _loader=MockLoader(data={"_X": 7})
@@ -45,11 +45,11 @@ class TestHash:
             assert _X == 7
             print(_cache._cache.hash)
             assert _cache._cache.cache_type == "ContentAddressed"
-            assert _cache._cache.hash == exepected_hash
+            assert _cache._cache.hash == expected_hash
             return
 
         @app.cell
-        def two(exepected_hash, persistent_cache, MockLoader) -> tuple[int]:
+        def two(expected_hash, persistent_cache, MockLoader) -> tuple[int]:
             # The same as cell one, but with this comment
             _a = 2 - 1
 
@@ -62,7 +62,7 @@ class TestHash:
             assert _X == 7
             print(_cache._cache.hash)
             assert _cache._cache.cache_type == "ContentAddressed"
-            assert _cache._cache.hash == exepected_hash
+            assert _cache._cache.hash == expected_hash
             # and a post block difference
             Z = 11
             return Z
@@ -78,10 +78,10 @@ class TestHash:
             from marimo._save.save import persistent_cache
             from tests._save.mocks import MockLoader
 
-            non_primative = [object()]
+            non_primitive = [object()]
 
             with persistent_cache(name="one", _loader=MockLoader()) as cache:
-                Y = 8 + len(non_primative)
+                Y = 8 + len(non_primitive)
             assert cache._cache.cache_type == "ExecutionPath"
             return Y
 
