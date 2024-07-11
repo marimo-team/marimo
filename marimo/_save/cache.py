@@ -34,7 +34,7 @@ def contextual_defs(cache: Cache) -> dict[tuple[Name, Name], Any]:
     """Uses context to resolve private variable names."""
     context = get_context().execution_context
     assert context is not None, "Context could not be resolved"
-    private_prefix = f"_cell_{context.cell_id}"
+    private_prefix = f"_cell_{context.local_cell_id or context.cell_id}_"
     return {
         (var, re.sub(r"^_", private_prefix, var)): value
         for var, value in cache.defs.items()
