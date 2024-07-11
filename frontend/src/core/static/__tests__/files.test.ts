@@ -63,18 +63,28 @@ describe("patchFetch", () => {
 });
 
 describe("patchVegaLoader", () => {
-  it("should return file content for virtual files", async () => {
-    const virtualFiles = {
-      "virtual-file.json":
-        "data:application/json;base64,eyJrZXkiOiAidmFsdWUifQ==" as DataURLString,
-    };
+  const pathsToTest = [
+    "virtual-file.json",
+    "/virtual-file.json",
+    "./virtual-file.json",
+    "http://foo.com/virtual-file.json",
+  ];
 
-    const loader = createLoader();
-    const unpatch = patchVegaLoader(loader, virtualFiles);
-    const content = await loader.http("virtual-file.json");
-    unpatch();
-    expect(content).toBe('{"key": "value"}');
-  });
+  it.each(pathsToTest)(
+    "should return file content for virtual files for %s",
+    async (s) => {
+      const virtualFiles = {
+        "/virtual-file.json":
+          "data:application/json;base64,eyJrZXkiOiAidmFsdWUifQ==" as DataURLString,
+      };
+
+      const loader = createLoader();
+      const unpatch = patchVegaLoader(loader, virtualFiles);
+      const content = await loader.http(s);
+      unpatch();
+      expect(content).toBe('{"key": "value"}');
+    },
+  );
 
   it("should fallback to original http method for non-virtual files", async () => {
     const loader = createLoader();
