@@ -663,7 +663,6 @@ const {
     if (index === state.cellIds.length - 1) {
       const cellId = state.cellIds[state.cellIds.length - 1];
       state.cellHandles[cellId].current?.editorView.focus();
-      scrollToBottom();
     } else {
       const nextCellId = state.cellIds[index];
       focusAndScrollCellIntoView({
