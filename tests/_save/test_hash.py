@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from marimo._ast.app import App
 
 
@@ -22,7 +24,11 @@ class TestHash:
 
         app.run()
 
+    # Note: Hash may change based on byte code, so pin to particular version
     @staticmethod
+    @pytest.mark.skipif(
+        "sys.version_info < (3, 11) and sys.version_info > (3, 11)"
+    )
     def test_content_reproducibility() -> None:
         app = App()
 
@@ -88,6 +94,9 @@ class TestHash:
         app.run()
 
     @staticmethod
+    @pytest.mark.skipif(
+        "sys.version_info < (3, 11) and sys.version_info > (3, 11)"
+    )
     def test_execution_reproducibility() -> None:
         app = App()
 
