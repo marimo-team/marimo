@@ -12,7 +12,7 @@ def __():
 
 @app.cell
 async def __(app):
-    await app.embed()
+    (await app.embed()).output
     return
 
 

@@ -17,21 +17,8 @@ def __():
 
 
 @app.cell
-def __(mo):
-    for i in mo.status.progress_bar(range(5)):
-        ...
-    return i,
-
-
-@app.cell
 async def __(app):
-    await app.embed()
-    return
-
-
-@app.cell
-def __(app, mo):
-    mo.ui.tabs({"MY TAB": mo.lazy(app.embed), "OTHER TAB": "foo"})
+    (await app.embed()).output
     return
 
 

@@ -19,7 +19,7 @@ def __(mo):
 @app.cell
 def __(mo, time):
     for i in mo.status.progress_bar(range(5)):
-        time.sleep(1)
+        time.sleep(0.5)
         print(i)
     return i,
 
@@ -28,10 +28,8 @@ def __(mo, time):
 def __(mo):
     import time
     mo.output.replace(mo.md("# output"))
-    print("showing output")
-    time.sleep(1)
+    time.sleep(0.5)
     mo.output.replace(mo.md("# replaced"))
-    print("showing replaced")
     return time,
 
 
