@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+import io
 import sys
 import traceback
 from typing import (
@@ -12,12 +13,15 @@ from typing import (
     Union,
 )
 
+from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime.context import get_context
 from marimo._save.ast import ExtractWithBlock
 from marimo._save.cache import Cache, contextual_defs
 from marimo._save.hash import hash_context
 from marimo._save.loaders import Loader, PickleLoader
 
+# Many assertions are for typing and should always pass. This message is a
+# catch all to motive users to report if something does fail.
 UNEXPECTED_FAILURE_BOILERPLATE = (
     "— this is"
     " unexpected and is likely a bug in marimo. "
@@ -99,14 +103,13 @@ class persistent_cache(object):
 
         self._entered_trace = True
         stack = traceback.extract_stack()
-        if not self._skipped:
-            # Raising on the first valid line, prevents a bug where whitespace
-            # on With changes behavior. This might be an issue with Python's
-            # parser? Noticed when lint/ format broke things.
-            if self._cache and self._cache.hit:
-                raise SkipWithBlock()
 
+        if not self._skipped:
             return self._old_trace
+
+        # This is possible if `With` spans multiple lines.
+        if self._cache and self._cache.hit:
+            raise SkipWithBlock()
 
         # This only executes on the first line of code in the block. If the
         # cache is hit, the block terminates early with a SkipWithBlock
@@ -117,9 +120,10 @@ class persistent_cache(object):
             _filename, lineno, function_name, _code = frame
             if function_name == "<module>":
                 ctx = get_context()
-                assert (
-                    ctx.execution_context is not None
-                ), "Could not resolve context for cache."
+                assert ctx.execution_context is not None, (
+                    "Could not resolve context for cache.",
+                    f"{UNEXPECTED_FAILURE_BOILERPLATE}",
+                )
                 graph = ctx.graph
                 # cell ids are unique in execution context, having a UUID in
                 # script mode to ensure this- but the local_cell_id is what's
@@ -142,6 +146,14 @@ class persistent_cache(object):
                 )
 
                 self.cache_type = self._cache
+                # Raising on the first valid line, prevents a bug where
+                # whitespace in `With`, changes behavior. This might be
+                # an issue with Python's parser? Noticed because lint/ format
+                # breaks things.
+                if self._cache and self._cache.hit:
+                    if lineno >= save_module.body[0].lineno:
+                        raise SkipWithBlock()
+                    return self._old_trace
                 self._skipped = False
                 return self._old_trace
             elif i > 1:
@@ -160,7 +172,7 @@ class persistent_cache(object):
         self,
         exception: Optional[Type[BaseException]],
         instance: Optional[BaseException],
-        traceback: Optional[TracebackType],
+        _tracebacktype: Optional[TracebackType],
     ) -> bool:
         sys.settrace(self._old_trace)  # Clear to previous set trace.
         if not self._entered_trace:
@@ -170,7 +182,7 @@ class persistent_cache(object):
 
         # Backfill the loaded values into global scope.
         if self._cache and self._cache.hit:
-            assert self._frame is not None
+            assert self._frame is not None, UNEXPECTED_FAILURE_BOILERPLATE
             for lookup, var in contextual_defs(self._cache):
                 self._frame.f_locals[var] = self._cache.defs[lookup]
             # Return true to suppress the SkipWithBlock exception.
@@ -187,9 +199,22 @@ class persistent_cache(object):
             raise exception
 
         # Fill the cache object and save.
-        assert self._cache is not None
-        assert self._frame is not None
+        assert self._cache is not None, UNEXPECTED_FAILURE_BOILERPLATE
+        assert self._frame is not None, UNEXPECTED_FAILURE_BOILERPLATE
         for lookup, var in contextual_defs(self._cache):
             self._cache.defs[lookup] = self._frame.f_locals[var]
-        self._loader.save_cache(self._cache)
+
+        try:
+            self._loader.save_cache(self._cache)
+        except Exception as e:
+            sys.stderr.write(
+                "An exception was raised when attempting to cache this code "
+                "block with the following message:\n"
+                f"{str(e)}\n"
+                "NOTE: The cell has run, but cache has not been saved.\n"
+            )
+            tmpio = io.StringIO()
+            traceback.print_exc(file=tmpio)
+            tmpio.seek(0)
+            write_traceback(tmpio.read())
         return False

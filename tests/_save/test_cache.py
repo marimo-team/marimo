@@ -67,12 +67,14 @@ class TestAppCache:
                 with persistent_cache(name="one") as cache:
                     Y = 9
                     X = 10
+                Z = 3
                 """),
                 ),
             ]
         )
         assert k.globals["Y"] == 9
         assert k.globals["X"] == 10
+        assert k.globals["Z"] == 3
 
     async def test_cache_hit(self, any_kernel: Kernel) -> None:
         k = any_kernel
@@ -89,9 +91,58 @@ class TestAppCache:
                 ) as cache:
                     Y = 9
                     X = 10
+                Z = 3
                 """),
                 ),
             ]
         )
         assert k.globals["X"] == 7
         assert k.globals["Y"] == 8
+        assert k.globals["Z"] == 3
+
+    async def test_cache_one_line(self, any_kernel: Kernel) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent("""
+        from marimo._save.save import persistent_cache
+        from tests._save.mocks import MockLoader
+
+        with persistent_cache(name="one", _loader=MockLoader(data={"X": 1})):
+            X = 1
+        Y = 2
+                """),
+                ),
+            ]
+        )
+        assert k.errors == {}
+        assert k.errors == {}
+        assert k.globals["X"] == 1
+        assert k.globals["Y"] == 2
+
+    async def test_cache_comment_line(self, any_kernel: Kernel) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent("""
+                from marimo._save.save import persistent_cache
+                from tests._save.mocks import MockLoader
+
+                with persistent_cache(name="one"):
+                    # Comment
+
+                    # whitespace
+                    X = 1 # Comment
+                    Y = 2
+                """),
+                ),
+            ]
+        )
+        assert k.errors == {}
+        assert k.errors == {}
+        assert k.globals["X"] == 1
+        assert k.globals["Y"] == 2
