@@ -129,12 +129,10 @@ class AppEmbedResult:
 
 @mddoc
 class App:
-    """A marimo app.
+    """A marimo notebook.
 
-    A marimo app is a dataflow graph, with each node computing a Python
+    A marimo notebook is a dataflow graph, with each node computing a Python
     function.
-
-    This class has no public API, but this may change in the future.
     """
 
     def __init__(self, **kwargs: Any) -> None:
@@ -306,7 +304,7 @@ class App:
         """Embed a notebook into another notebook.
 
         The `embed` method lets you embed the output of a notebook
-        into another notebook.
+        into another notebook and access the values of its variables.
 
         **Example.**
 
@@ -337,6 +335,10 @@ class App:
         to the `app` object is marked for execution, and its internal state
         is automatically updated. This lets you notebooks as building blocks or
         components to create higher-level notebooks.
+
+        Multiple levels of nesting are supported: it's possible to embed a
+        notebook that in turn embeds another notebook, and marimo will do the
+        right thing.
 
         **Returns.**
 
