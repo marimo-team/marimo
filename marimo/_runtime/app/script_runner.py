@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Callable, Iterator
 from marimo._ast.cell import CellId_t, CellImpl
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.types import NoopStream
+from marimo._runtime.app.common import RunOutput
 from marimo._runtime.context.types import (
     get_context,
     runtime_context_installed,
@@ -21,13 +22,10 @@ from marimo._runtime.patches import (
 if TYPE_CHECKING:
     from marimo._ast.app import InternalApp
 
-OutputsType = dict[CellId_t, Any]
-DefsType = dict[str, Any]
 
-RunOutput = tuple[OutputsType, DefsType]
+class AppScriptRunner:
+    """Runs an app in a script context."""
 
-
-class ScriptRunner:
     def __init__(self, app: InternalApp) -> None:
         self.app = app
 
@@ -84,8 +82,6 @@ class ScriptRunner:
                 outputs, defs = self._run_synchronous(
                     post_execute_hooks=post_execute_hooks,
                 )
-            app.cache_outputs(outputs)
-            app.cache_defs(defs)
             return outputs, defs
         finally:
             if installed_script_context:

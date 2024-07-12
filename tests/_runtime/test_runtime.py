@@ -35,7 +35,6 @@ from tests.conftest import ExecReqProvider, MockedKernel
 
 if TYPE_CHECKING:
     import pathlib
-    from types import ModuleType
 
 
 def _check_edges(error: Error, expected_edges: Sequence[EdgeWithVar]) -> None:

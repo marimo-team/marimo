@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import random
 import string
-import weakref
 from dataclasses import asdict, dataclass
 from typing import (
     TYPE_CHECKING,
@@ -17,7 +16,7 @@ from typing import (
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._ast.cell import Cell, CellConfig, CellId_t, CellImpl
+from marimo._ast.cell import Cell, CellConfig, CellId_t
 from marimo._ast.compiler import cell_factory
 from marimo._ast.errors import (
     CycleError,
@@ -25,24 +24,18 @@ from marimo._ast.errors import (
     MultipleDefinitionError,
     UnparsableError,
 )
-from marimo._ast.script_runner import ScriptRunner
-from marimo._config.config import DEFAULT_CONFIG, WidthType
+from marimo._config.config import WidthType
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
-from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime import dataflow
+from marimo._runtime.app.kernel_runner import AppKernelRunner
+from marimo._runtime.app.script_runner import AppScriptRunner
 from marimo._runtime.context.types import (
     ContextNotInitializedError,
     get_context,
 )
-from marimo._runtime.patches import create_main_module
-from marimo._runtime.requests import (
-    AppMetadata,
-    ExecutionRequest,
-    SetUIElementValueRequest,
-)
-from marimo._runtime.runner import cell_runner
+from marimo._runtime.requests import SetUIElementValueRequest
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -166,9 +159,7 @@ class App:
         self._unparsable = False
         self._initialized = False
 
-        self._pending_ui_element_updates: list[UIElement[Any, Any]] = []
-        self._cached_outputs: dict[CellId_t, Any] = {}
-        self._cached_defs: Mapping[str, object] = {}
+        self._app_kernel_runner: AppKernelRunner | None = None
 
     def cell(
         self,
@@ -222,15 +213,6 @@ class App:
         self._unparsable = True
 
     def _maybe_initialize(self) -> None:
-        from marimo._runtime.context.kernel_context import (
-            KernelRuntimeContext,
-            create_kernel_context,
-        )
-        from marimo._runtime.runner.hooks_post_execution import (
-            _reset_matplotlib_context,
-        )
-        from marimo._runtime.runtime import Kernel
-
         if self._unparsable:
             raise UnparsableError(
                 "This notebook has cells with syntax errors, "
@@ -240,8 +222,6 @@ class App:
         if self._initialized:
             return
 
-        # TODO: just register cells on the kernel ...
-        # TODO: namespacing of cells?
         # Add cells to graph
         for cell_id, cell in self._cell_manager.valid_cells():
             self._graph.register_cell(cell_id, cell._cell)
@@ -272,60 +252,10 @@ class App:
         finally:
             self._initialized = True
 
-        def cache_output(
-            cell: CellImpl,
-            runner: cell_runner.Runner,
-            run_result: cell_runner.RunResult,
-        ) -> None:
-            from marimo._plugins.stateless.flex import vstack
-
-            del runner
-            if (
-                run_result.output is None
-                and run_result.accumulated_output is not None
-            ):
-                self._cached_outputs[cell.cell_id] = vstack(
-                    run_result.accumulated_output
-                )
-            else:
-                self._cached_outputs[cell.cell_id] = run_result.output
-
-        try:
-            ctx = get_context()
-        except ContextNotInitializedError:
-            return
-
-        if not isinstance(ctx, KernelRuntimeContext):
-            return
-
-        filename = "<unknown>"
-        self._kernel = Kernel(
-            cell_configs={},
-            app_metadata=AppMetadata({}, {}, filename),
-            stream=ctx.stream,
-            stdout=None,
-            stderr=None,
-            stdin=None,
-            module=create_main_module(filename, None),
-            user_config=DEFAULT_CONFIG,
-            enqueue_control_request=lambda _: None,
-            post_execution_hooks=[cache_output, _reset_matplotlib_context],
-        )
-
-        self._runtime_context = create_kernel_context(
-            kernel=self._kernel,
-            app=InternalApp(self),
-            stream=ctx.stream,
-            stdout=None,
-            stderr=None,
-            virtual_files_supported=True,
-            parent=ctx,
-        )
-        ctx.add_child(self._runtime_context)
-        finalizer = weakref.finalize(
-            self, ctx.remove_child, self._runtime_context
-        )
-        finalizer.atexit = False
+    def _get_kernel_runner(self) -> AppKernelRunner:
+        if self._app_kernel_runner is None:
+            self._app_kernel_runner = AppKernelRunner(InternalApp(self))
+        return self._app_kernel_runner
 
     def _flatten_outputs(self, outputs: dict[CellId_t, Any]) -> Sequence[Any]:
         return tuple(
@@ -334,51 +264,20 @@ class App:
             if not self._graph.is_disabled(cid) and cid in outputs
         )
 
-    def _process_outputs_and_defs(
-        self, outputs: dict[CellId_t, Any], glbls: dict[str, Any]
-    ) -> tuple[Sequence[Any], _Namespace]:
-        # Returns
-        # - the outputs, sorted in the order that cells were added to the
-        #   graph
-        # - dict of defs -> values
-
-        # Cache only def values, not all of glbls
-        # omit defs that were never defined at runtime, eg due to
-        # conditional definitions like
-        #
-        # if cond:
-        #   x = 0
-        self._cached_defs = _Namespace(
+    def _globals_to_defs(self, glbls: dict[str, Any]) -> _Namespace:
+        return _Namespace(
             dictionary={
                 name: glbls[name] for name in self._defs if name in glbls
             },
             owner=self,
         )
 
-        return (self._flatten_outputs(outputs), self._cached_defs)
-
-    async def _kernel_run(
-        self, cells_to_run: set[CellId_t]
-    ) -> tuple[Sequence[Any], Mapping[str, Any]]:
-        execution_requests = [
-            ExecutionRequest(cell_id=cid, code=cell._cell.code)
-            for cid in cells_to_run
-            if (cell := self._cell_manager.cell_data_at(cid).cell) is not None
-        ]
-
-        with self._runtime_context.install():
-            await self._kernel.run(execution_requests)
-        return self._process_outputs_and_defs(
-            self._cached_outputs, self._kernel.globals
-        )
-
     def run(
         self,
     ) -> tuple[Sequence[Any], Mapping[str, Any]]:
         self._maybe_initialize()
-        return self._process_outputs_and_defs(
-            *ScriptRunner(InternalApp(self)).run()
-        )
+        outputs, glbls = AppScriptRunner(InternalApp(self)).run()
+        return (self._flatten_outputs(outputs), self._globals_to_defs(glbls))
 
     async def _run_cell_async(
         self, cell: Cell, kwargs: dict[str, Any]
@@ -399,9 +298,8 @@ class App:
     async def _set_ui_element_value(
         self, request: SetUIElementValueRequest
     ) -> bool:
-        assert self._kernel is not None
-        with self._runtime_context.install():
-            return await self._kernel.set_ui_element_value(request)
+        app_kernel_runner = self._get_kernel_runner()
+        return await app_kernel_runner.set_ui_element_value(request)
 
     async def embed(self) -> AppEmbedResult:
         from marimo._plugins.stateless.flex import vstack
@@ -409,34 +307,32 @@ class App:
 
         self._maybe_initialize()
 
-        if self._cached_outputs and self._cached_defs:
+        if running_in_notebook():
+            app_kernel_runner = self._get_kernel_runner()
+            if not app_kernel_runner.outputs:
+                outputs, glbls = await app_kernel_runner.run(
+                    set(self._execution_order)
+                )
+            else:
+                outputs, glbls = (
+                    app_kernel_runner.outputs,
+                    app_kernel_runner.globals,
+                )
             return AppEmbedResult(
                 output=vstack(
                     [
                         o
-                        for o in self._flatten_outputs(self._cached_outputs)
+                        for o in self._flatten_outputs(outputs)
                         if o is not None
                     ]
                 ),
-                defs=self._cached_defs,
-            )
-
-        elif running_in_notebook():
-            await self._kernel_run(set(self._execution_order))
-            return AppEmbedResult(
-                output=vstack(
-                    [
-                        o
-                        for o in self._flatten_outputs(self._cached_outputs)
-                        if o is not None
-                    ]
-                ),
-                defs=self._cached_defs,
+                defs=self._globals_to_defs(glbls),
             )
         else:
-            outputs, defs = self.run()
+            flat_outputs, defs = self.run()
             return AppEmbedResult(
-                output=vstack([o for o in outputs if o is not None]), defs=defs
+                output=vstack([o for o in flat_outputs if o is not None]),
+                defs=defs,
             )
 
 
@@ -624,22 +520,6 @@ class InternalApp:
     def execution_order(self) -> list[CellId_t]:
         self._app._maybe_initialize()
         return self._app._execution_order
-
-    @property
-    def cached_outputs(self) -> Mapping[CellId_t, Any]:
-        """Outputs cached after a run"""
-        return self._app._cached_outputs
-
-    @property
-    def cached_defs(self) -> Mapping[str, object]:
-        """Globals cached after a run"""
-        return self._app._cached_defs
-
-    def cache_outputs(self, outputs: dict[CellId_t, Any]) -> None:
-        self._app._cached_outputs = outputs
-
-    def cache_defs(self, defs: dict[str, object]) -> None:
-        self._app._cached_defs = defs
 
     @property
     def execution_context(self) -> ExecutionContext | None:

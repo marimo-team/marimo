@@ -531,20 +531,6 @@ class TestAppComposition:
         assert result.output.text == vstack(["hello", "world"]).text
         assert not result.defs
 
-    async def test_app_embed_output_is_cached(self) -> None:
-        app = App()
-
-        @app.cell
-        def __() -> None:
-            import random
-
-            random.randint(0, 10000)
-
-        # the app should only run once
-        assert (await app.embed()).output.text == (
-            await app.embed()
-        ).output.text
-
     async def test_app_comp_basic(
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:

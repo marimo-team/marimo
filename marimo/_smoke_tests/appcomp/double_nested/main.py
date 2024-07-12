@@ -1,4 +1,5 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
 __generated_with = "0.6.26"
@@ -18,12 +19,10 @@ async def __(middle):
     return result,
 
 
-app._unparsable_cell(
-    r"""
-    result.defs[]
-    """,
-    name="__"
-)
+@app.cell
+def __(result):
+    result.defs["x_plus_y"]
+    return
 
 
 if __name__ == "__main__":
