@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { PropsWithChildren } from "react";
+import type { PropsWithChildren } from "react";
 import {
   ErrorBoundary as ReactErrorBoundary,
-  FallbackProps,
+  type FallbackProps,
 } from "react-error-boundary";
 import { Button } from "../../ui/button";
 import { Constants } from "@/core/constants";

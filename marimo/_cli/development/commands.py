@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import TYPE_CHECKING, Any, Dict
 
 import click
 from starlette.schemas import SchemaGenerator
@@ -18,6 +18,7 @@ import marimo._server.models.models as models
 import marimo._snippets.snippets as snippets
 from marimo import __version__
 from marimo._ast.cell import CellConfig, CellStatusType
+from marimo._cli.print import orange
 from marimo._config.config import MarimoConfig
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.mimetypes import KnownMimeType
@@ -27,6 +28,9 @@ from marimo._server.api.router import build_routes
 from marimo._utils.dataclass_to_openapi import (
     PythonTypeToOpenAPI,
 )
+
+if TYPE_CHECKING:
+    import psutil
 
 
 def _generate_schema() -> dict[str, Any]:
@@ -241,4 +245,77 @@ def openapi() -> None:
     print(yaml.dump(_generate_schema(), default_flow_style=False))
 
 
+@click.group(help="Various commands for the marimo processes", hidden=True)
+def ps() -> None:
+    pass
+
+
+def get_marimo_processes() -> list["psutil.Process"]:
+    import psutil
+
+    def is_marimo_process(proc: psutil.Process) -> bool:
+        if proc.name() == "marimo":
+            return True
+
+        if proc.name().lower() == "python":
+            try:
+                cmds = proc.cmdline()
+            except psutil.AccessDenied:
+                return False
+            except psutil.ZombieProcess:
+                return False
+            # any endswith marimo
+            has_marimo = any(x.endswith("marimo") for x in cmds)
+            # any command equals "tutorial", "edit", or "run"
+            has_running_command = any(
+                x in {"run", "tutorial", "edit"} for x in cmds
+            )
+            return has_marimo and has_running_command
+
+        return False
+
+    result: list[psutil.Process] = []
+
+    for proc in psutil.process_iter():
+        if is_marimo_process(proc):
+            result.append(proc)
+
+    return result
+
+
+@ps.command(help="List the marimo processes", name="list")
+def list_processes() -> None:
+    """
+    Example usage:
+
+        marimo development ps list
+    """
+    # pretty print processes
+    result = get_marimo_processes()
+    for proc in result:
+        cmds = proc.cmdline()
+        cmd = " ".join(cmds[1:])
+        print(f"PID: {orange(str(proc.pid))} | {cmd}")
+
+
+@ps.command(help="Kill the marimo processes")
+def killall() -> None:
+    """
+    Example usage:
+
+        marimo development ps killall
+    """
+    import os
+
+    for proc in get_marimo_processes():
+        # Ignore self
+        if proc.pid == os.getpid():
+            continue
+        proc.kill()
+        print(f"Killed process {proc.pid}")
+
+    print("Killed all marimo processes")
+
+
 development.add_command(openapi)
+development.add_command(ps)

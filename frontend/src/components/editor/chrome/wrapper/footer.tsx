@@ -1,21 +1,22 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { PropsWithChildren } from "react";
+import type React from "react";
+import type { PropsWithChildren } from "react";
 import { cn } from "@/utils/cn";
 import { useChromeActions, useChromeState } from "../state";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useAtomValue } from "jotai";
 import { cellErrorCount } from "@/core/cells/cells";
-import { PANEL_ICONS, PanelType } from "../types";
+import { PANEL_ICONS, type PanelType } from "../types";
 import { MachineStats } from "./machine-stats";
 import { useUserConfig } from "@/core/config/config";
-import { ZapIcon, ZapOffIcon } from "lucide-react";
+import { TerminalSquareIcon, ZapIcon, ZapOffIcon } from "lucide-react";
 import { saveUserConfig } from "@/core/network/requests";
-import { UserConfig } from "@/core/config/config-schema";
+import type { UserConfig } from "@/core/config/config-schema";
 import { ShowInKioskMode } from "../../kiosk-mode";
 
 export const Footer: React.FC = () => {
-  const { selectedPanel } = useChromeState();
-  const { openApplication } = useChromeActions();
+  const { selectedPanel, isTerminalOpen } = useChromeState();
+  const { openApplication, toggleTerminal } = useChromeActions();
   const [config, setConfig] = useUserConfig();
   const errorCount = useAtomValue(cellErrorCount);
 
@@ -33,6 +34,14 @@ export const Footer: React.FC = () => {
       >
         {renderIcon("errors", errorCount > 0 ? "text-destructive" : "")}
         <span className="ml-1 font-mono mt-[0.125rem]">{errorCount}</span>
+      </FooterItem>
+
+      <FooterItem
+        tooltip="Open terminal"
+        selected={isTerminalOpen}
+        onClick={() => toggleTerminal()}
+      >
+        <TerminalSquareIcon className="h-5 w-5" />
       </FooterItem>
 
       <FooterItem
