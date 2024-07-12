@@ -1,6 +1,12 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
+from typing import Callable
+
 from marimo._ast.cell import CellImpl
 from marimo._runtime.runner import cell_runner
+
+PreExecutionHookType = Callable[[CellImpl, cell_runner.Runner], None]
 
 
 def _set_staleness(
@@ -27,4 +33,7 @@ def _set_status_to_running(
     cell.set_status("running")
 
 
-PRE_EXECUTION_HOOKS = [_set_staleness, _set_status_to_running]
+PRE_EXECUTION_HOOKS: list[PreExecutionHookType] = [
+    _set_staleness,
+    _set_status_to_running,
+]

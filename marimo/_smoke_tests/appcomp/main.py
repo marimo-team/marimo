@@ -2,8 +2,8 @@
 
 import marimo
 
-__generated_with = "0.6.22"
-app = marimo.App()
+__generated_with = "0.6.26"
+app = marimo.App(width="medium")
 
 
 @app.cell
@@ -19,26 +19,34 @@ def __(mo):
 
 
 @app.cell
-def __(app):
-    app
+async def __(app):
+    result = await app.embed()
+    result.output
+    return result,
+
+
+@app.cell
+def __(result):
+    result.defs["x"].value
     return
 
 
 @app.cell
-def __(app):
-    app
+def __(result):
+    result.defs["y"].value
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __(mo):
     mo.md("## Render an app inside tabs")
     return
 
 
 @app.cell
-def __(app, mo):
-    tabs = mo.ui.tabs({"🧮": app, "📝": mo.md("Hello world")}); tabs
+async def __(app, mo):
+    tabs = mo.ui.tabs({"🧮": (await app.embed()).output, "📝": mo.md("Hello world")})
+    tabs
     return tabs,
 
 
@@ -55,8 +63,20 @@ def __():
 
 
 @app.cell
-def __(table_app):
-    table_app
+async def __(table_app):
+    table_app_results = await table_app.embed()
+    return table_app_results,
+
+
+@app.cell
+def __(table_app_results):
+    table_app_results.output
+    return
+
+
+@app.cell
+def __(table_app_results):
+    table_app_results.defs
     return
 
 

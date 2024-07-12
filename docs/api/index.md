@@ -18,6 +18,7 @@
   query_params
   cli_args
   state
+  app
   cell
   miscellaneous
 ```
@@ -45,5 +46,6 @@ Use the marimo library in marimo notebooks (`import marimo as mo`) to
 | {doc}`query_params`  | Access and set query parameters with `mo.query_params`    |
 | {doc}`cli_args`      | Access command-line arguments with `mo.cli_args`          |
 | {doc}`state`         | Synchronize multiple UI elements with `mo.state`          |
+| {doc}`app`           | Embed notebooks in other notebooks                        |
 | {doc}`cell`          | Run cells defined in another notebook                     |
 | {doc}`miscellaneous` | Miscellaneous utilities                                   |

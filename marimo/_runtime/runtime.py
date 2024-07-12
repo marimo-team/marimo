@@ -19,7 +19,6 @@ from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, cast
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._ast.app import App
 from marimo._ast.cell import CellConfig, CellId_t
 from marimo._ast.compiler import compile_cell
 from marimo._ast.visitor import Name
@@ -107,6 +106,10 @@ from marimo._runtime.runner.hooks import (
     PRE_EXECUTION_HOOKS,
     PREPARATION_HOOKS,
 )
+from marimo._runtime.runner.hooks_on_finish import OnFinishHookType
+from marimo._runtime.runner.hooks_post_execution import PostExecutionHookType
+from marimo._runtime.runner.hooks_pre_execution import PreExecutionHookType
+from marimo._runtime.runner.hooks_preparation import PreparationHookType
 from marimo._runtime.state import State
 from marimo._runtime.utils.set_ui_element_request_manager import (
     SetUIElementRequestManager,
@@ -121,6 +124,7 @@ from marimo._utils.variables import is_local
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
+    from types import ModuleType
 
     from marimo._plugins.ui._core.ui_element import UIElement
 
@@ -268,9 +272,9 @@ class Kernel:
     - stdout: replacement for sys.stdout
     - stderr: replacement for sys.stderr
     - stdin: replacement for sys.stdin
-    - input_override: a function that overrides the builtin input() function
-    - debugger_override: a replacement for the built-in Pdb
+    - module: module in which to execute code
     - enqueue_control_request: callback to enqueue control requests
+    - debugger_override: a replacement for the built-in Pdb
     """
 
     def __init__(
@@ -282,8 +286,12 @@ class Kernel:
         stdout: Stdout | None,
         stderr: Stderr | None,
         stdin: Stdin | None,
+        module: ModuleType,
         enqueue_control_request: Callable[[ControlRequest], None],
-        input_override: Callable[[Any], str] = input_override,
+        preparation_hooks: list[PreparationHookType] | None = None,
+        pre_execution_hooks: list[PreExecutionHookType] | None = None,
+        post_execution_hooks: list[PostExecutionHookType] | None = None,
+        on_finish_hooks: list[OnFinishHookType] | None = None,
         debugger_override: marimo_pdb.MarimoPdb | None = None,
     ) -> None:
         self.app_metadata = app_metadata
@@ -294,6 +302,26 @@ class Kernel:
         self.stderr = stderr
         self.stdin = stdin
         self.enqueue_control_request = enqueue_control_request
+
+        self._preparation_hooks = (
+            preparation_hooks
+            if preparation_hooks is not None
+            else PREPARATION_HOOKS
+        )
+        self._pre_execution_hooks = (
+            pre_execution_hooks
+            if pre_execution_hooks is not None
+            else PRE_EXECUTION_HOOKS
+        )
+        self._post_execution_hooks = (
+            post_execution_hooks
+            if post_execution_hooks is not None
+            else POST_EXECUTION_HOOKS
+        )
+        self._on_finish_hooks = (
+            on_finish_hooks if on_finish_hooks is not None else ON_FINISH_HOOKS
+        )
+
         self._globals_lock = threading.RLock()
         self._completion_worker_started = False
 
@@ -301,9 +329,7 @@ class Kernel:
         if self.debugger is not None:
             patches.patch_pdb(self.debugger)
 
-        self._module = patches.patch_main_module(
-            file=self.app_metadata.filename, input_override=input_override
-        )
+        self._module = module
         if self.app_metadata.filename is not None:
             # TODO(akshayka): When a file is renamed / moved to another folder,
             # we need to update sys.path.
@@ -888,13 +914,13 @@ class Kernel:
         # sys.modules. Races can still happen, but this should help in most
         # common cases. We could also be more aggressive and run this before
         # every cell, or even before pickle.dump/pickle.dumps()
-        patches.patch_sys_module(self._module)
-        while cell_ids := await self._run_cells_internal(cell_ids):
-            LOGGER.debug("Running state updates ...")
-            if self.lazy() and cell_ids:
-                self.graph.set_stale(cell_ids)
-                break
-        LOGGER.debug("Finished run.")
+        with patches.patch_main_module_context(self._module):
+            while cell_ids := await self._run_cells_internal(cell_ids):
+                LOGGER.debug("Running state updates ...")
+                if self.lazy() and cell_ids:
+                    self.graph.set_stale(cell_ids)
+                    break
+            LOGGER.debug("Finished run.")
 
     async def _run_cells_internal(self, roots: set[CellId_t]) -> set[CellId_t]:
         """Run cells, send outputs to frontends
@@ -953,11 +979,13 @@ class Kernel:
             execution_mode=self.reactive_execution_mode,
             execution_type=self.execution_type,
             execution_context=self._install_execution_context,
-            preparation_hooks=PREPARATION_HOOKS + [invalidate_state],
-            pre_execution_hooks=PRE_EXECUTION_HOOKS,
-            post_execution_hooks=POST_EXECUTION_HOOKS,
-            on_finish_hooks=ON_FINISH_HOOKS
-            + [broadcast_missing_packages, propagate_kernel_errors],
+            preparation_hooks=self._preparation_hooks + [invalidate_state],
+            pre_execution_hooks=self._pre_execution_hooks,
+            post_execution_hooks=self._post_execution_hooks,
+            on_finish_hooks=(
+                self._on_finish_hooks
+                + [broadcast_missing_packages, propagate_kernel_errors]
+            ),
         )
 
         # I/O
@@ -1052,10 +1080,12 @@ class Kernel:
 
     async def set_ui_element_value(
         self, request: SetUIElementValueRequest
-    ) -> None:
+    ) -> bool:
         """Set the value of a UI element bound to a global variable.
 
         Runs cells that reference the UI element by name.
+
+        Returns True if any ui elements were set, False otherwise
         """
         updated_components: list[UIElement[Any, Any]] = []
 
@@ -1063,14 +1093,37 @@ class Kernel:
         # of another parent element is resolved to its parent. In particular,
         # interacting with a view triggers reactive execution through the
         # source (parent).
+        ctx = get_context()
         resolved_requests: dict[str, Any] = {}
-        ui_element_registry = get_context().ui_element_registry
+        referring_cells: set[CellId_t] = set()
+        ui_element_registry = ctx.ui_element_registry
         for object_id, value in request.ids_and_values:
             try:
                 resolved_id, resolved_value = ui_element_registry.resolve_lens(
                     object_id, value
                 )
             except (KeyError, RuntimeError):
+                # Attempt to set the UI element in a child context (app).
+                for child_context in ctx.children:
+                    if (
+                        child_context.app is not None
+                        and await child_context.app.set_ui_element_value(
+                            SetUIElementValueRequest(
+                                object_ids=[object_id], values=[value]
+                            )
+                        )
+                    ):
+                        bindings = [
+                            name
+                            for name, value in self.globals.items()
+                            # child_context.app is an InternalApp object
+                            if value is child_context.app._app
+                        ]
+                        for binding in bindings:
+                            referring_cells.update(
+                                self.graph.get_referring_cells(binding)
+                            )
+
                 # KeyError: Trying to access an unnamed UIElement
                 # RuntimeError: UIElement was deleted somehow
                 LOGGER.debug(
@@ -1080,7 +1133,6 @@ class Kernel:
             resolved_requests[resolved_id] = resolved_value
         del request
 
-        referring_cells: set[CellId_t] = set()
         for object_id, value in resolved_requests.items():
             try:
                 component = ui_element_registry.get_object(object_id)
@@ -1131,9 +1183,7 @@ class Kernel:
 
             bound_names = (
                 name
-                for name in get_context().ui_element_registry.bound_names(
-                    object_id
-                )
+                for name in ctx.ui_element_registry.bound_names(object_id)
                 if not is_local(name)
             )
 
@@ -1143,12 +1193,6 @@ class Kernel:
                 variable_values.append(
                     VariableValue(name=name, value=component)
                 )
-                if name in self.globals and isinstance(
-                    self.globals[name], App
-                ):
-                    self.globals[name]._register_ui_element_update(
-                        value=component
-                    )
                 try:
                     # subtracting self.graph.definitions[name]: never rerun the
                     # cell that created the name
@@ -1198,6 +1242,8 @@ class Kernel:
                 traceback.print_exc(file=tmpio)
                 tmpio.seek(0)
                 write_traceback(tmpio.read())
+
+        return bool(updated_components) or bool(referring_cells)
 
     def get_ui_initial_value(self, object_id: str) -> Any:
         """Get an initial value for a UIElement, if any
@@ -1499,7 +1545,9 @@ def launch_kernel(
         stdout=stdout,
         stderr=stderr,
         stdin=stdin,
-        input_override=input_override,
+        module=patches.patch_main_module(
+            file=app_metadata.filename, input_override=input_override
+        ),
         debugger_override=debugger,
         user_config=user_config,
         enqueue_control_request=lambda req: control_queue.put_nowait(req),
