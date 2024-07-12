@@ -5,7 +5,6 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Iterator, Optional
 
-from marimo._ast.app import InternalApp
 from marimo._cli.parse_args import args_from_argv
 from marimo._plugins.ui._core.ids import NoIDProviderException
 from marimo._plugins.ui._core.registry import UIElementRegistry
@@ -20,6 +19,7 @@ from marimo._runtime.functions import FunctionRegistry
 from marimo._runtime.params import CLIArgs, QueryParams
 
 if TYPE_CHECKING:
+    from marimo._ast.app import InternalApp
     from marimo._ast.cell import CellId_t
     from marimo._messaging.types import Stream
     from marimo._runtime.state import State
@@ -81,6 +81,24 @@ class ScriptRuntimeContext(RuntimeContext):
     def register_state_update(self, state: State[Any]) -> None:
         del state
         return
+
+    @contextmanager
+    def with_cell_id(self, cell_id: CellId_t) -> Iterator[None]:
+        old = self.execution_context
+        try:
+            if old is not None:
+                setting_element_value = old.setting_element_value
+            else:
+                setting_element_value = False
+            self._app.set_execution_context(
+                ExecutionContext(
+                    cell_id=cell_id,
+                    setting_element_value=setting_element_value,
+                )
+            )
+            yield
+        finally:
+            self._app.set_execution_context(old)
 
     @property
     def app(self) -> InternalApp:

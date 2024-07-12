@@ -7,7 +7,7 @@ import textwrap
 from typing import TYPE_CHECKING, Any
 
 import pytest
-from marimo._ast.app import App, _AppConfig
+from marimo._ast.app import App, _AppConfig, InternalApp
 from marimo._ast.errors import (
     CycleError,
     DeleteNonlocalError,
@@ -494,21 +494,24 @@ def test_cli_args(tmp_path: pathlib.Path) -> None:
 
 
 class TestAppComposition:
-    def test_app_as_html(self) -> None:
+    async def test_app_embed(self) -> None:
         app = App()
 
         @app.cell
         def __() -> None:
+            x = 1
             "hello"
 
         @app.cell
         def __() -> None:
             "world"
 
-        app_html = as_html(app).text
-        assert app_html == vstack(["hello", "world"]).text
+        result = await app.embed()
+        assert result.output.text == vstack(["hello", "world"]).text
+        assert set(result.defs.keys()) == set(["x"])
+        assert result.defs["x"] == 1
 
-    def test_app_as_html_none_stripped(self) -> None:
+    async def test_app_embed_none_stripped(self) -> None:
         app = App()
 
         @app.cell
@@ -523,11 +526,12 @@ class TestAppComposition:
         def __() -> None:
             "world"
 
-        app_html = as_html(app).text
+        result = await app.embed()
         # None shouldn't show up in output
-        assert app_html == vstack(["hello", "world"]).text
+        assert result.output.text == vstack(["hello", "world"]).text
+        assert not result.defs
 
-    def test_app_as_html_is_cached(self) -> None:
+    async def test_app_embed_output_is_cached(self) -> None:
         app = App()
 
         @app.cell
@@ -537,7 +541,9 @@ class TestAppComposition:
             random.randint(0, 10000)
 
         # the app should only run once
-        assert as_html(app).text == as_html(app).text
+        assert (await app.embed()).output.text == (
+            await app.embed()
+        ).output.text
 
     async def test_app_comp_basic(
         self, k: Kernel, exec_req: ExecReqProvider
@@ -554,7 +560,7 @@ class TestAppComposition:
                     import random
 
                     token = random.randint(0, 10000)
-                    app
+                    result = await app.embed()
                     """
                 ),
             ]
@@ -564,12 +570,12 @@ class TestAppComposition:
         # store the token value now, so we can make sure it changes later,
         # ie can make sure cell re-ran
         token = k.globals["token"]
-        app = k.globals["app"]
+        result = k.globals["result"]
         # dropdown has name d in app
-        dropdown_element = app._cached_defs["d"]
+        dropdown_element = result.defs["d"]
         assert dropdown_element.value == "first"
 
-        html = as_html(app).text
+        html = result.output.text
         assert "value is first" in html
         assert "value is second" not in html
 
@@ -579,13 +585,12 @@ class TestAppComposition:
             )
         )
         assert token != k.globals["token"]
-        assert not app._pending_ui_element_updates
 
         # make sure ui element value updated
         assert dropdown_element.value == "second"
         # make sure cell referencing app re-ran
-
-        html = as_html(app).text
+        result = k.globals["result"]
+        html = result.output.text
         assert "value is first" not in html
         assert "value is second" in html
 
@@ -601,17 +606,17 @@ class TestAppComposition:
                 ),
                 exec_req.get(
                     """
-                    app
+                    result = await app.embed()
                     """
                 ),
             ]
         )
         assert not k.errors
 
-        app = k.globals["app"]
+        result = k.globals["result"]
         # two number inputs: x and y
-        x = app._cached_defs["x"]
-        y = app._cached_defs["y"]
+        x = result.defs["x"]
+        y = result.defs["y"]
         assert x.value == 1
         assert y.value == 1
 

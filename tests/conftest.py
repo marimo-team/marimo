@@ -9,7 +9,6 @@ from tempfile import TemporaryDirectory
 from typing import Any, Generator
 
 import pytest
-
 from marimo._ast.app import CellManager
 from marimo._ast.cell import CellId_t
 from marimo._config.config import DEFAULT_CONFIG
@@ -21,6 +20,7 @@ from marimo._messaging.streams import (
     ThreadSafeStream,
 )
 from marimo._output.formatters.formatters import register_formatters
+from marimo._runtime import patches
 from marimo._runtime.context import teardown_context
 from marimo._runtime.context.kernel_context import initialize_kernel_context
 from marimo._runtime.marimo_pdb import MarimoPdb
@@ -93,6 +93,7 @@ class MockedKernel:
         self.stderr = MockStderr(self.stream)
         self.stdin = MockStdin(self.stream)
         self._main = sys.modules["__main__"]
+        module = patches.patch_main_module(file=None, input_override=None)
 
         self.k = Kernel(
             stream=self.stream,
@@ -106,6 +107,7 @@ class MockedKernel:
             ),
             debugger_override=MarimoPdb(stdout=self.stdout, stdin=self.stdin),
             enqueue_control_request=lambda _: None,
+            module=module,
         )
 
         initialize_kernel_context(

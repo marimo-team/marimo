@@ -24,7 +24,6 @@ from marimo._runtime.executor import (
     execute_cell_async,
 )
 from marimo._runtime.marimo_pdb import MarimoPdb
-from marimo._runtime.runner.hooks_preparation import PreparationHookType
 
 LOGGER = marimo_logger()
 
@@ -37,6 +36,7 @@ if TYPE_CHECKING:
         PostExecutionHookType,
     )
     from marimo._runtime.runner.hooks_pre_execution import PreExecutionHookType
+    from marimo._runtime.runner.hooks_preparation import PreparationHookType
     from marimo._runtime.state import State
 
 
@@ -94,10 +94,10 @@ class Runner:
         )
         self.pre_execution_hooks: Sequence[
             Callable[[CellImpl, "Runner"], Any]
-        ] = pre_execution_hooks or []
+        ] = (pre_execution_hooks or [])
         self.post_execution_hooks: Sequence[
             Callable[[CellImpl, "Runner", RunResult], Any]
-        ] = post_execution_hooks or []
+        ] = (post_execution_hooks or [])
         self.on_finish_hooks: Sequence[Callable[["Runner"], Any]] = (
             on_finish_hooks or []
         )
