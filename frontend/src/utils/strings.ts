@@ -36,4 +36,8 @@ export const Strings = {
       .replaceAll("'", "&#039;")
       .replaceAll("\n", " ");
   },
+
+  withoutTrailingSlash(url: string): string {
+    return url.endsWith("/") ? url.slice(0, -1) : url;
+  },
 };

@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { defineConfig, Plugin } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { JSDOM } from "jsdom";
@@ -126,6 +126,14 @@ export default defineConfig({
         changeOrigin: true,
       },
       "/ws": {
+        target: `ws://${HOST}:${SERVER_PORT}`,
+        ws: true,
+        changeOrigin: true,
+        headers: {
+          origin: TARGET,
+        },
+      },
+      "/terminal/ws": {
         target: `ws://${HOST}:${SERVER_PORT}`,
         ws: true,
         changeOrigin: true,

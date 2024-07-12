@@ -77,14 +77,14 @@ export const CellArray: React.FC<CellArrayProps> = ({
     setStdinResponse,
   } = useCellActions();
   const { theme } = useTheme();
-  const { togglePanel } = useChromeActions();
+  const { toggleSidebarPanel } = useChromeActions();
 
   const { invisible } = useDelayVisibility(notebook.cellIds.length, mode);
 
   // HOTKEYS
   useHotkey("global.focusTop", focusTopCell);
   useHotkey("global.focusBottom", focusBottomCell);
-  useHotkey("global.toggleSidebar", togglePanel);
+  useHotkey("global.toggleSidebar", toggleSidebarPanel);
   useHotkey("global.foldCode", foldAll);
   useHotkey("global.unfoldCode", unfoldAll);
   useHotkey("global.formatAll", () => {
