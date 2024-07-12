@@ -46,6 +46,8 @@ dependencies = [
     # for cell formatting; if user version is not compatible, no-op
     # so no lower bound needed
     "ruff",
+    # for packaging.version; not sure what the lower bound is.
+    "packaging",
 ]
 readme = "README.md"
 license = { file = "LICENSE" }
