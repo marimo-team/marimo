@@ -104,8 +104,10 @@ def start(
 
     log_level = "info" if development_mode else "error"
 
+    (external_port, external_host) = _resolve_proxy(port, host, proxy)
     app = create_starlette_app(
         base_url=base_url,
+        host=external_host,
         lifespan=lifespans.Lifespans(
             [
                 lifespans.lsp,
@@ -120,7 +122,6 @@ def start(
         enable_auth=not AuthToken.is_empty(session_manager.auth_token),
     )
 
-    (external_port, external_host) = _resolve_proxy(port, host, proxy)
     app.state.port = external_port
     app.state.host = external_host
 

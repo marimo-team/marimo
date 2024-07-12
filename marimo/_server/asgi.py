@@ -153,6 +153,7 @@ def create_asgi_app(
                     ]
                 ),
                 enable_auth=not AuthToken.is_empty(auth_token),
+                allow_origins=("*",),
             )
             app.state.session_manager = session_manager
             app.state.base_url = path

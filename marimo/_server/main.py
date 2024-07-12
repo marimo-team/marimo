@@ -68,6 +68,7 @@ async def handle_error(request: Request, response: Any) -> Any:
 def create_starlette_app(
     *,
     base_url: str,
+    host: Optional[str] = None,
     middleware: Optional[List[Middleware]] = None,
     lifespan: Optional[Lifespan[Starlette]] = None,
     enable_auth: bool = True,
@@ -75,9 +76,11 @@ def create_starlette_app(
 ) -> Starlette:
     final_middlewares: List[Middleware] = []
 
-    allow_origins = (
-        ("localhost", "127.0.0.1") if allow_origins is None else allow_origins
-    )
+    if allow_origins is None:
+        allow_origins = ("localhost", "127.0.0.1") + (
+            (host,) if host is not None else ()
+        )
+
     if enable_auth:
         final_middlewares.extend(
             [
