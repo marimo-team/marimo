@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import asyncio
 import random
 import string
 import weakref
@@ -28,9 +27,7 @@ from marimo._ast.errors import (
 )
 from marimo._ast.script_runner import ScriptRunner
 from marimo._config.config import DEFAULT_CONFIG, WidthType
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import KnownMimeType
-from marimo._messaging.types import NoopStream
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
@@ -39,11 +36,7 @@ from marimo._runtime.context.types import (
     ContextNotInitializedError,
     get_context,
 )
-from marimo._runtime.executor import execute_cell_async
-from marimo._runtime.patches import (
-    create_main_module,
-    patch_main_module_context,
-)
+from marimo._runtime.patches import create_main_module
 from marimo._runtime.requests import (
     AppMetadata,
     ExecutionRequest,
@@ -52,7 +45,7 @@ from marimo._runtime.requests import (
 from marimo._runtime.runner import cell_runner
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Sequence
+    from collections.abc import Sequence
 
     from marimo._runtime.context.types import ExecutionContext
 

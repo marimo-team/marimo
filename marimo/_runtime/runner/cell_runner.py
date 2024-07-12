@@ -94,10 +94,10 @@ class Runner:
         )
         self.pre_execution_hooks: Sequence[
             Callable[[CellImpl, "Runner"], Any]
-        ] = (pre_execution_hooks or [])
+        ] = pre_execution_hooks or []
         self.post_execution_hooks: Sequence[
             Callable[[CellImpl, "Runner", RunResult], Any]
-        ] = (post_execution_hooks or [])
+        ] = post_execution_hooks or []
         self.on_finish_hooks: Sequence[Callable[["Runner"], Any]] = (
             on_finish_hooks or []
         )

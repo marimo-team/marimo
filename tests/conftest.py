@@ -9,6 +9,7 @@ from tempfile import TemporaryDirectory
 from typing import Any, Generator
 
 import pytest
+
 from marimo._ast.app import CellManager
 from marimo._ast.cell import CellId_t
 from marimo._config.config import DEFAULT_CONFIG
