@@ -78,6 +78,7 @@ def start(
     watch: bool,
     cli_args: SerializedCLIArgs,
     base_url: str = "",
+    allow_origins: Optional[tuple[str, ...]] = None,
     auth_token: Optional[AuthToken],
 ) -> None:
     """
@@ -115,11 +116,11 @@ def start(
                 lifespans.open_browser,
             ]
         ),
+        allow_origins=allow_origins,
         enable_auth=not AuthToken.is_empty(session_manager.auth_token),
     )
 
     (external_port, external_host) = _resolve_proxy(port, host, proxy)
-
     app.state.port = external_port
     app.state.host = external_host
 

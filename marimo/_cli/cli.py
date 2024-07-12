@@ -244,6 +244,12 @@ edit_help_msg = "\n".join(
     help="Base URL for the server. Should start with a /.",
     callback=validators.base_url,
 )
+@click.option(
+    "--allow-origins",
+    default=None,
+    multiple=True,
+    help="Allowed origins for CORS. Can be repeated. Use * for all origins.",
+)
 @click.argument("name", required=False)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def edit(
@@ -254,8 +260,9 @@ def edit(
     token: bool,
     token_password: Optional[str],
     base_url: str,
+    allow_origins: Optional[tuple[str, ...]],
     name: Optional[str],
-    args: tuple[str],
+    args: tuple[str, ...],
 ) -> None:
     # Check for version updates
     check_for_updates()
@@ -297,6 +304,7 @@ def edit(
         cli_args=parse_args(args),
         auth_token=_resolve_token(token, token_password),
         base_url=base_url,
+        allow_origins=allow_origins,
     )
 
 
@@ -460,6 +468,12 @@ Example:
     help="Base URL for the server. Should start with a /.",
     callback=validators.base_url,
 )
+@click.option(
+    "--allow-origins",
+    default=None,
+    multiple=True,
+    help="Allowed origins for CORS. Can be repeated.",
+)
 @click.argument("name", required=True)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def run(
@@ -472,8 +486,9 @@ def run(
     include_code: bool,
     watch: bool,
     base_url: str,
+    allow_origins: tuple[str, ...],
     name: str,
-    args: tuple[str],
+    args: tuple[str, ...],
 ) -> None:
     # Validate name, or download from URL
     # The second return value is an optional temporary directory. It is unused,
@@ -496,6 +511,7 @@ def run(
         include_code=include_code,
         watch=watch,
         base_url=base_url,
+        allow_origins=allow_origins,
         cli_args=parse_args(args),
         auth_token=_resolve_token(token, token_password),
     )

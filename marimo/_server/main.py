@@ -71,9 +71,13 @@ def create_starlette_app(
     middleware: Optional[List[Middleware]] = None,
     lifespan: Optional[Lifespan[Starlette]] = None,
     enable_auth: bool = True,
+    allow_origins: Optional[tuple[str, ...]] = None,
 ) -> Starlette:
     final_middlewares: List[Middleware] = []
 
+    allow_origins = (
+        ("localhost", "127.0.0.1") if allow_origins is None else allow_origins
+    )
     if enable_auth:
         final_middlewares.extend(
             [
@@ -93,7 +97,7 @@ def create_starlette_app(
             ),
             Middleware(
                 CORSMiddleware,
-                allow_origins=["*"],
+                allow_origins=allow_origins,
                 allow_credentials=True,
                 allow_methods=["*"],
                 allow_headers=["*"],
