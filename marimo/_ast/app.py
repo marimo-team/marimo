@@ -32,8 +32,8 @@ from marimo._runtime import dataflow
 from marimo._runtime.app.kernel_runner import AppKernelRunner
 from marimo._runtime.app.script_runner import AppScriptRunner
 from marimo._runtime.context.types import (
-    ContextNotInitializedError,
     get_context,
+    runtime_context_installed,
 )
 from marimo._runtime.requests import SetUIElementValueRequest
 
@@ -143,12 +143,12 @@ class App:
         # a TypeError.
         self._config = _AppConfig.from_untrusted_dict(kwargs)
 
-        try:
+        if runtime_context_installed():
             # nested applications get a unique cell prefix to disambiguate
             # their graph from other graphs
             get_context()
             cell_prefix = str(uuid4())
-        except ContextNotInitializedError:
+        else:
             cell_prefix = ""
 
         self._cell_manager = CellManager(prefix=cell_prefix)
