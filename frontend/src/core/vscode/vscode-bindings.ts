@@ -71,7 +71,9 @@ function registerKeyboard() {
     if ((event.ctrlKey || event.metaKey) && event.key === "x") {
       const selection = window.getSelection()?.toString() ?? "";
       // clear
-      document.execCommand("insertText", false, "");
+      if (isPlatformMac()) {
+        document.execCommand("insertText", false, "");
+      }
       sendToPanelManager({
         command: "cut",
         text: selection,
