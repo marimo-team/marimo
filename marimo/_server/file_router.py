@@ -198,7 +198,13 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
         ) -> Optional[List[FileInfo]]:
             if depth > MAX_DEPTH:
                 return None
-            entries = os.listdir(directory)
+
+            try:
+                entries = os.listdir(directory)
+            except OSError as e:
+                LOGGER.debug("OSError listing directory: %s", str(e))
+                return None
+
             files: List[FileInfo] = []
             folders: List[FileInfo] = []
             for entry in entries:
