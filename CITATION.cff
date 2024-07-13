@@ -8,6 +8,10 @@ authors:
     orcid: "https://orcid.org/0009-0003-4254-9632"
 cff-version: 1.2.0
 date-released: "2023-08-15"
+identifiers:
+  - description: "This is the collection of all versions of marimo"
+    type: doi
+    value: 10.5281/10.5281/zenodo.12735329
 keywords:
   - python
   - research
