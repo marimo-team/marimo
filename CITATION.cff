@@ -11,7 +11,7 @@ date-released: "2023-08-15"
 identifiers:
   - description: "This is the collection of all versions of marimo"
     type: doi
-    value: 10.5281/10.5281/zenodo.12735329
+    value: 10.5281/zenodo.12735329
 keywords:
   - python
   - research
