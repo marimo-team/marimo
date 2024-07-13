@@ -35,11 +35,16 @@ from marimo._runtime.context.types import (
     get_context,
     runtime_context_installed,
 )
-from marimo._runtime.requests import SetUIElementValueRequest
+from marimo._runtime.requests import (
+    FunctionCallRequest,
+    SetUIElementValueRequest,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from marimo._messaging.ops import HumanReadableStatus
+    from marimo._plugins.core.web_component import JSONType
     from marimo._runtime.context.types import ExecutionContext
 
 LOGGER = _loggers.marimo_logger()
@@ -298,6 +303,12 @@ class App:
     ) -> bool:
         app_kernel_runner = self._get_kernel_runner()
         return await app_kernel_runner.set_ui_element_value(request)
+
+    async def _function_call(
+        self, request: FunctionCallRequest
+    ) -> tuple[HumanReadableStatus, JSONType, bool]:
+        app_kernel_runner = self._get_kernel_runner()
+        return await app_kernel_runner.function_call(request)
 
     @mddoc
     async def embed(self) -> AppEmbedResult:
@@ -623,3 +634,8 @@ class InternalApp:
         self, request: SetUIElementValueRequest
     ) -> bool:
         return await self._app._set_ui_element_value(request)
+
+    async def function_call(
+        self, request: FunctionCallRequest
+    ) -> tuple[HumanReadableStatus, JSONType, bool]:
+        return await self._app._function_call(request)

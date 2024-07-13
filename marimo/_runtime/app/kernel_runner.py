@@ -12,12 +12,15 @@ from marimo._runtime.patches import create_main_module
 from marimo._runtime.requests import (
     AppMetadata,
     ExecutionRequest,
+    FunctionCallRequest,
     SetUIElementValueRequest,
 )
 from marimo._runtime.runner import cell_runner
 
 if TYPE_CHECKING:
     from marimo._ast.app import InternalApp
+    from marimo._messaging.ops import HumanReadableStatus
+    from marimo._plugins.core.web_component import JSONType
 
 
 class AppKernelRunner:
@@ -115,3 +118,9 @@ class AppKernelRunner:
     ) -> bool:
         with self._runtime_context.install():
             return await self._kernel.set_ui_element_value(request)
+
+    async def function_call(
+        self, request: FunctionCallRequest
+    ) -> tuple[HumanReadableStatus, JSONType, bool]:
+        with self._runtime_context.install():
+            return await self._kernel.function_call_request(request)
