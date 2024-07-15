@@ -56,21 +56,16 @@ def clean_to_modules(
     (with_block,) = block.items
     initializer: ast.AST = with_block.context_expr
     if with_block.optional_vars:
-        with_block.optional_vars.lineno = initializer.lineno
-        expr = ast.Assign(
+        initializer = ast.Assign(
             targets=[with_block.optional_vars],
             value=initializer,
         )
     else:
         # Edgecase with no "as" clause.
-        expr = ast.Expr(value=initializer)
-    expr.lineno = len(pre_block) + 1
-    # Also tried
-    # expr.lineno = initializer.lineno
-    # expr.lineno = 0
-    # expr.lineno = 1000
-    expr.col_offset = 0
-    pre_block.append(expr)
+        initializer = ast.Expr(value=initializer)
+    initializer.lineno = len(pre_block) + 1
+    initializer.col_offset = 0
+    pre_block.append(initializer)
     return (compiled_ast(pre_block), compiled_ast(block.body))
 
 
