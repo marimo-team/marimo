@@ -8,11 +8,15 @@ import signal
 import subprocess
 import traceback
 from asyncio import Queue
+from typing import TYPE_CHECKING
 
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from marimo import _loggers
 from marimo._server.router import APIRouter
+
+if TYPE_CHECKING:
+    import io
 
 LOGGER = _loggers.marimo_logger()
 
@@ -38,16 +42,16 @@ BACK = b"\x7f"  # backspace
 router = APIRouter()
 
 
-def set_non_blocking_flag(pipe) -> None:
+def set_non_blocking_flag(pipe: io.IOBase) -> None:
     flags = fcntl.fcntl(pipe, fcntl.F_GETFL)
     fcntl.fcntl(pipe, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 
 
-async def read_buffer(pipe) -> bytes:
+async def read_buffer(pipe: io.IOBase) -> bytes:
     return pipe.read()
 
 
-async def extract_buffer(pipe) -> bytes:
+async def extract_buffer(pipe: io.IOBase) -> bytes:
     buffer = b""
     # This loop might not be needed, playing with it, I thought it smoothed out
     # large reads, but it might have just been confirmation bias.
@@ -63,13 +67,13 @@ async def extract_buffer(pipe) -> bytes:
 
 
 class TerminalManager:
-    _terminals = {}
+    _terminals: dict[WebSocket, tuple[Queue[bytes], asyncio.Task[None]]] = {}
 
     @classmethod
-    def get_terminal(cls, websocket: WebSocket) -> asyncio.Task:
+    def get_terminal(cls, websocket: WebSocket) -> asyncio.Task[None]:
         if websocket not in cls._terminals:
-            produce_queue = Queue()
-            consume_queue = Queue()
+            produce_queue = Queue[bytes]()
+            consume_queue = Queue[bytes]()
 
             cls._terminals[websocket] = (
                 produce_queue,
@@ -96,7 +100,9 @@ class TerminalManager:
 
 
 # Note! The args are switched for consistent context!
-async def background_shell(consume_queue: Queue, produce_queue: Queue) -> None:
+async def background_shell(
+    consume_queue: Queue[bytes], produce_queue: Queue[tuple[bytes, bytes]]
+) -> None:
     """Function to produce and consume data."""
     # This might also work for windows if bash is installed. Also don't
     # hardcode /bin/bash, since not technically posix compliant. My initial
@@ -105,7 +111,7 @@ async def background_shell(consume_queue: Queue, produce_queue: Queue) -> None:
     # NOTE on ignore: Attempted with asyncio.create_subprocess_shell, but the
     # lag was untenable. Another solution might be to do a pure multiprocessing
     # solution implementation.
-    shell = subprocess.Popen(  # noqa: ASYNC101
+    shell = subprocess.Popen(  # noqa: ASYNC101 ASYNC220
         ["bash", "-si"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -123,6 +129,7 @@ async def background_shell(consume_queue: Queue, produce_queue: Queue) -> None:
         # There might be a way to spin off a process group and still guarantee
         # that the thread will not hang- but this has the process listen for
         # SIGINT, and exit- to much the same effect.
+        assert shell.stdin
         shell.stdin.write(
             bytes(
                 f"trap 'exit {SIGINT_RETURN}' SIGINT {BLANK}" + "\n", "utf-8"
@@ -159,6 +166,8 @@ async def background_shell(consume_queue: Queue, produce_queue: Queue) -> None:
                 break
 
             if command == NAK or command is None:
+                assert shell.stderr
+                assert shell.stdout
                 shell.stderr.flush()
                 shell.stdout.flush()
             else:
@@ -189,10 +198,12 @@ async def background_shell(consume_queue: Queue, produce_queue: Queue) -> None:
 
 
 async def spawn_cmd_task(
-    websocket: WebSocket, consume_queue: Queue, produce_queue: Queue
+    websocket: WebSocket,
+    consume_queue: Queue[tuple[bytes, bytes]],
+    produce_queue: Queue[bytes],
 ) -> None:
     # Start the data producer/consumer process
-    def create_shell() -> asyncio.Task:
+    def create_shell() -> asyncio.Task[None]:
         produce_queue.empty()
         consume_queue.empty()
         return asyncio.create_task(
