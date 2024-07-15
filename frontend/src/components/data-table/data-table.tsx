@@ -1,12 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React, { memo, useEffect, useState } from "react";
 import {
-  ColumnDef,
-  ColumnFiltersState,
-  OnChangeFn,
-  PaginationState,
-  RowSelectionState,
-  SortingState,
+  type ColumnDef,
+  type ColumnFiltersState,
+  type OnChangeFn,
+  type PaginationState,
+  type RowSelectionState,
+  type SortingState,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
@@ -24,7 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DataTablePagination } from "./pagination";
-import { DownloadActionProps, DownloadAs } from "./download-actions";
+import { type DownloadActionProps, DownloadAs } from "./download-actions";
 import { cn } from "@/utils/cn";
 import { SearchIcon } from "lucide-react";
 import { Button } from "../ui/button";
@@ -184,7 +184,7 @@ const DataTableInternal = <TData,>({
                         "whitespace-nowrap truncate max-w-[300px]",
                         cell.column.getColumnWrapping &&
                           cell.column.getColumnWrapping() === "wrap" &&
-                          "whitespace-normal min-w-[200px]",
+                          "whitespace-pre-wrap min-w-[200px]",
                       )}
                       title={String(cell.getValue())}
                     >
