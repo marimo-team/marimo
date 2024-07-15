@@ -1269,7 +1269,13 @@ class Kernel:
 
     async def function_call_request(
         self, request: FunctionCallRequest
-    ) -> tuple[HumanReadableStatus, JSONType]:
+    ) -> tuple[HumanReadableStatus, JSONType, bool]:
+        """Execute a function call.
+
+        If the function is not found, children contexts are also searched.
+        Returns a status, payload, and a bool which is True if the function was
+        found, False otherwise.
+        """
         ctx = get_context()
         function = ctx.function_registry.get_function(
             request.namespace, request.function_name
@@ -1280,18 +1286,30 @@ class Kernel:
             LOGGER.debug("%s: %s", title, message)
 
         if function is None:
+            for child_context in ctx.children:
+                if child_context.app is not None:
+                    (
+                        status,
+                        response,
+                        found,
+                    ) = await child_context.app.function_call(request)
+                    if found:
+                        return status, response, found
+            found = False
             error_title = "Function not found"
             error_message = (
                 "Could not find function given request: %s" % request
             )
             debug(error_title, error_message)
         elif function.cell_id is None:
+            found = True
             error_title = "Function not associated with cell"
             error_message = (
                 "Attempted to call a function without a cell id: %s" % request
             )
             debug(error_title, error_message)
         else:
+            found = True
             with self._install_execution_context(
                 cell_id=function.cell_id
             ), ctx.provide_ui_ids(str(uuid4())):
@@ -1308,12 +1326,14 @@ class Kernel:
                 # TODO(akshayka): Do UI elements created in function calls
                 # get cleared from the FE registry? This could be a leak.
                 try:
-                    response = function(request.args)
+                    response = cast(JSONType, function(request.args))
                     if asyncio.iscoroutine(response):
                         response = await response
-                        return HumanReadableStatus(code="ok"), response
-                    return HumanReadableStatus(code="ok"), cast(
-                        JSONType, response
+                        return HumanReadableStatus(code="ok"), response, found
+                    return (
+                        HumanReadableStatus(code="ok"),
+                        response,
+                        found,
                     )
                 except MarimoInterrupt:
                     error_title = "Interrupted"
@@ -1336,6 +1356,7 @@ class Kernel:
                 code="error", title=error_title, message=error_message
             ),
             None,
+            found,
         )
 
     async def instantiate(self, request: CreationRequest) -> None:
@@ -1470,7 +1491,7 @@ class Kernel:
                 await self.set_ui_element_value(request)
                 CompletedRun().broadcast()
             elif isinstance(request, FunctionCallRequest):
-                status, ret = await self.function_call_request(request)
+                status, ret, _ = await self.function_call_request(request)
                 FunctionCallResult(
                     function_call_id=request.function_call_id,
                     return_value=ret,
