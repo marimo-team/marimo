@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { logNever } from "@/utils/assertNever";
-import { CellMessage } from "../kernel/messages";
-import { CellRuntimeState } from "./types";
+import type { CellMessage } from "../kernel/messages";
+import type { CellRuntimeState } from "./types";
 import { collapseConsoleOutputs } from "./collapseConsoleOutputs";
 import { parseOutline } from "../dom/outline";
-import { Seconds, Time } from "@/utils/time";
+import { type Seconds, Time } from "@/utils/time";
 import { invariant } from "@/utils/invariant";
 
 export function transitionCell(

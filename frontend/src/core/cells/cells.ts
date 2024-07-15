@@ -46,6 +46,8 @@ import { getUserConfig } from "@/core/config/config";
 import { syncCellIds } from "../network/requests";
 import { kioskModeAtom } from "../mode";
 
+export const SCRATCH_CELL_ID = "__scratch__" as CellId;
+
 /**
  * The state of the notebook.
  */
@@ -90,6 +92,24 @@ export interface LastSavedNotebook {
   configs: CellConfig[];
   names: string[];
   layout: LayoutState;
+}
+
+function withScratchCell(notebookState: NotebookState): NotebookState {
+  return {
+    ...notebookState,
+    cellData: {
+      [SCRATCH_CELL_ID]: createCell({ id: SCRATCH_CELL_ID }),
+      ...notebookState.cellData,
+    },
+    cellRuntime: {
+      [SCRATCH_CELL_ID]: createCellRuntimeState(),
+      ...notebookState.cellRuntime,
+    },
+    cellHandles: {
+      [SCRATCH_CELL_ID]: createRef(),
+      ...notebookState.cellHandles,
+    },
+  };
 }
 
 /**
@@ -143,7 +163,7 @@ function initialNotebookState(): NotebookState {
     };
   }
 
-  return {
+  return withScratchCell({
     cellIds: [],
     cellData: {},
     cellRuntime: {},
@@ -151,7 +171,7 @@ function initialNotebookState(): NotebookState {
     history: [],
     scrollKey: null,
     cellLogs: [],
-  };
+  });
 }
 
 /**
@@ -419,9 +439,7 @@ const {
     },
   ) => {
     const { cellId, code, formattingChange } = action;
-    const cellIndex = state.cellIds.indexOf(cellId);
-
-    if (cellIndex === -1) {
+    if (!state.cellData[cellId]) {
       return state;
     }
 
@@ -568,7 +586,7 @@ const {
       cells.map((cell) => [cell.id, createCellRuntimeState()]),
     );
 
-    return {
+    return withScratchCell({
       ...state,
       cellIds: cells.map((cell) => cell.id),
       cellData: cellData,
@@ -576,7 +594,7 @@ const {
       cellHandles: Object.fromEntries(
         cells.map((cell) => [cell.id, createRef()]),
       ),
-    };
+    });
   },
   /**
    * Move focus to next cell

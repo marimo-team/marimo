@@ -20,7 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import { useTheme } from "@/theme/useTheme";
 import { asURL } from "@/utils/url";
-import { LanguageAdapterType } from "@/core/codemirror/language/types";
+import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 
 const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
@@ -98,7 +98,10 @@ export const AiCompletionEditor: React.FC<Props> = ({
           !enabled && "h-0 invisible",
         )}
       >
-        <SparklesIcon className="text-[var(--blue-10)]" size={16} />
+        <SparklesIcon
+          className="text-[var(--blue-10)] flex-shrink-0"
+          size={16}
+        />
         <input
           className="h-8 outline-none px-2 focus-visible:shadow-none flex-1 rounded-none border-none focus:border-none"
           value={input}
@@ -146,7 +149,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
         )}
         <div className="h-full w-px bg-border mx-2" />
         <Tooltip content="Include code from other cells">
-          <div className="flex flex-row items-start gap-1">
+          <div className="flex flex-row items-start gap-1 overflow-hidden">
             <Checkbox
               data-testid="include-other-cells-checkbox"
               id="include-other-cells"
@@ -157,7 +160,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
             />
             <Label
               htmlFor="include-other-cells"
-              className="text-muted-foreground text-xs"
+              className="text-muted-foreground text-xs whitespace-nowrap ellipsis"
             >
               Include all code
             </Label>

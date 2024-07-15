@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { toast } from "@/components/ui/use-toast";
-import { EditRequests, RequestKey, RunRequests } from "./types";
+import type { EditRequests, RequestKey, RunRequests } from "./types";
 import { Logger } from "@/utils/Logger";
 import { prettyError } from "@/utils/errors";
 
@@ -15,6 +15,7 @@ export function createErrorToastingRequests(
     sendRestart: "Failed to restart",
     syncCellIds: "Failed to sync cell IDs",
     sendRun: "Failed to run",
+    sendRunScratchpad: "Failed to run scratchpad",
     sendRename: "Failed to rename",
     sendSave: "Failed to save",
     sendInterrupt: "Failed to interrupt",

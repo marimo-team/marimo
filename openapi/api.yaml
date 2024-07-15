@@ -454,6 +454,13 @@ components:
       - cellIds
       - codes
       type: object
+    ExecuteScratchpadRequest:
+      properties:
+        code:
+          type: string
+      required:
+      - code
+      type: object
     ExecuteStaleRequest:
       properties: {}
       type: object
@@ -1414,6 +1421,13 @@ components:
       - cellIds
       - codes
       type: object
+    RunScratchpadRequest:
+      properties:
+        code:
+          type: string
+      required:
+      - code
+      type: object
     RunningNotebooksResponse:
       properties:
         files:
@@ -1719,7 +1733,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.7.2
+  version: 0.7.5
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -2159,6 +2173,20 @@ paths:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Update the user config on disk and in the kernel. Only allowed
             in edit mode.
+  /api/kernel/scratchpad/run:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunScratchpadRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Run the scratchpad
   /api/kernel/set_cell_config:
     post:
       requestBody:

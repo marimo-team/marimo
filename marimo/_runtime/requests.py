@@ -50,6 +50,11 @@ class ExecuteMultipleRequest:
 
 
 @dataclass
+class ExecuteScratchpadRequest:
+    code: str
+
+
+@dataclass
 class SetUIElementValueRequest:
     object_ids: List[UIElementId]
     values: List[Any]
@@ -149,6 +154,7 @@ class PreviewDatasetColumnRequest:
 
 ControlRequest = Union[
     ExecuteMultipleRequest,
+    ExecuteScratchpadRequest,
     ExecuteStaleRequest,
     CreationRequest,
     DeleteCellRequest,

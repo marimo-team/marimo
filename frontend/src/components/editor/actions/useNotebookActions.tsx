@@ -43,7 +43,7 @@ import { ShareStaticNotebookModal } from "@/components/static-html/share-modal";
 import { useRestartKernel } from "./useRestartKernel";
 import { createShareableLink } from "@/core/wasm/share";
 import { useChromeActions, useChromeState } from "../chrome/state";
-import { PANEL_ICONS, PANEL_TYPES } from "../chrome/types";
+import { PANELS } from "../chrome/types";
 import { startCase } from "lodash-es";
 import { keyboardShortcutsAtom } from "../controls/keyboard-shortcuts";
 import { MarkdownIcon } from "@/components/editor/cell/code/icons";
@@ -174,8 +174,10 @@ export function useNotebookActions() {
       icon: <PanelLeftIcon size={14} strokeWidth={1.5} />,
       label: "Helper panel",
       handle: NOOP_HANDLER,
-      dropdown: PANEL_TYPES.map((type) => {
-        const Icon = PANEL_ICONS[type];
+      dropdown: PANELS.flatMap(({ type, Icon, hidden }) => {
+        if (hidden) {
+          return [];
+        }
         return {
           label: startCase(type),
           rightElement: (
