@@ -11,6 +11,6 @@ def test_script():
     result = p.stderr.decode()
     assert "NameError: name 'y' is not defined" in result
     assert (
-        "/tests/_runtime/script_data/script_exception.py\", line 10" in result
+        '/tests/_runtime/script_data/script_exception.py", line 10' in result
     )
-    assert "y = y/x" in result
+    assert "y = y / x" in result

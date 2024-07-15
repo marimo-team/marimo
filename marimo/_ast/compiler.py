@@ -54,7 +54,9 @@ def cache(filename: str, code: str) -> None:
     )
 
 
-def compile_cell(code: str, cell_id: CellId_t, _start_line: int=None) -> CellImpl:
+def compile_cell(
+    code: str, cell_id: CellId_t, _start_line: int = 0
+) -> CellImpl:
     # Replace non-breaking spaces with regular spaces -- some frontends
     # send nbsp in place of space, which is a syntax error.
     #

@@ -4,7 +4,6 @@ from __future__ import annotations
 import inspect
 import numbers
 import re
-import textwrap
 import weakref
 from abc import ABC, abstractmethod
 from copy import deepcopy
@@ -96,31 +95,33 @@ class Executor(ABC):
         pass
 
 
-def handle_execute_cell_exception(e, cell, glbls) -> None:
+def handle_execute_cell_exception(
+    e: Exception, cell: CellImpl, glbls: dict[str, Any]
+) -> None:
     tb = e.__traceback__
-    while tb.tb_next:
+    while tb and tb.tb_next:
         tb = tb.tb_next
+
+    if tb is None:
+        raise e
 
     filename = f"__marimo__cell_{cell.cell_id}_.py"
 
-    if (
-        tb.tb_next is None
-        and filename in tb.tb_frame.f_code.co_filename
-        and cell._start_line
-    ):
+    if filename in tb.tb_frame.f_code.co_filename and cell._start_line:
         cell_lineno = tb.tb_frame.f_lineno
 
-        cell_lines = cell.code.split('\n')
+        cell_lines = cell.code.split("\n")
         offending_code = cell_lines[cell_lineno - 1]
 
-        file_path = glbls['__file__']
+        file_path = glbls["__file__"]
         source_lineno = cell._start_line + cell_lineno - 1
         underline_str = "^" * len(offending_code)
 
         e.add_note(
             f"""  File "{file_path}", line {source_lineno}"""
             + f"\n    {offending_code}"
-            + f"""\n    {underline_str}""")
+            + f"\n    {underline_str}"
+        )
 
     raise e
 

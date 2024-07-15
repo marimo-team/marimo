@@ -7,7 +7,7 @@ app = marimo.App()
 @app.cell
 def __(y):
     x = 0
-    y = y/x
+    y = y / x
     return x, y
 
 

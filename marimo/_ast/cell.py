@@ -112,7 +112,7 @@ class CellImpl:
     _output: CellOutput = dataclasses.field(default_factory=CellOutput)
 
     # Line number of source code starting at the body of the function
-    _start_line: int = None
+    _start_line: int = 0
 
     def configure(self, update: dict[str, Any] | CellConfig) -> CellImpl:
         """Update the cell config.
