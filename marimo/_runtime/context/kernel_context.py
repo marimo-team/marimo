@@ -18,6 +18,7 @@ from marimo._runtime.functions import FunctionRegistry
 from marimo._runtime.params import CLIArgs, QueryParams
 
 if TYPE_CHECKING:
+    from marimo._ast.app import InternalApp
     from marimo._ast.cell import CellId_t
     from marimo._messaging.types import Stream
     from marimo._runtime.runtime import Kernel
@@ -29,6 +30,8 @@ class KernelRuntimeContext(RuntimeContext):
     """Encapsulates runtime state for a session."""
 
     _kernel: Kernel
+    # app that owns this context; None for top-level contexts
+    _app: Optional[InternalApp] = None
     _id_provider: Optional[IDProvider] = None
 
     @property
@@ -103,6 +106,39 @@ class KernelRuntimeContext(RuntimeContext):
         finally:
             self._kernel.execution_context = old
 
+    @property
+    def app(self) -> InternalApp:
+        assert self._app is not None
+        return self._app
+
+
+def create_kernel_context(
+    kernel: Kernel,
+    stream: Stream,
+    stdout: Stdout | None,
+    stderr: Stderr | None,
+    virtual_files_supported: bool = True,
+    app: InternalApp | None = None,
+    parent: KernelRuntimeContext | None = None,
+) -> KernelRuntimeContext:
+    from marimo._plugins.ui._core.registry import UIElementRegistry
+    from marimo._runtime.virtual_file import VirtualFileRegistry
+
+    return KernelRuntimeContext(
+        _kernel=kernel,
+        _app=app,
+        ui_element_registry=UIElementRegistry(),
+        function_registry=FunctionRegistry(),
+        cell_lifecycle_registry=CellLifecycleRegistry(),
+        virtual_file_registry=VirtualFileRegistry(),
+        virtual_files_supported=virtual_files_supported,
+        stream=stream,
+        stdout=stdout,
+        stderr=stderr,
+        children=[],
+        parent=parent,
+    )
+
 
 def initialize_kernel_context(
     kernel: Kernel,
@@ -115,18 +151,8 @@ def initialize_kernel_context(
 
     Must be called exactly once for each client thread.
     """
-    from marimo._plugins.ui._core.registry import UIElementRegistry
-    from marimo._runtime.virtual_file import VirtualFileRegistry
-
-    runtime_context = KernelRuntimeContext(
-        _kernel=kernel,
-        ui_element_registry=UIElementRegistry(),
-        function_registry=FunctionRegistry(),
-        cell_lifecycle_registry=CellLifecycleRegistry(),
-        virtual_file_registry=VirtualFileRegistry(),
-        virtual_files_supported=virtual_files_supported,
-        stream=stream,
-        stdout=stdout,
-        stderr=stderr,
+    initialize_context(
+        runtime_context=create_kernel_context(
+            kernel, stream, stdout, stderr, virtual_files_supported
+        )
     )
-    initialize_context(runtime_context=runtime_context)

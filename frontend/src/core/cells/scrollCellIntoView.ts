@@ -94,7 +94,7 @@ export function focusAndScrollCellOutputIntoView(cellId: CellId) {
  */
 export function scrollToBottom() {
   const app = document.getElementById("App");
-  app?.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+  app?.scrollTo({ top: app.scrollHeight, behavior: "smooth" });
 }
 
 export function scrollToTop() {

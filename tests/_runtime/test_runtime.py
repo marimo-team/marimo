@@ -20,6 +20,7 @@ from marimo._messaging.types import NoopStream
 from marimo._plugins.ui._core.ids import IDProvider
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.dataflow import EdgeWithVar
+from marimo._runtime.patches import create_main_module
 from marimo._runtime.requests import (
     AppMetadata,
     CreationRequest,
@@ -34,7 +35,6 @@ from tests.conftest import ExecReqProvider, MockedKernel
 
 if TYPE_CHECKING:
     import pathlib
-    from types import ModuleType
 
 
 def _check_edges(error: Error, expected_edges: Sequence[EdgeWithVar]) -> None:
@@ -179,9 +179,11 @@ class TestExecution:
         array
         """
         await k.run([exec_req.get(code=cell_one_code)])
+        assert not k.errors
 
         # Reference the array's value
         await k.run([er := exec_req.get(code="x = array.value[0] + 1")])
+        assert not k.errors
         assert k.globals["x"] == 2
 
         # Set a child of the array to 5 ...
@@ -743,12 +745,8 @@ class TestExecution:
         assert k.globals["pickle_output"] is not None
 
     def test_sys_path_updated(self, tmp_path: pathlib.Path) -> None:
-        main: ModuleType | None = None
         try:
             filename = str(tmp_path / "notebook.py")
-            if "__main__" in sys.modules:
-                # kernel patches __main__; need to reset it after test
-                main = sys.modules["__main__"]
             Kernel(
                 stream=NoopStream(),
                 stdout=None,
@@ -760,14 +758,13 @@ class TestExecution:
                     query_params={}, filename=filename, cli_args={}
                 ),
                 enqueue_control_request=lambda _: None,
+                module=create_main_module(None, None),
             )
             assert str(tmp_path) in sys.path
             assert str(tmp_path) == sys.path[0]
         finally:
             if str(tmp_path) in sys.path:
                 sys.path.remove(str(tmp_path))
-            if main is not None:
-                sys.modules["__main__"] = main
 
     async def test_set_config_before_registering_cell(
         self, any_kernel: Kernel, exec_req: ExecReqProvider

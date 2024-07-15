@@ -1,6 +1,12 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
+from typing import Callable
+
 from marimo._runtime import dataflow
 from marimo._runtime.runner import cell_runner
+
+PreparationHookType = Callable[[cell_runner.Runner], None]
 
 
 def _update_stale_statuses(runner: cell_runner.Runner) -> None:
@@ -22,4 +28,4 @@ def _update_stale_statuses(runner: cell_runner.Runner) -> None:
                     graph.cells[cid].set_stale(stale=False)
 
 
-PREPARATION_HOOKS = [_update_stale_statuses]
+PREPARATION_HOOKS: list[PreparationHookType] = [_update_stale_statuses]

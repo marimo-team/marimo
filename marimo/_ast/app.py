@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import asyncio
 import random
 import string
 from dataclasses import asdict, dataclass
@@ -17,11 +16,7 @@ from typing import (
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._ast.cell import (
-    Cell,
-    CellConfig,
-    CellId_t,
-)
+from marimo._ast.cell import Cell, CellConfig, CellId_t
 from marimo._ast.compiler import cell_factory
 from marimo._ast.errors import (
     CycleError,
@@ -30,22 +25,26 @@ from marimo._ast.errors import (
     UnparsableError,
 )
 from marimo._config.config import WidthType
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import KnownMimeType
-from marimo._messaging.types import NoopStream
+from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
-from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime import dataflow
-from marimo._runtime.context.types import get_context
-from marimo._runtime.executor import (
-    execute_cell,
-    execute_cell_async,
+from marimo._runtime.app.kernel_runner import AppKernelRunner
+from marimo._runtime.app.script_runner import AppScriptRunner
+from marimo._runtime.context.types import (
+    get_context,
+    runtime_context_installed,
 )
-from marimo._runtime.patches import patch_main_module_context
+from marimo._runtime.requests import (
+    FunctionCallRequest,
+    SetUIElementValueRequest,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from marimo._messaging.ops import HumanReadableStatus
+    from marimo._plugins.core.web_component import JSONType
     from marimo._runtime.context.types import ExecutionContext
 
 LOGGER = _loggers.marimo_logger()
@@ -127,14 +126,18 @@ class _Namespace(Mapping[str, object]):
         return tree(self._dict)._mime_()
 
 
+@dataclass
+class AppEmbedResult:
+    output: Html
+    defs: Mapping[str, object]
+
+
 @mddoc
 class App:
-    """A marimo app.
+    """A marimo notebook.
 
-    A marimo app is a dataflow graph, with each node computing a Python
+    A marimo notebook is a dataflow graph, with each node computing a Python
     function.
-
-    This class has no public API, but this may change in the future.
     """
 
     def __init__(self, **kwargs: Any) -> None:
@@ -143,7 +146,15 @@ class App:
         # a TypeError.
         self._config = _AppConfig.from_untrusted_dict(kwargs)
 
-        self._cell_manager = CellManager()
+        if runtime_context_installed():
+            # nested applications get a unique cell prefix to disambiguate
+            # their graph from other graphs
+            get_context()
+            cell_prefix = str(uuid4())
+        else:
+            cell_prefix = ""
+
+        self._cell_manager = CellManager(prefix=cell_prefix)
         self._graph = dataflow.DirectedGraph()
         self._execution_context: ExecutionContext | None = None
         self._runner = dataflow.Runner(self._graph)
@@ -151,10 +162,7 @@ class App:
         self._unparsable = False
         self._initialized = False
 
-        self._app_uuid = str(uuid4())
-        self._pending_ui_element_updates: list[UIElement[Any, Any]] = []
-        self._cached_outputs: dict[CellId_t, Any] | None = None
-        self._cached_defs: Mapping[str, object] | None = None
+        self._app_kernel_runner: AppKernelRunner | None = None
 
     def cell(
         self,
@@ -209,7 +217,7 @@ class App:
 
     def _maybe_initialize(self) -> None:
         if self._unparsable:
-            raise RuntimeError(
+            raise UnparsableError(
                 "This notebook has cells with syntax errors, "
                 "so it cannot be initialized."
             )
@@ -247,201 +255,32 @@ class App:
         finally:
             self._initialized = True
 
+    def _get_kernel_runner(self) -> AppKernelRunner:
+        if self._app_kernel_runner is None:
+            self._app_kernel_runner = AppKernelRunner(InternalApp(self))
+        return self._app_kernel_runner
+
     def _flatten_outputs(self, outputs: dict[CellId_t, Any]) -> Sequence[Any]:
         return tuple(
             outputs[cid]
             for cid in self._cell_manager.valid_cell_ids()
-            if not self._graph.is_disabled(cid)
+            if not self._graph.is_disabled(cid) and cid in outputs
         )
 
-    def _outputs_and_defs(
-        self, outputs: dict[CellId_t, Any], glbls: dict[str, Any]
-    ) -> tuple[Sequence[Any], _Namespace]:
-        # Returns
-        # - the outputs, sorted in the order that cells were added to the
-        #   graph
-        # - dict of defs -> values
-
-        # Cache the outputs keyed by cell ID
-        self._cached_outputs = outputs
-
-        # Cache only def values, not all of glbls
-        # omit defs that were never defined at runtime, eg due to
-        # conditional definitions like
-        #
-        # if cond:
-        #   x = 0
-        self._cached_defs = _Namespace(
+    def _globals_to_defs(self, glbls: dict[str, Any]) -> _Namespace:
+        return _Namespace(
             dictionary={
                 name: glbls[name] for name in self._defs if name in glbls
             },
             owner=self,
         )
 
-        return (self._flatten_outputs(outputs), self._cached_defs)
-
-    # should be kept synchronized with _run_async
-    # TODO(akshayka): DRY these functions
-    def _run_sync(
+    def run(
         self,
-        post_execute_hooks: list[Callable[..., Any]],
-        cells_to_run: set[CellId_t] | None,
     ) -> tuple[Sequence[Any], Mapping[str, Any]]:
-        # No need to provide `file`, `input_override` here, since this
-        # function is only called when running as a script
-        with patch_main_module_context() as module:
-            glbls = module.__dict__
-            # Execute cells and collect outputs
-            outputs: dict[CellId_t, Any] = {}
-            for cid in self._execution_order:
-                cell = self._cell_manager.cell_data_at(cid).cell
-                if cell is None:
-                    continue
-
-                if cells_to_run is not None and cid not in cells_to_run:
-                    assert self._cached_defs is not None
-                    assert self._cached_outputs is not None
-                    outputs[cid] = self._cached_outputs[cid]
-                    glbls = {
-                        **glbls,
-                        **{
-                            name: self._cached_defs[name]
-                            for name in cell.defs
-                            if name in self._cached_defs
-                        },
-                    }
-                    continue
-
-                if cell is not None and not self._graph.is_disabled(cid):
-                    with get_context().with_cell_id(
-                        self._app_uuid + "-" + cid, cid
-                    ):
-                        output = execute_cell(cell._cell, glbls, self._graph)
-                        for hook in post_execute_hooks:
-                            hook()
-                    outputs[cid] = output
-        return self._outputs_and_defs(outputs, glbls)
-
-    async def _run_async(
-        self,
-        post_execute_hooks: list[Callable[..., Any]],
-        cells_to_run: set[CellId_t] | None = None,
-    ) -> tuple[Sequence[Any], Mapping[str, Any]]:
-        # No need to provide `file`, `input_override` here, since this
-        # function is only called when running as a script
-        with patch_main_module_context() as module:
-            glbls = module.__dict__
-            # Execute cells and collect outputs
-            outputs: dict[CellId_t, Any] = {}
-            for cid in self._execution_order:
-                cell = self._cell_manager.cell_data_at(cid).cell
-                if cell is None:
-                    continue
-
-                if cells_to_run is not None and cid not in cells_to_run:
-                    assert self._cached_defs is not None
-                    assert self._cached_outputs is not None
-                    outputs[cid] = self._cached_outputs[cid]
-                    glbls = {
-                        **glbls,
-                        **{
-                            name: self._cached_defs[name]
-                            for name in cell.defs
-                            if name in self._cached_defs
-                        },
-                    }
-                    continue
-
-                if cell is not None and not self._graph.is_disabled(cid):
-                    with get_context().with_cell_id(
-                        self._app_uuid + "-" + cid
-                    ):
-                        output = await execute_cell_async(
-                            cell._cell, glbls, self._graph
-                        )
-                        for hook in post_execute_hooks:
-                            hook()
-                    outputs[cid] = output
-
-        return self._outputs_and_defs(outputs, glbls)
-
-    def _run_internal(
-        self, cells_to_run: set[CellId_t] | None = None
-    ) -> tuple[Sequence[Any], Mapping[str, Any]]:
-        from marimo._runtime.context.script_context import (
-            initialize_script_context,
-        )
-        from marimo._runtime.context.types import (
-            runtime_context_installed,
-            teardown_context,
-        )
-
-        if self._unparsable:
-            raise UnparsableError(
-                "This app can't be run because it has unparsable cells."
-            )
         self._maybe_initialize()
-
-        is_async = False
-        for cell in self._cell_manager.cells():
-            if cell is None:
-                raise RuntimeError(
-                    "Unparsable cell encountered. This is a bug in marimo, "
-                    "please raise an issue."
-                )
-
-            if cell._is_coroutine():
-                is_async = True
-                break
-
-        installed_script_context = False
-        try:
-            if not runtime_context_installed():
-                initialize_script_context(
-                    app=InternalApp(self), stream=NoopStream()
-                )
-                installed_script_context = True
-
-            # formatters aren't automatically registered when running as a
-            # script
-            from marimo._output.formatters.formatters import (
-                register_formatters,
-            )
-            from marimo._output.formatting import FORMATTERS
-
-            if not FORMATTERS:
-                register_formatters()
-
-            post_execute_hooks = []
-            if DependencyManager.has_matplotlib():
-                from marimo._output.mpl import close_figures
-
-                post_execute_hooks.append(close_figures)
-
-            # Provide a unique identifier for UI element prefixes so UI
-            # elements for an app don't get removed from the frontend on re-run
-            #
-            # TODO(akshayka): Do repeated runs cause a leak on the frontend?
-            with get_context().provide_ui_ids(prefix=str(uuid4())):
-                if is_async:
-                    return asyncio.run(
-                        self._run_async(
-                            post_execute_hooks=post_execute_hooks,
-                            cells_to_run=cells_to_run,
-                        )
-                    )
-                else:
-                    return self._run_sync(
-                        post_execute_hooks=post_execute_hooks,
-                        cells_to_run=cells_to_run,
-                    )
-
-        finally:
-            if installed_script_context:
-                teardown_context()
-
-    def run(self) -> tuple[Sequence[Any], Mapping[str, Any]]:
-        return self._run_internal()
+        outputs, glbls = AppScriptRunner(InternalApp(self)).run()
+        return (self._flatten_outputs(outputs), self._globals_to_defs(glbls))
 
     async def _run_cell_async(
         self, cell: Cell, kwargs: dict[str, Any]
@@ -459,43 +298,97 @@ class App:
         output, defs = self._runner.run_cell_sync(cell._cell.cell_id, kwargs)
         return output, _Namespace(defs, owner=self)
 
-    def _register_ui_element_update(self, value: UIElement[Any, Any]) -> None:
-        if value not in self._pending_ui_element_updates:
-            self._pending_ui_element_updates.append(value)
+    async def _set_ui_element_value(
+        self, request: SetUIElementValueRequest
+    ) -> bool:
+        app_kernel_runner = self._get_kernel_runner()
+        return await app_kernel_runner.set_ui_element_value(request)
 
-    def _mime_(self) -> tuple[KnownMimeType, str]:
+    async def _function_call(
+        self, request: FunctionCallRequest
+    ) -> tuple[HumanReadableStatus, JSONType, bool]:
+        app_kernel_runner = self._get_kernel_runner()
+        return await app_kernel_runner.function_call(request)
+
+    @mddoc
+    async def embed(self) -> AppEmbedResult:
+        """Embed a notebook into another notebook.
+
+        The `embed` method lets you embed the output of a notebook
+        into another notebook and access the values of its variables.
+
+        **Example.**
+
+        ```python
+        from my_notebook import app
+        ```
+
+        ```python
+        # execute the notebook
+        result = await app.embed()
+        ```
+
+        ```python
+        # view the notebook's visual output
+        result.output
+        ```
+
+        ```python
+        # access the notebook's defined variables
+        result.defs
+        ```
+
+        Running `await app.embed()` executes the notebook and results an object
+        encapsulating the notebook visual output and its definitions.
+
+        Embedded notebook outputs are interactive: when you interact with
+        UI elements in an embedded notebook's output, any cell referring
+        to the `app` object is marked for execution, and its internal state
+        is automatically updated. This lets you notebooks as building blocks or
+        components to create higher-level notebooks.
+
+        Multiple levels of nesting are supported: it's possible to embed a
+        notebook that in turn embeds another notebook, and marimo will do the
+        right thing.
+
+        **Returns.**
+
+        - An object `result` with two attributes: `result.output` (visual
+          output of the notebook) and `result.defs` (a dictionary mapping
+          variable names defined by the notebook to their values).
+        """
         from marimo._plugins.stateless.flex import vstack
+        from marimo._runtime.context.utils import running_in_notebook
 
-        if self._pending_ui_element_updates and self._cached_defs:
-            updated_names: set[str] = set()
-            defining_cells = set()
-            while self._pending_ui_element_updates:
-                element = self._pending_ui_element_updates.pop()
-                for name, value in self._cached_defs.items():
-                    if value is element:
-                        updated_names.add(name)
-                        defining_cells |= self._graph.get_defining_cells(name)
-                        break
-            descendants = dataflow.transitive_closure(
-                self._graph,
-                defining_cells,
-                inclusive=False,
+        self._maybe_initialize()
+
+        if running_in_notebook():
+            app_kernel_runner = self._get_kernel_runner()
+            if not app_kernel_runner.outputs:
+                outputs, glbls = await app_kernel_runner.run(
+                    set(self._execution_order)
+                )
+            else:
+                outputs, glbls = (
+                    app_kernel_runner.outputs,
+                    app_kernel_runner.globals,
+                )
+            return AppEmbedResult(
+                output=vstack(
+                    [
+                        o
+                        for o in self._flatten_outputs(outputs)
+                        if o is not None
+                    ]
+                ),
+                defs=self._globals_to_defs(glbls),
             )
-            self._run_internal(cells_to_run=descendants)
-        elif self._cached_outputs is None:
-            self.run()
-
-        assert self._cached_outputs is not None
-        return (
-            "text/html",
-            vstack(
-                [
-                    o
-                    for o in self._flatten_outputs(self._cached_outputs)
-                    if o is not None
-                ]
-            ).text,
-        )
+        else:
+            flat_outputs, defs = self.run()
+            return AppEmbedResult(
+                output=vstack([o for o in flat_outputs if o is not None]),
+                defs=defs,
+            )
 
 
 class CellManager:
@@ -506,14 +399,17 @@ class CellManager:
     provides methods to access them.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, prefix: str = "") -> None:
         self._cell_data: dict[CellId_t, CellData] = {}
+        self.prefix = prefix
         self.unparsable = False
         self.random_seed = random.Random(42)
 
     def create_cell_id(self) -> CellId_t:
         # 4 random letters
-        return "".join(self.random_seed.choices(string.ascii_letters, k=4))
+        return self.prefix + "".join(
+            self.random_seed.choices(string.ascii_letters, k=4)
+        )
 
     def cell_decorator(
         self,
@@ -676,6 +572,11 @@ class InternalApp:
         return self._app._graph
 
     @property
+    def execution_order(self) -> list[CellId_t]:
+        self._app._maybe_initialize()
+        return self._app._execution_order
+
+    @property
     def execution_context(self) -> ExecutionContext | None:
         return self._app._execution_context
 
@@ -728,3 +629,13 @@ class InternalApp:
         self, cell: Cell, kwargs: dict[str, Any]
     ) -> tuple[Any, _Namespace]:
         return self._app._run_cell_sync(cell, kwargs)
+
+    async def set_ui_element_value(
+        self, request: SetUIElementValueRequest
+    ) -> bool:
+        return await self._app._set_ui_element_value(request)
+
+    async def function_call(
+        self, request: FunctionCallRequest
+    ) -> tuple[HumanReadableStatus, JSONType, bool]:
+        return await self._app._function_call(request)

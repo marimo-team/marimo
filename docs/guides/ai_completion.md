@@ -56,7 +56,7 @@ api_key = "sk-..."
 # Choose a model, we recommend "gpt-4-turbo"
 model = "gpt-4-turbo"
 # Change the base_url if you are using a different OpenAI-compatible API
-base_url = "https://api.openai.com"
+base_url = "https://api.openai.com/v1"
 ```
 
 Once enabled, you can use AI completion by pressing `Ctrl/Cmd-Shift-e` in a

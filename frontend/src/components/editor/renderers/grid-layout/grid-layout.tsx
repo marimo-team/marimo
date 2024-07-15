@@ -1,21 +1,21 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React, {
-  PropsWithChildren,
+  type PropsWithChildren,
   memo,
   useEffect,
   useMemo,
   useState,
 } from "react";
 import { Responsive, WidthProvider } from "react-grid-layout";
-import { ICellRendererProps } from "../types";
-import { GridLayout, GridLayoutCellSide } from "./types";
+import type { ICellRendererProps } from "../types";
+import type { GridLayout, GridLayoutCellSide } from "./types";
 import { OutputArea } from "@/components/editor/Output";
-import { CellRuntimeState } from "@/core/cells/types";
+import type { CellRuntimeState } from "@/core/cells/types";
 
 import "react-grid-layout/css/styles.css";
 import "./styles.css";
-import { CellId } from "@/core/cells/ids";
-import { AppMode } from "@/core/mode";
+import type { CellId } from "@/core/cells/ids";
+import type { AppMode } from "@/core/mode";
 import { TinyCode } from "@/components/editor/cell/TinyCode";
 import { cn } from "@/utils/cn";
 import {
@@ -270,9 +270,9 @@ export const GridLayoutRenderer: React.FC<Props> = ({
     grid = (
       <div
         style={styles}
-        className="bg-background border-t border-x rounded-t shadow-sm w-full mx-auto mt-4 flex flex-col"
+        className="bg-background border-t border-x rounded-t shadow-sm w-full mx-auto mt-4 h-[calc(100%-1rem)] overflow-hidden"
       >
-        <div className="flex-1 overflow-auto">{grid}</div>
+        <div className="h-full overflow-auto">{grid}</div>
       </div>
     );
   }
