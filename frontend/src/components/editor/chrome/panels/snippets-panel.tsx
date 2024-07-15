@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { FC } from "react";
+import React from "react";
 import { BetweenHorizontalStartIcon, PlusIcon } from "lucide-react";
 import { PanelEmptyState } from "./empty-state";
 import { useAsyncData } from "@/hooks/useAsyncData";
