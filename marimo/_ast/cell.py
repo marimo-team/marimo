@@ -111,6 +111,9 @@ class CellImpl:
     # cells can optionally hold a reference to their output
     _output: CellOutput = dataclasses.field(default_factory=CellOutput)
 
+    # Line number of source code starting at the body of the function
+    _start_line: int = None
+
     def configure(self, update: dict[str, Any] | CellConfig) -> CellImpl:
         """Update the cell config.
 

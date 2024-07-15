@@ -54,7 +54,7 @@ def cache(filename: str, code: str) -> None:
     )
 
 
-def compile_cell(code: str, cell_id: CellId_t) -> CellImpl:
+def compile_cell(code: str, cell_id: CellId_t, _start_line: int=None) -> CellImpl:
     # Replace non-breaking spaces with regular spaces -- some frontends
     # send nbsp in place of space, which is a syntax error.
     #
@@ -80,6 +80,7 @@ def compile_cell(code: str, cell_id: CellId_t) -> CellImpl:
             body=None,
             last_expr=None,
             cell_id=cell_id,
+            _start_line=_start_line,
         )
 
     v = ScopedVisitor("cell_" + cell_id)
@@ -123,6 +124,7 @@ def compile_cell(code: str, cell_id: CellId_t) -> CellImpl:
         body=body,
         last_expr=last_expr,
         cell_id=cell_id,
+        _start_line=_start_line,
     )
 
 
@@ -136,6 +138,7 @@ def cell_factory(
     to generate refs and defs. If the user introduced errors to the
     signature, marimo will autofix them on save.
     """
+    code, lnum = inspect.getsourcelines(f)
     function_code = textwrap.dedent(inspect.getsource(f))
 
     # tokenize to find the start of the function body, including
@@ -230,5 +233,10 @@ def cell_factory(
             cell_code += "\n" + lines[end_line][:return_offset]
 
     return Cell(
-        _name=f.__name__, _cell=compile_cell(cell_code, cell_id=cell_id)
+        _name=f.__name__,
+        _cell=compile_cell(
+            cell_code,
+            cell_id=cell_id,
+            _start_line=lnum + start_line,
+        ),
     )
