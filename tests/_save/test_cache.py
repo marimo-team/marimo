@@ -52,6 +52,28 @@ class TestScriptCache:
 
         app.run()
 
+    @staticmethod
+    def test_cache_hit_whitespace() -> None:
+        app = App()
+
+        @app.cell
+        def one() -> tuple[int]:
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            # fmt: off
+            with persistent_cache(name="one", _loader=MockLoader(data={"X": 7, "Y": 8})) as cache: # noqa: E501
+                Y = 9
+                X = 10
+            # fmt: on
+            assert X == 7
+            assert cache._cache.defs == {"X": 7, "Y": 8}
+            assert not cache._loader._saved
+            assert cache._loader._loaded
+            return X, Y, persistent_cache
+
+        app.run()
+
 
 class TestAppCache:
     async def test_cache_miss(self, any_kernel: Kernel) -> None:

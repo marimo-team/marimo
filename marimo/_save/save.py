@@ -108,6 +108,8 @@ class persistent_cache(object):
             return self._old_trace
 
         # This is possible if `With` spans multiple lines.
+        # Observed in python 3.11, but could not replicate in 3.10 or 3.12 with
+        # direct testing.
         if self._cache and self._cache.hit:
             raise SkipWithBlock()
 
@@ -151,9 +153,9 @@ class persistent_cache(object):
                 # an issue with Python's parser? Noticed because lint/ format
                 # breaks things.
                 if self._cache and self._cache.hit:
-                    if lineno >= save_module.body[0].lineno:
-                        raise SkipWithBlock()
-                    return self._old_trace
+                    # if lineno >= save_module.body[0].lineno:
+                    raise SkipWithBlock()
+                    # return self._old_trace
                 self._skipped = False
                 return self._old_trace
             elif i > 1:
