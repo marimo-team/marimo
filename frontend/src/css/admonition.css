@@ -22,7 +22,9 @@
 
   @apply tracking-wide;
 
-  .paragraph {
+  > .paragraph {
+    margin: 0;
+    padding-top: 0.5rem;
     font-weight: initial;
     text-transform: none;
 
