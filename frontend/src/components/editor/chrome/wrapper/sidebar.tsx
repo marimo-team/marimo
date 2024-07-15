@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { PropsWithChildren } from "react";
+import type React from "react";
+import type { PropsWithChildren } from "react";
 import { MessageCircleQuestionIcon } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useChromeActions, useChromeState } from "../state";
 import { Tooltip } from "@/components/ui/tooltip";
 import { FeedbackButton } from "../components/feedback-button";
-import { PANEL_ICONS, PanelType } from "../types";
+import { PANEL_ICONS, type PanelType } from "../types";
 
 export const Sidebar: React.FC = () => {
   const { selectedPanel } = useChromeState();
@@ -17,7 +18,7 @@ export const Sidebar: React.FC = () => {
   };
 
   return (
-    <div className="h-full py-4 px-1 flex flex-col items-start text-muted-foreground text-md select-none no-print text-sm z-50">
+    <div className="h-full py-4 px-1 flex flex-col items-start text-muted-foreground text-md select-none no-print text-sm z-50 dark:bg-background">
       <SidebarItem
         tooltip="View files"
         selected={selectedPanel === "files"}
