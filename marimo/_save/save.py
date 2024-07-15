@@ -41,6 +41,7 @@ class SkipWithBlock(Exception):
     """Special exception to get around executing the with block body."""
 
 
+# BaseException because "raise _ as e" is utilized.
 class CacheException(BaseException):
     pass
 
@@ -82,7 +83,7 @@ class persistent_cache(object):
     def __enter__(self) -> Self:
         sys.settrace(lambda *_args, **_keys: None)
         frame = sys._getframe(1)
-        # Attempt to hold on to the previous trace.
+        # Hold on to the previous trace.
         self._old_trace = frame.f_trace
         # Setting the frametrace, will cause the function to be run on _every_
         # single context call until the trace is cleared.
