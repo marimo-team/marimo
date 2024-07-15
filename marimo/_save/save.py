@@ -127,11 +127,8 @@ class persistent_cache(object):
                     f"{UNEXPECTED_FAILURE_BOILERPLATE}",
                 )
                 graph = ctx.graph
-                # cell ids are unique in execution context, having a UUID in
-                # script mode to ensure this- but the local_cell_id is what's
-                # tied to the graph.
                 cell_id = (
-                    ctx.execution_context.local_cell_id
+                    ctx.execution_context.cell_id
                     or ctx.execution_context.cell_id
                 )
                 pre_module, save_module = ExtractWithBlock(lineno - 1).visit(

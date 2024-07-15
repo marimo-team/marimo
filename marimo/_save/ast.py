@@ -69,8 +69,8 @@ def clean_to_modules(
     # expr.lineno = initializer.lineno
     # expr.lineno = 0
     # expr.lineno = 1000
-    initializer.col_offset = 0
-    pre_block.append(initializer)
+    expr.col_offset = 0
+    pre_block.append(expr)
     return (compiled_ast(pre_block), compiled_ast(block.body))
 
 
