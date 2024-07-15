@@ -82,7 +82,7 @@ def _build_value(value: Any, cls: Type[T]) -> T:
                 f"Value '{value}' does not fit any type of the literal"
             )
         return value  # type: ignore[no-any-return]
-    elif type(cls) == type(Enum) and issubclass(cls, Enum):
+    elif type(cls) is type(Enum) and issubclass(cls, Enum):
         return cls(value)  # type: ignore[return-value]
     elif dataclasses.is_dataclass(cls):
         return build_dataclass(value, cls)  # type: ignore[return-value]
