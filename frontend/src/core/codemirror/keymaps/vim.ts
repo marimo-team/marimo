@@ -121,22 +121,31 @@ class CodeMirrorVimSync {
         const vim = cm.state.vim;
         if (!vim) {
           Logger.warn("Expected CodeMirror instance to have Vim state");
+          continue;
         }
 
         switch (mode) {
           case "normal":
-            if (vim?.insertMode) {
+            // Only exit insert mode if we're in it
+            if (vim.insertMode) {
               Vim.exitInsertMode(cm, true);
             }
-            if (vim?.visualMode) {
+            // Only exit visual mode if we're in it
+            if (vim.visualMode) {
               Vim.exitVisualMode(cm, true);
             }
             break;
           case "insert":
-            Vim.handleKey(cm, "i", "");
+            // Only enter insert mode if we're not already in it
+            if (!vim.insertMode) {
+              Vim.handleKey(cm, "i", "");
+            }
             break;
           case "visual":
-            Vim.handleKey(cm, "v", "");
+            // Only enter visual mode if we're not already in it
+            if (!vim.visualMode) {
+              Vim.handleKey(cm, "v", "");
+            }
             break;
         }
 
