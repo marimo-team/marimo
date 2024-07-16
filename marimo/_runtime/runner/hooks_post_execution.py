@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import ast
 from typing import Callable
 
 from marimo import _loggers
@@ -11,7 +10,6 @@ from marimo._data.get_datasets import (
     get_datasets_from_variables,
     has_updates_to_datasource,
 )
-from marimo._data.sql_visitor import SQLVisitor
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
@@ -97,10 +95,7 @@ def _broadcast_duckdb_tables(
         return
 
     try:
-        code = cell.code
-        visitor = SQLVisitor()
-        visitor.visit(ast.parse(code))
-        sqls = visitor.get_sqls()
+        sqls = cell.sqls
         if not sqls:
             return
         modifies_datasources = any(

@@ -92,7 +92,9 @@ export const DataSourcesPanel: React.FC = () => {
   }
 
   const handleAddColumn = (chartCode: string) => {
-    maybeAddAltairImport(autoInstantiate, createNewCell, lastFocusedCellId);
+    if (chartCode.includes("alt")) {
+      maybeAddAltairImport(autoInstantiate, createNewCell, lastFocusedCellId);
+    }
     createNewCell({
       code: chartCode,
       before: false,
