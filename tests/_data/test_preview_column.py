@@ -41,7 +41,10 @@ def test_get_column_preview() -> None:
     result = get_column_preview(
         df,
         request=PreviewDatasetColumnRequest(
-            source="source", table_name="table", column_name="A"
+            source="source",
+            table_name="table",
+            column_name="A",
+            source_type="local",
         ),
     )
 
@@ -57,7 +60,10 @@ def test_get_column_preview() -> None:
     result = get_column_preview(
         df,
         request=PreviewDatasetColumnRequest(
-            source="source", table_name="table", column_name="date_col"
+            source="source",
+            table_name="table",
+            column_name="date_col",
+            source_type="local",
         ),
     )
 
