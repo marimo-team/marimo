@@ -241,7 +241,8 @@ def test_add_datasets() -> None:
             Datasets(
                 tables=[
                     DataTable(
-                        source="Local",
+                        source_type="local",
+                        source="df",
                         name="table1",
                         columns=[
                             DataTableColumn(
@@ -255,7 +256,8 @@ def test_add_datasets() -> None:
                         variable_name="df1",
                     ),
                     DataTable(
-                        source="Local",
+                        source_type="local",
+                        source="df",
                         name="table2",
                         columns=[
                             DataTableColumn(
@@ -285,7 +287,8 @@ def test_add_datasets() -> None:
             Datasets(
                 tables=[
                     DataTable(
-                        source="Local",
+                        source_type="local",
+                        source="df",
                         name="table2",
                         columns=[
                             DataTableColumn(
@@ -299,7 +302,8 @@ def test_add_datasets() -> None:
                         variable_name="df2",
                     ),
                     DataTable(
-                        source="Local",
+                        source_type="local",
+                        source="df",
                         name="table3",
                         columns=[],
                         num_rows=3,
@@ -335,6 +339,67 @@ def test_add_datasets() -> None:
 
     assert len(session_view.datasets.tables) == 1
     assert session_view.datasets.tables[0].name == "table2"
+
+
+def test_add_datasets_clear_channel() -> None:
+    session_view = SessionView()
+    session_view.add_raw_operation(
+        serialize(
+            Datasets(
+                tables=[
+                    DataTable(
+                        source_type="duckdb",
+                        source="db",
+                        name="db.table1",
+                        columns=[],
+                        num_rows=1,
+                        num_columns=1,
+                        variable_name=None,
+                    ),
+                    DataTable(
+                        source_type="local",
+                        source="memory",
+                        name="df1",
+                        columns=[],
+                        num_rows=1,
+                        num_columns=1,
+                        variable_name="df1",
+                    ),
+                ],
+                clear_channel="duckdb",
+            )
+        )
+    )
+
+    assert len(session_view.datasets.tables) == 2
+    names = [t.name for t in session_view.datasets.tables]
+    assert "db.table1" in names
+    assert "df1" in names
+
+    session_view.add_raw_operation(
+        serialize(
+            Datasets(
+                tables=[
+                    DataTable(
+                        source_type="local",
+                        source="db",
+                        name="db.table2",
+                        columns=[],
+                        num_rows=1,
+                        num_columns=1,
+                        variable_name=None,
+                    )
+                ],
+                clear_channel="duckdb",
+            )
+        )
+    )
+
+    assert len(session_view.datasets.tables) == 2
+    names = [t.name for t in session_view.datasets.tables]
+    assert "db.table1" not in names
+    assert "df1" in names
+    assert "db.table2" in names
 
 
 def test_add_cell_op() -> None:

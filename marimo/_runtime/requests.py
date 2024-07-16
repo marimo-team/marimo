@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from marimo._ast.cell import CellId_t
 from marimo._config.config import MarimoConfig
+from marimo._data.models import DataTableSource
 
 UIElementId = str
 CompletionRequestId = str
@@ -143,6 +144,8 @@ class InstallMissingPackagesRequest:
 
 @dataclass
 class PreviewDatasetColumnRequest:
+    # The source type of the dataset
+    source_type: DataTableSource
     # The source of the dataset
     source: str
     # The name of the dataset

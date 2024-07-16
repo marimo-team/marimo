@@ -42,6 +42,8 @@ import type {
 } from "@/core/kernel/messages";
 import { variablesAtom } from "@/core/variables/state";
 import { sortBy } from "lodash-es";
+import { logNever } from "@/utils/assertNever";
+import { Objects } from "@/utils/objects";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -90,7 +92,9 @@ export const DataSourcesPanel: React.FC = () => {
   }
 
   const handleAddColumn = (chartCode: string) => {
-    maybeAddAltairImport(autoInstantiate, createNewCell, lastFocusedCellId);
+    if (chartCode.includes("alt")) {
+      maybeAddAltairImport(autoInstantiate, createNewCell, lastFocusedCellId);
+    }
     createNewCell({
       code: chartCode,
       before: false,
@@ -100,8 +104,20 @@ export const DataSourcesPanel: React.FC = () => {
 
   const handleAddTable = (table: DataTable) => {
     maybeAddMarimoImport(autoInstantiate, createNewCell, lastFocusedCellId);
+    let code = "";
+    switch (table.source_type) {
+      case "local":
+        code = `mo.data.table(${table.name})`;
+        break;
+      case "duckdb":
+        code = `_df = mo.sql(f"SELECT * FROM ${table.name} LIMIT 100")`;
+        break;
+      default:
+        logNever(table.source_type);
+        break;
+    }
     createNewCell({
-      code: `mo.ui.table(${table.name})`,
+      code: code,
       before: false,
       cellId: lastFocusedCellId ?? "__end__",
     });
@@ -151,6 +167,7 @@ export const DataSourcesPanel: React.FC = () => {
                 source: table.source,
                 tableName: table.name,
                 columnName: column.name,
+                sourceType: table.source_type,
               });
             }
           }}
@@ -198,53 +215,96 @@ const TableList: React.FC<{
   isTableExpanded,
   isColumnExpanded,
 }) => {
+  let groupedBySource = Object.entries(
+    Objects.groupBy(
+      tables,
+      (table) => table.source,
+      (table) => table,
+    ),
+  );
+  // Sort by `memory` first, then by alphabet
+  groupedBySource = sortBy(groupedBySource, ([source]) => {
+    if (source === "memory") {
+      return 0;
+    }
+    return 1;
+  });
+
+  const renderTable = (table: DataTable): React.ReactNode => {
+    const expanded = isTableExpanded(table);
+    const items = [
+      <DatasetTableItem
+        key={table.name}
+        table={table}
+        forceMount={isSearching}
+        onExpand={() => onExpandTable(table)}
+        onAddTable={() => onAddTable(table)}
+        isExpanded={expanded}
+      />,
+    ];
+
+    if (expanded) {
+      items.push(
+        ...table.columns.map((column) => {
+          return (
+            <React.Fragment key={`${table.name}.${column.name}`}>
+              <DatasetColumnItem
+                key={`${table.name}.${column.name}`}
+                table={table}
+                column={column}
+                onExpandColumn={onExpandColumn}
+                isExpanded={isColumnExpanded(table, column)}
+              />
+              {isColumnExpanded(table, column) && (
+                <div className="pl-10 pr-2 py-2 bg-[var(--slate-1)] shadow-inner border-b">
+                  <ErrorBoundary>
+                    <DatasetColumnPreview
+                      table={table}
+                      column={column}
+                      onAddColumnChart={onAddColumnChart}
+                      preview={columnPreviews.get(
+                        `${table.name}:${column.name}`,
+                      )}
+                    />
+                  </ErrorBoundary>
+                </div>
+              )}
+            </React.Fragment>
+          );
+        }),
+      );
+    }
+
+    return items;
+  };
+
+  const renderTableWithHeaders = () => {
+    if (groupedBySource.length === 0) {
+      return null;
+    }
+    if (groupedBySource.length === 1) {
+      return groupedBySource[0][1].flatMap(renderTable);
+    }
+
+    return groupedBySource.flatMap(([source, tables], idx) => {
+      return [
+        <div
+          className={cn(
+            "font-bold px-2 py-1 text-muted-foreground bg-[var(--slate-2)] border-t text-sm",
+            idx > 0 && "border-t",
+          )}
+          key={source}
+        >
+          {source === "memory" ? "In-Memory" : source}
+        </div>,
+        ...tables.flatMap(renderTable),
+      ];
+    });
+  };
+
   return (
     <CommandList className="flex flex-col overflow-auto">
-      {tables.flatMap((table) => {
-        const expanded = isTableExpanded(table);
-        const items = [
-          <DatasetTableItem
-            key={table.name}
-            table={table}
-            forceMount={isSearching}
-            onExpand={() => onExpandTable(table)}
-            onAddTable={() => onAddTable(table)}
-            isExpanded={expanded}
-          />,
-        ];
-
-        if (expanded) {
-          items.push(
-            ...table.columns.map((column) => {
-              return (
-                <React.Fragment key={`${table.name}.${column.name}`}>
-                  <DatasetColumnItem
-                    key={`${table.name}.${column.name}`}
-                    table={table}
-                    column={column}
-                    onExpandColumn={onExpandColumn}
-                    isExpanded={isColumnExpanded(table, column)}
-                  />
-                  {isColumnExpanded(table, column) && (
-                    <div className="pl-10 pr-2 py-2 bg-[var(--slate-1)] shadow-inner border-b">
-                      <ErrorBoundary>
-                        <DatasetColumnPreview
-                          onAddColumnChart={onAddColumnChart}
-                          preview={columnPreviews.get(
-                            `${table.name}:${column.name}`,
-                          )}
-                        />
-                      </ErrorBoundary>
-                    </div>
-                  )}
-                </React.Fragment>
-              );
-            }),
-          );
-        }
-
-        return items;
-      })}
+      {renderTableWithHeaders()}
     </CommandList>
   );
 };
@@ -257,11 +317,17 @@ const DatasetTableItem: React.FC<{
   isExpanded: boolean;
 }> = ({ table, onExpand, onAddTable, isExpanded }) => {
   const renderRowsByColumns = () => {
-    if (table.num_rows == null && table.num_columns == null) {
-      return null;
+    const label: string[] = [];
+    if (table.num_rows != null) {
+      label.push(`${table.num_rows} rows`);
+    }
+    if (table.num_columns != null) {
+      label.push(`${table.num_columns} columns`);
     }
 
-    const label = [`${table.num_rows} rows`, `${table.num_columns} columns`];
+    if (label.length === 0) {
+      return null;
+    }
 
     return (
       <div className="flex flex-row gap-2 items-center pl-6 group-hover:hidden">
@@ -349,10 +415,28 @@ const LazyVegaLite = React.lazy(() =>
 );
 
 const DatasetColumnPreview: React.FC<{
+  table: DataTable;
+  column: DataTableColumn;
   onAddColumnChart: (code: string) => void;
   preview: DataColumnPreview | undefined;
-}> = ({ preview, onAddColumnChart }) => {
+}> = ({ table, column, preview, onAddColumnChart }) => {
   const { theme } = useTheme();
+
+  if (table.source_type === "duckdb") {
+    return (
+      <Button
+        variant="text"
+        className="z-10"
+        size="xs"
+        onClick={Events.stopPropagation(() => {
+          const code = `_df = mo.sql(f"SELECT '${column.name}' FROM ${table.name} LIMIT 100")`;
+          onAddColumnChart(code);
+        })}
+      >
+        <PlusSquareIcon className="h-4 w-4 mr-2" /> Add cell
+      </Button>
+    );
+  }
 
   if (!preview) {
     return <span className="text-xs text-muted-foreground">Loading...</span>;

@@ -1,17 +1,18 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import ast
 import dataclasses
 import inspect
 from typing import TYPE_CHECKING, Any, Literal, Mapping, Optional
 
 from marimo._ast.visitor import ImportData, Name, VariableData
+from marimo._data.sql_visitor import SQLVisitor
 from marimo._utils.deep_merge import deep_merge
 
 CellId_t = str
 
 if TYPE_CHECKING:
-    import ast
     from collections.abc import Awaitable, Iterable
     from types import CodeType
 
@@ -122,6 +123,17 @@ class CellImpl:
     @property
     def status(self) -> Optional[CellStatusType]:
         return self._status.state
+
+    @property
+    def sqls(self) -> list[str]:
+        """Return a list of SQL statements for this cell."""
+        try:
+            visitor = SQLVisitor()
+            visitor.visit(ast.parse(self.code))
+            sqls = visitor.get_sqls()
+            return sqls
+        except Exception:
+            return []
 
     @property
     def stale(self) -> bool:

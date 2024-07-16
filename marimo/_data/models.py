@@ -27,6 +27,9 @@ class DataTableColumn:
     external_type: ExternalDataType
 
 
+DataTableSource = Literal["local", "duckdb"]
+
+
 @dataclass
 class DataTable:
     """
@@ -42,6 +45,7 @@ class DataTable:
         columns (List[DataTableColumn]): The list of columns in the data table.
     """
 
+    source_type: DataTableSource
     source: str
     name: str
     num_rows: Optional[int]
