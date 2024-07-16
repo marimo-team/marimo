@@ -89,6 +89,7 @@ from marimo._runtime.requests import (
     CreationRequest,
     DeleteCellRequest,
     ExecuteMultipleRequest,
+    ExecuteScratchpadRequest,
     ExecuteStaleRequest,
     ExecutionRequest,
     FunctionCallRequest,
@@ -110,6 +111,7 @@ from marimo._runtime.runner.hooks_on_finish import OnFinishHookType
 from marimo._runtime.runner.hooks_post_execution import PostExecutionHookType
 from marimo._runtime.runner.hooks_pre_execution import PreExecutionHookType
 from marimo._runtime.runner.hooks_preparation import PreparationHookType
+from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._runtime.state import State
 from marimo._runtime.utils.set_ui_element_request_manager import (
     SetUIElementRequestManager,
@@ -754,6 +756,8 @@ class Kernel:
                 syntax_errors[er.cell_id] = error
 
         for dr in deletion_requests:
+            if dr.cell_id not in cells_before_mutation:
+                continue
             cells_that_were_children_of_mutated_cells |= self._delete_cell(
                 dr.cell_id
             )
@@ -1035,8 +1039,44 @@ class Kernel:
         """
 
         await self._run_cells(
-            self.mutate_graph(execution_requests, deletion_requests=[])
+            self.mutate_graph(
+                execution_requests,
+                deletion_requests=[
+                    # Always delete the scratchpad cell
+                    DeleteCellRequest(cell_id=SCRATCH_CELL_ID)
+                ],
+            )
         )
+
+    async def run_scratchpad(self, request: ExecuteScratchpadRequest) -> None:
+        LOGGER.warning("Running scratchpad cell")
+        roots = {SCRATCH_CELL_ID}
+        # Mutated graph by adding scratchpad cell
+        self.mutate_graph(
+            execution_requests=[
+                ExecutionRequest(SCRATCH_CELL_ID, request.code)
+            ],
+            deletion_requests=[],
+        )
+        runner = cell_runner.Runner(
+            roots=roots,
+            graph=self.graph,
+            glbls=self.globals,
+            excluded_cells=set(self.errors.keys()),
+            debugger=self.debugger,
+            execution_mode=self.reactive_execution_mode,
+            execution_type=self.execution_type,
+            execution_context=self._install_execution_context,
+            preparation_hooks=self._preparation_hooks,  # + [invalidate_state],
+            pre_execution_hooks=self._pre_execution_hooks,
+            post_execution_hooks=self._post_execution_hooks,
+            on_finish_hooks=(
+                self._on_finish_hooks
+                # + [broadcast_missing_packages, propagate_kernel_errors]
+            ),
+        )
+
+        await runner.run_all()
 
     async def run_stale_cells(self) -> None:
         cells_to_run: set[CellId_t] = set()
@@ -1481,6 +1521,8 @@ class Kernel:
             elif isinstance(request, ExecuteMultipleRequest):
                 await self.run(request.execution_requests)
                 CompletedRun().broadcast()
+            elif isinstance(request, ExecuteScratchpadRequest):
+                await self.run_scratchpad(request)
             elif isinstance(request, ExecuteStaleRequest):
                 await self.run_stale_cells()
             elif isinstance(request, SetCellConfigRequest):

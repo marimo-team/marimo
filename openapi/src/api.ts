@@ -557,6 +557,23 @@ export interface paths {
       };
     };
   };
+  "/api/kernel/scratchpad/run": {
+    post: {
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["RunScratchpadRequest"];
+        };
+      };
+      responses: {
+        /** @description Run the scratchpad */
+        200: {
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+  };
   "/api/kernel/set_cell_config": {
     post: {
       requestBody?: {
@@ -915,6 +932,9 @@ export interface components {
     ExecuteMultipleRequest: {
       cellIds: string[];
       codes: string[];
+    };
+    ExecuteScratchpadRequest: {
+      code: string;
     };
     ExecuteStaleRequest: Record<string, never>;
     ExecutionRequest: {
@@ -1310,6 +1330,9 @@ export interface components {
     RunRequest: {
       cellIds: string[];
       codes: string[];
+    };
+    RunScratchpadRequest: {
+      code: string;
     };
     RunningNotebooksResponse: {
       files: components["schemas"]["MarimoFile"][];

@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { paths, type components } from "@marimo-team/marimo-api";
-import { CellId } from "../cells/ids";
+import type { paths, components } from "@marimo-team/marimo-api";
+import type { CellId } from "../cells/ids";
 
 export type schemas = components["schemas"];
 export type AiCompletionRequest = schemas["AiCompletionRequest"];
@@ -52,6 +52,7 @@ export type ReadCodeResponse = schemas["ReadCodeResponse"];
 export type RecentFilesResponse = schemas["RecentFilesResponse"];
 export type RenameFileRequest = schemas["RenameFileRequest"];
 export type RunRequest = schemas["RunRequest"];
+export type RunScratchpadRequest = schemas["RunScratchpadRequest"];
 export type SaveAppConfigurationRequest =
   schemas["SaveAppConfigurationRequest"];
 export type SaveNotebookRequest = schemas["SaveNotebookRequest"];
@@ -94,6 +95,7 @@ export interface EditRequests {
   sendSave: (request: SaveNotebookRequest) => Promise<null>;
   sendStdin: (request: StdinRequest) => Promise<null>;
   sendRun: (request: RunRequest) => Promise<null>;
+  sendRunScratchpad: (request: RunScratchpadRequest) => Promise<null>;
   sendInterrupt: () => Promise<null>;
   sendShutdown: () => Promise<null>;
   sendFormat: (request: FormatRequest) => Promise<FormatResponse>;

@@ -24,6 +24,7 @@ import { FileExplorerPanel } from "../panels/file-explorer-panel";
 import { SnippetsPanel } from "../panels/snippets-panel";
 import { ErrorBoundary } from "../../boundary/ErrorBoundary";
 import { DataSourcesPanel } from "../panels/datasources-panel";
+import { ScratchpadPanel } from "../panels/scratchpad-panel";
 
 export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const { isOpen, selectedPanel } = useChromeState();
@@ -105,6 +106,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
           {selectedPanel === "datasources" && <DataSourcesPanel />}
           {selectedPanel === "documentation" && <DocumentationPanel />}
           {selectedPanel === "snippets" && <SnippetsPanel />}
+          {selectedPanel === "scratchpad" && <ScratchpadPanel />}
           {selectedPanel === "logs" && <LogsPanel />}
         </div>
       </Suspense>

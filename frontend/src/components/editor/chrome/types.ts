@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Objects } from "@/utils/objects";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 import {
   XCircleIcon,
   FolderTreeIcon,
@@ -11,6 +11,7 @@ import {
   type LucideIcon,
   SquareDashedBottomCodeIcon,
   DatabaseIcon,
+  NotebookPenIcon,
 } from "lucide-react";
 
 export type PanelType =
@@ -22,18 +23,77 @@ export type PanelType =
   | "documentation"
   | "snippets"
   | "datasources"
+  | "scratchpad"
   | "logs";
 
-export const PANEL_ICONS: Record<PanelType, LucideIcon> = {
-  errors: XCircleIcon,
-  files: FolderTreeIcon,
-  variables: FunctionSquareIcon,
-  datasources: DatabaseIcon,
-  dependencies: NetworkIcon,
-  outline: ScrollTextIcon,
-  documentation: TextSearchIcon,
-  logs: FileTextIcon,
-  snippets: SquareDashedBottomCodeIcon,
-};
+export interface PanelDescriptor {
+  type: PanelType;
+  Icon: LucideIcon;
+  hidden?: boolean;
+  tooltip: string;
+  position: "sidebar" | "footer";
+}
 
-export const PANEL_TYPES: PanelType[] = Objects.keys(PANEL_ICONS);
+export const PANELS: PanelDescriptor[] = [
+  {
+    type: "files",
+    Icon: FolderTreeIcon,
+    tooltip: "View files",
+    position: "sidebar",
+  },
+  {
+    type: "variables",
+    Icon: FunctionSquareIcon,
+    tooltip: "Explore variables",
+    position: "sidebar",
+  },
+  {
+    type: "datasources",
+    Icon: DatabaseIcon,
+    tooltip: "Explore data sources",
+    position: "sidebar",
+  },
+  {
+    type: "dependencies",
+    Icon: NetworkIcon,
+    tooltip: "Explore dependencies",
+    position: "sidebar",
+  },
+  {
+    type: "outline",
+    Icon: ScrollTextIcon,
+    tooltip: "View outline",
+    position: "sidebar",
+  },
+  {
+    type: "documentation",
+    Icon: TextSearchIcon,
+    tooltip: "View live docs",
+    position: "sidebar",
+  },
+  {
+    type: "logs",
+    Icon: FileTextIcon,
+    tooltip: "Notebook logs",
+    position: "sidebar",
+  },
+  {
+    type: "snippets",
+    Icon: SquareDashedBottomCodeIcon,
+    tooltip: "Snippets",
+    position: "sidebar",
+  },
+  {
+    type: "scratchpad",
+    Icon: NotebookPenIcon,
+    hidden: !getFeatureFlag("scratchpad"),
+    tooltip: "Scratchpad",
+    position: "sidebar",
+  },
+  {
+    type: "errors",
+    Icon: XCircleIcon,
+    tooltip: "View errors",
+    position: "footer",
+  },
+];

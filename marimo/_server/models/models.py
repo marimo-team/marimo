@@ -6,7 +6,10 @@ from typing import Any, Dict, List, Optional
 
 from marimo._ast.cell import CellConfig, CellId_t
 from marimo._config.config import MarimoConfig
-from marimo._runtime.requests import ExecuteMultipleRequest
+from marimo._runtime.requests import (
+    ExecuteMultipleRequest,
+    ExecuteScratchpadRequest,
+)
 
 UIElementId = str
 
@@ -84,6 +87,14 @@ class RunRequest:
         assert len(self.cell_ids) == len(
             self.codes
         ), "Mismatched cell_ids and codes"
+
+
+@dataclass
+class RunScratchpadRequest:
+    code: str
+
+    def as_execution_request(self) -> ExecuteScratchpadRequest:
+        return ExecuteScratchpadRequest(code=self.code)
 
 
 @dataclass

@@ -18,7 +18,7 @@ import {
 import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 import { Button } from "@/components/ui/button";
 import { cellIdsAtom, useCellActions } from "@/core/cells/cells";
-import { lastFocusedCellIdAtom } from "@/core/cells/focus";
+import { useLastFocusedCellId } from "@/core/cells/focus";
 import { atom, useAtomValue } from "jotai";
 import { Tooltip } from "@/components/ui/tooltip";
 import { PanelEmptyState } from "./empty-state";
@@ -35,7 +35,7 @@ import {
   maybeAddMarimoImport,
 } from "@/core/cells/add-missing-import";
 import { autoInstantiateAtom } from "@/core/config/config";
-import {
+import type {
   DataColumnPreview,
   DataTable,
   DataTableColumn,
@@ -73,7 +73,7 @@ export const DataSourcesPanel: React.FC = () => {
   const [searchValue, setSearchValue] = React.useState<string>("");
 
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
-  const lastFocusedCellId = useAtomValue(lastFocusedCellIdAtom);
+  const lastFocusedCellId = useLastFocusedCellId();
   const { expandedColumns, expandedTables, columnsPreviews } = useDatasets();
   const { toggleTable, toggleColumn, closeAllColumns } = useDatasetsActions();
   const { createNewCell } = useCellActions();
