@@ -108,7 +108,7 @@ class TestExecutionRoutes_EditMode:
     @with_session(SESSION_ID)
     def test_run_scratchpad(client: TestClient) -> None:
         response = client.post(
-            "/api/kernel/run_scratchpad",
+            "/api/kernel/scratchpad/run",
             headers=HEADERS,
             json={"code": "print('Hello, scratchpad')"},
         )
@@ -194,7 +194,7 @@ class TestExecutionRoutes_RunMode:
     @with_read_session(SESSION_ID)
     def test_run_scratchpad(client: TestClient) -> None:
         response = client.post(
-            "/api/kernel/run_scratchpad",
+            "/api/kernel/scratchpad/run",
             headers=HEADERS,
             json={"code": "print('Hello, scratchpad')"},
         )
