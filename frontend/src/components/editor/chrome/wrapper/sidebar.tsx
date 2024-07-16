@@ -6,7 +6,6 @@ import { cn } from "@/utils/cn";
 import { useChromeActions, useChromeState } from "../state";
 import { Tooltip } from "@/components/ui/tooltip";
 import { FeedbackButton } from "../components/feedback-button";
-import { PANEL_ICONS, type PanelType } from "../types";
 import { type PanelDescriptor, PANELS } from "../types";
 
 export const Sidebar: React.FC = () => {
