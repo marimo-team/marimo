@@ -59,8 +59,8 @@ def has_updates_to_datasource(query: str) -> bool:
 
     try:
         statements = duckdb.extract_statements(query)
-    except Exception as e:
-        LOGGER.error(e)
+    except Exception:
+        # May not be valid SQL
         return False
 
     return any(
@@ -84,8 +84,6 @@ def get_datasets_from_duckdb() -> List[DataTable]:
 def _get_datasets_from_duckdb_internal() -> List[DataTable]:
     import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
-    LOGGER.warning("Has updates to datasource")
-
     # Columns
     # 0:"database"
     # 1:"schema"
@@ -95,7 +93,7 @@ def _get_datasets_from_duckdb_internal() -> List[DataTable]:
     # 5:"temporary"
     databases = duckdb.execute("SHOW ALL TABLES").fetchall()
     if not len(databases):
-        LOGGER.warning("No tables in database")
+        # No tables
         return []
 
     tables: list[DataTable] = []

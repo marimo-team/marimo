@@ -341,6 +341,67 @@ def test_add_datasets() -> None:
     assert session_view.datasets.tables[0].name == "table2"
 
 
+def test_add_datasets_clear_channel() -> None:
+    session_view = SessionView()
+    session_view.add_raw_operation(
+        serialize(
+            Datasets(
+                tables=[
+                    DataTable(
+                        source_type="duckdb",
+                        source="db",
+                        name="db.table1",
+                        columns=[],
+                        num_rows=1,
+                        num_columns=1,
+                        variable_name=None,
+                    ),
+                    DataTable(
+                        source_type="local",
+                        source="memory",
+                        name="df1",
+                        columns=[],
+                        num_rows=1,
+                        num_columns=1,
+                        variable_name="df1",
+                    ),
+                ],
+                clear_channel="duckdb",
+            )
+        )
+    )
+
+    assert len(session_view.datasets.tables) == 2
+    names = [t.name for t in session_view.datasets.tables]
+    assert "db.table1" in names
+    assert "df1" in names
+
+    session_view.add_raw_operation(
+        serialize(
+            Datasets(
+                tables=[
+                    DataTable(
+                        source_type="local",
+                        source="db",
+                        name="db.table2",
+                        columns=[],
+                        num_rows=1,
+                        num_columns=1,
+                        variable_name=None,
+                    )
+                ],
+                clear_channel="duckdb",
+            )
+        )
+    )
+
+    assert len(session_view.datasets.tables) == 2
+    names = [t.name for t in session_view.datasets.tables]
+    assert "db.table1" not in names
+    assert "df1" in names
+    assert "db.table2" in names
+
+
 def test_add_cell_op() -> None:
     session_view = SessionView()
     session_view.add_raw_operation(

@@ -139,7 +139,16 @@ class SessionView:
             self.add_stdin("")
         elif isinstance(operation, Datasets):
             # Merge datasets, dedupe by table name and keep the latest.
-            tables = {t.name: t for t in self.datasets.tables}
+            # If clear_channel is set, clear those tables
+            prev_tables = self.datasets.tables
+            if operation.clear_channel is not None:
+                prev_tables = [
+                    t
+                    for t in prev_tables
+                    if t.source_type != operation.clear_channel
+                ]
+
+            tables = {t.name: t for t in prev_tables}
             for table in operation.tables:
                 tables[table.name] = table
             self.datasets = Datasets(tables=list(tables.values()))
