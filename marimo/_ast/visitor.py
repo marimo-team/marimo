@@ -84,7 +84,9 @@ class RefData:
 
 
 class ScopedVisitor(ast.NodeVisitor):
-    def __init__(self, mangle_prefix: Optional[str] = None) -> None:
+    def __init__(
+        self, mangle_prefix: Optional[str] = None, ignore_local: bool = False
+    ) -> None:
         self.block_stack: list[Block] = [Block()]
         # Names to be loaded into a variable required_refs
         self.ref_stack: list[set[Name]] = [set()]
@@ -97,6 +99,7 @@ class ScopedVisitor(ast.NodeVisitor):
             if mangle_prefix is None
             else mangle_prefix
         )
+        self.is_local = (lambda _: False) if ignore_local else is_local
 
     @property
     def defs(self) -> set[Name]:
@@ -122,7 +125,9 @@ class ScopedVisitor(ast.NodeVisitor):
         self, name: str, ignore_scope: bool = False
     ) -> str:
         """Mangle local variable name declared at top-level scope."""
-        if is_local(name) and (len(self.block_stack) == 1 or ignore_scope):
+        if self.is_local(name) and (
+            len(self.block_stack) == 1 or ignore_scope
+        ):
             return f"_{self.id}{name}"
         else:
             return name
@@ -499,16 +504,16 @@ class ScopedVisitor(ast.NodeVisitor):
         elif (
             isinstance(node.ctx, ast.Load)
             and not self._is_defined(node.id)
-            and not is_local(node.id)
+            and not self.is_local(node.id)
         ):
             self._add_ref(node.id, deleted=False)
         elif (
             isinstance(node.ctx, ast.Del)
             and not self._is_defined(node.id)
-            and not is_local(node.id)
+            and not self.is_local(node.id)
         ):
             self._add_ref(node.id, deleted=True)
-        elif is_local(node.id):
+        elif self.is_local(node.id):
             mangled_name = self._if_local_then_mangle(
                 node.id, ignore_scope=True
             )
