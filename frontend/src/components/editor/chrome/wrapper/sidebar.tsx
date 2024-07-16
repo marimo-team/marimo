@@ -10,60 +10,60 @@ import { PANEL_ICONS, type PanelType } from "../types";
 import { type PanelDescriptor, PANELS } from "../types";
 
 export const Sidebar: React.FC = () => {
-	const { selectedPanel } = useChromeState();
-	const { openApplication } = useChromeActions();
+  const { selectedPanel } = useChromeState();
+  const { openApplication } = useChromeActions();
 
-	const renderIcon = ({ Icon }: PanelDescriptor, className?: string) => {
-		return <Icon className={cn("h-5 w-5", className)} />;
-	};
+  const renderIcon = ({ Icon }: PanelDescriptor, className?: string) => {
+    return <Icon className={cn("h-5 w-5", className)} />;
+  };
 
-	const sidebarItems = PANELS.filter(
-		(p) => !p.hidden && p.position === "sidebar",
-	);
+  const sidebarItems = PANELS.filter(
+    (p) => !p.hidden && p.position === "sidebar",
+  );
 
-	return (
-		<div className="h-full py-4 px-1 flex flex-col items-start text-muted-foreground text-md select-none no-print text-sm z-50 dark:bg-background">
-			{sidebarItems.map((p) => (
-				<SidebarItem
-					key={p.type}
-					tooltip={p.tooltip}
-					selected={selectedPanel === p.type}
-					onClick={() => openApplication(p.type)}
-				>
-					{renderIcon(p)}
-				</SidebarItem>
-			))}
+  return (
+    <div className="h-full py-4 px-1 flex flex-col items-start text-muted-foreground text-md select-none no-print text-sm z-50 dark:bg-background">
+      {sidebarItems.map((p) => (
+        <SidebarItem
+          key={p.type}
+          tooltip={p.tooltip}
+          selected={selectedPanel === p.type}
+          onClick={() => openApplication(p.type)}
+        >
+          {renderIcon(p)}
+        </SidebarItem>
+      ))}
 
-			<FeedbackButton>
-				<SidebarItem tooltip="Send feedback!" selected={false}>
-					<MessageCircleQuestionIcon className="h-5 w-5" />
-				</SidebarItem>
-			</FeedbackButton>
-		</div>
-	);
+      <FeedbackButton>
+        <SidebarItem tooltip="Send feedback!" selected={false}>
+          <MessageCircleQuestionIcon className="h-5 w-5" />
+        </SidebarItem>
+      </FeedbackButton>
+    </div>
+  );
 };
 
 const SidebarItem: React.FC<
-	PropsWithChildren<
-		{
-			selected: boolean;
-			tooltip: React.ReactNode;
-		} & React.HTMLAttributes<HTMLDivElement>
-	>
+  PropsWithChildren<
+    {
+      selected: boolean;
+      tooltip: React.ReactNode;
+    } & React.HTMLAttributes<HTMLDivElement>
+  >
 > = ({ children, tooltip, selected, className, ...rest }) => {
-	return (
-		<Tooltip content={tooltip} side="right" delayDuration={200}>
-			<div
-				className={cn(
-					"flex items-center p-2 text-sm mx-[1px] shadow-inset font-mono cursor-pointer rounded",
-					!selected && "hover:bg-[var(--sage-3)]",
-					selected && "bg-[var(--sage-4)]",
-					className,
-				)}
-				{...rest}
-			>
-				{children}
-			</div>
-		</Tooltip>
-	);
+  return (
+    <Tooltip content={tooltip} side="right" delayDuration={200}>
+      <div
+        className={cn(
+          "flex items-center p-2 text-sm mx-[1px] shadow-inset font-mono cursor-pointer rounded",
+          !selected && "hover:bg-[var(--sage-3)]",
+          selected && "bg-[var(--sage-4)]",
+          className,
+        )}
+        {...rest}
+      >
+        {children}
+      </div>
+    </Tooltip>
+  );
 };
