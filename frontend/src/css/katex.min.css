@@ -1163,6 +1163,7 @@
 .katex-display > .katex > .katex-html > .tag {
   position: absolute;
   right: 0;
+  text-align: initial;
 }
 
 .katex-display.leqno > .katex > .katex-html > .tag {
