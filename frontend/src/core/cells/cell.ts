@@ -142,6 +142,7 @@ export function prepareCellForExecution(
 ): CellRuntimeState {
   const nextCell = { ...cell };
 
+  nextCell.status = "queued";
   nextCell.interrupted = false;
   nextCell.errored = false;
   nextCell.runElapsedTimeMs = null;
