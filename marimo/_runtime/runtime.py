@@ -21,7 +21,6 @@ from typing import (
     Callable,
     Iterator,
     Optional,
-    assert_never,
     cast,
 )
 from uuid import uuid4
@@ -127,6 +126,7 @@ from marimo._runtime.utils.set_ui_element_request_manager import (
 from marimo._runtime.validate_graph import check_for_errors
 from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
 from marimo._server.types import QueueType
+from marimo._utils.assert_never import assert_never
 from marimo._utils.platform import is_pyodide
 from marimo._utils.signals import restore_signals
 from marimo._utils.typed_connection import TypedConnection
