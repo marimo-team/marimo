@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Literal, Optional
 from uuid import uuid4
 
+from marimo._data.sql_visitor import normalize_sql_f_string
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.variables import is_local
 
@@ -366,9 +367,11 @@ class ScopedVisitor(ast.NodeVisitor):
 
                 # Add all tables in the query to the ref scope
                 try:
-                    tables = duckdb.get_table_names(sql)
-                    for table in tables:
-                        self._add_ref(table, deleted=False)
+                    statements = duckdb.extract_statements(sql)
+                    for statement in statements:
+                        tables = duckdb.get_table_names(statement.query)
+                        for table in tables:
+                            self._add_ref(table, deleted=False)
                 except (duckdb.ParserException, duckdb.InvalidInputException):
                     # The user's sql query may have a syntax error
                     pass
@@ -653,18 +656,3 @@ class ScopedVisitor(ast.NodeVisitor):
                     kind="variable", required_refs=self.ref_stack[-1]
                 ),
             )
-
-
-def normalize_sql_f_string(node: ast.JoinedStr) -> str:
-    def print_part(part: ast.expr) -> str:
-        if isinstance(part, ast.FormattedValue):
-            return print_part(part.value)
-        elif isinstance(part, ast.JoinedStr):
-            return normalize_sql_f_string(part)
-        elif isinstance(part, ast.Constant):
-            return str(part.s)
-        else:
-            # Just add '_' as a placeholder for {...} expressions
-            return "'_'"
-
-    return "".join(print_part(part) for part in node.values)

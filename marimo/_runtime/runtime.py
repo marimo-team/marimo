@@ -15,7 +15,15 @@ import threading
 import time
 import traceback
 from multiprocessing import connection
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Iterator,
+    Optional,
+    assert_never,
+    cast,
+)
 from uuid import uuid4
 
 from marimo import _loggers
@@ -1487,23 +1495,35 @@ class Kernel:
 
         The dataset is loaded, and the column is displayed in the frontend.
         """
-        try:
-            dataset = self.globals[request.table_name]
-            column_preview = get_column_preview(dataset, request)
-            if column_preview is None:
-                DataColumnPreview(
-                    error=f"Column {request.column_name} not found",
-                    column_name=request.column_name,
-                    table_name=request.table_name,
-                ).broadcast()
-            else:
-                column_preview.broadcast()
-        except Exception as e:
+
+        if request.source_type == "duckdb":
             DataColumnPreview(
-                error=str(e),
                 column_name=request.column_name,
                 table_name=request.table_name,
             ).broadcast()
+            return
+
+        if request.source_type == "local":
+            try:
+                dataset = self.globals[request.table_name]
+                column_preview = get_column_preview(dataset, request)
+                if column_preview is None:
+                    DataColumnPreview(
+                        error=f"Column {request.column_name} not found",
+                        column_name=request.column_name,
+                        table_name=request.table_name,
+                    ).broadcast()
+                else:
+                    column_preview.broadcast()
+            except Exception as e:
+                DataColumnPreview(
+                    error=str(e),
+                    column_name=request.column_name,
+                    table_name=request.table_name,
+                ).broadcast()
+            return
+
+        assert_never(request.source_type)
 
     async def handle_message(self, request: ControlRequest) -> None:
         """Handle a message from the client.

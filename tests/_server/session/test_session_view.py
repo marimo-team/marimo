@@ -241,7 +241,8 @@ def test_add_datasets() -> None:
             Datasets(
                 tables=[
                     DataTable(
-                        source="Local",
+                        source_type="local",
+                        source="df",
                         name="table1",
                         columns=[
                             DataTableColumn(
@@ -255,7 +256,8 @@ def test_add_datasets() -> None:
                         variable_name="df1",
                     ),
                     DataTable(
-                        source="Local",
+                        source_type="local",
+                        source="df",
                         name="table2",
                         columns=[
                             DataTableColumn(
@@ -285,7 +287,8 @@ def test_add_datasets() -> None:
             Datasets(
                 tables=[
                     DataTable(
-                        source="Local",
+                        source_type="local",
+                        source="df",
                         name="table2",
                         columns=[
                             DataTableColumn(
@@ -299,7 +302,8 @@ def test_add_datasets() -> None:
                         variable_name="df2",
                     ),
                     DataTable(
-                        source="Local",
+                        source_type="local",
+                        source="df",
                         name="table3",
                         columns=[],
                         num_rows=3,
