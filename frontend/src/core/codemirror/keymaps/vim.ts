@@ -142,10 +142,7 @@ class CodeMirrorVimSync {
             }
             break;
           case "visual":
-            // Only enter visual mode if we're not already in it
-            if (!vim.visualMode) {
-              Vim.handleKey(cm, "v", "");
-            }
+            // We don't switch to visual mode across instances
             break;
         }
 
