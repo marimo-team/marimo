@@ -9,24 +9,7 @@ import {
 } from "../utils";
 import { invariant } from "@/utils/invariant";
 import type { Extension } from "@codemirror/state";
-
-console.log(Vim);
-invariant(
-  "exitInsertMode" in Vim,
-  "Vim does not have an exitInsertMode method",
-);
-// invariant(
-// 	"enterInsertMode" in Vim,
-// 	"Vim does not have an enterInsertMode method",
-// );
-// invariant(
-// 	"enterVisualMode" in Vim,
-// 	"Vim does not have an enterVisualMode method",
-// );
-invariant(
-  "exitVisualMode" in Vim,
-  "Vim does not have an exitVisualMode method",
-);
+import { Logger } from "@/utils/Logger";
 
 export function vimKeymapExtension(callbacks: {
   focusUp: () => void;
@@ -58,73 +41,49 @@ export function vimKeymapExtension(callbacks: {
       },
     ]),
     ViewPlugin.define((view) => {
-      console.log(view);
-      CodeMirrorSync.INSTANCES.addInstance(view);
+      CodeMirrorVimSync.INSTANCES.addInstance(view);
       return {
         destroy() {
-          CodeMirrorSync.INSTANCES.removeInstance(view);
+          CodeMirrorVimSync.INSTANCES.removeInstance(view);
         },
       };
     }),
   ];
 }
 
-class CodeMirrorSync {
+class CodeMirrorVimSync {
   private instances = new Set<EditorView>();
   private isBroadcasting = false;
 
-  public static INSTANCES: CodeMirrorSync = new CodeMirrorSync();
+  public static INSTANCES: CodeMirrorVimSync = new CodeMirrorVimSync();
 
   private constructor() {
     // noop
   }
 
   addInstance(instance: EditorView) {
-    console.log("addInstance", getCM(instance));
-    getCM(instance)?.on("vim-mode-change", (e: { mode: string }) => {
+    this.instances.add(instance);
+
+    const cm = getCM(instance);
+    if (!cm) {
+      Logger.warn(
+        "Expected CodeMirror instance to have CodeMirror instance state",
+      );
+      return;
+    }
+
+    // Create an event listener for Vim mode changes
+    // When it changes, we broadcast it to all other CodeMirror instances
+    cm.on("vim-mode-change", (e: { mode: string }) => {
       if (this.isBroadcasting) {
         return;
       }
       invariant("mode" in e, 'Expected event to have a "mode" property');
-      console.log("mode changed");
-      console.log(e);
       const mode = e.mode;
       this.isBroadcasting = true;
-      // trap focus
-      const handleTrapAllFocus = (e: FocusEvent) => {
-        console.log("focaus");
-        e.preventDefault();
-      };
-      const handleTrapScroll = (e: WheelEvent) => {
-        e.preventDefault();
-      };
-
-      document.addEventListener("focus", handleTrapAllFocus, true);
-      document.addEventListener("focusin", handleTrapAllFocus);
-      document.addEventListener("focusout", handleTrapAllFocus);
-      document.addEventListener("blur", handleTrapAllFocus);
-      document.addEventListener("wheel", handleTrapScroll, { passive: false });
-      const app = document.querySelector<HTMLElement>("#App");
-      // get scroll of app
-      const appScrollTop = app?.scrollTop ?? 0;
-      console.log(appScrollTop);
       this.broadcastModeChange(instance, mode);
-      // reset scroll
-      app?.scrollTo(0, appScrollTop);
-      console.log(appScrollTop);
-      const cm = getCM(instance)?.focus();
-      document.removeEventListener("focus", handleTrapAllFocus, true);
-      document.removeEventListener("focusin", handleTrapAllFocus);
-      document.removeEventListener("focusout", handleTrapAllFocus);
-      document.removeEventListener("blur", handleTrapAllFocus);
-      document.removeEventListener("wheel", handleTrapScroll);
-      document.removeEventListener("wheel", handleTrapScroll);
-      document.removeEventListener("focus", handleTrapAllFocus, true);
-      // restore focus
-
       this.isBroadcasting = false;
     });
-    this.instances.add(instance);
   }
 
   removeInstance(instance: EditorView) {
@@ -132,25 +91,57 @@ class CodeMirrorSync {
   }
 
   broadcastModeChange(originInstance: EditorView, mode: string) {
+    invariant(
+      "exitInsertMode" in Vim,
+      "Vim does not have an exitInsertMode method",
+    );
+    invariant(
+      "exitVisualMode" in Vim,
+      "Vim does not have an exitVisualMode method",
+    );
+
     for (const instance of this.instances) {
       if (instance !== originInstance) {
-        // const cm = getCM(instance);
-        // cm.focus = () => {
-        // 	// do nothing
-        // 	console.log("focus");
-        // };
+        const cm = getCM(instance);
+        if (!cm) {
+          Logger.warn(
+            "Expected CodeMirror instance to have CodeMirror instance state",
+          );
+          continue;
+        }
+
+        // HACK: setSelections will steal focus from the current editor
+        // so we remove it and set it back afterwards
+        const prevSetSelections = cm.setSelections.bind(cm);
+        cm.setSelections = () => {
+          // noop
+          return [];
+        };
+
+        const vim = cm.state.vim;
+        if (!vim) {
+          Logger.warn("Expected CodeMirror instance to have Vim state");
+        }
+
         switch (mode) {
           case "normal":
-            console.log("leaving vim mode");
-            Vim.handleKey(getCM(instance), "<Esc>");
+            if (vim?.insertMode) {
+              Vim.exitInsertMode(cm, true);
+            }
+            if (vim?.visualMode) {
+              Vim.exitVisualMode(cm, true);
+            }
             break;
           case "insert":
-            Vim.handleKey(getCM(instance), "i");
+            Vim.handleKey(cm, "i", "");
             break;
           case "visual":
-            Vim.handleKey(getCM(instance), "v");
+            Vim.handleKey(cm, "v", "");
             break;
         }
+
+        // HACK: restore selection
+        cm.setSelections = prevSetSelections;
       }
     }
   }
