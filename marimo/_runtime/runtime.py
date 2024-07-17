@@ -26,7 +26,7 @@ from typing import (
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._ast.cell import CellConfig, CellId_t
+from marimo._ast.cell import CellConfig, CellId_t, CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._ast.visitor import Name
 from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
@@ -34,6 +34,7 @@ from marimo._data.preview_column import get_column_preview
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
     Error,
+    MarimoInterruptionError,
     MarimoStrictExecutionError,
     MarimoSyntaxError,
     UnknownError,
@@ -312,6 +313,10 @@ class Kernel:
         self.stderr = stderr
         self.stdin = stdin
         self.enqueue_control_request = enqueue_control_request
+        # timestamp at which most recently processed interrupt was seen;
+        # the kernel rejects run requests that were issued before that
+        # timestamp, to save the user from having to spam the interrupt button
+        self.last_interrupt_timestamp: Optional[float] = None
 
         self._preparation_hooks = (
             preparation_hooks
@@ -982,6 +987,16 @@ class Kernel:
                 if isinstance(error, MarimoStrictExecutionError):
                     self.errors[cell_id] = (error,)
 
+        def note_time_of_interruption(
+            cell_impl: CellImpl,
+            runner: cell_runner.Runner,
+            run_result: cell_runner.RunResult,
+        ) -> None:
+            del cell_impl
+            del runner
+            if isinstance(run_result.exception, MarimoInterrupt):
+                self.last_interrupt_timestamp = time.time()
+
         runner = cell_runner.Runner(
             roots=roots,
             graph=self.graph,
@@ -993,7 +1008,8 @@ class Kernel:
             execution_context=self._install_execution_context,
             preparation_hooks=self._preparation_hooks + [invalidate_state],
             pre_execution_hooks=self._pre_execution_hooks,
-            post_execution_hooks=self._post_execution_hooks,
+            post_execution_hooks=self._post_execution_hooks
+            + [note_time_of_interruption],
             on_finish_hooks=(
                 self._on_finish_hooks
                 + [broadcast_missing_packages, propagate_kernel_errors]
@@ -1045,10 +1061,35 @@ class Kernel:
 
         Cells may use top-level await, which is why this function is async.
         """
+        filtered_requests: list[ExecutionRequest] = []
+        for request in execution_requests:
+            if (
+                self.last_interrupt_timestamp is not None
+                and request.timestamp < self.last_interrupt_timestamp
+            ):
+                CellOp.broadcast_error(
+                    data=[MarimoInterruptionError()],
+                    clear_console=False,
+                    cell_id=request.cell_id,
+                )
+
+                # TODO(akshayka): This hack is needed because the FE
+                # sets status to queued when a cell is manually run; remove
+                # once setting status to queued on receipt of request is moved
+                # to backend (which will require moving execution requests to
+                # a dedicated multiprocessing queue and processing execution
+                # requests in a background thread).
+                CellOp.broadcast_status(
+                    cell_id=request.cell_id,
+                    status="idle",
+                )
+
+            else:
+                filtered_requests.append(request)
 
         await self._run_cells(
             self.mutate_graph(
-                execution_requests,
+                filtered_requests,
                 deletion_requests=[
                     # Always delete the scratchpad cell
                     DeleteCellRequest(cell_id=SCRATCH_CELL_ID)

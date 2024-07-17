@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union
 from uuid import uuid4
@@ -24,6 +25,7 @@ SerializedCLIArgs = Dict[str, ListOrValue[Primitive]]
 class ExecutionRequest:
     cell_id: CellId_t
     code: str
+    timestamp: float = field(default_factory=time.time)
 
 
 @dataclass
@@ -36,11 +38,15 @@ class ExecuteMultipleRequest:
     cell_ids: List[CellId_t]
     # code to register/run for each cell
     codes: List[str]
+    # time at which the request was received
+    timestamp: float = field(default_factory=time.time)
 
     @property
     def execution_requests(self) -> List[ExecutionRequest]:
         return [
-            ExecutionRequest(cell_id=cell_id, code=code)
+            ExecutionRequest(
+                cell_id=cell_id, code=code, timestamp=self.timestamp
+            )
             for cell_id, code in zip(self.cell_ids, self.codes)
         ]
 
