@@ -266,7 +266,7 @@ describe("cell reducer", () => {
       cellId: firstCellId,
     });
     cell = cells[0];
-    expect(cell.status).toBe("idle");
+    expect(cell.status).toBe("queued");
     expect(cell.lastCodeRun).toBe("import marimo as mo");
     expect(cell.edited).toBe(false);
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
@@ -767,7 +767,7 @@ describe("cell reducer", () => {
       cellId: firstCellId,
     });
     cell = cells[0];
-    expect(cell.status).toBe("idle");
+    expect(cell.status).toBe("queued");
     expect(cell.consoleOutputs).toEqual([]);
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
@@ -922,7 +922,7 @@ describe("cell reducer", () => {
       cellId: firstCellId,
     });
     cell = cells[0];
-    expect(cell.status).toBe("idle");
+    expect(cell.status).toBe("queued");
     expect(cell.consoleOutputs).toEqual([OLD_STDOUT]); // Old stays there until it starts running
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
