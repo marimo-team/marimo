@@ -47,11 +47,11 @@ export interface CellEditorProps
       | "deleteCell"
       | "focusCell"
       | "moveCell"
-      | "moveToNextCell"
       | "updateCellConfig"
       | "clearSerializedEditorState"
     > {
   runCell: () => void;
+  moveToNextCell: CellActions["moveToNextCell"] | undefined;
   theme: Theme;
   showPlaceholder: boolean;
   editorViewRef: React.MutableRefObject<EditorView | null>;
@@ -128,6 +128,7 @@ const CellEditorInternal = ({
     () => focusCell({ cellId, before: true }),
     [cellId, focusCell],
   );
+
   const toggleHideCode = useEvent(() => {
     const nextHidden = !hidden;
     // Fire-and-forget save

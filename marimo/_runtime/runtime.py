@@ -939,6 +939,38 @@ class Kernel:
                     break
             LOGGER.debug("Finished run.")
 
+    def _broadcast_missing_packages(self, runner: cell_runner.Runner) -> None:
+        if (
+            any(
+                isinstance(e, ModuleNotFoundError)
+                for e in runner.exceptions.values()
+            )
+            and self.package_manager is not None
+        ):
+            missing_packages = [
+                self.package_manager.module_to_package(mod)
+                for mod in self.module_registry.missing_modules()
+            ]
+
+            if missing_packages:
+                if self.package_manager.should_auto_install():
+                    self._execute_install_missing_packages_callback(
+                        self.package_manager.name
+                    )
+                else:
+                    MissingPackageAlert(
+                        packages=list(sorted(missing_packages)),
+                        isolated=is_python_isolated(),
+                    ).broadcast()
+
+    def _propagate_kernel_errors(
+        self,
+        runner: cell_runner.Runner,
+    ) -> None:
+        for cell_id, error in runner.exceptions.items():
+            if isinstance(error, MarimoStrictExecutionError):
+                self.errors[cell_id] = (error,)
+
     async def _run_cells_internal(self, roots: set[CellId_t]) -> set[CellId_t]:
         """Run cells, send outputs to frontends
 
@@ -955,37 +987,6 @@ class Kernel:
         def invalidate_state(runner: cell_runner.Runner) -> None:
             for cid in runner.cells_to_run:
                 self._invalidate_cell_state(cid)
-
-        def broadcast_missing_packages(runner: cell_runner.Runner) -> None:
-            if (
-                any(
-                    isinstance(e, ModuleNotFoundError)
-                    for e in runner.exceptions.values()
-                )
-                and self.package_manager is not None
-            ):
-                missing_packages = [
-                    self.package_manager.module_to_package(mod)
-                    for mod in self.module_registry.missing_modules()
-                ]
-
-                if missing_packages:
-                    if self.package_manager.should_auto_install():
-                        self._execute_install_missing_packages_callback(
-                            self.package_manager.name
-                        )
-                    else:
-                        MissingPackageAlert(
-                            packages=list(sorted(missing_packages)),
-                            isolated=is_python_isolated(),
-                        ).broadcast()
-
-        def propagate_kernel_errors(
-            runner: cell_runner.Runner,
-        ) -> None:
-            for cell_id, error in runner.exceptions.items():
-                if isinstance(error, MarimoStrictExecutionError):
-                    self.errors[cell_id] = (error,)
 
         def note_time_of_interruption(
             cell_impl: CellImpl,
@@ -1012,7 +1013,10 @@ class Kernel:
             + [note_time_of_interruption],
             on_finish_hooks=(
                 self._on_finish_hooks
-                + [broadcast_missing_packages, propagate_kernel_errors]
+                + [
+                    self._broadcast_missing_packages,
+                    self._propagate_kernel_errors,
+                ]
             ),
         )
 
@@ -1088,40 +1092,38 @@ class Kernel:
                 filtered_requests.append(request)
 
         await self._run_cells(
-            self.mutate_graph(
-                filtered_requests,
-                deletion_requests=[
-                    # Always delete the scratchpad cell
-                    DeleteCellRequest(cell_id=SCRATCH_CELL_ID)
-                ],
-            )
+            self.mutate_graph(filtered_requests, deletion_requests=[])
         )
 
-    async def run_scratchpad(self, request: ExecuteScratchpadRequest) -> None:
-        LOGGER.warning("Running scratchpad cell")
+    async def run_scratchpad(self, code: str) -> None:
         roots = {SCRATCH_CELL_ID}
-        # Mutated graph by adding scratchpad cell
-        self.mutate_graph(
-            execution_requests=[
-                ExecutionRequest(SCRATCH_CELL_ID, request.code)
-            ],
-            deletion_requests=[],
-        )
+
+        # If cannot compile, don't run
+        try:
+            cell = compile_cell(code, SCRATCH_CELL_ID)
+            cell.defs.clear()  # remove definitions
+            cell.refs.clear()  # remove definitions
+        except SyntaxError:
+            return
+
+        # Create graph of just the scratchpad cell
+        graph = dataflow.DirectedGraph()
+        graph.register_cell(SCRATCH_CELL_ID, cell)
+
         runner = cell_runner.Runner(
             roots=roots,
-            graph=self.graph,
+            graph=graph,
             glbls=self.globals,
-            excluded_cells=set(self.errors.keys()),
+            excluded_cells=set(),
             debugger=self.debugger,
             execution_mode=self.reactive_execution_mode,
             execution_type=self.execution_type,
             execution_context=self._install_execution_context,
-            preparation_hooks=self._preparation_hooks,  # + [invalidate_state],
+            preparation_hooks=self._preparation_hooks,
             pre_execution_hooks=self._pre_execution_hooks,
             post_execution_hooks=self._post_execution_hooks,
             on_finish_hooks=(
-                self._on_finish_hooks
-                # + [broadcast_missing_packages, propagate_kernel_errors]
+                self._on_finish_hooks + [self._broadcast_missing_packages]
             ),
         )
 
@@ -1583,7 +1585,7 @@ class Kernel:
                 await self.run(request.execution_requests)
                 CompletedRun().broadcast()
             elif isinstance(request, ExecuteScratchpadRequest):
-                await self.run_scratchpad(request)
+                await self.run_scratchpad(request.code)
             elif isinstance(request, ExecuteStaleRequest):
                 await self.run_stale_cells()
             elif isinstance(request, SetCellConfigRequest):

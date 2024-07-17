@@ -30,6 +30,7 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
 )
 from marimo._runtime.runtime import Kernel
+from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._utils.parse_dataclass import parse_raw
 from tests.conftest import ExecReqProvider, MockedKernel
 
@@ -867,6 +868,82 @@ class TestExecution:
         assert "exc" not in k.graph.cells[er_1.cell_id].refs
         assert "exc" not in k.graph.cells[er_1.cell_id].defs
         assert "e" in k.globals
+
+    @staticmethod
+    async def test_run_scratch(mocked_kernel: MockedKernel) -> None:
+        k = mocked_kernel.k
+        await k.run_scratchpad("x = 1; x")
+        # Has no errors
+        assert not k.errors
+        messages = mocked_kernel.stream.messages
+        (m1, m2, m3, m4) = messages
+        assert all(m[0] == "cell-op" for m in messages)
+        assert all(m[1]["cell_id"] == SCRATCH_CELL_ID for m in messages)
+        assert m1[1]["status"] == "queued"
+        assert m2[1]["status"] == "running"
+        assert m3[1]["status"] == "idle"
+        assert m4[1]["status"] is None
+        assert (
+            m4[1]["output"]["data"] == "<pre style='font-size: 12px'>1</pre>"
+        )
+        # Does not pollute globals
+        assert "x" not in k.globals
+
+    @staticmethod
+    async def test_run_scratch_with_other_globals(
+        mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = mocked_kernel.k
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    z = 10
+                    """
+                ),
+            ]
+        )
+
+        await k.run_scratchpad("y = z * 2; y")
+        # Has no errors
+        assert not k.errors
+        messages = mocked_kernel.stream.messages
+        last_message = messages[-1]
+        assert (
+            last_message[1]["output"]["data"]
+            == "<pre style='font-size: 12px'>20</pre>"
+        )
+        assert "z" in k.globals
+        # Does not pollute globals
+        assert "y" not in k.globals
+
+    @staticmethod
+    async def test_run_scratch_can_temporarily_overwrite_globals(
+        mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = mocked_kernel.k
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    z = 10
+                    """
+                ),
+            ]
+        )
+
+        await k.run_scratchpad("z = 20; z")
+        # Has no errors
+        assert not k.errors
+        messages = mocked_kernel.stream.messages
+        last_message = messages[-1]
+        assert (
+            last_message[1]["output"]["data"]
+            == "<pre style='font-size: 12px'>20</pre>"
+        )
+        assert "z" in k.globals
+        # Does not pollute globals, reverts back to 10
+        assert k.globals["z"] == 10
 
 
 class TestStrictExecution:
