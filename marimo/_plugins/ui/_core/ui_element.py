@@ -23,12 +23,15 @@ from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType, build_ui_plugin
 from marimo._plugins.ui._core import ids
-from marimo._runtime.context import ContextNotInitializedError, get_context
+from marimo._runtime.context import (
+    ContextNotInitializedError,
+    RuntimeContext,
+    get_context,
+)
 from marimo._runtime.functions import Function
 
 if TYPE_CHECKING:
     from marimo._plugins.ui._impl.input import form as form_plugin
-    from marimo._runtime.context.types import RuntimeContext
 
 # S: Type of frontend value
 #   - the initial value sent to the frontend must be of type S
@@ -429,6 +432,20 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         """Callback to run after the kernel has processed a value update."""
         return
 
+    def __deepcopy__(self, memo: dict[int, Any]) -> UIElement[S, T]:
+        # Custom deepcopy that excludes elements that can't be deepcopied
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+        for k, v in self.__dict__.items():
+            if isinstance(v, RuntimeContext):
+                setattr(result, k, v)
+            else:
+                setattr(result, k, copy.deepcopy(v, memo))
+        # Get a new object ID and function namespace
+        result._initialize(*self._args)
+        return result
+
     def _clone(self) -> UIElement[S, T]:
         """Clone a UIElement, returning one with a different id
 
@@ -437,14 +454,4 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         Composite UIElement may need to override this method to run
         their own side-effects.
         """
-        # context is not deepcopy-able because it has a thread lock;
-        # temporarily unset it during the clone.
-        ctx = self._ctx
-        try:
-            self._ctx = None
-            duplicate = copy.deepcopy(self)
-            duplicate._ctx = ctx
-            duplicate._initialize(*self._args)
-        finally:
-            self._ctx = ctx
-        return duplicate
+        return copy.deepcopy(self)
