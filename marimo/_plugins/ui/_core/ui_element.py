@@ -438,9 +438,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         result = cls.__new__(cls)
         memo[id(self)] = result
         for k, v in self.__dict__.items():
-            if isinstance(v, UIElement):
-                setattr(result, k, v._clone())
-            elif isinstance(v, RuntimeContext):
+            if isinstance(v, RuntimeContext):
                 setattr(result, k, v)
             else:
                 setattr(result, k, copy.deepcopy(v, memo))
