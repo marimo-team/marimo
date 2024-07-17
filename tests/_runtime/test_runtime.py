@@ -694,6 +694,34 @@ class TestExecution:
         # make sure the interrupt wasn't caught by the try/except
         assert k.globals["tries"] == 0
 
+    async def test_interrupt_cancels_old_run_requests(
+        self, any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = any_kernel
+        er_interrupt = exec_req.get(
+            """
+            from marimo._runtime.control_flow import MarimoInterrupt
+
+            tries = 0
+            while tries < 5:
+                try:
+                    raise MarimoInterrupt
+                except Exception:
+                    ...
+                tries += 1
+            """
+        )
+        er_other = exec_req.get("x = 0")
+        # set a timestamp that's guaranteed to be less than the time
+        # of the interrupt -- so er_other shouldn't run
+        er_other.timestamp = -1
+        await k.run([er_interrupt])
+        # make sure the interrupt wasn't caught by the try/except
+        assert k.globals["tries"] == 0
+        await k.run([er_other])
+        assert er_other.cell_id not in k.graph.cells
+        assert "x" not in k.globals
+
     async def test_running_in_notebook(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:
@@ -1016,13 +1044,15 @@ class TestStrictExecution:
             [
                 ExecutionRequest(
                     cell_id="0",
-                    code=textwrap.dedent("""
+                    code=textwrap.dedent(
+                        """
                     try:
                         missing
                     except:
                         pass
                     x = 1
-                    """),
+                    """
+                    ),
                 ),
             ]
         )
