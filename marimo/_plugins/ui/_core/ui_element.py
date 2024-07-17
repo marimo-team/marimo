@@ -437,14 +437,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         Composite UIElement may need to override this method to run
         their own side-effects.
         """
-        # context is not deepcopy-able because it has a thread lock;
-        # temporarily unset it during the clone.
-        ctx = self._ctx
-        try:
-            self._ctx = None
-            duplicate = copy.deepcopy(self)
-            duplicate._ctx = ctx
-            duplicate._initialize(*self._args)
-        finally:
-            self._ctx = ctx
+        duplicate = copy.copy(self)
+        # Generates a new UI element ID, function namespace
+        duplicate._initialize(*self._args)
         return duplicate
