@@ -203,6 +203,8 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
 
         register_transformers()
 
+        self._chart = chart
+
         if not isinstance(chart, (alt.TopLevelMixin)):
             raise ValueError(
                 "Invalid type for chart: "
@@ -230,6 +232,13 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
             if "autosize" not in vega_spec:
                 vega_spec["autosize"] = "fit-x"
 
+        # Types say this is not possible,
+        # but a user still may pass none
+        if chart_selection is None:  # type: ignore
+            chart_selection = False
+        if legend_selection is None:  # type: ignore
+            legend_selection = False
+
         # Selection for binned charts is not yet implemented
         has_chart_selection = chart_selection is not False
         has_legend_selection = legend_selection is not False
@@ -247,8 +256,6 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
 
         self.dataframe: alt.UndefinedType | pd.DataFrame = chart.data
 
-        # Private attributes
-        self._chart = chart
         self._spec = vega_spec
 
         super().__init__(
@@ -341,6 +348,35 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
         - a Pandas DataFrame of the plot data filtered by the selections
         """
         return _filter_dataframe(df, self.selections)
+
+    # Proxy all of altair's attributes
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._chart, name)
+
+    def __add__(self, other: Any) -> Any:
+        if isinstance(other, altair_chart):
+            other = other._chart
+        return altair_chart(self._chart + other)
+
+    def __or__(self, value: Any) -> Any:
+        if isinstance(value, altair_chart):
+            value = value._chart
+        return altair_chart(self._chart | value)
+
+    def __radd__(self, other: Any) -> Any:
+        if isinstance(other, altair_chart):
+            other = other._chart
+        return altair_chart(other + self._chart)
+
+    def __ror__(self, value: Any) -> Any:
+        if isinstance(value, altair_chart):
+            value = value._chart
+        return altair_chart(value | self._chart)
+
+    def __and__(self, value: Any) -> Any:
+        if isinstance(value, altair_chart):
+            value = value._chart
+        return altair_chart(self._chart & value)
 
     @property
     def value(self) -> pd.DataFrame:
