@@ -76,6 +76,30 @@ Wrap an Altair chart in [`mo.ui.altair_chart`](../api/plotting.md#marimo.ui.alta
 to make it **reactive**: select data on the frontend, access it via the chart's
 `value` attribute (`chart.value`).
 
+#### Disabling automatic selection
+
+marimo automatically adds a default selection based on the mark type, however, you may want to customize the selection behavior of your Altair chart. You can do this by setting `chart_selection` and `legend_selection` to `False`, and using `.add_params` directly on your Altair chart.
+
+```python
+# Create an interval selection
+brush = alt.selection_interval(encodings=["x"])
+
+_chart = (
+    alt.Chart(traces, height=150)
+    .mark_line()
+    .encode(x="index:Q", y="value:Q", color="traces:N")
+    .add_params(brush) # add the selection to the chart
+)
+
+chart = mo.ui.altair_chart(
+    _chart,
+    # disable automatic selection
+    chart_selection=False,
+    legend_selection=False
+)
+chart # You can now access chart.value to get the selected data
+```
+
 _Reactive plots are just one way that marimo **makes your data tangible**._
 
 #### Example
