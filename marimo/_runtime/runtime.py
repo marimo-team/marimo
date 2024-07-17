@@ -1072,6 +1072,18 @@ class Kernel:
                     clear_console=False,
                     cell_id=request.cell_id,
                 )
+
+                # TODO(akshayka): This hack is needed because the FE
+                # sets status to queued when a cell is manually run; remove
+                # once setting status to queued on receipt of request is moved
+                # to backend (which will require moving execution requests to
+                # a dedicated multiprocessing queue and processing execution
+                # requests in a background thread).
+                CellOp.broadcast_status(
+                    cell_id=request.cell_id,
+                    status="idle",
+                )
+
             else:
                 filtered_requests.append(request)
 
