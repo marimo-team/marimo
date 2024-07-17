@@ -86,6 +86,11 @@ class CellOutput:
     output: Any = None
 
 
+@dataclasses.dataclass
+class ParsedSQLStatements:
+    parsed: Optional[list[str]] = None
+
+
 @dataclasses.dataclass(frozen=True)
 class CellImpl:
     # hash of code
@@ -111,6 +116,10 @@ class CellImpl:
     _stale: CellStaleState = dataclasses.field(default_factory=CellStaleState)
     # cells can optionally hold a reference to their output
     _output: CellOutput = dataclasses.field(default_factory=CellOutput)
+    # parsed sql statements
+    _sqls: ParsedSQLStatements = dataclasses.field(
+        default_factory=ParsedSQLStatements
+    )
 
     def configure(self, update: dict[str, Any] | CellConfig) -> CellImpl:
         """Update the cell config.
@@ -127,13 +136,18 @@ class CellImpl:
     @property
     def sqls(self) -> list[str]:
         """Return a list of SQL statements for this cell."""
+        if self._sqls.parsed is not None:
+            return self._sqls.parsed
+
         try:
             visitor = SQLVisitor()
             visitor.visit(ast.parse(self.code))
             sqls = visitor.get_sqls()
-            return sqls
+            self._sqls.parsed = sqls
         except Exception:
-            return []
+            self._sqls.parsed = []
+
+        return self._sqls.parsed
 
     @property
     def stale(self) -> bool:
