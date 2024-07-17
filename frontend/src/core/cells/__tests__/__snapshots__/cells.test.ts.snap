@@ -49,7 +49,7 @@ exports[`cell reducer > can initialize stdin 2`] = `
   "runStartTimestamp": null,
   "serializedEditorState": null,
   "staleInputs": false,
-  "status": "idle",
+  "status": "queued",
   "stopped": false,
 }
 `;
@@ -360,7 +360,7 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
   "runStartTimestamp": null,
   "serializedEditorState": null,
   "staleInputs": false,
-  "status": "idle",
+  "status": "queued",
   "stopped": false,
 }
 `;
@@ -747,7 +747,7 @@ exports[`cell reducer > can run cell and receive cell messages 3`] = `
   "runStartTimestamp": null,
   "serializedEditorState": null,
   "staleInputs": false,
-  "status": "idle",
+  "status": "queued",
   "stopped": false,
 }
 `;
