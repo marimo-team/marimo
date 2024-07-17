@@ -58,7 +58,7 @@ def has_updates_to_datasource(query: str) -> bool:
     import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
     try:
-        statements = duckdb.extract_statements(query)
+        statements = duckdb.extract_statements(query.strip())
     except Exception:
         # May not be valid SQL
         return False

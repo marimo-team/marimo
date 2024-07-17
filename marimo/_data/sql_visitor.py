@@ -62,4 +62,6 @@ def normalize_sql_f_string(node: ast.JoinedStr) -> str:
             # Just add '_' as a placeholder for {...} expressions
             return "'_'"
 
-    return "".join(print_part(part) for part in node.values)
+    result = "".join(print_part(part) for part in node.values)
+    # remove any double '' created by the f-string
+    return result.replace("''", "'")
