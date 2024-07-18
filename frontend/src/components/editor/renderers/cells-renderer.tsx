@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { flattenNotebookCells, useNotebook } from "@/core/cells/cells";
+import { flattenTopLevelNotebookCells, useNotebook } from "@/core/cells/cells";
 import React, { PropsWithChildren, memo } from "react";
 import { cellRendererPlugins } from "./plugins";
 import { AppConfig } from "@/core/config/config-schema";
@@ -31,7 +31,7 @@ export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(
       return children;
     }
 
-    const cells = flattenNotebookCells(notebook);
+    const cells = flattenTopLevelNotebookCells(notebook);
 
     const Renderer = plugin.Component;
     const body = (

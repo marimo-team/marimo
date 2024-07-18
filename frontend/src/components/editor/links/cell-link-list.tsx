@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { CellId } from "@/core/cells/ids";
-import React from "react";
+import type { CellId } from "@/core/cells/ids";
+import type React from "react";
 import { CellLink } from "./cell-link";
 import {
   Popover,
@@ -24,7 +24,7 @@ export const CellLinkList: React.FC<Props> = ({
 }) => {
   const cellIndex = useCellIds();
   const sortedCellIds = [...cellIds].sort((a, b) => {
-    return cellIndex.indexOf(a) - cellIndex.indexOf(b);
+    return cellIndex.inOrderIds.indexOf(a) - cellIndex.inOrderIds.indexOf(b);
   });
 
   if (cellIds.length === 0) {

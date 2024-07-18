@@ -13,14 +13,12 @@ import {
   scrollToTop,
   focusAndScrollCellIntoView,
 } from "./scrollCellIntoView";
-import { arrayMove } from "@dnd-kit/sortable";
 import { CellId } from "./ids";
 import { prepareCellForExecution, transitionCell } from "./cell";
 import { store } from "../state/jotai";
 import { createReducerAndAtoms } from "../../utils/createReducer";
-import { arrayInsert, arrayDelete } from "@/utils/arrays";
 import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
-import { mergeOutlines } from "../dom/outline";
+import { findCollapseRange, mergeOutlines } from "../dom/outline";
 import type { CellHandle } from "@/components/editor/Cell";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
@@ -45,6 +43,8 @@ import type {
 import { getUserConfig } from "@/core/config/config";
 import { syncCellIds } from "../network/requests";
 import { kioskModeAtom } from "../mode";
+import { CollapsibleTree } from "@/utils/id-tree";
+import { isEqual } from "lodash-es";
 
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
 
@@ -55,7 +55,7 @@ export interface NotebookState {
   /**
    * Order of cells on the page.
    */
-  cellIds: CellId[];
+  cellIds: CollapsibleTree<CellId>;
   /**
    * Map of cells to their view state
    */
@@ -153,7 +153,7 @@ function initialNotebookState(): NotebookState {
     }
 
     return {
-      cellIds: cellIds,
+      cellIds: CollapsibleTree.from(cellIds),
       cellData: cellData,
       cellRuntime: cellRuntime,
       cellHandles: {},
@@ -164,7 +164,7 @@ function initialNotebookState(): NotebookState {
   }
 
   return withScratchCell({
-    cellIds: [],
+    cellIds: CollapsibleTree.from([]),
     cellData: {},
     cellRuntime: {},
     cellHandles: {},
@@ -207,12 +207,12 @@ const {
     const index =
       cellId === "__end__"
         ? state.cellIds.length - 1
-        : state.cellIds.indexOf(cellId);
+        : state.cellIds.topLevelIds.indexOf(cellId);
     const insertionIndex = before ? index : index + 1;
 
     return {
       ...state,
-      cellIds: arrayInsert(state.cellIds, insertionIndex, newCellId),
+      cellIds: state.cellIds.insert(newCellId, insertionIndex),
       cellData: {
         ...state.cellData,
         [newCellId]: createCell({
@@ -236,19 +236,19 @@ const {
   },
   moveCell: (state, action: { cellId: CellId; before: boolean }) => {
     const { cellId, before } = action;
-    const index = state.cellIds.indexOf(cellId);
-    const cell = state.cellIds[index];
+    const index = state.cellIds.indexOfOrThrow(cellId);
+
     if (before && index === 0) {
       return {
         ...state,
-        cellIds: [cell, ...state.cellIds.slice(1)],
+        cellIds: state.cellIds.moveToFront(cellId),
         scrollKey: cellId,
       };
     }
     if (!before && index === state.cellIds.length - 1) {
       return {
         ...state,
-        cellIds: [...state.cellIds.slice(0, -1), cell],
+        cellIds: state.cellIds.moveToBack(cellId),
         scrollKey: cellId,
       };
     }
@@ -256,22 +256,22 @@ const {
     return before
       ? {
           ...state,
-          cellIds: arrayMove(state.cellIds, index, index - 1),
+          cellIds: state.cellIds.move(index, index - 1),
           scrollKey: cellId,
         }
       : {
           ...state,
-          cellIds: arrayMove(state.cellIds, index, index + 1),
+          cellIds: state.cellIds.move(index, index + 1),
           scrollKey: cellId,
         };
   },
   dropCellOver: (state, action: { cellId: CellId; overCellId: CellId }) => {
     const { cellId, overCellId } = action;
-    const fromIndex = state.cellIds.indexOf(cellId);
-    const toIndex = state.cellIds.indexOf(overCellId);
+    const fromIndex = state.cellIds.indexOfOrThrow(cellId);
+    const toIndex = state.cellIds.indexOfOrThrow(overCellId);
     return {
       ...state,
-      cellIds: arrayMove(state.cellIds, fromIndex, toIndex),
+      cellIds: state.cellIds.move(fromIndex, toIndex),
       scrollKey: null,
     };
   },
@@ -281,11 +281,11 @@ const {
     }
 
     const { cellId, before } = action;
-    const index = state.cellIds.indexOf(cellId);
+    const index = state.cellIds.indexOfOrThrow(cellId);
     let focusIndex = before ? index - 1 : index + 1;
     // clamp
     focusIndex = clamp(focusIndex, 0, state.cellIds.length - 1);
-    const focusCellId = state.cellIds[focusIndex];
+    const focusCellId = state.cellIds.atOrThrow(focusIndex);
     // can scroll immediately, without setting scrollKey in state, because
     // CellArray won't need to re-render
     focusAndScrollCellIntoView({
@@ -302,9 +302,9 @@ const {
       return state;
     }
 
-    const cellKey = state.cellIds[0];
-    const cellData = state.cellData[cellKey];
-    const cellHandle = state.cellHandles[cellKey];
+    const cellId = state.cellIds.first();
+    const cellData = state.cellData[cellId];
+    const cellHandle = state.cellHandles[cellId];
     if (!cellData.config.hide_code) {
       cellHandle.current?.editorView.focus();
     }
@@ -316,9 +316,9 @@ const {
       return state;
     }
 
-    const cellKey = state.cellIds[state.cellIds.length - 1];
-    const cellData = state.cellData[cellKey];
-    const cellHandle = state.cellHandles[cellKey];
+    const cellId = state.cellIds.last();
+    const cellData = state.cellData[cellId];
+    const cellHandle = state.cellHandles[cellId];
     if (!cellData.config.hide_code) {
       cellHandle.current?.editorView.focus();
     }
@@ -331,10 +331,10 @@ const {
     }
 
     const { cellId } = action;
-    const index = state.cellIds.indexOf(cellId);
+    const index = state.cellIds.indexOfOrThrow(cellId);
     return {
       ...state,
-      cellIds: arrayMove(state.cellIds, index, 0),
+      cellIds: state.cellIds.move(index, 0),
       scrollKey: cellId,
     };
   },
@@ -344,10 +344,10 @@ const {
     }
 
     const { cellId } = action;
-    const index = state.cellIds.indexOf(cellId);
+    const index = state.cellIds.indexOfOrThrow(cellId);
     return {
       ...state,
-      cellIds: arrayMove(state.cellIds, index, state.cellIds.length - 1),
+      cellIds: state.cellIds.move(index, state.cellIds.length - 1),
       scrollKey: cellId,
     };
   },
@@ -357,21 +357,20 @@ const {
       return state;
     }
 
-    const index = state.cellIds.indexOf(cellId);
-    const cellKey = state.cellIds[index];
+    const index = state.cellIds.indexOfOrThrow(cellId);
     const focusIndex = index === 0 ? 1 : index - 1;
-    const scrollKey = state.cellIds[focusIndex];
+    const scrollKey = state.cellIds.atOrThrow(focusIndex);
 
     const serializedEditorState = state.cellHandles[
-      cellKey
+      cellId
     ].current?.editorView.state.toJSON({ history: historyField });
     return {
       ...state,
-      cellIds: arrayDelete(state.cellIds, index),
+      cellIds: state.cellIds.delete(index),
       history: [
         ...state.history,
         {
-          name: state.cellData[cellKey].name,
+          name: state.cellData[cellId].name,
           serializedEditorState: serializedEditorState,
           index: index,
         },
@@ -401,7 +400,7 @@ const {
     });
     return {
       ...state,
-      cellIds: arrayInsert(state.cellIds, index, cellId),
+      cellIds: state.cellIds.insert(cellId, index),
       cellData: {
         ...state.cellData,
         [cellId]: undoCell,
@@ -523,7 +522,7 @@ const {
 
     return {
       ...state,
-      cellIds: action.cellIds,
+      cellIds: CollapsibleTree.from(action.cellIds),
       cellData: nextCellData,
       cellRuntime: nextCellRuntime,
       cellHandles: nextCellHandles,
@@ -588,7 +587,7 @@ const {
 
     return withScratchCell({
       ...state,
-      cellIds: cells.map((cell) => cell.id),
+      cellIds: CollapsibleTree.from(cells.map((cell) => cell.id)),
       cellData: cellData,
       cellRuntime: cellRuntime,
       cellHandles: Object.fromEntries(
@@ -610,7 +609,7 @@ const {
     action: { cellId: CellId; before: boolean; noCreate?: boolean },
   ) => {
     const { cellId, before, noCreate = false } = action;
-    const index = state.cellIds.indexOf(cellId);
+    const index = state.cellIds.indexOfOrThrow(cellId);
     const nextCellIndex = before ? index - 1 : index + 1;
     // Create a new cell at the end; no need to update scrollKey,
     // because cell will be created with autoScrollIntoView
@@ -618,7 +617,7 @@ const {
       const newCellId = CellId.create();
       return {
         ...state,
-        cellIds: [...state.cellIds, newCellId],
+        cellIds: state.cellIds.insertAtEnd(newCellId),
         cellData: {
           ...state.cellData,
           [newCellId]: createCell({ id: newCellId }),
@@ -640,7 +639,7 @@ const {
       const newCellId = CellId.create();
       return {
         ...state,
-        cellIds: [newCellId, ...state.cellIds],
+        cellIds: state.cellIds.insertAtStart(newCellId),
         cellData: {
           ...state.cellData,
           [newCellId]: createCell({ id: newCellId }),
@@ -656,7 +655,7 @@ const {
       };
     }
 
-    const nextCellId = state.cellIds[nextCellIndex];
+    const nextCellId = state.cellIds.atOrThrow(nextCellIndex);
     // Just focus, no state change
     focusAndScrollCellIntoView({
       cellId: nextCellId,
@@ -674,15 +673,15 @@ const {
       return state;
     }
 
-    const index = state.cellIds.indexOf(scrollKey);
+    const index = state.cellIds.indexOfOrThrow(scrollKey);
 
     // Special-case scrolling to the end of the page: bug in Chrome where
     // browser fails to scrollIntoView an element at the end of a long page
     if (index === state.cellIds.length - 1) {
-      const cellId = state.cellIds[state.cellIds.length - 1];
+      const cellId = state.cellIds.last();
       state.cellHandles[cellId].current?.editorView.focus();
     } else {
-      const nextCellId = state.cellIds[index];
+      const nextCellId = state.cellIds.atOrThrow(index);
       focusAndScrollCellIntoView({
         cellId: nextCellId,
         cell: state.cellHandles[nextCellId],
@@ -717,9 +716,49 @@ const {
       cellLogs: [],
     };
   },
+  collapseCell: (state, action: { cellId: CellId }) => {
+    const { cellId } = action;
+    // Get all the top-level outlines
+    const outlines = state.cellIds.topLevelIds.map((id) => {
+      const cell = state.cellRuntime[id];
+      return cell.outline;
+    });
+    // Find the start/end of the collapsed range
+    const startIndex = state.cellIds.indexOfOrThrow(cellId);
+    const range = findCollapseRange(startIndex, outlines);
+
+    if (!range) {
+      return state;
+    }
+    // Get the end of the range
+    const endCellId = state.cellIds.atOrThrow(range[1]);
+
+    return {
+      ...state,
+      // Collapse the range
+      cellIds: state.cellIds.collapse(cellId, endCellId),
+      scrollKey: cellId,
+    };
+  },
+  expandCell: (state, action: { cellId: CellId }) => {
+    const { cellId } = action;
+    return {
+      ...state,
+      cellIds: state.cellIds.expand(cellId),
+      scrollKey: cellId,
+    };
+  },
+  showCellIfHidden: (state, action: { cellId: CellId }) => {
+    const { cellId } = action;
+    return {
+      ...state,
+      cellIds: state.cellIds.findAndExpandDeep(cellId),
+      scrollKey: cellId,
+    };
+  },
   splitCell: (state, action: { cellId: CellId }) => {
     const { cellId } = action;
-    const index = state.cellIds.indexOf(cellId);
+    const index = state.cellIds.indexOfOrThrow(cellId);
     const cell = state.cellData[cellId];
     const cellHandle = state.cellHandles[cellId].current;
 
@@ -737,7 +776,7 @@ const {
 
     return {
       ...state,
-      cellIds: arrayInsert(state.cellIds, index + 1, newCellId),
+      cellIds: state.cellIds.insert(newCellId, index + 1),
       cellData: {
         ...state.cellData,
         [cellId]: {
@@ -823,7 +862,7 @@ export const hasOnlyOneCellAtom = atom((get) => get(cellIdsAtom).length === 1);
 
 const cellErrorsAtom = atom((get) => {
   const { cellIds, cellRuntime, cellData } = get(notebookAtom);
-  const errors = cellIds
+  const errors = cellIds.inOrderIds
     .map((cellId) => {
       const cell = cellRuntime[cellId];
       const { name } = cellData[cellId];
@@ -855,7 +894,9 @@ export const notebookHasCellsAtom = atom((get) => get(cellIdsAtom).length > 0);
 
 export const notebookOutline = atom((get) => {
   const { cellIds, cellRuntime } = get(notebookAtom);
-  const outlines = cellIds.map((cellId) => cellRuntime[cellId].outline);
+  const outlines = cellIds.inOrderIds.map(
+    (cellId) => cellRuntime[cellId].outline,
+  );
   return mergeOutlines(outlines);
 });
 
@@ -864,7 +905,7 @@ export const cellErrorCount = atom((get) => get(cellErrorsAtom).length);
 export const cellIdToNamesMap = atom((get) => {
   const { cellIds, cellData } = get(notebookAtom);
   const names: Record<CellId, string | undefined> = Objects.fromEntries(
-    cellIds.map((cellId) => [cellId, cellData[cellId]?.name]),
+    cellIds.inOrderIds.map((cellId) => [cellId, cellData[cellId]?.name]),
   );
   return names;
 });
@@ -913,12 +954,12 @@ export const getCells = () => store.get(notebookAtom).cellIds;
  */
 export const getCellNames = () => {
   const { cellIds, cellData } = store.get(notebookAtom);
-  return cellIds.map((id) => cellData[id]?.name).filter(Boolean);
+  return cellIds.inOrderIds.map((id) => cellData[id]?.name).filter(Boolean);
 };
 
 const cellDataAtoms = splitAtom(
   selectAtom(notebookAtom, (cells) =>
-    cells.cellIds.map((id) => cells.cellData[id]),
+    cells.cellIds.inOrderIds.map((id) => cells.cellData[id]),
   ),
 );
 export const useCellDataAtoms = () => useAtom(cellDataAtoms);
@@ -932,7 +973,7 @@ export const notebookIsRunningAtom = atom((get) =>
  */
 export const getAllEditorViews = () => {
   const { cellIds, cellHandles } = store.get(notebookAtom);
-  return cellIds
+  return cellIds.inOrderIds
     .map((cellId) => cellHandles[cellId].current?.editorView)
     .filter(Boolean);
 };
@@ -970,7 +1011,7 @@ export function staleCellIds(state: NotebookState) {
   const autoInstantiate = getUserConfig().runtime.auto_instantiate;
 
   const { cellIds, cellData, cellRuntime } = state;
-  return cellIds.filter(
+  return cellIds.inOrderIds.filter(
     (cellId) =>
       isUninstantiated(
         autoInstantiate,
@@ -994,9 +1035,11 @@ export function staleCellIds(state: NotebookState) {
   );
 }
 
-export function flattenNotebookCells(state: NotebookState) {
+export function flattenTopLevelNotebookCells(
+  state: NotebookState,
+): Array<CellData & CellRuntimeState> {
   const { cellIds, cellData, cellRuntime } = state;
-  return cellIds.map((cellId) => ({
+  return cellIds.topLevelIds.map((cellId) => ({
     ...cellData[cellId],
     ...cellRuntime[cellId],
   }));
@@ -1016,7 +1059,10 @@ export function useCellActions() {
 export type CellActions = ReturnType<typeof createActions>;
 
 export const CellEffects = {
-  onCellIdsChange: (cellIds: CellId[], prevCellIds: CellId[]) => {
+  onCellIdsChange: (
+    cellIds: CollapsibleTree<CellId>,
+    prevCellIds: CollapsibleTree<CellId>,
+  ) => {
     const kioskMode = store.get(kioskModeAtom);
     if (kioskMode) {
       return;
@@ -1032,10 +1078,10 @@ export const CellEffects = {
     }
 
     // If they are different references, send an update to the server
-    if (cellIds !== prevCellIds) {
+    if (!isEqual(cellIds.inOrderIds, prevCellIds.inOrderIds)) {
       // "name" property is not actually required
       void syncCellIds({
-        cell_ids: cellIds,
+        cell_ids: cellIds.inOrderIds,
       } as unknown as UpdateCellIdsRequest);
     }
   },

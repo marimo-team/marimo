@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { CellId, HTMLCellId } from "@/core/cells/ids";
+import { type CellId, HTMLCellId } from "@/core/cells/ids";
 import { Logger } from "../../../utils/Logger";
 import { cn } from "@/utils/cn";
 import { displayCellName } from "@/core/cells/names";
-import { useCellIds, useCellNames } from "@/core/cells/cells";
+import { useCellActions, useCellIds, useCellNames } from "@/core/cells/cells";
 
 interface Props {
   cellId: CellId;
@@ -18,7 +18,8 @@ interface Props {
 export const CellLink = (props: Props): JSX.Element => {
   const { className, cellId, variant, onClick, skipScroll } = props;
   const cellName = useCellNames()[cellId] ?? "";
-  const cellIndex = useCellIds().indexOf(cellId);
+  const cellIndex = useCellIds().inOrderIds.indexOf(cellId);
+  const { showCellIfHidden } = useCellActions();
 
   return (
     <div
@@ -27,12 +28,15 @@ export const CellLink = (props: Props): JSX.Element => {
         className,
       )}
       onClick={(e) => {
+        showCellIfHidden({ cellId });
         e.stopPropagation();
         e.preventDefault();
-        const succeeded = scrollAndHighlightCell(cellId, variant, skipScroll);
-        if (succeeded) {
-          onClick?.();
-        }
+        requestAnimationFrame(() => {
+          const succeeded = scrollAndHighlightCell(cellId, variant, skipScroll);
+          if (succeeded) {
+            onClick?.();
+          }
+        });
       }}
     >
       {displayCellName(cellName, cellIndex)}
