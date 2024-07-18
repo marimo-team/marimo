@@ -20,9 +20,10 @@ import { DEFAULT_CELL_NAME } from "@/core/cells/names";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
 import { renderShortcut } from "../shortcuts/renderShortcut";
-import { BetweenHorizontalStartIcon, PlayIcon } from "lucide-react";
+import { BetweenHorizontalStartIcon, EraserIcon, PlayIcon } from "lucide-react";
 import { HideInKioskMode } from "../editor/kiosk-mode";
 import { useLastFocusedCellId } from "@/core/cells/focus";
+import { Spinner } from "../icons/spinner";
 
 export const ScratchPad: React.FC = () => {
   const notebookState = useNotebook();
@@ -35,6 +36,7 @@ export const ScratchPad: React.FC = () => {
   const cellId = SCRATCH_CELL_ID;
   const cellRuntime = notebookState.cellRuntime[cellId];
   const output = cellRuntime?.output;
+  const status = cellRuntime?.status;
   const consoleOutputs = cellRuntime?.consoleOutputs;
   const cellData = notebookState.cellData[cellId];
   const code = cellData?.code ?? "";
@@ -44,11 +46,33 @@ export const ScratchPad: React.FC = () => {
   });
 
   const handleInsertCode = useEvent(() => {
+    if (!code.trim()) {
+      return;
+    }
     createNewCell({
       code,
       before: false,
       cellId: lastFocusedCellId ?? "__end__",
     });
+  });
+
+  const handleClearCode = useEvent(() => {
+    updateCellCode({
+      cellId,
+      code: "",
+      formattingChange: false,
+    });
+    sendRunScratchpad({ code: "" });
+    const ev = ref.current;
+    if (ev) {
+      ev.dispatch({
+        changes: {
+          from: 0,
+          to: ev.state.doc.length,
+          insert: "",
+        },
+      });
+    }
   });
 
   return (
@@ -57,7 +81,7 @@ export const ScratchPad: React.FC = () => {
       id={HTMLCellId.create(cellId)}
     >
       <div className="flex gap-2 justify-between items-center flex-shrink-0">
-        <div>
+        <div className="flex items-center">
           <Tooltip content={renderShortcut("cell.run")}>
             <Button
               data-testid="scratchpad-run-button"
@@ -69,8 +93,16 @@ export const ScratchPad: React.FC = () => {
               <PlayIcon color="var(--grass-11)" size={16} />
             </Button>
           </Tooltip>
+          {(status === "running" || status === "queued") && (
+            <Spinner className="inline" size="small" />
+          )}
         </div>
         <div>
+          <Tooltip content="Clear code and outputs">
+            <Button size="xs" variant="text" onClick={handleClearCode}>
+              <EraserIcon size={16} />
+            </Button>
+          </Tooltip>
           <HideInKioskMode>
             <Tooltip content="Insert code">
               <Button size="xs" variant="text" onClick={handleInsertCode}>
@@ -83,8 +115,8 @@ export const ScratchPad: React.FC = () => {
       <div className="overflow-auto flex-shrink-0 max-h-[40%]">
         <CellEditor
           theme={theme}
-          showPlaceholder={false}
           allowFocus={false}
+          showPlaceholder={false}
           id={cellId}
           code={code}
           status="idle"
@@ -95,7 +127,7 @@ export const ScratchPad: React.FC = () => {
           deleteCell={Functions.NOOP}
           focusCell={Functions.NOOP}
           moveCell={Functions.NOOP}
-          moveToNextCell={Functions.NOOP}
+          moveToNextCell={undefined}
           updateCellConfig={Functions.NOOP}
           clearSerializedEditorState={Functions.NOOP}
           userConfig={userConfig}
@@ -112,7 +144,7 @@ export const ScratchPad: React.FC = () => {
           stale={false}
         />
       </div>
-      <div className="overflow-auto flex-shrink-0 max-h-[25%]">
+      <div className="overflow-auto flex-shrink-0 max-h-[35%]">
         <ConsoleOutput
           consoleOutputs={consoleOutputs}
           className="overflow-auto"

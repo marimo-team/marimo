@@ -16,7 +16,7 @@ export interface ExperimentalFeatures {
 const defaultValues: ExperimentalFeatures = {
   markdown: true,
   wasm_layouts: false,
-  scratchpad: false,
+  scratchpad: true,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(
