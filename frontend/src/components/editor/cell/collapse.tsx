@@ -25,7 +25,7 @@ interface Props {
 
 export const CollapseToggle: React.FC<Props> = (props) => {
   // It could be collapsed, but the markdown headers were removed.
-  // So we still want to be able to uncollapse it, if it is collapsed.
+  // So we still want to be able to expand it, if it is collapsed.
   if (!props.canCollapse && !props.isCollapsed) {
     return null;
   }

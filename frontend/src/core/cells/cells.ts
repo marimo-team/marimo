@@ -748,6 +748,14 @@ const {
       scrollKey: cellId,
     };
   },
+  showCellIfHidden: (state, action: { cellId: CellId }) => {
+    const { cellId } = action;
+    return {
+      ...state,
+      cellIds: state.cellIds.findAndExpandDeep(cellId),
+      scrollKey: cellId,
+    };
+  },
   splitCell: (state, action: { cellId: CellId }) => {
     const { cellId } = action;
     const index = state.cellIds.indexOfOrThrow(cellId);

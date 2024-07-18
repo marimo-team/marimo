@@ -63,6 +63,9 @@ export function parseOutline(output: OutputMessage | null): Outline | null {
   }
 }
 
+/**
+ * We can only collapse if it has an H1 or H2
+ */
 export function canCollapseOutline(outline: Outline | null): boolean {
   if (outline == null) {
     return false;

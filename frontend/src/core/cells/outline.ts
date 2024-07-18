@@ -15,13 +15,7 @@ export interface OutlineItem {
    *
    * If `path` is provided, the item is located by xpath.
    */
-  by:
-    | {
-        id: string;
-      }
-    | {
-        path: string;
-      };
+  by: { id: string } | { path: string };
   /**
    * The level of the item.
    * h1 -> 1

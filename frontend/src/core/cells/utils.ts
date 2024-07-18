@@ -76,6 +76,9 @@ export function canUndoDeletes(state: NotebookState) {
   return state.history.length > 0;
 }
 
+/**
+ * Get the status of the descendants of the given cell.
+ */
 export function getDescendantsStatus(state: NotebookState, cellId: CellId) {
   const descendants = state.cellIds.getDescendants(cellId);
   const stale = descendants.some(
