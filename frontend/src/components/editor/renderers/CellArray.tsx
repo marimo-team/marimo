@@ -81,11 +81,12 @@ export const CellArray: React.FC<CellArrayProps> = ({
   const onDeleteCell = useDeleteCellCallback();
 
   // Scroll to a cell targeted by a previous action
+  const scrollToTarget = actions.scrollToTarget;
   useEffect(() => {
     if (notebook.scrollKey !== null) {
-      actions.scrollToTarget();
+      scrollToTarget();
     }
-  }, [notebook.cellIds, notebook.scrollKey, actions.scrollToTarget]);
+  }, [notebook.cellIds, notebook.scrollKey, scrollToTarget]);
 
   const cells = flattenTopLevelNotebookCells(notebook);
 
