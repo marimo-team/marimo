@@ -495,6 +495,69 @@ describe("cell reducer", () => {
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
   });
 
+  it("errors reset status to idle", () => {
+    // Initial state
+    let cell = cells[0];
+    expect(cell.status).toBe("idle");
+    expect(cell.lastCodeRun).toBe(null);
+    expect(cell.edited).toBe(false);
+    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+
+    // Update code
+    actions.updateCellCode({
+      cellId: firstCellId,
+      code: "import marimo as mo",
+      formattingChange: false,
+    });
+    cell = cells[0];
+    expect(cell.status).toBe("idle");
+    expect(cell.lastCodeRun).toBe(null);
+    expect(cell.edited).toBe(true);
+    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+
+    // Prepare for run
+    actions.prepareForRun({
+      cellId: firstCellId,
+    });
+    cell = cells[0];
+    expect(cell.status).toBe("queued");
+    expect(cell.lastCodeRun).toBe("import marimo as mo");
+    expect(cell.edited).toBe(false);
+    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+
+    // ERROR RESPONSE
+    //
+    // should reset status to idle
+    /////////////////
+    // Prepare for run
+    actions.prepareForRun({
+      cellId: firstCellId,
+    });
+    cell = cells[0];
+    // Receive error
+    actions.handleCellMessage({
+      cell_id: firstCellId,
+      output: {
+        channel: "marimo-error",
+        mimetype: "application/vnd.marimo+error",
+        data: [
+          { type: "exception", exception_type: "SyntaxError", msg: "Oh no!" },
+        ],
+        timestamp: 0,
+      },
+      console: null,
+      stale_inputs: null,
+      timestamp: new Date(61).getTime() as Seconds,
+    });
+    cell = cells[0];
+    expect(cell.status).toBe("idle");
+    expect(cell.lastCodeRun).toBe("import marimo as mo");
+    expect(cell.edited).toBe(false);
+    expect(cell.runElapsedTimeMs).toBe(null);
+    expect(cell.runStartTimestamp).toBe(null);
+    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+  });
+
   it("can run a stale cell", () => {
     // Update code of first cell
     actions.updateCellCode({
