@@ -526,7 +526,7 @@ describe("cell reducer", () => {
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
     // ERROR RESPONSE
-    // 
+    //
     // should reset status to idle
     /////////////////
     // Prepare for run
