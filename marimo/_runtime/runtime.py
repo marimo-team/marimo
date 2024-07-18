@@ -14,6 +14,7 @@ import sys
 import threading
 import time
 import traceback
+from copy import copy
 from multiprocessing import connection
 from typing import (
     TYPE_CHECKING,
@@ -1113,7 +1114,7 @@ class Kernel:
         runner = cell_runner.Runner(
             roots=roots,
             graph=graph,
-            glbls=self.globals,
+            glbls=copy(self.globals),
             excluded_cells=set(),
             debugger=self.debugger,
             execution_mode=self.reactive_execution_mode,
