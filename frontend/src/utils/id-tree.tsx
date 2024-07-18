@@ -3,6 +3,7 @@
 import { arrayMove } from "@dnd-kit/sortable";
 import { arrayDelete, arrayInsert, arrayInsertMany } from "./arrays";
 import { Memoize } from "typescript-memoize";
+import { Logger } from "./Logger";
 
 /**
  * Tree data structure for handling ids with nested children
@@ -54,6 +55,17 @@ export class CollapsibleTree<T> {
 
   get length(): number {
     return this.nodes.length;
+  }
+
+  isCollapsed(id: T): boolean {
+    const node = this.nodes.find((n) => n.value === id);
+    if (!node) {
+      Logger.warn(
+        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`,
+      );
+      return false;
+    }
+    return node.isCollapsed;
   }
 
   indexOfOrThrow(id: T): number {

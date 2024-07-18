@@ -18,7 +18,7 @@ import { prepareCellForExecution, transitionCell } from "./cell";
 import { store } from "../state/jotai";
 import { createReducerAndAtoms } from "../../utils/createReducer";
 import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
-import { mergeOutlines } from "../dom/outline";
+import { findCollapseRange, mergeOutlines } from "../dom/outline";
 import type { CellHandle } from "@/components/editor/Cell";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
@@ -716,6 +716,38 @@ const {
       cellLogs: [],
     };
   },
+  collapseCell: (state, action: { cellId: CellId }) => {
+    const { cellId } = action;
+    // Get all the top-level outlines
+    const outlines = state.cellIds.topLevelIds.map((id) => {
+      const cell = state.cellRuntime[id];
+      return cell.outline;
+    });
+    // Find the start/end of the collapsed range
+    const startIndex = state.cellIds.indexOfOrThrow(cellId);
+    const range = findCollapseRange(startIndex, outlines);
+
+    if (!range) {
+      return state;
+    }
+    // Get the end of the range
+    const endCellId = state.cellIds.atOrThrow(range[1]);
+
+    return {
+      ...state,
+      // Collapse the range
+      cellIds: state.cellIds.collapse(cellId, endCellId),
+      scrollKey: cellId,
+    };
+  },
+  expandCell: (state, action: { cellId: CellId }) => {
+    const { cellId } = action;
+    return {
+      ...state,
+      cellIds: state.cellIds.expand(cellId),
+      scrollKey: cellId,
+    };
+  },
   splitCell: (state, action: { cellId: CellId }) => {
     const { cellId } = action;
     const index = state.cellIds.indexOfOrThrow(cellId);
@@ -995,11 +1027,11 @@ export function staleCellIds(state: NotebookState) {
   );
 }
 
-export function flattenNotebookCells(
+export function flattenTopLevelNotebookCells(
   state: NotebookState,
 ): Array<CellData & CellRuntimeState> {
   const { cellIds, cellData, cellRuntime } = state;
-  return cellIds.inOrderIds.map((cellId) => ({
+  return cellIds.topLevelIds.map((cellId) => ({
     ...cellData[cellId],
     ...cellRuntime[cellId],
   }));

@@ -7,7 +7,6 @@
  * */
 .Cell {
   position: relative;
-  margin-bottom: 21px;
   border-radius: 10px;
   max-width: inherit;
   width: 100%;
@@ -174,7 +173,6 @@
 
   /* Published - when its just the output */
   &.published {
-    margin-bottom: 0;
     border: none;
     box-shadow: none;
 

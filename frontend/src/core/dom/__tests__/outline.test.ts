@@ -1,6 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
-import { parseOutline } from "../outline";
+import {
+  canCollapseOutline,
+  findCollapseRange,
+  mergeOutlines,
+  parseOutline,
+} from "../outline";
+import type { Outline } from "@/core/cells/outline";
 
 describe("parseOutline", () => {
   it("can parse html outline", () => {
@@ -192,5 +198,138 @@ describe("parseOutline", () => {
         ],
       }
     `);
+  });
+});
+
+const OUTLINE_1: Outline = {
+  items: [
+    {
+      name: "h1",
+      level: 1,
+      by: { id: "h1" },
+    },
+    {
+      name: "h2",
+      level: 2,
+      by: { id: "h2" },
+    },
+    {
+      name: "h3",
+      level: 3,
+      by: { id: "h3" },
+    },
+  ],
+};
+
+const OUTLINE_2: Outline = {
+  items: [
+    {
+      name: "other-h1",
+      level: 1,
+      by: { path: "other-h1" },
+    },
+    {
+      name: "other-h2",
+      level: 2,
+      by: { path: "other-h2" },
+    },
+  ],
+};
+
+it("mergeOutlines", () => {
+  expect(
+    mergeOutlines([OUTLINE_1, null, OUTLINE_2, null]),
+  ).toMatchInlineSnapshot(`
+    {
+      "items": [
+        {
+          "by": {
+            "id": "h1",
+          },
+          "level": 1,
+          "name": "h1",
+        },
+        {
+          "by": {
+            "id": "h2",
+          },
+          "level": 2,
+          "name": "h2",
+        },
+        {
+          "by": {
+            "id": "h3",
+          },
+          "level": 3,
+          "name": "h3",
+        },
+        {
+          "by": {
+            "path": "other-h1",
+          },
+          "level": 1,
+          "name": "other-h1",
+        },
+        {
+          "by": {
+            "path": "other-h2",
+          },
+          "level": 2,
+          "name": "other-h2",
+        },
+      ],
+    }
+  `);
+});
+
+it("canCollapseOutline", () => {
+  expect(canCollapseOutline(null)).toBe(false);
+  expect(canCollapseOutline(OUTLINE_1)).toBe(true);
+  expect(canCollapseOutline(OUTLINE_2)).toBe(true);
+  expect(canCollapseOutline({ items: [] })).toBe(false);
+  expect(
+    canCollapseOutline({
+      items: [
+        {
+          name: "h3",
+          level: 3,
+          by: { id: "h3" },
+        },
+      ],
+    }),
+  ).toBe(false);
+});
+
+describe("findCollapseRange", () => {
+  const makeOutline = (levels: number[]) => {
+    return {
+      items: levels.map((level) => ({
+        name: `h${level}`,
+        level,
+        by: { id: `h${level}` },
+      })),
+    };
+  };
+
+  it("can collapse range", () => {
+    expect(findCollapseRange(0, [makeOutline([1, 2, 3, 4])])).toEqual([0, 0]);
+  });
+
+  it("can collapse range with gaps", () => {
+    const outlines = [
+      makeOutline([1, 2, 3, 4]),
+      makeOutline([2, 3, 4]),
+      null,
+      makeOutline([2]),
+      makeOutline([1]),
+      makeOutline([2]),
+    ];
+    expect(findCollapseRange(0, outlines)).toEqual([0, 3]);
+    expect(findCollapseRange(1, outlines)).toEqual([1, 2]);
+    expect(findCollapseRange(4, outlines)).toEqual([4, 5]);
+    expect(findCollapseRange(5, outlines)).toEqual([5, 5]);
+    // bad ranges
+    expect(findCollapseRange(10, outlines)).toEqual(null);
+    expect(findCollapseRange(2, outlines)).toEqual(null);
   });
 });
