@@ -1089,3 +1089,122 @@ import numpy",
   "stopped": false,
 }
 `;
+
+exports[`cell reducer > errors reset status to idle 1`] = `
+{
+  "code": "",
+  "config": {
+    "disabled": false,
+    "hide_code": false,
+  },
+  "consoleOutputs": [],
+  "debuggerActive": false,
+  "edited": false,
+  "errored": false,
+  "id": "0",
+  "interrupted": false,
+  "lastCodeRun": null,
+  "lastExecutionTime": null,
+  "name": "__",
+  "outline": null,
+  "output": null,
+  "runElapsedTimeMs": null,
+  "runStartTimestamp": null,
+  "serializedEditorState": null,
+  "staleInputs": false,
+  "status": "idle",
+  "stopped": false,
+}
+`;
+
+exports[`cell reducer > errors reset status to idle 2`] = `
+{
+  "code": "import marimo as mo",
+  "config": {
+    "disabled": false,
+    "hide_code": false,
+  },
+  "consoleOutputs": [],
+  "debuggerActive": false,
+  "edited": true,
+  "errored": false,
+  "id": "0",
+  "interrupted": false,
+  "lastCodeRun": null,
+  "lastExecutionTime": null,
+  "name": "__",
+  "outline": null,
+  "output": null,
+  "runElapsedTimeMs": null,
+  "runStartTimestamp": null,
+  "serializedEditorState": null,
+  "staleInputs": false,
+  "status": "idle",
+  "stopped": false,
+}
+`;
+
+exports[`cell reducer > errors reset status to idle 3`] = `
+{
+  "code": "import marimo as mo",
+  "config": {
+    "disabled": false,
+    "hide_code": false,
+  },
+  "consoleOutputs": [],
+  "debuggerActive": false,
+  "edited": false,
+  "errored": false,
+  "id": "0",
+  "interrupted": false,
+  "lastCodeRun": "import marimo as mo",
+  "lastExecutionTime": null,
+  "name": "__",
+  "outline": null,
+  "output": null,
+  "runElapsedTimeMs": null,
+  "runStartTimestamp": null,
+  "serializedEditorState": null,
+  "staleInputs": false,
+  "status": "queued",
+  "stopped": false,
+}
+`;
+
+exports[`cell reducer > errors reset status to idle 4`] = `
+{
+  "code": "import marimo as mo",
+  "config": {
+    "disabled": false,
+    "hide_code": false,
+  },
+  "consoleOutputs": [],
+  "debuggerActive": false,
+  "edited": false,
+  "errored": true,
+  "id": "0",
+  "interrupted": false,
+  "lastCodeRun": "import marimo as mo",
+  "lastExecutionTime": null,
+  "name": "__",
+  "outline": null,
+  "output": {
+    "channel": "marimo-error",
+    "data": [
+      {
+        "exception_type": "SyntaxError",
+        "msg": "Oh no!",
+        "type": "exception",
+      },
+    ],
+    "mimetype": "application/vnd.marimo+error",
+    "timestamp": 0,
+  },
+  "runElapsedTimeMs": null,
+  "runStartTimestamp": null,
+  "serializedEditorState": null,
+  "staleInputs": false,
+  "status": "idle",
+  "stopped": false,
+}
+`;
