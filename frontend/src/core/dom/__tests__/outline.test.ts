@@ -282,35 +282,27 @@ it("mergeOutlines", () => {
   `);
 });
 
+const makeOutline = (levels: number[]) => {
+  return {
+    items: levels.map((level) => ({
+      name: `h${level}`,
+      level,
+      by: { id: `h${level}` },
+    })),
+  };
+};
+
 it("canCollapseOutline", () => {
   expect(canCollapseOutline(null)).toBe(false);
-  expect(canCollapseOutline(OUTLINE_1)).toBe(true);
-  expect(canCollapseOutline(OUTLINE_2)).toBe(true);
-  expect(canCollapseOutline({ items: [] })).toBe(false);
-  expect(
-    canCollapseOutline({
-      items: [
-        {
-          name: "h3",
-          level: 3,
-          by: { id: "h3" },
-        },
-      ],
-    }),
-  ).toBe(false);
+  expect(canCollapseOutline(makeOutline([1]))).toBe(true);
+  expect(canCollapseOutline(makeOutline([1, 2]))).toBe(true);
+  expect(canCollapseOutline(makeOutline([2]))).toBe(true);
+  expect(canCollapseOutline(makeOutline([3]))).toBe(true);
+  expect(canCollapseOutline(makeOutline([1, 4]))).toBe(true);
+  expect(canCollapseOutline(makeOutline([4]))).toBe(false);
 });
 
 describe("findCollapseRange", () => {
-  const makeOutline = (levels: number[]) => {
-    return {
-      items: levels.map((level) => ({
-        name: `h${level}`,
-        level,
-        by: { id: `h${level}` },
-      })),
-    };
-  };
-
   it("can collapse range", () => {
     expect(findCollapseRange(0, [makeOutline([1, 2, 3, 4])])).toEqual([0, 0]);
   });
