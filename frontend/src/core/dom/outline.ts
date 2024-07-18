@@ -70,8 +70,8 @@ export function canCollapseOutline(outline: Outline | null): boolean {
   if (outline == null) {
     return false;
   }
-  // Only can collapse if has items with a level 1 or 2
-  return outline.items.some((item) => item.level <= 2);
+  // Only can collapse if has items with a level 1 or 2 or 3
+  return outline.items.some((item) => item.level <= 3);
 }
 
 /**

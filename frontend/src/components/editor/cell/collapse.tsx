@@ -32,7 +32,9 @@ export const CollapseToggle: React.FC<Props> = (props) => {
 
   return (
     <Button variant="text" size="icon" onClick={props.onClick}>
-      <Arrow isCollapsed={props.isCollapsed} />
+      <Tooltip content={props.isCollapsed ? "Expand" : "Collapse"}>
+        <Arrow isCollapsed={props.isCollapsed} />
+      </Tooltip>
     </Button>
   );
 };
@@ -57,7 +59,7 @@ export const CollapsedCellBanner: React.FC<{
     <div
       onClick={onClick}
       className={cn(
-        "flex items-center justify-between w-[calc(100%-2rem)] h-9 bg-muted rounded-b mx-4 opacity-80 hover:opacity-100",
+        "flex items-center justify-between w-[calc(100%-2rem)] h-9 bg-muted rounded-b mx-4 opacity-80 hover:opacity-100 cursor-pointer",
       )}
     >
       <Toolbar
