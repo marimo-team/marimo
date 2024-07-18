@@ -552,6 +552,7 @@ const CellComponent = (
           <CollapsedCellBanner
             onClick={() => expandCell({ cellId })}
             count={collapseCount}
+            cellId={cellId}
           />
         )}
       </SortableCell>

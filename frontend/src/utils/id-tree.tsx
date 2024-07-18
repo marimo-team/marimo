@@ -25,6 +25,10 @@ export class TreeNode<T> {
     );
   }
 
+  getDescendants(): T[] {
+    return this.children.flatMap((c) => [c.value, ...c.getDescendants()]);
+  }
+
   get inOrderIds(): T[] {
     return this.children.flatMap((c) => [c.value, ...c.inOrderIds]);
   }
@@ -55,6 +59,17 @@ export class CollapsibleTree<T> {
 
   get length(): number {
     return this.nodes.length;
+  }
+
+  getDescendants(id: T): T[] {
+    const node = this.nodes.find((n) => n.value === id);
+    if (!node) {
+      Logger.warn(
+        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`,
+      );
+      return [];
+    }
+    return node.getDescendants();
   }
 
   isCollapsed(id: T): boolean {
