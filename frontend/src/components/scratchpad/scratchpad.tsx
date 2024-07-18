@@ -46,6 +46,9 @@ export const ScratchPad: React.FC = () => {
   });
 
   const handleInsertCode = useEvent(() => {
+    if (!code.trim()) {
+      return;
+    }
     createNewCell({
       code,
       before: false,
