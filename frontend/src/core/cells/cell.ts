@@ -73,6 +73,15 @@ export function transitionCell(
     message.output != null &&
     message.output.mimetype === "application/vnd.marimo+error"
   ) {
+
+    // The frontend manually sets status to queued when a user runs a cell,
+    // to give immediate feedback, but the kernel doesn't know that.
+    //
+    // TODO(akshayka): Move all status management to the backend.
+    if (nextCell.status === "queued" || nextCell.status === "running") {
+      nextCell.status = "idle";
+    }
+
     invariant(
       Array.isArray(message.output.data),
       "Expected error output data to be an array",
@@ -142,7 +151,11 @@ export function prepareCellForExecution(
 ): CellRuntimeState {
   const nextCell = { ...cell };
 
-  nextCell.status = "queued";
+  if (cell.status !== "disabled-transitively") {
+    // TODO(akshayka): Move this to the backend. It's in the FE right now
+    // to give the user immediate feedback.
+    nextCell.status = "queued";
+  }
   nextCell.interrupted = false;
   nextCell.errored = false;
   nextCell.runElapsedTimeMs = null;
