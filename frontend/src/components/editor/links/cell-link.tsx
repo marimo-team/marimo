@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { CellId, HTMLCellId } from "@/core/cells/ids";
+import { type CellId, HTMLCellId } from "@/core/cells/ids";
 import { Logger } from "../../../utils/Logger";
 import { cn } from "@/utils/cn";
 import { displayCellName } from "@/core/cells/names";
@@ -18,7 +18,7 @@ interface Props {
 export const CellLink = (props: Props): JSX.Element => {
   const { className, cellId, variant, onClick, skipScroll } = props;
   const cellName = useCellNames()[cellId] ?? "";
-  const cellIndex = useCellIds().indexOf(cellId);
+  const cellIndex = useCellIds().inOrderIds.indexOf(cellId);
 
   return (
     <div

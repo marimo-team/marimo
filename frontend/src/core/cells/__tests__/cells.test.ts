@@ -1,14 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
-  NotebookState,
+  type NotebookState,
   exportedForTesting,
   flattenNotebookCells,
 } from "../cells";
 import { notebookCells } from "../utils";
 import { CellId } from "@/core/cells/ids";
-import { OutputMessage } from "@/core/kernel/messages";
-import { Seconds } from "@/utils/time";
+import type { OutputMessage } from "@/core/kernel/messages";
+import type { Seconds } from "@/utils/time";
 
 const { initialNotebookState, reducer, createActions } = exportedForTesting;
 
@@ -43,7 +43,7 @@ describe("cell reducer", () => {
 
     state = initialNotebookState();
     actions.createNewCell({ cellId: undefined!, before: false });
-    firstCellId = state.cellIds[0];
+    firstCellId = state.cellIds.atOrThrow(0);
   });
 
   afterAll(() => {

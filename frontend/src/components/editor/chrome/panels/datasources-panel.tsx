@@ -63,7 +63,7 @@ const sortedTablesAtom = atom((get) => {
       return 0;
     }
 
-    const index = cellIds.indexOf(variable.declaredBy[0]);
+    const index = cellIds.inOrderIds.indexOf(variable.declaredBy[0]);
     if (index === -1) {
       return 0;
     }

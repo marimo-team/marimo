@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { useCellDataAtoms, useCellIds } from "@/core/cells/cells";
 import { useVariables } from "@/core/variables/state";
-import React from "react";
+import type React from "react";
 import { DependencyGraph } from "../../../dependency-graph/dependency-graph";
 import { cn } from "@/utils/cn";
 
@@ -15,7 +15,7 @@ export const DependencyGraphPanel: React.FC = () => {
       <DependencyGraph
         cellAtoms={cells}
         variables={variables}
-        cellIds={cellIds}
+        cellIds={cellIds.inOrderIds}
       />
     </div>
   );

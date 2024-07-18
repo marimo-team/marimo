@@ -6,11 +6,18 @@ export function arrayDelete<T>(array: T[], index: number): T[] {
 }
 
 export function arrayInsert<T>(array: T[], index: number, value: T): T[] {
-  if (array.length === 0) {
-    return [value];
-  }
+  return arrayInsertMany(array, index, [value]);
+}
 
-  return [...array.slice(0, index), value, ...array.slice(index)];
+export function arrayInsertMany<T>(
+  array: T[],
+  index: number,
+  values: T[],
+): T[] {
+  if (array.length === 0) {
+    return values;
+  }
+  return [...array.slice(0, index), ...values, ...array.slice(index)];
 }
 
 export function arrayShallowEquals<T>(a: T[], b: T[]): boolean {
