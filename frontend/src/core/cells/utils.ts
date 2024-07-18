@@ -75,3 +75,25 @@ export function enabledCellIds(state: NotebookState) {
 export function canUndoDeletes(state: NotebookState) {
   return state.history.length > 0;
 }
+
+/**
+ * Get the status of the descendants of the given cell.
+ */
+export function getDescendantsStatus(state: NotebookState, cellId: CellId) {
+  const descendants = state.cellIds.getDescendants(cellId);
+  const stale = descendants.some(
+    (id) => state.cellRuntime[id]?.staleInputs || state.cellData[id]?.edited,
+  );
+  const errored = descendants.some((id) => state.cellRuntime[id]?.errored);
+  const runningOrQueued = descendants.some(
+    (id) =>
+      state.cellRuntime[id]?.status === "running" ||
+      state.cellRuntime[id]?.status === "queued",
+  );
+
+  return {
+    stale,
+    errored,
+    runningOrQueued,
+  };
+}

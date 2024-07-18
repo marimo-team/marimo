@@ -3,6 +3,7 @@
 import { arrayMove } from "@dnd-kit/sortable";
 import { arrayDelete, arrayInsert, arrayInsertMany } from "./arrays";
 import { Memoize } from "typescript-memoize";
+import { Logger } from "./Logger";
 
 /**
  * Tree data structure for handling ids with nested children
@@ -17,11 +18,15 @@ export class TreeNode<T> {
   /**
    * Recursively count the number of nodes in the tree
    */
-  getChildCount(): number {
+  geDescendantCount(): number {
     return this.children.reduce(
-      (acc, child) => acc + 1 + child.getChildCount(),
+      (acc, child) => acc + 1 + child.geDescendantCount(),
       0,
     );
+  }
+
+  getDescendants(): T[] {
+    return this.children.flatMap((c) => [c.value, ...c.getDescendants()]);
   }
 
   get inOrderIds(): T[] {
@@ -56,6 +61,41 @@ export class CollapsibleTree<T> {
     return this.nodes.length;
   }
 
+  /**
+   * Get the descendants of the given node
+   *
+   * Only works for the top-level nodes
+   */
+  getDescendants(id: T): T[] {
+    const node = this.nodes.find((n) => n.value === id);
+    if (!node) {
+      Logger.warn(
+        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`,
+      );
+      return [];
+    }
+    return node.getDescendants();
+  }
+
+  /**
+   * Check if the given node is collapsed
+   *
+   * Only works for the top-level nodes
+   */
+  isCollapsed(id: T): boolean {
+    const node = this.nodes.find((n) => n.value === id);
+    if (!node) {
+      Logger.warn(
+        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`,
+      );
+      return false;
+    }
+    return node.isCollapsed;
+  }
+
+  /**
+   * Get the index of the given node, or throw
+   */
   indexOfOrThrow(id: T): number {
     const index = this.nodes.findIndex((n) => n.value === id);
     if (index === -1) {
@@ -66,11 +106,17 @@ export class CollapsibleTree<T> {
     return index;
   }
 
+  /**
+   * Move the given node to the front
+   */
   moveToFront(id: T): CollapsibleTree<T> {
     const index = this.indexOfOrThrow(id);
     return new CollapsibleTree(arrayMove(this.nodes, index, 0));
   }
 
+  /**
+   * Move the given node to the back
+   */
   moveToBack(id: T): CollapsibleTree<T> {
     const index = this.indexOfOrThrow(id);
     return new CollapsibleTree(
@@ -145,10 +191,16 @@ export class CollapsibleTree<T> {
     return new CollapsibleTree(this.nodes);
   }
 
+  /**
+   * Get the node at the given index
+   */
   at(index: number): T | undefined {
     return this.nodes.at(index)?.value;
   }
 
+  /**
+   * Get the node at the given index
+   */
   atOrThrow(index: number): T {
     const node = this.nodes.at(index);
     if (node === undefined) {
@@ -157,10 +209,16 @@ export class CollapsibleTree<T> {
     return node.value;
   }
 
+  /**
+   * Get the first node, or throw
+   */
   first(): T {
     return this.atOrThrow(0);
   }
 
+  /**
+   * Get the last node, or throw
+   */
   last(): T {
     return this.atOrThrow(this.nodes.length - 1);
   }
@@ -173,10 +231,16 @@ export class CollapsibleTree<T> {
     return new CollapsibleTree(this.nodes);
   }
 
+  /**
+   * Insert a node at the end
+   */
   insertAtEnd(id: T): CollapsibleTree<T> {
     return this.insert(id, this.nodes.length);
   }
 
+  /**
+   * Insert a node at the start
+   */
   insertAtStart(id: T): CollapsibleTree<T> {
     return this.insert(id, 0);
   }
@@ -198,7 +262,7 @@ export class CollapsibleTree<T> {
    * Get the number of nodes in the tree, not-including the given node
    */
   getCount(id: T): number {
-    return this.nodes.find((n) => n.value === id)?.getChildCount() ?? 0;
+    return this.nodes.find((n) => n.value === id)?.geDescendantCount() ?? 0;
   }
 
   /**

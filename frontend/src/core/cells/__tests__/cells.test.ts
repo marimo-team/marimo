@@ -3,7 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   type NotebookState,
   exportedForTesting,
-  flattenNotebookCells,
+  flattenTopLevelNotebookCells,
 } from "../cells";
 import { notebookCells } from "../utils";
 import { CellId } from "@/core/cells/ids";
@@ -21,12 +21,12 @@ function formatCells(notebook: NotebookState) {
 
 describe("cell reducer", () => {
   let state: NotebookState;
-  let cells: ReturnType<typeof flattenNotebookCells>;
+  let cells: ReturnType<typeof flattenTopLevelNotebookCells>;
   let firstCellId: CellId;
 
   const actions = createActions((action) => {
     state = reducer(state, action);
-    cells = flattenNotebookCells(state);
+    cells = flattenTopLevelNotebookCells(state);
   });
 
   let i = 0;

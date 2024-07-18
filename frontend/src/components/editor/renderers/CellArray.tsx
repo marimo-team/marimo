@@ -7,7 +7,7 @@ import {
 } from "../../../core/websocket/types";
 import {
   type NotebookState,
-  flattenNotebookCells,
+  flattenTopLevelNotebookCells,
   useCellActions,
 } from "../../../core/cells/cells";
 import type { AppConfig, UserConfig } from "../../../core/config/config-schema";
@@ -58,37 +58,20 @@ export const CellArray: React.FC<CellArrayProps> = ({
   appConfig,
   connStatus,
 }) => {
-  const {
-    updateCellCode,
-    prepareForRun,
-    moveCell,
-    moveToNextCell,
-    updateCellConfig,
-    clearSerializedEditorState,
-    focusCell,
-    createNewCell,
-    focusBottomCell,
-    focusTopCell,
-    scrollToTarget,
-    foldAll,
-    unfoldAll,
-    sendToBottom,
-    sendToTop,
-    setStdinResponse,
-  } = useCellActions();
+  const actions = useCellActions();
   const { theme } = useTheme();
   const { togglePanel } = useChromeActions();
 
   const { invisible } = useDelayVisibility(notebook.cellIds.length, mode);
 
   // HOTKEYS
-  useHotkey("global.focusTop", focusTopCell);
-  useHotkey("global.focusBottom", focusBottomCell);
+  useHotkey("global.focusTop", actions.focusTopCell);
+  useHotkey("global.focusBottom", actions.focusBottomCell);
   useHotkey("global.toggleSidebar", togglePanel);
-  useHotkey("global.foldCode", foldAll);
-  useHotkey("global.unfoldCode", unfoldAll);
+  useHotkey("global.foldCode", actions.foldAll);
+  useHotkey("global.unfoldCode", actions.unfoldAll);
   useHotkey("global.formatAll", () => {
-    formatAll(updateCellCode);
+    formatAll(actions.updateCellCode);
   });
   // Catch all to avoid native OS behavior
   // Otherwise a user might try to hide a cell and accidentally hide the OS window
@@ -98,13 +81,14 @@ export const CellArray: React.FC<CellArrayProps> = ({
   const onDeleteCell = useDeleteCellCallback();
 
   // Scroll to a cell targeted by a previous action
+  const scrollToTarget = actions.scrollToTarget;
   useEffect(() => {
     if (notebook.scrollKey !== null) {
       scrollToTarget();
     }
   }, [notebook.cellIds, notebook.scrollKey, scrollToTarget]);
 
-  const cells = flattenNotebookCells(notebook);
+  const cells = flattenTopLevelNotebookCells(notebook);
 
   return (
     <VerticalLayoutWrapper
@@ -115,49 +99,44 @@ export const CellArray: React.FC<CellArrayProps> = ({
     >
       <PackageAlert />
       <NotebookBanner />
-      {cells.map((cell) => (
-        <Cell
-          key={cell.id.toString()}
-          theme={theme}
-          showPlaceholder={cells.length === 1}
-          allowFocus={!invisible}
-          id={cell.id}
-          code={cell.code}
-          output={cell.output}
-          consoleOutputs={cell.consoleOutputs}
-          status={cell.status}
-          updateCellCode={updateCellCode}
-          prepareForRun={prepareForRun}
-          edited={cell.edited}
-          interrupted={cell.interrupted}
-          errored={cell.errored}
-          stopped={cell.stopped}
-          staleInputs={cell.staleInputs}
-          runStartTimestamp={cell.runStartTimestamp}
-          runElapsedTimeMs={
-            cell.runElapsedTimeMs ?? (cell.lastExecutionTime as Milliseconds)
-          }
-          serializedEditorState={cell.serializedEditorState}
-          showDeleteButton={cells.length > 1 && !cell.config.hide_code}
-          createNewCell={createNewCell}
-          deleteCell={onDeleteCell}
-          focusCell={focusCell}
-          moveToNextCell={moveToNextCell}
-          setStdinResponse={setStdinResponse}
-          updateCellConfig={updateCellConfig}
-          clearSerializedEditorState={clearSerializedEditorState}
-          moveCell={moveCell}
-          mode={mode}
-          appClosed={connStatus.state !== WebSocketState.OPEN}
-          ref={notebook.cellHandles[cell.id]}
-          sendToBottom={sendToBottom}
-          sendToTop={sendToTop}
-          userConfig={userConfig}
-          debuggerActive={cell.debuggerActive}
-          config={cell.config}
-          name={cell.name}
-        />
-      ))}
+      <div className="flex flex-col gap-5">
+        {cells.map((cell) => (
+          <Cell
+            key={cell.id.toString()}
+            theme={theme}
+            showPlaceholder={cells.length === 1}
+            allowFocus={!invisible && !notebook.scrollKey}
+            id={cell.id}
+            code={cell.code}
+            outline={cell.outline}
+            output={cell.output}
+            consoleOutputs={cell.consoleOutputs}
+            status={cell.status}
+            edited={cell.edited}
+            interrupted={cell.interrupted}
+            errored={cell.errored}
+            stopped={cell.stopped}
+            staleInputs={cell.staleInputs}
+            runStartTimestamp={cell.runStartTimestamp}
+            runElapsedTimeMs={
+              cell.runElapsedTimeMs ?? (cell.lastExecutionTime as Milliseconds)
+            }
+            serializedEditorState={cell.serializedEditorState}
+            showDeleteButton={cells.length > 1 && !cell.config.hide_code}
+            mode={mode}
+            appClosed={connStatus.state !== WebSocketState.OPEN}
+            ref={notebook.cellHandles[cell.id]}
+            userConfig={userConfig}
+            debuggerActive={cell.debuggerActive}
+            config={cell.config}
+            name={cell.name}
+            isCollapsed={notebook.cellIds.isCollapsed(cell.id)}
+            collapseCount={notebook.cellIds.getCount(cell.id)}
+            {...actions}
+            deleteCell={onDeleteCell}
+          />
+        ))}
+      </div>
       <AddCellButtons />
     </VerticalLayoutWrapper>
   );

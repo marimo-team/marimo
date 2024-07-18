@@ -29,6 +29,7 @@ describe("CollapsibleTree", () => {
   it("collapses nodes correctly with no end", () => {
     const collapsedTree = tree.collapse("two", undefined);
     expect(collapsedTree.nodes[1].isCollapsed).toBe(true);
+    expect(collapsedTree.isCollapsed("two")).toBe(true);
     expect(collapsedTree.toString()).toMatchInlineSnapshot(`
 			"one
 			two (collapsed)
@@ -375,5 +376,21 @@ describe("CollapsibleTree", () => {
         four
       "
     `);
+  });
+
+  it("getDescendants correctly", () => {
+    expect(tree.getDescendants("two")).toEqual([]);
+    expect(tree.getDescendants("who")).toEqual([]);
+
+    tree = tree.collapse("three", undefined).collapse("two", undefined);
+    expect(tree.getDescendants("two")).toMatchInlineSnapshot(`
+      [
+        "three",
+        "four",
+      ]
+    `);
+
+    // We only get descendants of the top level
+    expect(tree.getDescendants("three")).toMatchInlineSnapshot(`[]`);
   });
 });
