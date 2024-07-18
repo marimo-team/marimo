@@ -391,6 +391,6 @@ describe("CollapsibleTree", () => {
     `);
 
     // We only get descendants of the top level
-    expect(tree.getDescendants("three")).toMatchInlineSnapshot([]);
+    expect(tree.getDescendants("three")).toMatchInlineSnapshot(`[]`);
   });
 });
