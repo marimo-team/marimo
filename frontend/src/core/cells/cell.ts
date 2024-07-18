@@ -73,7 +73,6 @@ export function transitionCell(
     message.output != null &&
     message.output.mimetype === "application/vnd.marimo+error"
   ) {
-
     // The frontend manually sets status to queued when a user runs a cell,
     // to give immediate feedback, but the kernel doesn't know that.
     //
