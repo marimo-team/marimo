@@ -74,7 +74,6 @@ export function scrollAndHighlightCell(
       }, 2000);
     }
     if (variant === "focus") {
-      console.log("focus");
       cell.classList.add("focus-outline");
       setTimeout(() => {
         cell.classList.remove("focus-outline");
