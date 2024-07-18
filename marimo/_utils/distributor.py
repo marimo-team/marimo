@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import TYPE_CHECKING, Callable, Generic, TypeVar
 
 from marimo import _loggers
@@ -49,9 +50,17 @@ class Distributor(Generic[T]):
 
     def _on_change(self) -> None:
         """Distribute the response to all consumers."""
+        retry_sleep_seconds = 0.001
         while self.input_connection.poll():
             try:
                 response = self.input_connection.recv()
+            except BlockingIOError as e:
+                # recv() sporadically fails with EAGAIN, EDEADLK ...
+                LOGGER.warning(
+                    "BlockingIOError in distributor receive: %s", str(e)
+                )
+                time.sleep(retry_sleep_seconds)
+                continue
             except (EOFError, StopIteration):
                 break
             for consumer in self.consumers:
