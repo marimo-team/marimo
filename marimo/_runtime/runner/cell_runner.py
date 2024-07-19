@@ -14,16 +14,22 @@ from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, Union
 from marimo._ast.cell import CellId_t, CellImpl
 from marimo._config.config import ExecutionType, OnCellChangeType
 from marimo._loggers import marimo_logger
-from marimo._messaging.errors import Error, MarimoStrictExecutionError
+from marimo._messaging.errors import (
+    Error,
+    MarimoExceptionRaisedError,
+    MarimoStrictExecutionError,
+)
 from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime import dataflow
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.executor import (
     MarimoMissingRefError,
+    MarimoNameError,
     execute_cell,
     execute_cell_async,
 )
 from marimo._runtime.marimo_pdb import MarimoPdb
+from marimo._utils.variables import unmangle_local
 
 LOGGER = marimo_logger()
 
@@ -338,24 +344,57 @@ class Runner:
             run_result = RunResult(output=e.output, exception=e)
             # don't print a traceback, since quitting is the intended
             # behavior (like sys.exit())
+        except MarimoNameError as e:
+            self.cancel(cell_id)
+            exception = MarimoStrictExecutionError(str(e), e.ref, None)
+            run_result = RunResult(output=exception, exception=exception)
         except MarimoMissingRefError as e:
             # In strict mode, marimo refuses to evaluate a cell if there are
             # missing definitions. Since the cell hasn't run, this is a pre
             # check error, but still mark descendants as cancelled.
             self.cancel(cell_id)
+            ref = e.ref
+            blamed_cell = None
             try:
-                (blamed_cell, *_) = self.graph.get_defining_cells(e.ref)
+                (blamed_cell, *_) = self.graph.get_defining_cells(ref)
             except KeyError:
                 # The reference is not found anywhere else in the graph
-                blamed_cell = None
+                # but it might be private
+                ref, var_cell_id = unmangle_local(ref)
+                if var_cell_id:
+                    blamed_cell = var_cell_id
 
-            output = MarimoStrictExecutionError(
-                f"marimo was unable to resolve "
-                f"a reference to `{e.ref}` in cell : ",
-                e.ref,
-                blamed_cell,
-            )
-            run_result = RunResult(output=output, exception=output)
+            output = None
+            exception = None
+            if not e.runtime_error:
+                output = MarimoStrictExecutionError(
+                    "marimo was unable to resolve "
+                    f"a reference to `{ref}` in cell : ",
+                    ref,
+                    blamed_cell,
+                )
+                exception = output
+            else:
+                output = MarimoExceptionRaisedError(
+                    f"marimo came across the undefined variable `{ref}` during"
+                    " runtime. This is possible in strict mode when static "
+                    "analysis is unable to properly resolve the reference due "
+                    "to direct access (e.g. `globals()['var']`) or circuitous "
+                    "definitions (e.g. by reassigning variables to different "
+                    "functions). If this failure is not the result of either "
+                    "of these cases, please consider reporting this issue to "
+                    "https://github.com/marimo-team/marimo/issues. Definition "
+                    "expected in cell : ",
+                    "Undefined marimo reference",
+                    blamed_cell,
+                )
+                exception = output
+            run_result = RunResult(output=output, exception=exception)
+            if e.runtime_error:
+                tmpio = io.StringIO()
+                traceback.print_exception(e.__cause__, file=tmpio)
+                tmpio.seek(0)
+                write_traceback(tmpio.read())
         except BaseException as e:
             # Catch-all: some libraries have bugs and raise BaseExceptions,
             # which shouldn't crash the marimo kernel
@@ -365,7 +404,9 @@ class Runner:
             self.cancel(cell_id)
             run_result = RunResult(output=None, exception=e)
             tmpio = io.StringIO()
-            traceback.print_exc(file=tmpio)
+            # The executors explicitly raise cell exceptions from base
+            # exceptions such that the stack trace is cleaner.
+            traceback.print_exception(e.__cause__, file=tmpio)
             tmpio.seek(0)
             write_traceback(tmpio.read())
         finally:

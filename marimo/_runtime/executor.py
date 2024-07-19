@@ -16,7 +16,7 @@ from marimo._runtime.copy import (
     ZeroCopy,
     shallow_copy,
 )
-from marimo._utils.variables import is_mangled_local
+from marimo._utils.variables import is_mangled_local, unmangle_local
 
 if TYPE_CHECKING:
     from marimo._ast.visitor import Name, VariableData
@@ -41,15 +41,55 @@ PRIMITIVES = (weakref.ref, str, numbers.Number, type(None))
 
 EXECUTION_TYPES: dict[str, Type[Executor]] = {}
 
+# Pretty names for stack traces
+marimo_body_execution = exec
+marimo_output_evaluation = eval
 
 class MarimoNameError(NameError):
     """Wrap a name error to rethrow later."""
 
+    def __init__(self, msg: str, ref: str) -> None:
+        super().__init__(msg)
+        self.ref = ref
+
 
 class MarimoMissingRefError(BaseException):
-    def __init__(self, ref: str) -> None:
+    def __init__(self, ref: str, runtime_error=True) -> None:
         super().__init__(f"Missing reference: {ref}")
         self.ref = ref
+        self.runtime_error = runtime_error
+
+
+def raise_name_error(graph: DirectedGraph, name_error: NameError) -> None:
+    # The best static analysis can do for variable level references is to
+    # use the top level definition. For example, consider the following
+    # cells:
+    # --- Cell 1 ---
+    # >> X = 1
+    # >> Y = 2
+    # >> l = lambda x: x + X
+    # >> L = l # Static analysis can fail on reassignment
+    # >> l = lambda x: x + Y
+    #
+    # --- Cell 2 ---
+    # >> L(1) # This fails because:
+    #    globals == {'Y': 2, 'l': lambda x: x + Y, 'L': lambda x: x + X}
+    #    # note no X
+    #
+    # The code could be taken to use the last definition of `l`, but theres
+    # the case of condition definition and dynamic definition, so making a
+    # best effort and resolving the error at runtime is the best approach.
+    #
+    # marimo lint (#1543) could potentially detect these runtime
+    # problems. Throwing a compilation error seems excessive since if
+    # carefully managed, the code could still be correct.
+    (missing_name,) = re.findall(r"'([^']*)'", str(name_error))
+    _, private_cell_id = unmangle_local(missing_name)
+    if missing_name in graph.definitions or private_cell_id:
+        raise MarimoMissingRefError(
+            missing_name, runtime_error=True
+        ) from name_error
+    raise BaseException() from name_error
 
 
 def register_execution_type(
@@ -103,6 +143,9 @@ class Executor(ABC):
         pass
 
 
+# NOTE: Prefer to inherit from DefaultExecutor, or call the static execute
+# methods directly since DefaultExecutor utilizes so unorthodox code formmating
+# for prettier stack traces.
 @register_execution_type("relaxed")
 class DefaultExecutor(Executor):
     @staticmethod
@@ -114,16 +157,32 @@ class DefaultExecutor(Executor):
         if cell.body is None:
             return None
         assert cell.last_expr is not None
+        try:
+            if _is_coroutine(cell.body):
+                (
+                    await marimo_body_execution
+                    (cell.body, glbls)
+                )
+            else:
+                (
+                    marimo_body_execution
+                    (cell.body, glbls)
+                )
 
-        if _is_coroutine(cell.body):
-            await eval(cell.body, glbls)
-        else:
-            exec(cell.body, glbls)
-
-        if _is_coroutine(cell.last_expr):
-            return await eval(cell.last_expr, glbls)
-        else:
-            return eval(cell.last_expr, glbls)
+            if _is_coroutine(cell.last_expr):
+                return (
+                    await marimo_output_evaluation
+                    (cell.last_expr, glbls)
+                )
+            else:
+                return (
+                    marimo_output_evaluation
+                    (cell.last_expr, glbls)
+                )
+          except Exception as e:
+            # Raising from a BaseException will fold in the stace trace prior to
+            # execution
+            raise BaseException() from e
 
     @staticmethod
     def execute_cell(
@@ -131,11 +190,20 @@ class DefaultExecutor(Executor):
         glbls: dict[str, Any],
         _graph: Optional[DirectedGraph] = None,
     ) -> Any:
-        if cell.body is None:
-            return None
-        assert cell.last_expr is not None
-        exec(cell.body, glbls)
-        return eval(cell.last_expr, glbls)
+        try:
+            if cell.body is None:
+                return None
+            assert cell.last_expr is not None
+            (
+                marimo_body_execution
+                (cell.body, glbls)
+            )
+            return (
+                marimo_output_evaluation
+                (cell.last_expr, glbls)
+            )
+        except Exception as e:
+          raise BaseException() from e
 
 
 @register_execution_type("strict")
@@ -151,32 +219,8 @@ class StrictExecutor(Executor):
         backup = StrictExecutor.sanitize_inputs(cell, refs, glbls)
         try:
             response = await DefaultExecutor.execute_cell_async(cell, glbls)
-        # The best static analysis can do for variable level references is to
-        # use the top level definition. For example, consider the following
-        # cells:
-        # --- Cell 1 ---
-        # >> X = 1
-        # >> Y = 2
-        # >> l = lambda x: x + X
-        # >> L = l # Static analysis can fail on reassignment
-        # >> l = lambda x: x + Y
-        #
-        # --- Cell 2 ---
-        # >> L(1) # This fails because:
-        #    globals = {'X': 1, 'l': lambda x: x + Y, 'L': lambda x: x + Y}
-        #
-        # The code could be taken to use the last definition of `l`, but theres
-        # the case of condition definition and dynamic definition, so making a
-        # best effort and resolving the error at runtime is the best approach.
-        #
-        # marimo lint (#1543) could potentially detect these runtime
-        # problems. Throwing a compilation error seems excessive since if
-        # carefully managed, the code could still be correct.
-        except MarimoNameError as name_error:
-            (missing_name,) = re.findall(r"'([^']*)'", str(name_error))
-            if missing_name in graph.definitions:
-                raise MarimoMissingRefError(missing_name) from name_error
-            raise name_error
+        except NameError as name_error:
+            raise_name_error(graph, name_error)
         finally:
             # Restore globals from backup and backfill outputs
             StrictExecutor.update_outputs(cell, glbls, backup)
@@ -192,11 +236,8 @@ class StrictExecutor(Executor):
         backup = StrictExecutor.sanitize_inputs(cell, refs, glbls)
         try:
             response = DefaultExecutor.execute_cell(cell, glbls)
-        except MarimoNameError as name_error:
-            (missing_name,) = re.findall(r"'([^']*)'", str(name_error))
-            if missing_name in graph.definitions:
-                raise MarimoMissingRefError(missing_name) from name_error
-            raise name_error
+        except NameError as name_error:
+            raise_name_error(graph, name_error)
         finally:
             StrictExecutor.update_outputs(cell, glbls, backup)
         return response
@@ -255,9 +296,9 @@ class StrictExecutor(Executor):
             elif ref not in glbls["__builtins__"]:
                 if ref in cell.defs:
                     raise MarimoNameError(
-                        f"name `{ref}` is referenced before definition."
+                        f"name `{ref}` is referenced before definition.", ref
                     )
-                raise MarimoMissingRefError(ref)
+                raise MarimoMissingRefError(ref, runtime_error=False)
 
         # NOTE: Execution expects the globals dictionary by memory reference,
         # so we need to clear it and update it with the sanitized locals,

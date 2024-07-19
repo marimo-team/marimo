@@ -187,6 +187,12 @@ def _broadcast_outputs(
             clear_console=False,
             cell_id=cell.cell_id,
         )
+    elif isinstance(run_result.exception, MarimoExceptionRaisedError):
+        CellOp.broadcast_error(
+            data=[run_result.exception],
+            clear_console=False,
+            cell_id=cell.cell_id,
+        )
     elif run_result.exception is not None:
         LOGGER.debug(
             "Cell %s raised %s",

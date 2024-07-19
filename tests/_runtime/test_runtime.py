@@ -1145,6 +1145,76 @@ class TestStrictExecution:
             assert "x" in k.globals
             assert not k.errors
 
+    @staticmethod
+    async def test_runtime_resolution_failure(strict_kernel: Kernel) -> None:
+        k = strict_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent(
+                        """
+                    X = 1
+                    Y = 2
+                    l = lambda x: x + X
+                    L = l # Static analysis can fail on reassignment
+                    l = lambda x: x + Y
+                    """
+                    ),
+                ),
+                ExecutionRequest(
+                    cell_id="1",
+                    code=textwrap.dedent(
+                        """
+                    x = L(1)
+                    x
+                    """
+                    ),
+                ),
+            ]
+        )
+        assert "x" not in k.globals
+        assert set(k.errors.keys()) == {"1"}
+        assert len(k.errors["1"]) == 1
+        assert isinstance(k.errors["1"][0], MarimoStrictExecutionError)
+        assert k.errors["1"][0].ref == "X"
+
+    @staticmethod
+    async def test_runtime_resolution_failure_private(
+        strict_kernel: Kernel,
+    ) -> None:
+        k = strict_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent(
+                        """
+                    _X = 1
+                    Y = 2
+                    l = lambda x: x + _X
+                    L = l # Static analysis can fail on reassignment
+                    l = lambda x: x + Y
+                    """
+                    ),
+                ),
+                ExecutionRequest(
+                    cell_id="1",
+                    code=textwrap.dedent(
+                        """
+                    x = L(1)
+                    x
+                    """
+                    ),
+                ),
+            ]
+        )
+        assert "x" not in k.globals
+        assert set(k.errors.keys()) == {"1"}
+        assert len(k.errors["1"]) == 1
+        assert isinstance(k.errors["1"][0], MarimoStrictExecutionError)
+        assert k.errors["1"][0].ref == "_X"
+
 
 class TestStoredOutput:
     async def test_ui_element_in_output_stored(
