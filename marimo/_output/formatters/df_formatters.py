@@ -1,9 +1,12 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from marimo import _loggers
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._plugins.ui._impl.table import table
+
+LOGGER = _loggers.marimo_logger()
 
 
 class PolarsFormatter(FormatterFactory):
@@ -20,16 +23,11 @@ class PolarsFormatter(FormatterFactory):
         def _show_marimo_dataframe(
             df: pl.DataFrame,
         ) -> tuple[KnownMimeType, str]:
-            # If has structured don't display in the table
-            for col in df.get_columns():
-                if (
-                    col.dtype == pl.Struct
-                    or col.dtype == pl.List
-                    or col.dtype == pl.Array
-                ):
-                    return ("text/html", df._repr_html_())
-
-            return table(df, selection=None, pagination=True)._mime_()
+            try:
+                return table(df, selection=None, pagination=True)._mime_()
+            except Exception as e:
+                LOGGER.warning("Failed to format DataFrame: %s", e)
+                return ("text/html", df._repr_html_())
 
 
 class PyArrowFormatter(FormatterFactory):
