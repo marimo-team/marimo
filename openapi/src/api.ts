@@ -936,6 +936,7 @@ export interface components {
     ExecuteMultipleRequest: {
       cellIds: string[];
       codes: string[];
+      timestamp: number;
     };
     ExecuteScratchpadRequest: {
       code: string;
@@ -944,6 +945,7 @@ export interface components {
     ExecutionRequest: {
       cellId: string;
       code: string;
+      timestamp: number;
     };
     ExportAsHTMLRequest: {
       assetUrl?: string | null;
@@ -1253,6 +1255,7 @@ export interface components {
     MimeType:
       | "application/json"
       | "application/vnd.marimo+error"
+      | "application/vnd.marimo+traceback"
       | "image/png"
       | "image/svg+xml"
       | "image/tiff"

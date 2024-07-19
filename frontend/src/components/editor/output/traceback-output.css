@@ -1,0 +1,14 @@
+.traceback-header {
+  display: inline-grid;
+  height: 1lh; /* height of one line */
+  overflow: hidden;
+  place-content: end;
+}
+
+/* fallback if lh is not supported */
+@supports not (height:1lh) {
+  .traceback-header {
+    line-height: 1.5em;
+    height: 1.5em;
+  }
+}

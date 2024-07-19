@@ -9,6 +9,7 @@ from typing import Literal
 KnownMimeType = Literal[
     "application/json",
     "application/vnd.marimo+error",
+    "application/vnd.marimo+traceback",
     "image/png",
     "image/svg+xml",
     "image/tiff",

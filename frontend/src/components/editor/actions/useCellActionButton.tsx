@@ -179,7 +179,7 @@ export function useCellActionButtons({ cell }: Props) {
         hidden: !aiEnabled,
         handle: () => {
           setAiCompletionCell((current) =>
-            current === cellId ? null : cellId,
+            current?.cellId === cellId ? null : { cellId },
           );
         },
         hotkey: "cell.aiCompletion",

@@ -462,9 +462,12 @@ components:
           items:
             type: string
           type: array
+        timestamp:
+          type: number
       required:
       - cellIds
       - codes
+      - timestamp
       type: object
     ExecuteScratchpadRequest:
       properties:
@@ -482,9 +485,12 @@ components:
           type: string
         code:
           type: string
+        timestamp:
+          type: number
       required:
       - cellId
       - code
+      - timestamp
       type: object
     ExportAsHTMLRequest:
       properties:
@@ -1224,6 +1230,7 @@ components:
       enum:
       - application/json
       - application/vnd.marimo+error
+      - application/vnd.marimo+traceback
       - image/png
       - image/svg+xml
       - image/tiff
@@ -1751,7 +1758,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.7.5
+  version: 0.7.8
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
