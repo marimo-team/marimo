@@ -18,7 +18,7 @@ class PypiPackageManager(CanonicalizingPackageManager):
 class PipPackageManager(PypiPackageManager):
     name = "pip"
 
-    async def install(self, package: str) -> bool:
+    async def _install(self, package: str) -> bool:
         return self.run(["pip", "install", package])
 
 
@@ -31,7 +31,7 @@ class MicropipPackageManager(PypiPackageManager):
     def is_manager_installed(self) -> bool:
         return is_pyodide()
 
-    async def install(self, package: str) -> bool:
+    async def _install(self, package: str) -> bool:
         assert is_pyodide()
         import micropip  # type: ignore
 
@@ -45,19 +45,19 @@ class MicropipPackageManager(PypiPackageManager):
 class UvPackageManager(PypiPackageManager):
     name = "uv"
 
-    async def install(self, package: str) -> bool:
+    async def _install(self, package: str) -> bool:
         return self.run(["uv", "pip", "install", package])
 
 
 class RyePackageManager(PypiPackageManager):
     name = "rye"
 
-    async def install(self, package: str) -> bool:
+    async def _install(self, package: str) -> bool:
         return self.run(["rye", "add", package])
 
 
 class PoetryPackageManager(PypiPackageManager):
     name = "poetry"
 
-    async def install(self, package: str) -> bool:
+    async def _install(self, package: str) -> bool:
         return self.run(["poetry", "add", package])

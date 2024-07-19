@@ -673,8 +673,13 @@ class Kernel:
                 MissingPackageAlert(
                     packages=list(
                         sorted(
-                            self.package_manager.module_to_package(mod)
+                            pkg
                             for mod in missing_modules_after_deletion
+                            if not self.package_manager.attempted_to_install(
+                                pkg := self.package_manager.module_to_package(
+                                    mod
+                                )
+                            )
                         )
                     ),
                     isolated=is_python_isolated(),
@@ -949,8 +954,13 @@ class Kernel:
             and self.package_manager is not None
         ):
             missing_packages = [
-                self.package_manager.module_to_package(mod)
+                pkg
                 for mod in self.module_registry.missing_modules()
+                # filter out packages that we already attempted to install
+                # to prevent an infinite loop
+                if not self.package_manager.attempted_to_install(
+                    pkg := self.package_manager.module_to_package(mod)
+                )
             ]
 
             if missing_packages:
@@ -1504,6 +1514,10 @@ class Kernel:
 
         for mod in missing_modules:
             pkg = self.package_manager.module_to_package(mod)
+            if self.package_manager.attempted_to_install(package=pkg):
+                # Already attempted an installation; it must have failed.
+                # Skip the installation.
+                continue
             package_statuses[pkg] = "installing"
             InstallingPackageAlert(packages=package_statuses).broadcast()
             if await self.package_manager.install(pkg):
