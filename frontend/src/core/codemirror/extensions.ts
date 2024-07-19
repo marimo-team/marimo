@@ -39,7 +39,9 @@ export function formatKeymapExtension(
         }
         const destinationLanguage =
           currentLanguage === "python" ? "markdown" : "python";
-        const response = toggleToLanguage(ev, destinationLanguage);
+        const response = toggleToLanguage(ev, destinationLanguage, {
+          force: true,
+        });
         if (response === "markdown") {
           afterToggleMarkdown();
         }

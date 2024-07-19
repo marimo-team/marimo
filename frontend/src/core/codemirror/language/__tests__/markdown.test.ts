@@ -40,11 +40,14 @@ describe("MarkdownLanguageAdapter", () => {
       expect(offset).toBe(9);
     });
 
-    it("should throw if no markdown is detected", () => {
+    it("should still transform if no markdown is detected", () => {
       const pythonCode = 'print("Hello, World!")';
-      expect(() =>
-        adapter.transformIn(pythonCode),
-      ).toThrowErrorMatchingInlineSnapshot(`[Error: Not supported]`);
+      expect(adapter.transformIn(pythonCode)).toMatchInlineSnapshot(`
+        [
+          "print("Hello, World!")",
+          0,
+        ]
+      `);
     });
 
     it("should handle an empty string", () => {
@@ -91,11 +94,11 @@ describe("MarkdownLanguageAdapter", () => {
       expect(offset).toBe('mo.md("""'.length);
     });
 
-    it("should return the original string if no markdown delimiters are present", () => {
+    it("should convert to markdown anyways", () => {
       const pythonCode = 'print("No markdown here")';
-      expect(() =>
-        adapter.transformIn(pythonCode),
-      ).toThrowErrorMatchingInlineSnapshot(`[Error: Not supported]`);
+      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      expect(innerCode).toBe(`print("No markdown here")`);
+      expect(offset).toBe(0);
     });
 
     it("should handle multiple markdown blocks in a single string", () => {

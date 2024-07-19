@@ -54,10 +54,6 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
   lastQuotePrefix: QuotePrefixKind = "";
 
   transformIn(pythonCode: string): [string, number] {
-    if (!this.isSupported(pythonCode)) {
-      throw new Error("Not supported");
-    }
-
     pythonCode = pythonCode.trim();
 
     // empty string
@@ -82,6 +78,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
       }
     }
 
+    // no match
     return [pythonCode, 0];
   }
 
