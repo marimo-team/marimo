@@ -442,7 +442,7 @@ class Runner:
                 unknown_error = UnknownError(f"{e}")
                 run_result = RunResult(output=None, exception=unknown_error)
                 tmpio = io.StringIO()
-                traceback.print_exception(e, file=tmpio)
+                traceback.print_exc(file=tmpio)
                 tmpio.seek(0)
                 write_traceback(tmpio.read())
         finally:
