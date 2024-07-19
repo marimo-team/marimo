@@ -95,37 +95,6 @@ class Executor(ABC):
         pass
 
 
-def handle_execute_cell_exception(
-    e: Exception, cell: CellImpl, glbls: dict[str, Any]
-) -> None:
-    tb = e.__traceback__
-    while tb and tb.tb_next:
-        tb = tb.tb_next
-
-    if tb is None:
-        raise e
-
-    filename = f"__marimo__cell_{cell.cell_id}_.py"
-
-    if filename in tb.tb_frame.f_code.co_filename and cell._start_line:
-        cell_lineno = tb.tb_frame.f_lineno
-
-        cell_lines = cell.code.split("\n")
-        offending_code = cell_lines[cell_lineno - 1]
-
-        file_path = glbls["__file__"]
-        source_lineno = cell._start_line + cell_lineno - 1
-        underline_str = "^" * len(offending_code)
-
-        e.add_note(
-            f"""  File "{file_path}", line {source_lineno}"""
-            + f"\n    {offending_code}"
-            + f"\n    {underline_str}"
-        )
-
-    raise e
-
-
 @register_execution_type("relaxed")
 class DefaultExecutor(Executor):
     @staticmethod
@@ -157,11 +126,7 @@ class DefaultExecutor(Executor):
         if cell.body is None:
             return None
         assert cell.last_expr is not None
-        try:
-            exec(cell.body, glbls)
-        except Exception as e:
-            handle_execute_cell_exception(e, cell, glbls)
-
+        exec(cell.body, glbls)
         return eval(cell.last_expr, glbls)
 
 

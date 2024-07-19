@@ -55,7 +55,11 @@ def cache(filename: str, code: str) -> None:
 
 
 def compile_cell(
-    code: str, cell_id: CellId_t, _start_line: int = 0
+    code: str,
+    cell_id: CellId_t,
+    start_line: int = 0,
+    filename: str = "<unknown>",
+    is_script: bool = False,
 ) -> CellImpl:
     # Replace non-breaking spaces with regular spaces -- some frontends
     # send nbsp in place of space, which is a syntax error.
@@ -82,7 +86,6 @@ def compile_cell(
             body=None,
             last_expr=None,
             cell_id=cell_id,
-            _start_line=_start_line,
         )
 
     v = ScopedVisitor("cell_" + cell_id)
@@ -94,17 +97,22 @@ def compile_cell(
     else:
         expr = "None"
 
-    # store the cell's code in Python's linecache so debuggers can find it
-    body_filename = get_filename(cell_id)
-    last_expr_filename = get_filename(cell_id, suffix="_output")
-    # cache the entire cell's code
-    cache(body_filename, code)
-    if sys.version_info >= (3, 9):
-        # ast.unparse only available >= 3.9
-        cache(
-            last_expr_filename,
-            ast.unparse(expr) if not isinstance(expr, str) else "None",
-        )
+    if is_script:
+        ast.increment_lineno(module, start_line - 1)
+        body_filename = filename
+        last_expr_filename = filename
+    else:
+        # store the cell's code in Python's linecache so debuggers can find it
+        body_filename = get_filename(cell_id)
+        last_expr_filename = get_filename(cell_id, suffix="_output")
+        # cache the entire cell's code
+        cache(body_filename, code)
+        if sys.version_info >= (3, 9):
+            # ast.unparse only available >= 3.9
+            cache(
+                last_expr_filename,
+                ast.unparse(expr) if not isinstance(expr, str) else "None",
+            )
     flags = ast.PyCF_ALLOW_TOP_LEVEL_AWAIT
     body = compile(module, body_filename, mode="exec", flags=flags)
     last_expr = compile(expr, last_expr_filename, mode="eval", flags=flags)
@@ -126,7 +134,6 @@ def compile_cell(
         body=body,
         last_expr=last_expr,
         cell_id=cell_id,
-        _start_line=_start_line,
     )
 
 
@@ -140,8 +147,10 @@ def cell_factory(
     to generate refs and defs. If the user introduced errors to the
     signature, marimo will autofix them on save.
     """
+    filename = f.__code__.co_filename
+    is_script = f.__globals__["__name__"] == "__main__"
     code, lnum = inspect.getsourcelines(f)
-    function_code = textwrap.dedent(inspect.getsource(f))
+    function_code = textwrap.dedent("".join(code))
 
     # tokenize to find the start of the function body, including
     # comments --- we have to use tokenize because the ast treats the first
@@ -239,6 +248,8 @@ def cell_factory(
         _cell=compile_cell(
             cell_code,
             cell_id=cell_id,
-            _start_line=lnum + start_line,
+            start_line=lnum + start_line,
+            filename=filename,
+            is_script=is_script,
         ),
     )

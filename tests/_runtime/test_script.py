@@ -14,3 +14,17 @@ def test_script():
         '/tests/_runtime/script_data/script_exception.py", line 10' in result
     )
     assert "y = y / x" in result
+
+
+def test_script_with_imported_file():
+    p = subprocess.run(
+        [
+            "python",
+            "tests/_runtime/script_data/script_exception_with_imported_function.py",
+        ],
+        capture_output=True,
+    )
+    result = p.stderr.decode()
+    assert "ZeroDivisionError: division by zero" in result
+    assert '/tests/_runtime/script_data/func.py", line 3' in result
+    assert "y = y / x" in result
