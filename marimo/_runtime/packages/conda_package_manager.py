@@ -17,5 +17,5 @@ class CondaPackageManager(CanonicalizingPackageManager):
 class PixiPackageManager(CondaPackageManager):
     name = "pixi"
 
-    async def install(self, package: str) -> bool:
+    async def _install(self, package: str) -> bool:
         return self.run(["pixi", "add", package])

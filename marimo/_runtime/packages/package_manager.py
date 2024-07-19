@@ -11,6 +11,9 @@ class PackageManager(abc.ABC):
 
     name: str
 
+    def __init__(self) -> None:
+        self._attempted_packages: set[str] = set()
+
     @abc.abstractmethod
     def module_to_package(self, module_name: str) -> str:
         """Canonicalizes a module name to a package name."""
@@ -26,12 +29,21 @@ class PackageManager(abc.ABC):
         return shutil.which(self.name) is not None
 
     @abc.abstractmethod
+    async def _install(self, package: str) -> bool:
+        """Installation logic."""
+        ...
+
     async def install(self, package: str) -> bool:
         """Attempt to install a package that makes this module available.
 
         Returns True if installation succeeded, else False.
         """
-        ...
+        self._attempted_packages.add(package)
+        return await self._install(package)
+
+    def attempted_to_install(self, package: str) -> bool:
+        """True iff package installation was previously attempted."""
+        return package in self._attempted_packages
 
     def should_auto_install(self) -> bool:
         """Should this package manager auto-install packages"""
@@ -56,6 +68,7 @@ class CanonicalizingPackageManager(PackageManager):
         # Initialized lazily
         self._module_name_to_repo_name: dict[str, str] | None = None
         self._repo_name_to_module_name: dict[str, str] | None = None
+        super().__init__()
 
     @abc.abstractmethod
     def _construct_module_name_mapping(self) -> dict[str, str]: ...
