@@ -18,11 +18,13 @@ from marimo._messaging.errors import (
     Error,
     MarimoExceptionRaisedError,
     MarimoStrictExecutionError,
+    UnknownError,
 )
 from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime import dataflow
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.executor import (
+    MarimoBaseException,
     MarimoMissingRefError,
     MarimoNameError,
     execute_cell,
@@ -346,8 +348,10 @@ class Runner:
             # behavior (like sys.exit())
         except MarimoNameError as e:
             self.cancel(cell_id)
-            exception = MarimoStrictExecutionError(str(e), e.ref, None)
-            run_result = RunResult(output=exception, exception=exception)
+            strict_exception = MarimoStrictExecutionError(str(e), e.ref, None)
+            run_result = RunResult(
+                output=strict_exception, exception=strict_exception
+            )
         except MarimoMissingRefError as e:
             # In strict mode, marimo refuses to evaluate a cell if there are
             # missing definitions. Since the cell hasn't run, this is a pre
@@ -364,8 +368,8 @@ class Runner:
                 if var_cell_id:
                     blamed_cell = var_cell_id
 
-            output = None
-            exception = None
+            output: Optional[Error] = None
+            exception: Optional[Error] = None
             if not e.runtime_error:
                 output = MarimoStrictExecutionError(
                     "marimo was unable to resolve "
@@ -375,6 +379,7 @@ class Runner:
                 )
                 exception = output
             else:
+                # TODO: Make custom Error Type
                 output = MarimoExceptionRaisedError(
                     f"marimo came across the undefined variable `{ref}` during"
                     " runtime. This is possible in strict mode when static "
@@ -395,20 +400,26 @@ class Runner:
                 traceback.print_exception(e.__cause__, file=tmpio)
                 tmpio.seek(0)
                 write_traceback(tmpio.read())
-        except BaseException as e:
+        except MarimoBaseException as e:
+            unwrapped_exception = e.__cause__
             # Catch-all: some libraries have bugs and raise BaseExceptions,
             # which shouldn't crash the marimo kernel
-            if isinstance(e, ModuleNotFoundError):
+            if isinstance(unwrapped_exception, ModuleNotFoundError):
                 self.missing_packages = True
 
             self.cancel(cell_id)
-            run_result = RunResult(output=None, exception=e)
+            run_result = RunResult(output=None, exception=unwrapped_exception)
             tmpio = io.StringIO()
             # The executors explicitly raise cell exceptions from base
             # exceptions such that the stack trace is cleaner.
-            traceback.print_exception(e.__cause__, file=tmpio)
+            traceback.print_exception(unwrapped_exception, file=tmpio)
             tmpio.seek(0)
             write_traceback(tmpio.read())
+        except BaseException as e:
+            LOGGER.error(f"Unexpected error type: {e}")
+            self.cancel(cell_id)
+            unknown_error = UnknownError(f"{e}")
+            run_result = RunResult(output=None, exception=unknown_error)
         finally:
             # if a debugger is active, force it to skip past marimo code.
             try:

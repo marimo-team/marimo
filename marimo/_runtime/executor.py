@@ -45,6 +45,11 @@ EXECUTION_TYPES: dict[str, Type[Executor]] = {}
 marimo_body_execution = exec
 marimo_output_evaluation = eval
 
+
+class MarimoBaseException(BaseException):
+    """Wrapper for all marimo exceptions."""
+
+
 class MarimoNameError(NameError):
     """Wrap a name error to rethrow later."""
 
@@ -53,8 +58,8 @@ class MarimoNameError(NameError):
         self.ref = ref
 
 
-class MarimoMissingRefError(BaseException):
-    def __init__(self, ref: str, runtime_error=True) -> None:
+class MarimoMissingRefError(MarimoBaseException):
+    def __init__(self, ref: str, runtime_error: bool = True) -> None:
         super().__init__(f"Missing reference: {ref}")
         self.ref = ref
         self.runtime_error = runtime_error
@@ -89,7 +94,7 @@ def raise_name_error(graph: DirectedGraph, name_error: NameError) -> None:
         raise MarimoMissingRefError(
             missing_name, runtime_error=True
         ) from name_error
-    raise BaseException() from name_error
+    raise MarimoBaseException() from name_error
 
 
 def register_execution_type(
@@ -159,30 +164,38 @@ class DefaultExecutor(Executor):
         assert cell.last_expr is not None
         try:
             if _is_coroutine(cell.body):
+                # fmt: off
                 (
-                    await marimo_body_execution
+                    await marimo_output_evaluation
                     (cell.body, glbls)
                 )
+                # fmt: on
             else:
+                # fmt: off
                 (
                     marimo_body_execution
                     (cell.body, glbls)
                 )
+                # fmt: on
 
             if _is_coroutine(cell.last_expr):
+                # fmt: off
                 return (
                     await marimo_output_evaluation
                     (cell.last_expr, glbls)
                 )
+                # fmt: on
             else:
+                # fmt: off
                 return (
                     marimo_output_evaluation
                     (cell.last_expr, glbls)
                 )
-          except Exception as e:
-            # Raising from a BaseException will fold in the stace trace prior to
-            # execution
-            raise BaseException() from e
+                # fmt: on
+        except Exception as e:
+            # Raising from a BaseException will fold in the stactrace prior
+            # to execution
+            raise MarimoBaseException() from e
 
     @staticmethod
     def execute_cell(
@@ -194,6 +207,7 @@ class DefaultExecutor(Executor):
             if cell.body is None:
                 return None
             assert cell.last_expr is not None
+            # fmt: off
             (
                 marimo_body_execution
                 (cell.body, glbls)
@@ -202,8 +216,9 @@ class DefaultExecutor(Executor):
                 marimo_output_evaluation
                 (cell.last_expr, glbls)
             )
+            # fmt: on
         except Exception as e:
-          raise BaseException() from e
+            raise MarimoBaseException() from e
 
 
 @register_execution_type("strict")
