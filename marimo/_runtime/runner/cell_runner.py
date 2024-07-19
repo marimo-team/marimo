@@ -419,15 +419,20 @@ class Runner:
                 tmpio = io.StringIO()
                 # The executors explicitly raise cell exceptions from base
                 # exceptions such that the stack trace is cleaner.
-                # Python < 3.10 Compat
+                # Verbosity is for Python < 3.10 compat
                 # See https://docs.python.org/3/library/traceback.html
                 exception_type = (
                     type(unwrapped_exception) if unwrapped_exception else None
                 )
+                maybe_traceback = (
+                    unwrapped_exception.__traceback__
+                    if unwrapped_exception
+                    else None
+                )
                 traceback.print_exception(
                     exception_type,
                     unwrapped_exception,
-                    None,
+                    maybe_traceback,
                     file=tmpio,
                 )
                 tmpio.seek(0)
