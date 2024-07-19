@@ -1,0 +1,14 @@
+{
+  "strings": ["string", "str"],
+  "bool": ["boolean", "bool"],
+  "int": ["integer", "i64"],
+  "float": ["number", "f64"],
+  "datetime": ["date", "datetime[\u03bcs]"],
+  "struct": ["unknown", "struct[2]"],
+  "list": ["unknown", "list[i64]"],
+  "array": ["unknown", "list[i64]"],
+  "nulls": ["string", "str"],
+  "categorical": ["unknown", "cat"],
+  "duration": ["date", "duration[\u03bcs]"],
+  "mixed_list": ["unknown", "list[str]"]
+}

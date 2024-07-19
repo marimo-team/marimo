@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import datetime
+import json
 import unittest
+from typing import Any
 
 import pytest
 
@@ -10,12 +12,65 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.polars_table import (
     PolarsTableManagerFactory,
 )
+from marimo._plugins.ui._impl.tables.table_manager import TableManager
+from tests.mocks import snapshotter
 
 HAS_DEPS = DependencyManager.has_polars()
+
+snapshot = snapshotter(__file__)
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 class TestPolarsTableManagerFactory(unittest.TestCase):
+    def get_complex_data(self) -> TableManager[Any]:
+        import polars as pl
+
+        complex_data = pl.DataFrame(
+            {
+                "strings": ["a", "b", "c"],
+                "bool": [True, False, True],
+                "int": [1, 2, 3],
+                "float": [1.0, 2.0, 3.0],
+                "datetime": [
+                    datetime.datetime(2021, 1, 1),
+                    datetime.datetime(2021, 1, 2),
+                    datetime.datetime(2021, 1, 3),
+                ],
+                "struct": [
+                    {"a": 1, "b": 2},
+                    {"a": 3, "b": 4},
+                    {"a": 5, "b": 6},
+                ],
+                "list": [[1, 2], [3, 4], [5, 6]],
+                "array": [[1, 2, 3], [4], []],
+                "nulls": [None, "data", None],
+                "categorical": pl.Series(["cat", "dog", "mouse"]).cast(
+                    pl.Categorical
+                ),
+                # raises:
+                #   pyo3_runtime.PanicException:
+                #   not yet implemented: Writing Time64(Nanosecond) to JSON
+                # "time": [
+                #     datetime.time(12, 30),
+                #     datetime.time(13, 45),
+                #     datetime.time(14, 15),
+                # ],
+                "duration": [
+                    datetime.timedelta(days=1),
+                    datetime.timedelta(days=2),
+                    datetime.timedelta(days=3),
+                ],
+                "mixed_list": [
+                    [1, "two"],
+                    [3.0, False],
+                    [None, datetime.datetime(2021, 1, 1)],
+                ],
+            },
+            strict=False,
+        )
+
+        return self.factory.create()(complex_data)
+
     def setUp(self) -> None:
         import polars as pl
 
@@ -46,8 +101,23 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
     def test_to_csv(self) -> None:
         assert isinstance(self.manager.to_csv(), bytes)
 
+        complex_data = self.get_complex_data()
+        data = complex_data.to_csv()
+        assert isinstance(data, bytes)
+        snapshot("polars.csv", data.decode("utf-8"))
+
     def test_to_json(self) -> None:
         assert isinstance(self.manager.to_json(), bytes)
+
+        complex_data = self.get_complex_data()
+        data = complex_data.to_json()
+        assert isinstance(data, bytes)
+        snapshot("polars.json", data.decode("utf-8"))
+
+    def test_complex_data_field_types(self) -> None:
+        complex_data = self.get_complex_data()
+        field_types = complex_data.get_field_types()
+        snapshot("polars.field_types.json", json.dumps(field_types))
 
     def test_select_rows(self) -> None:
         indices = [0, 2]
@@ -57,8 +127,8 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_select_rows_empty(self) -> None:
         selected_manager = self.manager.select_rows([])
-        assert selected_manager.data.shape == (0, 0)
-        assert selected_manager.data.columns == []
+        assert selected_manager.data.shape == (0, 5)
+        assert selected_manager.data.columns == ["A", "B", "C", "D", "E"]
 
     def test_select_columns(self) -> None:
         columns = ["A"]
