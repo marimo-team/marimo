@@ -327,25 +327,17 @@ class Runner:
                     execution_type=self.execution_type,
                 )
             run_result = RunResult(output=return_value, exception=None)
-        except (MarimoInterrupt, asyncio.exceptions.CancelledError) as e:
+        except asyncio.exceptions.CancelledError:
             # User interrupt
             # interrupt the entire runner
-            if isinstance(e, asyncio.exceptions.CancelledError):
-                # Async cells can only be cancelled via a user interrupt
-                e = MarimoInterrupt()
-            self.interrupted = True
-            run_result = RunResult(output=None, exception=e)
+            # Async cells can only be cancelled via a user interrupt
+            run_result = RunResult(output=None, exception=MarimoInterrupt())
+            # Still provide a general traceback.
             tmpio = io.StringIO()
             traceback.print_exc(file=tmpio)
             tmpio.seek(0)
             write_traceback(tmpio.read())
-        except MarimoStopError as e:
-            # Raised by mo.stop().
-            # cancel only the descendants of this cell
-            self.cancel(cell_id)
-            run_result = RunResult(output=e.output, exception=e)
-            # don't print a traceback, since quitting is the intended
-            # behavior (like sys.exit())
+        # Strict mode errors may also raise errors outside of execution.
         except MarimoNameError as e:
             self.cancel(cell_id)
             strict_exception = MarimoStrictExecutionError(str(e), e.ref, None)
@@ -357,70 +349,98 @@ class Runner:
             # missing definitions. Since the cell hasn't run, this is a pre
             # check error, but still mark descendants as cancelled.
             self.cancel(cell_id)
-            ref = e.ref
-            blamed_cell = None
-            try:
-                (blamed_cell, *_) = self.graph.get_defining_cells(ref)
-            except KeyError:
-                # The reference is not found anywhere else in the graph
-                # but it might be private
-                ref, var_cell_id = unmangle_local(ref)
-                if var_cell_id:
-                    blamed_cell = var_cell_id
-
-            output: Optional[Error] = None
-            exception: Optional[Error] = None
-            if not e.runtime_error:
-                output = MarimoStrictExecutionError(
-                    "marimo was unable to resolve "
-                    f"a reference to `{ref}` in cell : ",
-                    ref,
-                    blamed_cell,
-                )
-                exception = output
-            else:
-                # TODO: Make custom Error Type
-                output = MarimoExceptionRaisedError(
-                    f"marimo came across the undefined variable `{ref}` during"
-                    " runtime. This is possible in strict mode when static "
-                    "analysis is unable to properly resolve the reference due "
-                    "to direct access (e.g. `globals()['var']`) or circuitous "
-                    "definitions (e.g. by reassigning variables to different "
-                    "functions). If this failure is not the result of either "
-                    "of these cases, please consider reporting this issue to "
-                    "https://github.com/marimo-team/marimo/issues. Definition "
-                    "expected in cell : ",
-                    "Undefined marimo reference",
-                    blamed_cell,
-                )
-                exception = output
-            run_result = RunResult(output=output, exception=exception)
-            if e.runtime_error:
-                tmpio = io.StringIO()
-                traceback.print_exception(e.__cause__, file=tmpio)
-                tmpio.seek(0)
-                write_traceback(tmpio.read())
+            ref, blamed_cell = self._get_blamed_cell(e)
+            name_output = MarimoStrictExecutionError(
+                "marimo was unable to resolve "
+                f"a reference to `{ref}` in cell : ",
+                ref,
+                blamed_cell,
+            )
+            run_result = RunResult(output=name_output, exception=name_output)
+        # Should cover all cell runtime exceptions.
         except MarimoBaseException as e:
-            unwrapped_exception = e.__cause__
-            # Catch-all: some libraries have bugs and raise BaseExceptions,
-            # which shouldn't crash the marimo kernel
+            print_traceback = True
+            output: Any = None
+            unwrapped_exception: Optional[BaseException] = e.__cause__
+            exception: Optional[ErrorObjects] = unwrapped_exception
+
+            # Exceptions trigger cancellation of descendants.
+            self.cancel(cell_id)
+
+            if isinstance(exception, MarimoMissingRefError):
+                ref, blamed_cell = self._get_blamed_cell(exception)
+                # All MarimoMissingRefErrors should be caused caused by
+                # NameErrors if they are the cause of MarimoBaseExceptions.
+                if exception.name_error is not None:
+                    unwrapped_exception = exception.name_error
+                # Provide output context for said missing reference errors.
+                if self.execution_type == "strict":
+                    output = MarimoExceptionRaisedError(
+                        f"marimo came across the undefined variable `{ref}` "
+                        "during runtime. This is possible in strict mode when "
+                        "static analysis is unable to properly resolve the "
+                        "reference due  to direct access (e.g. "
+                        "`globals()['var']`) or circuitous definitions (e.g.  "
+                        "by reassigning variables to different functions). If "
+                        "this failure is not the result of either of these "
+                        "cases, please consider reporting this issue to "
+                        "https://github.com/marimo-team/marimo/issues. "
+                        "Definition expected in cell : ",
+                        "NameError of marimo reference",
+                        blamed_cell,
+                    )
+                    exception = output
+                elif blamed_cell != cell_id:
+                    output = MarimoExceptionRaisedError(
+                        f"marimo came across the undefined variable `{ref}` "
+                        "during runtime. Definition expected in cell : ",
+                        "NameError of marimo reference",
+                        blamed_cell,
+                    )
+                    exception = output
+                else:
+                    # Default to regular error for self reference in relaxed
+                    # mode.
+                    exception = unwrapped_exception
+
+            # Handle other special runtime errors.
             if isinstance(unwrapped_exception, ModuleNotFoundError):
                 self.missing_packages = True
 
-            self.cancel(cell_id)
-            run_result = RunResult(output=None, exception=unwrapped_exception)
-            tmpio = io.StringIO()
-            # The executors explicitly raise cell exceptions from base
-            # exceptions such that the stack trace is cleaner.
-            traceback.print_exception(unwrapped_exception, file=tmpio)
-            tmpio.seek(0)
-            write_traceback(tmpio.read())
+            if isinstance(unwrapped_exception, MarimoStopError):
+                output = unwrapped_exception.output
+                exception = unwrapped_exception
+                # don't print a traceback, since quitting is the intended
+                # behavior (like sys.exit())
+                print_traceback = False
+
+            run_result = RunResult(output=output, exception=exception)
+            if print_traceback:
+                tmpio = io.StringIO()
+                # The executors explicitly raise cell exceptions from base
+                # exceptions such that the stack trace is cleaner.
+                traceback.print_exception(unwrapped_exception, file=tmpio)
+                tmpio.seek(0)
+                write_traceback(tmpio.read())
         except BaseException as e:
-            LOGGER.error(f"Unexpected error type: {e}")
-            self.cancel(cell_id)
-            unknown_error = UnknownError(f"{e}")
-            run_result = RunResult(output=None, exception=unknown_error)
+            # Check that MarimoBaseException has't already handled the error,
+            # since exceptions fall through except blocks.
+            # If not, then this is an unexpected error.
+            if not isinstance(e, MarimoBaseException):
+                LOGGER.error(f"Unexpected error type: {e}")
+                self.cancel(cell_id)
+                unknown_error = UnknownError(f"{e}")
+                run_result = RunResult(output=None, exception=unknown_error)
+                tmpio = io.StringIO()
+                traceback.print_exception(e, file=tmpio)
+                tmpio.seek(0)
+                write_traceback(tmpio.read())
         finally:
+            # Mark as interrupted if the cell raised a MarimoInterrupt
+            # Set here since failed async can also trigger an Interrupt.
+            if isinstance(run_result.exception, MarimoInterrupt):
+                self.interrupted = True
+
             # if a debugger is active, force it to skip past marimo code.
             try:
                 # Bdb defines the botframe attribute and sets it to non-None
@@ -449,6 +469,21 @@ class Runner:
             self.exceptions[cell_id] = run_result.exception
 
         return run_result
+
+    def _get_blamed_cell(
+        self, e: MarimoMissingRefError
+    ) -> tuple[str, Optional[CellId_t]]:
+        ref = e.ref
+        blamed_cell = None
+        try:
+            (blamed_cell, *_) = self.graph.get_defining_cells(ref)
+        except KeyError:
+            # The reference is not found anywhere else in the graph
+            # but it might be private
+            ref, var_cell_id = unmangle_local(ref)
+            if var_cell_id:
+                blamed_cell = var_cell_id
+        return ref, blamed_cell
 
     async def run_all(self) -> None:
         for prep_hook in self.preparation_hooks:

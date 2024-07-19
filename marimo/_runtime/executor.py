@@ -41,13 +41,9 @@ PRIMITIVES = (weakref.ref, str, numbers.Number, type(None))
 
 EXECUTION_TYPES: dict[str, Type[Executor]] = {}
 
-# Pretty names for stack traces
-marimo_body_execution = exec
-marimo_output_evaluation = eval
-
 
 class MarimoBaseException(BaseException):
-    """Wrapper for all marimo exceptions."""
+    """Wrapper for all marimo runtime exceptions."""
 
 
 class MarimoNameError(NameError):
@@ -58,14 +54,20 @@ class MarimoNameError(NameError):
         self.ref = ref
 
 
-class MarimoMissingRefError(MarimoBaseException):
-    def __init__(self, ref: str, runtime_error: bool = True) -> None:
-        super().__init__(f"Missing reference: {ref}")
+class MarimoMissingRefError(BaseException):
+    def __init__(
+        self, ref: str, name_error: Optional[NameError] = None
+    ) -> None:
+        super(MarimoMissingRefError, self).__init__(ref)
         self.ref = ref
-        self.runtime_error = runtime_error
+        self.name_error = name_error
 
 
-def raise_name_error(graph: DirectedGraph, name_error: NameError) -> None:
+def raise_name_error(
+    graph: Optional[DirectedGraph], name_error: NameError
+) -> None:
+    if graph is None:
+        raise MarimoBaseException from name_error
     # The best static analysis can do for variable level references is to
     # use the top level definition. For example, consider the following
     # cells:
@@ -91,10 +93,10 @@ def raise_name_error(graph: DirectedGraph, name_error: NameError) -> None:
     (missing_name,) = re.findall(r"'([^']*)'", str(name_error))
     _, private_cell_id = unmangle_local(missing_name)
     if missing_name in graph.definitions or private_cell_id:
-        raise MarimoMissingRefError(
-            missing_name, runtime_error=True
-        ) from name_error
-    raise MarimoBaseException() from name_error
+        raise MarimoBaseException from MarimoMissingRefError(
+            missing_name, name_error
+        )
+    raise MarimoBaseException from name_error
 
 
 def register_execution_type(
@@ -157,68 +159,45 @@ class DefaultExecutor(Executor):
     async def execute_cell_async(
         cell: CellImpl,
         glbls: dict[str, Any],
-        _graph: Optional[DirectedGraph] = None,
+        graph: Optional[DirectedGraph] = None,
     ) -> Any:
         if cell.body is None:
             return None
         assert cell.last_expr is not None
         try:
             if _is_coroutine(cell.body):
-                # fmt: off
-                (
-                    await marimo_output_evaluation
-                    (cell.body, glbls)
-                )
-                # fmt: on
+                await eval(cell.body, glbls)
             else:
-                # fmt: off
-                (
-                    marimo_body_execution
-                    (cell.body, glbls)
-                )
-                # fmt: on
+                exec(cell.body, glbls)
 
             if _is_coroutine(cell.last_expr):
-                # fmt: off
-                return (
-                    await marimo_output_evaluation
-                    (cell.last_expr, glbls)
-                )
-                # fmt: on
+                return await eval(cell.last_expr, glbls)
             else:
-                # fmt: off
-                return (
-                    marimo_output_evaluation
-                    (cell.last_expr, glbls)
-                )
-                # fmt: on
-        except Exception as e:
+                return eval(cell.last_expr, glbls)
+        except NameError as e:
+            raise_name_error(graph, e)
+        except (BaseException, Exception) as e:
             # Raising from a BaseException will fold in the stactrace prior
             # to execution
-            raise MarimoBaseException() from e
+            raise MarimoBaseException from e
 
     @staticmethod
     def execute_cell(
         cell: CellImpl,
         glbls: dict[str, Any],
-        _graph: Optional[DirectedGraph] = None,
+        graph: Optional[DirectedGraph] = None,
     ) -> Any:
         try:
             if cell.body is None:
                 return None
             assert cell.last_expr is not None
-            # fmt: off
-            (
-                marimo_body_execution
-                (cell.body, glbls)
-            )
-            return (
-                marimo_output_evaluation
-                (cell.last_expr, glbls)
-            )
-            # fmt: on
-        except Exception as e:
-            raise MarimoBaseException() from e
+
+            exec(cell.body, glbls)
+            return eval(cell.last_expr, glbls)
+        except NameError as e:
+            raise_name_error(graph, e)
+        except (BaseException, Exception) as e:
+            raise MarimoBaseException from e
 
 
 @register_execution_type("strict")
@@ -233,9 +212,9 @@ class StrictExecutor(Executor):
         )
         backup = StrictExecutor.sanitize_inputs(cell, refs, glbls)
         try:
-            response = await DefaultExecutor.execute_cell_async(cell, glbls)
-        except NameError as name_error:
-            raise_name_error(graph, name_error)
+            response = await DefaultExecutor.execute_cell_async(
+                cell, glbls, graph
+            )
         finally:
             # Restore globals from backup and backfill outputs
             StrictExecutor.update_outputs(cell, glbls, backup)
@@ -250,9 +229,7 @@ class StrictExecutor(Executor):
         )
         backup = StrictExecutor.sanitize_inputs(cell, refs, glbls)
         try:
-            response = DefaultExecutor.execute_cell(cell, glbls)
-        except NameError as name_error:
-            raise_name_error(graph, name_error)
+            response = DefaultExecutor.execute_cell(cell, glbls, graph)
         finally:
             StrictExecutor.update_outputs(cell, glbls, backup)
         return response
@@ -313,7 +290,7 @@ class StrictExecutor(Executor):
                     raise MarimoNameError(
                         f"name `{ref}` is referenced before definition.", ref
                     )
-                raise MarimoMissingRefError(ref, runtime_error=False)
+                raise MarimoMissingRefError(ref)
 
         # NOTE: Execution expects the globals dictionary by memory reference,
         # so we need to clear it and update it with the sanitized locals,
