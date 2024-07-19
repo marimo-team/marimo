@@ -36,6 +36,7 @@ export const {
   sendInterrupt,
   sendShutdown,
   sendRun,
+  sendRunScratchpad,
   sendInstantiate,
   sendDeleteCell,
   sendCodeCompletionRequest,

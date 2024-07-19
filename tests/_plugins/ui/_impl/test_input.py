@@ -426,6 +426,13 @@ def test_form_in_array_retains_on_change() -> None:
     assert array[0]._on_change == on_change
 
 
+def test_form_in_dictionary_allowed() -> None:
+    checkbox = ui.checkbox()
+    form = checkbox.form()
+    d = ui.dictionary({"form": form})
+    assert checkbox._id != d["form"].element._id
+
+
 # TODO(akshayka): test file
 
 

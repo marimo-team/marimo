@@ -28,7 +28,15 @@ UNCLONABLE_TYPES = [
     "marimo._runtime.state.SetFunctor",
 ]
 
-UNCLONABLE_MODULES = ["_asyncio", "marimo._ast", "marimo._plugins.ui"]
+UNCLONABLE_MODULES = set(
+    [
+        "_asyncio",
+        "_io",
+        "marimo._ast",
+        "marimo._plugins.ui",
+        "numpy.lib.npyio",
+    ]
+)
 PRIMITIVES = (weakref.ref, str, numbers.Number, type(None))
 
 EXECUTION_TYPES: dict[str, Type[Executor]] = {}

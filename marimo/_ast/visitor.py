@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Literal, Optional
 from uuid import uuid4
 
+from marimo._data.sql_visitor import normalize_sql_f_string
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.variables import is_local
 
@@ -84,7 +85,9 @@ class RefData:
 
 
 class ScopedVisitor(ast.NodeVisitor):
-    def __init__(self, mangle_prefix: Optional[str] = None) -> None:
+    def __init__(
+        self, mangle_prefix: Optional[str] = None, ignore_local: bool = False
+    ) -> None:
         self.block_stack: list[Block] = [Block()]
         # Names to be loaded into a variable required_refs
         self.ref_stack: list[set[Name]] = [set()]
@@ -97,6 +100,7 @@ class ScopedVisitor(ast.NodeVisitor):
             if mangle_prefix is None
             else mangle_prefix
         )
+        self.is_local = (lambda _: False) if ignore_local else is_local
 
     @property
     def defs(self) -> set[Name]:
@@ -122,7 +126,9 @@ class ScopedVisitor(ast.NodeVisitor):
         self, name: str, ignore_scope: bool = False
     ) -> str:
         """Mangle local variable name declared at top-level scope."""
-        if is_local(name) and (len(self.block_stack) == 1 or ignore_scope):
+        if self.is_local(name) and (
+            len(self.block_stack) == 1 or ignore_scope
+        ):
             return f"_{self.id}{name}"
         else:
             return name
@@ -361,9 +367,11 @@ class ScopedVisitor(ast.NodeVisitor):
 
                 # Add all tables in the query to the ref scope
                 try:
-                    tables = duckdb.get_table_names(sql)
-                    for table in tables:
-                        self._add_ref(table, deleted=False)
+                    statements = duckdb.extract_statements(sql)
+                    for statement in statements:
+                        tables = duckdb.get_table_names(statement.query)
+                        for table in tables:
+                            self._add_ref(table, deleted=False)
                 except (duckdb.ParserException, duckdb.InvalidInputException):
                     # The user's sql query may have a syntax error
                     pass
@@ -499,16 +507,16 @@ class ScopedVisitor(ast.NodeVisitor):
         elif (
             isinstance(node.ctx, ast.Load)
             and not self._is_defined(node.id)
-            and not is_local(node.id)
+            and not self.is_local(node.id)
         ):
             self._add_ref(node.id, deleted=False)
         elif (
             isinstance(node.ctx, ast.Del)
             and not self._is_defined(node.id)
-            and not is_local(node.id)
+            and not self.is_local(node.id)
         ):
             self._add_ref(node.id, deleted=True)
-        elif is_local(node.id):
+        elif self.is_local(node.id):
             mangled_name = self._if_local_then_mangle(
                 node.id, ignore_scope=True
             )
@@ -648,18 +656,3 @@ class ScopedVisitor(ast.NodeVisitor):
                     kind="variable", required_refs=self.ref_stack[-1]
                 ),
             )
-
-
-def normalize_sql_f_string(node: ast.JoinedStr) -> str:
-    def print_part(part: ast.expr) -> str:
-        if isinstance(part, ast.FormattedValue):
-            return print_part(part.value)
-        elif isinstance(part, ast.JoinedStr):
-            return normalize_sql_f_string(part)
-        elif isinstance(part, ast.Constant):
-            return str(part.s)
-        else:
-            # Just add '_' as a placeholder for {...} expressions
-            return "'_'"
-
-    return "".join(print_part(part) for part in node.values)

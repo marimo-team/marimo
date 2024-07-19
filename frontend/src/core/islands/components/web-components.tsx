@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { invariant } from "@/utils/invariant";
-import { CellId } from "../../cells/ids";
+import type { CellId } from "../../cells/ids";
 import { store } from "../../state/jotai";
 import { notebookAtom } from "../../cells/cells";
-import ReactDOM, { Root } from "react-dom/client";
+import ReactDOM, { type Root } from "react-dom/client";
 import { isValidElement } from "react";
 import { extractIslandCodeFromEmbed } from "../parse";
 import { MarimoOutputWrapper } from "./output-wrapper";
@@ -40,8 +40,7 @@ export class MarimoIslandElement extends HTMLElement {
     invariant(this.dataset.cellIdx, "Missing data-cell-idx attribute");
     const { cellIds } = store.get(notebookAtom);
     const idx = Number.parseInt(this.dataset.cellIdx, 10);
-    invariant(cellIds[idx], `Cell ID not found for index ${idx}`);
-    return cellIds[idx];
+    return cellIds.atOrThrow(idx);
   }
 
   get code(): string {

@@ -1,11 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { CellId } from "./ids";
+import type { CellId } from "./ids";
 import { arrayShallowEquals } from "@/utils/arrays";
 import { Objects } from "@/utils/objects";
-import { EditorView } from "@codemirror/view";
-import { LayoutState } from "../layout/layout";
+import type { EditorView } from "@codemirror/view";
+import type { LayoutState } from "../layout/layout";
 import { isEqual } from "lodash-es";
-import { NotebookState, LastSavedNotebook, staleCellIds } from "./cells";
+import {
+  type NotebookState,
+  type LastSavedNotebook,
+  staleCellIds,
+} from "./cells";
 
 export function notebookIsRunning(state: NotebookState) {
   return Object.values(state.cellRuntime).some(
@@ -22,7 +26,7 @@ export function notebookNeedsSave(
     return false;
   }
   const { cellIds, cellData } = state;
-  const data = cellIds.map((cellId) => cellData[cellId]);
+  const data = cellIds.inOrderIds.map((cellId) => cellData[cellId]);
   const codes = data.map((d) => d.code);
   const configs = data.map((d) => d.config);
   const names = data.map((d) => d.name);
@@ -40,7 +44,7 @@ export function notebookNeedsRun(state: NotebookState) {
 }
 
 export function notebookCells(state: NotebookState) {
-  return state.cellIds.map((cellId) => state.cellData[cellId]);
+  return state.cellIds.inOrderIds.map((cellId) => state.cellData[cellId]);
 }
 
 export function notebookCellEditorViews({ cellHandles }: NotebookState) {
@@ -56,18 +60,40 @@ export function notebookCellEditorViews({ cellHandles }: NotebookState) {
 
 export function disabledCellIds(state: NotebookState) {
   const { cellIds, cellData } = state;
-  return cellIds
+  return cellIds.inOrderIds
     .map((cellId) => cellData[cellId])
     .filter((cell) => cell.config.disabled);
 }
 
 export function enabledCellIds(state: NotebookState) {
   const { cellIds, cellData } = state;
-  return cellIds
+  return cellIds.inOrderIds
     .map((cellId) => cellData[cellId])
     .filter((cell) => !cell.config.disabled);
 }
 
 export function canUndoDeletes(state: NotebookState) {
   return state.history.length > 0;
+}
+
+/**
+ * Get the status of the descendants of the given cell.
+ */
+export function getDescendantsStatus(state: NotebookState, cellId: CellId) {
+  const descendants = state.cellIds.getDescendants(cellId);
+  const stale = descendants.some(
+    (id) => state.cellRuntime[id]?.staleInputs || state.cellData[id]?.edited,
+  );
+  const errored = descendants.some((id) => state.cellRuntime[id]?.errored);
+  const runningOrQueued = descendants.some(
+    (id) =>
+      state.cellRuntime[id]?.status === "running" ||
+      state.cellRuntime[id]?.status === "queued",
+  );
+
+  return {
+    stale,
+    errored,
+    runningOrQueued,
+  };
 }

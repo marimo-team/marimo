@@ -104,6 +104,18 @@ class TestExecutionRoutes_EditMode:
         assert response.headers["content-type"] == "application/json"
         assert "success" in response.json()
 
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_run_scratchpad(client: TestClient) -> None:
+        response = client.post(
+            "/api/kernel/scratchpad/run",
+            headers=HEADERS,
+            json={"code": "print('Hello, scratchpad')"},
+        )
+        assert response.status_code == 200, response.text
+        assert response.headers["content-type"] == "application/json"
+        assert "success" in response.json()
+
 
 class TestExecutionRoutes_RunMode:
     @staticmethod
@@ -175,5 +187,15 @@ class TestExecutionRoutes_RunMode:
                 "cell_ids": ["cell-1", "cell-2"],
                 "codes": ["print('Hello, cell-1')", "print('Hello, cell-2')"],
             },
+        )
+        assert response.status_code == 401, response.text
+
+    @staticmethod
+    @with_read_session(SESSION_ID)
+    def test_run_scratchpad(client: TestClient) -> None:
+        response = client.post(
+            "/api/kernel/scratchpad/run",
+            headers=HEADERS,
+            json={"code": "print('Hello, scratchpad')"},
         )
         assert response.status_code == 401, response.text

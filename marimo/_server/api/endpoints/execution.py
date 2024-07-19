@@ -17,6 +17,7 @@ from marimo._server.models.models import (
     BaseResponse,
     InstantiateRequest,
     RunRequest,
+    RunScratchpadRequest,
     SuccessResponse,
     UpdateComponentValuesRequest,
 )
@@ -157,6 +158,35 @@ async def run_cell(
     """  # noqa: E501
     app_state = AppState(request)
     body = await parse_request(request, cls=RunRequest)
+    app_state.require_current_session().put_control_request(
+        body.as_execution_request()
+    )
+
+    return SuccessResponse()
+
+
+@router.post("/scratchpad/run")
+@requires("edit")
+async def run_scratchpad(
+    *,
+    request: Request,
+) -> BaseResponse:
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/RunScratchpadRequest"
+    responses:
+        200:
+            description: Run the scratchpad
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """  # noqa: E501
+    app_state = AppState(request)
+    body = await parse_request(request, cls=RunScratchpadRequest)
     app_state.require_current_session().put_control_request(
         body.as_execution_request()
     )

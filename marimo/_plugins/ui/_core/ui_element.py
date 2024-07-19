@@ -23,7 +23,11 @@ from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType, build_ui_plugin
 from marimo._plugins.ui._core import ids
-from marimo._runtime.context import ContextNotInitializedError, get_context
+from marimo._runtime.context import (
+    ContextNotInitializedError,
+    RuntimeContext,
+    get_context,
+)
 from marimo._runtime.functions import Function
 
 if TYPE_CHECKING:
@@ -137,19 +141,6 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         self._initialize(*self._args)
         self._initialized = True
 
-        try:
-            ctx = get_context()
-        except ContextNotInitializedError:
-            pass
-        else:
-            # When the UI element is destructed, it should be removed
-            # from the UIElementRegistry (which only holds a weakref to it).
-            finalizer = weakref.finalize(
-                self, ctx.ui_element_registry.delete, self._id, id(self)
-            )
-            # No need to clean up the registry at program teardown
-            finalizer.atexit = False
-
     def _initialize(
         self,
         component_name: str,
@@ -194,13 +185,26 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         except (ids.NoIDProviderException, ContextNotInitializedError):
             self._id = self._random_id
 
+        self._ctx: RuntimeContext | None
         try:
-            ctx = get_context()
+            # cache the context in case the UI element is constructed
+            # in a nested context -- so that if the UI element is accessed
+            # in the root context (eg with app_result.defs["elem"].value),
+            # the correct constructing context is retrieved
+            self._ctx = get_context()
         except ContextNotInitializedError:
-            ctx = None
+            self._ctx = None
+        else:
+            # When the UI element is destructed, it should be removed
+            # from the UIElementRegistry (which only holds a weakref to it).
+            finalizer = weakref.finalize(
+                self, self._ctx.ui_element_registry.delete, self._id, id(self)
+            )
+            # No need to clean up the registry at program teardown
+            finalizer.atexit = False
 
-        if ctx is not None:
-            ctx.ui_element_registry.register(self._id, self)
+        if self._ctx is not None:
+            self._ctx.ui_element_registry.register(self._id, self)
             # an Instantiate request may want us to override the initial value
             try:
                 # NB: If a cell produces a non-deterministic set of
@@ -213,13 +217,15 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
                 # TODO(akshayka): parametrize UIElement with an optional
                 # string ID, so users can provide their own IDs to make
                 # sure a mismatch never happens ...
-                initial_value = cast(S, ctx.get_ui_initial_value(self._id))
+                initial_value = cast(
+                    S, self._ctx.get_ui_initial_value(self._id)
+                )
             except KeyError:
                 # we weren't asked to override the UI element's value
                 pass
 
             for function in functions:
-                ctx.function_registry.register(
+                self._ctx.function_registry.register(
                     namespace=self._id, function=function
                 )
         self._initial_value_frontend = initial_value
@@ -259,17 +265,15 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
     @property
     def value(self) -> T:
         """The element's current value."""
-        try:
-            ctx = get_context()
-        except ContextNotInitializedError:
+        if self._ctx is None:
             return self._value
 
         if (
-            ctx.execution_context is not None
-            and not ctx.execution_context.setting_element_value
+            self._ctx.execution_context is not None
+            and not self._ctx.execution_context.setting_element_value
             and (
-                ctx.execution_context.cell_id
-                == ctx.ui_element_registry.get_cell(self._id)
+                self._ctx.execution_context.cell_id
+                == self._ctx.ui_element_registry.get_cell(self._id)
             )
         ):
             raise RuntimeError(
@@ -428,6 +432,20 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         """Callback to run after the kernel has processed a value update."""
         return
 
+    def __deepcopy__(self, memo: dict[int, Any]) -> UIElement[S, T]:
+        # Custom deepcopy that excludes elements that can't be deepcopied
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+        for k, v in self.__dict__.items():
+            if isinstance(v, RuntimeContext):
+                setattr(result, k, v)
+            else:
+                setattr(result, k, copy.deepcopy(v, memo))
+        # Get a new object ID and function namespace
+        result._initialize(*self._args)
+        return result
+
     def _clone(self) -> UIElement[S, T]:
         """Clone a UIElement, returning one with a different id
 
@@ -436,6 +454,4 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         Composite UIElement may need to override this method to run
         their own side-effects.
         """
-        duplicate = copy.deepcopy(self)
-        duplicate._initialize(*self._args)
-        return duplicate
+        return copy.deepcopy(self)

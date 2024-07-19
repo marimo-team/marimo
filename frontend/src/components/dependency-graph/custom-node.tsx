@@ -4,10 +4,10 @@ import { cn } from "@/utils/cn";
 import { useAtomValue } from "jotai";
 import React, { memo, useContext } from "react";
 import { Handle, Position, useStore } from "reactflow";
-import { CustomNodeProps, getNodeHeight } from "./elements";
+import { type CustomNodeProps, getNodeHeight } from "./elements";
 import { displayCellName } from "@/core/cells/names";
 import { useCellIds } from "@/core/cells/cells";
-import { LayoutDirection } from "./types";
+import type { LayoutDirection } from "./types";
 
 function getWidth(canvasWidth: number) {
   const minWidth = 100;
@@ -29,7 +29,7 @@ const EQUALITY_CHECK = (
 export const CustomNode = memo((props: CustomNodeProps) => {
   const { data, selected } = props; // must match the equality check
   const cell = useAtomValue(data.atom);
-  const cellIndex = useCellIds().indexOf(cell.id);
+  const cellIndex = useCellIds().inOrderIds.indexOf(cell.id);
   const nonSelectedColor = "var(--gray-3)";
   const selectedColor = "var(--gray-9)";
   const color = selected ? selectedColor : nonSelectedColor;

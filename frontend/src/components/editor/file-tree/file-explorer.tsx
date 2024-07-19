@@ -172,7 +172,6 @@ const Toolbar = ({ onRefresh }: { onRefresh: () => void }) => {
           className={buttonVariants({
             variant: "text",
             size: "xs",
-            className: "mb-0",
           })}
         >
           <UploadIcon size={16} />
@@ -185,7 +184,6 @@ const Toolbar = ({ onRefresh }: { onRefresh: () => void }) => {
           onClick={onRefresh}
           variant="text"
           size="xs"
-          className="mb-0"
         >
           <RefreshCcwIcon size={16} />
         </Button>

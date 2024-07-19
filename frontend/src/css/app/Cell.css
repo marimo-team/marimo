@@ -7,7 +7,6 @@
  * */
 .Cell {
   position: relative;
-  margin-bottom: 21px;
   border-radius: 10px;
   max-width: inherit;
   width: 100%;
@@ -24,7 +23,7 @@
   }
 
   &:focus-within {
-    z-index: 10;
+    z-index: 20;
   }
 
   /* Hover z-index is higher than focus-within z-index
@@ -32,7 +31,7 @@
    * not focused in another cell.
    */
   &:hover {
-    z-index: 20;
+    z-index: 30;
   }
 
   /* Interactive */
@@ -174,7 +173,6 @@
 
   /* Published - when its just the output */
   &.published {
-    margin-bottom: 0;
     border: none;
     box-shadow: none;
 

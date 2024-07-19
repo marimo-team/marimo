@@ -557,6 +557,23 @@ export interface paths {
       };
     };
   };
+  "/api/kernel/scratchpad/run": {
+    post: {
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["RunScratchpadRequest"];
+        };
+      };
+      responses: {
+        /** @description Run the scratchpad */
+        200: {
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+  };
   "/api/kernel/set_cell_config": {
     post: {
       requestBody?: {
@@ -878,6 +895,8 @@ export interface components {
       num_columns?: number | null;
       num_rows?: number | null;
       source: string;
+      /** @enum {string} */
+      source_type: "local" | "duckdb";
       variable_name?: string | null;
     };
     DataTableColumn: {
@@ -888,6 +907,8 @@ export interface components {
     /** @enum {string} */
     DataType: "string" | "boolean" | "integer" | "number" | "date" | "unknown";
     Datasets: {
+      /** @enum {string|null} */
+      clear_channel?: "local" | "duckdb" | null;
       /** @enum {string} */
       name: "datasets";
       tables: components["schemas"]["DataTable"][];
@@ -915,6 +936,9 @@ export interface components {
     ExecuteMultipleRequest: {
       cellIds: string[];
       codes: string[];
+    };
+    ExecuteScratchpadRequest: {
+      code: string;
     };
     ExecuteStaleRequest: Record<string, never>;
     ExecutionRequest: {
@@ -1261,6 +1285,8 @@ export interface components {
     PreviewDatasetColumnRequest: {
       columnName: string;
       source: string;
+      /** @enum {string} */
+      sourceType: "local" | "duckdb";
       tableName: string;
     };
     QueryParamsAppend: {
@@ -1310,6 +1336,9 @@ export interface components {
     RunRequest: {
       cellIds: string[];
       codes: string[];
+    };
+    RunScratchpadRequest: {
+      code: string;
     };
     RunningNotebooksResponse: {
       files: components["schemas"]["MarimoFile"][];

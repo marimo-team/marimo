@@ -4,6 +4,7 @@ from __future__ import annotations
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._plugins.ui._impl import altair_chart
 from marimo._plugins.ui._impl.altair_chart import (
     ChartSelection,
     _filter_dataframe,
@@ -137,3 +138,80 @@ class TestAltairChart:
         assert k.globals["initial_options"] == {}
         assert k.globals["options_1"] == {"max_rows": None}
         assert k.globals["options_2"] == {"max_rows": None}
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_can_add_altair_chart() -> None:
+    import altair as alt
+
+    data = {"values": [1, 2, 3]}
+    unwrapped = (
+        alt.Chart(data).mark_point().encode(x="values:Q").properties(width=200)
+    )
+    chart1 = altair_chart.altair_chart(unwrapped)
+    chart2 = altair_chart.altair_chart(
+        alt.Chart(data).mark_bar().encode(x="values:Q")
+    )
+
+    assert chart1 + chart2 is not None
+    assert chart2 + chart1 is not None
+    assert chart2 + unwrapped is not None
+    with pytest.raises(ValueError):
+        assert unwrapped + chart2
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_can_or_altair_chart() -> None:
+    import altair as alt
+
+    data = {"values": [1, 2, 3]}
+    unwrapped = (
+        alt.Chart(data).mark_point().encode(x="values:Q").properties(width=200)
+    )
+    chart1 = altair_chart.altair_chart(unwrapped)
+    chart2 = altair_chart.altair_chart(
+        alt.Chart(data).mark_bar().encode(x="values:Q")
+    )
+
+    assert chart1 | chart2 is not None
+    assert chart2 | chart1 is not None
+    assert chart2 | unwrapped is not None
+    with pytest.raises(ValueError):
+        assert unwrapped + chart2
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_can_and_altair_chart() -> None:
+    import altair as alt
+
+    data = {"values": [1, 2, 3]}
+    unwrapped = (
+        alt.Chart(data).mark_point().encode(x="values:Q").properties(width=200)
+    )
+    chart1 = altair_chart.altair_chart(unwrapped)
+    chart2 = altair_chart.altair_chart(
+        alt.Chart(data).mark_bar().encode(x="values:Q")
+    )
+
+    assert chart1 & chart2 is not None
+    assert chart2 & chart1 is not None
+    assert chart2 & unwrapped is not None
+    with pytest.raises(ValueError):
+        assert unwrapped + chart2
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_does_not_modify_original() -> None:
+    import altair as alt
+
+    data = {"values": [1, 2, 3]}
+    alt1 = (
+        alt.Chart(data).mark_point().encode(x="values:Q").properties(width=200)
+    )
+    alt2 = alt.Chart(data).mark_bar().encode(x="values:Q").properties()
+    combined1 = alt1 | alt2
+    combined2 = altair_chart.altair_chart(alt1) | altair_chart.altair_chart(
+        alt2
+    )
+
+    assert combined1 == combined2._chart

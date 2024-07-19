@@ -1,9 +1,16 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import Callable
+
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
-from marimo._data.get_datasets import get_datasets_from_variables
+from marimo._data.get_datasets import (
+    get_datasets_from_duckdb,
+    get_datasets_from_variables,
+    has_updates_to_datasource,
+)
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
     MarimoExceptionRaisedError,
@@ -25,6 +32,10 @@ from marimo._runtime.runner import cell_runner
 from marimo._utils.flatten import flatten
 
 LOGGER = _loggers.marimo_logger()
+
+PostExecutionHookType = Callable[
+    [CellImpl, cell_runner.Runner, cell_runner.RunResult], None
+]
 
 
 def _set_status_idle(
@@ -71,6 +82,35 @@ def _broadcast_datasets(
     )
     if tables:
         Datasets(tables=tables).broadcast()
+
+
+def _broadcast_duckdb_tables(
+    cell: CellImpl,
+    runner: cell_runner.Runner,
+    run_result: cell_runner.RunResult,
+) -> None:
+    del run_result
+    del runner
+    if not DependencyManager.has_duckdb():
+        return
+
+    try:
+        sqls = cell.sqls
+        if not sqls:
+            return
+        modifies_datasources = any(
+            has_updates_to_datasource(sql) for sql in sqls
+        )
+        if not modifies_datasources:
+            return
+
+        tables = get_datasets_from_duckdb()
+        if not tables:
+            return
+
+        Datasets(tables=tables, clear_channel="duckdb").broadcast()
+    except Exception:
+        return
 
 
 def _store_reference_to_output(
@@ -189,11 +229,12 @@ def _reset_matplotlib_context(
         exec("__marimo__._output.mpl.close_figures()", runner.glbls)
 
 
-POST_EXECUTION_HOOKS = [
+POST_EXECUTION_HOOKS: list[PostExecutionHookType] = [
     _set_status_idle,
     _store_reference_to_output,
     _broadcast_variables,
     _broadcast_datasets,
+    _broadcast_duckdb_tables,
     _broadcast_outputs,
     _reset_matplotlib_context,
 ]

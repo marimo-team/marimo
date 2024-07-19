@@ -52,12 +52,22 @@ def redirect_streams(
     stderr: Stderr | None,
     stdin: Stdin | None,
 ) -> Iterator[None]:
+    cell_id_old = stream.cell_id
+
+    # In a nested context; NOOP so messages still reach the top-level cell.
+    if cell_id_old is not None:
+        try:
+            yield
+        finally:
+            ...
+        return
+
     stream.cell_id = cell_id
     if stdout is None or stderr is None:
         try:
             yield
         finally:
-            stream.cell_id = None
+            stream.cell_id = cell_id_old
         return
 
     # NB: Python doesn't allow monkey patching methods builtins, so
@@ -78,4 +88,4 @@ def redirect_streams(
         sys.stdout = py_stdout
         sys.stderr = py_stderr
         sys.stdin = py_stdin
-        stream.cell_id = None
+        stream.cell_id = cell_id_old

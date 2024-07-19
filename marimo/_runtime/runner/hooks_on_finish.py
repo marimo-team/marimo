@@ -1,4 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
+from typing import Callable
+
 from marimo import _loggers
 from marimo._messaging.errors import (
     Error,
@@ -13,6 +17,8 @@ from marimo._runtime.control_flow import MarimoStopError
 from marimo._runtime.runner import cell_runner
 
 LOGGER = _loggers.marimo_logger()
+
+OnFinishHookType = Callable[[cell_runner.Runner], None]
 
 
 def _send_interrupt_errors(runner: cell_runner.Runner) -> None:
@@ -81,4 +87,7 @@ def _send_cancellation_errors(runner: cell_runner.Runner) -> None:
             )
 
 
-ON_FINISH_HOOKS = [_send_interrupt_errors, _send_cancellation_errors]
+ON_FINISH_HOOKS: list[OnFinishHookType] = [
+    _send_interrupt_errors,
+    _send_cancellation_errors,
+]

@@ -6,6 +6,7 @@ import os
 import tempfile
 from functools import partial
 from inspect import cleandoc
+from textwrap import dedent
 from typing import Optional
 
 import codegen_data.test_main as mod
@@ -561,3 +562,15 @@ def test_get_header_comments_invalid() -> None:
     comments = codegen.get_header_comments(filepath)
 
     assert comments is None, "Comments found when there should be none"
+
+
+def test_sqls() -> None:
+    code = dedent(
+        """
+    db.sql("SELECT * FROM foo")
+    db.sql("ATTACH TABLE bar")
+    """
+    )
+    cell = compile_cell(code)
+    sqls = cell.sqls
+    assert sqls == ["SELECT * FROM foo", "ATTACH TABLE bar"]

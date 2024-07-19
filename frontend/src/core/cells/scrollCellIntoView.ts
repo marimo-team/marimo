@@ -37,6 +37,11 @@ export function focusAndScrollCellIntoView({
     if (!editor) {
       return;
     }
+    // If already focused, do nothing.
+    if (editor.hasFocus) {
+      return;
+    }
+
     editor.focus();
     if (codeFocus === "top") {
       // If codeFocus is top, move the cursor to the top of the editor.

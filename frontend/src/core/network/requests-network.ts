@@ -64,6 +64,13 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    sendRunScratchpad: (request) => {
+      return marimoClient
+        .POST("/api/kernel/scratchpad/run", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
+    },
     sendInstantiate: (request) => {
       return marimoClient
         .POST("/api/kernel/instantiate", {

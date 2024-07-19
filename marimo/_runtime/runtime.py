@@ -14,13 +14,20 @@ import sys
 import threading
 import time
 import traceback
+from copy import copy
 from multiprocessing import connection
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Iterator,
+    Optional,
+    cast,
+)
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._ast.app import App
-from marimo._ast.cell import CellConfig, CellId_t
+from marimo._ast.cell import CellConfig, CellId_t, CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._ast.visitor import Name
 from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
@@ -28,6 +35,7 @@ from marimo._data.preview_column import get_column_preview
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
     Error,
+    MarimoInterruptionError,
     MarimoStrictExecutionError,
     MarimoSyntaxError,
     UnknownError,
@@ -90,6 +98,7 @@ from marimo._runtime.requests import (
     CreationRequest,
     DeleteCellRequest,
     ExecuteMultipleRequest,
+    ExecuteScratchpadRequest,
     ExecuteStaleRequest,
     ExecutionRequest,
     FunctionCallRequest,
@@ -107,6 +116,11 @@ from marimo._runtime.runner.hooks import (
     PRE_EXECUTION_HOOKS,
     PREPARATION_HOOKS,
 )
+from marimo._runtime.runner.hooks_on_finish import OnFinishHookType
+from marimo._runtime.runner.hooks_post_execution import PostExecutionHookType
+from marimo._runtime.runner.hooks_pre_execution import PreExecutionHookType
+from marimo._runtime.runner.hooks_preparation import PreparationHookType
+from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._runtime.state import State
 from marimo._runtime.utils.set_ui_element_request_manager import (
     SetUIElementRequestManager,
@@ -114,6 +128,7 @@ from marimo._runtime.utils.set_ui_element_request_manager import (
 from marimo._runtime.validate_graph import check_for_errors
 from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
 from marimo._server.types import QueueType
+from marimo._utils.assert_never import assert_never
 from marimo._utils.platform import is_pyodide
 from marimo._utils.signals import restore_signals
 from marimo._utils.typed_connection import TypedConnection
@@ -121,6 +136,7 @@ from marimo._utils.variables import is_local
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
+    from types import ModuleType
 
     from marimo._plugins.ui._core.ui_element import UIElement
 
@@ -268,9 +284,9 @@ class Kernel:
     - stdout: replacement for sys.stdout
     - stderr: replacement for sys.stderr
     - stdin: replacement for sys.stdin
-    - input_override: a function that overrides the builtin input() function
-    - debugger_override: a replacement for the built-in Pdb
+    - module: module in which to execute code
     - enqueue_control_request: callback to enqueue control requests
+    - debugger_override: a replacement for the built-in Pdb
     """
 
     def __init__(
@@ -282,8 +298,12 @@ class Kernel:
         stdout: Stdout | None,
         stderr: Stderr | None,
         stdin: Stdin | None,
+        module: ModuleType,
         enqueue_control_request: Callable[[ControlRequest], None],
-        input_override: Callable[[Any], str] = input_override,
+        preparation_hooks: list[PreparationHookType] | None = None,
+        pre_execution_hooks: list[PreExecutionHookType] | None = None,
+        post_execution_hooks: list[PostExecutionHookType] | None = None,
+        on_finish_hooks: list[OnFinishHookType] | None = None,
         debugger_override: marimo_pdb.MarimoPdb | None = None,
     ) -> None:
         self.app_metadata = app_metadata
@@ -294,6 +314,30 @@ class Kernel:
         self.stderr = stderr
         self.stdin = stdin
         self.enqueue_control_request = enqueue_control_request
+        # timestamp at which most recently processed interrupt was seen;
+        # the kernel rejects run requests that were issued before that
+        # timestamp, to save the user from having to spam the interrupt button
+        self.last_interrupt_timestamp: Optional[float] = None
+
+        self._preparation_hooks = (
+            preparation_hooks
+            if preparation_hooks is not None
+            else PREPARATION_HOOKS
+        )
+        self._pre_execution_hooks = (
+            pre_execution_hooks
+            if pre_execution_hooks is not None
+            else PRE_EXECUTION_HOOKS
+        )
+        self._post_execution_hooks = (
+            post_execution_hooks
+            if post_execution_hooks is not None
+            else POST_EXECUTION_HOOKS
+        )
+        self._on_finish_hooks = (
+            on_finish_hooks if on_finish_hooks is not None else ON_FINISH_HOOKS
+        )
+
         self._globals_lock = threading.RLock()
         self._completion_worker_started = False
 
@@ -301,9 +345,7 @@ class Kernel:
         if self.debugger is not None:
             patches.patch_pdb(self.debugger)
 
-        self._module = patches.patch_main_module(
-            file=self.app_metadata.filename, input_override=input_override
-        )
+        self._module = module
         if self.app_metadata.filename is not None:
             # TODO(akshayka): When a file is renamed / moved to another folder,
             # we need to update sys.path.
@@ -631,8 +673,13 @@ class Kernel:
                 MissingPackageAlert(
                     packages=list(
                         sorted(
-                            self.package_manager.module_to_package(mod)
+                            pkg
                             for mod in missing_modules_after_deletion
+                            if not self.package_manager.attempted_to_install(
+                                pkg := self.package_manager.module_to_package(
+                                    mod
+                                )
+                            )
                         )
                     ),
                     isolated=is_python_isolated(),
@@ -728,6 +775,8 @@ class Kernel:
                 syntax_errors[er.cell_id] = error
 
         for dr in deletion_requests:
+            if dr.cell_id not in cells_before_mutation:
+                continue
             cells_that_were_children_of_mutated_cells |= self._delete_cell(
                 dr.cell_id
             )
@@ -888,13 +937,50 @@ class Kernel:
         # sys.modules. Races can still happen, but this should help in most
         # common cases. We could also be more aggressive and run this before
         # every cell, or even before pickle.dump/pickle.dumps()
-        patches.patch_sys_module(self._module)
-        while cell_ids := await self._run_cells_internal(cell_ids):
-            LOGGER.debug("Running state updates ...")
-            if self.lazy() and cell_ids:
-                self.graph.set_stale(cell_ids)
-                break
-        LOGGER.debug("Finished run.")
+        with patches.patch_main_module_context(self._module):
+            while cell_ids := await self._run_cells_internal(cell_ids):
+                LOGGER.debug("Running state updates ...")
+                if self.lazy() and cell_ids:
+                    self.graph.set_stale(cell_ids)
+                    break
+            LOGGER.debug("Finished run.")
+
+    def _broadcast_missing_packages(self, runner: cell_runner.Runner) -> None:
+        if (
+            any(
+                isinstance(e, ModuleNotFoundError)
+                for e in runner.exceptions.values()
+            )
+            and self.package_manager is not None
+        ):
+            missing_packages = [
+                pkg
+                for mod in self.module_registry.missing_modules()
+                # filter out packages that we already attempted to install
+                # to prevent an infinite loop
+                if not self.package_manager.attempted_to_install(
+                    pkg := self.package_manager.module_to_package(mod)
+                )
+            ]
+
+            if missing_packages:
+                if self.package_manager.should_auto_install():
+                    self._execute_install_missing_packages_callback(
+                        self.package_manager.name
+                    )
+                else:
+                    MissingPackageAlert(
+                        packages=list(sorted(missing_packages)),
+                        isolated=is_python_isolated(),
+                    ).broadcast()
+
+    def _propagate_kernel_errors(
+        self,
+        runner: cell_runner.Runner,
+    ) -> None:
+        for cell_id, error in runner.exceptions.items():
+            if isinstance(error, MarimoStrictExecutionError):
+                self.errors[cell_id] = (error,)
 
     async def _run_cells_internal(self, roots: set[CellId_t]) -> set[CellId_t]:
         """Run cells, send outputs to frontends
@@ -913,36 +999,15 @@ class Kernel:
             for cid in runner.cells_to_run:
                 self._invalidate_cell_state(cid)
 
-        def broadcast_missing_packages(runner: cell_runner.Runner) -> None:
-            if (
-                any(
-                    isinstance(e, ModuleNotFoundError)
-                    for e in runner.exceptions.values()
-                )
-                and self.package_manager is not None
-            ):
-                missing_packages = [
-                    self.package_manager.module_to_package(mod)
-                    for mod in self.module_registry.missing_modules()
-                ]
-
-                if missing_packages:
-                    if self.package_manager.should_auto_install():
-                        self._execute_install_missing_packages_callback(
-                            self.package_manager.name
-                        )
-                    else:
-                        MissingPackageAlert(
-                            packages=list(sorted(missing_packages)),
-                            isolated=is_python_isolated(),
-                        ).broadcast()
-
-        def propagate_kernel_errors(
+        def note_time_of_interruption(
+            cell_impl: CellImpl,
             runner: cell_runner.Runner,
+            run_result: cell_runner.RunResult,
         ) -> None:
-            for cell_id, error in runner.exceptions.items():
-                if isinstance(error, MarimoStrictExecutionError):
-                    self.errors[cell_id] = (error,)
+            del cell_impl
+            del runner
+            if isinstance(run_result.exception, MarimoInterrupt):
+                self.last_interrupt_timestamp = time.time()
 
         runner = cell_runner.Runner(
             roots=roots,
@@ -953,11 +1018,17 @@ class Kernel:
             execution_mode=self.reactive_execution_mode,
             execution_type=self.execution_type,
             execution_context=self._install_execution_context,
-            preparation_hooks=PREPARATION_HOOKS + [invalidate_state],
-            pre_execution_hooks=PRE_EXECUTION_HOOKS,
-            post_execution_hooks=POST_EXECUTION_HOOKS,
-            on_finish_hooks=ON_FINISH_HOOKS
-            + [broadcast_missing_packages, propagate_kernel_errors],
+            preparation_hooks=self._preparation_hooks + [invalidate_state],
+            pre_execution_hooks=self._pre_execution_hooks,
+            post_execution_hooks=self._post_execution_hooks
+            + [note_time_of_interruption],
+            on_finish_hooks=(
+                self._on_finish_hooks
+                + [
+                    self._broadcast_missing_packages,
+                    self._propagate_kernel_errors,
+                ]
+            ),
         )
 
         # I/O
@@ -1005,10 +1076,69 @@ class Kernel:
 
         Cells may use top-level await, which is why this function is async.
         """
+        filtered_requests: list[ExecutionRequest] = []
+        for request in execution_requests:
+            if (
+                self.last_interrupt_timestamp is not None
+                and request.timestamp < self.last_interrupt_timestamp
+            ):
+                CellOp.broadcast_error(
+                    data=[MarimoInterruptionError()],
+                    clear_console=False,
+                    cell_id=request.cell_id,
+                )
+
+                # TODO(akshayka): This hack is needed because the FE
+                # sets status to queued when a cell is manually run; remove
+                # once setting status to queued on receipt of request is moved
+                # to backend (which will require moving execution requests to
+                # a dedicated multiprocessing queue and processing execution
+                # requests in a background thread).
+                CellOp.broadcast_status(
+                    cell_id=request.cell_id,
+                    status="idle",
+                )
+
+            else:
+                filtered_requests.append(request)
 
         await self._run_cells(
-            self.mutate_graph(execution_requests, deletion_requests=[])
+            self.mutate_graph(filtered_requests, deletion_requests=[])
         )
+
+    async def run_scratchpad(self, code: str) -> None:
+        roots = {SCRATCH_CELL_ID}
+
+        # If cannot compile, don't run
+        try:
+            cell = compile_cell(code, SCRATCH_CELL_ID)
+            cell.defs.clear()  # remove definitions
+            cell.refs.clear()  # remove definitions
+        except SyntaxError:
+            return
+
+        # Create graph of just the scratchpad cell
+        graph = dataflow.DirectedGraph()
+        graph.register_cell(SCRATCH_CELL_ID, cell)
+
+        runner = cell_runner.Runner(
+            roots=roots,
+            graph=graph,
+            glbls=copy(self.globals),
+            excluded_cells=set(),
+            debugger=self.debugger,
+            execution_mode=self.reactive_execution_mode,
+            execution_type=self.execution_type,
+            execution_context=self._install_execution_context,
+            preparation_hooks=self._preparation_hooks,
+            pre_execution_hooks=self._pre_execution_hooks,
+            post_execution_hooks=self._post_execution_hooks,
+            on_finish_hooks=(
+                self._on_finish_hooks + [self._broadcast_missing_packages]
+            ),
+        )
+
+        await runner.run_all()
 
     async def run_stale_cells(self) -> None:
         cells_to_run: set[CellId_t] = set()
@@ -1052,10 +1182,12 @@ class Kernel:
 
     async def set_ui_element_value(
         self, request: SetUIElementValueRequest
-    ) -> None:
+    ) -> bool:
         """Set the value of a UI element bound to a global variable.
 
         Runs cells that reference the UI element by name.
+
+        Returns True if any ui elements were set, False otherwise
         """
         updated_components: list[UIElement[Any, Any]] = []
 
@@ -1063,14 +1195,37 @@ class Kernel:
         # of another parent element is resolved to its parent. In particular,
         # interacting with a view triggers reactive execution through the
         # source (parent).
+        ctx = get_context()
         resolved_requests: dict[str, Any] = {}
-        ui_element_registry = get_context().ui_element_registry
+        referring_cells: set[CellId_t] = set()
+        ui_element_registry = ctx.ui_element_registry
         for object_id, value in request.ids_and_values:
             try:
                 resolved_id, resolved_value = ui_element_registry.resolve_lens(
                     object_id, value
                 )
             except (KeyError, RuntimeError):
+                # Attempt to set the UI element in a child context (app).
+                for child_context in ctx.children:
+                    if (
+                        child_context.app is not None
+                        and await child_context.app.set_ui_element_value(
+                            SetUIElementValueRequest(
+                                object_ids=[object_id], values=[value]
+                            )
+                        )
+                    ):
+                        bindings = [
+                            name
+                            for name, value in self.globals.items()
+                            # child_context.app is an InternalApp object
+                            if value is child_context.app._app
+                        ]
+                        for binding in bindings:
+                            referring_cells.update(
+                                self.graph.get_referring_cells(binding)
+                            )
+
                 # KeyError: Trying to access an unnamed UIElement
                 # RuntimeError: UIElement was deleted somehow
                 LOGGER.debug(
@@ -1080,7 +1235,6 @@ class Kernel:
             resolved_requests[resolved_id] = resolved_value
         del request
 
-        referring_cells: set[CellId_t] = set()
         for object_id, value in resolved_requests.items():
             try:
                 component = ui_element_registry.get_object(object_id)
@@ -1131,9 +1285,7 @@ class Kernel:
 
             bound_names = (
                 name
-                for name in get_context().ui_element_registry.bound_names(
-                    object_id
-                )
+                for name in ctx.ui_element_registry.bound_names(object_id)
                 if not is_local(name)
             )
 
@@ -1143,12 +1295,6 @@ class Kernel:
                 variable_values.append(
                     VariableValue(name=name, value=component)
                 )
-                if name in self.globals and isinstance(
-                    self.globals[name], App
-                ):
-                    self.globals[name]._register_ui_element_update(
-                        value=component
-                    )
                 try:
                     # subtracting self.graph.definitions[name]: never rerun the
                     # cell that created the name
@@ -1199,6 +1345,8 @@ class Kernel:
                 tmpio.seek(0)
                 write_traceback(tmpio.read())
 
+        return bool(updated_components) or bool(referring_cells)
+
     def get_ui_initial_value(self, object_id: str) -> Any:
         """Get an initial value for a UIElement, if any
 
@@ -1223,7 +1371,13 @@ class Kernel:
 
     async def function_call_request(
         self, request: FunctionCallRequest
-    ) -> tuple[HumanReadableStatus, JSONType]:
+    ) -> tuple[HumanReadableStatus, JSONType, bool]:
+        """Execute a function call.
+
+        If the function is not found, children contexts are also searched.
+        Returns a status, payload, and a bool which is True if the function was
+        found, False otherwise.
+        """
         ctx = get_context()
         function = ctx.function_registry.get_function(
             request.namespace, request.function_name
@@ -1234,18 +1388,30 @@ class Kernel:
             LOGGER.debug("%s: %s", title, message)
 
         if function is None:
+            for child_context in ctx.children:
+                if child_context.app is not None:
+                    (
+                        status,
+                        response,
+                        found,
+                    ) = await child_context.app.function_call(request)
+                    if found:
+                        return status, response, found
+            found = False
             error_title = "Function not found"
             error_message = (
                 "Could not find function given request: %s" % request
             )
             debug(error_title, error_message)
         elif function.cell_id is None:
+            found = True
             error_title = "Function not associated with cell"
             error_message = (
                 "Attempted to call a function without a cell id: %s" % request
             )
             debug(error_title, error_message)
         else:
+            found = True
             with self._install_execution_context(
                 cell_id=function.cell_id
             ), ctx.provide_ui_ids(str(uuid4())):
@@ -1262,12 +1428,14 @@ class Kernel:
                 # TODO(akshayka): Do UI elements created in function calls
                 # get cleared from the FE registry? This could be a leak.
                 try:
-                    response = function(request.args)
+                    response = cast(JSONType, function(request.args))
                     if asyncio.iscoroutine(response):
                         response = await response
-                        return HumanReadableStatus(code="ok"), response
-                    return HumanReadableStatus(code="ok"), cast(
-                        JSONType, response
+                        return HumanReadableStatus(code="ok"), response, found
+                    return (
+                        HumanReadableStatus(code="ok"),
+                        response,
+                        found,
                     )
                 except MarimoInterrupt:
                     error_title = "Interrupted"
@@ -1290,6 +1458,7 @@ class Kernel:
                 code="error", title=error_title, message=error_message
             ),
             None,
+            found,
         )
 
     async def instantiate(self, request: CreationRequest) -> None:
@@ -1345,6 +1514,10 @@ class Kernel:
 
         for mod in missing_modules:
             pkg = self.package_manager.module_to_package(mod)
+            if self.package_manager.attempted_to_install(package=pkg):
+                # Already attempted an installation; it must have failed.
+                # Skip the installation.
+                continue
             package_statuses[pkg] = "installing"
             InstallingPackageAlert(packages=package_statuses).broadcast()
             if await self.package_manager.install(pkg):
@@ -1380,23 +1553,35 @@ class Kernel:
 
         The dataset is loaded, and the column is displayed in the frontend.
         """
-        try:
-            dataset = self.globals[request.table_name]
-            column_preview = get_column_preview(dataset, request)
-            if column_preview is None:
-                DataColumnPreview(
-                    error=f"Column {request.column_name} not found",
-                    column_name=request.column_name,
-                    table_name=request.table_name,
-                ).broadcast()
-            else:
-                column_preview.broadcast()
-        except Exception as e:
+
+        if request.source_type == "duckdb":
             DataColumnPreview(
-                error=str(e),
                 column_name=request.column_name,
                 table_name=request.table_name,
             ).broadcast()
+            return
+
+        if request.source_type == "local":
+            try:
+                dataset = self.globals[request.table_name]
+                column_preview = get_column_preview(dataset, request)
+                if column_preview is None:
+                    DataColumnPreview(
+                        error=f"Column {request.column_name} not found",
+                        column_name=request.column_name,
+                        table_name=request.table_name,
+                    ).broadcast()
+                else:
+                    column_preview.broadcast()
+            except Exception as e:
+                DataColumnPreview(
+                    error=str(e),
+                    column_name=request.column_name,
+                    table_name=request.table_name,
+                ).broadcast()
+            return
+
+        assert_never(request.source_type)
 
     async def handle_message(self, request: ControlRequest) -> None:
         """Handle a message from the client.
@@ -1414,6 +1599,8 @@ class Kernel:
             elif isinstance(request, ExecuteMultipleRequest):
                 await self.run(request.execution_requests)
                 CompletedRun().broadcast()
+            elif isinstance(request, ExecuteScratchpadRequest):
+                await self.run_scratchpad(request.code)
             elif isinstance(request, ExecuteStaleRequest):
                 await self.run_stale_cells()
             elif isinstance(request, SetCellConfigRequest):
@@ -1424,7 +1611,7 @@ class Kernel:
                 await self.set_ui_element_value(request)
                 CompletedRun().broadcast()
             elif isinstance(request, FunctionCallRequest):
-                status, ret = await self.function_call_request(request)
+                status, ret, _ = await self.function_call_request(request)
                 FunctionCallResult(
                     function_call_id=request.function_call_id,
                     return_value=ret,
@@ -1499,7 +1686,9 @@ def launch_kernel(
         stdout=stdout,
         stderr=stderr,
         stdin=stdin,
-        input_override=input_override,
+        module=patches.patch_main_module(
+            file=app_metadata.filename, input_override=input_override
+        ),
         debugger_override=debugger,
         user_config=user_config,
         enqueue_control_request=lambda req: control_queue.put_nowait(req),

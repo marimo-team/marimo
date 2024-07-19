@@ -201,6 +201,12 @@ export class PyodideBridge implements RunRequests, EditRequests {
     await this.putControlRequest(request);
     return null;
   };
+  sendRunScratchpad: EditRequests["sendRunScratchpad"] = async (request) => {
+    await this.rpc.proxy.request.loadPackages(request.code);
+
+    await this.putControlRequest(request);
+    return null;
+  };
   sendInterrupt: EditRequests["sendInterrupt"] = async () => {
     if (this.interruptBuffer !== undefined) {
       // 2 sends a SIGINT

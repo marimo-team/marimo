@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { AppMode } from "@/core/mode";
+import type { AppMode } from "@/core/mode";
 import { getNotebook } from "@/core/cells/cells";
 import { useState, useEffect } from "react";
 
@@ -30,7 +30,7 @@ export function useDelayVisibility(numCells: number, mode: AppMode) {
 function focusFirstEditor() {
   const { cellIds, cellData, cellHandles } = getNotebook();
   // Focus on the first cell if it's been mounted and is not hidden
-  for (const cellId of cellIds) {
+  for (const cellId of cellIds.topLevelIds) {
     const handle = cellHandles[cellId];
     const hidden = cellData[cellId].config.hide_code;
     if (!hidden && handle?.current?.editorView) {
