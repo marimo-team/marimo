@@ -55,6 +55,36 @@ def cache(filename: str, code: str) -> None:
     )
 
 
+def fix_source_position(node: Any, n: int = 1, t: int = 4) -> Any:
+    for child in ast.walk(node):
+        # TypeIgnore is a special case where lineno is not an attribute
+        # but rather a field of the node itself.
+        # Note, TypeIgnore does not have a "col_offset"
+        if isinstance(child, ast.TypeIgnore):
+            child.lineno = getattr(child, "lineno", 0) + n
+            continue
+
+        if "lineno" in child._attributes:
+            child.lineno = getattr(child, "lineno", 0) + n
+
+        if "col_offset" in child._attributes:
+            child.col_offset = getattr(child, "col_offset", 0) + t
+
+        if (
+            "end_lineno" in child._attributes
+            and (end_lineno := getattr(child, "end_lineno", 0)) is not None
+        ):
+            child.end_lineno = end_lineno + n
+
+        if (
+            "end_col_offset" in child._attributes
+            and (end_col_offset := getattr(child, "end_col_offset", 0))
+            is not None
+        ):
+            child.end_col_offset = end_col_offset + t
+    return node
+
+
 def compile_cell(
     code: str,
     cell_id: CellId_t,
@@ -97,7 +127,7 @@ def compile_cell(
         expr = "None"
 
     if source_position:
-        ast.increment_lineno(module, source_position.lineno)
+        fix_source_position(module, source_position.lineno)
         body_filename = source_position.filename
         last_expr_filename = source_position.filename
     else:
@@ -241,10 +271,14 @@ def cell_factory(
             cell_code += "\n" + lines[end_line][:return_offset]
 
     is_script = f.__globals__["__name__"] == "__main__"
-    source_position = SourcePosition(
-        filename=f.__code__.co_filename,
-        lineno=lnum + start_line - 1,
-    ) if is_script else None
+    source_position = (
+        SourcePosition(
+            filename=f.__code__.co_filename,
+            lineno=lnum + start_line - 1,
+        )
+        if is_script
+        else None
+    )
 
     return Cell(
         _name=f.__name__,

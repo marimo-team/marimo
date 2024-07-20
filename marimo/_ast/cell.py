@@ -461,8 +461,8 @@ class Cell:
 
 @dataclasses.dataclass
 class SourcePosition:
-    filename : str
-    lineno : int
+    filename: str
+    lineno: int
 
 
 def is_ws(char: str) -> bool:
