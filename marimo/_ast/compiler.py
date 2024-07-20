@@ -17,6 +17,7 @@ from marimo._ast.cell import (
     Cell,
     CellId_t,
     CellImpl,
+    SourcePosition,
 )
 from marimo._ast.visitor import ScopedVisitor
 from marimo._utils.tmpdir import get_tmpdir
@@ -57,9 +58,7 @@ def cache(filename: str, code: str) -> None:
 def compile_cell(
     code: str,
     cell_id: CellId_t,
-    start_line: int = 0,
-    filename: str = "<unknown>",
-    is_script: bool = False,
+    source_position: Optional[SourcePosition] = None,
 ) -> CellImpl:
     # Replace non-breaking spaces with regular spaces -- some frontends
     # send nbsp in place of space, which is a syntax error.
@@ -97,10 +96,10 @@ def compile_cell(
     else:
         expr = "None"
 
-    if is_script:
-        ast.increment_lineno(module, start_line - 1)
-        body_filename = filename
-        last_expr_filename = filename
+    if source_position:
+        ast.increment_lineno(module, source_position.lineno)
+        body_filename = source_position.filename
+        last_expr_filename = source_position.filename
     else:
         # store the cell's code in Python's linecache so debuggers can find it
         body_filename = get_filename(cell_id)
@@ -147,8 +146,6 @@ def cell_factory(
     to generate refs and defs. If the user introduced errors to the
     signature, marimo will autofix them on save.
     """
-    filename = f.__code__.co_filename
-    is_script = f.__globals__["__name__"] == "__main__"
     code, lnum = inspect.getsourcelines(f)
     function_code = textwrap.dedent("".join(code))
 
@@ -243,13 +240,17 @@ def cell_factory(
             # handle return written on same line as last statement in cell
             cell_code += "\n" + lines[end_line][:return_offset]
 
+    is_script = f.__globals__["__name__"] == "__main__"
+    source_position = SourcePosition(
+        filename=f.__code__.co_filename,
+        lineno=lnum + start_line - 1,
+    ) if is_script else None
+
     return Cell(
         _name=f.__name__,
         _cell=compile_cell(
             cell_code,
             cell_id=cell_id,
-            start_line=lnum + start_line,
-            filename=filename,
-            is_script=is_script,
+            source_position=source_position,
         ),
     )
