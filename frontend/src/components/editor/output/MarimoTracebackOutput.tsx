@@ -31,7 +31,7 @@ export const MarimoTracebackOutput = ({
   traceback,
 }: Props): JSX.Element => {
   const htmlTraceback = renderHTML({ html: traceback });
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   const lastTracebackLine = lastLine(traceback);
   const aiEnabled = useAtomValue(aiEnabledAtom);
