@@ -167,11 +167,12 @@ const CellEditorInternal = ({
         aiCellCompletion: () => {
           let closed = false;
           setAiCompletionCell((v) => {
-            if (v === cellId) {
+            // Toggle close
+            if (v?.cellId === cellId) {
               closed = true;
               return null;
             }
-            return cellId;
+            return { cellId };
           });
           return closed;
         },
@@ -331,7 +332,8 @@ const CellEditorInternal = ({
 
   return (
     <AiCompletionEditor
-      enabled={aiCompletionCell === cellId}
+      enabled={aiCompletionCell?.cellId === cellId}
+      initialPrompt={aiCompletionCell?.initialPrompt}
       currentCode={editorViewRef.current?.state.doc.toString() ?? code}
       currentLanguageAdapter={languageAdapter}
       declineChange={() => {
