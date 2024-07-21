@@ -256,7 +256,7 @@ export const LoadingDataTableComponent = memo(
           return Promise.resolve({ summaries: [] });
         }
         return props.get_column_summaries({});
-      }, [props.get_column_summaries, props.totalRows]);
+      }, [props.get_column_summaries, props.totalRows, props.data]);
 
     useEffect(() => {
       if (columnSummariesError) {
