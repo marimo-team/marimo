@@ -1090,6 +1090,7 @@ export interface components {
       };
       capabilities: {
         sql: boolean;
+        terminal: boolean;
       };
       cell_ids: string[];
       codes: string[];

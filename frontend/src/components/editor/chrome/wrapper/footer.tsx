@@ -14,6 +14,7 @@ import { saveUserConfig } from "@/core/network/requests";
 import type { UserConfig } from "@/core/config/config-schema";
 import { ShowInKioskMode } from "../../kiosk-mode";
 import { invariant } from "@/utils/invariant";
+import { IfCapability } from "@/core/config/if-capability";
 
 export const Footer: React.FC = () => {
   const { selectedPanel, isTerminalOpen } = useChromeState();
@@ -39,13 +40,15 @@ export const Footer: React.FC = () => {
         <span className="ml-1 font-mono mt-[0.125rem]">{errorCount}</span>
       </FooterItem>
 
-      <FooterItem
-        tooltip="Open terminal"
-        selected={isTerminalOpen}
-        onClick={() => toggleTerminal()}
-      >
-        <TerminalSquareIcon className="h-5 w-5" />
-      </FooterItem>
+      <IfCapability capability="terminal">
+        <FooterItem
+          tooltip="Open terminal"
+          selected={isTerminalOpen}
+          onClick={() => toggleTerminal()}
+        >
+          <TerminalSquareIcon className="h-5 w-5" />
+        </FooterItem>
+      </IfCapability>
 
       <FooterItem
         tooltip={

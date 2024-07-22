@@ -335,9 +335,12 @@ class CompletedRun(Op):
 @dataclass
 class KernelCapabilities:
     sql: bool = False
+    terminal: bool = False
 
     def __post_init__(self) -> None:
         self.sql = DependencyManager.has_duckdb()
+        # Only available in mac/linux
+        self.terminal = sys.platform != "win32"
 
 
 @dataclass

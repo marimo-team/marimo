@@ -24,9 +24,11 @@ import { FileExplorerPanel } from "../panels/file-explorer-panel";
 import { SnippetsPanel } from "../panels/snippets-panel";
 import { ErrorBoundary } from "../../boundary/ErrorBoundary";
 import { DataSourcesPanel } from "../panels/datasources-panel";
-import Terminal from "@/components/terminal/terminal";
 import { LazyMount } from "@/components/utils/lazy-mount";
 import { ScratchpadPanel } from "../panels/scratchpad-panel";
+import { IfCapability } from "@/core/config/if-capability";
+
+const LazyTerminal = React.lazy(() => import("@/components/terminal/terminal"));
 
 export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const { isSidebarOpen, isTerminalOpen, selectedPanel } = useChromeState();
@@ -206,7 +208,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     >
       {terminalResizeHandle}
       <LazyMount isOpen={isTerminalOpen}>
-        <Terminal />
+        <LazyTerminal />
       </LazyMount>
     </Panel>
   );
@@ -223,7 +225,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
         <Panel>
           <PanelGroup autoSaveId="marimo:chrome:v1:l1" direction="vertical">
             {appBodyPanel}
-            {terminalPanel}
+            <IfCapability capability="terminal">{terminalPanel}</IfCapability>
           </PanelGroup>
         </Panel>
       </PanelGroup>
