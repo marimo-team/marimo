@@ -844,8 +844,11 @@ components:
           properties:
             sql:
               type: boolean
+            terminal:
+              type: boolean
           required:
           - sql
+          - terminal
           type: object
         cell_ids:
           items:
@@ -1758,7 +1761,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.7.8
+  version: 0.7.9
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

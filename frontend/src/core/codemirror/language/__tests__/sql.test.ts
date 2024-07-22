@@ -10,6 +10,7 @@ describe("SQLLanguageAdapter", () => {
   beforeAll(() => {
     store.set(capabilitiesAtom, {
       sql: true,
+      terminal: true,
     });
   });
 

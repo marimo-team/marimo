@@ -24,15 +24,17 @@ import { FileExplorerPanel } from "../panels/file-explorer-panel";
 import { SnippetsPanel } from "../panels/snippets-panel";
 import { ErrorBoundary } from "../../boundary/ErrorBoundary";
 import { DataSourcesPanel } from "../panels/datasources-panel";
+import { LazyMount } from "@/components/utils/lazy-mount";
 import { ScratchpadPanel } from "../panels/scratchpad-panel";
+import { IfCapability } from "@/core/config/if-capability";
+
+const LazyTerminal = React.lazy(() => import("@/components/terminal/terminal"));
 
 export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
-  const { isOpen, selectedPanel } = useChromeState();
-  const { setIsOpen } = useChromeActions();
+  const { isSidebarOpen, isTerminalOpen, selectedPanel } = useChromeState();
+  const { setIsSidebarOpen, setIsTerminalOpen } = useChromeActions();
   const sidebarRef = React.useRef<ImperativePanelHandle>(null);
-  // We only support 'left' for now
-  // We may add support for a bottom bar, but currently it forces the app to remount
-  const panelLocation = "left";
+  const terminalRef = React.useRef<ImperativePanelHandle>(null);
 
   // sync sidebar
   useEffect(() => {
@@ -41,10 +43,10 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     }
 
     const isCurrentlyCollapsed = sidebarRef.current.isCollapsed();
-    if (isOpen && isCurrentlyCollapsed) {
+    if (isSidebarOpen && isCurrentlyCollapsed) {
       sidebarRef.current.expand();
     }
-    if (!isOpen && !isCurrentlyCollapsed) {
+    if (!isSidebarOpen && !isCurrentlyCollapsed) {
       sidebarRef.current.collapse();
     }
 
@@ -56,26 +58,63 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
         window.dispatchEvent(new Event("resize"));
       });
     });
-  }, [isOpen]);
+  }, [isSidebarOpen]);
 
-  const appBody = (
-    <Panel id="app" key={`app-${panelLocation}`} className="relative h-full">
+  // sync terminal
+  useEffect(() => {
+    if (!terminalRef.current) {
+      return;
+    }
+
+    const isCurrentlyCollapsed = terminalRef.current.isCollapsed();
+    if (isTerminalOpen && isCurrentlyCollapsed) {
+      terminalRef.current.expand();
+    }
+    if (!isTerminalOpen && !isCurrentlyCollapsed) {
+      terminalRef.current.collapse();
+    }
+
+    // Dispatch a resize event so widgets know to resize
+    requestAnimationFrame(() => {
+      // HACK: Unfortunately, we have to do this twice to make sure it the
+      // panel is fully expanded before we dispatch the resize event
+      requestAnimationFrame(() => {
+        window.dispatchEvent(new Event("resize"));
+      });
+    });
+  }, [isTerminalOpen]);
+
+  const appBodyPanel = (
+    <Panel id="app" key="app" className="relative h-full">
       <Suspense>{children}</Suspense>
     </Panel>
   );
 
-  const resizeHandle = (
+  const handleDragging = (isDragging: boolean) => {
+    if (!isDragging) {
+      // Once the user is done dragging, dispatch a resize event
+      window.dispatchEvent(new Event("resize"));
+    }
+  };
+
+  const helperResizeHandle = (
     <PanelResizeHandle
-      onDragging={(isDragging) => {
-        if (!isDragging) {
-          // Once the user is done dragging, dispatch a resize event
-          window.dispatchEvent(new Event("resize"));
-        }
-      }}
+      onDragging={handleDragging}
       className={cn(
         "border-border no-print z-10",
-        isOpen ? "resize-handle" : "resize-handle-collapsed",
-        panelLocation === "left" ? "vertical" : "horizontal",
+        isSidebarOpen ? "resize-handle" : "resize-handle-collapsed",
+        "vertical",
+      )}
+    />
+  );
+
+  const terminalResizeHandle = (
+    <PanelResizeHandle
+      onDragging={handleDragging}
+      className={cn(
+        "border-border no-print z-20",
+        isTerminalOpen ? "resize-handle" : "resize-handle-collapsed",
+        "horizontal",
       )}
     />
   );
@@ -93,7 +132,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
               className="m-0"
               size="xs"
               variant="text"
-              onClick={() => setIsOpen(false)}
+              onClick={() => setIsSidebarOpen(false)}
             >
               <XIcon className="w-4 h-4" />
             </Button>
@@ -113,16 +152,16 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     </ErrorBoundary>
   );
 
-  const helperPane = (
+  const helperPanel = (
     <Panel
       ref={sidebarRef}
       id="helper"
-      key={`helper-${panelLocation}`}
+      key={"helper"}
       collapsedSize={0}
       collapsible={true}
       className={cn(
         "dark:bg-[var(--slate-1)] no-print",
-        isOpen && "border-r border-l border-[var(--slate-7)]",
+        isSidebarOpen && "border-r border-l border-[var(--slate-7)]",
       )}
       minSize={10}
       // We can't make the default size greater than 0, otherwise it will start open
@@ -134,34 +173,61 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
           sidebarRef.current?.resize(30);
         }
       }}
-      onCollapse={() => setIsOpen(false)}
-      onExpand={() => setIsOpen(true)}
+      onCollapse={() => setIsSidebarOpen(false)}
+      onExpand={() => setIsSidebarOpen(true)}
     >
-      {panelLocation === "left" ? (
-        <span className="flex flex-row h-full">
-          {helpPaneBody} {resizeHandle}
-        </span>
-      ) : (
-        <span>
-          {resizeHandle} {helpPaneBody}
-        </span>
-      )}
+      <span className="flex flex-row h-full">
+        {helpPaneBody} {helperResizeHandle}
+      </span>
     </Panel>
   );
 
-  // If we ever support panelLocation !== left, this layout needs to be
-  // updated.
+  const terminalPanel = (
+    <Panel
+      ref={terminalRef}
+      id="terminal"
+      key={"terminal"}
+      collapsedSize={0}
+      collapsible={true}
+      className={cn(
+        "dark:bg-[var(--slate-1)] no-print",
+        isTerminalOpen && "border-[var(--slate-7)]",
+      )}
+      minSize={10}
+      // We can't make the default size greater than 0, otherwise it will start open
+      defaultSize={0}
+      maxSize={75}
+      onResize={(size, prevSize) => {
+        // This means it started closed and is opening for the first time
+        if (prevSize === 0 && size === 10) {
+          terminalRef.current?.resize(30);
+        }
+      }}
+      onCollapse={() => setIsTerminalOpen(false)}
+      onExpand={() => setIsTerminalOpen(true)}
+    >
+      {terminalResizeHandle}
+      <LazyMount isOpen={isTerminalOpen}>
+        <LazyTerminal />
+      </LazyMount>
+    </Panel>
+  );
+
   return (
     <div className="flex flex-col flex-1 overflow-hidden absolute inset-0">
       <PanelGroup
-        key={panelLocation}
-        autoSaveId={`marimo:chrome`}
-        direction={panelLocation === "left" ? "horizontal" : "vertical"}
-        storage={createStorage(panelLocation)}
+        autoSaveId="marimo:chrome:v1:l2"
+        direction={"horizontal"}
+        storage={createStorage("left")}
       >
         <Sidebar />
-        {helperPane}
-        {appBody}
+        {helperPanel}
+        <Panel>
+          <PanelGroup autoSaveId="marimo:chrome:v1:l1" direction="vertical">
+            {appBodyPanel}
+            <IfCapability capability="terminal">{terminalPanel}</IfCapability>
+          </PanelGroup>
+        </Panel>
       </PanelGroup>
       <ErrorBoundary>
         <Footer />
