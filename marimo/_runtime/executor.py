@@ -150,9 +150,6 @@ class Executor(ABC):
         pass
 
 
-# NOTE: Prefer to inherit from DefaultExecutor, or call the static execute
-# methods directly since DefaultExecutor utilizes so unorthodox code formmating
-# for prettier stack traces.
 @register_execution_type("relaxed")
 class DefaultExecutor(Executor):
     @staticmethod
@@ -177,7 +174,7 @@ class DefaultExecutor(Executor):
         except NameError as e:
             raise_name_error(graph, e)
         except (BaseException, Exception) as e:
-            # Raising from a BaseException will fold in the stactrace prior
+            # Raising from a BaseException will fold in the stacktrace prior
             # to execution
             raise MarimoBaseException from e
 

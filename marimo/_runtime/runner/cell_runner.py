@@ -386,7 +386,7 @@ class Runner:
                         "cases, please consider reporting this issue to "
                         "https://github.com/marimo-team/marimo/issues. "
                         "Definition expected in cell : ",
-                        "NameError of marimo reference",
+                        "NameError",
                         blamed_cell,
                     )
                     exception = output
@@ -394,7 +394,7 @@ class Runner:
                     output = MarimoExceptionRaisedError(
                         f"marimo came across the undefined variable `{ref}` "
                         "during runtime. Definition expected in cell : ",
-                        "NameError of marimo reference",
+                        "NameError",
                         blamed_cell,
                     )
                     exception = output
@@ -404,10 +404,10 @@ class Runner:
                     exception = unwrapped_exception
 
             # Handle other special runtime errors.
-            if isinstance(unwrapped_exception, ModuleNotFoundError):
+            elif isinstance(unwrapped_exception, ModuleNotFoundError):
                 self.missing_packages = True
 
-            if isinstance(unwrapped_exception, MarimoStopError):
+            elif isinstance(unwrapped_exception, MarimoStopError):
                 output = unwrapped_exception.output
                 exception = unwrapped_exception
                 # don't print a traceback, since quitting is the intended
