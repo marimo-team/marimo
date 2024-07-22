@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import os
-import pty
 import select
 import signal
 import subprocess
@@ -65,6 +64,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
 
     await websocket.accept()
     LOGGER.debug("Terminal websocket accepted")
+    import pty
 
     child_pid, fd = pty.fork()
     if child_pid == 0:
