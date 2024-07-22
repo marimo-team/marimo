@@ -41,6 +41,7 @@ from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import get_context
 from marimo._runtime.layout.layout import LayoutConfig
+from marimo._utils.platform import is_pyodide, is_windows
 
 LOGGER = loggers.marimo_logger()
 
@@ -340,7 +341,7 @@ class KernelCapabilities:
     def __post_init__(self) -> None:
         self.sql = DependencyManager.has_duckdb()
         # Only available in mac/linux
-        self.terminal = sys.platform != "win32"
+        self.terminal = not is_windows() and not is_pyodide()
 
 
 @dataclass
