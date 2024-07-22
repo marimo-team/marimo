@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { KeymapConfig } from "@/core/config/config-schema";
+import type { KeymapConfig } from "@/core/config/config-schema";
 import { logNever } from "@/utils/assertNever";
 import { defaultKeymap } from "@codemirror/commands";
-import { Extension, Prec } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
+import { type Extension, Prec } from "@codemirror/state";
+import { type EditorView, keymap } from "@codemirror/view";
 import { vim, Vim } from "@replit/codemirror-vim";
 import { vimKeymapExtension } from "./vim";
 
@@ -38,7 +38,6 @@ export function keymapBundle(
         callbacks.deleteCell();
       });
       return [
-        vimKeymapExtension(callbacks),
         // delete the cell on double press of "d", if the cell is empty
         Prec.highest(
           doubleCharacterListener(
@@ -54,6 +53,8 @@ export function keymapBundle(
           ),
         ),
         vim({ status: false }),
+        // Needs to come after the vim extension
+        vimKeymapExtension(callbacks),
         keymap.of(defaultKeymap),
       ];
     default:

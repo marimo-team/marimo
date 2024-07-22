@@ -1,14 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
-  NotebookState,
+  type NotebookState,
   exportedForTesting,
-  flattenNotebookCells,
+  flattenTopLevelNotebookCells,
 } from "../cells";
 import { notebookCells } from "../utils";
 import { CellId } from "@/core/cells/ids";
-import { OutputMessage } from "@/core/kernel/messages";
-import { Seconds } from "@/utils/time";
+import type { OutputMessage } from "@/core/kernel/messages";
+import type { Seconds } from "@/utils/time";
 
 const { initialNotebookState, reducer, createActions } = exportedForTesting;
 
@@ -21,12 +21,12 @@ function formatCells(notebook: NotebookState) {
 
 describe("cell reducer", () => {
   let state: NotebookState;
-  let cells: ReturnType<typeof flattenNotebookCells>;
+  let cells: ReturnType<typeof flattenTopLevelNotebookCells>;
   let firstCellId: CellId;
 
   const actions = createActions((action) => {
     state = reducer(state, action);
-    cells = flattenNotebookCells(state);
+    cells = flattenTopLevelNotebookCells(state);
   });
 
   let i = 0;
@@ -43,7 +43,7 @@ describe("cell reducer", () => {
 
     state = initialNotebookState();
     actions.createNewCell({ cellId: undefined!, before: false });
-    firstCellId = state.cellIds[0];
+    firstCellId = state.cellIds.atOrThrow(0);
   });
 
   afterAll(() => {
@@ -266,7 +266,7 @@ describe("cell reducer", () => {
       cellId: firstCellId,
     });
     cell = cells[0];
-    expect(cell.status).toBe("idle");
+    expect(cell.status).toBe("queued");
     expect(cell.lastCodeRun).toBe("import marimo as mo");
     expect(cell.edited).toBe(false);
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
@@ -491,6 +491,69 @@ describe("cell reducer", () => {
     expect(cell.lastCodeRun).toBe(cell.code);
     expect(cell.edited).toBe(false);
     expect(cell.runElapsedTimeMs).toBe(11_000);
+    expect(cell.runStartTimestamp).toBe(null);
+    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+  });
+
+  it("errors reset status to idle", () => {
+    // Initial state
+    let cell = cells[0];
+    expect(cell.status).toBe("idle");
+    expect(cell.lastCodeRun).toBe(null);
+    expect(cell.edited).toBe(false);
+    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+
+    // Update code
+    actions.updateCellCode({
+      cellId: firstCellId,
+      code: "import marimo as mo",
+      formattingChange: false,
+    });
+    cell = cells[0];
+    expect(cell.status).toBe("idle");
+    expect(cell.lastCodeRun).toBe(null);
+    expect(cell.edited).toBe(true);
+    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+
+    // Prepare for run
+    actions.prepareForRun({
+      cellId: firstCellId,
+    });
+    cell = cells[0];
+    expect(cell.status).toBe("queued");
+    expect(cell.lastCodeRun).toBe("import marimo as mo");
+    expect(cell.edited).toBe(false);
+    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+
+    // ERROR RESPONSE
+    //
+    // should reset status to idle
+    /////////////////
+    // Prepare for run
+    actions.prepareForRun({
+      cellId: firstCellId,
+    });
+    cell = cells[0];
+    // Receive error
+    actions.handleCellMessage({
+      cell_id: firstCellId,
+      output: {
+        channel: "marimo-error",
+        mimetype: "application/vnd.marimo+error",
+        data: [
+          { type: "exception", exception_type: "SyntaxError", msg: "Oh no!" },
+        ],
+        timestamp: 0,
+      },
+      console: null,
+      stale_inputs: null,
+      timestamp: new Date(61).getTime() as Seconds,
+    });
+    cell = cells[0];
+    expect(cell.status).toBe("idle");
+    expect(cell.lastCodeRun).toBe("import marimo as mo");
+    expect(cell.edited).toBe(false);
+    expect(cell.runElapsedTimeMs).toBe(null);
     expect(cell.runStartTimestamp).toBe(null);
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
   });
@@ -767,7 +830,7 @@ describe("cell reducer", () => {
       cellId: firstCellId,
     });
     cell = cells[0];
-    expect(cell.status).toBe("idle");
+    expect(cell.status).toBe("queued");
     expect(cell.consoleOutputs).toEqual([]);
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
@@ -922,7 +985,7 @@ describe("cell reducer", () => {
       cellId: firstCellId,
     });
     cell = cells[0];
-    expect(cell.status).toBe("idle");
+    expect(cell.status).toBe("queued");
     expect(cell.consoleOutputs).toEqual([OLD_STDOUT]); // Old stays there until it starts running
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 

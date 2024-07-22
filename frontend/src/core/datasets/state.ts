@@ -3,8 +3,11 @@
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import type { DatasetsState } from "./types";
 import { atom, useAtomValue } from "jotai";
-import { VariableName } from "../variables/types";
-import { DataColumnPreview } from "../kernel/messages";
+import type { VariableName } from "../variables/types";
+import type {
+  DataColumnPreview,
+  OperationMessageData,
+} from "../kernel/messages";
 import { previewDatasetColumn } from "../network/requests";
 
 function initialState(): DatasetsState {
@@ -22,7 +25,7 @@ const {
   valueAtom: datasetsAtom,
   useActions,
 } = createReducerAndAtoms(initialState, {
-  addDatasets: (state, datasets: Pick<DatasetsState, "tables">) => {
+  addDatasets: (state, datasets: OperationMessageData<"datasets">) => {
     // Quietly in the background make requests to get the previews for
     // opened columns, in the new tables
     for (const table of datasets.tables) {
@@ -34,13 +37,22 @@ const {
             tableName: table.name,
             columnName: column.name,
             source: table.source,
+            sourceType: table.source_type,
           });
         }
       }
     }
 
+    // Prev tables
+    let prevTables = state.tables;
+    if (datasets.clear_channel) {
+      prevTables = prevTables.filter((table) => {
+        return table.source !== datasets.clear_channel;
+      });
+    }
+
     // Put new tables at the top
-    const newTables = [...datasets.tables, ...state.tables];
+    const newTables = [...datasets.tables, ...prevTables];
 
     // Dedupe by name and source
     const seen = new Set();
@@ -52,9 +64,11 @@ const {
       seen.add(key);
       return true;
     });
+
     const sortedTables = dedupedTables.sort((a, b) => {
       return a.name.localeCompare(b.name);
     });
+
     return {
       ...state,
       tables: sortedTables,
@@ -64,9 +78,11 @@ const {
     const names = new Set(variableNames);
     // Filter out tables that come from variables that are not in the list
     const tables = state.tables.filter((table) => {
-      return (
-        table.variable_name && names.has(table.variable_name as VariableName)
-      );
+      // If there's no variable name, it's not a variable and we should keep it
+      if (!table.variable_name) {
+        return true;
+      }
+      return names.has(table.variable_name as VariableName);
     });
     return { ...state, tables };
   },

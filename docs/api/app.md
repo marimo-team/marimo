@@ -1,4 +1,4 @@
-# Cell
+# App
 
 ```{eval-rst}
 .. autoclass:: marimo.App

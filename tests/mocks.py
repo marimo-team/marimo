@@ -41,21 +41,40 @@ def snapshotter(current_file: str) -> Callable[[str, str], None]:
         with open(filepath, "r") as f:
             expected = normalize(f.read())
 
-        with open(filepath, "w") as f:
-            f.write(result)
-
         assert result, "Result is empty"
         assert expected, "Expected is empty"
 
-        text_diff = "\n".join(
-            list(
-                difflib.unified_diff(
-                    expected.splitlines(),
-                    result.splitlines(),
-                    lineterm="",
+        def write_result() -> None:
+            with open(filepath, "w") as f:
+                f.write(result)
+
+        is_json = filename.endswith(".json")
+        if is_json:
+            import json
+
+            expected = json.loads(expected)
+            result = json.loads(result)
+
+            if expected != result:
+                write_result()
+                print("Snapshot updated")
+
+            assert expected == result
+        else:
+            text_diff = "\n".join(
+                list(
+                    difflib.unified_diff(
+                        expected.splitlines(),
+                        result.splitlines(),
+                        lineterm="",
+                    )
                 )
             )
-        )
-        assert result == expected, f"Snapshot differs:\n{text_diff}"
+
+            if text_diff:
+                write_result()
+                print("Snapshot updated")
+
+            assert result == expected, f"Snapshot differs:\n{text_diff}"
 
     return snapshot

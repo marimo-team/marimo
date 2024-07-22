@@ -933,6 +933,14 @@ def test_print_f_string() -> None:
         == "select * from cars where name = '_'"
     )
 
+    joined_str = ast.parse(
+        "f'select * from \\'{table}\\' where name = {name}'"
+    )
+    assert (
+        normalize_sql_f_string(joined_str.body[0].value)  # type: ignore
+        == "select * from '_' where name = '_'"
+    )
+
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_empty_statement() -> None:

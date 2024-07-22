@@ -10,6 +10,7 @@ import React, {
 } from "react";
 import {
   ArrowLeftIcon,
+  BracesIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   CopyIcon,
@@ -172,7 +173,6 @@ const Toolbar = ({ onRefresh }: { onRefresh: () => void }) => {
           className={buttonVariants({
             variant: "text",
             size: "xs",
-            className: "mb-0",
           })}
         >
           <UploadIcon size={16} />
@@ -185,7 +185,6 @@ const Toolbar = ({ onRefresh }: { onRefresh: () => void }) => {
           onClick={onRefresh}
           variant="text"
           size="xs"
-          className="mb-0"
         >
           <RefreshCcwIcon size={16} />
         </Button>
@@ -339,6 +338,28 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() => {
+                toast({ title: "Copied to clipboard" });
+                navigator.clipboard.writeText(node.data.path);
+              }}
+            >
+              <CopyIcon className="mr-2" size={14} strokeWidth={1.5} />
+              Copy path
+            </DropdownMenuItem>
+            {tree && (
+              <DropdownMenuItem
+                onSelect={() => {
+                  toast({ title: "Copied to clipboard" });
+                  navigator.clipboard.writeText(
+                    tree.relativeFromRoot(node.data.path as FilePath),
+                  );
+                }}
+              >
+                <CopyIcon className="mr-2" size={14} strokeWidth={1.5} />
+                Copy relative path
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              onSelect={() => {
                 toast({
                   title: "Copied to clipboard",
                   description:
@@ -349,8 +370,8 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
                 navigator.clipboard.writeText(pythonCode);
               }}
             >
-              <CopyIcon className="mr-2" size={14} strokeWidth={1.5} />
-              Copy snippet to clipboard
+              <BracesIcon className="mr-2" size={14} strokeWidth={1.5} />
+              Copy snippet for reading file
             </DropdownMenuItem>
             {/* Not shown in WASM */}
             {node.data.isMarimoFile && !isWasm() && (

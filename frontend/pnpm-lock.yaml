@@ -353,6 +353,9 @@ dependencies:
   timestring:
     specifier: ^7.0.0
     version: 7.0.0
+  typescript-memoize:
+    specifier: ^1.1.1
+    version: 1.1.1
   use-resize-observer:
     specifier: ^9.1.0
     version: 9.1.0(react-dom@18.3.1)(react@18.3.1)
@@ -18810,6 +18813,10 @@ packages:
       json-stable-stringify: 1.1.1
       typescript: 2.1.6
       yargs: 6.6.0
+    dev: false
+
+  /typescript-memoize@1.1.1:
+    resolution: {integrity: sha512-GQ90TcKpIH4XxYTI2F98yEQYZgjNMOGPpOgdjIBhaLaWji5HPWlRnZ4AeA1hfBxtY7bCGDJsqDDHk/KaHOl5bA==}
     dev: false
 
   /typescript@2.1.6:

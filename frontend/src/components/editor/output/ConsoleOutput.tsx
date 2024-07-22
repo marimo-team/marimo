@@ -1,14 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React, { useLayoutEffect } from "react";
-import { OutputMessage } from "@/core/kernel/messages";
+import type { OutputMessage } from "@/core/kernel/messages";
 import { OutputRenderer } from "../Output";
 import { cn } from "@/utils/cn";
 import { DEFAULT_CELL_NAME } from "@/core/cells/names";
 import { NameCellContentEditable } from "../actions/name-cell-input";
-import { CellId } from "@/core/cells/ids";
+import type { CellId } from "@/core/cells/ids";
 import { Input } from "@/components/ui/input";
 import { AnsiUp } from "ansi_up";
-import { WithResponse } from "@/core/cells/types";
+import type { WithResponse } from "@/core/cells/types";
 import { invariant } from "@/utils/invariant";
 
 const ansiUp = new AnsiUp();
@@ -16,15 +16,25 @@ const ansiUp = new AnsiUp();
 interface Props {
   cellId: CellId;
   cellName: string;
+  className?: string;
   consoleOutputs: Array<WithResponse<OutputMessage>>;
   stale: boolean;
   debuggerActive: boolean;
+  onRefactorWithAI?: (opts: { prompt: string }) => void;
   onSubmitDebugger: (text: string, index: number) => void;
 }
 
 export const ConsoleOutput = (props: Props): React.ReactNode => {
   const ref = React.useRef<HTMLDivElement>(null);
-  const { consoleOutputs, stale, cellName, cellId, onSubmitDebugger } = props;
+  const {
+    consoleOutputs,
+    stale,
+    cellName,
+    cellId,
+    onSubmitDebugger,
+    onRefactorWithAI,
+    className,
+  } = props;
 
   /* The debugger UI needs some work. For now just use the regular
   /* console output. */
@@ -82,6 +92,7 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
         "console-output-area overflow-hidden rounded-b-lg flex flex-col-reverse w-full",
         stale && "marimo-output-stale",
         hasOutputs ? "p-5" : "p-3",
+        className,
       )}
     >
       {reversedOutputs.map((output, idx) => {
@@ -126,7 +137,10 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
 
         return (
           <React.Fragment key={idx}>
-            <OutputRenderer message={output} />
+            <OutputRenderer
+              onRefactorWithAI={onRefactorWithAI}
+              message={output}
+            />
           </React.Fragment>
         );
       })}

@@ -22,8 +22,7 @@ import { EditorView } from "@codemirror/view";
 import { Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
-import { useAtomValue } from "jotai";
-import { lastFocusedCellIdAtom } from "@/core/cells/focus";
+import { useLastFocusedCellId } from "@/core/cells/focus";
 import { useCellActions } from "@/core/cells/cells";
 import { cn } from "@/utils/cn";
 import { ContributeSnippetButton } from "../components/contribute-snippet-button";
@@ -99,7 +98,7 @@ export const SnippetsPanel: React.FC = () => {
 const SnippetViewer: React.FC<{ snippet: Snippet }> = ({ snippet }) => {
   const { theme } = useTheme();
   const { createNewCell } = useCellActions();
-  const lastFocusedCellId = useAtomValue(lastFocusedCellIdAtom);
+  const lastFocusedCellId = useLastFocusedCellId();
 
   const handleInsertSnippet = () => {
     // Add below last focused cell in reverse order

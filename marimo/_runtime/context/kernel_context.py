@@ -96,7 +96,8 @@ class KernelRuntimeContext(RuntimeContext):
             else:
                 setting_element_value = False
             self._kernel.execution_context = ExecutionContext(
-                cell_id=cell_id, setting_element_value=setting_element_value
+                cell_id=cell_id,
+                setting_element_value=setting_element_value,
             )
             yield
         finally:

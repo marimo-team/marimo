@@ -20,7 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import { useTheme } from "@/theme/useTheme";
 import { asURL } from "@/utils/url";
-import { LanguageAdapterType } from "@/core/codemirror/language/types";
+import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 
 const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
@@ -28,6 +28,7 @@ const Modified = CodeMirrorMerge.Modified;
 interface Props {
   currentCode: string;
   currentLanguageAdapter: LanguageAdapterType | undefined;
+  initialPrompt: string | undefined;
   onChange: (code: string) => void;
   declineChange: () => void;
   acceptChange: (rightHandCode: string) => void;
@@ -42,6 +43,7 @@ const baseExtensions = [customPythonLanguageSupport(), EditorView.lineWrapping];
 
 export const AiCompletionEditor: React.FC<Props> = ({
   onChange,
+  initialPrompt,
   currentLanguageAdapter,
   currentCode,
   declineChange,
@@ -59,11 +61,13 @@ export const AiCompletionEditor: React.FC<Props> = ({
     stop,
     isLoading,
     setCompletion,
+    setInput,
     handleInputChange,
     handleSubmit,
   } = useCompletion({
     api: asURL("api/ai/completion").toString(),
     headers: API.headers(),
+    initialInput: initialPrompt,
     streamMode: "text",
     body: {
       includeOtherCode: includeOtherCells ? getCodes(currentCode) : "",
@@ -80,12 +84,20 @@ export const AiCompletionEditor: React.FC<Props> = ({
 
   const inputRef = React.useRef<HTMLInputElement>(null);
 
+  // Focus the input
   useEffect(() => {
     if (enabled && inputRef.current) {
       inputRef.current.focus();
       inputRef.current.select();
     }
   }, [enabled]);
+
+  // Reset the input when the prompt changes
+  useEffect(() => {
+    if (enabled) {
+      setInput(initialPrompt || "");
+    }
+  }, [enabled, initialPrompt, setInput]);
 
   const { theme } = useTheme();
 
@@ -98,84 +110,95 @@ export const AiCompletionEditor: React.FC<Props> = ({
           !enabled && "h-0 invisible",
         )}
       >
-        <SparklesIcon className="text-[var(--blue-10)]" size={16} />
-        <input
-          className="h-8 outline-none px-2 focus-visible:shadow-none flex-1 rounded-none border-none focus:border-none"
-          value={input}
-          ref={inputRef}
-          onChange={handleInputChange}
-          placeholder="Type for completion"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
-            }
-            if (e.key === "Escape") {
-              e.preventDefault();
-              declineChange();
-              setCompletion("");
-            }
-          }}
-        />
-        {isLoading && (
-          <Button
-            data-testid="stop-completion-button"
-            variant="text"
-            size="xs"
-            className="mb-0"
-            onClick={stop}
-          >
-            <Loader2Icon className="animate-spin mr-1" size={14} />
-            Stop
-          </Button>
-        )}
-        {!isLoading && completion && (
-          <Button
-            data-testid="accept-completion-button"
-            variant="text"
-            size="xs"
-            className="mb-0"
-            disabled={isLoading}
-            onClick={() => {
-              acceptChange(completion);
-              setCompletion("");
-            }}
-          >
-            <span className="text-[var(--grass-11)] opacity-100">Accept</span>
-          </Button>
-        )}
-        <div className="h-full w-px bg-border mx-2" />
-        <Tooltip content="Include code from other cells">
-          <div className="flex flex-row items-start gap-1">
-            <Checkbox
-              data-testid="include-other-cells-checkbox"
-              id="include-other-cells"
-              checked={includeOtherCells}
-              onCheckedChange={(checked) =>
-                setIncludeOtherCells(Boolean(checked))
-              }
+        {enabled && (
+          <>
+            <SparklesIcon
+              className="text-[var(--blue-10)] flex-shrink-0"
+              size={16}
             />
-            <Label
-              htmlFor="include-other-cells"
-              className="text-muted-foreground text-xs"
+            <input
+              className="h-8 outline-none px-2 focus-visible:shadow-none flex-1 rounded-none border-none focus:border-none"
+              value={input}
+              ref={inputRef}
+              onChange={handleInputChange}
+              placeholder="Type for completion"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleSubmit(
+                    e as unknown as React.FormEvent<HTMLFormElement>,
+                  );
+                }
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  declineChange();
+                  setCompletion("");
+                }
+              }}
+            />
+            {isLoading && (
+              <Button
+                data-testid="stop-completion-button"
+                variant="text"
+                size="xs"
+                className="mb-0"
+                onClick={stop}
+              >
+                <Loader2Icon className="animate-spin mr-1" size={14} />
+                Stop
+              </Button>
+            )}
+            {!isLoading && completion && (
+              <Button
+                data-testid="accept-completion-button"
+                variant="text"
+                size="xs"
+                className="mb-0"
+                disabled={isLoading}
+                onClick={() => {
+                  acceptChange(completion);
+                  setCompletion("");
+                }}
+              >
+                <span className="text-[var(--grass-11)] opacity-100">
+                  Accept
+                </span>
+              </Button>
+            )}
+            <div className="h-full w-px bg-border mx-2" />
+            <Tooltip content="Include code from other cells">
+              <div className="flex flex-row items-start gap-1 overflow-hidden">
+                <Checkbox
+                  data-testid="include-other-cells-checkbox"
+                  id="include-other-cells"
+                  checked={includeOtherCells}
+                  onCheckedChange={(checked) =>
+                    setIncludeOtherCells(Boolean(checked))
+                  }
+                />
+                <Label
+                  htmlFor="include-other-cells"
+                  className="text-muted-foreground text-xs whitespace-nowrap ellipsis"
+                >
+                  Include all code
+                </Label>
+              </div>
+            </Tooltip>
+            <Button
+              data-testid="decline-completion-button"
+              variant="text"
+              size="icon"
+              disabled={isLoading}
+              onClick={() => {
+                stop();
+                declineChange();
+                setCompletion("");
+              }}
             >
-              Include all code
-            </Label>
-          </div>
-        </Tooltip>
-        <Button
-          data-testid="decline-completion-button"
-          variant="text"
-          size="icon"
-          disabled={isLoading}
-          onClick={() => {
-            stop();
-            declineChange();
-            setCompletion("");
-          }}
-        >
-          <XIcon className="text-[var(--red-10)]" size={16} />
-        </Button>
+              <XIcon className="text-[var(--red-10)]" size={16} />
+            </Button>
+          </>
+        )}
       </div>
       {completion && enabled && (
         <CodeMirrorMerge className="cm" theme={theme}>

@@ -5,20 +5,20 @@ import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
 import { cn } from "@/utils/cn";
 import { buttonVariants } from "@/components/ui/button";
 import { useRestoreFocus } from "./use-restore-focus";
+import { withFullScreenAsRoot } from "./fullscreen";
 
 const AlertDialog = AlertDialogPrimitive.Root;
 
 const AlertDialogTrigger = AlertDialogPrimitive.Trigger;
 
-const AlertDialogPortal = ({
-  children,
-  ...props
-}: AlertDialogPrimitive.AlertDialogPortalProps) => (
-  <AlertDialogPrimitive.Portal {...props}>
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-start sm:top-[15%]">
-      {children}
-    </div>
-  </AlertDialogPrimitive.Portal>
+const AlertDialogPortal = withFullScreenAsRoot(
+  ({ children, ...props }: AlertDialogPrimitive.AlertDialogPortalProps) => (
+    <AlertDialogPrimitive.Portal {...props}>
+      <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-start sm:top-[15%]">
+        {children}
+      </div>
+    </AlertDialogPrimitive.Portal>
+  ),
 );
 AlertDialogPortal.displayName = AlertDialogPrimitive.Portal.displayName;
 

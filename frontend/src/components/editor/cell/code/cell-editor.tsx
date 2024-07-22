@@ -28,10 +28,10 @@ import { cn } from "@/utils/cn";
 import { saveCellConfig } from "@/core/network/requests";
 import { HideCodeButton } from "../../code/readonly-python-code";
 import { AiCompletionEditor } from "./ai-completion-editor";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { mergeRefs } from "@/utils/mergeRefs";
-import { lastFocusedCellIdAtom } from "@/core/cells/focus";
+import { useSetLastFocusedCellId } from "@/core/cells/focus";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { autoInstantiateAtom } from "@/core/config/config";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
@@ -47,11 +47,11 @@ export interface CellEditorProps
       | "deleteCell"
       | "focusCell"
       | "moveCell"
-      | "moveToNextCell"
       | "updateCellConfig"
       | "clearSerializedEditorState"
     > {
   runCell: () => void;
+  moveToNextCell: CellActions["moveToNextCell"] | undefined;
   theme: Theme;
   showPlaceholder: boolean;
   editorViewRef: React.MutableRefObject<EditorView | null>;
@@ -87,7 +87,7 @@ const CellEditorInternal = ({
 }: CellEditorProps) => {
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
   const [languageAdapter, setLanguageAdapter] = useState<LanguageAdapterType>();
-  const setLastFocusedCellId = useSetAtom(lastFocusedCellIdAtom);
+  const setLastFocusedCellId = useSetLastFocusedCellId();
   // DOM node where the editorView will be mounted
   const editorViewParentRef = useRef<HTMLDivElement>(null);
 
@@ -128,6 +128,7 @@ const CellEditorInternal = ({
     () => focusCell({ cellId, before: true }),
     [cellId, focusCell],
   );
+
   const toggleHideCode = useEvent(() => {
     const nextHidden = !hidden;
     // Fire-and-forget save
@@ -166,11 +167,12 @@ const CellEditorInternal = ({
         aiCellCompletion: () => {
           let closed = false;
           setAiCompletionCell((v) => {
-            if (v === cellId) {
+            // Toggle close
+            if (v?.cellId === cellId) {
               closed = true;
               return null;
             }
-            return cellId;
+            return { cellId };
           });
           return closed;
         },
@@ -330,7 +332,8 @@ const CellEditorInternal = ({
 
   return (
     <AiCompletionEditor
-      enabled={aiCompletionCell === cellId}
+      enabled={aiCompletionCell?.cellId === cellId}
+      initialPrompt={aiCompletionCell?.initialPrompt}
       currentCode={editorViewRef.current?.state.doc.toString() ?? code}
       currentLanguageAdapter={languageAdapter}
       declineChange={() => {

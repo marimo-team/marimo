@@ -129,6 +129,7 @@
     "tailwind-merge": "^2.3.0",
     "tailwindcss-animate": "^1.0.7",
     "timestring": "^7.0.0",
+    "typescript-memoize": "^1.1.1",
     "use-resize-observer": "^9.1.0",
     "vega-lite": "^5.19.0",
     "vega-loader": "^4.5.2",

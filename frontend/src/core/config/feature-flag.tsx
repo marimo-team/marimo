@@ -9,12 +9,14 @@ import { getUserConfig } from "./config";
 export interface ExperimentalFeatures {
   markdown: boolean;
   wasm_layouts: boolean;
+  scratchpad: boolean;
   // Add new feature flags here
 }
 
 const defaultValues: ExperimentalFeatures = {
   markdown: true,
   wasm_layouts: false,
+  scratchpad: true,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(
@@ -34,6 +36,17 @@ function setFeatureFlag(
   userConfig.experimental[feature] = value;
   saveUserConfig({ config: userConfig });
 }
+
+export const FeatureFlagged: React.FC<{
+  feature: keyof ExperimentalFeatures;
+  children: React.ReactNode;
+}> = ({ feature, children }) => {
+  const value = getFeatureFlag(feature);
+  if (value) {
+    return children;
+  }
+  return null;
+};
 
 // Allow setting feature flags from the console
 repl(setFeatureFlag, "setFeatureFlag");
