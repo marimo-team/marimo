@@ -2,7 +2,7 @@
 
 import { Logger } from "@/utils/Logger";
 import type { OutputMessage } from "../kernel/messages";
-import type { Outline } from "../cells/outline";
+import type { Outline, OutlineItem } from "../cells/outline";
 import { invariant } from "@/utils/invariant";
 
 function getOutline(html: string): Outline {
@@ -20,19 +20,19 @@ function getOutline(html: string): Outline {
     }
 
     const level = Number.parseInt(heading.tagName[1], 10);
-    const id = heading.id;
-    if (id) {
-      items.push({ name, level, by: { id } });
-    } else {
-      items.push({
-        name,
-        level,
-        by: { path: `//${heading.tagName}[contains(., "${name}")]` },
-      });
-    }
+    items.push({ name, level, by: headingToIdentifier(heading) });
   }
 
   return { items };
+}
+
+export function headingToIdentifier(heading: Element): OutlineItem["by"] {
+  const id = heading.id;
+  if (id) {
+    return { id };
+  }
+  const name = heading.textContent;
+  return { path: `//${heading.tagName}[contains(., "${name}")]` };
 }
 
 export function mergeOutlines(outlines: Array<Outline | null>): Outline {
