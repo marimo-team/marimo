@@ -22,8 +22,8 @@ from marimo._server.api.endpoints.files import router as files_router
 from marimo._server.api.endpoints.health import router as health_router
 from marimo._server.api.endpoints.home import router as home_router
 from marimo._server.api.endpoints.login import router as login_router
+from marimo._server.api.endpoints.terminal import router as terminal_router
 from marimo._server.api.endpoints.ws import router as ws_router
-from marimo._server.api.endpoints.xterm import router as xterm_router
 from marimo._server.router import APIRouter
 
 if TYPE_CHECKING:
@@ -58,7 +58,9 @@ def build_routes(base_url: str = "") -> List[BaseRoute]:
     app_router.include_router(
         export_router, prefix="/api/export", name="export"
     )
-    app_router.include_router(xterm_router, prefix="/terminal", name="xterm")
+    app_router.include_router(
+        terminal_router, prefix="/terminal", name="terminal"
+    )
     app_router.include_router(health_router, name="health")
     app_router.include_router(ws_router, name="ws")
     app_router.include_router(assets_router, name="assets")

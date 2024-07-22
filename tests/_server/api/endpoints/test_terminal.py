@@ -18,7 +18,7 @@ is_windows = sys.platform == "win32"
 
 
 @pytest.mark.skipif(is_windows, reason="Skip on Windows")
-def test_termainl_ws(client: TestClient) -> None:
+def test_terminal_ws(client: TestClient) -> None:
     with client.websocket_connect("/terminal/ws") as websocket:
         # Send echo message
         websocket.send_text("echo hello")
@@ -26,7 +26,7 @@ def test_termainl_ws(client: TestClient) -> None:
         assert "echo hello" in data
 
 
-def test_termainl_ws_not_allowed_in_run(client: TestClient) -> None:
+def test_terminal_ws_not_allowed_in_run(client: TestClient) -> None:
     session_manager: SessionManager = get_session_manager(client)
     session_manager.mode = SessionMode.RUN
     with pytest.raises(WebSocketDisconnect):
