@@ -21,6 +21,9 @@ router = APIRouter()
 async def _read_from_pty(master: int, websocket: WebSocket) -> None:
     loop = asyncio.get_running_loop()
     try:
+        # TODO: loop.add_reader would likely be better in this case
+        # but when the program is closed from the terminal, it hangs
+        # for an additional second before the process is killed.
         with os.fdopen(master, "rb", buffering=0) as master_file:
             while True:
                 try:
