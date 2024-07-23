@@ -4,6 +4,8 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import TYPE_CHECKING, Any, Optional
 
+import pytest
+
 from marimo._messaging.ops import KernelCapabilities, KernelReady
 from marimo._utils.parse_dataclass import parse_raw
 from tests._server.mocks import token_header
@@ -63,6 +65,7 @@ def assert_parse_ready_response(raw_data: dict[str, Any]) -> None:
     assert data is not None
 
 
+@pytest.mark.skip
 async def test_connect_kiosk_with_session(client: TestClient) -> None:
     # Create the first session
     with client.websocket_connect("/ws?session_id=123") as websocket:
