@@ -37,22 +37,24 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     # Try to convert columns to json or strings
                     result = self.data
                     for column in result.get_columns():
-                        if column.dtype == pl.Struct:
+                        dtype = column.dtype
+                        if isinstance(dtype, pl.Struct):
                             result = result.with_columns(
                                 column.struct.json_encode()
                             )
-                        elif column.dtype == pl.List:
+                        elif isinstance(dtype, pl.List):
                             result = result.with_columns(
                                 column.cast(pl.List(pl.Utf8)).list.join(",")
                             )
-                        elif column.dtype == pl.Array:
+                        elif isinstance(dtype, pl.Array):
                             result = result.with_columns(
-                                column.cast(pl.Array(pl.Utf8)).arr.join(",")
+                                column.cast(
+                                    pl.Array(pl.Utf8, shape=dtype.shape)
+                                ).arr.join(",")
                             )
-                        elif column.dtype == pl.Object:
+                        elif isinstance(dtype, pl.Object):
                             result = result.with_columns(column.cast(str))
-                        elif column.dtype == pl.Duration:
-                            dtype = cast(pl.Duration, column.dtype)
+                        elif isinstance(dtype, pl.Duration):
                             if dtype.time_unit == "ns":
                                 result = result.with_columns(
                                     column.dt.total_nanoseconds()
