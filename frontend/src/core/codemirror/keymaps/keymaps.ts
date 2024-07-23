@@ -4,7 +4,7 @@ import { logNever } from "@/utils/assertNever";
 import { defaultKeymap } from "@codemirror/commands";
 import { type Extension, Prec } from "@codemirror/state";
 import { type EditorView, keymap } from "@codemirror/view";
-import { vim, Vim } from "@replit/codemirror-vim";
+import { vim } from "@replit/codemirror-vim";
 import { vimKeymapExtension } from "./vim";
 
 export const KEYMAP_PRESETS = ["default", "vim"] as const;
@@ -33,10 +33,6 @@ export function keymapBundle(
         ]),
       ];
     case "vim":
-      // Delete a cell with :dcell
-      Vim.defineEx("dcell", "dcell", () => {
-        callbacks.deleteCell();
-      });
       return [
         // delete the cell on double press of "d", if the cell is empty
         Prec.highest(
