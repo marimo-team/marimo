@@ -10,7 +10,6 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 
-import "./traceback-output.css";
 import { BugIcon, ChevronDown, ExternalLinkIcon } from "lucide-react";
 import { useState } from "react";
 import { useAtomValue } from "jotai";
@@ -42,8 +41,10 @@ export const MarimoTracebackOutput = ({
     });
   };
 
+  const [error, errorMessage] = lastTracebackLine.split(":", 2);
+
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 min-w-full w-fit">
       <Accordion type="single" collapsible={true} value={expanded ? KEY : ""}>
         <AccordionItem value={KEY} className="border-none">
           <div
@@ -56,13 +57,12 @@ export const MarimoTracebackOutput = ({
                 expanded ? "rotate-180" : "rotate-0",
               )}
             />
-            <div className="pb-5">
-              <div className="traceback-header text-destructive line-clamp-1 text-sm inline">
-                {htmlTraceback}
-              </div>
+            <div className="text-sm inline font-mono">
+              <span className="text-destructive">{error || "Error"}:</span>{" "}
+              {errorMessage}
             </div>
           </div>
-          <AccordionContent className="px-4 text-muted-foreground px-4 pt-2 text-xs">
+          <AccordionContent className="px-4 text-muted-foreground px-4 pt-2 text-xs overflow-auto">
             {htmlTraceback}
           </AccordionContent>
         </AccordionItem>
