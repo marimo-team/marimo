@@ -12,7 +12,6 @@ import type { Extension } from "@codemirror/state";
 import { Logger } from "@/utils/Logger";
 import { goToDefinitionAtCursorPosition } from "../go-to-definition/utils";
 import { once } from "@/utils/once";
-import { movementCallbacksState } from "../config/extension";
 
 export function vimKeymapExtension(callbacks: {
   focusUp: () => void;
