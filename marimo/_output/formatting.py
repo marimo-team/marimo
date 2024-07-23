@@ -161,7 +161,7 @@ class FormattedOutput:
     exception: BaseException | None = None
 
 
-def try_format(obj: Any, include_opinionated=True) -> FormattedOutput:
+def try_format(obj: Any, include_opinionated: bool = True) -> FormattedOutput:
     obj = "" if obj is None else obj
     if (
         formatter := get_formatter(
