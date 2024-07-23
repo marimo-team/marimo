@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { DataFormat } from "./types";
-import { isNumber, result } from "lodash-es";
+import { isNumber } from "lodash-es";
 import { typeParsers, createLoader, read, FieldTypes } from "./vega-loader";
 
 // Augment the typeParsers to support Date
@@ -148,7 +148,7 @@ export function vegaLoadData<T = object>(
       disableBigInt();
     }
 
-    return results;
+    return results as T[];
   });
 }
 
