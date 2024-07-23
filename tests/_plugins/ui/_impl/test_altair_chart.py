@@ -215,3 +215,40 @@ def test_does_not_modify_original() -> None:
     )
 
     assert combined1 == combined2._chart
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_get_dataframe() -> None:
+    import altair as alt
+
+    data = {"values": [1, 2, 3]}
+    chart = altair_chart.altair_chart(
+        alt.Chart(data).mark_point().encode(x="values:Q")
+    )
+    assert chart.dataframe == data
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_get_dataframe_csv() -> None:
+    import altair as alt
+    import pandas as pd
+
+    data = "https://cdn.jsdelivr.net/npm/vega-datasets@v1.29.0/data/stocks.csv"
+    chart = altair_chart.altair_chart(
+        alt.Chart(data).mark_point().encode(x="values:Q")
+    )
+    assert isinstance(chart.dataframe, pd.DataFrame)
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_get_dataframe_json() -> None:
+    import altair as alt
+    import pandas as pd
+
+    data = (
+        "https://cdn.jsdelivr.net/npm/vega-datasets@v1.29.0/data/barley.json"
+    )
+    chart = altair_chart.altair_chart(
+        alt.Chart(data).mark_point().encode(x="values:Q")
+    )
+    assert isinstance(chart.dataframe, pd.DataFrame)
