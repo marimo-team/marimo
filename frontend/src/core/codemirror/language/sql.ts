@@ -47,7 +47,7 @@ const regexes = pairs.map(
  */
 export class SQLLanguageAdapter implements LanguageAdapter {
   readonly type = "sql";
-  readonly defaultCode = `_df = mo.sql(f"""select * from """)`;
+  readonly defaultCode = `_df = mo.sql(f"""SELECT * FROM """)`;
 
   dataframeName = "_df";
   lastQuotePrefix: QuotePrefixKind = "f";
