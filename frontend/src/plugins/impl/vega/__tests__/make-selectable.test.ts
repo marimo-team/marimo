@@ -349,6 +349,7 @@ describe("makeSelectable", () => {
     expect(getSelectionParamNames(newSpec)).toEqual([
       "select_point_0",
       "select_interval_0",
+      "pan_zoom",
     ]);
   });
 });
