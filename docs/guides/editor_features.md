@@ -137,6 +137,15 @@ A non-exhausted list of settings:
 - Autoreloading/Hot-reloading
 - Outputs above or below code cells
 
+## Vim Support
+
+marimo supports vim keybindings. Enable them in the settings menu.
+
+**Additional bindings/features:**
+
+- `gd` - go to definition
+- `dd` - when a cell is empty, delete it
+
 ## Send feedback
 
 The question mark icon in the panels tray (lower left of the editor) opens a
