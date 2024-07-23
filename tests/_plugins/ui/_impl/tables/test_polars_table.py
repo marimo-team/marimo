@@ -106,6 +106,17 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         assert isinstance(data, bytes)
         snapshot("polars.csv", data.decode("utf-8"))
 
+    def test_to_csv_array(self) -> None:
+        import numpy as np
+        import polars as pl
+
+        df = pl.DataFrame(
+            {"a": [np.arange(5) for _ in range(10)]},
+            schema={"a": pl.Array(pl.Int64, 5)},
+        )
+        manager = self.factory.create()(df)
+        assert isinstance(manager.to_csv(), bytes)
+
     def test_to_json(self) -> None:
         assert isinstance(self.manager.to_json(), bytes)
 
