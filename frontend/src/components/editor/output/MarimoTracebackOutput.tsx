@@ -43,7 +43,7 @@ export const MarimoTracebackOutput = ({
   };
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 w-fit">
       <Accordion type="single" collapsible={true} value={expanded ? KEY : ""}>
         <AccordionItem value={KEY} className="border-none">
           <div
@@ -62,7 +62,7 @@ export const MarimoTracebackOutput = ({
               </div>
             </div>
           </div>
-          <AccordionContent className="px-4 text-muted-foreground px-4 pt-2 text-xs">
+          <AccordionContent className="px-4 text-muted-foreground px-4 pt-2 text-xs overflow-auto">
             {htmlTraceback}
           </AccordionContent>
         </AccordionItem>
