@@ -881,7 +881,7 @@ class TestExecution:
         assert all(m[1]["cell_id"] == SCRATCH_CELL_ID for m in messages)
         assert m1[1]["status"] == "queued"
         assert m2[1]["status"] == "running"
-        assert m3[1]["status"] == None
+        assert m3[1]["status"] is None
         assert (
             m3[1]["output"]["data"] == "<pre style='font-size: 12px'>1</pre>"
         )
