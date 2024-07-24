@@ -170,6 +170,7 @@ def _broadcast_outputs(
                 formatted_output = format_output()
         else:
             formatted_output = format_output()
+
         CellOp.broadcast_output(
             channel=CellChannel.OUTPUT,
             mimetype=formatted_output.mimetype,
@@ -237,11 +238,14 @@ def _reset_matplotlib_context(
 
 
 POST_EXECUTION_HOOKS: list[PostExecutionHookType] = [
-    _set_status_idle,
     _store_reference_to_output,
     _broadcast_variables,
     _broadcast_datasets,
     _broadcast_duckdb_tables,
     _broadcast_outputs,
     _reset_matplotlib_context,
+    # set status to idle after all post-processing is done, in case the
+    # other hooks take a long time (broadcast outputs can take a long time
+    # if a formatter is slow).
+    _set_status_idle,
 ]
