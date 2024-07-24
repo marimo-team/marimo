@@ -97,7 +97,7 @@ const SlidesComponent = ({
                 }
               }}
               className={cn(
-                "h-full w-full flex items-center justify-center box-border overflow-hidden",
+                "h-full w-full flex items-center justify-center box-border overflow-auto",
                 isFullscreen ? "p-20" : "p-6",
               )}
             >
