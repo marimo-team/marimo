@@ -881,11 +881,11 @@ class TestExecution:
         assert all(m[1]["cell_id"] == SCRATCH_CELL_ID for m in messages)
         assert m1[1]["status"] == "queued"
         assert m2[1]["status"] == "running"
-        assert m3[1]["status"] == "idle"
-        assert m4[1]["status"] is None
+        assert m3[1]["status"] == None
         assert (
-            m4[1]["output"]["data"] == "<pre style='font-size: 12px'>1</pre>"
+            m3[1]["output"]["data"] == "<pre style='font-size: 12px'>1</pre>"
         )
+        assert m4[1]["status"] == "idle"
         # Does not pollute globals
         assert "x" not in k.globals
 
@@ -908,9 +908,9 @@ class TestExecution:
         # Has no errors
         assert not k.errors
         messages = mocked_kernel.stream.messages
-        last_message = messages[-1]
+        output_message = messages[-2]
         assert (
-            last_message[1]["output"]["data"]
+            output_message[1]["output"]["data"]
             == "<pre style='font-size: 12px'>20</pre>"
         )
         assert "z" in k.globals
@@ -936,9 +936,9 @@ class TestExecution:
         # Has no errors
         assert not k.errors
         messages = mocked_kernel.stream.messages
-        last_message = messages[-1]
+        output_message = messages[-2]
         assert (
-            last_message[1]["output"]["data"]
+            output_message[1]["output"]["data"]
             == "<pre style='font-size: 12px'>20</pre>"
         )
         assert "z" in k.globals
