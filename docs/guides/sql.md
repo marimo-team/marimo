@@ -63,3 +63,13 @@ SELECT * FROM read_parquet('path/to/example.parquet');
 ```
 
 For a full list you can check out the [duckdb extensions](https://duckdb.org/docs/extensions/overview).
+
+## Interactive tutorial
+
+For an interactive tutorial, run
+
+```bash
+marimo tutorial sql
+```
+
+at your command-line.

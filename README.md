@@ -29,6 +29,7 @@ and deployable as apps.
 - **reproducible**: no hidden state, deterministic execution
 - **executable**: execute as a Python script, parametrized by CLI args
 - **shareable**: deploy as an interactive web app, or run in the browser via WASM
+- **data-centric**: built-in SQL support and data sources panel
 - **git-friendly**: stored as `.py` files
 
 ```python
@@ -51,9 +52,12 @@ memory, eliminating hidden state.
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/reactive.gif" width="700px" />
 
-**Deterministic execution order.** Notebooks are executed in a deterministic
-order, based on variable references instead of cells' positions on the page.
-Organize your notebooks to best fit the stories you'd like to tell.
+<a name="expensive-notebooks"></a>
+
+**Compatible with expensive notebooks.** marimo lets you configure the runtime
+to be lazy, marking affected cells as stale instead of automatically running
+them. This gives you guarantees on program state while preventing accidental
+execution of expensive cells.
 
 **Synchronized UI elements.** Interact with UI elements like sliders,
 dropdowns, and dataframe transformers, and the cells that use them are
@@ -64,16 +68,24 @@ automatically re-run with their latest values.
 **Performant runtime.** marimo runs only those cells that need to be run by
 statically analyzing your code.
 
-<a name="expensive-notebooks"></a>
+**Dynamic markdown and SQL.** Use markdown to tell dynamic stories that depend on
+Python data. Or build [SQL](https://docs.marimo.io/guides/sql.html) queries
+that depend on Python values and execute them against dataframes, databases,
+CSVs, Google Sheets, or anything else using our built-in SQL engine, which
+returns the result as a Python dataframe.
 
-**Compatible with expensive notebooks.** You can optionally disable expensive cells to
-prevent them from automatically running, or configure the runtime to be
-lazy and mark affected cells as stale instead of automatically running them.
+<img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-sql-cell.png" width="700px" />
+
+Your notebooks are still pure Python, even if they use markdown or SQL.
+
+**Deterministic execution order.** Notebooks are executed in a deterministic
+order, based on variable references instead of cells' positions on the page.
+Organize your notebooks to best fit the stories you'd like to tell.
 
 **Batteries-included.** marimo comes with GitHub Copilot, Ruff code
 formatting, HTML export, fast code completion, a [VS Code
 extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo),
-and many more quality-of-life features.
+an interactive dataframe viewer, and many more quality-of-life features.
 
 ## Quickstart
 

@@ -158,3 +158,28 @@ The marimo library also comes with elements for laying out outputs, including
 [`mo.accordion`](#marimo.accordion), [`mo.ui.tabs`](#marimo.ui.tabs), [`mo.sidebar`](#marimo.sidebar),
 [`mo.nav_menu`](#marimo.nav_menu), [`mo.ui.table`](#marimo.ui.table),
 and [many more](https://docs.marimo.io/api/layouts/index.html).
+
+## SQL
+
+marimo has built-in support for SQL: you can query Python dataframes,
+databases, CSVs, Google Sheets, or anything else. After executing your query,
+marimo returns the result to you as a dataframe, making it seamless
+to go back and forth between SQL and Python.
+
+<div align="center">
+  <figure>
+    <img src="/_static/docs-sql-df.png"/>
+    <figcaption>Query a dataframe using SQL!</figcaption>
+  </figure>
+</div>
+
+To create a SQL cell, click on the SQL button that appears at the bottom of the
+cell array, or right click the create cell button next to a cell.
+
+To learn more, run the SQL tutorial:
+
+```bash
+marimo tutorial sql
+```
+
+or read the [SQL guide](/guides/sql.md).
