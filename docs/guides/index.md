@@ -8,6 +8,7 @@
   overview
   reactivity
   interactivity
+  sql
   runtime_configuration
   coming_from_jupyter
   outputs
@@ -15,7 +16,6 @@
   hotkeys
   dataframes
   plotting
-  sql
   state
   integrating_with_marimo/index
   apps
@@ -36,6 +36,7 @@ These guides cover marimo's core concepts.
 | {doc}`overview`                      | An overview of basic concepts                           |
 | {doc}`reactivity`                    | How reactive execution works                            |
 | {doc}`interactivity`                 | Using interactive UI elements                           |
+| {doc}`sql`                           | Use SQL to query dataframes, databases, CSVs, etc.      |
 | {doc}`coming_from_jupyter`           | marimo for Jupyter users                                |
 | {doc}`runtime_configuration`         | Configure how and when cells are run                    |
 | {doc}`outputs`                       | Markdown, plots, and other visual outputs               |
