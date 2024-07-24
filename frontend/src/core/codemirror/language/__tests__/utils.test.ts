@@ -128,8 +128,8 @@ describe("splitEditor", () => {
       selection: { anchor: "Hello,".length },
     });
     const result = splitEditor(mockEditor);
-    expect(result.beforeCursorCode).toEqual('mo.md("Hello,")');
-    expect(result.afterCursorCode).toEqual('mo.md(" World!")');
+    expect(result.beforeCursorCode).toEqual('mo.md("""Hello,""")');
+    expect(result.afterCursorCode).toEqual('mo.md(""" World!""")');
   });
 
   // f-strings not currently supported
@@ -142,7 +142,7 @@ describe("splitEditor", () => {
       selection: { anchor: "{a}\n".length },
     });
     const result = splitEditor(mockEditor);
-    expect(result.beforeCursorCode).toEqual('mo.md(f"{a}")');
-    expect(result.afterCursorCode).toEqual('mo.md(f"{b}!")');
+    expect(result.beforeCursorCode).toEqual('mo.md(f"""{a}""")');
+    expect(result.afterCursorCode).toEqual('mo.md(f"""{b}!""")');
   });
 });

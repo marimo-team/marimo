@@ -92,6 +92,7 @@ describe("makeSelectable", () => {
       "legend_selection_Origin",
       "select_point",
       "select_interval",
+      "pan_zoom",
     ]);
   });
 
@@ -130,6 +131,7 @@ describe("makeSelectable", () => {
     expect(getSelectionParamNames(newSpec)).toEqual([
       "select_point",
       "select_interval",
+      "pan_zoom",
     ]);
 
     // These are the same
@@ -162,6 +164,7 @@ describe("makeSelectable", () => {
       "legend_selection_sizeField",
       "select_point",
       "select_interval",
+      "pan_zoom",
     ]);
   });
 
@@ -214,6 +217,7 @@ describe("makeSelectable", () => {
       "param_1",
       "legend_selection_series",
       "select_point",
+      "pan_zoom",
     ]);
   });
 
@@ -287,6 +291,7 @@ describe("makeSelectable", () => {
     expect(newSpec).toMatchSnapshot();
 
     expect(getSelectionParamNames(newSpec)).toEqual([
+      "pan_zoom",
       "select_point_1",
       "select_interval_1",
     ]);
@@ -349,6 +354,7 @@ describe("makeSelectable", () => {
     expect(getSelectionParamNames(newSpec)).toEqual([
       "select_point_0",
       "select_interval_0",
+      "pan_zoom",
     ]);
   });
 });

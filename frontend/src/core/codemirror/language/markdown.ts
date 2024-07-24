@@ -86,20 +86,27 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
     // Get the quote type from the last transformIn
     const prefix = this.lastQuotePrefix;
 
+    // Empty string
+    if (code === "") {
+      // Need at least a space, otherwise the output will be 6 quotes
+      code = " ";
+    }
+
+    // We always transform back with triple quotes, as to avoid needing to
+    // escape single quotes.
+    const escapedCode = code.replaceAll('"""', String.raw`\"""`);
+
+    // If its one line and not bounded by quotes, write it as single line
     const isOneLine = !code.includes("\n");
-    if (isOneLine) {
-      // This logic breaks f-strings:
-      //
-      // https://github.com/marimo-team/marimo/issues/1727
-      const escapedCode = code.replaceAll('"', '\\"');
-      const start = `mo.md(${prefix}"`;
-      const end = `")`;
+    const boundedByQuote = code.startsWith('"') || code.endsWith('"');
+    if (isOneLine && !boundedByQuote) {
+      const start = `mo.md(${prefix}"""`;
+      const end = `""")`;
       return [start + escapedCode + end, start.length];
     }
 
     // Multiline code
     const start = `mo.md(\n    ${prefix}"""\n`;
-    const escapedCode = code.replaceAll('"""', String.raw`\"""`);
     const end = `\n    """\n)`;
     return [start + indentOneTab(escapedCode) + end, start.length + 1];
   }

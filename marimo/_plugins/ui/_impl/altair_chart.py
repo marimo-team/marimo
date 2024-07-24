@@ -54,7 +54,10 @@ def _filter_dataframe(
 ) -> pd.DataFrame:
     import numpy as np
 
-    for _channel, fields in selection.items():
+    for channel, fields in selection.items():
+        # Don't filter on pan_zoom
+        if channel.startswith("pan_zoom"):
+            continue
         # This is a case when altair does not pass back the fields to filter on
         # and instead passes an individual selected point.
         if len(fields) == 2 and "vlPoint" in fields and "_vgsid_" in fields:
@@ -110,6 +113,9 @@ def _coerce_value(dtype: Any, value: Any) -> Any:
         import pandas as pd
 
         return pd.to_datetime(value, unit="ms")
+
+    if dtype == "object":
+        return str(value)
 
     return value
 
@@ -254,7 +260,7 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
             chart_selection = False
             legend_selection = False
 
-        self.dataframe: alt.UndefinedType | pd.DataFrame = chart.data
+        self.dataframe = self._get_dataframe_from_chart(chart)
 
         self._spec = vega_spec
 
@@ -273,6 +279,19 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
     @property
     def selections(self) -> ChartSelection:
         return self._chart_selection
+
+    @staticmethod
+    def _get_dataframe_from_chart(
+        chart: altair.Chart,
+    ) -> Union[pd.DataFrame, altair.UndefinedType]:
+        import pandas as pd
+
+        if isinstance(chart.data, str) and chart.data.endswith(".csv"):
+            return pd.read_csv(chart.data)
+        if isinstance(chart.data, str) and chart.data.endswith(".json"):
+            return pd.read_json(chart.data)
+
+        return chart.data
 
     def _convert_value(self, value: ChartSelection) -> Any:
         from altair import UndefinedType

@@ -10,7 +10,7 @@ import {
 } from "./types";
 import { LayerSpec, UnitSpec } from "vega-lite/build/src/spec";
 
-const ParamNames = {
+export const ParamNames = {
   point(layerNum: number | undefined) {
     return layerNum == null ? "select_point" : `select_point_${layerNum}`;
   },
@@ -21,6 +21,19 @@ const ParamNames = {
     return `legend_selection_${field}`;
   },
   HIGHLIGHT: "highlight",
+  PAN_ZOOM: "pan_zoom",
+  hasPoint(names: string[]) {
+    return names.some((name) => name.startsWith("select_point"));
+  },
+  hasInterval(names: string[]) {
+    return names.some((name) => name.startsWith("select_interval"));
+  },
+  hasLegend(names: string[]) {
+    return names.some((name) => name.startsWith("legend_selection"));
+  },
+  hasPanZoom(names: string[]) {
+    return names.some((name) => name.startsWith("pan_zoom"));
+  },
 };
 
 export const Params = {
@@ -45,6 +58,10 @@ export const Params = {
           stroke: "#669EFF",
           strokeOpacity: 0.4,
         },
+        // So this does not conflict with pan/zoom via metaKey
+        on: "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+        translate:
+          "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
       },
     };
   },
@@ -57,6 +74,7 @@ export const Params = {
       select: {
         type: "point",
         encodings: getEncodingAxisForMark(spec),
+        on: "click[!event.metaKey]",
       },
     };
   },
@@ -68,6 +86,19 @@ export const Params = {
         fields: [field],
       },
       bind: "legend",
+    };
+  },
+  panZoom(): SelectionParameter<"interval"> {
+    return {
+      name: ParamNames.PAN_ZOOM,
+      bind: "scales",
+      select: {
+        type: "interval",
+        on: "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        translate:
+          "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        zoom: "wheel![event.metaKey]",
+      },
     };
   },
 };

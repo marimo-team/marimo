@@ -12,9 +12,15 @@ export const isEmbedded =
 // we have to dispatch keyboard events in the parent window.
 // See https://github.com/microsoft/vscode/issues/65452#issuecomment-586036474
 export function maybeRegisterVSCodeBindings() {
+  const isVscode = new URLSearchParams(window.location.search).has("vscode");
+  if (!isVscode) {
+    return;
+  }
+
   if (!isEmbedded || isWasm()) {
     return;
   }
+
   Logger.log("Registering VS Code bindings");
   registerKeyboard();
   registerCopyPaste();

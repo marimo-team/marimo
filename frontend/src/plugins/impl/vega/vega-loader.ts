@@ -6,7 +6,7 @@ import type { DataType } from "@/core/kernel/messages";
 
 // Re-export the vega-loader functions to add TypeScript types
 
-export function read(
+export function read<T = object>(
   data: string | Record<string, unknown> | Array<Record<string, unknown>>,
   format:
     | DataFormat
@@ -19,7 +19,7 @@ export function read(
         parse: FieldTypes;
       }
     | undefined,
-): object[] {
+): T[] {
   return vl.read(data, format);
 }
 

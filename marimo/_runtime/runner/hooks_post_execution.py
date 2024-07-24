@@ -154,6 +154,13 @@ def _broadcast_outputs(
 
         def format_output() -> formatting.FormattedOutput:
             formatted_output = formatting.try_format(run_result.output)
+
+            if formatted_output.exception is not None:
+                # Try a plain formatter; maybe an opinionated one failed.
+                formatted_output = formatting.try_format(
+                    run_result.output, include_opinionated=False
+                )
+
             if formatted_output.traceback is not None:
                 write_traceback(formatted_output.traceback)
             return formatted_output
