@@ -7,7 +7,7 @@ import select
 import signal
 import subprocess
 
-from starlette.websockets import WebSocket, WebSocketDisconnect
+from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
 from marimo import _loggers
 from marimo._server.api.deps import AppState
@@ -48,15 +48,33 @@ async def _read_from_pty(master: int, websocket: WebSocket) -> None:
 
 
 async def _write_to_pty(master: int, websocket: WebSocket) -> None:
-    with os.fdopen(master, "wb", buffering=0) as master_file:
-        while True:
-            try:
-                data = await websocket.receive_text()
-                LOGGER.debug("Received: %s", data)
-                master_file.write(data.encode())
-                master_file.flush()
-            except (asyncio.CancelledError, WebSocketDisconnect):
-                break
+    try:
+        buffer = ""
+        with os.fdopen(master, "wb", buffering=0) as master_file:
+            while True:
+                try:
+                    data = await websocket.receive_text()
+                    LOGGER.debug("Received: %s", data)
+
+                    buffer += data
+                    if data in ["\r", "\n"]:  # Check for line ending
+                        if buffer.strip().lower() == "exit":
+                            LOGGER.debug(
+                                "Exit command received, closing connection"
+                            )
+                            # End the connection
+                            return
+                        buffer = ""  # Reset buffer after processing a command
+
+                    master_file.write(data.encode())
+                    master_file.flush()
+                except (asyncio.CancelledError, WebSocketDisconnect):
+                    break
+    except OSError as e:
+        if e.errno == 9:  # Bad file descriptor
+            LOGGER.debug("File descriptor closed, stopping write loop")
+            return
+        raise
 
 
 @router.websocket("/ws")
@@ -80,13 +98,21 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
     writer_task = asyncio.create_task(_write_to_pty(fd, websocket))
 
     try:
-        await asyncio.gather(reader_task, writer_task)
+        _done, pending = await asyncio.wait(
+            [reader_task, writer_task], return_when=asyncio.FIRST_COMPLETED
+        )
+        for task in pending:
+            task.cancel()
     except WebSocketDisconnect:
         pass
     except Exception as e:
-        await websocket.close()
         LOGGER.exception(e)
     finally:
+        try:
+            if websocket.application_state != WebSocketState.DISCONNECTED:
+                await websocket.close()
+        except RuntimeError:
+            pass
         if reader_task and not reader_task.done():
             reader_task.cancel()
         if writer_task and not writer_task.done():

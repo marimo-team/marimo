@@ -1,46 +1,84 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { Strings } from "@/utils/strings";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Terminal } from "@xterm/xterm";
 import { AttachAddon } from "@xterm/addon-attach";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import "./xterm.css";
 
-const TerminalComponent = () => {
+const TerminalComponent: React.FC<{
+  visible: boolean;
+  onClose: () => void;
+}> = ({ visible, onClose }) => {
   const terminalRef = useRef<HTMLDivElement>(null);
-  const terminal = useRef<Terminal | null>(null);
+  // eslint-disable-next-line react/hook-use-state
+  const [{ terminal, fitAddon }] = useState(() => {
+    // Create a new terminal instance
+    const term = new Terminal({});
+    const fitAddon = new FitAddon();
+    term.loadAddon(fitAddon);
+    return { terminal: term, fitAddon };
+  });
+  const [initialized, setInitialized] = React.useState(false);
 
+  // Websocket Connection
   useEffect(() => {
-    if (!terminalRef.current || terminal.current) {
+    if (initialized) {
       return;
     }
 
-    // Create a new terminal instance
-    const term = new Terminal({});
-    terminal.current = term;
-    // Add extra addons
     const socket = new WebSocket(createWsUrl());
     const attachAddon = new AttachAddon(socket);
-    const fitAddon = new FitAddon();
-    terminal.current.loadAddon(fitAddon);
-    terminal.current.loadAddon(attachAddon);
+    terminal.loadAddon(attachAddon);
 
+    const handleDisconnect = () => {
+      onClose();
+      // Reset
+      attachAddon.dispose();
+      terminal.clear();
+      setInitialized(false);
+    };
+
+    socket.addEventListener("close", handleDisconnect);
+    setInitialized(true);
+
+    return () => {
+      // noop
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialized]);
+
+  // When visible
+  useEffect(() => {
+    if (visible) {
+      fitAddon.fit();
+      terminal.focus();
+    }
+
+    return;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
+
+  // On mount
+  useEffect(() => {
+    if (!terminalRef.current) {
+      return;
+    }
+
+    terminal.open(terminalRef.current);
+    fitAddon.fit();
+    terminal.focus();
     // Handle resize
     const handleResize = () => {
       fitAddon.fit();
     };
     window.addEventListener("resize", handleResize);
 
-    // Open terminal
-    term.open(terminalRef.current);
-    fitAddon.fit();
-    term.focus();
-
     return () => {
-      terminal.current?.dispose();
       window.removeEventListener("resize", handleResize);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

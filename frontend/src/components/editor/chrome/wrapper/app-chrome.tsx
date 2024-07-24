@@ -208,7 +208,10 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     >
       {terminalResizeHandle}
       <LazyMount isOpen={isTerminalOpen}>
-        <LazyTerminal />
+        <LazyTerminal
+          visible={isTerminalOpen}
+          onClose={() => setIsTerminalOpen(false)}
+        />
       </LazyMount>
     </Panel>
   );
