@@ -103,7 +103,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       className={cn(
         "border-border no-print z-10",
         isSidebarOpen ? "resize-handle" : "resize-handle-collapsed",
-        "vertical",
+        "vertical"
       )}
     />
   );
@@ -114,7 +114,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       className={cn(
         "border-border no-print z-20",
         isTerminalOpen ? "resize-handle" : "resize-handle-collapsed",
-        "horizontal",
+        "horizontal"
       )}
     />
   );
@@ -161,7 +161,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       collapsible={true}
       className={cn(
         "dark:bg-[var(--slate-1)] no-print",
-        isSidebarOpen && "border-r border-l border-[var(--slate-7)]",
+        isSidebarOpen && "border-r border-l border-[var(--slate-7)]"
       )}
       minSize={10}
       // We can't make the default size greater than 0, otherwise it will start open
@@ -191,7 +191,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       collapsible={true}
       className={cn(
         "dark:bg-[var(--slate-1)] no-print",
-        isTerminalOpen && "border-[var(--slate-7)]",
+        isTerminalOpen && "border-[var(--slate-7)]"
       )}
       minSize={10}
       // We can't make the default size greater than 0, otherwise it will start open
@@ -208,7 +208,10 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     >
       {terminalResizeHandle}
       <LazyMount isOpen={isTerminalOpen}>
-        <LazyTerminal />
+        <LazyTerminal
+          visible={isTerminalOpen}
+          onClose={() => setIsTerminalOpen(false)}
+        />
       </LazyMount>
     </Panel>
   );
