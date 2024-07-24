@@ -19,7 +19,6 @@ from typing import TYPE_CHECKING, Any, Optional, Tuple
 
 from starlette.websockets import WebSocketState
 
-from marimo import _loggers
 from marimo._output.builder import h
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html
@@ -32,8 +31,6 @@ from marimo._runtime.context import (
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._server.utils import find_free_port
 from marimo._utils.signals import get_signals
-
-LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
     from starlette.applications import Starlette
@@ -265,10 +262,6 @@ def interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defined] 
 
     ctx = get_context()
     if not isinstance(ctx, KernelRuntimeContext):
-        LOGGER.warning(
-            "mo.mpl.interactive is not supported when running as a script; "
-            "rendering a static plot instead."
-        )
         return as_html(figure)
 
     # Figure Manager, Any type because matplotlib doesn't have typings
