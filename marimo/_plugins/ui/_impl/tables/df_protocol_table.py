@@ -9,6 +9,7 @@ from marimo._plugins.ui._impl.tables.dataframe_protocol import (
     Column,
     DtypeKind,
 )
+from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.pyarrow_table import (
     PyArrowTableManagerFactory,
 )
@@ -22,7 +23,6 @@ from marimo._plugins.ui._impl.tables.types import (
     DataFrameLike,
     is_dataframe_like,
 )
-from marimo._plugins.ui._impl.tables.format import FormatMapping
 
 if TYPE_CHECKING:
     import pyarrow as pa  # type: ignore
