@@ -112,4 +112,4 @@ from marimo._runtime.control_flow import MarimoStopError, stop
 from marimo._runtime.runtime import cli_args, defs, query_params, refs
 from marimo._runtime.state import state
 from marimo._server.asgi import create_asgi_app
-from marimo._sql import sql
+from marimo._sql.sql import sql

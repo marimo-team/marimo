@@ -265,3 +265,45 @@ def test_table_with_too_many_columns_fails():
         ui.table(data)
 
     assert "greater than the maximum allowed columns" in str(e)
+
+
+def test_table_with_too_many_rows_gets_clamped():
+    data = {"a": list(range(20_002))}
+    table = ui.table(data)
+    assert table._component_args["pagination"] is True
+    assert table._component_args["page-size"] == 10
+    assert table._component_args["has-more"] is True
+    assert table._component_args["total-rows"] == 20_002
+    assert len(table._component_args["data"]) == 20_000
+
+
+def test_table_with_too_many_rows_custom_clamp():
+    data = {"a": list(range(20_002))}
+    table = ui.table(data, _internal_row_limit=30)
+    assert table._component_args["pagination"] is True
+    assert table._component_args["page-size"] == 10
+    assert table._component_args["has-more"] is True
+    assert table._component_args["total-rows"] == 20_002
+    assert len(table._component_args["data"]) == 30
+
+
+def test_table_with_too_many_rows_custom_clamp_and_total():
+    data = {"a": list(range(40))}
+    table = ui.table(data, _internal_row_limit=30, _internal_total_rows=300)
+    assert table._component_args["pagination"] is True
+    assert table._component_args["page-size"] == 10
+    assert table._component_args["has-more"] is True
+    assert table._component_args["total-rows"] == 300
+    assert len(table._component_args["data"]) == 30
+
+
+def test_table_with_too_many_rows_unknown_total():
+    data = {"a": list(range(40))}
+    table = ui.table(
+        data, _internal_row_limit=30, _internal_total_rows="too_many"
+    )
+    assert table._component_args["pagination"] is True
+    assert table._component_args["page-size"] == 10
+    assert table._component_args["has-more"] is True
+    assert table._component_args["total-rows"] == "too_many"
+    assert len(table._component_args["data"]) == 30
