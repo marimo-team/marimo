@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import io
-from typing import Any, Tuple, Union, cast
+from typing import Any, Tuple, Union, cast, Optional
 
 from marimo._data.models import ColumnSummary, ExternalDataType
 from marimo._plugins.ui._impl.tables.table_manager import (
@@ -11,6 +11,10 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     FieldTypes,
     TableManager,
     TableManagerFactory,
+)
+from marimo._plugins.ui._impl.tables.format import (
+    format_value,
+    FormatMapping,
 )
 
 
@@ -29,11 +33,16 @@ class PyArrowTableManagerFactory(TableManagerFactory):
         ):
             type = "pyarrow"
 
-            def to_csv(self) -> bytes:
+            def to_csv(
+                self, format_mapping: Optional[FormatMapping] = None
+            ) -> bytes:
                 import pyarrow.csv as csv  # type: ignore
 
+                _data = self.data
+                if format_mapping:
+                    _data = self.apply_formatting(format_mapping)
                 buffer = io.BytesIO()
-                csv.write_csv(self.data, buffer)
+                csv.write_csv(_data, buffer)
                 return buffer.getvalue()
 
             def to_json(self) -> bytes:
@@ -43,6 +52,31 @@ class PyArrowTableManagerFactory(TableManagerFactory):
                     .to_json(orient="records")
                     .encode("utf-8")
                 )
+
+            def apply_formatting(
+                self, format_mapping: FormatMapping
+            ) -> Union[pa.Table, pa.RecordBatch]:
+                _data = self.data
+                for col in _data.column_names:
+                    if col in format_mapping:
+                        # Get the column index
+                        col_index = _data.schema.get_field_index(col)
+                        # Apply the transformation to each element in the column
+                        transformed_column = pa.array(
+                            [
+                                format_value(
+                                    col, value.as_py(), format_mapping
+                                )
+                                for value in _data[col_index]
+                            ],
+                            type=_data.schema.field(col_index).type,
+                        )
+                        # Replace the column in the copy of the table
+                        _data = _data.set_column(
+                            col_index, col, transformed_column
+                        )
+
+                return _data
 
             def select_rows(self, indices: list[int]) -> PyArrowTableManager:
                 if not indices:

@@ -182,7 +182,9 @@ class table(
         selection: Optional[Literal["single", "multi"]] = "multi",
         page_size: int = 10,
         show_column_summaries: bool = True,
-        format_mapping: Optional[Dict[str, str | Callable]] = None,
+        format_mapping: Optional[
+            Dict[str, Union[str, Callable[..., Any]]]
+        ] = None,
         *,
         label: str = "",
         on_change: Optional[
@@ -201,7 +203,6 @@ class table(
         ] = None,
     ) -> None:
         self._data = data
-        self._format_mapping = format_mapping or {}
         # Holds the original data
         self._manager = get_table_manager(data)
         # Holds the data after filtering (sort, search, limit etc.)
@@ -226,31 +227,24 @@ class table(
             self._filtered_manager = self._filtered_manager.limit(
                 TableManager.DEFAULT_ROW_LIMIT
             )
-        # get the formatted data
-        self._formatted_data = self._apply_formatting(
-            self._filtered_manager.data
-        )
-        # get the formatted manager
-        self._formatted_manager = get_table_manager(self._formatted_data)
 
         # pagination defaults to True if there are more than 10 rows
         if pagination is None:
             pagination = totalRows > 10
 
-        # field_types = self._manager.get_field_types()
-        field_types = self._formatted_manager.get_field_types()
+        field_types = self._manager.get_field_types()
 
         super().__init__(
             component_name=table._name,
             label=label,
             initial_value=[],
             args={
-                "data": self._formatted_manager.to_data(),
+                "data": self._filtered_manager.to_data(format_mapping),
                 "has-more": hasMore,
                 "total-rows": totalRows,
                 "pagination": pagination,
                 "page-size": page_size,
-                "field-types": field_types if field_types else None,
+                "field-types": field_types or None,
                 "selection": (
                     selection if self._manager.supports_selection() else None
                 ),
@@ -291,10 +285,7 @@ class table(
         indices = [int(v) for v in value]
         self._selected_manager = self._filtered_manager.select_rows(indices)
         self._has_any_selection = len(indices) > 0
-        # apply formatting to the selected data
-        return self._apply_formatting(
-            self._selected_manager.data  # type: ignore[no-any-return]
-        )
+        return self._selected_manager.data  # type: ignore[no-any-return]
 
     def download_as(self, args: DownloadAsArgs) -> str:
         # download selected rows if there are any, otherwise use all rows
@@ -361,86 +352,13 @@ class table(
         self._filtered_manager = result
         return result.limit(TableManager.DEFAULT_ROW_LIMIT).to_data()
 
-    def _apply_formatting(self, data: TableData) -> TableData:
-        # Apply formatting to the given data based on the format mapping.
-        import pandas as pd
-        import polars as pl
-        import pyarrow as pa
+    #     if isinstance(data, list | tuple):
+    #         if all(isinstance(item, dict) for item in data):
+    #             return [self._format_row(row) for row in data]
+    #         return [self._format_value("", item) for item in data]
 
-        if not self._format_mapping:
-            return data
-
-        if isinstance(data, list | tuple):
-            if all(isinstance(item, dict) for item in data):
-                return [self._format_row(row) for row in data]
-            return [self._format_value("", item) for item in data]
-
-        if isinstance(data, dict):
-            return {
-                col: self._format_column(col, values)
-                for col, values in data.items()
-            }
-
-        if isinstance(data, pd.DataFrame):
-            data_copy = data.copy()
-            for col in data_copy.columns:
-                if col in self._format_mapping:
-                    data_copy[col] = data_copy[col].apply(
-                        lambda x, col=col: self._format_value(col, x)
-                    )
-            return data_copy
-
-        if isinstance(data, pl.DataFrame):
-            data_copy = data.clone()
-            for col in data_copy.columns:
-                if col in self._format_mapping:
-                    formatted_col = pl.Series(
-                        col,
-                        [self._format_value(col, x) for x in data_copy[col]],
-                    )
-                    data_copy = data_copy.with_columns(formatted_col)
-            return data_copy
-
-        if isinstance(data, pa.Table):
-            data_copy = data
-            for col in data_copy.column_names:
-                if col in self._format_mapping:
-                    # Get the column index
-                    col_index = data_copy.schema.get_field_index(col)
-                    # Apply the transformation to each element in the column
-                    transformed_column = pa.array(
-                        [
-                            self._format_value(col, value.as_py())
-                            for value in data_copy[col_index]
-                        ],
-                        type=data_copy.schema.field(col_index).type,
-                    )
-                    # Replace the column in the copy of the table
-                    data_copy = data_copy.set_column(
-                        col_index, col, transformed_column
-                    )
-            return data_copy
-
-        return data
-
-    def _format_row(self, row: Dict[str, JSONType]) -> Dict[str, JSONType]:
-        # Apply formatting to each value in a row dictionary
-        return {
-            col: self._format_value(col, value) for col, value in row.items()
-        }
-
-    def _format_column(
-        self, col: str, values: List[JSONType]
-    ) -> List[JSONType]:
-        # Apply formatting to each value in a column list
-        return [self._format_value(col, value) for value in values]
-
-    def _format_value(self, col: str, value: JSONType) -> JSONType:
-        # Apply formatting logic based on column and value
-        if col in self._format_mapping:
-            formatter = self._format_mapping[col]
-            if isinstance(formatter, str):
-                return formatter.format(value)
-            if callable(formatter):
-                return formatter(value)
-        return value
+    #     if isinstance(data, dict):
+    #         return {
+    #             col: self._format_column(col, values)
+    #             for col, values in data.items()
+    #         }

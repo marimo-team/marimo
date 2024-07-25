@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Tuple
+from typing import Any, Tuple, Optional
 
 from marimo._data.models import ColumnSummary, ExternalDataType
 from marimo._plugins.ui._impl.tables.table_manager import (
@@ -10,6 +10,10 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     FieldTypes,
     TableManager,
     TableManagerFactory,
+)
+from marimo._plugins.ui._impl.tables.format import (
+    format_value,
+    FormatMapping,
 )
 
 
@@ -25,14 +29,32 @@ class PandasTableManagerFactory(TableManagerFactory):
         class PandasTableManager(TableManager[pd.DataFrame]):
             type = "pandas"
 
-            def to_csv(self) -> bytes:
+            def to_csv(
+                self, format_mapping: Optional[FormatMapping] = None
+            ) -> bytes:
                 has_headers = len(self.get_row_headers()) > 0
-                return self.data.to_csv(
+                _data = self.data.copy()
+                if format_mapping:
+                    _data = self.apply_formatting(format_mapping)
+                return _data.to_csv(
                     index=has_headers,
                 ).encode("utf-8")
 
             def to_json(self) -> bytes:
                 return self.data.to_json(orient="records").encode("utf-8")
+
+            def apply_formatting(
+                self, format_mapping: FormatMapping
+            ) -> pd.DataFrame:
+                _data = self.data.copy()
+                for col in _data.columns:
+                    if col in format_mapping:
+                        _data[col] = _data[col].apply(
+                            lambda x, col=col: format_value(
+                                col, x, format_mapping
+                            )
+                        )
+                return _data
 
             def supports_filters(self) -> bool:
                 return True

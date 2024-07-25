@@ -22,6 +22,7 @@ from marimo._plugins.ui._impl.tables.types import (
     DataFrameLike,
     is_dataframe_like,
 )
+from marimo._plugins.ui._impl.tables.format import FormatMapping
 
 if TYPE_CHECKING:
     import pyarrow as pa  # type: ignore
@@ -60,8 +61,8 @@ class DataFrameProtocolTableManager(TableManager[DataFrameLike]):
         # Does't support filters until pyarrow supports it
         return False
 
-    def to_csv(self) -> bytes:
-        return self._ensure_delegate().to_csv()
+    def to_csv(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
+        return self._ensure_delegate().to_csv(format_mapping)
 
     def to_json(self) -> bytes:
         return self._ensure_delegate().to_json()
