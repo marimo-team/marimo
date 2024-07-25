@@ -197,7 +197,10 @@ class table(
                 None,
             ]
         ] = None,
+        _internal_row_limit: Optional[int] = None,
+        _internal_total_rows: Optional[Union[int, Literal["too_many"]]] = None,
     ) -> None:
+        # The original data passed in
         self._data = data
         # Holds the original data
         self._manager = get_table_manager(data)
@@ -217,16 +220,24 @@ class table(
                 "https://github.com/marimo-team/marimo/issues"
             )
 
-        totalRows = self._manager.get_num_rows(force=True) or 0
-        hasMore = totalRows > TableManager.DEFAULT_ROW_LIMIT
-        if hasMore:
-            self._filtered_manager = self._filtered_manager.limit(
-                TableManager.DEFAULT_ROW_LIMIT
+        row_limit = _internal_row_limit or TableManager.DEFAULT_ROW_LIMIT
+
+        total_rows: Union[int, Literal["too_many"]]
+        if _internal_total_rows == "too_many":
+            total_rows = "too_many"
+        else:
+            total_rows = (
+                _internal_total_rows
+                or self._manager.get_num_rows(force=True)
+                or 0
             )
+        has_more = total_rows == "too_many" or total_rows > row_limit
+        if has_more:
+            self._filtered_manager = self._filtered_manager.limit(row_limit)
 
         # pagination defaults to True if there are more than 10 rows
         if pagination is None:
-            pagination = totalRows > 10
+            pagination = total_rows == "too_many" or total_rows > 10
 
         field_types = self._manager.get_field_types()
 
@@ -236,8 +247,8 @@ class table(
             initial_value=[],
             args={
                 "data": self._filtered_manager.to_data(),
-                "has-more": hasMore,
-                "total-rows": totalRows,
+                "has-more": has_more,
+                "total-rows": total_rows,
                 "pagination": pagination,
                 "page-size": page_size,
                 "field-types": field_types if field_types else None,
