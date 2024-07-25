@@ -57,7 +57,7 @@ const RestartSessionButton = () => {
       onClick={restartKernel}
     >
       <RotateCcwIcon className="w-3 h-3 mr-2" />
-      Restart kernel
+      Restart
     </Button>
   );
 };
