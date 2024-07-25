@@ -47,14 +47,6 @@ import { useSetAtom } from "jotai";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { CollapsedCellBanner, CollapseToggle } from "./cell/collapse";
 import { canCollapseOutline } from "@/core/dom/outline";
-import { useImperativeModal } from "@/components/modal/ImperativeModal";
-import {
-  DialogContent,
-  DialogTitle,
-  DialogHeader,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { NameCellInput } from "./actions/name-cell-input";
 
 /**
  * Imperative interface of the cell.
@@ -91,7 +83,6 @@ export interface CellProps
     >,
     Pick<
       CellActions,
-      | "updateCellName"
       | "updateCellCode"
       | "prepareForRun"
       | "createNewCell"
@@ -146,7 +137,6 @@ const CellComponent = (
     debuggerActive,
     appClosed,
     showDeleteButton,
-    updateCellName,
     updateCellCode,
     prepareForRun,
     createNewCell,
@@ -233,34 +223,6 @@ const CellComponent = (
 
   // Callback to get the editor view.
   const getEditorView = useCallback(() => editorView.current, [editorView]);
-
-  const { openModal } = useImperativeModal();
-
-  const handleName = useEvent(() => {
-    alert("handleName");
-    openModal(
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Rename cell</DialogTitle>
-        </DialogHeader>
-        <div className="flex items-center justify-between">
-          <Label htmlFor="cell-name">Cell name</Label>
-          <NameCellInput
-            placeholder={`cell_${cellId}`}
-            value={name}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                e.stopPropagation();
-                openModal(null);
-              }
-            }}
-            onChange={(newName) => updateCellName({ cellId, name: newName })}
-          />
-        </div>
-      </DialogContent>
-    );
-  });
 
   const handleRun = useEvent(async () => {
     if (loading) {
@@ -371,7 +333,6 @@ const CellComponent = (
   // Register hotkeys on the cell instead of the code editor
   // This is in case the code editor is hidden
   useHotkeysOnElement(editing ? cellRef.current : null, {
-    "cell.name": handleName,
     "cell.run": handleRun,
     "cell.runAndNewBelow": () => {
       handleRun();
