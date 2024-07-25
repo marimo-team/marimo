@@ -5,4 +5,4 @@ __all__ = [
     "sql",
 ]
 
-from marimo._sql.sql import sql
+from marimo._sql.duckdb import sql
