@@ -6,7 +6,7 @@ import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
-from marimo._sql.duckdb import _query_includes_limit, sql
+from marimo._sql.sql import _query_includes_limit, sql
 
 HAS_DEPS = DependencyManager.has_duckdb() and DependencyManager.has_polars()
 
@@ -30,7 +30,7 @@ def test_query_includes_limit():
     )
 
 
-@patch("marimo._sql.duckdb.output.replace")
+@patch("marimo._sql.sql.output.replace")
 def test_applies_limit(mock_replace: MagicMock) -> None:
     import duckdb
 
