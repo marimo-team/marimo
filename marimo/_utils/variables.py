@@ -17,10 +17,12 @@ def is_local_then_mangle(ref: str, cell_id: CellId_t) -> str:
 
 
 def unmangle_local(name: str) -> tuple[str, str]:
-    return re.sub(r"^_cell_\w+", "_", name), name[6:10]
+    if not is_mangled_local(name):
+        return name, ""
+    return re.sub(r"^_cell_\w+_", "_", name), name.split("_")[2]
 
 
-def is_mangled_local(name: str, cell_id: CellId_t) -> bool:
+def is_mangled_local(name: str, cell_id: CellId_t = "") -> bool:
     return name.startswith(f"_cell_{cell_id}")
 
 
