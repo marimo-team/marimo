@@ -191,10 +191,15 @@ const AddCellButtons: React.FC = () => {
           <Tooltip
             content={
               sqlCapabilities ? null : (
-                <span>
-                  Requires duckdb:{" "}
-                  <Kbd className="inline">pip install duckdb</Kbd>
-                </span>
+                <div className="flex flex-col">
+                  <span>
+                    Requires duckdb:{" "}
+                    <Kbd className="inline">pip install duckdb</Kbd>.
+                  </span>
+                  <span>
+                    You will need to restart the notebook after installing.
+                  </span>
+                </div>
               )
             }
             delayDuration={100}

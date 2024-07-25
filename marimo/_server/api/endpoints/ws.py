@@ -249,6 +249,7 @@ class WebsocketHandler(SessionConsumer):
             Banner(
                 title="Reconnected",
                 description="You have reconnected to an existing session.",
+                action="restart",
             )
         )
 
