@@ -222,6 +222,7 @@ class table(
 
         row_limit = _internal_row_limit or TableManager.DEFAULT_ROW_LIMIT
 
+        total_rows: Union[int, Literal["too_many"]]
         if _internal_total_rows == "too_many":
             total_rows = "too_many"
         else:

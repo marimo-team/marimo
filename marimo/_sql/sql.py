@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal, Optional
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
@@ -43,8 +43,9 @@ def sql(
     if enforce_own_limit:
         relation = relation.limit(DEFAULT_RESULT_LIMIT + 1)  # request 1 more
 
-    custom_total_count = None
+    custom_total_count: Optional[Literal["too_many"]] = None
 
+    df: Any
     if DependencyManager.has_polars():
         df = relation.pl()
         if enforce_own_limit:
