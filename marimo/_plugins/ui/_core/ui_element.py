@@ -128,6 +128,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
             raise TypeError("on_change must be a callable or None")
 
         # arguments stored in signature order for cloning
+        self._component_args = args
         self._args = (
             component_name,
             initial_value,

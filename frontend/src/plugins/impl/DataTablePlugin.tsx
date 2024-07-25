@@ -18,11 +18,11 @@ import { ColumnChartContext } from "@/components/data-table/column-summary";
 import { Logger } from "@/utils/Logger";
 import { LoadingTable } from "@/components/data-table/loading-table";
 import { DelayMount } from "@/components/utils/delay-mount";
-import {
+import type {
   ColumnHeaderSummary,
   FieldTypesWithExternalType,
 } from "@/components/data-table/types";
-import {
+import type {
   ColumnFiltersState,
   OnChangeFn,
   RowSelectionState,
@@ -31,9 +31,9 @@ import {
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import useEvent from "react-use-event-hook";
 import { Functions } from "@/utils/functions";
-import { ConditionSchema, ConditionType } from "./data-frames/schema";
+import { ConditionSchema, type ConditionType } from "./data-frames/schema";
 import {
-  ColumnFilterValue,
+  type ColumnFilterValue,
   filterToFilterCondition,
 } from "@/components/data-table/filters";
 import { Objects } from "@/utils/objects";
@@ -51,7 +51,7 @@ interface Data<T> {
   label: string | null;
   data: TableData<T>;
   hasMore: boolean;
-  totalRows: number;
+  totalRows: number | "too_many";
   pagination: boolean;
   pageSize: number;
   selection: "single" | "multi" | null;
@@ -87,7 +87,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       label: z.string().nullable(),
       data: z.union([z.string(), z.array(z.object({}).passthrough())]),
       hasMore: z.boolean().default(false),
-      totalRows: z.number(),
+      totalRows: z.union([z.number(), z.literal("too_many")]),
       pagination: z.boolean().default(false),
       pageSize: z.number().default(10),
       selection: z.enum(["single", "multi"]).nullable().default(null),
@@ -336,7 +336,8 @@ const DataTableComponent = ({
     data: unknown[];
     columnSummaries?: ColumnHeaderSummary[];
   }): JSX.Element => {
-  const resultsAreClipped = hasMore && totalRows > 0;
+  const resultsAreClipped =
+    hasMore && (totalRows === "too_many" || totalRows > 0);
 
   const chartSpecModel = useMemo(() => {
     if (!fieldTypes || !data || !columnSummaries) {
@@ -397,9 +398,15 @@ const DataTableComponent = ({
 
   return (
     <>
-      {hasMore && totalRows && (
+      {hasMore && typeof totalRows === "number" && (
         <Banner className="mb-2 rounded">
           Result clipped. Total rows {prettyNumber(totalRows)}.
+        </Banner>
+      )}
+      {/* // HACK: We assume "too_many" is coming from a SQL table */}
+      {hasMore && totalRows === "too_many" && (
+        <Banner className="mb-2 rounded">
+          Result clipped. If no LIMIT is given, we only show the first 300 rows.
         </Banner>
       )}
       <ColumnChartContext.Provider value={chartSpecModel}>
