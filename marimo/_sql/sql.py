@@ -1,14 +1,18 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Literal, Optional
+import os
+from typing import Any, Literal, Optional, cast
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._impl import table
 from marimo._runtime import output
 
-DEFAULT_RESULT_LIMIT = 300
+
+def get_default_result_limit() -> Optional[int]:
+    limit = os.environ.get("MARIMO_SQL_DEFAULT_LIMIT")
+    return int(limit) if limit is not None else None
 
 
 @mddoc
@@ -38,10 +42,18 @@ def sql(
     if not relation:
         return None
 
-    enforce_own_limit = not _query_includes_limit(query)
+    has_limit = _query_includes_limit(query)
+    try:
+        default_result_limit = get_default_result_limit()
+    except OSError:
+        default_result_limit = None
+
+    enforce_own_limit = not has_limit and default_result_limit is not None
 
     if enforce_own_limit:
-        relation = relation.limit(DEFAULT_RESULT_LIMIT + 1)  # request 1 more
+        relation = relation.limit(
+            cast(int, default_result_limit) + 1
+        )  # request 1 more
 
     custom_total_count: Optional[Literal["too_many"]] = None
 
@@ -50,16 +62,20 @@ def sql(
         df = relation.pl()
         if enforce_own_limit:
             custom_total_count = (
-                "too_many" if len(df) > DEFAULT_RESULT_LIMIT else None
+                "too_many"
+                if len(df) > cast(int, default_result_limit)
+                else None
             )
-            df = df.limit(DEFAULT_RESULT_LIMIT)
+            df = df.limit(default_result_limit)
     elif DependencyManager.has_pandas():
         df = relation.df()
         if enforce_own_limit:
             custom_total_count = (
-                "too_many" if len(df) > DEFAULT_RESULT_LIMIT else None
+                "too_many"
+                if len(df) > cast(int, default_result_limit)
+                else None
             )
-            df = df.head(DEFAULT_RESULT_LIMIT)
+            df = df.head(default_result_limit)
     else:
         raise ModuleNotFoundError(
             "pandas or polars is required to execute sql. "
@@ -71,7 +87,7 @@ def sql(
         selection=None,
         page_size=5,
         pagination=True,
-        _internal_row_limit=DEFAULT_RESULT_LIMIT
+        _internal_row_limit=default_result_limit
         if custom_total_count == "too_many"
         else None,
         _internal_total_rows=custom_total_count,
