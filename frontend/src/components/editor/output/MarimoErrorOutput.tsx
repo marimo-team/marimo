@@ -22,16 +22,9 @@ const Tip = (props: {
 }): JSX.Element => {
   return (
     <Accordion type="single" collapsible={true} className={props.className}>
-      <AccordionItem
-        value="item-1"
-        className="text-muted-foreground border-muted-foreground-20"
-      >
-        <AccordionTrigger className="py-2 text-[0.84375rem]">
-          Tip:
-        </AccordionTrigger>
-        <AccordionContent className="text-[0.84375rem]">
-          {props.children}
-        </AccordionContent>
+      <AccordionItem value="item-1" className="text-muted-foreground">
+        <AccordionTrigger className="py-2">Tip:</AccordionTrigger>
+        <AccordionContent>{props.children}</AccordionContent>
       </AccordionItem>
     </Accordion>
   );
@@ -128,7 +121,9 @@ export const MarimoErrorOutput = ({
         return error.raising_cell == null ? (
           <Fragment key={idx}>
             <p>{error.msg}</p>
-            <Tip>See the console area for a traceback.</Tip>
+            <div className="text-sm text-muted-foreground mt-2">
+              See the console area for a traceback.
+            </div>
           </Fragment>
         ) : (
           <div key={idx}>
@@ -197,7 +192,7 @@ export const MarimoErrorOutput = ({
   });
 
   const title = (
-    <AlertTitle className="font-code font-bold mb-4">
+    <AlertTitle className="font-code font-bold mb-4 tracking-wide">
       {titleContents}
     </AlertTitle>
   );

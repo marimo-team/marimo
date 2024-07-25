@@ -787,6 +787,7 @@ class code_editor(UIElement[str, str]):
     - `theme`: theme of the code editor, defaults to the editor's default
     - `disabled`: whether the input is disabled
     - `min_height`: minimum height of the code editor in pixels
+    - `max_height`: maximum height of the code editor in pixels
     - `label`: text label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
@@ -801,10 +802,20 @@ class code_editor(UIElement[str, str]):
         theme: Optional[Literal["light", "dark"]] = None,
         disabled: bool = False,
         min_height: Optional[int] = None,
+        max_height: Optional[int] = None,
         *,
         label: str = "",
         on_change: Optional[Callable[[str], None]] = None,
     ) -> None:
+        if (
+            min_height is not None
+            and max_height is not None
+            and min_height > max_height
+        ):
+            raise ValueError(
+                f"min_height ({min_height}) must be <= max_height {max_height}"
+            )
+
         super().__init__(
             component_name=code_editor._name,
             initial_value=value,
@@ -815,6 +826,7 @@ class code_editor(UIElement[str, str]):
                 "theme": theme,
                 "disabled": disabled,
                 "min-height": min_height,
+                "max-height": max_height,
             },
             on_change=on_change,
         )

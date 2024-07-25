@@ -11,11 +11,11 @@ import { useDelayVisibility } from "./useDelayVisibility";
 import { type AppMode, kioskModeAtom } from "@/core/mode";
 import { ReadonlyPythonCode } from "@/components/editor/code/readonly-python-code";
 import {
-  ChevronDown,
+  Check,
   Code2Icon,
-  Download,
   FolderDownIcon,
   ImageIcon,
+  MoreHorizontalIcon,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/ui/button";
@@ -27,12 +27,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { downloadHTMLAsImage } from "@/utils/download";
 import { downloadAsHTML } from "@/core/static/download-html";
 import { isWasm } from "@/core/wasm/utils";
 import type { CellConfig } from "@/core/network/types";
 import { useAtomValue } from "jotai";
+import { FloatingOutline } from "../../chrome/panels/outline/floating-outline";
 
 type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;
@@ -101,6 +103,8 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
           onToggleShowCode={() => setShowCode((v) => !v)}
         />
       )}
+      {/* Shown in read and present */}
+      <FloatingOutline />
     </VerticalLayoutWrapper>
   );
 };
@@ -136,26 +140,23 @@ const ActionButtons: React.FC<{
         isStaticNotebook() ? "absolute" : "fixed",
       )}
     >
-      {canShowCode && (
-        <Button
-          variant="secondary"
-          onClick={onToggleShowCode}
-          size="xs"
-          data-testid="show-code"
-        >
-          <Code2Icon className="w-4 h-4 mr-2" />
-          {showCode ? "Hide code" : "Show code"}
-        </Button>
-      )}
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild={true}>
-          <Button variant="secondary" size="xs" data-testid="download-as">
-            <Download className="w-4 h-4 mr-2" />
-            Download as
-            <ChevronDown className="w-4 h-4 ml-2" />
+          <Button variant="secondary" size="xs">
+            <MoreHorizontalIcon className="w-4 h-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="no-print w-[220px]">
+          {canShowCode && (
+            <>
+              <DropdownMenuItem onSelect={onToggleShowCode}>
+                <Code2Icon className="mr-2" size={14} strokeWidth={1.5} />
+                <span className="flex-1">Show code</span>
+                {showCode && <Check className="h-4 w-4" />}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
+          )}
           <DropdownMenuItem onSelect={handleDownloadAsHTML}>
             <FolderDownIcon className="mr-2" size={14} strokeWidth={1.5} />
             Download as HTML

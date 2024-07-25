@@ -206,11 +206,22 @@ class table(
         # Holds the data after selection and filtering
         self._selected_manager: Optional[TableManager[Any]] = None
 
+        if (
+            total_cols := self._manager.get_num_columns()
+        ) > TableManager.DEFAULT_COL_LIMIT:
+            raise ValueError(
+                f"Your table has {total_cols} columns, "
+                "which is greater than the maximum allowed columns of "
+                f"{TableManager.DEFAULT_COL_LIMIT} for mo.ui.table(). "
+                "If this is a problem, please open a GitHub issue: "
+                "https://github.com/marimo-team/marimo/issues"
+            )
+
         totalRows = self._manager.get_num_rows(force=True) or 0
-        hasMore = totalRows > TableManager.DEFAULT_LIMIT
+        hasMore = totalRows > TableManager.DEFAULT_ROW_LIMIT
         if hasMore:
             self._filtered_manager = self._filtered_manager.limit(
-                TableManager.DEFAULT_LIMIT
+                TableManager.DEFAULT_ROW_LIMIT
             )
 
         # pagination defaults to True if there are more than 10 rows
@@ -334,4 +345,4 @@ class table(
             result = result.sort_values(args.sort.by, args.sort.descending)
         # Save the manager to be used for selection
         self._filtered_manager = result
-        return result.limit(TableManager.DEFAULT_LIMIT).to_data()
+        return result.limit(TableManager.DEFAULT_ROW_LIMIT).to_data()

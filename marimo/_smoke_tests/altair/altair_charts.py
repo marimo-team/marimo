@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.2.2"
+__generated_with = "0.7.9"
 app = marimo.App(width="full")
 
 
@@ -515,9 +515,9 @@ def __(facet_chart, mo):
 def __(mo):
     mo.md(
         """
-    # With `transform_filter`
-    > Bug https://github.com/marimo-team/marimo/issues/727
-    """
+        # With `transform_filter`
+        > Bug https://github.com/marimo-team/marimo/issues/727
+        """
     )
     return
 
@@ -593,6 +593,53 @@ def __(layered_chart, mo):
     mo.vstack(
         [layered_chart, mo.hstack([layered_chart.value, layered_chart.selections])]
     )
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md(r"# layered")
+    return
+
+
+@app.cell
+def __(alt, data, datum, mo):
+    stocks = data.stocks.url
+
+    base = alt.Chart(stocks).encode(
+        x='date:T',
+        y='price:Q',
+        color='symbol:N'
+    ).transform_filter(
+        datum.symbol == 'GOOG'
+    )
+
+    t = mo.ui.altair_chart(base.mark_line() + base.mark_point())
+    t
+    return base, stocks, t
+
+
+@app.cell
+def __(mo):
+    mo.md(r"# hconcat")
+    return
+
+
+@app.cell
+def __(base, mo):
+    mo.ui.altair_chart(base.mark_line() | base.mark_point())
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md("# vconcat")
+    return
+
+
+@app.cell
+def __(base, mo):
+    mo.ui.altair_chart(base.mark_line() & base.mark_point())
     return
 
 

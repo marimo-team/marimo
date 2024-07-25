@@ -74,3 +74,22 @@ cell. This will open an input to modify the cell using AI.
 marimo supports OpenAI's GPT-3.5 API by default. If your provider is compatible with OpenAI's API, you can use it by changing the `base_url` in the configuration.
 
 For other providers not compatible with OpenAI's API, please submit a [feature request](https://github.com/marimo-team/marimo/issues) or "thumbs up" an existing one.
+
+### Using Ollama
+
+Ollama allows you to run open-source LLMs (e.g. Llama 3.1, Phi 3, Mistral, Gemma 2) on your local machine. To integrate Ollama with marimo:
+
+1. Download and install [Ollama](https://ollama.com/).
+2. Download the model you want to use:
+   1. `ollama pull llama2`
+   2. We also recommend `codellama` (code specific) or `llama3.1` (more advanced, but larger).
+3. Start the Ollama server: `ollama run llama2`
+4. Visit <http://localhost:11434> to confirm that the server is running.
+5. Add the following to your `~/.marimo.toml`:
+
+```toml
+[ai.open_ai]
+api_key = "ollama" # This is not used, but required
+model = "llama2" # or the model you downloaded from above
+base_url = "http://localhost:11434/v1"
+```

@@ -10,6 +10,7 @@ describe("SQLLanguageAdapter", () => {
   beforeAll(() => {
     store.set(capabilitiesAtom, {
       sql: true,
+      terminal: true,
     });
   });
 
@@ -32,25 +33,25 @@ describe("SQLLanguageAdapter", () => {
     });
 
     it("should extract inner SQL from triple double-quoted strings", () => {
-      const pythonCode = '_df = mo.sql("""select * from {df}""")';
+      const pythonCode = '_df = mo.sql("""SELECT * FROM {df}""")';
       const [innerCode, offset] = adapter.transformIn(pythonCode);
-      expect(innerCode).toBe("select * from {df}");
+      expect(innerCode).toBe("SELECT * FROM {df}");
       expect(adapter.dataframeName).toBe("_df");
       expect(offset).toBe(16);
     });
 
     it("should handle single double-quoted strings", () => {
-      const pythonCode = 'next_df = mo.sql("select * from {df}")';
+      const pythonCode = 'next_df = mo.sql("SELECT * FROM {df}")';
       const [innerCode, offset] = adapter.transformIn(pythonCode);
-      expect(innerCode).toBe("select * from {df}");
+      expect(innerCode).toBe("SELECT * FROM {df}");
       expect(adapter.dataframeName).toBe("next_df");
       expect(offset).toBe(18);
     });
 
     it("should handle triple single-quoted strings", () => {
-      const pythonCode = "next_df = mo.sql('''select * \nfrom {df}''')";
+      const pythonCode = "next_df = mo.sql('''SELECT * \nFROM {df}''')";
       const [innerCode, offset] = adapter.transformIn(pythonCode);
-      expect(innerCode).toBe("select * \nfrom {df}");
+      expect(innerCode).toBe("SELECT * \nFROM {df}");
       expect(offset).toBe(20);
     });
 
@@ -69,37 +70,37 @@ describe("SQLLanguageAdapter", () => {
     });
 
     it("simple sql", () => {
-      const pythonCode = 'next_df = mo.sql("select * from {df}")';
+      const pythonCode = 'next_df = mo.sql("SELECT * FROM {df}")';
       const [innerCode, offset] = adapter.transformIn(pythonCode);
-      expect(innerCode).toBe("select * from {df}");
+      expect(innerCode).toBe("SELECT * FROM {df}");
       expect(offset).toBe(18);
     });
 
     it("should trim strings with leading and trailing whitespace", () => {
-      const pythonCode = 'next_df = mo.sql("""   \nselect * from {df}\n   """)';
+      const pythonCode = 'next_df = mo.sql("""   \nSELECT * FROM {df}\n   """)';
       const [innerCode, offset] = adapter.transformIn(pythonCode);
-      expect(innerCode).toBe("select * from {df}");
+      expect(innerCode).toBe("SELECT * FROM {df}");
       expect(offset).toBe(20);
     });
 
     it("should handle space around the f-strings", () => {
-      const pythonCode = 'next_df = mo.sql(\n\t"""\nselect * from {df}\n"""\n)';
+      const pythonCode = 'next_df = mo.sql(\n\t"""\nSELECT * FROM {df}\n"""\n)';
       const [innerCode, offset] = adapter.transformIn(pythonCode);
-      expect(innerCode).toBe("select * from {df}");
+      expect(innerCode).toBe("SELECT * FROM {df}");
       expect(offset).toBe(22);
     });
   });
 
   describe("transformOut", () => {
     it("should wrap SQL code with triple double-quoted string format", () => {
-      const code = "select * from {df}";
+      const code = "SELECT * FROM {df}";
       adapter.lastQuotePrefix = "";
       adapter.dataframeName = "my_df";
       const [wrappedCode, offset] = adapter.transformOut(code);
       expect(wrappedCode).toMatchInlineSnapshot(`
         "my_df = mo.sql(
             f"""
-            select * from {df}
+            SELECT * FROM {df}
             """
         )"
       `);
@@ -110,7 +111,7 @@ describe("SQLLanguageAdapter", () => {
   describe("isSupported", () => {
     it("should return true for supported sql string formats", () => {
       expect(
-        adapter.isSupported('df2 = mo.sql("""select * from {df}""")'),
+        adapter.isSupported('df2 = mo.sql("""SELECT * FROM {df}""")'),
       ).toBe(true);
       expect(adapter.isSupported("my_df = mo.sql('')")).toBe(true);
       expect(adapter.isSupported('df = mo.sql("")')).toBe(true);
@@ -129,7 +130,7 @@ describe("SQLLanguageAdapter", () => {
     });
 
     it("should return false sequences that look like sql but are not", () => {
-      const once = 'df = mo.sql("""select * from {df}""")';
+      const once = 'df = mo.sql("""SELECT * FROM {df}""")';
       const pythonCode = [once, once].join("\n");
       expect(adapter.isSupported(pythonCode)).toBe(false);
     });

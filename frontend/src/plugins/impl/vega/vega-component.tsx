@@ -2,7 +2,7 @@
 import { VegaLite, type SignalListeners, type View } from "react-vega";
 import { makeSelectable } from "./make-selectable";
 import { useMemo, useRef, useState } from "react";
-import { getSelectionParamNames } from "./params";
+import { getSelectionParamNames, ParamNames } from "./params";
 import type { VegaLiteSpec } from "./types";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
@@ -17,6 +17,8 @@ import { Objects } from "@/utils/objects";
 import { resolveVegaSpecData } from "./resolve-data";
 import { Events } from "@/utils/events";
 import { ErrorBanner } from "../common/error-banner";
+import { Tooltip } from "@/components/ui/tooltip";
+import { HelpCircleIcon } from "lucide-react";
 
 export interface Data {
   spec: VegaLiteSpec;
@@ -120,6 +122,11 @@ const LoadedVegaComponent = ({
   const signalListeners = useMemo(
     () =>
       names.reduce<SignalListeners>((acc, name) => {
+        // pan/zoom does not count towards selection
+        if (ParamNames.PAN_ZOOM === name) {
+          return acc;
+        }
+
         // Debounce each signal listener, otherwise we may create expensive requests
         acc[name] = debounce((signalName, signalValue) => {
           Logger.debug("[Vega signal]", signalName, signalValue);
@@ -149,6 +156,64 @@ const LoadedVegaComponent = ({
     setError(undefined);
   });
 
+  const renderHelpContent = () => {
+    const hints: Array<[string, string]> = [];
+    if (ParamNames.hasPoint(names)) {
+      hints.push([
+        "Point selection",
+        "click to select a point; hold shift for multi-select",
+      ]);
+    }
+
+    if (ParamNames.hasInterval(names)) {
+      hints.push([
+        "Interval selection",
+        "click and drag to select an interval",
+      ]);
+    }
+
+    if (ParamNames.hasLegend(names)) {
+      hints.push([
+        "Legend selection",
+        "click to select a legend item; hold shift for multi-select",
+      ]);
+    }
+
+    if (ParamNames.hasPanZoom(names)) {
+      hints.push(
+        ["Pan", "hold the meta key and drag"],
+        ["Zoom", "hold the meta key and scroll"],
+      );
+    }
+
+    if (hints.length === 0) {
+      return null;
+    }
+
+    return (
+      <Tooltip
+        delayDuration={300}
+        side="left"
+        content={
+          <div className="text-xs flex flex-col">
+            {hints.map((hint, i) => (
+              <div key={i}>
+                <span className="font-bold tracking-wide">{hint[0]}:</span>{" "}
+                {hint[1]}
+              </div>
+            ))}
+          </div>
+        }
+      >
+        <HelpCircleIcon
+          className={
+            "absolute bottom-1 right-0 m-2 h-4 w-4 cursor-help text-muted-foreground hover:text-foreground"
+          }
+        />
+      </Tooltip>
+    );
+  };
+
   return (
     <>
       {error && (
@@ -158,7 +223,7 @@ const LoadedVegaComponent = ({
         </Alert>
       )}
       <div
-        className="contents"
+        className="relative"
         // Capture the pointer down event to prevent the parent from handling it
         onPointerDown={Events.stopPropagation()}
       >
@@ -170,6 +235,7 @@ const LoadedVegaComponent = ({
           onError={handleError}
           onNewView={handleNewView}
         />
+        {renderHelpContent()}
       </div>
     </>
   );

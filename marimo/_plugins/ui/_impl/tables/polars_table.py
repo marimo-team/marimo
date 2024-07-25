@@ -30,10 +30,48 @@ class PolarsTableManagerFactory(TableManagerFactory):
             type = "polars"
 
             def to_csv(self) -> bytes:
-                return self.data.write_csv().encode("utf-8")
+                try:
+                    return self.data.write_csv().encode("utf-8")
+                except pl.exceptions.ComputeError:
+                    # Likely CSV format does not support nested data or objects
+                    # Try to convert columns to json or strings
+                    result = self.data
+                    for column in result.get_columns():
+                        dtype = column.dtype
+                        if isinstance(dtype, pl.Struct):
+                            result = result.with_columns(
+                                column.struct.json_encode()
+                            )
+                        elif isinstance(dtype, pl.List):
+                            result = result.with_columns(
+                                column.cast(pl.List(pl.Utf8)).list.join(",")
+                            )
+                        elif isinstance(dtype, pl.Array):
+                            result = result.with_columns(
+                                column.cast(
+                                    pl.Array(pl.Utf8, shape=dtype.shape)
+                                ).arr.join(",")
+                            )
+                        elif isinstance(dtype, pl.Object):
+                            result = result.with_columns(column.cast(str))
+                        elif isinstance(dtype, pl.Duration):
+                            if dtype.time_unit == "ns":
+                                result = result.with_columns(
+                                    column.dt.total_nanoseconds()
+                                )
+                            if dtype.time_unit == "us":
+                                result = result.with_columns(
+                                    column.dt.total_microseconds()
+                                )
+                            if dtype.time_unit == "ms":
+                                result = result.with_columns(
+                                    column.dt.total_milliseconds()
+                                )
+
+                    return result.write_csv().encode("utf-8")
 
             def to_json(self) -> bytes:
-                return self.data.write_json(row_oriented=True).encode("utf-8")
+                return self.data.write_json().encode("utf-8")
 
             def supports_filters(self) -> bool:
                 return True
@@ -156,7 +194,10 @@ class PolarsTableManagerFactory(TableManagerFactory):
             def _get_field_type(
                 column: pl.Series,
             ) -> Tuple[FieldType, ExternalDataType]:
-                dtype_string = column.dtype._string_repr()
+                try:
+                    dtype_string = column.dtype._string_repr()
+                except (TypeError, AttributeError):
+                    dtype_string = str(column.dtype)
                 if column.dtype == pl.String:
                     return ("string", dtype_string)
                 elif column.dtype == pl.Boolean:

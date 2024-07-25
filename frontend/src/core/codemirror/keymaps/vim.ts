@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { getCM, Vim } from "@replit/codemirror-vim";
+import { CodeMirror, getCM, Vim } from "@replit/codemirror-vim";
 import { type EditorView, keymap, ViewPlugin } from "@codemirror/view";
 import {
   isAtEndOfEditor,
@@ -10,11 +10,15 @@ import {
 import { invariant } from "@/utils/invariant";
 import type { Extension } from "@codemirror/state";
 import { Logger } from "@/utils/Logger";
+import { goToDefinitionAtCursorPosition } from "../go-to-definition/utils";
+import { once } from "@/utils/once";
 
 export function vimKeymapExtension(callbacks: {
   focusUp: () => void;
   focusDown: () => void;
 }): Extension[] {
+  addCustomVimCommandsOnce();
+
   return [
     keymap.of([
       {
@@ -50,6 +54,15 @@ export function vimKeymapExtension(callbacks: {
     }),
   ];
 }
+
+const addCustomVimCommandsOnce = once(() => {
+  // Go to definition
+  Vim.defineAction("goToDefinition", (cm: CodeMirror) => {
+    const view = cm.cm6;
+    return goToDefinitionAtCursorPosition(view);
+  });
+  Vim.mapCommand("gd", "action", "goToDefinition", {}, { context: "normal" });
+});
 
 class CodeMirrorVimSync {
   private instances = new Set<EditorView>();
