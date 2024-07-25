@@ -903,7 +903,7 @@ class TestExecution:
         if k.execution_type == "strict":
             assert (
                 "name `R` is referenced before definition."
-                in k.stream.messages[-3][1]["output"]["data"][0]["msg"]
+                in k.stream.messages[-4][1]["output"]["data"][0]["msg"]
             )
             assert (
                 "This cell wasn't run"
@@ -912,7 +912,7 @@ class TestExecution:
         else:
             assert (
                 "marimo came across the undefined variable `C` during runtime."
-                in k.stream.messages[-1][1]["output"]["data"][0]["msg"]
+                in k.stream.messages[-2][1]["output"]["data"][0]["msg"]
             )
             assert "NameError" in k.stderr.messages[0]
             assert "NameError" in k.stderr.messages[-1]
@@ -1231,7 +1231,7 @@ class TestStrictExecution:
 
         assert (
             "marimo came across the undefined variable `X` during runtime."
-            in k.stream.messages[-1][1]["output"]["data"][0]["msg"]
+            in k.stream.messages[-2][1]["output"]["data"][0]["msg"]
         )
         assert "NameError" in k.stderr.messages[-1]
 
@@ -1267,9 +1267,10 @@ class TestStrictExecution:
         )
         # Runtime error expected- since not a kernel error check stderr
         assert "x" not in k.globals
+
         assert (
             "marimo came across the undefined variable `_X` during runtime."
-            in k.stream.messages[-1][1]["output"]["data"][0]["msg"]
+            in k.stream.messages[-2][1]["output"]["data"][0]["msg"]
         )
         assert "NameError" in k.stderr.messages[-1]
 
