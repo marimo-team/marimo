@@ -6,7 +6,8 @@ import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
-from marimo._sql.sql import _query_includes_limit, sql
+from marimo._sql import sql
+from marimo._sql.sql import _query_includes_limit
 
 HAS_DEPS = DependencyManager.has_duckdb() and DependencyManager.has_polars()
 
