@@ -24,9 +24,9 @@ from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime import dataflow
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.executor import (
-    MarimoBaseException,
     MarimoMissingRefError,
     MarimoNameError,
+    MarimoRuntimeException,
     execute_cell,
     execute_cell_async,
 )
@@ -358,7 +358,7 @@ class Runner:
             )
             run_result = RunResult(output=name_output, exception=name_output)
         # Should cover all cell runtime exceptions.
-        except MarimoBaseException as e:
+        except MarimoRuntimeException as e:
             print_traceback = True
             output: Any = None
             unwrapped_exception: Optional[BaseException] = e.__cause__
@@ -370,7 +370,7 @@ class Runner:
             if isinstance(exception, MarimoMissingRefError):
                 ref, blamed_cell = self._get_blamed_cell(exception)
                 # All MarimoMissingRefErrors should be caused caused by
-                # NameErrors if they are the cause of MarimoBaseExceptions.
+                # NameErrors if they are the cause of MarimoRuntimeExceptions.
                 if exception.name_error is not None:
                     unwrapped_exception = exception.name_error
                 # Provide output context for said missing reference errors.
@@ -438,10 +438,10 @@ class Runner:
                 tmpio.seek(0)
                 write_traceback(tmpio.read())
         except BaseException as e:
-            # Check that MarimoBaseException has't already handled the error,
-            # since exceptions fall through except blocks.
+            # Check that MarimoRuntimeException has't already handled the
+            # error, since exceptions fall through except blocks.
             # If not, then this is an unexpected error.
-            if not isinstance(e, MarimoBaseException):
+            if not isinstance(e, MarimoRuntimeException):
                 LOGGER.error(f"Unexpected error type: {e}")
                 self.cancel(cell_id)
                 unknown_error = UnknownError(f"{e}")

@@ -17,7 +17,6 @@ from marimo._ast.errors import (
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.formatting import as_html
 from marimo._plugins.stateless.flex import vstack
-from marimo._runtime.executor import MarimoBaseException
 from marimo._runtime.requests import SetUIElementValueRequest
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
@@ -236,12 +235,10 @@ class TestApp:
             _x  # type: ignore  # noqa: F821
             return
 
-        with pytest.raises(MarimoBaseException) as e:
+        with pytest.raises(NameError) as e:
             app.run()
-        with pytest.raises(NameError) as ne:
-            raise e.value.__cause__
 
-        assert "'_x' is not defined" in str(ne.value)
+        assert "'_x' is not defined" in str(e.value)
 
     @staticmethod
     def test_locals_dont_leak() -> None:
@@ -257,12 +254,10 @@ class TestApp:
             _x  # type: ignore
             return
 
-        with pytest.raises(MarimoBaseException) as e:
+        with pytest.raises(NameError) as e:
             app.run()
-        with pytest.raises(NameError) as ne:
-            raise e.value.__cause__
 
-        assert "'_x' is not defined" in str(ne.value)
+        assert "'_x' is not defined" in str(e.value)
 
     @staticmethod
     def test_dunder_dunder_not_local() -> None:
@@ -294,12 +289,10 @@ class TestApp:
             __  # type: ignore
             return
 
-        with pytest.raises(MarimoBaseException) as e:
+        with pytest.raises(NameError) as e:
             app.run()
-        with pytest.raises(NameError) as ne:
-            raise e.value.__cause__
 
-        assert "'__' is not defined" in str(ne.value)
+        assert "'__' is not defined" in str(e.value)
 
     @staticmethod
     def test_app_width_config() -> None:

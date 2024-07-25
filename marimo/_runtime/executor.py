@@ -42,7 +42,7 @@ PRIMITIVES = (weakref.ref, str, numbers.Number, type(None))
 EXECUTION_TYPES: dict[str, Type[Executor]] = {}
 
 
-class MarimoBaseException(BaseException):
+class MarimoRuntimeException(BaseException):
     """Wrapper for all marimo runtime exceptions."""
 
 
@@ -67,7 +67,7 @@ def raise_name_error(
     graph: Optional[DirectedGraph], name_error: NameError
 ) -> None:
     if graph is None:
-        raise MarimoBaseException from name_error
+        raise MarimoRuntimeException from name_error
     # The best static analysis can do for variable level references is to
     # use the top level definition. For example, consider the following
     # cells:
@@ -93,10 +93,10 @@ def raise_name_error(
     (missing_name,) = re.findall(r"'([^']*)'", str(name_error))
     _, private_cell_id = unmangle_local(missing_name)
     if missing_name in graph.definitions or private_cell_id:
-        raise MarimoBaseException from MarimoMissingRefError(
+        raise MarimoRuntimeException from MarimoMissingRefError(
             missing_name, name_error
         )
-    raise MarimoBaseException from name_error
+    raise MarimoRuntimeException from name_error
 
 
 def register_execution_type(
@@ -176,7 +176,7 @@ class DefaultExecutor(Executor):
         except (BaseException, Exception) as e:
             # Raising from a BaseException will fold in the stacktrace prior
             # to execution
-            raise MarimoBaseException from e
+            raise MarimoRuntimeException from e
 
     @staticmethod
     def execute_cell(
@@ -194,7 +194,7 @@ class DefaultExecutor(Executor):
         except NameError as e:
             raise_name_error(graph, e)
         except (BaseException, Exception) as e:
-            raise MarimoBaseException from e
+            raise MarimoRuntimeException from e
 
 
 @register_execution_type("strict")
