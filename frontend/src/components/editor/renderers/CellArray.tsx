@@ -168,7 +168,7 @@ const AddCellButtons: React.FC = () => {
           onClick={() => createNewCell({ cellId: "__end__", before: false })}
         >
           <SquareCodeIcon className="mr-2 size-4 flex-shrink-0" />
-          Code
+          Python
         </Button>
         <Button
           className={buttonClass}
@@ -191,10 +191,15 @@ const AddCellButtons: React.FC = () => {
           <Tooltip
             content={
               sqlCapabilities ? null : (
-                <span>
-                  Requires duckdb:{" "}
-                  <Kbd className="inline">pip install duckdb</Kbd>
-                </span>
+                <div className="flex flex-col">
+                  <span>
+                    Requires duckdb:{" "}
+                    <Kbd className="inline">pip install duckdb</Kbd>.
+                  </span>
+                  <span>
+                    You will need to restart the notebook after installing.
+                  </span>
+                </div>
               )
             }
             delayDuration={100}
@@ -247,7 +252,7 @@ const AddCellButtons: React.FC = () => {
       <div
         className={cn(
           "shadow-sm border border-border rounded transition-all duration-200 overflow-hidden divide-x divide-border flex",
-          !isAiButtonOpen && "opacity-0 group-hover:opacity-100 w-fit",
+          !isAiButtonOpen && "w-fit",
           isAiButtonOpen && "opacity-100 w-full max-w-4xl shadow-lg",
         )}
       >
