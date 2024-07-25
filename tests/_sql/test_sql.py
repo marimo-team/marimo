@@ -30,8 +30,7 @@ def test_query_includes_limit():
     )
 
 
-# @pytest.mark.skipif(not HAS_DEPS, reason="pandas or polars is required")
-@patch("marimo._sql.sql.output.replace")
+@patch("marimo._sql.duckdb.output.replace")
 def test_applies_limit(mock_replace: MagicMock) -> None:
     import duckdb
 
