@@ -77,14 +77,14 @@ export const FileBrowserPlugin = createPlugin<S>("marimo-file-browser")
       multiple: z.boolean(),
       label: z.string().nullable(),
       restrictNavigation: z.boolean(),
-    })
+    }),
   )
   .withFunctions<PluginFunctions>({
     list_directory: rpc
       .input(
         z.object({
           path: z.string(),
-        })
+        }),
       )
       .output(
         z.object({
@@ -95,9 +95,9 @@ export const FileBrowserPlugin = createPlugin<S>("marimo-file-browser")
               name: z.string(),
               is_directory: z.boolean(),
               is_marimo_file: z.boolean(),
-            })
+            }),
           ),
-        })
+        }),
       ),
   })
   .renderer((props) => (
@@ -142,7 +142,7 @@ export const FileBrowser = ({
       list_directory({
         path: path,
       }),
-    [path]
+    [path],
   );
 
   if (error) {
@@ -218,7 +218,7 @@ export const FileBrowser = ({
   function createFileInfo(
     path: string,
     name: string,
-    isDirectory: boolean
+    isDirectory: boolean,
   ): FileInfo {
     return {
       id: path,
@@ -285,7 +285,7 @@ export const FileBrowser = ({
         <CornerLeftUp size={16} />
       </TableCell>
       <TableCell>{PARENT_DIRECTORY}</TableCell>
-    </TableRow>
+    </TableRow>,
   );
 
   for (const file of files) {
@@ -344,7 +344,7 @@ export const FileBrowser = ({
           "hover:bg-primary hover:bg-opacity-25 group select-none",
           {
             "bg-primary bg-opacity-25": isSelected,
-          }
+          },
         )}
         onClick={() => handleClick(filePath, file.name, file.is_directory)}
       >
@@ -352,7 +352,7 @@ export const FileBrowser = ({
           {renderCheckboxOrIcon()}
         </TableCell>
         <TableCell>{file.name}</TableCell>
-      </TableRow>
+      </TableRow>,
     );
   }
 
@@ -371,8 +371,8 @@ export const FileBrowser = ({
     selectionMode === "all"
       ? PluralWords.of("file", "folder")
       : selectionMode === "directory"
-      ? PluralWords.of("folder")
-      : PluralWords.of("file");
+        ? PluralWords.of("folder")
+        : PluralWords.of("file");
   const renderHeader = () => {
     label = label ?? `Select ${selectionKindLabel.join(" and ", 2)}...`;
     const labelText = <Label>{renderHTML({ html: label })}</Label>;
@@ -433,7 +433,7 @@ export const FileBrowser = ({
               </span>
               <button
                 className={cn(
-                  "text-xs text-destructive hover:underline cursor-pointer"
+                  "text-xs text-destructive hover:underline cursor-pointer",
                 )}
                 onClick={() => setValue([])}
               >
