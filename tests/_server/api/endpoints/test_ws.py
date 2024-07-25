@@ -1,14 +1,14 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
 import pytest
 from starlette.websockets import WebSocketDisconnect
 
-from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.ops import KernelReady
+from marimo._messaging.ops import KernelCapabilities, KernelReady
 from marimo._server.api.endpoints.ws import WebSocketCodes
 from marimo._server.model import SessionMode
 from marimo._server.sessions import SessionManager
@@ -35,9 +35,7 @@ def create_response(
         "kiosk": False,
         "configs": [{"disabled": False, "hide_code": False}],
         "app_config": {"width": "full"},
-        "capabilities": {
-            "sql": DependencyManager.has_duckdb(),
-        },
+        "capabilities": asdict(KernelCapabilities()),
     }
     response.update(partial_response)
     return response

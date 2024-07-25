@@ -154,6 +154,13 @@ def _broadcast_outputs(
 
         def format_output() -> formatting.FormattedOutput:
             formatted_output = formatting.try_format(run_result.output)
+
+            if formatted_output.exception is not None:
+                # Try a plain formatter; maybe an opinionated one failed.
+                formatted_output = formatting.try_format(
+                    run_result.output, include_opinionated=False
+                )
+
             if formatted_output.traceback is not None:
                 write_traceback(formatted_output.traceback)
             return formatted_output
@@ -163,6 +170,7 @@ def _broadcast_outputs(
                 formatted_output = format_output()
         else:
             formatted_output = format_output()
+
         CellOp.broadcast_output(
             channel=CellChannel.OUTPUT,
             mimetype=formatted_output.mimetype,
@@ -184,6 +192,12 @@ def _broadcast_outputs(
         # its console outputs are not stale
         CellOp.broadcast_error(
             data=[MarimoInterruptionError()],
+            clear_console=False,
+            cell_id=cell.cell_id,
+        )
+    elif isinstance(run_result.exception, MarimoExceptionRaisedError):
+        CellOp.broadcast_error(
+            data=[run_result.exception],
             clear_console=False,
             cell_id=cell.cell_id,
         )
@@ -230,11 +244,14 @@ def _reset_matplotlib_context(
 
 
 POST_EXECUTION_HOOKS: list[PostExecutionHookType] = [
-    _set_status_idle,
     _store_reference_to_output,
     _broadcast_variables,
     _broadcast_datasets,
     _broadcast_duckdb_tables,
     _broadcast_outputs,
     _reset_matplotlib_context,
+    # set status to idle after all post-processing is done, in case the
+    # other hooks take a long time (broadcast outputs can take a long time
+    # if a formatter is slow).
+    _set_status_idle,
 ]

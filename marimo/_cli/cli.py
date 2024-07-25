@@ -285,7 +285,13 @@ def edit(
             try:
                 with open(name, "w"):
                     pass
-            except OSError:
+            except OSError as e:
+                if isinstance(e, FileNotFoundError):
+                    # This means that the parent directory does not exist
+                    parent_dir = os.path.dirname(name)
+                    raise click.ClickException(
+                        f"Parent directory does not exist: {parent_dir}"
+                    ) from e
                 raise
     else:
         name = os.getcwd()

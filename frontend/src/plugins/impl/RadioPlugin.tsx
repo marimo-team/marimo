@@ -1,5 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import clsx from "clsx";
 import { useId } from "react";
 import { z } from "zod";
 
@@ -63,10 +62,7 @@ export const Radio = (props: RadioProps): JSX.Element => {
             <RadioGroupItem value={option} id={`${id}-${i.toString()}`} />
             <Label
               htmlFor={`${id}-${i.toString()}`}
-              className={clsx(
-                "text-md",
-                option === props.value ? "font-semibold" : "",
-              )}
+              className="text-sm font-normal"
             >
               {option}
             </Label>

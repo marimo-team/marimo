@@ -3,7 +3,7 @@ import { useBanners, useBannersActions } from "@/core/errors/state";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import { AlertCircleIcon, RotateCcwIcon, XIcon } from "lucide-react";
-import React from "react";
+import type React from "react";
 import { Button } from "../ui/button";
 import { useRestartKernel } from "./actions/useRestartKernel";
 
@@ -53,10 +53,10 @@ const RestartSessionButton = () => {
     <Button
       data-testid="restart-session-button"
       variant="link"
-      size="sm"
+      size="xs"
       onClick={restartKernel}
     >
-      <RotateCcwIcon className="w-4 h-4 mr-2" />
+      <RotateCcwIcon className="w-3 h-3 mr-2" />
       Restart
     </Button>
   );

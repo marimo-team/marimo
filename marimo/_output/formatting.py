@@ -158,20 +158,26 @@ class FormattedOutput:
     mimetype: KnownMimeType
     data: str
     traceback: Optional[str] = None
+    exception: BaseException | None = None
 
 
-def try_format(obj: Any) -> FormattedOutput:
+def try_format(obj: Any, include_opinionated: bool = True) -> FormattedOutput:
     obj = "" if obj is None else obj
-    if (formatter := get_formatter(obj)) is not None:
+    if (
+        formatter := get_formatter(
+            obj, include_opinionated=include_opinionated
+        )
+    ) is not None:
         try:
             mimetype, data = formatter(obj)
             return FormattedOutput(mimetype=mimetype, data=data)
-        except BaseException:  # noqa: E722
+        except BaseException as e:  # noqa: E722
             # Catching base exception so we're robust to bugs in libraries
             return FormattedOutput(
                 mimetype="text/plain",
                 data="",
                 traceback=traceback.format_exc(),
+                exception=e,
             )
 
     from marimo._runtime.context import ContextNotInitializedError, get_context

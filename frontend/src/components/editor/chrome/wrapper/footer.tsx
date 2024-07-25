@@ -9,15 +9,16 @@ import { cellErrorCount } from "@/core/cells/cells";
 import { type PanelDescriptor, PANELS } from "../types";
 import { MachineStats } from "./machine-stats";
 import { useUserConfig } from "@/core/config/config";
-import { ZapIcon, ZapOffIcon } from "lucide-react";
+import { TerminalSquareIcon, ZapIcon, ZapOffIcon } from "lucide-react";
 import { saveUserConfig } from "@/core/network/requests";
 import type { UserConfig } from "@/core/config/config-schema";
 import { ShowInKioskMode } from "../../kiosk-mode";
 import { invariant } from "@/utils/invariant";
+import { IfCapability } from "@/core/config/if-capability";
 
 export const Footer: React.FC = () => {
-  const { selectedPanel } = useChromeState();
-  const { openApplication } = useChromeActions();
+  const { selectedPanel, isTerminalOpen } = useChromeState();
+  const { openApplication, toggleTerminal } = useChromeActions();
   const [config, setConfig] = useUserConfig();
   const errorCount = useAtomValue(cellErrorCount);
 
@@ -38,6 +39,16 @@ export const Footer: React.FC = () => {
         {renderIcon(errorPanel, errorCount > 0 ? "text-destructive" : "")}
         <span className="ml-1 font-mono mt-[0.125rem]">{errorCount}</span>
       </FooterItem>
+
+      <IfCapability capability="terminal">
+        <FooterItem
+          tooltip="Open terminal"
+          selected={isTerminalOpen}
+          onClick={() => toggleTerminal()}
+        >
+          <TerminalSquareIcon className="h-5 w-5" />
+        </FooterItem>
+      </IfCapability>
 
       <FooterItem
         tooltip={

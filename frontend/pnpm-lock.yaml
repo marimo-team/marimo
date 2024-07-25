@@ -200,6 +200,15 @@ dependencies:
   '@valtown/codemirror-codeium':
     specifier: ^1.0.2
     version: 1.0.2(@codemirror/autocomplete@6.16.3)(@codemirror/state@6.4.1)(@codemirror/view@6.28.4)
+  '@xterm/addon-attach':
+    specifier: ^0.11.0
+    version: 0.11.0(@xterm/xterm@5.5.0)
+  '@xterm/addon-fit':
+    specifier: ^0.10.0
+    version: 0.10.0(@xterm/xterm@5.5.0)
+  '@xterm/xterm':
+    specifier: ^5.5.0
+    version: 5.5.0
   ai:
     specifier: ^3.2.16
     version: 3.2.16(react@18.3.1)(zod@3.23.8)
@@ -9433,6 +9442,26 @@ packages:
     dependencies:
       '@webassemblyjs/ast': 1.12.1
       '@xtuc/long': 4.2.2
+    dev: false
+
+  /@xterm/addon-attach@0.11.0(@xterm/xterm@5.5.0):
+    resolution: {integrity: sha512-JboCN0QAY6ZLY/SSB/Zl2cQ5zW1Eh4X3fH7BnuR1NB7xGRhzbqU2Npmpiw/3zFlxDaU88vtKzok44JKi2L2V2Q==}
+    peerDependencies:
+      '@xterm/xterm': ^5.0.0
+    dependencies:
+      '@xterm/xterm': 5.5.0
+    dev: false
+
+  /@xterm/addon-fit@0.10.0(@xterm/xterm@5.5.0):
+    resolution: {integrity: sha512-UFYkDm4HUahf2lnEyHvio51TNGiLK66mqP2JoATy7hRZeXaGMRDr00JiSF7m63vR5WKATF605yEggJKsw0JpMQ==}
+    peerDependencies:
+      '@xterm/xterm': ^5.0.0
+    dependencies:
+      '@xterm/xterm': 5.5.0
+    dev: false
+
+  /@xterm/xterm@5.5.0:
+    resolution: {integrity: sha512-hqJHYaQb5OptNunnyAnkHyM8aCjZ1MEIDTQu1iIbbTD/xops91NB5yq1ZK/dC2JDbVWtF23zUtl9JE2NqwT87A==}
     dev: false
 
   /@xtuc/ieee754@1.2.0:

@@ -24,7 +24,8 @@ def _highlight_traceback(traceback: str) -> str:
 def write_traceback(traceback: str) -> None:
     if isinstance(sys.stderr, Stderr):
         sys.stderr._write_with_mimetype(
-            _highlight_traceback(traceback), mimetype="text/html"
+            _highlight_traceback(traceback),
+            mimetype="application/vnd.marimo+traceback",
         )
     else:
         sys.stderr.write(traceback)

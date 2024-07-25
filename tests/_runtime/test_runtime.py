@@ -870,6 +870,54 @@ class TestExecution:
         assert "e" in k.globals
 
     @staticmethod
+    async def test_runtime_name_error_reference_caught(
+        execution_kernel: Kernel,
+    ) -> None:
+        k = execution_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent(
+                        """
+                    try:
+                        R = R # Causes error since no def
+                        C = 0 # Unaccessible
+                    except:
+                        pass
+                    """
+                    ),
+                ),
+                ExecutionRequest(
+                    cell_id="1",
+                    code=textwrap.dedent(
+                        """
+                    C
+                    """
+                    ),
+                ),
+            ]
+        )
+        # Runtime error expected- since not a kernel error check stderr
+        assert "C" not in k.globals
+        if k.execution_type == "strict":
+            assert (
+                "name `R` is referenced before definition."
+                in k.stream.messages[-4][1]["output"]["data"][0]["msg"]
+            )
+            assert (
+                "This cell wasn't run"
+                in k.stream.messages[-1][1]["output"]["data"][0]["msg"]
+            )
+        else:
+            assert (
+                "marimo came across the undefined variable `C` during runtime."
+                in k.stream.messages[-2][1]["output"]["data"][0]["msg"]
+            )
+            assert "NameError" in k.stderr.messages[0]
+            assert "NameError" in k.stderr.messages[-1]
+
+    @staticmethod
     async def test_run_scratch(mocked_kernel: MockedKernel) -> None:
         k = mocked_kernel.k
         await k.run_scratchpad("x = 1; x")
@@ -881,11 +929,11 @@ class TestExecution:
         assert all(m[1]["cell_id"] == SCRATCH_CELL_ID for m in messages)
         assert m1[1]["status"] == "queued"
         assert m2[1]["status"] == "running"
-        assert m3[1]["status"] == "idle"
-        assert m4[1]["status"] is None
+        assert m3[1]["status"] is None
         assert (
-            m4[1]["output"]["data"] == "<pre style='font-size: 12px'>1</pre>"
+            m3[1]["output"]["data"] == "<pre style='font-size: 12px'>1</pre>"
         )
+        assert m4[1]["status"] == "idle"
         # Does not pollute globals
         assert "x" not in k.globals
 
@@ -908,9 +956,9 @@ class TestExecution:
         # Has no errors
         assert not k.errors
         messages = mocked_kernel.stream.messages
-        last_message = messages[-1]
+        output_message = messages[-2]
         assert (
-            last_message[1]["output"]["data"]
+            output_message[1]["output"]["data"]
             == "<pre style='font-size: 12px'>20</pre>"
         )
         assert "z" in k.globals
@@ -936,9 +984,9 @@ class TestExecution:
         # Has no errors
         assert not k.errors
         messages = mocked_kernel.stream.messages
-        last_message = messages[-1]
+        output_message = messages[-2]
         assert (
-            last_message[1]["output"]["data"]
+            output_message[1]["output"]["data"]
             == "<pre style='font-size: 12px'>20</pre>"
         )
         assert "z" in k.globals
@@ -1144,6 +1192,87 @@ class TestStrictExecution:
         else:
             assert "x" in k.globals
             assert not k.errors
+
+    @staticmethod
+    async def test_runtime_resolution_failure(strict_kernel: Kernel) -> None:
+        k = strict_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent(
+                        """
+                    X = 1
+                    Y = 2
+                    l = lambda x: x + X
+                    L = l # Static analysis can fail on reassignment
+                    l = lambda x: x + Y
+                    """
+                    ),
+                ),
+                ExecutionRequest(
+                    cell_id="1",
+                    code=textwrap.dedent(
+                        """
+                    try:
+                      x = L(1)
+                    except NameError as e:
+                      E = e
+                    raise E
+                    """
+                    ),
+                ),
+            ]
+        )
+        # Runtime error expected- since not a kernel error check stderr
+        assert "x" not in k.globals
+        assert "E" in k.globals
+        assert k.errors == {}
+
+        assert (
+            "marimo came across the undefined variable `X` during runtime."
+            in k.stream.messages[-2][1]["output"]["data"][0]["msg"]
+        )
+        assert "NameError" in k.stderr.messages[-1]
+
+    @staticmethod
+    async def test_runtime_resolution_failure_private(
+        strict_kernel: Kernel,
+    ) -> None:
+        k = strict_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent(
+                        """
+                    _X = 1
+                    Y = 2
+                    l = lambda x: x + _X
+                    L = l # Static analysis can fail on reassignment
+                    l = lambda x: x + Y
+                    """
+                    ),
+                ),
+                ExecutionRequest(
+                    cell_id="1",
+                    code=textwrap.dedent(
+                        """
+                    x = L(1)
+                    x
+                    """
+                    ),
+                ),
+            ]
+        )
+        # Runtime error expected- since not a kernel error check stderr
+        assert "x" not in k.globals
+
+        assert (
+            "marimo came across the undefined variable `_X` during runtime."
+            in k.stream.messages[-2][1]["output"]["data"][0]["msg"]
+        )
+        assert "NameError" in k.stderr.messages[-1]
 
 
 class TestStoredOutput:

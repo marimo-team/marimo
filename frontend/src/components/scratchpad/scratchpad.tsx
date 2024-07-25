@@ -80,7 +80,7 @@ export const ScratchPad: React.FC = () => {
       className="flex flex-col h-full overflow-hidden divide-y"
       id={HTMLCellId.create(cellId)}
     >
-      <div className="flex gap-2 justify-between items-center flex-shrink-0">
+      <div className="flex justify-start items-center flex-shrink-0">
         <div className="flex items-center">
           <Tooltip content={renderShortcut("cell.run")}>
             <Button

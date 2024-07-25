@@ -22,14 +22,16 @@ import { useExpandedOutput } from "@/core/cells/outputs";
 import { invariant } from "@/utils/invariant";
 import { CsvViewer } from "./file-tree/renderers";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
+import { MarimoTracebackOutput } from "./output/MarimoTracebackOutput";
 
 /**
  * Renders an output based on an OutputMessage.
  */
 export const OutputRenderer: React.FC<{
   message: OutputMessage;
+  onRefactorWithAI?: (opts: { prompt: string }) => void;
 }> = memo((props) => {
-  const { message } = props;
+  const { message, onRefactorWithAI } = props;
 
   // Memoize parsing the json data
   const parsedJsonData = useMemo(() => {
@@ -94,6 +96,18 @@ export const OutputRenderer: React.FC<{
     case "application/vnd.marimo+error":
       invariant(Array.isArray(data), "Expected array data");
       return <MarimoErrorOutput errors={data} />;
+
+    case "application/vnd.marimo+traceback":
+      invariant(
+        typeof data === "string",
+        `Expected string data for mime=${mimetype}. Got ${typeof data}`,
+      );
+      return (
+        <MarimoTracebackOutput
+          onRefactorWithAI={onRefactorWithAI}
+          traceback={data}
+        />
+      );
 
     case "text/csv":
       invariant(

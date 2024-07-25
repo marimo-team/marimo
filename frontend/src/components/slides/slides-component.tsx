@@ -97,11 +97,12 @@ const SlidesComponent = ({
                 }
               }}
               className={cn(
-                "h-full w-full flex items-center justify-center box-border overflow-hidden",
+                "h-full w-full flex box-border overflow-y-auto overflow-x-hidden",
                 isFullscreen ? "p-20" : "p-6",
               )}
             >
-              {child}
+              {/* this centers the contents */}
+              <div className="m-auto">{child}</div>
             </div>
           </SwiperSlide>
         );

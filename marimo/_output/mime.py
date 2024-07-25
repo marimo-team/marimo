@@ -26,6 +26,7 @@ class MIME(Protocol):
         The supported mimetypes are:
           application/json
           application/vnd.marimo+error
+          application/vnd.marimo+traceback
           image/png
           image/svg+xml
           image/tiff

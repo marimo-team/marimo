@@ -179,7 +179,7 @@ export function useCellActionButtons({ cell }: Props) {
         hidden: !aiEnabled,
         handle: () => {
           setAiCompletionCell((current) =>
-            current === cellId ? null : cellId,
+            current?.cellId === cellId ? null : { cellId },
           );
         },
         hotkey: "cell.aiCompletion",
@@ -205,14 +205,16 @@ export function useCellActionButtons({ cell }: Props) {
         icon: <MarkdownIcon />,
         label: "View as Markdown",
         hotkey: "cell.viewAsMarkdown",
-        hidden: !canToggleToLanguage(editorView, "markdown"),
+        // We allow them to toggle to markdown in Python
+        // even if its not wrapped in a mo.md
+        hidden: getCurrentLanguageAdapter(editorView) !== "python",
         handle: () => {
           if (!editorView) {
             return;
           }
           maybeAddMarimoImport(autoInstantiate, createCell);
 
-          toggleToLanguage(editorView, "markdown");
+          toggleToLanguage(editorView, "markdown", { force: true });
         },
       },
       {

@@ -369,11 +369,12 @@ const CellComponent = (
     "cell.aiCompletion": () => {
       let closed = false;
       setAiCompletionCell((v) => {
-        if (v === cellId) {
+        // Toggle close
+        if (v?.cellId === cellId) {
           closed = true;
           return null;
         }
-        return cellId;
+        return { cellId };
       });
       if (closed) {
         derefNotNull(editorView).focus();
@@ -429,6 +430,10 @@ const CellComponent = (
     } else {
       return undefined;
     }
+  };
+
+  const handleRefactorWithAI = (opts: { prompt: string }) => {
+    setAiCompletionCell({ cellId, initialPrompt: opts.prompt });
   };
 
   return (
@@ -539,6 +544,7 @@ const CellComponent = (
             consoleOutputs={consoleOutputs}
             stale={consoleOutputStale}
             cellName={name}
+            onRefactorWithAI={handleRefactorWithAI}
             onSubmitDebugger={(text, index) => {
               setStdinResponse({ cellId, response: text, outputIndex: index });
               sendStdin({ text });

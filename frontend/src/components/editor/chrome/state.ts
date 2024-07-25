@@ -1,14 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import { useAtomValue } from "jotai";
-import { PanelType } from "./types";
+import type { PanelType } from "./types";
 import { ZodLocalStorage } from "@/utils/localStorage";
 import { z } from "zod";
 
 export interface ChromeState {
   selectedPanel: PanelType | undefined;
-  isOpen: boolean;
-  panelLocation: "left" | "bottom";
+  isSidebarOpen: boolean;
+  isTerminalOpen: boolean;
 }
 
 const storage = new ZodLocalStorage<ChromeState>(
@@ -18,8 +18,8 @@ const storage = new ZodLocalStorage<ChromeState>(
       .string()
       .optional()
       .transform((v) => v as PanelType),
-    isOpen: z.boolean(),
-    panelLocation: z.union([z.literal("left"), z.literal("bottom")]),
+    isSidebarOpen: z.boolean(),
+    isTerminalOpen: z.boolean(),
   }),
   initialState,
 );
@@ -27,8 +27,8 @@ const storage = new ZodLocalStorage<ChromeState>(
 function initialState(): ChromeState {
   return {
     selectedPanel: "variables", // initial panel
-    isOpen: false,
-    panelLocation: "left",
+    isSidebarOpen: false,
+    isTerminalOpen: false,
   };
 }
 
@@ -45,15 +45,25 @@ const {
       selectedPanel,
       // If it was closed, open it
       // If it was open, keep it open unless it was the same application
-      isOpen: state.isOpen ? state.selectedPanel !== selectedPanel : true,
+      isSidebarOpen: state.isSidebarOpen
+        ? state.selectedPanel !== selectedPanel
+        : true,
     }),
-    openPanel: (state) => ({ ...state, isOpen: true }),
-    closePanel: (state) => ({ ...state, isOpen: false }),
-    togglePanel: (state) => ({ ...state, isOpen: !state.isOpen }),
-    setIsOpen: (state, isOpen: boolean) => ({ ...state, isOpen }),
-    changePanelLocation: (state, panelLocation: "left" | "bottom") => ({
+    toggleSidebarPanel: (state) => ({
       ...state,
-      panelLocation,
+      isSidebarOpen: !state.isSidebarOpen,
+    }),
+    setIsSidebarOpen: (state, isOpen: boolean) => ({
+      ...state,
+      isSidebarOpen: isOpen,
+    }),
+    toggleTerminal: (state) => ({
+      ...state,
+      isTerminalOpen: !state.isTerminalOpen,
+    }),
+    setIsTerminalOpen: (state, isOpen: boolean) => ({
+      ...state,
+      isTerminalOpen: isOpen,
     }),
   },
   [(_prevState, newState) => storage.set(newState)],
@@ -61,7 +71,7 @@ const {
 
 export const useChromeState = () => {
   const state = useAtomValue(chromeAtom);
-  if (state.isOpen) {
+  if (state.isSidebarOpen) {
     return state;
   }
   return {

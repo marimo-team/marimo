@@ -126,6 +126,31 @@ yield_error,yield_center
       ]
     `);
   });
+
+  it("should handle when there is no format given", async () => {
+    const csvData = `id\n912312851340981241284`;
+    vi.spyOn(vegaLoader, "load").mockReturnValue(Promise.resolve(csvData));
+    const format = undefined;
+    const data = await vegaLoadData(csvData, format, { handleBigInt: true });
+    expect(data).toMatchInlineSnapshot(`
+      [
+        {
+          "id": 912312851340981241284n,
+        },
+      ]
+    `);
+
+    const jsonData = `[{"id": "912312851340981241284"}]`;
+    vi.spyOn(vegaLoader, "load").mockReturnValue(Promise.resolve(jsonData));
+    const data2 = await vegaLoadData(jsonData, format);
+    expect(data2).toMatchInlineSnapshot(`
+      [
+        {
+          "id": "912312851340981241284",
+        },
+      ]
+    `);
+  });
 });
 
 describe("uniquifyColumnNames", () => {

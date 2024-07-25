@@ -15,6 +15,7 @@ interface Data {
   label: string | null;
   disabled?: boolean;
   minHeight?: number;
+  maxHeight?: number;
 }
 
 export class CodeEditorPlugin implements IPlugin<T, Data> {
@@ -28,6 +29,7 @@ export class CodeEditorPlugin implements IPlugin<T, Data> {
     label: z.string().nullable(),
     disabled: z.boolean().optional(),
     minHeight: z.number().optional(),
+    maxHeight: z.number().optional(),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -50,6 +52,7 @@ const CodeEditorComponent = (props: CodeEditorComponentProps) => {
   const { theme } = useTheme();
   const finalTheme = props.theme || theme;
   const minHeight = props.minHeight ? `${props.minHeight}px` : "70px";
+  const maxHeight = props.maxHeight ? `${props.maxHeight}px` : undefined;
 
   return (
     <Labeled label={props.label} align="top" fullWidth={true}>
@@ -57,6 +60,7 @@ const CodeEditorComponent = (props: CodeEditorComponentProps) => {
         className={`cm [&>*]:outline-none border rounded overflow-hidden ${finalTheme}`}
         theme={finalTheme === "dark" ? "dark" : "light"}
         minHeight={minHeight}
+        maxHeight={maxHeight}
         placeholder={props.placeholder}
         editable={!props.disabled}
         value={props.value}

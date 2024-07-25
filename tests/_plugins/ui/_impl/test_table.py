@@ -257,3 +257,11 @@ def test_value_with_search_then_selection():
     # empty search
     table.search(SearchTableArgs())
     assert list(table._convert_value(["2"])) == [{"value": "cherry"}]
+
+
+def test_table_with_too_many_columns_fails():
+    data = {str(i): [1] for i in range(101)}
+    with pytest.raises(ValueError) as e:
+        ui.table(data)
+
+    assert "greater than the maximum allowed columns" in str(e)

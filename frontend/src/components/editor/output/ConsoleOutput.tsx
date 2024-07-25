@@ -20,6 +20,7 @@ interface Props {
   consoleOutputs: Array<WithResponse<OutputMessage>>;
   stale: boolean;
   debuggerActive: boolean;
+  onRefactorWithAI?: (opts: { prompt: string }) => void;
   onSubmitDebugger: (text: string, index: number) => void;
 }
 
@@ -31,6 +32,7 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
     cellName,
     cellId,
     onSubmitDebugger,
+    onRefactorWithAI,
     className,
   } = props;
 
@@ -135,7 +137,10 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
 
         return (
           <React.Fragment key={idx}>
-            <OutputRenderer message={output} />
+            <OutputRenderer
+              onRefactorWithAI={onRefactorWithAI}
+              message={output}
+            />
           </React.Fragment>
         );
       })}
