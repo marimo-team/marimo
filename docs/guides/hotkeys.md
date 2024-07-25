@@ -22,7 +22,6 @@ You can find a list of available hotkeys below:
 | `cell.hideCode`             |
 | `cell.moveDown`             |
 | `cell.moveUp`               |
-| `cell.name`                 |
 | `cell.redo`                 |
 | `cell.run`                  |
 | `cell.runAndNewAbove`       |

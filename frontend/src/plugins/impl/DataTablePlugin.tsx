@@ -107,10 +107,10 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
               "unknown",
             ]),
             z.string(),
-          ]),
+          ])
         )
         .nullish(),
-    }),
+    })
   )
   .withFunctions<Functions>({
     download_as: rpc
@@ -127,9 +127,9 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             nulls: z.number().nullish(),
             true: z.number().nullish(),
             false: z.number().nullish(),
-          }),
+          })
         ),
-      }),
+      })
     ),
     search: rpc
       .input(
@@ -139,7 +139,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             .optional(),
           query: z.string().optional(),
           filters: z.array(ConditionSchema).optional(),
-        }),
+        })
       )
       .output(z.union([z.string(), z.array(z.object({}).passthrough())])),
   })
@@ -184,8 +184,9 @@ interface DataTableSearchProps {
 
 export const LoadingDataTableComponent = memo(
   <T extends {}>(
-    props: Omit<DataTableProps<T>, "sorting"> & { data: TableData<T> },
+    props: Omit<DataTableProps<T>, "sorting"> & { data: TableData<T> }
   ) => {
+    // sourcery skip: use-object-destructuring
     const search = props.search;
     // Sorting/searching state
     const [sorting, setSorting] = useState<SortingState>([]);
@@ -220,7 +221,7 @@ export const LoadingDataTableComponent = memo(
           filters: filters.flatMap((filter) => {
             return filterToFilterCondition(
               filter.id,
-              filter.value as ColumnFilterValue,
+              filter.value as ColumnFilterValue
             );
           }),
         });
@@ -238,14 +239,14 @@ export const LoadingDataTableComponent = memo(
 
       const withoutExternalTypes = Objects.mapValues(
         props.fieldTypes ?? {},
-        ([type]) => type,
+        ([type]) => type
       );
 
       // Otherwise, load the data from the URL
       return vegaLoadData(
         tableData,
         { type: "csv", parse: getVegaFieldTypes(withoutExternalTypes) },
-        { handleBigInt: true },
+        { handleBigInt: true }
       );
     }, [sorting, search, filters, searchQuery, props.fieldTypes, props.data]);
 
@@ -301,7 +302,7 @@ export const LoadingDataTableComponent = memo(
         />
       </>
     );
-  },
+  }
 );
 LoadingDataTableComponent.displayName = "LoadingDataTableComponent";
 
@@ -344,7 +345,7 @@ const DataTableComponent = ({
     }
     const fieldTypesWithoutExternalTypes = Objects.mapValues(
       fieldTypes,
-      ([type]) => type,
+      ([type]) => type
     );
     return new ColumnChartSpecModel(
       data,
@@ -352,7 +353,7 @@ const DataTableComponent = ({
       columnSummaries,
       {
         includeCharts: !resultsAreClipped,
-      },
+      }
     );
   }, [data, fieldTypes, columnSummaries, resultsAreClipped]);
 
@@ -365,7 +366,7 @@ const DataTableComponent = ({
         showColumnSummaries: showColumnSummaries,
         fieldTypes: fieldTypes ?? {},
       }),
-    [data, selection, fieldTypes, rowHeaders, showColumnSummaries],
+    [data, selection, fieldTypes, rowHeaders, showColumnSummaries]
   );
 
   const rowSelection = Object.fromEntries((value || []).map((v) => [v, true]));
@@ -381,7 +382,7 @@ const DataTableComponent = ({
         const nextValue = Functions.asUpdater(updater)(rowSelection);
         setValue(Object.keys(nextValue));
       }
-    },
+    }
   );
 
   // We need to clear the selection when reloading

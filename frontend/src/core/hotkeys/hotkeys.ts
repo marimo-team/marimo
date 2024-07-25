@@ -100,11 +100,6 @@ const DEFAULT_HOT_KEY = {
   },
 
   // Editing Cells
-  "cell.name": {
-    name: "Name",
-    group: "Editing",
-    key: "Mod-Shift-l",
-  },
   "cell.format": {
     name: "Format",
     group: "Editing",
