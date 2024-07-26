@@ -1,6 +1,9 @@
 import re
 import subprocess
+import sys
 import textwrap
+
+import pytest
 
 from marimo._runtime.requests import (
     ExecutionRequest,
@@ -28,7 +31,11 @@ class TestScriptTrace:
         # Expected output:
         #    y = y / x
         #        ^
-        assert result.split("y / x")[1].split("\n")[1].startswith("        ^")
+        # exact line numbers differ by python version
+        if sys.version_info > (3, 8):
+            assert (
+                result.split("y / x")[1].split("\n")[1].startswith("        ^")
+            )
 
     @staticmethod
     def test_script_trace_with_output() -> None:
@@ -112,7 +119,8 @@ class TestAppTrace:
         post_file = result.split("marimo__cell")[1].split("\n")
         assert "line 4" in post_file[0]
         assert post_file[1].startswith("    y = y / x #L4")
-        assert post_file[2].startswith("        ~~^~~")
+        if sys.version_info > (3, 8):
+            assert post_file[2].startswith("        ~~^~~")
 
     @staticmethod
     async def test_app_trace_output_line_number(
@@ -160,7 +168,8 @@ class TestAppTrace:
         assert "foo()" in post_file_call[1]
         post_file_error = result.split("marimo__cell_0")[1].split("\n")
         assert post_file_error[1].startswith("    y = y / x #L5")
-        assert post_file_error[2].startswith("        ~~^~~")
+        if sys.version_info > (3, 8):
+            assert post_file_error[2].startswith("        ~~^~~")
 
     @staticmethod
     async def test_app_trace_name_error_reference_caught(
