@@ -114,7 +114,8 @@ def test_as_html_opinionated_formatter():
 
 
 def test_broken_formatter():
-    class _ClsForBrokenFormatter: ...
+    class _ClsForBrokenFormatter:
+        ...
 
     def _format(cls: _ClsForBrokenFormatter) -> tuple[KnownMimeType, str]:
         del cls
@@ -130,16 +131,14 @@ def test_broken_formatter():
 
 @patch(
     "marimo._output.formatters.formatters.THIRD_PARTY_FACTORIES",
-    {"fake_module": Mock()},
+    new_callable=dict,
 )
-@patch(
-    "marimo._output.formatters.formatters.sys.modules", {"fake_module": None}
-)
-def test_pre_imported_formatter():
-    import marimo
+@patch("marimo._output.formatters.formatters.sys.modules", new_callable=dict)
+def test_pre_imported_formatter(mock_sys_modules, mock_third_party_factories):
+    mock_sys_modules["fake_module"] = Mock()
 
-    mock_factory = marimo._output.formatters.formatters.THIRD_PARTY_FACTORIES[
-        "fake_module"
-    ]
+    mock_factory = Mock()
+    mock_third_party_factories["fake_module"] = mock_factory
+
     register_formatters()
     assert mock_factory.register.call_count == 1
