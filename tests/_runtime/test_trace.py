@@ -75,7 +75,7 @@ class TestScriptTrace:
         assert f'{file_path}", line 3' in result
 
         assert (
-            f'tests/_runtime/script_data/script_exception_with_imported_function.py"'
+            'tests/_runtime/script_data/script_exception_with_imported_function.py"'
             + ", line 11"
             in result
         )
