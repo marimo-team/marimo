@@ -70,14 +70,15 @@ class TestScriptTrace:
         result = p.stderr.decode()
         assert "ZeroDivisionError: division by zero" in result
 
-        # windows support
+        # windows compatibility
         file_path = os.path.normpath("tests/_runtime/script_data/func.py")
         assert f'{file_path}", line 3' in result
 
-        file_path = os.path.normpath(
-            "tests/_runtime/script_data/script_exception_with_imported_function.py"
+        assert (
+            f'tests/_runtime/script_data/script_exception_with_imported_function.py"'
+            + ", line 11"
+            in result
         )
-        assert f'{file_path}"' + ", line 11" in result
         assert "y = y / x" in result
 
 
