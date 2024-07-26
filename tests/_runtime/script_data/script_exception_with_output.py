@@ -5,8 +5,9 @@ app = marimo.App()
 
 
 @app.cell
-def __(y):
+def __():
     x = 0
+    y = 0
     y / x
     return x, y
 
