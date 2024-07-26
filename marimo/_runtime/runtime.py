@@ -528,18 +528,32 @@ class Kernel:
                         reload=False,
                     )
 
-    def _try_registering_cell(
-        self,
-        cell_id: CellId_t,
-        code: str,
-    ) -> Optional[Error]:
-        """Attempt to register a cell with given id and code.
+    def _register_cell(self, cell_id: CellId_t, cell: CellImpl) -> None:
+        if cell_id in self.cell_metadata:
+            # If we already have a config for this cell id, restore it
+            # This can happen when a cell was previously deactivated (due to a
+            # syntax error or multiple definition error, for example) and then
+            # re-registered
+            cell.configure(self.cell_metadata[cell_id].config)
+        elif cell_id not in self.cell_metadata:
+            self.cell_metadata[cell_id] = CellMetadata()
 
-        Precondition: a cell with the supplied id must not already exist in the
-        graph.
+        self.graph.register_cell(cell_id, cell)
+        # leaky abstraction: the graph doesn't know about stale modules, so
+        # we have to check for them here.
+        module_reloader = self.module_reloader
+        if (
+            module_reloader is not None
+            and module_reloader.cell_uses_stale_modules(cell)
+        ):
+            self.graph.set_stale(set([cell.cell_id]))
+        LOGGER.debug("registered cell %s", cell_id)
+        LOGGER.debug("parents: %s", self.graph.parents[cell_id])
+        LOGGER.debug("children: %s", self.graph.children[cell_id])
 
-        If cell was unable to be registered, returns an Error object.
-        """
+    def _try_compiling_cell(
+        self, cell_id: CellId_t, code: str
+    ) -> tuple[Optional[CellImpl], Optional[Error]]:
         error: Optional[Error] = None
         try:
             cell = compile_cell(code, cell_id=cell_id)
@@ -560,29 +574,24 @@ class Kernel:
                 traceback.print_exc(file=tmpio)
                 tmpio.seek(0)
                 error = UnknownError(msg=tmpio.read())
+        return cell, error
 
-        if cell_id in self.cell_metadata and cell is not None:
-            # If we already have a config for this cell id, restore it
-            # This can happen when a cell was previously deactivated (due to a
-            # syntax error or multiple definition error, for example) and then
-            # re-registered
-            cell.configure(self.cell_metadata[cell_id].config)
-        elif cell_id not in self.cell_metadata:
-            self.cell_metadata[cell_id] = CellMetadata()
+    def _try_registering_cell(
+        self,
+        cell_id: CellId_t,
+        code: str,
+    ) -> Optional[Error]:
+        """Attempt to register a cell with given id and code.
+
+        Precondition: a cell with the supplied id must not already exist in the
+        graph.
+
+        If cell was unable to be registered, returns an Error object.
+        """
+        cell, error = self._try_compiling_cell(cell_id, code)
 
         if cell is not None:
-            self.graph.register_cell(cell_id, cell)
-            # leaky abstraction: the graph doesn't know about stale modules, so
-            # we have to check for them here.
-            module_reloader = self.module_reloader
-            if (
-                module_reloader is not None
-                and module_reloader.cell_uses_stale_modules(cell)
-            ):
-                self.graph.set_stale(set([cell.cell_id]))
-            LOGGER.debug("registered cell %s", cell_id)
-            LOGGER.debug("parents: %s", self.graph.parents[cell_id])
-            LOGGER.debug("children: %s", self.graph.children[cell_id])
+            self._register_cell(cell_id, cell)
 
         return error
 
@@ -1110,12 +1119,18 @@ class Kernel:
         roots = {SCRATCH_CELL_ID}
 
         # If cannot compile, don't run
-        try:
-            cell = compile_cell(code, SCRATCH_CELL_ID)
-            cell.defs.clear()  # remove definitions
-            cell.refs.clear()  # remove definitions
-        except SyntaxError:
+        cell, error = self._try_compiling_cell(SCRATCH_CELL_ID, code)
+        if error:
+            CellOp.broadcast_error(
+                data=[error],
+                clear_console=True,
+                cell_id=SCRATCH_CELL_ID,
+            )
             return
+        elif not cell:
+            return
+        cell.defs.clear()  # remove definitions
+        cell.refs.clear()  # remove references
 
         # Create graph of just the scratchpad cell
         graph = dataflow.DirectedGraph()
