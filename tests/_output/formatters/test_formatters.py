@@ -114,8 +114,7 @@ def test_as_html_opinionated_formatter():
 
 
 def test_broken_formatter():
-    class _ClsForBrokenFormatter:
-        ...
+    class _ClsForBrokenFormatter: ...
 
     def _format(cls: _ClsForBrokenFormatter) -> tuple[KnownMimeType, str]:
         del cls
