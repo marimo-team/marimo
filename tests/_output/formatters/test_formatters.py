@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import os.path
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -125,3 +126,20 @@ def test_broken_formatter():
     formatted = try_format(obj)
     assert formatted.traceback is not None
     assert "Broken Formatter" in formatted.traceback
+
+
+@patch(
+    "marimo._output.formatters.formatters.THIRD_PARTY_FACTORIES",
+    {"fake_module": Mock()},
+)
+@patch(
+    "marimo._output.formatters.formatters.sys.modules", {"fake_module": None}
+)
+def test_pre_imported_formatter():
+    import marimo
+
+    mock_factory = marimo._output.formatters.formatters.THIRD_PARTY_FACTORIES[
+        "fake_module"
+    ]
+    register_formatters()
+    assert mock_factory.register.call_count == 1
