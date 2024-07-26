@@ -18,6 +18,10 @@ import { Provider as SlotzProvider } from "@marimo-team/react-slotz";
 import { slotsController } from "./slots/slots";
 import { reactLazyWithPreload } from "@/utils/lazy";
 
+// Force tailwind classnames
+// tailwind only creates css for classnames that exist the FE files
+export const FORCE_TW_CLASSES = "prose";
+
 // Lazy imports
 const LazyHomePage = reactLazyWithPreload(
   () => import("@/components/pages/home-page"),

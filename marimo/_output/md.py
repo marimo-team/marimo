@@ -68,7 +68,7 @@ def _md(text: str, apply_markdown_class: bool = True) -> Html:
     )
 
     if apply_markdown_class:
-        return Html('<span class="markdown">' + html_text + "</span>")
+        return Html('<span class="markdown prose">' + html_text + "</span>")
     else:
         return Html(html_text)
 
