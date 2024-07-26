@@ -42,12 +42,11 @@ class TestScriptTrace:
         assert p.returncode == 1
 
         result = p.stderr.decode()
-        assert "NameError: name 'y' is not defined" in result
+        assert "ZeroDivisionError: division by zero" in result
         assert (
             'tests/_runtime/script_data/script_exception_with_output.py"'
-            + ", line 10"
-            in result
-        )
+            ", line 11"
+        ) in result
         assert "y / x" in result
 
     @staticmethod
@@ -210,3 +209,37 @@ class TestAppTrace:
             )
             assert "NameError" in k.stderr.messages[0]
             assert "NameError" in k.stderr.messages[-1]
+
+
+class TestEmbedTrace:
+    @staticmethod
+    async def test_embed_trace(
+        k: Kernel,
+    ) -> None:
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent(
+                        """
+                        from tests._runtime.script_data import (
+                            script_exception_with_output
+                        )
+                        await script_exception_with_output.app.embed()
+                    """
+                    ),
+                )
+            ]
+        )
+
+        # Naively strip tags to cehck trace
+        tag_re = re.compile(r"(<!--.*?-->|<[^>]*>)")
+        result = k.stderr.messages[-1]
+        result = tag_re.sub("", result)
+
+        assert "ZeroDivisionError: division by zero" in result
+        assert (
+            "tests/_runtime/script_data/script_exception_with_output.py&quot;"
+            ", line 11"
+        ) in result
+        assert "y / x" in result
