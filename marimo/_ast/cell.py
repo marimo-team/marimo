@@ -463,6 +463,7 @@ class Cell:
 class SourcePosition:
     filename: str
     lineno: int
+    col_offset: int
 
 
 def is_ws(char: str) -> bool:

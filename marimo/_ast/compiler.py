@@ -7,11 +7,10 @@ import io
 import linecache
 import os
 import re
-import sys
 import textwrap
 import token as token_types
 from tokenize import TokenInfo, tokenize
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from marimo._ast.cell import (
     Cell,
@@ -55,33 +54,39 @@ def cache(filename: str, code: str) -> None:
     )
 
 
-def fix_source_position(node: Any, n: int = 1, t: int = 4) -> Any:
+def fix_source_position(node: Any, source_position: SourcePosition) -> Any:
+    # NOTE: This function closely mirrors python's native ast.increment_lineno
+    # however, utilized here to also increment the col_offset of the node.
+    # See https://docs.python.org/3/library/ast.html#ast.increment_lineno
+    # for reference.
+    line_offset = source_position.lineno
+    col_offset = source_position.col_offset
     for child in ast.walk(node):
         # TypeIgnore is a special case where lineno is not an attribute
         # but rather a field of the node itself.
         # Note, TypeIgnore does not have a "col_offset"
         if isinstance(child, ast.TypeIgnore):
-            child.lineno = getattr(child, "lineno", 0) + n
+            child.lineno = getattr(child, "lineno", 0) + line_offset
             continue
 
         if "lineno" in child._attributes:
-            child.lineno = getattr(child, "lineno", 0) + n
+            child.lineno = getattr(child, "lineno", 0) + line_offset
 
         if "col_offset" in child._attributes:
-            child.col_offset = getattr(child, "col_offset", 0) + t
+            child.col_offset = getattr(child, "col_offset", 0) + col_offset
 
         if (
             "end_lineno" in child._attributes
             and (end_lineno := getattr(child, "end_lineno", 0)) is not None
         ):
-            child.end_lineno = end_lineno + n
+            child.end_lineno = end_lineno + line_offset
 
         if (
             "end_col_offset" in child._attributes
             and (end_col_offset := getattr(child, "end_col_offset", 0))
             is not None
         ):
-            child.end_col_offset = end_col_offset + t
+            child.end_col_offset = end_col_offset + col_offset
     return node
 
 
@@ -120,31 +125,39 @@ def compile_cell(
     v = ScopedVisitor("cell_" + cell_id)
     v.visit(module)
 
-    expr: Union[ast.Expression, str]
-    if isinstance(module.body[-1], ast.Expr):
+    expr: ast.Expression
+    final_expr = module.body[-1]
+    if isinstance(final_expr, ast.Expr):
         expr = ast.Expression(module.body.pop().value)
+        expr.lineno = final_expr.lineno
     else:
-        expr = "None"
+        const = ast.Constant(value=None)
+        const.col_offset = final_expr.end_col_offset
+        const.end_col_offset = final_expr.end_col_offset
+        expr = ast.Expression(const)
+        # use code over body since lineno corresponds to source
+        const.lineno = len(code.splitlines()) + 1
+        expr.lineno = const.lineno
+    # Creating an expression clears source info, so it needs to be set back
+    expr.col_offset = final_expr.end_col_offset
+    expr.end_col_offset = final_expr.end_col_offset
 
+    filename: str
     if source_position:
-        fix_source_position(module, source_position.lineno)
-        body_filename = source_position.filename
-        last_expr_filename = source_position.filename
+        # Modify the "source" position for meaningful stacktraces
+        fix_source_position(module, source_position)
+        fix_source_position(expr, source_position)
+        filename = source_position.filename
     else:
         # store the cell's code in Python's linecache so debuggers can find it
-        body_filename = get_filename(cell_id)
-        last_expr_filename = get_filename(cell_id, suffix="_output")
-        # cache the entire cell's code
-        cache(body_filename, code)
-        if sys.version_info >= (3, 9):
-            # ast.unparse only available >= 3.9
-            cache(
-                last_expr_filename,
-                ast.unparse(expr) if not isinstance(expr, str) else "None",
-            )
+        filename = get_filename(cell_id)
+        # cache the entire cell's code, doesn't need to be done in source case
+        # since there is an actual file to read from.
+        cache(filename, code)
+
     flags = ast.PyCF_ALLOW_TOP_LEVEL_AWAIT
-    body = compile(module, body_filename, mode="exec", flags=flags)
-    last_expr = compile(expr, last_expr_filename, mode="eval", flags=flags)
+    body = compile(module, filename, mode="exec", flags=flags)
+    last_expr = compile(expr, filename, mode="eval", flags=flags)
 
     glbls = {name for name in v.defs if not is_local(name)}
     return CellImpl(
@@ -169,6 +182,7 @@ def compile_cell(
 def cell_factory(
     f: Callable[..., Any],
     cell_id: CellId_t,
+    anonymous_file: bool = False,
 ) -> Cell:
     """Creates a cell from a function.
 
@@ -238,6 +252,8 @@ def cell_factory(
         start_line = fn_body_token.start[0] - 1
         start_col = fn_body_token.start[1]
 
+    col_offset = fn_body_token.end[1] - start_col
+
     # it would be difficult to tell if the last return token were in fact the
     # last statement of the function body, so we use the ast, which lets us
     # easily find the last statement of the function body;
@@ -270,11 +286,21 @@ def cell_factory(
             # handle return written on same line as last statement in cell
             cell_code += "\n" + lines[end_line][:return_offset]
 
-    is_script = f.__globals__["__name__"] == "__main__"
+    # anonymous file is required for deterministic testing.
+    if not anonymous_file:
+        # Fallback won't capture embedded scripts
+        is_script = f.__globals__["__name__"] == "__main__"
+        # TODO: spec is None for markdown notebooks, which is fine for now
+        if module := inspect.getmodule(f):
+            spec = module.__spec__
+            is_script = spec is None or spec.name != "marimo_app"
+    else:
+        is_script = False
     source_position = (
         SourcePosition(
             filename=f.__code__.co_filename,
             lineno=lnum + start_line - 1,
+            col_offset=col_offset,
         )
         if is_script
         else None
@@ -283,8 +309,6 @@ def cell_factory(
     return Cell(
         _name=f.__name__,
         _cell=compile_cell(
-            cell_code,
-            cell_id=cell_id,
-            source_position=source_position,
+            cell_code, cell_id=cell_id, source_position=source_position
         ),
     )
