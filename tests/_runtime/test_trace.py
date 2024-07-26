@@ -32,7 +32,7 @@ class TestScriptTrace:
         #    y = y / x
         #        ^
         # exact line numbers differ by python version
-        if sys.version_info > (3, 8):
+        if sys.version_info >= (3, 11):
             assert (
                 result.split("y / x")[1].split("\n")[1].startswith("        ^")
             )
@@ -119,7 +119,7 @@ class TestAppTrace:
         post_file = result.split("marimo__cell")[1].split("\n")
         assert "line 4" in post_file[0]
         assert post_file[1].startswith("    y = y / x #L4")
-        if sys.version_info > (3, 8):
+        if sys.version_info >= (3, 11):
             assert post_file[2].startswith("        ~~^~~")
 
     @staticmethod
@@ -168,7 +168,7 @@ class TestAppTrace:
         assert "foo()" in post_file_call[1]
         post_file_error = result.split("marimo__cell_0")[1].split("\n")
         assert post_file_error[1].startswith("    y = y / x #L5")
-        if sys.version_info > (3, 8):
+        if sys.version_info >= (3, 11):
             assert post_file_error[2].startswith("        ~~^~~")
 
     @staticmethod
