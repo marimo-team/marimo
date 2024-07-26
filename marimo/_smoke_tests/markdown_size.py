@@ -30,7 +30,7 @@ def __(mo, size, sizes):
 
 
 @app.cell
-def __(cars, mo, size, sizes):
+def __(cars, mo):
     mo.md(
         f"""
     # kitchen sink
@@ -88,13 +88,17 @@ def __(cars, mo, size, sizes):
 
     `inline code`
     """,
-        size=sizes[size.value],
     )
     return
 
 
 @app.cell
 def __():
+    {
+        "string": "hello",
+        "int": 10,
+        "float": 10.5,
+    }
     return
 
 

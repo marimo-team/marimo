@@ -17,10 +17,10 @@ def test_md() -> None:
     )
 
 
-def test_md_size() -> None:
-    input_text = "This is **bold** and this is _italic_."
-    expected_output = '<span class="markdown prose prose-lg"><span class="paragraph">This is <strong>bold</strong> and this is <em>italic</em>.</span></span>'  # noqa: E501
-    assert _md(input_text, size="lg").text == expected_output
+# def test_md_size() -> None:
+#     input_text = "This is **bold** and this is _italic_."
+#     expected_output = '<span class="markdown prose prose-lg"><span class="paragraph">This is <strong>bold</strong> and this is <em>italic</em>.</span></span>'  # noqa: E501
+#     assert _md(input_text, size="lg").text == expected_output
 
 
 def test_md_code_blocks() -> None:

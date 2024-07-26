@@ -84,10 +84,7 @@ def _md(
 
 
 @mddoc
-def md(
-    text: str,
-    size: Optional[MarkdownSize] = None,
-) -> Html:
+def md(text: str) -> Html:
     r"""Write markdown
 
     This function takes a string of markdown as input and returns an Html
@@ -145,10 +142,9 @@ def md(
     **Args**:
 
     - `text`: a string of markdown
-    - `size`: one of `"sm"`, `"base"`, `"lg"`, `"xl"` or `"2xl"`
 
     **Returns**:
 
     - An `Html` object.
     """
-    return _md(text, size=size)
+    return _md(text)

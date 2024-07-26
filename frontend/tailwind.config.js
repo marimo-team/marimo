@@ -155,6 +155,12 @@ module.exports = {
             code: {
               fontWeight: 500,
             },
+            "ul > li::marker": {
+              color: "hsl(var(--muted-foreground))",
+            },
+            "ol > li::marker": {
+              color: "hsl(var(--muted-foreground))",
+            },
           },
         },
       },
