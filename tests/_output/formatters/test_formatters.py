@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import os.path
+import sys
 from unittest.mock import Mock, patch
 
 import pytest
@@ -132,10 +133,8 @@ def test_broken_formatter():
     "marimo._output.formatters.formatters.THIRD_PARTY_FACTORIES",
     new_callable=dict,
 )
-@patch("sys.modules", new_callable=dict)
-def test_pre_imported_formatter(mock_sys_modules, mock_third_party_factories):
-    mock_sys_modules["fake_module"] = Mock()
-
+@patch.dict(sys.modules, {"fake_module": Mock()})
+def test_pre_imported_formatter(mock_third_party_factories):
     mock_factory = Mock()
     mock_third_party_factories["fake_module"] = mock_factory
 
