@@ -68,6 +68,7 @@
     "@react-aria/focus": "^3.17.1",
     "@replit/codemirror-vim": "^6.2.1",
     "@storybook/addon-styling": "^1.3.7",
+    "@tailwindcss/typography": "^0.5.13",
     "@tanstack/react-table": "^8.19.2",
     "@textea/json-viewer": "^3.4.1",
     "@types/humanize-duration": "^3.27.4",
