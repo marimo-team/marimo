@@ -5,24 +5,17 @@ import subprocess
 import sys
 import textwrap
 
-import pytest
-
 from marimo._runtime.requests import (
     ExecutionRequest,
 )
 from marimo._runtime.runtime import Kernel
 
 
-# skip if windows
-@pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="module not resolved from subprocess on windows.",
-)
 class TestScriptTrace:
     @staticmethod
     def test_script_trace() -> None:
         p = subprocess.run(
-            ["python", "tests/_runtime/script_data/script_exception.py"],
+            [sys.executable, "tests/_runtime/script_data/script_exception.py"],
             capture_output=True,
         )
         assert p.returncode == 1
@@ -48,7 +41,7 @@ class TestScriptTrace:
     def test_script_trace_with_output() -> None:
         p = subprocess.run(
             [
-                "python",
+                sys.executable,
                 "tests/_runtime/script_data/script_exception_with_output.py",
             ],
             capture_output=True,
@@ -67,7 +60,7 @@ class TestScriptTrace:
     def test_script_trace_with_imported_file() -> None:
         p = subprocess.run(
             [
-                "python",
+                sys.executable,
                 "tests/_runtime/script_data/script_exception_with_imported_function.py",
             ],
             capture_output=True,
