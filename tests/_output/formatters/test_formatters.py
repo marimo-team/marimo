@@ -133,7 +133,7 @@ def test_broken_formatter():
     "marimo._output.formatters.formatters.THIRD_PARTY_FACTORIES",
     new_callable=dict,
 )
-@patch("marimo._output.formatters.formatters.sys.modules", new_callable=dict)
+@patch("sys.modules", new_callable=dict)
 def test_pre_imported_formatter(mock_sys_modules, mock_third_party_factories):
     mock_sys_modules["fake_module"] = Mock()
 
