@@ -95,7 +95,7 @@ class TestAppTrace:
             ]
         )
 
-        # Naively strip tags to cehck trace
+        # Naively strip tags to check trace
         tag_re = re.compile(r"(<!--.*?-->|<[^>]*>)")
         result = k.stderr.messages[-1]
         result = tag_re.sub("", result)
@@ -142,7 +142,7 @@ class TestAppTrace:
             ]
         )
 
-        # Naively strip tags to cehck trace
+        # Naively strip tags to check trace
         tag_re = re.compile(r"(<!--.*?-->|<[^>]*>)")
         result = k.stderr.messages[-1]
         result = tag_re.sub("", result)
@@ -232,7 +232,7 @@ class TestEmbedTrace:
             ]
         )
 
-        # Naively strip tags to cehck trace
+        # Naively strip tags to check trace
         tag_re = re.compile(r"(<!--.*?-->|<[^>]*>)")
         result = k.stderr.messages[-1]
         result = tag_re.sub("", result)
