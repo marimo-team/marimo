@@ -1,7 +1,11 @@
+# Copyright 2024 Marimo. All rights reserved.
+import os
 import re
 import subprocess
 import sys
 import textwrap
+
+import pytest
 
 from marimo._runtime.requests import (
     ExecutionRequest,
@@ -9,6 +13,11 @@ from marimo._runtime.requests import (
 from marimo._runtime.runtime import Kernel
 
 
+# skip if windows
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="module not resolved from subprocess on windows.",
+)
 class TestScriptTrace:
     @staticmethod
     def test_script_trace() -> None:
@@ -244,9 +253,11 @@ class TestEmbedTrace:
         result = k.stderr.messages[-1]
         result = tag_re.sub("", result)
 
+        # windows support
+        file_path = os.path.normpath(
+            "tests/_runtime/script_data/script_exception_with_output.py"
+        )
+
         assert "ZeroDivisionError: division by zero" in result
-        assert (
-            "tests/_runtime/script_data/script_exception_with_output.py&quot;"
-            ", line 11"
-        ) in result
+        assert (file_path + "&quot;, line 11") in result
         assert "y / x" in result
