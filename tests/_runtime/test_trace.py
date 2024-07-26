@@ -3,8 +3,6 @@ import subprocess
 import sys
 import textwrap
 
-import pytest
-
 from marimo._runtime.requests import (
     ExecutionRequest,
 )
