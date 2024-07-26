@@ -62,7 +62,6 @@ import {
 } from "../home/state";
 import { Maps } from "@/utils/maps";
 import { Input } from "../ui/input";
-import { Paths } from "@/utils/paths";
 
 function tabTarget(path: string) {
   // Consistent tab target so we open in the same tab when clicking on the same notebook
@@ -263,7 +262,6 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
 
   const Icon = FILE_TYPE_ICONS[fileType];
   const iconEl = <Icon className="w-5 h-5 flex-shrink-0" strokeWidth={1.5} />;
-  const root = useContext(RunningNotebooksContext).root;
 
   const renderItem = () => {
     const itemClassName =
@@ -277,25 +275,21 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
       );
     }
 
-    const relativePath =
-      node.data.path.startsWith(root) && Paths.isAbsolute(node.data.path)
-        ? node.data.path.slice(root.length + 1)
-        : node.data.path;
-
-    const isMarkdown = relativePath.endsWith(".md");
+    const path = node.data.path;
+    const isMarkdown = path.endsWith(".md");
 
     return (
       <a
         className={itemClassName}
-        href={asURL(`?file=${relativePath}`).toString()}
-        target={tabTarget(relativePath)}
+        href={asURL(`?file=${path}`).toString()}
+        target={tabTarget(path)}
       >
         {iconEl}
         <span className="flex-1 overflow-hidden text-ellipsis">
           {node.data.name}
           {isMarkdown && <MarkdownIcon className="ml-2 inline opacity-80" />}
         </span>
-        <SessionShutdownButton filePath={relativePath} />
+        <SessionShutdownButton filePath={path} />
         <ExternalLinkIcon
           size={20}
           className="group-hover:opacity-100 opacity-0 text-primary"
