@@ -25,7 +25,7 @@ class TestPandasTableManager(unittest.TestCase):
                 # Integer
                 "A": [1, 2, 3],
                 # String
-                "B": ["a", "b", "c"],
+                "B": ["a", "b", " b"],
                 # Float
                 "C": [1.0, 2.0, 3.0],
                 # Boolean
@@ -345,7 +345,11 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_get_unique_column_values(self) -> None:
         column = "B"
-        assert self.manager.get_unique_column_values(column) == ["a", "b", "c"]
+        assert self.manager.get_unique_column_values(column) == [
+            "a",
+            "b",
+            " b",
+        ]
 
     def test_search(self) -> None:
         import pandas as pd

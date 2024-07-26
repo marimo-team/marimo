@@ -127,13 +127,15 @@ const DataTableInternal = <TData,>({
       return;
     }
 
+    // whitespace-pre so that strings with different whitespace look
+    // different
     return table.getHeaderGroups().map((headerGroup) => (
       <TableRow key={headerGroup.id}>
         {headerGroup.headers.map((header) => {
           return (
             <TableHead
               key={header.id}
-              className="h-auto min-h-10 whitespace-nowrap align-baseline"
+              className="h-auto min-h-10 whitespace-pre align-baseline"
             >
               {header.isPlaceholder
                 ? null
@@ -181,7 +183,7 @@ const DataTableInternal = <TData,>({
                     <TableCell
                       key={cell.id}
                       className={cn(
-                        "whitespace-nowrap truncate max-w-[300px]",
+                        "whitespace-pre truncate max-w-[300px]",
                         cell.column.getColumnWrapping &&
                           cell.column.getColumnWrapping() === "wrap" &&
                           "whitespace-pre-wrap min-w-[200px]",
