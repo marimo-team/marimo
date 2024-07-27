@@ -109,7 +109,7 @@
     "partysocket": "1.0.1",
     "path-to-regexp": "^7.0.0",
     "plotly.js": "^2.33.0",
-    "pyodide": "^0.26.1",
+    "pyodide": "^0.26.2",
     "react-arborist": "^3.4.0",
     "react-aria-components": "^1.2.1",
     "react-codemirror-merge": "^4.22.2",
