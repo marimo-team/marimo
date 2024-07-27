@@ -294,8 +294,8 @@ dependencies:
     specifier: ^2.33.0
     version: 2.33.0(mapbox-gl@1.13.3)
   pyodide:
-    specifier: ^0.26.1
-    version: 0.26.1
+    specifier: ^0.26.2
+    version: 0.26.2
   react-arborist:
     specifier: ^3.4.0
     version: 3.4.0(@types/node@20.14.9)(@types/react@18.3.3)(react-dom@18.3.1)(react@18.3.1)
@@ -16376,8 +16376,8 @@ packages:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
 
-  /pyodide@0.26.1:
-    resolution: {integrity: sha512-P+Gm88nwZqY7uBgjbQH8CqqU6Ei/rDn7pS1t02sNZsbyLJMyE2OVXjgNuqVT3KqYWnyGREUN0DbBUCJqk8R0ew==}
+  /pyodide@0.26.2:
+    resolution: {integrity: sha512-8VCRdFX83gBsWs6XP2rhG8HMaB+JaVyyav4q/EMzoV8fXH8HN6T5IISC92SNma6i1DRA3SVXA61S1rJcB8efgA==}
     engines: {node: '>=18.0.0'}
     dependencies:
       ws: 8.17.0
