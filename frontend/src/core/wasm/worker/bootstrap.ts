@@ -2,12 +2,12 @@
 import type { PyodideInterface } from "pyodide";
 import { WasmFileSystem } from "./fs";
 import { Logger } from "../../../utils/Logger";
-import { SerializedBridge, WasmController } from "./types";
+import type { SerializedBridge, WasmController } from "./types";
 import { invariant } from "../../../utils/invariant";
-import { UserConfig } from "@/core/config/config-schema";
+import type { UserConfig } from "@/core/config/config-schema";
 import { getMarimoWheel } from "./getMarimoWheel";
-import { OperationMessage } from "@/core/kernel/messages";
-import { JsonString } from "@/utils/json/base64";
+import type { OperationMessage } from "@/core/kernel/messages";
+import type { JsonString } from "@/utils/json/base64";
 import { t } from "./tracer";
 
 declare let loadPyodide: (opts: {
@@ -32,8 +32,9 @@ export class DefaultWasmController implements WasmController {
     const { version } = opts;
 
     // If is a dev release, we need to install from test.pypi.org
-    if (version.includes("dev")) {
-      await this.installDevMarimo(pyodide, version);
+    if (version.includes("dev") || 4) {
+      await this.installDevMarimoAndDeps(pyodide, version);
+      return pyodide;
     }
 
     await this.installMarimoAndDeps(pyodide, version);
@@ -63,11 +64,14 @@ export class DefaultWasmController implements WasmController {
     return pyodide;
   }
 
-  private async installDevMarimo(pyodide: PyodideInterface, version: string) {
+  private async installDevMarimoAndDeps(
+    pyodide: PyodideInterface,
+    version: string,
+  ) {
     const span = t.startSpan("installDevMarimo");
-    await pyodide.runPythonAsync(`
+    await Promise.all([
+      pyodide.runPythonAsync(`
       import micropip
-
       await micropip.install(
         [
           "${getMarimoWheel(version)}",
@@ -75,7 +79,19 @@ export class DefaultWasmController implements WasmController {
         deps=False,
         index_urls="https://test.pypi.org/pypi/{package_name}/json"
         );
-      `);
+      `),
+      pyodide.runPythonAsync(`
+      import micropip
+      await micropip.install(
+        [
+          "Markdown==3.6",
+          "pymdown-extensions==10.8.1",
+          "duckdb==1.0.0",
+        ],
+        deps=False,
+        );
+      `),
+    ]);
     span.end("ok");
   }
 
@@ -86,12 +102,12 @@ export class DefaultWasmController implements WasmController {
     const span = t.startSpan("installMarimoAndDeps");
     await pyodide.runPythonAsync(`
       import micropip
-
       await micropip.install(
         [
           "${getMarimoWheel(version)}",
           "Markdown==3.6",
-          "pymdown-extensions==10.8.1"
+          "pymdown-extensions==10.8.1",
+          "duckdb==1.0.0",
         ],
         deps=False,
       );
