@@ -76,35 +76,37 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
 
   return (
     <VerticalLayoutWrapper invisible={invisible} appConfig={appConfig}>
-      {cells.map((cell) => (
-        <VerticalCell
-          key={cell.id}
-          cellId={cell.id}
-          output={cell.output}
-          consoleOutputs={cell.consoleOutputs}
-          status={cell.status}
-          code={cell.code}
-          config={cell.config}
-          stopped={cell.stopped}
-          showCode={showCode && canShowCode}
-          errored={cell.errored}
-          mode={mode}
-          runStartTimestamp={cell.runStartTimestamp}
-          interrupted={cell.interrupted}
-          staleInputs={cell.staleInputs}
-          name={cell.name}
-          kiosk={kioskMode}
-        />
-      ))}
-      {mode === "read" && (
-        <ActionButtons
-          canShowCode={canShowCode}
-          showCode={showCode}
-          onToggleShowCode={() => setShowCode((v) => !v)}
-        />
-      )}
-      {/* Shown in read and present */}
-      <FloatingOutline />
+      <div className={showCode ? "flex flex-col gap-5" : undefined}>
+        {cells.map((cell) => (
+          <VerticalCell
+            key={cell.id}
+            cellId={cell.id}
+            output={cell.output}
+            consoleOutputs={cell.consoleOutputs}
+            status={cell.status}
+            code={cell.code}
+            config={cell.config}
+            stopped={cell.stopped}
+            showCode={showCode && canShowCode}
+            errored={cell.errored}
+            mode={mode}
+            runStartTimestamp={cell.runStartTimestamp}
+            interrupted={cell.interrupted}
+            staleInputs={cell.staleInputs}
+            name={cell.name}
+            kiosk={kioskMode}
+          />
+        ))}
+        {mode === "read" && (
+          <ActionButtons
+            canShowCode={canShowCode}
+            showCode={showCode}
+            onToggleShowCode={() => setShowCode((v) => !v)}
+          />
+        )}
+        {/* Shown in read and present */}
+        <FloatingOutline />
+      </div>
     </VerticalLayoutWrapper>
   );
 };
