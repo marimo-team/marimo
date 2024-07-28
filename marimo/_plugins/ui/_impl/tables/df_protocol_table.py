@@ -59,7 +59,7 @@ class DataFrameProtocolTableManager(TableManager[DataFrameLike]):
 
     def apply_formatting(
         self, format_mapping: FormatMapping
-    ) -> TableManager[DataFrameLike]:
+    ) -> Union[pa.Table, pa.RecordBatch]:
         return self._ensure_delegate().apply_formatting(format_mapping)
 
     def supports_filters(self) -> bool:

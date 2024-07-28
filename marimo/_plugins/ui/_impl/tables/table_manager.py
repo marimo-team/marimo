@@ -16,6 +16,11 @@ from marimo._data.models import ColumnSummary, DataType, ExternalDataType
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 
+# export
+__all__ = [
+    "JSONType",
+]
+
 T = TypeVar("T")
 
 ColumnName = str
@@ -53,9 +58,7 @@ class TableManager(abc.ABC, Generic[T]):
         return True
 
     @abc.abstractmethod
-    def apply_formatting(
-        self, format_mapping: FormatMapping
-    ) -> TableManager[Any]:
+    def apply_formatting(self, format_mapping: FormatMapping) -> T:
         raise NotImplementedError
 
     @abc.abstractmethod

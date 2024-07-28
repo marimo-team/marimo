@@ -161,7 +161,8 @@ class table(
     - `page_size`: the number of rows to show per page.
       defaults to 10
     - `show_column_summaries`: whether to show column summaries
-    - `format_mapping`: a mapping from column names to formatting strings or functions
+    - `format_mapping`: a mapping from column names to formatting strings
+    or functions
     - `label`: text label for the element
     - `on_change`: optional callback to run when this element's value changes
     """

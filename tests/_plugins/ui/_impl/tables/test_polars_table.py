@@ -374,8 +374,6 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         assert_frame_equal(formatted_data, expected_data)
 
     def test_apply_formatting_empty(self) -> None:
-        import polars as pl
-
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         format_mapping: FormatMapping = {}
@@ -384,8 +382,6 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         assert_frame_equal(formatted_data, self.data)
 
     def test_apply_formatting_invalid_column(self) -> None:
-        import polars as pl
-
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         format_mapping: FormatMapping = {
