@@ -68,9 +68,9 @@ export function goToVariableDefinition(
 }
 
 /**
- * This function jump to a given position in the editor.
+ * This function jumps to a given position in the editor.
  * @param view The editor view which contains the variable name.
- * @param lineNumber The name of the variable to select, if found in the editor.
+ * @param lineNumber The line number to jump to.
  */
 export function goToLine(view: EditorView, lineNumber: number): boolean {
   const line = view.state.doc.line(lineNumber);

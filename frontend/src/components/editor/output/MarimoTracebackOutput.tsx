@@ -105,13 +105,14 @@ function lastLine(text: string): string {
 
 const matchesSelector = (domNode: Element, selector: string) => {
   const [tagName, ...classes] = selector.split(".");
+  // Note domhandler.Element does not have a classList property, just an
+  // (optional) string attribute.
   const classList = (domNode.attribs.class || "").split(" ");
   return (
     domNode.tagName === tagName &&
     classes.every((cls) => classList.includes(cls))
   );
 };
-
 const elementContainsMarimoCellFile = (domNode: Element) => {
   return (
     domNode &&
@@ -121,12 +122,12 @@ const elementContainsMarimoCellFile = (domNode: Element) => {
   );
 };
 
-const replaceTracebackFilenames = (domNode: DOMNode) => {
+export const replaceTracebackFilenames = (domNode: DOMNode) => {
   // The traceback can be manipulated either in output render or in the pygments
   // parser. pygments extracts tokens and maps them to tags, but has no
   // inherient knowledge of the traceback structure, so the methodology would
   // have to be similar. Moreover, the client side "cell-id" is particular to
-  // frontend, so front end handling would have to occur anyway.
+  // frontend, so frontend handling would have to occur anyway.
   //
   // A little verbose working with intermediate representation, but best reference
   // for documentation is found in library source (@domhandler/src/node.ts)
@@ -174,7 +175,7 @@ const replaceTracebackFilenames = (domNode: DOMNode) => {
   }
 };
 
-const replaceTracebackPrefix = (domNode: DOMNode) => {
+export const replaceTracebackPrefix = (domNode: DOMNode) => {
   if (
     domNode instanceof Text &&
     domNode.nodeValue?.includes("File") &&

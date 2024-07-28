@@ -1,4 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import { SCRATCH_CELL_ID } from "@/core/cells/cells";
 import { type CellId, HTMLCellId } from "@/core/cells/ids";
 import { Logger } from "../../../utils/Logger";
 import { cn } from "@/utils/cn";
@@ -32,7 +33,14 @@ export const CellLink = (props: Props): JSX.Element => {
         "inline-block cursor-pointer text-[var(--blue-10)] hover:underline",
         className,
       )}
+      role="link"
+      tabIndex={-1}
       onClick={(e) => {
+        // Scratch causes a crash since scratch is not registered like a
+        // normal cell.
+        if (cellId == SCRATCH_CELL_ID) {
+          return false;
+        }
         showCellIfHidden({ cellId });
         e.stopPropagation();
         e.preventDefault();
@@ -70,7 +78,9 @@ export const CellLinkTraceback = ({
       variant={"destructive"}
       className="traceback-cell-link"
       formatCellName={(name: string) =>
-        `marimo://${filename}#cell=${name}`
+        cellId == SCRATCH_CELL_ID
+          ? "scratch"
+          : `marimo://${filename || "untitled"}#cell=${name}`
       }
     />
   );
