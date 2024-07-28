@@ -2,6 +2,8 @@
 
 import { cn } from "../../../utils/cn";
 
+import { type CellId } from "@/core/cells/ids";
+
 import {
   Accordion,
   AccordionContent,
@@ -14,6 +16,9 @@ import { BugIcon, ChevronDown, ExternalLinkIcon } from "lucide-react";
 import { useState } from "react";
 import { useAtomValue } from "jotai";
 import { aiEnabledAtom } from "@/core/config/config";
+import { Element, Text, DOMNode } from "html-react-parser";
+
+import { CellLinkTraceback } from "../links/cell-link";
 
 interface Props {
   traceback: string;
@@ -29,7 +34,10 @@ export const MarimoTracebackOutput = ({
   onRefactorWithAI,
   traceback,
 }: Props): JSX.Element => {
-  const htmlTraceback = renderHTML({ html: traceback });
+  const htmlTraceback = renderHTML({
+    html: traceback,
+    additionalReplacements: [replaceTracebackFilenames, replaceTracebackPrefix],
+  });
   const [expanded, setExpanded] = useState(true);
 
   const lastTracebackLine = lastLine(traceback);
@@ -94,3 +102,85 @@ function lastLine(text: string): string {
   const lines = el.textContent?.split("\n").filter(Boolean);
   return lines?.at(-1) || "";
 }
+
+const matchesSelector = (domNode: Element, selector: string) => {
+  const [tagName, ...classes] = selector.split(".");
+  const classList = (domNode.attribs.class || "").split(" ");
+  return (
+    domNode.tagName === tagName &&
+    classes.every((cls) => classList.includes(cls))
+  );
+};
+
+const elementContainsMarimoCellFile = (domNode: Element) => {
+  return (
+    domNode &&
+    matchesSelector(domNode, "span.nb") &&
+    domNode.firstChild instanceof Text &&
+    domNode.firstChild.nodeValue?.includes("__marimo__")
+  );
+};
+
+const replaceTracebackFilenames = (domNode: DOMNode) => {
+  // The traceback can be manipulated either in output render or in the pygments
+  // parser. pygments extracts tokens and maps them to tags, but has no
+  // inherient knowledge of the traceback structure, so the methodology would
+  // have to be similar. Moreover, the client side "cell-id" is particular to
+  // frontend, so front end handling would have to occur anyway.
+  //
+  // A little verbose working with intermediate representation, but best reference
+  // for documentation is found in library source (@domhandler/src/node.ts)
+  //
+  // Expected to transform:
+  //
+  // File <span class="nb">"/tmp/marimo_<number>/__marimo__cell_<cell-id>.py</span>
+  // , line <span class="n">1</span>...
+  //
+  // into
+  //
+  // File marimo://notebook#cell=<CellID>, line 1, in <module>
+  if (
+    domNode instanceof Element &&
+    domNode.firstChild instanceof Text &&
+    elementContainsMarimoCellFile(domNode)
+  ) {
+    const nextSibling = domNode.next;
+    if (nextSibling && nextSibling instanceof Text) {
+      const lineSibling = nextSibling.next;
+      if (
+        lineSibling &&
+        lineSibling instanceof Element &&
+        lineSibling.firstChild instanceof Text &&
+        matchesSelector(lineSibling, "span.m")
+      ) {
+        const cellId = /__marimo__cell_(\w+)_/.exec(
+          domNode.firstChild.nodeValue,
+        )?.[1];
+        const lineNumber = Number.parseInt(
+          lineSibling.firstChild.nodeValue || "0",
+        );
+        if (cellId && lineNumber) {
+          return (
+            <span className="nb">
+              <CellLinkTraceback
+                cellId={cellId as CellId}
+                lineNumber={lineNumber}
+              />
+            </span>
+          );
+        }
+      }
+    }
+  }
+};
+
+const replaceTracebackPrefix = (domNode: DOMNode) => {
+  if (
+    domNode instanceof Text &&
+    domNode.nodeValue?.includes("File") &&
+    domNode.next instanceof Element &&
+    elementContainsMarimoCellFile(domNode.next)
+  ) {
+    return <>{domNode.nodeValue.replace("File", "Cell")}</>;
+  }
+};
