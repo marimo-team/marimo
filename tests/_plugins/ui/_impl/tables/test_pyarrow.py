@@ -182,3 +182,83 @@ class TestPyArrowTableManagerFactory(unittest.TestCase):
         assert manager.search("aaa").get_num_rows() == 1
         assert manager.search("true").get_num_rows() == 2
         assert manager.search("baz").get_num_rows() == 0
+
+    def test_apply_formatting(self) -> None:
+        from marimo._plugins.ui._impl.tables.format import FormatMapping
+        import pyarrow as pa
+
+        format_mapping: FormatMapping = {
+            "A": lambda x: x * 2,
+            "B": lambda x: x.upper(),
+            "C": lambda x: f"{x:.2f}",
+            "D": lambda x: not x,
+            "E": lambda x: x.strftime("%Y-%m-%d"),
+        }
+        print(self.manager.data)
+        formatted_data = self.manager.apply_formatting(format_mapping)
+        expected_data = pa.table(
+            {
+                "A": [2, 4, 6],
+                "B": ["AAA", "B", "C"],
+                "C": ["1.00", "2.00", "3.00"],
+                "D": [False, True, False],
+                "E": ["2021-01-01", "2021-01-02", "2021-01-03"],
+            }
+        )
+        assert formatted_data.equals(expected_data)
+
+    def test_apply_formatting_with_empty_table(self) -> None:
+        from marimo._plugins.ui._impl.tables.format import FormatMapping
+        import pyarrow as pa
+
+        empty_data = pa.table({})
+        manager = self.factory.create()(empty_data)
+
+        format_mapping: FormatMapping = {
+            "A": lambda x: x * 2,
+        }
+
+        formatted_data = manager.apply_formatting(format_mapping)
+        assert formatted_data.equals(empty_data)
+
+    def test_apply_formatting_partial(self) -> None:
+        from marimo._plugins.ui._impl.tables.format import FormatMapping
+        import pyarrow as pa
+
+        format_mapping: FormatMapping = {
+            "A": lambda x: x * 2,
+        }
+
+        formatted_data = self.manager.apply_formatting(format_mapping)
+        expected_data = pa.table(
+            {
+                "A": [2, 4, 6],
+                "B": ["aaa", "b", "c"],
+                "C": [1.0, 2.0, 3.0],
+                "D": [True, False, True],
+                "E": [
+                    datetime.datetime(2021, 1, 1),
+                    datetime.datetime(2021, 1, 2),
+                    datetime.datetime(2021, 1, 3),
+                ],
+            }
+        )
+        assert formatted_data.equals(expected_data)
+
+    def test_apply_formatting_empty(self) -> None:
+        from marimo._plugins.ui._impl.tables.format import FormatMapping
+
+        format_mapping: FormatMapping = {}
+
+        formatted_data = self.manager.apply_formatting(format_mapping)
+        assert formatted_data.equals(self.data)
+
+    def test_apply_formatting_invalid_column(self) -> None:
+        from marimo._plugins.ui._impl.tables.format import FormatMapping
+
+        format_mapping: FormatMapping = {
+            "Z": lambda x: x * 2,
+        }
+
+        formatted_data = self.manager.apply_formatting(format_mapping)
+        assert formatted_data.equals(self.data)

@@ -62,14 +62,15 @@ class PyArrowTableManagerFactory(TableManagerFactory):
                         # Get the column index
                         col_index = _data.schema.get_field_index(col)
                         # Apply the transformation to each element in the column
+                        transformed_values = [
+                            format_value(col, value.as_py(), format_mapping)
+                            for value in _data[col_index]
+                        ]
+                        # Determine the type of the formatted values
+                        formatted_type = pa.array(transformed_values).type
+                        # Create the transformed column with the new type
                         transformed_column = pa.array(
-                            [
-                                format_value(
-                                    col, value.as_py(), format_mapping
-                                )
-                                for value in _data[col_index]
-                            ],
-                            type=_data.schema.field(col_index).type,
+                            transformed_values, type=formatted_type
                         )
                         # Replace the column in the copy of the table
                         _data = _data.set_column(

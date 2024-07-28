@@ -57,6 +57,11 @@ class DataFrameProtocolTableManager(TableManager[DataFrameLike]):
             )
         return self._delegate
 
+    def apply_formatting(
+        self, format_mapping: FormatMapping
+    ) -> TableManager[DataFrameLike]:
+        return self._ensure_delegate().apply_formatting(format_mapping)
+
     def supports_filters(self) -> bool:
         # Does't support filters until pyarrow supports it
         return False

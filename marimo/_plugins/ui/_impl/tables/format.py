@@ -10,6 +10,9 @@ FormatMapping = Dict[str, Union[str, Callable[..., Any]]]
 def format_value(
     col: str, value: JSONType, format_mapping: FormatMapping
 ) -> JSONType:
+    # Return None if the value is None
+    if value is None:
+        return None
     # Apply formatting logic based on column and value
     if col in format_mapping:
         formatter = format_mapping[col]

@@ -56,13 +56,27 @@ class DefaultTableManager(TableManager[JsonTableData]):
             or DependencyManager.has_pyarrow()
         )
 
+    def apply_formatting(self, format_mapping: FormatMapping) -> JsonTableData:
+        if isinstance(self.data, dict) and all(
+            isinstance(value, (list, tuple)) for value in self.data.values()
+        ):
+            return {
+                col: format_column(col, values, format_mapping)
+                for col, values in self.data.items()
+            }
+        if isinstance(self.data, (list, tuple)) and all(
+            isinstance(item, dict) for item in self.data
+        ):
+            return [format_row(row, format_mapping) for row in self.data]
+        return self.data
+
     def supports_filters(self) -> bool:
         return False
 
     def to_data(
         self, format_mapping: Optional[FormatMapping] = None
     ) -> JSONType:
-        return self._normalize_data(self.data, format_mapping)
+        return self._normalize_data(self.apply_formatting(format_mapping))
 
     def to_csv(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
         return self._as_table_manager().to_csv(format_mapping)
@@ -197,9 +211,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
         return isinstance(value, (list, tuple, dict))
 
     @staticmethod
-    def _normalize_data(
-        data: JsonTableData, format_mapping: Optional[FormatMapping] = None
-    ) -> list[dict[str, Any]]:
+    def _normalize_data(data: JsonTableData) -> list[dict[str, Any]]:
         # If it is a dict of lists (column major),
         # convert to list of dicts (row major)
         if isinstance(data, dict) and all(
@@ -209,21 +221,12 @@ class DefaultTableManager(TableManager[JsonTableData]):
             #   { "col1": [1, 2, 3], "col2": [4, 5, 6], ... }
             # into row major
             #   [ {"col1": 1, "col2": 4}, {"col1": 2, "col2": 5 }, ...]
-            data = {
-                col: format_column(col, values, format_mapping)
-                for col, values in data.items()
-            }
-
             column_values = data.values()
             column_names = list(data.keys())
             return [
                 dict(zip(column_names, row_values))
                 for row_values in zip(*column_values)
             ]
-
-        elif isinstance(data, (list, tuple)):
-            if all(isinstance(item, dict) for item in data):
-                return [format_row(row, format_mapping) for row in data]
 
         # Assert that data is a list
         if not isinstance(data, (list, tuple)):

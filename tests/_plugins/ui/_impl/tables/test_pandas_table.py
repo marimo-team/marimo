@@ -362,3 +362,293 @@ class TestPandasTableManager(unittest.TestCase):
         assert manager.search("a").get_num_rows() == 2
         assert manager.search("true").get_num_rows() == 2
         assert manager.search("food").get_num_rows() == 0
+
+    def test_apply_formatting(self) -> None:
+        import pandas as pd
+        from marimo._plugins.ui._impl.tables.format import FormatMapping
+
+        format_mapping: FormatMapping = {
+            "A": lambda x: x * 2,
+            "B": lambda x: x.upper(),
+            "C": lambda x: f"{x:.2f}",
+            "D": lambda x: not x,
+            "E": lambda x: x.strftime("%Y-%m-%d"),
+        }
+
+        formatted_data = self.manager.apply_formatting(format_mapping)
+        expected_data = pd.DataFrame(
+            {
+                "A": [2, 4, 6],
+                "B": ["A", "B", "C"],
+                "C": ["1.00", "2.00", "3.00"],
+                "D": [False, True, False],
+                "E": ["2021-01-01", "2021-01-02", "2021-01-03"],
+                "F": [
+                    [1, 2, 3],
+                    [4, 5, 6],
+                    [7, 8, 9],
+                ],  # No formatting applied
+            }
+        )
+        pd.testing.assert_frame_equal(formatted_data, expected_data)
+
+    def test_apply_formatting_with_empty_dataframe(self) -> None:
+        import pandas as pd
+        from marimo._plugins.ui._impl.tables.format import FormatMapping
+
+        empty_data = pd.DataFrame()
+        manager = self.factory.create()(empty_data)
+
+        format_mapping: FormatMapping = {
+            "A": lambda x: x * 2,
+        }
+
+        formatted_data = manager.apply_formatting(format_mapping)
+        pd.testing.assert_frame_equal(formatted_data, empty_data)
+
+    def test_apply_formatting_partial(self) -> None:
+        import pandas as pd
+        from marimo._plugins.ui._impl.tables.format import FormatMapping
+
+        format_mapping: FormatMapping = {
+            "A": lambda x: x * 2,
+        }
+
+        formatted_data = self.manager.apply_formatting(format_mapping)
+        expected_data = pd.DataFrame(
+            {
+                "A": [2, 4, 6],
+                "B": ["a", "b", "c"],
+                "C": [1.0, 2.0, 3.0],
+                "D": [True, False, True],
+                "E": [
+                    datetime.datetime(2021, 1, 1),
+                    datetime.datetime(2021, 1, 2),
+                    datetime.datetime(2021, 1, 3),
+                ],
+                "F": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+            }
+        )
+        pd.testing.assert_frame_equal(formatted_data, expected_data)
+
+    def test_apply_formatting_empty(self) -> None:
+        import pandas as pd
+        from marimo._plugins.ui._impl.tables.format import FormatMapping
+
+        format_mapping: FormatMapping = {}
+
+        formatted_data = self.manager.apply_formatting(format_mapping)
+        pd.testing.assert_frame_equal(formatted_data, self.data)
+
+    def test_apply_formatting_invalid_column(self) -> None:
+        import pandas as pd
+        from marimo._plugins.ui._impl.tables.format import FormatMapping
+
+        format_mapping: FormatMapping = {
+            "Z": lambda x: x * 2,
+        }
+
+        formatted_data = self.manager.apply_formatting(format_mapping)
+        pd.testing.assert_frame_equal(formatted_data, self.data)
+
+    def test_apply_formatting_with_nan(self) -> None:
+        import pandas as pd
+        from marimo._plugins.ui._impl.tables.format import FormatMapping
+
+        data_with_nan = self.data.copy()
+        data_with_nan.loc[1, "A"] = None
+        manager_with_nan = self.factory.create()(data_with_nan)
+
+        format_mapping: FormatMapping = {
+            "A": lambda x: x * 2 if pd.notna(x) else x,
+        }
+
+        formatted_data = manager_with_nan.apply_formatting(format_mapping)
+        expected_data = data_with_nan.copy()
+        expected_data["A"] = [2, None, 6]
+        pd.testing.assert_frame_equal(formatted_data, expected_data)
+
+    def test_apply_formatting_with_mixed_types(self) -> None:
+        import pandas as pd
+        from marimo._plugins.ui._impl.tables.format import FormatMapping
+
+        data = pd.DataFrame(
+            {
+                "A": [1, 2, 3],
+                "B": ["a", "b", "c"],
+                "C": [1.0, 2.0, 3.0],
+                "D": [True, False, True],
+                "E": [
+                    datetime.datetime(2021, 1, 1),
+                    datetime.datetime(2021, 1, 2),
+                    datetime.datetime(2021, 1, 3),
+                ],
+                "F": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+                "G": [None, "text", 3.14],
+            }
+        )
+        manager = self.factory.create()(data)
+
+        format_mapping: FormatMapping = {
+            "A": lambda x: x * 2,
+            "B": lambda x: x.upper(),
+            "C": lambda x: f"{x:.2f}",
+            "D": lambda x: not x,
+            "E": lambda x: x.strftime("%Y-%m-%d"),
+            "G": str,
+        }
+
+        formatted_data = manager.apply_formatting(format_mapping)
+        expected_data = pd.DataFrame(
+            {
+                "A": [2, 4, 6],
+                "B": ["A", "B", "C"],
+                "C": ["1.00", "2.00", "3.00"],
+                "D": [False, True, False],
+                "E": ["2021-01-01", "2021-01-02", "2021-01-03"],
+                "F": [
+                    [1, 2, 3],
+                    [4, 5, 6],
+                    [7, 8, 9],
+                ],  # No formatting applied
+                "G": [None, "text", "3.14"],
+            }
+        )
+        pd.testing.assert_frame_equal(formatted_data, expected_data)
+
+    def test_apply_formatting_with_multi_index(self) -> None:
+        import pandas as pd
+        from marimo._plugins.ui._impl.tables.format import FormatMapping
+
+        data = pd.DataFrame(
+            {
+                "A": [1, 2, 3],
+                "B": ["a", "b", "c"],
+            },
+            index=pd.MultiIndex.from_tuples(
+                [("x", 1), ("y", 2), ("z", 3)], names=["X", "Y"]
+            ),
+        )
+        manager = self.factory.create()(data)
+
+        format_mapping: FormatMapping = {
+            "A": lambda x: x * 2,
+            "B": lambda x: x.upper(),
+        }
+
+        formatted_data = manager.apply_formatting(format_mapping)
+        expected_data = pd.DataFrame(
+            {
+                "A": [2, 4, 6],
+                "B": ["A", "B", "C"],
+            },
+            index=pd.MultiIndex.from_tuples(
+                [("x", 1), ("y", 2), ("z", 3)], names=["X", "Y"]
+            ),
+        )
+        pd.testing.assert_frame_equal(formatted_data, expected_data)
+
+    def test_apply_formatting_with_categorical_data(self) -> None:
+        import pandas as pd
+        from marimo._plugins.ui._impl.tables.format import FormatMapping
+
+        data = pd.DataFrame(
+            {
+                "A": pd.Categorical(["a", "b", "a"]),
+                "B": [1, 2, 3],
+            }
+        )
+        manager = self.factory.create()(data)
+
+        format_mapping: FormatMapping = {
+            "A": lambda x: x.upper(),
+            "B": lambda x: x * 2,
+        }
+
+        formatted_data = manager.apply_formatting(format_mapping)
+        expected_data = pd.DataFrame(
+            {
+                "A": pd.Categorical(["A", "B", "A"]),
+                "B": [2, 4, 6],
+            }
+        )
+        pd.testing.assert_frame_equal(formatted_data, expected_data)
+
+    def test_apply_formatting_with_datetime_index(self) -> None:
+        import pandas as pd
+        from marimo._plugins.ui._impl.tables.format import FormatMapping
+
+        data = pd.DataFrame(
+            {
+                "A": [1, 2, 3],
+                "B": ["a", "b", "c"],
+            },
+            index=pd.to_datetime(["2021-01-01", "2021-01-02", "2021-01-03"]),
+        )
+        manager = self.factory.create()(data)
+
+        format_mapping: FormatMapping = {
+            "A": lambda x: x * 2,
+            "B": lambda x: x.upper(),
+        }
+
+        formatted_data = manager.apply_formatting(format_mapping)
+        expected_data = pd.DataFrame(
+            {
+                "A": [2, 4, 6],
+                "B": ["A", "B", "C"],
+            },
+            index=pd.to_datetime(["2021-01-01", "2021-01-02", "2021-01-03"]),
+        )
+        pd.testing.assert_frame_equal(formatted_data, expected_data)
+
+    def test_apply_formatting_with_complex_data(self) -> None:
+        import pandas as pd
+        from marimo._plugins.ui._impl.tables.format import FormatMapping
+
+        data = pd.DataFrame(
+            {
+                "A": [1, 2, 3],
+                "B": ["a", "b", "c"],
+                "C": [1.0, 2.0, 3.0],
+                "D": [True, False, True],
+                "E": [
+                    datetime.datetime(2021, 1, 1),
+                    datetime.datetime(2021, 1, 2),
+                    datetime.datetime(2021, 1, 3),
+                ],
+                "F": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+                "G": [None, "text", 3.14],
+                "H": [1 + 2j, 3 + 4j, 5 + 6j],
+            }
+        )
+        manager = self.factory.create()(data)
+
+        format_mapping: FormatMapping = {
+            "A": lambda x: x * 2,
+            "B": lambda x: x.upper(),
+            "C": lambda x: f"{x:.2f}",
+            "D": lambda x: not x,
+            "E": lambda x: x.strftime("%Y-%m-%d"),
+            "G": str,
+            "H": abs,
+        }
+
+        formatted_data = manager.apply_formatting(format_mapping)
+        expected_data = pd.DataFrame(
+            {
+                "A": [2, 4, 6],
+                "B": ["A", "B", "C"],
+                "C": ["1.00", "2.00", "3.00"],
+                "D": [False, True, False],
+                "E": ["2021-01-01", "2021-01-02", "2021-01-03"],
+                "F": [
+                    [1, 2, 3],
+                    [4, 5, 6],
+                    [7, 8, 9],
+                ],  # No formatting applied
+                "G": [None, "text", "3.14"],
+                "H": [2.23606797749979, 5.0, 7.810249675906654],
+            }
+        )
+        pd.testing.assert_frame_equal(formatted_data, expected_data)
