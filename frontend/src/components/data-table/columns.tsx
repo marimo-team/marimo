@@ -143,7 +143,7 @@ export function generateColumns<T>({
         dtype: fieldTypes?.[info.key]?.[1],
         dataType: fieldTypes?.[info.key]?.[0],
       },
-    })
+    }),
   );
 
   if (selection === "single" || selection === "multi") {
@@ -187,7 +187,7 @@ function isPrimitiveOrNullish(value: unknown): boolean {
 }
 
 function getFilterTypeForFieldType(
-  type: DataType | undefined
+  type: DataType | undefined,
 ): FilterType | undefined {
   if (type === undefined) {
     return undefined;

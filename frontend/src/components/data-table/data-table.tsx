@@ -83,7 +83,7 @@ const DataTableInternal = <TData,>({
 }: DataTableProps<TData>) => {
   const [isSearchEnabled, setIsSearchEnabled] = React.useState<boolean>(false);
   const [paginationState, setPaginationState] = React.useState<PaginationState>(
-    { pageSize: pageSize, pageIndex: 0 }
+    { pageSize: pageSize, pageIndex: 0 },
   );
 
   // If pageSize changes, reset pageSize
@@ -142,7 +142,7 @@ const DataTableInternal = <TData,>({
                 ? null
                 : flexRender(
                     header.column.columnDef.header,
-                    header.getContext()
+                    header.getContext(),
                   )}
             </TableHead>
           );
@@ -187,13 +187,13 @@ const DataTableInternal = <TData,>({
                         "whitespace-pre truncate max-w-[300px]",
                         cell.column.getColumnWrapping &&
                           cell.column.getColumnWrapping() === "wrap" &&
-                          "whitespace-pre-wrap min-w-[200px]"
+                          "whitespace-pre-wrap min-w-[200px]",
                       )}
                       title={String(cell.getValue())}
                     >
                       {flexRender(
                         cell.column.columnDef.cell,
-                        cell.getContext()
+                        cell.getContext(),
                       )}
                     </TableCell>
                   ))}
@@ -263,7 +263,7 @@ const SearchBar = (props: {
     <div
       className={cn(
         "flex items-center space-x-2 h-8 px-2 border-b transition-all overflow-hidden duration-300 opacity-100",
-        hidden && "h-0 border-none opacity-0"
+        hidden && "h-0 border-none opacity-0",
       )}
     >
       <SearchIcon className="w-4 h-4 text-muted-foreground" />

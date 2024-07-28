@@ -369,6 +369,7 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_apply_formatting(self) -> None:
         import pandas as pd
+
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         format_mapping: FormatMapping = {
@@ -398,6 +399,7 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_apply_formatting_with_empty_dataframe(self) -> None:
         import pandas as pd
+
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         empty_data = pd.DataFrame()
@@ -412,6 +414,7 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_apply_formatting_partial(self) -> None:
         import pandas as pd
+
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         format_mapping: FormatMapping = {
@@ -437,6 +440,7 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_apply_formatting_empty(self) -> None:
         import pandas as pd
+
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         format_mapping: FormatMapping = {}
@@ -446,6 +450,7 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_apply_formatting_invalid_column(self) -> None:
         import pandas as pd
+
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         format_mapping: FormatMapping = {
@@ -457,6 +462,7 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_apply_formatting_with_nan(self) -> None:
         import pandas as pd
+
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         data_with_nan = self.data.copy()
@@ -474,6 +480,7 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_apply_formatting_with_mixed_types(self) -> None:
         import pandas as pd
+
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         data = pd.DataFrame(
@@ -522,6 +529,7 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_apply_formatting_with_multi_index(self) -> None:
         import pandas as pd
+
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         data = pd.DataFrame(
@@ -554,6 +562,7 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_apply_formatting_with_categorical_data(self) -> None:
         import pandas as pd
+
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         data = pd.DataFrame(
@@ -580,6 +589,7 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_apply_formatting_with_datetime_index(self) -> None:
         import pandas as pd
+
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         data = pd.DataFrame(
@@ -608,6 +618,7 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_apply_formatting_with_complex_data(self) -> None:
         import pandas as pd
+
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         data = pd.DataFrame(

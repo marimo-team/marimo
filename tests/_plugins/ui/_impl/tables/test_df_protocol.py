@@ -164,8 +164,9 @@ class TestDataFrameProtocolTableManager(unittest.TestCase):
         )
 
     def test_apply_formatting(self) -> None:
-        from marimo._plugins.ui._impl.tables.format import FormatMapping
         import pyarrow as pa
+
+        from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         format_mapping: FormatMapping = {
             "A": lambda x: x * 2,
@@ -187,8 +188,9 @@ class TestDataFrameProtocolTableManager(unittest.TestCase):
         assert formatted_data.equals(expected_data)
 
     def test_apply_formatting_partial(self) -> None:
-        from marimo._plugins.ui._impl.tables.format import FormatMapping
         import pyarrow as pa
+
+        from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         format_mapping: FormatMapping = {
             "A": lambda x: x * 2,

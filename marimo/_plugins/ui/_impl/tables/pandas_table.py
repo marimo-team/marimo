@@ -1,19 +1,19 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Tuple, Optional
+from typing import Any, Optional, Tuple
 
 from marimo._data.models import ColumnSummary, ExternalDataType
+from marimo._plugins.ui._impl.tables.format import (
+    FormatMapping,
+    format_value,
+)
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
     FieldType,
     FieldTypes,
     TableManager,
     TableManagerFactory,
-)
-from marimo._plugins.ui._impl.tables.format import (
-    format_value,
-    FormatMapping,
 )
 
 

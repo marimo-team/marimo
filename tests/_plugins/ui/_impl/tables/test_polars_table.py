@@ -310,6 +310,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_apply_formatting(self) -> None:
         import polars as pl
+
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         format_mapping: FormatMapping = {
@@ -334,6 +335,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_apply_formatting_with_empty_dataframe(self) -> None:
         import polars as pl
+
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         empty_data = pl.DataFrame()
@@ -348,6 +350,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_apply_formatting_partial(self) -> None:
         import polars as pl
+
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         format_mapping: FormatMapping = {
@@ -372,6 +375,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_apply_formatting_empty(self) -> None:
         import polars as pl
+
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         format_mapping: FormatMapping = {}
@@ -381,6 +385,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_apply_formatting_invalid_column(self) -> None:
         import polars as pl
+
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         format_mapping: FormatMapping = {
@@ -392,6 +397,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_apply_formatting_with_nan(self) -> None:
         import polars as pl
+
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         data_with_nan = self.data.clone()
@@ -419,6 +425,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_apply_formatting_with_multi_index(self) -> None:
         import polars as pl
+
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         data = pl.DataFrame(
@@ -448,6 +455,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_apply_formatting_with_categorical_data(self) -> None:
         import polars as pl
+
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         data = pl.DataFrame(
@@ -474,6 +482,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_apply_formatting_with_datetime_index(self) -> None:
         import polars as pl
+
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         data = pl.DataFrame(
@@ -509,6 +518,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_apply_formatting_with_complex_data(self) -> None:
         import polars as pl
+
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         data = pl.DataFrame(

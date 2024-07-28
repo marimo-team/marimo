@@ -27,7 +27,7 @@ export const ColumnFormattingFeature: TableFeature = {
 
   // define the new column formatting's default options
   getDefaultOptions: <TData extends RowData>(
-    table: Table<TData>
+    table: Table<TData>,
   ): ColumnFormattingOptions => {
     return {
       enableColumnFormatting: true,
@@ -37,7 +37,7 @@ export const ColumnFormattingFeature: TableFeature = {
 
   createColumn: <TData extends RowData>(
     column: Column<TData>,
-    table: Table<TData>
+    table: Table<TData>,
   ) => {
     column.getColumnFormatting = () => {
       return table.getState().columnFormatting[column.id];
@@ -78,7 +78,7 @@ export const ColumnFormattingFeature: TableFeature = {
 export const applyFormat = (
   value: unknown,
   format: FormatOption,
-  dataType: DataType | undefined
+  dataType: DataType | undefined,
 ) => {
   // If the value is null, return an empty string
   if (value === null || value === undefined || value === "") {
@@ -130,7 +130,7 @@ export const applyFormat = (
             .split(" ")
             .map(
               (word) =>
-                word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
             )
             .join(" ");
         default:

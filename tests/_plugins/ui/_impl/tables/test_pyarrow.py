@@ -184,8 +184,9 @@ class TestPyArrowTableManagerFactory(unittest.TestCase):
         assert manager.search("baz").get_num_rows() == 0
 
     def test_apply_formatting(self) -> None:
-        from marimo._plugins.ui._impl.tables.format import FormatMapping
         import pyarrow as pa
+
+        from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         format_mapping: FormatMapping = {
             "A": lambda x: x * 2,
@@ -208,8 +209,9 @@ class TestPyArrowTableManagerFactory(unittest.TestCase):
         assert formatted_data.equals(expected_data)
 
     def test_apply_formatting_with_empty_table(self) -> None:
-        from marimo._plugins.ui._impl.tables.format import FormatMapping
         import pyarrow as pa
+
+        from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         empty_data = pa.table({})
         manager = self.factory.create()(empty_data)
@@ -222,8 +224,9 @@ class TestPyArrowTableManagerFactory(unittest.TestCase):
         assert formatted_data.equals(empty_data)
 
     def test_apply_formatting_partial(self) -> None:
-        from marimo._plugins.ui._impl.tables.format import FormatMapping
         import pyarrow as pa
+
+        from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         format_mapping: FormatMapping = {
             "A": lambda x: x * 2,

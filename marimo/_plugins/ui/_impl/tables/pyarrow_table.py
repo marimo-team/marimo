@@ -2,19 +2,19 @@
 from __future__ import annotations
 
 import io
-from typing import Any, Tuple, Union, cast, Optional
+from typing import Any, Optional, Tuple, Union, cast
 
 from marimo._data.models import ColumnSummary, ExternalDataType
+from marimo._plugins.ui._impl.tables.format import (
+    FormatMapping,
+    format_value,
+)
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
     FieldType,
     FieldTypes,
     TableManager,
     TableManagerFactory,
-)
-from marimo._plugins.ui._impl.tables.format import (
-    format_value,
-    FormatMapping,
 )
 
 

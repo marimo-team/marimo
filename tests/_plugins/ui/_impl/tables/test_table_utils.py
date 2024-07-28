@@ -5,12 +5,12 @@ import pytest
 from marimo._plugins.ui._impl.tables.df_protocol_table import (
     DataFrameProtocolTableManager,
 )
-from marimo._plugins.ui._impl.tables.types import is_dataframe_like
 from marimo._plugins.ui._impl.tables.format import (
-    format_value,
-    format_row,
     format_column,
+    format_row,
+    format_value,
 )
+from marimo._plugins.ui._impl.tables.types import is_dataframe_like
 
 
 class Fake:

@@ -15,7 +15,7 @@ export function makeSelectable<T extends VegaLiteSpec>(
   opts: {
     chartSelection?: boolean | "interval" | "point";
     fieldSelection?: boolean | string[];
-  }
+  },
 ): T {
   // Both default to true
   const { chartSelection = true, fieldSelection = true } = opts;
@@ -27,7 +27,7 @@ export function makeSelectable<T extends VegaLiteSpec>(
 
   if ("vconcat" in spec) {
     const subSpecs = spec.vconcat.map((subSpec) =>
-      "mark" in subSpec ? makeChartInteractive(subSpec) : subSpec
+      "mark" in subSpec ? makeChartInteractive(subSpec) : subSpec,
     );
     // No pan/zoom for vconcat
     return { ...spec, vconcat: subSpecs };
@@ -35,7 +35,7 @@ export function makeSelectable<T extends VegaLiteSpec>(
 
   if ("hconcat" in spec) {
     const subSpecs = spec.hconcat.map((subSpec) =>
-      "mark" in subSpec ? makeChartInteractive(subSpec) : subSpec
+      "mark" in subSpec ? makeChartInteractive(subSpec) : subSpec,
     );
     // No pan/zoom for hconcat
     return { ...spec, hconcat: subSpecs };
@@ -75,7 +75,7 @@ export function makeSelectable<T extends VegaLiteSpec>(
  */
 function makeLegendSelectable(
   spec: VegaLiteUnitSpec,
-  fieldSelection: boolean | string[]
+  fieldSelection: boolean | string[],
 ): VegaLiteUnitSpec {
   // If fieldSelection is false, we don't do anything
   if (fieldSelection === false) {
@@ -86,7 +86,7 @@ function makeLegendSelectable(
   // If fieldSelection is an array, we filter the fields
   if (Array.isArray(fieldSelection)) {
     legendFields = legendFields.filter((field) =>
-      fieldSelection.includes(field)
+      fieldSelection.includes(field),
     );
   }
 
@@ -109,7 +109,7 @@ function makeChartSelectable(
    * If the spec is part of a layer, we need to know the layer number.
    * This is so we can give unique names to the parameters.
    */
-  layerNum: number | undefined
+  layerNum: number | undefined,
 ): VegaLiteUnitSpec {
   // If chartSelection is false, we don't do anything
   if (chartSelection === false) {
@@ -138,7 +138,7 @@ function makeChartSelectable(
   const params = resolvedChartSelection.map((selectionType) =>
     selectionType === "interval"
       ? Params.interval(spec, layerNum)
-      : Params.point(spec, layerNum)
+      : Params.point(spec, layerNum),
   );
 
   const nextParams = [...(spec.params || []), ...params];
@@ -188,7 +188,7 @@ function makeChartInteractive<T extends GenericVegaSpec>(spec: T): T {
       "opacity",
       prevEncodings || {},
       paramNames,
-      spec.mark
+      spec.mark,
     ),
   };
 }

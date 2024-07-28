@@ -5,16 +5,21 @@ from typing import (
     Any,
     Dict,
     List,
+    Optional,
     Sequence,
     Union,
     cast,
-    Optional,
 )
 
 from marimo._data.models import ColumnSummary
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.mime import MIME
 from marimo._plugins.core.web_component import JSONType
+from marimo._plugins.ui._impl.tables.format import (
+    FormatMapping,
+    format_column,
+    format_row,
+)
 from marimo._plugins.ui._impl.tables.pandas_table import (
     PandasTableManagerFactory,
 )
@@ -27,11 +32,6 @@ from marimo._plugins.ui._impl.tables.pyarrow_table import (
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
     TableManager,
-)
-from marimo._plugins.ui._impl.tables.format import (
-    FormatMapping,
-    format_column,
-    format_row,
 )
 
 JsonTableData = Union[

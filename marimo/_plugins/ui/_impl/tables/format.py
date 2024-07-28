@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Dict, Union, Callable, List
+from typing import Any, Callable, Dict, List, Union
+
 from marimo._plugins.ui._impl.tables.table_manager import JSONType
 
 FormatMapping = Dict[str, Union[str, Callable[..., Any]]]
