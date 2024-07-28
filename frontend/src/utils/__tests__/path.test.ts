@@ -48,6 +48,38 @@ describe("Paths", () => {
       expect(Paths.basename("C:\\user\\docs\\Letter.txt")).toBe("Letter.txt");
     });
   });
+
+  describe("rest", () => {
+    it("should return the suffix of a path", () => {
+      expect(Paths.rest("/user/docs/Letter.txt", "/user/docs")).toBe(
+        "Letter.txt",
+      );
+      expect(Paths.rest("/user/docs/Letter.txt", "/user/docs/")).toBe(
+        "Letter.txt",
+      );
+      expect(Paths.rest("/user/docs/Letter.txt", "/user")).toBe(
+        "docs/Letter.txt",
+      );
+      expect(Paths.rest("/user/docs/Letter.txt", "/user/")).toBe(
+        "docs/Letter.txt",
+      );
+    });
+
+    it("should handle windows-style paths", () => {
+      expect(Paths.rest("C:\\user\\docs\\Letter.txt", "C:\\user\\docs")).toBe(
+        "Letter.txt",
+      );
+      expect(Paths.rest("C:\\user\\docs\\Letter.txt", "C:\\user\\docs\\")).toBe(
+        "Letter.txt",
+      );
+      expect(Paths.rest("C:\\user\\docs\\Letter.txt", "C:\\user")).toBe(
+        "docs\\Letter.txt",
+      );
+      expect(Paths.rest("C:\\user\\docs\\Letter.txt", "C:\\user\\")).toBe(
+        "docs\\Letter.txt",
+      );
+    });
+  });
 });
 
 describe("PathBuilder", () => {
