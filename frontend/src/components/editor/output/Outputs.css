@@ -64,6 +64,8 @@
   /* Coarse hack to stop children from overflowing; doesn't seem to affect
    * margin collapse. */
   overflow: auto;
+
+  @apply text-xs;
 }
 
 .marimo-json-output .data-key-pair:not(:last-child) {

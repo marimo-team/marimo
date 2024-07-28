@@ -170,6 +170,9 @@ dependencies:
   '@storybook/addon-styling':
     specifier: ^1.3.7
     version: 1.3.7(@types/react-dom@18.3.0)(@types/react@18.3.3)(less@4.2.0)(postcss@8.4.39)(react-dom@18.3.1)(react@18.3.1)(webpack@5.91.0)
+  '@tailwindcss/typography':
+    specifier: ^0.5.13
+    version: 0.5.13(tailwindcss@3.4.4)
   '@tanstack/react-table':
     specifier: ^8.19.2
     version: 8.19.2(react-dom@18.3.1)(react@18.3.1)
@@ -291,8 +294,8 @@ dependencies:
     specifier: ^2.33.0
     version: 2.33.0(mapbox-gl@1.13.3)
   pyodide:
-    specifier: ^0.26.1
-    version: 0.26.1
+    specifier: ^0.26.2
+    version: 0.26.2
   react-arborist:
     specifier: ^3.4.0
     version: 3.4.0(@types/node@20.14.9)(@types/react@18.3.3)(react-dom@18.3.1)(react@18.3.1)
@@ -8289,6 +8292,18 @@ packages:
       '@swc/counter': 0.1.3
     dev: true
 
+  /@tailwindcss/typography@0.5.13(tailwindcss@3.4.4):
+    resolution: {integrity: sha512-ADGcJ8dX21dVVHIwTRgzrcunY6YY9uSlAHHGVKvkA+vLc5qLwEszvKts40lx7z0qc4clpjclwLeK5rVCV2P/uw==}
+    peerDependencies:
+      tailwindcss: '>=3.0.0 || insiders'
+    dependencies:
+      lodash.castarray: 4.4.0
+      lodash.isplainobject: 4.0.6
+      lodash.merge: 4.6.2
+      postcss-selector-parser: 6.0.10
+      tailwindcss: 3.4.4
+    dev: false
+
   /@tanstack/react-table@8.19.2(react-dom@18.3.1)(react@18.3.1):
     resolution: {integrity: sha512-itoSIAkA/Vsg+bjY23FSemcTyPhc5/1YjYyaMsr9QSH/cdbZnQxHVWrpWn0Sp2BWN71qkzR7e5ye8WuMmwyOjg==}
     engines: {node: '>=12'}
@@ -14478,9 +14493,17 @@ packages:
     resolution: {integrity: sha512-mKnC+QJ9pWVzv+C4/U3rRsHapFfHvQFoFB92e52xeyGMcX6/OlIl78je1u8vePzYZSkkogMPJ2yjxxsb89cxyw==}
     dev: false
 
+  /lodash.castarray@4.4.0:
+    resolution: {integrity: sha512-aVx8ztPv7/2ULbArGJ2Y42bG1mEQ5mGjpdvrbJcJFU3TbYybe+QlLS4pst9zV52ymy2in1KpFPiZnAOATxD4+Q==}
+    dev: false
+
   /lodash.debounce@4.0.8:
     resolution: {integrity: sha512-FT1yDzDYEoYWhnSGnpE/4Kj1fLZkDFyqRb7fNt6FdYOSxlUWAtp42Eh6Wb0rGIv/m9Bgo7x4GhQbm5Ys4SG5ow==}
     dev: true
+
+  /lodash.isplainobject@4.0.6:
+    resolution: {integrity: sha512-oSXzaWypCMHkPC3NvBEaPHf0KsA5mvPrOPgQWDsbg8n7orZ290M0BmC/jgRZ4vcJ6DTAhjrsSYgdsW/F+MFOBA==}
+    dev: false
 
   /lodash.memoize@4.1.2:
     resolution: {integrity: sha512-t7j+NzmgnQzTAYXcsHYLgimltOV1MXHtlOWf6GjL9Kj8GK5FInw5JotxvbOs+IvV1/Dzo04/fCGfLVs7aXb4Ag==}
@@ -16166,6 +16189,14 @@ packages:
       postcss: 8.4.39
     dev: true
 
+  /postcss-selector-parser@6.0.10:
+    resolution: {integrity: sha512-IQ7TZdoaqbT+LCpShg46jnZVlhWD2w6iQYAcYXfHARZ7X1t/UGhhceQDs5X0cGqKvYlHNOuv7Oa1xmb0oQuA3w==}
+    engines: {node: '>=4'}
+    dependencies:
+      cssesc: 3.0.0
+      util-deprecate: 1.0.2
+    dev: false
+
   /postcss-selector-parser@6.1.0:
     resolution: {integrity: sha512-UMz42UD0UY0EApS0ZL9o1XnLhSTtvvvLe5Dc2H2O56fvRZi+KulDyf5ctDhhtYJBGKStV2FL1fy6253cmLgqVQ==}
     engines: {node: '>=4'}
@@ -16345,8 +16376,8 @@ packages:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
 
-  /pyodide@0.26.1:
-    resolution: {integrity: sha512-P+Gm88nwZqY7uBgjbQH8CqqU6Ei/rDn7pS1t02sNZsbyLJMyE2OVXjgNuqVT3KqYWnyGREUN0DbBUCJqk8R0ew==}
+  /pyodide@0.26.2:
+    resolution: {integrity: sha512-8VCRdFX83gBsWs6XP2rhG8HMaB+JaVyyav4q/EMzoV8fXH8HN6T5IISC92SNma6i1DRA3SVXA61S1rJcB8efgA==}
     engines: {node: '>=18.0.0'}
     dependencies:
       ws: 8.17.0

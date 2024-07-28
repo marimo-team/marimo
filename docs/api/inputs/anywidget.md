@@ -1,9 +1,9 @@
-# AnyWidget
+# anywidget
 
 Build custom UI plugins that hook into marimo's reactive
-execution engine by using [AnyWidget](https://anywidget.dev/).
+execution engine by using [anywidget](https://anywidget.dev/).
 
-[AnyWidget](https://anywidget.dev/) is a Python library and specification for creating custom Jupyter-compatible widgets. marimo supports AnyWidget, allowing you to import AnyWidget widgets or create your own custom widgets and use them in your notebooks and apps.
+[anywidget](https://anywidget.dev/) is a Python library and specification for creating custom Jupyter-compatible widgets. marimo supports anywidget, allowing you to import anywidget widgets or create your own custom widgets and use them in your notebooks and apps.
 
 ## Custom widget
 

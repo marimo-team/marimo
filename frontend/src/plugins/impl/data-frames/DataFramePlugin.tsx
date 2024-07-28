@@ -1,12 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { z } from "zod";
 
-import { Transformations } from "./schema";
+import type { Transformations } from "./schema";
 import { TransformPanel } from "./panel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Code2Icon, FunctionSquareIcon } from "lucide-react";
 import { CodePanel } from "./python/code-panel";
-import { ColumnDataTypes, ColumnId } from "./types";
+import type { ColumnDataTypes, ColumnId } from "./types";
 import { createPlugin } from "@/plugins/core/builder";
 import { rpc } from "@/plugins/core/rpc";
 import { useAsyncData } from "@/hooks/useAsyncData";
@@ -16,6 +16,7 @@ import { Arrays } from "@/utils/arrays";
 import { memo, useState } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Banner, ErrorBanner } from "../common/error-banner";
+import type { DataType } from "../vega/vega-loader";
 
 /**
  * Arguments for a data table
@@ -62,7 +63,9 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
         .array(z.tuple([z.string().or(z.number()), z.string(), z.string()]))
         .transform((value) => {
           const map = new Map<ColumnId, string>();
-          value.forEach(([key, dtype]) => map.set(key as ColumnId, dtype));
+          value.forEach(([key, dataType]) =>
+            map.set(key as ColumnId, dataType as DataType),
+          );
           return map;
         }),
     }),

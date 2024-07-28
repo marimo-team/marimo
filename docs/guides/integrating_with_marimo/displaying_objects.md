@@ -83,4 +83,4 @@ codebase for
 examples](https://github.com/marimo-team/marimo/tree/main/marimo/_output/formatters),
 then open a pull request.
 
-[AnyWidget](/api/inputs/anywidget.md)
+[anywidget](/api/inputs/anywidget.md)

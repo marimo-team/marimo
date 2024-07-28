@@ -11,6 +11,7 @@ class TestHash:
     @staticmethod
     def test_content_hash() -> None:
         app = App()
+        app._anonymous_file = True
 
         @app.cell
         def one() -> tuple[int]:
@@ -31,6 +32,7 @@ class TestHash:
     )
     def test_content_reproducibility() -> None:
         app = App()
+        app._anonymous_file = True
 
         @app.cell
         def load() -> tuple[int]:
@@ -78,6 +80,7 @@ class TestHash:
     @staticmethod
     def test_execution_hash() -> None:
         app = App()
+        app._anonymous_file = True
 
         @app.cell
         def one() -> tuple[int]:
@@ -99,6 +102,7 @@ class TestHash:
     )
     def test_execution_reproducibility() -> None:
         app = App()
+        app._anonymous_file = True
 
         @app.cell
         def load() -> tuple[int]:

@@ -161,6 +161,10 @@ class App:
 
         self._unparsable = False
         self._initialized = False
+        # injection hook set by contexts like tests such that script traces are
+        # deterministic and not dependent on the test itself.
+        # Set as a private attribute as not to pollute AppConfig or kwargs.
+        self._anonymous_file = False
 
         self._app_kernel_runner: AppKernelRunner | None = None
 
@@ -364,6 +368,7 @@ class App:
 
         if running_in_notebook():
             app_kernel_runner = self._get_kernel_runner()
+
             if not app_kernel_runner.outputs:
                 outputs, glbls = await app_kernel_runner.run(
                     set(self._execution_order)
@@ -421,7 +426,11 @@ class CellManager:
         cell_config = CellConfig(disabled=disabled, hide_code=hide_code)
 
         def _register(func: Callable[..., Any]) -> Cell:
-            cell = cell_factory(func, cell_id=self.create_cell_id())
+            cell = cell_factory(
+                func,
+                cell_id=self.create_cell_id(),
+                anonymous_file=app._app._anonymous_file if app else False,
+            )
             cell._cell.configure(cell_config)
             self._register_cell(cell, app=app)
             return cell
