@@ -99,8 +99,13 @@ const AnyWidgetSlot = (props: Props) => {
  * @param widgetDef - The anywidget definition
  * @param model - The model to pass to the widget
  */
-async function runAnyWidgetModule(widgetDef: AnyWidget, model: Model<T>, el: HTMLElement) {
-  const widget = typeof widgetDef === "function" ? await widgetDef() : widgetDef;
+async function runAnyWidgetModule(
+  widgetDef: AnyWidget,
+  model: Model<T>,
+  el: HTMLElement,
+) {
+  const widget =
+    typeof widgetDef === "function" ? await widgetDef() : widgetDef;
   await widget.initialize?.({ model });
   await widget.render?.({ model, el });
 }
@@ -155,7 +160,7 @@ class Model<T extends Record<string, any>> implements AnyModel<T> {
     private send_to_widget: (req: { content?: any }) => Promise<
       null | undefined
     >,
-  ) { }
+  ) {}
 
   off(eventName?: string | null, callback?: EventHandler | null): void {
     if (!eventName) {
