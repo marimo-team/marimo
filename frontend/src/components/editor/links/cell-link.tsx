@@ -69,9 +69,7 @@ export const CellLinkTraceback = ({
       skipScroll={true}
       variant={"destructive"}
       className="traceback-cell-link"
-      formatCellName={(name: string) =>
-        `marimo://${filename}#cell=${name}`
-      }
+      formatCellName={(name: string) => `marimo://${filename}#cell=${name}`}
     />
   );
 };
