@@ -4,28 +4,25 @@ from __future__ import annotations
 import abc
 from typing import (
     Any,
+    Callable,
     Dict,
     Generic,
     Optional,
     Tuple,
     TypeVar,
+    Union,
 )
 
 import marimo._output.data.data as mo_data
 from marimo._data.models import ColumnSummary, DataType, ExternalDataType
 from marimo._plugins.core.web_component import JSONType
-from marimo._plugins.ui._impl.tables.format import FormatMapping
-
-# export
-__all__ = [
-    "JSONType",
-]
 
 T = TypeVar("T")
 
 ColumnName = str
 FieldType = DataType
 FieldTypes = Dict[ColumnName, Tuple[FieldType, ExternalDataType]]
+FormatMapping = Dict[str, Union[str, Callable[..., Any]]]
 
 
 class TableManager(abc.ABC, Generic[T]):

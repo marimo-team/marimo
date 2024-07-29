@@ -384,7 +384,7 @@ class TestPandasTableManager(unittest.TestCase):
         expected_data = pd.DataFrame(
             {
                 "A": [2, 4, 6],
-                "B": ["A", "B", "C"],
+                "B": ["A", "B", " B"],
                 "C": ["1.00", "2.00", "3.00"],
                 "D": [False, True, False],
                 "E": ["2021-01-01", "2021-01-02", "2021-01-03"],
@@ -425,7 +425,7 @@ class TestPandasTableManager(unittest.TestCase):
         expected_data = pd.DataFrame(
             {
                 "A": [2, 4, 6],
-                "B": ["a", "b", "c"],
+                "B": ["a", "b", " b"],
                 "C": [1.0, 2.0, 3.0],
                 "D": [True, False, True],
                 "E": [

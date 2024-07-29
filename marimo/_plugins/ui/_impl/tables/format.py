@@ -11,6 +11,9 @@ FormatMapping = Dict[str, Union[str, Callable[..., Any]]]
 def format_value(
     col: str, value: JSONType, format_mapping: FormatMapping
 ) -> JSONType:
+    # Return None if the format mapping is None
+    if format_mapping is None:
+        return value
     # Return None if the value is None
     if value is None:
         return None
@@ -27,6 +30,9 @@ def format_value(
 def format_row(
     row: Dict[str, JSONType], format_mapping: FormatMapping
 ) -> Dict[str, JSONType]:
+    # Return None if the format mapping is None
+    if format_mapping is None:
+        return row
     # Apply formatting to each value in a row dictionary
     return {
         col: format_value(col, value, format_mapping)
@@ -37,5 +43,8 @@ def format_row(
 def format_column(
     col: str, values: List[JSONType], format_mapping: FormatMapping
 ) -> List[JSONType]:
+    # Return None if the format mapping is None
+    if format_mapping is None:
+        return values
     # Apply formatting to each value in a column list
     return [format_value(col, value, format_mapping) for value in values]
