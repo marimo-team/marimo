@@ -193,11 +193,13 @@ export const DataTableColumnHeader = <TData, TValue>({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         {dtype && (
-          <div className="flex-1 px-2 text-xs text-muted-foreground font-bold">
-            {dtype}
-          </div>
+          <>
+            <div className="flex-1 px-2 text-xs text-muted-foreground font-bold">
+              {dtype}
+            </div>
+            <DropdownMenuSeparator />
+          </>
         )}
-        <DropdownMenuSeparator />
         {renderSorts()}
         <DropdownMenuItem
           onClick={() =>
