@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import abc
 import os
+import pathlib
 from typing import List, Optional
 
 from marimo import _loggers
@@ -26,6 +27,10 @@ class AppFileRouter(abc.ABC):
     """
 
     NEW_FILE: MarimoFileKey = "__new__"
+
+    @property
+    def directory(self) -> str | None:
+        return None
 
     @staticmethod
     def infer(path: str) -> AppFileRouter:
@@ -85,13 +90,19 @@ class AppFileRouter(abc.ABC):
             if file.path == key:
                 return AppFileManager(file.path, default_width)
 
+        path = (
+            os.path.join(self.directory, key)
+            if self.directory is not None
+            else key
+        )
+
         # Absolute path
-        if os.path.isabs(key):
-            return AppFileManager(key, default_width)
+        if os.path.isabs(path):
+            return AppFileManager(path, default_width)
 
         # Relative path
-        if os.path.exists(key):
-            return AppFileManager(key, default_width)
+        if os.path.exists(path):
+            return AppFileManager(path, default_width)
 
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
@@ -169,9 +180,14 @@ class ListOfFilesAppFileRouter(AppFileRouter):
 
 class LazyListOfFilesAppFileRouter(AppFileRouter):
     def __init__(self, directory: str, include_markdown: bool) -> None:
-        self.directory = directory
+        # pass through Path to canonicalize, strips trailing slashes
+        self._directory = str(pathlib.Path(directory))
         self.include_markdown = include_markdown
         self._lazy_files: Optional[List[FileInfo]] = None
+
+    @property
+    def directory(self) -> str:
+        return self._directory
 
     def toggle_markdown(
         self, include_markdown: bool
