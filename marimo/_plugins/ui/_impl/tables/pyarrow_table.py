@@ -2,9 +2,13 @@
 from __future__ import annotations
 
 import io
-from typing import Any, Tuple, Union, cast
+from typing import Any, Optional, Tuple, Union, cast
 
 from marimo._data.models import ColumnSummary, ExternalDataType
+from marimo._plugins.ui._impl.tables.format import (
+    FormatMapping,
+    format_value,
+)
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
     FieldType,
@@ -29,11 +33,16 @@ class PyArrowTableManagerFactory(TableManagerFactory):
         ):
             type = "pyarrow"
 
-            def to_csv(self) -> bytes:
+            def to_csv(
+                self, format_mapping: Optional[FormatMapping] = None
+            ) -> bytes:
                 import pyarrow.csv as csv  # type: ignore
 
+                _data = self.data
+                if format_mapping:
+                    _data = self.apply_formatting(format_mapping)
                 buffer = io.BytesIO()
-                csv.write_csv(self.data, buffer)
+                csv.write_csv(_data, buffer)
                 return buffer.getvalue()
 
             def to_json(self) -> bytes:
@@ -43,6 +52,55 @@ class PyArrowTableManagerFactory(TableManagerFactory):
                     .to_json(orient="records")
                     .encode("utf-8")
                 )
+
+            def apply_formatting(
+                self, format_mapping: FormatMapping
+            ) -> Union[pa.Table, pa.RecordBatch]:
+                _data = self.data
+                if isinstance(_data, pa.Table):
+                    column_names = _data.column_names
+                else:  # pa.RecordBatch
+                    column_names = _data.schema.names
+
+                transformed_columns: list[pa.Array[Any, Any]] = []
+                for i, col in enumerate(column_names):
+                    if isinstance(_data, pa.Table):
+                        transformed_column = _data.column(i).chunk(0)
+                    else:
+                        transformed_column = _data.column(i)
+                    if col in format_mapping:
+                        transformed_values = [
+                            format_value(col, value.as_py(), format_mapping)
+                            for value in transformed_column
+                        ]
+                        formatted_type = pa.array(transformed_values).type
+                        transformed_column = pa.array(
+                            transformed_values, type=formatted_type
+                        )  # type: ignore
+
+                    # Raise ValueError if transformed_column is pa.ChunkedArray
+                    if isinstance(transformed_column, pa.ChunkedArray):
+                        raise ValueError(
+                            f"Column {col} is a ChunkedArray, "
+                            "which is not supported."
+                        )
+
+                    transformed_columns.append(transformed_column)
+
+                if isinstance(_data, pa.Table):
+                    _data = pa.table(transformed_columns, names=column_names)
+                else:  # pa.RecordBatch
+                    new_schema = pa.schema(
+                        [
+                            pa.field(col, transformed_columns[i].type)
+                            for i, col in enumerate(column_names)
+                        ]
+                    )
+                    _data = pa.RecordBatch.from_arrays(
+                        transformed_columns, schema=new_schema
+                    )  # type: ignore
+
+                return _data
 
             def select_rows(self, indices: list[int]) -> PyArrowTableManager:
                 if not indices:

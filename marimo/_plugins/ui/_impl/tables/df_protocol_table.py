@@ -9,6 +9,7 @@ from marimo._plugins.ui._impl.tables.dataframe_protocol import (
     Column,
     DtypeKind,
 )
+from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.pyarrow_table import (
     PyArrowTableManagerFactory,
 )
@@ -56,12 +57,17 @@ class DataFrameProtocolTableManager(TableManager[DataFrameLike]):
             )
         return self._delegate
 
+    def apply_formatting(  # type: ignore
+        self, format_mapping: FormatMapping
+    ) -> Union[pa.Table, pa.RecordBatch]:
+        return self._ensure_delegate().apply_formatting(format_mapping)
+
     def supports_filters(self) -> bool:
         # Does't support filters until pyarrow supports it
         return False
 
-    def to_csv(self) -> bytes:
-        return self._ensure_delegate().to_csv()
+    def to_csv(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
+        return self._ensure_delegate().to_csv(format_mapping)
 
     def to_json(self) -> bytes:
         return self._ensure_delegate().to_json()

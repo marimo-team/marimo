@@ -134,6 +134,27 @@ class table(
     )
     ```
 
+    Create a table with format mapping:
+
+    ```python
+    # format_mapping is a dict keyed by column names,
+    # with values as formatting functions or strings
+    def format_name(name):
+        return name.upper()
+
+
+    table = mo.ui.table(
+        data=[
+            {"first_name": "Michael", "last_name": "Scott", "age": 45},
+            {"first_name": "Dwight", "last_name": "Schrute", "age": 40},
+        ],
+        format_mapping={
+            "first_name": format_name,  # Use callable to format first names
+            "age": "{:.1f}".format,  # Use string format for age
+        },
+        label="Format Mapping",
+    )
+    ```
     In each case, access the table data with `table.value`.
 
     **Attributes.**
@@ -161,6 +182,8 @@ class table(
     - `page_size`: the number of rows to show per page.
       defaults to 10
     - `show_column_summaries`: whether to show column summaries
+    - `format_mapping`: a mapping from column names to formatting strings
+    or functions
     - `label`: text label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
@@ -181,6 +204,9 @@ class table(
         selection: Optional[Literal["single", "multi"]] = "multi",
         page_size: int = 10,
         show_column_summaries: bool = True,
+        format_mapping: Optional[
+            Dict[str, Union[str, Callable[..., Any]]]
+        ] = None,
         *,
         label: str = "",
         on_change: Optional[
@@ -246,12 +272,12 @@ class table(
             label=label,
             initial_value=[],
             args={
-                "data": self._filtered_manager.to_data(),
+                "data": self._filtered_manager.to_data(format_mapping),
                 "has-more": has_more,
                 "total-rows": total_rows,
                 "pagination": pagination,
                 "page-size": page_size,
-                "field-types": field_types if field_types else None,
+                "field-types": field_types or None,
                 "selection": (
                     selection if self._manager.supports_selection() else None
                 ),
@@ -296,6 +322,7 @@ class table(
 
     def download_as(self, args: DownloadAsArgs) -> str:
         # download selected rows if there are any, otherwise use all rows
+        # not apply formatting here, raw data is downloaded
         manager = (
             self._selected_manager
             if self._selected_manager and self._has_any_selection

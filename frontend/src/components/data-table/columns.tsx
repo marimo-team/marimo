@@ -90,6 +90,7 @@ export function generateColumns<T>({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return (row as any)[info.key];
       },
+
       header: ({ column }) => {
         // Row headers have no summaries
         if (rowHeadersSet.has(info.key)) {
@@ -108,13 +109,20 @@ export function generateColumns<T>({
           />
         );
       },
-      cell: ({ renderValue, getValue }) => {
+
+      cell: ({ column, renderValue, getValue }) => {
         // Row headers are bold
         if (rowHeadersSet.has(info.key)) {
           return <b>{String(renderValue())}</b>;
         }
 
         const value = getValue();
+
+        const format = column.getColumnFormatting?.();
+        if (format) {
+          return column.applyColumnFormatting(value);
+        }
+
         if (isPrimitiveOrNullish(value)) {
           const rendered = renderValue();
           if (rendered == null) {
@@ -133,6 +141,7 @@ export function generateColumns<T>({
         rowHeader: rowHeadersSet.has(info.key),
         filterType: getFilterTypeForFieldType(fieldTypes?.[info.key]?.[0]),
         dtype: fieldTypes?.[info.key]?.[1],
+        dataType: fieldTypes?.[info.key]?.[0],
       },
     }),
   );

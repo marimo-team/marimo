@@ -34,6 +34,7 @@ import { Tooltip } from "../ui/tooltip";
 import { Spinner } from "../icons/spinner";
 import { FilterPills } from "./filter-pills";
 import { ColumnWrappingFeature } from "./column-wrapping/feature";
+import { ColumnFormattingFeature } from "./column-formatting/feature";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
@@ -93,7 +94,7 @@ const DataTableInternal = <TData,>({
   }, [pageSize, paginationState.pageSize]);
 
   const table = useReactTable({
-    _features: [ColumnWrappingFeature],
+    _features: [ColumnWrappingFeature, ColumnFormattingFeature],
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),

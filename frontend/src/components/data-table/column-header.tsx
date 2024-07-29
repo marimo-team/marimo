@@ -10,6 +10,7 @@ import {
   MinusIcon,
   SearchIcon,
   WrapTextIcon,
+  Text,
   AlignJustifyIcon,
 } from "lucide-react";
 
@@ -31,6 +32,8 @@ import { NumberField } from "../ui/number-field";
 import { Input } from "../ui/input";
 import { ColumnFilterForType, Filter } from "./filters";
 import { logNever } from "@/utils/assertNever";
+import { DataType } from "@/core/kernel/messages";
+import { formatOptions } from "./column-formatting/types";
 
 interface DataTableColumnHeaderProps<TData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {
@@ -79,8 +82,6 @@ export const DataTableColumnHeader = <TData, TValue>({
     );
   };
 
-  const dtype = column.columnDef.meta?.dtype;
-
   const renderColumnWrapping = () => {
     if (!column.getCanWrap?.() || !column.getColumnWrapping) {
       return null;
@@ -107,6 +108,44 @@ export const DataTableColumnHeader = <TData, TValue>({
         <WrapTextIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
         Wrap text
       </DropdownMenuItem>
+    );
+  };
+
+  const dtype: string | undefined = column.columnDef.meta?.dtype;
+  const dataType: DataType | undefined = column.columnDef.meta?.dataType;
+  const columnFormatOptions = dataType ? formatOptions[dataType] : [];
+
+  const renderFormatOptions = () => {
+    if (columnFormatOptions.length === 0 || !column.getCanFormat?.()) {
+      return null;
+    }
+    return (
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger>
+          <Text className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+          Format
+        </DropdownMenuSubTrigger>
+        <DropdownMenuPortal>
+          <DropdownMenuSubContent>
+            {Boolean(column.getColumnFormatting?.()) && (
+              <DropdownMenuItem
+                key={"clear"}
+                onClick={() => column.setColumnFormatting(undefined)}
+              >
+                Clear
+              </DropdownMenuItem>
+            )}
+            {columnFormatOptions.map((option) => (
+              <DropdownMenuItem
+                key={option}
+                onClick={() => column.setColumnFormatting(option)}
+              >
+                {option}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuPortal>
+      </DropdownMenuSub>
     );
   };
 
@@ -157,6 +196,7 @@ export const DataTableColumnHeader = <TData, TValue>({
           Copy column name
         </DropdownMenuItem>
         {renderColumnWrapping()}
+        {renderFormatOptions()}
         <DropdownMenuItemFilter column={column} />
       </DropdownMenuContent>
     </DropdownMenu>
@@ -294,7 +334,9 @@ export const DropdownMenuItemFilter = <TData, TValue>({
 
 const NumberRangeFilter = <TData, TValue>({
   column,
-}: { column: Column<TData, TValue> }) => {
+}: {
+  column: Column<TData, TValue>;
+}) => {
   const currentFilter = column.getFilterValue() as
     | ColumnFilterForType<"number">
     | undefined;
@@ -373,7 +415,9 @@ const NumberRangeFilter = <TData, TValue>({
 
 const TextFilter = <TData, TValue>({
   column,
-}: { column: Column<TData, TValue> }) => {
+}: {
+  column: Column<TData, TValue>;
+}) => {
   const currentFilter = column.getFilterValue() as
     | ColumnFilterForType<"text">
     | undefined;

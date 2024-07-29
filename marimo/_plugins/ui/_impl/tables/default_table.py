@@ -5,6 +5,7 @@ from typing import (
     Any,
     Dict,
     List,
+    Optional,
     Sequence,
     Union,
     cast,
@@ -14,6 +15,11 @@ from marimo._data.models import ColumnSummary
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.mime import MIME
 from marimo._plugins.core.web_component import JSONType
+from marimo._plugins.ui._impl.tables.format import (
+    FormatMapping,
+    format_column,
+    format_row,
+)
 from marimo._plugins.ui._impl.tables.pandas_table import (
     PandasTableManagerFactory,
 )
@@ -50,14 +56,37 @@ class DefaultTableManager(TableManager[JsonTableData]):
             or DependencyManager.has_pyarrow()
         )
 
+    def apply_formatting(self, format_mapping: FormatMapping) -> JsonTableData:
+        if isinstance(self.data, dict) and all(
+            isinstance(value, (list, tuple)) for value in self.data.values()
+        ):
+            return {
+                col: format_column(col, values, format_mapping)  # type: ignore
+                for col, values in self.data.items()
+            }
+        if isinstance(self.data, (list, tuple)) and all(
+            isinstance(item, dict) for item in self.data
+        ):
+            return [
+                format_row(row, format_mapping)  # type: ignore
+                for row in self.data
+            ]
+        return self.data
+
     def supports_filters(self) -> bool:
         return False
 
-    def to_data(self) -> JSONType:
-        return self._normalize_data(self.data)
+    def to_data(
+        self, format_mapping: Optional[FormatMapping] = None
+    ) -> JSONType:
+        return (
+            self._normalize_data(self.apply_formatting(format_mapping))
+            if format_mapping
+            else self._normalize_data(self.data)
+        )
 
-    def to_csv(self) -> bytes:
-        return self._as_table_manager().to_csv()
+    def to_csv(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
+        return self._as_table_manager().to_csv(format_mapping)
 
     def to_json(self) -> bytes:
         return self._as_table_manager().to_json()
@@ -102,27 +131,18 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def search(self, query: str) -> DefaultTableManager:
         query = query.lower()
         if isinstance(self.data, dict):
-            mask: List[bool] = []
-            for row in range(self.get_num_rows() or 0):
-                mask.append(
-                    any(
-                        query in str(self.data[key][row]).lower()
-                        for key in self.data.keys()
-                    )
+            mask: List[bool] = [
+                any(
+                    query in str(self.data[key][row]).lower()
+                    for key in self.data.keys()
                 )
+                for row in range(self.get_num_rows() or 0)
+            ]
             results: JsonTableData = {
                 key: [value[i] for i, match in enumerate(mask) if match]
                 for key, value in self.data.items()
             }
             return DefaultTableManager(results)
-        if isinstance(self.data, list):
-            return DefaultTableManager(
-                [
-                    row
-                    for row in self._normalize_data(self.data)
-                    if any(query in str(v).lower() for v in row.values())
-                ]
-            )
         return DefaultTableManager(
             [
                 row
@@ -167,17 +187,13 @@ class DefaultTableManager(TableManager[JsonTableData]):
         return len(self.data)
 
     def get_num_columns(self) -> int:
-        if isinstance(self.data, dict):
-            return len(self.data)
-        return 1
+        return len(self.data) if isinstance(self.data, dict) else 1
 
     def get_column_names(self) -> List[str]:
         if isinstance(self.data, dict):
             return list(self.data.keys())
         first = next(iter(self.data), None)
-        if isinstance(first, dict):
-            return list(first.keys())
-        return ["value"]
+        return list(first.keys()) if isinstance(first, dict) else ["value"]
 
     def get_unique_column_values(self, column: str) -> list[str | int | float]:
         return sorted(
@@ -215,7 +231,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
             column_values = data.values()
             column_names = list(data.keys())
             return [
-                {key: value for key, value in zip(column_names, row_values)}
+                dict(zip(column_names, row_values))
                 for row_values in zip(*column_values)
             ]
 
@@ -230,18 +246,16 @@ class DefaultTableManager(TableManager[JsonTableData]):
             return []
 
         # Handle single-column data
-        if not isinstance(data[0], dict) and isinstance(
-            data[0], (str, int, float, bool, type(None))
-        ):
+        if not isinstance(data[0], dict):
+            if not isinstance(data[0], (str, int, float, bool, type(None))):
+                raise ValueError(
+                    "data must be a sequence of JSON-serializable types, or a "
+                    "sequence of dicts."
+                )
+
             # we're going to assume that data has the right shape, after
             # having checked just the first entry
             casted = cast(List[Union[str, int, float, bool, MIME, None]], data)
             return [{"value": datum} for datum in casted]
-        elif not isinstance(data[0], dict):
-            raise ValueError(
-                "data must be a sequence of JSON-serializable types, or a "
-                "sequence of dicts."
-            )
-
         # Sequence of dicts
         return cast(List[Dict[str, Any]], data)
