@@ -32,7 +32,7 @@ export class DefaultWasmController implements WasmController {
     const { version } = opts;
 
     // If is a dev release, we need to install from test.pypi.org
-    if (version.includes("dev") || 4) {
+    if (version.includes("dev")) {
       await this.installDevMarimoAndDeps(pyodide, version);
       return pyodide;
     }
@@ -68,7 +68,7 @@ export class DefaultWasmController implements WasmController {
     pyodide: PyodideInterface,
     version: string,
   ) {
-    const span = t.startSpan("installDevMarimo");
+    const span = t.startSpan("installDevMarimoAndDeps");
     await Promise.all([
       pyodide.runPythonAsync(`
       import micropip
@@ -86,7 +86,6 @@ export class DefaultWasmController implements WasmController {
         [
           "Markdown==3.6",
           "pymdown-extensions==10.8.1",
-          "duckdb==1.0.0",
         ],
         deps=False,
         );
@@ -107,7 +106,6 @@ export class DefaultWasmController implements WasmController {
           "${getMarimoWheel(version)}",
           "Markdown==3.6",
           "pymdown-extensions==10.8.1",
-          "duckdb==1.0.0",
         ],
         deps=False,
       );
@@ -179,9 +177,15 @@ export class DefaultWasmController implements WasmController {
     // Fire and forgot load packages and instantiation
     // We don't want to wait for this to finish,
     // as it blocks the initial code from being shown.
+    let codeForPackages = code;
+    if (codeForPackages.includes("mo.sql")) {
+      // Add pandas and duckdb to the codeForPackages
+      codeForPackages = `import pandas\n${codeForPackages}`;
+      codeForPackages = `import duckdb\n${codeForPackages}`;
+    }
     const loadSpan = t.startSpan("loadPackagesFromImports");
     void this.requirePyodide
-      .loadPackagesFromImports(code, {
+      .loadPackagesFromImports(codeForPackages, {
         messageCallback: Logger.log,
         errorCallback: Logger.error,
       })
