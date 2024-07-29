@@ -116,9 +116,10 @@ describe("CollapsibleTree", () => {
     ).toThrowErrorMatchingInlineSnapshot(
       "[Error: Node one is before node two]",
     );
+
     expect(() => {
-      tree.collapse("two", undefined);
-      tree.collapse("two", undefined);
+      tree = tree.collapse("two", undefined);
+      tree = tree.collapse("two", undefined);
     }).toThrowErrorMatchingInlineSnapshot(
       "[Error: Node two is already collapsed]",
     );
@@ -249,13 +250,17 @@ describe("CollapsibleTree", () => {
 			    four
 			"
 		`);
-    expect(tree.findAndExpandDeep("four").toString()).toMatchInlineSnapshot(`
+    const prevTree = tree;
+    tree = tree.findAndExpandDeep("four");
+    expect(tree.toString()).toMatchInlineSnapshot(`
       "one
       two
       three
       four
       "
     `);
+    // doesn't mutate
+    expect(prevTree.toString()).not.toEqual(tree.toString());
   });
 
   it("finds and expands correctly at a non-leaf", () => {
@@ -267,13 +272,17 @@ describe("CollapsibleTree", () => {
 			    four
 			"
 		`);
-    expect(tree.findAndExpandDeep("three").toString()).toMatchInlineSnapshot(`
+    const prevTree = tree;
+    tree = tree.findAndExpandDeep("three");
+    expect(tree.toString()).toMatchInlineSnapshot(`
       "one
       two
       three
       four
       "
     `);
+    // doesn't mutate
+    expect(prevTree.toString()).not.toEqual(tree.toString());
   });
 
   it("can delete nodes", () => {
