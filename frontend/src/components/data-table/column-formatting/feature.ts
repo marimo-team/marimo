@@ -195,6 +195,8 @@ export function formattingExample(
       return String(applyFormat(12_345_678_910, "Scientific", "number"));
     case "Integer":
       return String(applyFormat(1234.567, "Integer", "number"));
+    case "Auto":
+      return String(applyFormat(1234.567, "Auto", "number"));
     default:
       return null;
   }
