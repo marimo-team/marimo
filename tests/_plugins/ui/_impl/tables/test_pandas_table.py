@@ -367,6 +367,17 @@ class TestPandasTableManager(unittest.TestCase):
         assert manager.search("true").get_num_rows() == 2
         assert manager.search("food").get_num_rows() == 0
 
+    def test_apply_formatting_does_not_modify_original_data(self) -> None:
+        import pandas as pd
+
+        original_data = self.data.copy()
+        format_mapping = {
+            "A": lambda x: x * 2,
+            "B": lambda x: x.upper(),
+        }
+        self.manager.apply_formatting(format_mapping)
+        pd.testing.assert_frame_equal(self.manager.data, original_data)
+
     def test_apply_formatting(self) -> None:
         import pandas as pd
 

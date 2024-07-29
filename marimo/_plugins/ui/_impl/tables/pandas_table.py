@@ -33,12 +33,12 @@ class PandasTableManagerFactory(TableManagerFactory):
                 self, format_mapping: Optional[FormatMapping] = None
             ) -> bytes:
                 has_headers = len(self.get_row_headers()) > 0
-                _data = self.data.copy()
                 if format_mapping:
                     _data = self.apply_formatting(format_mapping)
-                return _data.to_csv(
-                    index=has_headers,
-                ).encode("utf-8")
+                    return _data.to_csv(
+                        index=has_headers,
+                    ).encode("utf-8")
+                return self.data.to_csv(index=has_headers).encode("utf-8")
 
             def to_json(self) -> bytes:
                 return self.data.to_json(orient="records").encode("utf-8")

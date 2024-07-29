@@ -37,9 +37,11 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 self,
                 format_mapping: Optional[FormatMapping] = None,
             ) -> bytes:
-                _data = self.data.clone()
-                if format_mapping:
-                    _data = self.apply_formatting(format_mapping)
+                _data = (
+                    self.apply_formatting(format_mapping)
+                    if format_mapping
+                    else self.data
+                )
                 try:
                     return _data.write_csv().encode("utf-8")
                 except pl.exceptions.ComputeError:
@@ -86,7 +88,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
             def apply_formatting(
                 self, format_mapping: FormatMapping
             ) -> pl.DataFrame:
-                _data = self.data.clone()
+                _data = self.data
                 for col in _data.columns:
                     if col in format_mapping:
                         _data = _data.with_columns(
