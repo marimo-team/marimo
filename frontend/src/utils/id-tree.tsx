@@ -39,6 +39,10 @@ export class TreeNode<T> {
     }
     return String(this.value);
   }
+
+  equals(other: TreeNode<T>): boolean {
+    return this.value === other.value;
+  }
 }
 
 export class CollapsibleTree<T> {
@@ -148,16 +152,17 @@ export class CollapsibleTree<T> {
       throw new Error(`Node ${until} is before node ${id}`);
     }
 
-    const node = this.nodes[nodeIndex];
+    const nodes = [...this.nodes];
+    const node = nodes[nodeIndex];
     if (node.isCollapsed) {
       throw new Error(`Node ${id} is already collapsed`);
     }
 
     // Fold the next nodes into the current node
-    node.children = this.nodes.splice(nodeIndex + 1, untilIndex - nodeIndex);
-    node.isCollapsed = true;
+    const children = nodes.splice(nodeIndex + 1, untilIndex - nodeIndex);
+    nodes[nodeIndex] = new TreeNode(node.value, true, children);
 
-    return new CollapsibleTree(this.nodes);
+    return new CollapsibleTree(nodes);
   }
 
   /**
@@ -171,16 +176,16 @@ export class CollapsibleTree<T> {
       );
     }
 
-    const node = this.nodes[nodeIndex];
+    let nodes = [...this.nodes];
+    const node = nodes[nodeIndex];
     if (!node.isCollapsed) {
       throw new Error(`Node ${id} is already expanded`);
     }
 
-    node.isCollapsed = false;
-    this.nodes = arrayInsertMany(this.nodes, nodeIndex + 1, node.children);
-    node.children = [];
+    nodes[nodeIndex] = new TreeNode(node.value, false, []);
+    nodes = arrayInsertMany(nodes, nodeIndex + 1, node.children);
 
-    return new CollapsibleTree(this.nodes);
+    return new CollapsibleTree(nodes);
   }
 
   /**
@@ -250,12 +255,13 @@ export class CollapsibleTree<T> {
    */
   delete(idx: number): CollapsibleTree<T> {
     const id = this.atOrThrow(idx);
+    let tree = new CollapsibleTree(this.nodes);
     try {
-      this.expand(id);
+      tree = tree.expand(id);
     } catch {
       // Don't care if its not expanded
     }
-    return new CollapsibleTree(arrayDelete(this.nodes, idx));
+    return new CollapsibleTree(arrayDelete(tree.nodes, idx));
   }
 
   /**
@@ -270,15 +276,19 @@ export class CollapsibleTree<T> {
    */
   findAndExpandDeep(id: T): CollapsibleTree<T> {
     const found = this.find(id);
+    if (found.length === 0) {
+      return this;
+    }
+    let result = new CollapsibleTree<T>(this.nodes);
     for (const node of found) {
       try {
-        this.expand(node);
+        result = result.expand(node);
       } catch {
         // Don't care if its the last node and its not expanded
       }
     }
 
-    return new CollapsibleTree(this.nodes);
+    return result;
   }
 
   /**
@@ -301,6 +311,13 @@ export class CollapsibleTree<T> {
     }
 
     return findNode(this.nodes, []);
+  }
+
+  equals(other: CollapsibleTree<T>): boolean {
+    return (
+      this.nodes.length === other.nodes.length &&
+      this.nodes.every((n, i) => n.value === other.nodes[i].value)
+    );
   }
 
   toString(): string {
