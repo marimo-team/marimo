@@ -1,7 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { z } from "zod";
-import type { AnyWidget, AnyModel, Initialize, Render } from "@anywidget/types";
 
 import type { IPluginProps } from "@/plugins/types";
 import { useEffect, useRef } from "react";
@@ -12,7 +11,7 @@ import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { ErrorBanner } from "../common/error-banner";
 import { createPlugin } from "@/plugins/core/builder";
 import { rpc } from "@/plugins/core/rpc";
-import type { EventHandler } from "./types";
+import type { AnyModel, AnyWidget, EventHandler, Experimental } from "./types";
 import { Logger } from "@/utils/Logger";
 import { useEventListener } from "@/hooks/useEventListener";
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
@@ -104,10 +103,18 @@ async function runAnyWidgetModule(
   model: Model<T>,
   el: HTMLElement,
 ) {
+  const experimental: Experimental = {
+    invoke: async (name, msg, options) => {
+      const message =
+        "anywidget.invoke not supported in marimo. Please file an issue at https://github.com/marimo-team/marimo/issues";
+      Logger.warn(message);
+      throw new Error(message);
+    },
+  };
   const widget =
     typeof widgetDef === "function" ? await widgetDef() : widgetDef;
-  await widget.initialize?.({ model });
-  await widget.render?.({ model, el });
+  await widget.initialize?.({ model, experimental });
+  await widget.render?.({ model, el, experimental });
 }
 
 function isAnyWidgetModule(mod: any): mod is { default: AnyWidget } {
