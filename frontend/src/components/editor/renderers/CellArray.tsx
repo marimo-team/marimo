@@ -41,7 +41,6 @@ import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Kbd } from "@/components/ui/kbd";
-import { isWasm } from "@/core/wasm/utils";
 
 interface CellArrayProps {
   notebook: NotebookState;
