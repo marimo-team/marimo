@@ -11,7 +11,7 @@ import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { ErrorBanner } from "../common/error-banner";
 import { createPlugin } from "@/plugins/core/builder";
 import { rpc } from "@/plugins/core/rpc";
-import type { AnyModel, EventHandler } from "./types";
+import type { AnyModel, AnyWidget, EventHandler, Experimental } from "./types";
 import { Logger } from "@/utils/Logger";
 import { useEventListener } from "@/hooks/useEventListener";
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
@@ -82,25 +82,57 @@ const AnyWidgetSlot = (props: Props) => {
     return null;
   }
 
-  if (!module.default.render) {
+  if (!isAnyWidgetModule(module)) {
     const error = new Error(
-      `Module at ${jsUrl} does not have a default export with a render function`,
+      `Module at ${jsUrl} does not appear to be a valid anywidget`,
     );
     return <ErrorBanner error={error} />;
   }
 
-  return <LoadedSlot {...props} render={module.default.render} />;
+  return <LoadedSlot {...props} widget={module.default} />;
 };
+
+/**
+ * Run the anywidget module
+ *
+ * @param widgetDef - The anywidget definition
+ * @param model - The model to pass to the widget
+ */
+async function runAnyWidgetModule(
+  widgetDef: AnyWidget,
+  model: Model<T>,
+  el: HTMLElement,
+) {
+  const experimental: Experimental = {
+    invoke: async (name, msg, options) => {
+      const message =
+        "anywidget.invoke not supported in marimo. Please file an issue at https://github.com/marimo-team/marimo/issues";
+      Logger.warn(message);
+      throw new Error(message);
+    },
+  };
+  const widget =
+    typeof widgetDef === "function" ? await widgetDef() : widgetDef;
+  await widget.initialize?.({ model, experimental });
+  await widget.render?.({ model, el, experimental });
+}
+
+function isAnyWidgetModule(mod: any): mod is { default: AnyWidget } {
+  return (
+    mod.default &&
+    (typeof mod.default === "function" ||
+      mod.default?.render ||
+      mod.default?.initialize)
+  );
+}
 
 const LoadedSlot = ({
   value,
   setValue,
-  render,
+  widget,
   functions,
   host,
-}: Props & {
-  render: ({ model, el }: any) => void;
-}) => {
+}: Props & { widget: AnyWidget }) => {
   const ref = useRef<HTMLDivElement>(null);
   const model = useRef<Model<T>>(
     new Model(value, setValue, functions.send_to_widget),
@@ -115,8 +147,7 @@ const LoadedSlot = ({
     if (!ref.current) {
       return;
     }
-
-    render({ model: model.current, el: ref.current });
+    runAnyWidgetModule(widget, model.current, ref.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   });
 

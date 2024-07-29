@@ -279,7 +279,7 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
 
     const relativePath =
       node.data.path.startsWith(root) && Paths.isAbsolute(node.data.path)
-        ? node.data.path.slice(root.length + 1)
+        ? Paths.rest(node.data.path, root)
         : node.data.path;
 
     const isMarkdown = relativePath.endsWith(".md");

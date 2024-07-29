@@ -2,6 +2,25 @@
 import { EditorView } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 
+function goToPosition(view: EditorView, from: number): void {
+  view.focus();
+  // Wait for the next frame, otherwise codemirror will
+  // add a cursor from a pointer click.
+  requestAnimationFrame(() => {
+    view.dispatch({
+      selection: {
+        anchor: from,
+        head: from,
+      },
+      // Unfortunately, EditorView.scrollIntoView does
+      // not support smooth scrolling.
+      effects: EditorView.scrollIntoView(from, {
+        y: "center",
+      }),
+    });
+  });
+}
+
 /**
  * This function will select the first occurrence of the given variable name,
  * for a given editor view.
@@ -42,23 +61,19 @@ export function goToVariableDefinition(
   });
 
   if (found) {
-    view.focus();
-    // Wait for the next frame, otherwise codemirror will
-    // add a cursor from a pointer click.
-    requestAnimationFrame(() => {
-      view.dispatch({
-        selection: {
-          anchor: from,
-          head: from,
-        },
-        // Unfortunately, EditorView.scrollIntoView does
-        // not support smooth scrolling.
-        effects: EditorView.scrollIntoView(from, {
-          y: "center",
-        }),
-      });
-    });
+    goToPosition(view, from);
     return true;
   }
   return false;
+}
+
+/**
+ * This function jumps to a given position in the editor.
+ * @param view The editor view which contains the variable name.
+ * @param lineNumber The line number to jump to.
+ */
+export function goToLine(view: EditorView, lineNumber: number): boolean {
+  const line = view.state.doc.line(lineNumber);
+  goToPosition(view, line.from);
+  return true;
 }
