@@ -134,6 +134,27 @@ class table(
     )
     ```
 
+    Create a table with format mapping:
+
+    ```python
+
+    # format_mapping is a dict keyed by column names,
+    # with values as formatting functions or strings
+    def format_name(name):
+        return name.upper()
+
+    table = mo.ui.table(
+        data=[
+            {"first_name": "Michael", "last_name": "Scott", "age": 45},
+            {"first_name": "Dwight", "last_name": "Schrute", "age": 40},
+        ],
+        format_mapping={
+            "first_name": format_name,  # Use callable to format first names
+            "age": "{:.1f}".format,     # Use string format for age
+        },
+        label="Format Mapping",
+    )
+    ```
     In each case, access the table data with `table.value`.
 
     **Attributes.**

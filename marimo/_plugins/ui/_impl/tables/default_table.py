@@ -61,13 +61,16 @@ class DefaultTableManager(TableManager[JsonTableData]):
             isinstance(value, (list, tuple)) for value in self.data.values()
         ):
             return {
-                col: format_column(col, values, format_mapping)
+                col: format_column(col, values, format_mapping)  # type: ignore
                 for col, values in self.data.items()
             }
         if isinstance(self.data, (list, tuple)) and all(
             isinstance(item, dict) for item in self.data
         ):
-            return [format_row(row, format_mapping) for row in self.data]
+            return [
+                format_row(row, format_mapping)  # type: ignore
+                for row in self.data
+            ]
         return self.data
 
     def supports_filters(self) -> bool:
@@ -76,7 +79,11 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def to_data(
         self, format_mapping: Optional[FormatMapping] = None
     ) -> JSONType:
-        return self._normalize_data(self.apply_formatting(format_mapping))
+        return (
+            self._normalize_data(self.apply_formatting(format_mapping))
+            if format_mapping
+            else self._normalize_data(self.data)
+        )
 
     def to_csv(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
         return self._as_table_manager().to_csv(format_mapping)

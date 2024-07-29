@@ -57,7 +57,7 @@ class DataFrameProtocolTableManager(TableManager[DataFrameLike]):
             )
         return self._delegate
 
-    def apply_formatting(
+    def apply_formatting(  # type: ignore
         self, format_mapping: FormatMapping
     ) -> Union[pa.Table, pa.RecordBatch]:
         return self._ensure_delegate().apply_formatting(format_mapping)

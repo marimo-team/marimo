@@ -57,26 +57,48 @@ class PyArrowTableManagerFactory(TableManagerFactory):
                 self, format_mapping: FormatMapping
             ) -> Union[pa.Table, pa.RecordBatch]:
                 _data = self.data
-                for col in _data.column_names:
+                if isinstance(_data, pa.Table):
+                    column_names = _data.column_names
+                else:  # pa.RecordBatch
+                    column_names = _data.schema.names
+
+                transformed_columns: list[pa.Array[Any, Any]] = []
+                for i, col in enumerate(column_names):
+                    if isinstance(_data, pa.Table):
+                        transformed_column = _data.column(i).chunk(0)
+                    else:
+                        transformed_column = _data.column(i)
                     if col in format_mapping:
-                        # Get the column index
-                        col_index = _data.schema.get_field_index(col)
-                        # Apply the transformation to
-                        # each element in the column
                         transformed_values = [
                             format_value(col, value.as_py(), format_mapping)
-                            for value in _data[col_index]
+                            for value in transformed_column
                         ]
-                        # Determine the type of the formatted values
                         formatted_type = pa.array(transformed_values).type
-                        # Create the transformed column with the new type
                         transformed_column = pa.array(
                             transformed_values, type=formatted_type
+                        )  # type: ignore
+
+                    # Raise ValueError if transformed_column is pa.ChunkedArray
+                    if isinstance(transformed_column, pa.ChunkedArray):
+                        raise ValueError(
+                            f"Column {col} is a ChunkedArray, "
+                            "which is not supported."
                         )
-                        # Replace the column in the copy of the table
-                        _data = _data.set_column(
-                            col_index, col, transformed_column
-                        )
+
+                    transformed_columns.append(transformed_column)
+
+                if isinstance(_data, pa.Table):
+                    _data = pa.table(transformed_columns, names=column_names)
+                else:  # pa.RecordBatch
+                    new_schema = pa.schema(
+                        [
+                            pa.field(col, transformed_columns[i].type)
+                            for i, col in enumerate(column_names)
+                        ]
+                    )
+                    _data = pa.RecordBatch.from_arrays(
+                        transformed_columns, schema=new_schema
+                    )  # type: ignore
 
                 return _data
 

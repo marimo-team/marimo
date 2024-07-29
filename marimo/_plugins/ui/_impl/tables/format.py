@@ -1,11 +1,11 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, List, Union
+from typing import Callable, Dict, List, Union
 
-from marimo._plugins.ui._impl.tables.table_manager import JSONType
+from marimo._plugins.core.web_component import JSONType
 
-FormatMapping = Dict[str, Union[str, Callable[..., Any]]]
+FormatMapping = Dict[str, Union[str, Callable[..., JSONType]]]
 
 
 def format_value(

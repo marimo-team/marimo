@@ -50,7 +50,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                 for col in _data.columns:
                     if col in format_mapping:
                         _data[col] = _data[col].apply(
-                            lambda x, col=col: format_value(
+                            lambda x, col=col: format_value(  # type: ignore
                                 col, x, format_mapping
                             )
                         )
