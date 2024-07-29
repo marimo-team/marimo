@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
 import weakref
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Optional
@@ -8,6 +9,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional
 import marimo._output.data.data as mo_data
 from marimo import _loggers
 from marimo._output.rich_help import mddoc
+from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.functions import Function
 
@@ -86,12 +88,32 @@ class anywidget(UIElement[T, T]):
             "tabbable",
             "tooltip",
             "keys",
+            "_esm",
+            "_anywidget_id",
+            "_dom_classes",
+            "_model_module",
+            "_model_module_version",
+            "_model_name",
+            "_property_lock",
+            "_states_to_send",
+            "_view_count",
+            "_view_module",
+            "_view_module_version",
+            "_view_name",
         ]
         # Remove ignored traits
         for trait_name in ignored_traits:
             args.pop(trait_name, None)
-        # Remove all private traits
-        args = {k: v for k, v in args.items() if not k.startswith("_")}
+        # Keep only classes that are json serialize-able
+        json_args: T = {}
+        for k, v in args.items():
+            try:
+                # Try to see if it is json-serializable
+                json.dumps(v, cls=WebComponentEncoder)
+                # Just add the plain value, it will be json-serialized later
+                json_args[k] = v
+            except TypeError:
+                pass
 
         def on_change(change: T) -> None:
             for key, value in change.items():
@@ -104,7 +126,7 @@ class anywidget(UIElement[T, T]):
 
         super().__init__(
             component_name="marimo-anywidget",
-            initial_value=args,
+            initial_value=json_args,
             label="",
             args={
                 "js-url": mo_data.js(js).url if js else "",  # type: ignore [unused-ignore]  # noqa: E501
