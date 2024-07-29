@@ -137,11 +137,11 @@ class table(
     Create a table with format mapping:
 
     ```python
-
     # format_mapping is a dict keyed by column names,
     # with values as formatting functions or strings
     def format_name(name):
         return name.upper()
+
 
     table = mo.ui.table(
         data=[
@@ -150,7 +150,7 @@ class table(
         ],
         format_mapping={
             "first_name": format_name,  # Use callable to format first names
-            "age": "{:.1f}".format,     # Use string format for age
+            "age": "{:.1f}".format,  # Use string format for age
         },
         label="Format Mapping",
     )
