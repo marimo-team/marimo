@@ -13,7 +13,6 @@
     "dist"
   ],
   "dependencies": {
-    "@anywidget/types": "^0.1.9",
     "@codemirror/autocomplete": "^6.16.3",
     "@codemirror/commands": "^6.6.0",
     "@codemirror/lang-markdown": "^6.2.5",
