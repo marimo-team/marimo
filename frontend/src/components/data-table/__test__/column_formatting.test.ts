@@ -14,7 +14,9 @@ describe("applyFormat", () => {
     it("should format date values correctly", () => {
       const date = "2023-10-01T12:00:00Z";
       expect(applyFormat(date, "Date", "date")).toBe("10/1/23");
-      expect(applyFormat(date, "Datetime", "date")).toBe("10/1/23, 8:00:00 AM");
+      expect(applyFormat(date, "Datetime", "date")).toBe(
+        "10/1/23, 12:00:00 PM UTC",
+      );
     });
   });
 

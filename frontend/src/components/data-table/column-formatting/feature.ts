@@ -87,11 +87,13 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
 
 const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: "short", // 3/4/2024
-  timeStyle: "medium", // 3:04:05 PM
+  timeStyle: "long", // 3:04:05 PM
+  timeZone: "UTC",
 });
 
 const timeFormatter = new Intl.DateTimeFormat(undefined, {
-  timeStyle: "medium", // 3:04:05 PM
+  timeStyle: "long", // 3:04:05 PM
+  timeZone: "UTC",
 });
 
 const integerFormatter = new Intl.NumberFormat(undefined, {
