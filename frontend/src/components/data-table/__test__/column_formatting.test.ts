@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
 import { applyFormat } from "../column-formatting/feature";
-import { prettyNumber, prettyScientificNumber } from "@/utils/numbers";
+import { prettyScientificNumber } from "@/utils/numbers";
 
 describe("applyFormat", () => {
   it("should return an empty string for null, undefined, or empty string values", () => {
@@ -13,24 +13,20 @@ describe("applyFormat", () => {
   describe("date formatting", () => {
     it("should format date values correctly", () => {
       const date = "2023-10-01T12:00:00Z";
-      expect(applyFormat(date, "Date", "date")).toBe("10/1/2023");
-      expect(applyFormat(date, "Datetime", "date")).toBe(
-        "2023-10-01T12:00:00.000Z",
-      );
+      expect(applyFormat(date, "Date", "date")).toBe("10/1/23");
+      expect(applyFormat(date, "Datetime", "date")).toBe("10/1/23, 8:00:00 AM");
     });
   });
 
   describe("number formatting", () => {
     it("should format number values correctly", () => {
       const number = "1234.567";
-      expect(applyFormat(number, "Auto", "number")).toBe(
-        prettyNumber(1234.567),
-      );
-      expect(applyFormat(number, "Percent", "number")).toBe("123456.70%");
+      expect(applyFormat(number, "Auto", "number")).toBe("1,234.57");
+      expect(applyFormat(number, "Percent", "number")).toBe("123,456.7%");
       expect(applyFormat(number, "Scientific", "number")).toBe(
         prettyScientificNumber(1234.567),
       );
-      expect(applyFormat(number, "Int", "number")).toBe("1235");
+      expect(applyFormat(number, "Integer", "number")).toBe("1,235");
     });
   });
 

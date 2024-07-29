@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Column } from "@tanstack/react-table";
+import type { Column } from "@tanstack/react-table";
 import {
   ChevronsUpDown,
   ArrowDownNarrowWideIcon,
@@ -10,7 +10,6 @@ import {
   MinusIcon,
   SearchIcon,
   WrapTextIcon,
-  Text,
   AlignJustifyIcon,
 } from "lucide-react";
 
@@ -30,10 +29,12 @@ import { Button } from "../ui/button";
 import { useRef, useState } from "react";
 import { NumberField } from "../ui/number-field";
 import { Input } from "../ui/input";
-import { ColumnFilterForType, Filter } from "./filters";
+import { type ColumnFilterForType, Filter } from "./filters";
 import { logNever } from "@/utils/assertNever";
-import { DataType } from "@/core/kernel/messages";
+import type { DataType } from "@/core/kernel/messages";
 import { formatOptions } from "./column-formatting/types";
+import { DATA_TYPE_ICON } from "../datasets/icons";
+import { formattingExample } from "./column-formatting/feature";
 
 interface DataTableColumnHeaderProps<TData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {
@@ -119,28 +120,41 @@ export const DataTableColumnHeader = <TData, TValue>({
     if (columnFormatOptions.length === 0 || !column.getCanFormat?.()) {
       return null;
     }
+    const FormatIcon = DATA_TYPE_ICON[dataType || "unknown"];
+    const currentFormat = column.getColumnFormatting?.();
     return (
       <DropdownMenuSub>
         <DropdownMenuSubTrigger>
-          <Text className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+          <FormatIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
           Format
         </DropdownMenuSubTrigger>
         <DropdownMenuPortal>
           <DropdownMenuSubContent>
-            {Boolean(column.getColumnFormatting?.()) && (
-              <DropdownMenuItem
-                key={"clear"}
-                onClick={() => column.setColumnFormatting(undefined)}
-              >
-                Clear
-              </DropdownMenuItem>
+            {Boolean(currentFormat) && (
+              <>
+                <DropdownMenuItem
+                  key={"clear"}
+                  variant={"danger"}
+                  onClick={() => column.setColumnFormatting(undefined)}
+                >
+                  Clear
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
             )}
             {columnFormatOptions.map((option) => (
               <DropdownMenuItem
                 key={option}
                 onClick={() => column.setColumnFormatting(option)}
               >
-                {option}
+                <span
+                  className={cn(currentFormat === option && "font-semibold")}
+                >
+                  {option}
+                </span>
+                <span className="ml-auto pl-5 text-xs text-muted-foreground">
+                  {formattingExample(option)}
+                </span>
               </DropdownMenuItem>
             ))}
           </DropdownMenuSubContent>

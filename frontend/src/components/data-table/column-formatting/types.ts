@@ -1,13 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-empty-interface */
-import { DataType } from "@/core/kernel/messages";
-import { OnChangeFn, RowData } from "@tanstack/react-table";
+import type { DataType } from "@/core/kernel/messages";
+import type { OnChangeFn, RowData } from "@tanstack/react-table";
 
 // define all format options
 export const formatOptions = {
   date: ["Date", "Datetime", "Time"],
-  integer: [],
-  number: ["Auto", "Percent", "Scientific", "Int"],
+  integer: ["Auto", "Percent", "Scientific", "Integer"],
+  number: ["Auto", "Percent", "Scientific", "Integer"],
   string: ["Uppercase", "Lowercase", "Capitalize", "Title"],
   boolean: ["Yes/No", "On/Off"],
   unknown: [],
