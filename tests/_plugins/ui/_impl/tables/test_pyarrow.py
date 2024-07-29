@@ -11,10 +11,16 @@ from marimo._plugins.ui._impl.tables.pyarrow_table import (
     PyArrowTableManagerFactory,
 )
 
-HAS_DEPS = DependencyManager.has_pyarrow()
+
+HAS_DEPS_TABLE = DependencyManager.has_pyarrow()
+HAS_DEPS_RECORD_BATCH = (
+    DependencyManager.has_pandas() and DependencyManager.has_pyarrow()
+)
 
 
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.skipif(
+    not HAS_DEPS_TABLE, reason="optional dependencies not installed"
+)
 class TestPyArrowTableManagerFactory(unittest.TestCase):
     def setUp(self) -> None:
         import pyarrow as pa
@@ -267,6 +273,9 @@ class TestPyArrowTableManagerFactory(unittest.TestCase):
         assert formatted_data.equals(self.data)
 
 
+@pytest.mark.skipif(
+    not HAS_DEPS_RECORD_BATCH, reason="optional dependencies not installed"
+)
 class TestPyArrowRecordBatchManagerFactory(unittest.TestCase):
     def setUp(self) -> None:
         import pandas as pd
