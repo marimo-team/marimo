@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { PropsWithChildren } from "react";
+import type { PropsWithChildren } from "react";
 import { cn } from "@/utils/cn";
-import { AppConfig } from "@/core/config/config-schema";
+import type { AppConfig } from "@/core/config/config-schema";
 
 interface Props {
   className?: string;
@@ -16,7 +16,12 @@ export const VerticalLayoutWrapper: React.FC<PropsWithChildren<Props>> = ({
   children,
 }) => {
   return (
-    <div className={cn("px-1 sm:px-16 md:px-20 xl:px-24", className)}>
+    <div
+      className={cn(
+        "px-1 sm:px-16 md:px-20 xl:px-24 print:px-0 print:pb-0",
+        className,
+      )}
+    >
       <div
         className={cn(
           // Large mobile bottom padding due to mobile browser navigation bar

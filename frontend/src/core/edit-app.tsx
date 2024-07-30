@@ -327,7 +327,7 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       >
         <AppHeader
           connection={connection}
-          className={cn("pt-4 sm:pt-12 pb-2 mb-4")}
+          className={cn("pt-4 sm:pt-12 pb-2 mb-4 print:hidden")}
         >
           {isEditing && (
             <div className="flex items-center justify-center container">

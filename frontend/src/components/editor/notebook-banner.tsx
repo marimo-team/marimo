@@ -16,7 +16,7 @@ export const NotebookBanner: React.FC = (props) => {
   }
 
   return (
-    <div className="flex flex-col gap-4 mb-5">
+    <div className="flex flex-col gap-4 mb-5 print:hidden">
       {banners.map((banner) => (
         <Banner
           kind={banner.variant || "info"}

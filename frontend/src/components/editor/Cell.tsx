@@ -295,7 +295,7 @@ const CellComponent = (
 
   const outputArea = hasOutput && (
     <div className="relative">
-      <div className="absolute top-5 -left-8 z-10">
+      <div className="absolute top-5 -left-8 z-10 print:hidden">
         <CollapseToggle
           isCollapsed={isCollapsed}
           onClick={() => {
