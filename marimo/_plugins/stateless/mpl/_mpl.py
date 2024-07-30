@@ -17,8 +17,6 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, Tuple
 
-from starlette.websockets import WebSocketState
-
 from marimo._output.builder import h
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html
@@ -145,6 +143,8 @@ def create_application(
             except Exception:
                 pass
             finally:
+                from starlette.websockets import WebSocketState
+
                 if websocket.application_state != WebSocketState.DISCONNECTED:
                     await websocket.close()
 
@@ -159,6 +159,8 @@ def create_application(
             except Exception:
                 pass
             finally:
+                from starlette.websockets import WebSocketState
+
                 if websocket.application_state != WebSocketState.DISCONNECTED:
                     await websocket.close()
 

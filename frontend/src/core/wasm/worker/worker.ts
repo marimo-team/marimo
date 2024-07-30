@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { PyodideInterface } from "pyodide";
-import { RawBridge, SerializedBridge, WasmController } from "./types";
+import type { RawBridge, SerializedBridge, WasmController } from "./types";
 import { Deferred } from "../../../utils/Deferred";
 import { WasmFileSystem } from "./fs";
 import { MessageBuffer } from "./message-buffer";
@@ -12,13 +12,13 @@ import {
   createRPCRequestHandler,
   type RPCSchema,
 } from "rpc-anywhere";
-import { ParentSchema } from "../rpc";
+import type { ParentSchema } from "../rpc";
 import { Logger } from "../../../utils/Logger";
 import { TRANSPORT_ID } from "./constants";
 import { invariant } from "../../../utils/invariant";
-import { OperationMessage } from "@/core/kernel/messages";
-import { JsonString } from "@/utils/json/base64";
-import { UserConfig } from "@/core/config/config-schema";
+import type { OperationMessage } from "@/core/kernel/messages";
+import type { JsonString } from "@/utils/json/base64";
+import type { UserConfig } from "@/core/config/config-schema";
 import { getPyodideVersion, importPyodide } from "./getPyodideVersion";
 import { t } from "./tracer";
 import { once } from "@/utils/once";
@@ -119,11 +119,17 @@ const requestHandler = createRPCRequestHandler({
   /**
    * Load packages
    */
-  loadPackages: async (packages: string) => {
+  loadPackages: async (code: string) => {
     const span = t.startSpan("loadPackages");
     await pyodideReadyPromise; // Make sure loading is done
 
-    await self.pyodide.loadPackagesFromImports(packages, {
+    if (code.includes("mo.sql")) {
+      // Add pandas and duckdb to the code
+      code = `import pandas\n${code}`;
+      code = `import duckdb\n${code}`;
+    }
+
+    await self.pyodide.loadPackagesFromImports(code, {
       messageCallback: Logger.log,
       errorCallback: Logger.error,
     });

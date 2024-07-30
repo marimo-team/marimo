@@ -41,7 +41,6 @@ import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Kbd } from "@/components/ui/kbd";
-import { isWasm } from "@/core/wasm/utils";
 
 interface CellArrayProps {
   notebook: NotebookState;
@@ -168,7 +167,7 @@ const AddCellButtons: React.FC = () => {
           onClick={() => createNewCell({ cellId: "__end__", before: false })}
         >
           <SquareCodeIcon className="mr-2 size-4 flex-shrink-0" />
-          Code
+          Python
         </Button>
         <Button
           className={buttonClass}
@@ -187,39 +186,42 @@ const AddCellButtons: React.FC = () => {
           <SquareMIcon className="mr-2 size-4 flex-shrink-0" />
           Markdown
         </Button>
-        {!isWasm() && (
-          <Tooltip
-            content={
-              sqlCapabilities ? null : (
+        <Tooltip
+          content={
+            sqlCapabilities ? null : (
+              <div className="flex flex-col">
                 <span>
                   Requires duckdb:{" "}
-                  <Kbd className="inline">pip install duckdb</Kbd>
+                  <Kbd className="inline">pip install duckdb</Kbd>.
                 </span>
-              )
-            }
-            delayDuration={100}
-            asChild={false}
-          >
-            <Button
-              className={buttonClass}
-              variant="text"
-              size="sm"
-              disabled={!sqlCapabilities}
-              onClick={() => {
-                maybeAddMarimoImport(autoInstantiate, createNewCell);
+                <span>
+                  You will need to restart the notebook after installing.
+                </span>
+              </div>
+            )
+          }
+          delayDuration={100}
+          asChild={false}
+        >
+          <Button
+            className={buttonClass}
+            variant="text"
+            size="sm"
+            disabled={!sqlCapabilities}
+            onClick={() => {
+              maybeAddMarimoImport(autoInstantiate, createNewCell);
 
-                createNewCell({
-                  cellId: "__end__",
-                  before: false,
-                  code: new SQLLanguageAdapter().defaultCode,
-                });
-              }}
-            >
-              <DatabaseIcon className="mr-2 size-4 flex-shrink-0" />
-              SQL
-            </Button>
-          </Tooltip>
-        )}
+              createNewCell({
+                cellId: "__end__",
+                before: false,
+                code: new SQLLanguageAdapter().defaultCode,
+              });
+            }}
+          >
+            <DatabaseIcon className="mr-2 size-4 flex-shrink-0" />
+            SQL
+          </Button>
+        </Tooltip>
         <Tooltip
           content={
             aiEnabled ? null : <span>Enable via settings under AI Assist</span>
@@ -247,7 +249,7 @@ const AddCellButtons: React.FC = () => {
       <div
         className={cn(
           "shadow-sm border border-border rounded transition-all duration-200 overflow-hidden divide-x divide-border flex",
-          !isAiButtonOpen && "opacity-0 group-hover:opacity-100 w-fit",
+          !isAiButtonOpen && "w-fit",
           isAiButtonOpen && "opacity-100 w-full max-w-4xl shadow-lg",
         )}
       >

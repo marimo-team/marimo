@@ -2,11 +2,19 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, Dict, Generic, Optional, Tuple, TypeVar
+from typing import (
+    Any,
+    Dict,
+    Generic,
+    Optional,
+    Tuple,
+    TypeVar,
+)
 
 import marimo._output.data.data as mo_data
 from marimo._data.models import ColumnSummary, DataType, ExternalDataType
 from marimo._plugins.core.web_component import JSONType
+from marimo._plugins.ui._impl.tables.format import FormatMapping
 
 T = TypeVar("T")
 
@@ -23,14 +31,17 @@ class TableManager(abc.ABC, Generic[T]):
     def __init__(self, data: T) -> None:
         self.data = data
 
-    def to_data(self) -> JSONType:
+    def to_data(
+        self,
+        format_mapping: Optional[FormatMapping] = None,
+    ) -> JSONType:
         """
         The best way to represent the data in a table as JSON.
 
         By default, this method calls `to_csv` and returns the result as
         a string.
         """
-        return mo_data.csv(self.to_csv()).url
+        return mo_data.csv(self.to_csv(format_mapping)).url
 
     def supports_download(self) -> bool:
         return True
@@ -40,6 +51,10 @@ class TableManager(abc.ABC, Generic[T]):
 
     def supports_altair(self) -> bool:
         return True
+
+    @abc.abstractmethod
+    def apply_formatting(self, format_mapping: FormatMapping) -> T:
+        raise NotImplementedError
 
     @abc.abstractmethod
     def supports_filters(self) -> bool:
@@ -52,7 +67,10 @@ class TableManager(abc.ABC, Generic[T]):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def to_csv(self) -> bytes:
+    def to_csv(
+        self,
+        format_mapping: Optional[FormatMapping] = None,
+    ) -> bytes:
         raise NotImplementedError
 
     @abc.abstractmethod

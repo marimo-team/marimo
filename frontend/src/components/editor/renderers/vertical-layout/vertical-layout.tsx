@@ -74,8 +74,8 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
 
   const canShowCode = evaluateCanShowCode();
 
-  return (
-    <VerticalLayoutWrapper invisible={invisible} appConfig={appConfig}>
+  const verticalCells = (
+    <>
       {cells.map((cell) => (
         <VerticalCell
           key={cell.id}
@@ -96,6 +96,16 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
           kiosk={kioskMode}
         />
       ))}
+    </>
+  );
+
+  return (
+    <VerticalLayoutWrapper invisible={invisible} appConfig={appConfig}>
+      {showCode ? (
+        <div className="flex flex-col gap-5"> {verticalCells}</div>
+      ) : (
+        verticalCells
+      )}
       {mode === "read" && (
         <ActionButtons
           canShowCode={canShowCode}

@@ -13,6 +13,7 @@ class TestScriptCache:
     @staticmethod
     def test_cache_miss() -> None:
         app = App()
+        app._anonymous_file = True
 
         @app.cell
         def one() -> tuple[int]:
@@ -33,6 +34,7 @@ class TestScriptCache:
     @staticmethod
     def test_cache_hit() -> None:
         app = App()
+        app._anonymous_file = True
 
         @app.cell
         def one() -> tuple[int]:
@@ -55,6 +57,7 @@ class TestScriptCache:
     @staticmethod
     def test_cache_hit_whitespace() -> None:
         app = App()
+        app._anonymous_file = True
 
         @app.cell
         def one() -> tuple[int]:

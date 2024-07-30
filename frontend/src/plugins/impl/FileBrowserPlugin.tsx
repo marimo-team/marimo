@@ -135,6 +135,7 @@ export const FileBrowser = ({
 }: FileBrowserProps): JSX.Element | null => {
   const [path, setPath] = useState(initialPath);
   const [selectAllLabel, setSelectAllLabel] = useState("Select all");
+  const [isUpdatingPath, setIsUpdatingPath] = useState(false);
 
   const { data, loading, error } = useAsyncData(
     () =>
@@ -173,9 +174,17 @@ export const FileBrowser = ({
   const canSelectFiles = selectionMode === "file" || selectionMode === "all";
 
   function setNewPath(newPath: string) {
+    // Prevent updating path while updating
+    if (isUpdatingPath) {
+      return;
+    }
+    // Set updating flag
+    setIsUpdatingPath(true);
+
     // Navigate to parent directory
     if (newPath === PARENT_DIRECTORY) {
       if (path === delimiter) {
+        setIsUpdatingPath(false);
         return;
       }
 
@@ -196,11 +205,14 @@ export const FileBrowser = ({
           "Access to directories outside initial path is restricted.",
         variant: "danger",
       });
+      setIsUpdatingPath(false);
       return;
     }
 
+    // Update path and reset select all label
     setPath(newPath);
     setSelectAllLabel("Select all");
+    setIsUpdatingPath(false);
   }
 
   function createFileInfo(

@@ -68,7 +68,7 @@ __all__ = [
     "video",
     "vstack",
 ]
-__version__ = "0.7.11"
+__version__ = "0.7.12"
 
 from marimo._ast.app import App
 from marimo._ast.cell import Cell
@@ -112,4 +112,4 @@ from marimo._runtime.control_flow import MarimoStopError, stop
 from marimo._runtime.runtime import cli_args, defs, query_params, refs
 from marimo._runtime.state import state
 from marimo._server.asgi import create_asgi_app
-from marimo._sql import sql
+from marimo._sql.sql import sql

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import tempfile
 import unittest
 
@@ -46,7 +47,7 @@ class TestAppFileRouter(unittest.TestCase):
         os.unlink(self.test_file1.name)
         os.unlink(self.test_file2.name)
         os.unlink(self.test_file_3.name)
-        os.rmdir(self.test_dir)
+        shutil.rmtree(self.test_dir)
 
     def test_infer_file(self):
         # Test infer method with a file path
@@ -118,3 +119,11 @@ class TestAppFileRouter(unittest.TestCase):
         router = router.toggle_markdown(True)
         files = router.files
         assert len(files) == 3
+
+    def test_lazy_list_of_get_app_file_manager(self):
+        router = LazyListOfFilesAppFileRouter(
+            self.test_dir, include_markdown=False
+        )
+        basename = os.path.basename(self.test_file1.name)
+        file_manager = router.get_file_manager(key=basename)
+        assert file_manager.filename == os.path.join(self.test_dir, basename)

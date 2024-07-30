@@ -18,7 +18,7 @@ import { prepareCellForExecution, transitionCell } from "./cell";
 import { store } from "../state/jotai";
 import { createReducerAndAtoms } from "../../utils/createReducer";
 import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
-import { findCollapseRange, mergeOutlines } from "../dom/outline";
+import { findCollapseRange, mergeOutlines, parseOutline } from "../dom/outline";
 import type { CellHandle } from "@/components/editor/Cell";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
@@ -143,9 +143,13 @@ function initialNotebookState(): NotebookState {
         config: deserializeJson(deserializeBase64(config)),
         serializedEditorState: null,
       };
+      const outputMessage = output
+        ? deserializeJson(deserializeBase64(output))
+        : null;
       cellRuntime[cellId] = {
         ...createCellRuntimeState(),
-        output: output ? deserializeJson(deserializeBase64(output)) : null,
+        output: outputMessage,
+        outline: parseOutline(outputMessage),
         consoleOutputs: outputs.map((output) =>
           deserializeJson(deserializeBase64(output)),
         ),
@@ -750,10 +754,16 @@ const {
   },
   showCellIfHidden: (state, action: { cellId: CellId }) => {
     const { cellId } = action;
+    const prev = state.cellIds;
+    const result = state.cellIds.findAndExpandDeep(cellId);
+
+    if (result.equals(prev)) {
+      return state;
+    }
+
     return {
       ...state,
-      cellIds: state.cellIds.findAndExpandDeep(cellId),
-      scrollKey: cellId,
+      cellIds: result,
     };
   },
   splitCell: (state, action: { cellId: CellId }) => {

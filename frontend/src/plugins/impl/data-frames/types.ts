@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { DataType } from "@/core/kernel/messages";
+import type { DataType } from "@/core/kernel/messages";
 import { logNever } from "@/utils/assertNever";
 
 /**

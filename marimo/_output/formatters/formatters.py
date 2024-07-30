@@ -68,6 +68,21 @@ def register_formatters() -> None:
     case, the trade-off is worth it.
     """
 
+    # For modules that are already imported, register their formatters
+    # immediately; their import hook wouldn't be triggered since they are
+    # already imported. This is relevant when executing as a script.
+    pre_registered: set[str] = set()
+    for package, factory in THIRD_PARTY_FACTORIES.items():
+        if package in sys.modules:
+            factory.register()
+            pre_registered.add(package)
+
+    third_party_factories = {
+        package: factory
+        for package, factory in THIRD_PARTY_FACTORIES.items()
+        if package not in pre_registered
+    }
+
     # We loop over all MetaPathFinders, monkey-patching them to run third-party
     # formatters whenever a supported third-party package is imported (in
     # particular, when its module is exec'd). This ensures that formatters are
@@ -107,7 +122,7 @@ def register_formatters() -> None:
             if spec is None:
                 return spec
 
-            if spec.loader is not None and fullname in THIRD_PARTY_FACTORIES:
+            if spec.loader is not None and fullname in third_party_factories:
                 # We're now in the process of importing a module with
                 # an associated formatter factory. We'll hook into its
                 # loader to register the formatters.

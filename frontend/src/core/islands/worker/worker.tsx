@@ -86,10 +86,16 @@ const requestHandler = createRPCRequestHandler({
   /**
    * Load packages
    */
-  loadPackages: async (packages: string) => {
+  loadPackages: async (code: string) => {
     await pyodideReadyPromise; // Make sure loading is done
 
-    await self.pyodide.loadPackagesFromImports(packages, {
+    if (code.includes("mo.sql")) {
+      // Add pandas and duckdb to the code
+      code = `import pandas\n${code}`;
+      code = `import duckdb\n${code}`;
+    }
+
+    await self.pyodide.loadPackagesFromImports(code, {
       messageCallback: Logger.log,
       errorCallback: Logger.error,
     });

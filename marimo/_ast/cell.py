@@ -459,5 +459,12 @@ class Cell:
         )
 
 
+@dataclasses.dataclass
+class SourcePosition:
+    filename: str
+    lineno: int
+    col_offset: int
+
+
 def is_ws(char: str) -> bool:
     return char == " " or char == "\n" or char == "\t"
