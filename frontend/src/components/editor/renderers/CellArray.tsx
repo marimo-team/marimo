@@ -245,7 +245,7 @@ const AddCellButtons: React.FC = () => {
   };
 
   return (
-    <div className="flex justify-center mt-4 pt-6 pb-32 group gap-4 w-full">
+    <div className="flex justify-center mt-4 pt-6 pb-32 group gap-4 w-full print:hidden">
       <div
         className={cn(
           "shadow-sm border border-border rounded transition-all duration-200 overflow-hidden divide-x divide-border flex",

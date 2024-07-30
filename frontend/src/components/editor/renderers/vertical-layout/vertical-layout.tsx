@@ -143,7 +143,7 @@ const ActionButtons: React.FC<{
   return (
     <div
       className={cn(
-        "right-0 top-0 z-50 m-4 no-print flex gap-2",
+        "right-0 top-0 z-50 m-4 no-print flex gap-2 print:hidden",
         // If the notebook is static, we have a banner at the top, so
         // we can't use fixed positioning. Ideally this is sticky, but the
         // current dom structure makes that difficult.

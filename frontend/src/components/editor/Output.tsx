@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 
-import { OutputMessage } from "@/core/kernel/messages";
+import type { OutputMessage } from "@/core/kernel/messages";
 
 import { logNever } from "../../utils/assertNever";
 import { JsonOutput } from "./output/JsonOutput";
@@ -10,7 +10,7 @@ import { ImageOutput } from "./output/ImageOutput";
 import { MarimoErrorOutput } from "./output/MarimoErrorOutput";
 import { TextOutput } from "./output/TextOutput";
 import { VideoOutput } from "./output/VideoOutput";
-import { CellId } from "@/core/cells/ids";
+import type { CellId } from "@/core/cells/ids";
 import { cn } from "@/utils/cn";
 import { ErrorBoundary } from "./boundary/ErrorBoundary";
 
@@ -211,7 +211,7 @@ const ExpandableOutput = React.memo(
       <>
         <div>
           {(isOverflowing || isExpanded) && (
-            <div className="relative">
+            <div className="relative print:hidden">
               <Button
                 data-testid="expand-output-button"
                 className={cn(
@@ -244,7 +244,7 @@ const ExpandableOutput = React.memo(
             {children}
           </div>
         </div>
-        <div className="increase-pointer-area-x contents" />
+        <div className="increase-pointer-area-x contents print:hidden" />
       </>
     );
   },
