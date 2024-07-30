@@ -983,3 +983,18 @@ def test_sql_from_another_module() -> None:
     v.visit(mod)
     assert v.defs == set(["df"])
     assert v.refs == set(["lib"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_unparsable_sql_doesnt_fail() -> None:
+    code = "\n".join(
+        [
+            # duckdb will raise a BinderError, but codegen shouldnt fail
+            "df = mo.sql('select * from cars where cars.foo = ANY({bar})')",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["df"])
+    assert v.refs == set(["mo"])

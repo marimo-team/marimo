@@ -7,9 +7,12 @@ from dataclasses import dataclass, field
 from typing import Literal, Optional
 from uuid import uuid4
 
+from marimo import _loggers
 from marimo._data.sql_visitor import normalize_sql_f_string
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.variables import is_local
+
+LOGGER = _loggers.marimo_logger()
 
 Name = str
 
@@ -368,13 +371,33 @@ class ScopedVisitor(ast.NodeVisitor):
                 # Add all tables in the query to the ref scope
                 try:
                     statements = duckdb.extract_statements(sql)
-                    for statement in statements:
+                except duckdb.ProgrammingError:
+                    # The user's sql query may have a syntax error,
+                    # or duckdb failed for an unknown reason; don't
+                    # break marimo.
+                    self.generic_visit(node)
+                    return
+                except BaseException as e:
+                    # We catch base exceptions because we don't want to
+                    # fail due to bugs in duckdb -- users code should
+                    # be saveable no matter what
+                    LOGGER.warning("Unexpected duckdb error %s", e)
+                    self.generic_visit(node)
+                    return
+
+                for statement in statements:
+                    try:
                         tables = duckdb.get_table_names(statement.query)
-                        for table in tables:
-                            self._add_ref(table, deleted=False)
-                except (duckdb.ParserException, duckdb.InvalidInputException):
-                    # The user's sql query may have a syntax error
-                    pass
+                    except duckdb.ProgrammingError:
+                        self.generic_visit(node)
+                        return
+                    except BaseException as e:
+                        LOGGER.warning("Unexpected duckdb error %s", e)
+                        self.generic_visit(node)
+                        return
+
+                    for table in tables:
+                        self._add_ref(table, deleted=False)
 
         # Visit arguments, keyword args, etc.
         self.generic_visit(node)
