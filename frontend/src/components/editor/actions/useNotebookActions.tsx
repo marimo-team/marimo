@@ -145,7 +145,7 @@ export function useNotebookActions() {
         },
         {
           icon: <FileIcon size={14} strokeWidth={1.5} />,
-          label: "Download as PDF",
+          label: "Print PDF",
           handle: async () => {
             await runDuringPresentMode(async () => {
               const beforeprint = new Event("export-beforeprint");
