@@ -999,6 +999,7 @@ def test_sql_statement_with_url() -> None:
     assert v.defs == set()
     assert v.refs == set(["mo"])
 
+
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_unparsable_sql_doesnt_fail() -> None:
     code = "\n".join(
