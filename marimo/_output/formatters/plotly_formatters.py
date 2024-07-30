@@ -25,6 +25,10 @@ class PlotlyFormatter(FormatterFactory):
         def _show_plotly_figure(
             fig: plotly.graph_objects.Figure,
         ) -> tuple[KnownMimeType, str]:
+            dragmode = getattr(fig.layout, "dragmode", None)
+            if dragmode is None:
+                # Users are accustomed to default zoom.
+                fig.update_layout(dragmode="zoom")
             json_str: str = pio.to_json(fig)
             plugin = PlotlyFormatter.render_plotly_dict(json.loads(json_str))
             return ("text/html", plugin.text)
