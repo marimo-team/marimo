@@ -400,7 +400,7 @@ class ScopedVisitor(ast.NodeVisitor):
                         # Table may be a URL or something else that
                         # isn't a Python variable
                         if table.isidentifier():
-                            self._add_ref(table, deleted=False
+                            self._add_ref(table, deleted=False)
 
         # Visit arguments, keyword args, etc.
         self.generic_visit(node)
