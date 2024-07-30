@@ -1010,6 +1010,5 @@ def test_unparsable_sql_doesnt_fail() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set()
     assert v.defs == set(["df"])
     assert v.refs == set(["mo"])
