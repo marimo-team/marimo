@@ -17,6 +17,7 @@ from marimo._output.formatters.holoviews_formatters import HoloViewsFormatter
 from marimo._output.formatters.ipython_formatters import IPythonFormatter
 from marimo._output.formatters.leafmap_formatters import LeafmapFormatter
 from marimo._output.formatters.matplotlib_formatters import MatplotlibFormatter
+from marimo._output.formatters.npndarray_formatters import NpndarrayFormatter
 from marimo._output.formatters.pandas_formatters import PandasFormatter
 from marimo._output.formatters.plotly_formatters import PlotlyFormatter
 from marimo._output.formatters.seaborn_formatters import SeabornFormatter
@@ -38,6 +39,7 @@ THIRD_PARTY_FACTORIES: dict[str, FormatterFactory] = {
     HoloViewsFormatter.package_name(): HoloViewsFormatter(),
     IPythonFormatter.package_name(): IPythonFormatter(),
     AnyWidgetFormatter.package_name(): AnyWidgetFormatter(),
+    NpndarrayFormatter.package_name() : NpndarrayFormatter()
 }
 
 # Formatters for builtin types and other things that don't require a
