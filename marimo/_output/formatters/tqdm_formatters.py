@@ -15,7 +15,7 @@ class TqdmFormatter(FormatterFactory):
 
     def register(self) -> None:
         if running_in_notebook():
-            import tqdm.notebook  # type: ignore [import-not-found]
+            import tqdm.notebook  # type: ignore [import-not-found,import-untyped] # noqa: E501
 
             def tqdm_to_progress_bar(
                 *args: Any, **kwargs: Any
