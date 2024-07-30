@@ -371,7 +371,10 @@ class ScopedVisitor(ast.NodeVisitor):
                     for statement in statements:
                         tables = duckdb.get_table_names(statement.query)
                         for table in tables:
-                            self._add_ref(table, deleted=False)
+                            # Table may be a URL or something else that
+                            # isn't a Python variable
+                            if table.isidentifier():
+                                self._add_ref(table, deleted=False)
                 except (duckdb.ParserException, duckdb.InvalidInputException):
                     # The user's sql query may have a syntax error
                     pass

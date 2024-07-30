@@ -983,3 +983,18 @@ def test_sql_from_another_module() -> None:
     v.visit(mod)
     assert v.defs == set(["df"])
     assert v.refs == set(["lib"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_statement_with_url() -> None:
+    code = "\n".join(
+        [
+            'mo.sql("CREATE OR replace TABLE cars as '
+            "FROM 'https://datasets.marimo.app/cars.csv';\")",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set()
+    assert v.refs == set(["mo"])

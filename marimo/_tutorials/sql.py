@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.7.1"
+__generated_with = "0.7.12"
 app = marimo.App()
 
 
@@ -155,7 +156,7 @@ def __(df, mo):
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md(r"Let's look at another SQL statement, but this time with a UI element")
+    mo.md(r"""Let's look at another SQL statement, but this time with a UI element""")
     return
 
 
@@ -295,7 +296,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def __(cars, mo):
     cars = mo.sql(
         f"""
         -- Download a CSV and create an in-memory table
@@ -318,7 +319,7 @@ def __(cars, mo):
 
 
 @app.cell
-def __(cylinders_dropdown, mo, origin_dropdown):
+def __(cars, cylinders_dropdown, mo, origin_dropdown):
     filtered_cars = mo.sql(
         f"""
         SELECT * FROM cars
