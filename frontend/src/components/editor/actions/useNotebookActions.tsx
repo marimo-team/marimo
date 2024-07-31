@@ -134,8 +134,8 @@ export function useNotebookActions() {
                 return;
               }
 
-              // Wait 2 seconds for the app to render
-              await new Promise((resolve) => setTimeout(resolve, 2000));
+              // Wait 3 seconds for the app to render
+              await new Promise((resolve) => setTimeout(resolve, 3000));
 
               await downloadHTMLAsImage(app, document.title);
             });
@@ -147,7 +147,16 @@ export function useNotebookActions() {
           icon: <FileIcon size={14} strokeWidth={1.5} />,
           label: "Print PDF",
           handle: async () => {
+            const toasted = toast({
+              title: "Starting download",
+              description: "Downloading as PDF...",
+            });
+
             await runDuringPresentMode(async () => {
+              // Wait 3 seconds for the app to render
+              await new Promise((resolve) => setTimeout(resolve, 3000));
+              toasted.dismiss();
+
               const beforeprint = new Event("export-beforeprint");
               const afterprint = new Event("export-afterprint");
               function print() {
