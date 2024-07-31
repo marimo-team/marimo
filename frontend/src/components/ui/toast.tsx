@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import * as React from "react";
 import * as ToastPrimitives from "@radix-ui/react-toast";
-import { VariantProps, cva } from "class-variance-authority";
+import { type VariantProps, cva } from "class-variance-authority";
 import { X } from "lucide-react";
 
 import { cn } from "@/utils/cn";
@@ -49,6 +49,7 @@ const Toast = React.forwardRef<
       ref={ref}
       className={cn(
         toastVariants({ variant: variant || "default" }),
+        "print:hidden",
         className,
       )}
       {...props}
