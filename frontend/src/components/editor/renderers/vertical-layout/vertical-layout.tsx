@@ -113,7 +113,6 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
           onToggleShowCode={() => setShowCode((v) => !v)}
         />
       )}
-      {/* Shown in read and present */}
       <FloatingOutline />
     </VerticalLayoutWrapper>
   );
