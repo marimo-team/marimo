@@ -15,6 +15,7 @@ import {
   ChevronRightIcon,
   CopyIcon,
   Edit3Icon,
+  ExternalLinkIcon,
   MoreVerticalIcon,
   PlaySquareIcon,
   RefreshCcwIcon,
@@ -90,7 +91,15 @@ export const FileExplorer: React.FC<{
           <span className="font-bold">{openFile.name}</span>
         </div>
         <Suspense>
-          <FileViewer file={openFile} />
+          <FileViewer
+            onOpenNotebook={(evt) =>
+              openMarimoNotebook(
+                evt,
+                tree.relativeFromRoot(openFile.path as FilePath),
+              )
+            }
+            file={openFile}
+          />
         </Suspense>
       </>
     );
@@ -193,7 +202,10 @@ const Toolbar = ({ onRefresh }: { onRefresh: () => void }) => {
   );
 };
 
-const Show = ({ node }: { node: NodeApi<FileInfo> }) => {
+const Show = ({
+  node,
+  onOpenMarimoFile,
+}: { node: NodeApi<FileInfo>; onOpenMarimoFile: (evt: Event) => void }) => {
   return (
     <span
       className="flex-1 overflow-hidden text-ellipsis"
@@ -206,6 +218,14 @@ const Show = ({ node }: { node: NodeApi<FileInfo> }) => {
       }}
     >
       {node.data.name}
+      {node.data.isMarimoFile && !isWasm() && (
+        <span
+          className="flex-shrink-0 ml-2 text-sm hidden group-hover:inline hover:underline"
+          onClick={onOpenMarimoFile}
+        >
+          open <ExternalLinkIcon className="inline ml-1" size={12} />
+        </span>
+      )}
     </span>
   );
 };
@@ -247,12 +267,10 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
   const tree = useContext(RequestingTreeContext);
 
   const handleOpenMarimoFile = async (evt: Event) => {
-    evt.stopPropagation();
-    evt.preventDefault();
     const path = tree
       ? tree.relativeFromRoot(node.data.path as FilePath)
       : node.data.path;
-    window.open(`/?file=${path}`, "_blank");
+    openMarimoNotebook(evt, path);
   };
 
   const handleDeleteFile = async (evt: Event) => {
@@ -292,14 +310,26 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
       <FolderArrow node={node} />
       <span
         className={cn(
-          "flex items-center pl-1 py-1 cursor-pointer hover:bg-accent/50 hover:text-accent-foreground rounded-l flex-1 overflow-hidden",
+          "flex items-center pl-1 py-1 cursor-pointer hover:bg-accent/50 hover:text-accent-foreground rounded-l flex-1 overflow-hidden group",
           node.willReceiveDrop &&
             node.data.isDirectory &&
             "bg-accent/80 hover:bg-accent/80 text-accent-foreground",
         )}
       >
-        <Icon className="w-5 h-5 flex-shrink-0 mr-2" strokeWidth={1.5} />
-        {node.isEditing ? <Edit node={node} /> : <Show node={node} />}
+        {node.data.isMarimoFile ? (
+          <img
+            src="/favicon.ico"
+            className="w-5 h-5 flex-shrink-0 mr-2 filter grayscale"
+            alt="Marimo"
+          />
+        ) : (
+          <Icon className="w-5 h-5 flex-shrink-0 mr-2" strokeWidth={1.5} />
+        )}
+        {node.isEditing ? (
+          <Edit node={node} />
+        ) : (
+          <Show node={node} onOpenMarimoFile={handleOpenMarimoFile} />
+        )}
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger
             asChild={true}
@@ -410,3 +440,12 @@ const FolderArrow = ({ node }: { node: NodeApi<FileInfo> }) => {
     <ChevronRightIcon className="w-5 h-5 flex-shrink-0" />
   );
 };
+
+function openMarimoNotebook(
+  event: Pick<Event, "stopPropagation" | "preventDefault">,
+  path: string,
+) {
+  event.stopPropagation();
+  event.preventDefault();
+  window.open(`/?file=${path}`, "_blank");
+}
