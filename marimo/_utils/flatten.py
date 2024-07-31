@@ -182,12 +182,15 @@ def flatten(value: Any, json_compat_keys: bool = False) -> FLATTEN_RET_TYPE:
     the flattened structure.
 
     Usage:
-        value = [1, [2, 3], {"4": [5, 6]}, []]
-        flattened, unflattener = flatten(value)
-        # apply a map or other processing to each value of flattened ...
-        # ...
-        # packed_as_value has same nesting structure as value
-        packed_as_value = unflattener(processed_flattened)
+
+    ```python
+    value = [1, [2, 3], {"4": [5, 6]}, []]
+    flattened, unflattener = flatten(value)
+    # apply a map or other processing to each value of flattened ...
+    # ...
+    # packed_as_value has same nesting structure as value
+    packed_as_value = unflattener(processed_flattened)
+    ```
 
     Args:
     ----
@@ -220,3 +223,25 @@ def flatten(value: Any, json_compat_keys: bool = False) -> FLATTEN_RET_TYPE:
         return u(vector)
 
     return flattened, unflatten_with_validation
+
+
+def contains_instance(value: Any, instance: Any) -> bool:
+    """
+    Recursively checks if value contains the given instance
+    """
+
+    seen: set[int] = set()
+
+    def _contains_instance(value: Any) -> bool:
+        if id(value) in seen:
+            return False
+        seen.add(id(value))
+
+        if isinstance(value, (tuple, list)):
+            return any(_contains_instance(v) for v in value)
+        elif isinstance(value, dict):
+            return any(_contains_instance(v) for v in value.values())
+        else:
+            return isinstance(value, instance)
+
+    return _contains_instance(value)
