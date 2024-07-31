@@ -29,7 +29,7 @@ from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context.types import get_global_context
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.runner import cell_runner
-from marimo._utils.flatten import flatten
+from marimo._utils.flatten import contains_instance
 
 LOGGER = _loggers.marimo_logger()
 
@@ -125,8 +125,7 @@ def _store_reference_to_output(
     if isinstance(run_result.output, UIElement):
         cell.set_output(run_result.output)
     elif run_result.output is not None:
-        flattened, _ = flatten(run_result.output)
-        if any(isinstance(v, UIElement) for v in flattened):
+        if contains_instance(run_result.output, UIElement):
             cell.set_output(run_result.output)
 
 
