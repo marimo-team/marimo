@@ -205,7 +205,12 @@ const Toolbar = ({ onRefresh }: { onRefresh: () => void }) => {
 const Show = ({
   node,
   onOpenMarimoFile,
-}: { node: NodeApi<FileInfo>; onOpenMarimoFile: (evt: Event) => void }) => {
+}: {
+  node: NodeApi<FileInfo>;
+  onOpenMarimoFile: (
+    evt: Pick<Event, "stopPropagation" | "preventDefault">,
+  ) => void;
+}) => {
   return (
     <span
       className="flex-1 overflow-hidden text-ellipsis"
