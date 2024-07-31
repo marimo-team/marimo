@@ -84,7 +84,7 @@ const Providers = memo(({ children }: PropsWithChildren) => {
   return (
     <ErrorBoundary>
       <Suspense>
-        <TooltipProvider>
+        <TooltipProvider delayDuration={400}>
           <DayPickerProvider initialProps={{}}>
             <SlotzProvider controller={slotsController}>
               <ModalProvider>
