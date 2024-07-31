@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
     from typing import Optional
 
-from marimo._output.md import md
+from marimo._output.md import _md
 from marimo._output.mime import MIME
 from marimo._plugins.core.json_encoder import WebComponentEncoder
 
@@ -82,7 +82,7 @@ def build_ui_plugin(
 
     attrs: list[str] = [_build_attr("initial-value", initial_value)]
     if label is not None and label:
-        attrs.append(_build_attr("label", md(label).text))
+        attrs.append(_build_attr("label", _md(label, size="sm").text))
     else:
         attrs.append(_build_attr("label", None))
 
