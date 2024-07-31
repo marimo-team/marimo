@@ -126,7 +126,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(data, has_polars_installed):
+def __(has_polars_installed):
     _SIZE = 1000
 
 
@@ -164,7 +164,7 @@ def __(data, has_polars_installed):
     else:
         import pandas as pd
 
-        df = pd.DataFrame(data)
+        df = pd.DataFrame(_data)
     return df, pd, pl
 
 
