@@ -271,7 +271,9 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
   const { openConfirm } = useImperativeModal();
   const tree = useContext(RequestingTreeContext);
 
-  const handleOpenMarimoFile = async (evt: Event) => {
+  const handleOpenMarimoFile = async (
+    evt: Pick<Event, "stopPropagation" | "preventDefault">,
+  ) => {
     const path = tree
       ? tree.relativeFromRoot(node.data.path as FilePath)
       : node.data.path;
