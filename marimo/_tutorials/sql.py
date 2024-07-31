@@ -229,7 +229,7 @@ def __(mo):
     mo.md(
         r"""
         Since we named the output variable above **`result`**,
-        we can it back in Python
+        we can use it back in Python.
         """
     )
     return
