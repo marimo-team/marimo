@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.7.13"
+__generated_with = "0.7.14"
 app = marimo.App(width="medium")
 
 
@@ -159,7 +159,7 @@ def __(alt, duckdb, mo, year_range):
 
 @app.cell
 def __(chart, mo):
-    mo.stop(chart.value.empty, mo.callout("Select cars from the table above."))
+    mo.stop(chart.value.empty, mo.callout("Select cars from the chart above."))
     selected_cars = chart.value
     return selected_cars,
 
