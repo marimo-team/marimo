@@ -443,8 +443,9 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
                 setattr(result, k, v)
             else:
                 setattr(result, k, copy.deepcopy(v, memo))
+
         # Get a new object ID and function namespace
-        result._initialize(*self._args)
+        result._initialize(*result._args)
         return result
 
     def _clone(self) -> UIElement[S, T]:
