@@ -169,7 +169,7 @@ module.exports = {
   plugins: [
     require("tailwindcss-animate"),
     require("@tailwindcss/typography"),
-    plugin(({ addUtilities }) => {
+    plugin(({ addUtilities, addVariant }) => {
       const newUtilities = {
         ".increase-pointer-area-x": {
           border: "none",
@@ -193,6 +193,7 @@ module.exports = {
         },
       };
 
+      addVariant("fullscreen", "&:fullscreen");
       addUtilities(newUtilities);
     }),
   ],
