@@ -154,7 +154,9 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         self._initialize(self._args)
         self._initialized = True
 
-    def _initialize(self, initialization_args: InitializationArgs) -> None:
+    def _initialize(
+        self, initialization_args: InitializationArgs[S, T]
+    ) -> None:
         """Initialize the UIElement
 
         Split out from __init__ so _clone() typechecks
@@ -469,6 +471,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         # We use the new instance's functions, since they are typically bound
         # to the UI element instance. But we only use the new on_change
         # if the old one was bound to self.
+        args: InitializationArgs[S, T]
         if (
             isinstance(self._args.on_change, types.MethodType)
             and self._args.on_change.__self__ is self
