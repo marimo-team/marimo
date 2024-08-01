@@ -217,7 +217,7 @@ const ExpandableOutput = React.memo(
       <>
         <div>
           <div className="relative print:hidden">
-            <div className="absolute top-6 -right-11 z-10 flex flex-col gap-1">
+            <div className="absolute top-1 -right-11 z-[1] flex flex-col gap-1">
               <Tooltip content="Fullscreen" side="left">
                 <Button
                   data-testid="fullscreen-output-button"
@@ -228,7 +228,7 @@ const ExpandableOutput = React.memo(
                   size="xs"
                   variant="text"
                 >
-                  <ExpandIcon className="h-4 w-4" />
+                  <ExpandIcon className="h-4 w-4" strokeWidth={1.25} />
                 </Button>
               </Tooltip>
               {(isOverflowing || isExpanded) && (
