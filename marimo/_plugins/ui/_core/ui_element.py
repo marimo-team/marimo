@@ -4,9 +4,10 @@ from __future__ import annotations
 import abc
 import base64
 import copy
+import types
 import uuid
 import weakref
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -61,6 +62,17 @@ class Lens:
 
     parent_id: str
     key: str
+
+
+@dataclass
+class InitializationArgs(Generic[S, T]):
+    component_name: str
+    initial_value: S
+    label: Optional[str]
+    on_change: Optional[Callable[[T], None]]
+    args: dict[str, JSONType]
+    slotted_html: str
+    functions: tuple[Function[Any, Any], ...]
 
 
 class MarimoConvertValueException(Exception):
@@ -129,7 +141,25 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
 
         # arguments stored in signature order for cloning
         self._component_args = args
-        self._args = (
+        self._args: InitializationArgs[S, T] = InitializationArgs(
+            component_name=component_name,
+            initial_value=initial_value,
+            label=label,
+            on_change=on_change,
+            args=args,
+            slotted_html=slotted_html,
+            functions=functions,
+        )
+        self._initialized = False
+        self._initialize(self._args)
+        self._initialized = True
+
+    def _initialize(self, initialization_args: InitializationArgs) -> None:
+        """Initialize the UIElement
+
+        Split out from __init__ so _clone() typechecks
+        """
+        (
             component_name,
             initial_value,
             label,
@@ -137,25 +167,15 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
             args,
             slotted_html,
             functions,
+        ) = (
+            initialization_args.component_name,
+            initialization_args.initial_value,
+            initialization_args.label,
+            initialization_args.on_change,
+            initialization_args.args,
+            initialization_args.slotted_html,
+            initialization_args.functions,
         )
-        self._initialized = False
-        self._initialize(*self._args)
-        self._initialized = True
-
-    def _initialize(
-        self,
-        component_name: str,
-        initial_value: S,
-        label: Optional[str],
-        on_change: Optional[Callable[[T], None]],
-        args: dict[str, JSONType],
-        slotted_html: str,
-        functions: tuple[Function[Any, Any], ...] = (),
-    ) -> None:
-        """Initialize the UIElement
-
-        Split out from __init__ so _clone() typechecks
-        """
         # A UIElement may be a child ("lens") of another UI element.
         #
         # Set with self._register_as_view() after initialization, since parents
@@ -445,7 +465,39 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
                 setattr(result, k, copy.deepcopy(v, memo))
 
         # Get a new object ID and function namespace
-        result._initialize(*result._args)
+        #
+        # We use the new instance's functions, since they are typically bound
+        # to the UI element instance. But we only use the new on_change
+        # if the old one was bound to self.
+        if (
+            isinstance(self._args.on_change, types.MethodType)
+            and self._args.on_change.__self__ is self
+        ):
+            # on_change was bound to self; use the new one.
+            args = InitializationArgs(
+                **{
+                    # dataclass asdict does a deepcopy, we want shallow.
+                    **{
+                        field.name: getattr(self._args, field.name)
+                        for field in fields(self._args)
+                    },
+                    "on_change": result._args.on_change,
+                    "functions": result._args.functions,
+                }
+            )
+        else:
+            # otherwise, use the original on_change, which may be a state
+            # SetFunctor or something else unrelated to this instance.
+            args = InitializationArgs(
+                **{
+                    **{
+                        field.name: getattr(self._args, field.name)
+                        for field in fields(self._args)
+                    },
+                    "functions": result._args.functions,
+                }
+            )
+        result._initialize(args)
         return result
 
     def _clone(self) -> UIElement[S, T]:
