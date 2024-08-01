@@ -6,8 +6,8 @@ settings:
 
 dependencies:
   openapi-fetch:
-    specifier: 0.9.7
-    version: 0.9.7
+    specifier: 0.10.4
+    version: 0.10.4
 
 devDependencies:
   openapi-typescript:
@@ -129,14 +129,14 @@ packages:
       picomatch: 2.3.1
     dev: true
 
-  /openapi-fetch@0.9.7:
-    resolution: {integrity: sha512-NMp/GEmWSGO0b2d731IdGXcMP2PF85Rk1q+oy2Mx/DYMdP3pgTZTRamKxgZpkHhM4iOVsyD1iP5HKL9Fr6CH2Q==}
+  /openapi-fetch@0.10.4:
+    resolution: {integrity: sha512-HmnJNF3zDKPUwu2YKjm06roQ0MwSnT01x+QPQU6nLqiurE1YnRZhgJlBABEcW2PV+sTtMYbXbO7lRbKZMKvT1Q==}
     dependencies:
-      openapi-typescript-helpers: 0.0.8
+      openapi-typescript-helpers: 0.0.11
     dev: false
 
-  /openapi-typescript-helpers@0.0.8:
-    resolution: {integrity: sha512-1eNjQtbfNi5Z/kFhagDIaIRj6qqDzhjNJKz8cmMW0CVdGwT6e1GLbAfgI0d28VTJa1A8jz82jm/4dG8qNoNS8g==}
+  /openapi-typescript-helpers@0.0.11:
+    resolution: {integrity: sha512-xofUHlVFq+BMquf3nh9I8N2guHckW6mrDO/F3kaFgrL7MGbjldDnQ9TIT+rkH/+H0LiuO+RuZLnNmsJwsjwUKg==}
     dev: false
 
   /openapi-typescript@6.7.6:
