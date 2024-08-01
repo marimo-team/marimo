@@ -1,11 +1,4 @@
-from dataclasses import dataclass
-
 from marimo._plugins.ui._core.ui_element import UIElement
-
-
-@dataclass
-class Args:
-    ...
 
 
 class Element(UIElement[int, int]):
