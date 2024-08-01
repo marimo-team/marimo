@@ -257,7 +257,10 @@ const ExpandableOutput = React.memo(
           </div>
           <div
             {...props}
-            className={cn("relative fullscreen:bg-background", props.className)}
+            className={cn(
+              "relative fullscreen:bg-background fullscreen:flex fullscreen:items-center fullscreen:justify-center",
+              props.className,
+            )}
             ref={containerRef}
             style={isExpanded ? { maxHeight: "none" } : undefined}
           >
