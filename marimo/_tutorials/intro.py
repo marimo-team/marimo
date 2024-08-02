@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.6.0"
+__generated_with = "0.7.15"
 app = marimo.App()
 
 
@@ -11,13 +11,13 @@ def __():
     import marimo as mo
 
     mo.md("# Welcome to marimo! 🌊🍃")
-    return (mo,)
+    return mo,
 
 
 @app.cell
 def __(mo):
     slider = mo.ui.slider(1, 22)
-    return (slider,)
+    return slider,
 
 
 @app.cell
@@ -120,7 +120,7 @@ def __(changed, mo):
 @app.cell
 def __():
     changed = False
-    return (changed,)
+    return changed,
 
 
 @app.cell(hide_code=True)
@@ -203,20 +203,20 @@ def __(mo):
 
 @app.cell
 def __(mo):
-    mo.md("**🌊 Some UI elements.** Try interacting with the below elements.")
+    mo.md("""**🌊 Some UI elements.** Try interacting with the below elements.""")
     return
 
 
 @app.cell
 def __(mo):
     icon = mo.ui.dropdown(["🍃", "🌊", "✨"], value="🍃")
-    return (icon,)
+    return icon,
 
 
 @app.cell
 def __(icon, mo):
     repetitions = mo.ui.slider(1, 16, label=f"number of {icon.value}: ")
-    return (repetitions,)
+    return repetitions,
 
 
 @app.cell
@@ -349,7 +349,7 @@ def __(mo, tips):
 
 @app.cell
 def __(mo):
-    mo.md("## Finally, a fun fact")
+    mo.md("""## Finally, a fun fact""")
     return
 
 
@@ -459,7 +459,7 @@ def __():
            """
         ),
     }
-    return (tips,)
+    return tips,
 
 
 if __name__ == "__main__":
