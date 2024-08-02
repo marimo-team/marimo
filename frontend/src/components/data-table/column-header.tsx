@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Column } from "@tanstack/react-table";
+import type { Column } from "@tanstack/react-table";
 import {
   ChevronsUpDown,
   ArrowDownNarrowWideIcon,
@@ -30,10 +30,12 @@ import { Button } from "../ui/button";
 import { useRef, useState } from "react";
 import { NumberField } from "../ui/number-field";
 import { Input } from "../ui/input";
-import { ColumnFilterForType, Filter } from "./filters";
+import { type ColumnFilterForType, Filter } from "./filters";
 import { logNever } from "@/utils/assertNever";
-import { DataType } from "@/core/kernel/messages";
+import type { DataType } from "@/core/kernel/messages";
 import { formatOptions } from "./column-formatting/types";
+import { DATA_TYPE_ICON } from "../datasets/icons";
+import { formattingExample } from "./column-formatting/feature";
 
 interface DataTableColumnHeaderProps<TData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {
@@ -119,28 +121,41 @@ export const DataTableColumnHeader = <TData, TValue>({
     if (columnFormatOptions.length === 0 || !column.getCanFormat?.()) {
       return null;
     }
+    const FormatIcon = DATA_TYPE_ICON[dataType || "unknown"];
+    const currentFormat = column.getColumnFormatting?.();
     return (
       <DropdownMenuSub>
         <DropdownMenuSubTrigger>
-          <Text className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+          <FormatIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
           Format
         </DropdownMenuSubTrigger>
         <DropdownMenuPortal>
           <DropdownMenuSubContent>
-            {Boolean(column.getColumnFormatting?.()) && (
-              <DropdownMenuItem
-                key={"clear"}
-                onClick={() => column.setColumnFormatting(undefined)}
-              >
-                Clear
-              </DropdownMenuItem>
+            {Boolean(currentFormat) && (
+              <>
+                <DropdownMenuItem
+                  key={"clear"}
+                  variant={"danger"}
+                  onClick={() => column.setColumnFormatting(undefined)}
+                >
+                  Clear
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
             )}
             {columnFormatOptions.map((option) => (
               <DropdownMenuItem
                 key={option}
                 onClick={() => column.setColumnFormatting(option)}
               >
-                {option}
+                <span
+                  className={cn(currentFormat === option && "font-semibold")}
+                >
+                  {option}
+                </span>
+                <span className="ml-auto pl-5 text-xs text-muted-foreground">
+                  {formattingExample(option)}
+                </span>
               </DropdownMenuItem>
             ))}
           </DropdownMenuSubContent>
@@ -155,7 +170,7 @@ export const DataTableColumnHeader = <TData, TValue>({
         <div
           className={cn(
             "group flex items-center my-1 space-between w-full select-none gap-2 border hover:border-border border-transparent hover:bg-[var(--slate-3)] data-[state=open]:bg-[var(--slate-3)] data-[state=open]:border-border rounded px-2 -mx-2",
-            className,
+            className
           )}
           data-testid="data-table-sort-button"
         >
@@ -164,7 +179,7 @@ export const DataTableColumnHeader = <TData, TValue>({
             className={cn(
               "h-5 py-1 px-2 mr-2",
               !column.getIsSorted() &&
-                "invisible group-hover:visible data-[state=open]:visible",
+                "invisible group-hover:visible data-[state=open]:visible"
             )}
           >
             {column.getIsSorted() === "desc" ? (
@@ -179,16 +194,18 @@ export const DataTableColumnHeader = <TData, TValue>({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         {dtype && (
-          <div className="flex-1 px-2 text-xs text-muted-foreground font-bold">
-            {dtype}
-          </div>
+          <>
+            <div className="flex-1 px-2 text-xs text-muted-foreground font-bold">
+              {dtype}
+            </div>
+            <DropdownMenuSeparator />
+          </>
         )}
-        <DropdownMenuSeparator />
         {renderSorts()}
         <DropdownMenuItem
           onClick={() =>
             navigator.clipboard.writeText(
-              typeof header === "string" ? header : column.id,
+              typeof header === "string" ? header : column.id
             )
           }
         >
@@ -215,7 +232,7 @@ export const DataTableColumnHeaderWithSummary = <TData, TValue>({
     <div
       className={cn(
         "flex flex-col h-full py-1 justify-between items-start gap-1",
-        className,
+        className
       )}
     >
       <DataTableColumnHeader
@@ -352,7 +369,7 @@ const NumberRangeFilter = <TData, TValue>({
       Filter.number({
         min: opts.min ?? min,
         max: opts.max ?? max,
-      }),
+      })
     );
   };
 

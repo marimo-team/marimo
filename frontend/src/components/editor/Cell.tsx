@@ -158,7 +158,7 @@ const CellComponent = (
     config: cellConfig,
     name,
   }: CellProps,
-  ref: React.ForwardedRef<CellHandle>,
+  ref: React.ForwardedRef<CellHandle>
 ) => {
   useCellRenderCount().countRender();
 
@@ -177,7 +177,7 @@ const CellComponent = (
     status,
     errored,
     interrupted,
-    stopped,
+    stopped
   );
 
   const needsRun =
@@ -189,7 +189,7 @@ const CellComponent = (
 
   const outputStale = outputIsStale(
     { status, output, runStartTimestamp, interrupted, staleInputs },
-    edited,
+    edited
   );
 
   // console output is cleared immediately on run, so check for queued instead
@@ -218,11 +218,39 @@ const CellComponent = (
       },
       registerRun: prepareToRunEffects,
     }),
-    [editorView, prepareToRunEffects],
+    [editorView, prepareToRunEffects]
   );
 
   // Callback to get the editor view.
   const getEditorView = useCallback(() => editorView.current, [editorView]);
+
+  const { openModal } = useImperativeModal();
+
+  const handleName = useEvent(() => {
+    alert("handleName");
+    openModal(
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Rename cell</DialogTitle>
+        </DialogHeader>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="cell-name">Cell name</Label>
+          <NameCellInput
+            placeholder={`cell_${cellId}`}
+            value={name}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                e.stopPropagation();
+                openModal(null);
+              }
+            }}
+            onChange={(newName) => updateCellName({ cellId, name: newName })}
+          />
+        </div>
+      </DialogContent>
+    );
+  });
 
   const handleRun = useEvent(async () => {
     if (loading) {
@@ -239,12 +267,12 @@ const CellComponent = (
   const createBelow = useCallback(
     (opts: { code?: string } = {}) =>
       createNewCell({ cellId, before: false, ...opts }),
-    [cellId, createNewCell],
+    [cellId, createNewCell]
   );
   const createAbove = useCallback(
     (opts: { code?: string } = {}) =>
       createNewCell({ cellId, before: true, ...opts }),
-    [cellId, createNewCell],
+    [cellId, createNewCell]
   );
 
   // Close completion when focus leaves the cell's subtree.
@@ -288,7 +316,7 @@ const CellComponent = (
       editorView.current.focus();
       return;
     },
-    [cellRef, editorView],
+    [cellRef, editorView]
   );
 
   const hasOutput = !isOutputEmpty(output);

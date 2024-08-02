@@ -754,10 +754,16 @@ const {
   },
   showCellIfHidden: (state, action: { cellId: CellId }) => {
     const { cellId } = action;
+    const prev = state.cellIds;
+    const result = state.cellIds.findAndExpandDeep(cellId);
+
+    if (result.equals(prev)) {
+      return state;
+    }
+
     return {
       ...state,
-      cellIds: state.cellIds.findAndExpandDeep(cellId),
-      scrollKey: cellId,
+      cellIds: result,
     };
   },
   splitCell: (state, action: { cellId: CellId }) => {
