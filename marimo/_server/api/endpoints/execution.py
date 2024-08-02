@@ -243,9 +243,10 @@ async def shutdown(
         close_uvicorn(app_state.server)
 
     # If we are only operating on a single file (new or explicit file),
-    # then we should shutdown the whole server
+    # and there are no other sessions (user may have opened another notebook
+    # from the file explorer) then we should shutdown the whole server
     key = file_router.get_unique_file_key()
-    if key:
+    if key and len(session_manager.sessions) <= 1:
         shutdown_server()
         return SuccessResponse()
 
