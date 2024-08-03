@@ -264,10 +264,8 @@ def test_cli_edit_update_check() -> None:
         state_contents = _read_toml(
             os.path.join(tempdir, CONFIG_ROOT_DIR, "state.toml")
         )
-        assert (
-            state_contents is not None
-            and state_contents.get("last_checked_at") is not None
-        )
+        assert state_contents is not None
+        assert state_contents.get("last_checked_at") is not None
 
 
 @pytest.mark.skipif(
