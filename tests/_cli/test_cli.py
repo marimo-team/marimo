@@ -20,6 +20,7 @@ import urllib.request
 from typing import Any, Callable, Iterator, Optional
 
 import pytest
+import tomlkit
 
 from marimo import __version__
 from marimo._ast import codegen
@@ -134,6 +135,13 @@ def _get_port() -> int:
         else:
             return port
     raise OSError("Could not find an unused port.")
+
+
+def _read_toml(filepath: str) -> Optional[dict]:
+    if not os.path.exists(filepath):
+        return None
+    with open(filepath, "r") as file:
+        return tomlkit.parse(file.read())
 
 
 def test_cli_help_exit_code() -> None:
@@ -252,8 +260,13 @@ def test_cli_edit_update_check() -> None:
         )
         contents = _try_fetch(port)
         _check_contents(p, b"marimo-mode data-mode='home'", contents)
-        assert os.path.exists(
+
+        state_contents = _read_toml(
             os.path.join(tempdir, CONFIG_ROOT_DIR, "state.toml")
+        )
+        assert (
+            state_contents is not None
+            and state_contents.get("last_checked_at") is not None
         )
 
 
@@ -278,8 +291,13 @@ def test_cli_edit_skip_update_check() -> None:
         )
         contents = _try_fetch(port)
         _check_contents(p, b"marimo-mode data-mode='home'", contents)
-        assert not os.path.exists(
+
+        state_contents = _read_toml(
             os.path.join(tempdir, CONFIG_ROOT_DIR, "state.toml")
+        )
+        assert (
+            state_contents is None
+            or state_contents.get("last_checked_at") is None
         )
 
 
