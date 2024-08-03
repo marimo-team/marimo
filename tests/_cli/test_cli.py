@@ -15,6 +15,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
 import urllib.request
 from typing import Any, Callable, Iterator, Optional
 
@@ -23,10 +24,20 @@ import pytest
 from marimo import __version__
 from marimo._ast import codegen
 from marimo._ast.cell import CellConfig
+from marimo._utils.config.config import ROOT_DIR as CONFIG_ROOT_DIR
 
 
 def _is_win32() -> bool:
     return sys.platform == "win32"
+
+
+def _can_access_pypi() -> bool:
+    try:
+        pypi_url = "https://pypi.org/pypi/marimo/json"
+        with urllib.request.urlopen(pypi_url, timeout=5):
+            return True
+    except urllib.error.URLError:
+        return False
 
 
 @contextlib.contextmanager
@@ -226,6 +237,50 @@ def test_cli_edit_with_additional_args(temp_marimo_file: str) -> None:
     _check_contents(
         p, f"marimo-version data-version='{__version__}'".encode(), contents
     )
+
+
+@pytest.mark.skipif(
+    condition=not _can_access_pypi(),
+    reason="update check won't work without access to pypi",
+)
+def test_cli_edit_update_check() -> None:
+    with tempfile.TemporaryDirectory() as tempdir:
+        port = _get_port()
+        p = subprocess.Popen(
+            ["marimo", "edit", "-p", str(port), "--headless", "--no-token"],
+            env={**os.environ, "MARIMO_PYTEST_HOME_DIR": tempdir},
+        )
+        contents = _try_fetch(port)
+        _check_contents(p, b"marimo-mode data-mode='home'", contents)
+        assert os.path.exists(
+            os.path.join(tempdir, CONFIG_ROOT_DIR, "state.toml")
+        )
+
+
+@pytest.mark.skipif(
+    condition=not _can_access_pypi(),
+    reason="update check won't work without access to pypi",
+)
+def test_cli_edit_skip_update_check() -> None:
+    with tempfile.TemporaryDirectory() as tempdir:
+        port = _get_port()
+        p = subprocess.Popen(
+            [
+                "marimo",
+                "edit",
+                "-p",
+                str(port),
+                "--headless",
+                "--no-token",
+                "--skip-update-check",
+            ],
+            env={**os.environ, "MARIMO_PYTEST_HOME_DIR": tempdir},
+        )
+        contents = _try_fetch(port)
+        _check_contents(p, b"marimo-mode data-mode='home'", contents)
+        assert not os.path.exists(
+            os.path.join(tempdir, CONFIG_ROOT_DIR, "state.toml")
+        )
 
 
 def test_cli_new() -> None:

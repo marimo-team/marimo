@@ -46,8 +46,13 @@ class ConfigReader:
     def _get_home_directory() -> str:
         # If in pytest, we want to set a temporary directory
         if os.environ.get("PYTEST_CURRENT_TEST"):
-            tmpdir = TemporaryDirectory()
-            return tmpdir.name
+            # If the home directory is given by test, take it
+            home_dir = os.environ.get("MARIMO_PYTEST_HOME_DIR")
+            if home_dir is not None:
+                return home_dir
+            else:
+                tmpdir = TemporaryDirectory()
+                return tmpdir.name
         else:
             return os.path.expanduser("~")
 
