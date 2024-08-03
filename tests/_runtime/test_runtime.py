@@ -1297,6 +1297,48 @@ class TestStrictExecution:
         assert "NameError" in k.stderr.messages[-1]
 
 
+class TestImports:
+    async def test_import_triggers_execution(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run([exec_req.get("random; x = 0")])
+        assert "x" not in k.globals
+
+        await k.run([exec_req.get("import random")])
+        assert k.globals["x"] == 0
+
+    async def test_reimport_doesnt_trigger_execution(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run([er := exec_req.get("import random")])
+
+        await k.run([exec_req.get("x = random.randint(0, 100000)")])
+        x = k.globals["x"]
+
+        # re-running an import shouldn't retrigger execution
+        await k.run([er])
+        assert k.globals["x"] == x
+
+    async def test_incremental_import_doesnt_trigger_execution(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run([er := exec_req.get("import random")])
+
+        await k.run([exec_req.get("x = random.randint(0, 100000)")])
+        x = k.globals["x"]
+
+        # adding another import to the cell shouldn't rerun dependents
+        # of already imported modules
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id=er.cell_id, code="import random; import time"
+                )
+            ]
+        )
+        assert k.globals["x"] == x
+
+
 class TestStoredOutput:
     async def test_ui_element_in_output_stored(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
