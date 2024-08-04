@@ -256,7 +256,7 @@ edit_help_msg = "\n".join(
     default=False,
     show_default=True,
     type=bool,
-    help="Skip update check before starting.",
+    help="Don't check if a new version of marimo is available for download.",
 )
 @click.argument("name", required=False)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
