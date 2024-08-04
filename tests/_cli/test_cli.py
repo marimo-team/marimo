@@ -270,7 +270,7 @@ def test_cli_edit_update_check() -> None:
 
 @pytest.mark.skipif(
     condition=not _can_access_pypi(),
-    reason="update check won't work without access to pypi",
+    reason="update check skip is only detectable if pypi is accessible",
 )
 def test_cli_edit_skip_update_check() -> None:
     with tempfile.TemporaryDirectory() as tempdir:
