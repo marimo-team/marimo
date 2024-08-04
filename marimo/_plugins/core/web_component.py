@@ -82,7 +82,7 @@ def build_ui_plugin(
 
     attrs: list[str] = [_build_attr("initial-value", initial_value)]
     if label is not None and label:
-        attrs.append(_build_attr("label", _md(label, size="sm").text))
+        attrs.append(_build_attr("label", _md(label).text))
     else:
         attrs.append(_build_attr("label", None))
 
