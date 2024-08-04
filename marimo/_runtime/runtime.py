@@ -609,7 +609,8 @@ class Kernel:
         same id but different code is registered.
 
         Returns:
-        - a set of ids for cells that were previously children of `cell_id`;
+        - a set of ids for cells that were previously children of `cell_id`
+          but are no longer children of `cell_id` after registration;
           only non-empty when `cell-id` was already registered but with
           different code.
         - an `Error` if the cell couldn't be registered, `None` otherwise
@@ -634,7 +635,6 @@ class Kernel:
 
             if previous_cell is not None:
                 LOGGER.debug("Deleting cell %s", cell_id)
-                print("deleting")
                 # TODO: this automatically enqueues children, even if the
                 # only edge is through the deleted def
                 # TODO: want a kind of "replace cell" for import blocks
@@ -652,7 +652,9 @@ class Kernel:
             self.graph.children,
             self.graph.siblings,
         )
-        return previous_children, error
+
+        children = self.graph.children.get(cell_id, set())
+        return previous_children - children, error
 
     def _delete_names(
         self, names: Iterable[Name], exclude_defs: set[Name]
