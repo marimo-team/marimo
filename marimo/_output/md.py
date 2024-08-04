@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from inspect import cleandoc
-from typing import Literal, Optional
 
 import markdown  # type: ignore
 
@@ -32,14 +31,8 @@ extension_configs = {
     },
 }
 
-MarkdownSize = Literal["sm", "base", "lg", "xl", "2xl"]
 
-
-def _md(
-    text: str,
-    apply_markdown_class: bool = True,
-    size: Optional[MarkdownSize] = None,
-) -> Html:
+def _md(text: str, apply_markdown_class: bool = True) -> Html:
     # cleandoc uniformly strips leading whitespace; useful for
     # indented multiline strings
     text = cleandoc(text)
@@ -75,10 +68,7 @@ def _md(
     )
 
     if apply_markdown_class:
-        classes = ["markdown", "prose"]
-        if size is not None:
-            classes.append(f"prose-{size}")
-        return Html(f'<span class="{" ".join(classes)}">{html_text}</span>')
+        return Html('<span class="markdown">' + html_text + "</span>")
     else:
         return Html(html_text)
 
