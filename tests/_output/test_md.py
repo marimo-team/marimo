@@ -1,12 +1,10 @@
-from __future__ import annotations
-
 from marimo._output.md import _md
 
 
 def test_md() -> None:
     # Test basic markdown conversion
     input_text = "This is **bold** and this is _italic_."
-    expected_output = '<span class="markdown prose"><span class="paragraph">This is <strong>bold</strong> and this is <em>italic</em>.</span></span>'  # noqa: E501
+    expected_output = '<span class="markdown"><span class="paragraph">This is <strong>bold</strong> and this is <em>italic</em>.</span></span>'  # noqa: E501
     assert _md(input_text).text == expected_output
 
     # Test disabling markdown class
@@ -15,12 +13,6 @@ def test_md() -> None:
         _md(input_text, apply_markdown_class=False).text
         == expected_output_no_class
     )
-
-
-# def test_md_size() -> None:
-#     input_text = "This is **bold** and this is _italic_."
-#     expected_output = '<span class="markdown prose prose-lg"><span class="paragraph">This is <strong>bold</strong> and this is <em>italic</em>.</span></span>'  # noqa: E501
-#     assert _md(input_text, size="lg").text == expected_output
 
 
 def test_md_code_blocks() -> None:

@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { type PropsWithChildren } from "react";
+import React, { PropsWithChildren } from "react";
 
 import {
   Accordion,
@@ -8,10 +8,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { z } from "zod";
-import type {
-  IStatelessPlugin,
-  IStatelessPluginProps,
-} from "../stateless-plugin";
+import { IStatelessPlugin, IStatelessPluginProps } from "../stateless-plugin";
 import { renderHTML } from "../core/RenderHTML";
 
 interface Data {
@@ -51,7 +48,11 @@ const AccordionComponent = ({
     <Accordion type={type} className="text-muted-foreground" collapsible={true}>
       {React.Children.map(children, (child, index) => {
         return (
-          <AccordionItem key={index} value={index.toString()}>
+          <AccordionItem
+            key={index}
+            value={index.toString()}
+            className="border-muted-foreground-20"
+          >
             <AccordionTrigger className="py-2 text-md">
               {renderHTML({ html: labels[index] })}
             </AccordionTrigger>
