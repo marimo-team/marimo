@@ -1338,6 +1338,21 @@ class TestImports:
         )
         assert k.globals["x"] == x
 
+    async def test_transition_out_of_error_triggers_run(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get("import random"),
+                er := exec_req.get("import random"),
+                exec_req.get("random; x = 0"),
+            ]
+        )
+        assert "x" not in k.globals
+
+        await k.delete(DeleteCellRequest(cell_id=er.cell_id))
+        assert "x" in k.globals
+
 
 class TestStoredOutput:
     async def test_ui_element_in_output_stored(

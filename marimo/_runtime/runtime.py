@@ -883,6 +883,12 @@ class Kernel:
             cells_with_errors_before_mutation
             - cells_with_errors_after_mutation
         ) & cells_in_graph
+
+        # Cells that no longer have errors need to have all their descendants
+        # run, even if they are import blocks
+        for cid in cells_that_no_longer_have_errors:
+            self.graph.cells[cid].import_workspace.imported_defs = set()
+
         if self.reactive_execution_mode == "autorun":
             for cid in cells_that_no_longer_have_errors:
                 # clear error outputs before running
