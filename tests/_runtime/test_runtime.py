@@ -1353,6 +1353,23 @@ class TestImports:
         await k.delete(DeleteCellRequest(cell_id=er.cell_id))
         assert "x" in k.globals
 
+    async def test_different_import_same_def(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run([er := exec_req.get("import random")])
+
+        await k.run([exec_req.get("x = random.randint(0, 100000)")])
+        assert "x" in k.globals
+
+        # er.cell_id is still an import block, still defines random,
+        # but brings random from another place; descendant should run
+        await k.run(
+            [ExecutionRequest(er.cell_id, code="from random import random")]
+        )
+        assert "random" in k.globals
+        # randint is on toplevel random, not random.random
+        assert "x" not in k.globals
+
 
 class TestStoredOutput:
     async def test_ui_element_in_output_stored(

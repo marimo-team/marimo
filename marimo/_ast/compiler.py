@@ -16,6 +16,7 @@ from marimo._ast.cell import (
     Cell,
     CellId_t,
     CellImpl,
+    ImportData,
     ImportWorkspace,
     SourcePosition,
 )
@@ -95,7 +96,7 @@ def compile_cell(
     code: str,
     cell_id: CellId_t,
     source_position: Optional[SourcePosition] = None,
-    carried_imports: set[Name] | None = None,
+    carried_imports: set[ImportData] | None = None,
 ) -> CellImpl:
     # Replace non-breaking spaces with regular spaces -- some frontends
     # send nbsp in place of space, which is a syntax error.
@@ -166,6 +167,25 @@ def compile_cell(
     )
 
     glbls = {name for name in v.defs if not is_local(name)}
+    # imports to carryover:
+    # any definition in carried_imports provided that
+    # we have a matching variable_data block in the new cell
+    variable_data = {
+        name: v.variable_data[name]
+        for name in glbls
+        if name in v.variable_data
+    }
+
+    imported_defs: set[Name] = set()
+    if carried_imports is not None:
+        for _, data in variable_data.items():
+            import_data = data.import_data
+            if import_data is None:
+                continue
+            for previous_import_data in carried_imports:
+                if previous_import_data == import_data:
+                    imported_defs.add(import_data.definition)
+
     return CellImpl(
         # keyed by original (user) code, for cache lookups
         key=code_key(code),
@@ -173,20 +193,10 @@ def compile_cell(
         mod=module,
         defs=glbls,
         refs=v.refs,
-        variable_data={
-            name: v.variable_data[name]
-            for name in glbls
-            if name in v.variable_data
-        },
+        variable_data=variable_data,
         import_workspace=ImportWorkspace(
             is_import_block=is_import_block,
-            # TODO: this isn't quite right -- it's not just the defs that
-            # need to match but also the import paths, ie defs should point
-            # to the same thing as they previously were pointing to; this
-            # info is available in the cell ...
-            imported_defs=carried_imports.intersection(glbls)
-            if carried_imports is not None
-            else set(),
+            imported_defs=imported_defs,
         ),
         deleted_refs=v.deleted_refs,
         body=body,

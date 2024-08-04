@@ -27,7 +27,7 @@ from typing import (
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._ast.cell import CellConfig, CellId_t, CellImpl
+from marimo._ast.cell import CellConfig, CellId_t, CellImpl, ImportData
 from marimo._ast.compiler import compile_cell
 from marimo._ast.visitor import Name
 from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
@@ -556,7 +556,7 @@ class Kernel:
         LOGGER.debug("children: %s", self.graph.children[cell_id])
 
     def _try_compiling_cell(
-        self, cell_id: CellId_t, code: str, carried_imports: set[Name]
+        self, cell_id: CellId_t, code: str, carried_imports: list[ImportData]
     ) -> tuple[Optional[CellImpl], Optional[Error]]:
         error: Optional[Error] = None
         try:
@@ -583,7 +583,7 @@ class Kernel:
         return cell, error
 
     def _try_registering_cell(
-        self, cell_id: CellId_t, code: str, carried_imports: set[Name]
+        self, cell_id: CellId_t, code: str, carried_imports: list[ImportData]
     ) -> Optional[Error]:
         """Attempt to register a cell with given id and code.
 
@@ -624,14 +624,13 @@ class Kernel:
                 previous_cell is not None
                 and previous_cell.import_workspace.is_import_block
             ):
-                # TODO: this isn't quite right -- it's not just the defs that
-                # need to match but also the import paths, ie the same module
-                # should be imported
-                carried_imports = set(
-                    name for name in previous_cell.defs if name in self.globals
-                )
+                carried_imports = [
+                    import_data
+                    for import_data in previous_cell.imports
+                    if import_data.definition in self.globals
+                ]
             else:
-                carried_imports = set()
+                carried_imports = []
 
             if previous_cell is not None:
                 LOGGER.debug("Deleting cell %s", cell_id)
