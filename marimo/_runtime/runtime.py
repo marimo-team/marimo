@@ -426,6 +426,8 @@ class Kernel:
             self.package_manager = create_package_manager(package_manager)
 
         if autoreload_mode == "lazy" or autoreload_mode == "autorun":
+            self.graph.config.special_case_imports = False
+
             if self.module_reloader is None:
                 self.module_reloader = ModuleReloader()
 
@@ -445,6 +447,7 @@ class Kernel:
                     stream=self.stream,
                 )
         else:
+            self.graph.config.special_case_imports = True
             self.module_reloader = None
             if self.module_watcher is not None:
                 self.module_watcher.stop()
@@ -553,11 +556,13 @@ class Kernel:
         LOGGER.debug("children: %s", self.graph.children[cell_id])
 
     def _try_compiling_cell(
-        self, cell_id: CellId_t, code: str
+        self, cell_id: CellId_t, code: str, carried_imports: set[Name]
     ) -> tuple[Optional[CellImpl], Optional[Error]]:
         error: Optional[Error] = None
         try:
-            cell = compile_cell(code, cell_id=cell_id)
+            cell = compile_cell(
+                code, cell_id=cell_id, carried_imports=carried_imports
+            )
         except Exception as e:
             cell = None
             if isinstance(e, SyntaxError):
@@ -578,9 +583,7 @@ class Kernel:
         return cell, error
 
     def _try_registering_cell(
-        self,
-        cell_id: CellId_t,
-        code: str,
+        self, cell_id: CellId_t, code: str, carried_imports: set[Name]
     ) -> Optional[Error]:
         """Attempt to register a cell with given id and code.
 
@@ -589,7 +592,7 @@ class Kernel:
 
         If cell was unable to be registered, returns an Error object.
         """
-        cell, error = self._try_compiling_cell(cell_id, code)
+        cell, error = self._try_compiling_cell(cell_id, code, carried_imports)
 
         if cell is not None:
             self._register_cell(cell_id, cell)
@@ -614,10 +617,33 @@ class Kernel:
         previous_children: set[CellId_t] = set()
         error = None
         if not self.graph.is_cell_cached(cell_id, code):
-            if cell_id in self.graph.cells:
+            previous_cell = self.graph.cells.get(cell_id, None)
+
+            if (
+                previous_cell is not None
+                and previous_cell.import_workspace.is_import_block
+            ):
+                # TODO: this isn't quite right -- it's not just the defs that
+                # need to match but also the import paths, ie the same module
+                # should be imported
+                carried_imports = set(
+                    name for name in previous_cell.defs if name in self.globals
+                )
+            else:
+                carried_imports = set()
+
+            if previous_cell is not None:
                 LOGGER.debug("Deleting cell %s", cell_id)
+                print("deleting")
+                # TODO: this automatically enqueues children, even if the
+                # only edge is through the deleted def
+                # TODO: want a kind of "replace cell" for import blocks
+                # when the new import block's imports are a superset of
+                # the previous one
                 previous_children = self._deactivate_cell(cell_id)
-            error = self._try_registering_cell(cell_id, code)
+            error = self._try_registering_cell(
+                cell_id, code, carried_imports=carried_imports
+            )
 
         LOGGER.debug(
             "graph:\n\tcell id %s\n\tparents %s\n\tchildren %s\n\tsiblings %s",
@@ -734,6 +760,8 @@ class Kernel:
         Deletion from graph is forwarded to graph object.
         """
         del self.cell_metadata[cell_id]
+        cell = self.graph.cells[cell_id]
+        cell.import_workspace.imported_defs = set()
         return self._deactivate_cell(cell_id)
 
     def mutate_graph(
@@ -1120,7 +1148,7 @@ class Kernel:
         roots = {SCRATCH_CELL_ID}
 
         # If cannot compile, don't run
-        cell, error = self._try_compiling_cell(SCRATCH_CELL_ID, code)
+        cell, error = self._try_compiling_cell(SCRATCH_CELL_ID, code, set())
         if error:
             CellOp.broadcast_error(
                 data=[error],

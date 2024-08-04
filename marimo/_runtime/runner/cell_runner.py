@@ -133,8 +133,9 @@ class Runner:
             )
         )
         if self.execution_mode == "autorun":
-            # in autorun/eager mode, descendants are also run
+            # in autorun/eager mode, descendants are also run;
             cells_to_run = dataflow.transitive_closure(graph, cells_to_run)
+
         self.cells_to_run = dataflow.topological_sort(
             graph,
             cells_to_run - self.excluded_cells,

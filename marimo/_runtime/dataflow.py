@@ -29,6 +29,11 @@ EdgeWithVar = Tuple[CellId_t, List[str], CellId_t]
 LOGGER = _loggers.marimo_logger()
 
 
+@dataclass
+class GraphConfig:
+    special_case_imports: bool = False
+
+
 # TODO(akshayka): Add method disable_cell, enable_cell which handle
 # state transitions on cells
 @dataclass(frozen=True)
@@ -62,6 +67,9 @@ class DirectedGraph:
     # only needed because a graph is shared between the kernel and the code
     # completion service. It should almost always be uncontended.
     lock: threading.Lock = field(default_factory=threading.Lock)
+
+    # Mutable config
+    config: GraphConfig = field(default_factory=GraphConfig)
 
     def is_cell_cached(self, cell_id: CellId_t, code: str) -> bool:
         """Whether a cell with id `cell_id` and code `code` is in the graph."""
@@ -387,7 +395,24 @@ def transitive_closure(
     predicate = predicate or (lambda _: True)
 
     def relatives(cid: CellId_t) -> set[CellId_t]:
-        return graph.children[cid] if children else graph.parents[cid]
+        if not children:
+            return graph.parents[cid]
+
+        cell_impl = graph.cells[cid]
+        if (
+            not graph.config.special_case_imports
+            or not cell_impl.import_workspace.is_import_block
+        ):
+            return graph.children[cid]
+
+        unimported_defs = cell.defs - cell_impl.import_workspace.imported_defs
+        children_ids = set().union(
+            *[graph.get_referring_cells(name) for name in unimported_defs]
+        )
+        sibling_ids = set().union(
+            *[graph.get_defining_cells(name) for name in unimported_defs]
+        ) - {cid}
+        return set().union(children_ids, sibling_ids)
 
     while queue:
         cid = queue.pop(0)

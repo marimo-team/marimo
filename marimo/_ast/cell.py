@@ -70,6 +70,14 @@ class CellStatus:
     state: Optional[CellStatusType] = None
 
 
+@dataclasses.dataclass
+class ImportWorkspace:
+    # a cell is an import block if all statements are import statements
+    is_import_block: bool = False
+    # defs that have been imported by the runtime
+    imported_defs: set[Name] = dataclasses.field(default_factory=set)
+
+
 def _is_coroutine(code: Optional[CodeType]) -> bool:
     if code is None:
         return False
@@ -108,9 +116,13 @@ class CellImpl:
     cell_id: CellId_t
 
     # Mutable fields
-    # config: explicit configuration of cell
+    # explicit configuration of cell
     config: CellConfig = dataclasses.field(default_factory=CellConfig)
-    # status: execution status, inferred at runtime
+    # which defs are imports, etc
+    import_workspace: ImportWorkspace = dataclasses.field(
+        default_factory=ImportWorkspace
+    )
+    # execution status, inferred at runtime
     _status: CellStatus = dataclasses.field(default_factory=CellStatus)
     # whether the cell is stale, inferred at runtime
     _stale: CellStaleState = dataclasses.field(default_factory=CellStaleState)

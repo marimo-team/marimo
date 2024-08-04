@@ -38,6 +38,18 @@ PostExecutionHookType = Callable[
 ]
 
 
+def _set_imported_defs(
+    cell: CellImpl,
+    runner: cell_runner.Runner,
+    run_result: cell_runner.RunResult,
+) -> None:
+    del run_result
+    if cell.import_workspace.is_import_block:
+        cell.import_workspace.imported_defs = set(
+            name for name in cell.defs if name in runner.glbls
+        )
+
+
 def _set_status_idle(
     cell: CellImpl,
     runner: cell_runner.Runner,
@@ -243,6 +255,7 @@ def _reset_matplotlib_context(
 
 
 POST_EXECUTION_HOOKS: list[PostExecutionHookType] = [
+    _set_imported_defs,
     _store_reference_to_output,
     _broadcast_variables,
     _broadcast_datasets,
