@@ -16,7 +16,7 @@
     "jsonrpc-ws-proxy": "^0.0.5",
     "minimist": "^1.2.8",
     "tsup": "^8.1.0",
-    "typescript": "^5.5.2",
+    "typescript": "^5.5.4",
     "ws": "^8.17.1"
   }
 }
