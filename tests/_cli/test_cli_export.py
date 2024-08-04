@@ -340,7 +340,7 @@ class TestExportMarkdown:
         snapshot("markdown.txt", output)
 
     @staticmethod
-    def test_export_script_async(temp_async_marimo_file: str) -> None:
+    def test_export_markdown_async(temp_async_marimo_file: str) -> None:
         p = subprocess.run(
             ["marimo", "export", "md", temp_async_marimo_file],
             capture_output=True,
@@ -351,7 +351,7 @@ class TestExportMarkdown:
         snapshot("async.txt", output)
 
     @staticmethod
-    def test_export_broken(temp_unparsable_marimo_file: str) -> None:
+    def test_export_markdown_broken(temp_unparsable_marimo_file: str) -> None:
         p = subprocess.run(
             ["marimo", "export", "md", temp_unparsable_marimo_file],
             capture_output=True,
@@ -365,8 +365,8 @@ class TestExportMarkdown:
         condition=DependencyManager.has_watchdog(),
         reason="hangs when watchdog is installed",
     )
-    async def test_export_watch_script(self, temp_marimo_file: str) -> None:
-        temp_out_file = temp_marimo_file.replace(".md", ".script.md")
+    async def test_export_watch_markdown(self, temp_marimo_file: str) -> None:
+        temp_out_file = temp_marimo_file.replace(".py", ".md")
         p = subprocess.Popen(  # noqa: ASYNC101 ASYNC220
             [
                 "marimo",
@@ -409,7 +409,7 @@ class TestExportMarkdown:
         condition=DependencyManager.has_watchdog(),
         reason="hangs when watchdog is installed",
     )
-    def test_export_watch_script_no_out_dir(
+    def test_export_watch_markdown_no_out_dir(
         self, temp_marimo_file: str
     ) -> None:
         p = subprocess.Popen(
