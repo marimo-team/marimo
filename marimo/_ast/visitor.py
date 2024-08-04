@@ -22,6 +22,8 @@ class ImportData:
     # full module name
     # e.g., a.b.c.
     module: str
+    # variable name
+    definition: str
     # fully qualified import symbol:
     # import a.b => symbol == None
     # from a.b import c => symbol == a.b.c
@@ -586,7 +588,9 @@ class ScopedVisitor(ast.NodeVisitor):
                 VariableData(
                     kind="import",
                     import_data=ImportData(
-                        module=alias_node.name, imported_symbol=None
+                        module=alias_node.name,
+                        definition=variable_name,
+                        imported_symbol=None,
                     ),
                 ),
             )
@@ -604,6 +608,7 @@ class ScopedVisitor(ast.NodeVisitor):
                     kind="import",
                     import_data=ImportData(
                         module=module,
+                        definition=variable_name,
                         imported_symbol=module + "." + original_name,
                         import_level=node.level,
                     ),
