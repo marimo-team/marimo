@@ -250,6 +250,14 @@ edit_help_msg = "\n".join(
     multiple=True,
     help="Allowed origins for CORS. Can be repeated. Use * for all origins.",
 )
+@click.option(
+    "--skip-update-check",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="Don't check if a new version of marimo is available for download.",
+)
 @click.argument("name", required=False)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def edit(
@@ -261,11 +269,13 @@ def edit(
     token_password: Optional[str],
     base_url: str,
     allow_origins: Optional[tuple[str, ...]],
+    skip_update_check: bool,
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
-    # Check for version updates
-    check_for_updates()
+    if not skip_update_check:
+        # Check for version updates
+        check_for_updates()
 
     if name is not None:
         # Validate name, or download from URL
