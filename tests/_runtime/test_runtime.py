@@ -1216,8 +1216,10 @@ class TestStrictExecution:
             assert not k.errors
 
     @staticmethod
-    async def test_runtime_resolution_failure(strict_kernel: Kernel) -> None:
+    async def test_runtime_failure(strict_kernel: Kernel) -> None:
         k = strict_kernel
+        # We keep variable data for reassignments, so static analysis should
+        # succeed
         await k.run(
             [
                 ExecutionRequest(
@@ -1227,51 +1229,7 @@ class TestStrictExecution:
                     X = 1
                     Y = 2
                     l = lambda x: x + X
-                    L = l # Static analysis can fail on reassignment
-                    l = lambda x: x + Y
-                    """
-                    ),
-                ),
-                ExecutionRequest(
-                    cell_id="1",
-                    code=textwrap.dedent(
-                        """
-                    try:
-                      x = L(1)
-                    except NameError as e:
-                      E = e
-                    raise E
-                    """
-                    ),
-                ),
-            ]
-        )
-        # Runtime error expected- since not a kernel error check stderr
-        assert "x" not in k.globals
-        assert "E" in k.globals
-        assert k.errors == {}
-
-        assert (
-            "marimo came across the undefined variable `X` during runtime."
-            in k.stream.messages[-2][1]["output"]["data"][0]["msg"]
-        )
-        assert "NameError" in k.stderr.messages[-1]
-
-    @staticmethod
-    async def test_runtime_resolution_failure_private(
-        strict_kernel: Kernel,
-    ) -> None:
-        k = strict_kernel
-        await k.run(
-            [
-                ExecutionRequest(
-                    cell_id="0",
-                    code=textwrap.dedent(
-                        """
-                    _X = 1
-                    Y = 2
-                    l = lambda x: x + _X
-                    L = l # Static analysis can fail on reassignment
+                    L = l
                     l = lambda x: x + Y
                     """
                     ),
@@ -1281,20 +1239,47 @@ class TestStrictExecution:
                     code=textwrap.dedent(
                         """
                     x = L(1)
-                    x
                     """
                     ),
                 ),
             ]
         )
-        # Runtime error expected- since not a kernel error check stderr
-        assert "x" not in k.globals
+        assert "x" in k.globals
+        assert k.globals["x"] == 2
 
-        assert (
-            "marimo came across the undefined variable `_X` during runtime."
-            in k.stream.messages[-2][1]["output"]["data"][0]["msg"]
+    @staticmethod
+    async def test_runtime_resolution_private(
+        strict_kernel: Kernel,
+    ) -> None:
+        k = strict_kernel
+        # We keep variable data for reassignments, so static analysis should
+        # succeed
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent(
+                        """
+                    _X = 1
+                    Y = 2
+                    l = lambda x: x + _X
+                    L = l
+                    l = lambda x: x + Y
+                    """
+                    ),
+                ),
+                ExecutionRequest(
+                    cell_id="1",
+                    code=textwrap.dedent(
+                        """
+                    x = L(1)
+                    """
+                    ),
+                ),
+            ]
         )
-        assert "NameError" in k.stderr.messages[-1]
+        assert "x" in k.globals
+        assert k.globals["x"] == 2
 
 
 class TestImports:

@@ -16,20 +16,13 @@ import time
 import traceback
 from copy import copy
 from multiprocessing import connection
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Iterator,
-    Optional,
-    cast,
-)
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, cast
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._ast.cell import CellConfig, CellId_t, CellImpl, ImportData
+from marimo._ast.cell import CellConfig, CellId_t, CellImpl
 from marimo._ast.compiler import compile_cell
-from marimo._ast.visitor import Name
+from marimo._ast.visitor import ImportData, Name
 from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
 from marimo._data.preview_column import get_column_preview
 from marimo._messaging.cell_output import CellChannel
@@ -1155,7 +1148,7 @@ class Kernel:
         roots = {SCRATCH_CELL_ID}
 
         # If cannot compile, don't run
-        cell, error = self._try_compiling_cell(SCRATCH_CELL_ID, code, set())
+        cell, error = self._try_compiling_cell(SCRATCH_CELL_ID, code, [])
         if error:
             CellOp.broadcast_error(
                 data=[error],
