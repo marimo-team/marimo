@@ -627,11 +627,6 @@ class Kernel:
 
             if previous_cell is not None:
                 LOGGER.debug("Deleting cell %s", cell_id)
-                # TODO: this automatically enqueues children, even if the
-                # only edge is through the deleted def
-                # TODO: want a kind of "replace cell" for import blocks
-                # when the new import block's imports are a superset of
-                # the previous one
                 previous_children = self._deactivate_cell(cell_id)
             error = self._try_registering_cell(
                 cell_id, code, carried_imports=carried_imports
@@ -645,6 +640,9 @@ class Kernel:
             self.graph.siblings,
         )
 
+        # we only return cells that were previously children of cell_id
+        # but are no longer children of the newly registered cell; these
+        # returned cells are stale.
         children = self.graph.children.get(cell_id, set())
         return previous_children - children, error
 
@@ -678,6 +676,7 @@ class Kernel:
         elements.
         """
         cell = self.graph.cells[cell_id]
+        cell.import_workspace.imported_defs = set()
         missing_modules_before_deletion = (
             self.module_registry.missing_modules()
         )
@@ -875,11 +874,6 @@ class Kernel:
             cells_with_errors_before_mutation
             - cells_with_errors_after_mutation
         ) & cells_in_graph
-
-        # Cells that no longer have errors need to have all their descendants
-        # run, even if they are import blocks
-        for cid in cells_that_no_longer_have_errors:
-            self.graph.cells[cid].import_workspace.imported_defs = set()
 
         if self.reactive_execution_mode == "autorun":
             for cid in cells_that_no_longer_have_errors:

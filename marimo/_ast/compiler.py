@@ -170,7 +170,6 @@ def compile_cell(
     # imports to carryover:
     # any definition in carried_imports provided that
     # we have a matching variable_data block in the new cell
-    #  TODO fixup variable_data here and in cell
     variable_data = {
         name: v.variable_data[name]
         for name in nonlocals
