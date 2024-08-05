@@ -358,16 +358,19 @@ class DirectedGraph:
                 processed.update(newly_processed)
                 queue.difference_update(newly_processed)
                 for variable in newly_processed:
-                    if predicate(variable, data[variable]):
-                        to_process = data[variable].required_refs - processed
-                        queue.update(to_process & self.definitions.keys())
-                        # Private variables referenced by public functions have
-                        # to be included.
-                        for maybe_private in (
-                            to_process - self.definitions.keys()
-                        ):
-                            if is_mangled_local(maybe_private, cell_id):
-                                processed.add(maybe_private)
+                    # variables can be defined multiple times in a single
+                    # cell ...
+                    for datum in data[variable]:
+                        if predicate(variable, datum):
+                            to_process = datum.required_refs - processed
+                            queue.update(to_process & self.definitions.keys())
+                            # Private variables referenced by public functions
+                            # have to be included.
+                            for maybe_private in (
+                                to_process - self.definitions.keys()
+                            ):
+                                if is_mangled_local(maybe_private, cell_id):
+                                    processed.add(maybe_private)
 
         if inclusive:
             return processed | refs

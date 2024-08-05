@@ -108,7 +108,7 @@ class CellImpl:
     defs: set[Name]
     refs: set[Name]
     # metadata about definitions
-    variable_data: dict[Name, VariableData]
+    variable_data: dict[Name, list[VariableData]]
     deleted_refs: set[Name]
     body: Optional[CodeType]
     last_expr: Optional[CodeType]
@@ -172,19 +172,22 @@ class CellImpl:
     @property
     def imports(self) -> Iterable[ImportData]:
         """Return a set of import data for this cell."""
-        return [
-            data.import_data
-            for _, data in self.variable_data.items()
-            if data.import_data is not None
-        ]
+        import_data = []
+        for data in self.variable_data.values():
+            import_data.extend(
+                [
+                    datum.import_data
+                    for datum in data
+                    if datum.import_data is not None
+                ]
+            )
+        return import_data
 
     @property
     def imported_namespaces(self) -> set[Name]:
         """Return a set of the namespaces imported by this cell."""
         return set(
-            data.import_data.module.split(".")[0]
-            for _, data in self.variable_data.items()
-            if data.import_data is not None
+            import_data.module.split(".")[0] for import_data in self.imports
         )
 
     def namespace_to_variable(self, namespace: str) -> Name | None:
@@ -196,12 +199,9 @@ class CellImpl:
 
         In this case the namespace is "matplotlib" but the name is "plt".
         """
-        for name, data in self.variable_data.items():
-            if (
-                data.import_data is not None
-                and data.import_data.namespace == namespace
-            ):
-                return name
+        for import_data in self.imports:
+            if import_data.namespace == namespace:
+                return import_data.definition
         return None
 
     def is_coroutine(self) -> bool:

@@ -96,7 +96,7 @@ def compile_cell(
     code: str,
     cell_id: CellId_t,
     source_position: Optional[SourcePosition] = None,
-    carried_imports: set[ImportData] | None = None,
+    carried_imports: list[ImportData] | None = None,
 ) -> CellImpl:
     # Replace non-breaking spaces with regular spaces -- some frontends
     # send nbsp in place of space, which is a syntax error.
@@ -124,6 +124,10 @@ def compile_cell(
             last_expr=None,
             cell_id=cell_id,
         )
+
+    is_import_block = all(
+        isinstance(stmt, (ast.Import, ast.ImportFrom)) for stmt in module.body
+    )
 
     v = ScopedVisitor("cell_" + cell_id)
     v.visit(module)
@@ -162,36 +166,34 @@ def compile_cell(
     body = compile(module, filename, mode="exec", flags=flags)
     last_expr = compile(expr, filename, mode="eval", flags=flags)
 
-    is_import_block = all(
-        isinstance(stmt, (ast.Import, ast.ImportFrom)) for stmt in module.body
-    )
-
-    glbls = {name for name in v.defs if not is_local(name)}
+    nonlocals = {name for name in v.defs if not is_local(name)}
     # imports to carryover:
     # any definition in carried_imports provided that
     # we have a matching variable_data block in the new cell
+    #  TODO fixup variable_data here and in cell
     variable_data = {
         name: v.variable_data[name]
-        for name in glbls
+        for name in nonlocals
         if name in v.variable_data
     }
 
     imported_defs: set[Name] = set()
-    if carried_imports is not None:
-        for _, data in variable_data.items():
-            import_data = data.import_data
-            if import_data is None:
-                continue
-            for previous_import_data in carried_imports:
-                if previous_import_data == import_data:
-                    imported_defs.add(import_data.definition)
+    if is_import_block and carried_imports is not None:
+        for data in variable_data.values():
+            for datum in data:
+                import_data = datum.import_data
+                if import_data is None:
+                    continue
+                for previous_import_data in carried_imports:
+                    if previous_import_data == import_data:
+                        imported_defs.add(import_data.definition)
 
     return CellImpl(
         # keyed by original (user) code, for cache lookups
         key=code_key(code),
         code=code,
         mod=module,
-        defs=glbls,
+        defs=nonlocals,
         refs=v.refs,
         variable_data=variable_data,
         import_workspace=ImportWorkspace(
