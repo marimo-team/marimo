@@ -1,4 +1,15 @@
+html {
+  box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
 body {
+  margin: 0;
   font-family: var(--text-font);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -13,4 +24,9 @@ body {
 
 code {
   font-family: var(--monospace-font);
+}
+
+button {
+  padding: 0;
+  margin: 0;
 }

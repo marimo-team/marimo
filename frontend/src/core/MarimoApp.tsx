@@ -18,11 +18,6 @@ import { Provider as SlotzProvider } from "@marimo-team/react-slotz";
 import { slotsController } from "./slots/slots";
 import { reactLazyWithPreload } from "@/utils/lazy";
 
-// Force tailwind classnames
-// tailwind only creates css for classnames that exist the FE files
-export const FORCE_TW_CLASSES =
-  "prose prose-sm prose-base prose-lg prose-xl prose-2xl";
-
 // Lazy imports
 const LazyHomePage = reactLazyWithPreload(
   () => import("@/components/pages/home-page"),
@@ -84,7 +79,7 @@ const Providers = memo(({ children }: PropsWithChildren) => {
   return (
     <ErrorBoundary>
       <Suspense>
-        <TooltipProvider>
+        <TooltipProvider delayDuration={400}>
           <DayPickerProvider initialProps={{}}>
             <SlotzProvider controller={slotsController}>
               <ModalProvider>

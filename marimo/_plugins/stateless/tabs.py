@@ -19,9 +19,9 @@ def tabs(tabs: dict[str, object]) -> Html:
 
     ```python
     tab1 = mo.vstack([
-        "slider": mo.ui.slider(1, 10),
-        "text": mo.ui.text(),
-        "date": mo.ui.date()
+        mo.ui.slider(1, 10),
+        mo.ui.text(),
+        mo.ui.date()
     ]);
     tab2 = mo.vstack([{
         "slider": mo.ui.slider(1, 10),

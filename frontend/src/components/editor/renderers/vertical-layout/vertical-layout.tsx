@@ -99,9 +99,12 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
     </>
   );
 
+  // in read mode (required for canShowCode to be true), we need to insert
+  // spacing between cells to prevent them from colliding; in edit mode,
+  // spacing is handled elsewhere
   return (
     <VerticalLayoutWrapper invisible={invisible} appConfig={appConfig}>
-      {showCode ? (
+      {showCode && canShowCode ? (
         <div className="flex flex-col gap-5"> {verticalCells}</div>
       ) : (
         verticalCells
@@ -113,7 +116,6 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
           onToggleShowCode={() => setShowCode((v) => !v)}
         />
       )}
-      {/* Shown in read and present */}
       <FloatingOutline />
     </VerticalLayoutWrapper>
   );
@@ -143,7 +145,7 @@ const ActionButtons: React.FC<{
   return (
     <div
       className={cn(
-        "right-0 top-0 z-50 m-4 no-print flex gap-2",
+        "right-0 top-0 z-50 m-4 no-print flex gap-2 print:hidden",
         // If the notebook is static, we have a banner at the top, so
         // we can't use fixed positioning. Ideally this is sticky, but the
         // current dom structure makes that difficult.

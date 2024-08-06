@@ -41,6 +41,7 @@ import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Kbd } from "@/components/ui/kbd";
+import { FloatingOutline } from "../chrome/panels/outline/floating-outline";
 
 interface CellArrayProps {
   notebook: NotebookState;
@@ -137,6 +138,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
         ))}
       </div>
       <AddCellButtons />
+      <FloatingOutline />
     </VerticalLayoutWrapper>
   );
 };
@@ -245,7 +247,7 @@ const AddCellButtons: React.FC = () => {
   };
 
   return (
-    <div className="flex justify-center mt-4 pt-6 pb-32 group gap-4 w-full">
+    <div className="flex justify-center mt-4 pt-6 pb-32 group gap-4 w-full print:hidden">
       <div
         className={cn(
           "shadow-sm border border-border rounded transition-all duration-200 overflow-hidden divide-x divide-border flex",

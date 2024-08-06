@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { memo, useEffect, useMemo, useRef, useState } from "react";
+import React from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 
-import { OutputMessage } from "@/core/kernel/messages";
+import type { OutputMessage } from "@/core/kernel/messages";
 
 import { logNever } from "../../utils/assertNever";
 import { JsonOutput } from "./output/JsonOutput";
@@ -10,13 +11,17 @@ import { ImageOutput } from "./output/ImageOutput";
 import { MarimoErrorOutput } from "./output/MarimoErrorOutput";
 import { TextOutput } from "./output/TextOutput";
 import { VideoOutput } from "./output/VideoOutput";
-import { CellId } from "@/core/cells/ids";
+import type { CellId } from "@/core/cells/ids";
 import { cn } from "@/utils/cn";
 import { ErrorBoundary } from "./boundary/ErrorBoundary";
 
 import "./output/Outputs.css";
 import { Button } from "../ui/button";
-import { ChevronsDownUpIcon, ChevronsUpDownIcon } from "lucide-react";
+import {
+  ChevronsDownUpIcon,
+  ChevronsUpDownIcon,
+  ExpandIcon,
+} from "lucide-react";
 import { Tooltip } from "../ui/tooltip";
 import { useExpandedOutput } from "@/core/cells/outputs";
 import { invariant } from "@/utils/invariant";
@@ -140,29 +145,30 @@ export const OutputArea = React.memo(
   ({ output, cellId, stale, allowExpand, className }: OutputAreaProps) => {
     if (output === null) {
       return null;
-    } else if (output.channel === "output" && output.data === "") {
-      return null;
-    } else {
-      // TODO(akshayka): More descriptive title
-      // 1. This output is stale (this cell has been edited but not run)
-      // 2. This output is stale (this cell is queued to run)
-      // 3. This output is stale (its inputs have changed)
-      const title = stale ? "This output is stale" : undefined;
-      const Container = allowExpand ? ExpandableOutput : Div;
-
-      return (
-        <ErrorBoundary>
-          <Container
-            title={title}
-            cellId={cellId}
-            id={`output-${cellId}`}
-            className={cn(stale && "marimo-output-stale", className)}
-          >
-            <OutputRenderer message={output} />
-          </Container>
-        </ErrorBoundary>
-      );
     }
+    if (output.channel === "output" && output.data === "") {
+      return null;
+    }
+
+    // TODO(akshayka): More descriptive title
+    // 1. This output is stale (this cell has been edited but not run)
+    // 2. This output is stale (this cell is queued to run)
+    // 3. This output is stale (its inputs have changed)
+    const title = stale ? "This output is stale" : undefined;
+    const Container = allowExpand ? ExpandableOutput : Div;
+
+    return (
+      <ErrorBoundary>
+        <Container
+          title={title}
+          cellId={cellId}
+          id={`output-${cellId}`}
+          className={cn(stale && "marimo-output-stale", className)}
+        >
+          <OutputRenderer message={output} />
+        </Container>
+      </ErrorBoundary>
+    );
   },
 );
 OutputArea.displayName = "OutputArea";
@@ -210,41 +216,58 @@ const ExpandableOutput = React.memo(
     return (
       <>
         <div>
-          {(isOverflowing || isExpanded) && (
-            <div className="relative">
-              <Button
-                data-testid="expand-output-button"
-                className={cn(
-                  "absolute top-6 -right-12 z-10",
-                  // Force show button if expanded
-                  !isExpanded && "hover-action",
-                )}
-                onClick={() => setIsExpanded(!isExpanded)}
-                size="xs"
-                variant="text"
-              >
-                {isExpanded ? (
-                  <Tooltip content="Collapse output" side="left">
-                    <ChevronsDownUpIcon className="h-4 w-4" />
-                  </Tooltip>
-                ) : (
-                  <Tooltip content="Expand output" side="left">
-                    <ChevronsUpDownIcon className="h-4 w-4" />
-                  </Tooltip>
-                )}
-              </Button>
+          <div className="relative print:hidden">
+            <div className="absolute top-1 -right-11 z-[1] flex flex-col gap-1">
+              <Tooltip content="Fullscreen" side="left">
+                <Button
+                  data-testid="fullscreen-output-button"
+                  className="hover-action hover:bg-muted"
+                  onClick={async () => {
+                    await containerRef.current?.requestFullscreen();
+                  }}
+                  size="xs"
+                  variant="text"
+                >
+                  <ExpandIcon className="h-4 w-4" strokeWidth={1.25} />
+                </Button>
+              </Tooltip>
+              {(isOverflowing || isExpanded) && (
+                <Button
+                  data-testid="expand-output-button"
+                  className={cn(
+                    // Force show button if expanded
+                    !isExpanded && "hover-action hover:bg-muted",
+                  )}
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  size="xs"
+                  variant="text"
+                >
+                  {isExpanded ? (
+                    <Tooltip content="Collapse output" side="left">
+                      <ChevronsDownUpIcon className="h-4 w-4" />
+                    </Tooltip>
+                  ) : (
+                    <Tooltip content="Expand output" side="left">
+                      <ChevronsUpDownIcon className="h-4 w-4" />
+                    </Tooltip>
+                  )}
+                </Button>
+              )}
             </div>
-          )}
+          </div>
           <div
             {...props}
-            className={cn("relative", props.className)}
+            className={cn(
+              "relative fullscreen:bg-background fullscreen:flex fullscreen:items-center fullscreen:justify-center",
+              props.className,
+            )}
             ref={containerRef}
             style={isExpanded ? { maxHeight: "none" } : undefined}
           >
             {children}
           </div>
         </div>
-        <div className="increase-pointer-area-x contents" />
+        <div className="increase-pointer-area-x contents print:hidden" />
       </>
     );
   },

@@ -16,3 +16,73 @@ body.printing #App {
 
   @apply bg-background;
 }
+
+@media print {
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  #App {
+    /* Full screen print */
+    height: fit-content !important;
+    overflow-y: visible !important;
+    overflow-x: hidden !important;
+  }
+
+	h1,
+	h2,
+	h3,
+	h4 {
+		break-after: avoid-page;
+	}
+
+	article {
+		orphans: 2;
+		widows: 2;
+	}
+
+  .container {
+    width: 100%;
+    max-width: none;
+  }
+
+  a[href]:after {
+    content: " (" attr(href) ")";
+  }
+
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* avoid breaking up a ui element (table, chart) */
+  div:has(> marimo-ui-element) {
+    page-break-inside: avoid;
+  }
+
+  body {
+    color: #000;
+    background-color: #fff;
+  }
+
+  [data-panel-group],
+  [data-panel] {
+    overflow: visible !important;
+    height: fit-content !important;
+  }
+
+  .tray,
+  .tray::after,
+  .tray::before {
+    display: none !important;
+  }
+
+  .output-area,
+  .console-output-area {
+    width: 100% !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    max-height: none !important;
+  }
+}

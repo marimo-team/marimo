@@ -1360,7 +1360,6 @@ class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
                 + "Must be either 'file' or 'directory'."
             )
         else:
-            self.filetypes = None
             self.selection_mode = selection_mode
 
         if not initial_path:

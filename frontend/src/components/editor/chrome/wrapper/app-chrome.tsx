@@ -160,7 +160,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       collapsedSize={0}
       collapsible={true}
       className={cn(
-        "dark:bg-[var(--slate-1)] no-print",
+        "dark:bg-[var(--slate-1)] no-print print:hidden",
         isSidebarOpen && "border-r border-l border-[var(--slate-7)]",
       )}
       minSize={10}
@@ -190,7 +190,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       collapsedSize={0}
       collapsible={true}
       className={cn(
-        "dark:bg-[var(--slate-1)] no-print",
+        "dark:bg-[var(--slate-1)] no-print print:hidden",
         isTerminalOpen && "border-[var(--slate-7)]",
       )}
       minSize={10}
@@ -217,7 +217,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   );
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden absolute inset-0">
+    <div className="flex flex-col flex-1 overflow-hidden absolute inset-0 print:relative">
       <PanelGroup
         autoSaveId="marimo:chrome:v1:l2"
         direction={"horizontal"}

@@ -5,7 +5,11 @@ from typing import Any, Dict, List, Tuple
 
 import pytest
 
-from marimo._utils.flatten import CyclicStructureError, flatten
+from marimo._utils.flatten import (
+    CyclicStructureError,
+    contains_instance,
+    flatten,
+)
 
 L = List[Any]
 T = Tuple[Any, ...]
@@ -201,3 +205,38 @@ def test_flatten_custom_list() -> None:
     v, u = flatten(custom_list)
     assert v == []
     assert u(v) == []
+
+
+def test_contains_instance() -> None:
+    class A:
+        pass
+
+    class B:
+        pass
+
+    assert contains_instance([], A) is False
+    assert contains_instance([B()], A) is False
+    assert contains_instance([B(), A()], A) is True
+
+
+def test_contains_instance_nested() -> None:
+    class A:
+        pass
+
+    class B:
+        pass
+
+    assert contains_instance([{}], A) is False
+    assert contains_instance({"key": B()}, A) is False
+    assert contains_instance({"key": B()}, B) is True
+    assert contains_instance({"key": [B(), (B(), A())]}, A) is True
+
+
+def test_contains_instance_recursive() -> None:
+    class A:
+        pass
+
+    value: Any = [A()]
+    for _ in range(5):
+        value.append(value)
+    assert contains_instance(value, A) is True

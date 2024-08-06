@@ -20,7 +20,7 @@ import { ConfigButton } from "../../app-config/app-config-button";
 import { LayoutSelect } from "../renderers/layout-select";
 import { NotebookMenuDropdown } from "@/components/editor/controls/notebook-menu-dropdown";
 import { FindReplace } from "@/components/find-replace/find-replace";
-import { AppConfig } from "@/core/config/config-schema";
+import type { AppConfig } from "@/core/config/config-schema";
 import { useShouldShowInterrupt } from "../cell/useShouldShowInterrupt";
 import { CommandPaletteButton } from "./command-palette-button";
 import { cn } from "@/utils/cn";
@@ -222,7 +222,7 @@ const RunControlButton = ({
 };
 
 const topRightControls =
-  "absolute top-3 right-5 m-0 flex items-center space-x-3 min-h-[28px] no-print pointer-events-auto z-30";
+  "absolute top-3 right-5 m-0 flex items-center space-x-3 min-h-[28px] no-print pointer-events-auto z-30 print:hidden";
 
 const bottomRightControls =
-  "absolute bottom-5 right-5 flex flex-col gap-2 items-center no-print pointer-events-auto z-30";
+  "absolute bottom-5 right-5 flex flex-col gap-2 items-center no-print pointer-events-auto z-30 print:hidden";

@@ -12,6 +12,8 @@ from marimo._cli.print import green, orange
 from marimo._server.api.status import HTTPException
 from marimo._utils.config.config import ConfigReader
 
+FETCH_TIMEOUT = 5
+
 
 @dataclass
 class MarimoCLIState:
@@ -90,7 +92,7 @@ def _update_with_latest_version(state: MarimoCLIState) -> MarimoCLIState:
 
 
 def _fetch_data_from_url(url: str) -> Dict[str, Any]:
-    with urllib.request.urlopen(url) as response:
+    with urllib.request.urlopen(url, timeout=FETCH_TIMEOUT) as response:
         status = response.status
         if status == 200:
             data = response.read()

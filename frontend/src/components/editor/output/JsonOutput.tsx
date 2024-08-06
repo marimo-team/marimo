@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { memo } from "react";
-import { type DataType, JsonViewer } from "@textea/json-viewer";
+import { DataType, JsonViewer } from "@textea/json-viewer";
 
 import { HtmlOutput } from "./HtmlOutput";
 import { ImageOutput } from "./ImageOutput";

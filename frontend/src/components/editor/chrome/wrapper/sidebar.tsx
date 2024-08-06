@@ -21,7 +21,7 @@ export const Sidebar: React.FC = () => {
   );
 
   return (
-    <div className="h-full py-4 px-1 flex flex-col items-start text-muted-foreground text-md select-none no-print text-sm z-50 dark:bg-background">
+    <div className="h-full py-4 px-1 flex flex-col items-start text-muted-foreground text-md select-none no-print text-sm z-50 dark:bg-background print:hidden">
       {sidebarItems.map((p) => (
         <SidebarItem
           key={p.type}
