@@ -99,9 +99,12 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
     </>
   );
 
+  // in read mode (required for canShowCode to be true), we need to insert
+  // spacing between cells to prevent them from colliding; in edit mode,
+  // spacing is handled elsewhere
   return (
     <VerticalLayoutWrapper invisible={invisible} appConfig={appConfig}>
-      {showCode ? (
+      {showCode && canShowCode ? (
         <div className="flex flex-col gap-5"> {verticalCells}</div>
       ) : (
         verticalCells
@@ -146,7 +149,7 @@ const ActionButtons: React.FC<{
         // If the notebook is static, we have a banner at the top, so
         // we can't use fixed positioning. Ideally this is sticky, but the
         // current dom structure makes that difficult.
-        isStaticNotebook() ? "absolute" : "fixed",
+        isStaticNotebook() ? "absolute" : "fixed"
       )}
     >
       <DropdownMenu modal={false}>
@@ -229,7 +232,7 @@ const VerticalCell = memo(
         runStartTimestamp,
         staleInputs,
       },
-      false,
+      false
     );
 
     // Kiosk and not presenting
@@ -286,7 +289,7 @@ const VerticalCell = memo(
         />
       </div>
     );
-  },
+  }
 );
 VerticalCell.displayName = "VerticalCell";
 
