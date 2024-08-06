@@ -16,11 +16,10 @@ from marimo._ast.cell import (
     Cell,
     CellId_t,
     CellImpl,
-    ImportData,
     ImportWorkspace,
     SourcePosition,
 )
-from marimo._ast.visitor import Name, ScopedVisitor
+from marimo._ast.visitor import ImportData, Name, ScopedVisitor
 from marimo._utils.tmpdir import get_tmpdir
 from marimo._utils.variables import is_local
 
