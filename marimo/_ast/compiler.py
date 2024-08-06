@@ -166,15 +166,15 @@ def compile_cell(
     last_expr = compile(expr, filename, mode="eval", flags=flags)
 
     nonlocals = {name for name in v.defs if not is_local(name)}
-    # imports to carryover:
-    # any definition in carried_imports provided that
-    # we have a matching variable_data block in the new cell
     variable_data = {
         name: v.variable_data[name]
         for name in nonlocals
         if name in v.variable_data
     }
 
+    # If this cell is an import cell, we carry over any imports in
+    # `carried_imports` that are also in this cell to the import workspace's
+    # definitions.
     imported_defs: set[Name] = set()
     if is_import_block and carried_imports is not None:
         for data in variable_data.values():
