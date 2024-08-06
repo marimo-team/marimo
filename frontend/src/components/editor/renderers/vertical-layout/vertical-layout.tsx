@@ -149,7 +149,7 @@ const ActionButtons: React.FC<{
         // If the notebook is static, we have a banner at the top, so
         // we can't use fixed positioning. Ideally this is sticky, but the
         // current dom structure makes that difficult.
-        isStaticNotebook() ? "absolute" : "fixed"
+        isStaticNotebook() ? "absolute" : "fixed",
       )}
     >
       <DropdownMenu modal={false}>
@@ -232,7 +232,7 @@ const VerticalCell = memo(
         runStartTimestamp,
         staleInputs,
       },
-      false
+      false,
     );
 
     // Kiosk and not presenting
@@ -289,7 +289,7 @@ const VerticalCell = memo(
         />
       </div>
     );
-  }
+  },
 );
 VerticalCell.displayName = "VerticalCell";
 
