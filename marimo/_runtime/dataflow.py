@@ -31,6 +31,10 @@ LOGGER = _loggers.marimo_logger()
 
 @dataclass
 class GraphConfig:
+    # Whether to special case import blocks when computing descendants
+    #
+    # If True, definitions that are already imported (as determined by a cell's
+    # import workspace) won't be used when retrieving the descendants of a cell.
     special_case_imports: bool = False
 
 
@@ -408,6 +412,10 @@ def transitive_closure(
         ):
             return graph.children[cid]
 
+        # This cell is an import block, which should be special cased:
+        #
+        # We prune definitions that have already been imported from the set of
+        # definitions used to find the descendants of this cell.
         unimported_defs = cell.defs - cell_impl.import_workspace.imported_defs
         children_ids = set().union(
             *[graph.get_referring_cells(name) for name in unimported_defs]

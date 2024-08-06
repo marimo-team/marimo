@@ -617,6 +617,9 @@ class Kernel:
                 previous_cell is not None
                 and previous_cell.import_workspace.is_import_block
             ):
+                # If the previous is being replaced by another import block,
+                # then the new cell should try to carry over the previous
+                # cell's imports to prevent unnecessary re-runs.
                 carried_imports = [
                     import_data
                     for import_data in previous_cell.imports
@@ -640,7 +643,7 @@ class Kernel:
             self.graph.siblings,
         )
 
-        # we only return cells that were previously children of cell_id
+        # We only return cells that were previously children of cell_id
         # but are no longer children of the newly registered cell; these
         # returned cells are stale.
         children = self.graph.children.get(cell_id, set())
