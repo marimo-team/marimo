@@ -34,7 +34,8 @@ class GraphConfig:
     # Whether to special case import blocks when computing descendants
     #
     # If True, definitions that are already imported (as determined by a cell's
-    # import workspace) won't be used when retrieving the descendants of a cell.
+    # import workspace) won't be used when retrieving the descendants of a
+    # cell.
     special_case_imports: bool = False
 
 
