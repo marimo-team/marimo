@@ -460,8 +460,8 @@ marimo edit --host 0.0.0.0
 
 ### How do I use marimo behind JupyterHub?
 
-JupyterHub can be configured to launch marimo using the `jupyter-marimo-proxy`
-package: https://github.com/jyio/jupyter-marimo-proxy.
+JupyterHub can be configured to launch marimo using the [`jupyter-marimo-proxy`
+package](https://github.com/jyio/jupyter-marimo-proxy).
 
 <a name="faq-app-deploy"></a>
 
