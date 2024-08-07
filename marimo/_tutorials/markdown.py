@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.6.0"
+__generated_with = "0.7.17"
 app = marimo.App()
 
 
@@ -14,7 +14,7 @@ def __(mo):
 
         Use marimo's "`md`" function to write markdown. This function compiles Markdown into HTML that marimo can display.
 
-        For example, here's the code that rendered the above title and 
+        For example, here's the code that rendered the above title and
         paragraph:
 
         ```python3
@@ -33,16 +33,20 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
-        rf"""
+        """
         **Tip: toggling between Markdown and Python views**
 
         Although markdown is written with `mo.md`, marimo provides a markdown view
-        that hides this boilerplate from you. You can toggle between Markdown and 
-        Python views by clicking the button in the top-right of this cell or entering 
-        `Ctrl/Cmd+Shift+M`.
+        that hides this boilerplate from you. You can toggle between Markdown and
+        Python views by clicking the button in the top-right of this cell or
+        entering `Ctrl/Cmd+Shift+M`.
+
+        **Tip**: To interpolate Python values into markdown strings, you'll
+        need to use `mo.md(f"...")` directly; the markdown view does not support
+        f-strings.
         """
     )
     return
@@ -103,7 +107,7 @@ def __(mo):
         ## Interpolating Python values
 
         You can interpolate Python values into markdown using
-        `f-strings` and marimo's ` as_html` function. This lets you create 
+        `f-strings` and marimo's ` as_html` function. This lets you create
         markdown whose contents depend on data that changes at runtime.
 
         Here are some examples.
@@ -184,7 +188,7 @@ def __(mo):
     mo.accordion(
         {
             "Tip: UI elements can format themselves": """
-            marimo objects know how to format themselves, so you can omit the 
+            marimo objects know how to format themselves, so you can omit the
             call to `as_html`.
             """
         }
@@ -234,8 +238,8 @@ def __(mo):
     mo.accordion(
         {
             "Tip: outputs are automatically converted to HTML": """
-            `mo.as_html` is only needed when interpolating objects into 
-            markdown; the last expression of a cell (its output) is 
+            `mo.as_html` is only needed when interpolating objects into
+            markdown; the last expression of a cell (its output) is
             converted to HTML automatically.
             """
         }
