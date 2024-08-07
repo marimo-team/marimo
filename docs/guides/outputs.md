@@ -18,7 +18,6 @@ Writing markdown programmatically lets you make dynamic markdown: interpolate
 Python values into markdown strings, conditionally render your markdown, and
 embed markdown in other objects.
 
-
 Here's a simple hello world example:
 
 ```python
