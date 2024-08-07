@@ -18,6 +18,7 @@ Writing markdown programmatically lets you make dynamic markdown: interpolate
 Python values into markdown strings, conditionally render your markdown, and
 embed markdown in other objects.
 
+
 Here's a simple hello world example:
 
 ```python
@@ -43,7 +44,7 @@ mo.md(
 )
 ```
 
-Notice that marimo knows how to render marimo objects in markdown: can just
+Notice that marimo knows how to render marimo objects in markdown: you can just
 embed them in [`mo.md()`](/api/markdown) using an f-string, and marimo will
 figure out how to display them!
 
@@ -61,12 +62,22 @@ mo.md(
 )
 ```
 
-```{admonition} Markdown editor
-:class: tip
+### Markdown editor
 
-marimo can render cells that only use `mo.md()`, without an `f`-string, in a
-markdown editor that supports common hotkeys.
-```
+marimo automatically renders cells that only use `mo.md("")`, without an
+`f`-string, in a markdown editor that supports common hotkeys.
+
+Because the Markdown editor doesn't support f-strings, you'll need to use
+`mo.md` directly to interpolate Python values into your Markdown. You can
+switch between the Markdown and Python editors by clicking the button in the
+top right.
+
+<div align="center">
+<figure>
+<img src="/_static/docs-markdown-toggle.gif"/>
+<figcaption>marimo is pure Python, even when you're using markdown.</figcaption>
+</figure>
+</div>
 
 ## Layout
 
