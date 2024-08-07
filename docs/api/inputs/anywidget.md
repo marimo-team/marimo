@@ -10,7 +10,7 @@ in your notebooks and apps.
 
 ## Importing a widget
 
-You can use anywidgets that others have built, such as quak
+You can use anywidgets that others have built, such as
 [quak](https://github.com/manzt/quak) or
 [drawdata](https://github.com/koaning/drawdata), directly in marimo.
 
