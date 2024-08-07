@@ -17,7 +17,7 @@ with code and data.
 
 | Guide                | Description                                     |
 | :------------------- | :---------------------------------------------- |
-| {doc}`overview`      | An overview of editor features and configration |
+| {doc}`overview`      | An overview of editor features and configuration |
 | {doc}`ai_completion` | Code with the help of a language model          |
 | {doc}`hotkeys`       | Our hotkeys                                     |
 
