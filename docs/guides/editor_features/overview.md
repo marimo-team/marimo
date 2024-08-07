@@ -43,14 +43,12 @@ marimo supports vim keybindings.
 - `gd` - go to definition
 - `dd` - when a cell is empty, delete it
 
-
 <div align="center">
 <figure>
 <img src="/_static/docs-settings.png"/>
 <figcaption>Click the gear icon to access notebook and editor settings.</figcaption>
 </figure>
 </div>
-
 
 ## Overview panels
 
@@ -166,8 +164,6 @@ You can also export to HTML at the command-line:
 ```bash
 marimo export html notebook.py -o notebook.html
 ```
-
-
 
 ## Send feedback
 

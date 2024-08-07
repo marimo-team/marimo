@@ -1,6 +1,4 @@
 
-
-
 # Best practices
 
 ```{eval-rst}

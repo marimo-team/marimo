@@ -207,7 +207,6 @@ You can optionally render embedded notebooks in read-only mode by appending
 
 <iframe src="https://marimo.app/l/c7h6pz?mode=read&embed=true" width="100%" height="600" class="demo" frameBorder="0"></iframe>
 
-
 ## Limitations
 
 While WASM notebooks let you get up and running with marimo instantly, they

@@ -71,8 +71,6 @@ local variables names.
 If you encapsulate your code using functions and classes when needed,
 you won't need to use many local variables, if any.
 
-
-
 ## No hidden state
 
 Traditional notebooks like Jupyter have _hidden state_: running a cell may
@@ -94,7 +92,6 @@ deletes its global variables from program memory_.
 <figcaption>No hidden state: deleting a cell deletes its variables.</figcaption>
 </figure>
 </div>
-
 
 <a name="reactivity-mutations"></a>
 
@@ -163,7 +160,6 @@ result in surprising re-runs of notebook cells. The simplicity of marimo's
 static analysis approach, based only on variable definitions and references,
 makes marimo easy to understand and encourages well-organized notebook code.
 ```
-
 
 ## Runtime configuration
 

@@ -73,7 +73,6 @@ their dependency graph.
 marimo export ipynb notebook.py -o notebook.ipynb
 ```
 
-
 ## 🏝️ Embed marimo outputs in HTML using Islands
 
 ```{admonition} Preview
