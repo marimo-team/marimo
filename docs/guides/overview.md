@@ -58,6 +58,18 @@ cell's code just once, creating a directed acyclic graph based on the
 global names each cell defines and reads. This is how data flows
 in a marimo notebook.
 
+```{admonition} Minimize variable mutation.
+:class: warning
+
+marimo's understanding of your code is based on variable definitions and
+references; marimo does not track mutations to objects at runtime. For this
+reason, if you need to mutate a variable (such as adding a new column to a
+dataframe), you should perform the mutation in the same cell as the one that
+defines it.
+
+Learn more in our [reactivity guide](/guides/reactivity.md#reactivity-mutations).
+
+
 For more on reactive execution, open the dataflow tutorial:
 
 ```bash

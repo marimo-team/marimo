@@ -26,6 +26,10 @@ helpful when you want to edit one part of a notebook without triggering
 execution of other parts. See the
 [reactivity guide](/guides/reactivity.md#disabling-cells) for more info.
 
+## Disable notebook autorun
+
+For expensive notebooks, you can [disable autorun](/guides/reactivity.md#runtime-configuration).
+
 ## Lazy-load expensive elements or computations
 
 You can lazily render UI elements that are expensive to compute using `marimo.lazy`.
