@@ -15,10 +15,11 @@ These guides help you deploy marimo notebooks.
 |                                 |                                                           |
 | :------------------------------ | :-------------------------------------------------------- |
 | {doc}`programmatically`         | Programmatically run the marimo backend for customization |
-| {doc}`deploying_docker`         | Deploy with Docker                                     |
-| {doc}`deploying_public_gallery` | Deploy our public gallery                              |
-| {doc}`deploying_marimo_cloud`   | Deploy to Marimo Cloud                                 |
-| {doc}`deploying_ploomber`       | Deploy to Ploomber Cloud                        |
+| {doc}`deploying_docker`         | Deploy with Docker                                        |
+| {doc}`deploying_public_gallery` | Deploy our public gallery                                 |
+| {doc}`deploying_marimo_cloud`   | Deploy to Marimo Cloud                                    |
+| {doc}`deploying_ploomber`       | Deploy to Ploomber Cloud                                  |
+| {doc}`authentication`           | Authentication and security                               |
 
 ```{admonition} Sharing notebooks on the public web
 :class: tip

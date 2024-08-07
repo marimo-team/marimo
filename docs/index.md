@@ -4,7 +4,7 @@
 
 **marimo** is a reactive notebook for Python that models notebooks as dataflow
 graphs. Run a cell or interact with a UI element, and marimo automatically runs
-affected cells (or [marks them as stale](/guides/runtime_configuration.md)),
+affected cells (or [marks them as stale](/guides/reactivity.md#runtime-configuration)),
 keeping code and outputs consistent and preventing bugs before they happen.
 Every marimo notebook is stored as pure Python, executable as a script, and
 deployable as an app.
