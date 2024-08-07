@@ -16,7 +16,6 @@ You can use anywidgets that others have built, such as quak
 
 Here is an example using `drawdata`:
 
-
 ```python
 # pip install drawdata
 from drawdata import ScatterWidget
