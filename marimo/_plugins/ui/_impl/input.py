@@ -1176,7 +1176,7 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
     `name(index: int = 0)` and `contents(index: int = 0)` to retrieve the
     name or contents of the file at a specified index.
 
-    Use the `kind` argument to switch between a button and a drop-and-drop
+    Use the `kind` argument to switch between a button and a drag-and-drop
     area.
 
     The maximum file size is 100MB.
