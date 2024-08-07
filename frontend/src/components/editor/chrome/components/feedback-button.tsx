@@ -108,7 +108,7 @@ const FeedbackModal: React.FC<{
             id="message"
             name="message"
             autoFocus={true}
-            placeholder="Your feedback"
+            placeholder="Your feedback; if you'd like us to respond, please include your email!"
             rows={5}
             required={true}
             autoComplete="off"
