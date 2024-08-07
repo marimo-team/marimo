@@ -1,4 +1,15 @@
+
+
+
 # Best practices
+
+```{eval-rst}
+.. toctree::
+  :maxdepth: 2
+  :hidden:
+
+  performance
+```
 
 Here are best practices for writing marimo notebooks.
 
@@ -66,5 +77,5 @@ will help you avoid bugs and cache expensive intermediate computations.
 
 For tips on writing
 performant notebooks (e.g., how to cache intermediate outputs), see the
-[performance guide](/guides/performance.md).
+[performance guide](/guides/best_practices/performance.md).
 ```

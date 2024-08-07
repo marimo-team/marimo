@@ -1,7 +1,7 @@
 # Interactivity
 
 One of marimo's most powerful features is its first-class support for
-interactive, stateful user interface (UI) elements: create them using
+interactive, stateful user interface (UI) elements, or "widgets": create them using
 [`marimo.ui`](/api/inputs/index/). **Interacting with a UI element bound to a
 global variable automatically runs all cells that reference it.**
 
@@ -83,3 +83,9 @@ value on form submission.
 <figcaption>Use an array to group together elements or create a collection of elements that is determined at runtime</figcaption>
 </figure>
 </div>
+
+## Building custom UI elements using our plugin API
+
+You can build your own reactive and interactive UI elements using
+[anywidget](https://github.com/manzt/anywidget)! See [our docs on
+building custom UI elements](/guides/integrating_with_marimo/custom_ui_plugins.md) to learn more.

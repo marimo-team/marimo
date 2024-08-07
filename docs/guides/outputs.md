@@ -61,6 +61,14 @@ mo.md(
 )
 ```
 
+```{admonition} Markdown editor
+:class: tip
+
+marimo can render cells that only use `mo.md()`, without an `f`-string, in a
+markdown editor that supports common hotkeys.
+```
+
+
 ## Layout
 
 The marimo library also comes with elements for laying out outputs, including
