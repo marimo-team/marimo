@@ -91,7 +91,7 @@ class QueueManager:
         # requests.
         self.set_ui_element_queue: QueueType[
             requests.SetUIElementValueRequest
-        ] = (context.Queue() if context is not None else queue.Queue())
+        ] = context.Queue() if context is not None else queue.Queue()
 
         # Code completion requests are sent through a separate queue
         self.completion_queue: QueueType[requests.CodeCompletionRequest] = (
