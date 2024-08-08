@@ -153,7 +153,7 @@ class KernelManager:
         app_metadata: AppMetadata,
         user_config_manager: UserConfigManager,
         virtual_files_supported: bool,
-        redirect_console_to_browser: bool,
+        redirect_console_to_browser: bool = False,
     ) -> None:
         self.kernel_task: Optional[threading.Thread] | Optional[mp.Process]
         self.queue_manager = queue_manager
@@ -353,7 +353,7 @@ class Session:
         app_file_manager: AppFileManager,
         user_config_manager: UserConfigManager,
         virtual_files_supported: bool,
-        redirect_console_to_browser: bool,
+        redirect_console_to_browser: bool = False,
     ) -> Session:
         """
         Create a new session.
@@ -589,7 +589,7 @@ class SessionManager:
         user_config_manager: UserConfigManager,
         cli_args: SerializedCLIArgs,
         auth_token: Optional[AuthToken],
-        redirect_console_to_browser: bool,
+        redirect_console_to_browser: bool = False,
     ) -> None:
         self.file_router = file_router
         self.mode = mode

@@ -141,6 +141,7 @@ async def run_app_until_completion(
         app_file_manager=file_manager,
         user_config_manager=config,
         virtual_files_supported=False,
+        redirect_console_to_browser=False,
     )
 
     # Run the notebook to completion once
