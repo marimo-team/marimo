@@ -29,16 +29,6 @@ EdgeWithVar = Tuple[CellId_t, List[str], CellId_t]
 LOGGER = _loggers.marimo_logger()
 
 
-@dataclass
-class GraphConfig:
-    # Whether to special case import blocks when computing descendants
-    #
-    # If True, definitions that are already imported (as determined by a cell's
-    # import workspace) won't be used when retrieving the descendants of a
-    # cell.
-    special_case_imports: bool = False
-
-
 # TODO(akshayka): Add method disable_cell, enable_cell which handle
 # state transitions on cells
 @dataclass(frozen=True)
@@ -74,8 +64,6 @@ class DirectedGraph:
     lock: threading.Lock = field(default_factory=threading.Lock)
 
     # Mutable config
-    config: GraphConfig = field(default_factory=GraphConfig)
-
     def is_cell_cached(self, cell_id: CellId_t, code: str) -> bool:
         """Whether a cell with id `cell_id` and code `code` is in the graph."""
         return (
@@ -407,10 +395,7 @@ def transitive_closure(
             return graph.parents[cid]
 
         cell_impl = graph.cells[cid]
-        if (
-            not graph.config.special_case_imports
-            or not cell_impl.import_workspace.is_import_block
-        ):
+        if not cell_impl.import_workspace.is_import_block:
             return graph.children[cid]
 
         # This cell is an import block, which should be special cased:

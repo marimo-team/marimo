@@ -419,8 +419,6 @@ class Kernel:
             self.package_manager = create_package_manager(package_manager)
 
         if autoreload_mode == "lazy" or autoreload_mode == "autorun":
-            self.graph.config.special_case_imports = False
-
             if self.module_reloader is None:
                 self.module_reloader = ModuleReloader()
 
@@ -440,7 +438,6 @@ class Kernel:
                     stream=self.stream,
                 )
         else:
-            self.graph.config.special_case_imports = True
             self.module_reloader = None
             if self.module_watcher is not None:
                 self.module_watcher.stop()
