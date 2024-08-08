@@ -59,8 +59,10 @@ const SortableCellsProviderInternal = ({
     });
   });
 
+  // autoScroll=false is required to disable horizontal scroll
   return (
     <DndContext
+      autoScroll={false}
       sensors={sensors}
       collisionDetection={closestCenter}
       modifiers={[restrictToVerticalAxis]}
