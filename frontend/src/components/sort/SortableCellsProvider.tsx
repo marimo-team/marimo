@@ -40,7 +40,7 @@ const SortableCellsProviderInternal = ({
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    }),
+    })
   );
 
   const ids = notebook.cellIds.topLevelIds;
@@ -59,10 +59,12 @@ const SortableCellsProviderInternal = ({
     });
   });
 
-  // autoScroll=false is required to disable horizontal scroll
+  // autoScroll threshold x: 0 is required to disable horizontal scroll
+  //            threshold y: 0.1 means scroll y when near bottom/top 10% of
+  //            scrollable container
   return (
     <DndContext
-      autoScroll={false}
+      autoScroll={{ threshold: { x: 0, y: 0.1 } }}
       sensors={sensors}
       collisionDetection={closestCenter}
       modifiers={[restrictToVerticalAxis]}
