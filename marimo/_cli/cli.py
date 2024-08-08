@@ -400,7 +400,7 @@ def new(
         cli_args={},
         auth_token=_resolve_token(token, token_password),
         base_url=base_url,
-        redirect_console_to_browser=False,
+        redirect_console_to_browser=True,
     )
 
 
@@ -498,7 +498,7 @@ Example:
     default=False,
     show_default=True,
     type=bool,
-    help="Redirect console logs to the browser.",
+    help="Redirect console logs to the browser console.",
 )
 @click.argument("name", required=True)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
