@@ -1658,6 +1658,7 @@ def launch_kernel(
     app_metadata: AppMetadata,
     user_config: MarimoConfig,
     virtual_files_supported: bool,
+    redirect_console_to_browser: bool,
     interrupt_queue: QueueType[bool] | None = None,
 ) -> None:
     LOGGER.debug("Launching kernel")
@@ -1684,8 +1685,16 @@ def launch_kernel(
     stream = ThreadSafeStream(pipe=pipe, input_queue=input_queue)
     # Console output is hidden in run mode, so no need to redirect
     # (redirection of console outputs is not thread-safe anyway)
-    stdout = ThreadSafeStdout(stream) if is_edit_mode else None
-    stderr = ThreadSafeStderr(stream) if is_edit_mode else None
+    stdout = (
+        ThreadSafeStdout(stream)
+        if is_edit_mode or redirect_console_to_browser
+        else None
+    )
+    stderr = (
+        ThreadSafeStderr(stream)
+        if is_edit_mode or redirect_console_to_browser
+        else None
+    )
     # TODO(akshayka): stdin in run mode? input(prompt) uses stdout, which
     # isn't currently available in run mode.
     stdin = ThreadSafeStdin(stream) if is_edit_mode else None

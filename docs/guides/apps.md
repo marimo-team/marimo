@@ -41,6 +41,7 @@ Options:
                          every 1s.
   --base-url TEXT        Base URL for the server. Should start with a /.
   --allow-origins TEXT   Allowed origins for CORS. Can be repeated.
+  --redirect-console-to-browser  Redirect stdout and stderr to the browser console.
   --help                 Show this message and exit.
 ```
 
