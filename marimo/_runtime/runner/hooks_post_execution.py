@@ -48,6 +48,10 @@ def _set_imported_defs(
         cell.import_workspace.imported_defs = set(
             name for name in cell.defs if name in runner.glbls
         )
+    if cell.stale and cell.import_workspace.is_import_block:
+        # Hack to mitigate a race condition in which the module
+        # watcher cleared imported defs right before we set it above
+        cell.import_workspace.imported_defs = set()
 
 
 def _set_status_idle(

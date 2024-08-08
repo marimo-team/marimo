@@ -908,6 +908,7 @@ class Kernel:
             if cid not in self.graph.cells:
                 # error is a registration error
                 continue
+            self.graph.cells[cid].set_run_history("marimo-error")
             self._invalidate_cell_state(cid, exclude_defs=keep_alive_defs)
 
         self.errors = all_errors
