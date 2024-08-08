@@ -91,7 +91,7 @@ class QueueManager:
         # requests.
         self.set_ui_element_queue: QueueType[
             requests.SetUIElementValueRequest
-        ] = context.Queue() if context is not None else queue.Queue()
+        ] = (context.Queue() if context is not None else queue.Queue())
 
         # Code completion requests are sent through a separate queue
         self.completion_queue: QueueType[requests.CodeCompletionRequest] = (
@@ -153,6 +153,7 @@ class KernelManager:
         app_metadata: AppMetadata,
         user_config_manager: UserConfigManager,
         virtual_files_supported: bool,
+        redirect_console_to_browser: bool,
     ) -> None:
         self.kernel_task: Optional[threading.Thread] | Optional[mp.Process]
         self.queue_manager = queue_manager
@@ -160,6 +161,7 @@ class KernelManager:
         self.configs = configs
         self.app_metadata = app_metadata
         self.user_config_manager = user_config_manager
+        self.redirect_console_to_browser = redirect_console_to_browser
         self._read_conn: Optional[TypedConnection[KernelMessage]] = None
         self._virtual_files_supported = virtual_files_supported
 
@@ -185,6 +187,7 @@ class KernelManager:
                     self.app_metadata,
                     self.user_config_manager.config,
                     self._virtual_files_supported,
+                    self.redirect_console_to_browser,
                     self.queue_manager.win32_interrupt_queue,
                 ),
                 # The process can't be a daemon, because daemonic processes
@@ -224,6 +227,7 @@ class KernelManager:
                     self.app_metadata,
                     self.user_config_manager.config,
                     self._virtual_files_supported,
+                    self.redirect_console_to_browser,
                     # win32 interrupt queue
                     None,
                 ),
@@ -349,6 +353,7 @@ class Session:
         app_file_manager: AppFileManager,
         user_config_manager: UserConfigManager,
         virtual_files_supported: bool,
+        redirect_console_to_browser: bool,
     ) -> Session:
         """
         Create a new session.
@@ -363,6 +368,7 @@ class Session:
             app_metadata,
             user_config_manager,
             virtual_files_supported=virtual_files_supported,
+            redirect_console_to_browser=redirect_console_to_browser,
         )
         return cls(
             initialization_id,
@@ -583,6 +589,7 @@ class SessionManager:
         user_config_manager: UserConfigManager,
         cli_args: SerializedCLIArgs,
         auth_token: Optional[AuthToken],
+        redirect_console_to_browser: bool,
     ) -> None:
         self.file_router = file_router
         self.mode = mode
@@ -595,6 +602,7 @@ class SessionManager:
         self.recents = RecentFilesManager()
         self.user_config_manager = user_config_manager
         self.cli_args = cli_args
+        self.redirect_console_to_browser = redirect_console_to_browser
 
         # Auth token and Skew-protection token
         if auth_token is not None:
@@ -661,6 +669,7 @@ class SessionManager:
                 app_file_manager=app_file_manager,
                 user_config_manager=self.user_config_manager,
                 virtual_files_supported=True,
+                redirect_console_to_browser=self.redirect_console_to_browser,
             )
         return self.sessions[session_id]
 

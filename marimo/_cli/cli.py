@@ -321,6 +321,7 @@ def edit(
         auth_token=_resolve_token(token, token_password),
         base_url=base_url,
         allow_origins=allow_origins,
+        redirect_console_to_browser=True,
     )
 
 
@@ -399,6 +400,7 @@ def new(
         cli_args={},
         auth_token=_resolve_token(token, token_password),
         base_url=base_url,
+        redirect_console_to_browser=False,
     )
 
 
@@ -490,6 +492,14 @@ Example:
     multiple=True,
     help="Allowed origins for CORS. Can be repeated.",
 )
+@click.option(
+    "--redirect-console-to-browser",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="Redirect console logs to the browser.",
+)
 @click.argument("name", required=True)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def run(
@@ -503,6 +513,7 @@ def run(
     watch: bool,
     base_url: str,
     allow_origins: tuple[str, ...],
+    redirect_console_to_browser: bool,
     name: str,
     args: tuple[str, ...],
 ) -> None:
@@ -530,6 +541,7 @@ def run(
         allow_origins=allow_origins,
         cli_args=parse_args(args),
         auth_token=_resolve_token(token, token_password),
+        redirect_console_to_browser=redirect_console_to_browser,
     )
 
 
@@ -639,6 +651,7 @@ def tutorial(
         watch=False,
         cli_args={},
         auth_token=_resolve_token(token, token_password),
+        redirect_console_to_browser=False,
     )
 
 
