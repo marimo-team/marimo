@@ -448,6 +448,7 @@ class Kernel:
             self.module_reloader = None
             if self.module_watcher is not None:
                 self.module_watcher.stop()
+                self.module_watcher = None
 
         self.user_config = config
 
