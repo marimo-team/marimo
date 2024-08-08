@@ -70,6 +70,14 @@ class CellStatus:
     state: Optional[CellStatusType] = None
 
 
+RunHistoryType = Literal["success", "exception", "cancelled", "interrupted"]
+
+
+@dataclasses.dataclass
+class RunHistory:
+    state: Optional[RunHistoryType] = None
+
+
 @dataclasses.dataclass
 class ImportWorkspace:
     """A workspace for runtimes to use to manage a cell's imports."""
@@ -126,6 +134,7 @@ class CellImpl:
     )
     # execution status, inferred at runtime
     _status: CellStatus = dataclasses.field(default_factory=CellStatus)
+    _run_history: RunHistory = dataclasses.field(default_factory=RunHistory)
     # whether the cell is stale, inferred at runtime
     _stale: CellStaleState = dataclasses.field(default_factory=CellStaleState)
     # cells can optionally hold a reference to their output
@@ -146,6 +155,10 @@ class CellImpl:
     @property
     def status(self) -> Optional[CellStatusType]:
         return self._status.state
+
+    @property
+    def run_history(self) -> Optional[RunHistoryType]:
+        return self._run_history.state
 
     @property
     def sqls(self) -> list[str]:
@@ -229,6 +242,9 @@ class CellImpl:
         CellOp.broadcast_status(
             cell_id=self.cell_id, status=status, stream=stream
         )
+
+    def set_run_history(self, run_history: RunHistoryType) -> None:
+        self._run_history.state = run_history
 
     def set_stale(self, stale: bool, stream: Stream | None = None) -> None:
         from marimo._messaging.ops import CellOp

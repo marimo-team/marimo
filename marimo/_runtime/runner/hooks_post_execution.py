@@ -43,12 +43,8 @@ def _set_imported_defs(
     runner: cell_runner.Runner,
     run_result: cell_runner.RunResult,
 ) -> None:
-    if (
-        run_result.exception is not None
-        and cell.import_workspace.is_import_block
-    ):
-        cell.import_workspace.imported_defs = set()
-    elif cell.import_workspace.is_import_block:
+    del run_result
+    if cell.import_workspace.is_import_block:
         cell.import_workspace.imported_defs = set(
             name for name in cell.defs if name in runner.glbls
         )
@@ -62,6 +58,21 @@ def _set_status_idle(
     del run_result
     del runner
     cell.set_status(status="idle")
+
+
+def _set_run_history(
+    cell: CellImpl,
+    runner: cell_runner.Runner,
+    run_result: cell_runner.RunResult,
+) -> None:
+    if isinstance(run_result.exception, MarimoInterruptionError):
+        cell.set_run_history("interrupted")
+    elif runner.cancelled(cell.cell_id):
+        cell.set_run_history("cancelled")
+    elif run_result.exception is not None:
+        cell.set_run_history("exception")
+    else:
+        cell.set_run_history("success")
 
 
 def _broadcast_variables(
@@ -260,6 +271,7 @@ def _reset_matplotlib_context(
 
 POST_EXECUTION_HOOKS: list[PostExecutionHookType] = [
     _set_imported_defs,
+    _set_run_history,
     _store_reference_to_output,
     _broadcast_variables,
     _broadcast_datasets,
