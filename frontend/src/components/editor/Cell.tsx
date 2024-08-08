@@ -224,34 +224,6 @@ const CellComponent = (
   // Callback to get the editor view.
   const getEditorView = useCallback(() => editorView.current, [editorView]);
 
-  const { openModal } = useImperativeModal();
-
-  const handleName = useEvent(() => {
-    alert("handleName");
-    openModal(
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Rename cell</DialogTitle>
-        </DialogHeader>
-        <div className="flex items-center justify-between">
-          <Label htmlFor="cell-name">Cell name</Label>
-          <NameCellInput
-            placeholder={`cell_${cellId}`}
-            value={name}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                e.stopPropagation();
-                openModal(null);
-              }
-            }}
-            onChange={(newName) => updateCellName({ cellId, name: newName })}
-          />
-        </div>
-      </DialogContent>
-    );
-  });
-
   const handleRun = useEvent(async () => {
     if (loading) {
       return;

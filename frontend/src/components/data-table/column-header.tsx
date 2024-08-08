@@ -10,8 +10,11 @@ import {
   MinusIcon,
   SearchIcon,
   WrapTextIcon,
-  Text,
   AlignJustifyIcon,
+  PinIcon,
+  PinOffIcon,
+  ArrowLeftToLineIcon,
+  ArrowRightToLineIcon,
 } from "lucide-react";
 
 import { cn } from "@/utils/cn";
@@ -163,6 +166,52 @@ export const DataTableColumnHeader = <TData, TValue>({
       </DropdownMenuSub>
     );
   };
+  // render pinning options
+  const renderPinning = () => {
+    // if the column cannot be pinned, return null
+    if (!column.getCanPin()) {
+      return null;
+    }
+    return (
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger>
+          <PinIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+          Pin
+        </DropdownMenuSubTrigger>
+        <DropdownMenuPortal>
+          <DropdownMenuSubContent>
+            {/* if the column is pinned, render an unpin option */}
+            {Boolean(column.getIsPinned()) && (
+              <DropdownMenuItem
+                onClick={() => column.toggleColumnPinning(false)}
+              >
+                <PinOffIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+                Unpin
+              </DropdownMenuItem>
+            )}
+            {/* if the column is not pinned left, render pin left option */}
+            {Boolean(column.getIsPinned() !== "left") && (
+              <DropdownMenuItem
+                onClick={() => column.toggleColumnPinning("left")}
+              >
+                <ArrowLeftToLineIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+                Left
+              </DropdownMenuItem>
+            )}
+            {/* if the column is not pinned right, render pin right option */}
+            {Boolean(column.getIsPinned() !== "right") && (
+              <DropdownMenuItem
+                onClick={() => column.toggleColumnPinning("right")}
+              >
+                <ArrowRightToLineIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+                Right
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuSubContent>
+        </DropdownMenuPortal>
+      </DropdownMenuSub>
+    );
+  };
 
   return (
     <DropdownMenu modal={false}>
@@ -212,6 +261,7 @@ export const DataTableColumnHeader = <TData, TValue>({
           <CopyIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
           Copy column name
         </DropdownMenuItem>
+        {renderPinning()}
         {renderColumnWrapping()}
         {renderFormatOptions()}
         <DropdownMenuItemFilter column={column} />
