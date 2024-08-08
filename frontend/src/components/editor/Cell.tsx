@@ -47,14 +47,6 @@ import { useSetAtom } from "jotai";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { CollapsedCellBanner, CollapseToggle } from "./cell/collapse";
 import { canCollapseOutline } from "@/core/dom/outline";
-import { useImperativeModal } from "@/components/modal/ImperativeModal";
-import {
-  DialogContent,
-  DialogTitle,
-  DialogHeader,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { NameCellInput } from "./actions/name-cell-input";
 
 /**
  * Imperative interface of the cell.
@@ -91,7 +83,6 @@ export interface CellProps
     >,
     Pick<
       CellActions,
-      | "updateCellName"
       | "updateCellCode"
       | "prepareForRun"
       | "createNewCell"
@@ -146,7 +137,6 @@ const CellComponent = (
     debuggerActive,
     appClosed,
     showDeleteButton,
-    updateCellName,
     updateCellCode,
     prepareForRun,
     createNewCell,
@@ -168,7 +158,7 @@ const CellComponent = (
     config: cellConfig,
     name,
   }: CellProps,
-  ref: React.ForwardedRef<CellHandle>,
+  ref: React.ForwardedRef<CellHandle>
 ) => {
   useCellRenderCount().countRender();
 
@@ -187,7 +177,7 @@ const CellComponent = (
     status,
     errored,
     interrupted,
-    stopped,
+    stopped
   );
 
   const needsRun =
@@ -199,7 +189,7 @@ const CellComponent = (
 
   const outputStale = outputIsStale(
     { status, output, runStartTimestamp, interrupted, staleInputs },
-    edited,
+    edited
   );
 
   // console output is cleared immediately on run, so check for queued instead
@@ -228,39 +218,11 @@ const CellComponent = (
       },
       registerRun: prepareToRunEffects,
     }),
-    [editorView, prepareToRunEffects],
+    [editorView, prepareToRunEffects]
   );
 
   // Callback to get the editor view.
   const getEditorView = useCallback(() => editorView.current, [editorView]);
-
-  const { openModal } = useImperativeModal();
-
-  const handleName = useEvent(() => {
-    alert("handleName");
-    openModal(
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Rename cell</DialogTitle>
-        </DialogHeader>
-        <div className="flex items-center justify-between">
-          <Label htmlFor="cell-name">Cell name</Label>
-          <NameCellInput
-            placeholder={`cell_${cellId}`}
-            value={name}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                e.stopPropagation();
-                openModal(null);
-              }
-            }}
-            onChange={(newName) => updateCellName({ cellId, name: newName })}
-          />
-        </div>
-      </DialogContent>,
-    );
-  });
 
   const handleRun = useEvent(async () => {
     if (loading) {
@@ -277,12 +239,12 @@ const CellComponent = (
   const createBelow = useCallback(
     (opts: { code?: string } = {}) =>
       createNewCell({ cellId, before: false, ...opts }),
-    [cellId, createNewCell],
+    [cellId, createNewCell]
   );
   const createAbove = useCallback(
     (opts: { code?: string } = {}) =>
       createNewCell({ cellId, before: true, ...opts }),
-    [cellId, createNewCell],
+    [cellId, createNewCell]
   );
 
   // Close completion when focus leaves the cell's subtree.
@@ -326,7 +288,7 @@ const CellComponent = (
       editorView.current.focus();
       return;
     },
-    [cellRef, editorView],
+    [cellRef, editorView]
   );
 
   const hasOutput = !isOutputEmpty(output);
@@ -371,7 +333,6 @@ const CellComponent = (
   // Register hotkeys on the cell instead of the code editor
   // This is in case the code editor is hidden
   useHotkeysOnElement(editing ? cellRef.current : null, {
-    "cell.name": handleName,
     "cell.run": handleRun,
     "cell.runAndNewBelow": () => {
       handleRun();

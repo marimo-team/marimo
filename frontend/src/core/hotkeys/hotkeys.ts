@@ -100,11 +100,6 @@ const DEFAULT_HOT_KEY = {
   },
 
   // Editing Cells
-  "cell.name": {
-    name: "Name",
-    group: "Editing",
-    key: "Mod-Shift-l",
-  },
   "cell.format": {
     name: "Format",
     group: "Editing",
@@ -334,10 +329,7 @@ export class HotkeyProvider implements IHotkeyProvider {
     return new HotkeyProvider(DEFAULT_HOT_KEY, isMac);
   }
 
-  constructor(
-    private hotkeys: Record<HotkeyAction, Hotkey>,
-    isMac?: boolean,
-  ) {
+  constructor(private hotkeys: Record<HotkeyAction, Hotkey>, isMac?: boolean) {
     isMac = isMac ?? isPlatformMac();
 
     this.mod = isMac ? "Cmd" : "Ctrl";
@@ -371,7 +363,7 @@ export class HotkeyProvider implements IHotkeyProvider {
     return Objects.groupBy(
       Objects.entries(this.hotkeys),
       ([, hotkey]) => hotkey.group,
-      ([action]) => action,
+      ([action]) => action
     );
   }
 }
@@ -380,7 +372,7 @@ export class OverridingHotkeyProvider extends HotkeyProvider {
   constructor(
     private readonly overrides: Partial<
       Record<HotkeyAction, string | undefined>
-    >,
+    >
   ) {
     super(DEFAULT_HOT_KEY);
   }
