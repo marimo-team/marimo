@@ -68,6 +68,66 @@ async def test_reload_function(
     assert k.globals["x"] == 2
 
 
+async def test_disable_and_reenable_reload(
+    tmp_path: pathlib.Path,
+    py_modname: str,
+    execution_kernel: Kernel,
+    exec_req: ExecReqProvider,
+):
+    # tests a bug in which after disabling the reloader, it couldn't be
+    # reenabled
+    k = execution_kernel
+    sys.path.append(str(tmp_path))
+    py_file = tmp_path / pathlib.Path(py_modname + ".py")
+    py_file.write_text(
+        textwrap.dedent(
+            """
+            def foo():
+                return 1
+            """
+        )
+    )
+
+    config = copy.deepcopy(DEFAULT_CONFIG)
+    # enable reloading ...
+    config["runtime"]["auto_reload"] = "lazy"
+    k.set_user_config(SetUserConfigRequest(config=config))
+
+    # disable it ...
+    config["runtime"]["auto_reload"] = "off"
+    k.set_user_config(SetUserConfigRequest(config=config))
+
+    # ... and reenable it
+    config["runtime"]["auto_reload"] = "lazy"
+    k.set_user_config(SetUserConfigRequest(config=config))
+    await k.run(
+        [
+            er_1 := exec_req.get(f"from {py_modname} import foo"),
+            er_2 := exec_req.get("x = foo()"),
+            er_3 := exec_req.get("pass"),
+        ]
+    )
+    assert k.globals["x"] == 1
+    update_file(
+        py_file,
+        """
+        def foo():
+            return 2
+        """,
+    )
+
+    # wait for the watcher to pick up the change
+    await asyncio.sleep(2.5)
+    assert k.graph.cells[er_1.cell_id].stale
+    assert k.graph.cells[er_2.cell_id].stale
+    assert not k.graph.cells[er_3.cell_id].stale
+    await k.run_stale_cells()
+    assert not k.graph.cells[er_1.cell_id].stale
+    assert not k.graph.cells[er_2.cell_id].stale
+    assert not k.graph.cells[er_3.cell_id].stale
+    assert k.globals["x"] == 2
+
+
 async def test_reload_nested_module_function(
     tmp_path: pathlib.Path,
     py_modname: str,
