@@ -406,6 +406,20 @@ def transitive_closure(
         children_ids = set().union(
             *[graph.get_referring_cells(name) for name in unimported_defs]
         )
+
+        # If children haven't been executed, then still use imported defs;
+        # handle an edge case when an import cell is interrupted by an
+        # exception or user interrupt, so that a module is imported but the
+        # cell's children haven't run.
+        for name in cell_impl.import_workspace.imported_defs:
+            for child_id in graph.get_referring_cells(name):
+                if graph.cells[child_id].run_history in (
+                    "interrupted",
+                    "cancelled",
+                    None,
+                ):
+                    children_ids.add(child_id)
+
         sibling_ids = set().union(
             *[graph.get_defining_cells(name) for name in unimported_defs]
         ) - {cid}

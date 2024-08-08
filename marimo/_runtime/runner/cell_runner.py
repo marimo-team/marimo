@@ -102,10 +102,10 @@ class Runner:
         )
         self.pre_execution_hooks: Sequence[
             Callable[[CellImpl, "Runner"], Any]
-        ] = (pre_execution_hooks or [])
+        ] = pre_execution_hooks or []
         self.post_execution_hooks: Sequence[
             Callable[[CellImpl, "Runner", RunResult], Any]
-        ] = (post_execution_hooks or [])
+        ] = post_execution_hooks or []
         self.on_finish_hooks: Sequence[Callable[["Runner"], Any]] = (
             on_finish_hooks or []
         )
@@ -215,30 +215,13 @@ class Runner:
 
     def cancel(self, cell_id: CellId_t) -> None:
         """Mark a cell (and its descendants) as cancelled."""
-        cell = self.graph.cells[cell_id]
-        if cell.import_workspace.is_import_block:
-            # If an import block errors, we need to propagate the error to
-            # all its descendants (without pruning based on imported defs).
-            # That's why we recompute the cells_to_run after clearing the
-            # imported defs.
-            # TODO(akshayka): This isn't ideal, because it leads to unnecessary
-            # re-runs -- say if you added an import for a package that wasn't
-            # installed, but the other packages in the cell were already
-            # installed and already imported
-            cell.import_workspace.imported_defs = set()
-            cells_to_run = Runner.compute_cells_to_run(
-                graph=self.graph,
-                roots=self.roots,
-                excluded_cells=self.excluded_cells,
-                execution_mode=self.execution_mode,
-            )
-        else:
-            cells_to_run = self.cells_to_run
         self.cells_cancelled[cell_id] = set(
             cid
             for cid in dataflow.transitive_closure(self.graph, set([cell_id]))
-            if cid in cells_to_run
+            if cid in self.cells_to_run
         )
+        for cid in self.cells_cancelled[cell_id]:
+            self.graph.cells[cid].set_run_history("cancelled")
 
     def cancelled(self, cell_id: CellId_t) -> bool:
         """Return whether a cell has been cancelled."""
@@ -483,7 +466,6 @@ class Runner:
                 tmpio.seek(0)
                 write_traceback(tmpio.read())
         finally:
-            self.graph.cells[cell_id].import_workspace.imported_defs = set()
             # Mark as interrupted if the cell raised a MarimoInterrupt
             # Set here since failed async can also trigger an Interrupt.
             if isinstance(run_result.exception, MarimoInterrupt):
