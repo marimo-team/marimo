@@ -398,6 +398,8 @@ def transitive_closure(
         if not cell_impl.import_workspace.is_import_block:
             return graph.children[cid]
 
+        # TODO: this should be injected in ... as a filter?
+        #
         # This cell is an import block, which should be special cased:
         #
         # We prune definitions that have already been imported from the set of
@@ -416,6 +418,7 @@ def transitive_closure(
                 if graph.cells[child_id].run_history in (
                     "interrupted",
                     "cancelled",
+                    "marimo-error",
                     None,
                 ):
                     children_ids.add(child_id)

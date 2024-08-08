@@ -70,7 +70,9 @@ class CellStatus:
     state: Optional[CellStatusType] = None
 
 
-RunHistoryType = Literal["success", "exception", "cancelled", "interrupted"]
+RunHistoryType = Literal[
+    "success", "exception", "cancelled", "interrupted", "marimo-error"
+]
 
 
 @dataclasses.dataclass
