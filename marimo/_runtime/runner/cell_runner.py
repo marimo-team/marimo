@@ -102,17 +102,17 @@ class Runner:
         )
         self.pre_execution_hooks: Sequence[
             Callable[[CellImpl, "Runner"], Any]
-        ] = pre_execution_hooks or []
+        ] = (pre_execution_hooks or [])
         self.post_execution_hooks: Sequence[
             Callable[[CellImpl, "Runner", RunResult], Any]
-        ] = post_execution_hooks or []
+        ] = (post_execution_hooks or [])
         self.on_finish_hooks: Sequence[Callable[["Runner"], Any]] = (
             on_finish_hooks or []
         )
 
         # runtime globals
         self.glbls = glbls
-        self.execution_mode = execution_mode
+        self.execution_mode: OnCellChangeType = execution_mode
         self.execution_type = execution_type
 
         # cells that the runner will run, subtracting out cells with errors:
@@ -120,25 +120,11 @@ class Runner:
         # cells with errors can't be run, but are still in the graph
         # so that they can be transitioned out of error if a future
         # run request repairs the graph
+        self.roots = roots
         self.cells_to_run: list[CellId_t]
 
-        # Runner always runs stale ancestors, if any.
-        cells_to_run = roots.union(
-            dataflow.transitive_closure(
-                graph,
-                roots,
-                children=False,
-                inclusive=False,
-                predicate=lambda cell: cell.stale,
-            )
-        )
-        if self.execution_mode == "autorun":
-            # in autorun/eager mode, descendants are also run;
-            cells_to_run = dataflow.transitive_closure(graph, cells_to_run)
-
-        self.cells_to_run = dataflow.topological_sort(
-            graph,
-            cells_to_run - self.excluded_cells,
+        self.cells_to_run = Runner.compute_cells_to_run(
+            self.graph, self.roots, self.excluded_cells, self.execution_mode
         )
 
         # map from a cell that was cancelled to its descendants that have
@@ -153,6 +139,32 @@ class Runner:
         self._run_position = {
             cell_id: index for index, cell_id in enumerate(self.cells_to_run)
         }
+
+    @staticmethod
+    def compute_cells_to_run(
+        graph: dataflow.DirectedGraph,
+        roots: set[CellId_t],
+        excluded_cells: set[CellId_t],
+        execution_mode: OnCellChangeType,
+    ) -> list[CellId_t]:
+        # Runner always runs stale ancestors, if any.
+        cells_to_run = roots.union(
+            dataflow.transitive_closure(
+                graph,
+                roots,
+                children=False,
+                inclusive=False,
+                predicate=lambda cell: cell.stale,
+            )
+        )
+        if execution_mode == "autorun":
+            # in autorun/eager mode, descendants are also run;
+            cells_to_run = dataflow.transitive_closure(graph, cells_to_run)
+
+        return dataflow.topological_sort(
+            graph,
+            cells_to_run - excluded_cells,
+        )
 
     # Adapted from
     # https://github.com/ipython/ipykernel/blob/eddd3e666a82ebec287168b0da7cfa03639a3772/ipykernel/ipkernel.py#L312  # noqa: E501
@@ -203,10 +215,29 @@ class Runner:
 
     def cancel(self, cell_id: CellId_t) -> None:
         """Mark a cell (and its descendants) as cancelled."""
+        cell = self.graph.cells[cell_id]
+        if cell.import_workspace.is_import_block:
+            # If an import block errors, we need to propagate the error to
+            # all its descendants (without pruning based on imported defs).
+            # That's why we recompute the cells_to_run after clearing the
+            # imported defs.
+            # TODO(akshayka): This isn't ideal, because it leads to unnecessary
+            # re-runs -- say if you added an import for a package that wasn't
+            # installed, but the other packages in the cell were already
+            # installed and already imported
+            cell.import_workspace.imported_defs = set()
+            cells_to_run = Runner.compute_cells_to_run(
+                graph=self.graph,
+                roots=self.roots,
+                excluded_cells=self.excluded_cells,
+                execution_mode=self.execution_mode,
+            )
+        else:
+            cells_to_run = self.cells_to_run
         self.cells_cancelled[cell_id] = set(
             cid
             for cid in dataflow.transitive_closure(self.graph, set([cell_id]))
-            if cid in self.cells_to_run
+            if cid in cells_to_run
         )
 
     def cancelled(self, cell_id: CellId_t) -> bool:
@@ -452,6 +483,7 @@ class Runner:
                 tmpio.seek(0)
                 write_traceback(tmpio.read())
         finally:
+            self.graph.cells[cell_id].import_workspace.imported_defs = set()
             # Mark as interrupted if the cell raised a MarimoInterrupt
             # Set here since failed async can also trigger an Interrupt.
             if isinstance(run_result.exception, MarimoInterrupt):

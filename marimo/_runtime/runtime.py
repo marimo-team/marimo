@@ -620,7 +620,11 @@ class Kernel:
                 carried_imports = [
                     import_data
                     for import_data in previous_cell.imports
-                    if import_data.definition in self.globals
+                    if import_data.definition
+                    # imported_defs is maintained by the runtime
+                    in previous_cell.import_workspace.imported_defs
+                    # redundant check ...
+                    and import_data.definition in self.globals
                 ]
             else:
                 carried_imports = []

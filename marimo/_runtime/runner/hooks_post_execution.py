@@ -43,8 +43,12 @@ def _set_imported_defs(
     runner: cell_runner.Runner,
     run_result: cell_runner.RunResult,
 ) -> None:
-    del run_result
-    if cell.import_workspace.is_import_block:
+    if (
+        run_result.exception is not None
+        and cell.import_workspace.is_import_block
+    ):
+        cell.import_workspace.imported_defs = set()
+    elif cell.import_workspace.is_import_block:
         cell.import_workspace.imported_defs = set(
             name for name in cell.defs if name in runner.glbls
         )
