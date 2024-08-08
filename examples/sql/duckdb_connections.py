@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.7.2"
+__generated_with = "0.7.18"
 app = marimo.App(width="full")
 
 
@@ -13,7 +13,7 @@ def __():
 
 @app.cell
 def __(mo):
-    mo.md(r"## Create a connection")
+    mo.md(r"""## Create a connection""")
     return
 
 
@@ -53,7 +53,7 @@ def __(duckdb):
 
 @app.cell
 def __(mo):
-    mo.md(r"## Tables")
+    mo.md(r"""## Tables""")
     return
 
 
@@ -81,7 +81,7 @@ def __(duckdb):
 
 @app.cell
 def __(mo):
-    mo.md(r"## Other meta table functions")
+    mo.md(r"""## Other meta table functions""")
     return
 
 
@@ -131,7 +131,7 @@ def __(_, function, mo):
 
 @app.cell
 def __(mo):
-    mo.md(r"## Interact with your tables")
+    mo.md(r"""## Interact with your tables""")
     return
 
 

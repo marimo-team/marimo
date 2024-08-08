@@ -139,10 +139,12 @@ def image(
         resolved_src = mo_data.image(src.read()).url
     elif isinstance(src, bytes):
         resolved_src = mo_data.image(src).url
-    elif isinstance(src, str) and os.path.isfile(src):
-        with open(src, "rb") as f:
+    elif isinstance(src, str) and os.path.isfile(
+        expanded_path := os.path.expanduser(src)
+    ):
+        with open(expanded_path, "rb") as f:
             resolved_src = mo_data.image(
-                f.read(), ext=os.path.splitext(src)[1]
+                f.read(), ext=os.path.splitext(expanded_path)[1]
             ).url
     else:
         resolved_src = io_to_data_url(src, fallback_mime_type="image/png")

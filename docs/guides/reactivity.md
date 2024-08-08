@@ -62,6 +62,15 @@ refactor your code.
 This rule encourages you to keep the number of global variables in your
 program small, which is generally considered good practice.
 
+## Local variables
+
+Global variables prefixed with an underscore (_e.g._, `_x`) are "local" to a
+cell: they can't be read by other cells. Multiple cells can reuse the same
+local variables names.
+
+If you encapsulate your code using functions and classes when needed,
+you won't need to use many local variables, if any.
+
 ## No hidden state
 
 Traditional notebooks like Jupyter have _hidden state_: running a cell may
@@ -84,16 +93,24 @@ deletes its global variables from program memory_.
 </figure>
 </div>
 
-## Mutations and attributes not tracked
+<a name="reactivity-mutations"></a>
+
+## Avoid mutating variables
 
 marimo's reactive execution is based only on the global variables a cell reads
 and the global variables it defines. In particular, _marimo does not track
 mutations to objects_, _i.e._, mutations don't trigger reactive re-runs of
 other cells. It also does not track the definition or mutation of object
-attributes.
+attributes. For this reason, **avoid defining a variable in one cell and
+mutating it in another**.
 
-If you must mutate a variable in a downstream cell, try creating a new variable
-instead.
+If you need to mutate a variable (such as adding a new column to a dataframe),
+you should perform the mutation in the same cell as the one that defines it,
+Or try creating a new variable instead.
+
+### Examples
+
+**Create a new variable instead of mutating an existing one.**
 
 _Don't_ do this:
 
@@ -105,10 +122,6 @@ l = [1]
 l.append(2)
 ```
 
-```python
-l
-```
-
 _Instead_, do this:
 
 ```python
@@ -116,29 +129,88 @@ l = [1]
 ```
 
 ```python
-ll = [1, 2]
+extended_list = l + [2]
+```
+
+**Mutate variables in the cells that define them.**
+
+_Don't_ do this:
+
+```python
+df = pd.DataFrame({"my_column": [1, 2]})
 ```
 
 ```python
-ll
+df["another_column"] = [3, 4]
+```
+
+_Instead_, do this:
+
+```python
+df = pd.DataFrame({"my_column": [1, 2]})
+df["another_column"] = [3, 4]
 ```
 
 ```{admonition} Why not track mutations?
 :class: note
 
-Tracking mutations is fundamentally error-prone, with steep usability cliffs. The
-simplicity of marimo's static analysis approach makes marimo easier to
-understand, and encourages well-organized notebook code.
+Tracking mutations reliably is a fundamentally impossible task in Python; marimo
+could never detect all mutations, and even if we could, reacting to mutations could
+result in surprising re-runs of notebook cells. The simplicity of marimo's
+static analysis approach, based only on variable definitions and references,
+makes marimo easy to understand and encourages well-organized notebook code.
 ```
 
-## Local variables
+## Runtime configuration
 
-Global variables prefixed with an underscore (_e.g._, `_x`) are "local" to a
-cell: they can't be read by other cells. Multiple cells can reuse the same
-local variables names.
+Through the notebook settings menu, you can configure how and when marimo runs
+cells.
 
-If you encapsulate your code using functions and classes when needed,
-you won't need to use many local variables, if any.
+### On cell change: disabling automatic execution
+
+You can disable automatic execution of cells by configuring the runtime to be
+**lazy**: the lazy runtime only runs cells when you ask for them to be run,
+marking downstream cells as stale instead of running them.
+
+When your notebook has expensive cells or dangerous side-effects, choosing lazy
+execution can be key to having a good experience in marimo.
+
+### On startup: disabling autorun
+
+By default, marimo notebooks run automatically on startup; just how the command
+
+```
+python main.py
+```
+
+executes a script,
+
+```
+marimo edit notebook.py
+```
+
+executes the notebook. You can disable autorun on startup in the notebook
+settings.
+
+<a href="module-change"></a>
+
+### On module change: autoreloading
+
+When module autoreloading is enabled,
+marimo tracks when Python modules used by your notebook are changed and reloads
+them so you can use the latest version of your code.
+This works recursively, meaning that marimo tracks modifications for modules
+imported by your notebook's imported modules too.
+
+Autoreloading comes in two types:
+
+- "lazy": automatically marks cells affected by module
+  modifications as stale, letting you know which cells need to be re-run.
+- "autorun": automatically re-runs cells affected by module modification.
+
+**Why autoreload?** Autoreloading enables a workflow that many developers find
+productive: develop complex logic in Python modules, and use the marimo
+notebook as a DAG or main script that orchestrates your logic.
 
 ## Disabling cells
 
@@ -167,13 +239,3 @@ disabled, marimo will automatically run it.
 automatically.</figcaption>
 </figure>
 </div>
-
-```{admonition} Lazy evaluation
-:class: note
-
-If you prefer, you can configure the runtime to be lazy, only running cells
-when you ask for them to be run and marking affected cells as stale. When
-your notebook has expensive cells, choosing lazy execution can be more
-convenient than manually disabling and enabling cell. Learn more
-in the [runtime configuration guide](/guides/runtime_configuration.md)
-```

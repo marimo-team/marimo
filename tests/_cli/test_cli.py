@@ -15,18 +15,30 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
 import urllib.request
 from typing import Any, Callable, Iterator, Optional
 
 import pytest
+import tomlkit
 
 from marimo import __version__
 from marimo._ast import codegen
 from marimo._ast.cell import CellConfig
+from marimo._utils.config.config import ROOT_DIR as CONFIG_ROOT_DIR
 
 
 def _is_win32() -> bool:
     return sys.platform == "win32"
+
+
+def _can_access_pypi() -> bool:
+    try:
+        pypi_url = "https://pypi.org/pypi/marimo/json"
+        with urllib.request.urlopen(pypi_url, timeout=5):
+            return True
+    except urllib.error.URLError:
+        return False
 
 
 @contextlib.contextmanager
@@ -123,6 +135,13 @@ def _get_port() -> int:
         else:
             return port
     raise OSError("Could not find an unused port.")
+
+
+def _read_toml(filepath: str) -> Optional[dict]:
+    if not os.path.exists(filepath):
+        return None
+    with open(filepath, "r") as file:
+        return tomlkit.parse(file.read())
 
 
 def test_cli_help_exit_code() -> None:
@@ -226,6 +245,58 @@ def test_cli_edit_with_additional_args(temp_marimo_file: str) -> None:
     _check_contents(
         p, f"marimo-version data-version='{__version__}'".encode(), contents
     )
+
+
+@pytest.mark.skipif(
+    condition=not _can_access_pypi(),
+    reason="update check won't work without access to pypi",
+)
+def test_cli_edit_update_check() -> None:
+    with tempfile.TemporaryDirectory() as tempdir:
+        port = _get_port()
+        p = subprocess.Popen(
+            ["marimo", "edit", "-p", str(port), "--headless", "--no-token"],
+            env={**os.environ, "MARIMO_PYTEST_HOME_DIR": tempdir},
+        )
+        contents = _try_fetch(port)
+        _check_contents(p, b"marimo-mode data-mode='home'", contents)
+
+        state_contents = _read_toml(
+            os.path.join(tempdir, CONFIG_ROOT_DIR, "state.toml")
+        )
+        assert state_contents is not None
+        assert state_contents.get("last_checked_at") is not None
+
+
+@pytest.mark.skipif(
+    condition=not _can_access_pypi(),
+    reason="update check skip is only detectable if pypi is accessible",
+)
+def test_cli_edit_skip_update_check() -> None:
+    with tempfile.TemporaryDirectory() as tempdir:
+        port = _get_port()
+        p = subprocess.Popen(
+            [
+                "marimo",
+                "edit",
+                "-p",
+                str(port),
+                "--headless",
+                "--no-token",
+                "--skip-update-check",
+            ],
+            env={**os.environ, "MARIMO_PYTEST_HOME_DIR": tempdir},
+        )
+        contents = _try_fetch(port)
+        _check_contents(p, b"marimo-mode data-mode='home'", contents)
+
+        state_contents = _read_toml(
+            os.path.join(tempdir, CONFIG_ROOT_DIR, "state.toml")
+        )
+        assert (
+            state_contents is None
+            or state_contents.get("last_checked_at") is None
+        )
 
 
 def test_cli_new() -> None:

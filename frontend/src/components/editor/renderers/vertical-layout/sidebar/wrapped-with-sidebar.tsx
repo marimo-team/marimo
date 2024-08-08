@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { cn } from "@/utils/cn";
-import React from "react";
+import type React from "react";
 import { SheetMenu } from "./sheet-sidebar";
 import { useAtom } from "jotai";
 import { sidebarAtom } from "./state";

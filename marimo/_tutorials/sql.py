@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.7.1"
+__generated_with = "0.7.13"
 app = marimo.App()
 
 
@@ -75,7 +76,7 @@ def __(has_duckdb_installed, mo):
             mo.md(
                 """
         !!! Tip "Installed"
-            If you see this, it means DuckDB is already installed.
+            If you see this, DuckDB is already installed.
         """
             )
         )
@@ -84,7 +85,7 @@ def __(has_duckdb_installed, mo):
             mo.md(
                 """
         !!! Warning "Not Installed"
-            If you see this, it means DuckDB is not installed.
+            If you see this, DuckDB is not installed.
         """
             )
         )
@@ -95,9 +96,10 @@ def __(has_duckdb_installed, mo):
 def __(mo):
     mo.md(
         r"""
-        Once installed, you can either right-click the **Add Cell** buttons on the left, or click the **Add SQL Cell** at the bottom of the page. This creates a '**SQL**' cell for you, while in reality this is actually Python code.
+        Once duckdb is installed, you can create SQL cells by either right clicking the **Add Cell** buttons on the left of a cell, or click the **Add SQL Cell** at the bottom of the page. 
 
-        For example, since we store marimo files as pure Python files, the translated code looks like:
+        marimo is still just Python, even when using SQL. Here is an example of how marimo
+        embeds SQL in Python in its file format:
 
         ```python
         output_df = mo.sql(f"SELECT * FROM my_table LIMIT {max_rows.value}")
@@ -106,37 +108,70 @@ def __(mo):
         Notice that we have an **`output_df`** variable in the cell. This is a resulting Polars DataFrame (if you have `polars` installed) or a Pandas DataFrame (if you don't). One of them must be installed in order to interact with the SQL result.
 
         The SQL statement itself is an formatted string (f-string), so this means they can contain any valid Python code, such as the values of UI elements. This means your SQL statement and results can be reactive! 🚀
-
-        Let's take a look at a SQL cell. First we will create a dataframe
         """
     )
     return
 
 
 @app.cell(hide_code=True)
-def __(has_polars_installed, random):
-    _SIZE = 20
+def __(mo):
+    mo.md("## Querying dataframes with SQL")
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md(r"""Let's take a look at a SQL cell. The next cell generates a dataframe called `df`.""")
+    return
+
+
+@app.cell(hide_code=True)
+def __(has_polars_installed):
+    _SIZE = 1000
+
+
+    def _create_token_data(n_items=100):
+        import random
+        import string
+
+        def generate_random_string(length):
+            letters = string.ascii_lowercase
+            result_str = "".join(random.choice(letters) for i in range(length))
+            return result_str
+
+        def generate_random_numbers(mean, std_dev, num_samples):
+            return [int(random.gauss(mean, std_dev)) for _ in range(num_samples)]
+
+        random_numbers = generate_random_numbers(50, 15, n_items)
+        random_strings = sorted(
+            list(set([generate_random_string(3) for _ in range(n_items)]))
+        )
+
+        return {
+            "token": random_strings,
+            "count": random_numbers[: len(random_strings)],
+        }
+
+
+    _data = _create_token_data(_SIZE)
+
     # Try polars
     if has_polars_installed:
         import polars as pl
 
-        df = pl.DataFrame(
-            {
-                "a": [random.randint(0, 1000) for _ in range(_SIZE)],
-                "b": [random.randint(0, 1000) for _ in range(_SIZE)],
-            }
-        )
+        df = pl.DataFrame(_data)
     # Fallback to pandas (maybe trying to install it)
     else:
         import pandas as pd
 
-        df = pd.DataFrame(
-            {
-                "a": [random.randint(0, 1000) for _ in range(_SIZE)],
-                "b": [random.randint(0, 1000) for _ in range(_SIZE)],
-            }
-        )
+        df = pd.DataFrame(_data)
     return df, pd, pl
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(r"""Next, we create a SQL query, refercing the Python dataframe `df` directly.""")
+    return
 
 
 @app.cell
@@ -147,7 +182,7 @@ def __(df, mo):
 
         SELECT * FROM df;
 
-        -- Since the output dataframe variable (`_df`) has an underscore, making it private, it is not referenceable from other cells.
+        -- By default, the output variable starts with an underscore (`_df`), making it private to this cell. To access the query result in another cell, change the name of the output variable.
         """
     )
     return
@@ -155,41 +190,46 @@ def __(df, mo):
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md(r"Let's look at another SQL statement, but this time with a UI element")
+    mo.md("""## From Python to SQL and back""")
     return
 
 
 @app.cell(hide_code=True)
-def __(df, mo):
-    max_b_value = mo.ui.slider(
-        start=df["b"].min(),
-        stop=df["b"].max(),
-        value=df["b"].max(),
-        label="Max $b$",
-        debounce=True,
+def __(mo):
+    mo.md(r"""You can create SQL statements that depend on Python values, such as UI elements:""")
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo, string):
+    token_prefix = mo.ui.dropdown(
+        list(string.ascii_lowercase), label="token prefix", value="a"
     )
-    max_b_value
-    return max_b_value,
+    token_prefix
+    return token_prefix,
 
 
 @app.cell
-def __(df, max_b_value, mo):
+def __(df, mo, token_prefix):
     result = mo.sql(
         f"""
-        -- Move the slider's value down in order to see the SQL query filter itself
-        SELECT * FROM df
-        WHERE b < {max_b_value.value}
+        -- Change the dropdown to see the SQL query filter itself!
+        -- 
+        -- Here we use a duckdb function called `starts_with`:
+        SELECT * FROM df WHERE starts_with(token, '{token_prefix.value}')
+
+        -- Notice that we named the output variable `result`
         """
     )
     return result,
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         r"""
-        Since we named the output dataframe above **`result`**,
-        we can reference this back in Python
+        Since we named the output variable above **`result`**,
+        we can use it back in Python.
         """
     )
     return
@@ -210,12 +250,13 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(charting_library, max_b_value, mo, render_chart):
+def __(charting_library, mo, render_chart, token_prefix):
     _header = mo.md(
         f"""
-        We can re-use the slider from above: {max_b_value}
+        We can re-use the dropdown from above: {token_prefix}
 
-        Now we have a plot powered by your previous SQL query and your UI elements.
+        Now we have a histogram visualizing the token count distribution of tokens starting 
+        with {token_prefix.value}, powered by your SQL query and UI element.
         """
     )
 
@@ -226,7 +267,7 @@ def __(charting_library, max_b_value, mo, render_chart):
 
 
 @app.cell(hide_code=True)
-def __(mo, result):
+def __(mo, result, token_prefix):
     def render_chart(charting_library, header):
         return mo.vstack(
             [header, render_charting_library(charting_library)]
@@ -245,22 +286,28 @@ def __(mo, result):
     def render_matplotlib():
         import matplotlib.pyplot as plt
 
-        plt.scatter(result["a"], result["b"])
+        plt.hist(result["count"], label=token_prefix.value)
+        plt.xlabel("token count")
+        plt.legend()
+        plt.tight_layout()
         return plt.gcf()
 
 
     def render_altair():
         import altair as alt
 
-        chart = alt.Chart(result).mark_point().encode(x="a", y="b")
-        return mo.ui.altair_chart(chart)
+        chart = (
+            alt.Chart(result)
+            .mark_bar()
+            .encode(x=alt.X("count", bin=True), y=alt.Y("count()"))
+        )
+        return mo.ui.altair_chart(chart, chart_selection=False)
 
 
     def render_plotly():
-        import plotly.express as px
+        import plotly.graph_objects as go
 
-        fig = px.scatter(result, x="a", y="b")
-        return mo.ui.plotly(fig)
+        return go.Figure(data=[go.Histogram(x=result["count"])])
     return (
         render_altair,
         render_chart,
@@ -270,12 +317,17 @@ def __(mo, result):
     )
 
 
+@app.cell
+def __(mo):
+    mo.md(r"""## CSVs, Parquet, Postgres, and more ...""")
+    return
+
+
 @app.cell(hide_code=True)
 def __(mo):
     mo.md(
         r"""
-        We are not only limited to querying dataframes that we have created or pulled in.
-        We can additionally query by an **HTTP URL, S3 path, or a file path to a local csv or parquet file**.
+        We're not limited to querying dataframes. We can also query an **HTTP URL, S3 path, or a file path to a local csv or parquet file**.
 
         ```sql
         -- or
@@ -286,7 +338,7 @@ def __(mo):
         SELECT * FROM read_parquet('path/to/example.parquet');
         ```
 
-        For a full list you can check out the [duckdb extensions](https://duckdb.org/docs/extensions/overview).
+        With a bit of boilerplate, you can even read and write to **Postgres**, and join Postgres tables with dataframes in the same query. For a full list of supported data sources, check out the [duckdb extensions](https://duckdb.org/docs/extensions/overview) and our [example notebook on duckdb connections](https://github.com/marimo-team/marimo/blob/main/examples/sql/duckdb_connections.**py**).
 
         For this example, we will query an HTTP endpoint of a csv.
         """
@@ -295,16 +347,30 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def __(cars, mo):
     cars = mo.sql(
         f"""
-        -- Download a CSV and create an in-memory table
+        -- Download a CSV and create an in-memory table; this is optional.
         CREATE OR replace TABLE cars as
         FROM 'https://datasets.marimo.app/cars.csv';
+
+        -- Query the table
         SELECT * from cars;
         """
     )
     return cars,
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        r"""
+        !!! Tip "Data sources panel"
+            Click the database "barrel" icon in the left toolbar to see all dataframes and in-
+            memory tables that you're notebook has access to.
+        """
+    )
+    return
 
 
 @app.cell(hide_code=True)
@@ -318,7 +384,7 @@ def __(cars, mo):
 
 
 @app.cell
-def __(cylinders_dropdown, mo, origin_dropdown):
+def __(cars, cylinders_dropdown, mo, origin_dropdown):
     filtered_cars = mo.sql(
         f"""
         SELECT * FROM cars
@@ -356,6 +422,12 @@ def __():
     import marimo as mo
     import random
     return mo, random
+
+
+@app.cell(hide_code=True)
+def __():
+    import string
+    return string,
 
 
 if __name__ == "__main__":
