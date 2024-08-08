@@ -147,6 +147,11 @@ def watch_modules(
 
         if stale_modules:
             with graph.lock:
+                # Cells that have imported stale modules should have their
+                # descendants recalculated, even if they are import blocks
+                for cid in modname_to_cell_id.values():
+                    graph.cells[cid].import_workspace.imported_defs = set()
+
                 # If any modules are stale, communicate that to the FE
                 # and update the backend's view of the importing cells'
                 # staleness
@@ -159,10 +164,6 @@ def watch_modules(
                 )
                 for cid in stale_cell_ids:
                     graph.cells[cid].set_stale(stale=True, stream=stream)
-                # Cells that have imported stale modules should have their
-                # descendants recalculated, even if they are import blocks
-                for cid in modname_to_cell_id.values():
-                    graph.cells[cid].import_workspace.imported_defs = set()
             if mode == "autorun":
                 run_is_processed.clear()
                 enqueue_run_stale_cells()
