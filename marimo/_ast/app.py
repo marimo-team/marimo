@@ -348,7 +348,7 @@ class App:
         Embedded notebook outputs are interactive: when you interact with
         UI elements in an embedded notebook's output, any cell referring
         to the `app` object is marked for execution, and its internal state
-        is automatically updated. This lets you notebooks as building blocks or
+        is automatically updated. This lets you use notebooks as building blocks or
         components to create higher-level notebooks.
 
         Multiple levels of nesting are supported: it's possible to embed a
