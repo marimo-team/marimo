@@ -494,7 +494,13 @@ async def test_reload_function_in_import_block(
     )
 
     # wait for the watcher to pick up the change
-    await asyncio.sleep(5.0)
+    elapsed = 0
+    while elapsed < 10:
+        await asyncio.sleep(1)
+        elapsed += 1
+        if k.graph.cells[er_1.cell_id].stale:
+            break
+
     assert k.graph.cells[er_1.cell_id].stale
     assert k.graph.cells[er_2.cell_id].stale
     assert not k.graph.cells[er_3.cell_id].stale
