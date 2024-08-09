@@ -155,6 +155,7 @@ def _generate_schema() -> dict[str, Any]:
         requests.FunctionCallRequest,
         requests.InstallMissingPackagesRequest,
         requests.PreviewDatasetColumnRequest,
+        requests.RenameRequest,
         requests.SetCellConfigRequest,
         requests.SetUserConfigRequest,
         requests.StopRequest,

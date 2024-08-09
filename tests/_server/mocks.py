@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import inspect
 import tempfile
 from typing import TYPE_CHECKING, Any, Callable, cast
 
@@ -99,7 +100,13 @@ def with_session(
             ) as websocket:
                 data = websocket.receive_text()
                 assert data
-                func(client)
+                argc = len(inspect.signature(func).parameters)
+                if argc == 1:
+                    func(client)
+                elif argc == 2:
+                    func(client, websocket)
+                else:
+                    raise ValueError(f"Invalid number of arguments: {argc}")
             # shutdown after websocket exits, otherwise
             # test fails on Windows (loop closed twice)
             if auto_shutdown:

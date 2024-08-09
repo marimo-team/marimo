@@ -136,6 +136,10 @@ def create_main_module(
         _module.__dict__.setdefault(
             "__file__", sys.modules["__main__"].__file__
         )
+    else:
+        # Windows seems to have this edgecase where __file__ is not set
+        # so default to None, per the intended behavior in #668.
+        _module.__dict__.setdefault("__file__", None)
 
     return _module
 

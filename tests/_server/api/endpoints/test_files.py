@@ -9,7 +9,7 @@ from tests._server.conftest import get_session_manager
 from tests._server.mocks import token_header, with_session
 
 if TYPE_CHECKING:
-    from fastapi.testclient import TestClient
+    from fastapi.testclient import TestClient, WebSocketTestSession
 
 SESSION_ID = "session-123"
 HEADERS = {
@@ -226,3 +226,60 @@ def test_save_app_config(client: TestClient) -> None:
     assert "import marimo" in response.text
     file_contents = open(filename).read()
     assert 'marimo.App(width="medium"' in file_contents
+
+
+@with_session(SESSION_ID)
+def test_rename_propagates(
+    client: TestClient, websocket: WebSocketTestSession
+) -> None:
+    current_filename = get_session_manager(
+        client
+    ).file_router.get_unique_file_key()
+
+    assert current_filename
+    assert os.path.exists(current_filename)
+
+    initial_response = client.post(
+        "/api/kernel/run",
+        headers=HEADERS,
+        json={
+            "cell_ids": ["cell-1", "cell-2"],
+            "codes": ["b = __file__", "a = __file__ + 'x'"],
+        },
+    )
+    assert initial_response.json() == {"success": True}
+    assert initial_response.status_code == 200, initial_response.text
+
+    variables = {}
+    while len(variables) < 2:
+        data = websocket.receive_json()
+        if data["op"] == "variable-values":
+            for var in data["data"]["variables"]:
+                variables[var["name"]] = var["value"]
+
+    assert variables["a"] == current_filename + "x"
+    assert variables["b"] == current_filename
+
+    directory = os.path.dirname(current_filename)
+    random_name = random.randint(0, 100000)
+    new_filename = f"{directory}/test_{random_name}.py"
+
+    response = client.post(
+        "/api/kernel/rename",
+        headers=HEADERS,
+        json={
+            "filename": new_filename,
+        },
+    )
+    assert response.json() == {"success": True}
+    assert response.status_code == 200, response.text
+
+    variables = {}
+    while len(variables) < 2:
+        data = websocket.receive_json()
+        if data["op"] == "variable-values":
+            for var in data["data"]["variables"]:
+                variables[var["name"]] = var["value"]
+
+    assert variables["a"] == new_filename + "x"
+    assert variables["b"] == new_filename
