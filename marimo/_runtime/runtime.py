@@ -1186,10 +1186,12 @@ class Kernel:
         for cid, cell_impl in self.graph.cells.items():
             if cell_impl.stale and not self.graph.is_disabled(cid):
                 cells_to_run.add(cid)
-        # Note that we don't prune descendants of import blocks, since
-        # cells that are stale presumably have stale modules.
         await self._run_cells(
-            dataflow.transitive_closure(self.graph, cells_to_run)
+            dataflow.transitive_closure(
+                self.graph,
+                cells_to_run,
+                relatives=dataflow.import_block_relatives,
+            )
         )
         if self.module_watcher is not None:
             self.module_watcher.run_is_processed.set()
