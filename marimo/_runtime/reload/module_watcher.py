@@ -147,9 +147,9 @@ def watch_modules(
 
         if stale_modules:
             with graph.lock:
-                for modname, cid in modname_to_cell_id.items():
-                    # prune definitions that derived from stale modules
-                    cell = graph.cells[cid]
+                for modname in stale_modules.keys():
+                    # prune definitions that are derived from stale modules
+                    cell = graph.cells[modname_to_cell_id[modname]]
                     defs_to_prune = [
                         import_data.definition
                         for import_data in cell.imports
