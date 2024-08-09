@@ -147,13 +147,26 @@ def watch_modules(
 
         if stale_modules:
             with graph.lock:
+                for modname in stale_modules.keys():
+                    # prune definitions that are derived from stale modules
+                    cell = graph.cells[modname_to_cell_id[modname]]
+                    defs_to_prune = [
+                        import_data.definition
+                        for import_data in cell.imports
+                        if import_data.module == modname
+                    ]
+                    cell.import_workspace.imported_defs -= set(defs_to_prune)
+
                 # If any modules are stale, communicate that to the FE
+                # and update the backend's view of the importing cells'
+                # staleness
                 stale_cell_ids = dataflow.transitive_closure(
                     graph,
                     set(
                         modname_to_cell_id[modname]
                         for modname in stale_modules
                     ),
+                    relatives=dataflow.import_block_relatives,
                 )
                 for cid in stale_cell_ids:
                     graph.cells[cid].set_stale(stale=True, stream=stream)

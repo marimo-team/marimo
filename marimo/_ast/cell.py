@@ -70,6 +70,26 @@ class CellStatus:
     state: Optional[CellStatusType] = None
 
 
+RunHistoryType = Literal[
+    "success", "exception", "cancelled", "interrupted", "marimo-error"
+]
+
+
+@dataclasses.dataclass
+class RunHistory:
+    state: Optional[RunHistoryType] = None
+
+
+@dataclasses.dataclass
+class ImportWorkspace:
+    """A workspace for runtimes to use to manage a cell's imports."""
+
+    # A cell is an import block if all statements are import statements
+    is_import_block: bool = False
+    # Defs that have been imported by the runtime
+    imported_defs: set[Name] = dataclasses.field(default_factory=set)
+
+
 def _is_coroutine(code: Optional[CodeType]) -> bool:
     if code is None:
         return False
@@ -100,7 +120,7 @@ class CellImpl:
     defs: set[Name]
     refs: set[Name]
     # metadata about definitions
-    variable_data: dict[Name, VariableData]
+    variable_data: dict[Name, list[VariableData]]
     deleted_refs: set[Name]
     body: Optional[CodeType]
     last_expr: Optional[CodeType]
@@ -108,10 +128,15 @@ class CellImpl:
     cell_id: CellId_t
 
     # Mutable fields
-    # config: explicit configuration of cell
+    # explicit configuration of cell
     config: CellConfig = dataclasses.field(default_factory=CellConfig)
-    # status: execution status, inferred at runtime
+    # workspace for runtimes to use to store metadata about imports
+    import_workspace: ImportWorkspace = dataclasses.field(
+        default_factory=ImportWorkspace
+    )
+    # execution status, inferred at runtime
     _status: CellStatus = dataclasses.field(default_factory=CellStatus)
+    _run_history: RunHistory = dataclasses.field(default_factory=RunHistory)
     # whether the cell is stale, inferred at runtime
     _stale: CellStaleState = dataclasses.field(default_factory=CellStaleState)
     # cells can optionally hold a reference to their output
@@ -132,6 +157,10 @@ class CellImpl:
     @property
     def status(self) -> Optional[CellStatusType]:
         return self._status.state
+
+    @property
+    def run_history(self) -> Optional[RunHistoryType]:
+        return self._run_history.state
 
     @property
     def sqls(self) -> list[str]:
@@ -160,19 +189,22 @@ class CellImpl:
     @property
     def imports(self) -> Iterable[ImportData]:
         """Return a set of import data for this cell."""
-        return [
-            data.import_data
-            for _, data in self.variable_data.items()
-            if data.import_data is not None
-        ]
+        import_data = []
+        for data in self.variable_data.values():
+            import_data.extend(
+                [
+                    datum.import_data
+                    for datum in data
+                    if datum.import_data is not None
+                ]
+            )
+        return import_data
 
     @property
     def imported_namespaces(self) -> set[Name]:
         """Return a set of the namespaces imported by this cell."""
         return set(
-            data.import_data.module.split(".")[0]
-            for _, data in self.variable_data.items()
-            if data.import_data is not None
+            import_data.module.split(".")[0] for import_data in self.imports
         )
 
     def namespace_to_variable(self, namespace: str) -> Name | None:
@@ -184,12 +216,9 @@ class CellImpl:
 
         In this case the namespace is "matplotlib" but the name is "plt".
         """
-        for name, data in self.variable_data.items():
-            if (
-                data.import_data is not None
-                and data.import_data.namespace == namespace
-            ):
-                return name
+        for import_data in self.imports:
+            if import_data.namespace == namespace:
+                return import_data.definition
         return None
 
     def is_coroutine(self) -> bool:
@@ -215,6 +244,9 @@ class CellImpl:
         CellOp.broadcast_status(
             cell_id=self.cell_id, status=status, stream=stream
         )
+
+    def set_run_history(self, run_history: RunHistoryType) -> None:
+        self._run_history.state = run_history
 
     def set_stale(self, stale: bool, stream: Stream | None = None) -> None:
         from marimo._messaging.ops import CellOp
