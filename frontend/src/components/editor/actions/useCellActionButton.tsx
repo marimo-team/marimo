@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { downloadCellOutput } from "@/components/export/export-output-button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { formatEditorViews } from "@/core/codemirror/format";
 import {
@@ -257,11 +258,11 @@ export function useCellActionButtons({ cell }: Props) {
       },
       {
         icon: config.disabled ? (
-          <ZapIcon size={13} strokeWidth={1.5} />
-        ) : (
           <ZapOffIcon size={13} strokeWidth={1.5} />
+        ) : (
+          <ZapIcon size={13} strokeWidth={1.5} />
         ),
-        label: config.disabled ? "Enable cell" : "Disable cell",
+        label: "Reactive execution",
         rightElement: (
           <Switch
             data-testid="cell-disable-switch"
