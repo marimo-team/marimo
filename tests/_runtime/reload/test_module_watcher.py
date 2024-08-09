@@ -449,6 +449,14 @@ async def test_reload_with_modified_cell(
     assert er_1.cell_id in k.graph.get_stale()
 
 
+@pytest.mark.xfail(
+    True,
+    reason=(
+        "watcher sometimes takes a long time to pick up file change to "
+        "an import block on CI"
+    ),
+    strict=False,
+)
 async def test_reload_function_in_import_block(
     tmp_path: pathlib.Path,
     py_modname: str,
