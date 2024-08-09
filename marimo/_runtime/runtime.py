@@ -540,7 +540,7 @@ class Kernel:
             module_reloader is not None
             and module_reloader.cell_uses_stale_modules(cell)
         ):
-            self.graph.set_stale(set([cell.cell_id]))
+            self.graph.set_stale(set([cell.cell_id]), prune_imports=True)
         LOGGER.debug("registered cell %s", cell_id)
         LOGGER.debug("parents: %s", self.graph.parents[cell_id])
         LOGGER.debug("children: %s", self.graph.children[cell_id])
@@ -621,6 +621,8 @@ class Kernel:
                     import_data
                     for import_data in previous_cell.imports
                     if import_data.definition in self.globals
+                    and import_data.definition
+                    in previous_cell.import_workspace.imported_defs
                 ]
             else:
                 carried_imports = []
@@ -957,7 +959,7 @@ class Kernel:
         ) & cells_in_graph
 
         if self.reactive_execution_mode == "lazy":
-            self.graph.set_stale(stale_cells)
+            self.graph.set_stale(stale_cells, prune_imports=True)
             return cells_registered_without_error
         else:
             return cells_registered_without_error.union(stale_cells)
@@ -974,7 +976,7 @@ class Kernel:
             while cell_ids := await self._run_cells_internal(cell_ids):
                 LOGGER.debug("Running state updates ...")
                 if self.lazy() and cell_ids:
-                    self.graph.set_stale(cell_ids)
+                    self.graph.set_stale(cell_ids, prune_imports=True)
                     break
             LOGGER.debug("Finished run.")
 
@@ -1184,8 +1186,8 @@ class Kernel:
         for cid, cell_impl in self.graph.cells.items():
             if cell_impl.stale and not self.graph.is_disabled(cid):
                 cells_to_run.add(cid)
-        # TODO: should there just be one reactive exec mode, and one
-        # reload mode? ie no mix and match? otherwise what do we do here?
+        # Note that we don't prune descendants of import blocks, since
+        # cells that are stale presumably have stale modules.
         await self._run_cells(
             dataflow.transitive_closure(self.graph, cells_to_run)
         )
@@ -1363,9 +1365,11 @@ class Kernel:
         if self.reactive_execution_mode == "autorun":
             await self._run_cells(referring_cells)
         else:
+            # Any cells referring to a UI element cannot be import cells,
+            # so not necessary to specify `prune_imports`.
             self.graph.set_stale(referring_cells)
-            # process any state updates that may have been queued by the
-            # on_change handlers
+            # Process any state updates that may have been queued by the
+            # on_change handlers.
             await self._run_cells(set())
 
         for component in updated_components:
@@ -1578,12 +1582,19 @@ class Kernel:
             if (cid := self.module_registry.defining_cell(module)) is not None
         )
         if cells_to_run:
+            # We prune imports so that only cells depending on unimported
+            # modules (including the ones that were just installed) run or
+            # are marked as stale
             if self.reactive_execution_mode == "autorun":
                 await self._run_cells(
-                    dataflow.transitive_closure(self.graph, cells_to_run)
+                    dataflow.transitive_closure(
+                        self.graph,
+                        cells_to_run,
+                        relatives=dataflow.import_block_relatives,
+                    )
                 )
             else:
-                self.graph.set_stale(cells_to_run)
+                self.graph.set_stale(cells_to_run, prune_imports=True)
 
     async def preview_dataset_column(
         self, request: PreviewDatasetColumnRequest

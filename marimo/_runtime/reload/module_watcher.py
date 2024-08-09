@@ -147,10 +147,15 @@ def watch_modules(
 
         if stale_modules:
             with graph.lock:
-                # Cells that have imported stale modules should have their
-                # descendants recalculated, even if they are import blocks
-                for cid in modname_to_cell_id.values():
-                    graph.cells[cid].import_workspace.imported_defs = set()
+                for modname, cid in modname_to_cell_id.items():
+                    # prune definitions that derived from stale modules
+                    cell = graph.cells[cid]
+                    defs_to_prune = [
+                        import_data.definition
+                        for import_data in cell.imports
+                        if import_data.module == modname
+                    ]
+                    cell.import_workspace.imported_defs -= set(defs_to_prune)
 
                 # If any modules are stale, communicate that to the FE
                 # and update the backend's view of the importing cells'
@@ -161,6 +166,7 @@ def watch_modules(
                         modname_to_cell_id[modname]
                         for modname in stale_modules
                     ),
+                    relatives=dataflow.import_block_relatives,
                 )
                 for cid in stale_cell_ids:
                     graph.cells[cid].set_stale(stale=True, stream=stream)
