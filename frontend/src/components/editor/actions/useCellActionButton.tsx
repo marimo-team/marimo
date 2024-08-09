@@ -1,6 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { downloadCellOutput } from "@/components/export/export-output-button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { formatEditorViews } from "@/core/codemirror/format";
 import {
