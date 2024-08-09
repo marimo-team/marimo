@@ -1355,6 +1355,20 @@ class TestImports:
         # randint is on toplevel random, not random.random
         assert "x" not in k.globals
 
+    async def test_after_import_error(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                er := exec_req.get("import time; import fake_module"),
+                exec_req.get("time; x = 1"),
+            ]
+        )
+        assert "x" not in k.globals
+
+        await k.run([ExecutionRequest(er.cell_id, code="import time")])
+        assert k.globals["x"] == 1
+
 
 class TestStoredOutput:
     async def test_ui_element_in_output_stored(
