@@ -48,7 +48,13 @@ def _check_edges(error: Error, expected_edges: Sequence[EdgeWithVar]) -> None:
 class TestExecution:
     async def test_expected_gloals(self, any_kernel: Kernel):
         k = any_kernel
-        await k.run([ExecutionRequest(cell_id="0", code="")])
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0", code="assert __file__; success = 1"
+                )
+            ]
+        )
         expected_globals = {
             "__builtin__",
             "__doc__",
@@ -60,6 +66,7 @@ class TestExecution:
             "__spec__",
         }
         assert not (expected_globals - set(k.globals.keys()))
+        assert k.globals["success"] == 1
 
     async def test_triangle(self, any_kernel: Kernel) -> None:
         k = any_kernel
