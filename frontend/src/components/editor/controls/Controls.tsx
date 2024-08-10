@@ -90,9 +90,9 @@ export const Controls = ({
       {!closed && (
         <div className={topRightControls}>
           {presenting && <LayoutSelect />}
-          <HomeButton />
           <NotebookMenuDropdown />
           <ConfigButton />
+          <HomeButton />
           <ShutdownButton description="This will terminate the Python kernel. You'll lose all data that's in memory." />
         </div>
       )}
