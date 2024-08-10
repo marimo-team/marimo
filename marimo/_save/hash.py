@@ -14,7 +14,6 @@ from marimo._runtime.primitives import (
     FN_CACHE_TYPE,
     is_data_primitive,
     is_primitive,
-    is_pure_class,
     is_pure_function,
 )
 from marimo._runtime.state import SetFunctor, State, StateRegistry

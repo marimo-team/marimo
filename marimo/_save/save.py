@@ -77,10 +77,6 @@ class persistent_cache(object):
         self._frame: Optional[FrameType] = None
         self._body_start: int = MAXINT
 
-    @property
-    def hit(self) -> bool:
-        return self._cache and self._cache.hit
-
     def __enter__(self) -> Self:
         sys.settrace(lambda *_args, **_keys: None)
         frame = sys._getframe(1)

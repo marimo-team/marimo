@@ -90,7 +90,9 @@ class TestAppCache:
                 from marimo._save.save import persistent_cache
                 from tests._save.mocks import MockLoader
 
-                with persistent_cache(name="one", _loader=MockLoader()) as cache:
+                with persistent_cache(
+                  name="one", _loader=MockLoader()
+                ) as cache:
                     Y = 9
                     X = 10
                 Z = 3
@@ -206,7 +208,6 @@ class TestStateCache:
             ]
         )
 
-        assert not k.globals["cache"].hit
         assert id(k.globals["x"]) == id(k.globals["a"])
         # Set as a def, because it is stateful
         assert id(k.globals["cache"]._cache.defs["set_state"]) == id(
@@ -277,7 +278,10 @@ class TestStateCache:
         assert len(set(k.globals["impure"])) == 3
         assert k.globals["impure"][0] == k.globals["impure"][-1]
 
-    async def test_set_state_invalidates(
+        assert k.globals["a"] == 2
+        assert k.globals["state"]() == 1
+
+    async def test_set_state_loads(
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:
         await k.run(
