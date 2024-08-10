@@ -91,7 +91,7 @@ class TestHash:
 
             with persistent_cache(name="one", _loader=MockLoader()) as cache:
                 Y = 8 + len(non_primitive)
-            assert cache._cache.cache_type == "ExecutionPath"
+            assert cache._cache.cache_type == "ContextExecutionPath"
             return Y
 
         app.run()
@@ -129,7 +129,7 @@ class TestHash:
                 _cache._cache.hash
                 == "84XqUk17Yiuz_jlAVbtdCOvWHrUFj-YApa7-0rB8Kl8"
             )
-            assert _cache._cache.cache_type == "ExecutionPath"
+            assert _cache._cache.cache_type == "ContextExecutionPath"
             return
 
         @app.cell
@@ -151,7 +151,7 @@ class TestHash:
                 _cache._cache.hash
                 == "84XqUk17Yiuz_jlAVbtdCOvWHrUFj-YApa7-0rB8Kl8"
             )
-            assert _cache._cache.cache_type == "ExecutionPath"
+            assert _cache._cache.cache_type == "ContextExecutionPath"
             # and a post block difference
             Z = 11
             return Z

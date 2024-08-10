@@ -2,12 +2,63 @@
 from __future__ import annotations
 
 import types
-from typing import Callable, Generic, TypeVar
+import weakref
+from dataclasses import dataclass
+from typing import Any, Callable, Generic, Optional, TypeVar
 
 from marimo._output.rich_help import mddoc
 from marimo._runtime.context import ContextNotInitializedError, get_context
 
 T = TypeVar("T")
+
+
+@dataclass
+class StateItem(Generic[T]):
+    id: int
+    ref: weakref.ref[State[T]]
+
+
+class StateRegistry:
+    _states: dict[str, StateItem[Any]] = {}
+    _inv_states: dict[int, set[str]] = {}
+
+    @staticmethod
+    def register(name: str, state: State[T]) -> None:
+        if id(state) in StateRegistry._inv_states:
+            ref = next(iter(StateRegistry._inv_states[id(state)]))
+            if StateRegistry._states[ref].id != id(state):
+                for ref in StateRegistry._inv_states[id(state)]:
+                    del StateRegistry._states[ref]
+                StateRegistry._inv_states[id(state)].clear()
+        StateRegistry._states[name] = StateItem(id(state), weakref.ref(state))
+        id_to_ref = StateRegistry._inv_states.get(id(state), set())
+        id_to_ref.add(name)
+        StateRegistry._inv_states[id(state)] = id_to_ref
+
+    @staticmethod
+    def retain_active_states(active_variables: set[str]) -> None:
+        """Retains only the active states in the registry."""
+        # Remove all non-active states by name
+        active_state_ids = set()
+        for state_name in StateRegistry._states.keys():
+            if state_name not in active_variables:
+                StateRegistry._inv_states.pop(
+                    id(StateRegistry._states[state_name]), None
+                )
+                del StateRegistry._states[state_name]
+            else:
+                active_state_ids.add(id(StateRegistry._states[state_name]))
+
+        # Remove all non-active states by id
+        for state_id in StateRegistry._inv_states.keys():
+            if state_id not in active_state_ids:
+                del StateRegistry._inv_states[state_id]
+
+    @staticmethod
+    def lookup(name: str) -> Optional[State[T]]:
+        if name in StateRegistry._states:
+            return StateRegistry._states[name].ref()
+        return None
 
 
 class State(Generic[T]):

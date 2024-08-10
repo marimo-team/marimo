@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import sys
 import weakref
-from typing import Any, Dict, Iterable, Mapping, TypeVar, Union
+from typing import Any, Dict, Iterable, Mapping, Optional, TypeVar, Union
 
 from marimo._runtime.context.types import ContextNotInitializedError
 
@@ -103,6 +103,12 @@ class UIElementRegistry:
             self._bindings[object_id] = self._find_bindings_in_namespace(
                 object_id, ctx.globals
             )
+
+    def lookup(self, name: str) -> Optional[UIElementId]:
+        for object_id, bindings in self._bindings.items():
+            if name in bindings:
+                return object_id
+        return None
 
     def get_object(self, object_id: UIElementId) -> UIElement[Any, Any]:
         if object_id not in self._objects:

@@ -43,17 +43,27 @@ class Loader(ABC):
         return self.save_path / f"{prefix}{hashed_context}"
 
     def cache_attempt(
-        self, defs: set[Name], hashed_context: str, cache_type: CacheType
+        self,
+        defs: set[Name],
+        hashed_context: str,
+        stateful_refs: set[Name],
+        cache_type: CacheType,
     ) -> Cache:
         if not self.cache_hit(hashed_context, cache_type):
             return Cache(
-                {d: None for d in defs}, hashed_context, cache_type, False
+                {d: None for d in defs},
+                hashed_context,
+                stateful_refs,
+                cache_type,
+                False,
             )
         loaded = self.load_cache(hashed_context, cache_type)
         # TODO: Consider more robust verification
         assert loaded.hash == hashed_context, INCONSISTENT_CACHE_BOILER_PLATE
         assert set(defs) == set(loaded.defs), INCONSISTENT_CACHE_BOILER_PLATE
-        return Cache(loaded.defs, hashed_context, cache_type, True)
+        return Cache(
+            loaded.defs, hashed_context, stateful_refs, cache_type, True
+        )
 
     @abstractmethod
     def cache_hit(self, hashed_context: str, cache_type: CacheType) -> bool:
