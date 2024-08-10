@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import inspect
 import numbers
+import sys
 import typing
 import weakref
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
@@ -17,7 +18,12 @@ PRIMITIVES: tuple[type, ...] = (str, numbers.Number, type(None))
 # other "primitives" as they are results and hopefully not hiding some scoped
 # reference.
 CLONE_PRIMITIVES = (weakref.ref,) + PRIMITIVES
-FN_CACHE_TYPE = Optional[dict[Union[Callable[..., Any], type], bool]]
+
+if sys.version_info < (3, 9):
+    # Future does not seem to work for this in CI.
+    FN_CACHE_TYPE = Optional["dict[Union[Callable[..., Any], type], bool]"]
+else:
+    FN_CACHE_TYPE = Optional[dict[Union[Callable[..., Any], type], bool]]
 
 
 def is_external(value: Any) -> bool:
