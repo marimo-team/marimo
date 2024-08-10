@@ -6,7 +6,11 @@ import random
 from typing import TYPE_CHECKING
 
 from tests._server.conftest import get_session_manager
-from tests._server.mocks import token_header, with_session
+from tests._server.mocks import (
+    token_header,
+    with_session,
+    with_websocket_session,
+)
 
 if TYPE_CHECKING:
     from fastapi.testclient import TestClient, WebSocketTestSession
@@ -228,7 +232,7 @@ def test_save_app_config(client: TestClient) -> None:
     assert 'marimo.App(width="medium"' in file_contents
 
 
-@with_session(SESSION_ID)
+@with_websocket_session(SESSION_ID)
 def test_rename_propagates(
     client: TestClient, websocket: WebSocketTestSession
 ) -> None:
