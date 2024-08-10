@@ -68,28 +68,6 @@ def raise_name_error(
 ) -> None:
     if graph is None:
         raise MarimoRuntimeException from name_error
-    # The best static analysis can do for variable level references is to
-    # use the top level definition. For example, consider the following
-    # cells:
-    # --- Cell 1 ---
-    # >> X = 1
-    # >> Y = 2
-    # >> l = lambda x: x + X
-    # >> L = l # Static analysis can fail on reassignment
-    # >> l = lambda x: x + Y
-    #
-    # --- Cell 2 ---
-    # >> L(1) # This fails because:
-    #    globals == {'Y': 2, 'l': lambda x: x + Y, 'L': lambda x: x + X}
-    #    # note no X
-    #
-    # The code could be taken to use the last definition of `l`, but theres
-    # the case of condition definition and dynamic definition, so making a
-    # best effort and resolving the error at runtime is the best approach.
-    #
-    # marimo lint (#1543) could potentially detect these runtime
-    # problems. Throwing a compilation error seems excessive since if
-    # carefully managed, the code could still be correct.
     (missing_name,) = re.findall(r"'([^']*)'", str(name_error))
     _, private_cell_id = unmangle_local(missing_name)
     if missing_name in graph.definitions or private_cell_id:
