@@ -24,7 +24,7 @@ def if_local_then_mangle(ref: str, cell_id: CellId_t) -> str:
 def unmangle_local(name: str) -> UnmagledLocal:
     if not is_mangled_local(name):
         return UnmagledLocal(name, "")
-    return UnmagledLocal(re.sub(r"^_cell_\w+", "_", name), name[6:10])
+    return UnmagledLocal(re.sub(r"^_cell_\w+_", "_", name), name.split("_")[2])
 
 
 def is_mangled_local(name: str, cell_id: CellId_t = "") -> bool:
