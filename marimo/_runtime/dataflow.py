@@ -63,7 +63,6 @@ class DirectedGraph:
     # completion service. It should almost always be uncontended.
     lock: threading.Lock = field(default_factory=threading.Lock)
 
-    # Mutable config
     def is_cell_cached(self, cell_id: CellId_t, code: str) -> bool:
         """Whether a cell with id `cell_id` and code `code` is in the graph."""
         return (
