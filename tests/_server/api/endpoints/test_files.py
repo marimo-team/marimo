@@ -248,7 +248,7 @@ def test_rename_propagates(
         headers=HEADERS,
         json={
             "cell_ids": ["cell-1", "cell-2"],
-            "codes": ["b = __file__", "a = __file__ + 'x'"],
+            "codes": ["b = __file__", "a = 'x' + __file__"],
         },
     )
     assert initial_response.json() == {"success": True}
@@ -261,8 +261,10 @@ def test_rename_propagates(
             for var in data["data"]["variables"]:
                 variables[var["name"]] = var["value"]
 
-    assert variables["a"] == current_filename + "x"
-    assert variables["b"] == current_filename
+    # Variable outputs are truncated to 50 characters
+    # current_filename can exceed this count on windows and OSX.
+    assert ("x" + current_filename).startswith(variables["a"])
+    assert current_filename.startswith(variables["b"])
 
     directory = os.path.dirname(current_filename)
     random_name = random.randint(0, 100000)
@@ -285,5 +287,5 @@ def test_rename_propagates(
             for var in data["data"]["variables"]:
                 variables[var["name"]] = var["value"]
 
-    assert variables["a"] == new_filename + "x"
-    assert variables["b"] == new_filename
+    assert ("x" + new_filename).startswith(variables["a"])
+    assert new_filename.startswith(variables["b"])
