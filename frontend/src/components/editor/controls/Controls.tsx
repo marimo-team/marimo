@@ -25,6 +25,7 @@ import { useShouldShowInterrupt } from "../cell/useShouldShowInterrupt";
 import { CommandPaletteButton } from "./command-palette-button";
 import { cn } from "@/utils/cn";
 import { HideInKioskMode } from "../kiosk-mode";
+import { HomeButton } from "./home-button";
 
 interface ControlsProps {
   filename: string | null;
@@ -89,6 +90,7 @@ export const Controls = ({
       {!closed && (
         <div className={topRightControls}>
           {presenting && <LayoutSelect />}
+          <HomeButton />
           <NotebookMenuDropdown />
           <ConfigButton />
           <ShutdownButton description="This will terminate the Python kernel. You'll lose all data that's in memory." />
