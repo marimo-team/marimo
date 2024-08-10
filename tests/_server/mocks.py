@@ -101,6 +101,9 @@ def with_session(
                 data = websocket.receive_text()
                 assert data
                 argc = len(inspect.signature(func).parameters)
+                if inspect.ismethod(func):
+                  argc -= 1
+
                 if argc == 1:
                     func(client)
                 elif argc == 2:
