@@ -8,13 +8,5 @@
  * If document.baseURI is set, it will be used as the base URL.
  */
 export function asURL(path: string): URL {
-  if (path.startsWith("./")) {
-    return new URL(path, document.baseURI);
-  }
-
-  if (path.startsWith("/")) {
-    return new URL(path, document.baseURI);
-  }
-
   return new URL(path, document.baseURI);
 }
