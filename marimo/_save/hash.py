@@ -134,10 +134,9 @@ def hash_and_dequeue_content_refs(
         elif is_data_primitive(value):
             hash_alg.update(str(value).encode("utf8"))
             refs.remove(local_ref)
-        elif is_pure_function(
-            ref, value, defs, fn_cache, graph
-        ) or is_pure_class(value, defs, fn_cache):
-            hash_alg.update(hash_module(value.__code__, hash_alg.name))
+        elif is_pure_function(ref, value, defs, fn_cache, graph):
+            if isinstance(value, types.FunctionType):
+                hash_alg.update(hash_module(value.__code__, hash_alg.name))
             refs.remove(local_ref)
 
 
@@ -152,7 +151,7 @@ def normalize_and_extract_ref_state(
         # If the setter is consumed, let the hash be tied to the state value.
         if ref in defs and isinstance(defs[ref], SetFunctor):
             stateful_refs.add(ref)
-            defs[ref] = defs[ref]._state()
+            defs[ref] = defs[ref]._state
 
     for ref in set(refs):
         # State relevant to the context, should be dependent on it's value- not

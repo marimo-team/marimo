@@ -60,7 +60,9 @@ class Loader(ABC):
         loaded = self.load_cache(hashed_context, cache_type)
         # TODO: Consider more robust verification
         assert loaded.hash == hashed_context, INCONSISTENT_CACHE_BOILER_PLATE
-        assert set(defs) == set(loaded.defs), INCONSISTENT_CACHE_BOILER_PLATE
+        assert set(defs | stateful_refs) == set(
+            loaded.defs
+        ), INCONSISTENT_CACHE_BOILER_PLATE
         return Cache(
             loaded.defs, hashed_context, stateful_refs, cache_type, True
         )

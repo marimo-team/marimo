@@ -77,6 +77,10 @@ class persistent_cache(object):
         self._frame: Optional[FrameType] = None
         self._body_start: int = MAXINT
 
+    @property
+    def hit(self) -> bool:
+        return self._cache and self._cache.hit
+
     def __enter__(self) -> Self:
         sys.settrace(lambda *_args, **_keys: None)
         frame = sys._getframe(1)
@@ -84,10 +88,10 @@ class persistent_cache(object):
         self._old_trace = frame.f_trace
         # Setting the frametrace, will cause the function to be run on _every_
         # single context call until the trace is cleared.
-        frame.f_trace = self.trace
+        frame.f_trace = self._trace
         return self
 
-    def trace(
+    def _trace(
         self, with_frame: FrameType, _event: str, _arg: Any
     ) -> Union[TraceFunction | None]:
         # General flow is as follows:
