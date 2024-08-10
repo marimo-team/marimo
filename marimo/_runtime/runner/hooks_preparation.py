@@ -26,7 +26,7 @@ def _update_stale_statuses(runner: cell_runner.Runner) -> None:
         if graph.is_disabled(cid):
             graph.cells[cid].set_stale(stale=True)
         else:
-            graph.cells[cid].set_status(status="queued")
+            graph.cells[cid].set_runtime_state(status="queued")
             if graph.cells[cid].stale:
                 if runner.execution_mode == "autorun":
                     graph.cells[cid].set_stale(stale=False)

@@ -910,7 +910,7 @@ class Kernel:
             if cid not in self.graph.cells:
                 # error is a registration error
                 continue
-            self.graph.cells[cid].set_run_history("marimo-error")
+            self.graph.cells[cid].set_run_result_status("marimo-error")
             self._invalidate_cell_state(cid, exclude_defs=keep_alive_defs)
 
         self.errors = all_errors
@@ -923,7 +923,9 @@ class Kernel:
             ):
                 # this may be the first time we're seeing the cell: set its
                 # status
-                self.graph.cells[cid].set_status("disabled-transitively")
+                self.graph.cells[cid].set_runtime_state(
+                    "disabled-transitively"
+                )
             CellOp.broadcast_error(
                 data=self.errors[cid],
                 clear_console=True,

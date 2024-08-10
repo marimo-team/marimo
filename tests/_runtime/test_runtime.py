@@ -1781,7 +1781,7 @@ class TestDisable:
         )
         assert not k.graph.cells[er_1.cell_id].config.disabled
         assert not k.graph.cells[er_2.cell_id].disabled_transitively
-        assert k.graph.cells[er_2.cell_id].status == "idle"
+        assert k.graph.cells[er_2.cell_id].runtime_state == "idle"
 
 
 class TestAsyncIO:
@@ -2137,8 +2137,8 @@ class TestStateTransitions:
         n_idle = sum([1 for op in cell_ops if op.status == "idle"])
         assert n_idle == 2
 
-        assert k.graph.cells[er_1.cell_id].status == "idle"
-        assert k.graph.cells[er_2.cell_id].status == "idle"
+        assert k.graph.cells[er_1.cell_id].runtime_state == "idle"
+        assert k.graph.cells[er_2.cell_id].runtime_state == "idle"
 
     async def test_descendant_status_reset_to_idle_on_interrupt(
         self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
@@ -2176,5 +2176,5 @@ class TestStateTransitions:
         n_idle = sum([1 for op in cell_ops if op.status == "idle"])
         assert n_idle == 2
 
-        assert k.graph.cells[er_1.cell_id].status == "idle"
-        assert k.graph.cells[er_2.cell_id].status == "idle"
+        assert k.graph.cells[er_1.cell_id].runtime_state == "idle"
+        assert k.graph.cells[er_2.cell_id].runtime_state == "idle"

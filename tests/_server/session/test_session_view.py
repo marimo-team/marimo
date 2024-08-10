@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import patch
 
-from marimo._ast.cell import CellId_t, CellStatusType
+from marimo._ast.cell import CellId_t, RuntimeStateType
 from marimo._data.models import DataTable, DataTableColumn
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.ops import (
@@ -38,8 +38,8 @@ updated_output = CellOutput(
     mimetype="text/plain",
 )
 
-initial_status: CellStatusType = "running"
-updated_status: CellStatusType = "running"
+initial_status: RuntimeStateType = "running"
+updated_status: RuntimeStateType = "running"
 
 
 def test_session_view_cell_op() -> None:

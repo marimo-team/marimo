@@ -56,28 +56,40 @@ CellConfigKeys = frozenset(
 )
 
 
-# Cell Statuses
+# States in a cell's runtime state machine
 #
 # idle: cell has run with latest inputs
 # queued: cell is queued to run
 # running: cell is running
 # disabled-transitively: cell is disabled because a parent is disabled
-CellStatusType = Literal["idle", "queued", "running", "disabled-transitively"]
-
-
-@dataclasses.dataclass
-class CellStatus:
-    state: Optional[CellStatusType] = None
-
-
-RunHistoryType = Literal[
-    "success", "exception", "cancelled", "interrupted", "marimo-error"
+RuntimeStateType = Literal[
+    "idle", "queued", "running", "disabled-transitively"
 ]
 
 
 @dataclasses.dataclass
-class RunHistory:
-    state: Optional[RunHistoryType] = None
+class RuntimeState:
+    state: Optional[RuntimeStateType] = None
+
+
+# Statuses for a cell's attempted execution
+#
+# cancelled:    an ancestor raised an exception
+# marimo-error: cell was prevented from executing
+# disabled:     skipped because the cell is disabled
+RunResultStatusType = Literal[
+    "success",
+    "exception",
+    "cancelled",
+    "interrupted",
+    "marimo-error",
+    "disabled",
+]
+
+
+@dataclasses.dataclass
+class RunResultStatus:
+    state: Optional[RunResultStatusType] = None
 
 
 @dataclasses.dataclass
@@ -135,8 +147,10 @@ class CellImpl:
         default_factory=ImportWorkspace
     )
     # execution status, inferred at runtime
-    _status: CellStatus = dataclasses.field(default_factory=CellStatus)
-    _run_history: RunHistory = dataclasses.field(default_factory=RunHistory)
+    _status: RuntimeState = dataclasses.field(default_factory=RuntimeState)
+    _run_result_status: RunResultStatus = dataclasses.field(
+        default_factory=RunResultStatus
+    )
     # whether the cell is stale, inferred at runtime
     _stale: CellStaleState = dataclasses.field(default_factory=CellStaleState)
     # cells can optionally hold a reference to their output
@@ -155,12 +169,12 @@ class CellImpl:
         return self
 
     @property
-    def status(self) -> Optional[CellStatusType]:
+    def runtime_state(self) -> Optional[RuntimeStateType]:
         return self._status.state
 
     @property
-    def run_history(self) -> Optional[RunHistoryType]:
-        return self._run_history.state
+    def run_result_status(self) -> Optional[RunResultStatusType]:
+        return self._run_result_status.state
 
     @property
     def sqls(self) -> list[str]:
@@ -184,7 +198,7 @@ class CellImpl:
 
     @property
     def disabled_transitively(self) -> bool:
-        return self.status == "disabled-transitively"
+        return self.runtime_state == "disabled-transitively"
 
     @property
     def imports(self) -> Iterable[ImportData]:
@@ -224,8 +238,8 @@ class CellImpl:
     def is_coroutine(self) -> bool:
         return _is_coroutine(self.body) or _is_coroutine(self.last_expr)
 
-    def set_status(
-        self, status: CellStatusType, stream: Stream | None = None
+    def set_runtime_state(
+        self, status: RuntimeStateType, stream: Stream | None = None
     ) -> None:
         """Set execution status and broadcast to frontends."""
         from marimo._messaging.ops import CellOp
@@ -245,8 +259,10 @@ class CellImpl:
             cell_id=self.cell_id, status=status, stream=stream
         )
 
-    def set_run_history(self, run_history: RunHistoryType) -> None:
-        self._run_history.state = run_history
+    def set_run_result_status(
+        self, run_result_status: RunResultStatusType
+    ) -> None:
+        self._run_result_status.state = run_result_status
 
     def set_stale(self, stale: bool, stream: Stream | None = None) -> None:
         from marimo._messaging.ops import CellOp

@@ -169,7 +169,7 @@ class DirectedGraph:
             self.set_stale(set([cell_id]))
 
         if self.is_any_ancestor_disabled(cell_id):
-            cell.set_status(status="disabled-transitively")
+            cell.set_runtime_state(status="disabled-transitively")
 
     def is_any_ancestor_stale(self, cell_id: CellId_t) -> bool:
         return any(self.cells[cid].stale for cid in self.ancestors(cell_id))
@@ -192,7 +192,7 @@ class DirectedGraph:
 
         for cid in transitive_closure(self, set([cell_id])) - set([cell_id]):
             cell = self.cells[cid]
-            cell.set_status(status="disabled-transitively")
+            cell.set_runtime_state(status="disabled-transitively")
 
     def enable_cell(self, cell_id: CellId_t) -> set[CellId_t]:
         """
@@ -216,7 +216,7 @@ class DirectedGraph:
                     cells_to_run.add(cid)
                 if child.disabled_transitively:
                     # cell is no longer disabled: status -> idle
-                    child.set_status("idle")
+                    child.set_runtime_state("idle")
         return cells_to_run
 
     def delete_cell(self, cell_id: CellId_t) -> set[CellId_t]:
@@ -488,7 +488,7 @@ def import_block_relatives(
     # cell's children haven't run.
     for name in cell.import_workspace.imported_defs:
         for child_id in graph.get_referring_cells(name):
-            if graph.cells[child_id].run_history in (
+            if graph.cells[child_id].run_result_status in (
                 "interrupted",
                 "cancelled",
                 "marimo-error",

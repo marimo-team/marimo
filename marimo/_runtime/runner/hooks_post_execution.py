@@ -58,22 +58,22 @@ def _set_status_idle(
 ) -> None:
     del run_result
     del runner
-    cell.set_status(status="idle")
+    cell.set_runtime_state(status="idle")
 
 
-def _set_run_history(
+def _set_run_result_status(
     cell: CellImpl,
     runner: cell_runner.Runner,
     run_result: cell_runner.RunResult,
 ) -> None:
     if isinstance(run_result.exception, MarimoInterruptionError):
-        cell.set_run_history("interrupted")
+        cell.set_run_result_status("interrupted")
     elif runner.cancelled(cell.cell_id):
-        cell.set_run_history("cancelled")
+        cell.set_run_result_status("cancelled")
     elif run_result.exception is not None:
-        cell.set_run_history("exception")
+        cell.set_run_result_status("exception")
     else:
-        cell.set_run_history("success")
+        cell.set_run_result_status("success")
 
 
 def _broadcast_variables(
@@ -272,7 +272,7 @@ def _reset_matplotlib_context(
 
 POST_EXECUTION_HOOKS: list[PostExecutionHookType] = [
     _set_imported_defs,
-    _set_run_history,
+    _set_run_result_status,
     _store_reference_to_output,
     _broadcast_variables,
     _broadcast_datasets,

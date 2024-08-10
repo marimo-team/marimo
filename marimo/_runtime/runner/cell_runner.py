@@ -223,7 +223,7 @@ class Runner:
             if cid in self.cells_to_run
         )
         for cid in self.cells_cancelled[cell_id]:
-            self.graph.cells[cid].set_run_history("cancelled")
+            self.graph.cells[cid].set_run_result_status("cancelled")
 
     def cancelled(self, cell_id: CellId_t) -> bool:
         """Return whether a cell has been cancelled."""
@@ -523,17 +523,25 @@ class Runner:
 
         while self.pending():
             cell_id = self.pop_cell()
-            if self.cancelled(cell_id):
-                continue
             cell = self.graph.cells[cell_id]
+
+            # Update run result status for cells that won't run.
+            #
+            # Hack: frontend sets status to queued on run, so we also have to
+            # set runtime_state to get FE to transition.
+            if self.cancelled(cell_id):
+                cell.set_run_result_status("cancelled")
+                cell.set_runtime_state("idle")
+                continue
             if cell.config.disabled:
-                cell.set_status("idle")
+                cell.set_run_result_status("disabled")
+                cell.set_runtime_state("idle")
                 continue
             if self.graph.is_disabled(cell_id):
-                # hack: frontend sets status to queued on run, have to
-                # set status here to get FE to transition.
-                cell.set_status("disabled-transitively")
+                cell.set_run_result_status("disabled")
+                cell.set_runtime_state("disabled-transitively")
                 continue
+
             for pre_hook in self.pre_execution_hooks:
                 pre_hook(cell, self)
             if self.execution_context is not None:
