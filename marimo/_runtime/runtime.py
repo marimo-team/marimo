@@ -1123,24 +1123,7 @@ class Kernel:
         for cell in self.graph.cells.values():
             if "__file__" in cell.refs:
                 roots.add(cell.cell_id)
-
-        runner = cell_runner.Runner(
-            roots=roots,
-            graph=self.graph,
-            glbls=self.globals,
-            excluded_cells=set(),
-            debugger=self.debugger,
-            execution_mode=self.reactive_execution_mode,
-            execution_type=self.execution_type,
-            execution_context=self._install_execution_context,
-            preparation_hooks=self._preparation_hooks,
-            pre_execution_hooks=self._pre_execution_hooks,
-            post_execution_hooks=self._post_execution_hooks,
-            on_finish_hooks=(
-                self._on_finish_hooks + [self._broadcast_missing_packages]
-            ),
-        )
-        await runner.run_all()
+        await self._run_cells(roots)
 
     async def run_scratchpad(self, code: str) -> None:
         roots = {SCRATCH_CELL_ID}
