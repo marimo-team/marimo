@@ -257,11 +257,11 @@ export function useCellActionButtons({ cell }: Props) {
       },
       {
         icon: config.disabled ? (
-          <ZapIcon size={13} strokeWidth={1.5} />
-        ) : (
           <ZapOffIcon size={13} strokeWidth={1.5} />
+        ) : (
+          <ZapIcon size={13} strokeWidth={1.5} />
         ),
-        label: config.disabled ? "Enable cell" : "Disable cell",
+        label: "Reactive execution",
         rightElement: (
           <Switch
             data-testid="cell-disable-switch"

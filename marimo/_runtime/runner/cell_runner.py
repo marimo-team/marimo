@@ -508,9 +508,15 @@ class Runner:
             cell_id = self.pop_cell()
             if self.cancelled(cell_id):
                 continue
-            if self.graph.is_disabled(cell_id):
-                continue
             cell = self.graph.cells[cell_id]
+            if cell.config.disabled:
+                cell.set_status("idle")
+                continue
+            if self.graph.is_disabled(cell_id):
+                # hack: frontend sets status to queued on run, have to
+                # set status here to get FE to transition.
+                cell.set_status("disabled-transitively")
+                continue
             for pre_hook in self.pre_execution_hooks:
                 pre_hook(cell, self)
             if self.execution_context is not None:
