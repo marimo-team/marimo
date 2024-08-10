@@ -40,7 +40,7 @@ class StateRegistry:
         """Retains only the active states in the registry."""
         # Remove all non-active states by name
         active_state_ids = set()
-        for state_name in StateRegistry._states.keys():
+        for state_name in list(StateRegistry._states.keys()):
             if state_name not in active_variables:
                 StateRegistry._inv_states.pop(
                     id(StateRegistry._states[state_name]), None
@@ -50,7 +50,7 @@ class StateRegistry:
                 active_state_ids.add(id(StateRegistry._states[state_name]))
 
         # Remove all non-active states by id
-        for state_id in StateRegistry._inv_states.keys():
+        for state_id in list(StateRegistry._inv_states.keys()):
             if state_id not in active_state_ids:
                 del StateRegistry._inv_states[state_id]
 
