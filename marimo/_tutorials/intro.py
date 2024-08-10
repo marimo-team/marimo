@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.7.15"
+__generated_with = "0.7.19"
 app = marimo.App()
 
 
@@ -261,7 +261,7 @@ def __(mo):
         ## 4. Running notebooks as apps
 
         marimo notebooks can double as apps. Click the app window icon in the
-        bottom-left to see this notebook in "app view."
+        bottom-right to see this notebook in "app view."
 
         Serve a notebook as an app with `marimo run` at the command-line.
         Of course, you can use marimo just to level-up your
@@ -341,13 +341,13 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo, tips):
     mo.accordion(tips)
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("""## Finally, a fun fact""")
     return
@@ -377,7 +377,7 @@ def __():
               with `Ctrl/Cmd+s`. You can also create a named app at the
               command line, e.g., `marimo edit app_name.py`.
 
-            - _Save_ by clicking the save icon on the bottom left, or by
+            - _Save_ by clicking the save icon on the bottom right, or by
               inputting `Ctrl/Cmd+s`. By default marimo is configured
               to autosave.
             """
@@ -415,6 +415,14 @@ def __():
                 screen, or with `Ctrl/Cmd+Shift+z`.
             """
         ),
+        "Disabling Automatic Execution": (
+            """
+            Via the notebook settings (gear icon) or footer panel, you
+            can disable automatic execution. This is helpful when
+            working with expensive notebooks or notebooks that have
+            side-effects like database transactions.
+            """
+        ),
         "Disabling Cells": (
             """
             You can disable a cell via the cell context menu (open it
@@ -447,9 +455,8 @@ def __():
         ),
         "Keyboard Shortcuts": (
             """
-            Click the keyboard button on the bottom left of the screen (or
-            input `Ctrl/Cmd+Shift+h`) to view a list of all keyboard
-            shortcuts.
+            Open the notebook menu (top-right) or input `Ctrl/Cmd+Shift+h` to
+            view a list of all keyboard shortcuts.
             """
         ),
         "Configuration": (
