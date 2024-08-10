@@ -268,7 +268,7 @@ def test_rename_propagates(
 
     directory = os.path.dirname(current_filename)
     random_name = random.randint(0, 100000)
-    new_filename = f"{directory}/test_{random_name}.py"
+    new_filename = os.path.join(directory, f"test_{random_name}.py")
 
     response = client.post(
         "/api/kernel/rename",
