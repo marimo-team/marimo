@@ -321,8 +321,8 @@ dependencies:
     specifier: ^2.6.0
     version: 2.6.0(plotly.js@2.33.0)(react@18.3.1)
   react-resizable-panels:
-    specifier: 2.0.19
-    version: 2.0.19(react-dom@18.3.1)(react@18.3.1)
+    specifier: 2.0.23
+    version: 2.0.23(react-dom@18.3.1)(react@18.3.1)
   react-use-event-hook:
     specifier: ^0.9.6
     version: 0.9.6(react@18.3.1)
@@ -16787,8 +16787,8 @@ packages:
       use-callback-ref: 1.3.0(@types/react@18.3.3)(react@18.3.1)
       use-sidecar: 1.1.2(@types/react@18.3.3)(react@18.3.1)
 
-  /react-resizable-panels@2.0.19(react-dom@18.3.1)(react@18.3.1):
-    resolution: {integrity: sha512-v3E41kfKSuCPIvJVb4nL4mIZjjKIn/gh6YqZF/gDfQDolv/8XnhJBek4EiV2gOr3hhc5A3kOGOayk3DhanpaQw==}
+  /react-resizable-panels@2.0.23(react-dom@18.3.1)(react@18.3.1):
+    resolution: {integrity: sha512-8ZKTwTU11t/FYwiwhMdtZYYyFxic5U5ysRu2YwfkAgDbUJXFvnWSJqhnzkSlW+mnDoNAzDCrJhdOSXBPA76wug==}
     peerDependencies:
       react: ^16.14.0 || ^17.0.0 || ^18.0.0
       react-dom: ^16.14.0 || ^17.0.0 || ^18.0.0
