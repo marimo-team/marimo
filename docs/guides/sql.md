@@ -1,12 +1,18 @@
 # SQL
 
-With marimo, you can mix-and-match both **Python and SQL**. To create a SQL cell, you first need to install our SQL query engine of choice: [duckdb](https://duckdb.org/).
+With marimo, you can mix-and-match both **Python and SQL**. To create a SQL
+cell, you first need to install additional dependencies, including
+[duckdb](https://duckdb.org/). Install dependencies with
 
 ```bash
-pip install duckdb
+pip install marimo[sql]
 ```
 
-This will enable SQL cells in your notebook. Once you've installed `duckdb`, you can create a SQL cell by right-clicking an **Add Cell** button and choosing "SQL cell", by converting an empty cell to SQL via the cell context menu, or via the SQL button that appears when you mouse hover at the bottom of your notebook.
+This will enable SQL cells in your notebook. Once you've installed
+the dependencies, you can create a SQL cell by right-clicking an **Add Cell**
+button and choosing "SQL cell", by converting an empty cell to SQL via the cell
+context menu, or via the SQL button that appears when you mouse hover at the
+bottom of your notebook.
 
 <div align="center">
   <figure>
