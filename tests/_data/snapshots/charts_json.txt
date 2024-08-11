@@ -1,6 +1,6 @@
 # boolean
 {
-  "$schema": "https://vega.github.io/schema/vega-lite/v5.17.0.json",
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.20.1.json",
   "config": {
     "view": {
       "continuousHeight": 300,
@@ -41,7 +41,7 @@
 
 # date
 {
-  "$schema": "https://vega.github.io/schema/vega-lite/v5.17.0.json",
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.20.1.json",
   "config": {
     "view": {
       "continuousHeight": 300,
@@ -86,7 +86,7 @@
 
 # integer
 {
-  "$schema": "https://vega.github.io/schema/vega-lite/v5.17.0.json",
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.20.1.json",
   "config": {
     "view": {
       "continuousHeight": 300,
@@ -128,7 +128,7 @@
 
 # number
 {
-  "$schema": "https://vega.github.io/schema/vega-lite/v5.17.0.json",
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.20.1.json",
   "config": {
     "view": {
       "continuousHeight": 300,
@@ -170,7 +170,7 @@
 
 # string
 {
-  "$schema": "https://vega.github.io/schema/vega-lite/v5.17.0.json",
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.20.1.json",
   "config": {
     "view": {
       "continuousHeight": 300,
@@ -211,7 +211,7 @@
 
 # string (limit to 10 items)
 {
-  "$schema": "https://vega.github.io/schema/vega-lite/v5.17.0.json",
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.20.1.json",
   "config": {
     "view": {
       "continuousHeight": 300,
@@ -289,7 +289,7 @@
 
 # unknown
 {
-  "$schema": "https://vega.github.io/schema/vega-lite/v5.17.0.json",
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.20.1.json",
   "config": {
     "view": {
       "continuousHeight": 300,
