@@ -104,6 +104,7 @@ from marimo._runtime.requests import (
     FunctionCallRequest,
     InstallMissingPackagesRequest,
     PreviewDatasetColumnRequest,
+    RenameRequest,
     SetCellConfigRequest,
     SetUIElementValueRequest,
     SetUserConfigRequest,
@@ -1116,6 +1117,14 @@ class Kernel:
             self.mutate_graph(filtered_requests, deletion_requests=[])
         )
 
+    async def rename_file(self, filename: str) -> None:
+        self.globals["__file__"] = filename
+        roots = set()
+        for cell in self.graph.cells.values():
+            if "__file__" in cell.refs:
+                roots.add(cell.cell_id)
+        await self._run_cells(roots)
+
     async def run_scratchpad(self, code: str) -> None:
         roots = {SCRATCH_CELL_ID}
 
@@ -1619,6 +1628,8 @@ class Kernel:
                 await self.run_scratchpad(request.code)
             elif isinstance(request, ExecuteStaleRequest):
                 await self.run_stale_cells()
+            elif isinstance(request, RenameRequest):
+                await self.rename_file(request.filename)
             elif isinstance(request, SetCellConfigRequest):
                 await self.set_cell_config(request)
             elif isinstance(request, SetUserConfigRequest):

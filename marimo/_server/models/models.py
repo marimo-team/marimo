@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
@@ -9,6 +10,7 @@ from marimo._config.config import MarimoConfig
 from marimo._runtime.requests import (
     ExecuteMultipleRequest,
     ExecuteScratchpadRequest,
+    RenameRequest,
 )
 
 UIElementId = str
@@ -65,6 +67,9 @@ class ReadCodeResponse:
 @dataclass
 class RenameFileRequest:
     filename: str
+
+    def as_execution_request(self) -> RenameRequest:
+        return RenameRequest(filename=os.path.abspath(self.filename))
 
 
 @dataclass
