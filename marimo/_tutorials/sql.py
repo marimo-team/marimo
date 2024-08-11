@@ -22,13 +22,13 @@ def __(mo):
 def __(mo):
     mo.md(
         r"""
-        With marimo, you can mix-and-match both **Python and SQL**. To create a SQL cell, you first need to install our SQL query engine of choice: [duckdb](https://duckdb.org/).
+        With marimo, you can mix-and-match both **Python and SQL**. To create a
+        SQL cell, you first need to install some additional dependencies,
+        including [duckdb](https://duckdb.org/). Obtain these dependencies with
 
         ```bash
-        pip install duckdb
+        pip install marimo[sql]
         ```
-
-        Or if you `import duckdb` in any SQL cell, marimo will automatically install it for you.
         """
     )
     return
@@ -96,18 +96,25 @@ def __(has_duckdb_installed, mo):
 def __(mo):
     mo.md(
         r"""
-        Once duckdb is installed, you can create SQL cells by either right clicking the **Add Cell** buttons on the left of a cell, or click the **Add SQL Cell** at the bottom of the page. 
+        Once the required dependencies are installed, you can create SQL cells
+        by either right clicking the **Add Cell** buttons on the left of a
+        cell, or click the **Add SQL Cell** at the bottom of the page.
 
-        marimo is still just Python, even when using SQL. Here is an example of how marimo
-        embeds SQL in Python in its file format:
+        marimo is still just Python, even when using SQL. Here is an example of
+        how marimo embeds SQL in Python in its file format:
 
         ```python
         output_df = mo.sql(f"SELECT * FROM my_table LIMIT {max_rows.value}")
         ```
 
-        Notice that we have an **`output_df`** variable in the cell. This is a resulting Polars DataFrame (if you have `polars` installed) or a Pandas DataFrame (if you don't). One of them must be installed in order to interact with the SQL result.
+        Notice that we have an **`output_df`** variable in the cell. This is a
+        resulting Polars DataFrame (if you have `polars` installed) or a Pandas
+        DataFrame (if you don't). One of them must be installed in order to
+        interact with the SQL result.
 
-        The SQL statement itself is an formatted string (f-string), so this means they can contain any valid Python code, such as the values of UI elements. This means your SQL statement and results can be reactive! 🚀
+        The SQL statement itself is an formatted string (f-string), so this
+        means they can contain any valid Python code, such as the values of UI
+        elements. This means your SQL statement and results can be reactive! 🚀
         """
     )
     return
@@ -214,7 +221,7 @@ def __(df, mo, token_prefix):
     result = mo.sql(
         f"""
         -- Change the dropdown to see the SQL query filter itself!
-        -- 
+        --
         -- Here we use a duckdb function called `starts_with`:
         SELECT * FROM df WHERE starts_with(token, '{token_prefix.value}')
 
@@ -255,7 +262,7 @@ def __(charting_library, mo, render_chart, token_prefix):
         f"""
         We can re-use the dropdown from above: {token_prefix}
 
-        Now we have a histogram visualizing the token count distribution of tokens starting 
+        Now we have a histogram visualizing the token count distribution of tokens starting
         with {token_prefix.value}, powered by your SQL query and UI element.
         """
     )
