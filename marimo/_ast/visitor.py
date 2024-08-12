@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import sys
+from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Literal, Optional
 from uuid import uuid4
@@ -22,6 +23,8 @@ class ImportData:
     # full module name
     # e.g., a.b.c.
     module: str
+    # variable name
+    definition: str
     # fully qualified import symbol:
     # import a.b => symbol == None
     # from a.b import c => symbol == a.b.c
@@ -61,7 +64,9 @@ class Block:
     # Names defined with the global keyword
     global_names: set[Name] = field(default_factory=set)
     # Map from defined names to metadata about their variables
-    variable_data: dict[Name, VariableData] = field(default_factory=dict)
+    variable_data: dict[Name, list[VariableData]] = field(
+        default_factory=lambda: defaultdict(list)
+    )
     # Comprehensions have special scoping rules
     is_comprehension: bool = False
 
@@ -111,7 +116,7 @@ class ScopedVisitor(ast.NodeVisitor):
         return self.block_stack[0].defs
 
     @property
-    def variable_data(self) -> dict[Name, VariableData]:
+    def variable_data(self) -> dict[Name, list[VariableData]]:
         """Get data accompanying globals."""
         return self.block_stack[0].variable_data
 
@@ -186,7 +191,7 @@ class ScopedVisitor(ast.NodeVisitor):
         """Define a name in a given block."""
 
         self.block_stack[block_idx].defs.add(name)
-        self.block_stack[block_idx].variable_data[name] = variable_data
+        self.block_stack[block_idx].variable_data[name].append(variable_data)
         # If `name` is added to the top-level block, it is also evicted from
         # any captured refs (if present) --- this handles cases where a name is
         # encountered and captured before it is declared, such as in
@@ -592,7 +597,9 @@ class ScopedVisitor(ast.NodeVisitor):
                 VariableData(
                     kind="import",
                     import_data=ImportData(
-                        module=alias_node.name, imported_symbol=None
+                        module=alias_node.name,
+                        definition=variable_name,
+                        imported_symbol=None,
                     ),
                 ),
             )
@@ -610,6 +617,7 @@ class ScopedVisitor(ast.NodeVisitor):
                     kind="import",
                     import_data=ImportData(
                         module=module,
+                        definition=variable_name,
                         imported_symbol=module + "." + original_name,
                         import_level=node.level,
                     ),

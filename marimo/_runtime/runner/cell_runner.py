@@ -112,7 +112,7 @@ class Runner:
 
         # runtime globals
         self.glbls = glbls
-        self.execution_mode = execution_mode
+        self.execution_mode: OnCellChangeType = execution_mode
         self.execution_type = execution_type
 
         # cells that the runner will run, subtracting out cells with errors:
@@ -120,24 +120,11 @@ class Runner:
         # cells with errors can't be run, but are still in the graph
         # so that they can be transitioned out of error if a future
         # run request repairs the graph
+        self.roots = roots
         self.cells_to_run: list[CellId_t]
 
-        # Runner always runs stale ancestors, if any.
-        cells_to_run = roots.union(
-            dataflow.transitive_closure(
-                graph,
-                roots,
-                children=False,
-                inclusive=False,
-                predicate=lambda cell: cell.stale,
-            )
-        )
-        if self.execution_mode == "autorun":
-            # in autorun/eager mode, descendants are also run
-            cells_to_run = dataflow.transitive_closure(graph, cells_to_run)
-        self.cells_to_run = dataflow.topological_sort(
-            graph,
-            cells_to_run - self.excluded_cells,
+        self.cells_to_run = Runner.compute_cells_to_run(
+            self.graph, self.roots, self.excluded_cells, self.execution_mode
         )
 
         # map from a cell that was cancelled to its descendants that have
@@ -152,6 +139,34 @@ class Runner:
         self._run_position = {
             cell_id: index for index, cell_id in enumerate(self.cells_to_run)
         }
+
+    @staticmethod
+    def compute_cells_to_run(
+        graph: dataflow.DirectedGraph,
+        roots: set[CellId_t],
+        excluded_cells: set[CellId_t],
+        execution_mode: OnCellChangeType,
+    ) -> list[CellId_t]:
+        # Runner always runs stale ancestors, if any.
+        cells_to_run = roots.union(
+            dataflow.transitive_closure(
+                graph,
+                roots,
+                children=False,
+                inclusive=False,
+                predicate=lambda cell: cell.stale,
+            )
+        )
+        if execution_mode == "autorun":
+            # in autorun/eager mode, descendants are also run;
+            cells_to_run = dataflow.transitive_closure(
+                graph, cells_to_run, relatives=dataflow.import_block_relatives
+            )
+
+        return dataflow.topological_sort(
+            graph,
+            cells_to_run - excluded_cells,
+        )
 
     # Adapted from
     # https://github.com/ipython/ipykernel/blob/eddd3e666a82ebec287168b0da7cfa03639a3772/ipykernel/ipkernel.py#L312  # noqa: E501
@@ -207,6 +222,8 @@ class Runner:
             for cid in dataflow.transitive_closure(self.graph, set([cell_id]))
             if cid in self.cells_to_run
         )
+        for cid in self.cells_cancelled[cell_id]:
+            self.graph.cells[cid].set_run_result_status("cancelled")
 
     def cancelled(self, cell_id: CellId_t) -> bool:
         """Return whether a cell has been cancelled."""
@@ -506,17 +523,25 @@ class Runner:
 
         while self.pending():
             cell_id = self.pop_cell()
-            if self.cancelled(cell_id):
-                continue
             cell = self.graph.cells[cell_id]
+
+            # Update run result status for cells that won't run.
+            #
+            # Hack: frontend sets status to queued on run, so we also have to
+            # set runtime_state to get FE to transition.
+            if self.cancelled(cell_id):
+                cell.set_run_result_status("cancelled")
+                cell.set_runtime_state("idle")
+                continue
             if cell.config.disabled:
-                cell.set_status("idle")
+                cell.set_run_result_status("disabled")
+                cell.set_runtime_state("idle")
                 continue
             if self.graph.is_disabled(cell_id):
-                # hack: frontend sets status to queued on run, have to
-                # set status here to get FE to transition.
-                cell.set_status("disabled-transitively")
+                cell.set_run_result_status("disabled")
+                cell.set_runtime_state("disabled-transitively")
                 continue
+
             for pre_hook in self.pre_execution_hooks:
                 pre_hook(cell, self)
             if self.execution_context is not None:

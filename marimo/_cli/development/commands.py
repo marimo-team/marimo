@@ -17,7 +17,7 @@ import marimo._server.models.home as home
 import marimo._server.models.models as models
 import marimo._snippets.snippets as snippets
 from marimo import __version__
-from marimo._ast.cell import CellConfig, CellStatusType
+from marimo._ast.cell import CellConfig, RuntimeStateType
 from marimo._cli.print import orange
 from marimo._config.config import MarimoConfig
 from marimo._messaging.cell_output import CellChannel, CellOutput
@@ -39,7 +39,7 @@ def _generate_schema() -> dict[str, Any]:
     MESSAGES = [
         # Base
         MIME,
-        CellStatusType,
+        RuntimeStateType,
         KnownMimeType,
         CellChannel,
         data.NonNestedLiteral,
@@ -185,7 +185,7 @@ def _generate_schema() -> dict[str, Any]:
         KnownMimeType: "MimeType",
         data.DataType: "DataType",
         data.NonNestedLiteral: "NonNestedLiteral",
-        CellStatusType: "CellStatus",
+        RuntimeStateType: "RuntimeState",
         CellChannel: "CellChannel",
         ops.MessageOperation: "MessageOperation",
     }

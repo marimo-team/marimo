@@ -1229,8 +1229,10 @@ class TestStrictExecution:
             assert not k.errors
 
     @staticmethod
-    async def test_runtime_resolution_failure(strict_kernel: Kernel) -> None:
+    async def test_runtime_failure(strict_kernel: Kernel) -> None:
         k = strict_kernel
+        # We keep variable data for reassignments, so static analysis should
+        # succeed
         await k.run(
             [
                 ExecutionRequest(
@@ -1240,51 +1242,7 @@ class TestStrictExecution:
                     X = 1
                     Y = 2
                     l = lambda x: x + X
-                    L = l # Static analysis can fail on reassignment
-                    l = lambda x: x + Y
-                    """
-                    ),
-                ),
-                ExecutionRequest(
-                    cell_id="1",
-                    code=textwrap.dedent(
-                        """
-                    try:
-                      x = L(1)
-                    except NameError as e:
-                      E = e
-                    raise E
-                    """
-                    ),
-                ),
-            ]
-        )
-        # Runtime error expected- since not a kernel error check stderr
-        assert "x" not in k.globals
-        assert "E" in k.globals
-        assert k.errors == {}
-
-        assert (
-            "marimo came across the undefined variable `X` during runtime."
-            in k.stream.messages[-2][1]["output"]["data"][0]["msg"]
-        )
-        assert "NameError" in k.stderr.messages[-1]
-
-    @staticmethod
-    async def test_runtime_resolution_failure_private(
-        strict_kernel: Kernel,
-    ) -> None:
-        k = strict_kernel
-        await k.run(
-            [
-                ExecutionRequest(
-                    cell_id="0",
-                    code=textwrap.dedent(
-                        """
-                    _X = 1
-                    Y = 2
-                    l = lambda x: x + _X
-                    L = l # Static analysis can fail on reassignment
+                    L = l
                     l = lambda x: x + Y
                     """
                     ),
@@ -1294,20 +1252,135 @@ class TestStrictExecution:
                     code=textwrap.dedent(
                         """
                     x = L(1)
-                    x
                     """
                     ),
                 ),
             ]
         )
-        # Runtime error expected- since not a kernel error check stderr
+        assert "x" in k.globals
+        assert k.globals["x"] == 2
+
+    @staticmethod
+    async def test_runtime_resolution_private(
+        strict_kernel: Kernel,
+    ) -> None:
+        k = strict_kernel
+        # We keep variable data for reassignments, so static analysis should
+        # succeed
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent(
+                        """
+                    _X = 1
+                    Y = 2
+                    l = lambda x: x + _X
+                    L = l
+                    l = lambda x: x + Y
+                    """
+                    ),
+                ),
+                ExecutionRequest(
+                    cell_id="1",
+                    code=textwrap.dedent(
+                        """
+                    x = L(1)
+                    """
+                    ),
+                ),
+            ]
+        )
+        assert "x" in k.globals
+        assert k.globals["x"] == 2
+
+
+class TestImports:
+    async def test_import_triggers_execution(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run([exec_req.get("random; x = 0")])
         assert "x" not in k.globals
 
-        assert (
-            "marimo came across the undefined variable `_X` during runtime."
-            in k.stream.messages[-2][1]["output"]["data"][0]["msg"]
+        await k.run([exec_req.get("import random")])
+        assert k.globals["x"] == 0
+
+    async def test_reimport_doesnt_trigger_execution(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run([er := exec_req.get("import random")])
+
+        await k.run([exec_req.get("x = random.randint(0, 100000)")])
+        x = k.globals["x"]
+
+        # re-running an import shouldn't retrigger execution
+        await k.run([er])
+        assert k.globals["x"] == x
+
+    async def test_incremental_import_doesnt_trigger_execution(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run([er := exec_req.get("import random")])
+
+        await k.run([exec_req.get("x = random.randint(0, 100000)")])
+        x = k.globals["x"]
+
+        # adding another import to the cell shouldn't rerun dependents
+        # of already imported modules
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id=er.cell_id, code="import random; import time"
+                )
+            ]
         )
-        assert "NameError" in k.stderr.messages[-1]
+        assert k.globals["x"] == x
+
+    async def test_transition_out_of_error_triggers_run(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get("import random"),
+                er := exec_req.get("import random"),
+                exec_req.get("random; x = 0"),
+            ]
+        )
+        assert "x" not in k.globals
+
+        await k.delete(DeleteCellRequest(cell_id=er.cell_id))
+        assert "x" in k.globals
+
+    async def test_different_import_same_def(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run([er := exec_req.get("import random")])
+
+        await k.run([exec_req.get("x = random.randint(0, 100000)")])
+        assert "x" in k.globals
+
+        # er.cell_id is still an import block, still defines random,
+        # but brings random from another place; descendant should run
+        await k.run(
+            [ExecutionRequest(er.cell_id, code="from random import random")]
+        )
+        assert "random" in k.globals
+        # randint is on toplevel random, not random.random
+        assert "x" not in k.globals
+
+    async def test_after_import_error(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                er := exec_req.get("import time; import fake_module"),
+                exec_req.get("time; x = 1"),
+            ]
+        )
+        assert "x" not in k.globals
+
+        await k.run([ExecutionRequest(er.cell_id, code="import time")])
+        assert k.globals["x"] == 1
 
 
 class TestStoredOutput:
@@ -1721,7 +1794,7 @@ class TestDisable:
         )
         assert not k.graph.cells[er_1.cell_id].config.disabled
         assert not k.graph.cells[er_2.cell_id].disabled_transitively
-        assert k.graph.cells[er_2.cell_id].status == "idle"
+        assert k.graph.cells[er_2.cell_id].runtime_state == "idle"
 
 
 class TestAsyncIO:
@@ -2077,8 +2150,8 @@ class TestStateTransitions:
         n_idle = sum([1 for op in cell_ops if op.status == "idle"])
         assert n_idle == 2
 
-        assert k.graph.cells[er_1.cell_id].status == "idle"
-        assert k.graph.cells[er_2.cell_id].status == "idle"
+        assert k.graph.cells[er_1.cell_id].runtime_state == "idle"
+        assert k.graph.cells[er_2.cell_id].runtime_state == "idle"
 
     async def test_descendant_status_reset_to_idle_on_interrupt(
         self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
@@ -2116,5 +2189,5 @@ class TestStateTransitions:
         n_idle = sum([1 for op in cell_ops if op.status == "idle"])
         assert n_idle == 2
 
-        assert k.graph.cells[er_1.cell_id].status == "idle"
-        assert k.graph.cells[er_2.cell_id].status == "idle"
+        assert k.graph.cells[er_1.cell_id].runtime_state == "idle"
+        assert k.graph.cells[er_2.cell_id].runtime_state == "idle"

@@ -16,9 +16,10 @@ from marimo._ast.cell import (
     Cell,
     CellId_t,
     CellImpl,
+    ImportWorkspace,
     SourcePosition,
 )
-from marimo._ast.visitor import ScopedVisitor
+from marimo._ast.visitor import ImportData, Name, ScopedVisitor
 from marimo._utils.tmpdir import get_tmpdir
 from marimo._utils.variables import is_local
 
@@ -94,6 +95,7 @@ def compile_cell(
     code: str,
     cell_id: CellId_t,
     source_position: Optional[SourcePosition] = None,
+    carried_imports: list[ImportData] | None = None,
 ) -> CellImpl:
     # Replace non-breaking spaces with regular spaces -- some frontends
     # send nbsp in place of space, which is a syntax error.
@@ -121,6 +123,10 @@ def compile_cell(
             last_expr=None,
             cell_id=cell_id,
         )
+
+    is_import_block = all(
+        isinstance(stmt, (ast.Import, ast.ImportFrom)) for stmt in module.body
+    )
 
     v = ScopedVisitor("cell_" + cell_id)
     v.visit(module)
@@ -159,19 +165,39 @@ def compile_cell(
     body = compile(module, filename, mode="exec", flags=flags)
     last_expr = compile(expr, filename, mode="eval", flags=flags)
 
-    glbls = {name for name in v.defs if not is_local(name)}
+    nonlocals = {name for name in v.defs if not is_local(name)}
+    variable_data = {
+        name: v.variable_data[name]
+        for name in nonlocals
+        if name in v.variable_data
+    }
+
+    # If this cell is an import cell, we carry over any imports in
+    # `carried_imports` that are also in this cell to the import workspace's
+    # definitions.
+    imported_defs: set[Name] = set()
+    if is_import_block and carried_imports is not None:
+        for data in variable_data.values():
+            for datum in data:
+                import_data = datum.import_data
+                if import_data is None:
+                    continue
+                for previous_import_data in carried_imports:
+                    if previous_import_data == import_data:
+                        imported_defs.add(import_data.definition)
+
     return CellImpl(
         # keyed by original (user) code, for cache lookups
         key=code_key(code),
         code=code,
         mod=module,
-        defs=glbls,
+        defs=nonlocals,
         refs=v.refs,
-        variable_data={
-            name: v.variable_data[name]
-            for name in glbls
-            if name in v.variable_data
-        },
+        variable_data=variable_data,
+        import_workspace=ImportWorkspace(
+            is_import_block=is_import_block,
+            imported_defs=imported_defs,
+        ),
         deleted_refs=v.deleted_refs,
         body=body,
         last_expr=last_expr,

@@ -26,7 +26,7 @@ def _send_interrupt_errors(runner: cell_runner.Runner) -> None:
         assert runner.interrupted
         for cid in runner.cells_to_run:
             # `cid` was not run
-            runner.graph.cells[cid].set_status("idle")
+            runner.graph.cells[cid].set_runtime_state("idle")
             CellOp.broadcast_error(
                 data=[MarimoInterruptionError()],
                 # these cells are transitioning from queued to stopped
@@ -42,10 +42,10 @@ def _send_cancellation_errors(runner: cell_runner.Runner) -> None:
         for cid in runner.cells_cancelled[raising_cell]:
             # `cid` was not run
             cell = runner.graph.cells[cid]
-            if cell.status != "idle":
+            if cell.runtime_state != "idle":
                 # the cell raising an exception will already be
                 # idle, but its descendants won't be.
-                cell.set_status("idle")
+                cell.set_runtime_state("idle")
 
             exception = runner.exceptions[raising_cell]
             data: Error

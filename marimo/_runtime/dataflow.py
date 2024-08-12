@@ -168,7 +168,7 @@ class DirectedGraph:
             self.set_stale(set([cell_id]))
 
         if self.is_any_ancestor_disabled(cell_id):
-            cell.set_status(status="disabled-transitively")
+            cell.set_runtime_state(status="disabled-transitively")
 
     def is_any_ancestor_stale(self, cell_id: CellId_t) -> bool:
         return any(self.cells[cid].stale for cid in self.ancestors(cell_id))
@@ -191,7 +191,7 @@ class DirectedGraph:
 
         for cid in transitive_closure(self, set([cell_id])) - set([cell_id]):
             cell = self.cells[cid]
-            cell.set_status(status="disabled-transitively")
+            cell.set_runtime_state(status="disabled-transitively")
 
     def enable_cell(self, cell_id: CellId_t) -> set[CellId_t]:
         """
@@ -215,7 +215,7 @@ class DirectedGraph:
                     cells_to_run.add(cid)
                 if child.disabled_transitively:
                     # cell is no longer disabled: status -> idle
-                    child.set_status("idle")
+                    child.set_runtime_state("idle")
         return cells_to_run
 
     def delete_cell(self, cell_id: CellId_t) -> set[CellId_t]:
@@ -311,8 +311,11 @@ class DirectedGraph:
             self, set([cell_id]), children=False, inclusive=False
         )
 
-    def set_stale(self, cell_ids: set[CellId_t]) -> None:
-        for cid in transitive_closure(self, cell_ids):
+    def set_stale(
+        self, cell_ids: set[CellId_t], prune_imports: bool = False
+    ) -> None:
+        relatives = None if not prune_imports else import_block_relatives
+        for cid in transitive_closure(self, cell_ids, relatives=relatives):
             self.cells[cid].set_stale(stale=True)
 
     def get_stale(self) -> set[CellId_t]:
@@ -350,16 +353,19 @@ class DirectedGraph:
                 processed.update(newly_processed)
                 queue.difference_update(newly_processed)
                 for variable in newly_processed:
-                    if predicate(variable, data[variable]):
-                        to_process = data[variable].required_refs - processed
-                        queue.update(to_process & self.definitions.keys())
-                        # Private variables referenced by public functions have
-                        # to be included.
-                        for maybe_private in (
-                            to_process - self.definitions.keys()
-                        ):
-                            if is_mangled_local(maybe_private, cell_id):
-                                processed.add(maybe_private)
+                    # variables can be defined multiple times in a single
+                    # cell ...
+                    for datum in data[variable]:
+                        if predicate(variable, datum):
+                            to_process = datum.required_refs - processed
+                            queue.update(to_process & self.definitions.keys())
+                            # Private variables referenced by public functions
+                            # have to be included.
+                            for maybe_private in (
+                                to_process - self.definitions.keys()
+                            ):
+                                if is_mangled_local(maybe_private, cell_id):
+                                    processed.add(maybe_private)
 
         if inclusive:
             return processed | refs
@@ -371,6 +377,8 @@ def transitive_closure(
     cell_ids: set[CellId_t],
     children: bool = True,
     inclusive: bool = True,
+    relatives: Callable[[DirectedGraph, CellId_t, bool], set[CellId_t]]
+    | None = None,
     predicate: Callable[[CellImpl], bool] | None = None,
 ) -> set[CellId_t]:
     """Return a set of the passed-in cells and their descendants or ancestors
@@ -379,15 +387,22 @@ def transitive_closure(
 
     If inclusive, includes passed-in cells in the set.
 
-    If predicate, only cells satisfying predicate(cell) are included
+    If relatives is not None, it computes the parents/children of a
+        cell
+
+    If predicate, only cells satisfying predicate(cell) are included; applied
+        after the relatives are computed
     """
     seen = set()
     cells = set()
     queue = list(cell_ids)
     predicate = predicate or (lambda _: True)
 
-    def relatives(cid: CellId_t) -> set[CellId_t]:
-        return graph.children[cid] if children else graph.parents[cid]
+    def _relatives(cid: CellId_t) -> set[CellId_t]:
+        if relatives is None:
+            return graph.children[cid] if children else graph.parents[cid]
+
+        return relatives(graph, cid, children)
 
     while queue:
         cid = queue.pop(0)
@@ -397,7 +412,7 @@ def transitive_closure(
             cells.add(cid)
         elif cid not in cell_ids and predicate(cell):
             cells.add(cid)
-        for relative in relatives(cid):
+        for relative in _relatives(cid):
             if relative not in seen:
                 queue.append(relative)
     return cells
@@ -445,6 +460,42 @@ def topological_sort(
                 roots.append(child)
     # TODO make sure parents for each id is empty, otherwise cycle
     return sorted_cell_ids
+
+
+def import_block_relatives(
+    graph: DirectedGraph, cid: CellId_t, children: bool
+) -> set[CellId_t]:
+    if not children:
+        return graph.parents[cid]
+
+    cell = graph.cells[cid]
+    if not cell.import_workspace.is_import_block:
+        return graph.children[cid]
+
+    # This cell is an import block, which should be special cased:
+    #
+    # We prune definitions that have already been imported from the set of
+    # definitions used to find the descendants of this cell.
+    unimported_defs = cell.defs - cell.import_workspace.imported_defs
+    children_ids = set().union(
+        *[graph.get_referring_cells(name) for name in unimported_defs]
+    )
+
+    # If children haven't been executed, then still use imported defs;
+    # handle an edge case when an import cell is interrupted by an
+    # exception or user interrupt, so that a module is imported but the
+    # cell's children haven't run.
+    for name in cell.import_workspace.imported_defs:
+        for child_id in graph.get_referring_cells(name):
+            if graph.cells[child_id].run_result_status in (
+                "interrupted",
+                "cancelled",
+                "marimo-error",
+                None,
+            ):
+                children_ids.add(child_id)
+
+    return children_ids
 
 
 class Runner:

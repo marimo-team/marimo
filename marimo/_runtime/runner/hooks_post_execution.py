@@ -38,6 +38,19 @@ PostExecutionHookType = Callable[
 ]
 
 
+def _set_imported_defs(
+    cell: CellImpl,
+    runner: cell_runner.Runner,
+    run_result: cell_runner.RunResult,
+) -> None:
+    del run_result
+    with runner.graph.lock:
+        if cell.import_workspace.is_import_block:
+            cell.import_workspace.imported_defs = set(
+                name for name in cell.defs if name in runner.glbls
+            )
+
+
 def _set_status_idle(
     cell: CellImpl,
     runner: cell_runner.Runner,
@@ -45,7 +58,22 @@ def _set_status_idle(
 ) -> None:
     del run_result
     del runner
-    cell.set_status(status="idle")
+    cell.set_runtime_state(status="idle")
+
+
+def _set_run_result_status(
+    cell: CellImpl,
+    runner: cell_runner.Runner,
+    run_result: cell_runner.RunResult,
+) -> None:
+    if isinstance(run_result.exception, MarimoInterruptionError):
+        cell.set_run_result_status("interrupted")
+    elif runner.cancelled(cell.cell_id):
+        cell.set_run_result_status("cancelled")
+    elif run_result.exception is not None:
+        cell.set_run_result_status("exception")
+    else:
+        cell.set_run_result_status("success")
 
 
 def _broadcast_variables(
@@ -243,6 +271,8 @@ def _reset_matplotlib_context(
 
 
 POST_EXECUTION_HOOKS: list[PostExecutionHookType] = [
+    _set_imported_defs,
+    _set_run_result_status,
     _store_reference_to_output,
     _broadcast_variables,
     _broadcast_datasets,
