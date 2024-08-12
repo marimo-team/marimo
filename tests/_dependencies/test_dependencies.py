@@ -67,6 +67,20 @@ def test_versions():
         DependencyManager.altair.has_at_version(min_version="7.0.0") is False
     )
 
+    with pytest.raises(RuntimeError) as excinfo:
+        DependencyManager.altair.require_at_version(
+            why="for testing", min_version="6.0.0"
+        )
+
+    assert "Mismatched version of test: expected >=2.0.0, got 1.0.0"
+
+    assert (
+        DependencyManager.altair.require_at_version(
+            why="for testing", min_version="2.0.0"
+        )
+        is None
+    )
+
 
 def test_version_check():
     # within range

@@ -29,7 +29,7 @@ class Dependency:
         return True
 
     def has_at_version(
-        self, min_version: str | None, max_version: str | None = None
+        self, *, min_version: str | None, max_version: str | None = None
     ) -> bool:
         if not self.has():
             return False
@@ -53,6 +53,23 @@ class Dependency:
                 f"{self.pkg} is required {why}. "
                 + f"You can install it with 'pip install {self.pkg}'."
             ) from None
+
+    def require_at_version(
+        self,
+        why: str,
+        *,
+        min_version: str | None,
+        max_version: str | None = None,
+    ) -> None:
+        self.require(why)
+
+        _version_check(
+            pkg=self.pkg,
+            v=self.get_version(),
+            min_v=min_version,
+            max_v=max_version,
+            raise_error=True,
+        )
 
     def get_version(self) -> str:
         return importlib.metadata.version(self.pkg)
