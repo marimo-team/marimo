@@ -21,6 +21,7 @@ import {
   KeyboardIcon,
   Undo2Icon,
   FileIcon,
+  Home,
 } from "lucide-react";
 import { commandPaletteAtom } from "../controls/command-palette";
 import { useCellActions, useNotebook } from "@/core/cells/cells";
@@ -299,6 +300,15 @@ export function useNotebookActions() {
 
     {
       divider: true,
+      icon: <Home size={14} strokeWidth={1.5} />,
+      label: "Return home",
+      hidden: !location.search.includes("file"),
+      handle: () => {
+        window.location.href = document.baseURI;
+      },
+    },
+
+    {
       icon: <PowerSquareIcon size={14} strokeWidth={1.5} />,
       label: "Restart kernel",
       variant: "danger",
