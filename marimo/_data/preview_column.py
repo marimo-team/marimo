@@ -115,7 +115,7 @@ def _get_altair_chart(
     summary: ColumnSummary,
 ) -> tuple[Optional[str], Optional[str], bool]:
     # We require altair to render the chart
-    if not DependencyManager.altair() or not table.supports_altair.has():
+    if not DependencyManager.altair.has() or not table.supports_altair():
         return None, None, False
 
     import altair as alt  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501

@@ -42,6 +42,9 @@ class Dependency:
                 + f"You can install it with 'pip install {self.pkg}'."
             ) from None
 
+    def get_version(self) -> str:
+        return importlib.metadata.version(self.pkg)
+
     def warn_if_mismatch_version(
         self,
         min_version: str | None = None,

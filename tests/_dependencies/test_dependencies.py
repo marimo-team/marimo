@@ -29,3 +29,25 @@ def test_without_dependencies() -> None:
         missing.require("for testing")
 
     assert "for testing" in str(excinfo.value)
+
+
+@pytest.mark.skipif(
+    not DependencyManager.altair.has(),
+    reason="altair is not installed",
+)
+def test_versions():
+    assert (
+        DependencyManager.altair.require_version(
+            min_version="0.0.0", max_version="6.0.0"
+        )
+        is None
+    )
+
+    with pytest.raises(RuntimeError) as excinfo:
+        DependencyManager.altair.require_version(min_version="6.0.0")
+
+    version = DependencyManager.altair.get_version()
+    assert (
+        str(excinfo.value)
+        == f"Mismatched version of altair: expected >=6.0.0, got {version}"
+    )
