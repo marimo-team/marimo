@@ -21,7 +21,7 @@ import { reactLazyWithPreload } from "@/utils/lazy";
 // Force tailwind classnames
 // tailwind only creates css for classnames that exist the FE files
 export const FORCE_TW_CLASSES =
-  "prose prose-sm prose-base prose-lg prose-xl prose-2xl";
+  "prose prose-sm prose-base prose-lg prose-xl prose-2xl dark:prose-invert";
 
 // Lazy imports
 const LazyHomePage = reactLazyWithPreload(

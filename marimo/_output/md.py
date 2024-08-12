@@ -75,7 +75,7 @@ def _md(
     )
 
     if apply_markdown_class:
-        classes = ["markdown", "prose"]
+        classes = ["markdown", "prose", "dark:prose-invert"]
         if size is not None:
             classes.append(f"prose-{size}")
         return Html(f'<span class="{" ".join(classes)}">{html_text}</span>')
