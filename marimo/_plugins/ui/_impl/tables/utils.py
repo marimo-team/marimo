@@ -47,6 +47,13 @@ def get_table_manager_or_none(data: Any) -> TableManager[Any] | None:
             if manager.is_type(data):
                 return manager(data)
 
+    # Unpack narwhal dataframe wrapper
+    if DependencyManager.narwhals.has():
+        import narwhals
+
+        if isinstance(data, narwhals.DataFrame):
+            return get_table_manager_or_none(narwhals.to_native(data))
+
     # If we have a DataFrameLike object, use the DataFrameProtocolTableManager
     if is_dataframe_like(data):
         try:

@@ -342,7 +342,7 @@ class KernelCapabilities:
     terminal: bool = False
 
     def __post_init__(self) -> None:
-        if DependencyManager.has_duckdb():
+        if DependencyManager.duckdb.has():
             self.sql = version.parse(
                 importlib.metadata.version("duckdb")
             ) >= version.parse("1.0.0")

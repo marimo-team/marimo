@@ -6,7 +6,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
-HAS_DEPS = DependencyManager.has_altair()
+HAS_DEPS = DependencyManager.altair.has()
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

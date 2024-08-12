@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import subprocess
 from typing import Dict
 
@@ -26,9 +28,9 @@ class DefaultFormatter(Formatter):
     """
 
     def format(self, codes: CellCodes) -> CellCodes:
-        if DependencyManager.has("ruff"):
+        if DependencyManager.ruff.has():
             return RuffFormatter(self.line_length).format(codes)
-        elif DependencyManager.has("black"):
+        elif DependencyManager.black.has():
             return BlackFormatter(self.line_length).format(codes)
         else:
             LOGGER.warning(

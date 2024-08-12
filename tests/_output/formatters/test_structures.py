@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
@@ -6,7 +8,7 @@ from tests.conftest import ExecReqProvider
 async def test_matplotlib_special_case(
     executing_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    if DependencyManager.has_matplotlib() and DependencyManager.has_numpy():
+    if DependencyManager.matplotlib() and DependencyManager.numpy.has():
         from marimo._output.formatters.formatters import register_formatters
 
         register_formatters()

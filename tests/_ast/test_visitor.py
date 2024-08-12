@@ -865,7 +865,7 @@ def test_private_ref_requirement_caught() -> None:
     }
 
 
-HAS_DEPS = DependencyManager.has_duckdb()
+HAS_DEPS = DependencyManager.duckdb.has()
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")

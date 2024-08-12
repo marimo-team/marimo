@@ -56,13 +56,13 @@ def _normalize_image(src: ImageLike) -> Image:
         or hasattr(src, "__array__")
         or hasattr(src, "toarray")
     ):
-        DependencyManager.require_pillow(
+        DependencyManager.pillow.require(
             "to render images from arrays in `mo.image`"
         )
         from PIL import Image as _Image
 
         if not hasattr(src, "__array_interface__"):
-            DependencyManager.require_numpy(
+            DependencyManager.numpy.require(
                 "to render images from generic arrays in `mo.image`"
             )
             import numpy

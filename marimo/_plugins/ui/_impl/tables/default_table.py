@@ -51,9 +51,9 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def supports_download(self) -> bool:
         # If we have pandas/polars/pyarrow, we can convert to CSV or JSON
         return (
-            DependencyManager.has_pandas()
-            or DependencyManager.has_polars()
-            or DependencyManager.has_pyarrow()
+            DependencyManager.pandas.has()
+            or DependencyManager.polars.has()
+            or DependencyManager.pyarrow.has()
         )
 
     def apply_formatting(self, format_mapping: FormatMapping) -> JsonTableData:
@@ -155,15 +155,15 @@ class DefaultTableManager(TableManager[JsonTableData]):
         return []
 
     def _as_table_manager(self) -> TableManager[Any]:
-        if DependencyManager.has_pandas():
+        if DependencyManager.pandas.has():
             import pandas as pd
 
             return PandasTableManagerFactory.create()(pd.DataFrame(self.data))
-        if DependencyManager.has_polars():
+        if DependencyManager.polars.has():
             import polars as pl
 
             return PolarsTableManagerFactory.create()(pl.DataFrame(self.data))
-        if DependencyManager.has_pyarrow():
+        if DependencyManager.pyarrow.has():
             import pyarrow as pa
 
             if isinstance(self.data, dict):

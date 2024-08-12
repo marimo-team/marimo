@@ -11,9 +11,9 @@ from marimo._plugins.ui._impl.tables.pyarrow_table import (
     PyArrowTableManagerFactory,
 )
 
-HAS_DEPS_TABLE = DependencyManager.has_pyarrow()
+HAS_DEPS_TABLE = DependencyManager.pyarrow.has()
 HAS_DEPS_RECORD_BATCH = (
-    DependencyManager.has_pandas() and DependencyManager.has_pyarrow()
+    DependencyManager.pandas.has() and DependencyManager.pyarrow.has()
 )
 
 
