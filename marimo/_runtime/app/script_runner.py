@@ -72,7 +72,7 @@ class AppScriptRunner:
                 register_formatters()
 
             post_execute_hooks = []
-            if DependencyManager.has_matplotlib():
+            if DependencyManager.matplotlib.has():
                 from marimo._output.mpl import close_figures
 
                 post_execute_hooks.append(close_figures)

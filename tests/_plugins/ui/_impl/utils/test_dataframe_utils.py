@@ -8,7 +8,7 @@ import pytest
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 
-HAS_PANDAS = DependencyManager.has_pandas()
+HAS_PANDAS = DependencyManager.pandas.has()
 
 
 def _get_row_headers(
@@ -55,3 +55,23 @@ def test_get_row_headers_pandas() -> None:
 def test_get_row_headers_list() -> None:
     # Test with non-DataFrame input
     assert _get_row_headers([1, 2, 3]) == []
+
+
+@pytest.mark.skipif(
+    not HAS_PANDAS, reason="optional dependencies not installed"
+)
+def test_get_table_manager() -> None:
+    import narwhals as nw
+    import pandas as pd
+    import polars as pl
+    import pyarrow as pa
+
+    df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+    assert get_table_manager(df) is not None
+    assert get_table_manager(pl.from_pandas(df)) is not None
+    assert get_table_manager(pa.table(df)) is not None
+
+    # Test with narwhals DataFrame
+    assert get_table_manager(nw.from_native(df)) is not None
+    assert get_table_manager(nw.from_native(pa.table(df))) is not None
+    assert get_table_manager(nw.from_native(pl.from_pandas(df))) is not None

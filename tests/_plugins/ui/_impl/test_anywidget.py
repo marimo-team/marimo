@@ -8,7 +8,7 @@ from marimo._plugins.ui._impl.from_anywidget import anywidget
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
-HAS_DEPS = DependencyManager.has_anywidget()
+HAS_DEPS = DependencyManager.anywidget.has()
 
 if HAS_DEPS:
     import anywidget as _anywidget

@@ -13,7 +13,7 @@ from marimo._plugins.ui._impl.tables.df_protocol_table import (
 )
 from marimo._plugins.ui._impl.tables.types import DataFrameLike
 
-HAS_DEPS = DependencyManager.has_pyarrow()
+HAS_DEPS = DependencyManager.pyarrow.has()
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

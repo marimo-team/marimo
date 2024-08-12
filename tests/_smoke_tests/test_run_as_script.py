@@ -90,7 +90,7 @@ class TestRunTutorialsAsScripts:
         self.assert_not_errored(p)
 
     @pytest.mark.skipif(
-        condition=not DependencyManager.has_matplotlib(),
+        condition=not DependencyManager.matplotlib.has(),
         reason="requires matplotlib",
     )
     @pytest.mark.skipif(

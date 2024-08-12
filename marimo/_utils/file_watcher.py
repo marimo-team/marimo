@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import asyncio
 import os
 from abc import ABC, abstractmethod
@@ -14,7 +16,7 @@ Callback = Callable[[Path], Coroutine[None, None, None]]
 class FileWatcher(ABC):
     @staticmethod
     def create(path: Path, callback: Callback) -> "FileWatcher":
-        if DependencyManager.has_watchdog():
+        if DependencyManager.watchdog.has():
             LOGGER.debug("Using watchdog file watcher")
             return _create_watchdog(path, callback, asyncio.get_event_loop())
         else:

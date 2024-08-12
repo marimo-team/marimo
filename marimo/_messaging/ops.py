@@ -6,7 +6,6 @@ Messages that the kernel sends to the frontend.
 
 from __future__ import annotations
 
-import importlib.metadata
 import json
 import sys
 import time
@@ -24,8 +23,6 @@ from typing import (
     Union,
     cast,
 )
-
-from packaging import version
 
 from marimo import _loggers as loggers
 from marimo._ast.app import _AppConfig
@@ -342,12 +339,7 @@ class KernelCapabilities:
     terminal: bool = False
 
     def __post_init__(self) -> None:
-        if DependencyManager.has_duckdb():
-            self.sql = version.parse(
-                importlib.metadata.version("duckdb")
-            ) >= version.parse("1.0.0")
-        else:
-            self.sql = False
+        self.sql = DependencyManager.duckdb.has_at_version(min_version="1.0.0")
         # Only available in mac/linux
         self.terminal = not is_windows() and not is_pyodide()
 

@@ -52,7 +52,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
   const [showCode, setShowCode] = useState(() => {
     // Default to showing code if the notebook is static or wasm
     return showCodeDefault === null
-      ? isStaticNotebook() || isWasm()
+      ? isStaticNotebook() || isWasm() || kioskMode
       : showCodeDefault === "true";
   });
 

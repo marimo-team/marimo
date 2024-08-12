@@ -12,7 +12,7 @@ from marimo._plugins.ui._impl.altair_chart import (
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
-HAS_DEPS = DependencyManager.has_pandas() and DependencyManager.has_altair()
+HAS_DEPS = DependencyManager.pandas.has() and DependencyManager.altair.has()
 
 if HAS_DEPS:
     import pandas as pd

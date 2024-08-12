@@ -33,7 +33,7 @@ def sql(
     Returns:
         The result of the query.
     """
-    DependencyManager.require_duckdb("to execute sql")
+    DependencyManager.duckdb.require("to execute sql")
 
     import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
@@ -58,7 +58,7 @@ def sql(
     custom_total_count: Optional[Literal["too_many"]] = None
 
     df: Any
-    if DependencyManager.has_polars():
+    if DependencyManager.polars.has():
         df = relation.pl()
         if enforce_own_limit:
             custom_total_count = (
@@ -67,7 +67,7 @@ def sql(
                 else None
             )
             df = df.limit(default_result_limit)
-    elif DependencyManager.has_pandas():
+    elif DependencyManager.pandas.has():
         df = relation.df()
         if enforce_own_limit:
             custom_total_count = (
