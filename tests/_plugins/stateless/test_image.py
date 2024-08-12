@@ -11,7 +11,7 @@ from marimo._runtime.context import get_context
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
-HAS_DEPS = DependencyManager.numpy() and DependencyManager.pillow.has()
+HAS_DEPS = DependencyManager.numpy.has() and DependencyManager.pillow.has()
 
 
 async def test_image() -> None:
