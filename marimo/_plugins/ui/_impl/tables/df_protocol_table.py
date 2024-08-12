@@ -47,7 +47,7 @@ class DataFrameProtocolTableManager(TableManager[DataFrameLike]):
     def _ensure_delegate(
         self,
     ) -> TableManager[Union[pa.Table, pa.RecordBatch]]:
-        DependencyManager.require_pyarrow(
+        DependencyManager.pyarrow.require(
             "for table support using the dataframe protocol"
         )
 

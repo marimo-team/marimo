@@ -11,7 +11,7 @@ from marimo._plugins.ui._impl.tables.pandas_table import (
     PandasTableManagerFactory,
 )
 
-HAS_DEPS = DependencyManager.has_pandas()
+HAS_DEPS = DependencyManager.pandas.has()
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

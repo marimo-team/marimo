@@ -416,7 +416,7 @@ class TestApp:
         assert defs["y"] == 1
 
     @pytest.mark.skipif(
-        condition=not DependencyManager.has_matplotlib(),
+        condition=not DependencyManager.matplotlib.has(),
         reason="requires matplotlib",
     )
     def test_marimo_mpl_backend_not_used(self):
@@ -434,7 +434,7 @@ class TestApp:
         assert defs["backend"] != "module://marimo._output.mpl"
 
     @pytest.mark.skipif(
-        condition=not DependencyManager.has_matplotlib(),
+        condition=not DependencyManager.matplotlib.has(),
         reason="requires matplotlib",
     )
     def test_app_run_matplotlib_figures_closed(self) -> None:

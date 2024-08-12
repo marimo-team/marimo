@@ -60,12 +60,12 @@ def get_handler_for_dataframe(
 
     raises ValueError if the dataframe type is not supported.
     """
-    if DependencyManager.has_pandas():
+    if DependencyManager.pandas.has():
         import pandas as pd
 
         if isinstance(df, pd.DataFrame):
             return PandasTransformHandler()
-    if DependencyManager.has_polars():
+    if DependencyManager.polars.has():
         import polars as pl
 
         if isinstance(df, pl.DataFrame):

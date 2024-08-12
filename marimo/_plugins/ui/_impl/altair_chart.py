@@ -203,7 +203,7 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
         label: str = "",
         on_change: Optional[Callable[[pd.DataFrame], None]] = None,
     ) -> None:
-        DependencyManager.require_altair(why="to use `mo.ui.altair_chart`")
+        DependencyManager.altair.require(why="to use `mo.ui.altair_chart`")
 
         import altair as alt
 
@@ -294,7 +294,7 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
         return chart.data
 
     def _convert_value(self, value: ChartSelection) -> Any:
-        from altair import UndefinedType
+        from altair import Undefined
 
         self._chart_selection = value
         flat, _ = flatten.flatten(value)
@@ -306,7 +306,7 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
         # When using layered charts, you can no longer access the
         # chart data directly
         # Instead, we should push user to call .apply_selection(df)
-        if isinstance(self.dataframe, UndefinedType):
+        if self.dataframe is Undefined:
             return self.dataframe
 
         # If we have transforms, we need to filter the dataframe
@@ -399,10 +399,10 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
 
     @property
     def value(self) -> pd.DataFrame:
-        from altair import UndefinedType
+        from altair import Undefined
 
         value = super().value
-        if isinstance(value, UndefinedType):
+        if value is Undefined:
             sys.stderr.write(
                 "The underlying chart data is not available in layered"
                 " or stacked charts. "

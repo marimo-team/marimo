@@ -7,7 +7,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl import data_explorer
 from marimo._runtime.runtime import Kernel
 
-HAS_DEPS = DependencyManager.has_pandas()
+HAS_DEPS = DependencyManager.pandas.has()
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

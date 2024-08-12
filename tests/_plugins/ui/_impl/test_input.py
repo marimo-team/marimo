@@ -9,7 +9,7 @@ import pytest
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
 
-HAS_PANDAS = DependencyManager.has_pandas()
+HAS_PANDAS = DependencyManager.pandas.has()
 
 
 def test_number_init() -> None:
