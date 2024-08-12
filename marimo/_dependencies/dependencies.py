@@ -28,6 +28,18 @@ class Dependency:
             self.warn_if_mismatch_version(self.min_version, self.max_version)
         return True
 
+    def has_at_version(
+        self, min_version: str | None, max_version: str | None = None
+    ) -> bool:
+        if not self.has():
+            return False
+        return _version_check(
+            pkg=self.pkg,
+            v=self.get_version(),
+            min_v=min_version,
+            max_v=max_version,
+        )
+
     def require(self, why: str) -> None:
         """
         Raise an ModuleNotFoundError if the package is not installed.
@@ -49,43 +61,59 @@ class Dependency:
         self,
         min_version: str | None = None,
         max_version: str | None = None,
-    ) -> None:
-        self._version_check(min_version, max_version, raise_error=False)
+    ) -> bool:
+        return _version_check(
+            pkg=self.pkg,
+            v=self.get_version(),
+            min_v=min_version,
+            max_v=max_version,
+            raise_error=False,
+        )
 
     def require_version(
         self,
         min_version: str | None = None,
         max_version: str | None = None,
     ) -> None:
-        self._version_check(min_version, max_version, raise_error=True)
+        _version_check(
+            pkg=self.pkg,
+            v=self.get_version(),
+            min_v=min_version,
+            max_v=max_version,
+            raise_error=True,
+        )
 
-    def _version_check(
-        self,
-        min_v: str | None = None,
-        max_v: str | None = None,
-        raise_error: bool = True,
-    ) -> None:
-        pkg = self.pkg
-        v = importlib.metadata.version(pkg)
 
-        if min_v is None and max_v is None:
-            return
+def _version_check(
+    *,
+    pkg: str,
+    v: str,
+    min_v: str | None = None,
+    max_v: str | None = None,
+    raise_error: bool = False,
+) -> bool:
+    if min_v is None and max_v is None:
+        return True
 
-        parsed_min_version = version.parse(min_v) if min_v else None
-        parsed_max_version = version.parse(max_v) if max_v else None
-        parsed_v = version.parse(v)
+    parsed_min_version = version.parse(min_v) if min_v else None
+    parsed_max_version = version.parse(max_v) if max_v else None
+    parsed_v = version.parse(v)
 
-        if parsed_min_version is not None and parsed_v < parsed_min_version:
-            msg = f"Mismatched version of {pkg}: expected >={min_v}, got {v}"
-            if raise_error:
-                raise RuntimeError(msg)
-            LOGGER.warning(f"{msg}. Some features may not work correctly.")
+    if parsed_min_version is not None and parsed_v < parsed_min_version:
+        msg = f"Mismatched version of {pkg}: expected >={min_v}, got {v}"
+        if raise_error:
+            raise RuntimeError(msg)
+        LOGGER.warning(f"{msg}. Some features may not work correctly.")
+        return False
 
-        if parsed_max_version is not None and parsed_v > parsed_max_version:
-            msg = f"Mismatched version of {pkg}: expected <{max_v}, got {v}"
-            if raise_error:
-                raise RuntimeError(msg)
-            LOGGER.warning(f"{msg}. Some features may not work correctly.")
+    if parsed_max_version is not None and parsed_v >= parsed_max_version:
+        msg = f"Mismatched version of {pkg}: expected <{max_v}, got {v}"
+        if raise_error:
+            raise RuntimeError(msg)
+        LOGGER.warning(f"{msg}. Some features may not work correctly.")
+        return False
+
+    return True
 
 
 class DependencyManager:
