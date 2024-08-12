@@ -346,7 +346,7 @@ async def test_reload_package(
 
 
 @pytest.mark.skipif(
-    not DependencyManager.has_numpy(), reason="NumPy not installed"
+    not DependencyManager.numpy.has(), reason="NumPy not installed"
 )
 async def test_reload_third_party(
     tmp_path: pathlib.Path,

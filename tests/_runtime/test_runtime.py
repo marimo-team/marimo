@@ -1015,6 +1015,19 @@ class TestExecution:
         # Does not pollute globals, reverts back to 10
         assert k.globals["z"] == 10
 
+    async def test_rename(
+        self, any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = any_kernel
+        await k.run([er := exec_req.get("x = __file__")])
+        assert "pytest" in k.globals["x"]
+        await k.rename_file("foo")
+        if k.lazy():
+            assert "pytest" in k.globals["x"]
+            assert k.graph.get_stale() == set([er.cell_id])
+            await k.run([er])
+        assert k.globals["x"] == "foo"
+
 
 class TestStrictExecution:
     @staticmethod

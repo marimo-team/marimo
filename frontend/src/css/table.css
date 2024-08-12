@@ -1,10 +1,5 @@
 .markdown table,
 table.dataframe {
-  border: none;
-  border-collapse: collapse;
-  border-spacing: 0;
-  table-layout: fixed;
-  font-size: 0.9375rem;
   display: block;
   max-width: 100%;
   overflow: auto;
@@ -12,10 +7,9 @@ table.dataframe {
 
 .markdown table thead,
 table.dataframe thead {
-  border-bottom: 1px solid;
   vertical-align: bottom;
 
-  @apply border-foreground;
+  @apply border-input;
 }
 
 .markdown table tbody tr:nth-child(odd),
@@ -30,7 +24,7 @@ table.dataframe tbody tr:nth-child(even) {
 
 .markdown table tbody tr:hover,
 table.dataframe tbody tr:hover {
-  background: var(--yellow-5);
+  background: var(--yellow-4);
 }
 
 .markdown table tr,
@@ -41,15 +35,8 @@ table.dataframe th,
 table.dataframe td {
   text-align: right;
   vertical-align: middle;
-  padding: 0.5rem;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
   line-height: normal;
-  white-space: normal;
-  max-width: none;
   border: none;
-  font-size: 0.875rem;
-}
-
-.markdown table th,
-table.dataframe th {
-  font-weight: bold;
 }

@@ -97,6 +97,7 @@ from marimo._runtime.requests import (
     FunctionCallRequest,
     InstallMissingPackagesRequest,
     PreviewDatasetColumnRequest,
+    RenameRequest,
     SetCellConfigRequest,
     SetUIElementValueRequest,
     SetUserConfigRequest,
@@ -982,6 +983,16 @@ class Kernel:
                     break
             LOGGER.debug("Finished run.")
 
+    async def _if_autorun_then_run_cells(
+        self, cell_ids: set[CellId_t]
+    ) -> None:
+        if self.reactive_execution_mode == "autorun":
+            await self._run_cells(cell_ids)
+        else:
+            # We prune imports so that only cells depending on unimported
+            # modules are marked as stale
+            self.graph.set_stale(cell_ids, prune_imports=True)
+
     def _broadcast_missing_packages(self, runner: cell_runner.Runner) -> None:
         if (
             any(
@@ -1142,6 +1153,14 @@ class Kernel:
         await self._run_cells(
             self.mutate_graph(filtered_requests, deletion_requests=[])
         )
+
+    async def rename_file(self, filename: str) -> None:
+        self.globals["__file__"] = filename
+        roots = set()
+        for cell in self.graph.cells.values():
+            if "__file__" in cell.refs:
+                roots.add(cell.cell_id)
+        await self._if_autorun_then_run_cells(roots)
 
     async def run_scratchpad(self, code: str) -> None:
         roots = {SCRATCH_CELL_ID}
@@ -1586,19 +1605,7 @@ class Kernel:
             if (cid := self.module_registry.defining_cell(module)) is not None
         )
         if cells_to_run:
-            # We prune imports so that only cells depending on unimported
-            # modules (including the ones that were just installed) run or
-            # are marked as stale
-            if self.reactive_execution_mode == "autorun":
-                await self._run_cells(
-                    dataflow.transitive_closure(
-                        self.graph,
-                        cells_to_run,
-                        relatives=dataflow.import_block_relatives,
-                    )
-                )
-            else:
-                self.graph.set_stale(cells_to_run, prune_imports=True)
+            await self._if_autorun_then_run_cells(cells_to_run)
 
     async def preview_dataset_column(
         self, request: PreviewDatasetColumnRequest
@@ -1657,6 +1664,8 @@ class Kernel:
                 await self.run_scratchpad(request.code)
             elif isinstance(request, ExecuteStaleRequest):
                 await self.run_stale_cells()
+            elif isinstance(request, RenameRequest):
+                await self.rename_file(request.filename)
             elif isinstance(request, SetCellConfigRequest):
                 await self.set_cell_config(request)
             elif isinstance(request, SetUserConfigRequest):

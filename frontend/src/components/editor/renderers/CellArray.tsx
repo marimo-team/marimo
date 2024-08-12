@@ -193,8 +193,8 @@ const AddCellButtons: React.FC = () => {
             sqlCapabilities ? null : (
               <div className="flex flex-col">
                 <span>
-                  Requires duckdb:{" "}
-                  <Kbd className="inline">pip install duckdb</Kbd>.
+                  Additional dependencies required:
+                  <Kbd className="inline">pip install marimo[sql]</Kbd>.
                 </span>
                 <span>
                   You will need to restart the notebook after installing.

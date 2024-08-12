@@ -40,7 +40,7 @@ class HoloViewsFormatter(FormatterFactory):
 
             # If its a dict, then its a plotly figure,
             # and we should convert it to a plotly object
-            if DependencyManager.has_plotly() and isinstance(
+            if DependencyManager.plotly.has() and isinstance(
                 backend_output, dict
             ):
                 plotly_html = PlotlyFormatter.render_plotly_dict(

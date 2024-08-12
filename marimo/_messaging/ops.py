@@ -341,7 +341,7 @@ class KernelCapabilities:
     terminal: bool = False
 
     def __post_init__(self) -> None:
-        self.sql = DependencyManager.has_duckdb()
+        self.sql = DependencyManager.duckdb.has_at_version(min_version="1.0.0")
         # Only available in mac/linux
         self.terminal = not is_windows() and not is_pyodide()
 

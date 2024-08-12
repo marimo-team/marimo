@@ -9,7 +9,7 @@ import pytest
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
 
-HAS_DEPS = DependencyManager.has_pandas()
+HAS_DEPS = DependencyManager.pandas.has()
 
 
 class TestDefaultTable(unittest.TestCase):

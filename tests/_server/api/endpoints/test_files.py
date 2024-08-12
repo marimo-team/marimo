@@ -6,10 +6,14 @@ import random
 from typing import TYPE_CHECKING
 
 from tests._server.conftest import get_session_manager
-from tests._server.mocks import token_header, with_session
+from tests._server.mocks import (
+    token_header,
+    with_session,
+    with_websocket_session,
+)
 
 if TYPE_CHECKING:
-    from fastapi.testclient import TestClient
+    from fastapi.testclient import TestClient, WebSocketTestSession
 
 SESSION_ID = "session-123"
 HEADERS = {
@@ -226,3 +230,62 @@ def test_save_app_config(client: TestClient) -> None:
     assert "import marimo" in response.text
     file_contents = open(filename).read()
     assert 'marimo.App(width="medium"' in file_contents
+
+
+@with_websocket_session(SESSION_ID)
+def test_rename_propagates(
+    client: TestClient, websocket: WebSocketTestSession
+) -> None:
+    current_filename = get_session_manager(
+        client
+    ).file_router.get_unique_file_key()
+
+    assert current_filename
+    assert os.path.exists(current_filename)
+
+    initial_response = client.post(
+        "/api/kernel/run",
+        headers=HEADERS,
+        json={
+            "cell_ids": ["cell-1", "cell-2"],
+            "codes": ["b = __file__", "a = 'x' + __file__"],
+        },
+    )
+    assert initial_response.json() == {"success": True}
+    assert initial_response.status_code == 200, initial_response.text
+
+    variables = {}
+    while len(variables) < 2:
+        data = websocket.receive_json()
+        if data["op"] == "variable-values":
+            for var in data["data"]["variables"]:
+                variables[var["name"]] = var["value"]
+
+    # Variable outputs are truncated to 50 characters
+    # current_filename can exceed this count on windows and OSX.
+    assert ("x" + current_filename).startswith(variables["a"])
+    assert current_filename.startswith(variables["b"])
+
+    directory = os.path.dirname(current_filename)
+    random_name = random.randint(0, 100000)
+    new_filename = os.path.join(directory, f"test_{random_name}.py")
+
+    response = client.post(
+        "/api/kernel/rename",
+        headers=HEADERS,
+        json={
+            "filename": new_filename,
+        },
+    )
+    assert response.json() == {"success": True}
+    assert response.status_code == 200, response.text
+
+    variables = {}
+    while len(variables) < 2:
+        data = websocket.receive_json()
+        if data["op"] == "variable-values":
+            for var in data["data"]["variables"]:
+                variables[var["name"]] = var["value"]
+
+    assert ("x" + new_filename).startswith(variables["a"])
+    assert new_filename.startswith(variables["b"])

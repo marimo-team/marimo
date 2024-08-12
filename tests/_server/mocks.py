@@ -113,6 +113,37 @@ def with_session(
     return decorator
 
 
+def with_websocket_session(
+    session_id: str,
+    auto_shutdown: bool = True,
+) -> Callable[[Callable[..., None]], Callable[..., None]]:
+    """Decorator to create a session and close it after the test"""
+
+    def decorator(func: Callable[..., None]) -> Callable[..., None]:
+        def wrapper(client: TestClient) -> None:
+            auth_token = get_session_manager(client).auth_token
+            headers = token_header(auth_token)
+
+            with client.websocket_connect(
+                f"/ws?session_id={session_id}", headers=headers
+            ) as websocket:
+                data = websocket.receive_text()
+                assert data
+
+                func(client, websocket)
+            # shutdown after websocket exits, otherwise
+            # test fails on Windows (loop closed twice)
+            if auto_shutdown:
+                client.post(
+                    "/api/kernel/shutdown",
+                    headers=headers,
+                )
+
+        return wrapper
+
+    return decorator
+
+
 def with_read_session(
     session_id: str,
 ) -> Callable[[Callable[..., None]], Callable[..., None]]:

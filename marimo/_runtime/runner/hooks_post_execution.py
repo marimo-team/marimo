@@ -119,7 +119,7 @@ def _broadcast_duckdb_tables(
 ) -> None:
     del run_result
     del runner
-    if not DependencyManager.has_duckdb():
+    if not DependencyManager.duckdb.has():
         return
 
     try:

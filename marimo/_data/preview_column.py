@@ -51,7 +51,7 @@ def get_column_preview(
 
         # We require altair to render the chart
         error = None
-        if not DependencyManager.has_altair():
+        if not DependencyManager.altair.has():
             error = (
                 "Altair is required to render charts. "
                 "Install it with `pip install altair`."
@@ -115,7 +115,7 @@ def _get_altair_chart(
     summary: ColumnSummary,
 ) -> tuple[Optional[str], Optional[str], bool]:
     # We require altair to render the chart
-    if not DependencyManager.has_altair() or not table.supports_altair():
+    if not DependencyManager.altair.has() or not table.supports_altair():
         return None, None, False
 
     import altair as alt  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501

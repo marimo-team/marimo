@@ -9,7 +9,7 @@ import pytest
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.core.json_encoder import WebComponentEncoder
 
-HAS_DEPS = DependencyManager.has_pandas() and DependencyManager.has_altair()
+HAS_DEPS = DependencyManager.pandas.has() and DependencyManager.altair.has()
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

@@ -12,7 +12,7 @@ from marimo._plugins.ui._impl.charts.altair_transformer import (
 from marimo._runtime.requests import PreviewDatasetColumnRequest
 from tests.mocks import snapshotter
 
-HAS_DEPS = DependencyManager.has_pandas() and DependencyManager.has_altair()
+HAS_DEPS = DependencyManager.pandas.has() and DependencyManager.altair.has()
 
 snapshot = snapshotter(__file__)
 

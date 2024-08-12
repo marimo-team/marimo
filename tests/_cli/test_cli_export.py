@@ -69,7 +69,7 @@ class TestExportHTML:
         assert '<marimo-code hidden=""></marimo-code>' not in html
 
     @pytest.mark.skipif(
-        condition=DependencyManager.has_watchdog(),
+        condition=DependencyManager.watchdog.has(),
         reason="hangs when watchdog is installed",
     )
     async def test_export_watch(self, temp_marimo_file: str) -> None:
@@ -111,7 +111,7 @@ class TestExportHTML:
                 break
 
     @pytest.mark.skipif(
-        condition=DependencyManager.has_watchdog(),
+        condition=DependencyManager.watchdog.has(),
         reason="hangs when watchdog is installed",
     )
     def test_export_watch_no_out_dir(self, temp_marimo_file: str) -> None:
@@ -253,7 +253,7 @@ class TestExportScript:
         )
 
     @pytest.mark.skipif(
-        condition=DependencyManager.has_watchdog(),
+        condition=DependencyManager.watchdog.has(),
         reason="hangs when watchdog is installed",
     )
     async def test_export_watch_script(self, temp_marimo_file: str) -> None:
@@ -297,7 +297,7 @@ class TestExportScript:
         assert path.exists(temp_out_file)
 
     @pytest.mark.skipif(
-        condition=DependencyManager.has_watchdog(),
+        condition=DependencyManager.watchdog.has(),
         reason="hangs when watchdog is installed",
     )
     def test_export_watch_script_no_out_dir(
@@ -362,7 +362,7 @@ class TestExportMarkdown:
         snapshot("broken.txt", output)
 
     @pytest.mark.skipif(
-        condition=DependencyManager.has_watchdog(),
+        condition=DependencyManager.watchdog.has(),
         reason="hangs when watchdog is installed",
     )
     async def test_export_watch_markdown(self, temp_marimo_file: str) -> None:
@@ -406,7 +406,7 @@ class TestExportMarkdown:
         assert path.exists(temp_out_file)
 
     @pytest.mark.skipif(
-        condition=DependencyManager.has_watchdog(),
+        condition=DependencyManager.watchdog.has(),
         reason="hangs when watchdog is installed",
     )
     def test_export_watch_markdown_no_out_dir(
@@ -438,7 +438,7 @@ class TestExportMarkdown:
 
 class TestExportIpynb:
     @pytest.mark.skipif(
-        not DependencyManager.has_nbformat(),
+        not DependencyManager.nbformat.has(),
         reason="This test requires nbformat.",
     )
     def test_export_ipynb(self, temp_marimo_file_with_md: str) -> None:

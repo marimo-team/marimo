@@ -1,22 +1,23 @@
 import marimo
 
-__generated_with = "0.0.5"
+__generated_with = "0.7.19"
 app = marimo.App()
 
 
 @app.cell
 def __(mo):
     mo.md(
-        """# Embedding MNIST
+        """
+        # Embedding MNIST
 
-        This app shows how to use the function `pymde.preserve_neighbors`
-        to produce embeddings that highlight the local structure of your
-        data, using MNIST as a case study. In these embeddings similar
-        digits are near each other, and dissimilar digits are not near each other.
+            This app shows how to use the function `pymde.preserve_neighbors`
+            to produce embeddings that highlight the local structure of your
+            data, using MNIST as a case study. In these embeddings similar
+            digits are near each other, and dissimilar digits are not near each other.
 
-        ## Data
-        The data we'll embed are 70,000 28x28 grayscale images of handwritten
-        digits:
+            ## Data
+            The data we'll embed are 70,000 28x28 grayscale images of handwritten
+            digits:
         """
     )
     return

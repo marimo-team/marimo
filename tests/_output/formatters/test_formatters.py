@@ -31,7 +31,7 @@ def test_path_finder_find_spec() -> None:
     assert spec is not None
 
 
-HAS_DEPS = DependencyManager.has_pandas() and DependencyManager.has_polars()
+HAS_DEPS = DependencyManager.pandas.has() and DependencyManager.polars.has()
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

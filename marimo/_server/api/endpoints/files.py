@@ -97,6 +97,10 @@ async def rename_file(
     elif new_path:
         app_state.session_manager.recents.touch(new_path)
 
+    app_state.require_current_session().put_control_request(
+        body.as_execution_request()
+    )
+
     return SuccessResponse()
 
 

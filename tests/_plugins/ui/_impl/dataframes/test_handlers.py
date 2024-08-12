@@ -28,7 +28,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     TransformType,
 )
 
-HAS_DEPS = DependencyManager.has_pandas() and DependencyManager.has_polars()
+HAS_DEPS = DependencyManager.pandas.has() and DependencyManager.polars.has()
 
 if HAS_DEPS:
     import pandas as pd
