@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Plugin, defineConfig } from "vite";
+import { type Plugin, defineConfig } from "vite";
 import fs from "fs";
 import path from "path";
 import react from "@vitejs/plugin-react-swc";
@@ -45,7 +45,10 @@ export default defineConfig({
   build: {
     emptyOutDir: true,
     lib: {
-      entry: path.resolve(__dirname, "../src/core/islands/main.ts"),
+      entry: {
+        main: path.resolve(__dirname, "../src/core/islands/main.ts"),
+        init: path.resolve(__dirname, "../src/core/islands/init.ts"),
+      },
       formats: ["es"],
     },
     rollupOptions: {

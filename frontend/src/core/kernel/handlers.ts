@@ -127,7 +127,7 @@ export function handleKernelReady(
   // Send the instantiate message
   if (autoInstantiate) {
     // Start the run
-    sendInstantiate({ objectIds: objectIds, values }).catch((error) => {
+    void sendInstantiate({ objectIds: objectIds, values }).catch((error) => {
       onError(new Error("Failed to instantiate", { cause: error }));
     });
   }

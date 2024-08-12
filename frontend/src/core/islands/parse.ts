@@ -88,6 +88,14 @@ export function parseMarimoIslandApps(): MarimoIslandApp[] {
   return [...apps.values()];
 }
 
+export function parseMarimoEmbeds(): { code: string; appId: string }[] {
+  const embeds = document.querySelectorAll<HTMLElement>("marimo-embed");
+  return [...embeds].map((embed) => ({
+    code: embed.dataset.code || "",
+    appId: embed.dataset.appId || "",
+  }));
+}
+
 export function createMarimoFile(app: {
   cells: Array<{ code: string }>;
 }): string {

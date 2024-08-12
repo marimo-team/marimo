@@ -343,7 +343,7 @@ class MarimoIslandGenerator:
 
         return dedent(
             f"""
-            <script type="module" src="{base_url}/dist/main.js"></script>
+            <script type="module" src="{base_url}/dist/init.js"></script>
             <link
                 href="{base_url}/dist/style.css"
                 rel="stylesheet"

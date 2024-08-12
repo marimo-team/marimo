@@ -69,7 +69,7 @@ export class MarimoIslandElement extends HTMLElement {
     codeCallback: () => string,
     editor: JSX.Element | null,
   ) {
-    const alwaysShowRun = editor ? true : false;
+    const alwaysShowRun = !!editor;
     this.root?.render(
       <ErrorBoundary>
         <Provider store={store}>

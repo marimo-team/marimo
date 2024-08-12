@@ -10,7 +10,11 @@ import { throwNotImplemented } from "@/utils/functions";
 import type { WorkerSchema } from "./worker/worker";
 import workerUrl from "./worker/worker.tsx?worker&url";
 
-import { createMarimoFile, parseMarimoIslandApps } from "./parse";
+import {
+  createMarimoFile,
+  parseMarimoEmbeds,
+  parseMarimoIslandApps,
+} from "./parse";
 import { Logger } from "@/utils/Logger";
 
 export class IslandsPyodideBridge implements RunRequests, EditRequests {
@@ -65,6 +69,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
 
     // Listeners
     this.rpc.addMessageListener("ready", () => {
+      // Parse for islands
       const apps = parseMarimoIslandApps();
       for (const app of apps) {
         Logger.debug("Starting session for app", app.id);
@@ -73,6 +78,15 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
         this.startSession({
           code: file,
           appId: app.id,
+        });
+      }
+      // Parse for embeds
+      const embeds = parseMarimoEmbeds();
+      for (const embed of embeds) {
+        Logger.debug("Starting session for app", embed.appId);
+        this.startSession({
+          code: embed.code,
+          appId: embed.appId,
         });
       }
     });
