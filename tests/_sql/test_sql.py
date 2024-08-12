@@ -9,7 +9,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
 from marimo._sql.sql import _query_includes_limit, sql
 
-HAS_DEPS = DependencyManager.duckdb() and DependencyManager.polars.has()
+HAS_DEPS = DependencyManager.duckdb.has() and DependencyManager.polars.has()
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="pandas or polars is required")
