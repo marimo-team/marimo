@@ -8,7 +8,7 @@ from tests.conftest import ExecReqProvider
 async def test_matplotlib_special_case(
     executing_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    if DependencyManager.matplotlib() and DependencyManager.numpy.has():
+    if DependencyManager.matplotlib.has() and DependencyManager.numpy.has():
         from marimo._output.formatters.formatters import register_formatters
 
         register_formatters()
