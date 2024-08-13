@@ -125,7 +125,7 @@ testcore = [
 
 testoptional = [
     # For testing mo.ui.chart, table, ...
-    "altair>=5.0.0",
+    "altair>=5.4.0",
     "pandas>=1.3.0",
     "pandas-stubs>=1.3.0",
     "geopandas~=0.13.2",
