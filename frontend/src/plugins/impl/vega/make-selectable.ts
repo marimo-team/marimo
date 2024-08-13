@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import {
+import type {
   GenericVegaSpec,
   Mark,
   SelectionType,
@@ -101,6 +101,10 @@ function makeLegendSelectable(
 
 /**
  * Given a spec, add the necessary parameters to make the chart selectable.
+ *
+ * Not supported marks:
+ * - geoshape
+ * - text
  */
 function makeChartSelectable(
   spec: VegaLiteUnitSpec,
@@ -123,8 +127,8 @@ function makeChartSelectable(
     return spec;
   }
 
-  // We don't do anything if the mark is text
-  if (mark === "text") {
+  // We don't do anything if the mark is text or geoshape
+  if (mark === "geoshape" || mark === "text") {
     return spec;
   }
 
@@ -149,7 +153,26 @@ function makeChartSelectable(
   } as VegaLiteUnitSpec;
 }
 
+/**
+ * Given a spec, add the necessary parameters to make the chart pan/zoomable.
+ *
+ * Not supported marks:
+ * - geoshape
+ * - text
+ */
 function makeChartPanZoom(spec: VegaLiteUnitSpec): VegaLiteUnitSpec {
+  let mark: Mark;
+  try {
+    mark = Marks.getMarkType(spec.mark);
+  } catch {
+    return spec;
+  }
+
+  // We don't do anything if the mark is text or geoshape
+  if (mark === "geoshape" || mark === "text") {
+    return spec;
+  }
+
   const params = spec.params || [];
 
   const alreadyHasScalesParam = params.some((param) => param.bind === "scales");
@@ -165,6 +188,9 @@ function makeChartPanZoom(spec: VegaLiteUnitSpec): VegaLiteUnitSpec {
 
 /**
  * Makes a chart clickable and adds an opacity encoding to the chart.
+ *
+ * Not supported marks:
+ * - text
  */
 function makeChartInteractive<T extends GenericVegaSpec>(spec: T): T {
   const prevEncodings = "encoding" in spec ? spec.encoding : undefined;
@@ -176,6 +202,7 @@ function makeChartInteractive<T extends GenericVegaSpec>(spec: T): T {
   }
 
   const mark = Marks.getMarkType(spec.mark);
+
   // We don't do anything if the mark is text
   if (mark === "text") {
     return spec;

@@ -3,13 +3,10 @@ from __future__ import annotations
 
 import importlib.metadata
 import importlib.util
+import sys
 from dataclasses import dataclass
 
 from packaging import version
-
-from marimo import _loggers
-
-LOGGER = _loggers.marimo_logger()
 
 
 @dataclass
@@ -120,14 +117,14 @@ def _version_check(
         msg = f"Mismatched version of {pkg}: expected >={min_v}, got {v}"
         if raise_error:
             raise RuntimeError(msg)
-        LOGGER.warning(f"{msg}. Some features may not work correctly.")
+        sys.stderr.write(f"{msg}. Some features may not work correctly.")
         return False
 
     if parsed_max_version is not None and parsed_v >= parsed_max_version:
         msg = f"Mismatched version of {pkg}: expected <{max_v}, got {v}"
         if raise_error:
             raise RuntimeError(msg)
-        LOGGER.warning(f"{msg}. Some features may not work correctly.")
+        sys.stderr.write(f"{msg}. Some features may not work correctly.")
         return False
 
     return True
