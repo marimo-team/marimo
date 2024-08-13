@@ -141,7 +141,10 @@ const DataTableInternal = <TData,>({
           return (
             <TableHead
               key={header.id}
-              className="h-auto min-h-10 whitespace-pre align-baseline"
+              className={cn(
+                "h-auto min-h-10 whitespace-pre align-baseline",
+                header.column.getIsPinned() && "bg-background"
+              )}
               // apply the pinning styles
               style={header.column.getCommonPinningStyles?.()}
             >
@@ -194,7 +197,8 @@ const DataTableInternal = <TData,>({
                         "whitespace-pre truncate max-w-[300px]",
                         cell.column.getColumnWrapping &&
                           cell.column.getColumnWrapping() === "wrap" &&
-                          "whitespace-pre-wrap min-w-[200px]"
+                          "whitespace-pre-wrap min-w-[200px]",
+                        cell.column.getIsPinned() && "bg-background"
                       )}
                       // apply the pinning styles
                       style={cell.column.getCommonPinningStyles?.()}

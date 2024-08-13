@@ -69,7 +69,7 @@ export const ColumnPinningFeature: TableFeature = {
 
         // If prevValue and position are equal, do nothing
         if (prevValue === position) {
-          return old;
+          return newState;
         }
 
         // If prevValue is false and position is set,
@@ -171,9 +171,6 @@ export const ColumnPinningFeature: TableFeature = {
         // set the column's width
         width: column.getSize(),
 
-        // set the column's border
-        border: "1px",
-
         // set the column's left position
         left:
           isPinned === "left"
@@ -191,11 +188,6 @@ export const ColumnPinningFeature: TableFeature = {
         opacity: isPinned ? 0.95 : 1,
         position: isPinned ? "sticky" : "relative",
         zIndex: isPinned ? 1 : 0,
-
-        // TODO: Add a background color to the pinned columns, use themeatom to get theme if needed
-        backgroundColor: isPinned
-          ? "var(--color-background-primary)"
-          : undefined,
       };
     };
   },
