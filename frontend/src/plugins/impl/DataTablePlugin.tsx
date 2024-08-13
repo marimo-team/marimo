@@ -67,6 +67,7 @@ type Functions = {
   download_as: (req: { format: "csv" | "json" }) => Promise<string>;
   get_column_summaries: (opts: {}) => Promise<{
     summaries: ColumnHeaderSummary[];
+    is_disabled?: boolean;
   }>;
   search: <T>(req: {
     sort?: {
@@ -129,6 +130,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             false: z.number().nullish(),
           }),
         ),
+        is_disabled: z.boolean().optional(),
       }),
     ),
     search: rpc
@@ -291,6 +293,7 @@ export const LoadingDataTableComponent = memo(
           {...props}
           data={data || Arrays.EMPTY}
           columnSummaries={columnSummaries?.summaries}
+          columnSummariesDisabled={columnSummaries?.is_disabled}
           sorting={sorting}
           setSorting={setSorting}
           searchQuery={searchQuery}
@@ -321,6 +324,7 @@ const DataTableComponent = ({
   fieldTypes,
   download_as: downloadAs,
   columnSummaries,
+  columnSummariesDisabled,
   className,
   setValue,
   sorting,
@@ -335,6 +339,7 @@ const DataTableComponent = ({
   DataTableSearchProps & {
     data: unknown[];
     columnSummaries?: ColumnHeaderSummary[];
+    columnSummariesDisabled?: boolean;
   }): JSX.Element => {
   const resultsAreClipped =
     hasMore && (totalRows === "too_many" || totalRows > 0);
@@ -407,6 +412,12 @@ const DataTableComponent = ({
       {hasMore && totalRows === "too_many" && (
         <Banner className="mb-2 rounded">
           Result clipped. If no LIMIT is given, we only show the first 300 rows.
+        </Banner>
+      )}
+      {columnSummariesDisabled && (
+        <Banner className="mb-2 rounded">
+          Column summaries are unavailable. Filter your data to fewer than
+          1,000,000 rows.
         </Banner>
       )}
       <ColumnChartContext.Provider value={chartSpecModel}>
