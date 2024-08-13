@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   sendComponentValues,
@@ -28,7 +28,7 @@ import {
   notebookNeedsSave,
 } from "./cells/utils";
 import type { AppConfig, UserConfig } from "./config/config-schema";
-import { kioskModeAtom, toggleAppMode, viewStateAtom } from "./mode";
+import { kioskModeAtom, viewStateAtom } from "./mode";
 import { useHotkey } from "../hooks/useHotkey";
 import { useImperativeModal } from "../components/modal/ImperativeModal";
 import {
@@ -44,12 +44,11 @@ import { useAutoSave } from "./saving/useAutoSave";
 import { useEventListener } from "../hooks/useEventListener";
 import { toast } from "../components/ui/use-toast";
 import { SortableCellsProvider } from "../components/sort/SortableCellsProvider";
-import { type CellId, HTMLCellId } from "./cells/ids";
 import { CellArray } from "../components/editor/renderers/CellArray";
 import { RuntimeState } from "./kernel/RuntimeState";
 import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
 import { getSerializedLayout, useLayoutState } from "./layout/layout";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtomValue } from "jotai";
 import { useRunStaleCells } from "../components/editor/cell/useRunCells";
 import { formatAll } from "./codemirror/format";
 import { cn } from "@/utils/cn";
@@ -61,6 +60,8 @@ import { AppHeader } from "@/components/editor/header/app-header";
 import { AppContainer } from "../components/editor/app-container";
 import { useJotaiEffect } from "./state/jotai";
 import { Paths } from "@/utils/paths";
+import { KnownQueryParams } from "./constants";
+import { useTogglePresenting } from "./layout/useTogglePresenting";
 
 interface AppProps {
   userConfig: UserConfig;
@@ -73,7 +74,7 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   useJotaiEffect(cellIdsAtom, CellEffects.onCellIdsChange);
 
   const { setCells, updateCellCode } = useCellActions();
-  const [viewState, setViewState] = useAtom(viewStateAtom);
+  const viewState = useAtomValue(viewStateAtom);
   const [filename, setFilename] = useFilename();
   const [lastSavedNotebook, setLastSavedNotebook] =
     useState<LastSavedNotebook>();
@@ -117,9 +118,9 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
 
     updateQueryParams((params) => {
       if (name === null) {
-        params.delete("file");
+        params.delete(KnownQueryParams.filePath);
       } else {
-        params.set("file", name);
+        params.set(KnownQueryParams.filePath, name);
       }
     });
 
@@ -246,40 +247,7 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   };
 
   const runStaleCells = useRunStaleCells();
-
-  // Toggle the array's presenting state, and sets a cell to anchor scrolling to
-  const togglePresenting = useCallback(() => {
-    const outputAreas = document.getElementsByClassName("output-area");
-    const viewportEnd =
-      window.innerHeight || document.documentElement.clientHeight;
-    let cellAnchor: CellId | null = null;
-
-    // Find the first output area that is visible
-    // eslint-disable-next-line unicorn/prefer-spread
-    for (const elem of Array.from(outputAreas)) {
-      const rect = elem.getBoundingClientRect();
-      if (
-        (rect.top >= 0 && rect.top <= viewportEnd) ||
-        (rect.bottom >= 0 && rect.bottom <= viewportEnd)
-      ) {
-        cellAnchor = HTMLCellId.parse(
-          (elem.parentNode as HTMLElement).id as HTMLCellId,
-        );
-        break;
-      }
-    }
-
-    setViewState((prev) => ({
-      mode: toggleAppMode(prev.mode),
-      cellAnchor: cellAnchor,
-    }));
-    requestAnimationFrame(() => {
-      if (cellAnchor === null) {
-        return;
-      }
-      document.getElementById(HTMLCellId.create(cellAnchor))?.scrollIntoView();
-    });
-  }, [setViewState]);
+  const togglePresenting = useTogglePresenting();
 
   // HOTKEYS
   useHotkey("global.runStale", () => {

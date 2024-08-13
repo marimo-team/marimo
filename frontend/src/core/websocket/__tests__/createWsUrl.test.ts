@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import { createWsUrl } from "../createWsUrl";
+import { KnownQueryParams } from "@/core/constants";
 
 describe("createWsUrl", () => {
   it("should return a URL with the wss protocol when the baseURI uses https", () => {
@@ -15,7 +16,7 @@ describe("createWsUrl", () => {
     const result = createWsUrl(sessionId);
     expect(result).toBe("wss://marimo.app/ws?session_id=1234");
     const url = new URL(result);
-    expect(url.searchParams.get("session_id")).toBe(sessionId);
+    expect(url.searchParams.get(KnownQueryParams.sessionId)).toBe(sessionId);
   });
 
   it("should return a URL with the ws protocol when the baseURI uses http", () => {
@@ -29,7 +30,7 @@ describe("createWsUrl", () => {
     const result = createWsUrl(sessionId);
     expect(result).toBe("ws://marimo.app/ws?session_id=1234");
     const url = new URL(result);
-    expect(url.searchParams.get("session_id")).toBe(sessionId);
+    expect(url.searchParams.get(KnownQueryParams.sessionId)).toBe(sessionId);
   });
 
   it("should work with nested baseURI", () => {
@@ -43,6 +44,6 @@ describe("createWsUrl", () => {
     const result = createWsUrl(sessionId);
     expect(result).toBe("ws://marimo.app/nested/ws?session_id=1234");
     const url = new URL(result);
-    expect(url.searchParams.get("session_id")).toBe(sessionId);
+    expect(url.searchParams.get(KnownQueryParams.sessionId)).toBe(sessionId);
   });
 });
