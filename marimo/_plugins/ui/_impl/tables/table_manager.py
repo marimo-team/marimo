@@ -26,6 +26,8 @@ FieldTypes = Dict[ColumnName, Tuple[FieldType, ExternalDataType]]
 class TableManager(abc.ABC, Generic[T]):
     DEFAULT_ROW_LIMIT = 20_000
     DEFAULT_COL_LIMIT = 100
+    DEFAULT_SUMMARY_ROW_LIMIT = 1_000_000
+
     type: str = ""
 
     def __init__(self, data: T) -> None:

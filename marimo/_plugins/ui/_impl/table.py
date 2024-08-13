@@ -68,6 +68,7 @@ class ColumnSummary:
 @dataclass
 class ColumnSummaries:
     summaries: List[ColumnSummary]
+    is_disabled: Optional[bool] = None
 
 
 @dataclass
@@ -339,6 +340,12 @@ class table(
 
     def get_column_summaries(self, args: EmptyArgs) -> ColumnSummaries:
         del args
+
+        if (
+            self._filtered_manager.get_num_rows(force=True) or 0
+        ) > TableManager.DEFAULT_SUMMARY_ROW_LIMIT:
+            return ColumnSummaries([], is_disabled=True)
+
         summaries: List[ColumnSummary] = []
         for column in self._filtered_manager.get_column_names():
             summary = self._filtered_manager.get_summary(column)
@@ -354,7 +361,7 @@ class table(
                 )
             )
 
-        return ColumnSummaries(summaries)
+        return ColumnSummaries(summaries, is_disabled=False)
 
     def search(self, args: SearchTableArgs) -> Union[JSONType, str]:
         # Start with the original manager, then filter
