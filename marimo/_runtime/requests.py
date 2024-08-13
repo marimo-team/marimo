@@ -62,6 +62,11 @@ class ExecuteScratchpadRequest:
 
 
 @dataclass
+class RenameRequest:
+    filename: str
+
+
+@dataclass
 class SetUIElementValueRequest:
     object_ids: List[UIElementId]
     values: List[Any]
@@ -168,6 +173,7 @@ ControlRequest = Union[
     CreationRequest,
     DeleteCellRequest,
     FunctionCallRequest,
+    RenameRequest,
     SetCellConfigRequest,
     SetUserConfigRequest,
     SetUIElementValueRequest,

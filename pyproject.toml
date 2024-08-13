@@ -72,6 +72,10 @@ classifiers = [
 marimo = "marimo._cli.cli:main"
 
 [project.optional-dependencies]
+sql = [
+    "duckdb >= 1.0.0",
+]
+
 dev = [
     "click < 8.1.4",  # https://github.com/pallets/click/issues/2558
     "black~=23.3.0",

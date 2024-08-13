@@ -24,7 +24,7 @@ HEADERS = {
     **token_header("fake-token"),
 }
 
-HAS_DEPS = DependencyManager.has_openai()
+HAS_DEPS = DependencyManager.openai.has()
 
 
 @dataclass

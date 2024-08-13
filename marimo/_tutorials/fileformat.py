@@ -17,7 +17,7 @@ def __(mo):
         {
             "Tip: hide this tutorial's code": (
             """
-            Click the app window icon in the bottom-left to hide this app's code,
+            Click the app window icon in the bottom-right to hide this app's code,
             or use the "fold code" shortcut to fold all code cells.
             """
             )

@@ -14,9 +14,9 @@ from marimo._plugins.ui._impl.dataframes.dataframe import (
 )
 
 HAS_DEPS = (
-    DependencyManager.has_pandas()
-    and DependencyManager.has_numpy()
-    and DependencyManager.has_polars()
+    DependencyManager.pandas.has()
+    and DependencyManager.numpy.has()
+    and DependencyManager.polars.has()
 )
 
 if HAS_DEPS:

@@ -68,6 +68,66 @@ async def test_reload_function(
     assert k.globals["x"] == 2
 
 
+async def test_disable_and_reenable_reload(
+    tmp_path: pathlib.Path,
+    py_modname: str,
+    execution_kernel: Kernel,
+    exec_req: ExecReqProvider,
+):
+    # tests a bug in which after disabling the reloader, it couldn't be
+    # reenabled
+    k = execution_kernel
+    sys.path.append(str(tmp_path))
+    py_file = tmp_path / pathlib.Path(py_modname + ".py")
+    py_file.write_text(
+        textwrap.dedent(
+            """
+            def foo():
+                return 1
+            """
+        )
+    )
+
+    config = copy.deepcopy(DEFAULT_CONFIG)
+    # enable reloading ...
+    config["runtime"]["auto_reload"] = "lazy"
+    k.set_user_config(SetUserConfigRequest(config=config))
+
+    # disable it ...
+    config["runtime"]["auto_reload"] = "off"
+    k.set_user_config(SetUserConfigRequest(config=config))
+
+    # ... and reenable it
+    config["runtime"]["auto_reload"] = "lazy"
+    k.set_user_config(SetUserConfigRequest(config=config))
+    await k.run(
+        [
+            er_1 := exec_req.get(f"from {py_modname} import foo"),
+            er_2 := exec_req.get("x = foo()"),
+            er_3 := exec_req.get("pass"),
+        ]
+    )
+    assert k.globals["x"] == 1
+    update_file(
+        py_file,
+        """
+        def foo():
+            return 2
+        """,
+    )
+
+    # wait for the watcher to pick up the change
+    await asyncio.sleep(2.5)
+    assert k.graph.cells[er_1.cell_id].stale
+    assert k.graph.cells[er_2.cell_id].stale
+    assert not k.graph.cells[er_3.cell_id].stale
+    await k.run_stale_cells()
+    assert not k.graph.cells[er_1.cell_id].stale
+    assert not k.graph.cells[er_2.cell_id].stale
+    assert not k.graph.cells[er_3.cell_id].stale
+    assert k.globals["x"] == 2
+
+
 async def test_reload_nested_module_function(
     tmp_path: pathlib.Path,
     py_modname: str,
@@ -286,7 +346,7 @@ async def test_reload_package(
 
 
 @pytest.mark.skipif(
-    not DependencyManager.has_numpy(), reason="NumPy not installed"
+    not DependencyManager.numpy.has(), reason="NumPy not installed"
 )
 async def test_reload_third_party(
     tmp_path: pathlib.Path,
@@ -387,3 +447,79 @@ async def test_reload_with_modified_cell(
     # modify the first cell and make sure it is still marked as stale;
     k._maybe_register_cell(er_1.cell_id, f"from {py_modname} import foo; 1")
     assert er_1.cell_id in k.graph.get_stale()
+
+
+@pytest.mark.xfail(
+    True,
+    reason=(
+        "watcher sometimes takes a long time to pick up file change to "
+        "an import block on CI"
+    ),
+    strict=False,
+)
+async def test_reload_function_in_import_block(
+    tmp_path: pathlib.Path,
+    py_modname: str,
+    execution_kernel: Kernel,
+    exec_req: ExecReqProvider,
+):
+    k = execution_kernel
+    sys.path.append(str(tmp_path))
+    py_file = tmp_path / pathlib.Path(py_modname + ".py")
+    py_file.write_text(
+        textwrap.dedent(
+            """
+            def foo():
+                return 1
+            """
+        )
+    )
+
+    config = copy.deepcopy(DEFAULT_CONFIG)
+    config["runtime"]["auto_reload"] = "lazy"
+    k.set_user_config(SetUserConfigRequest(config=config))
+    await k.run(
+        [
+            # We will modify py_modname but not "random" ...
+            er_1 := exec_req.get(
+                f"import random; from {py_modname} import foo"
+            ),
+            er_2 := exec_req.get("x = foo()"),
+            er_3 := exec_req.get("pass"),
+            er_4 := exec_req.get("y = random.randint(0, 10000000)"),
+            er_5 := exec_req.get("random, foo"),
+        ]
+    )
+    assert k.globals["x"] == 1
+    y = k.globals["y"]
+
+    update_file(
+        py_file,
+        """
+        def foo():
+            return 2
+        """,
+    )
+
+    # wait for the watcher to pick up the change
+    elapsed = 0
+    while elapsed < 10:
+        await asyncio.sleep(1)
+        elapsed += 1
+        if k.graph.cells[er_1.cell_id].stale:
+            break
+
+    assert k.graph.cells[er_1.cell_id].stale
+    assert k.graph.cells[er_2.cell_id].stale
+    assert not k.graph.cells[er_3.cell_id].stale
+    # "random" wasn't modified, so it should be pruned from descendants
+    assert not k.graph.cells[er_4.cell_id].stale
+    # er_5 depends on random and foo, and foo is stale
+    assert k.graph.cells[er_5.cell_id].stale
+
+    await k.run_stale_cells()
+    assert not k.graph.cells[er_1.cell_id].stale
+    assert not k.graph.cells[er_2.cell_id].stale
+    assert not k.graph.cells[er_3.cell_id].stale
+    assert k.globals["x"] == 2
+    assert k.globals["y"] == y

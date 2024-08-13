@@ -11,9 +11,12 @@ Running a notebook as a script is useful when your notebook has side-effects,
 like writing to disk. Print statements and other console outputs will show
 up in your terminal.
 
+You can pass arguments to your notebook at the command-line: see
+the [docs page on CLI args](/api/cli_args.md) to learn more.
+
 ```{admonition} Future plans
 :class: note
 
-In the future, we may make UI element values configurable as command-line
-arguments, and optionally generate a PDF or HTML of the cell outputs.
+In the future, we may give you the option to generate a PDF or HTML of the cell
+outputs when running as a script.
 ```

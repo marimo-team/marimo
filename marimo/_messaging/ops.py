@@ -26,7 +26,7 @@ from typing import (
 
 from marimo import _loggers as loggers
 from marimo._ast.app import _AppConfig
-from marimo._ast.cell import CellConfig, CellId_t, CellStatusType
+from marimo._ast.cell import CellConfig, CellId_t, RuntimeStateType
 from marimo._data.models import ColumnSummary, DataTable, DataTableSource
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
@@ -115,7 +115,7 @@ class CellOp(Op):
     cell_id: CellId_t
     output: Optional[CellOutput] = None
     console: Optional[Union[CellOutput, List[CellOutput]]] = None
-    status: Optional[CellStatusType] = None
+    status: Optional[RuntimeStateType] = None
     stale_inputs: Optional[bool] = None
     timestamp: float = field(default_factory=lambda: time.time())
 
@@ -161,7 +161,7 @@ class CellOp(Op):
         mimetype: KnownMimeType,
         data: str,
         cell_id: Optional[CellId_t],
-        status: Optional[CellStatusType],
+        status: Optional[RuntimeStateType],
         stream: Stream | None = None,
     ) -> None:
         mimetype, data = CellOp.maybe_truncate_output(mimetype, data)
@@ -182,7 +182,7 @@ class CellOp(Op):
     @staticmethod
     def broadcast_empty_output(
         cell_id: Optional[CellId_t],
-        status: Optional[CellStatusType],
+        status: Optional[RuntimeStateType],
         stream: Stream | None = None,
     ) -> None:
         cell_id = (
@@ -205,7 +205,7 @@ class CellOp(Op):
         mimetype: KnownMimeType,
         data: str,
         cell_id: Optional[CellId_t],
-        status: Optional[CellStatusType],
+        status: Optional[RuntimeStateType],
         stream: Stream | None = None,
     ) -> None:
         mimetype, data = CellOp.maybe_truncate_output(mimetype, data)
@@ -225,7 +225,9 @@ class CellOp(Op):
 
     @staticmethod
     def broadcast_status(
-        cell_id: CellId_t, status: CellStatusType, stream: Stream | None = None
+        cell_id: CellId_t,
+        status: RuntimeStateType,
+        stream: Stream | None = None,
     ) -> None:
         if status != "running":
             CellOp(cell_id=cell_id, status=status).broadcast()
@@ -339,7 +341,7 @@ class KernelCapabilities:
     terminal: bool = False
 
     def __post_init__(self) -> None:
-        self.sql = DependencyManager.has_duckdb()
+        self.sql = DependencyManager.duckdb.has_at_version(min_version="1.0.0")
         # Only available in mac/linux
         self.terminal = not is_windows() and not is_pyodide()
 

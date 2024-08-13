@@ -80,6 +80,7 @@ def start(
     base_url: str = "",
     allow_origins: Optional[tuple[str, ...]] = None,
     auth_token: Optional[AuthToken],
+    redirect_console_to_browser: bool,
 ) -> None:
     """
     Start the server.
@@ -100,6 +101,7 @@ def start(
         user_config_manager=user_config_mgr,
         cli_args=cli_args,
         auth_token=auth_token,
+        redirect_console_to_browser=redirect_console_to_browser,
     )
 
     log_level = "info" if development_mode else "error"
