@@ -13,10 +13,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  MinimalShortcut,
-  renderMinimalShortcut,
-} from "../../shortcuts/renderShortcut";
+import { MinimalShortcut } from "../../shortcuts/renderShortcut";
 import { useNotebookActions } from "../actions/useNotebookActions";
 import type { ActionButton } from "../actions/types";
 import { getMarimoVersion } from "@/core/dom/marimo-tag";
