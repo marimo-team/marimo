@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { init } from "@paralleldrive/cuid2";
-import { TypedString } from "@/utils/typed";
+import type { TypedString } from "@/utils/typed";
 import { updateQueryParams } from "@/utils/urls";
 import { Logger } from "@/utils/Logger";
+import { KnownQueryParams } from "../constants";
 
 export type SessionId = TypedString<"SessionId">;
 
@@ -21,16 +22,18 @@ export function isSessionId(value: string | null): value is SessionId {
 
 const sessionId = (() => {
   const url = new URL(window.location.href);
-  const id = url.searchParams.get("session_id") as SessionId | null;
+  const id = url.searchParams.get(
+    KnownQueryParams.sessionId,
+  ) as SessionId | null;
   if (isSessionId(id)) {
     // Remove the session_id from the URL
     updateQueryParams((params) => {
       // Keep the session_id if we are in kiosk mode
       // this is so we can resume the same session if the user refreshes the page
-      if (params.has("kiosk")) {
+      if (params.has(KnownQueryParams.kiosk)) {
         return;
       }
-      params.delete("session_id");
+      params.delete(KnownQueryParams.sessionId);
     });
     Logger.debug("Connecting to existing session", { sessionId: id });
     return id;

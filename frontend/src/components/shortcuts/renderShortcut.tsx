@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { HotkeyAction } from "@/core/hotkeys/hotkeys";
+import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
 import { isPlatformMac } from "@/core/hotkeys/shortcuts";
 import { Kbd } from "../ui/kbd";
 import { DropdownMenuShortcut } from "../ui/dropdown-menu";
@@ -56,15 +56,16 @@ export function renderMinimalShortcut(shortcut: HotkeyAction) {
   return <MinimalShortcut shortcut={shortcut} />;
 }
 
-const MinimalShortcut: React.FC<{ shortcut: HotkeyAction }> = ({
-  shortcut,
-}) => {
+export const MinimalShortcut: React.FC<{
+  className?: string;
+  shortcut: HotkeyAction;
+}> = ({ className, shortcut }) => {
   const hotkeys = useAtomValue(hotkeysAtom);
   const hotkey = hotkeys.getHotkey(shortcut);
   const keys = hotkey.key.split("-");
 
   return (
-    <DropdownMenuShortcut className="flex gap-1 items-center">
+    <DropdownMenuShortcut className={cn("flex gap-1 items-center", className)}>
       {keys.map(prettyPrintHotkey).map(([label, symbol]) => {
         if (symbol) {
           return (

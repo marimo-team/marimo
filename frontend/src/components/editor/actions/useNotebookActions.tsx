@@ -1,7 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { kioskModeAtom, runDuringPresentMode } from "@/core/mode";
+import {
+  kioskModeAtom,
+  runDuringPresentMode,
+  viewStateAtom,
+} from "@/core/mode";
 import { downloadBlob, downloadHTMLAsImage } from "@/utils/download";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   ImageIcon,
   CommandIcon,
@@ -22,6 +26,9 @@ import {
   Undo2Icon,
   FileIcon,
   Home,
+  PresentationIcon,
+  EditIcon,
+  LayoutTemplateIcon,
 } from "lucide-react";
 import { commandPaletteAtom } from "../controls/command-palette";
 import { useCellActions, useNotebook } from "@/core/cells/cells";
@@ -50,6 +57,10 @@ import { startCase } from "lodash-es";
 import { keyboardShortcutsAtom } from "../controls/keyboard-shortcuts";
 import { MarkdownIcon } from "@/components/editor/cell/code/icons";
 import { Filenames } from "@/utils/filenames";
+import { LAYOUT_TYPES } from "../renderers/types";
+import { displayLayoutName, getLayoutIcon } from "../renderers/layout-select";
+import { useLayoutState, useLayoutActions } from "@/core/layout/layout";
+import { useTogglePresenting } from "@/core/layout/useTogglePresenting";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -61,6 +72,7 @@ export function useNotebookActions() {
   const { openModal, closeModal } = useImperativeModal();
   const { openApplication } = useChromeActions();
   const { selectedPanel } = useChromeState();
+  const [viewState] = useAtom(viewStateAtom);
   const kioskMode = useAtomValue(kioskModeAtom);
 
   const notebook = useNotebook();
@@ -71,6 +83,9 @@ export function useNotebookActions() {
 
   const disabledCells = disabledCellIds(notebook);
   const enabledCells = enabledCellIds(notebook);
+  const { selectedLayout } = useLayoutState();
+  const { setLayoutView } = useLayoutActions();
+  const togglePresenting = useTogglePresenting();
 
   const actions: ActionButton[] = [
     {
@@ -219,6 +234,47 @@ export function useNotebookActions() {
     },
 
     {
+      icon: <PresentationIcon size={14} strokeWidth={1.5} />,
+      label: "Present as",
+      handle: NOOP_HANDLER,
+      dropdown: [
+        {
+          icon:
+            viewState.mode === "present" ? (
+              <EditIcon size={14} strokeWidth={1.5} />
+            ) : (
+              <LayoutTemplateIcon size={14} strokeWidth={1.5} />
+            ),
+          label: "Toggle app view",
+          hotkey: "global.hideCode",
+          handle: () => {
+            togglePresenting();
+          },
+        },
+        ...LAYOUT_TYPES.map((type, idx) => {
+          const Icon = getLayoutIcon(type);
+          return {
+            divider: idx === 0,
+            label: displayLayoutName(type),
+            icon: <Icon size={14} strokeWidth={1.5} />,
+            rightElement: (
+              <div className="w-8 flex justify-end">
+                {selectedLayout === type && <CheckIcon size={14} />}
+              </div>
+            ),
+            handle: () => {
+              setLayoutView(type);
+              // Toggle if it's not in present mode
+              if (viewState.mode === "edit") {
+                togglePresenting();
+              }
+            },
+          };
+        }),
+      ],
+    },
+
+    {
       icon: <ClipboardCopyIcon size={14} strokeWidth={1.5} />,
       label: "Copy code to clipboard",
       hidden: !filename,
@@ -244,9 +300,9 @@ export function useNotebookActions() {
         // send to BE
         await saveCellConfig({ configs: newConfigs });
         // update on FE
-        ids.forEach((cellId) =>
-          updateCellConfig({ cellId, config: { disabled: false } }),
-        );
+        for (const cellId of ids) {
+          updateCellConfig({ cellId, config: { disabled: false } });
+        }
       },
     },
     {
@@ -261,9 +317,9 @@ export function useNotebookActions() {
         // send to BE
         await saveCellConfig({ configs: newConfigs });
         // update on FE
-        ids.forEach((cellId) =>
-          updateCellConfig({ cellId, config: { disabled: true } }),
-        );
+        for (const cellId of ids) {
+          updateCellConfig({ cellId, config: { disabled: true } });
+        }
       },
     },
     {

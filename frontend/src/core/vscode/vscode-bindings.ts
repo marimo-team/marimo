@@ -3,6 +3,7 @@
 import { Logger } from "@/utils/Logger";
 import { isWasm } from "../wasm/utils";
 import { isPlatformMac } from "../hotkeys/shortcuts";
+import { KnownQueryParams } from "../constants";
 
 export const isEmbedded =
   // eslint-disable-next-line ssr-friendly/no-dom-globals-in-module-scope
@@ -12,7 +13,9 @@ export const isEmbedded =
 // we have to dispatch keyboard events in the parent window.
 // See https://github.com/microsoft/vscode/issues/65452#issuecomment-586036474
 export function maybeRegisterVSCodeBindings() {
-  const isVscode = new URLSearchParams(window.location.search).has("vscode");
+  const isVscode = new URLSearchParams(window.location.search).has(
+    KnownQueryParams.vscode,
+  );
   if (!isVscode) {
     return;
   }
