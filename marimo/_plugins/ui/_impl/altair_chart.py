@@ -57,7 +57,7 @@ def _has_geoshape(spec: VegaSpec) -> bool:
     if isinstance(type_or_dict, str):
         return type_or_dict == "geoshape"
 
-    mark_type = type_or_dict.get("type")
+    mark_type: str | None = type_or_dict.get("type")
     return mark_type == "geoshape"
 
 
@@ -144,7 +144,7 @@ def _parse_spec(spec: altair.TopLevelMixin) -> VegaSpec:
     # since ours does not support geoshapes
     if _has_geoshape(spec.to_dict()):
         with altair.data_transformers.enable("default"):
-            return spec.to_dict()
+            return spec.to_dict()  # type: ignore
 
     with altair.data_transformers.enable("marimo"):
         return spec.to_dict()  # type: ignore
