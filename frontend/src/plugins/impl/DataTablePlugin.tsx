@@ -40,6 +40,10 @@ import { Objects } from "@/utils/objects";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
+interface ColumnSummaries {
+  summaries: ColumnHeaderSummary[];
+  is_disabled?: boolean;
+}
 
 /**
  * Arguments for a data table
@@ -65,10 +69,7 @@ interface Data<T> {
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type Functions = {
   download_as: (req: { format: "csv" | "json" }) => Promise<string>;
-  get_column_summaries: (opts: {}) => Promise<{
-    summaries: ColumnHeaderSummary[];
-    is_disabled?: boolean;
-  }>;
+  get_column_summaries: (opts: {}) => Promise<ColumnSummaries>;
   search: <T>(req: {
     sort?: {
       by: string;
@@ -193,6 +194,10 @@ export const LoadingDataTableComponent = memo(
     const [sorting, setSorting] = useState<SortingState>([]);
     const [searchQuery, setSearchQuery] = useState<string>("");
     const [filters, setFilters] = useState<ColumnFiltersState>([]);
+    // Column summaries state
+    const [summaries, setSummaries] = useState<ColumnSummaries>({
+      summaries: [],
+    });
 
     // Data loading
     const { data, loading, error } = useAsyncData<T[]>(async () => {
@@ -252,13 +257,27 @@ export const LoadingDataTableComponent = memo(
     }, [sorting, search, filters, searchQuery, props.fieldTypes, props.data]);
 
     // Column summaries
-    const { data: columnSummaries, error: columnSummariesError } =
-      useAsyncData(() => {
+    const { data: columnSummariesData, error: columnSummariesError } =
+      useAsyncData<ColumnSummaries>(() => {
         if (props.totalRows === 0) {
           return Promise.resolve({ summaries: [] });
         }
+        // Clear the summary first to avoid inconsistency with table
+        setSummaries({ summaries: [] });
         return props.get_column_summaries({});
-      }, [props.get_column_summaries, props.totalRows, props.data]);
+      }, [
+        props.get_column_summaries,
+        filters,
+        searchQuery,
+        props.totalRows,
+        props.data,
+      ]);
+
+    useEffect(() => {
+      if (columnSummariesData) {
+        setSummaries(columnSummariesData);
+      }
+    }, [columnSummariesData]);
 
     useEffect(() => {
       if (columnSummariesError) {
@@ -292,8 +311,7 @@ export const LoadingDataTableComponent = memo(
         <DataTableComponent
           {...props}
           data={data || Arrays.EMPTY}
-          columnSummaries={columnSummaries?.summaries}
-          columnSummariesDisabled={columnSummaries?.is_disabled}
+          columnSummaries={summaries}
           sorting={sorting}
           setSorting={setSorting}
           searchQuery={searchQuery}
@@ -324,7 +342,6 @@ const DataTableComponent = ({
   fieldTypes,
   download_as: downloadAs,
   columnSummaries,
-  columnSummariesDisabled,
   className,
   setValue,
   sorting,
@@ -338,14 +355,13 @@ const DataTableComponent = ({
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
-    columnSummaries?: ColumnHeaderSummary[];
-    columnSummariesDisabled?: boolean;
+    columnSummaries: ColumnSummaries;
   }): JSX.Element => {
   const resultsAreClipped =
     hasMore && (totalRows === "too_many" || totalRows > 0);
 
   const chartSpecModel = useMemo(() => {
-    if (!fieldTypes || !data || !columnSummaries) {
+    if (!fieldTypes || !data || !columnSummaries.summaries) {
       return ColumnChartSpecModel.EMPTY;
     }
     const fieldTypesWithoutExternalTypes = Objects.mapValues(
@@ -355,12 +371,12 @@ const DataTableComponent = ({
     return new ColumnChartSpecModel(
       data,
       fieldTypesWithoutExternalTypes,
-      columnSummaries,
+      columnSummaries.summaries,
       {
         includeCharts: !resultsAreClipped,
       },
     );
-  }, [data, fieldTypes, columnSummaries, resultsAreClipped]);
+  }, [data, fieldTypes, columnSummaries.summaries, resultsAreClipped]);
 
   const columns = useMemo(
     () =>
@@ -414,7 +430,7 @@ const DataTableComponent = ({
           Result clipped. If no LIMIT is given, we only show the first 300 rows.
         </Banner>
       )}
-      {columnSummariesDisabled && (
+      {columnSummaries.is_disabled && (
         <Banner className="mb-2 rounded">
           Column summaries are unavailable. Filter your data to fewer than
           1,000,000 rows.
