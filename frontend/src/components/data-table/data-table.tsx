@@ -84,7 +84,7 @@ const DataTableInternal = <TData,>({
 }: DataTableProps<TData>) => {
   const [isSearchEnabled, setIsSearchEnabled] = React.useState<boolean>(false);
   const [paginationState, setPaginationState] = React.useState<PaginationState>(
-    { pageSize: pageSize, pageIndex: 0 }
+    { pageSize: pageSize, pageIndex: 0 },
   );
 
   // If pageSize changes, reset pageSize
@@ -143,7 +143,7 @@ const DataTableInternal = <TData,>({
               key={header.id}
               className={cn(
                 "h-auto min-h-10 whitespace-pre align-baseline",
-                header.column.getIsPinned() && "bg-background"
+                header.column.getIsPinned() && "bg-background",
               )}
               // apply the pinning styles
               style={header.column.getCommonPinningStyles?.()}
@@ -152,7 +152,7 @@ const DataTableInternal = <TData,>({
                 ? null
                 : flexRender(
                     header.column.columnDef.header,
-                    header.getContext()
+                    header.getContext(),
                   )}
             </TableHead>
           );
@@ -198,7 +198,7 @@ const DataTableInternal = <TData,>({
                         cell.column.getColumnWrapping &&
                           cell.column.getColumnWrapping() === "wrap" &&
                           "whitespace-pre-wrap min-w-[200px]",
-                        cell.column.getIsPinned() && "bg-background"
+                        cell.column.getIsPinned() && "bg-background",
                       )}
                       // apply the pinning styles
                       style={cell.column.getCommonPinningStyles?.()}
@@ -206,7 +206,7 @@ const DataTableInternal = <TData,>({
                     >
                       {flexRender(
                         cell.column.columnDef.cell,
-                        cell.getContext()
+                        cell.getContext(),
                       )}
                     </TableCell>
                   ))}
@@ -276,7 +276,7 @@ const SearchBar = (props: {
     <div
       className={cn(
         "flex items-center space-x-2 h-8 px-2 border-b transition-all overflow-hidden duration-300 opacity-100",
-        hidden && "h-0 border-none opacity-0"
+        hidden && "h-0 border-none opacity-0",
       )}
     >
       <SearchIcon className="w-4 h-4 text-muted-foreground" />

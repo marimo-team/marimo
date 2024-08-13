@@ -61,7 +61,7 @@ export type ColumnFilterForType<T extends FilterType> = T extends FilterType
 
 export function filterToFilterCondition(
   columnId: string,
-  filter: ColumnFilterValue | undefined
+  filter: ColumnFilterValue | undefined,
 ): ConditionType[] | ConditionType {
   if (!filter) {
     return [];

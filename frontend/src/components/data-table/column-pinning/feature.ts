@@ -27,7 +27,7 @@ export const ColumnPinningFeature: TableFeature = {
 
   // define the column pinning's default options
   getDefaultOptions: <TData extends RowData>(
-    table: Table<TData>
+    table: Table<TData>,
   ): ColumnPinningOptions => {
     return {
       enableColumnPinning: true,
@@ -37,7 +37,7 @@ export const ColumnPinningFeature: TableFeature = {
 
   createColumn: <TData extends RowData>(
     column: Column<TData>,
-    table: Table<TData>
+    table: Table<TData>,
   ) => {
     // get the column's pinning state
     column.getIsPinned = (): ColumnPinningPosition => {
@@ -45,8 +45,8 @@ export const ColumnPinningFeature: TableFeature = {
       return pinningState.left?.includes(column.id)
         ? "left"
         : pinningState.right?.includes(column.id)
-        ? "right"
-        : false;
+          ? "right"
+          : false;
     };
 
     // get if the column can be pinned
@@ -61,8 +61,8 @@ export const ColumnPinningFeature: TableFeature = {
         const prevValue = old.left?.includes(column.id)
           ? "left"
           : old.right?.includes(column.id)
-          ? "right"
-          : false;
+            ? "right"
+            : false;
 
         // initialize the new pinning state
         let newState: ColumnPinningState = old;
@@ -165,8 +165,8 @@ export const ColumnPinningFeature: TableFeature = {
         boxShadow: isLastLeftPinnedColumn
           ? "-4px 0 4px -4px gray inset"
           : isFirstRightPinnedColumn
-          ? "4px 0 4px -4px gray inset"
-          : undefined,
+            ? "4px 0 4px -4px gray inset"
+            : undefined,
 
         // set the column's width
         width: column.getSize(),

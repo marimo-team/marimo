@@ -15,7 +15,7 @@ describe("applyFormat", () => {
       const date = "2023-10-01T12:00:00Z";
       expect(applyFormat(date, "Date", "date")).toBe("10/1/23");
       expect(applyFormat(date, "Datetime", "date")).toBe(
-        "10/1/23, 12:00:00 PM UTC"
+        "10/1/23, 12:00:00 PM UTC",
       );
     });
   });
@@ -26,7 +26,7 @@ describe("applyFormat", () => {
       expect(applyFormat(number, "Auto", "number")).toBe("1,234.57");
       expect(applyFormat(number, "Percent", "number")).toBe("123,456.7%");
       expect(applyFormat(number, "Scientific", "number")).toBe(
-        prettyScientificNumber(1234.567)
+        prettyScientificNumber(1234.567),
       );
       expect(applyFormat(number, "Integer", "number")).toBe("1,235");
     });
