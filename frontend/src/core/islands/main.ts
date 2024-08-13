@@ -1,3 +1,3 @@
-import { MarimoIsland, MarimoIslands } from "./components/marimo-island";
+/* Copyright 2024 Marimo. All rights reserved. */
 
-export { MarimoIsland, MarimoIslands };
+export { MarimoIsland, MarimoEmbeddedApp } from "./components/marimo-island";

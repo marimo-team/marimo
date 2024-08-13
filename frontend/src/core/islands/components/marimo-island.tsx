@@ -1,7 +1,14 @@
-import { useEffect, useState } from "react";
+/* Copyright 2024 Marimo. All rights reserved. */
+import { useEffect, useRef, useState } from "react";
 import { initializeIslands } from "../initialize";
 import { initializePlugins } from "@/plugins/plugins";
 import { CellId } from "@/core/cells/ids";
+import { Logger } from "@/utils/Logger";
+import { CellData } from "@/core/cells/types";
+
+// This will display all the static HTML content.
+// We only need to call this once.
+initializePlugins();
 
 // #region MarimoIsland
 
@@ -24,9 +31,13 @@ interface MarimoIslandProps {
 
 const DEFAULT_APP_ID = "main";
 
-export const MarimoIsland = (props: MarimoIslandProps) => {
+/**
+ * Renders a Marimo cell embedded in a React component.
+ */
+export const MarimoIsland: React.FC<MarimoIslandProps> = (props) => {
   const { code, children, reactive = true } = props;
 
+  // eslint-disable-next-line react/hook-use-state
   const [id] = useState(() => {
     const id = CellId.create();
     initializer.addComponent(id);
@@ -40,20 +51,19 @@ export const MarimoIsland = (props: MarimoIslandProps) => {
   }, [id]);
 
   return (
-    <marimo-island
-      data-app-id={DEFAULT_APP_ID}
-      data-cell-id={id}
-      data-reactive={reactive}
-    >
+    <marimo-island data-app-id={DEFAULT_APP_ID} data-reactive={reactive}>
       <marimo-cell-output>{children}</marimo-cell-output>
       {code && <marimo-cell-code hidden={true}>{code}</marimo-cell-code>}
     </marimo-island>
   );
 };
 
-// #region MarimoIslands
+// #region MarimoEmbeddedApp
 
-interface MarimoIslandsProps {
+interface MarimoEmbeddedAppProps {
+  /**
+   * Code of the app.
+   */
   code: string;
   /**
    * Fallback to render when code is empty.
@@ -61,22 +71,7 @@ interface MarimoIslandsProps {
   children?: React.ReactNode;
 }
 
-export const MarimoIslands = (props: MarimoIslandsProps) => {
-  if (!props.code) {
-    return null;
-  }
-
-  return (
-    <marimo-embed data-code={props.code} data-app-id={DEFAULT_APP_ID}>
-      {props.children}
-    </marimo-embed>
-  );
-};
-
 // #region Initializer
-
-// This will display all the static HTML content.
-initializePlugins();
 
 let isInitialized = false;
 
@@ -86,7 +81,7 @@ const initializer = {
   islands: new Set<string>(),
   addComponent(id: string) {
     if (isInitialized) {
-      console.warn(`
+      Logger.warn(`
 ⚠️ marimo islands have already been initialized.
 
 You are receiving this warning because you are adding a new island to the DOM
@@ -106,9 +101,50 @@ If you would like to see this supported, please file an issue at https://github.
 
     if (this.islands.size === 0) {
       isInitialized = true;
+      Logger.log("Initializing marimo islands...");
       void initializeIslands({}).catch((error) => {
-        console.error(error);
+        Logger.error(error);
       });
     }
   },
+};
+
+/**
+ * Renders a Marimo app embedded in a React component.
+ */
+export const MarimoEmbeddedApp: React.FC<MarimoEmbeddedAppProps> = (props) => {
+  const root = useRef<HTMLDivElement>(null);
+  const [cells, setCells] = useState<CellData[]>([]);
+
+  useEffect(() => {
+    void initializeIslands({
+      onSetCells: (cells) => {
+        setCells(cells);
+      },
+    }).catch((error) => {
+      Logger.error(error);
+    });
+  }, []);
+
+  if (!props.code) {
+    return null;
+  }
+
+  return (
+    <marimo-app data-code={props.code} data-app-id={DEFAULT_APP_ID}>
+      {cells.map((cell) => {
+        return (
+          <marimo-island
+            key={cell.id}
+            data-app-id={DEFAULT_APP_ID}
+            data-cell-id={cell.id}
+            data-reactive={true}
+          >
+            <marimo-cell-output />
+          </marimo-island>
+        );
+      })}
+      <div ref={root}>{props.children}</div>
+    </marimo-app>
+  );
 };

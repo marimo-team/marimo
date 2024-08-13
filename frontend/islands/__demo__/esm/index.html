@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>ESM Demo</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "https://esm.sh/react",
+          "react-dom": "https://esm.sh/react-dom"
+        }
+      }
+    </script>
+    <script type="module">
+      import { MarimoIsland } from 'http://localhost:3000/main.js';
+      import React from 'react';
+      import ReactDOMClient from 'react-dom';
+
+      window.onload = () => {
+        const rootElement = ReactDOMClient.createRoot(document.getElementById('root'));
+        const loading = React.createElement('div', null, 'Loading...');
+        rootElement.render(React.createElement(MarimoIsland, { code: '2 + 2' }, loading));
+      };
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

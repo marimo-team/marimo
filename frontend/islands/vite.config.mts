@@ -52,6 +52,7 @@ export default defineConfig({
       formats: ["es"],
     },
     rollupOptions: {
+      external: ["react", "react-dom"],
       output: {
         // Remove hash from entry file name, so it's easier to import
         entryFileNames: "[name].js",

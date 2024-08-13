@@ -12,6 +12,7 @@ import { renderHTML } from "@/plugins/core/RenderHTML";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBoundary } from "@/components/editor/boundary/ErrorBoundary";
 import { UI_ELEMENT_REGISTRY } from "@/core/dom/uiregistry";
+import { MarimoIslandConstants } from "./constants";
 
 /**
  * A custom element that renders the output of a marimo cell
@@ -19,15 +20,9 @@ import { UI_ELEMENT_REGISTRY } from "@/core/dom/uiregistry";
 export class MarimoIslandElement extends HTMLElement {
   private root?: Root;
 
-  public static readonly tagName = "marimo-island";
-  public static readonly outputTagName = "marimo-cell-output";
-  public static readonly codeTagName = "marimo-cell-code";
-  public static readonly editorTagName = "marimo-code-editor";
-  public static readonly styleNamespace = "marimo";
-
   constructor() {
     super();
-    this.classList.add(MarimoIslandElement.styleNamespace);
+    this.classList.add(MarimoIslandConstants.styleNamespace);
   }
 
   get appId(): string {
@@ -48,7 +43,9 @@ export class MarimoIslandElement extends HTMLElement {
   }
 
   connectedCallback() {
-    const output = this.querySelectorOrThrow(MarimoIslandElement.outputTagName);
+    const output = this.querySelectorOrThrow(
+      MarimoIslandConstants.outputTagName,
+    );
     const initialOutput = output.innerHTML;
 
     const optionalEditor = this.getOptionalEditor();
@@ -91,7 +88,7 @@ export class MarimoIslandElement extends HTMLElement {
   private getOptionalEditor(): JSX.Element | null {
     // TODO: Maybe add specificity with a [editor=island] selector or something.
     const optionalElement = this.querySelector(
-      MarimoIslandElement.editorTagName,
+      MarimoIslandConstants.editorTagName,
     );
     const html = (optionalElement?.parentNode as Element)?.outerHTML;
     if (html) {

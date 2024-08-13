@@ -30,6 +30,7 @@ import type { RequestId } from "../network/DeferredRequestRegistry";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import type { UIElementId } from "../cells/ids";
 import type { CellData } from "../cells/types";
+import { MarimoIslandConstants } from "./components/constants";
 
 /**
  * Main entry point for the js bundle for embedded marimo apps.
@@ -79,7 +80,10 @@ export async function initializeIslands(opts: {
         });
         // Define the custom element for the marimo-island tag.
         // This comes after initializing since this reads from the store.
-        defineCustomElement(MarimoIslandElement.tagName, MarimoIslandElement);
+        defineCustomElement(
+          MarimoIslandConstants.islandTagName,
+          MarimoIslandElement,
+        );
         return;
       case "completed-run":
         return;
@@ -141,10 +145,10 @@ export async function initializeIslands(opts: {
 // Add 'marimo' class name to all `marimo-island` elements.
 function addClassNames() {
   const islands = document.querySelectorAll<HTMLElement>(
-    MarimoIslandElement.tagName,
+    MarimoIslandConstants.islandTagName,
   );
 
   for (const island of islands) {
-    island.classList.add(MarimoIslandElement.styleNamespace);
+    island.classList.add(MarimoIslandConstants.styleNamespace);
   }
 }

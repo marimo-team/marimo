@@ -12,7 +12,7 @@ import workerUrl from "./worker/worker.tsx?worker&url";
 
 import {
   createMarimoFile,
-  parseMarimoEmbeds,
+  parseMarimoApps,
   parseMarimoIslandApps,
 } from "./parse";
 import { Logger } from "@/utils/Logger";
@@ -81,7 +81,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
         });
       }
       // Parse for embeds
-      const embeds = parseMarimoEmbeds();
+      const embeds = parseMarimoApps();
       for (const embed of embeds) {
         Logger.debug("Starting session for app", embed.appId);
         this.startSession({

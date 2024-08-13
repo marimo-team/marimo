@@ -1,10 +1,17 @@
+/* Copyright 2024 Marimo. All rights reserved. */
 import type { DOMAttributes } from "react";
 
 type CustomElement<T> = Partial<
-  T & DOMAttributes<T> & { children: React.ReactNode; hidden?: boolean }
+  T &
+    DOMAttributes<T> & {
+      children: React.ReactNode;
+      hidden?: boolean;
+      key?: string;
+    }
 >;
 
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
       /**
@@ -13,7 +20,7 @@ declare global {
        */
       "marimo-island": CustomElement<{
         "data-app-id": string;
-        "data-cell-id": string;
+        "data-cell-idx": string;
         "data-reactive": boolean;
       }>;
       /**
@@ -28,8 +35,9 @@ declare global {
       /**
        * marimo-embed component. This contains the code for a full marimo application.
        */
-      "marimo-embed": CustomElement<{
+      "marimo-app": CustomElement<{
         "data-code": string;
+        "data-app-id": string;
       }>;
     }
   }
