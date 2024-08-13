@@ -158,18 +158,17 @@ function makeChartSelectable(
  *
  * Not supported marks:
  * - geoshape
- * - text
  */
 function makeChartPanZoom(spec: VegaLiteUnitSpec): VegaLiteUnitSpec {
-  let mark: Mark;
+  let mark: Mark | undefined;
   try {
     mark = Marks.getMarkType(spec.mark);
   } catch {
-    return spec;
+    // noop
   }
 
-  // We don't do anything if the mark is text or geoshape
-  if (mark === "geoshape" || mark === "text") {
+  // We don't do anything if the mark is geoshape
+  if (mark === "geoshape") {
     return spec;
   }
 
