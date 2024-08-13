@@ -28,7 +28,7 @@ import {
   notebookNeedsSave,
 } from "./cells/utils";
 import type { AppConfig, UserConfig } from "./config/config-schema";
-import { kioskModeAtom, toggleAppMode, viewStateAtom } from "./mode";
+import { kioskModeAtom, viewStateAtom } from "./mode";
 import { useHotkey } from "../hooks/useHotkey";
 import { useImperativeModal } from "../components/modal/ImperativeModal";
 import {
