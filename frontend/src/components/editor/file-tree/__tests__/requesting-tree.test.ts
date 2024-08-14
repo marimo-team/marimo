@@ -108,8 +108,8 @@ describe("RequestingTree", () => {
       [
         {
           "id": "1.1",
-          "name": "file2",
-          "path": "/root/file2",
+          "name": "file1",
+          "path": "/root/file1",
         },
         {
           "id": "1.2",

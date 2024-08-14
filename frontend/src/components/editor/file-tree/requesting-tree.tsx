@@ -83,9 +83,9 @@ export class RequestingTree {
       })
       .then(this.handleResponse);
     this.delegate.update({ id, changes: { name, path: newPath } });
+    this.onChange(this.delegate.data);
     // Rename all of its children
     await this.refreshAll([newPath]);
-    this.onChange(this.delegate.data);
   }
 
   async move(fromIds: string[], parentId: string | null): Promise<void> {
@@ -127,7 +127,7 @@ export class RequestingTree {
     const newFile = await this.callbacks
       .createFileOrFolder({ path: parentPath, type: "file", name: name })
       .then(this.handleResponse);
-    if (!newFile.info) {
+    if (!newFile?.info) {
       return;
     }
     this.delegate.create({
@@ -147,7 +147,7 @@ export class RequestingTree {
     const newFolder = await this.callbacks
       .createFileOrFolder({ path: parentPath, type: "directory", name: name })
       .then(this.handleResponse);
-    if (!newFolder.info) {
+    if (!newFolder?.info) {
       return;
     }
     this.delegate.create({
@@ -211,13 +211,13 @@ export class RequestingTree {
 
   private handleResponse = (
     response: FileUpdateResponse,
-  ): FileUpdateResponse => {
+  ): FileUpdateResponse | null => {
     if (!response.success) {
       toast({
         title: "Failed",
         description: response.message,
       });
-      throw new Error(response.message ?? "Unknown error");
+      return null;
     }
 
     return response;
