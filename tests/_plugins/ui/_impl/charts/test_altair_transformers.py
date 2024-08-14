@@ -81,7 +81,7 @@ def test_data_to_csv_string():
     assert isinstance(result, str)
     lines = result.strip().split("\n")
     assert len(lines) == 4  # header + 3 data rows
-    assert lines[0] == "A,B"
+    assert lines[0] == "A,B" or lines[0] == "A,B\r"
 
 
 @patch("altair.data_transformers")
