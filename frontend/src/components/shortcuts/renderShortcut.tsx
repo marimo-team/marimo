@@ -62,8 +62,15 @@ export const MinimalShortcut: React.FC<{
 }> = ({ className, shortcut }) => {
   const hotkeys = useAtomValue(hotkeysAtom);
   const hotkey = hotkeys.getHotkey(shortcut);
-  const keys = hotkey.key.split("-");
 
+  return <MinimalHotkeys shortcut={hotkey.key} className={className} />;
+};
+
+export const MinimalHotkeys: React.FC<{
+  className?: string;
+  shortcut: string;
+}> = ({ shortcut, className }) => {
+  const keys = shortcut.split("-");
   return (
     <DropdownMenuShortcut className={cn("flex gap-1 items-center", className)}>
       {keys.map(prettyPrintHotkey).map(([label, symbol]) => {
