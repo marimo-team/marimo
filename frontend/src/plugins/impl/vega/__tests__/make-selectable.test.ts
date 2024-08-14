@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { expect, describe, it } from "vitest";
 import { makeSelectable } from "../make-selectable";
-import { VegaLiteSpec } from "../types";
+import type { VegaLiteSpec } from "../types";
 import { getSelectionParamNames } from "../params";
 
 describe("makeSelectable", () => {
@@ -356,5 +356,28 @@ describe("makeSelectable", () => {
       "select_interval_0",
       "pan_zoom",
     ]);
+  });
+
+  it("should work for geoshape", () => {
+    const spec = {
+      mark: "geoshape",
+      encoding: {
+        color: {
+          datum: "red",
+          type: "nominal",
+        },
+        x: {
+          field: "x",
+          type: "quantitative",
+        },
+        y: {
+          field: "y",
+          type: "quantitative",
+        },
+      },
+    } as VegaLiteSpec;
+    const newSpec = makeSelectable(spec, {});
+    expect(newSpec).toMatchSnapshot();
+    expect(getSelectionParamNames(newSpec)).toEqual([]);
   });
 });

@@ -537,6 +537,27 @@ exports[`makeSelectable > should skip field selection if empty or false 1`] = `
 }
 `;
 
+exports[`makeSelectable > should work for geoshape 1`] = `
+{
+  "encoding": {
+    "color": {
+      "datum": "red",
+      "type": "nominal",
+    },
+    "x": {
+      "field": "x",
+      "type": "quantitative",
+    },
+    "y": {
+      "field": "y",
+      "type": "quantitative",
+    },
+  },
+  "mark": "geoshape",
+  "params": [],
+}
+`;
+
 exports[`makeSelectable > should work for multi-layered charts 1`] = `
 {
   "data": {

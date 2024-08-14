@@ -49,6 +49,18 @@ def _has_binning(spec: VegaSpec) -> bool:
     return False
 
 
+def _has_geoshape(spec: VegaSpec) -> bool:
+    """Return True if the spec has geoshape."""
+    if "mark" not in spec:
+        return False
+    type_or_dict = spec.get("mark", {})
+    if isinstance(type_or_dict, str):
+        return type_or_dict == "geoshape"
+
+    mark_type: str | None = type_or_dict.get("type")
+    return mark_type == "geoshape"
+
+
 def _filter_dataframe(
     df: pd.DataFrame, selection: ChartSelection
 ) -> pd.DataFrame:
@@ -127,6 +139,13 @@ def _parse_spec(spec: altair.TopLevelMixin) -> VegaSpec:
     # instead of using a vega-lite spec
     if altair.data_transformers.active == "vegafusion":
         return spec.to_dict(format="vega")  # type: ignore
+
+    # If this is a geoshape, use default transformer
+    # since ours does not support geoshapes
+    if _has_geoshape(spec.to_dict()):
+        with altair.data_transformers.enable("default"):
+            return spec.to_dict()  # type: ignore
+
     with altair.data_transformers.enable("marimo"):
         return spec.to_dict()  # type: ignore
 
@@ -259,6 +278,14 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
             )
             chart_selection = False
             legend_selection = False
+        if _has_geoshape(vega_spec) and (has_chart_selection):
+            sys.stderr.write(
+                "Geoshapes + chart selection is not yet supported in "
+                "marimo.ui.chart.\n"
+                "If you'd like this feature, please file an issue: "
+                "https://github.com/marimo-team/marimo/issues\n"
+            )
+            chart_selection = False
 
         self.dataframe = self._get_dataframe_from_chart(chart)
 
