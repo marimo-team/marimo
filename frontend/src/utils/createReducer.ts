@@ -3,7 +3,7 @@
 import { Logger } from "@/utils/Logger";
 import type { NoInfer } from "@tanstack/react-table";
 import { atom, useSetAtom } from "jotai";
-import { type Reducer, type SetStateAction, useMemo } from "react";
+import type { Reducer } from "react";
 
 interface ReducerAction<T> {
   type: string;
