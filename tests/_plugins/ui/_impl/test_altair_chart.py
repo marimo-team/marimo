@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import sys
 
 import pytest
 
@@ -18,7 +19,12 @@ from tests.mocks import snapshotter
 
 snapshot = snapshotter(__file__)
 
-HAS_DEPS = DependencyManager.pandas.has() and DependencyManager.altair.has()
+HAS_DEPS = (
+    DependencyManager.pandas.has()
+    and DependencyManager.altair.has()
+    # altair produces different output on windows
+    and sys.platform == "win32"
+)
 
 if HAS_DEPS:
     import pandas as pd

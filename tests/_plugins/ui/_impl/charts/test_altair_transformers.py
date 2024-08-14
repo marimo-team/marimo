@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import sys
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
@@ -20,12 +19,7 @@ from marimo._plugins.ui._impl.charts.altair_transformer import (
 if TYPE_CHECKING:
     import pandas as pd
 
-HAS_DEPS = (
-    DependencyManager.pandas.has()
-    and DependencyManager.altair.has()
-    # altair produces different output on windows
-    and sys.platform == "win32"
-)
+HAS_DEPS = DependencyManager.pandas.has() and DependencyManager.altair.has()
 
 
 def get_data() -> pd.DataFrame:
