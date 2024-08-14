@@ -35,6 +35,7 @@ import {
 } from "@/core/codemirror/find-replace/search-highlight";
 import { KeyboardHotkeys } from "../shortcuts/renderShortcut";
 import { hotkeysAtom } from "@/core/config/config";
+import { UndoButton } from "../buttons/undo-button";
 
 export const FindReplace: React.FC = () => {
   const [isFocused, setIsFocused] = useState(false);
@@ -224,17 +225,13 @@ export const FindReplace: React.FC = () => {
                   const { dismiss } = toast({
                     title: "Replaced all occurrences",
                     action: (
-                      <Button
+                      <UndoButton
                         data-testid="undo-replace-all-button"
-                        size="sm"
-                        variant="outline"
                         onClick={() => {
                           undo();
                           dismiss();
                         }}
-                      >
-                        Undo
-                      </Button>
+                      />
                     ),
                   });
                 }}
