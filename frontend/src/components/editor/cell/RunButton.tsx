@@ -6,7 +6,7 @@ import { renderShortcut } from "../../shortcuts/renderShortcut";
 import { cn } from "../../../utils/cn";
 import { sendInterrupt } from "@/core/network/requests";
 import { useShouldShowInterrupt } from "./useShouldShowInterrupt";
-import { CellStatus, CellConfig } from "@/core/network/types";
+import type { RuntimeState, CellConfig } from "@/core/network/types";
 
 function computeColor(
   appClosed: boolean,
@@ -27,7 +27,7 @@ function computeColor(
 
 export const RunButton = (props: {
   edited: boolean;
-  status: CellStatus;
+  status: RuntimeState;
   needsRun: boolean;
   appClosed: boolean;
   config: CellConfig;

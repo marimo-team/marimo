@@ -3,10 +3,10 @@ import { Trash2Icon } from "lucide-react";
 import { Tooltip } from "../../ui/tooltip";
 import { Button } from "../../ui/button";
 import { cn } from "../../../utils/cn";
-import { CellStatus } from "@/core/network/types";
+import type { RuntimeState } from "@/core/network/types";
 
 export const DeleteButton = (props: {
-  status: CellStatus;
+  status: RuntimeState;
   appClosed: boolean;
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }): JSX.Element => {

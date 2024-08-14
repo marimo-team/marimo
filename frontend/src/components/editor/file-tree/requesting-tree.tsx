@@ -6,10 +6,10 @@ import type {
   sendDeleteFileOrFolder,
   sendRenameFileOrFolder,
 } from "@/core/network/requests";
-import { FileInfo, FileUpdateResponse } from "@/core/network/types";
+import type { FileInfo, FileUpdateResponse } from "@/core/network/types";
 import { prettyError } from "@/utils/errors";
 import { Functions } from "@/utils/functions";
-import { FilePath, PathBuilder } from "@/utils/paths";
+import { type FilePath, PathBuilder } from "@/utils/paths";
 import { SimpleTree } from "react-arborist";
 
 export class RequestingTree {
@@ -118,6 +118,46 @@ export class RequestingTree {
     await this.refreshAll([parentPath]);
   }
 
+  async createFile(name: string, parentId: string | null): Promise<void> {
+    const parentPath = parentId
+      ? this.delegate.find(parentId)?.data.path ?? parentId
+      : this.rootPath;
+    const newFile = await this.callbacks
+      .createFileOrFolder({ path: parentPath, type: "file", name: name })
+      .then(this.handleResponse);
+    if (!newFile.info) {
+      return;
+    }
+    this.delegate.create({
+      parentId,
+      index: 0,
+      data: newFile.info,
+    });
+    this.onChange(this.delegate.data);
+    // Refresh the parent folder
+    await this.refreshAll([parentPath]);
+  }
+
+  async createFolder(name: string, parentId: string | null): Promise<void> {
+    const parentPath = parentId
+      ? this.delegate.find(parentId)?.data.path ?? parentId
+      : this.rootPath;
+    const newFolder = await this.callbacks
+      .createFileOrFolder({ path: parentPath, type: "directory", name: name })
+      .then(this.handleResponse);
+    if (!newFolder.info) {
+      return;
+    }
+    this.delegate.create({
+      parentId,
+      index: 0,
+      data: newFolder.info,
+    });
+    this.onChange(this.delegate.data);
+    // Refresh the parent folder
+    await this.refreshAll([parentPath]);
+  }
+
   async delete(id: string): Promise<void> {
     const node = this.delegate.find(id);
     if (!node) {
@@ -167,14 +207,18 @@ export class RequestingTree {
     return path;
   };
 
-  private handleResponse = (response: FileUpdateResponse): void => {
+  private handleResponse = (
+    response: FileUpdateResponse,
+  ): FileUpdateResponse => {
     if (!response.success) {
       toast({
         title: "Failed",
         description: response.message,
       });
-      return;
+      throw new Error(response.message ?? "Unknown error");
     }
+
+    return response;
   };
 }
 
