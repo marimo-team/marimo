@@ -23,8 +23,8 @@ if TYPE_CHECKING:
 HAS_DEPS = (
     DependencyManager.pandas.has()
     and DependencyManager.altair.has()
-    # altair produces different output in 3.8
-    and sys.version_info < (3, 9)
+    # altair produces different output on windows
+    and sys.platform == "win32"
 )
 
 
