@@ -841,7 +841,7 @@ const {
       cellHandle.editorView,
       newCellHandle.editorView,
     );
-    
+
     updateEditorCodeFromPython(cellHandle.editorView, combined);
 
     return {
