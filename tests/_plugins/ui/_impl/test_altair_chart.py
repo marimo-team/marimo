@@ -23,7 +23,7 @@ HAS_DEPS = (
     DependencyManager.pandas.has()
     and DependencyManager.altair.has()
     # altair produces different output on windows
-    and sys.platform == "win32"
+    and sys.platform != "win32"
 )
 
 if HAS_DEPS:
