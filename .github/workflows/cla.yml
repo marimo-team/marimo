@@ -7,10 +7,10 @@ on:
 
 # explicitly configure permissions, in case your GITHUB_TOKEN workflow permissions are set to read-only in repository settings
 permissions:
-  actions: read
-  contents: write
+  actions: write
+  contents: read
   pull-requests: write
-  statuses: read
+  statuses: write
 
 jobs:
   CLAAssistant:
