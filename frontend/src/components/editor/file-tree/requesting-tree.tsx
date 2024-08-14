@@ -83,6 +83,8 @@ export class RequestingTree {
       })
       .then(this.handleResponse);
     this.delegate.update({ id, changes: { name, path: newPath } });
+    // Rename all of its children
+    await this.refreshAll([newPath]);
     this.onChange(this.delegate.data);
   }
 
