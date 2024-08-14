@@ -292,6 +292,7 @@ def test_parse_spec_narwhal() -> None:
     snapshot("parse_spec_narwhal.txt", json.dumps(spec, indent=2))
 
 
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_parse_spec_geopandas() -> None:
     import altair as alt
     import geopandas as gpd
