@@ -11,7 +11,7 @@ import { DataType } from "@/core/kernel/messages";
 import { TableColumnSummary } from "./column-summary";
 import { FilterType } from "./filters";
 import { FieldTypesWithExternalType } from "./types";
-import {UrlDetector} from "./UrlDetector";
+import { UrlDetector } from "./UrlDetector";
 
 interface ColumnInfo {
   key: string;
