@@ -40,6 +40,12 @@ describe("applyFormat", () => {
       expect(applyFormat(str, "Capitalize", "string")).toBe("Hello world");
       expect(applyFormat(str, "Title", "string")).toBe("Hello World");
     });
+
+    it("should detect and render URLs as hyperlinks", () => {
+      const url = "Check this link: https://example.com";
+      const result = applyFormat(url, "Auto", "string");
+      expect(result).toContain('<a href="https://example.com"');
+    });
   });
 
   describe("boolean formatting", () => {

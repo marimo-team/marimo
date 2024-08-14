@@ -11,6 +11,7 @@ import { DataType } from "@/core/kernel/messages";
 import { TableColumnSummary } from "./column-summary";
 import { FilterType } from "./filters";
 import { FieldTypesWithExternalType } from "./types";
+import {UrlDetector} from "./UrlDetector";
 
 interface ColumnInfo {
   key: string;
@@ -127,6 +128,9 @@ export function generateColumns<T>({
           const rendered = renderValue();
           if (rendered == null) {
             return "";
+          }
+          if (typeof rendered === "string") {
+            return <UrlDetector text={rendered} />;
           }
           return String(rendered);
         }
