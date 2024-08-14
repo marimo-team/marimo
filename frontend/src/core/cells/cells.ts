@@ -32,6 +32,7 @@ import type { LayoutState } from "../layout/layout";
 import { notebookIsRunning } from "./utils";
 import {
   splitEditor,
+  unsplitEditors,
   updateEditorCodeFromPython,
 } from "../codemirror/language/utils";
 import { invariant } from "@/utils/invariant";
@@ -816,6 +817,54 @@ const {
         [newCellId]: createRef(),
       },
       scrollKey: newCellId,
+    };
+  },
+  undoSplitCell: (state, action: { cellId: CellId }) => {
+    const { cellId } = action;
+
+    const cell = state.cellData[cellId];
+    const newCellIndex = state.cellIds.indexOfOrThrow(cellId) + 1;
+    const newCellId = state.cellIds.at(newCellIndex);
+
+    if (!newCellId) {
+      return state;
+    }
+
+    const cellHandle = state.cellHandles[cellId].current;
+    const newCellHandle = state.cellHandles[newCellId].current;
+
+    if (cellHandle?.editorView == null || newCellHandle?.editorView == null) {
+      return state;
+    }
+
+    const combined = unsplitEditors(
+      cellHandle.editorView,
+      newCellHandle.editorView,
+    );
+    
+    updateEditorCodeFromPython(cellHandle.editorView, combined);
+
+    return {
+      ...state,
+      cellIds: state.cellIds.delete(newCellIndex),
+      cellData: {
+        ...state.cellData,
+        [cellId]: {
+          ...cell,
+          code: combined,
+        },
+      },
+      cellRuntime: {
+        ...state.cellRuntime,
+        [cellId]: {
+          ...state.cellRuntime[cellId],
+          output: null,
+          consoleOutputs: [],
+        },
+      },
+      cellHandles: {
+        ...state.cellHandles,
+      },
     };
   },
 });

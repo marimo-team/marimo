@@ -36,6 +36,7 @@ import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { autoInstantiateAtom } from "@/core/config/config";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
+import { useSplitCellCallback } from "../useSplitCell";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -92,7 +93,8 @@ const CellEditorInternal = ({
   const editorViewParentRef = useRef<HTMLDivElement>(null);
 
   const loading = status === "running" || status === "queued";
-  const { splitCell, sendToTop, sendToBottom } = useCellActions();
+  const { sendToTop, sendToBottom } = useCellActions();
+  const splitCell = useSplitCellCallback();
 
   const handleDelete = useEvent(() => {
     // Cannot delete running cells, since we're waiting for their output.
