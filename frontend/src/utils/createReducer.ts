@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Logger } from "@/utils/Logger";
-import { NoInfer } from "@tanstack/react-table";
+import type { NoInfer } from "@tanstack/react-table";
 import { atom, useSetAtom } from "jotai";
-import { Reducer, useMemo } from "react";
+import { type Reducer, type SetStateAction, useMemo } from "react";
 
 interface ReducerAction<T> {
   type: string;
@@ -51,9 +51,9 @@ export function createReducer<
       state = state || initialState();
       if (action.type in reducers) {
         return reducers[action.type](state, action.payload);
-      } else {
-        Logger.error(`Action type ${action.type} is not defined in reducers.`);
       }
+
+      Logger.error(`Action type ${action.type} is not defined in reducers.`);
       return state;
     },
     createActions: (dispatch: Dispatch) => {
@@ -95,16 +95,23 @@ export function createReducerAndAtoms<
   };
 
   const valueAtom = atom(initialState());
+  // map of SetAtom => Actions
+  const actionsMap = new WeakMap();
 
   function useActions() {
     const setState = useSetAtom(valueAtom);
 
-    return useMemo(() => {
-      const actions = createActions((action) => {
-        setState((state) => reducerWithMiddleware(state, action));
-      });
-      return actions;
-    }, [setState]);
+    if (!actionsMap.has(setState)) {
+      actionsMap.set(
+        setState,
+        createActions((action) => {
+          setState((state) => reducerWithMiddleware(state, action));
+        }),
+      );
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return actionsMap.get(setState)!;
   }
 
   return {
