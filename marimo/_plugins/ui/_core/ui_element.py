@@ -4,6 +4,7 @@ from __future__ import annotations
 import abc
 import base64
 import copy
+import sys
 import types
 import uuid
 import weakref
@@ -512,3 +513,10 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         their own side-effects.
         """
         return copy.deepcopy(self)
+
+    def __bool__(self) -> bool:
+        sys.stderr.write(
+            "The truth value of a UIElement is always True. You "
+            "probably want to call `.value` instead."
+        )
+        return True
