@@ -16,7 +16,6 @@ import type { DataType } from "@/core/kernel/messages";
 import type { FormatOption } from "./types";
 import { prettyNumber, prettyScientificNumber } from "@/utils/numbers";
 import { logNever } from "@/utils/assertNever";
-import {UrlDetector} from "../UrlDetector";
 
 export const ColumnFormattingFeature: TableFeature = {
   // define the column formatting's initial state
