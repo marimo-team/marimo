@@ -1,11 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { expect, describe, it } from "vitest";
 import { outputIsStale } from "../cell";
-import { OutputMessage } from "@/core/kernel/messages";
-import { Seconds } from "@/utils/time";
-import { CellStatus } from "@/core/network/types";
+import type { OutputMessage } from "@/core/kernel/messages";
+import type { Seconds } from "@/utils/time";
+import type { RuntimeState } from "@/core/network/types";
 
-const STATUSES: CellStatus[] = [
+const STATUSES: RuntimeState[] = [
   "queued",
   "running",
   "idle",
@@ -41,7 +41,7 @@ describe("outputIsStale", () => {
 
   it("should return true if the cell is loading", () => {
     const cell = {
-      status: "running" as CellStatus,
+      status: "running" as RuntimeState,
       staleInputs: false,
       output: null,
       runStartTimestamp: null,
@@ -53,7 +53,7 @@ describe("outputIsStale", () => {
 
   it("should return false if the cell is running and output is received after run started", () => {
     const cell = {
-      status: "running" as CellStatus,
+      status: "running" as RuntimeState,
       staleInputs: false,
       output: createOutput(),
       runStartTimestamp: (Date.now() - 1000) as Seconds, // Output received after run started
@@ -65,7 +65,7 @@ describe("outputIsStale", () => {
 
   it("should return true if the cell status is stale", () => {
     const cell = {
-      status: "disabled-transitively" as CellStatus,
+      status: "disabled-transitively" as RuntimeState,
       staleInputs: true,
       output: null,
       runStartTimestamp: null,
@@ -77,7 +77,7 @@ describe("outputIsStale", () => {
 
   it("should return false if the cell is interrupted", () => {
     const cell = {
-      status: "running" as CellStatus,
+      status: "running" as RuntimeState,
       staleInputs: false,
       output: null,
       runStartTimestamp: null,
@@ -89,7 +89,7 @@ describe("outputIsStale", () => {
 
   it("should return true if the cell is running and output is received before run started", () => {
     const cell = {
-      status: "running" as CellStatus,
+      status: "running" as RuntimeState,
       staleInputs: false,
       output: createOutput(),
       runStartTimestamp: (Date.now() + 1000) as Seconds, // Output received before run started
@@ -101,7 +101,7 @@ describe("outputIsStale", () => {
 
   it("should return false if the cell is idle and output is received", () => {
     const cell = {
-      status: "idle" as CellStatus,
+      status: "idle" as RuntimeState,
       staleInputs: false,
       output: createOutput(),
       runStartTimestamp: null,
@@ -113,7 +113,7 @@ describe("outputIsStale", () => {
 
   it("should return true if the cell is queued", () => {
     const cell = {
-      status: "queued" as CellStatus,
+      status: "queued" as RuntimeState,
       staleInputs: false,
       output: null,
       runStartTimestamp: null,
@@ -125,7 +125,7 @@ describe("outputIsStale", () => {
 
   it("should return true if the cell is running but no output is received", () => {
     const cell = {
-      status: "running" as CellStatus,
+      status: "running" as RuntimeState,
       staleInputs: false,
       output: null,
       runStartTimestamp: Date.now() as Seconds,
@@ -137,7 +137,7 @@ describe("outputIsStale", () => {
 
   it("should return false if the cell is idle and not edited", () => {
     const cell = {
-      status: "idle" as CellStatus,
+      status: "idle" as RuntimeState,
       staleInputs: false,
       output: null,
       runStartTimestamp: null,
@@ -150,7 +150,7 @@ describe("outputIsStale", () => {
   it("should return false if the cell is interrupted but also edited", () => {
     // We likely don't get in this state since before a cell is interrupted, it is run and we remove the edited state
     const cell = {
-      status: "idle" as CellStatus,
+      status: "idle" as RuntimeState,
       staleInputs: false,
       output: null,
       runStartTimestamp: null,
@@ -162,7 +162,7 @@ describe("outputIsStale", () => {
 
   it("should return true if the cell is interrupted but has a stale status", () => {
     const cell = {
-      status: "disabled-transitively" as CellStatus,
+      status: "disabled-transitively" as RuntimeState,
       staleInputs: true,
       output: null,
       runStartTimestamp: null,

@@ -6,7 +6,7 @@ import mimetypes
 import os
 import re
 import shutil
-from typing import List, Optional, Union
+from typing import List, Literal, Optional, Union
 
 from marimo._server.files.file_system import FileSystem
 from marimo._server.models.files import FileDetailsResponse, FileInfo
@@ -107,7 +107,7 @@ class OSFileSystem(FileSystem):
     def create_file_or_directory(
         self,
         path: str,
-        file_type: str,
+        file_type: Literal["file", "directory"],
         name: str,
         contents: Optional[bytes],
     ) -> FileInfo:

@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { PropsWithChildren } from "react";
+import React, { type PropsWithChildren } from "react";
 import { Dialog } from "../ui/dialog";
 import {
   AlertDialog,
@@ -11,6 +11,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../ui/alert-dialog";
+import { Input } from "../ui/input";
+import { Button } from "../ui/button";
 
 interface ModalContextType {
   modal: React.ReactNode | null;
@@ -89,6 +91,54 @@ export function useImperativeModal() {
                 Ok
               </AlertDialogAction>
             </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>,
+      );
+    },
+    openPrompt: (opts: {
+      title: React.ReactNode;
+      description?: React.ReactNode;
+      defaultValue?: string;
+      onConfirm: (value: string) => void;
+    }) => {
+      context.setModal(
+        <AlertDialog
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) {
+              closeModal();
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                opts.onConfirm(e.currentTarget.prompt.value);
+                closeModal();
+              }}
+            >
+              <AlertDialogHeader>
+                <AlertDialogTitle>{opts.title}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {opts.description}
+                </AlertDialogDescription>
+                <Input
+                  defaultValue={opts.defaultValue}
+                  className="my-4 h-8"
+                  name="prompt"
+                  required={true}
+                  autoFocus={true}
+                  autoComplete="off"
+                />
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={closeModal}>
+                  Cancel
+                </AlertDialogCancel>
+                <Button type="submit">Ok</Button>
+              </AlertDialogFooter>
+            </form>
           </AlertDialogContent>
         </AlertDialog>,
       );

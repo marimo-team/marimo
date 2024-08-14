@@ -3,7 +3,7 @@ import { atom, useAtomValue, useSetAtom } from "jotai";
 import type { CellId } from "./ids";
 import { type NotebookState, SCRATCH_CELL_ID, notebookAtom } from "./cells";
 import type { EditorView } from "@codemirror/view";
-import type { CellConfig, CellStatus } from "../network/types";
+import type { CellConfig, RuntimeState } from "../network/types";
 
 /**
  * Holds state for the last focused cell.
@@ -27,7 +27,7 @@ export const lastFocusedCellAtom = atom<{
   name: string;
   config: CellConfig;
   cellId: CellId;
-  status: CellStatus;
+  status: RuntimeState;
   getEditorView: () => EditorView | null;
   hasOutput: boolean;
 } | null>((get) => {

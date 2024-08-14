@@ -51,13 +51,13 @@ import { MarkdownIcon, PythonIcon } from "../cell/code/icons";
 import { aiEnabledAtom, autoInstantiateAtom } from "@/core/config/config";
 import { useDeleteCellCallback } from "../cell/useDeleteCell";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import type { CellConfig, CellStatus } from "@/core/network/types";
+import type { CellConfig, RuntimeState } from "@/core/network/types";
 import { kioskModeAtom } from "@/core/mode";
 
 export interface CellActionButtonProps
   extends Pick<CellData, "name" | "config"> {
   cellId: CellId;
-  status: CellStatus;
+  status: RuntimeState;
   hasOutput: boolean;
   getEditorView: () => EditorView | null;
 }

@@ -92,8 +92,9 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
   }
 
   const mimeType = data.mimeType || "text/plain";
+  const isEditable = mimeType in mimeToLanguage;
 
-  if (!data.contents) {
+  if (!data.contents && !isEditable) {
     // Show details instead of contents
     return (
       <div className="grid grid-cols-2 gap-2 p-6">
@@ -170,7 +171,7 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
     );
   }
 
-  if (mimeType === "text/csv") {
+  if (mimeType === "text/csv" && data.contents) {
     return (
       <>
         {header}
