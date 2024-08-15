@@ -9,7 +9,7 @@ from typing import Literal, Optional
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._data.sql_visitor import normalize_sql_f_string
+from marimo._ast.sql_visitor import find_created_tables, normalize_sql_f_string
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.variables import is_local
 
@@ -401,17 +401,33 @@ class ScopedVisitor(ast.NodeVisitor):
                         tables = duckdb.get_table_names(statement.query)
                     except duckdb.ProgrammingError:
                         self.generic_visit(node)
-                        return
+                        continue
                     except BaseException as e:
                         LOGGER.warning("Unexpected duckdb error %s", e)
                         self.generic_visit(node)
-                        return
+                        continue
 
                     for table in tables:
                         # Table may be a URL or something else that
                         # isn't a Python variable
                         if table.isidentifier():
                             self._add_ref(table, deleted=False)
+
+                    # Add all tables created in the query to the defs
+                    try:
+                        created_tables = find_created_tables(sql)
+                    except duckdb.ProgrammingError:
+                        self.generic_visit(node)
+                        continue
+                    except BaseException as e:
+                        LOGGER.warning("Unexpected duckdb error %s", e)
+                        self.generic_visit(node)
+                        continue
+
+                    for _table in created_tables:
+                        # TODO:
+                        # self._define_sql()
+                        pass
 
         # Visit arguments, keyword args, etc.
         self.generic_visit(node)

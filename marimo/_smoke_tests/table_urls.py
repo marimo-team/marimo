@@ -13,11 +13,20 @@ def __():
 @app.cell
 def __(mo):
     mo.ui.table(
-      [
-        { "title": 'New York', "url": 'https://en.wikipedia.org/wiki/New_York_City', },
-        { "title": 'London', "url": 'https://en.wikipedia.org/wiki/London', },
-        { "title": 'Paris', "url": 'https://en.wikipedia.org/wiki/Paris', },
-      ],
+        [
+            {
+                "title": "New York",
+                "url": "https://en.wikipedia.org/wiki/New_York_City",
+            },
+            {
+                "title": "London",
+                "url": "https://en.wikipedia.org/wiki/London",
+            },
+            {
+                "title": "Paris",
+                "url": "https://en.wikipedia.org/wiki/Paris",
+            },
+        ],
     )
     return
 

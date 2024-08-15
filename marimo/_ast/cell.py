@@ -6,8 +6,8 @@ import dataclasses
 import inspect
 from typing import TYPE_CHECKING, Any, Literal, Mapping, Optional
 
+from marimo._ast.sql_visitor import SQLVisitor
 from marimo._ast.visitor import ImportData, Name, VariableData
-from marimo._data.sql_visitor import SQLVisitor
 from marimo._utils.deep_merge import deep_merge
 
 CellId_t = str
