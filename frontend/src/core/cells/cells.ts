@@ -26,7 +26,7 @@ import { splitAtom, selectAtom } from "jotai/utils";
 import { isStaticNotebook, parseStaticState } from "../static/static-state";
 import { type CellLog, getCellLogsForMessage } from "./logs";
 import { deserializeBase64, deserializeJson } from "@/utils/json/base64";
-import { historyField } from "@codemirror/commands";
+import { historyField, undo } from "@codemirror/commands";
 import { clamp } from "@/utils/math";
 import type { LayoutState } from "../layout/layout";
 import { notebookIsRunning } from "./utils";
@@ -816,6 +816,44 @@ const {
         [newCellId]: createRef(),
       },
       scrollKey: newCellId,
+    };
+  },
+  undoSplitCell: (state, action: { cellId: CellId }) => {
+    const { cellId } = action;
+
+    const cell = state.cellData[cellId];
+    const newCellIndex = state.cellIds.indexOfOrThrow(cellId) + 1;
+    const cellHandle = state.cellHandles[cellId].current;
+
+    if (cellHandle?.editorView == null) {
+      return state;
+    }
+
+    undo(cellHandle.editorView);
+    const code = cellHandle.editorView.state.doc.toString();
+
+    return {
+      ...state,
+      cellIds: state.cellIds.delete(newCellIndex),
+      cellData: {
+        ...state.cellData,
+        [cellId]: {
+          ...cell,
+          code: code,
+          edited: Boolean(code) && code.trim() !== cell.lastCodeRun?.trim(),
+        },
+      },
+      cellRuntime: {
+        ...state.cellRuntime,
+        [cellId]: {
+          ...state.cellRuntime[cellId],
+          output: null,
+          consoleOutputs: [],
+        },
+      },
+      cellHandles: {
+        ...state.cellHandles,
+      },
     };
   },
 });
