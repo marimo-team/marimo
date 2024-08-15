@@ -217,11 +217,14 @@ class TestFindCreatedTables:
         ) AS t("col--1", "col--2");
 
         CREATE TABLE "my/*weird*/table" (id INT);
+
+        CREATE TABLE "with a space" (id INT);
         """
         assert find_created_tables(sql) == [
             "my--table",
             "my_table_with_select",
             "my/*weird*/table",
+            "with a space",
         ]
 
 

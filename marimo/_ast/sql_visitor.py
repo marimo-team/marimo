@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import ast
 import re
-from typing import Any, Optional
+from typing import Optional
 
 from marimo._dependencies.dependencies import DependencyManager
 
@@ -89,28 +89,6 @@ def find_created_tables(sql_statement: str) -> list[str]:
 
     import duckdb
 
-    def remove_comments(sql: str) -> str:
-        # Function to replace comments with spaces, preserving newlines
-        def replace_with_spaces(match: re.Match[Any]) -> str:
-            return " " * len(match.group())
-
-        # Split the SQL into strings and non-strings
-        parts = re.split(r'(\'(?:\'\'|[^\'])*\'|"(?:""|[^"])*")', sql)
-
-        for i in range(0, len(parts), 2):
-            # Remove single-line comments
-            parts[i] = re.sub(
-                r"--.*$", replace_with_spaces, parts[i], flags=re.MULTILINE
-            )
-
-            # Remove multi-line comments
-            parts[i] = re.sub(r"/\*[\s\S]*?\*/", replace_with_spaces, parts[i])
-
-        # Join the parts back together
-        return "".join(parts)
-
-    sql_statement = remove_comments(sql_statement)
-
     tokens = duckdb.tokenize(sql_statement)
     created_tables: list[str] = []
     i = 0
@@ -118,35 +96,42 @@ def find_created_tables(sql_statement: str) -> list[str]:
     def token_str(i: int) -> str:
         token = tokens[i]
         start = token[0]
-        end = len(sql_statement) - 1
-        if i + 1 < len(tokens):
-            end = tokens[i + 1][0]
-        return sql_statement[start:end].strip()
 
-    def keyword_token_str(i: int) -> str:
-        return token_str(i).lower()
+        if sql_statement[start] == '"':
+            # If it starts with a quote, find the matching end quote
+            end = sql_statement.find('"', start + 1) + 1
+        else:
+            # For non-quoted tokens, find until space or comment
+            maybe_end = re.search(r"[\s\-/]", sql_statement[start:])
+            end = (
+                start + maybe_end.start() if maybe_end else len(sql_statement)
+            )
+            if i + 1 < len(tokens):
+                # For tokens squashed together e.g. '(select' or 'x);;'
+                # in (select * from x);;
+                end = min(end, tokens[i + 1][0])
 
-    def token_type(i: int) -> str:
-        return tokens[i][1]
+        return sql_statement[start:end]
+
+    def is_keyword(i: int, match: str) -> bool:
+        if tokens[i][1] != duckdb.token_type.keyword:
+            return False
+        return token_str(i).lower() == match
 
     # See https://duckdb.org/docs/sql/statements/create_table#syntax
     # for more information on the CREATE TABLE syntax.
     while i < len(tokens):
-        if (
-            keyword_token_str(i) == "create"
-            and token_type(i) == duckdb.token_type.keyword
-        ):
+        if is_keyword(i, "create"):
             i += 1
-            if i < len(tokens) and keyword_token_str(i) == "or":
+            if i < len(tokens) and is_keyword(i, "or"):
                 i += 2  # Skip 'OR REPLACE'
-            if i < len(tokens) and keyword_token_str(i) in (
-                "temporary",
-                "temp",
+            if i < len(tokens) and (
+                is_keyword(i, "temporary") or is_keyword(i, "temp")
             ):
                 i += 1  # Skip 'TEMPORARY' or 'TEMP'
-            if i < len(tokens) and keyword_token_str(i) == "table":
+            if i < len(tokens) and is_keyword(i, "table"):
                 i += 1
-                if i < len(tokens) and keyword_token_str(i) == "if":
+                if i < len(tokens) and is_keyword(i, "if"):
                     i += 3  # Skip 'IF NOT EXISTS'
                 if i < len(tokens):
                     table_name = token_str(i)
