@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   DataTableColumnHeader,
   DataTableColumnHeaderWithSummary,
@@ -7,11 +7,11 @@ import {
 import { Checkbox } from "../ui/checkbox";
 import { MimeCell } from "./mime-cell";
 import { uniformSample } from "./uniformSample";
-import { DataType } from "@/core/kernel/messages";
+import type { DataType } from "@/core/kernel/messages";
 import { TableColumnSummary } from "./column-summary";
-import { FilterType } from "./filters";
-import { FieldTypesWithExternalType } from "./types";
-import { UrlDetector } from "./UrlDetector";
+import type { FilterType } from "./filters";
+import type { FieldTypesWithExternalType } from "./types";
+import { UrlDetector } from "./url-detector";
 
 interface ColumnInfo {
   key: string;
