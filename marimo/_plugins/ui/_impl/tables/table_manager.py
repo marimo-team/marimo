@@ -24,8 +24,13 @@ FieldTypes = Dict[ColumnName, Tuple[FieldType, ExternalDataType]]
 
 
 class TableManager(abc.ABC, Generic[T]):
+    # Upper limit for frontend table component to ensure browser performance
     DEFAULT_ROW_LIMIT = 20_000
     DEFAULT_COL_LIMIT = 100
+    # Upper limit for column summaries to avoid hanging up the kernel
+    # Note: Keep this value in sync with DataTablePlugin's banner text
+    DEFAULT_SUMMARY_ROW_LIMIT = 1_000_000
+
     type: str = ""
 
     def __init__(self, data: T) -> None:

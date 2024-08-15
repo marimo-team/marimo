@@ -10,6 +10,7 @@ from marimo._plugins import ui
 from marimo._plugins.ui._impl.table import SearchTableArgs, SortArgs
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
 from marimo._plugins.ui._impl.utils.dataframe import TableData
+from marimo._runtime.functions import EmptyArgs
 from marimo._runtime.runtime import Kernel
 
 
@@ -307,3 +308,16 @@ def test_table_with_too_many_rows_unknown_total():
     assert table._component_args["has-more"] is True
     assert table._component_args["total-rows"] == "too_many"
     assert len(table._component_args["data"]) == 30
+
+
+def test_table_with_too_many_rows_column_summaries_disabled():
+    data = {"a": list(range(20))}
+    table = ui.table(data, _internal_summary_row_limit=10)
+
+    summaries_disabled = table.get_column_summaries(EmptyArgs())
+    assert summaries_disabled.is_disabled is True
+
+    # search results are 2 and 12
+    table.search(SearchTableArgs(query="2"))
+    summaries_enabled = table.get_column_summaries(EmptyArgs())
+    assert summaries_enabled.is_disabled is False
