@@ -419,6 +419,9 @@ const DataTableComponent = ({
         </Banner>
       )}
       {columnSummaries?.is_disabled && (
+        // Note: Keep the text in sync with the constant defined in table_manager.py
+        //       This hard-code can be removed when Functions can pass structural
+        //       error information from the backend
         <Banner className="mb-2 rounded">
           Column summaries are unavailable. Filter your data to fewer than
           1,000,000 rows.
