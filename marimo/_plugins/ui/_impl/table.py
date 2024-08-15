@@ -341,6 +341,7 @@ class table(
     def get_column_summaries(self, args: EmptyArgs) -> ColumnSummaries:
         del args
 
+        # Avoid expensive column summaries calculation by setting a upper limit
         if (
             self._filtered_manager.get_num_rows(force=True) or 0
         ) > TableManager.DEFAULT_SUMMARY_ROW_LIMIT:
