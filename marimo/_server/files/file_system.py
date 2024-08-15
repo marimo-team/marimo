@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from marimo._server.models.files import FileDetailsResponse, FileInfo
 
@@ -32,7 +32,7 @@ class FileSystem(ABC):
     def create_file_or_directory(
         self,
         path: str,
-        file_type: str,
+        file_type: Literal["file", "directory"],
         name: str,
         contents: Optional[bytes],
     ) -> FileInfo:

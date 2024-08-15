@@ -37,7 +37,7 @@ import {
 import { invariant } from "@/utils/invariant";
 import type {
   CellConfig,
-  CellStatus,
+  RuntimeState,
   UpdateCellIdsRequest,
 } from "../network/types";
 import { getUserConfig } from "@/core/config/config";
@@ -1034,7 +1034,7 @@ export const getCellEditorView = (cellId: CellId) => {
 export function isUninstantiated(
   autoInstantiate: boolean,
   executionTime: number | null,
-  status: CellStatus,
+  status: RuntimeState,
   errored: boolean,
   interrupted: boolean,
   stopped: boolean,

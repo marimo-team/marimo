@@ -106,7 +106,7 @@ class plotly(UIElement[PlotlySelection, List[Dict[str, Any]]]):
         label: str = "",
         on_change: Optional[Callable[[JSONType], None]] = None,
     ) -> None:
-        DependencyManager.require_plotly("for `mo.ui.plotly`")
+        DependencyManager.plotly.require("for `mo.ui.plotly`")
 
         import plotly.io as pio  # type:ignore
 

@@ -66,7 +66,7 @@ export const UserConfigForm: React.FC = () => {
             To get a Codeium API key, follow{" "}
             <a
               className="text-link hover:underline"
-              href="https://docs.marimo.io/guides/ai_completion.html#codeium-copilot"
+              href="https://docs.marimo.io/guides/editor_features/ai_completion.html#codeium-copilot"
               target="_blank"
               rel="noreferrer"
             >
@@ -520,7 +520,7 @@ export const UserConfigForm: React.FC = () => {
             activate marimo's AI assistant; see{" "}
             <a
               className="text-link hover:underline"
-              href="https://docs.marimo.io/guides/ai_completion.html"
+              href="https://docs.marimo.io/guides/editor_features/ai_completion.html"
               target="_blank"
               rel="noreferrer"
             >

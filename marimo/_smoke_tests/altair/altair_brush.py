@@ -1,13 +1,14 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.7.5"
+__generated_with = "0.7.20"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def __(mo):
-    mo.md(r"## Data")
+    mo.md(r"""## Data""")
     return
 
 
@@ -33,7 +34,7 @@ def __():
 
 @app.cell
 def __(mo):
-    mo.md(r"## Plain Altair")
+    mo.md(r"""## Plain Altair""")
     return
 
 
@@ -61,7 +62,7 @@ def __(alt, traces):
 
 @app.cell
 def __(mo):
-    mo.md(r"## Example of the Or ( | ) operator")
+    mo.md(r"""## Example of the Or ( | ) operator""")
     return
 
 
@@ -91,7 +92,7 @@ def __(alt, mo, traces):
 
 @app.cell
 def __(mo):
-    mo.md(r"## Example of the Or ( | ) operator with selection")
+    mo.md(r"""## Example of the Or ( | ) operator with selection""")
     return
 
 

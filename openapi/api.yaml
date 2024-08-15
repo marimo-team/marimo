@@ -146,7 +146,7 @@ components:
           nullable: true
           type: boolean
         status:
-          $ref: '#/components/schemas/CellStatus'
+          $ref: '#/components/schemas/RuntimeState'
           nullable: true
         timestamp:
           type: number
@@ -177,13 +177,6 @@ components:
       - data
       - timestamp
       type: object
-    CellStatus:
-      enum:
-      - idle
-      - queued
-      - running
-      - disabled-transitively
-      type: string
     CodeCompletionRequest:
       properties:
         cellId:
@@ -534,6 +527,9 @@ components:
         path:
           type: string
         type:
+          enum:
+          - file
+          - directory
           type: string
       required:
       - path
@@ -1435,6 +1431,13 @@ components:
       required:
       - filename
       type: object
+    RenameRequest:
+      properties:
+        filename:
+          type: string
+      required:
+      - filename
+      type: object
     RunRequest:
       properties:
         cellIds:
@@ -1465,6 +1468,13 @@ components:
       required:
       - files
       type: object
+    RuntimeState:
+      enum:
+      - idle
+      - queued
+      - running
+      - disabled-transitively
+      type: string
     SaveAppConfigurationRequest:
       properties:
         config:
@@ -1761,7 +1771,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.7.9
+  version: 0.7.20
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

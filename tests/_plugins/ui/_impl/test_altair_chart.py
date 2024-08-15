@@ -1,6 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
+import sys
+
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
@@ -8,11 +11,20 @@ from marimo._plugins.ui._impl import altair_chart
 from marimo._plugins.ui._impl.altair_chart import (
     ChartSelection,
     _filter_dataframe,
+    _parse_spec,
 )
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
+from tests.mocks import snapshotter
 
-HAS_DEPS = DependencyManager.has_pandas() and DependencyManager.has_altair()
+snapshot = snapshotter(__file__)
+
+HAS_DEPS = (
+    DependencyManager.pandas.has()
+    and DependencyManager.altair.has()
+    # altair produces different output on windows
+    and sys.platform != "win32"
+)
 
 if HAS_DEPS:
     import pandas as pd
@@ -252,3 +264,52 @@ def test_get_dataframe_json() -> None:
         alt.Chart(data).mark_point().encode(x="values:Q")
     )
     assert isinstance(chart.dataframe, pd.DataFrame)
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_parse_spec_url() -> None:
+    import altair as alt
+
+    data = "https://cdn.jsdelivr.net/npm/vega-datasets@v1.29.0/data/stocks.csv"
+    chart = alt.Chart(data).mark_point().encode(x="values:Q")
+    spec = _parse_spec(chart)
+    snapshot("parse_spec_url.txt", json.dumps(spec, indent=2))
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_parse_spec_pandas() -> None:
+    import altair as alt
+    import pandas as pd
+
+    data = pd.DataFrame({"values": [1, 2, 3]})
+    chart = alt.Chart(data).mark_point().encode(x="values:Q")
+    spec = _parse_spec(chart)
+    snapshot("parse_spec_pandas.txt", json.dumps(spec, indent=2))
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_parse_spec_narwhal() -> None:
+    import altair as alt
+    import narwhals as nw
+
+    data = nw.from_native(pd.DataFrame({"values": [1, 2, 3]}))
+    chart = alt.Chart(data).mark_point().encode(x="values:Q")
+    spec = _parse_spec(chart)
+    snapshot("parse_spec_narwhal.txt", json.dumps(spec, indent=2))
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_parse_spec_geopandas() -> None:
+    import altair as alt
+    import geopandas as gpd
+
+    data = gpd.read_file(gpd.datasets.get_path("naturalearth_lowres"))
+    # take top 3 countries with largest population
+    data = data.sort_values(by="pop_est", ascending=False).head(3)
+    chart = (
+        alt.Chart(data)
+        .mark_geoshape()
+        .encode(shape="geometry", color="pop_est:Q")
+    )
+    spec = _parse_spec(chart)
+    snapshot("parse_spec_geopandas.txt", json.dumps(spec, indent=2))

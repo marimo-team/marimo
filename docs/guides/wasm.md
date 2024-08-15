@@ -156,7 +156,7 @@ think of it as an aesthetic or practical choice.
 WASM notebooks can be embedded into other webpages using the HTML `<iframe>`
 tag.
 
-### Embedding an blank notebook
+### Embedding a blank notebook
 
 Use the following snippet to embed a blank marimo notebook into your web page,
 providing your users with an interactive code playground.

@@ -15,7 +15,7 @@ from marimo._plugins.ui._impl.tables.polars_table import (
 from marimo._plugins.ui._impl.tables.table_manager import TableManager
 from tests.mocks import snapshotter
 
-HAS_DEPS = DependencyManager.has_polars()
+HAS_DEPS = DependencyManager.polars.has()
 
 snapshot = snapshotter(__file__)
 

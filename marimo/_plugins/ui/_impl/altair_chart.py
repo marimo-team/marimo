@@ -49,6 +49,18 @@ def _has_binning(spec: VegaSpec) -> bool:
     return False
 
 
+def _has_geoshape(spec: VegaSpec) -> bool:
+    """Return True if the spec has geoshape."""
+    if "mark" not in spec:
+        return False
+    type_or_dict = spec.get("mark", {})
+    if isinstance(type_or_dict, str):
+        return type_or_dict == "geoshape"
+
+    mark_type: str | None = type_or_dict.get("type")
+    return mark_type == "geoshape"
+
+
 def _filter_dataframe(
     df: pd.DataFrame, selection: ChartSelection
 ) -> pd.DataFrame:
@@ -127,6 +139,13 @@ def _parse_spec(spec: altair.TopLevelMixin) -> VegaSpec:
     # instead of using a vega-lite spec
     if altair.data_transformers.active == "vegafusion":
         return spec.to_dict(format="vega")  # type: ignore
+
+    # If this is a geoshape, use default transformer
+    # since ours does not support geoshapes
+    if _has_geoshape(spec.to_dict()):
+        with altair.data_transformers.enable("default"):
+            return spec.to_dict()  # type: ignore
+
     with altair.data_transformers.enable("marimo"):
         return spec.to_dict()  # type: ignore
 
@@ -203,7 +222,7 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
         label: str = "",
         on_change: Optional[Callable[[pd.DataFrame], None]] = None,
     ) -> None:
-        DependencyManager.require_altair(why="to use `mo.ui.altair_chart`")
+        DependencyManager.altair.require(why="to use `mo.ui.altair_chart`")
 
         import altair as alt
 
@@ -259,6 +278,14 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
             )
             chart_selection = False
             legend_selection = False
+        if _has_geoshape(vega_spec) and (has_chart_selection):
+            sys.stderr.write(
+                "Geoshapes + chart selection is not yet supported in "
+                "marimo.ui.chart.\n"
+                "If you'd like this feature, please file an issue: "
+                "https://github.com/marimo-team/marimo/issues\n"
+            )
+            chart_selection = False
 
         self.dataframe = self._get_dataframe_from_chart(chart)
 
@@ -294,7 +321,7 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
         return chart.data
 
     def _convert_value(self, value: ChartSelection) -> Any:
-        from altair import UndefinedType
+        from altair import Undefined
 
         self._chart_selection = value
         flat, _ = flatten.flatten(value)
@@ -306,7 +333,7 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
         # When using layered charts, you can no longer access the
         # chart data directly
         # Instead, we should push user to call .apply_selection(df)
-        if isinstance(self.dataframe, UndefinedType):
+        if self.dataframe is Undefined:
             return self.dataframe
 
         # If we have transforms, we need to filter the dataframe
@@ -399,10 +426,10 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
 
     @property
     def value(self) -> pd.DataFrame:
-        from altair import UndefinedType
+        from altair import Undefined
 
         value = super().value
-        if isinstance(value, UndefinedType):
+        if value is Undefined:
             sys.stderr.write(
                 "The underlying chart data is not available in layered"
                 " or stacked charts. "

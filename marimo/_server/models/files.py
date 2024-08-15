@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from marimo._server.models.models import BaseResponse
 
@@ -48,7 +48,7 @@ class FileCreateRequest:
     # The path where to create the file or directory
     path: str
     # 'file' or 'directory'
-    type: str
+    type: Literal["file", "directory"]
     # The name of the file or directory
     name: str
     # The contents of the file, base64-encoded

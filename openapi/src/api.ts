@@ -814,7 +814,7 @@ export interface components {
       name: "cell-op";
       output?: components["schemas"]["CellOutput"];
       stale_inputs?: boolean | null;
-      status?: components["schemas"]["CellStatus"];
+      status?: components["schemas"]["RuntimeState"];
       timestamp: number;
     };
     CellOutput: {
@@ -831,8 +831,6 @@ export interface components {
       mimetype: components["schemas"]["MimeType"];
       timestamp: number;
     };
-    /** @enum {string} */
-    CellStatus: "idle" | "queued" | "running" | "disabled-transitively";
     CodeCompletionRequest: {
       cellId: string;
       document: string;
@@ -963,7 +961,8 @@ export interface components {
       contents?: string | null;
       name: string;
       path: string;
-      type: string;
+      /** @enum {string} */
+      type: "file" | "directory";
     };
     FileCreateResponse: {
       info?: components["schemas"]["FileInfo"];
@@ -1337,6 +1336,9 @@ export interface components {
     RenameFileRequest: {
       filename: string;
     };
+    RenameRequest: {
+      filename: string;
+    };
     RunRequest: {
       cellIds: string[];
       codes: string[];
@@ -1347,6 +1349,8 @@ export interface components {
     RunningNotebooksResponse: {
       files: components["schemas"]["MarimoFile"][];
     };
+    /** @enum {string} */
+    RuntimeState: "idle" | "queued" | "running" | "disabled-transitively";
     SaveAppConfigurationRequest: {
       config: {
         [key: string]: unknown;

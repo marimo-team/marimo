@@ -35,6 +35,7 @@ import { isWasm } from "@/core/wasm/utils";
 import type { CellConfig } from "@/core/network/types";
 import { useAtomValue } from "jotai";
 import { FloatingOutline } from "../../chrome/panels/outline/floating-outline";
+import { KnownQueryParams } from "@/core/constants";
 
 type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;
@@ -48,11 +49,11 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
   const kioskMode = useAtomValue(kioskModeAtom);
 
   const urlParams = new URLSearchParams(window.location.search);
-  const showCodeDefault = urlParams.get("show-code");
+  const showCodeDefault = urlParams.get(KnownQueryParams.showCode);
   const [showCode, setShowCode] = useState(() => {
     // Default to showing code if the notebook is static or wasm
     return showCodeDefault === null
-      ? isStaticNotebook() || isWasm()
+      ? isStaticNotebook() || isWasm() || kioskMode
       : showCodeDefault === "true";
   });
 
@@ -68,7 +69,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
     // If it is a static-notebook or wasm-read-only-notebook, code is always included,
     // but it can be turned it off via a query parameter (include-code=false)
 
-    const includeCode = urlParams.get("include-code");
+    const includeCode = urlParams.get(KnownQueryParams.includeCode);
     return mode === "read" && includeCode !== "false" && cellsHaveCode;
   };
 

@@ -2,20 +2,27 @@
 from __future__ import annotations
 
 import base64
-import json
 from typing import TYPE_CHECKING, Any, Dict, Literal, TypedDict, Union
 
 import marimo._output.data.data as mo_data
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.utils import build_data_url
 from marimo._plugins.ui._impl.tables.utils import (
     get_table_manager,
+    get_table_manager_or_none,
 )
 
 if TYPE_CHECKING:
+    import narwhals as nw  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
     import pandas as pd
+    import polars as pl
 
-Data = Union[Dict[Any, Any], "pd.DataFrame"]
-_DataType = Union[Dict[Any, Any], "pd.DataFrame"]
+Data = Union[
+    Dict[Any, Any], "pd.DataFrame", "pl.DataFrame", "nw.DataFrame[Any]"
+]
+_DataType = Union[
+    Dict[Any, Any], "pd.DataFrame", "pl.DataFrame", "nw.DataFrame[Any]"
+]
 
 
 class _JsonFormatDict(TypedDict):
@@ -79,19 +86,33 @@ def _data_to_json_string(data: _DataType) -> str:
     import pandas as pd
 
     if isinstance(data, pd.DataFrame):
-        sanitized = alt.utils.sanitize_dataframe(data)
+        if "sanitize_pandas_dataframe" in dir(alt.utils):
+            sanitized = alt.utils.sanitize_pandas_dataframe(data)
+        elif "sanitize_dataframe" in dir(alt.utils):
+            sanitized = alt.utils.sanitize_dataframe(data)
+        else:
+            raise NotImplementedError(
+                "No sanitize_pandas_dataframe or "
+                "sanitize_dataframe in altair.utils."
+            )
         as_str = sanitized.to_json(orient="records", double_precision=15)
         assert isinstance(as_str, str)
         return as_str
-    elif isinstance(data, dict):
-        if "values" not in data:
-            raise KeyError("values expected in data dict, but not present.")
-        return json.dumps(data["values"], sort_keys=True)
-    else:
-        raise NotImplementedError(
-            "to_marimo_json only works with data expressed as a DataFrame "
-            + " or as a dict"
-        )
+
+    if DependencyManager.narwhals.has():
+        import narwhals  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+
+        if isinstance(data, narwhals.DataFrame):
+            return _data_to_json_string(narwhals.to_native(data))
+
+    tm = get_table_manager_or_none(data)
+    if tm:
+        return tm.to_json().decode("utf-8")
+
+    raise NotImplementedError(
+        "to_marimo_json only works with data expressed as a DataFrame "
+        + " or as a dict. Got %s" % type(data)
+    )
 
 
 def _data_to_csv_string(data: _DataType) -> str:

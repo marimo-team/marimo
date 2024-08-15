@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.7.9"
+__generated_with = "0.7.20"
 app = marimo.App(width="full")
 
 
@@ -80,7 +80,7 @@ def __(alt, cars, chart_selection_value, legend_selection_value, mo):
 
 @app.cell
 def __(mo):
-    mo.md("# Basic Chart")
+    mo.md("""# Basic Chart""")
     return
 
 
@@ -135,7 +135,7 @@ def __(alt, chart_selection_value, employment, legend_selection_value, mo):
 
 @app.cell
 def __(mo):
-    mo.md("# Another Chart")
+    mo.md("""# Another Chart""")
     return
 
 
@@ -147,7 +147,7 @@ def __(chart2, mo):
 
 @app.cell
 def __(mo):
-    mo.md("# Defined Width + Height")
+    mo.md("""# Defined Width + Height""")
     return
 
 
@@ -203,7 +203,7 @@ def __(alt, chart_selection_value, iris, legend_selection_value, mo):
 
 @app.cell
 def __(mo):
-    mo.md("# Chart + Chart")
+    mo.md("""# Chart + Chart""")
     return
 
 
@@ -215,7 +215,7 @@ def __(chart3, mo):
 
 @app.cell
 def __(mo):
-    mo.md("# Chart + Table")
+    mo.md("""# Chart + Table""")
     return
 
 
@@ -227,7 +227,7 @@ def __(chart3, mo):
 
 @app.cell
 def __(mo):
-    mo.md("# Chart + Table returned as an array")
+    mo.md("""# Chart + Table returned as an array""")
     return
 
 
@@ -267,7 +267,7 @@ def __(alt, cars, chart_selection_value, legend_selection_value, mo):
 
 @app.cell
 def __(mo):
-    mo.md("# Chart with transform")
+    mo.md("""# Chart with transform""")
     return
 
 
@@ -279,7 +279,7 @@ def __(chart4, mo):
 
 @app.cell
 def __(mo):
-    mo.md("# Bar chart")
+    mo.md("""# Bar chart""")
     return
 
 
@@ -331,7 +331,7 @@ def __(hist, mo):
 
 @app.cell
 def __(mo):
-    mo.md("# Pivot and horizontal bar chart")
+    mo.md("""# Pivot and horizontal bar chart""")
     return
 
 
@@ -417,7 +417,7 @@ def __(mo, pie):
 
 @app.cell
 def __(mo):
-    mo.md("# Line Chart")
+    mo.md("""# Line Chart""")
     return
 
 
@@ -442,7 +442,7 @@ def __(line_chart, mo):
 
 @app.cell
 def __(mo):
-    mo.md("# Multi-Line Chart")
+    mo.md("""# Multi-Line Chart""")
     return
 
 
@@ -548,7 +548,7 @@ def __(mo, with_transform):
 
 @app.cell
 def __(mo):
-    mo.md("# Layers")
+    mo.md("""# Layers""")
     return
 
 
@@ -598,7 +598,7 @@ def __(layered_chart, mo):
 
 @app.cell
 def __(mo):
-    mo.md(r"# layered")
+    mo.md(r"""# layered""")
     return
 
 
@@ -621,7 +621,7 @@ def __(alt, data, datum, mo):
 
 @app.cell
 def __(mo):
-    mo.md(r"# hconcat")
+    mo.md(r"""# hconcat""")
     return
 
 
@@ -633,7 +633,7 @@ def __(base, mo):
 
 @app.cell
 def __(mo):
-    mo.md("# vconcat")
+    mo.md("""# vconcat""")
     return
 
 

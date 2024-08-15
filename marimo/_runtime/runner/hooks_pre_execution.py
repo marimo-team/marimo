@@ -30,7 +30,7 @@ def _set_status_to_running(
     runner: cell_runner.Runner,
 ) -> None:
     del runner
-    cell.set_status("running")
+    cell.set_runtime_state("running")
 
 
 PRE_EXECUTION_HOOKS: list[PreExecutionHookType] = [

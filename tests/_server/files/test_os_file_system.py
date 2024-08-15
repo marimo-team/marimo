@@ -24,14 +24,16 @@ def fs():
     return OSFileSystem()
 
 
-def test_create_file(test_dir, fs) -> None:
+def test_create_file(test_dir: str, fs: OSFileSystem) -> None:
     test_file_name = "test_file.txt"
     fs.create_file_or_directory(test_dir, "file", test_file_name, None)
     expected_path = os.path.join(test_dir, test_file_name)
     assert os.path.exists(expected_path)
 
 
-def test_create_file_with_duplicate_name(test_dir, fs) -> None:
+def test_create_file_with_duplicate_name(
+    test_dir: str, fs: OSFileSystem
+) -> None:
     test_file_name = "test_file.txt"
     fs.create_file_or_directory(test_dir, "file", test_file_name, None)
     # Create a file with the same name
@@ -41,24 +43,24 @@ def test_create_file_with_duplicate_name(test_dir, fs) -> None:
     assert os.path.exists(expected_path)
 
 
-def test_create_directory(test_dir, fs) -> None:
+def test_create_directory(test_dir: str, fs: OSFileSystem) -> None:
     test_dir_name = "test_dir"
     fs.create_file_or_directory(test_dir, "directory", test_dir_name, None)
     expected_path = os.path.join(test_dir, test_dir_name)
     assert os.path.isdir(expected_path)
 
 
-def test_create_with_empty_name(test_dir, fs) -> None:
+def test_create_with_empty_name(test_dir: str, fs: OSFileSystem) -> None:
     with pytest.raises(ValueError):
         fs.create_file_or_directory(test_dir, "file", "", None)
 
 
-def test_create_with_disallowed_name(test_dir, fs) -> None:
+def test_create_with_disallowed_name(test_dir: str, fs: OSFileSystem) -> None:
     with pytest.raises(ValueError):
         fs.create_file_or_directory(test_dir, "file", ".", None)
 
 
-def test_list_files(test_dir, fs) -> None:
+def test_list_files(test_dir: str, fs: OSFileSystem) -> None:
     # Create a test file and directory
     test_create_file(test_dir, fs)
     test_create_directory(test_dir, fs)
@@ -66,7 +68,9 @@ def test_list_files(test_dir, fs) -> None:
     assert len(files) == 2  # Expecting 1 file and 1 directory
 
 
-def test_list_files_with_broken_directory_symlink(test_dir, fs) -> None:
+def test_list_files_with_broken_directory_symlink(
+    test_dir: str, fs: OSFileSystem
+) -> None:
     # Create a broken symlink
     broken_symlink = os.path.join(test_dir, "broken_symlink")
     os.symlink("non_existent_file", broken_symlink)
@@ -74,7 +78,7 @@ def test_list_files_with_broken_directory_symlink(test_dir, fs) -> None:
     assert len(files) == 0
 
 
-def test_get_details(test_dir, fs) -> None:
+def test_get_details(test_dir: str, fs: OSFileSystem) -> None:
     test_file_name = "test_file.txt"
     fs.create_file_or_directory(
         test_dir,
@@ -90,7 +94,9 @@ def test_get_details(test_dir, fs) -> None:
 
 
 @pytest.mark.parametrize("encoding", ["utf-8", "iso-8859-1"])
-def test_get_details_marimo_file(test_dir, fs, encoding) -> None:
+def test_get_details_marimo_file(
+    test_dir: str, fs: OSFileSystem, encoding
+) -> None:
     test_file_name = "app.py"
     content = """
         import marimo
@@ -114,7 +120,7 @@ def test_get_details_marimo_file(test_dir, fs, encoding) -> None:
     assert file_info.file.is_marimo_file
 
 
-def test_open_file(test_dir, fs) -> None:
+def test_open_file(test_dir: str, fs: OSFileSystem) -> None:
     test_file_name = "test_file.txt"
     test_content = "Hello, World!"
     with open(os.path.join(test_dir, test_file_name), "w") as f:
@@ -123,7 +129,7 @@ def test_open_file(test_dir, fs) -> None:
     assert content == test_content
 
 
-def test_delete_file(test_dir, fs) -> None:
+def test_delete_file(test_dir: str, fs: OSFileSystem) -> None:
     test_file_name = "test_file.txt"
     file_path = os.path.join(test_dir, test_file_name)
     with open(file_path, "w"):
@@ -132,7 +138,7 @@ def test_delete_file(test_dir, fs) -> None:
     assert not os.path.exists(file_path)
 
 
-def test_move_file(test_dir, fs) -> None:
+def test_move_file(test_dir: str, fs: OSFileSystem) -> None:
     original_file_name = "original.txt"
     new_file_name = "new.txt"
     original_path = os.path.join(test_dir, original_file_name)
@@ -144,7 +150,7 @@ def test_move_file(test_dir, fs) -> None:
     assert not os.path.exists(original_path)
 
 
-def test_move_with_disallowed_name(test_dir, fs) -> None:
+def test_move_with_disallowed_name(test_dir: str, fs: OSFileSystem) -> None:
     original_file_name = "original.txt"
     new_file_name = "."
     original_path = os.path.join(test_dir, original_file_name)
@@ -155,7 +161,7 @@ def test_move_with_disallowed_name(test_dir, fs) -> None:
         fs.move_file_or_directory(original_path, new_path)
 
 
-def test_update_file(test_dir, fs) -> None:
+def test_update_file(test_dir: str, fs: OSFileSystem) -> None:
     test_file_name = "test_file.txt"
     file_path = os.path.join(test_dir, test_file_name)
     with open(file_path, "w") as f:

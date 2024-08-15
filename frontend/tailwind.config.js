@@ -137,10 +137,38 @@ module.exports = {
         "2-fit": "repeat(2, minmax(0, max-content))",
         "3-fit": "repeat(3, minmax(0, max-content))",
       },
+      typography: {
+        DEFAULT: {
+          css: {
+            fontFamily: "var(--text-font)",
+            color: "inherit",
+            pre: {
+              color: "inherit",
+              background: "inherit",
+            },
+            "code::before": {
+              content: "",
+            },
+            "code::after": {
+              content: "",
+            },
+            code: {
+              fontWeight: 500,
+            },
+            "ul > li::marker": {
+              color: "hsl(var(--muted-foreground))",
+            },
+            "ol > li::marker": {
+              color: "hsl(var(--muted-foreground))",
+            },
+          },
+        },
+      },
     },
   },
   plugins: [
     require("tailwindcss-animate"),
+    require("@tailwindcss/typography"),
     plugin(({ addUtilities, addVariant }) => {
       const newUtilities = {
         ".increase-pointer-area-x": {

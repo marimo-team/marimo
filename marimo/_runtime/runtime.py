@@ -16,20 +16,13 @@ import time
 import traceback
 from copy import copy
 from multiprocessing import connection
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Iterator,
-    Optional,
-    cast,
-)
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, cast
 from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t, CellImpl
 from marimo._ast.compiler import compile_cell
-from marimo._ast.visitor import Name
+from marimo._ast.visitor import ImportData, Name
 from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
 from marimo._data.preview_column import get_column_preview
 from marimo._messaging.cell_output import CellChannel
@@ -548,17 +541,19 @@ class Kernel:
             module_reloader is not None
             and module_reloader.cell_uses_stale_modules(cell)
         ):
-            self.graph.set_stale(set([cell.cell_id]))
+            self.graph.set_stale(set([cell.cell_id]), prune_imports=True)
         LOGGER.debug("registered cell %s", cell_id)
         LOGGER.debug("parents: %s", self.graph.parents[cell_id])
         LOGGER.debug("children: %s", self.graph.children[cell_id])
 
     def _try_compiling_cell(
-        self, cell_id: CellId_t, code: str
+        self, cell_id: CellId_t, code: str, carried_imports: list[ImportData]
     ) -> tuple[Optional[CellImpl], Optional[Error]]:
         error: Optional[Error] = None
         try:
-            cell = compile_cell(code, cell_id=cell_id)
+            cell = compile_cell(
+                code, cell_id=cell_id, carried_imports=carried_imports
+            )
         except Exception as e:
             cell = None
             if isinstance(e, SyntaxError):
@@ -579,9 +574,7 @@ class Kernel:
         return cell, error
 
     def _try_registering_cell(
-        self,
-        cell_id: CellId_t,
-        code: str,
+        self, cell_id: CellId_t, code: str, carried_imports: list[ImportData]
     ) -> Optional[Error]:
         """Attempt to register a cell with given id and code.
 
@@ -590,7 +583,7 @@ class Kernel:
 
         If cell was unable to be registered, returns an Error object.
         """
-        cell, error = self._try_compiling_cell(cell_id, code)
+        cell, error = self._try_compiling_cell(cell_id, code, carried_imports)
 
         if cell is not None:
             self._register_cell(cell_id, cell)
@@ -607,7 +600,8 @@ class Kernel:
         same id but different code is registered.
 
         Returns:
-        - a set of ids for cells that were previously children of `cell_id`;
+        - a set of ids for cells that were previously children of `cell_id`
+          but are no longer children of `cell_id` after registration;
           only non-empty when `cell-id` was already registered but with
           different code.
         - an `Error` if the cell couldn't be registered, `None` otherwise
@@ -615,10 +609,31 @@ class Kernel:
         previous_children: set[CellId_t] = set()
         error = None
         if not self.graph.is_cell_cached(cell_id, code):
-            if cell_id in self.graph.cells:
+            previous_cell = self.graph.cells.get(cell_id, None)
+
+            if (
+                previous_cell is not None
+                and previous_cell.import_workspace.is_import_block
+            ):
+                # If the previous is being replaced by another import block,
+                # then the new cell should try to carry over the previous
+                # cell's imports to prevent unnecessary re-runs.
+                carried_imports = [
+                    import_data
+                    for import_data in previous_cell.imports
+                    if import_data.definition in self.globals
+                    and import_data.definition
+                    in previous_cell.import_workspace.imported_defs
+                ]
+            else:
+                carried_imports = []
+
+            if previous_cell is not None:
                 LOGGER.debug("Deleting cell %s", cell_id)
                 previous_children = self._deactivate_cell(cell_id)
-            error = self._try_registering_cell(cell_id, code)
+            error = self._try_registering_cell(
+                cell_id, code, carried_imports=carried_imports
+            )
 
         LOGGER.debug(
             "graph:\n\tcell id %s\n\tparents %s\n\tchildren %s\n\tsiblings %s",
@@ -627,7 +642,12 @@ class Kernel:
             self.graph.children,
             self.graph.siblings,
         )
-        return previous_children, error
+
+        # We only return cells that were previously children of cell_id
+        # but are no longer children of the newly registered cell; these
+        # returned cells are stale.
+        children = self.graph.children.get(cell_id, set())
+        return previous_children - children, error
 
     def _delete_names(
         self, names: Iterable[Name], exclude_defs: set[Name]
@@ -659,6 +679,7 @@ class Kernel:
         elements.
         """
         cell = self.graph.cells[cell_id]
+        cell.import_workspace.imported_defs = set()
         missing_modules_before_deletion = (
             self.module_registry.missing_modules()
         )
@@ -735,6 +756,8 @@ class Kernel:
         Deletion from graph is forwarded to graph object.
         """
         del self.cell_metadata[cell_id]
+        cell = self.graph.cells[cell_id]
+        cell.import_workspace.imported_defs = set()
         return self._deactivate_cell(cell_id)
 
     def mutate_graph(
@@ -854,6 +877,7 @@ class Kernel:
             cells_with_errors_before_mutation
             - cells_with_errors_after_mutation
         ) & cells_in_graph
+
         if self.reactive_execution_mode == "autorun":
             for cid in cells_that_no_longer_have_errors:
                 # clear error outputs before running
@@ -887,6 +911,7 @@ class Kernel:
             if cid not in self.graph.cells:
                 # error is a registration error
                 continue
+            self.graph.cells[cid].set_run_result_status("marimo-error")
             self._invalidate_cell_state(cid, exclude_defs=keep_alive_defs)
 
         self.errors = all_errors
@@ -899,7 +924,9 @@ class Kernel:
             ):
                 # this may be the first time we're seeing the cell: set its
                 # status
-                self.graph.cells[cid].set_status("disabled-transitively")
+                self.graph.cells[cid].set_runtime_state(
+                    "disabled-transitively"
+                )
             CellOp.broadcast_error(
                 data=self.errors[cid],
                 clear_console=True,
@@ -935,7 +962,7 @@ class Kernel:
         ) & cells_in_graph
 
         if self.reactive_execution_mode == "lazy":
-            self.graph.set_stale(stale_cells)
+            self.graph.set_stale(stale_cells, prune_imports=True)
             return cells_registered_without_error
         else:
             return cells_registered_without_error.union(stale_cells)
@@ -952,9 +979,19 @@ class Kernel:
             while cell_ids := await self._run_cells_internal(cell_ids):
                 LOGGER.debug("Running state updates ...")
                 if self.lazy() and cell_ids:
-                    self.graph.set_stale(cell_ids)
+                    self.graph.set_stale(cell_ids, prune_imports=True)
                     break
             LOGGER.debug("Finished run.")
+
+    async def _if_autorun_then_run_cells(
+        self, cell_ids: set[CellId_t]
+    ) -> None:
+        if self.reactive_execution_mode == "autorun":
+            await self._run_cells(cell_ids)
+        else:
+            # We prune imports so that only cells depending on unimported
+            # modules are marked as stale
+            self.graph.set_stale(cell_ids, prune_imports=True)
 
     def _broadcast_missing_packages(self, runner: cell_runner.Runner) -> None:
         if (
@@ -1123,13 +1160,13 @@ class Kernel:
         for cell in self.graph.cells.values():
             if "__file__" in cell.refs:
                 roots.add(cell.cell_id)
-        await self._run_cells(roots)
+        await self._if_autorun_then_run_cells(roots)
 
     async def run_scratchpad(self, code: str) -> None:
         roots = {SCRATCH_CELL_ID}
 
         # If cannot compile, don't run
-        cell, error = self._try_compiling_cell(SCRATCH_CELL_ID, code)
+        cell, error = self._try_compiling_cell(SCRATCH_CELL_ID, code, [])
         if error:
             CellOp.broadcast_error(
                 data=[error],
@@ -1170,10 +1207,12 @@ class Kernel:
         for cid, cell_impl in self.graph.cells.items():
             if cell_impl.stale and not self.graph.is_disabled(cid):
                 cells_to_run.add(cid)
-        # TODO: should there just be one reactive exec mode, and one
-        # reload mode? ie no mix and match? otherwise what do we do here?
         await self._run_cells(
-            dataflow.transitive_closure(self.graph, cells_to_run)
+            dataflow.transitive_closure(
+                self.graph,
+                cells_to_run,
+                relatives=dataflow.import_block_relatives,
+            )
         )
         if self.module_watcher is not None:
             self.module_watcher.run_is_processed.set()
@@ -1349,9 +1388,11 @@ class Kernel:
         if self.reactive_execution_mode == "autorun":
             await self._run_cells(referring_cells)
         else:
+            # Any cells referring to a UI element cannot be import cells,
+            # so not necessary to specify `prune_imports`.
             self.graph.set_stale(referring_cells)
-            # process any state updates that may have been queued by the
-            # on_change handlers
+            # Process any state updates that may have been queued by the
+            # on_change handlers.
             await self._run_cells(set())
 
         for component in updated_components:
@@ -1564,12 +1605,7 @@ class Kernel:
             if (cid := self.module_registry.defining_cell(module)) is not None
         )
         if cells_to_run:
-            if self.reactive_execution_mode == "autorun":
-                await self._run_cells(
-                    dataflow.transitive_closure(self.graph, cells_to_run)
-                )
-            else:
-                self.graph.set_stale(cells_to_run)
+            await self._if_autorun_then_run_cells(cells_to_run)
 
     async def preview_dataset_column(
         self, request: PreviewDatasetColumnRequest

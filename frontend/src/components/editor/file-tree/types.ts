@@ -1,13 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import {
   DatabaseIcon,
+  FileAudioIcon,
   FileCodeIcon,
   FileIcon,
+  FileImageIcon,
   FileJsonIcon,
   FileTextIcon,
+  FileVideo2Icon,
+  FolderArchiveIcon,
   FolderIcon,
-  ImageIcon,
-  LucideIcon,
+  type LucideIcon,
 } from "lucide-react";
 
 /* Copyright 2024 Marimo. All rights reserved. */
@@ -18,7 +21,11 @@ export type FileType =
   | "json"
   | "text"
   | "image"
+  | "audio"
+  | "video"
   | "data"
+  | "pdf"
+  | "zip"
   | "unknown";
 
 export function guessFileType(name: string): FileType {
@@ -50,7 +57,24 @@ export function guessFileType(name: string): FileType {
     case "toml":
     case "yaml":
     case "yml":
+    case "wasm":
       return "code";
+    case "mp3":
+    case "m4a":
+    case "m4v":
+    case "ogg":
+    case "wav":
+      return "audio";
+    case "mp4":
+    case "webm":
+    case "mkv":
+      return "video";
+    case "pdf":
+      return "pdf";
+    case "zip":
+    case "tar":
+    case "gz":
+      return "zip";
     default:
       return "unknown";
   }
@@ -62,7 +86,11 @@ export const FILE_TYPE_ICONS: Record<FileType, LucideIcon> = {
   json: FileJsonIcon,
   code: FileCodeIcon,
   text: FileTextIcon,
-  image: ImageIcon,
+  image: FileImageIcon,
+  audio: FileAudioIcon,
+  video: FileVideo2Icon,
+  pdf: FileCodeIcon,
+  zip: FolderArchiveIcon,
   data: DatabaseIcon,
   unknown: FileIcon,
 };
@@ -79,7 +107,11 @@ export const PYTHON_CODE_FOR_FILE_TYPE: Record<
     `with open("${path}", "r") as _f:\n${TAB}_data = json.load(_f)\n`,
   code: (path) => `with open("${path}", "r") as _f:\n${TAB}...\n`,
   text: (path) => `with open("${path}", "r") as _f:\n${TAB}...\n`,
-  image: (path) => `with open("${path}", "rb") as _f:\n${TAB}...\n`,
+  image: (path) => `mo.image("${path}")`,
+  audio: (path) => `mo.audio("${path}")`,
+  video: (path) => `mo.video("${path}")`,
+  pdf: (path) => `with open("${path}", "rb") as _f:\n${TAB}...\n`,
+  zip: (path) => `with open("${path}", "rb") as _f:\n${TAB}...\n`,
   data: (path) => `with open("${path}", "r") as _f:\n${TAB}...\n`,
   unknown: (path) => `with open("${path}", "r") as _f:\n${TAB}...\n`,
 };
