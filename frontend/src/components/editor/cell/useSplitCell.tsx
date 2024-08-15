@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Button } from "@/components/ui/button";
+import { UndoButton } from "@/components/buttons/undo-button";
 import { toast } from "@/components/ui/use-toast";
 import { useCellActions } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
@@ -17,7 +17,7 @@ export function useSplitCellCallback() {
       description:
         "You can unsplit the cell by clicking undo or through the command palette.",
       action: (
-        <Button
+        <UndoButton
           data-testid="undo-split-button"
           size="sm"
           variant="outline"
@@ -27,7 +27,7 @@ export function useSplitCellCallback() {
           }}
         >
           Undo
-        </Button>
+        </UndoButton>
       ),
     });
   });
