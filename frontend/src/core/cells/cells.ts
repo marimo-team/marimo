@@ -26,7 +26,7 @@ import { splitAtom, selectAtom } from "jotai/utils";
 import { isStaticNotebook, parseStaticState } from "../static/static-state";
 import { type CellLog, getCellLogsForMessage } from "./logs";
 import { deserializeBase64, deserializeJson } from "@/utils/json/base64";
-import { historyField, undo } from "@codemirror/commands";
+import { historyField } from "@codemirror/commands";
 import { clamp } from "@/utils/math";
 import type { LayoutState } from "../layout/layout";
 import { notebookIsRunning } from "./utils";
@@ -818,8 +818,8 @@ const {
       scrollKey: newCellId,
     };
   },
-  undoSplitCell: (state, action: { cellId: CellId }) => {
-    const { cellId } = action;
+  undoSplitCell: (state, action: { cellId: CellId; snapshot: string }) => {
+    const { cellId, snapshot } = action;
 
     const cell = state.cellData[cellId];
     const newCellIndex = state.cellIds.indexOfOrThrow(cellId) + 1;
@@ -829,8 +829,7 @@ const {
       return state;
     }
 
-    undo(cellHandle.editorView);
-    const code = cellHandle.editorView.state.doc.toString();
+    updateEditorCodeFromPython(cellHandle.editorView, snapshot);
 
     return {
       ...state,
@@ -839,8 +838,9 @@ const {
         ...state.cellData,
         [cellId]: {
           ...cell,
-          code: code,
-          edited: Boolean(code) && code.trim() !== cell.lastCodeRun?.trim(),
+          code: snapshot,
+          edited:
+            Boolean(snapshot) && snapshot?.trim() !== cell.lastCodeRun?.trim(),
         },
       },
       cellRuntime: {
