@@ -129,6 +129,8 @@ def find_created_tables(sql_statement: str) -> list[str]:
     def token_type(i: int) -> str:
         return tokens[i][1]
 
+    # See https://duckdb.org/docs/sql/statements/create_table#syntax
+    # for more information on the CREATE TABLE syntax.
     while i < len(tokens):
         if (
             keyword_token_str(i) == "create"
