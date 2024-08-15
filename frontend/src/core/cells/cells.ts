@@ -840,7 +840,7 @@ const {
         [cellId]: {
           ...cell,
           code: code,
-          edited: Boolean(code) && code.trim() !== cell.lastCodeRun?.trim()
+          edited: Boolean(code) && code.trim() !== cell.lastCodeRun?.trim(),
         },
       },
       cellRuntime: {
