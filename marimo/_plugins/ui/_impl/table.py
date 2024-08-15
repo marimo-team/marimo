@@ -329,7 +329,7 @@ class table(
         self, value: list[str]
     ) -> Union[List[JSONType], "pd.DataFrame", "pl.DataFrame"]:
         indices = [int(v) for v in value]
-        self._selected_manager = self._searched_manager.select_rows(indices)
+        self._selected_manager = self._limited_manager.select_rows(indices)
         self._has_any_selection = len(indices) > 0
         return self._selected_manager.data  # type: ignore[no-any-return]
 
