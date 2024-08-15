@@ -26,13 +26,12 @@ import { splitAtom, selectAtom } from "jotai/utils";
 import { isStaticNotebook, parseStaticState } from "../static/static-state";
 import { type CellLog, getCellLogsForMessage } from "./logs";
 import { deserializeBase64, deserializeJson } from "@/utils/json/base64";
-import { historyField } from "@codemirror/commands";
+import { historyField, undo } from "@codemirror/commands";
 import { clamp } from "@/utils/math";
 import type { LayoutState } from "../layout/layout";
 import { notebookIsRunning } from "./utils";
 import {
   splitEditor,
-  unsplitEditors,
   updateEditorCodeFromPython,
 } from "../codemirror/language/utils";
 import { invariant } from "@/utils/invariant";
@@ -824,25 +823,14 @@ const {
 
     const cell = state.cellData[cellId];
     const newCellIndex = state.cellIds.indexOfOrThrow(cellId) + 1;
-    const newCellId = state.cellIds.at(newCellIndex);
-
-    if (!newCellId) {
-      return state;
-    }
-
     const cellHandle = state.cellHandles[cellId].current;
-    const newCellHandle = state.cellHandles[newCellId].current;
 
-    if (cellHandle?.editorView == null || newCellHandle?.editorView == null) {
+    if (cellHandle?.editorView == null) {
       return state;
     }
 
-    const combined = unsplitEditors(
-      cellHandle.editorView,
-      newCellHandle.editorView,
-    );
-
-    updateEditorCodeFromPython(cellHandle.editorView, combined);
+    undo(cellHandle.editorView);
+    const code = cellHandle.editorView.state.doc.toString();
 
     return {
       ...state,
@@ -851,7 +839,8 @@ const {
         ...state.cellData,
         [cellId]: {
           ...cell,
-          code: combined,
+          code: code,
+          edited: Boolean(code) && code.trim() !== cell.lastCodeRun?.trim()
         },
       },
       cellRuntime: {

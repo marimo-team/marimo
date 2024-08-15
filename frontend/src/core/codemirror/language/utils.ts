@@ -69,13 +69,3 @@ export function splitEditor(editor: EditorView) {
     afterCursorCode,
   };
 }
-
-export function unsplitEditors(
-  firstEditor: EditorView,
-  secondEditor: EditorView,
-) {
-  // TODO: Undo new line splits here
-  const cellCode = firstEditor.state.doc.toString();
-  const newCellCode = secondEditor.state.doc.toString();
-  return cellCode + newCellCode;
-}
