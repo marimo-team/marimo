@@ -194,10 +194,6 @@ export const LoadingDataTableComponent = memo(
     const [sorting, setSorting] = useState<SortingState>([]);
     const [searchQuery, setSearchQuery] = useState<string>("");
     const [filters, setFilters] = useState<ColumnFiltersState>([]);
-    // Column summaries state
-    const [summaries, setSummaries] = useState<ColumnSummaries>({
-      summaries: [],
-    });
 
     // Data loading
     const { data, loading, error } = useAsyncData<T[]>(async () => {
@@ -257,13 +253,11 @@ export const LoadingDataTableComponent = memo(
     }, [sorting, search, filters, searchQuery, props.fieldTypes, props.data]);
 
     // Column summaries
-    const { data: columnSummariesData, error: columnSummariesError } =
+    const { data: columnSummaries, error: columnSummariesError } =
       useAsyncData<ColumnSummaries>(() => {
         if (props.totalRows === 0) {
           return Promise.resolve({ summaries: [] });
         }
-        // Clear the summary first to avoid inconsistency with table
-        setSummaries({ summaries: [] });
         return props.get_column_summaries({});
       }, [
         props.get_column_summaries,
@@ -272,12 +266,6 @@ export const LoadingDataTableComponent = memo(
         props.totalRows,
         props.data,
       ]);
-
-    useEffect(() => {
-      if (columnSummariesData) {
-        setSummaries(columnSummariesData);
-      }
-    }, [columnSummariesData]);
 
     useEffect(() => {
       if (columnSummariesError) {
@@ -311,7 +299,7 @@ export const LoadingDataTableComponent = memo(
         <DataTableComponent
           {...props}
           data={data || Arrays.EMPTY}
-          columnSummaries={summaries}
+          columnSummaries={columnSummaries}
           sorting={sorting}
           setSorting={setSorting}
           searchQuery={searchQuery}
@@ -355,13 +343,13 @@ const DataTableComponent = ({
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
-    columnSummaries: ColumnSummaries;
+    columnSummaries?: ColumnSummaries;
   }): JSX.Element => {
   const resultsAreClipped =
     hasMore && (totalRows === "too_many" || totalRows > 0);
 
   const chartSpecModel = useMemo(() => {
-    if (!fieldTypes || !data || !columnSummaries.summaries) {
+    if (!fieldTypes || !data || !columnSummaries?.summaries) {
       return ColumnChartSpecModel.EMPTY;
     }
     const fieldTypesWithoutExternalTypes = Objects.mapValues(
@@ -376,7 +364,7 @@ const DataTableComponent = ({
         includeCharts: !resultsAreClipped,
       },
     );
-  }, [data, fieldTypes, columnSummaries.summaries, resultsAreClipped]);
+  }, [data, fieldTypes, columnSummaries, resultsAreClipped]);
 
   const columns = useMemo(
     () =>
@@ -430,7 +418,7 @@ const DataTableComponent = ({
           Result clipped. If no LIMIT is given, we only show the first 300 rows.
         </Banner>
       )}
-      {columnSummaries.is_disabled && (
+      {columnSummaries?.is_disabled && (
         <Banner className="mb-2 rounded">
           Column summaries are unavailable. Filter your data to fewer than
           1,000,000 rows.
