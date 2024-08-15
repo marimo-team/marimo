@@ -339,6 +339,7 @@ class table(
         manager = (
             self._selected_manager
             if self._selected_manager and self._has_any_selection
+            # use _searched_manager here to download the full data
             else self._searched_manager
         )
 
