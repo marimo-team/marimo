@@ -9,7 +9,6 @@ import pytest
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.table import SearchTableArgs, SortArgs
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
-from marimo._plugins.ui._impl.tables.table_manager import TableManager
 from marimo._plugins.ui._impl.utils.dataframe import TableData
 from marimo._runtime.functions import EmptyArgs
 from marimo._runtime.runtime import Kernel
@@ -312,10 +311,7 @@ def test_table_with_too_many_rows_unknown_total():
 
 
 def test_table_with_too_many_rows_column_summaries_disabled():
-    # The row limit is only applied when calling get_column_summaries, so we
-    # don't have something like _internal_row_limit. Allocating a list of 1m
-    # should be fine on most machines.
-    data = {"a": list(range(TableManager.DEFAULT_SUMMARY_ROW_LIMIT + 1))}
-    table = ui.table(data)
+    data = {"a": list(range(20))}
+    table = ui.table(data, _internal_summary_row_limit=10)
     summaries = table.get_column_summaries(EmptyArgs())
     assert summaries.is_disabled is True
