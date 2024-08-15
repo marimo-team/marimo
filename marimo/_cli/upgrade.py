@@ -70,6 +70,8 @@ def _update_with_latest_version(state: MarimoCLIState) -> MarimoCLIState:
     If we have not saved the latest version,
     or its newer than the one we have, update it.
     """
+    # querying pypi is +250kb and there is not a better API
+    # this endpoint just returns the version
     api_url = "https://marimo.io/api/oss/latest-version"
 
     # Check if it is a different day
