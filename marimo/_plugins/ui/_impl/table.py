@@ -224,17 +224,16 @@ class table(
                 None,
             ]
         ] = None,
+        # The _internal_* arguments are for overriding and unit tests
+        # table should take the value unconditionally
         _internal_row_limit: Optional[int] = None,
+        _internal_summary_row_limit: Optional[int] = None,
         _internal_total_rows: Optional[Union[int, Literal["too_many"]]] = None,
     ) -> None:
         # The original data passed in
         self._data = data
         # Holds the original data
         self._manager = get_table_manager(data)
-        # Holds the data after filtering (sort, search, limit etc.)
-        self._filtered_manager = self._manager
-        # Holds the data after selection and filtering
-        self._selected_manager: Optional[TableManager[Any]] = None
 
         if (
             total_cols := self._manager.get_num_columns()
@@ -247,20 +246,33 @@ class table(
                 "https://github.com/marimo-team/marimo/issues"
             )
 
-        row_limit = _internal_row_limit or TableManager.DEFAULT_ROW_LIMIT
-
-        total_rows: Union[int, Literal["too_many"]]
-        if _internal_total_rows == "too_many":
-            total_rows = "too_many"
+        if _internal_row_limit is not None:
+            self._row_limit = _internal_row_limit
         else:
-            total_rows = (
-                _internal_total_rows
-                or self._manager.get_num_rows(force=True)
-                or 0
-            )
-        has_more = total_rows == "too_many" or total_rows > row_limit
-        if has_more:
-            self._filtered_manager = self._filtered_manager.limit(row_limit)
+            self._row_limit = TableManager.DEFAULT_ROW_LIMIT
+
+        if _internal_summary_row_limit is not None:
+            self._summary_row_limit = _internal_summary_row_limit
+        else:
+            self._summary_row_limit = TableManager.DEFAULT_SUMMARY_ROW_LIMIT
+
+        # Holds the data after user searching from original data
+        # (searching operations include query, sort, filter, etc.)
+        self._searched_manager = self._manager
+        # Holds the data after marimo limiting row number from searched data
+        self._limited_manager = self._searched_manager.limit(self._row_limit)
+        # Holds the data after user selecting from the component
+        self._selected_manager: Optional[TableManager[Any]] = None
+
+        # We will need this when calling table manager's to_data()
+        self._format_mapping = format_mapping
+
+        if _internal_total_rows is not None:
+            total_rows = _internal_total_rows
+        else:
+            total_rows = self._manager.get_num_rows(force=True) or 0
+
+        has_more = total_rows == "too_many" or total_rows > self._row_limit
 
         # pagination defaults to True if there are more than 10 rows
         if pagination is None:
@@ -273,7 +285,7 @@ class table(
             label=label,
             initial_value=[],
             args={
-                "data": self._filtered_manager.to_data(format_mapping),
+                "data": self._limited_manager.to_data(self._format_mapping),
                 "has-more": has_more,
                 "total-rows": total_rows,
                 "pagination": pagination,
@@ -317,7 +329,7 @@ class table(
         self, value: list[str]
     ) -> Union[List[JSONType], "pd.DataFrame", "pl.DataFrame"]:
         indices = [int(v) for v in value]
-        self._selected_manager = self._filtered_manager.select_rows(indices)
+        self._selected_manager = self._searched_manager.select_rows(indices)
         self._has_any_selection = len(indices) > 0
         return self._selected_manager.data  # type: ignore[no-any-return]
 
@@ -327,7 +339,7 @@ class table(
         manager = (
             self._selected_manager
             if self._selected_manager and self._has_any_selection
-            else self._filtered_manager
+            else self._searched_manager
         )
 
         ext = args.format
@@ -343,13 +355,13 @@ class table(
 
         # Avoid expensive column summaries calculation by setting a upper limit
         if (
-            self._filtered_manager.get_num_rows(force=True) or 0
-        ) > TableManager.DEFAULT_SUMMARY_ROW_LIMIT:
+            self._searched_manager.get_num_rows(force=True) or 0
+        ) > self._summary_row_limit:
             return ColumnSummaries([], is_disabled=True)
 
         summaries: List[ColumnSummary] = []
-        for column in self._filtered_manager.get_column_names():
-            summary = self._filtered_manager.get_summary(column)
+        for column in self._searched_manager.get_column_names():
+            summary = self._searched_manager.get_summary(column)
             summaries.append(
                 ColumnSummary(
                     column=column,
@@ -371,7 +383,10 @@ class table(
         # If no query or sort, return nothing
         # The frontend will just show the original data
         if not args.query and not args.sort and not args.filters:
-            self._filtered_manager = self._manager
+            self._searched_manager = self._manager
+            self._limited_manager = self._searched_manager.limit(
+                self._row_limit
+            )
             return []
 
         if args.filters:
@@ -390,5 +405,6 @@ class table(
         if args.sort:
             result = result.sort_values(args.sort.by, args.sort.descending)
         # Save the manager to be used for selection
-        self._filtered_manager = result
-        return result.limit(TableManager.DEFAULT_ROW_LIMIT).to_data()
+        self._searched_manager = result
+        self._limited_manager = self._searched_manager.limit(self._row_limit)
+        return self._limited_manager.to_data(self._format_mapping)
