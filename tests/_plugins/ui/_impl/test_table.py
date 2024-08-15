@@ -313,5 +313,11 @@ def test_table_with_too_many_rows_unknown_total():
 def test_table_with_too_many_rows_column_summaries_disabled():
     data = {"a": list(range(20))}
     table = ui.table(data, _internal_summary_row_limit=10)
-    summaries = table.get_column_summaries(EmptyArgs())
-    assert summaries.is_disabled is True
+
+    summaries_disabled = table.get_column_summaries(EmptyArgs())
+    assert summaries_disabled.is_disabled is True
+
+    # search results are 2 and 12
+    table.search(SearchTableArgs(query="2"))
+    summaries_enabled = table.get_column_summaries(EmptyArgs())
+    assert summaries_enabled.is_disabled is False
