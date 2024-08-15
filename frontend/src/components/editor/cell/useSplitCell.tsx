@@ -14,8 +14,6 @@ export function useSplitCellCallback() {
 
     const { dismiss } = toast({
       title: "Cell split",
-      description:
-        "You can unsplit the cell by clicking undo or through the command palette.",
       action: (
         <UndoButton
           data-testid="undo-split-button"
