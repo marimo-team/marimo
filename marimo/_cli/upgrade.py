@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime
@@ -72,7 +73,12 @@ def _update_with_latest_version(state: MarimoCLIState) -> MarimoCLIState:
     """
     # querying pypi is +250kb and there is not a better API
     # this endpoint just returns the version
-    api_url = "https://marimo.io/api/oss/latest-version"
+    # so we only use pypi in tests
+    is_test = os.environ.get("MARIMO_PYTEST_HOME_DIR") is not None
+    if is_test:
+        api_url = "https://pypi.org/pypi/marimo/json"
+    else:
+        api_url = "https://marimo.io/api/oss/latest-version"
 
     # Check if it is a different day
     if state.last_checked_at:
