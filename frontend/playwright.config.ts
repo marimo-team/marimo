@@ -103,7 +103,7 @@ export function startServer(app: ApplicationNames): void {
   }
   const port = options.port ?? EDIT_PORT;
   const pathToApp = path.join(pydir, app);
-  const marimoCmd = `marimo -q ${options.command} ${pathToApp} -p ${port} --headless ${options.command === "edit" ? "--skip-update-check" : ""}`;
+  const marimoCmd = `marimo -q ${options.command} ${pathToApp} -p ${port} --headless`;
   exec(marimoCmd);
 }
 
@@ -183,7 +183,7 @@ const config: PlaywrightTestConfig = {
       const baseUrl = options.command === "run" ? options.baseUrl : undefined;
 
       const pathToApp = path.join(pydir, app);
-      let marimoCmd = `marimo -q ${command} ${pathToApp} -p ${port} --headless --no-token ${options.command === "edit" ? "--skip-update-check" : ""}`;
+      let marimoCmd = `marimo -q ${command} ${pathToApp} -p ${port} --headless --no-token`;
       if (baseUrl) {
         marimoCmd += ` --base-url=${baseUrl}`;
       }
@@ -195,7 +195,7 @@ const config: PlaywrightTestConfig = {
       };
     }),
     {
-      command: `marimo -q edit -p ${EDIT_PORT} --headless --no-token --skip-update-check`,
+      command: `marimo -q edit -p ${EDIT_PORT} --headless --no-token`,
       url: getUrl(EDIT_PORT),
       reuseExistingServer: false,
     },

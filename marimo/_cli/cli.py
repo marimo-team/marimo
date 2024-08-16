@@ -273,7 +273,7 @@ def edit(
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
-    if not skip_update_check:
+    if not skip_update_check and os.getenv("MARIMO_SKIP_UPDATE_CHECK") != "1":
         # Check for version updates
         check_for_updates()
 

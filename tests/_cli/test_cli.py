@@ -282,9 +282,12 @@ def test_cli_edit_with_additional_args(temp_marimo_file: str) -> None:
 def test_cli_edit_update_check() -> None:
     with tempfile.TemporaryDirectory() as tempdir:
         port = _get_port()
+        env = {**os.environ, "MARIMO_PYTEST_HOME_DIR": tempdir}
+        # pop off MARIMO_SKIP_UPDATE_CHECK
+        env.pop("MARIMO_SKIP_UPDATE_CHECK", None)
         p = subprocess.Popen(
             ["marimo", "edit", "-p", str(port), "--headless", "--no-token"],
-            env={**os.environ, "MARIMO_PYTEST_HOME_DIR": tempdir},
+            env=env,
         )
         contents = _try_fetch(port)
         _check_contents(p, b"marimo-mode data-mode='home'", contents)
