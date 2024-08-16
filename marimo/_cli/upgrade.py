@@ -1,5 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import json
+import os
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime
@@ -68,20 +71,29 @@ def _update_with_latest_version(state: MarimoCLIState) -> MarimoCLIState:
     If we have not saved the latest version,
     or its newer than the one we have, update it.
     """
-    pypi_api_url = "https://pypi.org/pypi/marimo/json"
+    # querying pypi is +250kb and there is not a better API
+    # this endpoint just returns the version
+    # so we only use pypi in tests
+    is_test = os.environ.get("MARIMO_PYTEST_HOME_DIR") is not None
+    if is_test:
+        api_url = "https://pypi.org/pypi/marimo/json"
+    else:
+        api_url = "https://marimo.io/api/oss/latest-version"
 
-    # Check if a day has passed since the last check
+    # Check if it is a different day
     if state.last_checked_at:
         last_checked_date = datetime.strptime(
             state.last_checked_at, "%Y-%m-%d"
         ).date()
-        if (datetime.now().date() - last_checked_date).days < 1:
-            # Less than a day has passed, so do nothing
+        day_of_the_year = last_checked_date.timetuple().tm_yday
+        today_day_of_the_year = datetime.now().timetuple().tm_yday
+        if today_day_of_the_year == day_of_the_year:
+            # Same day of the year, so do nothing
             return state
 
     # Fetch the latest version from PyPI
     try:
-        response = _fetch_data_from_url(pypi_api_url)
+        response = _fetch_data_from_url(api_url)
         version = response["info"]["version"]
         state.latest_version = version
         state.last_checked_at = datetime.now().strftime("%Y-%m-%d")

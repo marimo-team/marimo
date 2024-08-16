@@ -40,6 +40,10 @@ import { Objects } from "@/utils/objects";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
+interface ColumnSummaries {
+  summaries: ColumnHeaderSummary[];
+  is_disabled?: boolean;
+}
 
 /**
  * Arguments for a data table
@@ -65,9 +69,7 @@ interface Data<T> {
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type Functions = {
   download_as: (req: { format: "csv" | "json" }) => Promise<string>;
-  get_column_summaries: (opts: {}) => Promise<{
-    summaries: ColumnHeaderSummary[];
-  }>;
+  get_column_summaries: (opts: {}) => Promise<ColumnSummaries>;
   search: <T>(req: {
     sort?: {
       by: string;
@@ -129,6 +131,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             false: z.number().nullish(),
           }),
         ),
+        is_disabled: z.boolean().optional(),
       }),
     ),
     search: rpc
@@ -251,12 +254,18 @@ export const LoadingDataTableComponent = memo(
 
     // Column summaries
     const { data: columnSummaries, error: columnSummariesError } =
-      useAsyncData(() => {
+      useAsyncData<ColumnSummaries>(() => {
         if (props.totalRows === 0) {
           return Promise.resolve({ summaries: [] });
         }
         return props.get_column_summaries({});
-      }, [props.get_column_summaries, props.totalRows, props.data]);
+      }, [
+        props.get_column_summaries,
+        filters,
+        searchQuery,
+        props.totalRows,
+        props.data,
+      ]);
 
     useEffect(() => {
       if (columnSummariesError) {
@@ -290,7 +299,7 @@ export const LoadingDataTableComponent = memo(
         <DataTableComponent
           {...props}
           data={data || Arrays.EMPTY}
-          columnSummaries={columnSummaries?.summaries}
+          columnSummaries={columnSummaries}
           sorting={sorting}
           setSorting={setSorting}
           searchQuery={searchQuery}
@@ -334,13 +343,13 @@ const DataTableComponent = ({
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
-    columnSummaries?: ColumnHeaderSummary[];
+    columnSummaries?: ColumnSummaries;
   }): JSX.Element => {
   const resultsAreClipped =
     hasMore && (totalRows === "too_many" || totalRows > 0);
 
   const chartSpecModel = useMemo(() => {
-    if (!fieldTypes || !data || !columnSummaries) {
+    if (!fieldTypes || !data || !columnSummaries?.summaries) {
       return ColumnChartSpecModel.EMPTY;
     }
     const fieldTypesWithoutExternalTypes = Objects.mapValues(
@@ -350,7 +359,7 @@ const DataTableComponent = ({
     return new ColumnChartSpecModel(
       data,
       fieldTypesWithoutExternalTypes,
-      columnSummaries,
+      columnSummaries.summaries,
       {
         includeCharts: !resultsAreClipped,
       },
@@ -407,6 +416,15 @@ const DataTableComponent = ({
       {hasMore && totalRows === "too_many" && (
         <Banner className="mb-2 rounded">
           Result clipped. If no LIMIT is given, we only show the first 300 rows.
+        </Banner>
+      )}
+      {columnSummaries?.is_disabled && (
+        // Note: Keep the text in sync with the constant defined in table_manager.py
+        //       This hard-code can be removed when Functions can pass structural
+        //       error information from the backend
+        <Banner className="mb-2 rounded">
+          Column summaries are unavailable. Filter your data to fewer than
+          1,000,000 rows.
         </Banner>
       )}
       <ColumnChartContext.Provider value={chartSpecModel}>
