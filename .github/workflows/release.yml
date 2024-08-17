@@ -4,12 +4,14 @@ name: Publish release
 on:
   push:
     tags:
-      - "[0-9]+.[0-9]+.[0-9]+"
+      - '[0-9]+.[0-9]+.[0-9]+'
   workflow_dispatch: {}
 
 env:
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: marimo
+  REGISTRY: ghcr.io
+  IMAGE_NAME: marimo-team/marimo
 
 jobs:
   publish_release:
@@ -18,6 +20,9 @@ jobs:
     defaults:
       run:
         shell: bash
+
+    outputs:
+      marimo_version: ${{ steps.get_version.outputs.marimo_version }}
 
     steps:
       - name: 🛑 Cancel Previous Runs
@@ -34,20 +39,20 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: "pnpm"
-          cache-dependency-path: "**/pnpm-lock.yaml"
-          registry-url: "https://registry.npmjs.org"
+          cache: 'pnpm'
+          cache-dependency-path: '**/pnpm-lock.yaml'
+          registry-url: 'https://registry.npmjs.org'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: 📦 Build frontend
         run: make fe
 
-      - name: 🐍 Setup Python 3.10
+      - name: 🐍 Setup Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
-          cache: "pip"
+          python-version: '3.12'
+          cache: 'pip'
 
       # This does not work when running `marimo --version`
       # - name: 🐍 Setup uv
@@ -67,12 +72,16 @@ jobs:
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
         run: twine upload --skip-existing dist/*
 
+      - name: 🔨 Get version
+        id: get_version
+        run: |
+          echo "marimo_version=$(python -m marimo --version)" >> $GITHUB_OUTPUT
+
       - name: 📦 Update package.json version from CLI
         working-directory: frontend
         run: |
-          echo "Updating package.json version to $(python -m marimo --version)"
-          echo "MARIMO_VERSION=$(python -m marimo --version)" >> $GITHUB_ENV
-          npm version $(python -m marimo --version) --no-git-tag-version
+          echo "Updating package.json version to ${{ steps.get_version.outputs.marimo_version }}"
+          npm version ${{ steps.get_version.outputs.marimo_version }} --no-git-tag-version
 
       - name: 📤 Upload wasm to npm
         working-directory: frontend
@@ -90,8 +99,8 @@ jobs:
         working-directory: frontend
         env:
           NODE_ENV: production
-          VITE_MARIMO_ISLANDS: "true"
-          VITE_MARIMO_VERSION: ${{ env.MARIMO_VERSION }}
+          VITE_MARIMO_ISLANDS: 'true'
+          VITE_MARIMO_VERSION: ${{ steps.get_version.outputs.marimo_version }}
         run: |
           pnpm turbo build:islands
           ./islands/validate.sh
@@ -102,3 +111,84 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --access public
+
+  publish_docker:
+    name: 🐋 Publish Docker images
+    runs-on: ubuntu-latest
+    needs: [publish_release]
+    # Don't error while this is in BETA
+    continue-on-error: true
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: 🛑 Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.12.1
+
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v4
+
+      - name: 🐋 Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🐋 Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      - name: 🐋 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 📦 Build and push Docker images (slim)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.publish_release.outputs.marimo_version }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          target: slim
+          build-args: |
+            marimo_version=${{ needs.publish_release.outputs.marimo_version }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: 📦 Build and push Docker images (data)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.publish_release.outputs.marimo_version }}-data
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-data
+          target: data
+          build-args: |
+            marimo_version=${{ needs.publish_release.outputs.marimo_version }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: 📦 Build and push Docker images (sql)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.publish_release.outputs.marimo_version }}-sql
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-sql
+          target: sql
+          build-args: |
+            marimo_version=${{ needs.publish_release.outputs.marimo_version }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
