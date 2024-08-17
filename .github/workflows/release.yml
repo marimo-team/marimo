@@ -145,6 +145,30 @@ jobs:
       - name: 🐋 Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: 🧪 Build docker image for testing
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          # Don't push test image
+          push: false
+          load: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:test
+          target: slim
+          build-args: |
+            marimo_version=${{ needs.publish_release.outputs.marimo_version }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: 🧪 Test docker build
+        run: |
+          docker run -d -e PORT=9090 -p 9090:9090 --name test_container ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:test
+          sleep 2
+          curl -f http://localhost:9090/health || (docker logs test_container && exit 1)
+          docker stop test_container
+          docker rm test_container
+
       - name: 📦 Build and push Docker images (slim)
         uses: docker/build-push-action@v6
         with:
