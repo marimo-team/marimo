@@ -126,12 +126,23 @@ export const DataFrameComponent = memo(
       () => get_dataframe({}),
       [value?.transforms],
     );
+
     const { url, has_more, total_rows, row_headers, supports_code_sample } =
       data || {};
 
     const [internalValue, setInternalValue] = useState<Transformations>(
       value || EMPTY,
     );
+
+    // If dataframe changes and value.transforms gets reset, then
+    // apply existing transformations (displayed in panel) to new data
+    if (
+      value != null &&
+      internalValue != EMPTY &&
+      value?.transforms.length !== internalValue.transforms.length
+    ) {
+      setValue(internalValue);
+    }
 
     return (
       <div>
