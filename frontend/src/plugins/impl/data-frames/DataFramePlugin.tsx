@@ -13,7 +13,7 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { LoadingDataTableComponent } from "../DataTablePlugin";
 import { Functions } from "@/utils/functions";
 import { Arrays } from "@/utils/arrays";
-import { memo, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Banner, ErrorBanner } from "../common/error-banner";
 import type { DataType } from "../vega/vega-loader";
@@ -136,13 +136,18 @@ export const DataFrameComponent = memo(
 
     // If dataframe changes and value.transforms gets reset, then
     // apply existing transformations (displayed in panel) to new data
-    if (
-      value != null &&
-      internalValue != EMPTY &&
-      value?.transforms.length !== internalValue.transforms.length
-    ) {
-      setValue(internalValue);
-    }
+    const prevValueRef = useRef(internalValue);
+
+    useEffect(() => {
+      prevValueRef.current = internalValue;
+    });
+
+    useEffect(() => {
+      const prevValue = prevValueRef.current;
+      if (value?.transforms.length !== prevValue.transforms.length) {
+        setValue(prevValue);
+      }
+    }, [data, value?.transforms, prevValueRef, setValue]);
 
     return (
       <div>
