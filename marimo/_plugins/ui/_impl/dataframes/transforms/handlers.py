@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, Optional, Sequence, cast
 
 from marimo._plugins.ui._impl.dataframes.transforms.types import (
     AggregateTransform,
@@ -395,7 +395,7 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
     def handle_explode_columns(
         df: "pl.DataFrame", transform: ExplodeColumnsTransform
     ) -> "pl.DataFrame":
-        return df.explode(transform.column_ids)
+        return df.explode(cast(Sequence[str], transform.column_ids))
 
     @staticmethod
     def handle_expand_dict(
@@ -405,7 +405,7 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
 
         column_id = transform.column_id
         column = df.select(column_id).to_series()
-        df = df.drop(column_id)
+        df = df.drop(cast(str, column_id))
         return df.hstack(pl.DataFrame(column.to_list()))
 
 
