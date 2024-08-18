@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 from marimo._plugins.ui._impl.dataframes.transforms.types import (
     AggregateTransform,
     ColumnConversionTransform,
+    ExpandDictTransform,
+    ExplodeColumnsTransform,
     FilterRowsTransform,
     GroupByTransform,
     RenameColumnTransform,
@@ -167,6 +169,21 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
             random_state=transform.seed,
             replace=transform.replace,
         )
+
+    @staticmethod
+    def handle_explode_columns(
+        df: "pd.DataFrame", transform: ExplodeColumnsTransform
+    ) -> "pd.DataFrame":
+        return df.explode(transform.column_ids)
+
+    @staticmethod
+    def handle_expand_dict(
+        df: "pd.DataFrame", transform: ExpandDictTransform
+    ) -> "pd.DataFrame":
+        import pandas as pd
+
+        column_id = transform.column_id
+        return df.join(pd.DataFrame(df.pop(column_id).values.tolist()))
 
 
 class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
@@ -371,6 +388,21 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
             seed=transform.seed,
             with_replacement=transform.replace,
         )
+
+    @staticmethod
+    def handle_explode_columns(
+        df: "pl.DataFrame", transform: ExplodeColumnsTransform
+    ) -> "pl.DataFrame":
+        return df.explode(transform.column_ids)
+
+    @staticmethod
+    def handle_expand_dict(
+        df: "pl.DataFrame", transform: ExpandDictTransform
+    ) -> "pl.DataFrame":
+        import polars as pl
+
+        column_id = transform.column_id
+        return df.join(pl.DataFrame(df.pop(column_id).values.tolist()))
 
 
 def _coerce_value(dtype: Any, value: Any) -> Any:
