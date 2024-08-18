@@ -124,6 +124,34 @@ describe("getUpdatedColumnTypes", () => {
     `);
   });
 
+  it("should update column types for explode-columns conversion", () => {
+    const result = getUpdatedColumnTypes(
+      [Transforms.EXPLODE_COLUMNS],
+      INITIAL_COLUMN_TYPES,
+    );
+    expect(result).toMatchInlineSnapshot(`
+      Map {
+        "col1" => "str",
+        2 => "bool",
+        "col3" => "int",
+      }
+    `);
+  });
+
+  it("should update column types for expand-dict conversion", () => {
+    const result = getUpdatedColumnTypes(
+      [Transforms.EXPAND_DICT],
+      INITIAL_COLUMN_TYPES,
+    );
+    expect(result).toMatchInlineSnapshot(`
+      Map {
+        "col1" => "str",
+        2 => "bool",
+        "col3" => "int",
+      }
+    `);
+  });
+
   it("can chain multiple transforms", () => {
     const result = getUpdatedColumnTypes(
       [
