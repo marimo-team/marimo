@@ -109,7 +109,7 @@ export function pythonPrint(dfName: string, transform: TransformType): string {
     case "expand_dict": {
       const column_id = asLiteral(transform.column_id);
       const args = `df.pop(${column_id}).values.tolist())`;
-      return `${dfName} = ${dfName}.join(pd.DataFrame(${args})`;
+      return `${dfName}.join(pd.DataFrame(${args})`;
     }
     default:
       logNever(transform);

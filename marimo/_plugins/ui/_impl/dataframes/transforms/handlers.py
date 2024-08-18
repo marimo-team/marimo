@@ -183,7 +183,9 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
         import pandas as pd
 
         column_id = transform.column_id
-        return df.join(pd.DataFrame(df.pop(column_id).values.tolist()))
+        return df.join(
+            pd.DataFrame(df.pop(cast(str, column_id)).values.tolist())
+        )
 
 
 class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
@@ -402,7 +404,9 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
         import polars as pl
 
         column_id = transform.column_id
-        return df.join(pl.DataFrame(df.pop(column_id).values.tolist()))
+        column = df.select(column_id).to_series()
+        df = df.drop(column_id)
+        return df.hstack(pl.DataFrame(column.to_list()))
 
 
 def _coerce_value(dtype: Any, value: Any) -> Any:

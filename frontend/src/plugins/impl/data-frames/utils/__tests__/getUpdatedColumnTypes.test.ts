@@ -48,6 +48,14 @@ const Transforms = {
     type: "select_columns",
     column_ids: ["col1", 2] as ColumnId[],
   } satisfies TransformType,
+  EXPLODE_COLUMNS: {
+    type: "explode_columns",
+    column_ids: ["col1", 2] as ColumnId[],
+  } satisfies TransformType,
+  EXPAND_DICT: {
+    type: "expand_dict",
+    column_id: "col1" as ColumnId,
+  } satisfies TransformType,
 };
 
 describe("getUpdatedColumnTypes", () => {
