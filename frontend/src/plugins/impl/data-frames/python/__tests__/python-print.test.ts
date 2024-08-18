@@ -343,9 +343,7 @@ describe("pythonPrint: filter", () => {
       column_ids: ["my_column"] as ColumnId[],
     };
     const result = pythonPrint("df", transform);
-    expect(result).toMatchInlineSnapshot(
-      `"df.explode(["my_column"])"`,
-    );
+    expect(result).toMatchInlineSnapshot(`"df.explode(["my_column"])"`);
   });
 
   // Test for expand_dict
