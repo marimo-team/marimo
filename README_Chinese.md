@@ -27,11 +27,12 @@
 - **丝滑的交互体验**: 还在反复运行出图的代码来调整图像？选择marimo，你可以随意使用任何交互式的组件来调整你的图像。
 - **任意复现**: 你一定有过同样的代码输出不同的结果的体验，现在，没有了。
 - **可以到处复用**: 可以作为Python脚本执行，并且可以通过命令行参数进行参数化。
-- **简单共享**: marimo可以部署为交互式 Web 应用程序，或通过 WASM 在浏览器中运行。 
+- **简单共享**: marimo可以部署为交互式 Web 应用程序，或通过 WASM 在浏览器中运行。
 - **数据驱动的**: 原生支持数据库工具SQL和数据源面板，你甚至可以想象靠它实现数据治理？
 - **git-friendly**: 保存为 `.py` 文件
 
 ## 如何开始？
+
 ```python
 pip install marimo && marimo tutorial intro
 ```
@@ -47,7 +48,6 @@ Marimo确保了您的代码、输出和程序的状态始终处在您的预期�
 **独有的反应式设计**
 Marimo会在你运行任意的notebook单元格的时候处理所有被当前单元格引用的变量，就像下面的动图中展示的那样。这样的设计避免了手动操作时可能出现的错误，比如你可能会忘记了其中的某些变量已经不是之前的状态。
 同时，marimo会在你删除一个单元格的时候从内存中删除本单元格独有的变量，这使得所有的变量都是显式存在的，这样自动化的回收机制会在你长时间工作的时候显示出其优越性。
-
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/reactive.gif" width="700px" />
 
@@ -79,7 +79,6 @@ Marimo会在你运行任意的notebook单元格的时候处理所有被当前单
 **易用且强大🏆** Marimo集成了包括GitHub Copilot、Ruff代码格式化、HTML导出、快速代码补全、VSCode扩展、交互式数据框查看器等等非常有用的功能。
 除此之外，marimo还包含了许多其他小工具和功能，也欢迎👏你的加入为marimo带来更多特性！
 
-
 ## 快速起步！
 
 **安装** 在终端中，输入下面的代码：
@@ -91,13 +90,13 @@ marimo tutorial intro
 
 **或者在Gitpod运行**
 
-单击此链接以在 Gitpod 工作区中打开存储库： 
+单击此链接以在 Gitpod 工作区中打开存储库：
 
 [https://gitpod.io/#https://github.com/marimo-team/marimo](https://gitpod.io/#https://github.com/marimo-team/marimo)
 
 **创建新的笔记本**
 
-使用以下命令创建或编辑笔记本 
+使用以下命令创建或编辑笔记本
 
 ```bash
 marimo edit
@@ -111,7 +110,7 @@ marimo run your_notebook.py
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/docs-model-comparison.gif" style="border-radius: 8px" width="450px" />
 
-**作为脚本执行**  在终端命令行输入： 
+**作为脚本执行**  在终端命令行输入：
 
 ```bash
 python your_notebook.py
@@ -138,7 +137,7 @@ marimo tutorial --help
 
 请参阅我们文档中的[FAQ](https://docs.marimo.io/faq.html) 的部分。
 
-## 更多信息 
+## 更多信息
 
 Marimo 很容易上手，为高级用户提供了很大的空间。 例如，这里有一个用 marimo 制作的嵌入可视化工具
 ([示例视频](https://marimo.io/videos/landing/full.mp4)):
@@ -236,7 +235,7 @@ Marimo 很容易上手，为高级用户提供了很大的空间。 例如，这
 
 Marimo旨在重塑了Python笔记本的用户体验，使notebook变为用户可信赖的，可重复的、交互的和可共享可靠的工具。
 
-我们始终坚信_Better tools, for better minds. _。
+我们始终坚信_Better tools, for better minds._。
 
 我们的灵感来自于很多已有的项目, 特别是
 [Pluto.jl](https://github.com/fonsp/Pluto.jl)，
@@ -247,7 +246,7 @@ Marimo是反应式数据流编程的进一步发展。从
 [TensorFlow](https://github.com/tensorflow/tensorflow)，
 [PyTorch](https://github.com/pytorch/pytorch/tree/main)，
 [JAX](https://github.com/google/jax)，到
-[React](https://github.com/facebook/react)，我们可以看到，函数式编程， 
+[React](https://github.com/facebook/react)，我们可以看到，函数式编程，
 声明式编程和反应式编程的概念正在对我们的工具产生广泛而深刻的影响，我们正在路上。
 
 <p align="right">
