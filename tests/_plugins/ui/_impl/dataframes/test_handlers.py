@@ -16,6 +16,8 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     ColumnConversionTransform,
     Condition,
     DataFrameType,
+    ExpandDictTransform,
+    ExplodeColumnsTransform,
     FilterRowsTransform,
     GroupByTransform,
     RenameColumnTransform,
@@ -31,12 +33,14 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
 HAS_DEPS = DependencyManager.pandas.has() and DependencyManager.polars.has()
 
 if HAS_DEPS:
+    import numpy as np
     import pandas as pd
     import polars as pl
     import polars.testing as pl_testing
 else:
     pd = Mock()
     pl = Mock()
+    np = Mock()
 
 
 def apply(df: DataFrameType, transform: Transform) -> DataFrameType:
@@ -60,7 +64,7 @@ def assert_frame_equal(df1: DataFrameType, df2: DataFrameType) -> None:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-class TestPandasHandler:
+class TestTransformHandler:
     @staticmethod
     @pytest.mark.parametrize(
         ("df", "expected"),
@@ -675,6 +679,76 @@ class TestPandasHandler:
         assert len(result) == len(expected)
         assert "A" in result.columns
         assert "B" in result.columns
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        "df",
+        [
+            pd.DataFrame(
+                {
+                    "A": [[0, 1, 2], ["foo"], [], [3, 4]],
+                    "B": [1, 1, 1, 1],
+                    "C": [["a", "b", "c"], [np.nan], [], ["d", "e"]],
+                }
+            ),
+            pl.DataFrame(
+                {
+                    "A": [[0, 1, 2], ["foo"], [], [3, 4]],
+                    "B": [1, 1, 1, 1],
+                    "C": [["a", "b", "c"], [np.nan], [], ["d", "e"]],
+                },
+            ),
+        ],
+    )
+    def test_explode_columns(df: DataFrameType) -> None:
+        transform = ExplodeColumnsTransform(
+            type=TransformType.EXPLODE_COLUMNS, column_ids=["A", "C"]
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, df.explode(["A", "C"]))
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        [
+            (
+                pd.DataFrame(
+                    {
+                        "A": [{"foo": 1, "bar": "hello"}],
+                        "B": [1],
+                    }
+                ),
+                pd.DataFrame(
+                    {
+                        "B": [1],
+                        "foo": [1],
+                        "bar": ["hello"],
+                    }
+                ),
+            ),
+            (
+                pl.DataFrame(
+                    {
+                        "A": [{"foo": 1, "bar": "hello"}],
+                        "B": [1],
+                    }
+                ),
+                pl.DataFrame(
+                    {
+                        "B": [1],
+                        "foo": [1],
+                        "bar": ["hello"],
+                    }
+                ),
+            ),
+        ],
+    )
+    def test_expand_dict(df: DataFrameType, expected: DataFrameType) -> None:
+        transform = ExpandDictTransform(
+            type=TransformType.EXPAND_DICT, column_id="A"
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
 
     @staticmethod
     @pytest.mark.parametrize(
