@@ -56,6 +56,8 @@ function handleTransform(
     case "shuffle_rows":
     case "sample_rows":
     case "sort_column":
+    case "expand_dict":
+    case "explode_columns":
       return next;
     default:
       logNever(transform);

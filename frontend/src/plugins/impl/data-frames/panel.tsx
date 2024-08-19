@@ -34,6 +34,8 @@ import {
   PlusIcon,
   ShuffleIcon,
   Trash2Icon,
+  BracketsIcon,
+  FileJsonIcon,
 } from "lucide-react";
 import { cn } from "../../../utils/cn";
 import {
@@ -292,4 +294,6 @@ const ICONS: Record<TransformType["type"], React.FC<{ className?: string }>> = {
   sort_column: ArrowUpDownIcon,
   shuffle_rows: ShuffleIcon,
   sample_rows: CombineIcon,
+  explode_columns: BracketsIcon,
+  expand_dict: FileJsonIcon,
 };

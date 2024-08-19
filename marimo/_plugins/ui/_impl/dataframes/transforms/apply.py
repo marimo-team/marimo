@@ -38,6 +38,10 @@ def handle(df: T, handler: TransformHandler[T], transform: Transform) -> T:
         return handler.handle_shuffle_rows(df, transform)
     elif transform.type is TransformType.SAMPLE_ROWS:
         return handler.handle_sample_rows(df, transform)
+    elif transform.type is TransformType.EXPLODE_COLUMNS:
+        return handler.handle_explode_columns(df, transform)
+    elif transform.type is TransformType.EXPAND_DICT:
+        return handler.handle_expand_dict(df, transform)
     else:
         assert_never(transform.type)
 
