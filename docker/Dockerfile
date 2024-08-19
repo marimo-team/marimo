@@ -31,5 +31,5 @@ CMD marimo edit --no-token -p $PORT --host $HOST
 
 # -sql entry point, extends -data
 FROM data AS sql
-RUN pip install --no-cache-dir duckdb
+RUN pip install --no-cache-dir marimo[sql]
 CMD marimo edit --no-token -p $PORT --host $HOST
