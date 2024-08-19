@@ -1,5 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import {
   type NotebookState,
   exportedForTesting,
@@ -9,14 +17,66 @@ import { notebookCells } from "../utils";
 import { CellId } from "@/core/cells/ids";
 import type { OutputMessage } from "@/core/kernel/messages";
 import type { Seconds } from "@/utils/time";
+import { EditorView } from "@codemirror/view";
+import { python } from "@codemirror/lang-python";
+import { EditorState } from "@codemirror/state";
+import type { CellHandle } from "@/components/editor/Cell";
+import { foldAllBulk, unfoldAllBulk } from "@/core/codemirror/editing/commands";
+import type { MovementCallbacks } from "@/core/codemirror/cells/extensions";
+import { adaptiveLanguageConfiguration } from "@/core/codemirror/language/extension";
+import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
+import {
+  focusAndScrollCellIntoView,
+  scrollToTop,
+  scrollToBottom,
+} from "../scrollCellIntoView";
+
+vi.mock("@/core/codemirror/editing/commands", () => ({
+  foldAllBulk: vi.fn(),
+  unfoldAllBulk: vi.fn(),
+}));
+vi.mock("../scrollCellIntoView", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...(actual as any),
+    scrollToTop: vi.fn(),
+    scrollToBottom: vi.fn(),
+    focusAndScrollCellIntoView: vi.fn(),
+  };
+});
 
 const { initialNotebookState, reducer, createActions } = exportedForTesting;
 
 function formatCells(notebook: NotebookState) {
   const cells = notebookCells(notebook);
-  return `\n${cells
-    .map((cell) => [`key: ${cell.id}`, `code: '${cell.code}'`].join("\n"))
-    .join("\n\n")}`;
+  return `\n${cells.map((cell) => [`key: ${cell.id}`, `code: '${cell.code}'`].join("\n")).join("\n\n")}`;
+}
+
+function createEditor(content: string) {
+  const state = EditorState.create({
+    doc: content,
+    extensions: [
+      python(),
+      adaptiveLanguageConfiguration({
+        completionConfig: {
+          activate_on_typing: true,
+          copilot: false,
+        },
+        hotkeys: new OverridingHotkeyProvider({}),
+        showPlaceholder: true,
+        enableAI: true,
+        cellMovementCallbacks: {} as MovementCallbacks,
+      }),
+    ],
+  });
+
+  const view = new EditorView({
+    state,
+    parent: document.body,
+  });
+
+  return view;
 }
 
 describe("cell reducer", () => {
@@ -26,6 +86,15 @@ describe("cell reducer", () => {
 
   const actions = createActions((action) => {
     state = reducer(state, action);
+    for (const [cellId, handle] of Object.entries(state.cellHandles)) {
+      if (!handle.current) {
+        const handle: CellHandle = {
+          editorView: createEditor(state.cellData[cellId as CellId].code),
+          registerRun: vi.fn(),
+        };
+        state.cellHandles[cellId as CellId] = { current: handle };
+      }
+    }
     cells = flattenTopLevelNotebookCells(state);
   });
 
@@ -1030,5 +1099,180 @@ describe("cell reducer", () => {
     expect(cell.consoleOutputs).toEqual([STDOUT]);
     expect(cell.status).toBe("idle");
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+  });
+
+  it("can send a cell to the top", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({ cellId: "1" as CellId, before: false });
+    actions.sendToTop({ cellId: "2" as CellId });
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      key: 2
+      code: ''
+
+      key: 0
+      code: ''
+
+      key: 1
+      code: ''"
+    `);
+  });
+
+  it("can send a cell to the bottom", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({ cellId: "1" as CellId, before: false });
+    actions.sendToBottom({ cellId: firstCellId });
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      key: 1
+      code: ''
+
+      key: 2
+      code: ''
+
+      key: 0
+      code: ''"
+    `);
+  });
+
+  it("can focus cells", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({ cellId: "1" as CellId, before: false });
+
+    actions.focusCell({ cellId: "1" as CellId, before: true });
+    expect(focusAndScrollCellIntoView).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cellId: "0" as CellId,
+      }),
+    );
+
+    actions.focusTopCell();
+    expect(scrollToTop).toHaveBeenCalled();
+
+    actions.focusBottomCell();
+    expect(scrollToBottom).toHaveBeenCalled();
+  });
+
+  it("can update cell name", () => {
+    actions.updateCellName({ cellId: firstCellId, name: "Test Cell" });
+    expect(state.cellData[firstCellId].name).toBe("Test Cell");
+  });
+
+  it("can set cell IDs and codes", () => {
+    const newIds = ["3", "4", "5"] as CellId[];
+    const newCodes = ["code1", "code2", "code3"];
+
+    actions.setCellIds({ cellIds: newIds });
+    expect(state.cellIds.topLevelIds).toEqual(newIds);
+
+    actions.setCellCodes({ codes: newCodes, ids: newIds });
+    newIds.forEach((id, index) => {
+      expect(state.cellData[id].code).toBe(newCodes[index]);
+    });
+  });
+
+  it("can fold and unfold all cells", () => {
+    actions.foldAll();
+    expect(foldAllBulk).toHaveBeenCalled();
+
+    actions.unfoldAll();
+    expect(unfoldAllBulk).toHaveBeenCalled();
+  });
+
+  it("can clear logs", () => {
+    state.cellLogs = [
+      { level: "stderr", message: "log1", timestamp: 0, cellId: firstCellId },
+      { level: "stderr", message: "log1", timestamp: 0, cellId: firstCellId },
+    ];
+    actions.clearLogs();
+    expect(state.cellLogs).toEqual([]);
+  });
+
+  it("can collapse and expand cells", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({
+      cellId: "1" as CellId,
+      before: false,
+      code: "# Header",
+    });
+    actions.createNewCell({
+      cellId: "2" as CellId,
+      before: false,
+      code: "## Subheader",
+    });
+
+    const id = state.cellIds.atOrThrow(1);
+    state.cellRuntime[id] = {
+      ...state.cellRuntime[id],
+      outline: {
+        items: [{ name: "Header", level: 1, by: { id: "header" } }],
+      },
+    };
+    actions.collapseCell({ cellId: id });
+    expect(state.cellIds.isCollapsed(id)).toBe(true);
+
+    actions.expandCell({ cellId: id });
+    expect(state.cellIds.isCollapsed(id)).toBe(false);
+  });
+
+  it("can show hidden cells", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({ cellId: "1" as CellId, before: false });
+    actions.collapseCell({ cellId: firstCellId });
+
+    actions.showCellIfHidden({ cellId: "1" as CellId });
+    expect(state.cellIds.isCollapsed(firstCellId)).toBe(false);
+  });
+
+  it("can split and undo split cells", () => {
+    actions.createNewCell({
+      cellId: firstCellId,
+      before: false,
+      code: "line1\nline2",
+    });
+    const nextCellId = state.cellIds.atOrThrow(1);
+
+    const originalCellCount = state.cellIds.length;
+    // Move cursor to the second line
+    const editor = state.cellHandles[nextCellId].current?.editorView;
+    if (!editor) {
+      throw new Error("Editor not found");
+    }
+    editor.dispatch({ selection: { anchor: 5, head: 5 } });
+    actions.splitCell({ cellId: nextCellId });
+    expect(state.cellIds.length).toBe(originalCellCount + 1);
+    expect(state.cellData[nextCellId].code).toBe("line1");
+    expect(state.cellData[state.cellIds.atOrThrow(2)].code).toBe("line2");
+
+    actions.undoSplitCell({ cellId: nextCellId, snapshot: "line1\nline2" });
+    expect(state.cellIds.length).toBe(originalCellCount);
+    expect(state.cellData[nextCellId].code).toBe("line1\nline2");
+  });
+
+  it("can handle multiple console outputs", () => {
+    const STDOUT1: OutputMessage = {
+      channel: "stdout",
+      mimetype: "text/plain",
+      data: "output1",
+      timestamp: 1,
+    };
+    const STDOUT2: OutputMessage = {
+      channel: "stdout",
+      mimetype: "text/plain",
+      data: "output2",
+      timestamp: 2,
+    };
+
+    actions.handleCellMessage({
+      cell_id: firstCellId,
+      output: undefined,
+      console: [STDOUT1, STDOUT2],
+      status: "running",
+      stale_inputs: null,
+      timestamp: new Date(20).getTime() as Seconds,
+    });
+
+    const cell = cells[0];
+    expect(cell.consoleOutputs).toEqual([STDOUT1, STDOUT2]);
   });
 });
