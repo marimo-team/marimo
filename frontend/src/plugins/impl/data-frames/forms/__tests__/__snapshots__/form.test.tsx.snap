@@ -1083,3 +1083,126 @@ exports[`renderZodSchema > should render a form 9`] = `
   </div>
 </DocumentFragment>
 `;
+
+exports[`renderZodSchema > should render a form 10`] = `
+<DocumentFragment>
+  <div
+    class="flex flex-col gap-6"
+  >
+    <input
+      name=".type"
+      type="hidden"
+      value=""
+    />
+    <div
+      class="flex flex-row align-start"
+    >
+      <div
+        class="flex flex-col gap-1"
+      >
+        <label
+          class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          for=":r2k:-form-item"
+        >
+          Columns
+        </label>
+        <div
+          class="relative"
+        >
+          <div
+            aria-controls="radix-:r2l:"
+            aria-expanded="false"
+            aria-haspopup="dialog"
+            class="flex h-6 w-fit mb-1 shadow-xsSolid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-smSolid focus:outline-none focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-mdSolid disabled:cursor-not-allowed disabled:opacity-50 min-w-[180px]"
+            data-state="closed"
+            type="button"
+          >
+            Select columns 
+            <svg
+              class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="m6 9 6 6 6-6"
+              />
+            </svg>
+          </div>
+          <div
+            class="flex flex-col gap-1 items-start"
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+</DocumentFragment>
+`;
+
+exports[`renderZodSchema > should render a form 11`] = `
+<DocumentFragment>
+  <div
+    class="flex flex-col gap-6"
+  >
+    <input
+      name=".type"
+      type="hidden"
+      value=""
+    />
+    <div
+      class="flex flex-row align-start"
+    >
+      <div
+        class="flex flex-col gap-1"
+      >
+        <label
+          class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          for=":r2m:-form-item"
+        >
+          Column
+        </label>
+        <button
+          aria-autocomplete="none"
+          aria-controls="radix-:r2n:"
+          aria-expanded="false"
+          class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer shadow-xsSolid border border-input hover:shadow-smSolid focus:border-primary focus:shadow-mdSolid disabled:hover:shadow-xsSolid mb-0 min-w-[180px]"
+          data-placeholder=""
+          data-state="closed"
+          dir="ltr"
+          role="combobox"
+          type="button"
+        >
+          <span
+            style="pointer-events: none;"
+          >
+            --
+          </span>
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-chevron-down h-4 w-4 opacity-50"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="m6 9 6 6 6-6"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</DocumentFragment>
+`;

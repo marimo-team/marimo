@@ -48,6 +48,14 @@ const Transforms = {
     type: "select_columns",
     column_ids: ["col1", 2] as ColumnId[],
   } satisfies TransformType,
+  EXPLODE_COLUMNS: {
+    type: "explode_columns",
+    column_ids: ["col1", 2] as ColumnId[],
+  } satisfies TransformType,
+  EXPAND_DICT: {
+    type: "expand_dict",
+    column_id: "col1" as ColumnId,
+  } satisfies TransformType,
 };
 
 describe("getUpdatedColumnTypes", () => {
@@ -112,6 +120,34 @@ describe("getUpdatedColumnTypes", () => {
       Map {
         "col1" => "str",
         2 => "bool",
+      }
+    `);
+  });
+
+  it("should update column types for explode-columns conversion", () => {
+    const result = getUpdatedColumnTypes(
+      [Transforms.EXPLODE_COLUMNS],
+      INITIAL_COLUMN_TYPES,
+    );
+    expect(result).toMatchInlineSnapshot(`
+      Map {
+        "col1" => "str",
+        2 => "bool",
+        "col3" => "int",
+      }
+    `);
+  });
+
+  it("should update column types for expand-dict conversion", () => {
+    const result = getUpdatedColumnTypes(
+      [Transforms.EXPAND_DICT],
+      INITIAL_COLUMN_TYPES,
+    );
+    expect(result).toMatchInlineSnapshot(`
+      Map {
+        "col1" => "str",
+        2 => "bool",
+        "col3" => "int",
       }
     `);
   });
