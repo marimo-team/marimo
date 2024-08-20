@@ -79,6 +79,7 @@ class anywidget(UIElement[T, T]):
 
     def __init__(self, widget: "AnyWidget"):
         self.widget = widget
+        # This gets set to True in super().__init__()
         self._initialized = False
 
         # Get all the traits of the widget
@@ -124,7 +125,6 @@ class anywidget(UIElement[T, T]):
         js: str = widget._esm if hasattr(widget, "_esm") else ""  # type: ignore [unused-ignore]  # noqa: E501
         css: str = widget._css if hasattr(widget, "_css") else ""  # type: ignore [unused-ignore]  # noqa: E501
 
-        self._initialized = True
         super().__init__(
             component_name="marimo-anywidget",
             initial_value=json_args,
