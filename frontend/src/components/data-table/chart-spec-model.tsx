@@ -142,7 +142,7 @@ export class ColumnChartSpecModel<T> {
               aggregate: "count",
               type: "quantitative",
               axis: null,
-              scale: { type: "symlog" },
+              scale: { type: "linear" },
             },
             tooltip: [
               { field: column, type: "nominal", format: ",d", title: "Value" },
@@ -154,6 +154,26 @@ export class ColumnChartSpecModel<T> {
               },
             ],
           },
+          layer: [
+            {
+              mark: { type: "bar", color: mint.mint11 },
+            },
+            {
+              mark: {
+                type: "text",
+                align: "left",
+                baseline: "middle",
+                dx: 3,
+                color: slate.slate9,
+              },
+              encoding: {
+                text: {
+                  aggregate: "count",
+                  type: "quantitative",
+                },
+              },
+            },
+          ],
         };
       case "unknown":
       case "string":
