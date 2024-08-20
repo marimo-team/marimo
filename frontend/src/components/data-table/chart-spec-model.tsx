@@ -16,7 +16,7 @@ export class ColumnChartSpecModel<T> {
     readonly summaries: ColumnHeaderSummary[],
     private readonly opts: {
       includeCharts: boolean;
-    }
+    },
   ) {
     this.columnSummaries = new Map(summaries.map((s) => [s.column, s]));
   }
@@ -174,7 +174,7 @@ export class ColumnChartSpecModel<T> {
               },
             },
           ],
-        };
+        } as TopLevelFacetedUnitSpec; // "layer" not in TopLevelFacetedUnitSpec
       case "unknown":
       case "string":
         return null;
