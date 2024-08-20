@@ -9,6 +9,7 @@ env:
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: marimo
   MARIMO_SKIP_UPDATE_CHECK: 1
+  UV_SYSTEM_PYTHON: 1
 
 jobs:
   build_wheel:
@@ -35,21 +36,21 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: "pnpm"
-          cache-dependency-path: "**/pnpm-lock.yaml"
+          cache: 'pnpm'
+          cache-dependency-path: '**/pnpm-lock.yaml'
 
       - uses: turbocache-build/turbocache-action@v1
 
       - name: 📦 Build frontend
         run: make fe
         env:
-          NODE_OPTIONS: "--max_old_space_size=8192"
+          NODE_OPTIONS: '--max_old_space_size=8192'
 
-      - name: 🐍 Setup Python 3.10
+      - name: 🐍 Setup Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
-          cache: "pip"
+          python-version: '3.12'
+          cache: 'pip'
 
       - name: 🐍 Setup uv
         uses: yezz123/setup-uv@v4
@@ -76,7 +77,7 @@ jobs:
     strategy:
       matrix:
         # TODO(akshayka): consider adding 3.8, 3.9
-        python-version: ["3.10"]
+        python-version: ['3.10']
         os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
@@ -87,12 +88,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
+          cache: 'pip'
 
       - name: Install Python deps
         run: |
-          python -m pip install --upgrade pip
-          pip install pytest pytest-asyncio
+          uv pip install pytest pytest-asyncio
 
       - name: Download wheel
         uses: actions/download-artifact@v3
@@ -101,7 +101,7 @@ jobs:
 
       - name: Install marimo
         shell: bash
-        run: pip install marimo*whl
+        run: uv pip install marimo*whl
 
       - name: Test CLI
         shell: bash
@@ -119,8 +119,8 @@ jobs:
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
-          cache: "pip"
+          python-version: '3.12'
+          cache: 'pip'
 
       - name: 🐍 Setup uv
         uses: yezz123/setup-uv@v4

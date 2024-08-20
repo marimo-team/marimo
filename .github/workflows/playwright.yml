@@ -9,6 +9,7 @@ env:
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: marimo
   MARIMO_SKIP_UPDATE_CHECK: 1
+  UV_SYSTEM_PYTHON: 1
 
 jobs:
   test:
@@ -19,7 +20,7 @@ jobs:
         shell: bash
     env:
       NODE_ENV: test
-      DEBUG: "pw:webserver"
+      DEBUG: 'pw:webserver'
 
     steps:
       - name: 🛑 Cancel Previous Runs
@@ -41,31 +42,28 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: "pnpm"
-          cache-dependency-path: "**/pnpm-lock.yaml"
+          cache: 'pnpm'
+          cache-dependency-path: '**/pnpm-lock.yaml'
 
       - uses: turbocache-build/turbocache-action@v1
 
       - name: 📦 Build frontend
         run: make fe
 
-      - name: 🐍 Setup Python 3.10
+      - name: 🐍 Setup Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
-          cache: "pip"
+          python-version: '3.12'
+          cache: 'pip'
 
-      # We tried to add uv, but marimo is unable to
-      # start when installed.
-      # - name: 🐍 Setup uv
-      #   uses: yezz123/setup-uv@v4
-      #   with:
-      #     uv-venv: marimo-venv
+      - name: 🐍 Setup uv
+        uses: yezz123/setup-uv@v4
+        with:
+          uv-venv: marimo-venv
 
       - name: 🐍 Install marimo
         run: |
-          python -m pip install --upgrade pip
-          pip install .
+          uv pip install .
           echo "MARIMO_VERSION=$(marimo --version)" >> $GITHUB_ENV
 
       - name: 🎭 Get installed Playwright version

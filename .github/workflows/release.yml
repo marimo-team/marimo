@@ -12,6 +12,7 @@ env:
   TURBO_TEAM: marimo
   REGISTRY: ghcr.io
   IMAGE_NAME: marimo-team/marimo
+  UV_SYSTEM_PYTHON: 1
 
 jobs:
   publish_release:
@@ -52,18 +53,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: 'pip'
 
-      # This does not work when running `marimo --version`
-      # - name: 🐍 Setup uv
-      #   uses: yezz123/setup-uv@v4
-      #   with:
-      #     uv-venv: marimo-venv
+      - name: 🐍 Setup uv
+        uses: yezz123/setup-uv@v4
+        with:
+          uv-venv: marimo-venv
 
       - name: 📦 Build marimo
         run: |
-          pip install build twine
-          pip install .
+          uv pip install build twine
+          uv pip install .
           python -m build
 
       - name: 📤 Upload to PyPI

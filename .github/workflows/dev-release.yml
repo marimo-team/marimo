@@ -9,6 +9,7 @@ on:
 env:
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: marimo
+  UV_SYSTEM_PYTHON: 1
 
 jobs:
   publish_dev_release:
@@ -36,20 +37,20 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: "pnpm"
-          cache-dependency-path: "**/pnpm-lock.yaml"
-          registry-url: "https://registry.npmjs.org"
+          cache: 'pnpm'
+          cache-dependency-path: '**/pnpm-lock.yaml'
+          registry-url: 'https://registry.npmjs.org'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: 📦 Build frontend
         run: make fe
 
-      - name: 🐍 Setup Python 3.10
+      - name: 🐍 Setup Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
-          cache: "pip"
+          python-version: '3.12'
+          cache: 'pip'
 
       - name: 🐍 Setup uv
         uses: yezz123/setup-uv@v4
@@ -106,7 +107,7 @@ jobs:
         working-directory: frontend
         env:
           NODE_ENV: production
-          VITE_MARIMO_ISLANDS: "true"
+          VITE_MARIMO_ISLANDS: 'true'
           VITE_MARIMO_VERSION: ${{ env.MARIMO_VERSION }}
         run: |
           pnpm turbo build:islands
