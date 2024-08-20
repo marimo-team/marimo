@@ -2,7 +2,7 @@ fail_fast: true
 
 repos:
   - repo: https://github.com/abravalheri/validate-pyproject
-    rev: v0.18
+    rev: v0.19
     hooks:
       - id: validate-pyproject
 
@@ -19,7 +19,7 @@ repos:
       - id: typos
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.5.6
+    rev: v0.6.1
     hooks:
       # Run the linter
       - id: ruff

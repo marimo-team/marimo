@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.4
+# syntax=docker/dockerfile:1.9
 FROM python:3.12-slim AS base
 
 # Create a non-root user
