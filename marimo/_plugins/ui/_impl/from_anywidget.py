@@ -10,7 +10,8 @@ import marimo._output.data.data as mo_data
 from marimo import _loggers
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.json_encoder import WebComponentEncoder
-from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
+from marimo._plugins.ui._impl.anywidget.comm import MarimoComm
 from marimo._runtime.functions import Function
 
 if TYPE_CHECKING:
@@ -78,6 +79,7 @@ class anywidget(UIElement[T, T]):
 
     def __init__(self, widget: "AnyWidget"):
         self.widget = widget
+        self._initialized = False
 
         # Get all the traits of the widget
         args: T = widget.trait_values()
@@ -122,8 +124,7 @@ class anywidget(UIElement[T, T]):
         js: str = widget._esm if hasattr(widget, "_esm") else ""  # type: ignore [unused-ignore]  # noqa: E501
         css: str = widget._css if hasattr(widget, "_css") else ""  # type: ignore [unused-ignore]  # noqa: E501
 
-        self.widget.comm = _maybe_create_comm(self)
-
+        self._initialized = True
         super().__init__(
             component_name="marimo-anywidget",
             initial_value=json_args,
@@ -142,10 +143,17 @@ class anywidget(UIElement[T, T]):
             ),
         )
 
-    def _send_to_frontend(
-        self, value: T, buffers: Optional[Any] = None
+    def _initialize(
+        self,
+        initialization_args: InitializationArgs[
+            Dict[str, Any], Dict[str, Any]
+        ],
     ) -> None:
-        self.send_message(value, buffers)
+        super()._initialize(initialization_args)
+        # Add the ui_element_id after the widget is initialized
+        comm = self.widget.comm
+        if isinstance(comm, MarimoComm):
+            comm.ui_element_id = self._id
 
     def _receive_from_frontend(self, args: SendToWidgetArgs) -> None:
         self.widget._handle_custom_msg(args.content, args.buffers)
@@ -153,36 +161,19 @@ class anywidget(UIElement[T, T]):
     def _convert_value(self, value: T) -> T:
         return value
 
-    # Proxy all the widget's attributes
+    # After the widget has been initialized
+    # forward all setattr to the widget
+    def __setattr__(self, name: str, value: Any) -> None:
+        if self._initialized:
+            return setattr(self.widget, name, value)
+        return super().__setattr__(name, value)
+
+    # After the widget has been initialized
+    # forward all getattr to the widget
     def __getattr__(self, name: str) -> Any:
+        if name in ("widget", "_initialized"):
+            try:
+                return self.__getattribute__(name)
+            except AttributeError:
+                return None
         return getattr(self.widget, name)
-
-
-def _maybe_create_comm(widget: "anywidget") -> Any:
-    try:
-        from comm.base_comm import BaseComm  # type: ignore
-
-        class MarimoComm(BaseComm):  # type: ignore
-            def publish_msg(
-                self,
-                msg_type: str,
-                data: Any = None,
-                metadata: Any = None,
-                buffers: Any = None,
-                **keys: Any,
-            ) -> None:
-                del metadata
-                del keys
-                if (
-                    msg_type == "comm_msg"
-                    and "method" in data
-                    and data["method"] == "custom"
-                ):
-                    if "content" in data:
-                        widget._send_to_frontend(data["content"], buffers)
-                    else:
-                        LOGGER.warning("No content in custom message")
-
-        return MarimoComm()
-    except ImportError:
-        LOGGER.warning("Comm is not available")

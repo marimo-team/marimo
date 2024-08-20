@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.7.2"
+__generated_with = "0.8.0"
 app = marimo.App(width="medium")
 
 
