@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 from marimo._messaging.ops import VariableValue
 from marimo._output.hypertext import Html
 from marimo._plugins.ui._impl.input import slider
@@ -20,7 +22,7 @@ def test_value_html() -> None:
 def test_variable_value_broken_str() -> None:
     class Broken:
         def __str__(self) -> str:
-            raise BaseException
+            raise BaseException  # noqa: TRY002
 
     variable_value = VariableValue(name="o", value=Broken())
     assert variable_value.datatype == "Broken"
