@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <a href= "https://github.com/marimo-team/marimo/blob/main/README.md" target="_blank"><b>English</b></a> 
+  <a href= "https://github.com/marimo-team/marimo/blob/main/README.md" target="_blank"><b>English</b></a>
   <b> | 简体中文</b>
 </p>
 
