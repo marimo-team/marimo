@@ -294,7 +294,8 @@
 
 :root {
   /* Set a fixed gutter width to ensure the hover area is always wide enough */
-  --gutter-width: 50px;
+  /* And make the gutter bigger when the window is super wide */
+  --gutter-width: max(calc(50vw - (var(--content-width) / 2)), 50px);
 }
 
 /* ------------------------ CodeMirror Editor ----------------------------- */
