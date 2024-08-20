@@ -15,6 +15,7 @@ from marimo._output.formatters.df_formatters import (
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._output.formatters.holoviews_formatters import HoloViewsFormatter
 from marimo._output.formatters.ipython_formatters import IPythonFormatter
+from marimo._output.formatters.ipywidgets_formatters import IPyWidgetsFormatter
 from marimo._output.formatters.leafmap_formatters import LeafmapFormatter
 from marimo._output.formatters.matplotlib_formatters import MatplotlibFormatter
 from marimo._output.formatters.pandas_formatters import PandasFormatter
@@ -38,6 +39,7 @@ THIRD_PARTY_FACTORIES: dict[str, FormatterFactory] = {
     BokehFormatter.package_name(): BokehFormatter(),
     HoloViewsFormatter.package_name(): HoloViewsFormatter(),
     IPythonFormatter.package_name(): IPythonFormatter(),
+    IPyWidgetsFormatter.package_name(): IPyWidgetsFormatter(),
     AnyWidgetFormatter.package_name(): AnyWidgetFormatter(),
     TqdmFormatter.package_name(): TqdmFormatter(),
 }

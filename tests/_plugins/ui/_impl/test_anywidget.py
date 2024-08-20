@@ -111,3 +111,39 @@ x = as_marimo_element.count
         assert isinstance(k.globals["w"], anywidget)
         assert k.globals["w_value"]["count"] == 10
         assert k.globals["w_count"] == 10
+
+    @staticmethod
+    async def test_getters_setters() -> None:
+        # Test on wrapped
+        wrapped = anywidget(CounterWidget())
+        assert wrapped.count == 0
+        wrapped.count = 10
+        assert wrapped.count == 10
+
+        # Test on wrapped, with initialization
+        wrapped = anywidget(CounterWidget(count=5))
+        assert wrapped.count == 5
+        wrapped.count = 10
+        assert wrapped.count == 10
+
+        # Test on wrapped.widget, with initialization
+        wrapped = anywidget(CounterWidget(count=7))
+        assert wrapped.widget.count == 7  # type: ignore
+        wrapped.widget.count = 10  # type: ignore
+        assert wrapped.count == 10
+
+        assert wrapped._initialized is True
+
+    @staticmethod
+    async def test_set_trait() -> None:
+        # Test on wrapped
+        wrapped = anywidget(CounterWidget())
+        assert wrapped.count == 0
+        wrapped.set_trait("count", 10)
+        assert wrapped.count == 10
+        assert wrapped.widget.count == 10  # type: ignore
+        wrapped.widget.set_trait("count", 7)
+        assert wrapped.count == 7
+        assert wrapped.widget.count == 7  # type: ignore
+
+        assert wrapped._initialized is True

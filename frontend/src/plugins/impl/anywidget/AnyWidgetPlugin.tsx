@@ -25,9 +25,7 @@ type T = Record<string, any>;
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type PluginFunctions = {
-  send_to_widget: <T>(req: {
-    content?: any;
-  }) => Promise<null | undefined>;
+  send_to_widget: <T>(req: { content?: any }) => Promise<null | undefined>;
 };
 
 export const AnyWidgetPlugin = createPlugin<T>("marimo-anywidget")
@@ -235,7 +233,22 @@ class Model<T extends Record<string, any>> implements AnyModel<T> {
    * We want to notify all listeners with `msg:custom`
    */
   receiveCustomMessage(message: any, buffers?: DataView[]): void {
-    this.listeners["msg:custom"]?.forEach((cb) => cb(message, buffers));
+    const response = WidgetMessageSchema.safeParse(message);
+    if (response.success) {
+      const data = response.data;
+      switch (data.method) {
+        case "update":
+          this.updateAndEmitDiffs(data.state as T);
+          break;
+        case "custom":
+          this.listeners["msg:custom"]?.forEach((cb) =>
+            cb(data.content, buffers),
+          );
+          break;
+      }
+    } else {
+      Logger.error("Failed to parse message", message, response.error);
+    }
   }
 
   on(eventName: string, callback: EventHandler): void {
@@ -252,3 +265,14 @@ class Model<T extends Record<string, any>> implements AnyModel<T> {
     this.listeners[event].forEach((cb) => cb(value));
   }
 }
+
+const WidgetMessageSchema = z.union([
+  z.object({
+    method: z.literal("update"),
+    state: z.record(z.any()),
+  }),
+  z.object({
+    method: z.literal("custom"),
+    content: z.any(),
+  }),
+]);

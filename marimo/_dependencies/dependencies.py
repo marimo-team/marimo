@@ -146,6 +146,7 @@ class DependencyManager:
     anywidget = Dependency("anywidget")
     watchdog = Dependency("watchdog")
     ipython = Dependency("IPython")
+    ipywidgets = Dependency("ipywidgets")
     nbformat = Dependency("nbformat")
     narwhals = Dependency("narwhals")
     ruff = Dependency("ruff")
