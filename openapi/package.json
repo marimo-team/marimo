@@ -13,7 +13,7 @@
     "codegen": "npx openapi-typescript ./api.yaml -o ./src/api.ts"
   },
   "devDependencies": {
-    "openapi-typescript": "^6.7.6",
+    "openapi-typescript": "^7.3.0",
     "typescript": "^5.5.4"
   },
   "dependencies": {
