@@ -117,7 +117,7 @@ class MarimoComm:
             self.comm_manager.unregister_comm(self)
 
     # trigger close on gc
-    def __del__(self):
+    def __del__(self) -> None:
         self.close(deleting=True)
 
     # Compare to `ipykernel.comm.Comm._publish_msg`, but...
