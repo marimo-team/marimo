@@ -35,6 +35,7 @@
       "groupSlug": "all-minor-patch",
       "excludePackagePatterns": [".*eslint.*", ".*radix.*", ".*storybook.*"],
       "excludePackageNames": [
+        "geopandas",
         "typescript",
         "react-resizable-panels",
         "openapi-fetch"
