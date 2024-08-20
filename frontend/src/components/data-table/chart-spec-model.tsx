@@ -16,7 +16,7 @@ export class ColumnChartSpecModel<T> {
     readonly summaries: ColumnHeaderSummary[],
     private readonly opts: {
       includeCharts: boolean;
-    },
+    }
   ) {
     this.columnSummaries = new Map(summaries.map((s) => [s.column, s]));
   }
@@ -95,7 +95,7 @@ export class ColumnChartSpecModel<T> {
               aggregate: "count",
               type: "quantitative",
               axis: null,
-              scale: { type: "symlog" },
+              scale: { type: "linear" },
             },
             tooltip: [
               {
