@@ -135,7 +135,7 @@ testoptional = [
     "types-Pillow~=10.2.0.20240520",
     "polars~=1.5.0",
     "anywidget~=0.9.13",
-    "ipython~=8.26.0",
+    "ipython~=8.12.3",
     "openai~=1.41.1",
     # exporting as ipynb
     "nbformat >=5.10.4",
