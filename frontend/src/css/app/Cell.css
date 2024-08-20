@@ -294,7 +294,7 @@
 
 :root {
   /* In wide mode, this will overextend, but that's fine */
-  --gutter-width: max(calc(50vw - (var(--content-width) / 2)), 50px);
+  --gutter-width: calc(50vw - (var(--content-width) / 2));
 }
 
 /* ------------------------ CodeMirror Editor ----------------------------- */
