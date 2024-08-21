@@ -1,6 +1,10 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import ast
+import os
+import subprocess
+import sys
 from typing import TYPE_CHECKING, Any, Dict
 
 import click
@@ -20,10 +24,14 @@ from marimo import __version__
 from marimo._ast.cell import CellConfig, RuntimeStateType
 from marimo._cli.print import orange
 from marimo._config.config import MarimoConfig
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.mime import MIME
 from marimo._plugins.core.web_component import JSONType
+from marimo._runtime.packages.module_name_to_pypi_name import (
+    module_name_to_pypi_name,
+)
 from marimo._server.api.router import build_routes
 from marimo._utils.dataclass_to_openapi import (
     PythonTypeToOpenAPI,
@@ -320,5 +328,81 @@ def killall() -> None:
     print("Killed all marimo processes")
 
 
+@click.command(
+    help="Inline packages according to PEP 723", name="inline-packages"
+)
+@click.argument("name", required=True)
+def inline_packages(
+    name: str,
+) -> None:
+    """
+    Example usage:
+
+        marimo development inline-packages
+
+    This uses some heuristics to guess the package names from the imports in
+    the file.
+
+    Requires uv.
+    Installation: https://docs.astral.sh/uv/getting-started/installation/
+    """
+
+    # Validate uv is installed
+    if not DependencyManager.which("uv"):
+        raise click.UsageError(
+            "uv is not installed. See https://docs.astral.sh/uv/getting-started/installation/"
+        )
+
+    # Validate the file exists
+    if not os.path.exists(name):
+        raise click.FileError(name)
+
+    package_names = module_name_to_pypi_name()
+
+    def get_pypi_package_names() -> list[str]:
+        with open(name, "r") as file:
+            tree = ast.parse(file.read(), filename=name)
+
+        imported_modules = set[str]()
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    imported_modules.add(alias.name.split(".")[0])
+            elif isinstance(node, ast.ImportFrom):
+                if node.module:
+                    imported_modules.add(node.module.split(".")[0])
+
+        pypi_names = [
+            package_names.get(mod, mod.replace("_", "-"))
+            for mod in imported_modules
+        ]
+
+        return pypi_names
+
+    OTHER_BUILT_INS = [
+        "functools",
+    ]
+
+    def is_stdlib_module(module_name: str) -> bool:
+        return (
+            module_name in sys.builtin_module_names
+            or module_name in OTHER_BUILT_INS
+        )
+
+    pypi_names = get_pypi_package_names()
+
+    # Filter out python distribution packages
+    pypi_names = [name for name in pypi_names if not is_stdlib_module(name)]
+
+    # run: uv add {pypi_names} --script {name}
+    print(f"Inlining packages: {pypi_names}")
+    print(f"into script: {name}")
+
+    for pypi_name in pypi_names:
+        subprocess.run(["uv", "add", pypi_name, "--script", name])
+
+
+development.add_command(inline_packages)
 development.add_command(openapi)
 development.add_command(ps)
