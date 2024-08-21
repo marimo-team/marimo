@@ -10,6 +10,8 @@ from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t
+from marimo._cli.upgrade import check_for_updates
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.ops import (
     Alert,
     Banner,
@@ -512,6 +514,7 @@ class WebsocketHandler(SessionConsumer):
 
         async def listen_for_disconnect() -> None:
             try:
+                self._check_status_update()
                 await self.websocket.receive_text()
             except WebSocketDisconnect as e:
                 self._on_disconnect(
@@ -564,3 +567,32 @@ class WebsocketHandler(SessionConsumer):
 
     def connection_state(self) -> ConnectionState:
         return self.status
+
+    def _check_status_update(self) -> None:
+        # Only check for updates if we're in edit mode
+        if (
+            not GLOBAL_SETTINGS.CHECK_STATUS_UPDATE
+            or self.mode != SessionMode.EDIT
+        ):
+            return
+
+        def on_update(current_version: str, latest_version: str) -> None:
+            # Let's only toast once per marimo server
+            # so we can just store this in memory.
+            # We still want to check for updates (which are debounced 24 hours)
+            # but don't keep toasting.
+            global HAS_TOASTED
+            if HAS_TOASTED:
+                return
+
+            HAS_TOASTED = True
+
+            title = f"Update available {current_version} → {latest_version}"
+            release_url = "https://github.com/marimo-team/marimo/releases"
+            description = f"Check out the <a class='underline' target='_blank' href='{release_url}'>latest release on GitHub.</a>"  # noqa: E501
+            self.write_operation(Alert(title=title, description=description))
+
+        check_for_updates(on_update)
+
+
+HAS_TOASTED = False

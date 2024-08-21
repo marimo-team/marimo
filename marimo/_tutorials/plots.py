@@ -1,13 +1,14 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.69"
+__generated_with = "0.8.0"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md("# Plotting")
+    mo.md("""# Plotting""")
     return
 
 
@@ -33,7 +34,7 @@ def __(mo):
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md("## Matplotlib")
+    mo.md("""## Matplotlib""")
     return
 
 
@@ -203,7 +204,7 @@ def __(exponent, mo, plt, x):
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md("## Other libraries")
+    mo.md("""## Other libraries""")
     return
 
 
