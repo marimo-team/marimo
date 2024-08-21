@@ -74,6 +74,9 @@ files:
   # Login
   integrations/google_cloud_storage.py:
     skip: true
+  # Login
+  integrations/google_sheets.py:
+    skip: true
   embeddings/debugging_embeddings.py:
     skip: true
   embeddings/embedding_numbers.py:
