@@ -2,40 +2,84 @@ files:
   ###################
   # Inputs
   ansi.py:
-    input: "y"
+    input: 'y'
   stdin.py:
-    input: "y"
+    input: 'y'
 
   ###################
-  # Errors
-  bugs/924.py:
-    failed_reason: "ModuleNotFoundError: No module named 'micropip'"
-  third_party/ipython_display.py:
-    failed_reason: "ModuleNotFoundError: No module named 'tikz'"
+  # Expected Errors
+  anywidget/tldraw_colorpicker.py:
+    failed_reason: "ModuleNotFoundError: No module named 'tldraw'"
   bugs/1055.py:
     failed_reason: "ModuleNotFoundError: No module named 'manim_slides'"
   bugs/1270.py:
-    failed_reason: "UDF failed: DataFrame constructor"
-  stop.py:
-    failed_reason: "MarimoStopError"
+    failed_reason: 'UDF failed: DataFrame constructor'
+  bugs/924.py:
+    failed_reason: "ModuleNotFoundError: No module named 'micropip'"
+  bugs/1851.py:
+    failed_reason: 'ValueError: 0'
   charts/1mil_flights.py:
-    failed_reason: "MarimoStopError"
+    failed_reason: MaxRowsError
+  embeddings/complete_graph.py:
+    failed_reason: "ModuleNotFoundError: No module named 'pymde'"
+  embeddings/drawing_graphs.py:
+    failed_reason: "ModuleNotFoundError: No module named 'pymde'"
+  embeddings/tree.py:
+    failed_reason: "ModuleNotFoundError: No module named 'pymde'"
   errors.py:
-    failed_reason: "UnparsableError"
-  reactive_plots.py:
-    failed_reason: "MarimoStopError"
+    failed_reason: UnparsableError
+  integrations/google_cloud_bigquery.py:
+    failed_reason: "ModuleNotFoundError: No module named 'google.cloud'"
+  integrations/google_cloud_storage.py:
+    failed_reason: "ModuleNotFoundError: No module named 'google.cloud'"
+  integrations/google_sheets.py:
+    failed_reason: "ModuleNotFoundError: No module named 'gspread'"
   model_comparison/model_comparison.py:
-    failed_reason: "MarimoStopError"
+    failed_reason: MarimoStopError
+  no_mutating.py:
+    failed_reason:
+      - Setting the value of a UIElement is not allowed
+      - Setting the on_change handler of a UIElement is not allowed
+      - "AttributeError: 'text' object has no attribute 'on_change'"
+  reactive_plots.py:
+    failed_reason: MarimoStopError
+  stop.py:
+    failed_reason: MarimoStopError
   third_party/duckdb_example.py:
-    failed_reason: "MarimoStopError"
+    failed_reason: MarimoStopError
+  third_party/ipython_display.py:
+    failed_reason: "ModuleNotFoundError: No module named 'tikz'"
+  third_party/leafmap_example.py:
+    failed_reason: "ModuleNotFoundError: No module named 'leafmap'"
+  bugs/1241.py:
+    failed_reason: "ModuleNotFoundError: No module named 'leafmap'"
 
-  ###################
+  ########################################
   # Not a marimo app
   custom_server/my_server.py:
+    skip: true
+  # Network requests
+  sql/motherduck.py:
+    skip: true
+  # Network requests
+  sql/limits.py:
+    skip: true
+  # Network requests
+  sql/electric_vehicles.py:
+    skip: true
+  # Network requests
+  sql/sqlite.py:
+    skip: true
+  # Network requests
+  sql.py:
+    skip: true
+  # This runs plt.show() which blocks the test
+  bugs/1510.py:
     skip: true
   # This runs plt.show() which blocks the test
   bugs/1086.py:
     skip: true
+  # Network requests
   ws.py:
     skip: true
   embeddings/debugging_embeddings.py:
@@ -66,9 +110,13 @@ files:
   # Should be fixed
   refresh.py: # flaky
     skip: true
-    failed_reason: "MarimoStopError"
+    failed_reason: 'MarimoStopError'
   iplot.py:
     skip: true
-    failed_reason: "RuntimeError: cannot schedule new futures after interpreter shutdown"
+    failed_reason: 'RuntimeError: cannot schedule new futures after interpreter shutdown'
   pdb_test.py:
     failed_reason: "AttributeError: module 'marimo' has no attribute 'pdb'"
+  import_named_cells.py:
+    failed_reason: "TypeError: unhashable type: 'text'"
+  appcomp/double_nested/main.py:
+    failed_reason: 'RuntimeError: asyncio.run() cannot be called from a running event loop'
