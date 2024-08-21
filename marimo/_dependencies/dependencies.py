@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import importlib.metadata
 import importlib.util
+import shutil
 import sys
 from dataclasses import dataclass
 
@@ -156,3 +157,10 @@ class DependencyManager:
     def has(pkg: str) -> bool:
         """Return True if any lib is installed."""
         return Dependency(pkg).has()
+
+    @staticmethod
+    def which(pkg: str) -> bool:
+        """
+        Checks if a CLI command is installed.
+        """
+        return shutil.which(pkg) is not None
