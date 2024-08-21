@@ -49,3 +49,10 @@
   font-weight: 400;
   font-style: normal;
 }
+
+/* The swiper library adds styles to `:host` which is a global selector we use for other components,
+so we are resetting this back to initial. */
+/* 2 hosts to increase specificity */
+:host:host {
+  display: initial;
+}
