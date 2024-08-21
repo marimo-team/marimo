@@ -397,7 +397,15 @@ def inline_packages(
 
     click.echo(f"Inlining packages: {pypi_names}")
     click.echo(f"into script: {name}")
-    subprocess.run(["uv", "add", "--script", name, " ".join(pypi_names)])
+    subprocess.run(
+        [
+            "uv",
+            "add",
+            "--script",
+            name,
+        ]
+        + pypi_names
+    )
 
 
 development.add_command(inline_packages)
