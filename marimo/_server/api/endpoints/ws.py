@@ -569,7 +569,11 @@ class WebsocketHandler(SessionConsumer):
         return self.status
 
     def _check_status_update(self) -> None:
-        if not GLOBAL_SETTINGS.CHECK_STATUS_UPDATE:
+        # Only check for updates if we're in edit mode
+        if (
+            not GLOBAL_SETTINGS.CHECK_STATUS_UPDATE
+            or self.mode != SessionMode.EDIT
+        ):
             return
 
         def on_update(current_version: str, latest_version: str) -> None:
