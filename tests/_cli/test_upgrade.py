@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 from datetime import datetime
 from typing import Any
 from unittest.mock import mock_open, patch
@@ -7,6 +9,7 @@ from marimo._cli.upgrade import (
     MarimoCLIState,
     _update_with_latest_version,
     check_for_updates,
+    print_latest_version,
 )
 
 
@@ -34,7 +37,7 @@ def test_check_for_updates(
     mock_open_file.side_effect = FileNotFoundError()
 
     # Call the function to test
-    check_for_updates()
+    check_for_updates(print_latest_version)
 
     # Assert that the makedirs function was not called
     mock_makedirs.assert_not_called()
