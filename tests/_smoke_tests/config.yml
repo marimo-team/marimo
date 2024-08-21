@@ -18,22 +18,12 @@ files:
     failed_reason: "ModuleNotFoundError: No module named 'micropip'"
   bugs/1851.py:
     failed_reason: 'ValueError: 0'
+  bugs/1710.py:
+    failed_reason: "No module named 'keras'"
   charts/1mil_flights.py:
     failed_reason: MaxRowsError
-  embeddings/complete_graph.py:
-    failed_reason: "ModuleNotFoundError: No module named 'pymde'"
-  embeddings/drawing_graphs.py:
-    failed_reason: "ModuleNotFoundError: No module named 'pymde'"
-  embeddings/tree.py:
-    failed_reason: "ModuleNotFoundError: No module named 'pymde'"
   errors.py:
     failed_reason: UnparsableError
-  integrations/google_cloud_bigquery.py:
-    failed_reason: "ModuleNotFoundError: No module named 'google.cloud'"
-  integrations/google_cloud_storage.py:
-    failed_reason: "ModuleNotFoundError: No module named 'google.cloud'"
-  integrations/google_sheets.py:
-    failed_reason: "ModuleNotFoundError: No module named 'gspread'"
   model_comparison/model_comparison.py:
     failed_reason: MarimoStopError
   no_mutating.py:
@@ -49,10 +39,6 @@ files:
     failed_reason: MarimoStopError
   third_party/ipython_display.py:
     failed_reason: "ModuleNotFoundError: No module named 'tikz'"
-  third_party/leafmap_example.py:
-    failed_reason: "ModuleNotFoundError: No module named 'leafmap'"
-  bugs/1241.py:
-    failed_reason: "ModuleNotFoundError: No module named 'leafmap'"
 
   ########################################
   # Not a marimo app
@@ -81,6 +67,12 @@ files:
     skip: true
   # Network requests
   ws.py:
+    skip: true
+  # Login
+  integrations/google_cloud_bigquery.py:
+    skip: true
+  # Login
+  integrations/google_cloud_storage.py:
     skip: true
   embeddings/debugging_embeddings.py:
     skip: true
@@ -120,3 +112,9 @@ files:
     failed_reason: "TypeError: unhashable type: 'text'"
   appcomp/double_nested/main.py:
     failed_reason: 'RuntimeError: asyncio.run() cannot be called from a running event loop'
+  third_party/holoviews_example.py: # bad import
+    skip: true
+  bugs/1351.py: # bad import
+    skip: true
+  bugs/1072.py: # bad import
+    skip: true

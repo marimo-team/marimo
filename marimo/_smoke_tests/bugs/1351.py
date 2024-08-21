@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.5.1"
+__generated_with = "0.8.0"
 app = marimo.App()
 
 
@@ -19,16 +19,20 @@ def __(selected_theme):
     import polars as pl
     import holoviews as hv
     import hvplot.polars
+
     hv.extension("bokeh")
     hvplot.extension("bokeh")
-    hv.renderer('bokeh').theme = selected_theme.value
+    hv.renderer("bokeh").theme = selected_theme.value
     return hv, hvplot, pl
 
 
 @app.cell
 def __(pl):
     df = pl.DataFrame({"a": range(1, 10), "b": range(1, 10)})
-    df.plot.line(x="a", y="b",)
+    df.plot.line(
+        x="a",
+        y="b",
+    )
     return df,
 
 
