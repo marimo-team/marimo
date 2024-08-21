@@ -62,6 +62,7 @@ function createEditor(content: string) {
         completionConfig: {
           activate_on_typing: true,
           copilot: false,
+          codeium_api_key: null,
         },
         hotkeys: new OverridingHotkeyProvider({}),
         showPlaceholder: true,

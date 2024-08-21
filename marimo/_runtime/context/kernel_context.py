@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Iterator, Optional
 
+from marimo._config.config import MarimoConfig
 from marimo._messaging.types import Stderr, Stdout
 from marimo._plugins.ui._core.ids import IDProvider, NoIDProviderException
 from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
@@ -45,6 +46,10 @@ class KernelRuntimeContext(RuntimeContext):
     @property
     def execution_context(self) -> ExecutionContext | None:
         return self._kernel.execution_context
+
+    @property
+    def user_config(self) -> MarimoConfig:
+        return self._kernel.user_config
 
     @property
     def lazy(self) -> bool:

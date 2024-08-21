@@ -12,6 +12,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Iterator, Optional
 
+from marimo._config.config import MarimoConfig
 from marimo._messaging.types import Stderr, Stdout
 from marimo._runtime import dataflow
 from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
@@ -86,6 +87,11 @@ class RuntimeContext(abc.ABC):
     @property
     @abc.abstractmethod
     def execution_context(self) -> ExecutionContext | None:
+        pass
+
+    @property
+    @abc.abstractmethod
+    def user_config(self) -> MarimoConfig:
         pass
 
     @property

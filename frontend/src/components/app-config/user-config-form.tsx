@@ -342,32 +342,6 @@ export const UserConfigForm: React.FC = () => {
           />
           <FormField
             control={form.control}
-            name="display.code_editor_font_size"
-            render={({ field }) => (
-              <FormItem className={formItemClasses}>
-                <FormLabel>Code editor font size</FormLabel>
-                <FormControl>
-                  <span className="inline-flex mr-2">
-                    <NumberField
-                      data-testid="code-editor-font-size-input"
-                      className="m-0 w-24"
-                      {...field}
-                      value={field.value}
-                      minValue={8}
-                      maxValue={20}
-                      onChange={(value) => {
-                        field.onChange(value);
-                        onSubmit(form.getValues());
-                      }}
-                    />
-                  </span>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
             name="display.cell_output"
             render={({ field }) => (
               <div className="flex flex-col space-y-1">
@@ -395,6 +369,64 @@ export const UserConfigForm: React.FC = () => {
                   Where to display cell's output.
                 </FormDescription>
               </div>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="display.dataframes"
+            render={({ field }) => (
+              <div className="flex flex-col space-y-1">
+                <FormItem className={formItemClasses}>
+                  <FormLabel>Dataframe viewer</FormLabel>
+                  <FormControl>
+                    <NativeSelect
+                      data-testid="display-dataframes-select"
+                      onChange={(e) => field.onChange(e.target.value)}
+                      value={field.value}
+                      disabled={field.disabled}
+                      className="inline-flex mr-2"
+                    >
+                      {["rich", "plain"].map((option) => (
+                        <option value={option} key={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+
+                <FormDescription>
+                  Whether to use marimo's rich dataframe viewer or a plain HTML
+                  table; requires notebook restart to take effect.
+                </FormDescription>
+              </div>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="display.code_editor_font_size"
+            render={({ field }) => (
+              <FormItem className={formItemClasses}>
+                <FormLabel>Code editor font size</FormLabel>
+                <FormControl>
+                  <span className="inline-flex mr-2">
+                    <NumberField
+                      data-testid="code-editor-font-size-input"
+                      className="m-0 w-24"
+                      {...field}
+                      value={field.value}
+                      minValue={8}
+                      maxValue={20}
+                      onChange={(value) => {
+                        field.onChange(value);
+                        onSubmit(form.getValues());
+                      }}
+                    />
+                  </span>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
             )}
           />
         </SettingGroup>
@@ -622,7 +654,10 @@ export const UserConfigForm: React.FC = () => {
 const SettingGroup = ({
   title,
   children,
-}: { title: string; children: React.ReactNode }) => {
+}: {
+  title: string;
+  children: React.ReactNode;
+}) => {
   return (
     <div className="flex flex-col gap-3">
       <SettingSubtitle>{title}</SettingSubtitle>

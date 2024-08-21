@@ -372,7 +372,9 @@ class Kernel:
         self.package_manager: PackageManager | None = None
         self.module_reloader: ModuleReloader | None = None
         self.module_watcher: ModuleWatcher | None = None
+
         # Load runtime settings from user config
+        self.user_config = user_config
         self.reactive_execution_mode: OnCellChangeType = user_config[
             "runtime"
         ]["on_cell_change"]

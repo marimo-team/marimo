@@ -113,12 +113,14 @@ class DisplayConfig(TypedDict):
     - `theme`: `"light"`, `"dark"`, or `"system"`
     - `code_editor_font_size`: font size for the code editor
     - `cell_output`: `"above"` or `"below"`
+    - `dataframes`: `"rich"` or `"plain"`
     """
 
     theme: Literal["light", "dark", "system"]
     code_editor_font_size: int
     cell_output: Literal["above", "below"]
     default_width: WidthType
+    dataframes: Literal["rich", "plain"]
 
 
 @mddoc
@@ -214,6 +216,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "code_editor_font_size": 14,
         "cell_output": "above",
         "default_width": "medium",
+        "dataframes": "rich",
     },
     "formatting": {"line_length": 79},
     "keymap": {"preset": "default", "overrides": {}},

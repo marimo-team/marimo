@@ -993,6 +993,7 @@ components:
           required:
           - activate_on_typing
           - copilot
+          - codeium_api_key
           type: object
         display:
           properties:
@@ -1003,6 +1004,11 @@ components:
               type: string
             code_editor_font_size:
               type: integer
+            dataframes:
+              enum:
+              - rich
+              - plain
+              type: string
             default_width:
               enum:
               - normal
@@ -1021,6 +1027,7 @@ components:
           - code_editor_font_size
           - cell_output
           - default_width
+          - dataframes
           type: object
         experimental:
           additionalProperties: {}
@@ -1532,7 +1539,10 @@ components:
           nullable: true
           type: array
         message:
-          $ref: '#/components/schemas/JSONType'
+          additionalProperties:
+            additionalProperties: true
+            type: object
+          type: object
         name:
           enum:
           - send-ui-element-message
@@ -1541,6 +1551,7 @@ components:
           type: string
       required:
       - ui_element
+      - message
       - name
       type: object
     SetCellConfigRequest:
@@ -1771,7 +1782,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.7.20
+  version: 0.8.0
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
