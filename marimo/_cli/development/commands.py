@@ -253,7 +253,7 @@ def openapi() -> None:
     """
     import yaml
 
-    print(yaml.dump(_generate_schema(), default_flow_style=False))
+    click.echo(yaml.dump(_generate_schema(), default_flow_style=False))
 
 
 @click.group(help="Various commands for the marimo processes", hidden=True)
@@ -306,7 +306,7 @@ def list_processes() -> None:
     for proc in result:
         cmds = proc.cmdline()
         cmd = " ".join(cmds[1:])
-        print(f"PID: {orange(str(proc.pid))} | {cmd}")
+        click.echo(f"PID: {orange(str(proc.pid))} | {cmd}")
 
 
 @ps.command(help="Kill the marimo processes")
@@ -323,9 +323,9 @@ def killall() -> None:
         if proc.pid == os.getpid():
             continue
         proc.kill()
-        print(f"Killed process {proc.pid}")
+        click.echo(f"Killed process {proc.pid}")
 
-    print("Killed all marimo processes")
+    click.echo("Killed all marimo processes")
 
 
 @click.command(
@@ -357,6 +357,10 @@ def inline_packages(
     if not os.path.exists(name):
         raise click.FileError(name)
 
+    # Validate >=3.10 for sys.stdlib_module_names
+    if sys.version_info < (3, 10):
+        raise click.UsageError("Requires Python >=3.10")
+
     package_names = module_name_to_pypi_name()
 
     def get_pypi_package_names() -> list[str]:
@@ -380,25 +384,18 @@ def inline_packages(
 
         return pypi_names
 
-    OTHER_BUILT_INS = [
-        "functools",
-    ]
-
     def is_stdlib_module(module_name: str) -> bool:
-        return (
-            module_name in sys.builtin_module_names
-            or module_name in OTHER_BUILT_INS
-        )
+        return module_name in sys.stdlib_module_names
 
     pypi_names = get_pypi_package_names()
 
     # Filter out python distribution packages
     pypi_names = [name for name in pypi_names if not is_stdlib_module(name)]
 
-    # run: uv add {pypi_names} --script {name}
-    print(f"Inlining packages: {pypi_names}")
-    print(f"into script: {name}")
+    click.echo(f"Inlining packages: {pypi_names}")
+    click.echo(f"into script: {name}")
 
+    # run: uv add {pypi_names} --script {name}
     for pypi_name in pypi_names:
         subprocess.run(["uv", "add", pypi_name, "--script", name])
 
