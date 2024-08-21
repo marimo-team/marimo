@@ -28,5 +28,22 @@ def __():
     return mo,
 
 
+@app.cell
+def __(mo):
+    mo.md("""# 2""")
+    return
+
+
+@app.cell
+def __():
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md("""# 3""")
+    return
+
+
 if __name__ == "__main__":
     app.run()
