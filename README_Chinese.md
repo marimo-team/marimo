@@ -26,13 +26,15 @@
 
 **为什么选择 marimo**
 
-- **反应式**: 运行一个单元格，marimo 会自动运行所有依赖于它的单元格
-- **交互性**: 将滑块、表格、图像等 UI 元素绑定到 Python - 无需回调函数
-- **复现性**: 无隐藏状态，确定性执行
-- **可执行**: 作为 Python 脚本执行，通过命令行调整参数
-- **可共享**: 作为交互式网络应用程序部署，或通过 WASM 在浏览器中运行
-- **数据驱动的**: 原生支持 SQL 和数据源面板
-- **原生支持 Git**: 存储为 `.py` 文件
+- 🚀 **功能齐全:** 替代 `jupyter`、`streamlit`、`jupytext`、`ipywidgets`、`papermill` 等更多工具
+- ⚡️ **响应式**: 运行一个单元格，marimo 会响应式地[运行所有依赖单元格](https://docs.marimo.io/guides/reactivity.html) 或 <a href="#expensive-notebooks">将它们标记为陈旧</a>
+- 🖐️ **交互性:** [绑定滑块、表格、图表等 UI 元素](https://docs.marimo.io/guides/interactivity.html) 到 Python——无需回调
+- 🔬 **可复现:** [无隐藏状态](https://docs.marimo.io/guides/reactivity.html#no-hidden-state)，确定性执行
+- 🏃‍♂️ **可执行:** [作为 Python 脚本执行](https://docs.marimo.io/guides/scripts.html)，通过命令行调整参数
+- 🛜 **可分享**: [部署为交互式 Web 应用](https://docs.marimo.io/guides/apps.html) 或 [幻灯片](https://docs.marimo.io/guides/apps.html#slides-layout)，[通过 WASM 在浏览器中运行](https://docs.marimo.io/guides/wasm.html)
+- 🛢️ **为数据设计**: 使用 [SQL](https://docs.marimo.io/guides/sql.html) 查询数据框和数据库，过滤和搜索 [数据框](https://docs.marimo.io/guides/dataframes.html#displaying-dataframes)
+- 🐍 **支持 Git:** 笔记本以 `.py` 文件格式存储
+- ⌨️ **现代编辑器**: GitHub Copilot、AI 助手、vim 快捷键、变量浏览器，和 [更多功能](https://docs.marimo.io/guides/editor_features/index.html)
 
 ```python
 pip install marimo && marimo tutorial intro
