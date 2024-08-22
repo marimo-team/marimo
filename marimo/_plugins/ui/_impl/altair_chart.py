@@ -49,16 +49,9 @@ def _has_binning(spec: VegaSpec) -> bool:
     return False
 
 
-def _has_geoshape(spec: VegaSpec) -> bool:
+def _has_geoshape(spec: altair.TopLevelMixin) -> bool:
     """Return True if the spec has geoshape."""
-    if "mark" not in spec:
-        return False
-    type_or_dict = spec.get("mark", {})
-    if isinstance(type_or_dict, str):
-        return type_or_dict == "geoshape"
-
-    mark_type: str | None = type_or_dict.get("type")
-    return mark_type == "geoshape"
+    return hasattr(spec, "mark") and spec.mark == "geoshape"
 
 
 def _filter_dataframe(
@@ -142,7 +135,7 @@ def _parse_spec(spec: altair.TopLevelMixin) -> VegaSpec:
 
     # If this is a geoshape, use default transformer
     # since ours does not support geoshapes
-    if _has_geoshape(spec.to_dict()):
+    if _has_geoshape(spec):
         with altair.data_transformers.enable("default"):
             return spec.to_dict()  # type: ignore
 
