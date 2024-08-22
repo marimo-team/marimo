@@ -28,6 +28,7 @@ consistent. marimo notebooks are stored as pure Python, executable as scripts,
 and deployable as apps.
 
 **Highlights**.
+
 - 🚀 **batteries-included:** a single tool to replace `jupyter`, `streamlit`, `jupytext`, `ipywidgets`, `papermill`, `RISE`, and more
 - ⚡️ **reactive**: run a cell, and marimo reactively [runs all dependent cells](https://docs.marimo.io/guides/reactivity.html) or <a href="#expensive-notebooks">marks them as stale</a>
 - 🖐️ **interactive:** [bind sliders, tables, plots, and more](https://docs.marimo.io/guides/interactivity.html) to Python — no callbacks required
