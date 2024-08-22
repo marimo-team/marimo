@@ -35,21 +35,21 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: "pnpm"
-          cache-dependency-path: "**/pnpm-lock.yaml"
+          cache: 'pnpm'
+          cache-dependency-path: '**/pnpm-lock.yaml'
 
       - uses: turbocache-build/turbocache-action@v1
 
       - name: 📦 Build frontend
         run: make fe
         env:
-          NODE_OPTIONS: "--max_old_space_size=8192"
+          NODE_OPTIONS: '--max_old_space_size=8192'
 
       - name: 🐍 Setup Python 3.10
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
-          cache: "pip"
+          python-version: '3.10'
+          cache: 'pip'
 
       - name: 🐍 Setup uv
         uses: yezz123/setup-uv@v4
@@ -76,7 +76,7 @@ jobs:
     strategy:
       matrix:
         # TODO(akshayka): consider adding 3.8, 3.9
-        python-version: ["3.10"]
+        python-version: ['3.10']
         os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
@@ -87,7 +87,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
+          cache: 'pip'
 
       - name: Install Python deps
         run: |
@@ -116,11 +116,11 @@ jobs:
       - name: 🛑 Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.12.1
       - uses: actions/checkout@v4
-      - name: Set up Python 3.10
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
-          cache: "pip"
+          python-version: '3.12'
+          cache: 'pip'
 
       - name: 🐍 Setup uv
         uses: yezz123/setup-uv@v4
@@ -141,5 +141,3 @@ jobs:
       - name: Test examples
         shell: bash
         run: pytest -v -s tests/_smoke_tests/run_all.py
-        # TODO(msconick) remove continue-on-error when all tests pass
-        continue-on-error: true

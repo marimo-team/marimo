@@ -65,7 +65,9 @@ async def _run_test(
         if skip is True:
             return
 
-        failed_reason = file_config.get("failed_reason", None)
+        failed_reason: str | list[str] | None = file_config.get(
+            "failed_reason", None
+        )
         input_data = file_config.get("input", None)
 
         with open(file, "r") as f:  # noqa: ASYNC101 ASYNC230
@@ -74,7 +76,7 @@ async def _run_test(
                 return
 
         process, stdout, stderr = await Cmd(
-            f"python {file}", timeout=10, input_data=input_data
+            f"python {file}", timeout=15, input_data=input_data
         ).run()
 
         if failed_reason:
@@ -82,7 +84,12 @@ async def _run_test(
             assert (
                 process.returncode != 0
             ), f"{relative_file} Expected error: {failed_reason}"
-            assert failed_reason in stderr, f"File: {file}"
+            if isinstance(failed_reason, list):
+                assert any(
+                    reason in stderr for reason in failed_reason
+                ), f"File: {file}. Expected error one of {failed_reason} in {stderr}"  # noqa: E501
+            else:
+                assert failed_reason in stderr, f"File: {file}"
         # Allow MarimoStop
         elif "MarimoStop" in stderr:
             assert (
