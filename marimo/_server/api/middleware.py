@@ -4,8 +4,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Awaitable, Callable, Optional
 
 import starlette.status as status
-from opentelemetry import trace
-from opentelemetry.trace.status import Status, StatusCode
 from starlette.authentication import (
     AuthCredentials,
     AuthenticationBackend,
@@ -16,6 +14,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import HTTPConnection, Request
 from starlette.responses import JSONResponse, Response
 
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._server.api.auth import validate_auth
 from marimo._server.api.deps import AppState, AppStateBase
 from marimo._server.model import SessionMode
@@ -98,14 +97,28 @@ class SkewProtectionMiddleware:
 
 
 class OpenTelemetryMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app: ASGIApp) -> None:
+        # Import once and store for later
+        from opentelemetry import trace
+        from opentelemetry.trace.status import Status, StatusCode
+
+        self.trace = trace
+        self.Status = Status
+        self.StatusCode = StatusCode
+
+        super().__init__(app)
+
     async def dispatch(
         self,
         request: Request,
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
+        if not GLOBAL_SETTINGS.TRACING:
+            return await call_next(request)
+
         with server_tracer.start_as_current_span(
             f"{request.method} {request.url.path}",
-            kind=trace.SpanKind.SERVER,
+            kind=self.trace.SpanKind.SERVER,
             attributes={
                 "http.method": request.method,
                 "http.target": request.url.path or "",
@@ -114,8 +127,8 @@ class OpenTelemetryMiddleware(BaseHTTPMiddleware):
             try:
                 response = await call_next(request)
                 span.set_attribute("http.status_code", response.status_code)
-                span.set_status(Status(StatusCode.OK))
+                span.set_status(self.Status(self.StatusCode.OK))
             except Exception as e:
-                span.set_status(Status(StatusCode.ERROR, str(e)))
+                span.set_status(self.Status(self.StatusCode.ERROR, str(e)))
                 raise
             return response
