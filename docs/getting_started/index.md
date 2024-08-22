@@ -54,6 +54,7 @@ pip install marimo
 ```bash
 uv pip install marimo
 ```
+
 :::
 :::{tab-item} install with conda
 
