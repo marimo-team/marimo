@@ -22,6 +22,7 @@ snapshot = snapshotter(__file__)
 HAS_DEPS = (
     DependencyManager.pandas.has()
     and DependencyManager.altair.has()
+    and DependencyManager.geopandas.has()
     # altair produces different output on windows
     and sys.platform != "win32"
 )
@@ -150,6 +151,17 @@ class TestAltairChart:
         assert k.globals["initial_options"] == {}
         assert k.globals["options_1"] == {"max_rows": None}
         assert k.globals["options_2"] == {"max_rows": None}
+
+    @staticmethod
+    def test_large_chart() -> None:
+        import altair as alt
+
+        # smoke test; this shouldn't error, even though it's larger than
+        # altair's default of 5000 data points.
+        df = pd.DataFrame({"a": [10000], "b": [10000]})
+        altair_chart.altair_chart(
+            alt.Chart(df).mark_circle().encode(x="a", y="b")
+        )
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

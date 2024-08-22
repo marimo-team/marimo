@@ -152,6 +152,7 @@ class DependencyManager:
     narwhals = Dependency("narwhals")
     ruff = Dependency("ruff")
     black = Dependency("black")
+    geopandas = Dependency("geopandas")
     opentelemetry = Dependency("opentelemetry")
 
     @staticmethod
