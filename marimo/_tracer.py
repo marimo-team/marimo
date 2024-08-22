@@ -167,7 +167,7 @@ def create_tracer(trace_name: str) -> "trace.Tracer":
     except Exception as e:
         LOGGER.debug("Failed to create tracer: %s", e)
 
-    return cast(Any, MockTracer())
+    return cast(Any, MockTracer())  # type: ignore[no-any-return]
 
 
 try:
