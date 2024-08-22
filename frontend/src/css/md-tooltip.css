@@ -1,0 +1,50 @@
+/*
+  This allows you to create a basic tooltip using the data-tooltip attribute
+  e.g. <span data-tooltip="Hello, World!">Hover me</span>
+*/
+
+.markdown {
+  [data-tooltip] {
+    position: relative;
+    cursor: pointer;
+    text-decoration: underline dotted;
+  }
+
+  [data-tooltip]::before,
+  [data-tooltip]::after {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.2s ease;
+    position: absolute;
+    z-index: 1000;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  [data-tooltip]::before {
+    content: attr(data-tooltip);
+    bottom: calc(100% + 10px);
+    padding: 5px 10px;
+    width: max-content;
+    max-width: 300px;
+    border-radius: 6px;
+    background-color: ;
+    text-align: center;
+    font-size: 14px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+
+    @apply bg-background text-foreground shadow-md border;
+  }
+
+  [data-tooltip]:hover::before,
+  [data-tooltip]:hover::after {
+    visibility: visible;
+    opacity: 1;
+  }
+
+  [data-tooltip]:hover::before {
+    transform: translateX(-50%) translateY(10px);
+  }
+}

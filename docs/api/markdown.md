@@ -15,3 +15,18 @@ You can render icons from [Iconify](https://icon-sets.iconify.design/) with `mo.
 ```{eval-rst}
 .. autofunction:: marimo.icon
 ```
+
+## Tooltips
+
+You can render a tooltip by adding the `data-tooltip` attribute to an element.
+
+```python
+mo.md(
+    '''
+    <div data-tooltip="This is a tooltip">Hover over me</div>
+    '''
+)
+mo.ui.button(
+    label='<div data-tooltip="This is a tooltip">Hover over me</div>'
+)
+```
