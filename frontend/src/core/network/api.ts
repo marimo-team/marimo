@@ -95,7 +95,7 @@ export const API = {
   },
   handleResponse: <T>(response: {
     data?: T | undefined;
-    error?: Error;
+    error?: Record<string, unknown>;
     response: Response;
   }): Promise<T> => {
     if (response.error) {
@@ -104,7 +104,7 @@ export const API = {
     return Promise.resolve(response.data as T);
   },
   handleResponseReturnNull: (response: {
-    error?: Error;
+    error?: Record<string, unknown>;
     response: Response;
   }): Promise<null> => {
     if (response.error) {

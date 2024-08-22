@@ -654,10 +654,7 @@ export const UserConfigForm: React.FC = () => {
 const SettingGroup = ({
   title,
   children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) => {
+}: { title: string; children: React.ReactNode }) => {
   return (
     <div className="flex flex-col gap-3">
       <SettingSubtitle>{title}</SettingSubtitle>
