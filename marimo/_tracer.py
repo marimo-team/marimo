@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
 import os
@@ -146,7 +147,7 @@ def create_tracer(trace_name: str) -> "trace.Tracer":
 
     # Don't load opentelemetry if we're in a Pyodide environment.
     if is_pyodide() or GLOBAL_SETTINGS.TRACING is False:
-        return cast(Any, MockTracer())
+        return cast(Any, MockTracer())  # type: ignore[no-any-return]
 
     from opentelemetry import trace
 
