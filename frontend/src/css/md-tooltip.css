@@ -44,8 +44,7 @@
   }
 
   [data-tooltip]:hover::before {
-    /* stylelint-enable unit-allowed-list */
+    /* stylelint-disable-next-line unit-allowed-list */
     transform: translateX(-50%) translateY(10px);
-    /* stylelint-disable unit-allowed-list */
   }
 }
