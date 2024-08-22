@@ -152,6 +152,7 @@ class DependencyManager:
     narwhals = Dependency("narwhals")
     ruff = Dependency("ruff")
     black = Dependency("black")
+    opentelemetry = Dependency("opentelemetry")
 
     @staticmethod
     def has(pkg: str) -> bool:

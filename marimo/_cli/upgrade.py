@@ -13,6 +13,7 @@ from packaging import version
 from marimo import __version__ as current_version
 from marimo._cli.print import green, orange
 from marimo._server.api.status import HTTPException
+from marimo._tracer import server_tracer
 from marimo._utils.config.config import ConfigReader
 
 FETCH_TIMEOUT = 5
@@ -31,6 +32,7 @@ def print_latest_version(current_version: str, latest_version: str) -> None:
     print()
 
 
+@server_tracer.start_as_current_span("check_for_updates")
 def check_for_updates(on_update: Callable[[str, str], None]) -> None:
     try:
         _check_for_updates_internal(on_update)

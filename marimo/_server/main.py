@@ -18,6 +18,7 @@ from marimo._server.api.auth import (
 )
 from marimo._server.api.middleware import (
     AuthBackend,
+    OpenTelemetryMiddleware,
     SkewProtectionMiddleware,
 )
 from marimo._server.api.router import build_routes
@@ -93,6 +94,7 @@ def create_starlette_app(
 
     final_middlewares.extend(
         [
+            Middleware(OpenTelemetryMiddleware),
             Middleware(
                 AuthenticationMiddleware,
                 backend=AuthBackend(should_authenticate=enable_auth),

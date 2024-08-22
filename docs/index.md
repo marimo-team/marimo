@@ -25,6 +25,13 @@ pip install marimo && marimo tutorial intro
 ```
 
 :::
+:::{tab-item} install with uv
+
+```bash
+uv pip install marimo && marimo tutorial intro
+```
+
+:::
 :::{tab-item} install with conda
 
 ```bash

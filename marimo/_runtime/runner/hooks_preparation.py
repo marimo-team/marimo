@@ -6,10 +6,12 @@ from typing import Callable
 from marimo._runtime import dataflow
 from marimo._runtime.dataflow import import_block_relatives
 from marimo._runtime.runner import cell_runner
+from marimo._tracer import kernel_tracer
 
 PreparationHookType = Callable[[cell_runner.Runner], None]
 
 
+@kernel_tracer.start_as_current_span("update_stale_statuses")
 def _update_stale_statuses(runner: cell_runner.Runner) -> None:
     graph = runner.graph
 

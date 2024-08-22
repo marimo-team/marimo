@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.7.19"
+__generated_with = "0.8.0"
 app = marimo.App(app_title="1654 - Virtualize Multiselect")
 
 
@@ -57,7 +57,10 @@ def __(mo, xxl_list):
 
 @app.cell
 def __(mo, xxxl_list):
-    mo.ui.multiselect(xxxl_list, label="XXXL list with 200K items")
+    try:
+        mo.ui.multiselect(xxxl_list, label="XXXL list with 200K items")
+    except ValueError as e:
+        print(e)
     return
 
 

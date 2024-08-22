@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.3.4"
+__generated_with = "0.8.0"
 app = marimo.App()
 
 
@@ -10,11 +10,11 @@ app = marimo.App()
 def __(mo):
     mo.md(
         """
-    # HoloViews in marimo
-    ```
-    pip install holoviews
-    ```
-    """
+        # HoloViews in marimo
+        ```
+        pip install holoviews
+        ```
+        """
     )
     return
 
@@ -60,7 +60,7 @@ def __(backend, hv, mo, station_info):
 
 @app.cell
 def __(mo):
-    mo.md("## Area chart")
+    mo.md("""## Area chart""")
     return
 
 
@@ -73,7 +73,7 @@ def __(hv, np):
 
 @app.cell
 def __(mo):
-    mo.md("## Scatter chart")
+    mo.md("""## Scatter chart""")
     return
 
 
@@ -85,7 +85,7 @@ def __(scatter):
 
 @app.cell
 def __(mo):
-    mo.md("# HV Plot")
+    mo.md("""# HV Plot""")
     return
 
 
@@ -100,7 +100,7 @@ def __():
 
 @app.cell
 def __(mo):
-    mo.md("# Composed Views")
+    mo.md("""# Composed Views""")
     return
 
 
@@ -109,8 +109,8 @@ def __():
     import polars as pl
     from hvplot import polars
 
-    df3 = pl.DataFrame({"x": [1, 2, 3], "y": [1, 2, 3]})
-    df4 = pl.DataFrame({"x": [1, 2, 3], "y": [3, 2.5, 3]})
+    df3 = pl.DataFrame({"x": [1, 2, 3], "y": [1, 2, 3]}, strict=False)
+    df4 = pl.DataFrame({"x": [1, 2, 3], "y": [3, 2.5, 3]}, strict=False)
     return df3, df4, pl, polars
 
 

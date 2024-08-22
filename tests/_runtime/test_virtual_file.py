@@ -48,7 +48,7 @@ async def test_virtual_file_deletion(
     for fname, _ in get_context().virtual_file_registry.registry.items():
         assert fname.endswith(".pdf")
 
-    await k.delete(DeleteCellRequest(cell_id=er.cell_id))
+    await k.delete_cell(DeleteCellRequest(cell_id=er.cell_id))
     assert not get_context().virtual_file_registry.registry
 
 
@@ -89,8 +89,8 @@ async def test_cached_virtual_file_not_deleted(
     assert len(get_context().virtual_file_registry.registry) == 2
 
     # Remove the cells that create the vfiles
-    await k.delete(DeleteCellRequest(cell_id=create_vfile_1.cell_id))
-    await k.delete(DeleteCellRequest(cell_id=create_vfile_2.cell_id))
+    await k.delete_cell(DeleteCellRequest(cell_id=create_vfile_1.cell_id))
+    await k.delete_cell(DeleteCellRequest(cell_id=create_vfile_2.cell_id))
 
     # Reset the vfile cache
     await k.run([vfile_cache])
@@ -124,7 +124,7 @@ async def test_cell_deletion_clears_vfiles(
     assert len(get_context().virtual_file_registry.registry) == 1
 
     # Delete the vfile cache: virtual file registry should be empty
-    await k.delete(DeleteCellRequest(cell_id=vfile_cache.cell_id))
+    await k.delete_cell(DeleteCellRequest(cell_id=vfile_cache.cell_id))
     assert len(get_context().virtual_file_registry.registry) == 0
 
 
