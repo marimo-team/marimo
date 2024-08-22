@@ -7,6 +7,8 @@ import { useChromeActions, useChromeState } from "../state";
 import { Tooltip } from "@/components/ui/tooltip";
 import { FeedbackButton } from "../components/feedback-button";
 import { type PanelDescriptor, PANELS } from "../types";
+import { notebookQueuedOrRunningCountAtom } from "@/core/cells/cells";
+import { useAtomValue } from "jotai";
 
 export const Sidebar: React.FC = () => {
   const { selectedPanel } = useChromeState();
@@ -21,7 +23,7 @@ export const Sidebar: React.FC = () => {
   );
 
   return (
-    <div className="h-full py-4 px-1 flex flex-col items-start text-muted-foreground text-md select-none no-print text-sm z-50 dark:bg-background print:hidden">
+    <div className="h-full pt-4 pb-1 px-1 flex flex-col items-start text-muted-foreground text-md select-none no-print text-sm z-50 dark:bg-background print:hidden">
       {sidebarItems.map((p) => (
         <SidebarItem
           key={p.type}
@@ -32,12 +34,27 @@ export const Sidebar: React.FC = () => {
           {renderIcon(p)}
         </SidebarItem>
       ))}
-
       <FeedbackButton>
         <SidebarItem tooltip="Send feedback!" selected={false}>
           <MessageCircleQuestionIcon className="h-5 w-5" />
         </SidebarItem>
       </FeedbackButton>
+      <div className="flex-1" />
+      <QueuedOrRunningStack />
+    </div>
+  );
+};
+
+const QueuedOrRunningStack = () => {
+  const count = useAtomValue(notebookQueuedOrRunningCountAtom);
+  return (
+    <div className="flex flex-col-reverse gap-[1px] overflow-hidden">
+      {Array.from({ length: count }).map((_, index) => (
+        <div
+          key={index.toString()}
+          className="flex-shrink-0 h-1 w-2 bg-[var(--grass-6)] border border-[var(--grass-7)]"
+        />
+      ))}
     </div>
   );
 };

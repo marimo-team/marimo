@@ -13,6 +13,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Dict,
     Generic,
     Optional,
     Sequence,
@@ -420,7 +421,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         )
 
     def send_message(
-        self, message: JSONType, buffers: Optional[Sequence[bytes]]
+        self, message: Dict[str, object], buffers: Optional[Sequence[bytes]]
     ) -> None:
         """
         Send a message to the element rendered on the frontend

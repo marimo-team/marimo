@@ -1,4 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "polars",
+#     "marimo",
+#     "quak",
+#     "vega-datasets",
+# ]
+# ///
 import marimo
 
 __generated_with = "0.7.12"

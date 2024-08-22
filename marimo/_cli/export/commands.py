@@ -74,7 +74,7 @@ def watch_and_export(
         watcher.start()
         try:
             # Run forever
-            while True:
+            while True:  # noqa: ASYNC110
                 await asyncio.sleep(1)
         except KeyboardInterrupt:
             watcher.stop()

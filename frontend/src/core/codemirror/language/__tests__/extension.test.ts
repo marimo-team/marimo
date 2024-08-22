@@ -18,6 +18,7 @@ function createState(content: string) {
         completionConfig: {
           copilot: false,
           activate_on_typing: true,
+          codeium_api_key: null,
         },
         hotkeys: new OverridingHotkeyProvider({}),
         enableAI: true,

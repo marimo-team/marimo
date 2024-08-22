@@ -119,7 +119,7 @@ def test_broken_formatter():
 
     def _format(cls: _ClsForBrokenFormatter) -> tuple[KnownMimeType, str]:
         del cls
-        raise BaseException("Broken Formatter")
+        raise BaseException("Broken Formatter")  # noqa: TRY002
 
     formatter(_ClsForBrokenFormatter)(_format)
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import importlib.metadata
 import importlib.util
+import shutil
 import sys
 from dataclasses import dataclass
 
@@ -146,6 +147,7 @@ class DependencyManager:
     anywidget = Dependency("anywidget")
     watchdog = Dependency("watchdog")
     ipython = Dependency("IPython")
+    ipywidgets = Dependency("ipywidgets")
     nbformat = Dependency("nbformat")
     narwhals = Dependency("narwhals")
     ruff = Dependency("ruff")
@@ -155,3 +157,10 @@ class DependencyManager:
     def has(pkg: str) -> bool:
         """Return True if any lib is installed."""
         return Dependency(pkg).has()
+
+    @staticmethod
+    def which(pkg: str) -> bool:
+        """
+        Checks if a CLI command is installed.
+        """
+        return shutil.which(pkg) is not None
