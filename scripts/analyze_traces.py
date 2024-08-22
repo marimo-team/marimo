@@ -46,7 +46,7 @@ def __():
 def __(parse_jsonl):
     import os
 
-    file_path = "~/.marimo/traces/trace.jsonl"
+    file_path = "~/.marimo/traces/traces.jsonl"
     traces = parse_jsonl(os.path.expanduser(file_path))
     return file_path, os, traces
 

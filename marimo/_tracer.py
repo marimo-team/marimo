@@ -75,7 +75,7 @@ class MockTracer:
         yield MockSpan()
 
 
-TRACE_FILENAME = os.path.join("traces", "trace.jsonl")
+TRACE_FILENAME = os.path.join("traces", "traces.jsonl")
 
 
 def _set_tracer_provider() -> None:
