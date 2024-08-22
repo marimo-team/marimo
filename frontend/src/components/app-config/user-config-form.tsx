@@ -417,7 +417,7 @@ export const UserConfigForm: React.FC = () => {
                       {...field}
                       value={field.value}
                       minValue={8}
-                      maxValue={20}
+                      maxValue={32}
                       onChange={(value) => {
                         field.onChange(value);
                         onSubmit(form.getValues());
