@@ -89,6 +89,9 @@ dev = [
     "pandas-stubs>=1.5.3.230321",
     "pyarrow>=15.0.2,<16",
     "pyarrow-stubs>=10.0.1.9",
+    # For tracing debugging
+    "opentelemetry-api~=1.26.0",
+    "opentelemetry-sdk~=1.26.0",
     # For testing mo.image
     "pillow~=10.4.0",
     "types-Pillow~=10.2.0.20240520",

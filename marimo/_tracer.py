@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Sequence, cast
 
 from marimo import _loggers
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._utils.config.config import ConfigReader
 from marimo._utils.platform import is_pyodide
 
@@ -78,7 +79,7 @@ TRACE_FILENAME = os.path.join("traces", "traces.jsonl")
 
 
 def _set_tracer_provider() -> None:
-    if is_pyodide():
+    if is_pyodide() or GLOBAL_SETTINGS.CAPTURE_TRACES is False:
         return
 
     from opentelemetry import trace
@@ -98,6 +99,8 @@ def _set_tracer_provider() -> None:
     class FileExporter(SpanExporter):
         def __init__(self, file_path: str) -> None:
             self.file_path: str = file_path
+            # Clear file
+            open(self.file_path, "w").close()
 
         def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
             try:
@@ -142,7 +145,7 @@ def create_tracer(trace_name: str) -> "trace.Tracer":
     """
 
     # Don't load opentelemetry if we're in a Pyodide environment.
-    if is_pyodide():
+    if is_pyodide() or GLOBAL_SETTINGS.CAPTURE_TRACES is False:
         return cast(Any, MockTracer())
 
     from opentelemetry import trace
