@@ -29,7 +29,7 @@ import { deserializeBase64, deserializeJson } from "@/utils/json/base64";
 import { historyField } from "@codemirror/commands";
 import { clamp } from "@/utils/math";
 import type { LayoutState } from "../layout/layout";
-import { notebookIsRunning } from "./utils";
+import { notebookIsRunning, notebookQueueOrRunningCount } from "./utils";
 import {
   splitEditor,
   updateEditorCodeFromPython,
@@ -1014,6 +1014,9 @@ export const useCellDataAtoms = () => useAtom(cellDataAtoms);
 
 export const notebookIsRunningAtom = atom((get) =>
   notebookIsRunning(get(notebookAtom)),
+);
+export const notebookQueuedOrRunningCountAtom = atom((get) =>
+  notebookQueueOrRunningCount(get(notebookAtom)),
 );
 
 /**
