@@ -17,5 +17,5 @@ class CompletionOption:
     completion_info: Optional[str]
 
     def __post_init__(self) -> None:
-        # Remove trailing quotes because frontends may automatically add quotes.
+        # Remove trailing quotes because frontends may automatically add quotes
         self.name = self.name.rstrip('"').rstrip("'")
