@@ -37,7 +37,6 @@ conda install -c conda-forge marimo && marimo tutorial intro
 Developer experience is core to marimo, with an emphasis on
 reproducibility, maintainability, composability, and shareability.
 
-
 **Highlights**.
 
 - 🚀 **batteries-included:** replaces `jupyter`, `streamlit`, `jupytext`, `ipywidgets`, `papermill`, & more
