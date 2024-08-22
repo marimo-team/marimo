@@ -11,6 +11,7 @@ class GlobalSettings:
     QUIET: bool = False
     CHECK_STATUS_UPDATE: bool = False
     TRACING: bool = os.getenv("MARIMO_TRACING", "false") in ("true", "1")
+    PROFILE_DIR: str | None = None
 
 
 GLOBAL_SETTINGS = GlobalSettings()

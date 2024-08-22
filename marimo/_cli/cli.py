@@ -254,6 +254,7 @@ edit_help_msg = "\n".join(
     type=bool,
     help="Don't check if a new version of marimo is available for download.",
 )
+@click.option("--profile-dir", default=None, type=str, hidden=True)
 @click.argument("name", required=False)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def edit(
@@ -266,9 +267,11 @@ def edit(
     base_url: str,
     allow_origins: Optional[tuple[str, ...]],
     skip_update_check: bool,
+    profile_dir: Optional[str],
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
+    GLOBAL_SETTINGS.PROFILE_DIR = profile_dir
     if not skip_update_check and os.getenv("MARIMO_SKIP_UPDATE_CHECK") != "1":
         GLOBAL_SETTINGS.CHECK_STATUS_UPDATE = True
         # Check for version updates

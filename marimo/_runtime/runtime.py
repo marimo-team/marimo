@@ -1722,10 +1722,18 @@ def launch_kernel(
     virtual_files_supported: bool,
     redirect_console_to_browser: bool,
     interrupt_queue: QueueType[bool] | None = None,
+    profile_path: Optional[str] = None,
 ) -> None:
     LOGGER.debug("Launching kernel")
     if is_edit_mode:
         restore_signals()
+
+    profiler = None
+    if profile_path is not None:
+        import cProfile
+
+        profiler = cProfile.Profile()
+        profiler.enable()
 
     n_tries = 0
     pipe: Optional[TypedConnection[KernelMessage]] = None
@@ -1853,3 +1861,7 @@ def launch_kernel(
     if stderr is not None:
         stderr._watcher.stop()
     get_context().virtual_file_registry.shutdown()
+
+    if profiler is not None and profile_path is not None:
+        profiler.disable()
+        profiler.dump_stats(profile_path)
