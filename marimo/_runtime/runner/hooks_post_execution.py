@@ -29,6 +29,7 @@ from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context.types import get_global_context
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.runner import cell_runner
+from marimo._tracer import kernel_tracer
 from marimo._utils.flatten import contains_instance
 
 LOGGER = _loggers.marimo_logger()
@@ -38,6 +39,7 @@ PostExecutionHookType = Callable[
 ]
 
 
+@kernel_tracer.start_as_current_span("set_imported_defs")
 def _set_imported_defs(
     cell: CellImpl,
     runner: cell_runner.Runner,
@@ -51,6 +53,7 @@ def _set_imported_defs(
             )
 
 
+@kernel_tracer.start_as_current_span("set_status_idle")
 def _set_status_idle(
     cell: CellImpl,
     runner: cell_runner.Runner,
@@ -61,6 +64,7 @@ def _set_status_idle(
     cell.set_runtime_state(status="idle")
 
 
+@kernel_tracer.start_as_current_span("set_run_result_status")
 def _set_run_result_status(
     cell: CellImpl,
     runner: cell_runner.Runner,
@@ -76,6 +80,7 @@ def _set_run_result_status(
         cell.set_run_result_status("success")
 
 
+@kernel_tracer.start_as_current_span("broadcast_variables")
 def _broadcast_variables(
     cell: CellImpl,
     runner: cell_runner.Runner,
@@ -95,6 +100,7 @@ def _broadcast_variables(
         VariableValues(variables=values).broadcast()
 
 
+@kernel_tracer.start_as_current_span("broadcast_datasets")
 def _broadcast_datasets(
     cell: CellImpl,
     runner: cell_runner.Runner,
@@ -112,6 +118,7 @@ def _broadcast_datasets(
         Datasets(tables=tables).broadcast()
 
 
+@kernel_tracer.start_as_current_span("broadcast_duckdb_tables")
 def _broadcast_duckdb_tables(
     cell: CellImpl,
     runner: cell_runner.Runner,
@@ -141,6 +148,7 @@ def _broadcast_duckdb_tables(
         return
 
 
+@kernel_tracer.start_as_current_span("store_reference_to_output")
 def _store_reference_to_output(
     cell: CellImpl,
     runner: cell_runner.Runner,
@@ -157,6 +165,7 @@ def _store_reference_to_output(
             cell.set_output(run_result.output)
 
 
+@kernel_tracer.start_as_current_span("broadcast_outputs")
 def _broadcast_outputs(
     cell: CellImpl,
     runner: cell_runner.Runner,
@@ -258,6 +267,7 @@ def _broadcast_outputs(
         )
 
 
+@kernel_tracer.start_as_current_span("reset_matplotlib_context")
 def _reset_matplotlib_context(
     cell: CellImpl,
     runner: cell_runner.Runner,

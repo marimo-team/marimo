@@ -63,6 +63,7 @@ from marimo._server.session.session_view import SessionView
 from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._server.types import QueueType
 from marimo._server.utils import print_tabbed
+from marimo._tracer import server_tracer
 from marimo._utils.disposable import Disposable
 from marimo._utils.distributor import Distributor
 from marimo._utils.file_watcher import FileWatcher
@@ -847,6 +848,7 @@ class LspServer:
         self.port = port
         self.process: Optional[subprocess.Popen[bytes]] = None
 
+    @server_tracer.start_as_current_span("lsp_server.start")
     def start(self) -> Optional[Alert]:
         if self.process is not None:
             LOGGER.debug("LSP server already started")

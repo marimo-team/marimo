@@ -150,7 +150,7 @@ jobs:
           fi
           ruff check marimo/
       - name: Typecheck
-        if: ${{ matrix.python-version == '3.9' || matrix.python-version == '3.10' }}
+        if: ${{ matrix.python-version == '3.11' || matrix.python-version == '3.12' }}
         run: |
           if [ "$RUNNER_OS" == "Windows" ]; then
             source marimo-dev-env\\Scripts\\activate
