@@ -34,7 +34,7 @@ Learn more from the [official Python tutorial](https://docs.python.org/3/tutoria
 
 [uv](https://github.com/astral-sh/uv) is a next-generation Python package
 installer and manager that is 10-100x faster than pip, and also makes it easy
-to install Python and manage projects. Wtih `uv`, creating a virtual
+to install Python and manage projects. With `uv`, creating a virtual
 environment is as easy as `uv venv`.
 :::
 ```
