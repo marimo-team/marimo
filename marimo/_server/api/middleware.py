@@ -15,6 +15,7 @@ from starlette.requests import HTTPConnection, Request
 from starlette.responses import JSONResponse, Response
 
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.api.auth import validate_auth
 from marimo._server.api.deps import AppState, AppStateBase
 from marimo._server.model import SessionMode
@@ -98,6 +99,13 @@ class SkewProtectionMiddleware:
 
 class OpenTelemetryMiddleware(BaseHTTPMiddleware):
     def __init__(self, app: ASGIApp) -> None:
+        super().__init__(app)
+
+        if not GLOBAL_SETTINGS.TRACING:
+            return
+
+        DependencyManager.opentelemetry.require("for tracing.")
+
         # Import once and store for later
         from opentelemetry import trace
         from opentelemetry.trace.status import Status, StatusCode
@@ -105,8 +113,6 @@ class OpenTelemetryMiddleware(BaseHTTPMiddleware):
         self.trace = trace
         self.Status = Status
         self.StatusCode = StatusCode
-
-        super().__init__(app)
 
     async def dispatch(
         self,

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Sequence, cast
 
 from marimo import _loggers
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.config.config import ConfigReader
 from marimo._utils.platform import is_pyodide
 
@@ -83,6 +84,8 @@ def _set_tracer_provider() -> None:
     if is_pyodide() or GLOBAL_SETTINGS.TRACING is False:
         return
 
+    DependencyManager.opentelemetry.require("for tracing.")
+
     from opentelemetry import trace
     from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
     from opentelemetry.sdk.trace.export import (
@@ -149,16 +152,28 @@ def create_tracer(trace_name: str) -> "trace.Tracer":
     if is_pyodide() or GLOBAL_SETTINGS.TRACING is False:
         return cast(Any, MockTracer())  # type: ignore[no-any-return]
 
-    from opentelemetry import trace
+    DependencyManager.opentelemetry.require("for tracing.")
 
-    return trace.get_tracer(
-        trace_name,
-        attributes={
-            "service.name": trace_name,
-        },
-    )
+    try:
+        from opentelemetry import trace
+
+        return trace.get_tracer(
+            trace_name,
+            attributes={
+                "service.name": trace_name,
+            },
+        )
+
+    except Exception as e:
+        LOGGER.debug("Failed to create tracer: %s", e)
+
+    return cast(Any, MockTracer())
 
 
-_set_tracer_provider()
+try:
+    _set_tracer_provider()
+except Exception as e:
+    LOGGER.debug("Failed to set tracer provider", exc_info=e)
+
 server_tracer = create_tracer("marimo.server")
 kernel_tracer = create_tracer("marimo.kernel")
