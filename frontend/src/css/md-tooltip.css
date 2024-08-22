@@ -31,11 +31,10 @@
     border-radius: 6px;
     background-color: ;
     text-align: center;
-    font-size: 14px;
     line-height: 1.4;
     white-space: pre-wrap;
 
-    @apply bg-background text-foreground shadow-md border;
+    @apply bg-background text-foreground shadow-md border text-base;
   }
 
   [data-tooltip]:hover::before,
@@ -45,6 +44,8 @@
   }
 
   [data-tooltip]:hover::before {
+    /* stylelint-enable unit-allowed-list */
     transform: translateX(-50%) translateY(10px);
+    /* stylelint-disable unit-allowed-list */
   }
 }
