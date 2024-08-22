@@ -9,9 +9,7 @@ class GlobalSettings:
     DEVELOPMENT_MODE: bool = False
     QUIET: bool = False
     CHECK_STATUS_UPDATE: bool = False
-    CAPTURE_TRACES: bool = (
-        os.getenv("MARIMO_CAPTURE_TRACES", "false") == "true"
-    )
+    TRACING: bool = os.getenv("MARIMO_TRACING", "false") in ("true", "1")
 
 
 GLOBAL_SETTINGS = GlobalSettings()

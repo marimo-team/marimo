@@ -64,7 +64,7 @@ class MockSpan:
 
 class MockTracer:
     @contextmanager
-    def span(self, *args: Any, **kwargs: Any) -> Any:
+    def start_span(self, *args: Any, **kwargs: Any) -> Any:
         del args, kwargs
 
         return MockSpan()
@@ -75,11 +75,11 @@ class MockTracer:
         yield MockSpan()
 
 
-TRACE_FILENAME = os.path.join("traces", "traces.jsonl")
+TRACE_FILENAME = os.path.join("traces", "spans.jsonl")
 
 
 def _set_tracer_provider() -> None:
-    if is_pyodide() or GLOBAL_SETTINGS.CAPTURE_TRACES is False:
+    if is_pyodide() or GLOBAL_SETTINGS.TRACING is False:
         return
 
     from opentelemetry import trace
@@ -145,7 +145,7 @@ def create_tracer(trace_name: str) -> "trace.Tracer":
     """
 
     # Don't load opentelemetry if we're in a Pyodide environment.
-    if is_pyodide() or GLOBAL_SETTINGS.CAPTURE_TRACES is False:
+    if is_pyodide() or GLOBAL_SETTINGS.TRACING is False:
         return cast(Any, MockTracer())
 
     from opentelemetry import trace

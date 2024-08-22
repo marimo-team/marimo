@@ -19,7 +19,7 @@ def __():
     return alt, dataclasses, json, mo, np, os, pd, plt, trace
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __():
     from pydantic import BaseModel, Field, computed_field
     from typing import List, Dict, Optional, Any
@@ -150,7 +150,7 @@ def __(Dict, List, Span, json):
 
 @app.cell
 def __(os, parse_jsonl, populate_depth):
-    file_path = "~/.marimo/traces/traces.jsonl"
+    file_path = "~/.marimo/traces/spans.jsonl"
     spans = parse_jsonl(os.path.expanduser(file_path))
     spans = populate_depth(spans)
     len(spans)
@@ -188,7 +188,7 @@ def __(Span, pd):
             data.append(row)
 
         return pd.DataFrame(data)
-    return spans_to_dataframe
+    return spans_to_dataframe,
 
 
 @app.cell
