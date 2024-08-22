@@ -155,7 +155,7 @@ include = ["marimo*"]
 line-length=79
 exclude = [
     "examples",
-    "scripts/print_banned_cell_names.py",
+    "scripts",
     "marimo/_tutorials",
     "marimo/_snippets/data",
     "marimo/_smoke_tests",

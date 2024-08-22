@@ -1,21 +1,25 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Awaitable, Callable, Optional
 
 import starlette.status as status
+from opentelemetry import trace
+from opentelemetry.trace.status import Status, StatusCode
 from starlette.authentication import (
     AuthCredentials,
     AuthenticationBackend,
     BaseUser,
     SimpleUser,
 )
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import HTTPConnection, Request
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 
 from marimo._server.api.auth import validate_auth
 from marimo._server.api.deps import AppState, AppStateBase
 from marimo._server.model import SessionMode
+from marimo._tracer import server_tracer
 
 if TYPE_CHECKING:
     from starlette.requests import HTTPConnection
@@ -91,3 +95,27 @@ class SkewProtectionMiddleware:
 
         # Passed
         return await self.app(scope, receive, send)
+
+
+class OpenTelemetryMiddleware(BaseHTTPMiddleware):
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
+        with server_tracer.start_as_current_span(
+            f"{request.method} {request.url.path}",
+            kind=trace.SpanKind.SERVER,
+            attributes={
+                "http.method": request.method,
+                "http.target": request.url.path or "",
+            },
+        ) as span:
+            try:
+                response = await call_next(request)
+                span.set_attribute("http.status_code", response.status_code)
+                span.set_status(Status(StatusCode.OK))
+            except Exception as e:
+                span.set_status(Status(StatusCode.ERROR, str(e)))
+                raise
+            return response
