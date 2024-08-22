@@ -149,7 +149,15 @@ def __(Dict, List, Span, json):
 
 
 @app.cell
-def __(os, parse_jsonl, populate_depth):
+def __(mo):
+    refresh = mo.ui.refresh(options=[2, 5, 10], default_interval=5)
+    refresh
+    return refresh,
+
+
+@app.cell
+def __(os, parse_jsonl, populate_depth, refresh):
+    refresh
     file_path = "~/.marimo/traces/spans.jsonl"
     spans = parse_jsonl(os.path.expanduser(file_path))
     spans = populate_depth(spans)
@@ -196,6 +204,12 @@ def __(spans, spans_to_dataframe):
     df = spans_to_dataframe(spans)
     df
     return df,
+
+
+@app.cell
+def __(df):
+    df[["name", "duration_ms"]]
+    return
 
 
 @app.cell(hide_code=True)
