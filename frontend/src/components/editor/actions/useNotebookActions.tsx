@@ -61,6 +61,7 @@ import { LAYOUT_TYPES } from "../renderers/types";
 import { displayLayoutName, getLayoutIcon } from "../renderers/layout-select";
 import { useLayoutState, useLayoutActions } from "@/core/layout/layout";
 import { useTogglePresenting } from "@/core/layout/useTogglePresenting";
+import { generateSessionId } from "@/core/kernel/session";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -193,7 +194,7 @@ export function useNotebookActions() {
             const md = await exportAsMarkdown({ download: false });
             downloadBlob(
               new Blob([md], { type: "text/plain" }),
-              Filenames.toMarkdown(document.title),
+              Filenames.toMarkdown(document.title)
             );
           },
         },
@@ -204,7 +205,7 @@ export function useNotebookActions() {
             const code = await readCode();
             downloadBlob(
               new Blob([code.contents], { type: "text/plain" }),
-              Filenames.toPY(document.title),
+              Filenames.toPY(document.title)
             );
           },
         },
@@ -289,13 +290,27 @@ export function useNotebookActions() {
     },
 
     {
+      icon: <FileIcon size={14} strokeWidth={1.5} />,
+      label: "Duplicate Notebook",
+      handle: async () => {
+        const code = await readCode();
+        const newNotebookName = `${filename}_duplicated`;
+        const newNotebook = await createNewNotebook(
+          newNotebookName,
+          code.contents
+        );
+        window.open(newNotebook.url, "_blank");
+      },
+    },
+
+    {
       icon: <ZapIcon size={14} strokeWidth={1.5} />,
       label: "Enable all cells",
       hidden: disabledCells.length === 0 || kioskMode,
       handle: async () => {
         const ids = disabledCells.map((cell) => cell.id);
         const newConfigs = Objects.fromEntries(
-          ids.map((cellId) => [cellId, { disabled: false }]),
+          ids.map((cellId) => [cellId, { disabled: false }])
         );
         // send to BE
         await saveCellConfig({ configs: newConfigs });
@@ -312,7 +327,7 @@ export function useNotebookActions() {
       handle: async () => {
         const ids = enabledCells.map((cell) => cell.id);
         const newConfigs = Objects.fromEntries(
-          ids.map((cellId) => [cellId, { disabled: true }]),
+          ids.map((cellId) => [cellId, { disabled: true }])
         );
         // send to BE
         await saveCellConfig({ configs: newConfigs });
@@ -373,4 +388,54 @@ export function useNotebookActions() {
   ];
 
   return actions.filter((a) => !a.hidden);
+}
+
+// Helper function to create a new notebook
+async function createNewNotebook(name: string, code: string) {
+  const sessionId = generateSessionId();
+  const initializationId = `__new__${sessionId}`;
+
+  // Step 1: Create a new notebook
+  const response = await fetch("/api/notebooks", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      name,
+      sessionId,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to create a new notebook");
+  }
+
+  const newNotebook = await response.json();
+  // Step 2: Copy the code to the new notebook and save it
+  const newNotebookData = newNotebook as { id: string }; // Type assertion to fix the type issue
+  await fetch(`/api/notebooks/${newNotebookData.id}/save`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      cellIds: [], // Assuming you need to provide cell IDs
+      codes: [code],
+      names: ["cell_1"], // Assuming a single cell with a default name
+      filename: name,
+      configs: [], // Assuming default configs
+      layout: {}, // Assuming default layout
+      persist: true,
+    }),
+  });
+
+  // Step 3: Run the notebook on a kernel
+  await fetch(`/api/notebooks/${newNotebookData.id}/run`, {
+    method: "POST",
+  });
+
+  return {
+    url: `/notebook/${initializationId}`,
+  };
 }
