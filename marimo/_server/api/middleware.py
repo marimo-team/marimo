@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Awaitable, Callable, Optional
+from typing import TYPE_CHECKING, Optional
 
 import starlette.status as status
 from starlette.authentication import (
@@ -10,7 +10,11 @@ from starlette.authentication import (
     BaseUser,
     SimpleUser,
 )
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import (
+    BaseHTTPMiddleware,
+    DispatchFunction,
+    RequestResponseEndpoint,
+)
 from starlette.requests import HTTPConnection, Request
 from starlette.responses import JSONResponse, Response
 
@@ -98,8 +102,10 @@ class SkewProtectionMiddleware:
 
 
 class OpenTelemetryMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app: ASGIApp) -> None:
-        super().__init__(app)
+    def __init__(
+        self, app: ASGIApp, dispatch: DispatchFunction | None = None
+    ) -> None:
+        super().__init__(app, dispatch)
 
         if not GLOBAL_SETTINGS.TRACING:
             return
@@ -117,7 +123,7 @@ class OpenTelemetryMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self,
         request: Request,
-        call_next: Callable[[Request], Awaitable[Response]],
+        call_next: RequestResponseEndpoint,
     ) -> Response:
         if not GLOBAL_SETTINGS.TRACING:
             return await call_next(request)
