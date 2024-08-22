@@ -54,7 +54,8 @@ import { hintTooltip } from "./completion/hints";
 import { adaptiveLanguageConfiguration } from "./language/extension";
 import { historyCompartment } from "./editing/extensions";
 import { goToDefinitionBundle } from "./go-to-definition/extension";
-import { HotkeyProvider } from "../hotkeys/hotkeys";
+import type { HotkeyProvider } from "../hotkeys/hotkeys";
+import { lightTheme } from "./theme/light";
 
 export interface CodeMirrorSetupOpts {
   cellId: CellId;
@@ -130,7 +131,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
       parent: document.querySelector<HTMLElement>("#App") ?? undefined,
     }),
     scrollActiveLineIntoView(),
-    theme === "dark" ? oneDark : [],
+    theme === "dark" ? oneDark : lightTheme,
 
     hintTooltip(),
     copilotBundle(completionConfig),
