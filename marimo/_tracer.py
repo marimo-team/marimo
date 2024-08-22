@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Sequence, cast
@@ -104,7 +103,7 @@ def _set_tracer_provider() -> None:
             try:
                 with open(self.file_path, "a") as f:
                     for span in spans:
-                        json.dump(span.to_json(), f)
+                        f.write(span.to_json(cast(Any, None)))
                         f.write("\n")
                 return SpanExportResult.SUCCESS
             except Exception as e:
