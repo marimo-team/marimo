@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { Logger } from "@/utils/Logger";
 import { getMarimoAppConfig, getMarimoUserConfig } from "../dom/marimo-tag";
-import { MarimoConfig } from "../network/types";
+import type { MarimoConfig } from "../network/types";
 
 // This has to be defined in the same file as the zod schema to satisfy zod
 export const PackageManagerNames = [
@@ -75,6 +75,7 @@ export const UserConfigSchema = z
         theme: z.enum(["light", "dark", "system"]).default("light"),
         code_editor_font_size: z.number().nonnegative().default(14),
         cell_output: z.enum(["above", "below"]).default("above"),
+        dataframes: z.enum(["rich", "plain"]).default("rich"),
         default_width: z
           .enum(VALID_APP_WIDTHS)
           .default("medium")
@@ -129,11 +130,9 @@ export type SaveConfig = UserConfig["save"];
 export type CompletionConfig = UserConfig["completion"];
 export type KeymapConfig = UserConfig["keymap"];
 
-export const AppTitleSchema = z
-  .string()
-  .regex(new RegExp("^[A-Za-z0-9-_' ]*$"), {
-    message: "Invalid application title",
-  });
+export const AppTitleSchema = z.string().regex(/^[\w '-]*$/, {
+  message: "Invalid application title",
+});
 export const AppConfigSchema = z
   .object({
     width: z
@@ -169,7 +168,7 @@ export function parseUserConfig(): UserConfig {
         Logger.log(`🧪 Experimental feature "${key}" is enabled.`);
       }
     }
-    return parsed as UserConfig;
+    return parsed as unknown as UserConfig;
   } catch (error) {
     Logger.error(
       `Marimo got an unexpected value in the configuration file: ${error}`,
@@ -179,5 +178,5 @@ export function parseUserConfig(): UserConfig {
 }
 
 export function defaultUserConfig(): UserConfig {
-  return UserConfigSchema.parse({}) as UserConfig;
+  return UserConfigSchema.parse({}) as unknown as UserConfig;
 }

@@ -36,6 +36,7 @@ test("default UserConfig - empty", () => {
       "display": {
         "cell_output": "above",
         "code_editor_font_size": 14,
+        "dataframes": "rich",
         "default_width": "medium",
         "theme": "light",
       },
@@ -85,6 +86,7 @@ test("default UserConfig - one level", () => {
       "display": {
         "cell_output": "above",
         "code_editor_font_size": 14,
+        "dataframes": "rich",
         "default_width": "medium",
         "theme": "light",
       },
