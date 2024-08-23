@@ -69,5 +69,4 @@ def get_logger(name: str, level: Optional[int] = None) -> logging.Logger:
 
 
 def marimo_logger() -> logging.Logger:
-    name = "marimo"
-    return get_logger(name)
+    return get_logger("marimo")
