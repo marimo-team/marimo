@@ -4,7 +4,6 @@ from dataclasses import asdict
 from tempfile import TemporaryDirectory
 from typing import Any, Optional, Type, TypeVar
 
-import tomlkit
 
 from marimo._utils.parse_dataclass import parse_raw
 
@@ -30,6 +29,8 @@ class ConfigReader:
         return ConfigReader(filepath)
 
     def read_toml(self, cls: Type[T], *, fallback: T) -> T:
+        import tomlkit
+
         try:
             with open(self.filepath, "r") as file:
                 data = tomlkit.parse(file.read())
@@ -38,6 +39,8 @@ class ConfigReader:
             return fallback
 
     def write_toml(self, data: Any) -> None:
+        import tomlkit
+
         _maybe_create_directory(self.filepath)
         with open(self.filepath, "w") as file:
             tomlkit.dump(asdict(data), file)
