@@ -452,6 +452,9 @@ class TestColumnarDefaultTable(unittest.TestCase):
         }
         assert formatted_manager == expected_data
 
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
     def test_to_csv(self) -> None:
         manager = DefaultTableManager(
             {
@@ -461,6 +464,9 @@ class TestColumnarDefaultTable(unittest.TestCase):
         )
         assert manager.to_csv() == b"a,b\n1,3\n2,4\n"
 
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
     def test_to_json(self) -> None:
         manager = DefaultTableManager(
             {
@@ -533,9 +539,15 @@ class TestDictionaryDefaultTable(unittest.TestCase):
         )
         assert formatted_manager == self.manager.data
 
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
     def test_to_csv(self) -> None:
         assert self.manager.to_csv() == b"key,value\na,1\nb,2\n"
 
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
     def test_to_json(self) -> None:
         assert (
             self.manager.to_json()
