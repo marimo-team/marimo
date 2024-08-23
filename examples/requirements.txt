@@ -42,3 +42,4 @@ pygwalker
 maplibre
 mosaic_widget
 geopandas
+great_tables
