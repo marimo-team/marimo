@@ -67,7 +67,7 @@ export const JsonOutput: React.FC<Props> = memo(
         logNever(format);
         return <pre className={className}>{JSON.stringify(data, null, 2)}</pre>;
     }
-  }
+  },
 );
 JsonOutput.displayName = "JsonOutput";
 
@@ -92,7 +92,7 @@ const MIME_TYPES: Array<DataType<any>> = Object.entries(LEAF_RENDERERS).map(
   ([leafType, render]) => ({
     is: (value) => typeof value === "string" && value.startsWith(leafType),
     Component: (props) => renderLeaf(props.value, render),
-  })
+  }),
 );
 
 const PYTHON_BOOLEAN_TYPE = defineDataType<boolean>({
@@ -126,7 +126,7 @@ function leafData(leaf: string): string {
  */
 function renderLeaf(
   leaf: string,
-  render: (data: string) => JSX.Element
+  render: (data: string) => JSX.Element,
 ): JSX.Element {
   try {
     return render(leafData(leaf));
