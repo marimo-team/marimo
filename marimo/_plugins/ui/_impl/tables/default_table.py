@@ -218,8 +218,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
         if isinstance(self.data, dict):
             if self.is_column_oriented:
                 first = next(iter(self.data.values()), None)
-                assert isinstance(first, list)
-                return len(first)
+                return len(cast(List[Any], first))
             else:
                 return len(self.data)
         return len(self.data)

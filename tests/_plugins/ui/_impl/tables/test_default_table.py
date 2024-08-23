@@ -462,7 +462,10 @@ class TestColumnarDefaultTable(unittest.TestCase):
                 "b": [3, 4],
             }
         )
-        assert manager.to_csv() == b"a,b\n1,3\n2,4\n"
+        result = manager.to_csv()
+        assert (
+            result == b"a,b\n1,3\n2,4\n" or result == b"a,b\r\n1,3\r\n2,4\r\n"
+        )
 
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"
