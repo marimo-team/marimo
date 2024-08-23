@@ -1,6 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { memo } from "react";
-import { type DataType, JsonViewer } from "@textea/json-viewer";
+import {
+  type DataType,
+  JsonViewer,
+  booleanType,
+  defineDataType,
+  nullType,
+} from "@textea/json-viewer";
 
 import { HtmlOutput } from "./HtmlOutput";
 import { ImageOutput } from "./ImageOutput";
@@ -61,7 +67,7 @@ export const JsonOutput: React.FC<Props> = memo(
         logNever(format);
         return <pre className={className}>{JSON.stringify(data, null, 2)}</pre>;
     }
-  },
+  }
 );
 JsonOutput.displayName = "JsonOutput";
 
@@ -82,12 +88,24 @@ const LEAF_RENDERERS = {
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const VALUE_TYPE: Array<DataType<any>> = Object.entries(LEAF_RENDERERS).map(
+const MIME_TYPES: Array<DataType<any>> = Object.entries(LEAF_RENDERERS).map(
   ([leafType, render]) => ({
     is: (value) => typeof value === "string" && value.startsWith(leafType),
     Component: (props) => renderLeaf(props.value, render),
-  }),
+  })
 );
+
+const PYTHON_BOOLEAN_TYPE = defineDataType<boolean>({
+  ...booleanType,
+  Component: ({ value }) => <span>{value ? "True" : "False"}</span>,
+});
+
+const PYTHON_NONE_TYPE = defineDataType<null>({
+  ...nullType,
+  Component: () => <span>None</span>,
+});
+
+const VALUE_TYPE = [...MIME_TYPES, PYTHON_BOOLEAN_TYPE, PYTHON_NONE_TYPE];
 
 function leafData(leaf: string): string {
   const delimIndex = leaf.indexOf(":");
@@ -108,7 +126,7 @@ function leafData(leaf: string): string {
  */
 function renderLeaf(
   leaf: string,
-  render: (data: string) => JSX.Element,
+  render: (data: string) => JSX.Element
 ): JSX.Element {
   try {
     return render(leafData(leaf));
