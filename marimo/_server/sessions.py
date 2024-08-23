@@ -193,6 +193,7 @@ class KernelManager:
                     self.redirect_console_to_browser,
                     self.queue_manager.win32_interrupt_queue,
                     self.profile_path,
+                    GLOBAL_SETTINGS.LOG_LEVEL,
                 ),
                 # The process can't be a daemon, because daemonic processes
                 # can't create children
@@ -236,6 +237,8 @@ class KernelManager:
                     None,
                     # profile path
                     None,
+                    # log level
+                    GLOBAL_SETTINGS.LOG_LEVEL,
                 ),
                 # daemon threads can create child processes, unlike
                 # daemon processes

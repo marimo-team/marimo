@@ -169,6 +169,7 @@ def main(log_level: str, quiet: bool, development_mode: bool) -> None:
 
     GLOBAL_SETTINGS.DEVELOPMENT_MODE = development_mode
     GLOBAL_SETTINGS.QUIET = quiet
+    GLOBAL_SETTINGS.LOG_LEVEL = _loggers.log_level_string_to_int(log_level)
 
 
 edit_help_msg = "\n".join(
