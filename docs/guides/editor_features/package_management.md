@@ -17,6 +17,7 @@ When using [uv](https://docs.astral.sh/uv), marimo can automatically add the pac
 For example, if you start marimo in a new virtual environment and spin up a new notebook. Whenever you add a new module, marimo will automatically add the metadata to the script that will look like this:
 
 ```python
+# /// script
 # requires-python = ">=3.11"
 # dependencies = [
 #     "pandas",
