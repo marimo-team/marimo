@@ -451,3 +451,93 @@ class TestColumnarDefaultTable(unittest.TestCase):
             "score": ["1.5", "2.5", "3.5"],
         }
         assert formatted_manager == expected_data
+
+    def test_to_csv(self) -> None:
+        manager = DefaultTableManager(
+            {
+                "a": [1, 2],
+                "b": [3, 4],
+            }
+        )
+        assert manager.to_csv() == b"a,b\n1,3\n2,4\n"
+
+    def test_to_json(self) -> None:
+        manager = DefaultTableManager(
+            {
+                "a": [1, 2],
+                "b": [3, 4],
+            }
+        )
+        assert manager.to_json() == b'[{"a":1,"b":3},{"a":2,"b":4}]'
+
+
+class TestDictionaryDefaultTable(unittest.TestCase):
+    def setUp(self) -> None:
+        self.manager = DefaultTableManager(
+            {
+                "a": 1,
+                "b": 2,
+            }
+        )
+
+    def test_select_rows(self) -> None:
+        selected_manager = self.manager.select_rows([0])
+        assert selected_manager.data == [{"key": "a", "value": 1}]
+
+    def test_select_rows_empty(self) -> None:
+        selected_manager = self.manager.select_rows([])
+        assert selected_manager.data == []
+
+    def test_select_columns(self) -> None:
+        selected_manager = self.manager.select_columns(["a"])
+        assert selected_manager.data == {"a": 1}
+
+    def test_get_rows_headers(self) -> None:
+        headers = self.manager.get_row_headers()
+        assert headers == []
+
+    def test_limit(self) -> None:
+        limited_manager = self.manager.limit(1)
+        assert limited_manager.data == [{"key": "a", "value": 1}]
+
+    def test_sort(self) -> None:
+        sorted_manager = self.manager.sort_values(by="value", descending=True)
+        expected_data = [{"key": "b", "value": 2}, {"key": "a", "value": 1}]
+        assert sorted_manager.data == expected_data
+
+    def test_search(self) -> None:
+        searched_manager = self.manager.search("a")
+        assert searched_manager.data == [{"key": "a", "value": 1}]
+
+    def test_apply_formatting(self) -> None:
+        # Doesn't format when dictionary
+        assert self.manager.apply_formatting({"value": lambda x: x + 1}) == {
+            "a": 1,
+            "b": 2,
+        }
+
+        assert DefaultTableManager(self.manager.to_data()).apply_formatting(
+            {"value": lambda x: x + 1}
+        ) == [
+            {"key": "a", "value": 2},
+            {"key": "b", "value": 3},
+        ]
+
+    def test_apply_formatting_empty(self) -> None:
+        formatted_manager = self.manager.apply_formatting({})
+        assert formatted_manager == self.manager.data
+
+    def test_apply_formatting_invalid_column(self) -> None:
+        formatted_manager = self.manager.apply_formatting(
+            {"invalid_column": lambda x: x * 2}
+        )
+        assert formatted_manager == self.manager.data
+
+    def test_to_csv(self) -> None:
+        assert self.manager.to_csv() == b"key,value\na,1\nb,2\n"
+
+    def test_to_json(self) -> None:
+        assert (
+            self.manager.to_json()
+            == b'[{"key":"a","value":1},{"key":"b","value":2}]'
+        )
