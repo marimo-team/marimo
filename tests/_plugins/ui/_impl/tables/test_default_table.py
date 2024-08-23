@@ -543,7 +543,10 @@ class TestDictionaryDefaultTable(unittest.TestCase):
         not HAS_DEPS, reason="optional dependencies not installed"
     )
     def test_to_csv(self) -> None:
-        assert self.manager.to_csv() == b"key,value\na,1\nb,2\n"
+        result = self.manager.to_csv()
+        assert result == b"key,value\na,1\nb,2\n" or result == (
+            b"key,value\r\na,1\r\nb,2\r\n"
+        )
 
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"
