@@ -1605,6 +1605,9 @@ class Kernel:
             if await self.package_manager.install(pkg):
                 package_statuses[pkg] = "installed"
                 InstallingPackageAlert(packages=package_statuses).broadcast()
+
+                self._maybe_add_script_metadata(pkg)
+
             else:
                 package_statuses[pkg] = "failed"
                 self.module_registry.excluded_modules.add(mod)
@@ -1622,6 +1625,28 @@ class Kernel:
         )
         if cells_to_run:
             await self._if_autorun_then_run_cells(cells_to_run)
+
+    def _maybe_add_script_metadata(self, pkg: str) -> None:
+        # Maybe add metadata to the file
+        # This adheres to PEP 723
+        add_script_metadata_to_notebook = self.user_config[
+            "package_management"
+        ]["add_script_metadata"]
+        filename = self.app_metadata.filename
+
+        if (
+            add_script_metadata_to_notebook
+            and filename
+            and self.package_manager
+        ):
+            try:
+                self.package_manager.add_script_metadata_to_notebook(
+                    filepath=filename, pkg_name=pkg
+                )
+            except Exception as e:
+                LOGGER.error(
+                    "Failed to add script metadata to notebook: %s", e
+                )
 
     @kernel_tracer.start_as_current_span("preview_dataset_column")
     async def preview_dataset_column(

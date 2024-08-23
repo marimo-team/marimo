@@ -53,6 +53,17 @@ class PackageManager(abc.ABC):
         proc = subprocess.run(command)  # noqa: ASYNC101
         return proc.returncode == 0
 
+    def add_script_metadata_to_notebook(
+        self, filepath: str, pkg_name: str
+    ) -> None:
+        del filepath, pkg_name
+        """
+        Add inline script metadata metadata to the marimo notebook.
+
+        This follows PEP 723 https://peps.python.org/pep-0723/
+        """
+        return
+
 
 class CanonicalizingPackageManager(PackageManager):
     """Base class for package managers.

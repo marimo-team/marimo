@@ -48,6 +48,11 @@ class UvPackageManager(PypiPackageManager):
     async def _install(self, package: str) -> bool:
         return self.run(["uv", "pip", "install", package])
 
+    def add_script_metadata_to_notebook(
+        self, filepath: str, pkg_name: str
+    ) -> None:
+        self.run(["uv", "add", "--script", filepath, pkg_name])
+
 
 class RyePackageManager(PypiPackageManager):
     name = "rye"
