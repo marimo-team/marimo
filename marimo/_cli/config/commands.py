@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import click
-import tomlkit
 
 from marimo._cli.config.utils import highlight_toml_headers
 from marimo._cli.print import green
@@ -22,6 +21,8 @@ def show() -> None:
 
         marimo config show
     """
+    import tomlkit
+
     config_manager = UserConfigManager()
     click.echo(f"User config from {green(config_manager.get_config_path())}\n")
     toml_string = tomlkit.dumps(config_manager.get_config())
