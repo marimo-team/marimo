@@ -1,0 +1,204 @@
+{
+  "columns": [
+    {
+      "name": "icon",
+      "datatype": "String",
+      "bit_settings": "",
+      "values": [
+        "grinder.png",
+        "moka-pot.png",
+        "cold-brew.png",
+        "filter.png",
+        "drip-machine.png",
+        "aeropress.png",
+        "pour-over.png",
+        "french-press.png",
+        "cezve.png",
+        "chemex.png",
+        "scale.png",
+        "kettle.png",
+        "espresso-machine.png",
+        null
+      ]
+    },
+    {
+      "name": "product",
+      "datatype": "String",
+      "bit_settings": "",
+      "values": [
+        "Grinder",
+        "Moka pot",
+        "Cold brew",
+        "Filter",
+        "Drip machine",
+        "AeroPress",
+        "Pour over",
+        "French press",
+        "Cezve",
+        "Chemex",
+        "Scale",
+        "Kettle",
+        "Espresso Machine",
+        "Total"
+      ]
+    },
+    {
+      "name": "revenue_dollars",
+      "datatype": "Float64",
+      "bit_settings": "",
+      "values": [
+        904500.0, 2045250.0, 288750.0, 404250.0, 2632000.0, 2601500.0, 846000.0,
+        1113250.0, 2512500.0, 3137250.0, 3801000.0, 756250.0, 8406000.0,
+        29448500.0
+      ]
+    },
+    {
+      "name": "revenue_pct",
+      "datatype": "Float64",
+      "bit_settings": "",
+      "values": [
+        0.03, 0.07, 0.01, 0.01, 0.09, 0.09, 0.03, 0.04, 0.09, 0.11, 0.13, 0.03,
+        0.29, 1.0
+      ]
+    },
+    {
+      "name": "profit_dollars",
+      "datatype": "Float64",
+      "bit_settings": "",
+      "values": [
+        567960.0, 181080.0, 241770.0, 70010.0, 1374450.0, 1293780.0, 364530.0,
+        748120.0, 1969520.0, 817680.0, 2910290.0, 617520.0, 3636440.0,
+        14793150.0
+      ]
+    },
+    {
+      "name": "profit_pct",
+      "datatype": "Float64",
+      "bit_settings": "",
+      "values": [
+        0.04, 0.01, 0.02, 0.0, 0.09, 0.09, 0.02, 0.05, 0.13, 0.06, 0.2, 0.04,
+        0.25, 1.0
+      ]
+    },
+    {
+      "name": "monthly_sales",
+      "datatype": { "List": "Int64" },
+      "bit_settings": "",
+      "values": [
+        {
+          "name": "",
+          "datatype": "Int64",
+          "bit_settings": "",
+          "values": [521, 494, 596, 613, 667, 748, 765, 686, 607, 594, 568, 751]
+        },
+        {
+          "name": "",
+          "datatype": "Int64",
+          "bit_settings": "",
+          "values": [
+            4726, 4741, 4791, 5506, 6156, 6619, 6868, 6026, 5304, 4884, 4648,
+            6283
+          ]
+        },
+        {
+          "name": "",
+          "datatype": "Int64",
+          "bit_settings": "",
+          "values": [
+            244, 249, 438, 981, 1774, 2699, 2606, 2348, 1741, 896, 499, 244
+          ]
+        },
+        {
+          "name": "",
+          "datatype": "Int64",
+          "bit_settings": "",
+          "values": [
+            2067, 1809, 1836, 2123, 2252, 2631, 2562, 2367, 2164, 2195, 2070,
+            2744
+          ]
+        },
+        {
+          "name": "",
+          "datatype": "Int64",
+          "bit_settings": "",
+          "values": [
+            2137, 1623, 1971, 2097, 2580, 2456, 2336, 2316, 2052, 1967, 1837,
+            2328
+          ]
+        },
+        {
+          "name": "",
+          "datatype": "Int64",
+          "bit_settings": "",
+          "values": [
+            6332, 5199, 6367, 7024, 7906, 8704, 8693, 7797, 6828, 6963, 6877,
+            9270
+          ]
+        },
+        {
+          "name": "",
+          "datatype": "Int64",
+          "bit_settings": "",
+          "values": [
+            1562, 1291, 1511, 1687, 1940, 2177, 2141, 1856, 1715, 1806, 1601,
+            2165
+          ]
+        },
+        {
+          "name": "",
+          "datatype": "Int64",
+          "bit_settings": "",
+          "values": [
+            3507, 2880, 3346, 3792, 3905, 4095, 4184, 4428, 3279, 3420, 3297,
+            4819
+          ]
+        },
+        {
+          "name": "",
+          "datatype": "Int64",
+          "bit_settings": "",
+          "values": [
+            12171, 11469, 11788, 13630, 15391, 16532, 17090, 14433, 12985,
+            12935, 11598, 15895
+          ]
+        },
+        {
+          "name": "",
+          "datatype": "Int64",
+          "bit_settings": "",
+          "values": [
+            4938, 4167, 5235, 6000, 6358, 6768, 7112, 6249, 5605, 6076, 4980,
+            7220
+          ]
+        },
+        {
+          "name": "",
+          "datatype": "Int64",
+          "bit_settings": "",
+          "values": [
+            1542, 1566, 1681, 2028, 2425, 2549, 2569, 2232, 2036, 2089, 1693,
+            3180
+          ]
+        },
+        {
+          "name": "",
+          "datatype": "Int64",
+          "bit_settings": "",
+          "values": [
+            1139, 1023, 1087, 1131, 1414, 1478, 1456, 1304, 1140, 1233, 1193,
+            1529
+          ]
+        },
+        {
+          "name": "",
+          "datatype": "Int64",
+          "bit_settings": "",
+          "values": [
+            686, 840, 618, 598, 2148, 533, 797, 996, 1002, 668, 858, 2577
+          ]
+        },
+        null
+      ]
+    }
+  ]
+}
