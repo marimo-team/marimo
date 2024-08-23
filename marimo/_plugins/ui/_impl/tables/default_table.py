@@ -105,7 +105,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
             # Column major data
             if self.is_column_oriented:
                 new_data: Dict[Any, Any] = {
-                    key: [value[i] for i in indices]
+                    key: [cast(List[JSONType], value)[i] for i in indices]
                     for key, value in self.data.items()
                 }
                 return DefaultTableManager(new_data)
@@ -139,7 +139,13 @@ class DefaultTableManager(TableManager[JsonTableData]):
         if isinstance(self.data, dict):
             if self.is_column_oriented:
                 return DefaultTableManager(
-                    {key: value[:num] for key, value in self.data.items()}
+                    cast(
+                        JsonTableData,
+                        {
+                            key: cast(List[Any], value)[:num]
+                            for key, value in self.data.items()
+                        },
+                    )
                 )
             return DefaultTableManager(self._normalize_data(self.data)[:num])
         return DefaultTableManager(self.data[:num])
@@ -149,16 +155,20 @@ class DefaultTableManager(TableManager[JsonTableData]):
         if isinstance(self.data, dict) and self.is_column_oriented:
             mask: List[bool] = [
                 any(
-                    query in str(self.data[key][row]).lower()
+                    query in str(cast(List[Any], self.data[key])[row]).lower()
                     for key in self.data.keys()
                 )
                 for row in range(self.get_num_rows() or 0)
             ]
-            results: JsonTableData = {
-                key: [value[i] for i, match in enumerate(mask) if match]
+            results = {
+                key: [
+                    cast(List[Any], value)[i]
+                    for i, match in enumerate(mask)
+                    if match
+                ]
                 for key, value in self.data.items()
             }
-            return DefaultTableManager(results)
+            return DefaultTableManager(cast(JsonTableData, results))
         return DefaultTableManager(
             [
                 row
@@ -178,7 +188,14 @@ class DefaultTableManager(TableManager[JsonTableData]):
         if DependencyManager.polars.has():
             import polars as pl
 
-            return PolarsTableManagerFactory.create()(pl.DataFrame(self.data))
+            if isinstance(self.data, dict) and not self.is_column_oriented:
+                return PolarsTableManagerFactory.create()(
+                    pl.DataFrame(self._normalize_data(self.data))
+                )
+
+            return PolarsTableManagerFactory.create()(
+                pl.DataFrame(cast(Any, self.data))
+            )
         if DependencyManager.pyarrow.has():
             import pyarrow as pa
 
@@ -200,7 +217,9 @@ class DefaultTableManager(TableManager[JsonTableData]):
         del force
         if isinstance(self.data, dict):
             if self.is_column_oriented:
-                return len(next(iter(self.data.values()), []))
+                first = next(iter(self.data.values()), None)
+                assert isinstance(first, list)
+                return len(first)
             else:
                 return len(self.data)
         return len(self.data)
