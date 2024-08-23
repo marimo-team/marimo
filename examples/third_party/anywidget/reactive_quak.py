@@ -1,6 +1,17 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "altair",
+#     "polars",
+#     "marimo",
+#     "quak",
+#     "pandas",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.7.13"
+__generated_with = "0.8.2"
 app = marimo.App(width="medium")
 
 
@@ -20,7 +31,7 @@ def __(mo, pl, quak):
     return df, widget
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __(grouped_selection, mo):
     import altair as alt
 
@@ -48,7 +59,6 @@ def __(widget):
 def __(selection):
     selection["count"] = 1
     grouped_selection = selection[["nationality", "count"]].groupby(["nationality"]).agg("count").reset_index()
-    grouped_selection
     return grouped_selection,
 
 
