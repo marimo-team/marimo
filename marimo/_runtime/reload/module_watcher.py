@@ -8,6 +8,7 @@ import threading
 import time
 from typing import TYPE_CHECKING, Callable, Literal
 
+from marimo import _loggers
 from marimo._messaging.types import Stream
 from marimo._runtime import dataflow
 from marimo._runtime.reload.autoreload import (
@@ -19,6 +20,8 @@ if TYPE_CHECKING:
     import types
 
     from marimo._ast.cell import CellId_t
+
+LOGGER = _loggers.marimo_logger()
 
 
 def is_submodule(src_name: str, target_name: str) -> bool:
@@ -132,12 +135,15 @@ def watch_modules(
         # Collect the modules used by each cell
         modules: dict[str, types.ModuleType] = {}
         modname_to_cell_id: dict[str, CellId_t] = {}
+        LOGGER.debug("Acquiring graph lock to find imported modules.")
         with graph.lock:
+            LOGGER.debug("Acquired graph lock.")
             for cell_id, cell in graph.cells.items():
                 for modname in modules_imported_by_cell(cell, sys_modules):
                     if modname in sys_modules:
                         modules[modname] = sys_modules[modname]
                         modname_to_cell_id[modname] = cell_id
+        LOGGER.debug("Released graph lock and found imported modules.")
 
         stale_modules = _check_modules(
             modules=modules,
@@ -146,7 +152,11 @@ def watch_modules(
         )
 
         if stale_modules:
+            LOGGER.debug(
+                "Found stale modules; acquiring lock to update graph."
+            )
             with graph.lock:
+                LOGGER.debug("Acquired graph lock.")
                 for modname in stale_modules.keys():
                     # prune definitions that are derived from stale modules
                     cell = graph.cells[modname_to_cell_id[modname]]
@@ -170,6 +180,8 @@ def watch_modules(
                 )
                 for cid in stale_cell_ids:
                     graph.cells[cid].set_stale(stale=True, stream=stream)
+            LOGGER.debug("Released graph lock and updated stale statuses.")
+
             if mode == "autorun":
                 run_is_processed.clear()
                 enqueue_run_stale_cells()

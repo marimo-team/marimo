@@ -46,7 +46,9 @@ def _set_imported_defs(
     run_result: cell_runner.RunResult,
 ) -> None:
     del run_result
+    LOGGER.debug("Acquiring graph lock to update cell import workspace")
     with runner.graph.lock:
+        LOGGER.debug("Acquired graph lock to update import workspace.")
         if cell.import_workspace.is_import_block:
             cell.import_workspace.imported_defs = set(
                 name for name in cell.defs if name in runner.glbls
@@ -115,6 +117,7 @@ def _broadcast_datasets(
         ]
     )
     if tables:
+        LOGGER.debug("Broadcasting data tables")
         Datasets(tables=tables).broadcast()
 
 
@@ -143,6 +146,7 @@ def _broadcast_duckdb_tables(
         if not tables:
             return
 
+        LOGGER.debug("Broadcasting duckdb tables")
         Datasets(tables=tables, clear_channel="duckdb").broadcast()
     except Exception:
         return

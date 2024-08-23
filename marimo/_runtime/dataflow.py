@@ -105,7 +105,9 @@ class DirectedGraph:
 
         Requires that `cell_id` is not already in the graph.
         """
+        LOGGER.debug("Acquiring graph lock to register cell %s", cell_id)
         with self.lock:
+            LOGGER.debug("Acquired graph lock.")
             assert cell_id not in self.cells
             self.cells[cell_id] = cell
             # Children are the set of cells that refer to a name defined in
@@ -163,7 +165,7 @@ class DirectedGraph:
                     if path:
                         self.cycles.add(tuple([(other_id, cell_id)] + path))
                     self.children[other_id].add(cell_id)
-
+        LOGGER.debug("Registered cell %s and released graph lock", cell_id)
         if self.is_any_ancestor_stale(cell_id):
             self.set_stale(set([cell_id]))
 
@@ -225,7 +227,9 @@ class DirectedGraph:
 
         Returns the ids of the children of the removed cell.
         """
+        LOGGER.debug("Acquiring graph lock to delete cell %s", cell_id)
         with self.lock:
+            LOGGER.debug("Acquired graph lock to delete cell %s", cell_id)
             if cell_id not in self.cells:
                 raise ValueError(f"Cell {cell_id} not found")
 
@@ -265,8 +269,8 @@ class DirectedGraph:
             for elems in self.siblings.values():
                 if cell_id in elems:
                     elems.remove(cell_id)
-
-            return children
+        LOGGER.debug("Deleted cell %s and Released graph lock.", cell_id)
+        return children
 
     def is_disabled(self, cell_id: CellId_t) -> bool:
         if cell_id not in self.cells:

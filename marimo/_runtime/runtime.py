@@ -787,6 +787,7 @@ class Kernel:
         Returns
         - set of cells that must be run to return kernel to consistent state
         """
+        LOGGER.debug("Mutating graph.")
         LOGGER.debug("Current set of errors: %s", self.errors)
         cells_before_mutation = set(self.graph.cells.keys())
         cells_with_errors_before_mutation = set(self.errors.keys())
@@ -1491,6 +1492,7 @@ class Kernel:
             debug(error_title, error_message)
         else:
             found = True
+            LOGGER.debug("Executing RPC %s", request)
             with self._install_execution_context(
                 cell_id=function.cell_id
             ), ctx.provide_ui_ids(str(uuid4())):
@@ -1668,7 +1670,9 @@ class Kernel:
         """
         # acquiring and releasing an RLock takes ~100ns; the overhead is
         # negligible because the lock is coarse.
+        LOGGER.debug("Acquiring globals lock to handle request %s", request)
         with self.lock_globals():
+            LOGGER.debug("Handling control request: %s", request)
             if isinstance(request, CreationRequest):
                 await self.instantiate(request)
                 CompletedRun().broadcast()
@@ -1690,6 +1694,7 @@ class Kernel:
                 CompletedRun().broadcast()
             elif isinstance(request, FunctionCallRequest):
                 status, ret, _ = await self.function_call_request(request)
+                LOGGER.debug("Function returned with status %s", status)
                 FunctionCallResult(
                     function_call_id=request.function_call_id,
                     return_value=ret,
@@ -1707,6 +1712,7 @@ class Kernel:
                 return None
             else:
                 raise ValueError(f"Unknown request {request}")
+            LOGGER.debug("Handled control request: %s", request)
 
 
 def launch_kernel(
@@ -1844,7 +1850,7 @@ def launch_kernel(
                 # triggered on Windows when quit with Ctrl+C
                 LOGGER.debug("kernel queue.get() failed %s", e)
                 break
-            LOGGER.debug("received request %s", request)
+            LOGGER.debug("Received control request: %s", request)
             if isinstance(request, StopRequest):
                 break
             elif isinstance(request, SetUIElementValueRequest):
