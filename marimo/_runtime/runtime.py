@@ -1723,7 +1723,10 @@ def launch_kernel(
     redirect_console_to_browser: bool,
     interrupt_queue: QueueType[bool] | None = None,
     profile_path: Optional[str] = None,
+    log_level: int | None = None,
 ) -> None:
+    if log_level is not None:
+        _loggers.set_level(log_level)
     LOGGER.debug("Launching kernel")
     if is_edit_mode:
         restore_signals()

@@ -16,22 +16,26 @@ _LOG_FORMATTER = LogFormatter()
 _LOGGERS: dict[str, logging.Logger] = {}
 
 
+def log_level_string_to_int(level: str) -> int:
+    level = level.upper()
+    if level == "DEBUG":
+        return logging.DEBUG
+    elif level == "INFO":
+        return logging.INFO
+    elif level == "WARN":
+        return logging.WARNING
+    elif level == "ERROR":
+        return logging.ERROR
+    elif level == "CRITICAL":
+        return logging.CRITICAL
+    else:
+        raise ValueError("Unrecognized log level %s" % level)
+
+
 def set_level(level: str | int = logging.WARNING) -> None:
     global _LOG_LEVEL
     if isinstance(level, str):
-        level = level.upper()
-        if level == "DEBUG":
-            _LOG_LEVEL = logging.DEBUG
-        elif level == "INFO":
-            _LOG_LEVEL = logging.INFO
-        elif level == "WARN":
-            _LOG_LEVEL = logging.WARNING
-        elif level == "ERROR":
-            _LOG_LEVEL = logging.ERROR
-        elif level == "CRITICAL":
-            _LOG_LEVEL = logging.CRITICAL
-        else:
-            raise ValueError("Unrecognized log level %s" % level)
+        _LOG_LEVEL = log_level_string_to_int(level)
     elif level not in [
         logging.DEBUG,
         logging.INFO,
@@ -65,4 +69,5 @@ def get_logger(name: str, level: Optional[int] = None) -> logging.Logger:
 
 
 def marimo_logger() -> logging.Logger:
-    return get_logger("marimo")
+    name = "marimo"
+    return get_logger(name)
