@@ -24,6 +24,8 @@ def log_level_string_to_int(level: str) -> int:
         return logging.INFO
     elif level == "WARN":
         return logging.WARNING
+    elif level == "WARNING":
+        return logging.WARNING
     elif level == "ERROR":
         return logging.ERROR
     elif level == "CRITICAL":
