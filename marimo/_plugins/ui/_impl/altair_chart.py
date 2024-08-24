@@ -209,7 +209,7 @@ def _filter_polars_dataframe(
     return df
 
 
-def _resolve_values_polars(values: Any, dtype: Any) -> list:
+def _resolve_values_polars(values: Any, dtype: Any) -> List[Any]:
     import polars as pl
 
     def _coerce_value(value: Any, dtype: Any) -> Any:
@@ -225,7 +225,7 @@ def _resolve_values_polars(values: Any, dtype: Any) -> list:
     return [_coerce_value(values, dtype)]
 
 
-def _resolve_values_pandas(values: Any, dtype: Any) -> list:
+def _resolve_values_pandas(values: Any, dtype: Any) -> List[Any]:
     import numpy as np
     import pandas as pd
 
@@ -281,7 +281,7 @@ def _has_transforms(spec: VegaSpec) -> bool:
 
 
 @mddoc
-class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
+class altair_chart(UIElement[ChartSelection, ChartDataType]):
     """Make reactive charts with Altair
 
     Use `mo.ui.altair_chart` to make Altair charts reactive: select chart data
