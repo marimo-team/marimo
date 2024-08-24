@@ -295,18 +295,20 @@ def test_get_dataframe() -> None:
 def test_get_dataframe_csv() -> None:
     import altair as alt
     import pandas as pd
+    import polars as pl
 
     data = "https://cdn.jsdelivr.net/npm/vega-datasets@v1.29.0/data/stocks.csv"
     chart = altair_chart.altair_chart(
         alt.Chart(data).mark_point().encode(x="values:Q")
     )
-    assert isinstance(chart.dataframe, pd.DataFrame)
+    assert isinstance(chart.dataframe, (pd.DataFrame, pl.DataFrame))
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_get_dataframe_json() -> None:
     import altair as alt
     import pandas as pd
+    import polars as pl
 
     data = (
         "https://cdn.jsdelivr.net/npm/vega-datasets@v1.29.0/data/barley.json"
@@ -314,7 +316,7 @@ def test_get_dataframe_json() -> None:
     chart = altair_chart.altair_chart(
         alt.Chart(data).mark_point().encode(x="values:Q")
     )
-    assert isinstance(chart.dataframe, pd.DataFrame)
+    assert isinstance(chart.dataframe, (pd.DataFrame, pl.DataFrame))
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

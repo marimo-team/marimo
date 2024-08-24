@@ -435,22 +435,34 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
     @staticmethod
     def _get_dataframe_from_chart(
         chart: altair.Chart,
-    ) -> Union[ChartDataType, altair.UndefinedType]:
-        if DependencyManager.polars.has():
-            import polars as pl
-
-            if isinstance(chart.data, str) and chart.data.endswith(".csv"):
-                return pl.read_csv(chart.data)
-            if isinstance(chart.data, str) and chart.data.endswith(".json"):
-                return pl.read_json(chart.data)
+    ) -> Union[ChartDataType, altair.UndefinedType, str]:
+        if not isinstance(chart.data, str):
+            return chart.data
 
         if DependencyManager.pandas.has():
             import pandas as pd
 
-            if isinstance(chart.data, str) and chart.data.endswith(".csv"):
+            if chart.data.endswith(".csv"):
                 return pd.read_csv(chart.data)
-            if isinstance(chart.data, str) and chart.data.endswith(".json"):
+            if chart.data.endswith(".json"):
                 return pd.read_json(chart.data)
+
+        if DependencyManager.polars.has():
+            import polars as pl
+
+            if chart.data.startswith("http"):
+                import urllib.request
+
+                with urllib.request.urlopen(chart.data) as response:
+                    if chart.data.endswith(".csv"):
+                        return pl.read_csv(response)
+                    if chart.data.endswith(".json"):
+                        return pl.read_json(response)
+
+            if chart.data.endswith(".csv"):
+                return pl.read_csv(chart.data)
+            if chart.data.endswith(".json"):
+                return pl.read_json(chart.data)
 
         return chart.data
 
