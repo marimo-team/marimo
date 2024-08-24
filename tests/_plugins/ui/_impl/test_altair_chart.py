@@ -1,14 +1,17 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import datetime
 import json
 import sys
+from unittest.mock import Mock
 
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl import altair_chart
 from marimo._plugins.ui._impl.altair_chart import (
+    ChartDataType,
     ChartSelection,
     _filter_dataframe,
     _parse_spec,
@@ -21,6 +24,7 @@ snapshot = snapshotter(__file__)
 
 HAS_DEPS = (
     DependencyManager.pandas.has()
+    and DependencyManager.polars.has()
     and DependencyManager.altair.has()
     and DependencyManager.geopandas.has()
     # altair produces different output on windows
@@ -29,21 +33,37 @@ HAS_DEPS = (
 
 if HAS_DEPS:
     import pandas as pd
+    import polars as pl
+else:
+    pd = Mock()
+    pl = Mock()
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 class TestAltairChart:
     @staticmethod
-    def test_filter_dataframe() -> None:
-        df = pd.DataFrame(
-            {
-                "field": ["value1", "value2", "value3", "value4"],
-                "color": ["red", "red", "blue", "blue"],
-                "field_2": [1, 2, 3, 4],
-                "field_3": [10, 20, 30, 40],
-            }
-        )
-
+    @pytest.mark.parametrize(
+        "df",
+        [
+            pd.DataFrame(
+                {
+                    "field": ["value1", "value2", "value3", "value4"],
+                    "color": ["red", "red", "blue", "blue"],
+                    "field_2": [1, 2, 3, 4],
+                    "field_3": [10, 20, 30, 40],
+                }
+            ),
+            pl.DataFrame(
+                {
+                    "field": ["value1", "value2", "value3", "value4"],
+                    "color": ["red", "red", "blue", "blue"],
+                    "field_2": [1, 2, 3, 4],
+                    "field_3": [10, 20, 30, 40],
+                }
+            ),
+        ],
+    )
+    def test_filter_dataframe(df: ChartDataType) -> None:
         # Define a point selection
         point_selection: ChartSelection = {
             "signal_channel_1": {"vlPoint": [1], "field": ["value1", "value2"]}
@@ -60,7 +80,7 @@ class TestAltairChart:
         }
         # Filter the DataFrame with the point selection
         assert len(_filter_dataframe(df, point_selection)) == 2
-        first, second = _filter_dataframe(df, point_selection)["field"].values
+        first, second = _filter_dataframe(df, point_selection)["field"]
         assert first == "value2"
         assert second == "value3"
 
@@ -87,26 +107,47 @@ class TestAltairChart:
         assert len(_filter_dataframe(df, interval_and_point_selection)) == 1
 
     @staticmethod
-    def test_filter_dataframe_with_dates() -> None:
-        df = pd.DataFrame(
-            {
-                "field": ["value1", "value2", "value3", "value4"],
-                "color": ["red", "red", "blue", "blue"],
-                "field_2": [1, 2, 3, 4],
-                "field_3": [10, 20, 30, 40],
-                "date": pd.to_datetime(
-                    ["2020-01-01", "2020-01-03", "2020-01-05", "2020-01-07"]
-                ),
-            }
+    @pytest.mark.parametrize(
+        "df",
+        [
+            pd.DataFrame(
+                {
+                    "field": ["value1", "value2", "value3", "value4"],
+                    "date_column": pd.to_datetime(
+                        [
+                            "2019-12-29",
+                            "2020-01-01",
+                            "2020-01-08",
+                            "2020-01-10",
+                        ]
+                    ),
+                }
+            ),
+            pl.DataFrame(
+                {
+                    "field": ["value1", "value2", "value3", "value4"],
+                    "date_column": [
+                        datetime.date(2019, 12, 29),
+                        datetime.date(2020, 1, 1),
+                        datetime.date(2020, 1, 8),
+                        datetime.date(2020, 1, 10),
+                    ],
+                }
+            ),
+        ],
+    )
+    def test_filter_dataframe_with_dates(
+        df: ChartDataType,
+    ) -> None:  # Check that the date column is a datetime64[ns] column
+        assert (
+            df["date_column"].dtype == "datetime64[ns]"
+            or str(df["date_column"].dtype) == "Date"
         )
-
-        # Check that the date column is a datetime64[ns] column
-        assert df["date"].dtype == "datetime64[ns]"
 
         # Define an interval selection
         interval_selection: ChartSelection = {
             "signal_channel_2": {
-                "date": [
+                "date_column": [
                     # Vega passes back milliseconds since epoch
                     1577000000000,  # Sunday, December 22, 2019 7:33:20 AM
                     1578009600000,  # Friday, January 3, 2020 12:00:00 AM
@@ -115,9 +156,7 @@ class TestAltairChart:
         }
         # Filter the DataFrame with the interval selection
         assert len(_filter_dataframe(df, interval_selection)) == 2
-        first, second = _filter_dataframe(df, interval_selection)[
-            "field"
-        ].values
+        first, second = _filter_dataframe(df, interval_selection)["field"]
         assert first == "value1"
         assert second == "value2"
 
@@ -256,18 +295,20 @@ def test_get_dataframe() -> None:
 def test_get_dataframe_csv() -> None:
     import altair as alt
     import pandas as pd
+    import polars as pl
 
     data = "https://cdn.jsdelivr.net/npm/vega-datasets@v1.29.0/data/stocks.csv"
     chart = altair_chart.altair_chart(
         alt.Chart(data).mark_point().encode(x="values:Q")
     )
-    assert isinstance(chart.dataframe, pd.DataFrame)
+    assert isinstance(chart.dataframe, (pd.DataFrame, pl.DataFrame))
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_get_dataframe_json() -> None:
     import altair as alt
     import pandas as pd
+    import polars as pl
 
     data = (
         "https://cdn.jsdelivr.net/npm/vega-datasets@v1.29.0/data/barley.json"
@@ -275,7 +316,7 @@ def test_get_dataframe_json() -> None:
     chart = altair_chart.altair_chart(
         alt.Chart(data).mark_point().encode(x="values:Q")
     )
-    assert isinstance(chart.dataframe, pd.DataFrame)
+    assert isinstance(chart.dataframe, (pd.DataFrame, pl.DataFrame))
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
