@@ -345,7 +345,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         legend_selection: list[str] | bool = True,
         *,
         label: str = "",
-        on_change: Optional[Callable[[pd.DataFrame], None]] = None,
+        on_change: Optional[Callable[[ChartDataType], None]] = None,
     ) -> None:
         DependencyManager.altair.require(why="to use `mo.ui.altair_chart`")
 
