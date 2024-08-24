@@ -23,6 +23,7 @@ import signal
 import subprocess
 import sys
 import threading
+import time
 from multiprocessing import connection
 from multiprocessing.queues import Queue as MPQueue
 from pathlib import Path
@@ -33,6 +34,7 @@ from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t
 from marimo._cli.print import red
 from marimo._config.manager import UserConfigManager
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.ops import (
     Alert,
     FocusCell,
@@ -63,6 +65,7 @@ from marimo._server.session.session_view import SessionView
 from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._server.types import QueueType
 from marimo._server.utils import print_tabbed
+from marimo._tracer import server_tracer
 from marimo._utils.disposable import Disposable
 from marimo._utils.distributor import Distributor
 from marimo._utils.file_watcher import FileWatcher
@@ -189,6 +192,8 @@ class KernelManager:
                     self._virtual_files_supported,
                     self.redirect_console_to_browser,
                     self.queue_manager.win32_interrupt_queue,
+                    self.profile_path,
+                    GLOBAL_SETTINGS.LOG_LEVEL,
                 ),
                 # The process can't be a daemon, because daemonic processes
                 # can't create children
@@ -230,6 +235,10 @@ class KernelManager:
                     self.redirect_console_to_browser,
                     # win32 interrupt queue
                     None,
+                    # profile path
+                    None,
+                    # log level
+                    GLOBAL_SETTINGS.LOG_LEVEL,
                 ),
                 # daemon threads can create child processes, unlike
                 # daemon processes
@@ -240,6 +249,27 @@ class KernelManager:
         # First thing kernel does is connect to the socket, so it's safe to
         # call accept
         self._read_conn = TypedConnection[KernelMessage].of(listener.accept())
+
+    @property
+    def profile_path(self) -> str | None:
+        self._profile_path: str | None
+
+        if hasattr(self, "_profile_path"):
+            return self._profile_path
+
+        profile_dir = GLOBAL_SETTINGS.PROFILE_DIR
+        if profile_dir is not None:
+            self._profile_path = os.path.join(
+                profile_dir,
+                (
+                    os.path.basename(self.app_metadata.filename) + str(uuid4())
+                    if self.app_metadata.filename is not None
+                    else str(uuid4())
+                ),
+            )
+        else:
+            self._profile_path = None
+        return self._profile_path
 
     def is_alive(self) -> bool:
         return self.kernel_task is not None and self.kernel_task.is_alive()
@@ -261,6 +291,19 @@ class KernelManager:
         assert self.kernel_task is not None, "kernel not started"
 
         if isinstance(self.kernel_task, mp.Process):
+            if self.profile_path is not None and self.kernel_task.is_alive():
+                self.queue_manager.control_queue.put(requests.StopRequest())
+                # Hack: Wait for kernel to exit and write out profile;
+                # joining the process hangs, but not sure why.
+                print(
+                    "\tWriting profile statistics to",
+                    self.profile_path,
+                    " ...",
+                )
+                while not os.path.exists(self.profile_path):
+                    time.sleep(0.1)
+                time.sleep(1)
+
             self.queue_manager.close_queues()
             if self.kernel_task.is_alive():
                 self.kernel_task.terminate()
@@ -847,6 +890,7 @@ class LspServer:
         self.port = port
         self.process: Optional[subprocess.Popen[bytes]] = None
 
+    @server_tracer.start_as_current_span("lsp_server.start")
     def start(self) -> Optional[Alert]:
         if self.process is not None:
             LOGGER.debug("LSP server already started")

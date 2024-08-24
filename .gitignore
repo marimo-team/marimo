@@ -109,3 +109,4 @@ marimo/_lsp/
 .vscode
 
 .marimo.toml
+.mypy_cache/

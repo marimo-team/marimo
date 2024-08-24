@@ -20,7 +20,8 @@ from marimo._cli.export.commands import export
 from marimo._cli.file_path import validate_name
 from marimo._cli.parse_args import parse_args
 from marimo._cli.print import red
-from marimo._cli.upgrade import check_for_updates
+from marimo._cli.upgrade import check_for_updates, print_latest_version
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import SessionMode
 from marimo._server.start import start
@@ -32,9 +33,6 @@ from marimo._tutorials import (
     tutorial_order,
 )
 from marimo._utils.marimo_path import MarimoPath
-
-DEVELOPMENT_MODE = False
-QUIET = False
 
 
 def helpful_usage_error(self: Any, file: Any = None) -> None:
@@ -169,10 +167,9 @@ def main(log_level: str, quiet: bool, development_mode: bool) -> None:
     log_level = "DEBUG" if development_mode else log_level
     _loggers.set_level(log_level)
 
-    global DEVELOPMENT_MODE
-    global QUIET
-    DEVELOPMENT_MODE = development_mode
-    QUIET = quiet
+    GLOBAL_SETTINGS.DEVELOPMENT_MODE = development_mode
+    GLOBAL_SETTINGS.QUIET = quiet
+    GLOBAL_SETTINGS.LOG_LEVEL = _loggers.log_level_string_to_int(log_level)
 
 
 edit_help_msg = "\n".join(
@@ -258,6 +255,7 @@ edit_help_msg = "\n".join(
     type=bool,
     help="Don't check if a new version of marimo is available for download.",
 )
+@click.option("--profile-dir", default=None, type=str, hidden=True)
 @click.argument("name", required=False)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def edit(
@@ -270,12 +268,15 @@ def edit(
     base_url: str,
     allow_origins: Optional[tuple[str, ...]],
     skip_update_check: bool,
+    profile_dir: Optional[str],
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
+    GLOBAL_SETTINGS.PROFILE_DIR = profile_dir
     if not skip_update_check and os.getenv("MARIMO_SKIP_UPDATE_CHECK") != "1":
+        GLOBAL_SETTINGS.CHECK_STATUS_UPDATE = True
         # Check for version updates
-        check_for_updates()
+        check_for_updates(print_latest_version)
 
     if name is not None:
         # Validate name, or download from URL
@@ -308,8 +309,8 @@ def edit(
 
     start(
         file_router=AppFileRouter.infer(name),
-        development_mode=DEVELOPMENT_MODE,
-        quiet=QUIET,
+        development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
+        quiet=GLOBAL_SETTINGS.QUIET,
         host=host,
         port=port,
         proxy=proxy,
@@ -388,8 +389,8 @@ def new(
 ) -> None:
     start(
         file_router=AppFileRouter.new_file(),
-        development_mode=DEVELOPMENT_MODE,
-        quiet=QUIET,
+        development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
+        quiet=GLOBAL_SETTINGS.QUIET,
         host=host,
         port=port,
         proxy=proxy,
@@ -528,8 +529,8 @@ def run(
 
     start(
         file_router=AppFileRouter.from_filename(MarimoPath(name)),
-        development_mode=DEVELOPMENT_MODE,
-        quiet=QUIET,
+        development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
+        quiet=GLOBAL_SETTINGS.QUIET,
         host=host,
         port=port,
         proxy=proxy,
@@ -640,8 +641,8 @@ def tutorial(
 
     start(
         file_router=AppFileRouter.from_filename(path),
-        development_mode=DEVELOPMENT_MODE,
-        quiet=QUIET,
+        development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
+        quiet=GLOBAL_SETTINGS.QUIET,
         host=host,
         port=port,
         proxy=proxy,

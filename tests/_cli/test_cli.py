@@ -20,7 +20,6 @@ import urllib.request
 from typing import Any, Callable, Iterator, Optional
 
 import pytest
-import tomlkit
 
 from marimo import __version__
 from marimo._ast import codegen
@@ -138,6 +137,8 @@ def _get_port() -> int:
 
 
 def _read_toml(filepath: str) -> Optional[dict]:
+    import tomlkit
+
     if not os.path.exists(filepath):
         return None
     with open(filepath, "r") as file:

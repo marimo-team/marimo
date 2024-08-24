@@ -1,18 +1,18 @@
 import marimo
 
-__generated_with = "0.6.0"
+__generated_with = "0.8.0"
 app = marimo.App()
 
 
 @app.cell
 def __(mo):
-    mo.md("# Data Explorer")
+    mo.md("""# Data Explorer""")
     return
 
 
 @app.cell
 def __(mo):
-    mo.md("This notebook lets you upload a CSV and plot its columns.")
+    mo.md("""This notebook lets you upload a CSV and plot its columns.""")
     return
 
 

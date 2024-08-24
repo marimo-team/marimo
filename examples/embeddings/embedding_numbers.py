@@ -1,13 +1,14 @@
 import marimo
 
-__generated_with = "0.1.19"
+__generated_with = "0.8.0"
 app = marimo.App()
 
 
 @app.cell
 def __(mo):
     mo.md(
-        """# Embedding MNIST
+        """
+        # Embedding MNIST
 
         This app shows how to use the function `pymde.preserve_neighbors`
         to produce embeddings that highlight the local structure of your

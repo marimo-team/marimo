@@ -6,13 +6,14 @@ import os
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 from packaging import version
 
 from marimo import __version__ as current_version
 from marimo._cli.print import green, orange
 from marimo._server.api.status import HTTPException
+from marimo._tracer import server_tracer
 from marimo._utils.config.config import ConfigReader
 
 FETCH_TIMEOUT = 5
@@ -24,16 +25,24 @@ class MarimoCLIState:
     last_checked_at: Optional[str] = None
 
 
-def check_for_updates() -> None:
+def print_latest_version(current_version: str, latest_version: str) -> None:
+    message = f"Update available {current_version} → {latest_version}"
+    print(orange(message))
+    print(f"Run {green('pip install --upgrade marimo')} to upgrade.")
+    print()
+
+
+@server_tracer.start_as_current_span("check_for_updates")
+def check_for_updates(on_update: Callable[[str, str], None]) -> None:
     try:
-        _check_for_updates_internal()
+        _check_for_updates_internal(on_update)
     except Exception:
         # Errors are caught internally
         # but as a last resort, we don't want to crash the CLI
         pass
 
 
-def _check_for_updates_internal() -> None:
+def _check_for_updates_internal(on_update: Callable[[str, str], None]) -> None:
     config_reader = ConfigReader.for_filename("state.toml")
     if not config_reader:
         # Couldn't find home directory, so do nothing
@@ -55,12 +64,7 @@ def _check_for_updates_internal() -> None:
     if current_version and version.parse(state.latest_version) > version.parse(
         current_version
     ):
-        message = (
-            f"Update available {(current_version)} → {state.latest_version}"
-        )
-        print(orange(message))
-        print(f"Run {green('pip install --upgrade marimo')} to upgrade.")
-        print()
+        on_update(current_version, state.latest_version)
 
     # Save the state, create directories if necessary
     config_reader.write_toml(state)

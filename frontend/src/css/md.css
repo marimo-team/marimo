@@ -27,8 +27,8 @@
   so we need to apply the same formatting
   */
   display: block;
-  margin-block: 1rem 1rem;
-  margin-inline: 0 0;
+  margin-block: 1rem;
+  margin-inline: 0;
 }
 
 .markdown h1,

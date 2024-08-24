@@ -11,14 +11,21 @@ from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._utils.flatten import CyclicStructureError, flatten
 
 
-def _leaf_formatter(value: object) -> str:
+def _leaf_formatter(value: object) -> bool | None | str:
     formatter = formatting.get_formatter(value)
-    if formatter is None:
+    if formatter is not None:
+        return ":".join(formatter(value))
+    if isinstance(value, bool):
+        return value
+    elif value is None:
+        return value
+    else:
+        # floats and ints are still converted to strings because JavaScript
+        # can't reliably distinguish between them (eg 1 and 1.0)
         try:
             return f"text/plain:{json.dumps(value)}"
         except TypeError:
             return f"text/plain:{value}"
-    return ":".join(formatter(value))
 
 
 def format_structure(

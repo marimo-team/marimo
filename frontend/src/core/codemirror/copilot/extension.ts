@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Extension, Text } from "@codemirror/state";
+import type { Extension, Text } from "@codemirror/state";
 import {
   COPILOT_FILENAME,
   LANGUAGE_ID,
@@ -14,7 +14,8 @@ import {
 } from "@valtown/codemirror-codeium";
 import { isCopilotEnabled } from "./state";
 import { getCodes } from "./getCodes";
-import { CompletionConfig } from "@/core/config/config-schema";
+import type { CompletionConfig } from "@/core/config/config-schema";
+import { Logger } from "@/utils/Logger";
 
 export const copilotBundle = (config: CompletionConfig): Extension => {
   if (process.env.NODE_ENV === "test") {
@@ -48,9 +49,6 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
       inlineSuggestion({
         delay: 200, // default is 500ms
         fetchFn: async (view) => {
-          if (config.codeium_api_key) {
-            return "";
-          }
           if (!isCopilotEnabled()) {
             return "";
           }
@@ -73,6 +71,7 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
           const position = offsetToPos(view.doc, view.selection.main.head);
           position.line += numberOfNewLines;
 
+          Logger.debug(`Copilot: ${position.line} ${position.character}`);
           const response = await getCopilotClient().getCompletion({
             doc: {
               source: allCode,
@@ -87,6 +86,7 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
               position: position,
             },
           });
+          Logger.debug(`Copilot: ${JSON.stringify(response)}`);
 
           return response.completions.map((c) => c.displayText)[0] ?? "";
         },

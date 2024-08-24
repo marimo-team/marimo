@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.4
+# syntax=docker/dockerfile:1.9
 FROM python:3.12-slim AS base
 
 # Create a non-root user
@@ -12,7 +12,7 @@ RUN pip install --no-cache-dir marimo==${marimo_version} && \
   mkdir -p /app/data && \
   chown -R appuser:appuser /app
 
-COPY --link --chown=appuser:appuser marimo/_tutorials tutorials
+COPY --chown=appuser:appuser marimo/_tutorials tutorials
 RUN rm -rf tutorials/__init__.py
 
 ENV PORT=8080

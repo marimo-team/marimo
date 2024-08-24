@@ -150,7 +150,7 @@ jobs:
           fi
           ruff check marimo/
       - name: Typecheck
-        if: ${{ matrix.python-version == '3.9' || matrix.python-version == '3.10' }}
+        if: ${{ matrix.python-version == '3.11' || matrix.python-version == '3.12' }}
         run: |
           if [ "$RUNNER_OS" == "Windows" ]; then
             source marimo-dev-env\\Scripts\\activate
@@ -192,4 +192,4 @@ jobs:
       - name: 🛑 Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.12.1
       - uses: actions/checkout@v4
-      - uses: crate-ci/typos@v1.22.9
+      - uses: crate-ci/typos@v1.23.6

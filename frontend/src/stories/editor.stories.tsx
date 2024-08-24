@@ -80,6 +80,7 @@ export const DefaultPython: Story = {
           copilotBundle({
             activate_on_typing: true,
             copilot: false,
+            codeium_api_key: null,
           }),
         ]}
       />

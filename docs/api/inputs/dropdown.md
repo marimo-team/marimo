@@ -4,13 +4,17 @@
 .. marimo-embed::
     @app.cell
     def __():
-        options = ["Apples", "Oranges", "Pears"]
-        dropdown = mo.ui.dropdown(options=options)
+        dropdown = mo.ui.dropdown(options=["Apples", "Oranges", "Pears"], label="choose fruit")
+        dropdown_dict = mo.ui.dropdown(options={"Apples":1, "Oranges":2, "Pears":3}, 
+                               value="Apples", # initial value
+                               label="choose fruit with dict options")
         return
 
     @app.cell
     def __():
-        mo.hstack([dropdown, mo.md(f"Has value: {dropdown.value}")])
+        mo.vstack([mo.hstack([dropdown, mo.md(f"Has value: {dropdown.value}")]),
+        mo.hstack([dropdown_dict, mo.md(f"Has value: {dropdown_dict.value} and selected_key {dropdown_dict.selected_key}")]),
+                    ])
         return
 ```
 

@@ -47,6 +47,7 @@ function getOpts() {
     completionConfig: {
       activate_on_typing: false,
       copilot: false,
+      codeium_api_key: null,
     },
     keymapConfig: {
       preset: "default",

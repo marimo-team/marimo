@@ -10,12 +10,20 @@ from starlette.authentication import (
     BaseUser,
     SimpleUser,
 )
+from starlette.middleware.base import (
+    BaseHTTPMiddleware,
+    DispatchFunction,
+    RequestResponseEndpoint,
+)
 from starlette.requests import HTTPConnection, Request
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 
+from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.api.auth import validate_auth
 from marimo._server.api.deps import AppState, AppStateBase
 from marimo._server.model import SessionMode
+from marimo._tracer import server_tracer
 
 if TYPE_CHECKING:
     from starlette.requests import HTTPConnection
@@ -91,3 +99,48 @@ class SkewProtectionMiddleware:
 
         # Passed
         return await self.app(scope, receive, send)
+
+
+class OpenTelemetryMiddleware(BaseHTTPMiddleware):
+    def __init__(
+        self, app: ASGIApp, dispatch: DispatchFunction | None = None
+    ) -> None:
+        super().__init__(app, dispatch)
+
+        if not GLOBAL_SETTINGS.TRACING:
+            return
+
+        DependencyManager.opentelemetry.require("for tracing.")
+
+        # Import once and store for later
+        from opentelemetry import trace
+        from opentelemetry.trace.status import Status, StatusCode
+
+        self.trace = trace
+        self.Status = Status
+        self.StatusCode = StatusCode
+
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: RequestResponseEndpoint,
+    ) -> Response:
+        if not GLOBAL_SETTINGS.TRACING:
+            return await call_next(request)
+
+        with server_tracer.start_as_current_span(
+            f"{request.method} {request.url.path}",
+            kind=self.trace.SpanKind.SERVER,
+            attributes={
+                "http.method": request.method,
+                "http.target": request.url.path or "",
+            },
+        ) as span:
+            try:
+                response = await call_next(request)
+                span.set_attribute("http.status_code", response.status_code)
+                span.set_status(self.Status(self.StatusCode.OK))
+            except Exception as e:
+                span.set_status(self.Status(self.StatusCode.ERROR, str(e)))
+                raise
+            return response
