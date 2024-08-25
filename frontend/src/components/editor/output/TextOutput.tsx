@@ -12,7 +12,7 @@ interface Props {
 }
 
 export const TextOutput = ({ text, channel }: Props): JSX.Element => {
-  const shouldRenderAnsi = channel === "stdout";
+  const shouldRenderAnsi = channel === "stdout" || channel === "stderr";
 
   const renderAnsiText = (text: string) => {
     return (
