@@ -35,6 +35,7 @@ import { Spinner } from "../icons/spinner";
 import { FilterPills } from "./filter-pills";
 import { ColumnWrappingFeature } from "./column-wrapping/feature";
 import { ColumnFormattingFeature } from "./column-formatting/feature";
+import { ColumnPinningFeature } from "./column-pinning/feature";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
@@ -59,6 +60,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   filters?: ColumnFiltersState;
   onFiltersChange?: OnChangeFn<ColumnFiltersState>;
   reloading?: boolean;
+  pinnedColumns?: string[];
 }
 
 const DataTableInternal = <TData,>({
@@ -80,6 +82,7 @@ const DataTableInternal = <TData,>({
   filters,
   onFiltersChange,
   reloading,
+  pinnedColumns,
 }: DataTableProps<TData>) => {
   const [isSearchEnabled, setIsSearchEnabled] = React.useState<boolean>(false);
   const [paginationState, setPaginationState] = React.useState<PaginationState>(
@@ -94,7 +97,11 @@ const DataTableInternal = <TData,>({
   }, [pageSize, paginationState.pageSize]);
 
   const table = useReactTable({
-    _features: [ColumnWrappingFeature, ColumnFormattingFeature],
+    _features: [
+      ColumnWrappingFeature,
+      ColumnFormattingFeature,
+      ColumnPinningFeature,
+    ],
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
@@ -119,6 +126,9 @@ const DataTableInternal = <TData,>({
         ? { ...paginationState, pageSize: pageSize }
         : { pageIndex: 0, pageSize: data.length },
       rowSelection,
+      columnPinning: {
+        left: pinnedColumns,
+      },
     },
   });
 

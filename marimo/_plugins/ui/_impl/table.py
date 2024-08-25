@@ -208,6 +208,7 @@ class table(
         format_mapping: Optional[
             Dict[str, Union[str, Callable[..., Any]]]
         ] = None,
+        pinned_columns: Optional[List[str]] = None,
         *,
         label: str = "",
         on_change: Optional[
@@ -298,6 +299,7 @@ class table(
                 "show-download": self._manager.supports_download(),
                 "show-column-summaries": show_column_summaries,
                 "row-headers": self._manager.get_row_headers(),
+                "pinned-columns": pinned_columns,
             },
             on_change=on_change,
             functions=(
