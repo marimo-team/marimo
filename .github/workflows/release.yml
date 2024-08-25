@@ -179,6 +179,7 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.publish_release.outputs.marimo_version }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           target: slim
+          platforms: linux/amd64,linux/arm64
           build-args: |
             marimo_version=${{ needs.publish_release.outputs.marimo_version }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -195,6 +196,7 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.publish_release.outputs.marimo_version }}-data
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-data
           target: data
+          platforms: linux/amd64,linux/arm64
           build-args: |
             marimo_version=${{ needs.publish_release.outputs.marimo_version }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -211,6 +213,7 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.publish_release.outputs.marimo_version }}-sql
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-sql
           target: sql
+          platforms: linux/amd64,linux/arm64
           build-args: |
             marimo_version=${{ needs.publish_release.outputs.marimo_version }}
           labels: ${{ steps.meta.outputs.labels }}
