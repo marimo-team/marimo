@@ -11,6 +11,7 @@ import {
   SearchIcon,
   WrapTextIcon,
   AlignJustifyIcon,
+  PinOffIcon,
 } from "lucide-react";
 
 import { cn } from "@/utils/cn";
@@ -35,6 +36,7 @@ import type { DataType } from "@/core/kernel/messages";
 import { formatOptions } from "./column-formatting/types";
 import { DATA_TYPE_ICON } from "../datasets/icons";
 import { formattingExample } from "./column-formatting/feature";
+import { PinLeftIcon, PinRightIcon } from "@radix-ui/react-icons";
 
 interface DataTableColumnHeaderProps<TData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {
@@ -112,6 +114,45 @@ export const DataTableColumnHeader = <TData, TValue>({
     );
   };
 
+  const renderColumnPinning = () => {
+    if (!column.getCanPin?.() || !column.getIsPinned) {
+      return null;
+    }
+
+    const pinnedPosition = column.getIsPinned();
+
+    if (pinnedPosition !== false) {
+      return (
+        <DropdownMenuItem
+          onClick={() => column.pin(false)}
+          className="flex items-center"
+        >
+          <PinOffIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+          Unfreeze
+        </DropdownMenuItem>
+      );
+    }
+
+    return (
+      <>
+        <DropdownMenuItem
+          onClick={() => column.pin("left")}
+          className="flex items-center"
+        >
+          <PinLeftIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+          Freeze left
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => column.pin("right")}
+          className="flex items-center"
+        >
+          <PinRightIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+          Freeze right
+        </DropdownMenuItem>
+      </>
+    );
+  };
+
   const dtype: string | undefined = column.columnDef.meta?.dtype;
   const dataType: DataType | undefined = column.columnDef.meta?.dataType;
   const columnFormatOptions = dataType ? formatOptions[dataType] : [];
@@ -169,7 +210,7 @@ export const DataTableColumnHeader = <TData, TValue>({
         <div
           className={cn(
             "group flex items-center my-1 space-between w-full select-none gap-2 border hover:border-border border-transparent hover:bg-[var(--slate-3)] data-[state=open]:bg-[var(--slate-3)] data-[state=open]:border-border rounded px-2 -mx-2",
-            className,
+            className
           )}
           data-testid="data-table-sort-button"
         >
@@ -178,7 +219,7 @@ export const DataTableColumnHeader = <TData, TValue>({
             className={cn(
               "h-5 py-1 px-2 mr-2",
               !column.getIsSorted() &&
-                "invisible group-hover:visible data-[state=open]:visible",
+                "invisible group-hover:visible data-[state=open]:visible"
             )}
           >
             {column.getIsSorted() === "desc" ? (
@@ -204,13 +245,14 @@ export const DataTableColumnHeader = <TData, TValue>({
         <DropdownMenuItem
           onClick={() =>
             navigator.clipboard.writeText(
-              typeof header === "string" ? header : column.id,
+              typeof header === "string" ? header : column.id
             )
           }
         >
           <CopyIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
           Copy column name
         </DropdownMenuItem>
+        {renderColumnPinning()}
         {renderColumnWrapping()}
         {renderFormatOptions()}
         <DropdownMenuItemFilter column={column} />
@@ -231,7 +273,7 @@ export const DataTableColumnHeaderWithSummary = <TData, TValue>({
     <div
       className={cn(
         "flex flex-col h-full py-1 justify-between items-start gap-1",
-        className,
+        className
       )}
     >
       <DataTableColumnHeader
@@ -368,7 +410,7 @@ const NumberRangeFilter = <TData, TValue>({
       Filter.number({
         min: opts.min ?? min,
         max: opts.max ?? max,
-      }),
+      })
     );
   };
 

@@ -35,7 +35,7 @@ import { Spinner } from "../icons/spinner";
 import { FilterPills } from "./filter-pills";
 import { ColumnWrappingFeature } from "./column-wrapping/feature";
 import { ColumnFormattingFeature } from "./column-formatting/feature";
-import { ColumnPinningFeature } from "./column-pinning/feature";
+import { ColumnFreezingFeature } from "./column-freezing/feature";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
@@ -60,7 +60,9 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   filters?: ColumnFiltersState;
   onFiltersChange?: OnChangeFn<ColumnFiltersState>;
   reloading?: boolean;
-  pinnedColumns?: string[];
+  // Columns
+  freezeColumnsLeft?: string[];
+  freezeColumnsRight?: string[];
 }
 
 const DataTableInternal = <TData,>({
@@ -82,11 +84,12 @@ const DataTableInternal = <TData,>({
   filters,
   onFiltersChange,
   reloading,
-  pinnedColumns,
+  freezeColumnsLeft,
+  freezeColumnsRight,
 }: DataTableProps<TData>) => {
   const [isSearchEnabled, setIsSearchEnabled] = React.useState<boolean>(false);
   const [paginationState, setPaginationState] = React.useState<PaginationState>(
-    { pageSize: pageSize, pageIndex: 0 },
+    { pageSize: pageSize, pageIndex: 0 }
   );
 
   // If pageSize changes, reset pageSize
@@ -98,9 +101,9 @@ const DataTableInternal = <TData,>({
 
   const table = useReactTable({
     _features: [
+      ColumnFreezingFeature,
       ColumnWrappingFeature,
       ColumnFormattingFeature,
-      ColumnPinningFeature,
     ],
     data,
     columns,
@@ -119,6 +122,12 @@ const DataTableInternal = <TData,>({
     onColumnFiltersChange: onFiltersChange,
     // selection
     onRowSelectionChange: onRowSelectionChange,
+    initialState: {
+      columnPinning: {
+        left: freezeColumnsLeft,
+        right: freezeColumnsRight,
+      },
+    },
     state: {
       sorting,
       columnFilters: filters,
@@ -126,9 +135,6 @@ const DataTableInternal = <TData,>({
         ? { ...paginationState, pageSize: pageSize }
         : { pageIndex: 0, pageSize: data.length },
       rowSelection,
-      columnPinning: {
-        left: pinnedColumns,
-      },
     },
   });
 
@@ -152,7 +158,7 @@ const DataTableInternal = <TData,>({
                 ? null
                 : flexRender(
                     header.column.columnDef.header,
-                    header.getContext(),
+                    header.getContext()
                   )}
             </TableHead>
           );
@@ -197,13 +203,13 @@ const DataTableInternal = <TData,>({
                         "whitespace-pre truncate max-w-[300px]",
                         cell.column.getColumnWrapping &&
                           cell.column.getColumnWrapping() === "wrap" &&
-                          "whitespace-pre-wrap min-w-[200px]",
+                          "whitespace-pre-wrap min-w-[200px]"
                       )}
                       title={String(cell.getValue())}
                     >
                       {flexRender(
                         cell.column.columnDef.cell,
-                        cell.getContext(),
+                        cell.getContext()
                       )}
                     </TableCell>
                   ))}
@@ -273,7 +279,7 @@ const SearchBar = (props: {
     <div
       className={cn(
         "flex items-center space-x-2 h-8 px-2 border-b transition-all overflow-hidden duration-300 opacity-100",
-        hidden && "h-0 border-none opacity-0",
+        hidden && "h-0 border-none opacity-0"
       )}
     >
       <SearchIcon className="w-4 h-4 text-muted-foreground" />

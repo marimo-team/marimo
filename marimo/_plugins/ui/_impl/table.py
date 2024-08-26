@@ -11,6 +11,7 @@ from typing import (
     List,
     Literal,
     Optional,
+    Sequence,
     Union,
 )
 
@@ -208,7 +209,8 @@ class table(
         format_mapping: Optional[
             Dict[str, Union[str, Callable[..., Any]]]
         ] = None,
-        pinned_columns: Optional[List[str]] = None,
+        freeze_columns_left: Sequence[str] = None,
+        freeze_columns_right: Sequence[str] = None,
         *,
         label: str = "",
         on_change: Optional[
@@ -280,6 +282,8 @@ class table(
             pagination = total_rows == "too_many" or total_rows > 10
 
         field_types = self._manager.get_field_types()
+        
+        # TODO: Validate frozen columns
 
         super().__init__(
             component_name=table._name,
@@ -299,7 +303,8 @@ class table(
                 "show-download": self._manager.supports_download(),
                 "show-column-summaries": show_column_summaries,
                 "row-headers": self._manager.get_row_headers(),
-                "pinned-columns": pinned_columns,
+                "freeze-columns-left": freeze_columns_left,
+                "freeze-columns-right": freeze_columns_right,
             },
             on_change=on_change,
             functions=(

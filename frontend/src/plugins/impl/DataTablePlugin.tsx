@@ -64,6 +64,8 @@ interface Data<T> {
   showColumnSummaries: boolean;
   rowHeaders: string[];
   fieldTypes?: FieldTypesWithExternalType | null;
+  freezeColumnsLeft?: string[];
+  freezeColumnsRight?: string[];
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -97,6 +99,8 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       showFilters: z.boolean().default(false),
       showColumnSummaries: z.boolean().default(true),
       rowHeaders: z.array(z.string()),
+      freezeColumnsLeft: z.array(z.string()).optional(),
+      freezeColumnsRight: z.array(z.string()).optional(),
       fieldTypes: z
         .record(
           z.tuple([
@@ -340,6 +344,8 @@ const DataTableComponent = ({
   filters,
   setFilters,
   reloading,
+  freezeColumnsLeft,
+  freezeColumnsRight,
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
@@ -447,6 +453,8 @@ const DataTableComponent = ({
             onFiltersChange={setFilters}
             reloading={reloading}
             onRowSelectionChange={handleRowSelectionChange}
+            freezeColumnsLeft={freezeColumnsLeft}
+            freezeColumnsRight={freezeColumnsRight}
           />
         </Labeled>
       </ColumnChartContext.Provider>
