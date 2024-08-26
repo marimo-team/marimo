@@ -75,7 +75,10 @@ def get_handler_for_dataframe(
         if isinstance(df, pl.DataFrame):
             return PolarsTransformHandler()
 
-    raise ValueError("Unsupported dataframe type. Must be Pandas or Polars.")
+    raise ValueError(
+        "Unsupported dataframe type. Must be Pandas or Polars."
+        f" Got: {type(df)}"
+    )
 
 
 class TransformsContainer(Generic[T]):

@@ -64,11 +64,14 @@ class TransformType(Enum):
     EXPAND_DICT = "expand_dict"
 
 
-@dataclass
+@dataclass(frozen=True)
 class Condition:
     column_id: ColumnId
     operator: Operator
     value: Optional[Any] = None
+
+    def __hash__(self) -> int:
+        return hash((self.column_id, self.operator, self.value))
 
 
 @dataclass
