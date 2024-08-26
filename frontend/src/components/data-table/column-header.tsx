@@ -210,7 +210,7 @@ export const DataTableColumnHeader = <TData, TValue>({
         <div
           className={cn(
             "group flex items-center my-1 space-between w-full select-none gap-2 border hover:border-border border-transparent hover:bg-[var(--slate-3)] data-[state=open]:bg-[var(--slate-3)] data-[state=open]:border-border rounded px-2 -mx-2",
-            className
+            className,
           )}
           data-testid="data-table-sort-button"
         >
@@ -219,7 +219,7 @@ export const DataTableColumnHeader = <TData, TValue>({
             className={cn(
               "h-5 py-1 px-2 mr-2",
               !column.getIsSorted() &&
-                "invisible group-hover:visible data-[state=open]:visible"
+                "invisible group-hover:visible data-[state=open]:visible",
             )}
           >
             {column.getIsSorted() === "desc" ? (
@@ -245,7 +245,7 @@ export const DataTableColumnHeader = <TData, TValue>({
         <DropdownMenuItem
           onClick={() =>
             navigator.clipboard.writeText(
-              typeof header === "string" ? header : column.id
+              typeof header === "string" ? header : column.id,
             )
           }
         >
@@ -273,7 +273,7 @@ export const DataTableColumnHeaderWithSummary = <TData, TValue>({
     <div
       className={cn(
         "flex flex-col h-full py-1 justify-between items-start gap-1",
-        className
+        className,
       )}
     >
       <DataTableColumnHeader
@@ -410,7 +410,7 @@ const NumberRangeFilter = <TData, TValue>({
       Filter.number({
         min: opts.min ?? min,
         max: opts.max ?? max,
-      })
+      }),
     );
   };
 
@@ -430,7 +430,7 @@ const NumberRangeFilter = <TData, TValue>({
               maxRef.current?.focus();
             }
           }}
-          className="shadow-none! border-border hover:shadow-none! w-[150px]"
+          className="shadow-none! border-border hover:shadow-none!"
         />
         <MinusIcon className="h-5 w-5 text-muted-foreground" />
         <NumberField
@@ -446,7 +446,7 @@ const NumberRangeFilter = <TData, TValue>({
             }
           }}
           placeholder="max"
-          className="shadow-none! border-border hover:shadow-none! w-[150px]"
+          className="shadow-none! border-border hover:shadow-none!"
         />
       </div>
       <div className="flex gap-2 px-2 justify-between">

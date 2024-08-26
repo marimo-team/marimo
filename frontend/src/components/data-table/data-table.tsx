@@ -1,12 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { memo, useEffect, useState } from "react";
+import React, { CSSProperties, memo, useEffect, useState } from "react";
 import {
+  Column,
   type ColumnDef,
   type ColumnFiltersState,
   type OnChangeFn,
   type PaginationState,
+  Row,
   type RowSelectionState,
   type SortingState,
+  Table as TanStackTable,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
@@ -35,7 +38,7 @@ import { Spinner } from "../icons/spinner";
 import { FilterPills } from "./filter-pills";
 import { ColumnWrappingFeature } from "./column-wrapping/feature";
 import { ColumnFormattingFeature } from "./column-formatting/feature";
-import { ColumnFreezingFeature } from "./column-freezing/feature";
+import { ColumnPinningFeature } from "./column-pinning/feature";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
@@ -101,7 +104,7 @@ const DataTableInternal = <TData,>({
 
   const table = useReactTable({
     _features: [
-      ColumnFreezingFeature,
+      ColumnPinningFeature,
       ColumnWrappingFeature,
       ColumnFormattingFeature,
     ],
@@ -138,32 +141,108 @@ const DataTableInternal = <TData,>({
     },
   });
 
-  const renderHeader = () => {
+  const getPinningStyles = (column: Column<TData>): CSSProperties => {
+    const isPinned = column.getIsPinned();
+    const isLastLeftPinnedColumn =
+      isPinned === "left" && column.getIsLastColumn("left");
+    const isFirstRightPinnedColumn =
+      isPinned === "right" && column.getIsFirstColumn("right");
+
+    return {
+      boxShadow:
+        isLastLeftPinnedColumn && column.id !== "__select__"
+          ? "-4px 0 4px -4px gray inset"
+          : isFirstRightPinnedColumn
+          ? "4px 0 4px -4px gray inset"
+          : undefined,
+      left: isPinned === "left" ? `${column.getStart("left")}px` : undefined,
+      right: isPinned === "right" ? `${column.getAfter("right")}px` : undefined,
+      opacity: 1,
+      position: isPinned ? "sticky" : "relative",
+      zIndex: isPinned ? 1 : 0,
+      background: isPinned ? "white" : "transparent",
+      width: column.getSize(),
+    };
+  };
+
+  // Update column sizes in table state for column pinning offsets
+  // https://github.com/TanStack/table/discussions/3947#discussioncomment-9564867
+  const columnSizingHandler = (
+    thead: HTMLTableCellElement | null,
+    table: TanStackTable<TData>,
+    column: Column<any>
+  ) => {
+    if (!thead) return;
+    if (
+      table.getState().columnSizing[column.id] ===
+      thead.getBoundingClientRect().width
+    )
+      return;
+
+    table.setColumnSizing((prevSizes) => ({
+      ...prevSizes,
+      [column.id]: thead.getBoundingClientRect().width,
+    }));
+  };
+
+  const renderHeader = (position: "left" | "center" | "right") => {
     // Hide header if no results
     if (!table.getRowModel().rows?.length) {
       return;
     }
 
+    const headerGroups =
+      position === "left"
+        ? table.getLeftHeaderGroups()
+        : position === "right"
+        ? table.getRightHeaderGroups()
+        : table.getCenterHeaderGroups();
+
     // whitespace-pre so that strings with different whitespace look
     // different
-    return table.getHeaderGroups().map((headerGroup) => (
-      <TableRow key={headerGroup.id}>
-        {headerGroup.headers.map((header) => {
-          return (
-            <TableHead
-              key={header.id}
-              className="h-auto min-h-10 whitespace-pre align-baseline"
-            >
-              {header.isPlaceholder
-                ? null
-                : flexRender(
-                    header.column.columnDef.header,
-                    header.getContext()
-                  )}
-            </TableHead>
-          );
-        })}
-      </TableRow>
+    return headerGroups.map((headerGroup) =>
+      headerGroup.headers.map((header) => {
+        return (
+          <TableHead
+            key={header.id}
+            className={`h-auto min-h-10 whitespace-pre align-baseline`}
+            style={{ ...getPinningStyles(header.column) }}
+            ref={(thead) => columnSizingHandler(thead, table, header.column)}
+          >
+            {header.isPlaceholder
+              ? null
+              : flexRender(header.column.columnDef.header, header.getContext())}
+          </TableHead>
+        );
+      })
+    );
+  };
+
+  const renderCells = (
+    row: Row<TData>,
+    position: "left" | "center" | "right"
+  ) => {
+    const cells =
+      position === "left"
+        ? row.getLeftVisibleCells()
+        : position === "right"
+        ? row.getRightVisibleCells()
+        : row.getCenterVisibleCells();
+
+    return cells.map((cell) => (
+      <TableCell
+        key={cell.id}
+        className={cn(
+          `whitespace-pre truncate max-w-[300px]`,
+          cell.column.getColumnWrapping &&
+            cell.column.getColumnWrapping() === "wrap" &&
+            "whitespace-pre-wrap min-w-[200px]"
+        )}
+        style={{ ...getPinningStyles(cell.column) }}
+        title={String(cell.getValue())}
+      >
+        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+      </TableCell>
     ));
   };
 
@@ -181,7 +260,11 @@ const DataTableInternal = <TData,>({
           />
         )}
         <Table>
-          <TableHeader>{renderHeader()}</TableHeader>
+          <TableHeader>
+            {renderHeader("left")}
+            {renderHeader("center")}
+            {renderHeader("right")}
+          </TableHeader>
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
@@ -196,23 +279,9 @@ const DataTableInternal = <TData,>({
                     }
                   }}
                 >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      className={cn(
-                        "whitespace-pre truncate max-w-[300px]",
-                        cell.column.getColumnWrapping &&
-                          cell.column.getColumnWrapping() === "wrap" &&
-                          "whitespace-pre-wrap min-w-[200px]"
-                      )}
-                      title={String(cell.getValue())}
-                    >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
+                  {renderCells(row, "left")}
+                  {renderCells(row, "center")}
+                  {renderCells(row, "right")}
                 </TableRow>
               ))
             ) : (

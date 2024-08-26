@@ -12,19 +12,23 @@ import {
   Updater,
 } from "@tanstack/react-table";
 
-export const ColumnFreezingFeature: TableFeature = {
+export const ColumnPinningFeature: TableFeature = {
   getInitialState: (state): ColumnPinningTableState => {
+    let leftFreezeColumns = state?.columnPinning?.left ?? [];
+    const rightFreezeColumns = state?.columnPinning?.right ?? [];
+    leftFreezeColumns = ["__select__", ...leftFreezeColumns];
+
     return {
       ...state,
       columnPinning: {
-        left: state?.columnPinning?.left,
-        right: state?.columnPinning?.right,
-      }
+        left: leftFreezeColumns,
+        right: rightFreezeColumns,
+      },
     };
   },
 
   getDefaultOptions: <TData extends RowData>(
-    table: Table<TData>
+    table: Table<TData>,
   ): ColumnPinningOptions => {
     return {
       enableColumnPinning: true,
@@ -34,7 +38,7 @@ export const ColumnFreezingFeature: TableFeature = {
 
   createColumn: <TData extends RowData>(
     column: Column<TData>,
-    table: Table<TData>
+    table: Table<TData>,
   ) => {
     column.getIsPinned = () => {
       const { left, right } = table.getState().columnPinning;
@@ -54,12 +58,16 @@ export const ColumnFreezingFeature: TableFeature = {
           right: [],
         };
 
-        if (prevState && prevState.left) {
+        if (prevState?.left) {
           newState.left = [...prevState.left];
         }
 
-        if (prevState && prevState.right) {
+        if (prevState?.right) {
           newState.right = [...prevState.right];
+        }
+
+        if (newState.left?.length === 0) {
+          newState.left.push("__select__");
         }
 
         if (position === false) {
