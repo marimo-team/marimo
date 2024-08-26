@@ -87,7 +87,7 @@ export const RunButton = (props: {
     tooltipMsg = "App disconnected";
   } else if (status === "queued") {
     tooltipMsg = "This cell is already queued to run";
-  } else if (status == "running") {
+  } else if (status === "running") {
     tooltipMsg = "This cell is already running.";
   } else {
     tooltipMsg = renderShortcut("cell.run");
