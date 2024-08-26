@@ -39,47 +39,47 @@
       "recommended": true,
       "a11y": {
         "noAutofocus": "off",
-        "noSvgWithoutTitle": "off",
-        "useButtonType": "off",
-        "useIframeTitle": "off",
+        "noSvgWithoutTitle": "info",
+        "useButtonType": "info",
+        "useIframeTitle": "info",
         "useKeyWithClickEvents": "off",
-        "useMediaCaption": "off"
+        "useMediaCaption": "info"
       },
       "complexity": {
         "noBannedTypes": "off",
         "noForEach": "off",
-        "useArrowFunction": "off"
+        "useArrowFunction": "error"
       },
       "correctness": {
-        "noInnerDeclarations": "off",
+        "noInnerDeclarations": "error",
         "noUnusedImports": "error",
         "useExhaustiveDependencies": "off",
-        "useHookAtTopLevel": "off"
+        "useHookAtTopLevel": "info"
       },
       "security": {
         "noDangerouslySetInnerHtml": "off"
       },
       "style": {
-        "noCommaOperator": "off",
+        "noCommaOperator": "error",
         "noNonNullAssertion": "off",
         "noParameterAssign": "off",
-        "noUnusedTemplateLiteral": "off",
+        "noUnusedTemplateLiteral": "error",
         "useConsistentArrayType": "off",
-        "useImportType": "off",
-        "useNodejsImportProtocol": "off",
-        "useSingleVarDeclarator": "off",
-        "useTemplate": "off"
+        "useImportType": "error",
+        "useNodejsImportProtocol": "error",
+        "useSingleVarDeclarator": "error",
+        "useTemplate": "error"
       },
       "suspicious": {
         "noArrayIndexKey": "off",
-        "noAssignInExpressions": "off",
+        "noAssignInExpressions": "info",
         "noConsoleLog": "off",
-        "noDoubleEquals": "off",
-        "noEmptyBlockStatements": "off",
+        "noDoubleEquals": "error",
+        "noEmptyBlockStatements": "info",
         "noExplicitAny": "off",
-        "noImplicitAnyLet": "off",
-        "noRedeclare": "off",
-        "noShadowRestrictedNames": "off"
+        "noImplicitAnyLet": "error",
+        "noRedeclare": "info",
+        "noShadowRestrictedNames": "error"
       }
     }
   },

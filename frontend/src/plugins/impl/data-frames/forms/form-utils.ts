@@ -77,5 +77,5 @@ export function getUnionLiteral<T extends z.ZodType<unknown>>(
   if (schema instanceof z.ZodUnion) {
     return getUnionLiteral(schema._def.options[0]);
   }
-  throw new Error(`Invalid schema`);
+  throw new Error("Invalid schema");
 }

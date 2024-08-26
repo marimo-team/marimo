@@ -108,7 +108,7 @@ export function startServer(app: ApplicationNames): void {
 }
 
 const WASM_SERVER = {
-  command: `PYODIDE=true vite --port 3000`,
+  command: "PYODIDE=true vite --port 3000",
   url: "http://localhost:3000",
   reuseExistingServer: !!process.env.CI,
 };
