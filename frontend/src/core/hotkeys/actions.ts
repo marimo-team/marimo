@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { atom, useAtomValue, useSetAtom } from "jotai";
-import { HotkeyAction } from "@/core/hotkeys/hotkeys";
+import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
 
 /**
  * Map of registered keyboard shortcuts and their callbacks.

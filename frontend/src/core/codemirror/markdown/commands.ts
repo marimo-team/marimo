@@ -1,11 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import {
   EditorSelection,
-  SelectionRange,
+  type SelectionRange,
   Text,
   Transaction,
 } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
+import type { EditorView } from "@codemirror/view";
 
 function hasSelection(view: EditorView) {
   return !view.state.selection.main.empty;

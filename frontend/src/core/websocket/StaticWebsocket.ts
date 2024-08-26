@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { IReconnectingWebSocket } from "./types";
+import type { IReconnectingWebSocket } from "./types";
 
 export class StaticWebsocket implements IReconnectingWebSocket {
   CONNECTING = WebSocket.CONNECTING;

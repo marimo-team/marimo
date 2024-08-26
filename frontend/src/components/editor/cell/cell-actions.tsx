@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import {
   Fragment,
-  PropsWithChildren,
+  type PropsWithChildren,
   useImperativeHandle,
   useMemo,
   useState,
@@ -28,13 +28,13 @@ import {
 import { renderMinimalShortcut } from "@/components/shortcuts/renderShortcut";
 import React from "react";
 import {
-  CellActionButtonProps,
+  type CellActionButtonProps,
   useCellActionButtons,
 } from "../actions/useCellActionButton";
 import { useRestoreFocus } from "@/components/ui/use-restore-focus";
 import { useAtomValue } from "jotai";
 import { cellFocusDetailsAtom } from "@/core/cells/focus";
-import { CellId } from "@/core/cells/ids";
+import type { CellId } from "@/core/cells/ids";
 
 interface Props extends CellActionButtonProps {
   children: React.ReactNode;

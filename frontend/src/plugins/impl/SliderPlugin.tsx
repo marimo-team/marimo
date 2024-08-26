@@ -2,7 +2,7 @@
 import { useEffect, useId, useState } from "react";
 import { z } from "zod";
 
-import { IPlugin, IPluginProps, Setter } from "../types";
+import type { IPlugin, IPluginProps, Setter } from "../types";
 import { Slider } from "../../components/ui/slider";
 import { Labeled } from "./common/labeled";
 import { cn } from "@/utils/cn";

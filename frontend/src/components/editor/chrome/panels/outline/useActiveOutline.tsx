@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { OutlineItem } from "@/core/cells/outline";
+import type { OutlineItem } from "@/core/cells/outline";
 import { headingToIdentifier } from "@/core/dom/outline";
 import { initialMode } from "@/core/mode";
 import { Logger } from "@/utils/Logger";
@@ -139,14 +139,13 @@ export function findOutlineItem(
       `[id="${CSS.escape(item.by.id)}"]`,
     );
     return elems[index];
-  } else {
-    const el = document.evaluate(
-      item.by.path,
-      document,
-      null,
-      XPathResult.FIRST_ORDERED_NODE_TYPE,
-      null,
-    ).singleNodeValue as HTMLElement;
-    return el;
   }
+  const el = document.evaluate(
+    item.by.path,
+    document,
+    null,
+    XPathResult.FIRST_ORDERED_NODE_TYPE,
+    null,
+  ).singleNodeValue as HTMLElement;
+  return el;
 }

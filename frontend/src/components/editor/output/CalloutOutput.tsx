@@ -2,7 +2,7 @@
 import { memo } from "react";
 import { HtmlOutput } from "./HtmlOutput";
 import { calloutStyles } from "./CalloutOutput.styles";
-import { Intent } from "@/plugins/impl/common/intent";
+import type { Intent } from "@/plugins/impl/common/intent";
 
 interface Props {
   html: string;

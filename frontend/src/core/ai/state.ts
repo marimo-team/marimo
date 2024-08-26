@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { atom } from "jotai";
-import { CellId } from "../cells/ids";
+import type { CellId } from "../cells/ids";
 
 export const aiCompletionCellAtom = atom<{
   cellId: CellId;

@@ -2,7 +2,7 @@
 import React, {} from "react";
 import { Functions } from "@/utils/functions";
 import { atomWithStorage } from "jotai/utils";
-import { MarimoFile } from "@/core/network/types";
+import type { MarimoFile } from "@/core/network/types";
 
 export type RunningNotebooksMap = Map<string, MarimoFile>;
 

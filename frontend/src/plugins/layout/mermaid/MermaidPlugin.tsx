@@ -2,7 +2,7 @@
 import { z } from "zod";
 
 import { lazy } from "react";
-import {
+import type {
   IStatelessPlugin,
   IStatelessPluginProps,
 } from "@/plugins/stateless-plugin";

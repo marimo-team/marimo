@@ -21,9 +21,9 @@ import type {
   SaveUserConfigurationRequest,
   Snippets,
 } from "../../network/types";
-import { OperationMessage } from "@/core/kernel/messages";
-import { JsonString } from "@/utils/json/base64";
-import { UserConfig } from "@/core/config/config-schema";
+import type { OperationMessage } from "@/core/kernel/messages";
+import type { JsonString } from "@/utils/json/base64";
+import type { UserConfig } from "@/core/config/config-schema";
 
 export interface WasmController {
   /**

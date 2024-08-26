@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { GridLayoutPlugin } from "./grid-layout/plugin";
-import { ICellRendererPlugin, LayoutType } from "./types";
-import { CellData } from "@/core/cells/types";
+import type { ICellRendererPlugin, LayoutType } from "./types";
+import type { CellData } from "@/core/cells/types";
 import { VerticalLayoutPlugin } from "./vertical-layout/vertical-layout";
 import { SlidesLayoutPlugin } from "./slides-layout/plugin";
 

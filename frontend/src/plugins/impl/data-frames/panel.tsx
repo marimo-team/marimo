@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { PropsWithChildren, useEffect, useMemo } from "react";
+import React, { type PropsWithChildren, useEffect, useMemo } from "react";
 import {
-  TransformType,
+  type TransformType,
   TransformTypeSchema,
-  Transformations,
+  type Transformations,
   TransformationsSchema,
 } from "./schema";
 import {
@@ -18,7 +18,7 @@ import {
 import { Button } from "../../../components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFieldArray, useForm } from "react-hook-form";
-import { z } from "zod";
+import type { z } from "zod";
 import { ZodForm } from "./forms/form";
 import { getDefaults, getUnionLiteral } from "./forms/form-utils";
 import {
@@ -43,7 +43,7 @@ import {
   ColumnInfoContext,
 } from "@/plugins/impl/data-frames/forms/context";
 import useEvent from "react-use-event-hook";
-import { ColumnDataTypes } from "./types";
+import type { ColumnDataTypes } from "./types";
 import { getUpdatedColumnTypes } from "./utils/getUpdatedColumnTypes";
 import { Strings } from "@/utils/strings";
 

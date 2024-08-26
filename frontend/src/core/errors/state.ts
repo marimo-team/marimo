@@ -2,9 +2,9 @@
 
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import { useAtomValue } from "jotai";
-import { Banner } from "../kernel/messages";
+import type { Banner } from "../kernel/messages";
 import { generateUUID } from "@/utils/uuid";
-import { Identified } from "@/utils/typed";
+import type { Identified } from "@/utils/typed";
 
 interface BannerState {
   banners: Array<Identified<Banner>>;

@@ -8,7 +8,7 @@ import {
   scrollToOutlineItem,
   findOutlineElements,
 } from "./useActiveOutline";
-import { OutlineItem } from "@/core/cells/outline";
+import type { OutlineItem } from "@/core/cells/outline";
 
 export const FloatingOutline: React.FC = () => {
   const { items } = useAtomValue(notebookOutline);

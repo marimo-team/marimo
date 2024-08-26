@@ -4,7 +4,7 @@ import { mergeRefs } from "../../utils/mergeRefs";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVerticalIcon } from "lucide-react";
-import { CellId } from "@/core/cells/ids";
+import type { CellId } from "@/core/cells/ids";
 import { cn } from "@/utils/cn";
 
 interface Props extends React.HTMLAttributes<HTMLDivElement> {

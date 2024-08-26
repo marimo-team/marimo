@@ -3,7 +3,7 @@ import { useId } from "react";
 import { z } from "zod";
 
 import { Switch } from "@/components/ui/switch";
-import { IPlugin, IPluginProps } from "@/plugins/types";
+import type { IPlugin, IPluginProps } from "@/plugins/types";
 import { Labeled } from "./common/labeled";
 
 export class SwitchPlugin

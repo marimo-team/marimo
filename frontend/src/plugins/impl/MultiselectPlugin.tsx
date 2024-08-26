@@ -2,7 +2,7 @@
 import { useId, useMemo, useState } from "react";
 import { z } from "zod";
 
-import { IPlugin, IPluginProps, Setter } from "../types";
+import type { IPlugin, IPluginProps, Setter } from "../types";
 import { Combobox, ComboboxItem } from "../../components/ui/combobox";
 import { Labeled } from "./common/labeled";
 import { cn } from "@/utils/cn";

@@ -2,7 +2,7 @@
 import { useId, useRef } from "react";
 import { z } from "zod";
 
-import { IPlugin, IPluginProps, Setter } from "../types";
+import type { IPlugin, IPluginProps, Setter } from "../types";
 import { Input } from "../../components/ui/input";
 import { Labeled } from "./common/labeled";
 import { cn } from "@/utils/cn";

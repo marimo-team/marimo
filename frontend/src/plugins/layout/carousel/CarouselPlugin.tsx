@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { z } from "zod";
-import {
+import type {
   IStatelessPlugin,
   IStatelessPluginProps,
 } from "../../stateless-plugin";

@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { Objects } from "@/utils/objects";
-import { FieldTypes } from "./vega-loader";
+import type { FieldTypes } from "./vega-loader";
 
 export function mergeAsArrays<T>(
   left: T | T[] | undefined,

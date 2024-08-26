@@ -2,7 +2,7 @@
 
 import { cn } from "../../../utils/cn";
 import { logNever } from "../../../utils/assertNever";
-import { MarimoError } from "../../../core/kernel/messages";
+import type { MarimoError } from "../../../core/kernel/messages";
 import { Alert } from "../../ui/alert";
 import { AlertTitle } from "../../ui/alert";
 
@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/accordion";
 import { Fragment } from "react";
 import { CellLinkError } from "../links/cell-link";
-import { CellId } from "@/core/cells/ids";
+import type { CellId } from "@/core/cells/ids";
 
 const Tip = (props: {
   className?: string;

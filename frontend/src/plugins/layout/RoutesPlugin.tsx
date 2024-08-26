@@ -1,8 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { PropsWithChildren, useEffect, useMemo, useState } from "react";
+import React, {
+  type PropsWithChildren,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import { z } from "zod";
-import { IStatelessPlugin, IStatelessPluginProps } from "../stateless-plugin";
+import type {
+  IStatelessPlugin,
+  IStatelessPluginProps,
+} from "../stateless-plugin";
 import { TinyRouter } from "@/utils/routes";
 import useEvent from "react-use-event-hook";
 

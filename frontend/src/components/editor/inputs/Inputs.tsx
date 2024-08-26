@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { VariantProps } from "class-variance-authority";
+import type { VariantProps } from "class-variance-authority";
 import * as styles from "./Inputs.styles";
 import React from "react";
 import clsx from "clsx";

@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Extension, Prec } from "@codemirror/state";
+import { type Extension, Prec } from "@codemirror/state";
 import {
   insertBlockquote,
   insertBoldMarker,
@@ -10,7 +10,7 @@ import {
   insertUL,
 } from "./commands";
 import { EditorView, keymap } from "@codemirror/view";
-import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 
 export function enhancedMarkdownExtension(
   hotkeys: HotkeyProvider,
