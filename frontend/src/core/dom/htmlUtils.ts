@@ -59,10 +59,10 @@ export function getFilenameFromDOM() {
   }
 
   const filenameTag = document.querySelector("marimo-filename");
-  if (import.meta.env.MODE === "test" && !filenameTag) {
+  if (!filenameTag) {
     return null;
   }
-  assertExists(filenameTag, "marimo-filename tag not found");
+
   const name = filenameTag.innerHTML;
   return name.length === 0 ? null : name;
 }

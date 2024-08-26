@@ -156,7 +156,7 @@
     "preview": "vite preview",
     "dev:islands": "VITE_MARIMO_ISLANDS=true vite --config islands/vite.config.mts",
     "build:islands": "VITE_MARIMO_ISLANDS=true vite --config islands/vite.config.mts build",
-    "preview:islands": "VITE_MARIMO_VERSION='0.4.6' VITE_MARIMO_ISLANDS=true vite --config islands/vite.config.mts build",
+    "preview:islands": "VITE_MARIMO_VERSION=$(marimo --version) VITE_MARIMO_ISLANDS=true vite --config islands/vite.config.mts build",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
   },

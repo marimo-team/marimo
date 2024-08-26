@@ -3,7 +3,7 @@
 <!-- marimo js/ccs -->
 <script
   type="module"
-  src="https://cdn.jsdelivr.net/npm/@marimo-team/islands@0.5.0/dist/main.js"
+  src="https://cdn.jsdelivr.net/npm/@marimo-team/islands@0.5.0/dist/init.js"
 ></script>
 <link
   href="https://cdn.jsdelivr.net/npm/@marimo-team/islands@0.5.0/dist/style.css"

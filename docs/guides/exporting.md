@@ -99,10 +99,7 @@ In order to use marimo islands, you need to import the necessary JS/CSS headers 
 ```html
 <head>
   <!-- marimo js/ccs -->
-  <script
-    type="module"
-    src="https://cdn.jsdelivr.net/npm/@marimo-team/islands@<version>/dist/main.js"
-  ></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@marimo-team/islands@<version>/dist/init.js"></script>
   <link
     href="https://cdn.jsdelivr.net/npm/@marimo-team/islands@<version>/dist/style.css"
     rel="stylesheet"

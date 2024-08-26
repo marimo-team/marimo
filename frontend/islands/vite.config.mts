@@ -45,10 +45,14 @@ export default defineConfig({
   build: {
     emptyOutDir: true,
     lib: {
-      entry: path.resolve(__dirname, "../src/core/islands/main.ts"),
+      entry: {
+        main: path.resolve(__dirname, "../src/core/islands/main.ts"),
+        init: path.resolve(__dirname, "../src/core/islands/init.ts"),
+      },
       formats: ["es"],
     },
     rollupOptions: {
+      external: ["react", "react-dom"],
       output: {
         // Remove hash from entry file name, so it's easier to import
         entryFileNames: "[name].js",

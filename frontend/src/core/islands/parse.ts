@@ -1,7 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { MarimoIslandElement } from "@/core/islands/components/web-components";
+import { assertExists } from "@/utils/assertExists";
 import { Logger } from "@/utils/Logger";
+import { MarimoIslandConstants } from "./components/constants";
 
 /**
  * DOM elements look like this:
@@ -45,7 +47,7 @@ export function parseMarimoIslandApps(): MarimoIslandApp[] {
   const apps = new Map<string, MarimoIslandApp>();
 
   const embeds = document.querySelectorAll<HTMLElement>(
-    MarimoIslandElement.tagName,
+    MarimoIslandConstants.islandTagName,
   );
   if (embeds.length === 0) {
     Logger.warn("No embedded marimo apps found.");
@@ -60,7 +62,7 @@ export function parseMarimoIslandApps(): MarimoIslandApp[] {
     }
 
     const cellOutput = embed.querySelector<HTMLElement>(
-      MarimoIslandElement.outputTagName,
+      MarimoIslandConstants.outputTagName,
     );
     const code = extractIslandCodeFromEmbed(embed);
 
@@ -86,6 +88,19 @@ export function parseMarimoIslandApps(): MarimoIslandApp[] {
   }
 
   return [...apps.values()];
+}
+
+export function parseMarimoApps(): Array<{ code: string; appId: string }> {
+  const embeds = document.querySelectorAll<HTMLElement>(
+    MarimoIslandConstants.marimoAppTagName,
+  );
+  return [...embeds].map((embed) => {
+    const code = embed.dataset.code;
+    const appId = embed.dataset.appId;
+    assertExists(code, "Embedded marimo app missing data-code attribute.");
+    assertExists(appId, "Embedded marimo app missing data-app-id attribute.");
+    return { code, appId };
+  });
 }
 
 export function createMarimoFile(app: {
@@ -144,14 +159,14 @@ export function extractIslandCodeFromEmbed(embed: HTMLElement): string {
   }
 
   const cellCodeElement = embed.querySelector<HTMLElement>(
-    MarimoIslandElement.codeTagName,
+    MarimoIslandConstants.codeTagName,
   );
   if (cellCodeElement) {
     return parseIslandCode(cellCodeElement.textContent);
   }
 
   const editorCodeElement = embed.querySelector<HTMLElement>(
-    MarimoIslandElement.editorTagName,
+    MarimoIslandConstants.editorTagName,
   );
   if (editorCodeElement) {
     return parseIslandEditor(editorCodeElement.dataset.initialValue);

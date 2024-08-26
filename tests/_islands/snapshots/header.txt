@@ -1,4 +1,4 @@
-<script type="module" src="https://cdn.jsdelivr.net/npm/@marimo-team/islands@0.0.0/dist/main.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@marimo-team/islands@0.0.0/dist/init.js"></script>
 <link
     href="https://cdn.jsdelivr.net/npm/@marimo-team/islands@0.0.0/dist/style.css"
     rel="stylesheet"
