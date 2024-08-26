@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import React, { PropsWithChildren, useEffect } from "react";
-import { Swiper, SwiperSlide, SwiperRef } from "swiper/react";
+import React, { type PropsWithChildren, useEffect } from "react";
+import { Swiper, SwiperSlide, type SwiperRef } from "swiper/react";
 import {
   Virtual,
   Keyboard,

@@ -2,7 +2,7 @@
 
 import { cn } from "../../../utils/cn";
 
-import { type CellId } from "@/core/cells/ids";
+import type { CellId } from "@/core/cells/ids";
 
 import {
   Accordion,
@@ -16,7 +16,7 @@ import { BugIcon, ChevronDown, ExternalLinkIcon } from "lucide-react";
 import { useState } from "react";
 import { useAtomValue } from "jotai";
 import { aiEnabledAtom } from "@/core/config/config";
-import { Element, Text, DOMNode } from "html-react-parser";
+import { Element, Text, type DOMNode } from "html-react-parser";
 
 import { CellLinkTraceback } from "../links/cell-link";
 

@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React from "react";
-import { Capabilities } from "../kernel/messages";
+import type { Capabilities } from "../kernel/messages";
 import { useAtomValue } from "jotai";
 import { capabilitiesAtom } from "./capabilities";
 

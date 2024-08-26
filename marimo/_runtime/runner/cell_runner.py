@@ -518,11 +518,13 @@ class Runner:
         return ref, blamed_cell
 
     async def run_all(self) -> None:
+        LOGGER.debug("Running preparation hooks")
         for prep_hook in self.preparation_hooks:
             prep_hook(self)
 
         while self.pending():
             cell_id = self.pop_cell()
+            LOGGER.debug("Cell runner processing %s", cell_id)
             cell = self.graph.cells[cell_id]
 
             # Update run result status for cells that won't run.
@@ -530,28 +532,35 @@ class Runner:
             # Hack: frontend sets status to queued on run, so we also have to
             # set runtime_state to get FE to transition.
             if self.cancelled(cell_id):
+                LOGGER.debug("%s cancelled", cell_id)
                 cell.set_run_result_status("cancelled")
                 cell.set_runtime_state("idle")
                 continue
             if cell.config.disabled:
+                LOGGER.debug("%s disabled", cell_id)
                 cell.set_run_result_status("disabled")
                 cell.set_runtime_state("idle")
                 continue
             if self.graph.is_disabled(cell_id):
+                LOGGER.debug("%s disabled transitively", cell_id)
                 cell.set_run_result_status("disabled")
                 cell.set_runtime_state("disabled-transitively")
                 continue
 
+            LOGGER.debug("Running pre_execution hooks")
             for pre_hook in self.pre_execution_hooks:
                 pre_hook(cell, self)
+            LOGGER.debug("Running cell %s", cell_id)
             if self.execution_context is not None:
                 with self.execution_context(cell_id) as exc_ctx:
                     run_result = await self.run(cell_id)
                     run_result.accumulated_output = exc_ctx.output
             else:
                 run_result = await self.run(cell_id)
+            LOGGER.debug("Running post_execution hooks")
             for post_hook in self.post_execution_hooks:
                 post_hook(cell, self, run_result)
 
+        LOGGER.debug("Running on_finish hooks")
         for finish_hook in self.on_finish_hooks:
             finish_hook(self)

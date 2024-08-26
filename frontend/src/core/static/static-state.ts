@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { invariant } from "@/utils/invariant";
-import {
+import type {
   MarimoStaticState,
   StaticNotebookState,
   StaticVirtualFiles,

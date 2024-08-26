@@ -39,6 +39,7 @@ JsonTableData = Union[
     Sequence[JSONType],
     List[JSONType],
     Dict[str, Sequence[Union[str, int, float, bool, MIME, None]]],
+    Dict[str, JSONType],
 ]
 
 
@@ -47,6 +48,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
 
     def __init__(self, data: JsonTableData):
         self.data = data
+        self.is_column_oriented = _is_column_oriented(data)
 
     def supports_download(self) -> bool:
         # If we have pandas/polars/pyarrow, we can convert to CSV or JSON
@@ -57,9 +59,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
         )
 
     def apply_formatting(self, format_mapping: FormatMapping) -> JsonTableData:
-        if isinstance(self.data, dict) and all(
-            isinstance(value, (list, tuple)) for value in self.data.values()
-        ):
+        if isinstance(self.data, dict) and self.is_column_oriented:
             return {
                 col: format_column(col, values, format_mapping)  # type: ignore
                 for col, values in self.data.items()
@@ -86,19 +86,33 @@ class DefaultTableManager(TableManager[JsonTableData]):
         )
 
     def to_csv(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
+        if isinstance(self.data, dict) and not self.is_column_oriented:
+            return DefaultTableManager(self._normalize_data(self.data)).to_csv(
+                format_mapping
+            )
+
         return self._as_table_manager().to_csv(format_mapping)
 
     def to_json(self) -> bytes:
+        if isinstance(self.data, dict) and not self.is_column_oriented:
+            return DefaultTableManager(
+                self._normalize_data(self.data)
+            ).to_json()
         return self._as_table_manager().to_json()
 
     def select_rows(self, indices: List[int]) -> DefaultTableManager:
-        # Column major data
         if isinstance(self.data, dict):
-            new_data: Dict[Any, Any] = {
-                key: [value[i] for i in indices]
-                for key, value in self.data.items()
-            }
-            return DefaultTableManager(new_data)
+            # Column major data
+            if self.is_column_oriented:
+                new_data: Dict[Any, Any] = {
+                    key: [cast(List[JSONType], value)[i] for i in indices]
+                    for key, value in self.data.items()
+                }
+                return DefaultTableManager(new_data)
+            else:
+                return DefaultTableManager(
+                    self._normalize_data(self.data)
+                ).select_rows(indices)
         # Row major data
         return DefaultTableManager([self.data[i] for i in indices])
 
@@ -123,26 +137,38 @@ class DefaultTableManager(TableManager[JsonTableData]):
         if num < 0:
             raise ValueError("Limit must be a positive integer")
         if isinstance(self.data, dict):
-            return DefaultTableManager(
-                {key: value[:num] for key, value in self.data.items()}
-            )
+            if self.is_column_oriented:
+                return DefaultTableManager(
+                    cast(
+                        JsonTableData,
+                        {
+                            key: cast(List[Any], value)[:num]
+                            for key, value in self.data.items()
+                        },
+                    )
+                )
+            return DefaultTableManager(self._normalize_data(self.data)[:num])
         return DefaultTableManager(self.data[:num])
 
     def search(self, query: str) -> DefaultTableManager:
         query = query.lower()
-        if isinstance(self.data, dict):
+        if isinstance(self.data, dict) and self.is_column_oriented:
             mask: List[bool] = [
                 any(
-                    query in str(self.data[key][row]).lower()
+                    query in str(cast(List[Any], self.data[key])[row]).lower()
                     for key in self.data.keys()
                 )
                 for row in range(self.get_num_rows() or 0)
             ]
-            results: JsonTableData = {
-                key: [value[i] for i, match in enumerate(mask) if match]
+            results = {
+                key: [
+                    cast(List[Any], value)[i]
+                    for i, match in enumerate(mask)
+                    if match
+                ]
                 for key, value in self.data.items()
             }
-            return DefaultTableManager(results)
+            return DefaultTableManager(cast(JsonTableData, results))
         return DefaultTableManager(
             [
                 row
@@ -162,7 +188,14 @@ class DefaultTableManager(TableManager[JsonTableData]):
         if DependencyManager.polars.has():
             import polars as pl
 
-            return PolarsTableManagerFactory.create()(pl.DataFrame(self.data))
+            if isinstance(self.data, dict) and not self.is_column_oriented:
+                return PolarsTableManagerFactory.create()(
+                    pl.DataFrame(self._normalize_data(self.data))
+                )
+
+            return PolarsTableManagerFactory.create()(
+                pl.DataFrame(cast(Any, self.data))
+            )
         if DependencyManager.pyarrow.has():
             import pyarrow as pa
 
@@ -183,7 +216,11 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def get_num_rows(self, force: bool = True) -> int:
         del force
         if isinstance(self.data, dict):
-            return len(next(iter(self.data.values()), []))
+            if self.is_column_oriented:
+                first = next(iter(self.data.values()), None)
+                return len(cast(List[Any], first))
+            else:
+                return len(self.data)
         return len(self.data)
 
     def get_num_columns(self) -> int:
@@ -221,9 +258,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def _normalize_data(data: JsonTableData) -> list[dict[str, Any]]:
         # If it is a dict of lists (column major),
         # convert to list of dicts (row major)
-        if isinstance(data, dict) and all(
-            isinstance(value, (list, tuple)) for value in data.values()
-        ):
+        if isinstance(data, dict) and _is_column_oriented(data):
             # reshape column major
             #   { "col1": [1, 2, 3], "col2": [4, 5, 6], ... }
             # into row major
@@ -233,6 +268,12 @@ class DefaultTableManager(TableManager[JsonTableData]):
             return [
                 dict(zip(column_names, row_values))
                 for row_values in zip(*column_values)
+            ]
+
+        # If its a dictionary, convert to key-value pairs
+        if isinstance(data, dict):
+            return [
+                {"key": key, "value": value} for key, value in data.items()
             ]
 
         # Assert that data is a list
@@ -259,3 +300,9 @@ class DefaultTableManager(TableManager[JsonTableData]):
             return [{"value": datum} for datum in casted]
         # Sequence of dicts
         return cast(List[Dict[str, Any]], data)
+
+
+def _is_column_oriented(data: JsonTableData) -> bool:
+    return isinstance(data, dict) and all(
+        isinstance(value, (list, tuple)) for value in data.values()
+    )

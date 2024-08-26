@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { asURL } from "@/utils/url";
-import { VegaLiteSpec } from "./types";
+import type { VegaLiteSpec } from "./types";
 
 /**
  * If the URL in the data-spec if relative, we need to fix it to be absolute,

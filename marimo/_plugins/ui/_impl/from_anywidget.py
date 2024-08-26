@@ -92,6 +92,7 @@ class anywidget(UIElement[T, T]):
             "tooltip",
             "keys",
             "_esm",
+            "_css",
             "_anywidget_id",
             "_dom_classes",
             "_model_module",
@@ -165,7 +166,10 @@ class anywidget(UIElement[T, T]):
     # forward all setattr to the widget
     def __setattr__(self, name: str, value: Any) -> None:
         if self._initialized:
-            return setattr(self.widget, name, value)
+            # If the widget has the attribute, set it
+            if hasattr(self.widget, name):
+                return setattr(self.widget, name, value)
+            return super().__setattr__(name, value)
         return super().__setattr__(name, value)
 
     # After the widget has been initialized

@@ -15,14 +15,14 @@ import {
 } from "./state/reducer";
 import { Provider, createStore, useAtomValue } from "jotai";
 import { Button } from "@/components/ui/button";
-import { SpecificEncoding } from "./encoding";
+import type { SpecificEncoding } from "./encoding";
 import { Objects } from "@/utils/objects";
 import { Badge } from "@/components/ui/badge";
 import { ErrorBanner } from "../common/error-banner";
 import { ColumnSummary } from "./components/column-summary";
-import { VegaLiteProps } from "react-vega/lib/VegaLite";
+import type { VegaLiteProps } from "react-vega/lib/VegaLite";
 import { useOnMount } from "@/hooks/useLifecycle";
-import { ChartSpec } from "./state/types";
+import type { ChartSpec } from "./state/types";
 
 /**
  * @param label - a label of the table

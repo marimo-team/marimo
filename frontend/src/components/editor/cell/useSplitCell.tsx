@@ -2,7 +2,7 @@
 import { UndoButton } from "@/components/buttons/undo-button";
 import { toast } from "@/components/ui/use-toast";
 import { getCellEditorView, useCellActions } from "@/core/cells/cells";
-import { CellId } from "@/core/cells/ids";
+import type { CellId } from "@/core/cells/ids";
 import useEvent from "react-use-event-hook";
 
 export function useSplitCellCallback() {

@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { IPlugin, IPluginProps } from "@/plugins/types";
+import type { IPlugin, IPluginProps } from "@/plugins/types";
 import { Labeled } from "./common/labeled";
 import { cn } from "@/utils/cn";
 

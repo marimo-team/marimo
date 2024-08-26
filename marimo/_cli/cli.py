@@ -169,6 +169,7 @@ def main(log_level: str, quiet: bool, development_mode: bool) -> None:
 
     GLOBAL_SETTINGS.DEVELOPMENT_MODE = development_mode
     GLOBAL_SETTINGS.QUIET = quiet
+    GLOBAL_SETTINGS.LOG_LEVEL = _loggers.log_level_string_to_int(log_level)
 
 
 edit_help_msg = "\n".join(
@@ -254,6 +255,7 @@ edit_help_msg = "\n".join(
     type=bool,
     help="Don't check if a new version of marimo is available for download.",
 )
+@click.option("--profile-dir", default=None, type=str, hidden=True)
 @click.argument("name", required=False)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def edit(
@@ -266,9 +268,11 @@ def edit(
     base_url: str,
     allow_origins: Optional[tuple[str, ...]],
     skip_update_check: bool,
+    profile_dir: Optional[str],
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
+    GLOBAL_SETTINGS.PROFILE_DIR = profile_dir
     if not skip_update_check and os.getenv("MARIMO_SKIP_UPDATE_CHECK") != "1":
         GLOBAL_SETTINGS.CHECK_STATUS_UPDATE = True
         # Check for version updates

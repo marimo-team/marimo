@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { Dialog } from "../components/ui/dialog";
 import { TooltipProvider } from "../components/ui/tooltip";
 import { LogViewer } from "@/components/editor/chrome/panels/logs-panel";
-import { CellId } from "@/core/cells/ids";
+import type { CellId } from "@/core/cells/ids";
 
 const meta: Meta<typeof LogViewer> = {
   title: "LogViewer",

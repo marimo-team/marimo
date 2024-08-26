@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { PropsWithChildren } from "react";
+import React, { type PropsWithChildren } from "react";
 
 import "./multi-icon.css";
 

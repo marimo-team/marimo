@@ -1,12 +1,12 @@
 import marimo
 
-__generated_with = "0.1.38"
+__generated_with = "0.8.0"
 app = marimo.App()
 
 
 @app.cell
 def __(mo):
-    mo.md("# Cluster analysis")
+    mo.md("""# Cluster analysis""")
     return
 
 
@@ -23,7 +23,7 @@ def __(mo):
 
 @app.cell
 def __(compute_embedding, constraint, embedding_dimension):
-    embedding = compute_embedding(embedding_dimension, constraint) 
+    embedding = compute_embedding(embedding_dimension, constraint)
     return embedding,
 
 

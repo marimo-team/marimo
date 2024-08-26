@@ -2,7 +2,7 @@
 import { useId } from "react";
 import { z } from "zod";
 
-import { IPlugin, IPluginProps, Setter } from "../types";
+import type { IPlugin, IPluginProps, Setter } from "../types";
 import { Labeled } from "./common/labeled";
 import { useDebounceControlledState } from "@/hooks/useDebounce";
 import { cn } from "@/utils/cn";

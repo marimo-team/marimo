@@ -16,13 +16,14 @@ function computeColor(
 ) {
   if (appClosed) {
     return "disabled";
-  } else if (needsRun && !loading) {
-    return "yellow";
-  } else if (loading || inactive) {
-    return "disabled";
-  } else {
-    return "hint-green";
   }
+  if (needsRun && !loading) {
+    return "yellow";
+  }
+  if (loading || inactive) {
+    return "disabled";
+  }
+  return "hint-green";
 }
 
 export const RunButton = (props: {
@@ -63,7 +64,8 @@ export const RunButton = (props: {
         </Button>
       </Tooltip>
     );
-  } else if (!config.disabled && blockedStatus && !edited) {
+  }
+  if (!config.disabled && blockedStatus && !edited) {
     return (
       <Tooltip
         content="This cell can't be run because it has a disabled ancestor"

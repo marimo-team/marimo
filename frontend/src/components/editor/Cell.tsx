@@ -425,11 +425,11 @@ const CellComponent = (
   const cellTitle = () => {
     if (cellConfig.disabled) {
       return "This cell is disabled";
-    } else if (status === "disabled-transitively") {
-      return "This cell has a disabled ancestor";
-    } else {
-      return undefined;
     }
+    if (status === "disabled-transitively") {
+      return "This cell has a disabled ancestor";
+    }
+    return undefined;
   };
 
   const handleRefactorWithAI = (opts: { prompt: string }) => {

@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { GridLayout } from "@/components/editor/renderers/grid-layout/types";
-import { LayoutType } from "@/components/editor/renderers/types";
+import type { GridLayout } from "@/components/editor/renderers/grid-layout/types";
+import type { LayoutType } from "@/components/editor/renderers/types";
 import { useAtomValue } from "jotai";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import { cellRendererPlugins } from "@/components/editor/renderers/plugins";

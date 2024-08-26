@@ -3,7 +3,7 @@ import { Toolbar } from "@/components/layout/toolbar";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useNotebook } from "@/core/cells/cells";
-import { CellId } from "@/core/cells/ids";
+import type { CellId } from "@/core/cells/ids";
 import { getDescendantsStatus } from "@/core/cells/utils";
 import { cn } from "@/utils/cn";
 import {

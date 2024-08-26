@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Table } from "@tanstack/react-table";
+import type { Table } from "@tanstack/react-table";
 import {
   ChevronLeft,
   ChevronRight,

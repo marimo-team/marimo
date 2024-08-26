@@ -6,7 +6,7 @@ import {
 } from "../extension";
 import { EditorState } from "@codemirror/state";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { MovementCallbacks } from "../../cells/extensions";
+import type { MovementCallbacks } from "../../cells/extensions";
 import { store } from "@/core/state/jotai";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 

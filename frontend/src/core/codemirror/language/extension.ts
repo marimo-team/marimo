@@ -5,10 +5,15 @@ import {
   StateEffect,
   StateField,
 } from "@codemirror/state";
-import { LanguageAdapter } from "./types";
-import { EditorView, Panel, keymap, showPanel } from "@codemirror/view";
+import type { LanguageAdapter } from "./types";
+import {
+  type EditorView,
+  type Panel,
+  keymap,
+  showPanel,
+} from "@codemirror/view";
 import { clamp } from "@/utils/math";
-import { CompletionConfig } from "@/core/config/config-schema";
+import type { CompletionConfig } from "@/core/config/config-schema";
 import {
   completionConfigState,
   hotkeysProviderState,
@@ -19,8 +24,8 @@ import { historyCompartment } from "../editing/extensions";
 import { history } from "@codemirror/commands";
 import { formattingChangeEffect } from "../format";
 import { getEditorCodeAsPython } from "./utils";
-import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { CodeMirrorSetupOpts } from "../cm";
+import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+import type { CodeMirrorSetupOpts } from "../cm";
 import { getLanguageAdapters, LanguageAdapters } from "./LanguageAdapters";
 import { createPanel } from "../react-dom/createPanel";
 import { LanguagePanelComponent } from "./panel";

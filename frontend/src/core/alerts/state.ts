@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { PackageInstallationStatus } from "@/core/kernel/messages";
+import type { PackageInstallationStatus } from "@/core/kernel/messages";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import { generateUUID } from "@/utils/uuid";
 import { useAtomValue } from "jotai";

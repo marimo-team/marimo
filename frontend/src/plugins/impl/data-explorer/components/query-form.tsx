@@ -1,12 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-base-to-string */
-import { PrimitiveType, Schema } from "compassql/build/src/schema";
+import { PrimitiveType, type Schema } from "compassql/build/src/schema";
 import React from "react";
 import { Label } from "@/components/ui/label";
 import { PRIMITIVE_TYPE_ICON } from "./icons";
 import { useAtomValue } from "jotai";
 import { chartSpecAtom, useChartSpecActions } from "../state/reducer";
-import { EncodingChannel, FieldDefinition } from "../encoding";
+import type { EncodingChannel, FieldDefinition } from "../encoding";
 import {
   Select,
   SelectContent,
@@ -22,11 +22,11 @@ import {
   QUANTITATIVE_FUNCTIONS,
   SINGLE_TEMPORAL_FUNCTIONS,
 } from "../functions/function";
-import { FieldFunction } from "../functions/types";
+import type { FieldFunction } from "../functions/types";
 import { FunctionSquareIcon } from "lucide-react";
 import { startCase } from "lodash-es";
 import { ExpandedType } from "compassql/build/src/query/expandedtype";
-import { MARKS, SpecMark } from "../marks";
+import { MARKS, type SpecMark } from "../marks";
 import { SHORT_WILDCARD } from "compassql/build/src/wildcard";
 
 interface Props {

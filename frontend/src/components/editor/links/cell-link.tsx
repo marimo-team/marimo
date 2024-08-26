@@ -97,24 +97,23 @@ export function scrollAndHighlightCell(
   if (cell === null) {
     Logger.error(`Cell ${cellHtmlId} not found on page.`);
     return false;
-  } else {
-    if (!skipScroll) {
-      cell.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-
-    if (variant === "destructive") {
-      cell.classList.add("error-outline");
-      setTimeout(() => {
-        cell.classList.remove("error-outline");
-      }, 2000);
-    }
-    if (variant === "focus") {
-      cell.classList.add("focus-outline");
-      setTimeout(() => {
-        cell.classList.remove("focus-outline");
-      }, 2000);
-    }
-
-    return true;
   }
+  if (!skipScroll) {
+    cell.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  if (variant === "destructive") {
+    cell.classList.add("error-outline");
+    setTimeout(() => {
+      cell.classList.remove("error-outline");
+    }, 2000);
+  }
+  if (variant === "focus") {
+    cell.classList.add("focus-outline");
+    setTimeout(() => {
+      cell.classList.remove("focus-outline");
+    }, 2000);
+  }
+
+  return true;
 }
