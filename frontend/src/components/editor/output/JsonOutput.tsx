@@ -131,6 +131,6 @@ function renderLeaf(
   try {
     return render(leafData(leaf));
   } catch {
-    return <TextOutput text={`Invalid leaf: {leaf}`} />;
+    return <TextOutput text={"Invalid leaf: {leaf}"} />;
   }
 }

@@ -104,7 +104,7 @@ describe("CollapsibleTree", () => {
     expect(() =>
       tree.collapse("five", undefined),
     ).toThrowErrorMatchingInlineSnapshot(
-      `[Error: Node five not found in tree. Valid ids: one,two,three,four]`,
+      "[Error: Node five not found in tree. Valid ids: one,two,three,four]",
     );
     expect(() =>
       tree.collapse("one", "five"),
@@ -141,7 +141,7 @@ describe("CollapsibleTree", () => {
 
   it("fails to expand", () => {
     expect(() => tree.expand("five")).toThrowErrorMatchingInlineSnapshot(
-      `[Error: Node five not found in tree. Valid ids: one,two,three,four]`,
+      "[Error: Node five not found in tree. Valid ids: one,two,three,four]",
     );
     expect(() => {
       tree.expand("one");
@@ -305,7 +305,7 @@ describe("CollapsibleTree", () => {
 
   it("fails to delete nodes", () => {
     expect(() => tree.delete(5)).toThrowErrorMatchingInlineSnapshot(
-      `[Error: Node at index 5 not found in tree]`,
+      "[Error: Node at index 5 not found in tree]",
     );
   });
 
@@ -351,7 +351,7 @@ describe("CollapsibleTree", () => {
 
   it("atOrThrow throws if not found", () => {
     expect(() => tree.atOrThrow(5)).toThrowErrorMatchingInlineSnapshot(
-      `[Error: Node at index 5 not found in tree]`,
+      "[Error: Node at index 5 not found in tree]",
     );
   });
 
@@ -400,6 +400,6 @@ describe("CollapsibleTree", () => {
     `);
 
     // We only get descendants of the top level
-    expect(tree.getDescendants("three")).toMatchInlineSnapshot(`[]`);
+    expect(tree.getDescendants("three")).toMatchInlineSnapshot("[]");
   });
 });

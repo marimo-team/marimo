@@ -274,8 +274,8 @@ export function insertUL(view: EditorView) {
   }
 
   const { changes } = view.state.changeByRange((range) => {
-    const markupOne = `- `;
-    const markupTwo = `* `;
+    const markupOne = "- ";
+    const markupTwo = "* ";
 
     const rangeText = view.state
       .sliceDoc(range.from, range.to + markupTwo.length)

@@ -97,7 +97,7 @@ yield_error,yield_center
   });
 
   it("should parse csv data with out of bound integers", async () => {
-    const csvData = `id\n912312851340981241284`;
+    const csvData = "id\n912312851340981241284";
 
     vi.spyOn(vegaLoader, "load").mockReturnValue(Promise.resolve(csvData));
     const data = await vegaLoadData(
@@ -128,7 +128,7 @@ yield_error,yield_center
   });
 
   it("should handle when there is no format given", async () => {
-    const csvData = `id\n912312851340981241284`;
+    const csvData = "id\n912312851340981241284";
     vi.spyOn(vegaLoader, "load").mockReturnValue(Promise.resolve(csvData));
     const format = undefined;
     const data = await vegaLoadData(csvData, format, { handleBigInt: true });

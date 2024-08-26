@@ -62,7 +62,7 @@ export const MarimoErrorOutput = ({
                   <CellLinkError cellId={edge[0] as CellId} />
                   <span className="text-muted-foreground">
                     {" -> "}
-                    {edge[1].length == 1 ? edge[1] : edge[1].join(", ")}
+                    {edge[1].length === 1 ? edge[1] : edge[1].join(", ")}
                     {" -> "}
                   </span>
                   <CellLinkError cellId={edge[2] as CellId} />
@@ -98,8 +98,7 @@ export const MarimoErrorOutput = ({
         return (
           <Fragment key={idx}>
             <div className="mt-4">
-              {`The variable '${error.name}' can't be deleted because it was defined by another cell ` +
-                `(`}
+              {`The variable '${error.name}' can't be deleted because it was defined by another cell (`}
               <CellLinkError cellId={error.cells[0] as CellId} />
               {")"}
             </div>
