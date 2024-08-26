@@ -57,7 +57,7 @@ class TestDefaultTable(unittest.TestCase):
         assert not self.manager.is_type("not a dataframe")
 
     def test_limit(self) -> None:
-        limited_manager = self.manager.limit(1)
+        limited_manager = self.manager.take(1, 0)
         expected_data = [
             {"name": "Alice", "age": 30, "birth_year": date(1994, 5, 24)},
         ]
@@ -301,7 +301,7 @@ class TestColumnarDefaultTable(unittest.TestCase):
         assert self.manager.get_field_types() == {}
 
     def test_limit(self) -> None:
-        limited_manager = self.manager.limit(1)
+        limited_manager = self.manager.take(1, 0)
         expected_data = {
             "name": ["Alice"],
             "age": [30],
@@ -506,7 +506,7 @@ class TestDictionaryDefaultTable(unittest.TestCase):
         assert headers == []
 
     def test_limit(self) -> None:
-        limited_manager = self.manager.limit(1)
+        limited_manager = self.manager.take(1, 0)
         assert limited_manager.data == [{"key": "a", "value": 1}]
 
     def test_sort(self) -> None:

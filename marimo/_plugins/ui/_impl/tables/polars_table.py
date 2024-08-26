@@ -132,10 +132,12 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     for column in self.data.columns
                 }
 
-            def limit(self, num: int) -> PolarsTableManager:
-                if num < 0:
-                    raise ValueError("Limit must be a positive integer")
-                return PolarsTableManager(self.data.head(num))
+            def take(self, count: int, offset: int) -> PolarsTableManager:
+                if count < 0:
+                    raise ValueError("Count must be a positive integer")
+                if offset < 0:
+                    raise ValueError("Offset must be a non-negative integer")
+                return PolarsTableManager(self.data.slice(offset, count))
 
             def search(self, query: str) -> TableManager[Any]:
                 query = query.lower()
