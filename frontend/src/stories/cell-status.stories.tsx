@@ -2,7 +2,7 @@
 import type { Meta, StoryFn } from "@storybook/react";
 import {
   CellStatusComponent,
-  CellStatusComponentProps,
+  type CellStatusComponentProps,
 } from "@/components/editor/cell/CellStatus";
 import { TooltipProvider } from "@/components/ui/tooltip";
 

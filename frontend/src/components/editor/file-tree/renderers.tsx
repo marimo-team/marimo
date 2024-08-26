@@ -4,7 +4,7 @@ import { DataTable } from "@/components/data-table/data-table";
 import { parseCsvData } from "@/plugins/impl/vega/loader";
 import { Objects } from "@/utils/objects";
 import React, { useMemo } from "react";
-import { Base64String, base64ToDataURL } from "@/utils/json/base64";
+import { type Base64String, base64ToDataURL } from "@/utils/json/base64";
 
 export const CsvViewer: React.FC<{ contents: string }> = ({ contents }) => {
   const data = useMemo(() => parseCsvData(contents), [contents]);

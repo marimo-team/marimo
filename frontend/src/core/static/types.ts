@@ -1,8 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Base64String, DataURLString, JsonString } from "@/utils/json/base64";
-import { CellId } from "../cells/ids";
-import { OutputMessage } from "../kernel/messages";
-import { CellConfig } from "../network/types";
+import type {
+  Base64String,
+  DataURLString,
+  JsonString,
+} from "@/utils/json/base64";
+import type { CellId } from "../cells/ids";
+import type { OutputMessage } from "../kernel/messages";
+import type { CellConfig } from "../network/types";
 
 export interface StaticNotebookState {
   cellIds: CellId[];

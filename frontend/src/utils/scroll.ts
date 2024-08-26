@@ -19,7 +19,8 @@ export function smartScrollIntoView(
       behavior: "smooth",
     });
     return;
-  } else if (rect.bottom > window.innerHeight - bottomOffset) {
+  }
+  if (rect.bottom > window.innerHeight - bottomOffset) {
     // Element is below the viewport, scroll to its bottom
     body.scrollBy({
       top: rect.bottom - window.innerHeight + bottomOffset,

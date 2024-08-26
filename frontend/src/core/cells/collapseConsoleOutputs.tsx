@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { OutputMessage } from "@/core/kernel/messages";
+import type { OutputMessage } from "@/core/kernel/messages";
 import { invariant } from "@/utils/invariant";
 
 /**
@@ -60,7 +60,7 @@ function handleCarriageReturns(
   }
 
   // eslint-disable-next-line no-control-regex
-  const carriagePattern = new RegExp("\r[^\n]", "g");
+  const carriagePattern = /\r[^\n]/g;
   // collapse carriage returns in the final output's data
   let text = lastOutput.data;
   invariant(typeof text === "string", "expected string");
@@ -128,7 +128,6 @@ function truncateHead(consoleOutputs: OutputMessage[], limit: number) {
       { ...output, data: output_lines.slice(-nLinesToKeep).join("\n") },
       ...consoleOutputs.slice(cutoff + 1),
     ];
-  } else {
-    return [warningOutput, ...consoleOutputs.slice(cutoff + 1)];
   }
+  return [warningOutput, ...consoleOutputs.slice(cutoff + 1)];
 }

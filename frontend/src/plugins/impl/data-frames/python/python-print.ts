@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { TransformType } from "@/plugins/impl/data-frames/schema";
+import type { TransformType } from "@/plugins/impl/data-frames/schema";
 import { logNever } from "@/utils/assertNever";
-import { OperatorType } from "../utils/operators";
-import { ColumnId } from "../types";
+import type { OperatorType } from "../utils/operators";
+import type { ColumnId } from "../types";
 
 export function pythonPrintTransforms(
   dfName: string,

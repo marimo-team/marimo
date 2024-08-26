@@ -3,7 +3,7 @@ import { langs } from "@uiw/codemirror-extensions-langs";
 import ReactCodeMirror, {
   EditorView,
   Prec,
-  ReactCodeMirrorRef,
+  type ReactCodeMirrorRef,
   keymap,
 } from "@uiw/react-codemirror";
 import React, { memo } from "react";

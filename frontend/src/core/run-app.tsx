@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 
 import { notebookIsRunningAtom, useCellActions } from "./cells/cells";
-import { AppConfig } from "./config/config-schema";
+import type { AppConfig } from "./config/config-schema";
 import { RuntimeState } from "./kernel/RuntimeState";
 import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
 import { useAtomValue } from "jotai";

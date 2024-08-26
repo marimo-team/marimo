@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { invariant } from "@/utils/invariant";
-import { CellMessage, OutputMessage } from "../kernel/messages";
-import { CellId } from "./ids";
+import type { CellMessage, OutputMessage } from "../kernel/messages";
+import type { CellId } from "./ids";
 import { fromUnixTime } from "date-fns";
 
 export interface CellLog {

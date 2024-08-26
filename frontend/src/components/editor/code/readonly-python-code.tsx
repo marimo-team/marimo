@@ -2,7 +2,7 @@
 import { memo, useState } from "react";
 import CodeMirror, {
   EditorView,
-  ReactCodeMirrorProps,
+  type ReactCodeMirrorProps,
 } from "@uiw/react-codemirror";
 import { CopyIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";

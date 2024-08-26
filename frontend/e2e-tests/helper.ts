@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Page, expect } from "@playwright/test";
-import { HotkeyProvider, HotkeyAction } from "../src/core/hotkeys/hotkeys";
+import { type Page, expect } from "@playwright/test";
+import { HotkeyProvider, type HotkeyAction } from "../src/core/hotkeys/hotkeys";
 import path from "node:path";
 
 export async function createCellBelow(opts: {

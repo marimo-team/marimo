@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { OutputChannel } from "@/core/kernel/messages";
+import type { OutputChannel } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
 import { AnsiUp } from "ansi_up";
 

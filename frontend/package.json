@@ -149,6 +149,7 @@
     "test": "vitest",
     "typecheck": "tsc --noEmit",
     "lint": "run-s lint:eslint lint:stylelint format",
+    "lint:biome": "biome lint --write .",
     "lint:eslint": "TIMING=1 eslint src e2e-tests --max-warnings=0 --fix",
     "lint:stylelint": "stylelint src/**/*.css --fix",
     "format": "biome format --write .",

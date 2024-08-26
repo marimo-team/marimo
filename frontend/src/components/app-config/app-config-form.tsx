@@ -11,7 +11,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import {
-  AppConfig,
+  type AppConfig,
   AppConfigSchema,
   APP_WIDTHS,
   AppTitleSchema,

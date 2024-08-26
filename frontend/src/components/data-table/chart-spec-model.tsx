@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
+import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
 import { mint, orange, slate } from "@radix-ui/colors";
-import { ColumnHeaderSummary, FieldTypes } from "./types";
+import type { ColumnHeaderSummary, FieldTypes } from "./types";
 
 export class ColumnChartSpecModel<T> {
   private columnSummaries = new Map<string | number, ColumnHeaderSummary>();

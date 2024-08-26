@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import parse, { Element, DOMNode } from "html-react-parser";
+import parse, { Element, type DOMNode } from "html-react-parser";
 import React from "react";
 
 type ReplacementFn = Array<(domNode: DOMNode) => JSX.Element | undefined>;

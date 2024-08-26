@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Plugin, defineConfig } from "vite";
+import { type Plugin, defineConfig } from "vite";
 import fs from "fs";
 import path from "path";
 import react from "@vitejs/plugin-react-swc";

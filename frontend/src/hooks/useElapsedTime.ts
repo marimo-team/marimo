@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Milliseconds, Time } from "@/utils/time";
+import { type Milliseconds, Time } from "@/utils/time";
 import { useEffect, useRef, useState } from "react";
 
 /**

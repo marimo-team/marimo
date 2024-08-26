@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { z } from "zod";
 
-import { IPlugin, IPluginProps } from "@/plugins/types";
+import type { IPlugin, IPluginProps } from "@/plugins/types";
 import { Labeled } from "./common/labeled";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { AudioRecorder } from "@/components/audio/audio-recorder";
