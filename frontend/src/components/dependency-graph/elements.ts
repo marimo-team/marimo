@@ -1,11 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { CellData } from "@/core/cells/types";
-import { CellId } from "@/core/cells/ids";
+import type { CellData } from "@/core/cells/types";
+import type { CellId } from "@/core/cells/ids";
 import { store } from "@/core/state/jotai";
-import { Variables } from "@/core/variables/types";
-import { Edge, MarkerType, Node, NodeProps } from "reactflow";
-import { Atom } from "jotai";
+import type { Variables } from "@/core/variables/types";
+import { type Edge, MarkerType, type Node, type NodeProps } from "reactflow";
+import type { Atom } from "jotai";
 import { Arrays } from "@/utils/arrays";
 
 export interface NodeData {

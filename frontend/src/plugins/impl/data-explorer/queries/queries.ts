@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Query } from "compassql/build/src/query";
-import { SpecQuery } from "compassql/build/src/query/spec";
+import type { Query } from "compassql/build/src/query";
+import type { SpecQuery } from "compassql/build/src/query/spec";
 import { contains } from "vega-lite";
 import { NONPOSITION_SCALE_CHANNELS } from "vega-lite/build/src/channel";
 import {
@@ -9,16 +9,19 @@ import {
   addTemporalField,
 } from "./field-suggestion";
 import { recommend } from "compassql/build/src";
-import { Schema } from "compassql/build/src/schema";
-import { SpecQueryModelGroup, SpecQueryModel } from "compassql/build/src/model";
+import type { Schema } from "compassql/build/src/schema";
+import type {
+  SpecQueryModelGroup,
+  SpecQueryModel,
+} from "compassql/build/src/model";
 import { isResultTree, getTopResultTreeItem } from "compassql/build/src/result";
-import { NamedData } from "vega-lite/build/src/data";
+import type { NamedData } from "vega-lite/build/src/data";
 import { isFieldQuery } from "compassql/build/src/query/encoding";
-import { EncodingChannel, fromFieldQuery } from "../encoding";
-import { ChartSpec } from "../state/types";
+import { type EncodingChannel, fromFieldQuery } from "../encoding";
+import type { ChartSpec } from "../state/types";
 import { hasWildcards, isQueryEmpty } from "./utils";
 import { toSpecQuery } from "../spec";
-import {
+import type {
   Result,
   QueryCreator,
   ResultPlot,

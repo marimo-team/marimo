@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { vegaLoader } from "../loader";
 import { resolveVegaSpecData } from "../resolve-data";
-import { VegaLiteSpec } from "../types";
+import type { VegaLiteSpec } from "../types";
 
 function asSpec(spec: unknown): VegaLiteSpec {
   return spec as VegaLiteSpec;

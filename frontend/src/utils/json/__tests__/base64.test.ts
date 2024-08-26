@@ -1,6 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { expect, describe, test } from "vitest";
-import { deserializeBase64, Base64String, JsonString } from "../base64";
+import {
+  deserializeBase64,
+  type Base64String,
+  type JsonString,
+} from "../base64";
 
 describe("base64Utils", () => {
   const testData = {

@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { PropsWithChildren, memo, useLayoutEffect } from "react";
+import { type PropsWithChildren, memo, useLayoutEffect } from "react";
 import { useTheme } from "./useTheme";
 
 /**

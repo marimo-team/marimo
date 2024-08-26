@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { ZodType, ZodTypeDef } from "zod";
+import type { ZodType, ZodTypeDef } from "zod";
 
 export class TypedLocalStorage<T> {
   constructor(

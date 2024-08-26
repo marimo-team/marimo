@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { JsonString } from "./base64";
+import type { JsonString } from "./base64";
 
 /**
  * Parse an attribute value as JSON.

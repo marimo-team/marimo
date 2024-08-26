@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { onLCP, onFID, onCLS, Metric } from "web-vitals";
+import { onLCP, onFID, onCLS, type Metric } from "web-vitals";
 import { Logger } from "./Logger";
 
 export function reportVitals() {

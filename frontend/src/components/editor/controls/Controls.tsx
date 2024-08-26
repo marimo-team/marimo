@@ -190,7 +190,8 @@ const RunControlButton = ({
         </Button>
       </Tooltip>
     );
-  } else if (needsRun) {
+  }
+  if (needsRun) {
     return (
       <Tooltip content={renderShortcut("global.runStale")}>
         <Button

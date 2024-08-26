@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { ICellRendererPlugin } from "../types";
-import { SlidesLayout } from "./types";
+import type { ICellRendererPlugin } from "../types";
+import type { SlidesLayout } from "./types";
 import { z } from "zod";
 import { SlidesLayoutRenderer } from "./slides-layout";
 

@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { expect, describe, it } from "vitest";
 import { getDirectionOfBar } from "../params";
-import { VegaLiteUnitSpec } from "../types";
+import type { VegaLiteUnitSpec } from "../types";
 
 describe("getDirectionOfBar", () => {
   it("should return undefined if spec is not provided", () => {

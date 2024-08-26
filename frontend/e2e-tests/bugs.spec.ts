@@ -32,7 +32,7 @@ test("correctly initializes cells", async ({ page }, info) => {
   await createCellBelow({
     page,
     cellSelector: "text=bug 1",
-    content: `bug_1`,
+    content: "bug_1",
     run: true,
   });
 

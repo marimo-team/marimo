@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { LanguageAdapter, LanguageAdapterType } from "./types";
+import type { LanguageAdapter, LanguageAdapterType } from "./types";
 import { PythonLanguageAdapter } from "./python";
 import { MarkdownLanguageAdapter } from "./markdown";
 import { SQLLanguageAdapter } from "./sql";

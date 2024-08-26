@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { atom } from "jotai";
-import { CellId } from "./cells/ids";
+import type { CellId } from "./cells/ids";
 import { store } from "./state/jotai";
 import { assertNever } from "@/utils/assertNever";
 import { Logger } from "@/utils/Logger";

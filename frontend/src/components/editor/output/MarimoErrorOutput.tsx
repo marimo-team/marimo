@@ -2,7 +2,7 @@
 
 import { cn } from "../../../utils/cn";
 import { logNever } from "../../../utils/assertNever";
-import { MarimoError } from "../../../core/kernel/messages";
+import type { MarimoError } from "../../../core/kernel/messages";
 import { Alert } from "../../ui/alert";
 import { AlertTitle } from "../../ui/alert";
 
@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/accordion";
 import { Fragment } from "react";
 import { CellLinkError } from "../links/cell-link";
-import { CellId } from "@/core/cells/ids";
+import type { CellId } from "@/core/cells/ids";
 
 const Tip = (props: {
   className?: string;
@@ -62,7 +62,7 @@ export const MarimoErrorOutput = ({
                   <CellLinkError cellId={edge[0] as CellId} />
                   <span className="text-muted-foreground">
                     {" -> "}
-                    {edge[1].length == 1 ? edge[1] : edge[1].join(", ")}
+                    {edge[1].length === 1 ? edge[1] : edge[1].join(", ")}
                     {" -> "}
                   </span>
                   <CellLinkError cellId={edge[2] as CellId} />
@@ -98,8 +98,7 @@ export const MarimoErrorOutput = ({
         return (
           <Fragment key={idx}>
             <div className="mt-4">
-              {`The variable '${error.name}' can't be deleted because it was defined by another cell ` +
-                `(`}
+              {`The variable '${error.name}' can't be deleted because it was defined by another cell (`}
               <CellLinkError cellId={error.cells[0] as CellId} />
               {")"}
             </div>

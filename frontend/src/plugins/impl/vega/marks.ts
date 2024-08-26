@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { AnyMark, Mark } from "./types";
+import { type AnyMark, Mark } from "./types";
 
 export const Marks = {
   getMarkType(mark: AnyMark): Mark {

@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { z } from "zod";
-import { IPlugin, IPluginProps } from "@/plugins/types";
+import type { IPlugin, IPluginProps } from "@/plugins/types";
 import type { VegaLiteSpec } from "./types";
 
 import type { VegaComponentState, Data } from "./vega-component";

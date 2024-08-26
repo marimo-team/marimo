@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-base-to-string */
-import { FieldQuery } from "compassql/build/src/query/encoding";
+import type { FieldQuery } from "compassql/build/src/query/encoding";
 import { isAggregateOp } from "vega-lite/build/src/aggregate";
-import { FieldFunction, TimeUnitOp } from "./types";
+import type { FieldFunction, TimeUnitOp } from "./types";
 
 // This code is adapted and simplified from https://github.com/vega/voyager
 
@@ -16,11 +16,14 @@ export function toFieldQueryFunctionMixins(
 ): FieldQueryFunctionMixins {
   if (!fn) {
     return {};
-  } else if (fn === "bin") {
+  }
+  if (fn === "bin") {
     return { bin: true };
-  } else if (isAggregateOp(fn)) {
+  }
+  if (isAggregateOp(fn)) {
     return { aggregate: fn };
-  } else if (isTimeUnit(fn)) {
+  }
+  if (isTimeUnit(fn)) {
     return { timeUnit: fn };
   }
   return {};

@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { atom } from "jotai";
-import { OutputMessage } from "../kernel/messages";
+import type { OutputMessage } from "../kernel/messages";
 
 interface DebuggerState {
   cellId: string;

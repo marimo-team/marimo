@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { pythonPrint } from "@/plugins/impl/data-frames/python/python-print";
-import { TransformType } from "@/plugins/impl/data-frames/schema";
+import type { TransformType } from "@/plugins/impl/data-frames/schema";
 import { expect, describe, it } from "vitest";
 import {
   BOOLEAN_OPERATORS,
@@ -9,7 +9,7 @@ import {
   STRING_OPERATORS,
 } from "../../utils/operators";
 import { Objects } from "@/utils/objects";
-import { ColumnId } from "../../types";
+import type { ColumnId } from "../../types";
 
 describe("pythonPrint", () => {
   // Test for column_conversion

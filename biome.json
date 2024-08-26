@@ -1,0 +1,100 @@
+{
+  "$schema": "https://biomejs.dev/schemas/1.8.3/schema.json",
+  "formatter": {
+    "enabled": true,
+    "formatWithErrors": false,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineEnding": "lf",
+    "lineWidth": 80,
+    "attributePosition": "auto",
+    "ignore": [
+      "dist",
+      "lib",
+      "pnpm-lock.yaml",
+      "storybook-static",
+      "package.json"
+    ]
+  },
+  "organizeImports": {
+    "ignore": [
+      "dist",
+      "lib",
+      "pnpm-lock.yaml",
+      "storybook-static",
+      "package.json"
+    ],
+    "enabled": false
+  },
+  "linter": {
+    "ignore": [
+      "dist",
+      "lib",
+      "pnpm-lock.yaml",
+      "storybook-static",
+      "package.json"
+    ],
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "a11y": {
+        "noAutofocus": "off",
+        "noSvgWithoutTitle": "info",
+        "useButtonType": "info",
+        "useIframeTitle": "info",
+        "useKeyWithClickEvents": "off",
+        "useMediaCaption": "info"
+      },
+      "complexity": {
+        "noBannedTypes": "off",
+        "noForEach": "off",
+        "useArrowFunction": "error"
+      },
+      "correctness": {
+        "noInnerDeclarations": "error",
+        "noUnusedImports": "error",
+        "useExhaustiveDependencies": "off",
+        "useHookAtTopLevel": "info"
+      },
+      "security": {
+        "noDangerouslySetInnerHtml": "off"
+      },
+      "style": {
+        "noCommaOperator": "error",
+        "noNonNullAssertion": "off",
+        "noParameterAssign": "off",
+        "noUnusedTemplateLiteral": "error",
+        "useConsistentArrayType": "off",
+        "useImportType": "error",
+        "useNodejsImportProtocol": "error",
+        "useSingleVarDeclarator": "error",
+        "useTemplate": "error"
+      },
+      "suspicious": {
+        "noArrayIndexKey": "off",
+        "noAssignInExpressions": "info",
+        "noConsoleLog": "off",
+        "noDoubleEquals": "error",
+        "noEmptyBlockStatements": "info",
+        "noExplicitAny": "off",
+        "noImplicitAnyLet": "error",
+        "noRedeclare": "info",
+        "noShadowRestrictedNames": "error"
+      }
+    }
+  },
+  "javascript": {
+    "jsxRuntime": "reactClassic",
+    "formatter": {
+      "jsxQuoteStyle": "double",
+      "quoteProperties": "asNeeded",
+      "trailingCommas": "all",
+      "semicolons": "always",
+      "arrowParentheses": "always",
+      "bracketSpacing": true,
+      "bracketSameLine": false,
+      "quoteStyle": "double",
+      "attributePosition": "auto"
+    }
+  }
+}

@@ -46,7 +46,7 @@ const htmlDevPlugin = (): Plugin => {
         }
         html = html.replace("{{ filename }}", "notebook.py");
         html = html.replace("{{ mode }}", modeFromUrl);
-        html = html.replace(/<\/head>/, `<marimo-wasm></marimo-wasm></head>`);
+        html = html.replace(/<\/head>/, "<marimo-wasm></marimo-wasm></head>");
         return html;
       }
 
@@ -100,7 +100,7 @@ const htmlDevPlugin = (): Plugin => {
         devDoc.head.append(element);
       });
 
-      return "<!DOCTYPE html>\n" + devDoc.documentElement.outerHTML;
+      return `<!DOCTYPE html>\n${devDoc.documentElement.outerHTML}`;
     },
   };
 };

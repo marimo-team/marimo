@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { invariant } from "@/utils/invariant";
-import { SearchCursor, SearchQuery } from "@codemirror/search";
-import { EditorState } from "@codemirror/state";
+import type { SearchCursor, SearchQuery } from "@codemirror/search";
+import type { EditorState } from "@codemirror/state";
 
 type SearchResult = typeof SearchCursor.prototype.value;
 

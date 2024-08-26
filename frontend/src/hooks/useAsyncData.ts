@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { SetStateAction } from "jotai";
-import { DependencyList, useState, useEffect, Dispatch } from "react";
+import type { SetStateAction } from "jotai";
+import { type DependencyList, useState, useEffect, type Dispatch } from "react";
 
 interface AsyncDataResponse<T> {
   data: T | undefined;

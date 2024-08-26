@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { CodeMirror, getCM, Vim } from "@replit/codemirror-vim";
+import { type CodeMirror, getCM, Vim } from "@replit/codemirror-vim";
 import { type EditorView, keymap, ViewPlugin } from "@codemirror/view";
 import {
   isAtEndOfEditor,

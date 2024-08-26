@@ -1,11 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React, { memo } from "react";
-import { ICellRendererProps } from "../types";
-import { SlidesLayout } from "./types";
+import type { ICellRendererProps } from "../types";
+import type { SlidesLayout } from "./types";
 
-import { CellId } from "@/core/cells/ids";
-import { CellRuntimeState } from "@/core/cells/types";
-import { AppMode } from "@/core/mode";
+import type { CellId } from "@/core/cells/ids";
+import type { CellRuntimeState } from "@/core/cells/types";
+import type { AppMode } from "@/core/mode";
 import { OutputArea } from "../../Output";
 
 type Props = ICellRendererProps<SlidesLayout>;
