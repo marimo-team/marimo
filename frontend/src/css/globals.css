@@ -1,25 +1,25 @@
-@import url("@radix-ui/colors/grass.css");
-@import url("@radix-ui/colors/grass-dark.css");
-@import url("@radix-ui/colors/gray.css");
-@import url("@radix-ui/colors/gray-dark.css");
-@import url("@radix-ui/colors/lime.css");
-@import url("@radix-ui/colors/lime-dark.css");
-@import url("@radix-ui/colors/red.css");
-@import url("@radix-ui/colors/red-dark.css");
-@import url("@radix-ui/colors/sky.css");
-@import url("@radix-ui/colors/sky-dark.css");
-@import url("@radix-ui/colors/cyan.css");
-@import url("@radix-ui/colors/cyan-dark.css");
-@import url("@radix-ui/colors/slate.css");
-@import url("@radix-ui/colors/slate-dark.css");
-@import url("@radix-ui/colors/sage.css");
-@import url("@radix-ui/colors/sage-dark.css");
-@import url("@radix-ui/colors/amber.css");
-@import url("@radix-ui/colors/amber-dark.css");
-@import url("@radix-ui/colors/yellow.css");
-@import url("@radix-ui/colors/yellow-dark.css");
-@import url("@radix-ui/colors/blue.css");
-@import url("@radix-ui/colors/blue-dark.css");
+@import url('@radix-ui/colors/grass.css');
+@import url('@radix-ui/colors/grass-dark.css');
+@import url('@radix-ui/colors/gray.css');
+@import url('@radix-ui/colors/gray-dark.css');
+@import url('@radix-ui/colors/lime.css');
+@import url('@radix-ui/colors/lime-dark.css');
+@import url('@radix-ui/colors/red.css');
+@import url('@radix-ui/colors/red-dark.css');
+@import url('@radix-ui/colors/sky.css');
+@import url('@radix-ui/colors/sky-dark.css');
+@import url('@radix-ui/colors/cyan.css');
+@import url('@radix-ui/colors/cyan-dark.css');
+@import url('@radix-ui/colors/slate.css');
+@import url('@radix-ui/colors/slate-dark.css');
+@import url('@radix-ui/colors/sage.css');
+@import url('@radix-ui/colors/sage-dark.css');
+@import url('@radix-ui/colors/amber.css');
+@import url('@radix-ui/colors/amber-dark.css');
+@import url('@radix-ui/colors/yellow.css');
+@import url('@radix-ui/colors/yellow-dark.css');
+@import url('@radix-ui/colors/blue.css');
+@import url('@radix-ui/colors/blue-dark.css');
 
 @tailwind base;
 @tailwind components;
@@ -30,79 +30,64 @@
   .marimo {
     color-scheme: light;
 
-    --monospace-font: "Fira Mono";
-    --text-font: "PT Sans", sans-serif;
-    --heading-font: "Lora", serif;
+    --monospace-font: var(--marimo-monospace-font, 'Fira Mono', monospace);
+    --text-font: var(--marimo-text-font, 'PT Sans', sans-serif);
+    --heading-font: var(--marimo-heading-font, 'Lora', serif);
 
     /* Radix light colors for reference: https://github.com/radix-ui/colors/blob/main/src/light.ts */
 
-    --background: 0 0% 100%;
-    --foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 47.4% 11.2%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 47.4% 11.2%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 0 0% 64%; /* tailwind slate-400 */
-    --primary: 208 93.5% 47.4%; /* blue-10 */
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --accent: 209 100% 96.5%; /* blue-3 */
-    --accent-foreground: 211 90% 42%; /* blue-11 */
-    --destructive: 0 100% 70%;
-    --destructive-foreground: 210 40% 98%;
-    --error: 0 77% 64%;
-    --error-foreground: 210 40% 98%;
-    --success: 130 100% 70%;
-    --success-foreground: 210 40% 98%;
-    --action: 52 96.8% 82%;
-    --action-hover: 54 100% 86.7%;
-    --action-foreground: 42 100% 29%;
-    --link: 211 90% 42% /* blue-11 */;
-    --link-visited: 272 51% 54% /* purple-9 */;
-    --ring: 215 20.2% 65.1%;
+    --background: hsl(0deg 0% 100%);
+    --foreground: hsl(222.2deg 47.4% 11.2%);
+    --muted: hsl(210deg 40% 96.1%);
+    --muted-foreground: hsl(215.4deg 16.3% 46.9%);
+    --popover: hsl(0deg 0% 100%);
+    --popover-foreground: hsl(222.2deg 47.4% 11.2%);
+    --card: hsl(0deg 0% 100%);
+    --card-foreground: hsl(222.2deg 47.4% 11.2%);
+    --border: hsl(214.3deg 31.8% 91.4%);
+    --input: hsl(0deg 0% 64%); /* tailwind slate-400 */
+    --primary: hsl(208deg 93.5% 47.4%); /* blue-10 */
+    --primary-foreground: hsl(210deg 40% 98%);
+    --secondary: hsl(210deg 40% 96.1%);
+    --secondary-foreground: hsl(222.2deg 47.4% 11.2%);
+    --accent: hsl(209deg 100% 96.5%); /* blue-3 */
+    --accent-foreground: hsl(211deg 90% 42%); /* blue-11 */
+    --destructive: hsl(0deg 100% 70%);
+    --destructive-foreground: hsl(210deg 40% 98%);
+    --error: hsl(0deg 77% 64%);
+    --error-foreground: hsl(210deg 40% 98%);
+    --success: hsl(130deg 100% 70%);
+    --success-foreground: hsl(210deg 40% 98%);
+    --action: hsl(52deg 96.8% 82%);
+    --action-hover: hsl(54deg 100% 86.7%);
+    --action-foreground: hsl(42deg 100% 29%);
+    --link: hsl(211deg 90% 42%); /* blue-11 */
+    --link-visited: hsl(272deg 51% 54%); /* purple-9 */
+    --ring: hsl(215deg 20.2% 65.1%);
     --radius: 8px;
     --base-shadow: hsl(0deg 0% 85% / 40%);
     --base-shadow-darker: hsl(0deg 0% 50% / 40%);
 
     /* Fuzzy shadows. */
     --shadow-xxs: 0px 0px 2px 0px var(--base-shadow-darker);
-    --shadow-xs: 1px 1px 2px 0px var(--base-shadow),
-      0px 0px 2px 0px hsl(0deg 0% 25% / 5%);
-    --shadow-sm: 2px 2px 2px 0px var(--base-shadow),
-      0px 0px 2px 0px hsl(0deg 0% 25% / 5%);
-    --shadow-md: 4px 4px 4px 0px var(--base-shadow),
-      0 0px 4px 0px hsl(0deg 0% 60% / 5%);
-    --shadow-lg: 5px 6px 4px 0px var(--base-shadow),
-      0 0px 4px 0px hsl(0deg 0% 75% / 5%);
-    --shadow-xl: 8px 9px 4px 0px var(--base-shadow),
-      0 0px 6px 0px hsl(0deg 0% 85% / 5%);
+    --shadow-xs: 1px 1px 2px 0px var(--base-shadow), 0px 0px 2px 0px hsl(0deg 0% 25% / 5%);
+    --shadow-sm: 2px 2px 2px 0px var(--base-shadow), 0px 0px 2px 0px hsl(0deg 0% 25% / 5%);
+    --shadow-md: 4px 4px 4px 0px var(--base-shadow), 0 0px 4px 0px hsl(0deg 0% 60% / 5%);
+    --shadow-lg: 5px 6px 4px 0px var(--base-shadow), 0 0px 4px 0px hsl(0deg 0% 75% / 5%);
+    --shadow-xl: 8px 9px 4px 0px var(--base-shadow), 0 0px 6px 0px hsl(0deg 0% 85% / 5%);
 
     /* Shadow states. */
     --stale-color: hsl(42deg 56% 44% / 25%);
-    --light-shadow: 2px 2px 0px 0px var(--base-shadow),
-      0px 0px 2px 0px hsl(0deg 0% 25% / 50%);
-    --light-shadow-stale: 4px 4px 0px 0px var(--stale-color),
-      0px 0px 4px 0px var(--stale-color);
-    --medium-shadow: 4px 4px 0px 0px var(--base-shadow),
-      0px 0px 4px 0px hsl(0deg 0% 60% / 50%);
-    --medium-shadow-stale: 6px 6px 0px 0px var(--stale-color),
-      0px 0px 4px 0px var(--stale-color);
-    --light-shadow-error: 4px 4px 0px 0px var(--red-8),
-      0px 0px 2px 0px var(--red-8);
-    --medium-shadow-error: 6px 6px 0px 0px var(--red-8),
-      0px 0px 2px 0px var(--red-8);
-    --heavy-shadow: 5px 6px 0px 0px var(--base-shadow),
-      0px 0px 4px 0px hsl(0deg 0% 75% / 50%);
-    --heavy-shadow-stale: 7px 8px 0px 0px var(--stale-color),
-      0px 0px 4px 0px var(--stale-color);
-    --heavy-shadow-error: 7px 8px 0px 0px var(--red-8),
-      0px 0px 2px 0px var(--red-8);
-    --light-shadow-accent: 4px 4px 0px 0px hsl(var(--accent)),
-      0px 0px 2px 0px hsl(var(--accent));
+    --light-shadow: 2px 2px 0px 0px var(--base-shadow), 0px 0px 2px 0px hsl(0deg 0% 25% / 50%);
+    --light-shadow-stale: 4px 4px 0px 0px var(--stale-color), 0px 0px 4px 0px var(--stale-color);
+    --medium-shadow: 4px 4px 0px 0px var(--base-shadow), 0px 0px 4px 0px hsl(0deg 0% 60% / 50%);
+    --medium-shadow-stale: 6px 6px 0px 0px var(--stale-color), 0px 0px 4px 0px var(--stale-color);
+    --light-shadow-error: 4px 4px 0px 0px var(--red-8), 0px 0px 2px 0px var(--red-8);
+    --medium-shadow-error: 6px 6px 0px 0px var(--red-8), 0px 0px 2px 0px var(--red-8);
+    --heavy-shadow: 5px 6px 0px 0px var(--base-shadow), 0px 0px 4px 0px hsl(0deg 0% 75% / 50%);
+    --heavy-shadow-stale: 7px 8px 0px 0px var(--stale-color), 0px 0px 4px 0px var(--stale-color);
+    --heavy-shadow-error: 7px 8px 0px 0px var(--red-8), 0px 0px 2px 0px var(--red-8);
+    --light-shadow-accent: 4px 4px 0px 0px var(--accent), 0px 0px 2px 0px var(--accent);
   }
 
   .dark,
@@ -111,26 +96,26 @@
 
     /* Radix dark colors for reference: https://github.com/radix-ui/colors/blob/main/src/dark.ts */
 
-    --background: 150 7.7% 10.2%; /* sage-2 */
-    --foreground: 155 7% 93%; /* sage-12 */
-    --muted: 151 5.5% 15.2%; /* sage-3 */
-    --muted-foreground: 155 5% 68.3%; /* sage-11 */
-    --popover: 151 5.5% 15.2%; /* sage-3 */
-    --popover-foreground: 155 5% 68.3%; /* sage-11 */
-    --card: 151 5.5% 15.2%; /* sage-3 */
-    --card-foreground: 155 5% 76.3%; /* sage-11, modified */
-    --border: 153 3.7% 24.2%; /* sage-6 */
-    --input: 154 3.3% 28.7%; /* sage-7 */
-    --primary: 192 59.8% 39%; /* cyan-8 */
-    --primary-foreground: 190 80% 84%; /* cyan-12 */
-    --secondary: 155 7% 93%; /* sage-12 */
-    --secondary-foreground: 151 5.5% 15.2%; /* sage-3 */
-    --destructive: 0 100% 70%; /* red-10 */
-    --destructive-foreground: 210 40% 98%; /* red-1 */
-    --accent: 192 56.6% 26.5%; /* cyan-7 */
-    --accent-foreground: 190 80% 84%; /* cyan-12 */
-    --link: 211 90% 62% /* blue-11 */;
-    --link-visited: 272 51% 74% /* purple-9 */;
+    --background: hsl(150deg 7.7% 10.2%); /* sage-2 */
+    --foreground: hsl(155deg 7% 93%); /* sage-12 */
+    --muted: hsl(180deg 14% 1%); /* sage-3 */
+    --muted-foreground: hsl(155deg 5% 68.3%); /* sage-11 */
+    --popover: hsl(151deg 5.5% 15.2%); /* sage-3 */
+    --popover-foreground: hsl(155deg 5% 68.3%); /* sage-11 */
+    --card: hsl(151deg 5.5% 15.2%); /* sage-3 */
+    --card-foreground: hsl(155deg 5% 76.3%); /* sage-11, modified */
+    --border: hsl(153deg 3.7% 24.2%); /* sage-6 */
+    --input: hsl(154deg 3.3% 28.7%); /* sage-7 */
+    --primary: hsl(192deg 59.8% 39%); /* cyan-8 */
+    --primary-foreground: hsl(190deg 80% 84%); /* cyan-12 */
+    --secondary: hsl(155deg 7% 93%); /* sage-12 */
+    --secondary-foreground: hsl(151deg 5.5% 15.2%); /* sage-3 */
+    --destructive: hsl(0deg 100% 70%); /* red-10 */
+    --destructive-foreground: hsl(210deg 40% 98%); /* red-1 */
+    --accent: hsl(192deg 56.6% 26.5%); /* cyan-7 */
+    --accent-foreground: hsl(190deg 80% 84%); /* cyan-12 */
+    --link: hsl(211deg 90% 62%); /* blue-11 */
+    --link-visited: hsl(272deg 51% 74%); /* purple-9 */
 
     /* Base shadows. */
     --base-shadow: hsl(0deg 0% 15% / 60%);
@@ -138,39 +123,24 @@
 
     /* Fuzzy shadows. */
     --shadow-xxs: 0px 0px 2px 0px var(--base-shadow-darker);
-    --shadow-xs: 1px 1px 2px 0px var(--base-shadow),
-      0px 0px 2px 0px hsl(0deg 0% 75% / 50%);
-    --shadow-sm: 2px 2px 2px 0px var(--base-shadow),
-      0px 0px 2px 0px hsl(0deg 0% 75% / 50%);
-    --shadow-md: 4px 4px 4px 0px var(--base-shadow),
-      0 0px 4px 0px hsl(0deg 0% 40% / 50%);
-    --shadow-lg: 5px 6px 4px 0px var(--base-shadow),
-      0 0px 4px 0px hsl(0deg 0% 25% / 50%);
-    --shadow-xl: 8px 9px 4px 0px var(--base-shadow),
-      0 0px 6px 0px hsl(0deg 0% 15% / 50%);
+    --shadow-xs: 1px 1px 2px 0px var(--base-shadow), 0px 0px 2px 0px hsl(0deg 0% 75% / 50%);
+    --shadow-sm: 2px 2px 2px 0px var(--base-shadow), 0px 0px 2px 0px hsl(0deg 0% 75% / 50%);
+    --shadow-md: 4px 4px 4px 0px var(--base-shadow), 0 0px 4px 0px hsl(0deg 0% 40% / 50%);
+    --shadow-lg: 5px 6px 4px 0px var(--base-shadow), 0 0px 4px 0px hsl(0deg 0% 25% / 50%);
+    --shadow-xl: 8px 9px 4px 0px var(--base-shadow), 0 0px 6px 0px hsl(0deg 0% 15% / 50%);
 
     /* Shadow states. */
     --stale-color: hsl(42deg 56% 44% / 75%);
-    --light-shadow: 2px 2px 0px 0px var(--base-shadow),
-      0px 0px 2px 0px hsl(0deg 0% 75% / 50%);
-    --light-shadow-stale: 4px 4px 0px 0px var(--stale-color),
-      0px 0px 4px 0px var(--stale-color);
-    --medium-shadow: 4px 4px 0px 0px var(--base-shadow),
-      0px 0px 4px 0px hsl(0deg 0% 100% / 50%);
-    --medium-shadow-stale: 6px 6px 0px 0px var(--stale-color),
-      0px 0px 4px 0px var(--stale-color);
-    --light-shadow-error: 4px 4px 0px 0px var(--red-5),
-      0px 0px 2px 0px var(--red-5);
-    --medium-shadow-error: 6px 6px 0px 0px var(--red-5),
-      0px 0px 2px 0px var(--red-5);
-    --heavy-shadow: 5px 6px 0px 0px var(--base-shadow),
-      0px 0px 4px 0px hsl(0deg 0% 100% / 50%);
-    --heavy-shadow-stale: 7px 8px 0px 0px var(--stale-color),
-      0px 0px 4px 0px var(--stale-color);
-    --heavy-shadow-error: 7px 8px 0px 0px var(--red-5),
-      0px 0px 2px 0px var(--red-5);
-    --light-shadow-accent: 4px 4px 0px 0px hsl(var(--accent)),
-      0px 0px 2px 0px hsl(var(--accent));
+    --light-shadow: 2px 2px 0px 0px var(--base-shadow), 0px 0px 2px 0px hsl(0deg 0% 75% / 50%);
+    --light-shadow-stale: 4px 4px 0px 0px var(--stale-color), 0px 0px 4px 0px var(--stale-color);
+    --medium-shadow: 4px 4px 0px 0px var(--base-shadow), 0px 0px 4px 0px hsl(0deg 0% 100% / 50%);
+    --medium-shadow-stale: 6px 6px 0px 0px var(--stale-color), 0px 0px 4px 0px var(--stale-color);
+    --light-shadow-error: 4px 4px 0px 0px var(--red-5), 0px 0px 2px 0px var(--red-5);
+    --medium-shadow-error: 6px 6px 0px 0px var(--red-5), 0px 0px 2px 0px var(--red-5);
+    --heavy-shadow: 5px 6px 0px 0px var(--base-shadow), 0px 0px 4px 0px hsl(0deg 0% 100% / 50%);
+    --heavy-shadow-stale: 7px 8px 0px 0px var(--stale-color), 0px 0px 4px 0px var(--stale-color);
+    --heavy-shadow-error: 7px 8px 0px 0px var(--red-5), 0px 0px 2px 0px var(--red-5);
+    --light-shadow-accent: 4px 4px 0px 0px var(--accent), 0px 0px 2px 0px var(--accent);
   }
 }
 
@@ -182,9 +152,7 @@
   body {
     @apply bg-background text-foreground;
 
-    font-feature-settings:
-      "rlig" 1,
-      "calt" 1;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
   }
 
   a.hyperlink {

@@ -114,6 +114,35 @@ export const AppConfigForm: React.FC = () => {
             </div>
           )}
         />
+        <FormField
+          control={form.control}
+          name="css_file"
+          render={({ field }) => (
+            <div className="flex flex-col gap-y-1">
+              <FormItem className="flex flex-row items-center space-x-1 space-y-0">
+                <FormLabel className="flex-shrink-0">Custom CSS</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    value={field.value ?? ""}
+                    placeholder="custom.css"
+                    onChange={(e) => {
+                      field.onChange(e.target.value);
+                      if (AppTitleSchema.safeParse(e.target.value).success) {
+                        document.title = e.target.value;
+                      }
+                    }}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+              <FormDescription>
+                A filepath to a custom css file to be injected into the
+                notebook.
+              </FormDescription>
+            </div>
+          )}
+        />
       </form>
     </Form>
   );
