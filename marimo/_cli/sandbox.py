@@ -32,9 +32,9 @@ def run_in_sandbox(
     if name is not None and os.path.isfile(name):
         with open(name) as f:
             dependencies = _get_dependencies(f.read()) or []
-        # remove marimo from dependencies
-        if "marimo" in dependencies:
-            dependencies.remove("marimo")
+        # Add marimo, if it's not already there
+        if "marimo" not in dependencies and len(dependencies) > 0:
+            dependencies.append("marimo")
 
     if dependencies:
         import tempfile
