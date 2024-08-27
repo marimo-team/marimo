@@ -95,6 +95,34 @@ async def test_add_script_metadata_uv_off(
         assert "" == f.read()
 
 
+@pytest.mark.skipif(not HAS_UV, reason="uv not installed")
+async def test_add_script_metadata_uv_no_filename(
+    tmp_path: pathlib.Path, mocked_kernel: MockedKernel
+) -> None:
+    filename = str(tmp_path / "notebook.py")
+    # Create empty file
+    with open(filename, "w") as f:  # noqa: ASYNC230
+        f.write("")
+
+    k = mocked_kernel.k
+    k._update_runtime_from_user_config(
+        merge_default_config(
+            {
+                "package_management": {
+                    "manager": "uv",
+                    "add_script_metadata": True,
+                }
+            },
+        )
+    )
+
+    # Add
+    k._maybe_register_cell("0", "import marimo as mo\nimport os")
+
+    with open(filename) as f:  # noqa: ASYNC230
+        assert "" == f.read()
+
+
 async def test_add_script_metadata_pip_noop(
     tmp_path: pathlib.Path, mocked_kernel: MockedKernel
 ) -> None:

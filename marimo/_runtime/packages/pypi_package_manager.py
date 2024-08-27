@@ -50,7 +50,7 @@ class UvPackageManager(PypiPackageManager):
     async def _install(self, package: str) -> bool:
         return self.run(["uv", "pip", "install", package])
 
-    def add_script_metadata_to_notebook(
+    def update_notebook_script_metadata(
         self,
         filepath: str,
         import_namespaces_to_add: List[str],

@@ -1659,12 +1659,14 @@ class Kernel:
             return
 
         try:
-            LOGGER.debug("Adding script metadata to notebook: %s", filename)
-            LOGGER.debug("Adding namespaces: %s", import_namespaces_to_add)
             LOGGER.debug(
-                "Removing namespaces: %s", import_namespaces_to_remove
+                "Updating script metadata: %s. Adding namespaces: %s."
+                " Removing namespaces: %s",
+                filename,
+                import_namespaces_to_add,
+                import_namespaces_to_remove,
             )
-            self.package_manager.add_script_metadata_to_notebook(
+            self.package_manager.update_notebook_script_metadata(
                 filepath=filename,
                 import_namespaces_to_add=import_namespaces_to_add,
                 import_namespaces_to_remove=import_namespaces_to_remove,

@@ -54,7 +54,7 @@ class PackageManager(abc.ABC):
         proc = subprocess.run(command)  # noqa: ASYNC101
         return proc.returncode == 0
 
-    def add_script_metadata_to_notebook(
+    def update_notebook_script_metadata(
         self,
         filepath: str,
         import_namespaces_to_add: List[str],
@@ -62,7 +62,8 @@ class PackageManager(abc.ABC):
     ) -> None:
         del filepath, import_namespaces_to_add, import_namespaces_to_remove
         """
-        Add inline script metadata metadata to the marimo notebook.
+        Add or remove inline script metadata metadata
+        in the marimo notebook.
 
         This follows PEP 723 https://peps.python.org/pep-0723/
         """
