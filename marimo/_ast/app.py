@@ -419,7 +419,7 @@ class AppMeta:
     def apply_theme(self) -> None:
         """Apply the theme to the app."""
         theme = self.theme
-        autohandle_third_party(theme)
+        autohandle_third_party(theme)  # type: ignore[arg-type]
 
 
 class CellManager:

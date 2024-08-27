@@ -1,8 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
-from abc import ABC, abstractmethod
 import importlib
-from typing import Literal
 import logging
+from abc import ABC, abstractmethod
+from typing import Literal
 
 LOGGER = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ class PlotlyThemer(Themer):
         """
         Apply the theme to Plotly.
         """
-        import plotly.io as pio
+        import plotly.io as pio  # type: ignore
 
         pio.templates.default = (
             "plotly_dark" if theme == "dark" else "plotly_white"
@@ -69,9 +69,9 @@ class AltairThemer(Themer):
         """
         Apply the theme to Altair.
         """
-        import altair as alt
+        import altair as alt  # type: ignore
 
-        alt.themes.enable('dark' if theme == "dark" else 'default')
+        alt.themes.enable("dark" if theme == "dark" else "default")  # type: ignore
 
 
 # class SeabornThemer(Themer):
@@ -106,9 +106,9 @@ class BokehThemer(Themer):
         """
         Apply the theme to Bokeh.
         """
-        from bokeh.io import curdoc
+        from bokeh.io import curdoc  # type: ignore
 
-        curdoc().theme = "dark_minimal" if theme == "dark" else "caliber"
+        curdoc().theme = "dark_minimal" if theme == "dark" else "caliber"  # type: ignore
 
 
 # class PygalThemer(Themer):
@@ -158,13 +158,13 @@ class HoloviewsThemer(Themer):
         """
         Apply the theme to Holoviews.
         """
-        import holoviews as hv
+        import holoviews as hv  # type: ignore
 
-        hv.renderer('bokeh').theme = (
-            'dark_minimal' if theme == "dark" else 'caliber'
+        hv.renderer("bokeh").theme = (
+            "dark_minimal" if theme == "dark" else "caliber"
         )
-        hv.renderer('plotly').theme = (
-            'plotly_dark' if theme == "dark" else 'plotly_white'
+        hv.renderer("plotly").theme = (
+            "plotly_dark" if theme == "dark" else "plotly_white"
         )
 
 
@@ -205,7 +205,7 @@ class HoloviewsThemer(Themer):
 #             nx.draw_default = nx.draw
 
 
-def autohandle_third_party(theme: Theme):
+def autohandle_third_party(theme: Theme) -> None:
     """
     Apply the theme to all third-party packages.
     """
