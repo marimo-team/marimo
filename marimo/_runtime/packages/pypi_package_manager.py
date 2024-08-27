@@ -69,12 +69,20 @@ class UvPackageManager(PypiPackageManager):
         ]
 
         # Add script metadata
-        self.run(["uv", "add", "--script", filepath] + packages_to_add)
+        if packages_to_add:
+            self.run(
+                ["uv", "--quiet", "add", "--script", filepath]
+                + packages_to_add
+            )
         # Remove script metadata
-        self.run(["uv", "remove", "--script", filepath] + packages_to_remove)
+        if packages_to_remove:
+            self.run(
+                ["uv", "--quiet", "remove", "--script", filepath]
+                + packages_to_remove
+            )
 
     def _is_installed(self, package: str) -> bool:
-        return self.run(["uv", "pip", "show", package])
+        return self.run(["uv", "--quiet", "pip", "show", package])
 
 
 class RyePackageManager(PypiPackageManager):
