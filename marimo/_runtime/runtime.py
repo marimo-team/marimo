@@ -643,11 +643,13 @@ class Kernel:
             if self._should_add_script_metadata():
                 cell = self.graph.cells.get(cell_id, None)
                 if cell:
-                    existing_imported = set(
-                        [im.namespace for im in cell.imports]
+                    prev_imports = (
+                        set([im.namespace for im in previous_cell.imports])
+                        if previous_cell
+                        else set[Name]()
                     )
-                    to_add = cell.imported_namespaces - existing_imported
-                    to_remove = existing_imported - cell.imported_namespaces
+                    to_add = cell.imported_namespaces - prev_imports
+                    to_remove = prev_imports - cell.imported_namespaces
                     self._add_script_metadata(
                         import_namespaces_to_add=list(to_add),
                         import_namespaces_to_remove=list(to_remove),
