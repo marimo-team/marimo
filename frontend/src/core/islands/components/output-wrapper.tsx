@@ -2,17 +2,17 @@
 import { OutputRenderer } from "@/components/editor/Output";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
-import { NotebookState, notebookAtom } from "@/core/cells/cells";
-import { CellId } from "@/core/cells/ids";
+import { type NotebookState, notebookAtom } from "@/core/cells/cells";
+import type { CellId } from "@/core/cells/ids";
 import { isOutputEmpty } from "@/core/cells/outputs";
-import { CellRuntimeState } from "@/core/cells/types";
+import type { CellRuntimeState } from "@/core/cells/types";
 import { sendRun } from "@/core/network/requests";
 import { useEventListener } from "@/hooks/useEventListener";
 import { Logger } from "@/utils/Logger";
 import { useAtomValue } from "jotai";
 import { selectAtom } from "jotai/utils";
 import { CopyIcon, Loader2Icon, PlayIcon } from "lucide-react";
-import React, { PropsWithChildren, useCallback, useState } from "react";
+import React, { type PropsWithChildren, useCallback, useState } from "react";
 
 interface Props {
   cellId: CellId;

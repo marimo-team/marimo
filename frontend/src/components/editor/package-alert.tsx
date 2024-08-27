@@ -123,7 +123,8 @@ export const PackageAlert: React.FC = (props) => {
         </Banner>
       </div>
     );
-  } else if (isInstallingPackageAlert(packageAlert)) {
+  }
+  if (isInstallingPackageAlert(packageAlert)) {
     const { status, title, titleIcon, description } =
       getInstallationStatusElements(packageAlert.packages);
     if (status === "installed") {
@@ -184,10 +185,9 @@ export const PackageAlert: React.FC = (props) => {
         </Banner>
       </div>
     );
-  } else {
-    logNever(packageAlert);
-    return null;
   }
+  logNever(packageAlert);
+  return null;
 };
 
 function getInstallationStatusElements(packages: PackageInstallationStatus) {
@@ -206,21 +206,21 @@ function getInstallationStatusElements(packages: PackageInstallationStatus) {
       titleIcon: <DownloadCloudIcon className="w-5 h-5 inline-block mr-2" />,
       description: "Installing packages:",
     };
-  } else if (status === "installed") {
+  }
+  if (status === "installed") {
     return {
       status: "installed",
       title: "All packages installed!",
       titleIcon: <PackageCheckIcon className="w-5 h-5 inline-block mr-2" />,
       description: "Installed packages:",
     };
-  } else {
-    return {
-      status: "failed",
-      title: "Some packages failed to install",
-      titleIcon: <PackageXIcon className="w-5 h-5 inline-block mr-2" />,
-      description: "See terminal for error logs.",
-    };
   }
+  return {
+    status: "failed",
+    title: "Some packages failed to install",
+    titleIcon: <PackageXIcon className="w-5 h-5 inline-block mr-2" />,
+    description: "See terminal for error logs.",
+  };
 }
 
 const ProgressIcon = ({

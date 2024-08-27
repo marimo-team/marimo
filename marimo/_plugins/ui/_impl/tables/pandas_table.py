@@ -109,10 +109,14 @@ class PandasTableManagerFactory(TableManagerFactory):
                     for column in self.data.columns
                 }
 
-            def limit(self, num: int) -> PandasTableManager:
-                if num < 0:
-                    raise ValueError("Limit must be a positive integer")
-                return PandasTableManager(self.data.head(num))
+            def take(self, count: int, offset: int) -> PandasTableManager:
+                if count < 0:
+                    raise ValueError("Count must be a positive integer")
+                if offset < 0:
+                    raise ValueError("Offset must be a non-negative integer")
+                return PandasTableManager(
+                    self.data.iloc[offset : offset + count]
+                )
 
             def search(self, query: str) -> TableManager[Any]:
                 query = query.lower()

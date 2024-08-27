@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
 
 import { invariant } from "@/utils/invariant";
-import { TypedString } from "../../utils/typed";
+import type { TypedString } from "../../utils/typed";
 
 const lowercase = "abcdefghijklmnopqrstuvwxyz";
 const uppercase = lowercase.toUpperCase();

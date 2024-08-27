@@ -59,7 +59,7 @@ describe("SQLLanguageAdapter", () => {
       const pythonCode = 'next_df = print("Hello, World!")';
       expect(() =>
         adapter.transformIn(pythonCode),
-      ).toThrowErrorMatchingInlineSnapshot(`[Error: Not supported]`);
+      ).toThrowErrorMatchingInlineSnapshot("[Error: Not supported]");
     });
 
     it("should handle an empty string", () => {

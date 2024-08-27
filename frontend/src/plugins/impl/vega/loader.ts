@@ -1,7 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { DataFormat } from "./types";
+import type { DataFormat } from "./types";
 import { isNumber } from "lodash-es";
-import { typeParsers, createLoader, read, FieldTypes } from "./vega-loader";
+import {
+  typeParsers,
+  createLoader,
+  read,
+  type FieldTypes,
+} from "./vega-loader";
 
 // Augment the typeParsers to support Date
 typeParsers.date = (value: string) => new Date(value).toISOString();

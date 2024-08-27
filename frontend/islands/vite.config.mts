@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Plugin, defineConfig } from "vite";
-import fs from "fs";
-import path from "path";
+import { type Plugin, defineConfig } from "vite";
+import fs from "node:fs";
+import path from "node:path";
 import react from "@vitejs/plugin-react-swc";
 import tsconfigPaths from "vite-tsconfig-paths";
 import packageJson from "../package.json";
@@ -16,7 +16,7 @@ const htmlDevPlugin = (): Plugin => {
         "utf-8",
       );
 
-      return "<!DOCTYPE html>\n" + indexHtml;
+      return `<!DOCTYPE html>\n${indexHtml}`;
     },
   };
 };

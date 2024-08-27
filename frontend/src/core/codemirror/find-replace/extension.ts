@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import {
   highlightSelectionMatches,
   selectNextOccurrence,

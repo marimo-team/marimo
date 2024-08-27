@@ -152,12 +152,19 @@ class PyArrowTableManagerFactory(TableManagerFactory):
                     for idx, column in enumerate(self.data.schema.names)
                 }
 
-            def limit(self, num: int) -> PyArrowTableManager:
-                if num < 0:
-                    raise ValueError("Limit must be a positive integer")
-                if num >= self.data.num_rows:
-                    return PyArrowTableManager(self.data)
-                return PyArrowTableManager(self.data.take(list(range(num))))
+            def take(self, count: int, offset: int) -> PyArrowTableManager:
+                if count < 0:
+                    raise ValueError("Count must be a positive integer")
+                if offset < 0:
+                    raise ValueError("Offset must be a non-negative integer")
+                if offset >= self.data.num_rows:
+                    return PyArrowTableManager(
+                        pa.Table.from_pylist([], schema=self.data.schema)
+                    )
+                end = min(offset + count, self.data.num_rows)
+                return PyArrowTableManager(
+                    self.data.slice(offset, end - offset)
+                )
 
             def search(self, query: str) -> TableManager[Any]:
                 query = query.lower()

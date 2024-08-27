@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { HotkeyAction } from "@/core/hotkeys/hotkeys";
+import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
 import { useLocalStorage } from "./useLocalStorage";
 
 const MAX_RECENT_COMMANDS = 3;

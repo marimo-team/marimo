@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { z } from "zod";
-import { IPlugin, IPluginProps, Setter } from "../types";
+import type { IPlugin, IPluginProps, Setter } from "../types";
 
 import { Labeled } from "./common/labeled";
-import { Theme, useTheme } from "@/theme/useTheme";
+import { type Theme, useTheme } from "@/theme/useTheme";
 import { LazyAnyLanguageCodeMirror } from "./code/LazyAnyLanguageCodeMirror";
 
 type T = string;

@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { CompletionConfig } from "@/core/config/config-schema";
-import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { Extension } from "@codemirror/state";
-import { PlaceholderType } from "../config/extension";
-import { MovementCallbacks } from "../cells/extensions";
+import type { CompletionConfig } from "@/core/config/config-schema";
+import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+import type { Extension } from "@codemirror/state";
+import type { PlaceholderType } from "../config/extension";
+import type { MovementCallbacks } from "../cells/extensions";
 
 /**
  * A language adapter is a class that can transform code from one language to

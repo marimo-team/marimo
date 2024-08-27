@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { graphlib, layout } from "@dagrejs/dagre";
-import { Edge, Node } from "reactflow";
-import { LayoutDirection } from "../types";
+import type { Edge, Node } from "reactflow";
+import type { LayoutDirection } from "../types";
 
 const g = new graphlib.Graph().setDefaultEdgeLabel(() => ({}));
 

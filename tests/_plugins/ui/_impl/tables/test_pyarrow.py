@@ -112,12 +112,12 @@ class TestPyArrowTableManagerFactory(unittest.TestCase):
         )
 
     def test_limit(self) -> None:
-        limited_manager = self.manager.limit(1)
+        limited_manager = self.manager.take(1, 0)
         expected_data = self.data.take([0])
         assert limited_manager.data == expected_data
 
     def test_limit_more_than_num_rows(self) -> None:
-        limited_manager = self.manager.limit(500)
+        limited_manager = self.manager.take(500, 0)
         assert limited_manager.data == self.data
 
     def test_summary_integer(self) -> None:
@@ -368,12 +368,12 @@ class TestPyArrowRecordBatchManagerFactory(unittest.TestCase):
         )
 
     def test_limit(self) -> None:
-        limited_manager = self.manager.limit(1)
+        limited_manager = self.manager.take(1, 0)
         expected_data = self.data.slice(0, 1)
         assert limited_manager.data == expected_data
 
     def test_limit_more_than_num_rows(self) -> None:
-        limited_manager = self.manager.limit(500)
+        limited_manager = self.manager.take(500, 0)
         assert limited_manager.data == self.data
 
     def test_summary_integer(self) -> None:

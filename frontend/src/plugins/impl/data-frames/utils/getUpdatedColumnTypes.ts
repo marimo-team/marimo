@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { logNever } from "@/utils/assertNever";
-import { TransformType } from "../schema";
-import { ColumnDataTypes } from "../types";
+import type { TransformType } from "../schema";
+import type { ColumnDataTypes } from "../types";
 import { Maps } from "@/utils/maps";
 
 /**

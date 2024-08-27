@@ -113,10 +113,12 @@ export function initializeUIElement() {
       if (objectId === null) {
         Logger.error("[marimo-ui-element] missing object-id attribute");
         return;
-      } else if (child === null) {
+      }
+      if (child === null) {
         Logger.error("[marimo-ui-element] has no child");
         return;
-      } else if (!(child instanceof HTMLElement)) {
+      }
+      if (!(child instanceof HTMLElement)) {
         Logger.error(
           "[marimo-ui-element] first child must be instance of HTMLElement",
         );

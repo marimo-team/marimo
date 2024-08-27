@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import * as React from "react";
-import { DialogProps } from "@radix-ui/react-dialog";
+import type { DialogProps } from "@radix-ui/react-dialog";
 import { Command as CommandPrimitive } from "cmdk";
 import { Search } from "lucide-react";
 
@@ -11,7 +11,7 @@ import {
   menuItemVariants,
   menuSeparatorVariants,
 } from "./menu-items";
-import { VariantProps } from "class-variance-authority";
+import type { VariantProps } from "class-variance-authority";
 import { Strings } from "@/utils/strings";
 
 const Command = React.forwardRef<

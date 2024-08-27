@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { z } from "zod";
 
-import { IPlugin, IPluginProps, Setter } from "@/plugins/types";
+import type { IPlugin, IPluginProps, Setter } from "@/plugins/types";
 
 import type { Figure } from "react-plotly.js";
 import { Logger } from "@/utils/Logger";
@@ -10,7 +10,7 @@ import "./plotly.css";
 import "./mapbox.css";
 import { lazy, memo, useEffect, useMemo, useState } from "react";
 import useEvent from "react-use-event-hook";
-import { PlotlyTemplateParser, createParser } from "./parse-from-template";
+import { type PlotlyTemplateParser, createParser } from "./parse-from-template";
 import { Objects } from "@/utils/objects";
 import { isEqual, set } from "lodash-es";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";

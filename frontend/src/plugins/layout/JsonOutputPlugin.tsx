@@ -2,7 +2,10 @@
 
 import { z } from "zod";
 import { JsonOutput } from "../../components/editor/output/JsonOutput";
-import { IStatelessPlugin, IStatelessPluginProps } from "../stateless-plugin";
+import type {
+  IStatelessPlugin,
+  IStatelessPluginProps,
+} from "../stateless-plugin";
 import { EmotionCacheProvider } from "../../components/editor/output/EmotionCacheProvider";
 
 interface Data {

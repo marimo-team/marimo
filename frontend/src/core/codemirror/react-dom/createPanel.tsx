@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { EditorView, Panel } from "@codemirror/view";
-import { Root, createRoot } from "react-dom/client";
+import type { EditorView, Panel } from "@codemirror/view";
+import { type Root, createRoot } from "react-dom/client";
 
 export function createPanel(
   view: EditorView,

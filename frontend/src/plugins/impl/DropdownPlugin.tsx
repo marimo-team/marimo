@@ -2,7 +2,7 @@
 import { useId } from "react";
 import { z } from "zod";
 
-import { IPlugin, IPluginProps } from "../types";
+import type { IPlugin, IPluginProps } from "../types";
 import { NativeSelect } from "../../components/ui/native-select";
 import { Labeled } from "./common/labeled";
 import { cn } from "@/utils/cn";

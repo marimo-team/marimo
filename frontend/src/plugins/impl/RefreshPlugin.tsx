@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { z } from "zod";
 
-import { IPlugin, IPluginProps } from "@/plugins/types";
+import type { IPlugin, IPluginProps } from "@/plugins/types";
 import { RefreshCwIcon } from "lucide-react";
 import timestring from "timestring";
 import { NativeSelect } from "@/components/ui/native-select";

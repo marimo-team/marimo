@@ -4,7 +4,7 @@ import { useDropzone } from "react-dropzone";
 import { Upload, MousePointerSquareDashedIcon } from "lucide-react";
 
 import { cn } from "@/utils/cn";
-import { IPlugin, IPluginProps, Setter } from "../types";
+import type { IPlugin, IPluginProps, Setter } from "../types";
 import { filesToBase64 } from "../../utils/fileToBase64";
 import { buttonVariants } from "../../components/ui/button";
 import { renderHTML } from "../core/RenderHTML";

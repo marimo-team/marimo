@@ -44,21 +44,21 @@ export function timeAgo(value: string | number | null | undefined): string {
         hour: "numeric",
         minute: "numeric",
       })}`;
-    } else if (date.toDateString() === yesterday.toDateString()) {
+    }
+    if (date.toDateString() === yesterday.toDateString()) {
       return `Yesterday at ${date.toLocaleTimeString(undefined, {
         hour: "numeric",
         minute: "numeric",
       })}`;
-    } else {
-      return `${date.toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      })} at ${date.toLocaleTimeString(undefined, {
-        hour: "numeric",
-        minute: "numeric",
-      })}`;
     }
+    return `${date.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    })} at ${date.toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "numeric",
+    })}`;
   } catch (error) {
     Logger.warn("Failed to parse date", error);
   }

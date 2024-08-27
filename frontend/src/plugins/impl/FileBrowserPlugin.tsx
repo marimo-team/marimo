@@ -9,11 +9,11 @@ import { toast } from "@/components/ui/use-toast";
 import { NativeSelect } from "@/components/ui/native-select";
 import {
   FILE_TYPE_ICONS,
-  FileType,
+  type FileType,
   guessFileType,
 } from "@/components/editor/file-tree/types";
 import { renderHTML } from "../core/RenderHTML";
-import { FilePath, PathBuilder, Paths } from "@/utils/paths";
+import { type FilePath, PathBuilder, Paths } from "@/utils/paths";
 import { CornerLeftUp } from "lucide-react";
 import { Logger } from "@/utils/Logger";
 import { Button } from "@/components/ui/button";

@@ -1,8 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { EncodingQuery } from "compassql/build/src/query/encoding";
-import { SpecQuery } from "compassql/build/src/query/spec";
-import { SpecificEncoding, toFieldQuery, EncodingChannel } from "./encoding";
-import { ChartSpec } from "./state/types";
+import type { EncodingQuery } from "compassql/build/src/query/encoding";
+import type { SpecQuery } from "compassql/build/src/query/spec";
+import {
+  type SpecificEncoding,
+  toFieldQuery,
+  type EncodingChannel,
+} from "./encoding";
+import type { ChartSpec } from "./state/types";
 
 export function toSpecQuery(spec: ChartSpec): SpecQuery {
   return {

@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { Meta, StoryObj } from "@storybook/react";
 import { TooltipProvider } from "../components/ui/tooltip";
-import { FormWrapper, FormWrapperProps } from "@/plugins/impl/FormPlugin";
+import { FormWrapper, type FormWrapperProps } from "@/plugins/impl/FormPlugin";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";

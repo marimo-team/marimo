@@ -38,7 +38,7 @@ export const CellLink = (props: Props): JSX.Element => {
       onClick={(e) => {
         // Scratch causes a crash since scratch is not registered like a
         // normal cell.
-        if (cellId == SCRATCH_CELL_ID) {
+        if (cellId === SCRATCH_CELL_ID) {
           return false;
         }
         showCellIfHidden({ cellId });
@@ -78,7 +78,7 @@ export const CellLinkTraceback = ({
       variant={"destructive"}
       className="traceback-cell-link"
       formatCellName={(name: string) =>
-        cellId == SCRATCH_CELL_ID
+        cellId === SCRATCH_CELL_ID
           ? "scratch"
           : `marimo://${filename || "untitled"}#cell=${name}`
       }
@@ -97,24 +97,23 @@ export function scrollAndHighlightCell(
   if (cell === null) {
     Logger.error(`Cell ${cellHtmlId} not found on page.`);
     return false;
-  } else {
-    if (!skipScroll) {
-      cell.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-
-    if (variant === "destructive") {
-      cell.classList.add("error-outline");
-      setTimeout(() => {
-        cell.classList.remove("error-outline");
-      }, 2000);
-    }
-    if (variant === "focus") {
-      cell.classList.add("focus-outline");
-      setTimeout(() => {
-        cell.classList.remove("focus-outline");
-      }, 2000);
-    }
-
-    return true;
   }
+  if (!skipScroll) {
+    cell.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  if (variant === "destructive") {
+    cell.classList.add("error-outline");
+    setTimeout(() => {
+      cell.classList.remove("error-outline");
+    }, 2000);
+  }
+  if (variant === "focus") {
+    cell.classList.add("focus-outline");
+    setTimeout(() => {
+      cell.classList.remove("focus-outline");
+    }, 2000);
+  }
+
+  return true;
 }

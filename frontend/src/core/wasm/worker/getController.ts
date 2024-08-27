@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { DefaultWasmController } from "./bootstrap";
-import { WasmController } from "./types";
+import type { WasmController } from "./types";
 
 // Load the controller
 // Falls back to the default controller

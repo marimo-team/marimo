@@ -3,7 +3,7 @@ import { cn } from "@/utils/cn";
 import React from "react";
 import { Button } from "../ui/button";
 import { CircleIcon, SquareIcon } from "lucide-react";
-import { RecordingStatus } from "@/hooks/useAudioRecorder";
+import type { RecordingStatus } from "@/hooks/useAudioRecorder";
 
 interface AudioRecorderProps {
   onStart: () => void;

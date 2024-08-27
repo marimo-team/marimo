@@ -1,17 +1,20 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Extension } from "@codemirror/state";
-import { LanguageAdapter } from "./types";
+import type { Extension } from "@codemirror/state";
+import type { LanguageAdapter } from "./types";
 import { sql, StandardSQL, schemaCompletionSource } from "@codemirror/lang-sql";
 import dedent from "string-dedent";
-import { CompletionConfig } from "@/core/config/config-schema";
-import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+import type { CompletionConfig } from "@/core/config/config-schema";
+import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { indentOneTab } from "./utils/indentOneTab";
-import { autocompletion, CompletionSource } from "@codemirror/autocomplete";
+import {
+  autocompletion,
+  type CompletionSource,
+} from "@codemirror/autocomplete";
 import { store } from "@/core/state/jotai";
 import { datasetsAtom } from "@/core/datasets/state";
 import {
   QUOTE_PREFIX_KINDS,
-  QuotePrefixKind,
+  type QuotePrefixKind,
   splitQuotePrefix,
   upgradePrefixKind,
 } from "./utils/quotes";

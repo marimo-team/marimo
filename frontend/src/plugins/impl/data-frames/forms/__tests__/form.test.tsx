@@ -5,8 +5,8 @@ import { TransformTypeSchema } from "../../schema";
 import { render } from "@testing-library/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { ColumnId } from "../../types";
+import type { z } from "zod";
+import type { ColumnId } from "../../types";
 import { ColumnInfoContext } from "../context";
 
 const ColumnTypes = new Map([

@@ -11,7 +11,7 @@ export async function importPyodide(marimoVersion: string) {
   // Vite does not like imports with dynamic urls
   return marimoVersion.includes("dev") && ALLOW_DEV_VERSIONS
     ? // @ts-expect-error typescript does not like
-      await import(`https://cdn.jsdelivr.net/pyodide/dev/full/pyodide.js`)
+      await import("https://cdn.jsdelivr.net/pyodide/dev/full/pyodide.js")
     : // @ts-expect-error typescript does not like
-      await import(`https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js`);
+      await import("https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js");
 }

@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React from "react";
-import { Transformations } from "../schema";
+import type { Transformations } from "../schema";
 import { pythonPrintTransforms } from "./python-print";
 import { ReadonlyPythonCode } from "@/components/editor/code/readonly-python-code";
 

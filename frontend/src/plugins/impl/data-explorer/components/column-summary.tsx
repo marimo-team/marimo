@@ -2,7 +2,7 @@
 import { BarChartBigIcon } from "lucide-react";
 import React, { useState } from "react";
 import { PRIMITIVE_TYPE_ICON } from "./icons";
-import { Schema } from "compassql/build/src/schema";
+import type { Schema } from "compassql/build/src/schema";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/cn";
 import {

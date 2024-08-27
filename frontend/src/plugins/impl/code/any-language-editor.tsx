@@ -1,12 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import ReactCodeMirror, {
-  Extension,
-  ReactCodeMirrorProps,
+  type Extension,
+  type ReactCodeMirrorProps,
 } from "@uiw/react-codemirror";
 import {
   loadLanguage,
   langs,
-  LanguageName,
+  type LanguageName,
 } from "@uiw/codemirror-extensions-langs";
 import React, { useMemo } from "react";
 import { Logger } from "@/utils/Logger";

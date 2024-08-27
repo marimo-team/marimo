@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import {
+import type {
   Node,
   NodeAddChange,
   NodeRemoveChange,

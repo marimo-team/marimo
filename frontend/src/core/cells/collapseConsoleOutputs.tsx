@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { OutputMessage } from "@/core/kernel/messages";
+import type { OutputMessage } from "@/core/kernel/messages";
 import { invariant } from "@/utils/invariant";
 
 /**
@@ -60,7 +60,7 @@ function handleCarriageReturns(
   }
 
   // eslint-disable-next-line no-control-regex
-  const carriagePattern = new RegExp("\r[^\n]", "g");
+  const carriagePattern = /\r[^\n]/g;
   // collapse carriage returns in the final output's data
   let text = lastOutput.data;
   invariant(typeof text === "string", "expected string");
@@ -95,7 +95,7 @@ function handleCarriageReturns(
 
 function truncateHead(consoleOutputs: OutputMessage[], limit: number) {
   let nLines = 0;
-  let i;
+  let i: number;
   for (i = consoleOutputs.length - 1; i >= 0 && nLines < limit; i--) {
     const output: OutputMessage = consoleOutputs[i];
     if (output.mimetype === "text/plain") {
@@ -118,7 +118,7 @@ function truncateHead(consoleOutputs: OutputMessage[], limit: number) {
     timestamp: -1,
   };
   const output = consoleOutputs[cutoff];
-  if (output.mimetype == "text/plain") {
+  if (output.mimetype === "text/plain") {
     invariant(typeof output.data === "string", "expected string");
     const output_lines = output.data.split("\n");
     const nLinesAfterOutput = nLines - output_lines.length;
@@ -128,7 +128,6 @@ function truncateHead(consoleOutputs: OutputMessage[], limit: number) {
       { ...output, data: output_lines.slice(-nLinesToKeep).join("\n") },
       ...consoleOutputs.slice(cutoff + 1),
     ];
-  } else {
-    return [warningOutput, ...consoleOutputs.slice(cutoff + 1)];
   }
+  return [warningOutput, ...consoleOutputs.slice(cutoff + 1)];
 }

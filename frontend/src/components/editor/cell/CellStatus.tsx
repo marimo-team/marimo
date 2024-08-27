@@ -6,7 +6,7 @@ import {
   RefreshCwIcon,
 } from "lucide-react";
 import { Tooltip } from "../../ui/tooltip";
-import { CellRuntimeState } from "../../../core/cells/types";
+import type { CellRuntimeState } from "../../../core/cells/types";
 import { useElapsedTime } from "../../../hooks/useElapsedTime";
 import { Logger } from "@/utils/Logger";
 import { MultiIcon } from "@/components/icons/multi-icon";
@@ -238,11 +238,11 @@ function formatElapsedTime(elapsedTime: number | null) {
     const minutes = (elapsedTime / (1000 * 60)).toFixed(0);
     const seconds = ((elapsedTime % (1000 * 60)) / 1000).toFixed(0);
     return `${minutes.toString()}m${seconds.toString()}s`;
-  } else if (elapsedTime > 1000) {
-    return `${(elapsedTime / 1000).toFixed(2).toString()}s`;
-  } else {
-    return `${elapsedTime.toFixed(0).toString()}ms`;
   }
+  if (elapsedTime > 1000) {
+    return `${(elapsedTime / 1000).toFixed(2).toString()}s`;
+  }
+  return `${elapsedTime.toFixed(0).toString()}ms`;
 }
 
 const CellTimer = (props: { startTime: Time }) => {

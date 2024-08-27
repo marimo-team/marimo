@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { Meta, StoryObj } from "@storybook/react";
-import { Cell, CellProps } from "../components/editor/Cell";
+import { Cell, type CellProps } from "../components/editor/Cell";
 import { TooltipProvider } from "../components/ui/tooltip";
-import { CellId } from "../core/cells/ids";
+import type { CellId } from "../core/cells/ids";
 import { Logger } from "@/utils/Logger";
-import { Milliseconds, Seconds } from "@/utils/time";
+import type { Milliseconds, Seconds } from "@/utils/time";
 import { defaultUserConfig } from "@/core/config/config-schema";
 
 const meta: Meta<typeof Cell> = {
