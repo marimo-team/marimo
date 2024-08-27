@@ -1622,7 +1622,6 @@ class Kernel:
             if await self.package_manager.install(pkg):
                 package_statuses[pkg] = "installed"
                 InstallingPackageAlert(packages=package_statuses).broadcast()
-
             else:
                 package_statuses[pkg] = "failed"
                 self.module_registry.excluded_modules.add(mod)
@@ -1633,6 +1632,12 @@ class Kernel:
             for pkg in package_statuses
             if package_statuses[pkg] == "installed"
         ]
+
+        # If a package was not installed at cell registration time, it won't
+        # yet be in the script metadata.
+        if self._should_add_script_metadata():
+            self._add_script_metadata(installed_modules, [])
+
         cells_to_run = set(
             cid
             for module in installed_modules
