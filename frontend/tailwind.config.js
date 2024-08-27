@@ -59,8 +59,8 @@ module.exports = {
           "color-mix(in srgb, var(--background), transparent calc((1 - <alpha-value>) * 100%))",
         foreground:
           "color-mix(in srgb, var(--foreground), transparent calc((1 - <alpha-value>) * 100%))",
-        link: "color-mix(in srgb, var(--link))",
-        "link-visited": "color-mix(in srgb, var(--link-visited))",
+        link: "var(--link)",
+        "link-visited": "var(--link-visited)",
         primary: {
           DEFAULT:
             "color-mix(in srgb, var(--primary), transparent calc((1 - <alpha-value>) * 100%))",
