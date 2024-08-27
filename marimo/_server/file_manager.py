@@ -298,5 +298,13 @@ def read_css_file(css_file: str, filename: Optional[str]) -> Optional[str]:
     if not os.path.exists(filepath):
         LOGGER.error("CSS file %s does not exist", css_file)
         return None
-    with open(filepath) as f:
-        return f.read()
+    try:
+        with open(filepath) as f:
+            return f.read()
+    except OSError as e:
+        LOGGER.warning(
+            "Failed to open custom CSS file %s for reading: %s",
+            filepath,
+            str(e),
+        )
+        return None
