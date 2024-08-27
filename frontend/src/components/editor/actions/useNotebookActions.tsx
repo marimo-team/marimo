@@ -61,7 +61,6 @@ import { LAYOUT_TYPES } from "../renderers/types";
 import { displayLayoutName, getLayoutIcon } from "../renderers/layout-select";
 import { useLayoutState, useLayoutActions } from "@/core/layout/layout";
 import { useTogglePresenting } from "@/core/layout/useTogglePresenting";
-import { generateSessionId } from "@/core/kernel/session";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -288,21 +287,6 @@ export function useNotebookActions() {
         });
       },
     },
-
-    {
-      icon: <FileIcon size={14} strokeWidth={1.5} />,
-      label: "Duplicate Notebook",
-      handle: async () => {
-        const code = await readCode();
-        const newNotebookName = `${filename}_duplicated`;
-        const newNotebook = await createNewNotebook(
-          newNotebookName,
-          code.contents
-        );
-        window.open(newNotebook.url, "_blank");
-      },
-    },
-
     {
       icon: <ZapIcon size={14} strokeWidth={1.5} />,
       label: "Enable all cells",
@@ -388,54 +372,4 @@ export function useNotebookActions() {
   ];
 
   return actions.filter((a) => !a.hidden);
-}
-
-// Helper function to create a new notebook
-async function createNewNotebook(name: string, code: string) {
-  const sessionId = generateSessionId();
-  const initializationId = `__new__${sessionId}`;
-
-  // Step 1: Create a new notebook
-  const response = await fetch("/api/notebooks", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      name,
-      sessionId,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to create a new notebook");
-  }
-
-  const newNotebook = await response.json();
-  // Step 2: Copy the code to the new notebook and save it
-  const newNotebookData = newNotebook as { id: string }; // Type assertion to fix the type issue
-  await fetch(`/api/notebooks/${newNotebookData.id}/save`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      cellIds: [], // Assuming you need to provide cell IDs
-      codes: [code],
-      names: ["cell_1"], // Assuming a single cell with a default name
-      filename: name,
-      configs: [], // Assuming default configs
-      layout: {}, // Assuming default layout
-      persist: true,
-    }),
-  });
-
-  // Step 3: Run the notebook on a kernel
-  await fetch(`/api/notebooks/${newNotebookData.id}/run`, {
-    method: "POST",
-  });
-
-  return {
-    url: `/notebook/${initializationId}`,
-  };
 }
