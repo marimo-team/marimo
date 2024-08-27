@@ -66,8 +66,12 @@ def run_in_sandbox(
 
 
 def _get_dependencies(script: str) -> List[str]:
-    pyproject = _read_pyproject(script) or {}
-    return pyproject.get("dependencies", [])
+    try:
+        pyproject = _read_pyproject(script) or {}
+        return pyproject.get("dependencies", [])
+    except Exception as e:
+        LOGGER.warning(f"Failed to parse dependencies: {e}")
+        return []
 
 
 def _read_pyproject(script: str) -> Dict[str, Any] | None:
