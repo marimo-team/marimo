@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import pathlib
+import sys
 import tempfile
 from typing import Any, Optional, get_args
 
@@ -255,6 +256,17 @@ edit_help_msg = "\n".join(
     type=bool,
     help="Don't check if a new version of marimo is available for download.",
 )
+@click.option(
+    "--sandbox",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="""
+    Run the command in a sandbox using 'uv run --isolated'.
+    Requires 'uv'.
+    """,
+)
 @click.option("--profile-dir", default=None, type=str, hidden=True)
 @click.argument("name", required=False)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
@@ -268,10 +280,17 @@ def edit(
     base_url: str,
     allow_origins: Optional[tuple[str, ...]],
     skip_update_check: bool,
+    sandbox: bool,
     profile_dir: Optional[str],
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
+    if sandbox:
+        from marimo._cli.sandbox import run_in_sandbox
+
+        run_in_sandbox(sys.argv[1:], name)
+        return
+
     GLOBAL_SETTINGS.PROFILE_DIR = profile_dir
     if not skip_update_check and os.getenv("MARIMO_SKIP_UPDATE_CHECK") != "1":
         GLOBAL_SETTINGS.CHECK_STATUS_UPDATE = True
@@ -501,6 +520,17 @@ Example:
     type=bool,
     help="Redirect console logs to the browser console.",
 )
+@click.option(
+    "--sandbox",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="""
+    Run the command in a sandbox using 'uv run --isolated'.
+    Requires 'uv'.
+    """,
+)
 @click.argument("name", required=True)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def run(
@@ -515,9 +545,16 @@ def run(
     base_url: str,
     allow_origins: tuple[str, ...],
     redirect_console_to_browser: bool,
+    sandbox: bool,
     name: str,
     args: tuple[str, ...],
 ) -> None:
+    if sandbox:
+        from marimo._cli.sandbox import run_in_sandbox
+
+        run_in_sandbox(sys.argv[1:], name)
+        return
+
     # Validate name, or download from URL
     # The second return value is an optional temporary directory. It is unused,
     # but must be kept around because its lifetime on disk is bound to the life
