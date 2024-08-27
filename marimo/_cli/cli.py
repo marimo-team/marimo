@@ -263,7 +263,7 @@ edit_help_msg = "\n".join(
     show_default=True,
     type=bool,
     help="""
-    Run the command in a sandbox using 'uv run --isolated'.
+    Run the command in an isolated virtual environment using 'uv run --isolated'.
     Requires 'uv'.
     """,
 )
