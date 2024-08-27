@@ -95,7 +95,7 @@ const DataTableInternal = <TData,>({
 }: DataTableProps<TData>) => {
   const [isSearchEnabled, setIsSearchEnabled] = React.useState<boolean>(false);
   const [paginationState, setPaginationState] = React.useState<PaginationState>(
-    { pageSize: pageSize, pageIndex: 0 }
+    { pageSize: pageSize, pageIndex: 0 },
   );
   const [columnPinning, setColumnPinning] = React.useState<ColumnPinningState>({
     left: freezeColumnsLeft
@@ -150,10 +150,11 @@ const DataTableInternal = <TData,>({
           : [SELECT_COLUMN_ID, ...freezeColumnsLeft],
       right: freezeColumnsRight,
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [useDeepCompareMemoize([freezeColumnsLeft, freezeColumnsRight])]);
 
   const getPinningStyles = (
-    column: Column<TData>
+    column: Column<TData>,
   ): React.HTMLAttributes<HTMLElement> => {
     const isPinned = column.getIsPinned();
     const isLastLeftPinnedColumn =
@@ -168,8 +169,8 @@ const DataTableInternal = <TData,>({
           isLastLeftPinnedColumn && column.id !== "__select__"
             ? "-4px 0 4px -4px var(--slate-8) inset"
             : isFirstRightPinnedColumn
-            ? "4px 0 4px -4px var(--slate-8) inset"
-            : undefined,
+              ? "4px 0 4px -4px var(--slate-8) inset"
+              : undefined,
         left: isPinned === "left" ? `${column.getStart("left")}px` : undefined,
         right:
           isPinned === "right" ? `${column.getAfter("right")}px` : undefined,
@@ -186,7 +187,7 @@ const DataTableInternal = <TData,>({
   const columnSizingHandler = (
     thead: HTMLTableCellElement | null,
     table: TanStackTable<TData>,
-    column: Column<TData>
+    column: Column<TData>,
   ) => {
     if (!thead) {
       return;
@@ -214,8 +215,8 @@ const DataTableInternal = <TData,>({
       position === "left"
         ? table.getLeftHeaderGroups()
         : position === "right"
-        ? table.getRightHeaderGroups()
-        : table.getCenterHeaderGroups();
+          ? table.getRightHeaderGroups()
+          : table.getCenterHeaderGroups();
 
     // whitespace-pre so that strings with different whitespace look
     // different
@@ -227,7 +228,7 @@ const DataTableInternal = <TData,>({
             key={header.id}
             className={cn(
               `h-auto min-h-10 whitespace-pre align-baseline`,
-              className
+              className,
             )}
             style={style}
             ref={(thead) => columnSizingHandler(thead, table, header.column)}
@@ -237,20 +238,20 @@ const DataTableInternal = <TData,>({
               : flexRender(header.column.columnDef.header, header.getContext())}
           </TableHead>
         );
-      })
+      }),
     );
   };
 
   const renderCells = (
     row: Row<TData>,
-    position: "left" | "center" | "right"
+    position: "left" | "center" | "right",
   ) => {
     const cells =
       position === "left"
         ? row.getLeftVisibleCells()
         : position === "right"
-        ? row.getRightVisibleCells()
-        : row.getCenterVisibleCells();
+          ? row.getRightVisibleCells()
+          : row.getCenterVisibleCells();
 
     return cells.map((cell) => {
       const { className, style } = getPinningStyles(cell.column);
@@ -262,7 +263,7 @@ const DataTableInternal = <TData,>({
             cell.column.getColumnWrapping &&
               cell.column.getColumnWrapping() === "wrap" &&
               "whitespace-pre-wrap min-w-[200px]",
-            className
+            className,
           )}
           style={style}
           title={String(cell.getValue())}
@@ -375,7 +376,7 @@ const SearchBar = (props: {
     <div
       className={cn(
         "flex items-center space-x-2 h-8 px-2 border-b transition-all overflow-hidden duration-300 opacity-100",
-        hidden && "h-0 border-none opacity-0"
+        hidden && "h-0 border-none opacity-0",
       )}
     >
       <SearchIcon className="w-4 h-4 text-muted-foreground" />
