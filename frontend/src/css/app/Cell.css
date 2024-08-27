@@ -10,10 +10,9 @@
   border-radius: 10px;
   max-width: inherit;
   width: 100%;
-  border: 1px solid transparent;
-  box-shadow: var(--light-shadow);
+  border: 1px solid var(--gray-4);
 
-  @apply divide-y divide-[var(--gray-5)];
+  @apply divide-y divide-[var(--gray-5)] shadow-smSolid shadow-shade;
 
   &:focus-visible {
     /* focus-visible outlines the entire cell body in black, but the cell's
@@ -54,14 +53,14 @@
     }
 
     &:hover {
-      box-shadow: var(--medium-shadow);
+      @apply shadow-mdSolid shadow-shade;
     }
 
     &:focus-within {
       border: 1px solid var(--gray-5);
 
       /* a sharp box shadow with a slight blur to outline the element */
-      box-shadow: var(--heavy-shadow);
+      @apply shadow-lgSolid shadow-shade;
 
       /* a little bit of motion
       *
@@ -97,10 +96,10 @@
   &.disabled.has-error,
   &.disabled:hover,
   &.disabled.has-error:hover {
-    box-shadow: var(--light-shadow);
+    @apply shadow-smSolid shadow-shade;
 
     &:focus-within {
-      box-shadow: var(--heavy-shadow);
+      @apply shadow-lgSolid shadow-shade;
     }
 
     .output-area,
@@ -113,17 +112,15 @@
 
   /* Needs Run */
   &.needs-run {
-    box-shadow: var(--light-shadow-stale);
-
-    @apply divide-[var(--stale-color)];
+    @apply divide-stale shadow-mdSolid shadow-stale;
 
     &:hover {
-      box-shadow: var(--medium-shadow-stale);
+      @apply shadow-lgSolid shadow-stale;
     }
 
     &:focus-within:hover,
     &:focus-within {
-      box-shadow: var(--heavy-shadow-stale);
+      @apply shadow-xlSolid shadow-stale;
     }
 
     &:focus-within .cm-editor {
@@ -140,16 +137,16 @@
   &.has-error,
   &.error-outline {
     outline: 1px solid var(--red-4);
-    box-shadow: var(--light-shadow-error);
+    @apply shadow-mdSolid shadow-[var(--red-8)];
   }
 
   &.has-error:hover {
-    box-shadow: var(--medium-shadow-error);
+    @apply shadow-lgSolid shadow-[var(--red-8)];
   }
 
   &.has-error:focus-within,
   &.has-error:focus-within:hover {
-    box-shadow: var(--heavy-shadow-error);
+    @apply shadow-xlSolid shadow-[var(--red-8)];
   }
 
   &.error-outline,
@@ -164,11 +161,7 @@
     border-color: var(--blue-8) !important;
 
     /* custom shadow until our theme overrides can support colored shadow */
-    --tw-shadow: 0 4px 0px -1px var(--blue-8), 0 2px 4px -2px var(--blue-8) !important;
-
-    box-shadow: var(--tw-shadow) !important;
-
-    @apply shadow-lg;
+    @apply shadow-lg shadow-[var(--blue-8)];
   }
 
   /* Published - when its just the output */

@@ -63,31 +63,13 @@
     --action-foreground: hsl(42deg 100% 29%);
     --link: hsl(211deg 90% 42%); /* blue-11 */
     --link-visited: hsl(272deg 51% 54%); /* purple-9 */
+    --stale: hsl(42deg 56% 44% / 25%);
     --ring: hsl(215deg 20.2% 65.1%);
     --radius: 8px;
+
     --base-shadow: hsl(0deg 0% 85% / 40%);
     --base-shadow-darker: hsl(0deg 0% 50% / 40%);
-
-    /* Fuzzy shadows. */
-    --shadow-xxs: 0px 0px 2px 0px var(--base-shadow-darker);
-    --shadow-xs: 1px 1px 2px 0px var(--base-shadow), 0px 0px 2px 0px hsl(0deg 0% 25% / 5%);
-    --shadow-sm: 2px 2px 2px 0px var(--base-shadow), 0px 0px 2px 0px hsl(0deg 0% 25% / 5%);
-    --shadow-md: 4px 4px 4px 0px var(--base-shadow), 0 0px 4px 0px hsl(0deg 0% 60% / 5%);
-    --shadow-lg: 5px 6px 4px 0px var(--base-shadow), 0 0px 4px 0px hsl(0deg 0% 75% / 5%);
-    --shadow-xl: 8px 9px 4px 0px var(--base-shadow), 0 0px 6px 0px hsl(0deg 0% 85% / 5%);
-
-    /* Shadow states. */
-    --stale-color: hsl(42deg 56% 44% / 25%);
-    --light-shadow: 2px 2px 0px 0px var(--base-shadow), 0px 0px 2px 0px hsl(0deg 0% 25% / 50%);
-    --light-shadow-stale: 4px 4px 0px 0px var(--stale-color), 0px 0px 4px 0px var(--stale-color);
-    --medium-shadow: 4px 4px 0px 0px var(--base-shadow), 0px 0px 4px 0px hsl(0deg 0% 60% / 50%);
-    --medium-shadow-stale: 6px 6px 0px 0px var(--stale-color), 0px 0px 4px 0px var(--stale-color);
-    --light-shadow-error: 4px 4px 0px 0px var(--red-8), 0px 0px 2px 0px var(--red-8);
-    --medium-shadow-error: 6px 6px 0px 0px var(--red-8), 0px 0px 2px 0px var(--red-8);
-    --heavy-shadow: 5px 6px 0px 0px var(--base-shadow), 0px 0px 4px 0px hsl(0deg 0% 75% / 50%);
-    --heavy-shadow-stale: 7px 8px 0px 0px var(--stale-color), 0px 0px 4px 0px var(--stale-color);
-    --heavy-shadow-error: 7px 8px 0px 0px var(--red-8), 0px 0px 2px 0px var(--red-8);
-    --light-shadow-accent: 4px 4px 0px 0px var(--accent), 0px 0px 2px 0px var(--accent);
+    --base-shadow-opacity: 5%;
   }
 
   .dark,
@@ -114,33 +96,14 @@
     --destructive-foreground: hsl(210deg 40% 98%); /* red-1 */
     --accent: hsl(192deg 56.6% 26.5%); /* cyan-7 */
     --accent-foreground: hsl(190deg 80% 84%); /* cyan-12 */
+    --stale: hsl(42deg 56% 44% / 25%);
     --link: hsl(211deg 90% 62%); /* blue-11 */
     --link-visited: hsl(272deg 51% 74%); /* purple-9 */
 
     /* Base shadows. */
-    --base-shadow: hsl(0deg 0% 15% / 60%);
+    --base-shadow: hsla(0 0% 36% / 60%);
     --base-shadow-darker: hsl(0deg 0% 50% / 60%);
-
-    /* Fuzzy shadows. */
-    --shadow-xxs: 0px 0px 2px 0px var(--base-shadow-darker);
-    --shadow-xs: 1px 1px 2px 0px var(--base-shadow), 0px 0px 2px 0px hsl(0deg 0% 75% / 50%);
-    --shadow-sm: 2px 2px 2px 0px var(--base-shadow), 0px 0px 2px 0px hsl(0deg 0% 75% / 50%);
-    --shadow-md: 4px 4px 4px 0px var(--base-shadow), 0 0px 4px 0px hsl(0deg 0% 40% / 50%);
-    --shadow-lg: 5px 6px 4px 0px var(--base-shadow), 0 0px 4px 0px hsl(0deg 0% 25% / 50%);
-    --shadow-xl: 8px 9px 4px 0px var(--base-shadow), 0 0px 6px 0px hsl(0deg 0% 15% / 50%);
-
-    /* Shadow states. */
-    --stale-color: hsl(42deg 56% 44% / 75%);
-    --light-shadow: 2px 2px 0px 0px var(--base-shadow), 0px 0px 2px 0px hsl(0deg 0% 75% / 50%);
-    --light-shadow-stale: 4px 4px 0px 0px var(--stale-color), 0px 0px 4px 0px var(--stale-color);
-    --medium-shadow: 4px 4px 0px 0px var(--base-shadow), 0px 0px 4px 0px hsl(0deg 0% 100% / 50%);
-    --medium-shadow-stale: 6px 6px 0px 0px var(--stale-color), 0px 0px 4px 0px var(--stale-color);
-    --light-shadow-error: 4px 4px 0px 0px var(--red-5), 0px 0px 2px 0px var(--red-5);
-    --medium-shadow-error: 6px 6px 0px 0px var(--red-5), 0px 0px 2px 0px var(--red-5);
-    --heavy-shadow: 5px 6px 0px 0px var(--base-shadow), 0px 0px 4px 0px hsl(0deg 0% 100% / 50%);
-    --heavy-shadow-stale: 7px 8px 0px 0px var(--stale-color), 0px 0px 4px 0px var(--stale-color);
-    --heavy-shadow-error: 7px 8px 0px 0px var(--red-5), 0px 0px 2px 0px var(--red-5);
-    --light-shadow-accent: 4px 4px 0px 0px var(--accent), 0px 0px 2px 0px var(--accent);
+    --base-shadow-opacity: 85%;
   }
 }
 
