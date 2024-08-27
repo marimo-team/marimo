@@ -38,7 +38,7 @@ export const CellLink = (props: Props): JSX.Element => {
       onClick={(e) => {
         // Scratch causes a crash since scratch is not registered like a
         // normal cell.
-        if (cellId == SCRATCH_CELL_ID) {
+        if (cellId === SCRATCH_CELL_ID) {
           return false;
         }
         showCellIfHidden({ cellId });
@@ -78,7 +78,7 @@ export const CellLinkTraceback = ({
       variant={"destructive"}
       className="traceback-cell-link"
       formatCellName={(name: string) =>
-        cellId == SCRATCH_CELL_ID
+        cellId === SCRATCH_CELL_ID
           ? "scratch"
           : `marimo://${filename || "untitled"}#cell=${name}`
       }

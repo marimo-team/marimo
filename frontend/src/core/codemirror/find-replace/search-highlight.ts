@@ -99,7 +99,7 @@ export const searchHighlighter = ViewPlugin.fromClass(
     update(update: ViewUpdate) {
       const state = update.state.field(searchState);
       if (
-        state != update.startState.field(searchState) ||
+        state !== update.startState.field(searchState) ||
         update.docChanged ||
         update.selectionSet ||
         update.viewportChanged
@@ -124,7 +124,7 @@ export const searchHighlighter = ViewPlugin.fromClass(
         }
         query.highlight(view.state, from, to, (from, to) => {
           const selected = view.state.selection.ranges.some(
-            (r) => r.from == from && r.to == to,
+            (r) => r.from === from && r.to === to,
           );
           builder.add(from, to, selected ? selectedMatchMark : matchMark);
         });

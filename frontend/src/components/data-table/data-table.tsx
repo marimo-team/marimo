@@ -45,8 +45,10 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   sorting?: SortingState;
   setSorting?: OnChangeFn<SortingState>;
   // Pagination
+  totalRows: number | "too_many";
   pagination?: boolean;
-  pageSize?: number;
+  paginationState?: PaginationState;
+  setPaginationState?: OnChangeFn<PaginationState>;
   // Selection
   selection?: "single" | "multi" | null;
   rowSelection?: RowSelectionState;
@@ -67,9 +69,11 @@ const DataTableInternal = <TData,>({
   columns,
   data,
   sorting,
+  totalRows,
   setSorting,
   rowSelection,
-  pageSize = 10,
+  paginationState,
+  setPaginationState,
   downloadAs,
   pagination = false,
   onRowSelectionChange,
@@ -82,24 +86,30 @@ const DataTableInternal = <TData,>({
   reloading,
 }: DataTableProps<TData>) => {
   const [isSearchEnabled, setIsSearchEnabled] = React.useState<boolean>(false);
-  const [paginationState, setPaginationState] = React.useState<PaginationState>(
-    { pageSize: pageSize, pageIndex: 0 },
-  );
 
-  // If pageSize changes, reset pageSize
-  useEffect(() => {
-    if (paginationState.pageSize !== pageSize) {
-      setPaginationState((state) => ({ ...state, pageSize: pageSize }));
-    }
-  }, [pageSize, paginationState.pageSize]);
-
-  const table = useReactTable({
+  const table = useReactTable<TData>({
     _features: [ColumnWrappingFeature, ColumnFormattingFeature],
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
     // pagination
-    onPaginationChange: setPaginationState,
+    rowCount: totalRows === "too_many" ? undefined : totalRows,
+    ...(setPaginationState
+      ? {
+          manualPagination: true,
+          onPaginationChange: setPaginationState,
+          getRowId: (_row, idx) => {
+            if (!paginationState) {
+              return String(idx);
+            }
+            // Add offset if pagination is enabled
+            const offset = pagination
+              ? paginationState.pageIndex * paginationState.pageSize
+              : 0;
+            return String(idx + offset);
+          },
+        }
+      : {}),
     getPaginationRowModel: pagination ? getPaginationRowModel() : undefined,
     // sorting
     onSortingChange: setSorting,
@@ -116,7 +126,7 @@ const DataTableInternal = <TData,>({
       sorting,
       columnFilters: filters,
       pagination: pagination
-        ? { ...paginationState, pageSize: pageSize }
+        ? paginationState
         : { pageIndex: 0, pageSize: data.length },
       rowSelection,
     },
@@ -225,7 +235,28 @@ const DataTableInternal = <TData,>({
             </Button>
           </Tooltip>
         )}
-        {pagination ? <DataTablePagination table={table} /> : <div />}
+        {pagination ? (
+          <DataTablePagination
+            onSelectAllRowsChange={
+              onRowSelectionChange
+                ? (value) => {
+                    if (value) {
+                      const allKeys = Array.from(
+                        { length: table.getRowCount() },
+                        (_, i) => [i, true] as const,
+                      );
+                      onRowSelectionChange(Object.fromEntries(allKeys));
+                    } else {
+                      onRowSelectionChange({});
+                    }
+                  }
+                : undefined
+            }
+            table={table}
+          />
+        ) : (
+          <div />
+        )}
         {downloadAs && <DownloadAs downloadAs={downloadAs} />}
       </div>
     </div>

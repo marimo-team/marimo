@@ -2,6 +2,7 @@
 import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
 import { mint, orange, slate } from "@radix-ui/colors";
 import type { ColumnHeaderSummary, FieldTypes } from "./types";
+import { asURL } from "@/utils/url";
 
 export class ColumnChartSpecModel<T> {
   private columnSummaries = new Map<string | number, ColumnHeaderSummary>();
@@ -11,7 +12,7 @@ export class ColumnChartSpecModel<T> {
   });
 
   constructor(
-    private readonly data: T[],
+    private readonly data: T[] | string,
     private readonly fieldTypes: FieldTypes,
     readonly summaries: ColumnHeaderSummary[],
     private readonly opts: {
@@ -30,13 +31,17 @@ export class ColumnChartSpecModel<T> {
   }
 
   private getVegaSpec<T>(column: string): TopLevelFacetedUnitSpec | null {
+    if (!this.data) {
+      return null;
+    }
+    if (typeof this.data !== "string") {
+      return null;
+    }
+
     const base: Omit<TopLevelFacetedUnitSpec, "mark"> = {
       data: {
-        name: "values",
-      },
-      datasets: {
-        values: this.data,
-      },
+        url: asURL(this.data).href,
+      } as TopLevelFacetedUnitSpec["data"],
       background: "transparent",
       config: {
         view: {

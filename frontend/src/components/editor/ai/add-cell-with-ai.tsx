@@ -31,7 +31,7 @@ export const AddCellWithAI: React.FC<{
     handleInputChange,
     handleSubmit,
   } = useCompletion({
-    api: asURL(`api/ai/completion`).toString(),
+    api: asURL("api/ai/completion").toString(),
     headers: API.headers(),
     streamMode: "text",
     body: {

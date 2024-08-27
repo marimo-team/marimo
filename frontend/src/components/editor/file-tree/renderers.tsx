@@ -3,7 +3,8 @@ import { generateColumns } from "@/components/data-table/columns";
 import { DataTable } from "@/components/data-table/data-table";
 import { parseCsvData } from "@/plugins/impl/vega/loader";
 import { Objects } from "@/utils/objects";
-import React, { useMemo } from "react";
+import type React from "react";
+import { useMemo } from "react";
 import { type Base64String, base64ToDataURL } from "@/utils/json/base64";
 
 export const CsvViewer: React.FC<{ contents: string }> = ({ contents }) => {
@@ -20,12 +21,12 @@ export const CsvViewer: React.FC<{ contents: string }> = ({ contents }) => {
   );
 
   return (
-    <DataTable
+    <DataTable<object>
       data={data}
+      totalRows={data.length}
       columns={columns}
       wrapperClassName="h-full justify-between pb-1 px-1"
       pagination={true}
-      pageSize={10}
       className="rounded-none border-b flex overflow-hidden"
       rowSelection={Objects.EMPTY}
     />

@@ -12,16 +12,18 @@ import { PluralWord } from "@/utils/pluralize";
 
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;
+  onSelectAllRowsChange?: (value: boolean) => void;
 }
 
 export const DataTablePagination = <TData,>({
   table,
+  onSelectAllRowsChange,
 }: DataTablePaginationProps<TData>) => {
   const renderTotal = () => {
-    const selected = table.getSelectedRowModel().rows.length;
-    const isAllSelected = table.getIsAllRowsSelected();
+    const selected = Object.keys(table.getState().rowSelection).length;
     const isAllPageSelected = table.getIsAllPageRowsSelected();
-    const numRows = table.getFilteredRowModel().rows.length;
+    const numRows = table.getRowCount();
+    const isAllSelected = selected === numRows;
 
     if (isAllPageSelected && !isAllSelected) {
       return (
@@ -32,7 +34,13 @@ export const DataTablePagination = <TData,>({
             data-testid="select-all-button"
             variant="link"
             className="h-4"
-            onClick={() => table.toggleAllRowsSelected(true)}
+            onClick={() => {
+              if (onSelectAllRowsChange) {
+                onSelectAllRowsChange(true);
+              } else {
+                table.toggleAllRowsSelected(true);
+              }
+            }}
           >
             Select all {prettyNumber(numRows)}
           </Button>
@@ -49,7 +57,13 @@ export const DataTablePagination = <TData,>({
             data-testid="clear-selection-button"
             variant="link"
             className="h-4"
-            onClick={() => table.toggleAllRowsSelected(false)}
+            onClick={() => {
+              if (onSelectAllRowsChange) {
+                onSelectAllRowsChange(false);
+              } else {
+                table.toggleAllRowsSelected(false);
+              }
+            }}
           >
             Clear selection
           </Button>

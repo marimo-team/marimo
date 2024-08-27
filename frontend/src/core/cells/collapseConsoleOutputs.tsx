@@ -95,7 +95,7 @@ function handleCarriageReturns(
 
 function truncateHead(consoleOutputs: OutputMessage[], limit: number) {
   let nLines = 0;
-  let i;
+  let i: number;
   for (i = consoleOutputs.length - 1; i >= 0 && nLines < limit; i--) {
     const output: OutputMessage = consoleOutputs[i];
     if (output.mimetype === "text/plain") {
@@ -118,7 +118,7 @@ function truncateHead(consoleOutputs: OutputMessage[], limit: number) {
     timestamp: -1,
   };
   const output = consoleOutputs[cutoff];
-  if (output.mimetype == "text/plain") {
+  if (output.mimetype === "text/plain") {
     invariant(typeof output.data === "string", "expected string");
     const output_lines = output.data.split("\n");
     const nLinesAfterOutput = nLines - output_lines.length;

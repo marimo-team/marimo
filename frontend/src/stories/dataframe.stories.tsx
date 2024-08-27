@@ -39,7 +39,7 @@ export const DataFrame: StoryObj = {
           setValue(v);
         }}
         get_dataframe={() => Promise.reject(new Error("not implemented"))}
-        sort_values={Functions.THROW}
+        search={Functions.THROW}
       />
     );
   },
