@@ -6,6 +6,7 @@
   :hidden:
 
   overview
+  package_management
   ai_completion
   hotkeys
 ```
