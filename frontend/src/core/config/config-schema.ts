@@ -145,6 +145,7 @@ export const AppConfigSchema = z
         return width;
       }),
     app_title: AppTitleSchema.nullish(),
+    css_file: z.string().nullish(),
   })
   .default({ width: "medium" });
 export type AppConfig = z.infer<typeof AppConfigSchema>;

@@ -125,6 +125,10 @@ export default defineConfig({
         target: TARGET,
         changeOrigin: true,
       },
+      "/custom.css": {
+        target: TARGET,
+        changeOrigin: true,
+      },
       "/ws": {
         target: `ws://${HOST}:${SERVER_PORT}`,
         ws: true,

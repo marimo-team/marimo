@@ -53,49 +53,72 @@ module.exports = {
         18: "4.5rem",
       },
       colors: {
-        border: "hsl(var(--border) / <alpha-value>)",
-        input: "hsl(var(--input) / <alpha-value>)",
-        ring: "hsl(var(--ring) / <alpha-value>)",
-        background: "hsl(var(--background) / <alpha-value>)",
-        foreground: "hsl(var(--foreground) / <alpha-value>)",
-        link: "hsl(var(--link))",
-        "link-visited": "hsl(var(--link-visited))",
+        border:
+          "color-mix(in srgb, var(--border), transparent calc((1 - <alpha-value>) * 100%))",
+        input:
+          "color-mix(in srgb, var(--input), transparent calc((1 - <alpha-value>) * 100%))",
+        ring: "color-mix(in srgb, var(--ring), transparent calc((1 - <alpha-value>) * 100%))",
+        background:
+          "color-mix(in srgb, var(--background), transparent calc((1 - <alpha-value>) * 100%))",
+        foreground:
+          "color-mix(in srgb, var(--foreground), transparent calc((1 - <alpha-value>) * 100%))",
+        link: "color-mix(in srgb, var(--link))",
+        "link-visited": "color-mix(in srgb, var(--link-visited))",
         primary: {
-          DEFAULT: "hsl(var(--primary) / <alpha-value>)",
-          foreground: "hsl(var(--primary-foreground) / <alpha-value>)",
+          DEFAULT:
+            "color-mix(in srgb, var(--primary), transparent calc((1 - <alpha-value>) * 100%))",
+          foreground:
+            "color-mix(in srgb, var(--primary-foreground), transparent calc((1 - <alpha-value>) * 100%))",
         },
         secondary: {
-          DEFAULT: "hsl(var(--secondary) / <alpha-value>)",
-          foreground: "hsl(var(--secondary-foreground) / <alpha-value>)",
+          DEFAULT:
+            "color-mix(in srgb, var(--secondary), transparent calc((1 - <alpha-value>) * 100%))",
+          foreground:
+            "color-mix(in srgb, var(--secondary-foreground), transparent calc((1 - <alpha-value>) * 100%))",
         },
         destructive: {
-          DEFAULT: "hsl(var(--destructive) / <alpha-value>)",
-          foreground: "hsl(var(--destructive-foreground) / <alpha-value>)",
+          DEFAULT:
+            "color-mix(in srgb, var(--destructive), transparent calc((1 - <alpha-value>) * 100%))",
+          foreground:
+            "color-mix(in srgb, var(--destructive-foreground), transparent calc((1 - <alpha-value>) * 100%))",
         },
         error: {
-          DEFAULT: "hsl(var(--error) / <alpha-value>)",
-          foreground: "hsl(var(--error-foreground) / <alpha-value>)",
+          DEFAULT:
+            "color-mix(in srgb, var(--error), transparent calc((1 - <alpha-value>) * 100%))",
+          foreground:
+            "color-mix(in srgb, var(--error-foreground), transparent calc((1 - <alpha-value>) * 100%))",
         },
         muted: {
-          DEFAULT: "hsl(var(--muted) / <alpha-value>)",
-          foreground: "hsl(var(--muted-foreground) / <alpha-value>)",
+          DEFAULT:
+            "color-mix(in srgb, var(--muted), transparent calc((1 - <alpha-value>) * 100%))",
+          foreground:
+            "color-mix(in srgb, var(--muted-foreground), transparent calc((1 - <alpha-value>) * 100%))",
         },
         accent: {
-          DEFAULT: "hsl(var(--accent) / <alpha-value>)",
-          foreground: "hsl(var(--accent-foreground) / <alpha-value>)",
+          DEFAULT:
+            "color-mix(in srgb, var(--accent), transparent calc((1 - <alpha-value>) * 100%))",
+          foreground:
+            "color-mix(in srgb, var(--accent-foreground), transparent calc((1 - <alpha-value>) * 100%))",
         },
         action: {
-          DEFAULT: "hsl(var(--action) / <alpha-value>)",
-          hover: "hsl(var(--action-hover) / <alpha-value>)",
-          foreground: "hsl(var(--action-foreground) / <alpha-value>)",
+          DEFAULT:
+            "color-mix(in srgb, var(--action), transparent calc((1 - <alpha-value>) * 100%))",
+          hover:
+            "color-mix(in srgb, var(--action-hover), transparent calc((1 - <alpha-value>) * 100%))",
+          foreground:
+            "color-mix(in srgb, var(--action-foreground), transparent calc((1 - <alpha-value>) * 100%))",
         },
         popover: {
-          DEFAULT: "hsl(var(--popover) / <alpha-value>)",
-          foreground: "hsl(var(--popover-foreground) / <alpha-value>)",
+          DEFAULT:
+            "color-mix(in srgb, var(--popover), transparent calc((1 - <alpha-value>) * 100%))",
+          foreground:
+            "color-mix(in srgb, var(--popover-foreground), transparent calc((1 - <alpha-value>) * 100%))",
         },
         card: {
-          DEFAULT: "hsl(var(--card) / <alpha-value>)",
-          foreground: "hsl(var(--card-foreground) / <alpha-value>)",
+          DEFAULT:
+            "color-mix(in srgb, var(--card), transparent calc((1 - <alpha-value>) * 100%))",
+          foreground:
+            "color-mix(in srgb, var(--card-foreground), transparent calc((1 - <alpha-value>) * 100%))",
         },
       },
       fontFamily: {
@@ -156,10 +179,10 @@ module.exports = {
               fontWeight: 500,
             },
             "ul > li::marker": {
-              color: "hsl(var(--muted-foreground))",
+              color: "var(--muted-foreground)",
             },
             "ol > li::marker": {
-              color: "hsl(var(--muted-foreground))",
+              color: "var(--muted-foreground)",
             },
           },
         },

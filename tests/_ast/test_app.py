@@ -309,6 +309,7 @@ class TestApp:
         app = App(width="full", fake_config="foo")
         assert app._config.asdict() == {
             "app_title": None,
+            "css_file": None,
             "width": "full",
             "layout_file": None,
         }
@@ -466,6 +467,7 @@ def test_app_config() -> None:
     assert config.layout_file is None
     assert config.asdict() == {
         "app_title": None,
+        "css_file": None,
         "width": "full",
         "layout_file": None,
     }
@@ -479,6 +481,7 @@ def test_app_config_extra_args_ignored() -> None:
     assert config.layout_file is None
     assert config.asdict() == {
         "app_title": None,
+        "css_file": None,
         "width": "full",
         "layout_file": None,
     }

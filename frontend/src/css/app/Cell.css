@@ -154,7 +154,7 @@
 
   &.error-outline,
   &.error-outline:focus-within {
-    box-shadow: 8px 8px 0 0 hsl(var(--error) / 80%);
+    box-shadow: 8px 8px 0 0 color-mix(in srgb, var(--error), transparent 80%);
     background-color: var(--red-2);
   }
 
@@ -268,7 +268,7 @@
   /* expand the hover area left and right */
   &::before,
   &::after {
-    content: "";
+    content: '';
     position: absolute;
     width: var(--gutter-width);
     max-width: var(--gutter-width);

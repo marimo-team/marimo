@@ -177,11 +177,12 @@ class Exporter:
         # documents are executable.
 
         #  Put data from AppFileManager into the yaml header.
-        ignored_keys = {"app_title", "layout_file"}
+        ignored_keys = {"app_title", "layout_file", "css_file"}
         metadata = {
             "title": get_app_title(file_manager),
             "marimo-version": __version__,
             "marimo-layout": file_manager.app.config.layout_file,
+            "marimo-css": file_manager.app.config.css_file,
         }
         # Get values defined in _AppConfig without explicitly extracting keys,
         # as long as it isn't the default.
