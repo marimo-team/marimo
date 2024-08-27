@@ -31,7 +31,7 @@ def run_in_sandbox(
     dependencies = []
     if name is not None and os.path.isfile(name):
         with open(name) as f:
-            dependencies = _get_dependencies(f.read())
+            dependencies = _get_dependencies(f.read()) or []
         # remove marimo from dependencies
         if "marimo" in dependencies:
             dependencies.remove("marimo")
@@ -65,13 +65,13 @@ def run_in_sandbox(
     return subprocess.run(cmd)
 
 
-def _get_dependencies(script: str) -> List[str]:
+def _get_dependencies(script: str) -> List[str] | None:
     try:
         pyproject = _read_pyproject(script) or {}
-        return pyproject.get("dependencies", [])
+        return pyproject.get("dependencies", None)
     except Exception as e:
         LOGGER.warning(f"Failed to parse dependencies: {e}")
-        return []
+        return None
 
 
 def _read_pyproject(script: str) -> Dict[str, Any] | None:
