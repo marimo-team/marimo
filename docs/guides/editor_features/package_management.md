@@ -14,7 +14,7 @@ We use some heuristic for guessing the package name in your registry (e.g. PyPI)
 
 When using [uv](https://docs.astral.sh/uv), marimo can automatically add the package name metadata to your script, per [PEP 723](https://peps.python.org/pep-0723/). This metadata is used to manage the script's dependencies and Python version.
 
-For example, say you started marimo in a new virtual environment and spin up a new notebook. Whenever you imported a new module, marimo will automatically add script metadata that looks like this:
+For example, say you start marimo in a new virtual environment and spin up a new notebook. Whenever you add a new package, marimo will automatically add script metadata that looks like this:
 
 ```python
 # /// script
