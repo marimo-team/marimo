@@ -237,7 +237,7 @@ const DataTableInternal = <TData,>({
           <TableHead
             key={header.id}
             className={cn(
-              `h-auto min-h-10 whitespace-pre align-baseline`,
+              "h-auto min-h-10 whitespace-pre align-baseline",
               className,
             )}
             style={style}
@@ -269,7 +269,7 @@ const DataTableInternal = <TData,>({
         <TableCell
           key={cell.id}
           className={cn(
-            `whitespace-pre truncate max-w-[300px]`,
+            "whitespace-pre truncate max-w-[300px]",
             cell.column.getColumnWrapping &&
               cell.column.getColumnWrapping() === "wrap" &&
               "whitespace-pre-wrap min-w-[200px]",
