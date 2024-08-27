@@ -186,6 +186,8 @@ class table(
     - `show_column_summaries`: whether to show column summaries
     - `format_mapping`: a mapping from column names to formatting strings
     or functions
+    - `freeze_columns_left`: list of column names to freeze on the left
+    - `freeze_columns_right`: list of column names to freeze on the right
     - `label`: text label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
@@ -209,8 +211,8 @@ class table(
         format_mapping: Optional[
             Dict[str, Union[str, Callable[..., Any]]]
         ] = None,
-        freeze_columns_left: Sequence[str] = None,
-        freeze_columns_right: Sequence[str] = None,
+        freeze_columns_left: Optional[Sequence[str]] = None,
+        freeze_columns_right: Optional[Sequence[str]] = None,
         *,
         label: str = "",
         on_change: Optional[
@@ -282,8 +284,32 @@ class table(
             pagination = total_rows == "too_many" or total_rows > 10
 
         field_types = self._manager.get_field_types()
-        
-        # TODO: Validate frozen columns
+
+        # Validate frozen columns
+        if (
+            freeze_columns_left is not None
+            and freeze_columns_right is not None
+        ):
+            for column in freeze_columns_left:
+                if column in freeze_columns_right:
+                    continue
+                raise ValueError(
+                    "The same column cannot be frozen on both sides."
+                )
+        else:
+            column_names = self._manager.get_column_names()
+            if freeze_columns_left is not None:
+                for column in freeze_columns_left:
+                    if column not in column_names:
+                        raise ValueError(
+                            f"Column '{column}' not found in table."
+                        )
+            if freeze_columns_right is not None:
+                for column in freeze_columns_right:
+                    if column not in column_names:
+                        raise ValueError(
+                            f"Column '{column}' not found in table."
+                        )
 
         super().__init__(
             component_name=table._name,
