@@ -133,22 +133,29 @@ class DefaultTableManager(TableManager[JsonTableData]):
             ]
         )
 
-    def limit(self, num: int) -> DefaultTableManager:
-        if num < 0:
-            raise ValueError("Limit must be a positive integer")
+    def take(self, count: int, offset: int) -> DefaultTableManager:
+        if count < 0:
+            raise ValueError("Count must be a positive integer")
+        if offset < 0:
+            raise ValueError("Offset must be a non-negative integer")
+
         if isinstance(self.data, dict):
             if self.is_column_oriented:
                 return DefaultTableManager(
                     cast(
                         JsonTableData,
                         {
-                            key: cast(List[Any], value)[:num]
+                            key: cast(List[Any], value)[
+                                offset : offset + count
+                            ]
                             for key, value in self.data.items()
                         },
                     )
                 )
-            return DefaultTableManager(self._normalize_data(self.data)[:num])
-        return DefaultTableManager(self.data[:num])
+            return DefaultTableManager(
+                self._normalize_data(self.data)[offset : offset + count]
+            )
+        return DefaultTableManager(self.data[offset : offset + count])
 
     def search(self, query: str) -> DefaultTableManager:
         query = query.lower()

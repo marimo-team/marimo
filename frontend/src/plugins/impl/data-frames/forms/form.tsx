@@ -619,7 +619,7 @@ const FilterForm = ({
 
   const children = [
     <ColumnFormField
-      key={`column_id`}
+      key={"column_id"}
       schema={columnIdSchema}
       form={form}
       path={`${path}.column_id`}
@@ -654,7 +654,7 @@ const FilterForm = ({
     if (operators.length === 0) {
       children.push(
         <div
-          key={`no_operator`}
+          key={"no_operator"}
           className="text-muted-foreground text-xs font-semibold"
         >
           <FormLabel className="whitespace-pre"> </FormLabel>
@@ -664,7 +664,7 @@ const FilterForm = ({
     } else {
       children.push(
         <FormField
-          key={`operator`}
+          key={"operator"}
           control={form.control}
           name={`${path}.operator`}
           render={({ field }) => (
@@ -706,7 +706,7 @@ const FilterForm = ({
     const operandSchemas = getSchemaForOperator(dtype, operator);
     if (operandSchemas.length === 1) {
       children.push(
-        <React.Fragment key={`value`}>
+        <React.Fragment key={"value"}>
           <ColumnNameContext.Provider value={columnId}>
             {renderZodSchema(operandSchemas[0], form, `${path}.value`)}
           </ColumnNameContext.Provider>

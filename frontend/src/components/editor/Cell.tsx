@@ -47,6 +47,7 @@ import { useSetAtom } from "jotai";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { CollapsedCellBanner, CollapseToggle } from "./cell/collapse";
 import { canCollapseOutline } from "@/core/dom/outline";
+import { StopButton } from "@/components/editor/cell/StopButton";
 
 /**
  * Imperative interface of the cell.
@@ -503,7 +504,7 @@ const CellComponent = (
                 runStartTimestamp={runStartTimestamp}
                 uninstantiated={uninstantiated}
               />
-              <div className="flex align-bottom">
+              <div className="flex gap-2 align-bottom">
                 <RunButton
                   edited={edited}
                   onClick={appClosed ? Functions.NOOP : handleRun}
@@ -512,6 +513,7 @@ const CellComponent = (
                   config={cellConfig}
                   needsRun={needsRun}
                 />
+                <StopButton status={status} appClosed={appClosed} />
                 <CellActionsDropdown
                   ref={cellActionDropdownRef}
                   cellId={cellId}

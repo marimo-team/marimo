@@ -14,9 +14,7 @@ from typing import (
     Union,
 )
 
-import marimo._output.data.data as mo_data
 from marimo._output.rich_help import mddoc
-from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.dataframes.transforms.apply import (
     TransformsContainer,
@@ -26,7 +24,14 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     DataFrameType,
     Transformations,
 )
-from marimo._plugins.ui._impl.tables.table_manager import ColumnName
+from marimo._plugins.ui._impl.table import (
+    SearchTableArgs,
+    SearchTableResponse,
+    SortArgs,
+)
+from marimo._plugins.ui._impl.tables.table_manager import (
+    TableManager,
+)
 from marimo._plugins.ui._impl.tables.utils import (
     get_table_manager,
 )
@@ -54,12 +59,6 @@ class GetColumnValuesArgs:
 class GetColumnValuesResponse:
     values: List[str | int | float]
     too_many_values: bool
-
-
-@dataclass
-class SortValuesArgs:
-    by: ColumnName
-    descending: bool
 
 
 class ColumnNotFound(Exception):
@@ -159,9 +158,9 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
                     function=self.get_column_values,
                 ),
                 Function(
-                    name=self.sort_values.__name__,
-                    arg_cls=SortValuesArgs,
-                    function=self.sort_values,
+                    name=self.search.__name__,
+                    arg_cls=SearchTableArgs,
+                    function=self.search,
                 ),
             ),
         )
@@ -176,13 +175,12 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
         if self._error is not None:
             raise GetDataFrameError(self._error)
 
-        manager = get_table_manager(self._value)
-        total_rows = manager.get_num_rows(force=True) or self.DISPLAY_LIMIT
-        url = mo_data.csv(manager.limit(self.DISPLAY_LIMIT).to_csv()).url
+        manager = get_table_manager(self._data)
+        response = self.search(SearchTableArgs(page_size=10, page_number=0))
         return GetDataFrameResponse(
-            url=url,
-            total_rows=total_rows,
-            has_more=total_rows > self.DISPLAY_LIMIT,
+            url=str(response.data),
+            total_rows=response.total_rows,
+            has_more=False,
             row_headers=manager.get_row_headers(),
             supports_code_sample=self._handler.supports_code_sample(),
         )
@@ -227,9 +225,43 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
             self._error = error
             return self._data
 
-    def sort_values(self, args: SortValuesArgs) -> Union[JSONType, str]:
-        return (
-            self._manager.sort_values(args.by, args.descending)
-            .limit(self.DISPLAY_LIMIT)
-            .to_data()
+    def search(self, args: SearchTableArgs) -> SearchTableResponse:
+        offset = args.page_number * args.page_size
+
+        # If no query or sort, return nothing
+        # The frontend will just show the original data
+        if not args.query and not args.sort and not args.filters:
+            manager = get_table_manager(self._value)
+            data = manager.take(args.page_size, offset).to_data()
+            return SearchTableResponse(
+                data=data,
+                total_rows=manager.get_num_rows(force=True) or 0,
+            )
+
+        # Apply filters, query, and functools.sort using the cached method
+        result = self._apply_filters_query_sort(
+            args.query,
+            args.sort,
         )
+
+        # Save the manager to be used for selection
+        data = result.take(args.page_size, offset).to_data()
+        return SearchTableResponse(
+            data=data,
+            total_rows=result.get_num_rows(force=True) or 0,
+        )
+
+    def _apply_filters_query_sort(
+        self,
+        query: Optional[str],
+        sort: Optional[SortArgs],
+    ) -> TableManager[Any]:
+        result = get_table_manager(self._value)
+
+        if query:
+            result = result.search(query)
+
+        if sort:
+            result = result.sort_values(sort.by, sort.descending)
+
+        return result
