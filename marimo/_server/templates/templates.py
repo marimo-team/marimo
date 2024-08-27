@@ -84,6 +84,10 @@ def static_notebook_template(
         asset_url = f"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{__version__}/dist"
 
     html = html.replace("{{ base_url }}", "")
+    # We don't need all this user config when we export the notebook,
+    # but we do need some:
+    # - display.theme
+    # - display.cell_output
     html = html.replace(
         "{{ user_config }}", json.dumps(user_config, sort_keys=True)
     )
