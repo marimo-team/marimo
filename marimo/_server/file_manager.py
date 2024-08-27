@@ -187,14 +187,7 @@ class AppFileManager:
         css_file = self.app.config.css_file
         if not css_file or not self.filename:
             return None
-
-        app_dir = os.path.dirname(self.filename)
-        filepath = os.path.join(app_dir, css_file)
-        if not os.path.exists(filepath):
-            LOGGER.error("CSS file %s does not exist", css_file)
-            return None
-        with open(filepath) as f:
-            return f.read()
+        return read_css_file(css_file, self.filename)
 
     @property
     def path(self) -> Optional[str]:
@@ -294,3 +287,16 @@ class AppFileManager:
         with open(self.filename, "r", encoding="utf-8") as f:
             contents = f.read().strip()
         return contents
+
+
+def read_css_file(css_file: str, filename: Optional[str]) -> Optional[str]:
+    if not css_file or not filename:
+        return None
+
+    app_dir = os.path.dirname(filename)
+    filepath = os.path.join(app_dir, css_file)
+    if not os.path.exists(filepath):
+        LOGGER.error("CSS file %s does not exist", css_file)
+        return None
+    with open(filepath) as f:
+        return f.read()
