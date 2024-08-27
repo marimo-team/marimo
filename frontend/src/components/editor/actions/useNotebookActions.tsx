@@ -194,7 +194,7 @@ export function useNotebookActions() {
             const md = await exportAsMarkdown({ download: false });
             downloadBlob(
               new Blob([md], { type: "text/plain" }),
-              Filenames.toMarkdown(document.title)
+              Filenames.toMarkdown(document.title),
             );
           },
         },
@@ -205,7 +205,7 @@ export function useNotebookActions() {
             const code = await readCode();
             downloadBlob(
               new Blob([code.contents], { type: "text/plain" }),
-              Filenames.toPY(document.title)
+              Filenames.toPY(document.title),
             );
           },
         },
@@ -297,7 +297,7 @@ export function useNotebookActions() {
         const newNotebookName = `${filename}_duplicated`;
         const newNotebook = await createNewNotebook(
           newNotebookName,
-          code.contents
+          code.contents,
         );
         window.open(newNotebook.url, "_blank");
       },
@@ -310,7 +310,7 @@ export function useNotebookActions() {
       handle: async () => {
         const ids = disabledCells.map((cell) => cell.id);
         const newConfigs = Objects.fromEntries(
-          ids.map((cellId) => [cellId, { disabled: false }])
+          ids.map((cellId) => [cellId, { disabled: false }]),
         );
         // send to BE
         await saveCellConfig({ configs: newConfigs });
@@ -327,7 +327,7 @@ export function useNotebookActions() {
       handle: async () => {
         const ids = enabledCells.map((cell) => cell.id);
         const newConfigs = Objects.fromEntries(
-          ids.map((cellId) => [cellId, { disabled: true }])
+          ids.map((cellId) => [cellId, { disabled: true }]),
         );
         // send to BE
         await saveCellConfig({ configs: newConfigs });
