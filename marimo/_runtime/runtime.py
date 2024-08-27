@@ -778,6 +778,14 @@ class Kernel:
         del self.cell_metadata[cell_id]
         cell = self.graph.cells[cell_id]
         cell.import_workspace.imported_defs = set()
+        if self._should_add_script_metadata():
+            self._add_script_metadata(
+                import_namespaces_to_add=[],
+                import_namespaces_to_remove=[
+                    im.namespace for im in cell.imports
+                ],
+            )
+
         return self._deactivate_cell(cell_id)
 
     def mutate_graph(
