@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, Optional, get_args
 
 import click
 
+import marimo._cli.cli_validators as validators
 from marimo._cli.config.commands import config
 from marimo._cli.convert.commands import convert
 from marimo._cli.development.commands import development
@@ -22,17 +23,6 @@ from marimo._tutorials import (
 
 if TYPE_CHECKING:
     from marimo._server.tokens import AuthToken
-
-
-def base_url(ctx: Any, param: Any, value: Optional[str]) -> str:
-    del ctx
-    del param
-    if value is None or value == "":
-        return ""
-
-    if not value.startswith("/"):
-        raise click.BadParameter("Must start with /")
-    return value
 
 
 def helpful_usage_error(self: Any, file: Any = None) -> None:
@@ -246,7 +236,7 @@ edit_help_msg = "\n".join(
     show_default=True,
     type=str,
     help="Base URL for the server. Should start with a /.",
-    callback=base_url,
+    callback=validators.base_url,
 )
 @click.option(
     "--allow-origins",
@@ -392,7 +382,7 @@ def edit(
     show_default=True,
     type=str,
     help="Base URL for the server. Should start with a /.",
-    callback=base_url,
+    callback=validators.base_url,
 )
 def new(
     port: Optional[int],
@@ -506,7 +496,7 @@ Example:
     show_default=True,
     type=str,
     help="Base URL for the server. Should start with a /.",
-    callback=base_url,
+    callback=validators.base_url,
 )
 @click.option(
     "--allow-origins",
