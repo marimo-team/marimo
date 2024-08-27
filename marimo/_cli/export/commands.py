@@ -7,21 +7,10 @@ from typing import TYPE_CHECKING, Callable
 
 import click
 
-from marimo._cli.parse_args import parse_args
-from marimo._cli.print import green
-from marimo._server.export import (
-    export_as_ipynb,
-    export_as_md,
-    export_as_script,
-    run_app_then_export_as_html,
-)
-from marimo._server.utils import asyncio_run
-from marimo._utils.file_watcher import FileWatcher
-from marimo._utils.marimo_path import MarimoPath
-from marimo._utils.paths import maybe_make_dirs
-
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from marimo._utils.marimo_path import MarimoPath
 
 
 @click.group(help="""Export a notebook to various formats.""")
@@ -35,6 +24,12 @@ def watch_and_export(
     watch: bool,
     export_callback: Callable[[MarimoPath], str],
 ) -> None:
+    from marimo._cli.print import green
+    from marimo._server.utils import asyncio_run
+    from marimo._utils.file_watcher import FileWatcher
+    from marimo._utils.marimo_path import MarimoPath
+    from marimo._utils.paths import maybe_make_dirs
+
     if watch and not output:
         raise click.UsageError(
             "Cannot use --watch without providing "
@@ -136,6 +131,12 @@ def html(
     """
     Run a notebook and export it as an HTML file.
     """
+    from marimo._cli.parse_args import parse_args
+    from marimo._server.export import (
+        run_app_then_export_as_html,
+    )
+    from marimo._server.utils import asyncio_run
+    from marimo._utils.marimo_path import MarimoPath
 
     cli_args = parse_args(args)
 
@@ -195,6 +196,10 @@ def script(
     """
     Export a marimo notebook as a flat script, in topological order.
     """
+    from marimo._server.export import (
+        export_as_script,
+    )
+    from marimo._utils.marimo_path import MarimoPath
 
     def export_callback(file_path: MarimoPath) -> str:
         return export_as_script(file_path)[0]
@@ -247,6 +252,10 @@ def md(
     """
     Export a marimo notebook as a code fenced markdown document.
     """
+    from marimo._server.export import (
+        export_as_md,
+    )
+    from marimo._utils.marimo_path import MarimoPath
 
     def export_callback(file_path: MarimoPath) -> str:
         return export_as_md(file_path)[0]
@@ -301,6 +310,10 @@ def ipynb(
     """
     Export a marimo notebook as a Jupyter notebook in topological order.
     """
+    from marimo._server.export import (
+        export_as_ipynb,
+    )
+    from marimo._utils.marimo_path import MarimoPath
 
     def export_callback(file_path: MarimoPath) -> str:
         return export_as_ipynb(file_path)[0]

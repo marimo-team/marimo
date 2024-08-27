@@ -5,13 +5,6 @@ import platform
 import sys
 from typing import Any, Union, cast
 
-from marimo import __version__
-from marimo._utils.health import (
-    get_chrome_version,
-    get_node_version,
-    get_required_modules_list,
-)
-
 
 def is_win11() -> bool:
     """
@@ -26,6 +19,13 @@ def is_win11() -> bool:
 
 
 def get_system_info() -> dict[str, Union[str, dict[str, str]]]:
+    from marimo import __version__
+    from marimo._utils.health import (
+        get_chrome_version,
+        get_node_version,
+        get_required_modules_list,
+    )
+
     os_version = platform.release()
     if platform.system() == "Windows" and is_win11():
         os_version = "11"

@@ -10,38 +10,33 @@ from typing import TYPE_CHECKING, Any, Dict
 import click
 from starlette.schemas import SchemaGenerator
 
-import marimo._data.models as data
-import marimo._messaging.errors as errors
-import marimo._messaging.ops as ops
-import marimo._runtime.requests as requests
-import marimo._server.models.completion as completion
-import marimo._server.models.export as export
-import marimo._server.models.files as files
-import marimo._server.models.home as home
-import marimo._server.models.models as models
-import marimo._snippets.snippets as snippets
-from marimo import __version__
-from marimo._ast.cell import CellConfig, RuntimeStateType
-from marimo._cli.print import orange
-from marimo._config.config import MarimoConfig
-from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.cell_output import CellChannel, CellOutput
-from marimo._messaging.mimetypes import KnownMimeType
-from marimo._output.mime import MIME
-from marimo._plugins.core.web_component import JSONType
-from marimo._runtime.packages.module_name_to_pypi_name import (
-    module_name_to_pypi_name,
-)
-from marimo._server.api.router import build_routes
-from marimo._utils.dataclass_to_openapi import (
-    PythonTypeToOpenAPI,
-)
-
 if TYPE_CHECKING:
     import psutil
 
 
 def _generate_schema() -> dict[str, Any]:
+    import marimo._data.models as data
+    import marimo._messaging.errors as errors
+    import marimo._messaging.ops as ops
+    import marimo._runtime.requests as requests
+    import marimo._server.models.completion as completion
+    import marimo._server.models.export as export
+    import marimo._server.models.files as files
+    import marimo._server.models.home as home
+    import marimo._server.models.models as models
+    import marimo._snippets.snippets as snippets
+    from marimo import __version__
+    from marimo._ast.cell import CellConfig, RuntimeStateType
+    from marimo._config.config import MarimoConfig
+    from marimo._messaging.cell_output import CellChannel, CellOutput
+    from marimo._messaging.mimetypes import KnownMimeType
+    from marimo._output.mime import MIME
+    from marimo._plugins.core.web_component import JSONType
+    from marimo._server.api.router import build_routes
+    from marimo._utils.dataclass_to_openapi import (
+        PythonTypeToOpenAPI,
+    )
+
     # dataclass components used in websocket messages
     # these are always snake_case
     MESSAGES = [
@@ -301,6 +296,8 @@ def list_processes() -> None:
 
         marimo development ps list
     """
+    from marimo._cli.print import orange
+
     # pretty print processes
     result = get_marimo_processes()
     for proc in result:
@@ -348,6 +345,12 @@ def inline_packages(
     """
 
     # Validate uv is installed
+
+    from marimo._dependencies.dependencies import DependencyManager
+    from marimo._runtime.packages.module_name_to_pypi_name import (
+        module_name_to_pypi_name,
+    )
+
     if not DependencyManager.which("uv"):
         raise click.UsageError(
             "uv is not installed. See https://docs.astral.sh/uv/getting-started/installation/"

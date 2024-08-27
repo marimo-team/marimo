@@ -5,37 +5,39 @@ import json
 import os
 import pathlib
 import tempfile
-from typing import Any, Optional, get_args
+from typing import TYPE_CHECKING, Any, Optional, get_args
 
 import click
 
-import marimo._cli.cli_validators as validators
-from marimo import __version__, _loggers
-from marimo._ast import codegen
 from marimo._cli.config.commands import config
 from marimo._cli.convert.commands import convert
 from marimo._cli.development.commands import development
-from marimo._cli.envinfo import get_system_info
 from marimo._cli.export.commands import export
-from marimo._cli.file_path import validate_name
-from marimo._cli.parse_args import parse_args
-from marimo._cli.print import red
-from marimo._cli.upgrade import check_for_updates, print_latest_version
-from marimo._config.settings import GLOBAL_SETTINGS
-from marimo._server.file_router import AppFileRouter
-from marimo._server.model import SessionMode
-from marimo._server.start import start
-from marimo._server.tokens import AuthToken
 from marimo._tutorials import (
     PythonTutorial,
     Tutorial,
     get_tutorial_source,
     tutorial_order,
 )
-from marimo._utils.marimo_path import MarimoPath
+
+if TYPE_CHECKING:
+    from marimo._server.tokens import AuthToken
+
+
+def base_url(ctx: Any, param: Any, value: Optional[str]) -> str:
+    del ctx
+    del param
+    if value is None or value == "":
+        return ""
+
+    if not value.startswith("/"):
+        raise click.BadParameter("Must start with /")
+    return value
 
 
 def helpful_usage_error(self: Any, file: Any = None) -> None:
+    from marimo._cli.print import red
+
     if file is None:
         file = click.get_text_stream("stderr")
     color = None
@@ -75,6 +77,8 @@ def _key_value_bullets(items: list[tuple[str, str]]) -> str:
 def _resolve_token(
     token: bool, token_password: Optional[str]
 ) -> Optional[AuthToken]:
+    from marimo._server.tokens import AuthToken
+
     if token_password:
         return AuthToken(token_password)
     elif token is False:
@@ -136,7 +140,7 @@ token_password_message = """
 
 
 @click.group(help=main_help_msg)
-@click.version_option(version=__version__, message="%(version)s")
+@click.version_option(package_name="marimo", message="%(version)s")
 @click.option(
     "-l",
     "--log-level",
@@ -164,8 +168,11 @@ token_password_message = """
     help="Run in development mode; enables debug logs and server autoreload.",
 )
 def main(log_level: str, quiet: bool, development_mode: bool) -> None:
+    from marimo import _loggers
+
     log_level = "DEBUG" if development_mode else log_level
     _loggers.set_level(log_level)
+    from marimo._config.settings import GLOBAL_SETTINGS
 
     GLOBAL_SETTINGS.DEVELOPMENT_MODE = development_mode
     GLOBAL_SETTINGS.QUIET = quiet
@@ -239,7 +246,7 @@ edit_help_msg = "\n".join(
     show_default=True,
     type=str,
     help="Base URL for the server. Should start with a /.",
-    callback=validators.base_url,
+    callback=base_url,
 )
 @click.option(
     "--allow-origins",
@@ -272,6 +279,15 @@ def edit(
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
+    from marimo._ast import codegen
+    from marimo._cli.file_path import validate_name
+    from marimo._cli.parse_args import parse_args
+    from marimo._cli.upgrade import check_for_updates, print_latest_version
+    from marimo._config.settings import GLOBAL_SETTINGS
+    from marimo._server.file_router import AppFileRouter
+    from marimo._server.model import SessionMode
+    from marimo._server.start import start
+
     GLOBAL_SETTINGS.PROFILE_DIR = profile_dir
     if not skip_update_check and os.getenv("MARIMO_SKIP_UPDATE_CHECK") != "1":
         GLOBAL_SETTINGS.CHECK_STATUS_UPDATE = True
@@ -376,7 +392,7 @@ def edit(
     show_default=True,
     type=str,
     help="Base URL for the server. Should start with a /.",
-    callback=validators.base_url,
+    callback=base_url,
 )
 def new(
     port: Optional[int],
@@ -387,6 +403,11 @@ def new(
     token_password: Optional[str],
     base_url: str,
 ) -> None:
+    from marimo._config.settings import GLOBAL_SETTINGS
+    from marimo._server.file_router import AppFileRouter
+    from marimo._server.model import SessionMode
+    from marimo._server.start import start
+
     start(
         file_router=AppFileRouter.new_file(),
         development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
@@ -485,7 +506,7 @@ Example:
     show_default=True,
     type=str,
     help="Base URL for the server. Should start with a /.",
-    callback=validators.base_url,
+    callback=base_url,
 )
 @click.option(
     "--allow-origins",
@@ -518,6 +539,15 @@ def run(
     name: str,
     args: tuple[str, ...],
 ) -> None:
+    from marimo._ast import codegen
+    from marimo._cli.file_path import validate_name
+    from marimo._cli.parse_args import parse_args
+    from marimo._config.settings import GLOBAL_SETTINGS
+    from marimo._server.file_router import AppFileRouter
+    from marimo._server.model import SessionMode
+    from marimo._server.start import start
+    from marimo._utils.marimo_path import MarimoPath
+
     # Validate name, or download from URL
     # The second return value is an optional temporary directory. It is unused,
     # but must be kept around because its lifetime on disk is bound to the life
@@ -549,6 +579,8 @@ def run(
 @main.command(help="Recover a marimo notebook from JSON.")
 @click.argument("name", required=True)
 def recover(name: str) -> None:
+    from marimo._ast import codegen
+
     path = pathlib.Path(name)
     if not os.path.exists(name):
         raise click.UsageError("Invalid NAME - %s does not exist" % name)
@@ -632,6 +664,12 @@ def tutorial(
     token_password: Optional[str],
     name: Tutorial,
 ) -> None:
+    from marimo._config.settings import GLOBAL_SETTINGS
+    from marimo._server.file_router import AppFileRouter
+    from marimo._server.model import SessionMode
+    from marimo._server.start import start
+    from marimo._utils.marimo_path import MarimoPath
+
     source = get_tutorial_source(name)
     d = tempfile.TemporaryDirectory()
     extension = "py" if name in get_args(PythonTutorial) else "md"
@@ -664,6 +702,8 @@ def env() -> None:
 
         marimo env
     """
+    from marimo._cli.envinfo import get_system_info
+
     print(json.dumps(get_system_info(), indent=2))
 
 

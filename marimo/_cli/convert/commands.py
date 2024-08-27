@@ -5,10 +5,6 @@ from pathlib import Path
 
 import click
 
-from marimo._cli.convert.ipynb import convert_from_ipynb
-from marimo._cli.convert.markdown import convert_from_md
-from marimo._cli.convert.utils import load_external_file
-
 
 @click.argument("filename", required=True)
 def convert(
@@ -37,6 +33,10 @@ def convert(
     you may need to fix errors like multiple definition errors or cycle
     errors.
     """
+    from marimo._cli.convert.ipynb import convert_from_ipynb
+    from marimo._cli.convert.markdown import convert_from_md
+    from marimo._cli.convert.utils import load_external_file
+
     ext = Path(filename).suffix
     if ext not in (".ipynb", ".md", ".qmd"):
         raise click.UsageError("File must be an .ipynb or .md file")
