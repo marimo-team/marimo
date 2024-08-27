@@ -19,31 +19,27 @@ module.exports = {
       boxShadow: {
         none: "none",
         // fuzzy shadows
-        xxs: "var(--shadow-xxs)",
-        xs: "var(--shadow-xs)",
-        sm: "var(--shadow-sm)",
-        md: "var(--shadow-md)",
-        lg: "var(--shadow-lg)",
-        xl: "var(--shadow-xl)",
-        // solid shadows
+        xxs: "0px 0px 2px 0px var(--base-shadow-darker)",
+        xs: "1px 1px 2px 0px var(--base-shadow), 0px 0px 2px 0px hsl(0deg 0% 25% / var(--base-shadow-opacity))",
+        sm: "2px 2px 2px 0px var(--base-shadow), 0px 0px 2px 0px hsl(0deg 0% 25% / var(--base-shadow-opacity))",
+        md: "4px 4px 4px 0px var(--base-shadow), 0 0px 4px 0px hsl(0deg 0% 60% / var(--base-shadow-opacity))",
+        lg: "5px 6px 4px 0px var(--base-shadow), 0 0px 4px 0px hsl(0deg 0% 75% / var(--base-shadow-opacity))",
+        xl: "8px 9px 4px 0px var(--base-shadow), 0 0px 6px 0px hsl(0deg 0% 85% / var(--base-shadow-opacity))",
+        "2xl":
+          "10px 12px 10px 0px var(--base-shadow), 0 0px 8px 0px hsl(0deg 0% 90% / var(--base-shadow-opacity))",
+
         xsSolid:
-          "1px 1px 0px 0px var(--tw-shadow-color, var(--base-shadow-darker)), 0px 0px 2px 0px hsl(0deg 0% 25% / 5%)",
+          "1px 1px 0px 0px var(--base-shadow-darker), 0px 0px 2px 0px hsl(0deg 0% 50% / 20%)",
         smSolid:
-          "2px 2px 0px 0px var(--tw-shadow-color, var(--base-shadow-darker)), 0px 0px 2px 0px hsl(0deg 0% 25% / 5%)",
+          "2px 2px 0px 0px var(--base-shadow-darker), 0px 0px 2px 0px hsl(0deg 0% 50% / 20%)",
         mdSolid:
-          "4px 4px 0px 0px var(--tw-shadow-color, var(--base-shadow-darker)), 0 0px 4px 0px hsl(0deg 0% 60% / 5%)",
+          "4px 4px 0px 0px var(--base-shadow-darker), 0 0px 2px 0px hsl(0deg 0% 60% / 50%)",
         lgSolid:
-          "5px 6px 0px 0px var(--tw-shadow-color, var(--base-shadow-darker)), 0 0px 4px 0px hsl(0deg 0% 75% / 5%)",
+          "5px 6px 0px 0px var(--base-shadow-darker), 0 0px 4px 0px hsl(0deg 0% 75% / 50%)",
         xlSolid:
-          "8px 9px 0px 0px var(--tw-shadow-color, var(--base-shadow-darker)), 0 0px 6px 0px hsl(0deg 0% 85% / 5%)",
-        // neutral shadows (used for cells, ...)
-        // TODO(akshayka): clean these up to use tw-shadow-color
-        smNeutral: "var(--light-shadow)",
-        mdNeutral: "var(--medium-shadow)",
-        lgNeutral: "var(--heavy-shadow)",
-        // accent/error shadows
-        smError: "var(--light-shadow-error)",
-        smAccent: "var(--light-shadow-accent)",
+          "7px 8px 0px 0px var(--base-shadow-darker), 0 0px 4px 0px hsl(0deg 0% 85% / 50%)",
+        "2xlSolid":
+          "10px 12px 0px 0px var(--base-shadow-darker), 0 0px 8px 0px hsl(0deg 0% 90% / 50%)",
       },
       maxWidth: {
         contentWidth: "var(--content-width)",
@@ -55,6 +51,7 @@ module.exports = {
       colors: {
         border:
           "color-mix(in srgb, var(--border), transparent calc((1 - <alpha-value>) * 100%))",
+        shade: "var(--base-shadow)",
         input:
           "color-mix(in srgb, var(--input), transparent calc((1 - <alpha-value>) * 100%))",
         ring: "color-mix(in srgb, var(--ring), transparent calc((1 - <alpha-value>) * 100%))",
@@ -62,8 +59,8 @@ module.exports = {
           "color-mix(in srgb, var(--background), transparent calc((1 - <alpha-value>) * 100%))",
         foreground:
           "color-mix(in srgb, var(--foreground), transparent calc((1 - <alpha-value>) * 100%))",
-        link: "color-mix(in srgb, var(--link))",
-        "link-visited": "color-mix(in srgb, var(--link-visited))",
+        link: "var(--link)",
+        "link-visited": "var(--link-visited)",
         primary: {
           DEFAULT:
             "color-mix(in srgb, var(--primary), transparent calc((1 - <alpha-value>) * 100%))",
@@ -88,6 +85,7 @@ module.exports = {
           foreground:
             "color-mix(in srgb, var(--error-foreground), transparent calc((1 - <alpha-value>) * 100%))",
         },
+        stale: "var(--stale)",
         muted: {
           DEFAULT:
             "color-mix(in srgb, var(--muted), transparent calc((1 - <alpha-value>) * 100%))",
