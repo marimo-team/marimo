@@ -7,7 +7,24 @@ app = marimo.App(width="medium", css_file="custom.css")
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    from vega_datasets import data
+    return data, mo
+
+
+@app.cell
+def __(data):
+    data.cars()
+    return
+
+
+@app.cell
+def __(mo):
+    mo.callout(mo.md("""
+    ## Callout
+
+    This font should be styled
+    """))
+    return
 
 
 @app.cell
