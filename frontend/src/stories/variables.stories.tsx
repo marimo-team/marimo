@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { Meta, StoryObj } from "@storybook/react";
 import { VariableTable } from "@/components/variables/variables-table";
-import { CellId } from "@/core/cells/ids";
+import type { CellId } from "@/core/cells/ids";
 
 const meta: Meta<typeof VariableTable> = {
   title: "VariableTable",

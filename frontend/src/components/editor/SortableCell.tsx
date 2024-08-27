@@ -4,7 +4,7 @@ import { mergeRefs } from "../../utils/mergeRefs";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVerticalIcon } from "lucide-react";
-import { CellId } from "@/core/cells/ids";
+import type { CellId } from "@/core/cells/ids";
 import { cn } from "@/utils/cn";
 
 interface Props extends React.HTMLAttributes<HTMLDivElement> {
@@ -56,7 +56,7 @@ const SortableCellInternal = React.forwardRef(
         {...attributes}
         {...listeners}
         data-testid="drag-button"
-        className="py-[1px] mx-2 cursor-grab opacity-50 hover:opacity-100 hover-action hover:bg-muted rounded border border-transparent hover:border-border active:bg-accent"
+        className="py-[1px] cursor-grab opacity-50 hover:opacity-100 hover-action hover:bg-muted rounded border border-transparent hover:border-border active:bg-accent"
       >
         <GripVerticalIcon strokeWidth={1} size={20} />
       </div>

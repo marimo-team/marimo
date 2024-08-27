@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { asURL } from "@/utils/url";
 import { vegaLoadData } from "./loader";
-import {
+import type {
   Field,
   VegaLiteSpec,
   LayerSpec,

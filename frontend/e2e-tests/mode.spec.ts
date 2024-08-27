@@ -1,6 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { test, expect, Page, BrowserContext } from "@playwright/test";
-import { ApplicationNames, getAppMode, getAppUrl } from "../playwright.config";
+import { test, expect, type Page, type BrowserContext } from "@playwright/test";
+import {
+  type ApplicationNames,
+  getAppMode,
+  getAppUrl,
+} from "../playwright.config";
 import { maybeRestartKernel, takeScreenshot } from "./helper";
 import { fileURLToPath } from "node:url";
 

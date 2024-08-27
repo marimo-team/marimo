@@ -7,7 +7,7 @@ import {
   toggleToLanguage,
 } from "./language/commands";
 import { smartScrollIntoView } from "../../utils/scroll";
-import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { invariant } from "@/utils/invariant";
 import type { CodeCallbacks } from "./cells/extensions";
 

@@ -42,11 +42,11 @@ export const API = {
             ? await response.json()
             : await response.text();
           throw new Error(response.statusText, { cause: errorBody });
-        } else if (isJson) {
-          return response.json() as RESP;
-        } else {
-          return response.text() as unknown as RESP;
         }
+        if (isJson) {
+          return response.json() as RESP;
+        }
+        return response.text() as unknown as RESP;
       })
       .catch((error) => {
         // Catch and rethrow

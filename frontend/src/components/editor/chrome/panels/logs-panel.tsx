@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { useCellActions, useCellLogs } from "@/core/cells/cells";
-import { CellLog, formatLogTimestamp } from "@/core/cells/logs";
+import { type CellLog, formatLogTimestamp } from "@/core/cells/logs";
 import { cn } from "@/utils/cn";
 import React from "react";
 import { FileTextIcon } from "lucide-react";

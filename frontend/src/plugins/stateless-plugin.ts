@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { IPlugin } from "./types";
+import type { IPlugin } from "./types";
 
 export interface IStatelessPluginProps<D> {
   /**

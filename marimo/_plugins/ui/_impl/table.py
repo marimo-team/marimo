@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import functools
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -68,18 +69,27 @@ class ColumnSummary:
 
 @dataclass
 class ColumnSummaries:
+    data: Union[JSONType, str]
     summaries: List[ColumnSummary]
     is_disabled: Optional[bool] = None
 
 
-@dataclass
+@dataclass(frozen=True)
 class SearchTableArgs:
+    page_size: int
+    page_number: int
     query: Optional[str] = None
     sort: Optional[SortArgs] = None
     filters: Optional[List[Condition]] = None
 
 
-@dataclass
+@dataclass(frozen=True)
+class SearchTableResponse:
+    data: Union[JSONType, str]
+    total_rows: int
+
+
+@dataclass(frozen=True)
 class SortArgs:
     by: ColumnName
     descending: bool
@@ -231,7 +241,7 @@ class table(
         ] = None,
         # The _internal_* arguments are for overriding and unit tests
         # table should take the value unconditionally
-        _internal_row_limit: Optional[int] = None,
+        _internal_column_charts_row_limit: Optional[int] = None,
         _internal_summary_row_limit: Optional[int] = None,
         _internal_total_rows: Optional[Union[int, Literal["too_many"]]] = None,
     ) -> None:
@@ -251,39 +261,52 @@ class table(
                 "https://github.com/marimo-team/marimo/issues"
             )
 
-        if _internal_row_limit is not None:
-            self._row_limit = _internal_row_limit
+        if _internal_column_charts_row_limit is not None:
+            self._column_charts_row_limit = _internal_column_charts_row_limit
         else:
-            self._row_limit = TableManager.DEFAULT_ROW_LIMIT
+            self._column_charts_row_limit = (
+                TableManager.DEFAULT_SUMMARY_CHARTS_ROW_LIMIT
+            )
 
         if _internal_summary_row_limit is not None:
-            self._summary_row_limit = _internal_summary_row_limit
+            self._column_summary_row_limit = _internal_summary_row_limit
         else:
-            self._summary_row_limit = TableManager.DEFAULT_SUMMARY_ROW_LIMIT
+            self._column_summary_row_limit = (
+                TableManager.DEFAULT_SUMMARY_STATS_ROW_LIMIT
+            )
 
         # Holds the data after user searching from original data
         # (searching operations include query, sort, filter, etc.)
         self._searched_manager = self._manager
-        # Holds the data after marimo limiting row number from searched data
-        self._limited_manager = self._searched_manager.limit(self._row_limit)
         # Holds the data after user selecting from the component
         self._selected_manager: Optional[TableManager[Any]] = None
 
         # We will need this when calling table manager's to_data()
         self._format_mapping = format_mapping
 
+        field_types = self._manager.get_field_types()
+
         if _internal_total_rows is not None:
             total_rows = _internal_total_rows
         else:
-            total_rows = self._manager.get_num_rows(force=True) or 0
+            total_rows = self._manager.get_num_rows(force=True) or "too_many"
 
-        has_more = total_rows == "too_many" or total_rows > self._row_limit
-
+        if pagination is False and total_rows != "too_many":
+            page_size = total_rows
         # pagination defaults to True if there are more than 10 rows
         if pagination is None:
             pagination = total_rows == "too_many" or total_rows > 10
 
-        field_types = self._manager.get_field_types()
+        # Search first page
+        search_result = self.search(
+            SearchTableArgs(
+                page_size=page_size,
+                page_number=0,
+                query=None,
+                sort=None,
+                filters=None,
+            )
+        )
 
         # Validate frozen columns
         if (
@@ -316,8 +339,7 @@ class table(
             label=label,
             initial_value=[],
             args={
-                "data": self._limited_manager.to_data(self._format_mapping),
-                "has-more": has_more,
+                "data": search_result.data,
                 "total-rows": total_rows,
                 "pagination": pagination,
                 "page-size": page_size,
@@ -362,7 +384,7 @@ class table(
         self, value: list[str]
     ) -> Union[List[JSONType], "pd.DataFrame", "pl.DataFrame"]:
         indices = [int(v) for v in value]
-        self._selected_manager = self._limited_manager.select_rows(indices)
+        self._selected_manager = self._searched_manager.select_rows(indices)
         self._has_any_selection = len(indices) > 0
         return self._selected_manager.data  # type: ignore[no-any-return]
 
@@ -387,15 +409,21 @@ class table(
     def get_column_summaries(self, args: EmptyArgs) -> ColumnSummaries:
         del args
 
-        # Avoid expensive column summaries calculation by setting a upper limit
-        if (
-            self._searched_manager.get_num_rows(force=True) or 0
-        ) > self._summary_row_limit:
-            return ColumnSummaries([], is_disabled=True)
+        total_rows = self._searched_manager.get_num_rows(force=True) or 0
 
+        # Avoid expensive column summaries calculation by setting a upper limit
+        # if we are above the limit, we hide the column summaries
+        if total_rows > self._column_summary_row_limit:
+            return ColumnSummaries(
+                data=None,
+                summaries=[],
+                is_disabled=True,
+            )
+
+        # Get column summaries
         summaries: List[ColumnSummary] = []
-        for column in self._searched_manager.get_column_names():
-            summary = self._searched_manager.get_summary(column)
+        for column in self._manager.get_column_names():
+            summary = self._manager.get_summary(column)
             summaries.append(
                 ColumnSummary(
                     column=column,
@@ -408,37 +436,81 @@ class table(
                 )
             )
 
-        return ColumnSummaries(summaries, is_disabled=False)
+        # If we are above the limit to show charts,
+        # we don't return the chart data
+        if total_rows > self._column_charts_row_limit:
+            return ColumnSummaries(
+                data=None,
+                summaries=summaries,
+                is_disabled=False,
+            )
 
-    def search(self, args: SearchTableArgs) -> Union[JSONType, str]:
-        # Start with the original manager, then filter
+        return ColumnSummaries(
+            data=self._manager.to_data({}),
+            summaries=summaries,
+            is_disabled=False,
+        )
+
+    @functools.lru_cache(maxsize=1)  # noqa: B019
+    def _apply_filters_query_sort(
+        self,
+        filters: Optional[List[Condition]],
+        query: Optional[str],
+        sort: Optional[SortArgs],
+    ) -> TableManager[Any]:
         result = self._manager
+
+        if filters:
+            handler = get_handler_for_dataframe(result.data)
+            data = handler.handle_filter_rows(
+                result.data,
+                FilterRowsTransform(
+                    type=TransformType.FILTER_ROWS,
+                    where=filters,
+                    operation="keep_rows",
+                ),
+            )
+            result = get_table_manager(data)
+
+        if query:
+            result = result.search(query)
+
+        if sort:
+            result = result.sort_values(sort.by, sort.descending)
+
+        return result
+
+    def search(self, args: SearchTableArgs) -> SearchTableResponse:
+        offset = args.page_number * args.page_size
 
         # If no query or sort, return nothing
         # The frontend will just show the original data
         if not args.query and not args.sort and not args.filters:
             self._searched_manager = self._manager
-            self._limited_manager = self._searched_manager.limit(
-                self._row_limit
+            data = self._manager.take(args.page_size, offset).to_data(
+                self._format_mapping
             )
-            return []
+            return SearchTableResponse(
+                data=data,
+                total_rows=self._manager.get_num_rows(force=True) or 0,
+            )
 
-        if args.filters:
-            handler = get_handler_for_dataframe(self._manager.data)
-            data = handler.handle_filter_rows(
-                result.data,
-                FilterRowsTransform(
-                    type=TransformType.FILTER_ROWS,
-                    where=args.filters,
-                    operation="keep_rows",
-                ),
-            )
-            result = get_table_manager(data)
-        if args.query:
-            result = result.search(args.query)
-        if args.sort:
-            result = result.sort_values(args.sort.by, args.sort.descending)
+        # Apply filters, query, and functools.sort using the cached method
+        result = self._apply_filters_query_sort(
+            tuple(args.filters) if args.filters else None,
+            args.query,
+            args.sort,
+        )
+
         # Save the manager to be used for selection
         self._searched_manager = result
-        self._limited_manager = self._searched_manager.limit(self._row_limit)
-        return self._limited_manager.to_data(self._format_mapping)
+        data = result.take(args.page_size, offset).to_data(
+            self._format_mapping
+        )
+        return SearchTableResponse(
+            data=data,
+            total_rows=result.get_num_rows(force=True) or 0,
+        )
+
+    def __hash__(self) -> int:
+        return id(self)

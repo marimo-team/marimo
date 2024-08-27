@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Atom, createStore, useStore } from "jotai";
+import { type Atom, createStore, useStore } from "jotai";
 import { useEffect } from "react";
 
 /**

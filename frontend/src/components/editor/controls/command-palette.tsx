@@ -12,7 +12,7 @@ import {
 import { useRegisteredActions } from "../../../core/hotkeys/actions";
 import { useRecentCommands } from "../../../hooks/useRecentCommands";
 import { KeyboardHotkeys } from "../../shortcuts/renderShortcut";
-import { HotkeyAction, isHotkeyAction } from "@/core/hotkeys/hotkeys";
+import { type HotkeyAction, isHotkeyAction } from "@/core/hotkeys/hotkeys";
 import { atom, useAtom, useAtomValue } from "jotai";
 import { useNotebookActions } from "../actions/useNotebookActions";
 import { Objects } from "@/utils/objects";

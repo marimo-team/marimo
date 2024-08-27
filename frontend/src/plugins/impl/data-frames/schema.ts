@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import {
   AGGREGATION_FNS,
-  ColumnId,
+  type ColumnId,
   NUMPY_DTYPES,
 } from "@/plugins/impl/data-frames/types";
 import {
@@ -11,7 +11,7 @@ import {
 import { z } from "zod";
 import {
   ALL_OPERATORS,
-  OperatorType,
+  type OperatorType,
   isConditionValueValid,
 } from "./utils/operators";
 

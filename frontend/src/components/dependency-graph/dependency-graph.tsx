@@ -2,12 +2,12 @@
 import { ReactFlowProvider } from "reactflow";
 
 import React from "react";
-import { Variables } from "@/core/variables/types";
-import { CellId } from "@/core/cells/ids";
-import { CellData } from "@/core/cells/types";
-import { Atom, atom, useAtom } from "jotai";
+import type { Variables } from "@/core/variables/types";
+import type { CellId } from "@/core/cells/ids";
+import type { CellData } from "@/core/cells/types";
+import { type Atom, atom, useAtom } from "jotai";
 
-import { GraphLayoutView, GraphSettings } from "./types";
+import type { GraphLayoutView, GraphSettings } from "./types";
 import { DependencyGraphMinimap } from "./dependency-graph-minimap";
 import { GraphToolbar } from "./panels";
 import { DependencyGraphTree } from "./dependency-graph-tree";

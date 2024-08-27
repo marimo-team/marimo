@@ -47,6 +47,7 @@ import { useSetAtom } from "jotai";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { CollapsedCellBanner, CollapseToggle } from "./cell/collapse";
 import { canCollapseOutline } from "@/core/dom/outline";
+import { StopButton } from "@/components/editor/cell/StopButton";
 
 /**
  * Imperative interface of the cell.
@@ -425,11 +426,11 @@ const CellComponent = (
   const cellTitle = () => {
     if (cellConfig.disabled) {
       return "This cell is disabled";
-    } else if (status === "disabled-transitively") {
-      return "This cell has a disabled ancestor";
-    } else {
-      return undefined;
     }
+    if (status === "disabled-transitively") {
+      return "This cell has a disabled ancestor";
+    }
+    return undefined;
   };
 
   const handleRefactorWithAI = (opts: { prompt: string }) => {
@@ -503,7 +504,7 @@ const CellComponent = (
                 runStartTimestamp={runStartTimestamp}
                 uninstantiated={uninstantiated}
               />
-              <div className="flex align-bottom">
+              <div className="flex gap-2 align-bottom">
                 <RunButton
                   edited={edited}
                   onClick={appClosed ? Functions.NOOP : handleRun}
@@ -512,6 +513,7 @@ const CellComponent = (
                   config={cellConfig}
                   needsRun={needsRun}
                 />
+                <StopButton status={status} appClosed={appClosed} />
                 <CellActionsDropdown
                   ref={cellActionDropdownRef}
                   cellId={cellId}

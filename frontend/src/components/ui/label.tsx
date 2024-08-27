@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import * as React from "react";
 import * as LabelPrimitive from "@radix-ui/react-label";
-import { VariantProps, cva } from "class-variance-authority";
+import { type VariantProps, cva } from "class-variance-authority";
 
 import { cn } from "@/utils/cn";
 

@@ -97,8 +97,10 @@ class DataFrameProtocolTableManager(TableManager[DataFrameLike]):
             for column in self._df.column_names()
         }
 
-    def limit(self, num: int) -> TableManager[Union[pa.Table, pa.RecordBatch]]:
-        return self._ensure_delegate().limit(num)
+    def take(
+        self, count: int, offset: int
+    ) -> TableManager[Union[pa.Table, pa.RecordBatch]]:
+        return self._ensure_delegate().take(count, offset)
 
     def search(self, query: str) -> TableManager[Any]:
         return self._ensure_delegate().search(query)

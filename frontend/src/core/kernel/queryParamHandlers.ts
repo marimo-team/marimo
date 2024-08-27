@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { OperationMessageData } from "./messages";
+import type { OperationMessageData } from "./messages";
 
 export const queryParamHandlers = {
   append: (data: OperationMessageData<"query-params-append">) => {

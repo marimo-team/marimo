@@ -1,17 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { FieldQuery } from "compassql/build/src/query/encoding";
-import { ExpandedType } from "compassql/build/src/query/expandedtype";
+import type { FieldQuery } from "compassql/build/src/query/encoding";
+import type { ExpandedType } from "compassql/build/src/query/expandedtype";
 import {
   isWildcard,
-  SHORT_WILDCARD,
-  WildcardProperty,
+  type SHORT_WILDCARD,
+  type WildcardProperty,
 } from "compassql/build/src/wildcard";
 import {
   fromFieldQueryFunctionMixins,
   toFieldQueryFunctionMixins,
 } from "./functions/function";
 import { invariant } from "@/utils/invariant";
-import { FieldFunction } from "./functions/types";
+import type { FieldFunction } from "./functions/types";
 import { removeUndefined } from "./queries/removeUndefined";
 import { Logger } from "@/utils/Logger";
 
@@ -85,7 +85,8 @@ export function fromFieldQuery(fieldQ: FieldQuery): FieldDefinition {
 
   if (isWildcard(type)) {
     throw new Error("Wildcard not support");
-  } else if (type === "ordinal") {
+  }
+  if (type === "ordinal") {
     Logger.warn("Ordinal type is not supported. Using nominal type instead.");
     type = "nominal";
   }

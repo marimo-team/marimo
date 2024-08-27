@@ -4,7 +4,7 @@ import { languageServerWithTransport } from "codemirror-languageserver";
 import { CopilotLanguageServerClient } from "./language-server";
 import { WebSocketTransport } from "@open-rpc/client-js";
 import { Transport } from "@open-rpc/client-js/build/transports/Transport";
-import { JSONRPCRequestData } from "@open-rpc/client-js/build/Request";
+import type { JSONRPCRequestData } from "@open-rpc/client-js/build/Request";
 import { waitForEnabledCopilot } from "./state";
 import { waitForWs } from "@/utils/waitForWs";
 

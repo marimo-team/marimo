@@ -236,7 +236,7 @@ class TestPandasTableManager(unittest.TestCase):
         import pandas as pd
 
         limit = 2
-        limited_manager = self.manager.limit(limit)
+        limited_manager = self.manager.take(limit, 0)
         expected_data = self.data.head(limit)
         pd.testing.assert_frame_equal(limited_manager.data, expected_data)
 

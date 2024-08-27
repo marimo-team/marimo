@@ -5,23 +5,28 @@ import ReactFlow, {
   Controls,
   Background,
   BackgroundVariant,
-  Node,
-  Edge,
+  type Node,
+  type Edge,
 } from "reactflow";
 
-import React, { PropsWithChildren, useEffect, useMemo, useState } from "react";
+import React, {
+  type PropsWithChildren,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   EdgeMarkerContext,
   nodeTypes,
 } from "@/components/dependency-graph/custom-node";
-import { Variables } from "@/core/variables/types";
-import { CellId } from "@/core/cells/ids";
-import { CellData } from "@/core/cells/types";
-import { Atom } from "jotai";
+import type { Variables } from "@/core/variables/types";
+import type { CellId } from "@/core/cells/ids";
+import type { CellData } from "@/core/cells/types";
+import type { Atom } from "jotai";
 
-import { NodeData, TreeElementsBuilder } from "./elements";
+import { type NodeData, TreeElementsBuilder } from "./elements";
 import { layoutElements } from "./utils/layout";
-import { GraphSelection, GraphSettings, LayoutDirection } from "./types";
+import type { GraphSelection, GraphSettings, LayoutDirection } from "./types";
 import useEvent from "react-use-event-hook";
 import { scrollAndHighlightCell } from "../editor/links/cell-link";
 import { GraphSelectionPanel } from "./panels";

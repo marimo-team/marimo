@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { CellId } from "@/core/cells/ids";
+import type { CellId } from "@/core/cells/ids";
 import { sendRun } from "@/core/network/requests";
 import { staleCellIds, useCellActions, useNotebook } from "@/core/cells/cells";
 import useEvent from "react-use-event-hook";

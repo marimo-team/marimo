@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { store } from "@/core/state/jotai";
-import { EditorView } from "@codemirror/view";
+import type { EditorView } from "@codemirror/view";
 import { atomWithReducer } from "jotai/utils";
 
 interface FindReplaceState {
