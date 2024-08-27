@@ -302,7 +302,7 @@ def read_css_file(css_file: str, filename: Optional[str]) -> Optional[str]:
         with open(filepath) as f:
             return f.read()
     except OSError as e:
-        LOGGER.warn(
+        LOGGER.warning(
             "Failed to open custom CSS file %s for reading: %s",
             filepath,
             str(e),
