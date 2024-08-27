@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -68,7 +68,7 @@ def run_in_sandbox(
 def _get_dependencies(script: str) -> List[str] | None:
     try:
         pyproject = _read_pyproject(script) or {}
-        return pyproject.get("dependencies", None)
+        return cast(List[str], pyproject.get("dependencies", []))
     except Exception as e:
         LOGGER.warning(f"Failed to parse dependencies: {e}")
         return None
