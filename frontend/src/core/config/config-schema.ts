@@ -72,7 +72,7 @@ export const UserConfigSchema = z
       .default({}),
     display: z
       .object({
-        theme: z.enum(["light", "dark", "system"]).default("light"),
+        theme: z.enum(["light", "dark"]).default("light"),
         code_editor_font_size: z.number().nonnegative().default(14),
         cell_output: z.enum(["above", "below"]).default("above"),
         dataframes: z.enum(["rich", "plain"]).default("rich"),

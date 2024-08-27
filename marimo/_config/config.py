@@ -110,13 +110,13 @@ class DisplayConfig(TypedDict):
 
     **Keys.**
 
-    - `theme`: `"light"`, `"dark"`, or `"system"`
+    - `theme`: `"light"` or `"dark"`
     - `code_editor_font_size`: font size for the code editor
     - `cell_output`: `"above"` or `"below"`
     - `dataframes`: `"rich"` or `"plain"`
     """
 
-    theme: Literal["light", "dark", "system"]
+    theme: Literal["light", "dark"]
     code_editor_font_size: int
     cell_output: Literal["above", "below"]
     default_width: WidthType
@@ -263,15 +263,18 @@ def merge_config(
 
     # Patches for backward compatibility
     if (
-        merged["runtime"]["auto_reload"] is False  # type:ignore[comparison-overlap]
+        merged["runtime"]["auto_reload"]
+        is False  # type:ignore[comparison-overlap]
     ):
         merged["runtime"]["auto_reload"] = "off"
     if (
-        merged["runtime"]["auto_reload"] is True  # type:ignore[comparison-overlap]
+        merged["runtime"]["auto_reload"]
+        is True  # type:ignore[comparison-overlap]
     ):
         merged["runtime"]["auto_reload"] = "lazy"
     if (
-        merged["runtime"]["auto_reload"] == "detect"  # type:ignore[comparison-overlap]
+        merged["runtime"]["auto_reload"]
+        == "detect"  # type:ignore[comparison-overlap]
     ):
         merged["runtime"]["auto_reload"] = "lazy"
 

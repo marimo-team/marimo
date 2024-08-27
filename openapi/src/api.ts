@@ -2099,7 +2099,7 @@ export interface components {
         /** @enum {string} */
         default_width: "normal" | "compact" | "medium" | "full";
         /** @enum {string} */
-        theme: "light" | "dark" | "system";
+        theme: "light" | "dark";
       };
       experimental: {
         [key: string]: unknown;
