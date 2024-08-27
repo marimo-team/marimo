@@ -49,6 +49,7 @@ test("default UserConfig - empty", () => {
         "preset": "default",
       },
       "package_management": {
+        "add_script_metadata": false,
         "manager": "pip",
       },
       "runtime": {
@@ -99,6 +100,7 @@ test("default UserConfig - one level", () => {
         "preset": "default",
       },
       "package_management": {
+        "add_script_metadata": false,
         "manager": "pip",
       },
       "runtime": {
