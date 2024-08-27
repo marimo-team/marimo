@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { CSSProperties, memo, useEffect, useState } from "react";
+import React, { memo, useEffect, useState } from "react";
 import {
   Column,
   type ColumnDef,
   type ColumnFiltersState,
+  ColumnPinning,
   type OnChangeFn,
   type PaginationState,
   Row,
@@ -38,7 +39,6 @@ import { Spinner } from "../icons/spinner";
 import { FilterPills } from "./filter-pills";
 import { ColumnWrappingFeature } from "./column-wrapping/feature";
 import { ColumnFormattingFeature } from "./column-formatting/feature";
-import { ColumnPinningFeature } from "./column-pinning/feature";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
@@ -103,11 +103,7 @@ const DataTableInternal = <TData,>({
   }, [pageSize, paginationState.pageSize]);
 
   const table = useReactTable({
-    _features: [
-      ColumnPinningFeature,
-      ColumnWrappingFeature,
-      ColumnFormattingFeature,
-    ],
+    _features: [ColumnPinning, ColumnWrappingFeature, ColumnFormattingFeature],
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
@@ -127,7 +123,10 @@ const DataTableInternal = <TData,>({
     onRowSelectionChange: onRowSelectionChange,
     initialState: {
       columnPinning: {
-        left: freezeColumnsLeft,
+        left:
+          freezeColumnsLeft === undefined
+            ? ["__select__"]
+            : ["__select__", ...freezeColumnsLeft],
         right: freezeColumnsRight,
       },
     },
@@ -141,7 +140,9 @@ const DataTableInternal = <TData,>({
     },
   });
 
-  const getPinningStyles = (column: Column<TData>): CSSProperties => {
+  const getPinningStyles = (
+    column: Column<TData>,
+  ): React.HTMLAttributes<HTMLElement> => {
     const isPinned = column.getIsPinned();
     const isLastLeftPinnedColumn =
       isPinned === "left" && column.getIsLastColumn("left");
@@ -149,19 +150,22 @@ const DataTableInternal = <TData,>({
       isPinned === "right" && column.getIsFirstColumn("right");
 
     return {
-      boxShadow:
-        isLastLeftPinnedColumn && column.id !== "__select__"
-          ? "-4px 0 4px -4px gray inset"
-          : isFirstRightPinnedColumn
-            ? "4px 0 4px -4px gray inset"
-            : undefined,
-      left: isPinned === "left" ? `${column.getStart("left")}px` : undefined,
-      right: isPinned === "right" ? `${column.getAfter("right")}px` : undefined,
-      opacity: 1,
-      position: isPinned ? "sticky" : "relative",
-      zIndex: isPinned ? 1 : 0,
-      background: isPinned ? "white" : "transparent",
-      width: column.getSize(),
+      className: cn(isPinned && "bg-background", "shadow-r z-10"),
+      style: {
+        boxShadow:
+          isLastLeftPinnedColumn && column.id !== "__select__"
+            ? "-4px 0 4px -4px var(--slate-8) inset"
+            : isFirstRightPinnedColumn
+              ? "4px 0 4px -4px var(--slate-8) inset"
+              : undefined,
+        left: isPinned === "left" ? `${column.getStart("left")}px` : undefined,
+        right:
+          isPinned === "right" ? `${column.getAfter("right")}px` : undefined,
+        opacity: 1,
+        position: isPinned ? "sticky" : "relative",
+        zIndex: isPinned ? 1 : 0,
+        width: column.getSize(),
+      },
     };
   };
 
@@ -205,11 +209,15 @@ const DataTableInternal = <TData,>({
     // different
     return headerGroups.map((headerGroup) =>
       headerGroup.headers.map((header) => {
+        const { className, style } = getPinningStyles(header.column);
         return (
           <TableHead
             key={header.id}
-            className={`h-auto min-h-10 whitespace-pre align-baseline`}
-            style={{ ...getPinningStyles(header.column) }}
+            className={cn(
+              `h-auto min-h-10 whitespace-pre align-baseline`,
+              className,
+            )}
+            style={style}
             ref={(thead) => columnSizingHandler(thead, table, header.column)}
           >
             {header.isPlaceholder
@@ -232,27 +240,31 @@ const DataTableInternal = <TData,>({
           ? row.getRightVisibleCells()
           : row.getCenterVisibleCells();
 
-    return cells.map((cell) => (
-      <TableCell
-        key={cell.id}
-        className={cn(
-          `whitespace-pre truncate max-w-[300px]`,
-          cell.column.getColumnWrapping &&
-            cell.column.getColumnWrapping() === "wrap" &&
-            "whitespace-pre-wrap min-w-[200px]",
-        )}
-        style={{ ...getPinningStyles(cell.column) }}
-        title={String(cell.getValue())}
-      >
-        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-      </TableCell>
-    ));
+    return cells.map((cell) => {
+      const { className, style } = getPinningStyles(cell.column);
+      return (
+        <TableCell
+          key={cell.id}
+          className={cn(
+            `whitespace-pre truncate max-w-[300px]`,
+            cell.column.getColumnWrapping &&
+              cell.column.getColumnWrapping() === "wrap" &&
+              "whitespace-pre-wrap min-w-[200px]",
+            className,
+          )}
+          style={style}
+          title={String(cell.getValue())}
+        >
+          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+        </TableCell>
+      );
+    });
   };
 
   return (
     <div className={cn(wrapperClassName, "flex flex-col space-y-1")}>
       <FilterPills filters={filters} table={table} />
-      <div className={cn(className || "rounded-md border")}>
+      <div className={cn(className || "rounded-md border overflow-hidden")}>
         {onSearchQueryChange && enableSearch && (
           <SearchBar
             value={searchQuery || ""}

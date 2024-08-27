@@ -16,6 +16,12 @@ def __(happiness_index, mo, pd):
 
 
 @app.cell
+def __(df, mo):
+    mo.ui.table(df)
+    return
+
+
+@app.cell
 def __():
     import marimo as mo
     import pandas as pd
