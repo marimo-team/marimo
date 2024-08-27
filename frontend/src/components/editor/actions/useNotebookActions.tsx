@@ -62,7 +62,6 @@ import { displayLayoutName, getLayoutIcon } from "../renderers/layout-select";
 import { useLayoutState, useLayoutActions } from "@/core/layout/layout";
 import { useTogglePresenting } from "@/core/layout/useTogglePresenting";
 
-
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
   event?.stopPropagation();
