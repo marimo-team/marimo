@@ -640,6 +640,11 @@ class Kernel:
             )
 
             # For any newly imported namespaces, add them to the metadata
+            #
+            # TODO(akshayka): Consider using the module watcher to discover
+            # packages used by a notebook; that would have the benefit of
+            # discovering transitive dependencies, ie if a notebook used a
+            # local module that in turn used packages available on PyPI.
             if self._should_add_script_metadata():
                 cell = self.graph.cells.get(cell_id, None)
                 if cell:
