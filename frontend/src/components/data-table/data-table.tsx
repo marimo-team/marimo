@@ -1,17 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React, { memo, useEffect, useState } from "react";
 import {
-  Column,
+  type Column,
   type ColumnDef,
   type ColumnFiltersState,
   ColumnPinning,
-  ColumnPinningState,
+  type ColumnPinningState,
   type OnChangeFn,
   type PaginationState,
-  Row,
+  type Row,
   type RowSelectionState,
   type SortingState,
-  Table as TanStackTable,
+  type Table as TanStackTable,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
