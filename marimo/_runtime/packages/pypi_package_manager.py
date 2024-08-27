@@ -60,21 +60,23 @@ class UvPackageManager(PypiPackageManager):
         packages_to_add = [
             self.module_to_package(im) for im in import_namespaces_to_add
         ]
+        packages_to_remove = [
+            self.module_to_package(im) for im in import_namespaces_to_remove
+        ]
+
         # Filter to packages that are found by "uv pip show"
         packages_to_add = [
             im for im in packages_to_add if self._is_installed(im)
         ]
         packages_to_remove = [
-            self.module_to_package(im) for im in import_namespaces_to_remove
+            im for im in packages_to_remove if self._is_installed(im)
         ]
 
-        # Add script metadata
         if packages_to_add:
             self.run(
                 ["uv", "--quiet", "add", "--script", filepath]
                 + packages_to_add
             )
-        # Remove script metadata
         if packages_to_remove:
             self.run(
                 ["uv", "--quiet", "remove", "--script", filepath]
