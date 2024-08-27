@@ -291,7 +291,7 @@ class table(
             and freeze_columns_right is not None
         ):
             for column in freeze_columns_left:
-                if column in freeze_columns_right:
+                if column not in freeze_columns_right:
                     continue
                 raise ValueError(
                     "The same column cannot be frozen on both sides."
