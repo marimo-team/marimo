@@ -4,6 +4,7 @@ from __future__ import annotations
 import abc
 import shutil
 import subprocess
+from typing import List
 
 
 class PackageManager(abc.ABC):
@@ -54,9 +55,12 @@ class PackageManager(abc.ABC):
         return proc.returncode == 0
 
     def add_script_metadata_to_notebook(
-        self, filepath: str, pkg_name: str
+        self,
+        filepath: str,
+        import_namespaces_to_add: List[str],
+        import_namespaces_to_remove: List[str],
     ) -> None:
-        del filepath, pkg_name
+        del filepath, import_namespaces_to_add, import_namespaces_to_remove
         """
         Add inline script metadata metadata to the marimo notebook.
 

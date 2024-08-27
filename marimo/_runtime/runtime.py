@@ -16,7 +16,7 @@ import time
 import traceback
 from copy import copy
 from multiprocessing import connection
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, cast
+from typing import TYPE_CHECKING, Any, Callable, Iterator, List, Optional, cast
 from uuid import uuid4
 
 from marimo import _loggers
@@ -638,6 +638,20 @@ class Kernel:
             error = self._try_registering_cell(
                 cell_id, code, carried_imports=carried_imports
             )
+
+            # For any newly imported namespaces, add them to the metadata
+            if self._should_add_script_metadata():
+                cell = self.graph.cells.get(cell_id, None)
+                if cell:
+                    existing_imported = set(
+                        [im.namespace for im in cell.imports]
+                    )
+                    to_add = cell.imported_namespaces - existing_imported
+                    to_remove = existing_imported - cell.imported_namespaces
+                    self._add_script_metadata(
+                        import_namespaces_to_add=list(to_add),
+                        import_namespaces_to_remove=list(to_remove),
+                    )
 
         LOGGER.debug(
             "graph:\n\tcell id %s\n\tparents %s\n\tchildren %s\n\tsiblings %s",
@@ -1606,8 +1620,6 @@ class Kernel:
                 package_statuses[pkg] = "installed"
                 InstallingPackageAlert(packages=package_statuses).broadcast()
 
-                self._maybe_add_script_metadata(pkg)
-
             else:
                 package_statuses[pkg] = "failed"
                 self.module_registry.excluded_modules.add(mod)
@@ -1626,27 +1638,36 @@ class Kernel:
         if cells_to_run:
             await self._if_autorun_then_run_cells(cells_to_run)
 
-    def _maybe_add_script_metadata(self, pkg: str) -> None:
-        # Maybe add metadata to the file
-        # This adheres to PEP 723
-        add_script_metadata_to_notebook = self.user_config[
-            "package_management"
-        ]["add_script_metadata"]
+    def _should_add_script_metadata(self) -> bool:
+        return (
+            self.user_config["package_management"]["add_script_metadata"]
+            and self.app_metadata.filename is not None
+            and self.package_manager is not None
+        )
+
+    def _add_script_metadata(
+        self,
+        import_namespaces_to_add: List[str],
+        import_namespaces_to_remove: List[str],
+    ) -> None:
         filename = self.app_metadata.filename
 
-        if (
-            add_script_metadata_to_notebook
-            and filename
-            and self.package_manager
-        ):
-            try:
-                self.package_manager.add_script_metadata_to_notebook(
-                    filepath=filename, pkg_name=pkg
-                )
-            except Exception as e:
-                LOGGER.error(
-                    "Failed to add script metadata to notebook: %s", e
-                )
+        if not filename or not self.package_manager:
+            return
+
+        try:
+            LOGGER.debug("Adding script metadata to notebook: %s", filename)
+            LOGGER.debug("Adding namespaces: %s", import_namespaces_to_add)
+            LOGGER.debug(
+                "Removing namespaces: %s", import_namespaces_to_remove
+            )
+            self.package_manager.add_script_metadata_to_notebook(
+                filepath=filename,
+                import_namespaces_to_add=import_namespaces_to_add,
+                import_namespaces_to_remove=import_namespaces_to_remove,
+            )
+        except Exception as e:
+            LOGGER.error("Failed to add script metadata to notebook: %s", e)
 
     @kernel_tracer.start_as_current_span("preview_dataset_column")
     async def preview_dataset_column(
