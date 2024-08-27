@@ -27,6 +27,7 @@ from marimo._ast.errors import (
 from marimo._config.config import MarimoConfig, WidthType
 from marimo._config.utils import load_config
 from marimo._messaging.mimetypes import KnownMimeType
+from marimo._output.formatters.themers import autohandle_third_party
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._runtime import dataflow
@@ -396,6 +397,29 @@ class App:
                 output=vstack([o for o in flat_outputs if o is not None]),
                 defs=defs,
             )
+
+
+class AppMeta:
+    """
+    Metadata about the app.
+
+    This is used to store metadata about the app
+    that is not part of the app's code or state.
+    """
+
+    def __init__(self) -> None:
+        self.user_config = load_config()
+        self.apply_theme()
+
+    @property
+    def theme(self) -> str:
+        """The display theme of the app."""
+        return self.user_config["display"]["theme"] or "light"
+
+    def apply_theme(self) -> None:
+        """Apply the theme to the app."""
+        theme = self.theme
+        autohandle_third_party(theme)
 
 
 class CellManager:
