@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import base64
 import json
-from typing import List, Optional
+from typing import Any, List, Optional, cast
 
 from marimo import __version__
 from marimo._ast.app import _AppConfig
@@ -55,7 +55,9 @@ def notebook_page_template(
         if app_config.app_title is None
         else app_config.app_title,
     )
-    html = html.replace("{{ app_config }}", json.dumps(app_config.asdict()))
+    html = html.replace(
+        "{{ app_config }}", json.dumps(_del_none(app_config.asdict()))
+    )
     html = html.replace("{{ filename }}", filename or "")
     html = html.replace(
         "{{ mode }}",
@@ -97,7 +99,8 @@ def static_notebook_template(
         else app_config.app_title,
     )
     html = html.replace(
-        "{{ app_config }}", json.dumps(app_config.asdict(), sort_keys=True)
+        "{{ app_config }}",
+        json.dumps(_del_none(app_config.asdict()), sort_keys=True),
     )
     html = html.replace("{{ filename }}", filename or "")
     html = html.replace("{{ mode }}", "read")
@@ -166,3 +169,11 @@ def _serialize_to_base64(value: str) -> str:
 
 def _serialize_list_to_base64(value: list[str]) -> list[str]:
     return [_serialize_to_base64(v) for v in value]
+
+
+def _del_none(d: Any) -> Any:
+    return {
+        key: _del_none(cast(Any, value)) if isinstance(value, dict) else value
+        for key, value in d.items()
+        if value is not None
+    }
