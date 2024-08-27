@@ -67,6 +67,10 @@ class Exporter:
                 base64.b64encode(buffer_contents),
             )
 
+        # We only want pass the display config in the static notebook,
+        # since we use:
+        # - display.theme
+        # - display.cell_output
         config = _deep_copy(DEFAULT_CONFIG)
         config["display"] = display_config
 
