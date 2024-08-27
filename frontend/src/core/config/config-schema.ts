@@ -90,6 +90,7 @@ export const UserConfigSchema = z
     package_management: z
       .object({
         manager: z.enum(PackageManagerNames).default("pip"),
+        add_script_metadata: z.boolean().default(false),
       })
       .default({ manager: "pip" }),
     ai: z
