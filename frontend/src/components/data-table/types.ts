@@ -1,5 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-
 import { DataType } from "@/core/kernel/messages";
 
 export interface ColumnHeaderSummary {
@@ -17,3 +16,5 @@ export type FieldTypesWithExternalType = Record<
   [DataType, externalType: string]
 >;
 export type FieldTypes = Record<string, DataType>;
+
+export const SELECT_COLUMN_ID = "__select__";
