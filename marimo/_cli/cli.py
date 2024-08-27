@@ -263,8 +263,8 @@ edit_help_msg = "\n".join(
     show_default=True,
     type=bool,
     help="""
-    Run the command in an isolated virtual environment using 'uv run --isolated'.
-    Requires 'uv'.
+    Run the command in an isolated virtual environment using
+    'uv run --isolated'. Requires 'uv'.
     """,
 )
 @click.option("--profile-dir", default=None, type=str, hidden=True)
@@ -527,9 +527,8 @@ Example:
     show_default=True,
     type=bool,
     help="""
-    Run the command in an isolated virtual environment using 'uv run --isolated'.
-    Requires `uv`.
-    Requires 'uv'.
+    Run the command in an isolated virtual environment using
+    'uv run --isolated'. Requires `uv`.
     """,
 )
 @click.argument("name", required=True)
