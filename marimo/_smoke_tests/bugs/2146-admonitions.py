@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.8.3"
+__generated_with = "0.8.4"
 app = marimo.App(width="medium")
 
 
@@ -12,7 +12,7 @@ def __():
 
 @app.cell
 def __(mo):
-    mo.md("""
+    mo.md(r"""
         Importa recordar as seguintes regras de diferenciação de matrizes:
 
         $$\frac{\partial\, u'v}{\partial\, v} = \frac{\partial\, v'u}{\partial\, v} = u$$
@@ -29,8 +29,9 @@ def __(mo):
 @app.cell
 def __(mo):
     mo.md(
-        """
+        r"""
         !!! tip ""
+
             Importa recordar as seguintes regras de diferenciação de matrizes:
 
             $$\frac{\partial\, u'v}{\partial\, v} = \frac{\partial\, v'u}{\partial\, v} = u$$
@@ -49,7 +50,7 @@ def __(mo):
 def __(mo):
     mo.accordion(
         {
-            "Tip": mo.md("""
+            "Tip": mo.md(r"""
         Importa recordar as seguintes regras de diferenciação de matrizes:
 
         $$\frac{\partial\, u'v}{\partial\, v} = \frac{\partial\, v'u}{\partial\, v} = u$$
