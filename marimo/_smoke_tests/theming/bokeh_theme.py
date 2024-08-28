@@ -1,3 +1,9 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "bokeh",
+# ]
+# ///
 import marimo
 
 __generated_with = "0.8.3"
