@@ -94,7 +94,7 @@ class QueueManager:
         # requests.
         self.set_ui_element_queue: QueueType[
             requests.SetUIElementValueRequest
-        ] = context.Queue() if context is not None else queue.Queue()
+        ] = (context.Queue() if context is not None else queue.Queue())
 
         # Code completion requests are sent through a separate queue
         self.completion_queue: QueueType[requests.CodeCompletionRequest] = (
@@ -215,7 +215,9 @@ class KernelManager:
             # install formatter import hooks, which will be shared by all
             # threads (in edit mode, the single kernel process installs
             # formatters ...)
-            register_formatters()
+            register_formatters(
+                theme=self.user_config_manager.config["display"]["theme"]
+            )
 
             # Make threads daemons so killing the server immediately brings
             # down all client sessions

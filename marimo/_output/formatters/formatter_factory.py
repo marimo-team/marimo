@@ -4,6 +4,8 @@ from __future__ import annotations
 import abc
 from typing import Callable, Optional
 
+from marimo._config.config import Theme
+
 
 # Abstract base class for formatters that are installed at runtime.
 class FormatterFactory(abc.ABC):
@@ -29,3 +31,13 @@ class FormatterFactory(abc.ABC):
         patches.
         """
         raise NotImplementedError
+
+    @abc.abstractmethod
+    def apply_theme(self, theme: Theme) -> None:
+        """Applies a theme to the formatter.
+
+        Args:
+            theme: The theme to apply.
+        """
+        del theme
+        return

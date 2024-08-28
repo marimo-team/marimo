@@ -1822,7 +1822,7 @@ def launch_kernel(
 
         # kernels are processes in edit mode, and each process needs to
         # install the formatter import hooks
-        register_formatters()
+        register_formatters(theme=user_config["display"]["theme"])
 
         signal.signal(
             signal.SIGINT, handlers.construct_interrupt_handler(kernel)

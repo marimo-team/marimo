@@ -4,6 +4,7 @@ from __future__ import annotations
 import sys
 from typing import Any, Callable, Sequence
 
+from marimo._config.config import Theme
 from marimo._output.formatters.altair_formatters import AltairFormatter
 from marimo._output.formatters.anywidget_formatters import AnyWidgetFormatter
 from marimo._output.formatters.bokeh_formatters import BokehFormatter
@@ -55,7 +56,7 @@ NATIVE_FACTORIES: Sequence[FormatterFactory] = [
 ]
 
 
-def register_formatters() -> None:
+def register_formatters(theme: Theme) -> None:
     """Register formatters with marimo.
 
     marimo comes packaged with rich formatters for a number of third-party
@@ -81,6 +82,7 @@ def register_formatters() -> None:
     for package, factory in THIRD_PARTY_FACTORIES.items():
         if package in sys.modules:
             factory.register()
+            factory.apply_theme(theme)
             pre_registered.add(package)
 
     third_party_factories = {
@@ -147,6 +149,7 @@ def register_formatters() -> None:
                 ) -> Any:
                     loader_return_value = original_exec_module(module)
                     factory.register()
+                    factory.apply_theme(theme)
                     return loader_return_value
 
                 spec.loader.exec_module = exec_module
@@ -161,3 +164,4 @@ def register_formatters() -> None:
     # package import. So we can register them at program start-up.
     for factory in NATIVE_FACTORIES:
         factory.register()
+        factory.apply_theme(theme)

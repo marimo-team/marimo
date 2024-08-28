@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from marimo._config.config import Theme
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.builder import h
 from marimo._output.formatters.formatter_factory import FormatterFactory
@@ -42,3 +43,8 @@ class BokehFormatter(FormatterFactory):
                     )
                 ),
             )
+
+    def apply_theme(self, theme: Theme) -> None:
+        from bokeh.io import curdoc  # type: ignore
+
+        curdoc().theme = "dark_minimal" if theme == "dark" else None  # type: ignore
