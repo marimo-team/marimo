@@ -100,6 +100,17 @@ const SHADOWS = [
   "shadow-inner",
   "shadow-none",
 ];
+
+const COLORED_SHADOWS = [
+  "shadow-xs shadow-blue-500",
+  "shadow-sm shadow-blue-500",
+  "shadow-md shadow-blue-500",
+  "shadow-lg shadow-blue-500",
+  "shadow-xl shadow-blue-500",
+  "shadow-2xl shadow-blue-500",
+  "shadow-inner shadow-blue-500",
+];
+
 const SOLID_SHADOWS = [
   "shadow-xsSolid",
   "shadow-smSolid",
@@ -107,6 +118,13 @@ const SOLID_SHADOWS = [
   "shadow-lgSolid",
   "shadow-xlSolid",
   "shadow-2xlSolid",
+];
+
+const MISC = [
+  "shadow-smSolid shadow-accent",
+  "shadow-mdSolid shadow-accent",
+  "shadow-smSolid shadow-error",
+  "shadow-mdSolid shadow-error",
 ];
 
 export const Shadows: StoryObj = {
@@ -129,7 +147,9 @@ export const Shadows: StoryObj = {
     return (
       <div className="flex flex-col">
         {renderShadows(SHADOWS)}
+        {renderShadows(COLORED_SHADOWS)}
         {renderShadows(SOLID_SHADOWS)}
+        {renderShadows(MISC)}
       </div>
     );
   },

@@ -993,7 +993,6 @@ components:
           required:
             - activate_on_typing
             - copilot
-            - codeium_api_key
           type: object
         display:
           properties:
@@ -1056,6 +1055,8 @@ components:
           type: object
         package_management:
           properties:
+            add_script_metadata:
+              type: boolean
             manager:
               enum:
                 - pip
@@ -1066,6 +1067,7 @@ components:
               type: string
           required:
             - manager
+            - add_script_metadata
           type: object
         runtime:
           properties:
@@ -1782,7 +1784,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.8.0
+  version: 0.8.2
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

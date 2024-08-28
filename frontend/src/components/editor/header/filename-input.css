@@ -1,15 +1,11 @@
 .missing-filename {
   text-align: center;
-  box-shadow: var(--light-shadow-stale);
+  @apply shadow-mdSolid shadow-stale;
 }
 
 .missing-filename:hover,
 .missing-filename:focus {
-  box-shadow: var(--medium-shadow-stale);
-}
-
-.missing-filename:focus {
-  border-radius: 4px 4px 0 0;
+  @apply shadow-lgSolid shadow-stale;
 }
 
 .filename {
@@ -19,9 +15,5 @@
 
 .filename:hover,
 .filename:focus {
-  box-shadow: var(--medium-shadow);
-}
-
-.filename:focus {
-  border-radius: 4px 4px 0 0;
+  @apply border shadow-lgSolid;
 }

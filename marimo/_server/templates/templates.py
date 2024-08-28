@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import base64
 import json
-from typing import List, Optional
+from textwrap import dedent
+from typing import Any, List, Optional, cast
 
 from marimo import __version__
 from marimo._ast.app import _AppConfig
@@ -12,6 +13,7 @@ from marimo._config.config import MarimoConfig
 from marimo._messaging.cell_output import CellOutput
 from marimo._output.utils import uri_encode_component
 from marimo._server.api.utils import parse_title
+from marimo._server.file_manager import read_css_file
 from marimo._server.model import SessionMode
 from marimo._server.tokens import SkewProtectionToken
 
@@ -55,7 +57,9 @@ def notebook_page_template(
         if app_config.app_title is None
         else app_config.app_title,
     )
-    html = html.replace("{{ app_config }}", json.dumps(app_config.asdict()))
+    html = html.replace(
+        "{{ app_config }}", json.dumps(_del_none(app_config.asdict()))
+    )
     html = html.replace("{{ filename }}", filename or "")
     html = html.replace(
         "{{ mode }}",
@@ -84,6 +88,10 @@ def static_notebook_template(
         asset_url = f"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{__version__}/dist"
 
     html = html.replace("{{ base_url }}", "")
+    # We don't need all this user config when we export the notebook,
+    # but we do need some:
+    # - display.theme
+    # - display.cell_output
     html = html.replace(
         "{{ user_config }}", json.dumps(user_config, sort_keys=True)
     )
@@ -97,7 +105,8 @@ def static_notebook_template(
         else app_config.app_title,
     )
     html = html.replace(
-        "{{ app_config }}", json.dumps(app_config.asdict(), sort_keys=True)
+        "{{ app_config }}",
+        json.dumps(_del_none(app_config.asdict()), sort_keys=True),
     )
     html = html.replace("{{ filename }}", filename or "")
     html = html.replace("{{ mode }}", "read")
@@ -112,7 +121,7 @@ def static_notebook_template(
         if output
     }
 
-    static_block = f"""
+    static_block = dedent(f"""
     <script data-marimo="true">
         window.__MARIMO_STATIC__ = {{}};
         window.__MARIMO_STATIC__.version = "{__version__}";
@@ -130,7 +139,17 @@ def static_notebook_template(
         window.__MARIMO_STATIC__.assetUrl = "{asset_url}";
         window.__MARIMO_STATIC__.files = {json.dumps(files)};
     </script>
-    """
+    """)
+
+    # If has custom css, inline the css and add to the head
+    if app_config.css_file:
+        css_contents = read_css_file(app_config.css_file, filename=filename)
+        if css_contents:
+            static_block += dedent(f"""
+            <style>
+                {css_contents}
+            </style>
+            """)
 
     code_block = f"""
     <marimo-code hidden="">
@@ -166,3 +185,11 @@ def _serialize_to_base64(value: str) -> str:
 
 def _serialize_list_to_base64(value: list[str]) -> list[str]:
     return [_serialize_to_base64(v) for v in value]
+
+
+def _del_none(d: Any) -> Any:
+    return {
+        key: _del_none(cast(Any, value)) if isinstance(value, dict) else value
+        for key, value in d.items()
+        if value is not None
+    }

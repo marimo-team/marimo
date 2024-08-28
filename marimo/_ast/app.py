@@ -66,6 +66,9 @@ class _AppConfig:
     # The file path of the layout file, relative to the app file.
     layout_file: Optional[str] = None
 
+    # CSS file, relative to the app file
+    css_file: Optional[str] = None
+
     @staticmethod
     def from_untrusted_dict(updates: dict[str, Any]) -> _AppConfig:
         config = _AppConfig()

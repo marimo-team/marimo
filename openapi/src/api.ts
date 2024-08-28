@@ -2087,7 +2087,7 @@ export interface components {
       };
       completion: {
         activate_on_typing: boolean;
-        codeium_api_key: string | null;
+        codeium_api_key?: string | null;
         copilot: boolean | ("github" | "codeium");
       };
       display: {
@@ -2115,6 +2115,7 @@ export interface components {
         preset: "default" | "vim";
       };
       package_management: {
+        add_script_metadata: boolean;
         /** @enum {string} */
         manager: "pip" | "rye" | "uv" | "poetry" | "pixi";
       };

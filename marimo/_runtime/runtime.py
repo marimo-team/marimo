@@ -16,7 +16,7 @@ import time
 import traceback
 from copy import copy
 from multiprocessing import connection
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, cast
+from typing import TYPE_CHECKING, Any, Callable, Iterator, List, Optional, cast
 from uuid import uuid4
 
 from marimo import _loggers
@@ -639,6 +639,27 @@ class Kernel:
                 cell_id, code, carried_imports=carried_imports
             )
 
+            # For any newly imported namespaces, add them to the metadata
+            #
+            # TODO(akshayka): Consider using the module watcher to discover
+            # packages used by a notebook; that would have the benefit of
+            # discovering transitive dependencies, ie if a notebook used a
+            # local module that in turn used packages available on PyPI.
+            if self._should_add_script_metadata():
+                cell = self.graph.cells.get(cell_id, None)
+                if cell:
+                    prev_imports: set[Name] = (
+                        set([im.namespace for im in previous_cell.imports])
+                        if previous_cell
+                        else set()
+                    )
+                    to_add = cell.imported_namespaces - prev_imports
+                    to_remove = prev_imports - cell.imported_namespaces
+                    self._add_script_metadata(
+                        import_namespaces_to_add=list(to_add),
+                        import_namespaces_to_remove=list(to_remove),
+                    )
+
         LOGGER.debug(
             "graph:\n\tcell id %s\n\tparents %s\n\tchildren %s\n\tsiblings %s",
             cell_id,
@@ -762,6 +783,14 @@ class Kernel:
         del self.cell_metadata[cell_id]
         cell = self.graph.cells[cell_id]
         cell.import_workspace.imported_defs = set()
+        if self._should_add_script_metadata():
+            self._add_script_metadata(
+                import_namespaces_to_add=[],
+                import_namespaces_to_remove=[
+                    im.namespace for im in cell.imports
+                ],
+            )
+
         return self._deactivate_cell(cell_id)
 
     def mutate_graph(
@@ -1164,6 +1193,7 @@ class Kernel:
     @kernel_tracer.start_as_current_span("rename_file")
     async def rename_file(self, filename: str) -> None:
         self.globals["__file__"] = filename
+        self.app_metadata.filename = filename
         roots = set()
         for cell in self.graph.cells.values():
             if "__file__" in cell.refs:
@@ -1615,6 +1645,12 @@ class Kernel:
             for pkg in package_statuses
             if package_statuses[pkg] == "installed"
         ]
+
+        # If a package was not installed at cell registration time, it won't
+        # yet be in the script metadata.
+        if self._should_add_script_metadata():
+            self._add_script_metadata(installed_modules, [])
+
         cells_to_run = set(
             cid
             for module in installed_modules
@@ -1622,6 +1658,39 @@ class Kernel:
         )
         if cells_to_run:
             await self._if_autorun_then_run_cells(cells_to_run)
+
+    def _should_add_script_metadata(self) -> bool:
+        return (
+            self.user_config["package_management"]["add_script_metadata"]
+            and self.app_metadata.filename is not None
+            and self.package_manager is not None
+        )
+
+    def _add_script_metadata(
+        self,
+        import_namespaces_to_add: List[str],
+        import_namespaces_to_remove: List[str],
+    ) -> None:
+        filename = self.app_metadata.filename
+
+        if not filename or not self.package_manager:
+            return
+
+        try:
+            LOGGER.debug(
+                "Updating script metadata: %s. Adding namespaces: %s."
+                " Removing namespaces: %s",
+                filename,
+                import_namespaces_to_add,
+                import_namespaces_to_remove,
+            )
+            self.package_manager.update_notebook_script_metadata(
+                filepath=filename,
+                import_namespaces_to_add=import_namespaces_to_add,
+                import_namespaces_to_remove=import_namespaces_to_remove,
+            )
+        except Exception as e:
+            LOGGER.error("Failed to add script metadata to notebook: %s", e)
 
     @kernel_tracer.start_as_current_span("preview_dataset_column")
     async def preview_dataset_column(

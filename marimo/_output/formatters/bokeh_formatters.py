@@ -1,6 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import Optional
+
 from marimo._config.config import Theme
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.builder import h
@@ -33,6 +35,29 @@ class BokehFormatter(FormatterFactory):
             html_content = bokeh.embed.file_html(
                 plot, bokeh.resources.CDN, theme=current_theme
             )
+
+            # Try to get the background fill color
+            background_fill_color: Optional[str] = None
+            try:
+                attrs = current_theme._json.get("attrs", {})
+                background_fill_color = attrs.get("BaseColorBar", {}).get(
+                    "background_fill_color"
+                ) or attrs.get("Plot", {}).get("background_fill_color")
+            except Exception:
+                pass
+
+            # Maybe add <style> to the content
+            if background_fill_color is not None:
+                style_to_add = (
+                    "<style>"
+                    f"body{{background-color:{background_fill_color}}}"
+                    "</style>"
+                )
+                # Add above the </head> tag
+                html_content = html_content.replace(
+                    "</head>", style_to_add + "</head>"
+                )
+
             return (
                 "text/html",
                 flatten_string(

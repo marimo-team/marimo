@@ -24,7 +24,10 @@ import pytest
 from marimo import __version__
 from marimo._ast import codegen
 from marimo._ast.cell import CellConfig
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.config.config import ROOT_DIR as CONFIG_ROOT_DIR
+
+HAS_UV = DependencyManager.which("uv")
 
 
 def _is_win32() -> bool:
@@ -491,6 +494,43 @@ def test_cli_custom_host() -> None:
     )
     contents = _try_fetch(port, host)
     _check_contents(p, b"marimo-mode data-mode='edit'", contents)
+
+
+@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+def test_cli_sandbox_edit(temp_marimo_file: str) -> None:
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            temp_marimo_file,
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+            "--sandbox",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b"marimo-mode data-mode='edit'", contents)
+
+
+@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+def test_cli_sandbox_run(temp_marimo_file: str) -> None:
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            temp_marimo_file,
+            "-p",
+            str(port),
+            "--headless",
+            "--sandbox",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b"marimo-mode data-mode='read'", contents)
 
 
 @pytest.mark.xfail(condition=_is_win32(), reason="flaky on Windows")

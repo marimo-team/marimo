@@ -6,6 +6,7 @@
   :hidden:
 
   overview
+  package_management
   ai_completion
   hotkeys
 ```
@@ -15,11 +16,12 @@ notebooks. We've taken a batteries-included approach to designing the editor:
 it comes _packed_ with features to make you productive when working
 with code and data.
 
-| Guide                | Description                                     |
-| :------------------- | :---------------------------------------------- |
-| {doc}`overview`      | An overview of editor features and configuration |
-| {doc}`ai_completion` | Code with the help of a language model          |
-| {doc}`hotkeys`       | Our hotkeys                                     |
+| Guide                     | Description                                      |
+| :------------------------ | :----------------------------------------------- |
+| {doc}`overview`           | An overview of editor features and configuration |
+| {doc}`package_management` | Using package managers in marimo                 |
+| {doc}`ai_completion`      | Code with the help of a language model           |
+| {doc}`hotkeys`            | Our hotkeys                                      |
 
 Highlights include:
 

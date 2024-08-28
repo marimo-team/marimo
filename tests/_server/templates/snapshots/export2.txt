@@ -56,21 +56,21 @@
     <marimo-filename hidden></marimo-filename>
     <marimo-mode data-mode='read' hidden></marimo-mode>
     <marimo-version data-version='0.0.0' hidden></marimo-version>
-    <marimo-user-config data-config='{"completion": {"activate_on_typing": true, "copilot": false}, "display": {"cell_output": "above", "code_editor_font_size": 14, "dataframes": "rich", "default_width": "medium", "theme": "light"}, "formatting": {"line_length": 79}, "keymap": {"overrides": {}, "preset": "default"}, "package_management": {"manager": "pip"}, "runtime": {"auto_instantiate": true, "auto_reload": "off", "on_cell_change": "autorun"}, "save": {"autosave": "after_delay", "autosave_delay": 1000, "format_on_save": false}, "server": {"browser": "default", "follow_symlink": false}}' hidden></marimo-user-config>
-    <marimo-app-config data-config='{"app_title": null, "layout_file": null, "width": "compact"}' hidden></marimo-app-config>
+    <marimo-user-config data-config='{"completion": {"activate_on_typing": true, "copilot": false}, "display": {"cell_output": "above", "code_editor_font_size": 14, "dataframes": "rich", "default_width": "medium", "theme": "light"}, "formatting": {"line_length": 79}, "keymap": {"overrides": {}, "preset": "default"}, "package_management": {"add_script_metadata": false, "manager": "pip"}, "runtime": {"auto_instantiate": true, "auto_reload": "off", "on_cell_change": "autorun"}, "save": {"autosave": "after_delay", "autosave_delay": 1000, "format_on_save": false}, "server": {"browser": "default", "follow_symlink": false}}' hidden></marimo-user-config>
+    <marimo-app-config data-config='{"width": "compact"}' hidden></marimo-app-config>
     <marimo-server-token data-token='token' hidden></marimo-server-token>
     <title>marimo</title>
     <script type="module" crossorigin crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist/assets/index.js""></script>
     <link rel="stylesheet" crossorigin crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist/assets/index.css"">
   
-    <script data-marimo="true">
-        window.__MARIMO_STATIC__ = {};
-        window.__MARIMO_STATIC__.version = "0.0.0";
-        window.__MARIMO_STATIC__.notebookState = {"cellIds": ["cell1", "cell2"], "cellNames": ["Q2VsbCUyMDE=", "Q2VsbCUyMDI="], "cellCodes": ["cHJpbnQoJ0hlbGxvJTJDJTIwQ2VsbCUyMDEnKQ==", "cHJpbnQoJ0hlbGxvJTJDJTIwQ2VsbCUyMDInKQ=="], "cellConfigs": ["JTdCJTIyZGlzYWJsZWQlMjIlM0ElMjBmYWxzZSUyQyUyMCUyMmhpZGVfY29kZSUyMiUzQSUyMGZhbHNlJTdE", "JTdCJTIyZGlzYWJsZWQlMjIlM0ElMjBmYWxzZSUyQyUyMCUyMmhpZGVfY29kZSUyMiUzQSUyMGZhbHNlJTdE"], "cellOutputs": {"cell1": "JTdCJTIyY2hhbm5lbCUyMiUzQSUyMCUyMm91dHB1dCUyMiUyQyUyMCUyMm1pbWV0eXBlJTIyJTNBJTIwJTIydGV4dCUyRnBsYWluJTIyJTJDJTIwJTIyZGF0YSUyMiUzQSUyMCUyMkhlbGxvJTJDJTIwQ2VsbCUyMDElMjIlMkMlMjAlMjJ0aW1lc3RhbXAlMjIlM0ElMjAwJTdE"}, "cellConsoleOutputs": {"cell1": ["JTdCJTIyY2hhbm5lbCUyMiUzQSUyMCUyMnN0ZG91dCUyMiUyQyUyMCUyMm1pbWV0eXBlJTIyJTNBJTIwJTIydGV4dCUyRnBsYWluJTIyJTJDJTIwJTIyZGF0YSUyMiUzQSUyMCUyMkhlbGxvJTJDJTIwQ2VsbCUyMDElMjIlMkMlMjAlMjJ0aW1lc3RhbXAlMjIlM0ElMjAwJTdE", "JTdCJTIyY2hhbm5lbCUyMiUzQSUyMCUyMnN0ZGVyciUyMiUyQyUyMCUyMm1pbWV0eXBlJTIyJTNBJTIwJTIydGV4dCUyRnBsYWluJTIyJTJDJTIwJTIyZGF0YSUyMiUzQSUyMCUyMkVycm9yJTIwaW4lMjBDZWxsJTIwMSUyMiUyQyUyMCUyMnRpbWVzdGFtcCUyMiUzQSUyMDAlN0Q="]}};
-        window.__MARIMO_STATIC__.assetUrl = "https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist";
-        window.__MARIMO_STATIC__.files = {"file1": "File 1 content", "file2": "File 2 content"};
-    </script>
-    </head>
+<script data-marimo="true">
+    window.__MARIMO_STATIC__ = {};
+    window.__MARIMO_STATIC__.version = "0.0.0";
+    window.__MARIMO_STATIC__.notebookState = {"cellIds": ["cell1", "cell2"], "cellNames": ["Q2VsbCUyMDE=", "Q2VsbCUyMDI="], "cellCodes": ["cHJpbnQoJ0hlbGxvJTJDJTIwQ2VsbCUyMDEnKQ==", "cHJpbnQoJ0hlbGxvJTJDJTIwQ2VsbCUyMDInKQ=="], "cellConfigs": ["JTdCJTIyZGlzYWJsZWQlMjIlM0ElMjBmYWxzZSUyQyUyMCUyMmhpZGVfY29kZSUyMiUzQSUyMGZhbHNlJTdE", "JTdCJTIyZGlzYWJsZWQlMjIlM0ElMjBmYWxzZSUyQyUyMCUyMmhpZGVfY29kZSUyMiUzQSUyMGZhbHNlJTdE"], "cellOutputs": {"cell1": "JTdCJTIyY2hhbm5lbCUyMiUzQSUyMCUyMm91dHB1dCUyMiUyQyUyMCUyMm1pbWV0eXBlJTIyJTNBJTIwJTIydGV4dCUyRnBsYWluJTIyJTJDJTIwJTIyZGF0YSUyMiUzQSUyMCUyMkhlbGxvJTJDJTIwQ2VsbCUyMDElMjIlMkMlMjAlMjJ0aW1lc3RhbXAlMjIlM0ElMjAwJTdE"}, "cellConsoleOutputs": {"cell1": ["JTdCJTIyY2hhbm5lbCUyMiUzQSUyMCUyMnN0ZG91dCUyMiUyQyUyMCUyMm1pbWV0eXBlJTIyJTNBJTIwJTIydGV4dCUyRnBsYWluJTIyJTJDJTIwJTIyZGF0YSUyMiUzQSUyMCUyMkhlbGxvJTJDJTIwQ2VsbCUyMDElMjIlMkMlMjAlMjJ0aW1lc3RhbXAlMjIlM0ElMjAwJTdE", "JTdCJTIyY2hhbm5lbCUyMiUzQSUyMCUyMnN0ZGVyciUyMiUyQyUyMCUyMm1pbWV0eXBlJTIyJTNBJTIwJTIydGV4dCUyRnBsYWluJTIyJTJDJTIwJTIyZGF0YSUyMiUzQSUyMCUyMkVycm9yJTIwaW4lMjBDZWxsJTIwMSUyMiUyQyUyMCUyMnRpbWVzdGFtcCUyMiUzQSUyMDAlN0Q="]}};
+    window.__MARIMO_STATIC__.assetUrl = "https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist";
+    window.__MARIMO_STATIC__.files = {"file1": "File 1 content", "file2": "File 2 content"};
+</script>
+</head>
   <body>
     <div id="root"></div>
   
