@@ -56,7 +56,7 @@ NATIVE_FACTORIES: Sequence[FormatterFactory] = [
 ]
 
 
-def register_formatters(theme: Theme) -> None:
+def register_formatters(theme: Theme = "light") -> None:
     """Register formatters with marimo.
 
     marimo comes packaged with rich formatters for a number of third-party
