@@ -111,7 +111,7 @@ class DisplayConfig(TypedDict):
 
     **Keys.**
 
-    - `theme`: `"light"` or `"dark"`
+    - `theme`: `"light"`, `"dark"`, or `"system"`
     - `code_editor_font_size`: font size for the code editor
     - `cell_output`: `"above"` or `"below"`
     - `dataframes`: `"rich"` or `"plain"`
