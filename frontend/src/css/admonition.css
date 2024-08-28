@@ -4,15 +4,19 @@
   --admonition-heading-color: var(--blue-11);
 
   display: flex;
+  position: relative;
+  flex-direction: column;
   padding: 1rem;
+  padding-left: 3rem;
   border-left: 4px solid;
   margin-bottom: 1rem;
   background-color: var(--admonition-bg);
   border-color: var(--admonition-border);
 
   &::before {
+    position: absolute;
     margin-top: 0.35rem;
-    margin-right: 1rem;
+    margin-left: -2rem;
   }
 }
 
