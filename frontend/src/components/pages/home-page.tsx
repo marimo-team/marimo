@@ -502,7 +502,7 @@ const CreateNewNotebook: React.FC = () => {
   return (
     <a
       className="relative rounded-lg p-6 group
-      text-primary hover:bg-[var(--blue-2)] shadow-smAccent border
+      text-primary hover:bg-[var(--blue-2)] shadow-mdSolid shadow-accent border
       transition-all duration-300 cursor-pointer
       "
       href={asURL(`?file=${initializationId}`).toString()}

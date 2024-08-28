@@ -43,6 +43,7 @@ These guides cover marimo's core concepts.
 | {doc}`state`                         | Mutable, reactive state                             |
 | {doc}`integrating_with_marimo/index` | Rich displays of objects, custom UI plugins         |
 | {doc}`wasm`                          | Create notebooks in our online playground!          |
+| {doc}`theming`                       | Theming notebooks                                   |
 | {doc}`exporting`                     | Exporting notebooks to HTML and flat scripts        |
 | {doc}`deploying/index`               | Deploying marimo notebooks and apps                 |
 

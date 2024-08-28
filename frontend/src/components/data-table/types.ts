@@ -17,3 +17,5 @@ export type FieldTypesWithExternalType = Record<
   [DataType, externalType: string]
 >;
 export type FieldTypes = Record<string, DataType>;
+
+export const SELECT_COLUMN_ID = "__select__";

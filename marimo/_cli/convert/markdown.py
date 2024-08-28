@@ -58,7 +58,11 @@ def formatted_code_block(
 
 def app_config_from_root(root: Element) -> _AppConfig:
     # Extract meta data from root attributes.
-    config_keys = {"title": "app_title", "marimo-layout": "layout_file"}
+    config_keys = {
+        "title": "app_title",
+        "marimo-layout": "layout_file",
+        "marimo-css": "css_file",
+    }
     config = {
         config_keys[key]: value
         for key, value in root.items()

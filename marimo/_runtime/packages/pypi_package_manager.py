@@ -1,6 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import List
+
 from marimo._runtime.packages.module_name_to_pypi_name import (
     module_name_to_pypi_name,
 )
@@ -47,6 +49,42 @@ class UvPackageManager(PypiPackageManager):
 
     async def _install(self, package: str) -> bool:
         return self.run(["uv", "pip", "install", package])
+
+    def update_notebook_script_metadata(
+        self,
+        filepath: str,
+        import_namespaces_to_add: List[str],
+        import_namespaces_to_remove: List[str],
+    ) -> None:
+        # Convert from module name to package name
+        packages_to_add = [
+            self.module_to_package(im) for im in import_namespaces_to_add
+        ]
+        packages_to_remove = [
+            self.module_to_package(im) for im in import_namespaces_to_remove
+        ]
+
+        # Filter to packages that are found by "uv pip show"
+        packages_to_add = [
+            im for im in packages_to_add if self._is_installed(im)
+        ]
+        packages_to_remove = [
+            im for im in packages_to_remove if self._is_installed(im)
+        ]
+
+        if packages_to_add:
+            self.run(
+                ["uv", "--quiet", "add", "--script", filepath]
+                + packages_to_add
+            )
+        if packages_to_remove:
+            self.run(
+                ["uv", "--quiet", "remove", "--script", filepath]
+                + packages_to_remove
+            )
+
+    def _is_installed(self, package: str) -> bool:
+        return self.run(["uv", "--quiet", "pip", "show", package])
 
 
 class RyePackageManager(PypiPackageManager):

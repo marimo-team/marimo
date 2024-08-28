@@ -11,6 +11,7 @@ import {
   SearchIcon,
   WrapTextIcon,
   AlignJustifyIcon,
+  PinOffIcon,
 } from "lucide-react";
 
 import { cn } from "@/utils/cn";
@@ -35,6 +36,7 @@ import type { DataType } from "@/core/kernel/messages";
 import { formatOptions } from "./column-formatting/types";
 import { DATA_TYPE_ICON } from "../datasets/icons";
 import { formattingExample } from "./column-formatting/feature";
+import { PinLeftIcon, PinRightIcon } from "@radix-ui/react-icons";
 
 interface DataTableColumnHeaderProps<TData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {
@@ -109,6 +111,45 @@ export const DataTableColumnHeader = <TData, TValue>({
         <WrapTextIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
         Wrap text
       </DropdownMenuItem>
+    );
+  };
+
+  const renderColumnPinning = () => {
+    if (!column.getCanPin?.() || !column.getIsPinned) {
+      return null;
+    }
+
+    const pinnedPosition = column.getIsPinned();
+
+    if (pinnedPosition !== false) {
+      return (
+        <DropdownMenuItem
+          onClick={() => column.pin(false)}
+          className="flex items-center"
+        >
+          <PinOffIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+          Unfreeze
+        </DropdownMenuItem>
+      );
+    }
+
+    return (
+      <>
+        <DropdownMenuItem
+          onClick={() => column.pin("left")}
+          className="flex items-center"
+        >
+          <PinLeftIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+          Freeze left
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => column.pin("right")}
+          className="flex items-center"
+        >
+          <PinRightIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+          Freeze right
+        </DropdownMenuItem>
+      </>
     );
   };
 
@@ -211,6 +252,7 @@ export const DataTableColumnHeader = <TData, TValue>({
           <CopyIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
           Copy column name
         </DropdownMenuItem>
+        {renderColumnPinning()}
         {renderColumnWrapping()}
         {renderFormatOptions()}
         <DropdownMenuItemFilter column={column} />
@@ -388,7 +430,7 @@ const NumberRangeFilter = <TData, TValue>({
               maxRef.current?.focus();
             }
           }}
-          className="shadow-none! border-border hover:shadow-none! w-[150px]"
+          className="shadow-none! border-border hover:shadow-none!"
         />
         <MinusIcon className="h-5 w-5 text-muted-foreground" />
         <NumberField
@@ -404,7 +446,7 @@ const NumberRangeFilter = <TData, TValue>({
             }
           }}
           placeholder="max"
-          className="shadow-none! border-border hover:shadow-none! w-[150px]"
+          className="shadow-none! border-border hover:shadow-none!"
         />
       </div>
       <div className="flex gap-2 px-2 justify-between">

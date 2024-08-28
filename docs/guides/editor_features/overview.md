@@ -24,6 +24,7 @@ A non-exhaustive list of settings:
 
 - Outputs above or below code cells
 - [Disable/enable autorun](/guides/reactivity.md#runtime-configuration)
+- Package installation
 - Vim keybindings
 - Dark mode
 - Auto-save
@@ -67,14 +68,14 @@ marimo ships with the IDE panels that provide an overview of your notebook:
 
 1. **file explorer**: view the file tree, open other notebooks
 2. **variables**: explore variable values, see where they are defined and used, with go-to-definition
-2. **data explorer**: see dataframe and table schemas at a glance
-3. **dependency graph**: view dependencies between cells, drill-down on nodes and edges
-4. **table of contents**: corresponding to your markdown
-5. **documentation** - move your text cursor over a symbol to see its documentation
-6. **logs**: a continuous stream of stdout and stderr
-7. **scratchpad**: a scratchpad cell where you can execute throwaway code
-8. **snippets** - searchable snippets to copy directly into your notebook
-9. **feedback** - share feedback!
+3. **data explorer**: see dataframe and table schemas at a glance
+4. **dependency graph**: view dependencies between cells, drill-down on nodes and edges
+5. **table of contents**: corresponding to your markdown
+6. **documentation** - move your text cursor over a symbol to see its documentation
+7. **logs**: a continuous stream of stdout and stderr
+8. **scratchpad**: a scratchpad cell where you can execute throwaway code
+9. **snippets** - searchable snippets to copy directly into your notebook
+10. **feedback** - share feedback!
 :::
 
 ::::

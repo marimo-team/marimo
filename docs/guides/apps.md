@@ -21,28 +21,34 @@ Usage: marimo run [OPTIONS] NAME [ARGS]...
       * marimo run notebook.py
 
 Options:
-  -p, --port INTEGER     Port to attach to.
-  --host TEXT            Host to attach to.  [default: 127.0.0.1]
-  --proxy TEXT           Address of reverse proxy.
-  --headless             Don't launch a browser.
-  --token / --no-token   Use a token for authentication. This enables session-
-                         based authentication. A random token will be
-                         generated if --token-password is not set.
+  -p, --port INTEGER             Port to attach to.
+  --host TEXT                    Host to attach to.  [default: 127.0.0.1]
+  --proxy TEXT                   Address of reverse proxy.
+  --headless                     Don't launch a browser.
+  --token / --no-token           Use a token for authentication. This enables
+                                 session-based authentication. A random token
+                                 will be generated if --token-password is not
+                                 set.
 
-                         If --no-token is set, session-based authentication
-                         will not be used.  [default: no-token]
-  --token-password TEXT  Use a specific token for authentication. This enables
-                         session-based authentication. A random token will be
-                         generated if not set.
-  --include-code         Include notebook code in the app.
-  --watch                Watch the file for changes and reload the app. If
-                         watchdog is installed, it will be used to watch the
-                         file. Otherwise, file watcher will poll the file
-                         every 1s.
-  --base-url TEXT        Base URL for the server. Should start with a /.
-  --allow-origins TEXT   Allowed origins for CORS. Can be repeated.
-  --redirect-console-to-browser  Redirect stdout and stderr to the browser console.
-  --help                 Show this message and exit.
+                                 If --no-token is set, session-based
+                                 authentication will not be used.  [default:
+                                 no-token]
+  --token-password TEXT          Use a specific token for authentication. This
+                                 enables session-based authentication. A
+                                 random token will be generated if not set.
+  --include-code                 Include notebook code in the app.
+  --watch                        Watch the file for changes and reload the
+                                 app. If watchdog is installed, it will be
+                                 used to watch the file. Otherwise, file
+                                 watcher will poll the file every 1s.
+  --base-url TEXT                Base URL for the server. Should start with a
+                                 /.
+  --allow-origins TEXT           Allowed origins for CORS. Can be repeated.
+  --redirect-console-to-browser  Redirect console logs to the browser console.
+  --sandbox                      Run the command in an isolated virtual
+                                 environment using 'uv run --isolated'.
+                                 Requires `uv`.
+  --help                         Show this message and exit.
 ```
 
 ## Layout
