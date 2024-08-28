@@ -66,7 +66,6 @@
     --stale: hsl(42deg 56% 44% / 25%);
     --ring: hsl(215deg 20.2% 65.1%);
     --radius: 8px;
-
     --base-shadow: hsl(0deg 0% 85% / 40%);
     --base-shadow-darker: hsl(0deg 0% 50% / 40%);
     --base-shadow-opacity: 5%;
@@ -101,7 +100,7 @@
     --link-visited: hsl(272deg 51% 74%); /* purple-9 */
 
     /* Base shadows. */
-    --base-shadow: hsla(0 0% 36% / 60%);
+    --base-shadow: hsla(0deg 0% 36% / 60%);
     --base-shadow-darker: hsl(0deg 0% 50% / 60%);
     --base-shadow-opacity: 85%;
   }
