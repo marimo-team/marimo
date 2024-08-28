@@ -42,6 +42,8 @@ export function useConfigActions() {
         handleUserConfig({
           ...config,
           display: {
+            // We don't use the config from the setting since
+            // we want to resolve 'system' to it's current value.
             ...config.display,
             theme: theme === "dark" ? "light" : "dark",
           },

@@ -72,7 +72,7 @@ export const UserConfigSchema = z
       .default({}),
     display: z
       .object({
-        theme: z.enum(["light", "dark"]).default("light"),
+        theme: z.enum(["light", "dark", "system"]).default("light"),
         code_editor_font_size: z.number().nonnegative().default(14),
         cell_output: z.enum(["above", "below"]).default("above"),
         dataframes: z.enum(["rich", "plain"]).default("rich"),
@@ -90,6 +90,7 @@ export const UserConfigSchema = z
     package_management: z
       .object({
         manager: z.enum(PackageManagerNames).default("pip"),
+        add_script_metadata: z.boolean().default(false),
       })
       .default({ manager: "pip" }),
     ai: z
@@ -145,6 +146,7 @@ export const AppConfigSchema = z
         return width;
       }),
     app_title: AppTitleSchema.nullish(),
+    css_file: z.string().nullish(),
   })
   .default({ width: "medium" });
 export type AppConfig = z.infer<typeof AppConfigSchema>;
