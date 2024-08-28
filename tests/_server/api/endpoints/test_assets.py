@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any, cast
 
@@ -32,6 +33,36 @@ def test_index(client: TestClient) -> None:
     assert filename in content
     assert "<marimo-mode data-mode='edit'" in content
     assert f"<title>{title}</title>" in content
+
+
+def test_custom_css_empty(client: TestClient) -> None:
+    response = client.get("/custom.css", headers=token_header())
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"] == "text/css; charset=utf-8"
+
+
+def test_custom_css_non_empty(client: TestClient) -> None:
+    session_manager = AppState.from_app(cast(Any, client.app)).session_manager
+    css = "/* custom css */"
+    filename = session_manager.file_router.get_unique_file_key()
+    assert filename is not None
+
+    css_file = os.path.join(os.path.dirname(filename), "custom.css")
+    with open(css_file, "w") as f:
+        f.write(css)
+
+    # set config
+    session_manager.app_manager(filename).save_app_config(
+        {"css_file": "custom.css"}
+    )
+
+    try:
+        response = client.get("/custom.css", headers=token_header())
+        assert response.status_code == 200, response.text
+        assert response.headers["content-type"] == "text/css; charset=utf-8"
+        assert response.text == css
+    finally:
+        os.remove(css_file)
 
 
 @with_file_router(AppFileRouter.from_files([]))

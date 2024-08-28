@@ -4,7 +4,7 @@ from __future__ import annotations
 import mimetypes
 import os
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from starlette.authentication import requires
 from starlette.exceptions import HTTPException
@@ -15,6 +15,7 @@ from marimo import _loggers
 from marimo._config.manager import UserConfigManager
 from marimo._runtime.virtual_file import EMPTY_VIRTUAL_FILE, read_virtual_file
 from marimo._server.api.deps import AppState
+from marimo._server.file_router import MarimoFileKey
 from marimo._server.router import APIRouter
 from marimo._server.templates.templates import (
     home_page_template,
@@ -88,6 +89,25 @@ async def index(request: Request) -> HTMLResponse:
         )
 
     return HTMLResponse(html)
+
+
+# This serves the custom.css file if it was
+# supplied in the app config
+@router.get("/custom.css")
+@requires("read")
+def custom_css(request: Request) -> Response:
+    app_state = AppState(request)
+    file_key: Optional[MarimoFileKey] = (
+        app_state.query_params(FILE_QUERY_PARAM_KEY)
+        or app_state.session_manager.file_router.get_unique_file_key()
+    )
+
+    if not file_key:
+        return Response("", media_type="text/css")
+
+    app_manager = app_state.session_manager.app_manager(file_key)
+    css = app_manager.read_css_file() or ""
+    return Response(css, media_type="text/css")
 
 
 STATIC_FILES = [

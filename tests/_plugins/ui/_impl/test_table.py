@@ -408,3 +408,18 @@ def test_with_too_many_rows_column_charts_disabled():
     )
     charts_enabled = table.get_column_summaries(EmptyArgs())
     assert charts_enabled.is_disabled is False
+
+
+def test_table_with_frozen_columns():
+    data = {
+        "a": list(range(20)),
+        "b": list(range(20)),
+        "c": list(range(20)),
+        "d": list(range(20)),
+        "e": list(range(20)),
+    }
+    table = ui.table(
+        data, freeze_columns_left=["a", "b"], freeze_columns_right=["d", "e"]
+    )
+    assert table._component_args["freeze-columns-left"] == ["a", "b"]
+    assert table._component_args["freeze-columns-right"] == ["d", "e"]

@@ -16,7 +16,7 @@ export function goToDefinitionBundle() {
       ".underline": {
         textDecoration: "underline",
         cursor: "pointer",
-        color: "hsl(var(--link))",
+        color: "var(--link)",
       },
     }),
   ];
