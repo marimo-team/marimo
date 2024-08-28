@@ -22,7 +22,7 @@ def __(mo):
         $$\frac{\partial\, v'Av}{\partial\, v}=2Av=2v'A$$
 
         em que $A$ é uma matriz simétrica. No nosso caso, $A=X'X$ e $v=\hat{\boldsymbol{\beta}}$.
-    """).callout()
+    """).center().callout()
     return
 
 
@@ -60,7 +60,7 @@ def __(mo):
         $$\frac{\partial\, v'Av}{\partial\, v}=2Av=2v'A$$
 
         em que $A$ é uma matriz simétrica. No nosso caso, $A=X'X$ e $v=\hat{\boldsymbol{\beta}}$.
-    """)
+    """).center()
         }
     )
     return
