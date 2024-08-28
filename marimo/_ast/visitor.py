@@ -37,7 +37,10 @@ class ImportData:
 
 @dataclass
 class VariableData:
-    kind: Literal["function", "class", "import", "variable"] = "variable"
+    # "table" is a SQL variable, not a Python one.
+    kind: Literal["function", "class", "import", "variable", "table"] = (
+        "variable"
+    )
 
     # If kind == function or class, it may be dependent on externally defined
     # variables.
@@ -425,9 +428,7 @@ class ScopedVisitor(ast.NodeVisitor):
                         continue
 
                     for _table in created_tables:
-                        # TODO:
-                        # self._define_sql()
-                        pass
+                        self._define(_table, VariableData("table"))
 
         # Visit arguments, keyword args, etc.
         self.generic_visit(node)

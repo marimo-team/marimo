@@ -20,7 +20,7 @@ def test_value_html() -> None:
 def test_variable_value_broken_str() -> None:
     class Broken:
         def __str__(self) -> str:
-            raise BaseException
+            raise BaseException  # noqa: TRY002
 
     variable_value = VariableValue(name="o", value=Broken())
     assert variable_value.datatype == "Broken"
