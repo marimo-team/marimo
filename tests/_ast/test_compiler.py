@@ -5,7 +5,7 @@ from functools import partial
 
 from marimo._ast import compiler
 from marimo._ast.app import CellManager
-from marimo._ast.visitor import ImportData
+from marimo._ast.visitor import ImportData, VariableData
 
 compile_cell = partial(compiler.compile_cell, cell_id="0")
 
@@ -242,6 +242,30 @@ class TestImportWorkspace:
         assert cell.defs == set(["foo"])
         assert cell.import_workspace.is_import_block
         assert not cell.import_workspace.imported_defs
+
+
+class TestParseSQLCell:
+    @staticmethod
+    def test_table_definition() -> None:
+        code = 'mo.sql("CREATE TABLE t1 (i INTEGER, j INTEGER)")'
+        cell = compile_cell(code)
+        assert cell.key == hash(code)
+        assert cell.code == code
+        assert cell.defs == set(["t1"])
+        assert cell.refs == set(["mo"])
+        assert cell.language == "sql"
+        assert cell.variable_data == {"t1": [VariableData("table")]}
+
+    @staticmethod
+    def test_table_reference() -> None:
+        code = 'mo.sql("SELECT * from t1")'
+        cell = compile_cell(code)
+        assert cell.key == hash(code)
+        assert cell.code == code
+        assert not cell.defs
+        assert cell.refs == set(["mo", "t1"])
+        assert cell.language == "sql"
+        assert not cell.variable_data
 
 
 class TestCellFactory:

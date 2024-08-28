@@ -94,7 +94,7 @@ class DirectedGraph:
                 continue
             children.add(cid)
 
-        return set([cid for cid in self.cells if name in self.cells[cid].refs])
+        return children
 
     def get_path(self, source: CellId_t, dst: CellId_t) -> list[Edge]:
         """Get a path from `source` to `dst`, if any."""
