@@ -950,7 +950,11 @@ class Kernel:
                 VariableDeclaration(
                     name=variable,
                     declared_by=list(declared_by),
-                    used_by=list(self.graph.get_referring_cells(variable)),
+                    used_by=list(
+                        self.graph.get_referring_cells(
+                            variable, language="python"
+                        )
+                    ),
                 )
                 for variable, declared_by in self.graph.definitions.items()
             ]
@@ -1299,7 +1303,9 @@ class Kernel:
                         ]
                         for binding in bindings:
                             referring_cells.update(
-                                self.graph.get_referring_cells(binding)
+                                self.graph.get_referring_cells(
+                                    binding, language="python"
+                                )
                             )
 
                 # KeyError: Trying to access an unnamed UIElement
@@ -1375,7 +1381,7 @@ class Kernel:
                     # subtracting self.graph.definitions[name]: never rerun the
                     # cell that created the name
                     referring_cells.update(
-                        self.graph.get_referring_cells(name)
+                        self.graph.get_referring_cells(name, language="python")
                         - self.graph.get_defining_cells(name)
                     )
                 except Exception:

@@ -17,6 +17,8 @@ LOGGER = _loggers.marimo_logger()
 
 Name = str
 
+Language = Literal["python", "sql"]
+
 
 @dataclass
 class ImportData:
@@ -56,6 +58,10 @@ class VariableData:
 
     # For kind == import
     import_data: Optional[ImportData] = None
+
+    @property
+    def language(self) -> Language:
+        return "sql" if self.kind == "table" else "python"
 
 
 @dataclass
@@ -112,6 +118,7 @@ class ScopedVisitor(ast.NodeVisitor):
             else mangle_prefix
         )
         self.is_local = (lambda _: False) if ignore_local else is_local
+        self.language: Language = "python"
 
     @property
     def defs(self) -> set[Name]:
@@ -359,6 +366,10 @@ class ScopedVisitor(ast.NodeVisitor):
         # If the call name is sql and has one argument, and the argument is
         # a string literal, then it's likely to be a SQL query.
         # It must also come from the `mo` module.
+        #
+        # This check is brittle, since we can't detect at parse time whether
+        # 'mo'/'marimo' actually refer to the marimo library, but it gets
+        # the job done.
         if (
             isinstance(node.func, ast.Attribute)
             and isinstance(node.func.value, ast.Name)
@@ -366,6 +377,7 @@ class ScopedVisitor(ast.NodeVisitor):
             and node.func.attr == "sql"
             and len(node.args) == 1
         ):
+            self.language = "sql"
             first_arg = node.args[0]
             sql: Optional[str] = None
             if isinstance(first_arg, ast.Constant):

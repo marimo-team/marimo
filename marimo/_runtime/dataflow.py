@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, List, Tuple
+from typing import TYPE_CHECKING, Any, Callable, List, Literal, Tuple
 
 from marimo import _loggers
 from marimo._ast.cell import (
@@ -69,6 +69,7 @@ class DirectedGraph:
             cell_id in self.cells and code_key(code) == self.cells[cell_id].key
         )
 
+    # TODO: language type?
     def get_defining_cells(self, name: Name) -> set[CellId_t]:
         """Get all cells that define name.
 
@@ -76,8 +77,23 @@ class DirectedGraph:
         """
         return self.definitions[name]
 
-    def get_referring_cells(self, name: Name) -> set[CellId_t]:
-        """Get all cells that have a ref to `name`."""
+    def get_referring_cells(
+        self, name: Name, language: Literal["python", "sql"]
+    ) -> set[CellId_t]:
+        """Get all cells that have a ref to `name`.
+
+        The variable can be either a Python variable or a SQL variable (table).
+        """
+        children = set()
+        for cid, cell in self.cells.items():
+            if name not in cell.refs:
+                continue
+            elif language == "sql" and cell.language == "python":
+                # SQL variables don't leak to Python cells, but
+                # Python variables do leak to SQL cells
+                continue
+            children.add(cid)
+
         return set([cid for cid in self.cells if name in self.cells[cid].refs])
 
     def get_path(self, source: CellId_t, dst: CellId_t) -> list[Edge]:
@@ -121,18 +137,21 @@ class DirectedGraph:
             self.children[cell_id] = children
             self.siblings[cell_id] = siblings
             self.parents[cell_id] = parents
-            for name in cell.defs:
+            for name, variable_data in cell.variable_data.items():
+                # TODO - wire up graph according to sql/python
                 self.definitions.setdefault(name, set()).add(cell_id)
                 for sibling in self.definitions[name]:
+                    # TODO(akshayka): Distinguish between Python/SQL?
                     if sibling != cell_id:
                         siblings.add(sibling)
                         self.siblings[sibling].add(cell_id)
 
                 # a cell can refer to its own defs, but that doesn't add an
                 # edge to the dependency graph
-                referring_cells = self.get_referring_cells(name) - set(
-                    (cell_id,)
-                )
+                referring_cells = self.get_referring_cells(
+                    name,
+                    language=variable_data[-1].language,
+                ) - set((cell_id,))
                 # we will add an edge (cell_id, v) for each v in
                 # referring_cells; if there is a path from v to cell_id, then
                 # the new edge will form a cycle
@@ -146,7 +165,7 @@ class DirectedGraph:
                     self.parents[child].add(cell_id)
 
             for name in cell.refs:
-                other_ids = (
+                other_ids_defining_name = (
                     self.definitions[name]
                     if name in self.definitions
                     else set()
@@ -154,7 +173,11 @@ class DirectedGraph:
                 # if other is empty, this means that the user is going to
                 # get a NameError once the cell is run, unless the symbol
                 # is say a builtin
-                for other_id in other_ids:
+                for other_id in other_ids_defining_name:
+                    kind = self.cells[other_id].variable_data[name][-1].kind
+                    if kind == "table" and cell.language == "python":
+                        # SQL table def -> Python ref is not an edge
+                        continue
                     parents.add(other_id)
                     # we are adding an edge (other_id, cell_id). If there
                     # is a path from cell_id to other_id, then the new
@@ -377,8 +400,9 @@ def transitive_closure(
     cell_ids: set[CellId_t],
     children: bool = True,
     inclusive: bool = True,
-    relatives: Callable[[DirectedGraph, CellId_t, bool], set[CellId_t]]
-    | None = None,
+    relatives: (
+        Callable[[DirectedGraph, CellId_t, bool], set[CellId_t]] | None
+    ) = None,
     predicate: Callable[[CellImpl], bool] | None = None,
 ) -> set[CellId_t]:
     """Return a set of the passed-in cells and their descendants or ancestors
@@ -478,7 +502,10 @@ def import_block_relatives(
     # definitions used to find the descendants of this cell.
     unimported_defs = cell.defs - cell.import_workspace.imported_defs
     children_ids = set().union(
-        *[graph.get_referring_cells(name) for name in unimported_defs]
+        *[
+            graph.get_referring_cells(name, language="python")
+            for name in unimported_defs
+        ]
     )
 
     # If children haven't been executed, then still use imported defs;
@@ -486,7 +513,7 @@ def import_block_relatives(
     # exception or user interrupt, so that a module is imported but the
     # cell's children haven't run.
     for name in cell.import_workspace.imported_defs:
-        for child_id in graph.get_referring_cells(name):
+        for child_id in graph.get_referring_cells(name, language="python"):
             if graph.cells[child_id].run_result_status in (
                 "interrupted",
                 "cancelled",
