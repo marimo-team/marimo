@@ -32,9 +32,10 @@ class FormatterFactory(abc.ABC):
         """
         raise NotImplementedError
 
-    @abc.abstractmethod
     def apply_theme(self, theme: Theme) -> None:
-        """Applies a theme to the formatter.
+        """
+        Apply the theme (light/dark) to third party libraries.
+        If the theme is set to "system", then we fallback to "light".
 
         Args:
             theme: The theme to apply.
