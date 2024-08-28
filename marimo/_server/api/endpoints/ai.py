@@ -19,7 +19,17 @@ from marimo._server.router import APIRouter
 from marimo._utils.assert_never import assert_never
 
 if TYPE_CHECKING:
-    from openai import OpenAI, Stream  # type: ignore[import-not-found]
+    from anthropic import (  # type: ignore[import-not-found]
+        Client,
+        Stream as AnthropicStream,
+    )
+    from anthropic.types import (
+        RawMessageStreamEvent,  # type: ignore[import-not-found]
+    )
+    from openai import (  # type: ignore[import-not-found]
+        OpenAI,
+        Stream as OpenAiStream,
+    )
     from openai.types.chat import (  # type: ignore[import-not-found]
         ChatCompletionChunk,
     )
@@ -36,7 +46,8 @@ def get_openai_client(config: MarimoConfig) -> "OpenAI":
         from openai import OpenAI  # type: ignore[import-not-found]
     except ImportError:
         raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST, detail="OpenAI not installed"
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="OpenAI not installed. Run `pip install openai`",
         ) from None
 
     if "ai" not in config:
@@ -68,6 +79,42 @@ def get_openai_client(config: MarimoConfig) -> "OpenAI":
     return OpenAI(api_key=key, base_url=base_url)
 
 
+def get_anthropic_client(config: MarimoConfig) -> "Client":
+    try:
+        from anthropic import Client  # type: ignore[import-not-found]
+    except ImportError:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="Anthropic not installed. Run `pip install anthropic`",
+        ) from None
+
+    if "ai" not in config:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="Anthropic not configured",
+        )
+    if "anthropic" not in config["ai"]:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="Anthropic not configured",
+        )
+    if "api_key" not in config["ai"]["anthropic"]:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="Anthropic API key not configured",
+        )
+
+    key: str = config["ai"]["anthropic"]["api_key"]
+
+    if not key:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="Anthropic API key not configured",
+        )
+
+    return Client(api_key=key)
+
+
 def get_model(config: MarimoConfig) -> str:
     model: str = (
         config.get("ai", {}).get("open_ai", {}).get("model", "gpt-4-turbo")
@@ -77,15 +124,34 @@ def get_model(config: MarimoConfig) -> str:
     return model
 
 
+def get_content(
+    response: RawMessageStreamEvent | ChatCompletionChunk,
+) -> str | None:
+    if hasattr(response, "choices"):
+        return response.choices[0].delta.content  # type: ignore[attr-defined]
+
+    from anthropic.types import (
+        RawContentBlockDeltaEvent,
+        TextDelta,
+    )
+
+    if isinstance(response, RawContentBlockDeltaEvent):
+        if isinstance(response.delta, TextDelta):
+            return response.delta.text
+
+    return None
+
+
 def make_stream_response(
-    response: Stream[ChatCompletionChunk],
+    response: OpenAiStream[ChatCompletionChunk]
+    | AnthropicStream[RawMessageStreamEvent],
 ) -> Generator[str, None, None]:
     original_content = ""
-    buffer: str = ""
+    buffer = ""
     in_code_fence = False
-    # If it starts or ends with markdown, remove it
+
     for chunk in response:
-        content = chunk.choices[0].delta.content
+        content = get_content(chunk)
         if not content:
             continue
 
@@ -158,7 +224,6 @@ async def ai_completion(
     app_state.require_current_session()
     config = app_state.config_manager.get_config(hide_secrets=False)
     body = await parse_request(request, cls=AiCompletionRequest)
-    client = get_openai_client(config)
 
     if body.language == "python":
         system_prompt = (
@@ -193,7 +258,32 @@ async def ai_completion(
     if body.code.strip():
         prompt = f"{prompt}\n\nCurrent code:\n{body.code}"
 
-    response = client.chat.completions.create(
+    model = get_model(config)
+
+    # If the model starts with claude, use anthropic
+    if model.startswith("claude"):
+        anthropic_client = get_anthropic_client(config)
+        response = anthropic_client.messages.create(
+            model=model,
+            max_tokens=1000,
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+            system=system_prompt,
+            stream=True,
+            temperature=0,
+        )
+
+        return StreamingResponse(
+            content=make_stream_response(response),
+            media_type="application/json",
+        )
+
+    openai_client = get_openai_client(config)
+    response = openai_client.chat.completions.create(
         model=get_model(config),
         messages=[
             {

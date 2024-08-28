@@ -39,8 +39,14 @@ export function getUserConfig() {
 }
 
 export const aiEnabledAtom = atom<boolean>((get) => {
-  return Boolean(get(userConfigAtom).ai.open_ai?.api_key);
+  return isAiEnabled(get(userConfigAtom));
 });
+
+export function isAiEnabled(config: UserConfig) {
+  return (
+    Boolean(config.ai.open_ai?.api_key) || Boolean(config.ai.anthropic?.api_key)
+  );
+}
 
 /**
  * Atom for storing the app config.

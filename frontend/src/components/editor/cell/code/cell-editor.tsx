@@ -33,7 +33,7 @@ import { aiCompletionCellAtom } from "@/core/ai/state";
 import { mergeRefs } from "@/utils/mergeRefs";
 import { useSetLastFocusedCellId } from "@/core/cells/focus";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
-import { autoInstantiateAtom } from "@/core/config/config";
+import { autoInstantiateAtom, isAiEnabled } from "@/core/config/config";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { useSplitCellCallback } from "../useSplitCell";
@@ -143,11 +143,13 @@ const CellEditorInternal = ({
     maybeAddMarimoImport(autoInstantiate, createNewCell);
   });
 
+  const aiEnabled = isAiEnabled(userConfig);
+
   const extensions = useMemo(() => {
     const extensions = setupCodeMirror({
       cellId,
       showPlaceholder,
-      enableAI: Boolean(userConfig.ai.open_ai?.api_key),
+      enableAI: aiEnabled,
       cellCodeCallbacks: {
         updateCellCode,
         afterToggleMarkdown,
@@ -208,7 +210,7 @@ const CellEditorInternal = ({
     cellId,
     userConfig.keymap,
     userConfig.completion,
-    userConfig.ai.open_ai?.api_key,
+    aiEnabled,
     theme,
     showPlaceholder,
     createAbove,
