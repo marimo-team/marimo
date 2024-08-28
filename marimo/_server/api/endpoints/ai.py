@@ -23,8 +23,8 @@ if TYPE_CHECKING:
         Client,
         Stream as AnthropicStream,
     )
-    from anthropic.types import (
-        RawMessageStreamEvent,  # type: ignore[import-not-found]
+    from anthropic.types import (  # type: ignore[import-not-found]
+        RawMessageStreamEvent,
     )
     from openai import (  # type: ignore[import-not-found]
         OpenAI,
@@ -128,7 +128,7 @@ def get_content(
     response: RawMessageStreamEvent | ChatCompletionChunk,
 ) -> str | None:
     if hasattr(response, "choices"):
-        return response.choices[0].delta.content  # type: ignore[attr-defined]
+        return response.choices[0].delta.content  # type: ignore[attr-defined][no-any-return]
 
     from anthropic.types import (
         RawContentBlockDeltaEvent,
@@ -137,7 +137,7 @@ def get_content(
 
     if isinstance(response, RawContentBlockDeltaEvent):
         if isinstance(response.delta, TextDelta):
-            return response.delta.text
+            return response.delta.text  # type: ignore[attr-defined][no-any-return]
 
     return None
 
