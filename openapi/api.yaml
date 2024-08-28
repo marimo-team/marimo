@@ -1020,6 +1020,7 @@ components:
               enum:
                 - light
                 - dark
+                - system
               type: string
           required:
             - theme
