@@ -128,7 +128,7 @@ def get_content(
     response: RawMessageStreamEvent | ChatCompletionChunk,
 ) -> str | None:
     if hasattr(response, "choices"):
-        return response.choices[0].delta.content  # type: ignore[attr-defined][no-any-return]
+        return response.choices[0].delta.content  # type: ignore
 
     from anthropic.types import (
         RawContentBlockDeltaEvent,
@@ -137,7 +137,7 @@ def get_content(
 
     if isinstance(response, RawContentBlockDeltaEvent):
         if isinstance(response.delta, TextDelta):
-            return response.delta.text  # type: ignore[attr-defined][no-any-return]
+            return response.delta.text  # type: ignore
 
     return None
 
