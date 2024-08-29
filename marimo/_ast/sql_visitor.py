@@ -203,9 +203,10 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
                 # Skip over database-path 'AS'
                 i += 2
                 # AS clause gets precedence in creating database
-                schema_name = token_extractor.strip_quotes(
-                    token_extractor.token_str(i)
-                )
+                if i < len(tokens):
+                    schema_name = token_extractor.strip_quotes(
+                        token_extractor.token_str(i)
+                    )
             if schema_name is not None:
                 created_schemas.append(schema_name)
 

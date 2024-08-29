@@ -140,7 +140,6 @@ class DirectedGraph:
             self.siblings[cell_id] = siblings
             self.parents[cell_id] = parents
             for name, variable_data in cell.variable_data.items():
-                # TODO - wire up graph according to sql/python
                 self.definitions.setdefault(name, set()).add(cell_id)
                 for sibling in self.definitions[name]:
                     # TODO(akshayka): Distinguish between Python/SQL?
