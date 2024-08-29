@@ -56,6 +56,7 @@ export const {
   sendRenameFileOrFolder,
   sendUpdateFile,
   sendFileDetails,
+  openTutorial,
   getRecentFiles,
   getWorkspaceFiles,
   getRunningNotebooks,

@@ -4,18 +4,29 @@ import {
   getRecentFiles,
   getRunningNotebooks,
   shutdownSession,
+  openTutorial,
 } from "@/core/network/requests";
 import { combineAsyncData, useAsyncData } from "@/hooks/useAsyncData";
 import type React from "react";
 import { Suspense, useContext, useEffect, useRef, useState } from "react";
 import { Spinner } from "../icons/spinner";
 import {
+  ActivityIcon,
+  BarChart2Icon,
+  BookOpenIcon,
   BookTextIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   ChevronsDownUpIcon,
   ClockIcon,
+  DatabaseIcon,
   ExternalLinkIcon,
+  FileIcon,
+  FileTextIcon,
+  GraduationCapIcon,
+  GridIcon,
+  LayoutIcon,
+  OrbitIcon,
   PlayCircleIcon,
   PowerOffIcon,
   RefreshCcwIcon,
@@ -35,7 +46,7 @@ import { assertExists } from "@/utils/assertExists";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
-import type { FileInfo, MarimoFile } from "@/core/network/types";
+import type { FileInfo, MarimoFile, TutorialId } from "@/core/network/types";
 import { ConfigButton } from "../app-config/app-config-button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -63,6 +74,14 @@ import {
 import { Maps } from "@/utils/maps";
 import { Input } from "../ui/input";
 import { Paths } from "@/utils/paths";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { Objects } from "@/utils/objects";
+import { CaretDownIcon } from "@radix-ui/react-icons";
 
 function tabTarget(path: string) {
   // Consistent tab target so we open in the same tab when clicking on the same notebook
@@ -119,7 +138,8 @@ const HomePage: React.FC = () => {
           setRunningNotebooks: runningResponse.setData,
         }}
       >
-        <div className="absolute top-3 right-5 flex gap-2 z-10">
+        <div className="absolute top-3 right-5 flex gap-2 z-50">
+          <OpenTutorialDropDown />
           <ConfigButton showAppConfig={false} />
           <ShutdownButton
             description={`This will shutdown the notebook server and terminate all running notebooks (${running.size}). You'll lose all data that's in memory.`}
@@ -513,6 +533,53 @@ const CreateNewNotebook: React.FC = () => {
         <ExternalLinkIcon size={24} />
       </div>
     </a>
+  );
+};
+
+const TUTORIALS: Record<
+  TutorialId,
+  [string, React.FC<React.SVGProps<SVGSVGElement>>]
+> = {
+  intro: ["Introduction", BookOpenIcon],
+  dataflow: ["Dataflow", ActivityIcon],
+  ui: ["UI Elements", LayoutIcon],
+  markdown: ["Markdown", FileTextIcon],
+  plots: ["Plots", BarChart2Icon],
+  sql: ["SQL", DatabaseIcon],
+  layout: ["Layout", GridIcon],
+  fileformat: ["File format", FileIcon],
+  "for-jupyter-users": ["For Jupyter users", OrbitIcon],
+  "markdown-format": ["Markdown format", MarkdownIcon],
+};
+
+const OpenTutorialDropDown: React.FC = () => {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild={true}>
+        <Button data-testid="open-tutorial-button" size="xs" variant="outline">
+          <GraduationCapIcon className="w-4 h-4 mr-2" />
+          Tutorials
+          <CaretDownIcon className="w-3 h-3 ml-1" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="bottom" className="no-print">
+        {Objects.entries(TUTORIALS).map(([tutorialId, [label, Icon]]) => (
+          <DropdownMenuItem
+            key={tutorialId}
+            onSelect={async () => {
+              const file = await openTutorial({ tutorialId });
+              if (!file) {
+                return;
+              }
+              window.open(asURL(`?file=${file.path}`).toString(), "_blank");
+            }}
+          >
+            <Icon strokeWidth={1.5} className="w-4 h-4 mr-2" />
+            {label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 

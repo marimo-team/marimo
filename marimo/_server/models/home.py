@@ -6,6 +6,7 @@ from typing import List, Optional
 
 from marimo._server.ids import SessionId
 from marimo._server.models.files import FileInfo
+from marimo._tutorials import Tutorial
 
 
 @dataclass
@@ -31,6 +32,11 @@ class RecentFilesResponse:
 @dataclass
 class RunningNotebooksResponse:
     files: List[MarimoFile]
+
+
+@dataclass
+class OpenTutorialRequest:
+    tutorial_id: Tutorial
 
 
 @dataclass

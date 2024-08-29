@@ -207,6 +207,13 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponse);
     },
+    openTutorial: (request) => {
+      return marimoClient
+        .POST("/api/home/tutorial/open", {
+          body: request,
+        })
+        .then(handleResponse);
+    },
     getRecentFiles: () => {
       return marimoClient.POST("/api/home/recent_files").then(handleResponse);
     },
