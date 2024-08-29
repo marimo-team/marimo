@@ -44,9 +44,9 @@ class ImportData:
 
 @dataclass
 class VariableData:
-    # "table" and "database" are SQL variables, not Python.
+    # "table", "view", and "database" are SQL variables, not Python.
     kind: Literal[
-        "function", "class", "import", "variable", "table", "database"
+        "function", "class", "import", "variable", "table", "view", "database"
     ] = "variable"
 
     # If kind == function or class, it may be dependent on externally defined
@@ -68,7 +68,11 @@ class VariableData:
     def language(self) -> Language:
         return (
             "sql"
-            if self.kind == "table" or self.kind == "database"
+            if (
+                self.kind == "table"
+                or self.kind == "database"
+                or self.kind == "view"
+            )
             else "python"
         )
 
@@ -405,6 +409,13 @@ class ScopedVisitor(ast.NodeVisitor):
 
                 # Add all tables in the query to the ref scope
                 try:
+                    # TODO: This function raises a CatalogError on CREATE VIEW
+                    # statements that reference tables that are not yet
+                    # defined, such
+                    #
+                    # as CREATE OR REPLACE VIEW my_view as SELECT * from my_df
+                    #
+                    # This breaks dependency parsing.
                     statements = duckdb.extract_statements(sql)
                 except duckdb.ProgrammingError:
                     # The user's sql query may have a syntax error,
@@ -443,7 +454,7 @@ class ScopedVisitor(ast.NodeVisitor):
 
                     # Add all tables/dbs created in the query to the defs
                     try:
-                        created_tables, created_dbs = (
+                        created_tables, created_views, created_dbs = (
                             find_created_tables_and_attached_databases(sql)
                         )
                     except duckdb.ProgrammingError:
@@ -456,6 +467,9 @@ class ScopedVisitor(ast.NodeVisitor):
 
                     for _table in created_tables:
                         self._define(_table, VariableData("table"))
+
+                    for _view in created_views:
+                        self._define(_view, VariableData("view"))
 
                     for _db in created_dbs:
                         self._define(_db, VariableData("database"))

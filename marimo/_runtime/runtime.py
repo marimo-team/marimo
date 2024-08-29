@@ -693,6 +693,11 @@ class Kernel:
                 # We only drop in-memory tables: we don't want to drop tables
                 # on databases!
                 duckdb.execute(f"DROP TABLE IF EXISTS memory.main.{name}")
+            elif variable.kind == "view" and DependencyManager.duckdb.has():
+                import duckdb
+
+                # We only drop in-memory views for the same reason.
+                duckdb.execute(f"DROP VIEW IF EXISTS memory.main.{name}")
             elif (
                 variable.kind == "database" and DependencyManager.duckdb.has()
             ):

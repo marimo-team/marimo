@@ -115,9 +115,9 @@ class TokenExtractor:
 
 def find_created_tables_and_attached_databases(
     sql_statement: str,
-) -> tuple[list[str], list[str]]:
+) -> tuple[list[str], list[str], list[str]]:
     """
-    Find the tables created, databases attached in a SQL statement.
+    Find the tables, views, and databases created/attached in a SQL statement.
 
     This function uses the DuckDB tokenizer to find the tables created
     and databases attached in a SQL statement. It returns a list of the table
@@ -127,11 +127,10 @@ def find_created_tables_and_attached_databases(
         sql_statement: The SQL statement to parse.
 
     Returns:
-        A tuple of a list of table names created and a list of databases
-        attached in the statement.
+        tables, views, databases
     """
     if not DependencyManager.duckdb.has():
-        return [], []
+        return [], [], []
 
     import duckdb
 
@@ -140,20 +139,23 @@ def find_created_tables_and_attached_databases(
         sql_statement=sql_statement, tokens=tokens
     )
     created_tables: list[str] = []
+    created_views: list[str] = []
     created_dbs: list[str] = []
     i = 0
 
     # See
     #
     #   https://duckdb.org/docs/sql/statements/create_table#syntax
+    #   https://duckdb.org/docs/sql/statements/create_view#syntax
     #
-    # for the CREATE TABLE syntax, and
+    # for the CREATE syntax, and
     #
     #   https://duckdb.org/docs/sql/statements/attach#attach-syntax
     #
     # for ATTACH syntax
     while i < len(tokens):
         if token_extractor.is_keyword(i, "create"):
+            # CREATE TABLE and CREATE VIEW have the same syntax
             i += 1
             if i < len(tokens) and token_extractor.is_keyword(i, "or"):
                 i += 2  # Skip 'OR REPLACE'
@@ -162,7 +164,10 @@ def find_created_tables_and_attached_databases(
                 or token_extractor.is_keyword(i, "temp")
             ):
                 i += 1  # Skip 'TEMPORARY' or 'TEMP'
-            if i < len(tokens) and token_extractor.is_keyword(i, "table"):
+            if i < len(tokens) and (
+                (is_table := token_extractor.is_keyword(i, "table"))
+                or token_extractor.is_keyword(i, "view")
+            ):
                 i += 1
                 if i < len(tokens) and token_extractor.is_keyword(i, "if"):
                     i += 3  # Skip 'IF NOT EXISTS'
@@ -170,7 +175,10 @@ def find_created_tables_and_attached_databases(
                     table_name = token_extractor.strip_quotes(
                         token_extractor.token_str(i)
                     )
-                    created_tables.append(table_name)
+                    if is_table:
+                        created_tables.append(table_name)
+                    else:
+                        created_views.append(table_name)
         elif token_extractor.is_keyword(i, "attach"):
             db_name = None
             i += 1
@@ -197,7 +205,7 @@ def find_created_tables_and_attached_databases(
 
         i += 1
 
-    return created_tables, created_dbs
+    return created_tables, created_views, created_dbs
 
 
 def find_from_targets(

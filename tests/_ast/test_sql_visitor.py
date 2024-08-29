@@ -97,6 +97,16 @@ class TestFindCreatedTables:
         assert find_created_tables_and_attached_databases(sql) == (
             ["test_table"],
             [],
+            [],
+        )
+
+    @staticmethod
+    def test_find_created_views_simple() -> None:
+        sql = "CREATE VIEW test_view (id INT, name VARCHAR(255));"
+        assert find_created_tables_and_attached_databases(sql) == (
+            [],
+            ["test_view"],
+            [],
         )
 
     @staticmethod
@@ -110,6 +120,7 @@ class TestFindCreatedTables:
                 "table1",
                 "table2",
             ],
+            [],
             [],
         )
 
@@ -130,6 +141,7 @@ class TestFindCreatedTables:
                 "table2",
             ],
             [],
+            [],
         )
 
     @staticmethod
@@ -137,6 +149,14 @@ class TestFindCreatedTables:
         sql = "CREATE OR REPLACE TABLE test_table (id INT);"
         assert find_created_tables_and_attached_databases(sql) == (
             ["test_table"],
+            [],
+            [],
+        )
+
+        sql = "CREATE OR REPLACE VIEW test_view (id INT);"
+        assert find_created_tables_and_attached_databases(sql) == (
+            [],
+            ["test_view"],
             [],
         )
 
@@ -146,6 +166,7 @@ class TestFindCreatedTables:
         assert find_created_tables_and_attached_databases(sql) == (
             ["temp_table"],
             [],
+            [],
         )
 
     @staticmethod
@@ -153,6 +174,7 @@ class TestFindCreatedTables:
         sql = "CREATE TABLE IF NOT EXISTS new_table (id INT);"
         assert find_created_tables_and_attached_databases(sql) == (
             ["new_table"],
+            [],
             [],
         )
 
@@ -170,18 +192,20 @@ class TestFindCreatedTables:
                 "table3",
             ],
             [],
+            [],
         )
 
     @staticmethod
     def test_find_created_tables_no_create() -> None:
         sql = "SELECT * FROM existing_table;"
-        assert find_created_tables_and_attached_databases(sql) == ([], [])
+        assert find_created_tables_and_attached_databases(sql) == ([], [], [])
 
     @staticmethod
     def test_find_created_tables_case_insensitive() -> None:
         sql = "create TABLE Test_Table (id INT);"
         assert find_created_tables_and_attached_databases(sql) == (
             ["Test_Table"],
+            [],
             [],
         )
 
@@ -197,7 +221,11 @@ class TestFindCreatedTables:
     def test_find_created_tables_empty_input(
         query: str,
     ) -> None:
-        assert find_created_tables_and_attached_databases(query) == ([], [])
+        assert find_created_tables_and_attached_databases(query) == (
+            [],
+            [],
+            [],
+        )
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -246,6 +274,7 @@ class TestFindCreatedTables:
         assert find_created_tables_and_attached_databases(query) == (
             ["my_table"],
             [],
+            [],
         )
 
     @staticmethod
@@ -276,6 +305,7 @@ class TestFindCreatedTables:
                 "with a space",
             ],
             [],
+            [],
         )
 
     @staticmethod
@@ -283,16 +313,19 @@ class TestFindCreatedTables:
         sql = "ATTACH 'Chinook.sqlite';"
         assert find_created_tables_and_attached_databases(sql) == (
             [],
+            [],
             ["Chinook"],
         )
 
         sql = "ATTACH 'Chinook.sqlite' AS my_db;"
         assert find_created_tables_and_attached_databases(sql) == (
             [],
+            [],
             ["my_db"],
         )
         sql = "ATTACH DATABASE 'Chinook.sqlite';"
         assert find_created_tables_and_attached_databases(sql) == (
+            [],
             [],
             ["Chinook"],
         )
@@ -300,11 +333,13 @@ class TestFindCreatedTables:
         sql = "ATTACH DATABASE IF NOT EXISTS 'Chinook.sqlite';"
         assert find_created_tables_and_attached_databases(sql) == (
             [],
+            [],
             ["Chinook"],
         )
 
         sql = "ATTACH DATABASE IF NOT EXISTS 'Chinook.sqlite' AS my_db;"
         assert find_created_tables_and_attached_databases(sql) == (
+            [],
             [],
             ["my_db"],
         )
@@ -316,4 +351,4 @@ class TestFindCreatedTables:
 def test_find_created_tables_duckdb_not_available() -> None:
     assert find_created_tables_and_attached_databases(
         "CREATE TABLE test (id INT);"
-    ) == ([], [])
+    ) == ([], [], [])
