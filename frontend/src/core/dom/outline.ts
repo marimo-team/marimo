@@ -5,6 +5,9 @@ import type { OutputMessage } from "../kernel/messages";
 import type { Outline, OutlineItem } from "../cells/outline";
 import { invariant } from "@/utils/invariant";
 
+// Tags that we don't want to include in the outline
+const excludedTags = ["marimo-carousel", "marimo-tabs", "marimo-accordion"];
+
 function getOutline(html: string): Outline {
   const items: Outline["items"] = [];
 
@@ -15,6 +18,11 @@ function getOutline(html: string): Outline {
   // eslint-disable-next-line unicorn/prefer-spread
   for (const heading of Array.from(headings)) {
     const name = heading.textContent;
+    // Check if the heading is within any of the excluded tags
+    if (excludedTags.some((tag) => heading.closest(tag))) {
+      continue;
+    }
+
     if (!name) {
       continue;
     }

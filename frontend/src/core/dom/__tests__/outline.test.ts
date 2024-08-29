@@ -199,6 +199,49 @@ describe("parseOutline", () => {
       }
     `);
   });
+  it("excludes headings within excluded tags", () => {
+    const html = `
+    <div>
+      <h1 id="included-heading">Included Heading</h1>
+      <marimo-carousel>
+        <h2 id="excluded-heading-carousel">Excluded Heading in Carousel</h2>
+      </marimo-carousel>
+      <marimo-tabs>
+        <h2 id="excluded-heading-tabs">Excluded Heading in Tabs</h2>
+      </marimo-tabs>
+      <marimo-accordion>
+        <h2 id="excluded-heading-accordion">Excluded Heading in Accordion</h2>
+      </marimo-accordion>
+      <h2 id="another-included-heading">Another Included Heading</h2>
+    </div>
+    `;
+    const outline = parseOutline({
+      mimetype: "text/html",
+      timestamp: 0,
+      channel: "output",
+      data: html,
+    });
+    expect(outline).toMatchInlineSnapshot(`
+      {
+        "items": [
+          {
+            "by": {
+              "id": "included-heading",
+            },
+            "level": 1,
+            "name": "Included Heading",
+          },
+          {
+            "by": {
+              "id": "another-included-heading",
+            },
+            "level": 2,
+            "name": "Another Included Heading",
+          },
+        ],
+      }
+    `);
+  });
 });
 
 const OUTLINE_1: Outline = {

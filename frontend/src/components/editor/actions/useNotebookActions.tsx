@@ -287,7 +287,6 @@ export function useNotebookActions() {
         });
       },
     },
-
     {
       icon: <ZapIcon size={14} strokeWidth={1.5} />,
       label: "Enable all cells",
