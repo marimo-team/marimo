@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import html
 
+from marimo._config.config import Theme
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.builder import h
 from marimo._output.formatters.formatter_factory import FormatterFactory
@@ -48,3 +49,8 @@ class AltairFormatter(FormatterFactory):
                     )
                 ),
             )
+
+    def apply_theme(self, theme: Theme) -> None:
+        import altair as alt  # type: ignore
+
+        alt.themes.enable("dark" if theme == "dark" else "default")  # type: ignore

@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from marimo._config.config import Theme
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.formatter_factory import FormatterFactory
@@ -53,3 +54,13 @@ class HoloViewsFormatter(FormatterFactory):
             html = as_html(backend_output)
 
             return ("text/html", html.text)
+
+    def apply_theme(self, theme: Theme) -> None:
+        import holoviews as hv  # type: ignore
+
+        hv.renderer("bokeh").theme = (
+            "dark_minimal" if theme == "dark" else None
+        )
+        hv.renderer("plotly").theme = (
+            "plotly_dark" if theme == "dark" else "plotly"
+        )

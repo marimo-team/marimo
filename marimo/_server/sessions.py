@@ -215,7 +215,9 @@ class KernelManager:
             # install formatter import hooks, which will be shared by all
             # threads (in edit mode, the single kernel process installs
             # formatters ...)
-            register_formatters()
+            register_formatters(
+                theme=self.user_config_manager.config["display"]["theme"]
+            )
 
             # Make threads daemons so killing the server immediately brings
             # down all client sessions

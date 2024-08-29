@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from marimo._config.config import Theme
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.formatter_factory import FormatterFactory
 
@@ -55,3 +56,10 @@ class MatplotlibFormatter(FormatterFactory):
                 return mime_data_artist(bc.patches[0].figure)  # type: ignore
             else:
                 return ("text/plain", str(bc))
+
+    def apply_theme(self, theme: Theme) -> None:
+        import matplotlib  # type: ignore
+
+        matplotlib.style.use(
+            "dark_background" if theme == "dark" else "default"
+        )

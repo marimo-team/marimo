@@ -4,6 +4,8 @@ from __future__ import annotations
 import abc
 from typing import Callable, Optional
 
+from marimo._config.config import Theme
+
 
 # Abstract base class for formatters that are installed at runtime.
 class FormatterFactory(abc.ABC):
@@ -29,3 +31,14 @@ class FormatterFactory(abc.ABC):
         patches.
         """
         raise NotImplementedError
+
+    def apply_theme(self, theme: Theme) -> None:
+        """
+        Apply the theme (light/dark) to third party libraries.
+        If the theme is set to "system", then we fallback to "light".
+
+        Args:
+            theme: The theme to apply.
+        """
+        del theme
+        return

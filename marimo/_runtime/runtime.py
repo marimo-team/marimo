@@ -67,6 +67,7 @@ from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import MarimoConvertValueException
 from marimo._runtime import dataflow, handlers, marimo_pdb, patches
+from marimo._runtime.app_meta import AppMeta
 from marimo._runtime.complete import complete, completion_worker
 from marimo._runtime.context import (
     ContextNotInitializedError,
@@ -230,6 +231,23 @@ def query_params() -> QueryParams:
       will automatically re-run.
     """
     return get_context().query_params
+
+
+@mddoc
+def app_meta() -> AppMeta:
+    """Get the metadata of a marimo app.
+
+    **Examples**:
+
+    ```python3
+    theme = mo.app_meta().theme
+    ```
+
+    **Returns**:
+
+    - An `AppMeta` object containing the app's metadata.
+    """
+    return AppMeta()
 
 
 @mddoc
@@ -1891,7 +1909,7 @@ def launch_kernel(
 
         # kernels are processes in edit mode, and each process needs to
         # install the formatter import hooks
-        register_formatters()
+        register_formatters(theme=user_config["display"]["theme"])
 
         signal.signal(
             signal.SIGINT, handlers.construct_interrupt_handler(kernel)

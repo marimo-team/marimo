@@ -101,6 +101,7 @@ class RuntimeConfig(TypedDict):
 # TODO(akshayka): remove normal, migrate to compact
 # normal == compact
 WidthType = Literal["normal", "compact", "medium", "full"]
+Theme = Literal["light", "dark", "system"]
 
 
 @mddoc
@@ -116,7 +117,7 @@ class DisplayConfig(TypedDict):
     - `dataframes`: `"rich"` or `"plain"`
     """
 
-    theme: Literal["light", "dark", "system"]
+    theme: Theme
     code_editor_font_size: int
     cell_output: Literal["above", "below"]
     default_width: WidthType
