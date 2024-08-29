@@ -84,6 +84,8 @@ dev = [
     "types-psutil~=5.9.5.20240423",
     # for server testing
     "httpx~=0.26.0",
+    # For SQL
+    "duckdb~=1.0.0",
     # For testing mo.ui.chart, dataframes, tables
     "pandas>=1.3.0",
     "pandas-stubs>=1.3.0",
