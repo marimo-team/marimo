@@ -82,8 +82,10 @@ dev = [
     "build~=0.10.0",
     "types-Pygments~=2.18.0.20240506",
     "types-psutil~=5.9.5.20240516",
-    # for server testing
+    # For server testing
     "httpx~=0.27.0",
+    # For SQL
+    "duckdb~=1.0.0",
     # For testing mo.ui.chart, dataframes, tables
     "pandas>=1.5.3",
     "pandas-stubs>=1.5.3.230321",

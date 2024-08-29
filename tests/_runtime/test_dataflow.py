@@ -3,10 +3,15 @@ from __future__ import annotations
 
 from functools import partial
 
+import pytest
+
 from marimo._ast import compiler
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime import dataflow
 
 parse_cell = partial(compiler.compile_cell, cell_id="0")
+
+HAS_DUCKDB = DependencyManager.duckdb.has()
 
 
 def test_graph_single_node() -> None:
@@ -220,3 +225,153 @@ def test_register_with_stale_ancestor() -> None:
     third_cell = parse_cell(code)
     graph.register_cell("3", third_cell)
     assert graph.get_stale() == set(["0", "1"])
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="duckdb is required")
+class TestSQL:
+    def test_sql_chain(self) -> None:
+        graph = dataflow.DirectedGraph()
+        code = 'mo.sql("CREATE TABLE t1 (i INTEGER, j INTEGER)")'
+        first_cell = parse_cell(code)
+        graph.register_cell("0", first_cell)
+
+        assert graph.cells == {"0": first_cell}
+        assert graph.parents == {"0": set()}
+        assert graph.children == {"0": set()}
+
+        code = 'mo.sql("SELECT * from t1")'
+        second_cell = parse_cell(code)
+        graph.register_cell("1", second_cell)
+
+        assert graph.cells == {"0": first_cell, "1": second_cell}
+        assert graph.parents == {"0": set(), "1": set(["0"])}
+        assert graph.children == {"0": set(["1"]), "1": set()}
+
+    def test_sql_tree_with_declared_df(self) -> None:
+        graph = dataflow.DirectedGraph()
+        code = 'df = mo.sql("CREATE TABLE t1 (i INTEGER, j INTEGER)")'
+        first_cell = parse_cell(code)
+        graph.register_cell("0", first_cell)
+
+        assert graph.cells == {"0": first_cell}
+        assert graph.parents == {"0": set()}
+        assert graph.children == {"0": set()}
+
+        code = 'mo.sql("SELECT * from t1")'
+        second_cell = parse_cell(code)
+        graph.register_cell("1", second_cell)
+
+        assert graph.cells == {"0": first_cell, "1": second_cell}
+        assert graph.parents == {"0": set(), "1": set(["0"])}
+        assert graph.children == {"0": set(["1"]), "1": set()}
+
+        code = 'mo.sql("SELECT * from df")'
+        third_cell = parse_cell(code)
+        graph.register_cell("2", third_cell)
+
+        assert graph.cells == {
+            "0": first_cell,
+            "1": second_cell,
+            "2": third_cell,
+        }
+        assert graph.parents == {"0": set(), "1": set(["0"]), "2": set(["0"])}
+        assert graph.children == {"0": set(["1", "2"]), "1": set(), "2": set()}
+
+        code = "df"
+        fourth_cell = parse_cell(code)
+        graph.register_cell("3", fourth_cell)
+
+        assert graph.cells == {
+            "0": first_cell,
+            "1": second_cell,
+            "2": third_cell,
+            "3": fourth_cell,
+        }
+        assert graph.parents == {
+            "0": set(),
+            "1": set(["0"]),
+            "2": set(["0"]),
+            "3": set(["0"]),
+        }
+        assert graph.children == {
+            "0": set(["1", "2", "3"]),
+            "1": set(),
+            "2": set(),
+            "3": set(),
+        }
+
+    def test_no_sql_table_to_python_ref(self):
+        graph = dataflow.DirectedGraph()
+        code = 'df = mo.sql("CREATE TABLE t1 (i INTEGER, j INTEGER)")'
+        first_cell = parse_cell(code)
+        graph.register_cell("0", first_cell)
+
+        # not a child of first_cell because t1 is a sql table not Python
+        # variable
+        code = "t1"
+        second_cell = parse_cell(code)
+        graph.register_cell("1", second_cell)
+
+        # is a child of first_cell because df is a Python variable
+        code = "df"
+        third_cell = parse_cell(code)
+        graph.register_cell("2", third_cell)
+
+        assert graph.cells == {
+            "0": first_cell,
+            "1": second_cell,
+            "2": third_cell,
+        }
+        assert graph.parents == {"0": set(), "1": set([]), "2": set(["0"])}
+        assert graph.children == {"0": set(["2"]), "1": set(), "2": set([])}
+
+        assert second_cell.language == "python"
+        assert graph.get_referring_cells("t1", language="sql") == set([])
+        assert graph.get_referring_cells("df", language="python") == set(["2"])
+
+    def test_python_to_sql_ref(self):
+        graph = dataflow.DirectedGraph()
+        code = "df = 123"
+        first_cell = parse_cell(code)
+        graph.register_cell("0", first_cell)
+
+        # not a child of first_cell because t1 is a sql table not Python
+        # variable
+        code = "mo.sql('SELECT * from df')"
+        second_cell = parse_cell(code)
+        graph.register_cell("1", second_cell)
+
+        assert graph.cells == {
+            "0": first_cell,
+            "1": second_cell,
+        }
+        assert graph.parents == {"0": set(), "1": set(["0"])}
+        assert graph.children == {"0": set(["1"]), "1": set([])}
+
+        assert graph.get_referring_cells("df", language="python") == set(["1"])
+
+    def test_attached_db(self):
+        graph = dataflow.DirectedGraph()
+        code = "mo.sql(\"ATTACH 'my_db.db'\")"
+        first_cell = parse_cell(code)
+        graph.register_cell("0", first_cell)
+
+        code = "mo.sql('SELECT * FROM my_db.my_table')"
+        second_cell = parse_cell(code)
+        graph.register_cell("1", second_cell)
+
+        code = "my_db"
+        third_cell = parse_cell(code)
+        graph.register_cell("2", third_cell)
+
+        assert graph.cells == {
+            "0": first_cell,
+            "1": second_cell,
+            "2": third_cell,
+        }
+        assert graph.parents == {"0": set(), "1": set(["0"]), "2": set([])}
+        assert graph.children == {"0": set(["1"]), "1": set([]), "2": set([])}
+
+        # cell 2 shouldn't count as a referring cell because it isn't a SQL
+        # cell
+        assert graph.get_referring_cells("my_db", language="sql") == set(["1"])

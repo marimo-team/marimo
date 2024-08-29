@@ -6,8 +6,8 @@ import dataclasses
 import inspect
 from typing import TYPE_CHECKING, Any, Literal, Mapping, Optional
 
-from marimo._ast.visitor import ImportData, Name, VariableData
-from marimo._data.sql_visitor import SQLVisitor
+from marimo._ast.sql_visitor import SQLVisitor
+from marimo._ast.visitor import ImportData, Language, Name, VariableData
 from marimo._utils.deep_merge import deep_merge
 
 CellId_t = str
@@ -136,6 +136,8 @@ class CellImpl:
     deleted_refs: set[Name]
     body: Optional[CodeType]
     last_expr: Optional[CodeType]
+    # whether this cell is Python or SQL
+    language: Language
     # unique id
     cell_id: CellId_t
 

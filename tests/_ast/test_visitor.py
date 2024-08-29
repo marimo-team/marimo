@@ -1026,7 +1026,8 @@ def test_sql_statement_with_url() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set()
+    assert v.defs == set(["cars"])
+    assert v.variable_data == {"cars": [VariableData("table")]}
     assert v.refs == set(["mo"])
 
 

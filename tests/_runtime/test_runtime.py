@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Sequence
 import pytest
 
 from marimo._config.config import DEFAULT_CONFIG
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.errors import (
     CycleError,
     DeleteNonlocalError,
@@ -43,6 +44,9 @@ def _check_edges(error: Error, expected_edges: Sequence[EdgeWithVar]) -> None:
     assert len(error.edges_with_vars) == len(expected_edges)
     for edge in expected_edges:
         assert edge in error.edges_with_vars
+
+
+HAS_SQL = DependencyManager.duckdb.has() and DependencyManager.polars.has()
 
 
 class TestExecution:
@@ -2016,6 +2020,80 @@ class TestAsyncIO:
         )
         assert not k.errors
         assert k.globals["res"] == "done"
+
+
+@pytest.mark.skipif(not HAS_SQL, reason="SQL deps not available")
+class TestSQL:
+    async def test_sql_table(self, k: Kernel) -> None:
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code="import marimo as mo",
+                ),
+                ExecutionRequest(
+                    cell_id="1", code="df = mo.sql('SELECT * from t1')"
+                ),
+            ]
+        )
+        assert "df" not in k.globals
+
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="2",
+                    code="import polars as pl; t1_df = pl.from_dict({'a': [42]})",  # noqa: E501
+                ),
+                # cell 1 should automatically execute due to the definition of
+                # t1
+                ExecutionRequest(
+                    cell_id="3",
+                    code="mo.sql('CREATE OR REPLACE TABLE t1 as SELECT * FROM t1_df')",  # noqa: E501
+                ),
+            ]
+        )
+
+        # make sure cell 1 executed, defining df
+        assert k.globals["df"].to_dict(as_series=False) == {"a": [42]}
+
+        await k.delete_cell(DeleteCellRequest(cell_id="3"))
+        # t1 should be dropped since it's an in-memory table;
+        # cell 1 should re-run but will fail to find t1
+        assert "df" not in k.globals
+
+    async def test_sql_view(self, k: Kernel) -> None:
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code="import marimo as mo",
+                ),
+                ExecutionRequest(
+                    cell_id="1", code="df = mo.sql('SELECT * from view')"
+                ),
+            ]
+        )
+        assert "df" not in k.globals
+
+        await k.run(
+            [
+                # cell 1 should automatically execute due to the definition of
+                # t1
+                ExecutionRequest(
+                    cell_id="2",
+                    code="mo.sql('CREATE OR REPLACE VIEW view as SELECT 42')",  # noqa: E501
+                ),
+            ]
+        )
+
+        assert not k.errors
+        # make sure cell 1 executed, defining df
+        assert "df" in k.globals
+
+        await k.delete_cell(DeleteCellRequest(cell_id="2"))
+        # view should be dropped since it's an in-memory table;
+        # cell 1 should re-run but will fail to find t1
+        assert "df" not in k.globals
 
 
 class TestStateTransitions:

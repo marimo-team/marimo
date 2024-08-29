@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+import itertools
 import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -9,13 +10,19 @@ from typing import Literal, Optional
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._data.sql_visitor import normalize_sql_f_string
+from marimo._ast.sql_visitor import (
+    find_from_targets,
+    find_sql_defs,
+    normalize_sql_f_string,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.variables import is_local
 
 LOGGER = _loggers.marimo_logger()
 
 Name = str
+
+Language = Literal["python", "sql"]
 
 
 @dataclass
@@ -37,7 +44,10 @@ class ImportData:
 
 @dataclass
 class VariableData:
-    kind: Literal["function", "class", "import", "variable"] = "variable"
+    # "table", "view", and "schema" are SQL variables, not Python.
+    kind: Literal[
+        "function", "class", "import", "variable", "table", "view", "schema"
+    ] = "variable"
 
     # If kind == function or class, it may be dependent on externally defined
     # variables.
@@ -53,6 +63,18 @@ class VariableData:
 
     # For kind == import
     import_data: Optional[ImportData] = None
+
+    @property
+    def language(self) -> Language:
+        return (
+            "sql"
+            if (
+                self.kind == "table"
+                or self.kind == "schema"
+                or self.kind == "view"
+            )
+            else "python"
+        )
 
 
 @dataclass
@@ -109,6 +131,7 @@ class ScopedVisitor(ast.NodeVisitor):
             else mangle_prefix
         )
         self.is_local = (lambda _: False) if ignore_local else is_local
+        self.language: Language = "python"
 
     @property
     def defs(self) -> set[Name]:
@@ -356,6 +379,10 @@ class ScopedVisitor(ast.NodeVisitor):
         # If the call name is sql and has one argument, and the argument is
         # a string literal, then it's likely to be a SQL query.
         # It must also come from the `mo` module.
+        #
+        # This check is brittle, since we can't detect at parse time whether
+        # 'mo'/'marimo' actually refer to the marimo library, but it gets
+        # the job done.
         if (
             isinstance(node.func, ast.Attribute)
             and isinstance(node.func.value, ast.Name)
@@ -363,6 +390,7 @@ class ScopedVisitor(ast.NodeVisitor):
             and node.func.attr == "sql"
             and len(node.args) == 1
         ):
+            self.language = "sql"
             first_arg = node.args[0]
             sql: Optional[str] = None
             if isinstance(first_arg, ast.Constant):
@@ -381,6 +409,13 @@ class ScopedVisitor(ast.NodeVisitor):
 
                 # Add all tables in the query to the ref scope
                 try:
+                    # TODO: This function raises a CatalogError on CREATE VIEW
+                    # statements that reference tables that are not yet
+                    # defined, such
+                    #
+                    # as CREATE OR REPLACE VIEW my_view as SELECT * from my_df
+                    #
+                    # This breaks dependency parsing.
                     statements = duckdb.extract_statements(sql)
                 except duckdb.ProgrammingError:
                     # The user's sql query may have a syntax error,
@@ -397,21 +432,44 @@ class ScopedVisitor(ast.NodeVisitor):
                     return
 
                 for statement in statements:
+                    # Parse the refs and defs of each statement
                     try:
                         tables = duckdb.get_table_names(statement.query)
+                        # TODO(akshayka): more comprehensive parsing
+                        # of the statement -- schemas can show up in
+                        # joins, queries, ...
+                        from_targets = find_from_targets(statement.query)
                     except duckdb.ProgrammingError:
                         self.generic_visit(node)
-                        return
+                        continue
                     except BaseException as e:
                         LOGGER.warning("Unexpected duckdb error %s", e)
                         self.generic_visit(node)
-                        return
+                        continue
 
-                    for table in tables:
-                        # Table may be a URL or something else that
+                    for name in itertools.chain(tables, from_targets):
+                        # Name (table, db) may be a URL or something else that
                         # isn't a Python variable
-                        if table.isidentifier():
-                            self._add_ref(table, deleted=False)
+                        if name.isidentifier():
+                            self._add_ref(name, deleted=False)
+
+                    # Add all tables/dbs created in the query to the defs
+                    try:
+                        sql_defs = find_sql_defs(sql)
+                    except duckdb.ProgrammingError:
+                        self.generic_visit(node)
+                        continue
+                    except BaseException as e:
+                        LOGGER.warning("Unexpected duckdb error %s", e)
+                        self.generic_visit(node)
+                        continue
+
+                    for _table in sql_defs.tables:
+                        self._define(_table, VariableData("table"))
+                    for _view in sql_defs.views:
+                        self._define(_view, VariableData("view"))
+                    for _schema in sql_defs.schemas:
+                        self._define(_schema, VariableData("schema"))
 
         # Visit arguments, keyword args, etc.
         self.generic_visit(node)

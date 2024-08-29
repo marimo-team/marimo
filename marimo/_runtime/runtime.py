@@ -22,9 +22,10 @@ from uuid import uuid4
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t, CellImpl
 from marimo._ast.compiler import compile_cell
-from marimo._ast.visitor import ImportData, Name
+from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
 from marimo._data.preview_column import get_column_preview
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
     Error,
@@ -131,7 +132,7 @@ from marimo._utils.typed_connection import TypedConnection
 from marimo._utils.variables import is_local
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Sequence
     from types import ModuleType
 
     from marimo._plugins.ui._core.ui_element import UIElement
@@ -692,22 +693,42 @@ class Kernel:
         children = self.graph.children.get(cell_id, set())
         return previous_children - children, error
 
-    def _delete_names(
-        self, names: Iterable[Name], exclude_defs: set[Name]
+    def _delete_variables(
+        self,
+        variables: dict[Name, list[VariableData]],
+        exclude_defs: set[Name],
     ) -> None:
         """Delete `names` from kernel, except for `exclude_defs`"""
-        for name in names:
+        for name, variable_data in variables.items():
+            # Take the last definition of the variable
+            variable = variable_data[-1]
             if name in exclude_defs:
                 continue
 
-            if name in self.globals:
-                del self.globals[name]
+            if variable.kind == "table" and DependencyManager.duckdb.has():
+                import duckdb
 
-            if (
-                "__annotations__" in self.globals
-                and name in self.globals["__annotations__"]
-            ):
-                del self.globals["__annotations__"][name]
+                # We only drop in-memory tables: we don't want to drop tables
+                # on databases!
+                duckdb.execute(f"DROP TABLE IF EXISTS memory.main.{name}")
+            elif variable.kind == "view" and DependencyManager.duckdb.has():
+                import duckdb
+
+                # We only drop in-memory views for the same reason.
+                duckdb.execute(f"DROP VIEW IF EXISTS memory.main.{name}")
+            elif variable.kind == "schema" and DependencyManager.duckdb.has():
+                import duckdb
+
+                duckdb.execute(f"DETACH DATABASE IF EXISTS {name}")
+            else:
+                if name in self.globals:
+                    del self.globals[name]
+
+                if (
+                    "__annotations__" in self.globals
+                    and name in self.globals["__annotations__"]
+                ):
+                    del self.globals["__annotations__"][name]
 
     def _invalidate_cell_state(
         self,
@@ -726,9 +747,9 @@ class Kernel:
         missing_modules_before_deletion = (
             self.module_registry.missing_modules()
         )
-        defs_to_delete = cell.defs
-        self._delete_names(
-            defs_to_delete, exclude_defs if exclude_defs is not None else set()
+        self._delete_variables(
+            cell.variable_data,
+            exclude_defs if exclude_defs is not None else set(),
         )
 
         missing_modules_after_deletion = (
@@ -990,7 +1011,11 @@ class Kernel:
                 VariableDeclaration(
                     name=variable,
                     declared_by=list(declared_by),
-                    used_by=list(self.graph.get_referring_cells(variable)),
+                    used_by=list(
+                        self.graph.get_referring_cells(
+                            variable, language="python"
+                        )
+                    ),
                 )
                 for variable, declared_by in self.graph.definitions.items()
             ]
@@ -1348,7 +1373,9 @@ class Kernel:
                         ]
                         for binding in bindings:
                             referring_cells.update(
-                                self.graph.get_referring_cells(binding)
+                                self.graph.get_referring_cells(
+                                    binding, language="python"
+                                )
                             )
 
                 # KeyError: Trying to access an unnamed UIElement
@@ -1424,7 +1451,7 @@ class Kernel:
                     # subtracting self.graph.definitions[name]: never rerun the
                     # cell that created the name
                     referring_cells.update(
-                        self.graph.get_referring_cells(name)
+                        self.graph.get_referring_cells(name, language="python")
                         - self.graph.get_defining_cells(name)
                     )
                 except Exception:

@@ -38,7 +38,7 @@ def fixup_multiple_definitions(sources: list[str]) -> list[str]:
 
     name_transformations = {}
     for name in multiply_defined_names:
-        if not graph.get_referring_cells(name):
+        if not graph.get_referring_cells(name, language="python"):
             name_transformations[name] = (
                 "_" + name if not name.startswith("_") else name
             )
