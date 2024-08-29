@@ -1,57 +1,50 @@
 # Deploying
 
-```{eval-rst}
-.. toctree::
-  :maxdepth: 2
-  :hidden:
+You can deploy marimo in two ways:
 
-  programmatically
-  deploying_docker
-  deploying_public_gallery
-  deploying_marimo_cloud
-  deploying_ploomber
-  deploying_railway
-  prebuilt_containers
-  authentication
-```
+1. via an **edit server**, which allows you to
+   create and edit notebooks. On the CLI, this is launched with `marimo edit`,
+   and is similar to `jupyter notebook`.
+2. via the **run server**, which allows you serve marimo notebooks as read-only
+   web apps. On the CLI, this is launched with `marimo run notebook.py`
 
-These guides help you deploy marimo notebooks.
-
-|                                 |                                                           |
-| :------------------------------ | :-------------------------------------------------------- |
-| {doc}`programmatically`         | Programmatically run the marimo backend for customization |
-| {doc}`deploying_docker`         | Deploy with Docker                                        |
-| {doc}`deploying_public_gallery` | Deploy our public gallery                                 |
-| {doc}`deploying_marimo_cloud`   | Deploy to Marimo Cloud                                    |
-| {doc}`deploying_ploomber`       | Deploy to Ploomber Cloud                                  |
-| {doc}`deploying_railway`        | Deploy to Railway                                         |
-| {doc}`prebuilt_containers`      | Prebuilt containers                                       |
-| {doc}`authentication`           | Authentication and security                               |
-
-```{admonition} Sharing notebooks on the public web
+```{admonition} Sharing lightweight notebooks on the web
 :class: tip
 
-To share notebooks on the public web, try using [WASM
-notebooks](../../guides/wasm.md), an implementation of marimo that runs
-entirely in the browser -- no backend required.
+To share notebooks on the public web, try using [our online playground
+](https://marimo.new). Our playground runs entirely in the browser -- no
+backend required, via [WASM](/guides/wasm.md).
 
-WASM notebooks support most but not all Python features and packages. See our
-[guide on WASM notebooks](../../guides/wasm.md) to learn more.
+Or, to share notebooks with email-based authorization, you can also
+try our free [community cloud](https://marimo.io/sign-up), which is
+also powered by WASM.
+
+WASM notebooks support most but not all Python features and packages.
 ```
 
-```{admonition} Marimo Cloud
-:class: tip
+## Deploying an edit server
 
-For a turnkey cloud solution, try [Marimo Cloud](/guides/deploying/deploying_marimo_cloud.md).
-```
+Here are a few ways to deploy an edit server on a remote instance:
 
-## Programmatically running the marimo backend
+1. With [ssh-port forwarding](/faq.md#faq-remote), using `marimo edit --headless`.
+2. Via docker and our [prebuilt containers](/guides/prebuilt_containers.md).
+3. Via a deployment service [such as Railway](/guides/deploying/deploying_railway.md).
+4. [Behind JupyterHub](/faq.md#faq-jupyter-hub).
 
-When deploying marimo notebooks, you can run the marimo backend programmatically. This allows you to customize the backend to your needs and deploy it in your own environment.
+## Deploying as read-only apps
 
-See the [programmatically running the marimo backend guide](programmatically.md) for more information.
+These guides help you deploy marimo notebooks as read-only apps.
 
-## Health and status endpoints
+|                                 |                                                          |
+| :------------------------------ | :------------------------------------------------------- |
+| {doc}`programmatically`         | Programmatically run and customize read-only marimo apps |
+| {doc}`deploying_docker`         | Deploy with Docker                                       |
+| {doc}`authentication`           | Authentication and security                              |
+| {doc}`deploying_public_gallery` | Deploy to our public gallery                             |
+| {doc}`deploying_marimo_cloud`   | Deploy to Marimo Cloud                                   |
+| {doc}`deploying_ploomber`       | Deploy to Ploomber Cloud                                 |
+
+### Health and status endpoints
 
 The following endpoints may be useful when deploying your application:
 
@@ -59,7 +52,7 @@ The following endpoints may be useful when deploying your application:
 - `/healthz` - Same as above, just a different name for easier integration with cloud providers
 - `/api/status` - A status endpoint that returns a JSON object with the status of the server
 
-## Configuration
+### Configuration
 
 If you would like to deploy your application at a subpath, you can set the `--base-url` flag when running your application.
 
@@ -67,7 +60,7 @@ If you would like to deploy your application at a subpath, you can set the `--ba
 marimo run app.py --base-url /subpath
 ```
 
-## Including code in your application
+### Including code in your application
 
 You can include code in your application by using the `--include-code` flag when running your application.
 
