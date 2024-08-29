@@ -2024,7 +2024,7 @@ class TestAsyncIO:
 
 @pytest.mark.skipif(not HAS_SQL, reason="SQL deps not available")
 class TestSQL:
-    async def test_sql_chain(self, k: Kernel) -> None:
+    async def test_sql_table(self, k: Kernel) -> None:
         await k.run(
             [
                 ExecutionRequest(
@@ -2058,6 +2058,40 @@ class TestSQL:
 
         await k.delete_cell(DeleteCellRequest(cell_id="3"))
         # t1 should be dropped since it's an in-memory table;
+        # cell 1 should re-run but will fail to find t1
+        assert "df" not in k.globals
+
+    async def test_sql_view(self, k: Kernel) -> None:
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code="import marimo as mo",
+                ),
+                ExecutionRequest(
+                    cell_id="1", code="df = mo.sql('SELECT * from view')"
+                ),
+            ]
+        )
+        assert "df" not in k.globals
+
+        await k.run(
+            [
+                # cell 1 should automatically execute due to the definition of
+                # t1
+                ExecutionRequest(
+                    cell_id="2",
+                    code="mo.sql('CREATE OR REPLACE VIEW view as SELECT 42')",  # noqa: E501
+                ),
+            ]
+        )
+
+        assert not k.errors
+        # make sure cell 1 executed, defining df
+        assert "df" in k.globals
+
+        await k.delete_cell(DeleteCellRequest(cell_id="2"))
+        # view should be dropped since it's an in-memory table;
         # cell 1 should re-run but will fail to find t1
         assert "df" not in k.globals
 
