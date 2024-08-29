@@ -625,22 +625,24 @@ export const UserConfigForm: React.FC = () => {
             disabled={isWasmRuntime}
             name="ai.open_ai.model"
             render={({ field }) => (
-              <FormItem className={formItemClasses}>
-                <FormLabel>Model</FormLabel>
-                <FormControl>
-                  <Input
-                    data-testid="ai-model-input"
-                    className="m-0 inline-flex"
-                    placeholder="gpt-4-turbo"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
+              <div className="flex flex-col space-y-1">
+                <FormItem className={formItemClasses}>
+                  <FormLabel>Model</FormLabel>
+                  <FormControl>
+                    <Input
+                      data-testid="ai-model-input"
+                      className="m-0 inline-flex"
+                      placeholder="gpt-4-turbo"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
                 <FormDescription>
                   If the model starts with "claude-", we will use your Anthropic
                   API key. Otherwise, we will use your OpenAI API key.
                 </FormDescription>
-              </FormItem>
+              </div>
             )}
           />
         </SettingGroup>
