@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import re
+from dataclasses import dataclass
 from typing import Any, Optional
 
 from marimo._dependencies.dependencies import DependencyManager
@@ -113,9 +114,14 @@ class TokenExtractor:
         return token
 
 
-def find_created_tables_and_attached_databases(
-    sql_statement: str,
-) -> tuple[list[str], list[str], list[str]]:
+@dataclass
+class SQLDefs:
+    tables: list[str]
+    views: list[str]
+    databases: list[str]
+
+
+def find_sql_defs(sql_statement: str) -> SQLDefs:
     """
     Find the tables, views, and databases created/attached in a SQL statement.
 
@@ -127,10 +133,10 @@ def find_created_tables_and_attached_databases(
         sql_statement: The SQL statement to parse.
 
     Returns:
-        tables, views, databases
+        SQLDefs
     """
     if not DependencyManager.duckdb.has():
-        return [], [], []
+        return SQLDefs([], [], [])
 
     import duckdb
 
@@ -205,9 +211,13 @@ def find_created_tables_and_attached_databases(
 
         i += 1
 
-    return created_tables, created_views, created_dbs
+    return SQLDefs(
+        tables=created_tables, views=created_views, databases=created_dbs
+    )
 
 
+# TODO(akshayka): there are other kinds of refs to find; this should be
+# find_sql_refs
 def find_from_targets(
     sql_statement: str,
 ) -> list[str]:

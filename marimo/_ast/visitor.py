@@ -11,8 +11,8 @@ from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast.sql_visitor import (
-    find_created_tables_and_attached_databases,
     find_from_targets,
+    find_sql_defs,
     normalize_sql_f_string,
 )
 from marimo._dependencies.dependencies import DependencyManager
@@ -432,6 +432,7 @@ class ScopedVisitor(ast.NodeVisitor):
                     return
 
                 for statement in statements:
+                    # Parse the refs and defs of each statement
                     try:
                         tables = duckdb.get_table_names(statement.query)
                         # TODO(akshayka): more comprehensive parsing
@@ -454,9 +455,7 @@ class ScopedVisitor(ast.NodeVisitor):
 
                     # Add all tables/dbs created in the query to the defs
                     try:
-                        created_tables, created_views, created_dbs = (
-                            find_created_tables_and_attached_databases(sql)
-                        )
+                        sql_defs = find_sql_defs(sql)
                     except duckdb.ProgrammingError:
                         self.generic_visit(node)
                         continue
@@ -465,13 +464,11 @@ class ScopedVisitor(ast.NodeVisitor):
                         self.generic_visit(node)
                         continue
 
-                    for _table in created_tables:
+                    for _table in sql_defs.tables:
                         self._define(_table, VariableData("table"))
-
-                    for _view in created_views:
+                    for _view in sql_defs.views:
                         self._define(_view, VariableData("view"))
-
-                    for _db in created_dbs:
+                    for _db in sql_defs.databases:
                         self._define(_db, VariableData("database"))
 
         # Visit arguments, keyword args, etc.

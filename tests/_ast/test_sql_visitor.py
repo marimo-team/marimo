@@ -6,8 +6,9 @@ from textwrap import dedent
 import pytest
 
 from marimo._ast.sql_visitor import (
+    SQLDefs,
     SQLVisitor,
-    find_created_tables_and_attached_databases,
+    find_sql_defs,
 )
 from marimo._dependencies.dependencies import DependencyManager
 
@@ -92,30 +93,28 @@ def test_sql_with_variable() -> None:
 @pytest.mark.skipif(not HAS_DUCKDB, reason="Missing DuckDB")
 class TestFindCreatedTables:
     @staticmethod
-    def test_find_created_tables_simple() -> None:
+    def test_find_sql_defs_simple() -> None:
         sql = "CREATE TABLE test_table (id INT, name VARCHAR(255));"
-        assert find_created_tables_and_attached_databases(sql) == (
+        assert find_sql_defs(sql) == SQLDefs(
             ["test_table"],
             [],
             [],
         )
 
-    @staticmethod
-    def test_find_created_views_simple() -> None:
         sql = "CREATE VIEW test_view (id INT, name VARCHAR(255));"
-        assert find_created_tables_and_attached_databases(sql) == (
+        assert find_sql_defs(sql) == SQLDefs(
             [],
             ["test_view"],
             [],
         )
 
     @staticmethod
-    def test_find_created_tables_multiple() -> None:
+    def test_find_sql_defs_multiple() -> None:
         sql = """
         CREATE TABLE table1 (id INT);
         CREATE TABLE table2 (name VARCHAR(255));
         """
-        assert find_created_tables_and_attached_databases(sql) == (
+        assert find_sql_defs(sql) == SQLDefs(
             [
                 "table1",
                 "table2",
@@ -124,8 +123,21 @@ class TestFindCreatedTables:
             [],
         )
 
+        sql = """
+        CREATE VIEW table1 (id INT);
+        CREATE VIEW table2 (name VARCHAR(255));
+        """
+        assert find_sql_defs(sql) == SQLDefs(
+            [],
+            [
+                "table1",
+                "table2",
+            ],
+            [],
+        )
+
     @staticmethod
-    def test_find_created_tables_with_comments() -> None:
+    def test_find_sql_defs_with_comments() -> None:
         sql = """
         CREATE TABLE
         -- This is a comment
@@ -135,7 +147,7 @@ class TestFindCreatedTables:
         -- This is a comment
         CREATE TABLE table2 (name VARCHAR(255));
         """
-        assert find_created_tables_and_attached_databases(sql) == (
+        assert find_sql_defs(sql) == SQLDefs(
             [
                 "table1",
                 "table2",
@@ -144,48 +156,80 @@ class TestFindCreatedTables:
             [],
         )
 
+        sql = """
+        CREATE VIEW
+        -- This is a comment
+        IF NOT EXISTS
+        -- This is another comment
+        table1 (id INT);
+        -- This is a comment
+        CREATE VIEW table2 (name VARCHAR(255));
+        """
+        assert find_sql_defs(sql) == SQLDefs(
+            [],
+            [
+                "table1",
+                "table2",
+            ],
+            [],
+        )
+
     @staticmethod
-    def test_find_created_tables_with_or_replace() -> None:
+    def test_find_sql_defs_with_or_replace() -> None:
         sql = "CREATE OR REPLACE TABLE test_table (id INT);"
-        assert find_created_tables_and_attached_databases(sql) == (
+        assert find_sql_defs(sql) == SQLDefs(
             ["test_table"],
             [],
             [],
         )
 
         sql = "CREATE OR REPLACE VIEW test_view (id INT);"
-        assert find_created_tables_and_attached_databases(sql) == (
+        assert find_sql_defs(sql) == SQLDefs(
             [],
             ["test_view"],
             [],
         )
 
     @staticmethod
-    def test_find_created_tables_temporary() -> None:
+    def test_find_sql_defs_temporary() -> None:
         sql = "CREATE TEMPORARY TABLE temp_table (id INT);"
-        assert find_created_tables_and_attached_databases(sql) == (
+        assert find_sql_defs(sql) == SQLDefs(
             ["temp_table"],
             [],
             [],
         )
 
+        sql = "CREATE TEMPORARY VIEW temp_table (id INT);"
+        assert find_sql_defs(sql) == SQLDefs(
+            [],
+            ["temp_table"],
+            [],
+        )
+
     @staticmethod
-    def test_find_created_tables_if_not_exists() -> None:
+    def test_find_sql_defs_if_not_exists() -> None:
         sql = "CREATE TABLE IF NOT EXISTS new_table (id INT);"
-        assert find_created_tables_and_attached_databases(sql) == (
+        assert find_sql_defs(sql) == SQLDefs(
             ["new_table"],
             [],
             [],
         )
 
+        sql = "CREATE VIEW IF NOT EXISTS new_table (id INT);"
+        assert find_sql_defs(sql) == SQLDefs(
+            [],
+            ["new_table"],
+            [],
+        )
+
     @staticmethod
-    def test_find_created_tables_complex() -> None:
+    def test_find_sql_defs_complex() -> None:
         sql = """
         CREATE TABLE table1 (id INT);
         CREATE OR REPLACE TEMPORARY TABLE IF NOT EXISTS table2 (name VARCHAR(255));
         CREATE TABLE table3 (date DATE);
         """  # noqa: E501
-        assert find_created_tables_and_attached_databases(sql) == (
+        assert find_sql_defs(sql) == SQLDefs(
             [
                 "table1",
                 "table2",
@@ -195,17 +239,39 @@ class TestFindCreatedTables:
             [],
         )
 
-    @staticmethod
-    def test_find_created_tables_no_create() -> None:
-        sql = "SELECT * FROM existing_table;"
-        assert find_created_tables_and_attached_databases(sql) == ([], [], [])
+        sql = """
+        CREATE VIEW table1 (id INT);
+        CREATE OR REPLACE TEMPORARY VIEW IF NOT EXISTS table2 (name VARCHAR(255));
+        CREATE VIEW table3 (date DATE);
+        """  # noqa: E501
+        assert find_sql_defs(sql) == SQLDefs(
+            [],
+            [
+                "table1",
+                "table2",
+                "table3",
+            ],
+            [],
+        )
 
     @staticmethod
-    def test_find_created_tables_case_insensitive() -> None:
+    def test_find_sql_defs_no_create() -> None:
+        sql = "SELECT * FROM existing_table;"
+        assert find_sql_defs(sql) == SQLDefs([], [], [])
+
+    @staticmethod
+    def test_find_sql_defs_case_insensitive() -> None:
         sql = "create TABLE Test_Table (id INT);"
-        assert find_created_tables_and_attached_databases(sql) == (
+        assert find_sql_defs(sql) == SQLDefs(
             ["Test_Table"],
             [],
+            [],
+        )
+
+        sql = "create VIEW Test_Table (id INT);"
+        assert find_sql_defs(sql) == SQLDefs(
+            [],
+            ["Test_Table"],
             [],
         )
 
@@ -218,10 +284,10 @@ class TestFindCreatedTables:
             ";",
         ],
     )
-    def test_find_created_tables_empty_input(
+    def test_find_sql_defs_empty_input(
         query: str,
     ) -> None:
-        assert find_created_tables_and_attached_databases(query) == (
+        assert find_sql_defs(query) == SQLDefs(
             [],
             [],
             [],
@@ -268,17 +334,17 @@ class TestFindCreatedTables:
             """,
         ],
     )
-    def test_find_created_tables_many_comments(
+    def test_find_sql_defs_many_comments(
         query: str,
     ) -> None:
-        assert find_created_tables_and_attached_databases(query) == (
+        assert find_sql_defs(query) == SQLDefs(
             ["my_table"],
             [],
             [],
         )
 
     @staticmethod
-    def test_find_created_tables_weird_names() -> None:
+    def test_find_sql_defs_weird_names() -> None:
         sql = """
         CREATE TABLE "my--table" (
             "column/*with*/comment" INT,
@@ -297,7 +363,7 @@ class TestFindCreatedTables:
 
         CREATE TABLE "with a space" (id INT);
         """
-        assert find_created_tables_and_attached_databases(sql) == (
+        assert find_sql_defs(sql) == SQLDefs(
             [
                 "my--table",
                 "my_table_with_select",
@@ -311,34 +377,34 @@ class TestFindCreatedTables:
     @staticmethod
     def test_find_created_database() -> None:
         sql = "ATTACH 'Chinook.sqlite';"
-        assert find_created_tables_and_attached_databases(sql) == (
+        assert find_sql_defs(sql) == SQLDefs(
             [],
             [],
             ["Chinook"],
         )
 
         sql = "ATTACH 'Chinook.sqlite' AS my_db;"
-        assert find_created_tables_and_attached_databases(sql) == (
+        assert find_sql_defs(sql) == SQLDefs(
             [],
             [],
             ["my_db"],
         )
         sql = "ATTACH DATABASE 'Chinook.sqlite';"
-        assert find_created_tables_and_attached_databases(sql) == (
+        assert find_sql_defs(sql) == SQLDefs(
             [],
             [],
             ["Chinook"],
         )
 
         sql = "ATTACH DATABASE IF NOT EXISTS 'Chinook.sqlite';"
-        assert find_created_tables_and_attached_databases(sql) == (
+        assert find_sql_defs(sql) == SQLDefs(
             [],
             [],
             ["Chinook"],
         )
 
         sql = "ATTACH DATABASE IF NOT EXISTS 'Chinook.sqlite' AS my_db;"
-        assert find_created_tables_and_attached_databases(sql) == (
+        assert find_sql_defs(sql) == SQLDefs(
             [],
             [],
             ["my_db"],
@@ -348,7 +414,5 @@ class TestFindCreatedTables:
 @pytest.mark.skipif(
     HAS_DUCKDB, reason="Test requires DuckDB to be unavailable"
 )
-def test_find_created_tables_duckdb_not_available() -> None:
-    assert find_created_tables_and_attached_databases(
-        "CREATE TABLE test (id INT);"
-    ) == ([], [], [])
+def test_find_sql_defs_duckdb_not_available() -> None:
+    assert find_sql_defs("CREATE TABLE test (id INT);") == SQLDefs([], [], [])
