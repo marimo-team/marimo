@@ -1,9 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import pytest
-
 from functools import partial
+
+import pytest
 
 from marimo._ast import compiler
 from marimo._dependencies.dependencies import DependencyManager
@@ -306,7 +306,8 @@ class TestSQL:
         first_cell = parse_cell(code)
         graph.register_cell("0", first_cell)
 
-        # not a child of first_cell because t1 is a sql table not Python variable
+        # not a child of first_cell because t1 is a sql table not Python
+        # variable
         code = "t1"
         second_cell = parse_cell(code)
         graph.register_cell("1", second_cell)
@@ -334,7 +335,8 @@ class TestSQL:
         first_cell = parse_cell(code)
         graph.register_cell("0", first_cell)
 
-        # not a child of first_cell because t1 is a sql table not Python variable
+        # not a child of first_cell because t1 is a sql table not Python
+        # variable
         code = "mo.sql('SELECT * from df')"
         second_cell = parse_cell(code)
         graph.register_cell("1", second_cell)
@@ -347,3 +349,29 @@ class TestSQL:
         assert graph.children == {"0": set(["1"]), "1": set([])}
 
         assert graph.get_referring_cells("df", language="python") == set(["1"])
+
+    def test_attached_db(self):
+        graph = dataflow.DirectedGraph()
+        code = "mo.sql(\"ATTACH 'my_db.db'\")"
+        first_cell = parse_cell(code)
+        graph.register_cell("0", first_cell)
+
+        code = "mo.sql('SELECT * FROM my_db.my_table')"
+        second_cell = parse_cell(code)
+        graph.register_cell("1", second_cell)
+
+        code = "my_db"
+        third_cell = parse_cell(code)
+        graph.register_cell("2", third_cell)
+
+        assert graph.cells == {
+            "0": first_cell,
+            "1": second_cell,
+            "2": third_cell,
+        }
+        assert graph.parents == {"0": set(), "1": set(["0"]), "2": set([])}
+        assert graph.children == {"0": set(["1"]), "1": set([]), "2": set([])}
+
+        # cell 2 shouldn't count as a referring cell because it isn't a SQL
+        # cell
+        assert graph.get_referring_cells("my_db", language="sql") == set(["1"])

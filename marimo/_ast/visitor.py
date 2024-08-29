@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+import itertools
 import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -9,7 +10,11 @@ from typing import Literal, Optional
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._ast.sql_visitor import find_created_tables, normalize_sql_f_string
+from marimo._ast.sql_visitor import (
+    find_created_tables_and_attached_databases,
+    find_from_targets,
+    normalize_sql_f_string,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.variables import is_local
 
@@ -39,10 +44,10 @@ class ImportData:
 
 @dataclass
 class VariableData:
-    # "table" is a SQL variable, not a Python one.
-    kind: Literal["function", "class", "import", "variable", "table"] = (
-        "variable"
-    )
+    # "table" and "database" are SQL variables, not Python.
+    kind: Literal[
+        "function", "class", "import", "variable", "table", "database"
+    ] = "variable"
 
     # If kind == function or class, it may be dependent on externally defined
     # variables.
@@ -61,7 +66,11 @@ class VariableData:
 
     @property
     def language(self) -> Language:
-        return "sql" if self.kind == "table" else "python"
+        return (
+            "sql"
+            if self.kind == "table" or self.kind == "database"
+            else "python"
+        )
 
 
 @dataclass
@@ -414,6 +423,10 @@ class ScopedVisitor(ast.NodeVisitor):
                 for statement in statements:
                     try:
                         tables = duckdb.get_table_names(statement.query)
+                        # TODO(akshayka): more comprehensive parsing
+                        # of the statement -- databases can show up in
+                        # joins, queries
+                        from_targets = find_from_targets(statement.query)
                     except duckdb.ProgrammingError:
                         self.generic_visit(node)
                         continue
@@ -422,15 +435,17 @@ class ScopedVisitor(ast.NodeVisitor):
                         self.generic_visit(node)
                         continue
 
-                    for table in tables:
-                        # Table may be a URL or something else that
+                    for name in itertools.chain(tables, from_targets):
+                        # Name (table, db) may be a URL or something else that
                         # isn't a Python variable
-                        if table.isidentifier():
-                            self._add_ref(table, deleted=False)
+                        if name.isidentifier():
+                            self._add_ref(name, deleted=False)
 
-                    # Add all tables created in the query to the defs
+                    # Add all tables/dbs created in the query to the defs
                     try:
-                        created_tables = find_created_tables(sql)
+                        created_tables, created_dbs = (
+                            find_created_tables_and_attached_databases(sql)
+                        )
                     except duckdb.ProgrammingError:
                         self.generic_visit(node)
                         continue
@@ -441,6 +456,9 @@ class ScopedVisitor(ast.NodeVisitor):
 
                     for _table in created_tables:
                         self._define(_table, VariableData("table"))
+
+                    for _db in created_dbs:
+                        self._define(_db, VariableData("database"))
 
         # Visit arguments, keyword args, etc.
         self.generic_visit(node)

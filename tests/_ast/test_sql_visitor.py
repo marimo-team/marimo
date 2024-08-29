@@ -5,7 +5,10 @@ from textwrap import dedent
 
 import pytest
 
-from marimo._ast.sql_visitor import SQLVisitor, find_created_tables
+from marimo._ast.sql_visitor import (
+    SQLVisitor,
+    find_created_tables_and_attached_databases,
+)
 from marimo._dependencies.dependencies import DependencyManager
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
@@ -56,11 +59,13 @@ def test_sql_with_multiple_arguments() -> None:
 
 
 def test_multiple_sql_calls() -> None:
-    source_code = dedent("""
+    source_code = dedent(
+        """
         a = db.sql('SELECT * FROM users', 'This should not be captured')
         b = db.sql('ALTER TABLE users ADD COLUMN name TEXT')
         c = db.sql('UPDATE users SET name = \\'Alice\\' WHERE id = 1')
-        """)
+        """
+    )
     tree = ast.parse(source_code)
     visitor = SQLVisitor()
     visitor.visit(tree)
@@ -72,10 +77,12 @@ def test_multiple_sql_calls() -> None:
 
 
 def test_sql_with_variable() -> None:
-    source_code = dedent("""
+    source_code = dedent(
+        """
       var = f"SELECT * FROM users WHERE name = {name}"
       db.sql(var)
-    """)
+    """
+    )
     tree = ast.parse(source_code)
     visitor = SQLVisitor()
     visitor.visit(tree)
@@ -87,7 +94,10 @@ class TestFindCreatedTables:
     @staticmethod
     def test_find_created_tables_simple() -> None:
         sql = "CREATE TABLE test_table (id INT, name VARCHAR(255));"
-        assert find_created_tables(sql) == ["test_table"]
+        assert find_created_tables_and_attached_databases(sql) == (
+            ["test_table"],
+            [],
+        )
 
     @staticmethod
     def test_find_created_tables_multiple() -> None:
@@ -95,7 +105,13 @@ class TestFindCreatedTables:
         CREATE TABLE table1 (id INT);
         CREATE TABLE table2 (name VARCHAR(255));
         """
-        assert find_created_tables(sql) == ["table1", "table2"]
+        assert find_created_tables_and_attached_databases(sql) == (
+            [
+                "table1",
+                "table2",
+            ],
+            [],
+        )
 
     @staticmethod
     def test_find_created_tables_with_comments() -> None:
@@ -108,22 +124,37 @@ class TestFindCreatedTables:
         -- This is a comment
         CREATE TABLE table2 (name VARCHAR(255));
         """
-        assert find_created_tables(sql) == ["table1", "table2"]
+        assert find_created_tables_and_attached_databases(sql) == (
+            [
+                "table1",
+                "table2",
+            ],
+            [],
+        )
 
     @staticmethod
     def test_find_created_tables_with_or_replace() -> None:
         sql = "CREATE OR REPLACE TABLE test_table (id INT);"
-        assert find_created_tables(sql) == ["test_table"]
+        assert find_created_tables_and_attached_databases(sql) == (
+            ["test_table"],
+            [],
+        )
 
     @staticmethod
     def test_find_created_tables_temporary() -> None:
         sql = "CREATE TEMPORARY TABLE temp_table (id INT);"
-        assert find_created_tables(sql) == ["temp_table"]
+        assert find_created_tables_and_attached_databases(sql) == (
+            ["temp_table"],
+            [],
+        )
 
     @staticmethod
     def test_find_created_tables_if_not_exists() -> None:
         sql = "CREATE TABLE IF NOT EXISTS new_table (id INT);"
-        assert find_created_tables(sql) == ["new_table"]
+        assert find_created_tables_and_attached_databases(sql) == (
+            ["new_table"],
+            [],
+        )
 
     @staticmethod
     def test_find_created_tables_complex() -> None:
@@ -132,17 +163,27 @@ class TestFindCreatedTables:
         CREATE OR REPLACE TEMPORARY TABLE IF NOT EXISTS table2 (name VARCHAR(255));
         CREATE TABLE table3 (date DATE);
         """  # noqa: E501
-        assert find_created_tables(sql) == ["table1", "table2", "table3"]
+        assert find_created_tables_and_attached_databases(sql) == (
+            [
+                "table1",
+                "table2",
+                "table3",
+            ],
+            [],
+        )
 
     @staticmethod
     def test_find_created_tables_no_create() -> None:
         sql = "SELECT * FROM existing_table;"
-        assert find_created_tables(sql) == []
+        assert find_created_tables_and_attached_databases(sql) == ([], [])
 
     @staticmethod
     def test_find_created_tables_case_insensitive() -> None:
         sql = "create TABLE Test_Table (id INT);"
-        assert find_created_tables(sql) == ["Test_Table"]
+        assert find_created_tables_and_attached_databases(sql) == (
+            ["Test_Table"],
+            [],
+        )
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -153,8 +194,10 @@ class TestFindCreatedTables:
             ";",
         ],
     )
-    def test_find_created_tables_empty_input(query: str) -> None:
-        assert find_created_tables(query) == []
+    def test_find_created_tables_empty_input(
+        query: str,
+    ) -> None:
+        assert find_created_tables_and_attached_databases(query) == ([], [])
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -197,8 +240,13 @@ class TestFindCreatedTables:
             """,
         ],
     )
-    def test_find_created_tables_many_comments(query: str) -> None:
-        assert find_created_tables(query) == ["my_table"]
+    def test_find_created_tables_many_comments(
+        query: str,
+    ) -> None:
+        assert find_created_tables_and_attached_databases(query) == (
+            ["my_table"],
+            [],
+        )
 
     @staticmethod
     def test_find_created_tables_weird_names() -> None:
@@ -220,16 +268,52 @@ class TestFindCreatedTables:
 
         CREATE TABLE "with a space" (id INT);
         """
-        assert find_created_tables(sql) == [
-            "my--table",
-            "my_table_with_select",
-            "my/*weird*/table",
-            "with a space",
-        ]
+        assert find_created_tables_and_attached_databases(sql) == (
+            [
+                "my--table",
+                "my_table_with_select",
+                "my/*weird*/table",
+                "with a space",
+            ],
+            [],
+        )
+
+    @staticmethod
+    def test_find_created_database() -> None:
+        sql = "ATTACH 'Chinook.sqlite';"
+        assert find_created_tables_and_attached_databases(sql) == (
+            [],
+            ["Chinook"],
+        )
+
+        sql = "ATTACH 'Chinook.sqlite' AS my_db;"
+        assert find_created_tables_and_attached_databases(sql) == (
+            [],
+            ["my_db"],
+        )
+        sql = "ATTACH DATABASE 'Chinook.sqlite';"
+        assert find_created_tables_and_attached_databases(sql) == (
+            [],
+            ["Chinook"],
+        )
+
+        sql = "ATTACH DATABASE IF NOT EXISTS 'Chinook.sqlite';"
+        assert find_created_tables_and_attached_databases(sql) == (
+            [],
+            ["Chinook"],
+        )
+
+        sql = "ATTACH DATABASE IF NOT EXISTS 'Chinook.sqlite' AS my_db;"
+        assert find_created_tables_and_attached_databases(sql) == (
+            [],
+            ["my_db"],
+        )
 
 
 @pytest.mark.skipif(
     HAS_DUCKDB, reason="Test requires DuckDB to be unavailable"
 )
 def test_find_created_tables_duckdb_not_available() -> None:
-    assert find_created_tables("CREATE TABLE test (id INT);") is None
+    assert find_created_tables_and_attached_databases(
+        "CREATE TABLE test (id INT);"
+    ) == ([], [])

@@ -174,9 +174,11 @@ class DirectedGraph:
                 # get a NameError once the cell is run, unless the symbol
                 # is say a builtin
                 for other_id in other_ids_defining_name:
-                    kind = self.cells[other_id].variable_data[name][-1].kind
-                    if kind == "table" and cell.language == "python":
-                        # SQL table def -> Python ref is not an edge
+                    language = (
+                        self.cells[other_id].variable_data[name][-1].language
+                    )
+                    if language == "sql" and cell.language == "python":
+                        # SQL table/db def -> Python ref is not an edge
                         continue
                     parents.add(other_id)
                     # we are adding an edge (other_id, cell_id). If there

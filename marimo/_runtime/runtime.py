@@ -668,6 +668,12 @@ class Kernel:
                 # We only drop in-memory tables: we don't want to drop tables
                 # on databases!
                 duckdb.execute(f"DROP TABLE IF EXISTS memory.main.{name}")
+            elif (
+                variable.kind == "database" and DependencyManager.duckdb.has()
+            ):
+                import duckdb
+
+                duckdb.execute(f"DETACH DATABASE IF EXISTS {name}")
             else:
                 if name in self.globals:
                     del self.globals[name]
