@@ -293,7 +293,9 @@ class TestAiEndpoints:
 def openai_config(config: UserConfigManager):
     prev_config = config.get_config()
     try:
-        config.save_config({"ai": {"open_ai": {"api_key": "fake-api"}}})
+        config.save_config(
+            {"ai": {"open_ai": {"api_key": "fake-api", "model": ""}}}
+        )
         yield
     finally:
         config.save_config(prev_config)
@@ -328,6 +330,7 @@ def openai_config_custom_base_url(config: UserConfigManager):
                     "open_ai": {
                         "api_key": "fake-api",
                         "base_url": "https://my-openai-instance.com",
+                        "model": "",
                     }
                 }
             }
@@ -341,7 +344,7 @@ def openai_config_custom_base_url(config: UserConfigManager):
 def no_openai_config(config: UserConfigManager):
     prev_config = config.get_config()
     try:
-        config.save_config({"ai": {"open_ai": {"api_key": ""}}})
+        config.save_config({"ai": {"open_ai": {"api_key": "", "model": ""}}})
         yield
     finally:
         config.save_config(prev_config)
