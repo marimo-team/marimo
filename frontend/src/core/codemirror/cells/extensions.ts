@@ -10,7 +10,6 @@ import { formattingChangeEffect } from "../format";
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import { isAtEndOfEditor, isAtStartOfEditor } from "../utils";
 import { goToDefinitionAtCursorPosition } from "../go-to-definition/utils";
-import { languageAdapterState } from "../language/extension";
 
 export interface MovementCallbacks
   extends Pick<CellActions, "splitCell" | "sendToTop" | "sendToBottom"> {
@@ -318,12 +317,7 @@ export function cellCodeEditingBundle(
 export function markdownAutoRunExtension(
   callbacks: MovementCallbacks,
 ): Extension {
-  const { onRun } = callbacks;
-
-  return EditorView.updateListener.of((update) => {
-    const languageAdapter = update.view.state.field(languageAdapterState);
-    if (languageAdapter.type === "markdown") {
-      onRun();
-    }
+  return EditorView.updateListener.of((_) => {
+    callbacks.onRun();
   });
 }

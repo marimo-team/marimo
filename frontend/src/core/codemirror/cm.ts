@@ -45,7 +45,6 @@ import {
   type MovementCallbacks,
   cellCodeEditingBundle,
   cellMovementBundle,
-  markdownAutoRunExtension,
 } from "./cells/extensions";
 import type { CellId } from "../cells/ids";
 import { keymapBundle } from "./keymaps/keymaps";
@@ -88,8 +87,6 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
     // Cell editing
     cellMovementBundle(cellId, cellMovementCallbacks, hotkeys),
     cellCodeEditingBundle(cellId, cellCodeCallbacks, hotkeys),
-    // Markdown autorun
-    markdownAutoRunExtension(cellMovementCallbacks),
     // Comes last so that it can be overridden
     basicBundle(opts),
     // Underline cmd+clickable placeholder
