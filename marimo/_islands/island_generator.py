@@ -284,7 +284,7 @@ class MarimoIslandGenerator:
         self,
         *,
         version_override: str = __version__,
-        _development_url: Union[str | bool] = False,
+        _development_url: Union[str, bool] = False,
     ) -> str:
         """
         Render the header for the app.
@@ -341,6 +341,11 @@ class MarimoIslandGenerator:
                 """
             ).strip()
 
+        marimo_tags = """
+        <marimo-filename hidden></>
+        <marimo-mode data-mode='read' hidden></marimo-mode>
+        """.strip()
+
         return dedent(
             f"""
             <script type="module" src="{base_url}/dist/main.js"></script>
@@ -350,6 +355,7 @@ class MarimoIslandGenerator:
                 crossorigin="anonymous"
             />
             {fonts}
+            {marimo_tags}
             """
         ).strip()
 
@@ -455,7 +461,7 @@ class MarimoIslandGenerator:
         self,
         *,
         version_override: str = __version__,
-        _development_url: Union[str | bool] = False,
+        _development_url: Union[str, bool] = False,
         include_init_island: bool = True,
         max_width: Optional[str] = None,
         margin: Optional[str] = None,
