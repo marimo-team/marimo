@@ -77,6 +77,8 @@ export type UsageResponse =
 export type WorkspaceFilesRequest = schemas["WorkspaceFilesRequest"];
 export type WorkspaceFilesResponse = schemas["WorkspaceFilesResponse"];
 export type RunningNotebooksResponse = schemas["RunningNotebooksResponse"];
+export type OpenTutorialRequest = schemas["OpenTutorialRequest"];
+export type TutorialId = OpenTutorialRequest["tutorialId"];
 
 /**
  * Requests sent to the BE during run/edit mode.
@@ -128,6 +130,7 @@ export interface EditRequests {
   sendUpdateFile: (request: FileUpdateRequest) => Promise<FileUpdateResponse>;
   sendFileDetails: (request: { path: string }) => Promise<FileDetailsResponse>;
   // Homepage requests
+  openTutorial: (request: OpenTutorialRequest) => Promise<MarimoFile>;
   getRecentFiles: () => Promise<RecentFilesResponse>;
   getWorkspaceFiles: (
     request: WorkspaceFilesRequest,

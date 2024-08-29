@@ -38,6 +38,7 @@ export function createErrorToastingRequests(
     sendRenameFileOrFolder: "Failed to rename file or folder",
     sendUpdateFile: "Failed to update file",
     sendFileDetails: "Failed to get file details",
+    openTutorial: "Failed to open tutorial",
     sendInstallMissingPackages: "Failed to install missing packages",
     getRecentFiles: "Failed to get recent files",
     getWorkspaceFiles: "Failed to get workspace files",

@@ -77,3 +77,27 @@ def test_shutdown_session(client: TestClient) -> None:
     assert response.status_code == 200
     assert response.json() == {"files": []}
     assert get_session_manager(client).get_session(SESSION_ID) is None
+
+
+@with_session(SESSION_ID)
+def test_open_tutorial(client: TestClient) -> None:
+    response = client.post(
+        "/api/home/tutorial/open",
+        headers=HEADERS,
+        json={"tutorial_id": "intro"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "intro.py"
+    assert data["path"].endswith("intro.py")
+
+
+@with_session(SESSION_ID)
+def test_cant_open_non_tutorial(client: TestClient) -> None:
+    response = client.post(
+        "/api/home/tutorial/open",
+        headers=HEADERS,
+        json={"tutorial_id": "non-tutorial"},
+    )
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Tutorial not found"}

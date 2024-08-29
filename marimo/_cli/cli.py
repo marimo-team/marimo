@@ -6,7 +6,7 @@ import os
 import pathlib
 import sys
 import tempfile
-from typing import Any, Optional, get_args
+from typing import Any, Optional
 
 import click
 
@@ -28,9 +28,8 @@ from marimo._server.model import SessionMode
 from marimo._server.start import start
 from marimo._server.tokens import AuthToken
 from marimo._tutorials import (
-    PythonTutorial,
     Tutorial,
-    get_tutorial_source,
+    create_temp_tutorial_file,
     tutorial_order,
 )
 from marimo._utils.marimo_path import MarimoPath
@@ -669,12 +668,8 @@ def tutorial(
     token_password: Optional[str],
     name: Tutorial,
 ) -> None:
-    source = get_tutorial_source(name)
-    d = tempfile.TemporaryDirectory()
-    extension = "py" if name in get_args(PythonTutorial) else "md"
-    fname = os.path.join(d.name, f"{name}.{extension}")
-    path = MarimoPath(fname)
-    path.write_text(source)
+    temp_dir = tempfile.TemporaryDirectory()
+    path = create_temp_tutorial_file(name, temp_dir)
 
     start(
         file_router=AppFileRouter.from_filename(path),

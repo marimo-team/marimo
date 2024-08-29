@@ -62,6 +62,8 @@ class APIRouter(Router):
                     return response
                 if isinstance(response, RedirectResponse):
                     return response
+                if isinstance(response, JSONResponse):
+                    return response
 
                 if dataclasses.is_dataclass(response):
                     return JSONResponse(

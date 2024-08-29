@@ -646,6 +646,45 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/home/tutorial/open": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["OpenTutorialRequest"];
+        };
+      };
+      responses: {
+        /** @description Open a new tutorial */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["MarimoFile"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/home/workspace_files": {
     parameters: {
       query?: never;
@@ -2230,6 +2269,21 @@ export interface components {
     NonNestedLiteral: number | string | boolean;
     OpenFileRequest: {
       path: string;
+    };
+    OpenTutorialRequest: {
+      tutorialId:
+        | (
+            | "intro"
+            | "dataflow"
+            | "ui"
+            | "markdown"
+            | "plots"
+            | "sql"
+            | "layout"
+            | "fileformat"
+            | "for-jupyter-users"
+          )
+        | "markdown-format";
     };
     PreviewDatasetColumnRequest: {
       columnName: string;

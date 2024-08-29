@@ -132,6 +132,7 @@ def _generate_schema() -> dict[str, Any]:
         files.FileMoveResponse,
         files.FileUpdateRequest,
         files.FileUpdateResponse,
+        home.OpenTutorialRequest,
         home.RecentFilesResponse,
         home.RunningNotebooksResponse,
         home.ShutdownSessionRequest,
