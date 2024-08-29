@@ -83,6 +83,14 @@ export const DataTablePagination = <TData,>({
   );
   const totalPages = table.getPageCount();
 
+  const renderOption = (i: number) => {
+    return (
+      <option key={i} value={i + 1}>
+        {i + 1}
+      </option>
+    );
+  };
+
   return (
     <div className="flex flex-1 items-center justify-between px-2">
       <div className="text-sm text-muted-foreground">{renderTotal()}</div>
@@ -117,11 +125,27 @@ export const DataTablePagination = <TData,>({
             data-testid="page-select"
             onChange={(e) => table.setPageIndex(Number(e.target.value) - 1)}
           >
-            {Array.from({ length: totalPages }, (_, i) => (
-              <option key={i} value={i + 1}>
-                {i + 1}
-              </option>
-            ))}
+            {/* If this is too large, this can cause the browser to hang. */}
+            {totalPages <= 100 ? (
+              Array.from({ length: totalPages }, (_, i) => renderOption(i))
+            ) : (
+              // Show the first 10 pages, the middle 10 pages, and the last 10 pages.
+              <>
+                {Array.from({ length: 10 }, (_, i) => renderOption(i))}
+                <option disabled={true} value="__1__">
+                  ...
+                </option>
+                {Array.from({ length: 10 }, (_, i) =>
+                  renderOption(Math.floor(totalPages / 2) - 5 + i),
+                )}
+                <option disabled={true} value="__2__">
+                  ...
+                </option>
+                {Array.from({ length: 10 }, (_, i) =>
+                  renderOption(totalPages - 10 + i),
+                )}
+              </>
+            )}
           </select>
           <span className="flex-shrink-0">of {prettyNumber(totalPages)}</span>
         </div>

@@ -80,37 +80,33 @@ export const ScratchPad: React.FC = () => {
       className="flex flex-col h-full overflow-hidden divide-y"
       id={HTMLCellId.create(cellId)}
     >
-      <div className="flex justify-start items-center flex-shrink-0">
-        <div className="flex items-center">
-          <Tooltip content={renderShortcut("cell.run")}>
-            <Button
-              data-testid="scratchpad-run-button"
-              onClick={handleRun}
-              variant="text"
-              // className="bg-[var(--grass-3)] hover:bg-[var(--grass-4)] rounded-none"
-              size="xs"
-            >
-              <PlayIcon color="var(--grass-11)" size={16} />
+      <div className="flex items-center flex-shrink-0">
+        <Tooltip content={renderShortcut("cell.run")}>
+          <Button
+            data-testid="scratchpad-run-button"
+            onClick={handleRun}
+            variant="text"
+            // className="bg-[var(--grass-3)] hover:bg-[var(--grass-4)] rounded-none"
+            size="xs"
+          >
+            <PlayIcon color="var(--grass-11)" size={16} />
+          </Button>
+        </Tooltip>
+        <Tooltip content="Clear code and outputs">
+          <Button size="xs" variant="text" onClick={handleClearCode}>
+            <EraserIcon size={16} />
+          </Button>
+        </Tooltip>
+        <HideInKioskMode>
+          <Tooltip content="Insert code">
+            <Button size="xs" variant="text" onClick={handleInsertCode}>
+              <BetweenHorizontalStartIcon size={16} />
             </Button>
           </Tooltip>
-          {(status === "running" || status === "queued") && (
-            <Spinner className="inline" size="small" />
-          )}
-        </div>
-        <div>
-          <Tooltip content="Clear code and outputs">
-            <Button size="xs" variant="text" onClick={handleClearCode}>
-              <EraserIcon size={16} />
-            </Button>
-          </Tooltip>
-          <HideInKioskMode>
-            <Tooltip content="Insert code">
-              <Button size="xs" variant="text" onClick={handleInsertCode}>
-                <BetweenHorizontalStartIcon size={16} />
-              </Button>
-            </Tooltip>
-          </HideInKioskMode>
-        </div>
+        </HideInKioskMode>
+        {(status === "running" || status === "queued") && (
+          <Spinner className="inline" size="small" />
+        )}
       </div>
       <div className="overflow-auto flex-shrink-0 max-h-[40%]">
         <CellEditor
