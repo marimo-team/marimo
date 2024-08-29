@@ -636,6 +636,10 @@ export const UserConfigForm: React.FC = () => {
                   />
                 </FormControl>
                 <FormMessage />
+                <FormDescription>
+                  If the model starts with "claude-", we will use your Anthropic
+                  API key. Otherwise, we will use your OpenAI API key.
+                </FormDescription>
               </FormItem>
             )}
           />
