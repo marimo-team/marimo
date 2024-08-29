@@ -710,16 +710,27 @@ class Kernel:
 
                 # We only drop in-memory tables: we don't want to drop tables
                 # on databases!
-                duckdb.execute(f"DROP TABLE IF EXISTS memory.main.{name}")
+                try:
+                    duckdb.execute(f"DROP TABLE IF EXISTS memory.main.{name}")
+                except Exception as e:
+                    LOGGER.warning("Failed to drop table %s: %s", name, str(e))
             elif variable.kind == "view" and DependencyManager.duckdb.has():
                 import duckdb
 
                 # We only drop in-memory views for the same reason.
-                duckdb.execute(f"DROP VIEW IF EXISTS memory.main.{name}")
+                try:
+                    duckdb.execute(f"DROP VIEW IF EXISTS memory.main.{name}")
+                except Exception as e:
+                    LOGGER.warning("Failed to drop view %s: %s", name, str(e))
             elif variable.kind == "schema" and DependencyManager.duckdb.has():
                 import duckdb
 
-                duckdb.execute(f"DETACH DATABASE IF EXISTS {name}")
+                try:
+                    duckdb.execute(f"DETACH DATABASE IF EXISTS {name}")
+                except Exception as e:
+                    LOGGER.warning(
+                        "Failed to detach schema %s: %s", name, str(e)
+                    )
             else:
                 if name in self.globals:
                     del self.globals[name]
