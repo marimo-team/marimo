@@ -21,6 +21,7 @@ import { memo, useEffect, useRef, useState } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Banner, ErrorBanner } from "../common/error-banner";
 import type { DataType } from "../vega/vega-loader";
+import type { FieldTypesWithExternalType } from "@/components/data-table/types";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -46,6 +47,7 @@ type PluginFunctions = {
     total_rows: number;
     row_headers: string[];
     supports_code_sample: boolean;
+    field_types: FieldTypesWithExternalType | null;
   }>;
   get_column_values: (req: { column: string }) => Promise<{
     values: unknown[];
@@ -95,6 +97,21 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
         total_rows: z.number(),
         row_headers: z.array(z.string()),
         supports_code_sample: z.boolean(),
+        field_types: z
+          .record(
+            z.tuple([
+              z.enum([
+                "boolean",
+                "integer",
+                "number",
+                "date",
+                "string",
+                "unknown",
+              ]),
+              z.string(),
+            ]),
+          )
+          .nullable(),
       }),
     ),
     get_column_values: rpc.input(z.object({ column: z.string() })).output(
@@ -158,8 +175,14 @@ export const DataFrameComponent = memo(
       [value?.transforms],
     );
 
-    const { url, has_more, total_rows, row_headers, supports_code_sample } =
-      data || {};
+    const {
+      url,
+      has_more,
+      total_rows,
+      row_headers,
+      supports_code_sample,
+      field_types,
+    } = data || {};
 
     const [internalValue, setInternalValue] = useState<Transformations>(
       value || EMPTY,
@@ -233,6 +256,7 @@ export const DataFrameComponent = memo(
           totalRows={total_rows ?? 0}
           pageSize={pageSize}
           pagination={true}
+          fieldTypes={field_types}
           rowHeaders={row_headers || Arrays.EMPTY}
           showDownload={false}
           download_as={Functions.THROW}

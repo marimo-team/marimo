@@ -30,6 +30,7 @@ from marimo._plugins.ui._impl.table import (
     SortArgs,
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
+    FieldTypes,
     TableManager,
 )
 from marimo._plugins.ui._impl.tables.utils import (
@@ -48,6 +49,7 @@ class GetDataFrameResponse:
     # This really only applies to Pandas, that has special index columns
     row_headers: List[str]
     supports_code_sample: bool
+    field_types: FieldTypes
 
 
 @dataclass
@@ -183,6 +185,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
             has_more=False,
             row_headers=manager.get_row_headers(),
             supports_code_sample=self._handler.supports_code_sample(),
+            field_types=manager.get_field_types(),
         )
 
     def get_column_values(
