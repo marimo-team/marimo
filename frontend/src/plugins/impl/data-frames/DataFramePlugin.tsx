@@ -111,7 +111,7 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
               z.string(),
             ]),
           )
-          .nullish(),
+          .nullable(),
       }),
     ),
     get_column_values: rpc.input(z.object({ column: z.string() })).output(
