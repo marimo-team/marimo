@@ -3,11 +3,16 @@ from __future__ import annotations
 
 from functools import partial
 
+import pytest
+
 from marimo._ast import compiler
 from marimo._ast.app import CellManager
 from marimo._ast.visitor import ImportData, VariableData
+from marimo._dependencies.dependencies import DependencyManager
 
 compile_cell = partial(compiler.compile_cell, cell_id="0")
+
+HAS_DUCKDB = DependencyManager.duckdb.has()
 
 
 class TestParseCell:
@@ -244,6 +249,7 @@ class TestImportWorkspace:
         assert not cell.import_workspace.imported_defs
 
 
+@pytest.mark.skipif(not HAS_DUCKDB, reason="Missing DuckDB")
 class TestParseSQLCell:
     @staticmethod
     def test_table_definition() -> None:
