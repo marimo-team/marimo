@@ -345,7 +345,7 @@ class TestFindCreatedTables:
 
     @staticmethod
     def test_find_sql_defs_weird_names() -> None:
-        sql = """
+        sql = r"""
         CREATE TABLE "my--table" (
             "column/*with*/comment" INT,
             "another--column" VARCHAR
@@ -362,6 +362,9 @@ class TestFindCreatedTables:
         CREATE TABLE "my/*weird*/table" (id INT);
 
         CREATE TABLE "with a space" (id INT);
+
+        CREATE TABLE 'single-quotes' (id INT);
+        CREATE TABLE e'escaped\ntable' (id INT);
         """
         assert find_sql_defs(sql) == SQLDefs(
             [
@@ -369,6 +372,8 @@ class TestFindCreatedTables:
                 "my_table_with_select",
                 "my/*weird*/table",
                 "with a space",
+                "single-quotes",
+                r"escaped\ntable",
             ],
             [],
             [],

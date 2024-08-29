@@ -86,6 +86,9 @@ class TokenExtractor:
             end = sql_statement.find('"', start + 1) + 1
         elif sql_statement[start] == "'":
             end = sql_statement.find("'", start + 1) + 1
+        elif sql_statement[start:].startswith("e'"):
+            start += 1
+            end = sql_statement.find("'", start + 1) + 1
         else:
             # For non-quoted tokens, find until space or comment
             maybe_end = re.search(r"[\s\-/]", sql_statement[start:])
