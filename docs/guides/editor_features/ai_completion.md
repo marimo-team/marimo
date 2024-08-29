@@ -63,6 +63,22 @@ cell. This will open an input to modify the cell using AI.
 </figure>
 </div>
 
+### Using Anthropic
+
+To use Anthropic with marimo:
+
+1. Sign up for an account at [Anthropic](https://console.anthropic.com/) and grab your [Anthropic Key](https://console.anthropic.com/settings/keys).
+2. Add the following to your `~/.marimo.toml`:
+
+```toml
+[ai.open_ai]
+model = "claude-3-5-sonnet-20240620"
+# or any model from https://docs.anthropic.com/en/docs/about-claude/models
+
+[ai.anthropic]
+api_key = "sk-..."
+```
+
 ### Using other AI providers
 
 marimo supports OpenAI's GPT-3.5 API by default. If your provider is compatible with OpenAI's API, you can use it by changing the `base_url` in the configuration.

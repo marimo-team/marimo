@@ -102,6 +102,11 @@ export const UserConfigSchema = z
             model: z.string().optional(),
           })
           .optional(),
+        anthropic: z
+          .object({
+            api_key: z.string().optional(),
+          })
+          .optional(),
       })
       .default({}),
     experimental: z

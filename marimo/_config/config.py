@@ -174,9 +174,11 @@ class AiConfig(TypedDict):
     **Keys.**
 
     - `open_ai`: the OpenAI config
+    - `anthropic`: the Anthropic config
     """
 
     open_ai: OpenAiConfig
+    anthropic: AnthropicConfig
 
 
 @dataclass
@@ -186,13 +188,26 @@ class OpenAiConfig(TypedDict):
     **Keys.**
 
     - `api_key`: the OpenAI API key
-    - `model`: the model to use
+    - `model`: the model to use.
+        if model starts with `claude-` we use the AnthropicConfig
     - `base_url`: the base URL for the API
     """
 
     api_key: str
     model: NotRequired[str]
     base_url: NotRequired[str]
+
+
+@dataclass
+class AnthropicConfig(TypedDict):
+    """Configuration options for Anthropic.
+
+    **Keys.**
+
+    - `api_key`: the Anthropic
+    """
+
+    api_key: str
 
 
 @mddoc
@@ -303,7 +318,7 @@ def mask_secrets(config: MarimoConfig) -> MarimoConfig:
         else:
             deep_remove_from_path(path[1:], cast(Dict[str, Any], obj[key]))
 
-    secrets = [["ai", "open_ai", "api_key"]]
+    secrets = [["ai", "open_ai", "api_key"], ["ai", "anthropic", "api_key"]]
 
     new_config = _deep_copy(config)
     for secret in secrets:

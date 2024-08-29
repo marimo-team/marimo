@@ -2020,6 +2020,7 @@ export interface components {
     KernelReady: {
       app_config: {
         app_title?: string | null;
+        css_file?: string | null;
         layout_file?: string | null;
         /** @enum {string} */
         width: "normal" | "compact" | "medium" | "full";
@@ -2079,6 +2080,9 @@ export interface components {
     };
     MarimoConfig: {
       ai: {
+        anthropic: {
+          api_key: string;
+        };
         open_ai: {
           api_key: string;
           base_url: string;
