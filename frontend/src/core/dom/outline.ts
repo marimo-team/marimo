@@ -19,7 +19,7 @@ function getOutline(html: string): Outline {
   for (const heading of Array.from(headings)) {
     const name = heading.textContent;
     // Check if the heading is within any of the excluded tags
-    if (excludedTags.some(tag => heading.closest(tag))) {
+    if (excludedTags.some((tag) => heading.closest(tag))) {
       continue;
     }
 
