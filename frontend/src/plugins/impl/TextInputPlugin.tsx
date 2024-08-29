@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { z } from "zod";
-import { IPlugin, IPluginProps, Setter } from "../types";
+import type { IPlugin, IPluginProps, Setter } from "../types";
 
 import { Input } from "../../components/ui/input";
 import { cn } from "../../utils/cn";

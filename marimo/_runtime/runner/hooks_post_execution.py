@@ -29,6 +29,7 @@ from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context.types import get_global_context
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.runner import cell_runner
+from marimo._tracer import kernel_tracer
 from marimo._utils.flatten import contains_instance
 
 LOGGER = _loggers.marimo_logger()
@@ -38,19 +39,23 @@ PostExecutionHookType = Callable[
 ]
 
 
+@kernel_tracer.start_as_current_span("set_imported_defs")
 def _set_imported_defs(
     cell: CellImpl,
     runner: cell_runner.Runner,
     run_result: cell_runner.RunResult,
 ) -> None:
     del run_result
+    LOGGER.debug("Acquiring graph lock to update cell import workspace")
     with runner.graph.lock:
+        LOGGER.debug("Acquired graph lock to update import workspace.")
         if cell.import_workspace.is_import_block:
             cell.import_workspace.imported_defs = set(
                 name for name in cell.defs if name in runner.glbls
             )
 
 
+@kernel_tracer.start_as_current_span("set_status_idle")
 def _set_status_idle(
     cell: CellImpl,
     runner: cell_runner.Runner,
@@ -61,6 +66,7 @@ def _set_status_idle(
     cell.set_runtime_state(status="idle")
 
 
+@kernel_tracer.start_as_current_span("set_run_result_status")
 def _set_run_result_status(
     cell: CellImpl,
     runner: cell_runner.Runner,
@@ -76,6 +82,7 @@ def _set_run_result_status(
         cell.set_run_result_status("success")
 
 
+@kernel_tracer.start_as_current_span("broadcast_variables")
 def _broadcast_variables(
     cell: CellImpl,
     runner: cell_runner.Runner,
@@ -95,6 +102,7 @@ def _broadcast_variables(
         VariableValues(variables=values).broadcast()
 
 
+@kernel_tracer.start_as_current_span("broadcast_datasets")
 def _broadcast_datasets(
     cell: CellImpl,
     runner: cell_runner.Runner,
@@ -109,9 +117,11 @@ def _broadcast_datasets(
         ]
     )
     if tables:
+        LOGGER.debug("Broadcasting data tables")
         Datasets(tables=tables).broadcast()
 
 
+@kernel_tracer.start_as_current_span("broadcast_duckdb_tables")
 def _broadcast_duckdb_tables(
     cell: CellImpl,
     runner: cell_runner.Runner,
@@ -136,11 +146,13 @@ def _broadcast_duckdb_tables(
         if not tables:
             return
 
+        LOGGER.debug("Broadcasting duckdb tables")
         Datasets(tables=tables, clear_channel="duckdb").broadcast()
     except Exception:
         return
 
 
+@kernel_tracer.start_as_current_span("store_reference_to_output")
 def _store_reference_to_output(
     cell: CellImpl,
     runner: cell_runner.Runner,
@@ -157,6 +169,7 @@ def _store_reference_to_output(
             cell.set_output(run_result.output)
 
 
+@kernel_tracer.start_as_current_span("broadcast_outputs")
 def _broadcast_outputs(
     cell: CellImpl,
     runner: cell_runner.Runner,
@@ -258,6 +271,7 @@ def _broadcast_outputs(
         )
 
 
+@kernel_tracer.start_as_current_span("reset_matplotlib_context")
 def _reset_matplotlib_context(
     cell: CellImpl,
     runner: cell_runner.Runner,

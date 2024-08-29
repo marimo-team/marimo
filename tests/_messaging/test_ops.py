@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 from marimo._messaging.ops import VariableValue
 from marimo._output.hypertext import Html
 from marimo._plugins.ui._impl.input import slider

@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
+import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
 import { mint, orange, slate } from "@radix-ui/colors";
-import { ColumnHeaderSummary, FieldTypes } from "./types";
+import type { ColumnHeaderSummary, FieldTypes } from "./types";
+import { asURL } from "@/utils/url";
 
 export class ColumnChartSpecModel<T> {
   private columnSummaries = new Map<string | number, ColumnHeaderSummary>();
@@ -11,7 +12,7 @@ export class ColumnChartSpecModel<T> {
   });
 
   constructor(
-    private readonly data: T[],
+    private readonly data: T[] | string,
     private readonly fieldTypes: FieldTypes,
     readonly summaries: ColumnHeaderSummary[],
     private readonly opts: {
@@ -30,13 +31,17 @@ export class ColumnChartSpecModel<T> {
   }
 
   private getVegaSpec<T>(column: string): TopLevelFacetedUnitSpec | null {
+    if (!this.data) {
+      return null;
+    }
+    if (typeof this.data !== "string") {
+      return null;
+    }
+
     const base: Omit<TopLevelFacetedUnitSpec, "mark"> = {
       data: {
-        name: "values",
-      },
-      datasets: {
-        values: this.data,
-      },
+        url: asURL(this.data).href,
+      } as TopLevelFacetedUnitSpec["data"],
       background: "transparent",
       config: {
         view: {
@@ -95,7 +100,7 @@ export class ColumnChartSpecModel<T> {
               aggregate: "count",
               type: "quantitative",
               axis: null,
-              scale: { type: "symlog" },
+              scale: { type: "linear" },
             },
             tooltip: [
               {
@@ -142,7 +147,7 @@ export class ColumnChartSpecModel<T> {
               aggregate: "count",
               type: "quantitative",
               axis: null,
-              scale: { type: "symlog" },
+              scale: { type: "linear" },
             },
             tooltip: [
               { field: column, type: "nominal", format: ",d", title: "Value" },
@@ -154,7 +159,27 @@ export class ColumnChartSpecModel<T> {
               },
             ],
           },
-        };
+          layer: [
+            {
+              mark: { type: "bar", color: mint.mint11 },
+            },
+            {
+              mark: {
+                type: "text",
+                align: "left",
+                baseline: "middle",
+                dx: 3,
+                color: slate.slate9,
+              },
+              encoding: {
+                text: {
+                  aggregate: "count",
+                  type: "quantitative",
+                },
+              },
+            },
+          ],
+        } as TopLevelFacetedUnitSpec; // "layer" not in TopLevelFacetedUnitSpec
       case "unknown":
       case "string":
         return null;

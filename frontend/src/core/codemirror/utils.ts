@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { EditorState } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
+import type { EditorState } from "@codemirror/state";
+import type { EditorView } from "@codemirror/view";
 import { getCM } from "@replit/codemirror-vim";
 
 export function isAtStartOfEditor(ev: { state: EditorState }) {

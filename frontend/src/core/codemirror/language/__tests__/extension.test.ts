@@ -6,7 +6,7 @@ import {
 } from "../extension";
 import { EditorState } from "@codemirror/state";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { MovementCallbacks } from "../../cells/extensions";
+import type { MovementCallbacks } from "../../cells/extensions";
 import { store } from "@/core/state/jotai";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 
@@ -18,6 +18,7 @@ function createState(content: string) {
         completionConfig: {
           copilot: false,
           activate_on_typing: true,
+          codeium_api_key: null,
         },
         hotkeys: new OverridingHotkeyProvider({}),
         enableAI: true,

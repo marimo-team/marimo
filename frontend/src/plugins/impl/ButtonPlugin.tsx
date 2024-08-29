@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { z } from "zod";
 
-import { IPlugin, IPluginProps } from "../types";
+import type { IPlugin, IPluginProps } from "../types";
 import { Button } from "../../components/ui/button";
 import { renderHTML } from "../core/RenderHTML";
-import { Intent, zodIntent } from "./common/intent";
+import { type Intent, zodIntent } from "./common/intent";
 import { cn } from "@/utils/cn";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 

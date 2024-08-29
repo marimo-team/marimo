@@ -1,6 +1,10 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import ast
+import os
+import subprocess
+import sys
 from typing import TYPE_CHECKING, Any, Dict
 
 import click
@@ -20,10 +24,14 @@ from marimo import __version__
 from marimo._ast.cell import CellConfig, RuntimeStateType
 from marimo._cli.print import orange
 from marimo._config.config import MarimoConfig
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.mime import MIME
 from marimo._plugins.core.web_component import JSONType
+from marimo._runtime.packages.module_name_to_pypi_name import (
+    module_name_to_pypi_name,
+)
 from marimo._server.api.router import build_routes
 from marimo._utils.dataclass_to_openapi import (
     PythonTypeToOpenAPI,
@@ -245,7 +253,7 @@ def openapi() -> None:
     """
     import yaml
 
-    print(yaml.dump(_generate_schema(), default_flow_style=False))
+    click.echo(yaml.dump(_generate_schema(), default_flow_style=False))
 
 
 @click.group(help="Various commands for the marimo processes", hidden=True)
@@ -298,7 +306,7 @@ def list_processes() -> None:
     for proc in result:
         cmds = proc.cmdline()
         cmd = " ".join(cmds[1:])
-        print(f"PID: {orange(str(proc.pid))} | {cmd}")
+        click.echo(f"PID: {orange(str(proc.pid))} | {cmd}")
 
 
 @ps.command(help="Kill the marimo processes")
@@ -315,10 +323,91 @@ def killall() -> None:
         if proc.pid == os.getpid():
             continue
         proc.kill()
-        print(f"Killed process {proc.pid}")
+        click.echo(f"Killed process {proc.pid}")
 
-    print("Killed all marimo processes")
+    click.echo("Killed all marimo processes")
 
 
+@click.command(
+    help="Inline packages according to PEP 723", name="inline-packages"
+)
+@click.argument("name", required=True)
+def inline_packages(
+    name: str,
+) -> None:
+    """
+    Example usage:
+
+        marimo development inline-packages
+
+    This uses some heuristics to guess the package names from the imports in
+    the file.
+
+    Requires uv.
+    Installation: https://docs.astral.sh/uv/getting-started/installation/
+    """
+
+    # Validate uv is installed
+    if not DependencyManager.which("uv"):
+        raise click.UsageError(
+            "uv is not installed. See https://docs.astral.sh/uv/getting-started/installation/"
+        )
+
+    # Validate the file exists
+    if not os.path.exists(name):
+        raise click.FileError(name)
+
+    # Validate >=3.10 for sys.stdlib_module_names
+    if sys.version_info < (3, 10):
+        # TOD: add support for < 3.10
+        # We can use https://github.com/omnilib/stdlibs
+        # to get the stdlib module names
+        raise click.UsageError("Requires Python >=3.10")
+
+    package_names = module_name_to_pypi_name()
+
+    def get_pypi_package_names() -> list[str]:
+        with open(name, "r") as file:
+            tree = ast.parse(file.read(), filename=name)
+
+        imported_modules = set[str]()
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    imported_modules.add(alias.name.split(".")[0])
+            elif isinstance(node, ast.ImportFrom):
+                if node.module:
+                    imported_modules.add(node.module.split(".")[0])
+
+        pypi_names = [
+            package_names.get(mod, mod.replace("_", "-"))
+            for mod in imported_modules
+        ]
+
+        return pypi_names
+
+    def is_stdlib_module(module_name: str) -> bool:
+        return module_name in sys.stdlib_module_names
+
+    pypi_names = get_pypi_package_names()
+
+    # Filter out python distribution packages
+    pypi_names = [name for name in pypi_names if not is_stdlib_module(name)]
+
+    click.echo(f"Inlining packages: {pypi_names}")
+    click.echo(f"into script: {name}")
+    subprocess.run(
+        [
+            "uv",
+            "add",
+            "--script",
+            name,
+        ]
+        + pypi_names
+    )
+
+
+development.add_command(inline_packages)
 development.add_command(openapi)
 development.add_command(ps)

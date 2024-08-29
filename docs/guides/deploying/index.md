@@ -8,6 +8,11 @@
   programmatically
   deploying_docker
   deploying_public_gallery
+  deploying_marimo_cloud
+  deploying_ploomber
+  deploying_railway
+  prebuilt_containers
+  authentication
 ```
 
 These guides help you deploy marimo notebooks.
@@ -19,6 +24,8 @@ These guides help you deploy marimo notebooks.
 | {doc}`deploying_public_gallery` | Deploy our public gallery                                 |
 | {doc}`deploying_marimo_cloud`   | Deploy to Marimo Cloud                                    |
 | {doc}`deploying_ploomber`       | Deploy to Ploomber Cloud                                  |
+| {doc}`deploying_railway`        | Deploy to Railway                                         |
+| {doc}`prebuilt_containers`      | Prebuilt containers                                       |
 | {doc}`authentication`           | Authentication and security                               |
 
 ```{admonition} Sharing notebooks on the public web

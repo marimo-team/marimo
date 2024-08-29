@@ -1,7 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { ColumnFilter, ColumnFiltersState, Table } from "@tanstack/react-table";
+import type {
+  ColumnFilter,
+  ColumnFiltersState,
+  Table,
+} from "@tanstack/react-table";
 import { Badge } from "../ui/badge";
-import { ColumnFilterValue } from "./filters";
+import type { ColumnFilterValue } from "./filters";
 import { logNever } from "@/utils/assertNever";
 import { XIcon } from "lucide-react";
 

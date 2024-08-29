@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { beforeEach, describe, expect, it } from "vitest";
-import { CellId } from "@/core/cells/ids";
+import type { CellId } from "@/core/cells/ids";
 import { exportedForTesting } from "../state";
-import { VariableName, Variables } from "../types";
+import type { VariableName, Variables } from "../types";
 
 const { initialState, reducer, createActions } = exportedForTesting;
 

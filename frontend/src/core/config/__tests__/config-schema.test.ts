@@ -36,6 +36,7 @@ test("default UserConfig - empty", () => {
       "display": {
         "cell_output": "above",
         "code_editor_font_size": 14,
+        "dataframes": "rich",
         "default_width": "medium",
         "theme": "light",
       },
@@ -48,6 +49,7 @@ test("default UserConfig - empty", () => {
         "preset": "default",
       },
       "package_management": {
+        "add_script_metadata": false,
         "manager": "pip",
       },
       "runtime": {
@@ -85,6 +87,7 @@ test("default UserConfig - one level", () => {
       "display": {
         "cell_output": "above",
         "code_editor_font_size": 14,
+        "dataframes": "rich",
         "default_width": "medium",
         "theme": "light",
       },
@@ -97,6 +100,7 @@ test("default UserConfig - one level", () => {
         "preset": "default",
       },
       "package_management": {
+        "add_script_metadata": false,
         "manager": "pip",
       },
       "runtime": {

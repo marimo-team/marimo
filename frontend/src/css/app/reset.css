@@ -1,4 +1,5 @@
-body {
+body,
+:host {
   font-family: var(--text-font);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

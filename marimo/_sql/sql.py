@@ -87,9 +87,6 @@ def sql(
         selection=None,
         page_size=5,
         pagination=True,
-        _internal_row_limit=default_result_limit
-        if custom_total_count == "too_many"
-        else None,
         _internal_total_rows=custom_total_count,
     )
     output.replace(t)

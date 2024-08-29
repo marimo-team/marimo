@@ -10,8 +10,8 @@ import {
 } from "../../ui/dialog";
 import { KeyboardHotkeys } from "../../shortcuts/renderShortcut";
 import {
-  HotkeyAction,
-  HotkeyGroup,
+  type HotkeyAction,
+  type HotkeyGroup,
   getDefaultHotkey,
 } from "@/core/hotkeys/hotkeys";
 import { atom, useAtom, useAtomValue } from "jotai";
@@ -22,7 +22,7 @@ import { hotkeysAtom, useUserConfig } from "@/core/config/config";
 import { saveUserConfig } from "@/core/network/requests";
 import { isPlatformMac } from "@/core/hotkeys/shortcuts";
 import { Button } from "@/components/ui/button";
-import { UserConfig } from "@/core/config/config-schema";
+import type { UserConfig } from "@/core/config/config-schema";
 
 export const keyboardShortcutsAtom = atom(false);
 

@@ -317,7 +317,7 @@ class SendUIElementMessage(Op):
 
     name: ClassVar[str] = "send-ui-element-message"
     ui_element: str
-    message: JSONType
+    message: Dict[str, object]
     buffers: Optional[Sequence[str]]
 
 

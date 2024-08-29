@@ -1,6 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { beforeEach, expect, vi, describe, it } from "vitest";
-import { DeferredRequestRegistry, RequestId } from "../DeferredRequestRegistry";
+import {
+  DeferredRequestRegistry,
+  type RequestId,
+} from "../DeferredRequestRegistry";
 
 vi.mock("@/utils/uuid", () => ({
   generateUUID: vi.fn().mockReturnValue("uuid"),

@@ -36,6 +36,7 @@ import type { CellConfig } from "@/core/network/types";
 import { useAtomValue } from "jotai";
 import { FloatingOutline } from "../../chrome/panels/outline/floating-outline";
 import { KnownQueryParams } from "@/core/constants";
+import { useUserConfig } from "@/core/config/config";
 
 type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;
@@ -47,6 +48,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
 }) => {
   const { invisible } = useDelayVisibility(cells.length, mode);
   const kioskMode = useAtomValue(kioskModeAtom);
+  const [userConfig] = useUserConfig();
 
   const urlParams = new URLSearchParams(window.location.search);
   const showCodeDefault = urlParams.get(KnownQueryParams.showCode);
@@ -86,6 +88,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
           status={cell.status}
           code={cell.code}
           config={cell.config}
+          cellOutputArea={userConfig.display.cell_output}
           stopped={cell.stopped}
           showCode={showCode && canShowCode}
           errored={cell.errored}
@@ -196,6 +199,7 @@ interface VerticalCellProps
     | "staleInputs"
     | "runStartTimestamp"
   > {
+  cellOutputArea: "above" | "below";
   cellId: CellId;
   config: CellConfig;
   code: string;
@@ -209,6 +213,7 @@ const VerticalCell = memo(
   ({
     output,
     consoleOutputs,
+    cellOutputArea,
     cellId,
     status,
     stopped,
@@ -250,21 +255,26 @@ const VerticalCell = memo(
 
     // Read mode and show code
     if ((mode === "read" && showCode) || kioskFull) {
+      const outputArea = (
+        <OutputArea
+          allowExpand={true}
+          output={output}
+          className="output-area"
+          cellId={cellId}
+          stale={outputStale}
+        />
+      );
+
       return (
         <div tabIndex={-1} id={HTMLId} ref={cellRef} className={className}>
-          <OutputArea
-            allowExpand={true}
-            output={output}
-            className="output-area"
-            cellId={cellId}
-            stale={outputStale}
-          />
+          {cellOutputArea === "above" && outputArea}
           <div className="tray">
             <ReadonlyPythonCode
               initiallyHideCode={config.hide_code || kiosk}
               code={code}
             />
           </div>
+          {cellOutputArea === "below" && outputArea}
           <ConsoleOutput
             consoleOutputs={consoleOutputs}
             stale={outputStale}

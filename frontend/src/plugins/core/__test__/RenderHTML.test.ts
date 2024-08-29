@@ -54,13 +54,13 @@ describe("RenderHTML", () => {
 
   test("custom tags - valid", () => {
     let html = "<foobar></foobar>";
-    expect(renderHTML({ html })).toMatchInlineSnapshot(`<foobar />`);
+    expect(renderHTML({ html })).toMatchInlineSnapshot("<foobar />");
 
     html = "<foobar2></foobar2>";
-    expect(renderHTML({ html })).toMatchInlineSnapshot(`<foobar2 />`);
+    expect(renderHTML({ html })).toMatchInlineSnapshot("<foobar2 />");
 
     html = "<marimo-slider></marimo-slider>";
-    expect(renderHTML({ html })).toMatchInlineSnapshot(`<marimo-slider />`);
+    expect(renderHTML({ html })).toMatchInlineSnapshot("<marimo-slider />");
   });
 
   test("custom tags - invalid", () => {

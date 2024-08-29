@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import ReconnectingWebSocket from "partysocket/ws";
+import type ReconnectingWebSocket from "partysocket/ws";
 
 export enum WebSocketState {
   CONNECTING = "CONNECTING",

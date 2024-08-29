@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.6.0"
+__generated_with = "0.8.3"
 app = marimo.App()
 
 
@@ -32,14 +33,16 @@ def __(mo):
         "warning",
     ]
 
+
     def create(kind):
         return mo.md(
-        rf"""
+            rf"""
 
             !!! {kind} "{kind} admonition"
                 This is an admonition for {kind}
             """
         )
+
 
     mo.vstack([create(kind) for kind in kinds])
     return create, kinds
@@ -47,7 +50,7 @@ def __(mo):
 
 @app.cell
 def __(mo):
-    mo.md("# Misc")
+    mo.md("""# Misc""")
     return
 
 
@@ -57,6 +60,25 @@ def __(mo):
         rf"""
         !!! important ""
             This is an admonition box without a title.
+        """
+    )
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md(
+        r"""
+        !!! tip ""
+            Importa recordar as seguintes regras de diferenciação de matrizes:
+        
+            $$\frac{\partial\, u'v}{\partial\, v} = \frac{\partial\, v'u}{\partial\, v} = u$$
+        
+            sendo $u$ e $v$ dois vetores.
+        
+            $$\frac{\partial\, v'Av}{\partial\, v}=2Av=2v'A$$
+        
+            em que $A$ é uma matriz simétrica. No nosso caso, $A=X'X$ e $v=\hat{\boldsymbol{\beta}}$.import marimo as mo
         """
     )
     return

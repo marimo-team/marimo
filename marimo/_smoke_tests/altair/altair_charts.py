@@ -2,11 +2,11 @@
 
 import marimo
 
-__generated_with = "0.7.20"
+__generated_with = "0.8.2"
 app = marimo.App(width="full")
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __():
     import marimo as mo
     from vega_datasets import data
@@ -25,7 +25,7 @@ def __(data):
     return cars, employment, iris
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     chart_selection_type = mo.ui.radio(
         ["default", "point", "interval"],
@@ -606,12 +606,10 @@ def __(mo):
 def __(alt, data, datum, mo):
     stocks = data.stocks.url
 
-    base = alt.Chart(stocks).encode(
-        x='date:T',
-        y='price:Q',
-        color='symbol:N'
-    ).transform_filter(
-        datum.symbol == 'GOOG'
+    base = (
+        alt.Chart(stocks)
+        .encode(x="date:T", y="price:Q", color="symbol:N")
+        .transform_filter(datum.symbol == "GOOG")
     )
 
     t = mo.ui.altair_chart(base.mark_line() + base.mark_point())

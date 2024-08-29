@@ -10,8 +10,9 @@ Before installing marimo, we recommend creating and activating a Python
 ```{dropdown} Setting up a virtual environment
 
 Python uses virtual environments to minimize conflicts among packages.
-Here's a quickstart for `pip` users. If you use `conda`, please use a
-[`conda` environment](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-with-commands) instead.
+Here's a quickstart for `pip` users. If you use `conda`, please use a [`conda`
+environment](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-with-commands)
+instead.
 
 Run the following in the terminal:
 
@@ -27,6 +28,15 @@ and altair, in this environment. When you're done, deactivate the environment
 with `deactivate` in the terimnal.
 
 Learn more from the [official Python tutorial](https://docs.python.org/3/tutorial/venv.html#creating-virtual-environments).
+
+:::{admonition} Using uv?
+:class: tip
+
+[uv](https://github.com/astral-sh/uv) is a next-generation Python package
+installer and manager that is 10-100x faster than pip, and also makes it easy
+to install Python and manage projects. With `uv`, creating a virtual
+environment is as easy as `uv venv`.
+:::
 ```
 
 To install marimo, run the following in a terminal:
@@ -36,6 +46,13 @@ To install marimo, run the following in a terminal:
 
 ```bash
 pip install marimo
+```
+
+:::
+:::{tab-item} install with uv
+
+```bash
+uv pip install marimo
 ```
 
 :::

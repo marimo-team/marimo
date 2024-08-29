@@ -1,22 +1,22 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Extension } from "@codemirror/state";
-import { LanguageAdapter } from "./types";
+import type { Extension } from "@codemirror/state";
+import type { LanguageAdapter } from "./types";
 import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { parseMixed } from "@lezer/common";
 import { python, pythonLanguage } from "@codemirror/lang-python";
 import dedent from "string-dedent";
 import {
-  Completion,
-  CompletionSource,
+  type Completion,
+  type CompletionSource,
   autocompletion,
 } from "@codemirror/autocomplete";
 import { once } from "lodash-es";
 import { enhancedMarkdownExtension } from "../markdown/extension";
-import { CompletionConfig } from "@/core/config/config-schema";
-import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+import type { CompletionConfig } from "@/core/config/config-schema";
+import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { indentOneTab } from "./utils/indentOneTab";
-import { QuotePrefixKind, splitQuotePrefix } from "./utils/quotes";
+import { type QuotePrefixKind, splitQuotePrefix } from "./utils/quotes";
 
 const quoteKinds = [
   ['"""', '"""'],
@@ -149,7 +149,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
 
               // Find all { } groupings
               const pattern = /{(.*?)}/g;
-              let match;
+              let match: RegExpExecArray | null;
 
               while ((match = pattern.exec(text)) !== null) {
                 const start = match.index + 1;

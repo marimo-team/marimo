@@ -47,6 +47,7 @@ function getOpts() {
     completionConfig: {
       activate_on_typing: false,
       copilot: false,
+      codeium_api_key: null,
     },
     keymapConfig: {
       preset: "default",
@@ -100,7 +101,7 @@ describe("snapshot all duplicate keymaps", () => {
     );
     // Total duplicates:
     // if this changes, please make sure to validate they are not conflicting
-    expect(Object.values(duplicates).flat().length).toMatchInlineSnapshot(`20`);
+    expect(Object.values(duplicates).flat().length).toMatchInlineSnapshot("20");
     expect(duplicates).toMatchSnapshot();
   });
 
@@ -113,7 +114,7 @@ describe("snapshot all duplicate keymaps", () => {
     );
     // Total duplicates:
     // if this changes, please make sure to validate they are not conflicting
-    expect(Object.values(duplicates).flat().length).toMatchInlineSnapshot(`19`);
+    expect(Object.values(duplicates).flat().length).toMatchInlineSnapshot("19");
     expect(duplicates).toMatchSnapshot();
   });
 });

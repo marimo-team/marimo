@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { toast } from "@/components/ui/use-toast";
 import { sendCreateFileOrFolder } from "@/core/network/requests";
-import { FilePath } from "@/utils/paths";
+import type { FilePath } from "@/utils/paths";
 import { serializeBlob } from "@/utils/blob";
-import { DropzoneOptions, useDropzone } from "react-dropzone";
+import { type DropzoneOptions, useDropzone } from "react-dropzone";
 import { refreshRoot } from "./state";
 import { Logger } from "@/utils/Logger";
 

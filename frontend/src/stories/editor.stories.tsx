@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { Meta, StoryObj } from "@storybook/react";
 import { useEffect, useRef } from "react";
-import { EditorState, Extension } from "@codemirror/state";
+import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import CodeMirror from "@uiw/react-codemirror";
-import { CodeMirrorSetupOpts, basicBundle } from "../core/codemirror/cm";
+import { type CodeMirrorSetupOpts, basicBundle } from "../core/codemirror/cm";
 import { python } from "@codemirror/lang-python";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
 import { copilotBundle } from "@/core/codemirror/copilot/extension";
@@ -80,6 +80,7 @@ export const DefaultPython: Story = {
           copilotBundle({
             activate_on_typing: true,
             copilot: false,
+            codeium_api_key: null,
           }),
         ]}
       />

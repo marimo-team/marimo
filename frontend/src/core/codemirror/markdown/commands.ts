@@ -1,11 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import {
   EditorSelection,
-  SelectionRange,
+  type SelectionRange,
   Text,
   Transaction,
 } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
+import type { EditorView } from "@codemirror/view";
 
 function hasSelection(view: EditorView) {
   return !view.state.selection.main.empty;
@@ -274,8 +274,8 @@ export function insertUL(view: EditorView) {
   }
 
   const { changes } = view.state.changeByRange((range) => {
-    const markupOne = `- `;
-    const markupTwo = `* `;
+    const markupOne = "- ";
+    const markupTwo = "* ";
 
     const rangeText = view.state
       .sliceDoc(range.from, range.to + markupTwo.length)

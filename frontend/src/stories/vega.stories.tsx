@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import VegaComponent from "@/plugins/impl/vega/vega-component";
-import { Meta } from "@storybook/react";
+import type { Meta } from "@storybook/react";
 import {
   AREA_CHART,
   BAR_CHART,
@@ -16,7 +16,7 @@ import {
   STACKED_BAR_CHART,
   TICK_CHART,
 } from "./__fixtures__/vega";
-import { VegaLiteSpec } from "@/plugins/impl/vega/types";
+import type { VegaLiteSpec } from "@/plugins/impl/vega/types";
 
 const meta: Meta = {
   title: "Vega",

@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { CellId } from "@/core/cells/ids";
+import type { CellId } from "@/core/cells/ids";
 
 export type LayoutDirection = "TB" | "LR";
 export type GraphLayoutView = LayoutDirection | "_minimap_";

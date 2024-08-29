@@ -120,7 +120,7 @@ class TestExecution:
             await k.run([er2])
         assert k.globals["z"] == 2
 
-        await k.delete(DeleteCellRequest(cell_id="1"))
+        await k.delete_cell(DeleteCellRequest(cell_id="1"))
         assert k.globals["x"] == 2
         assert "y" not in k.globals
         if k.lazy():
@@ -128,7 +128,7 @@ class TestExecution:
             await k.run([er2])
         assert "z" not in k.globals
 
-        await k.delete(DeleteCellRequest(cell_id="0"))
+        await k.delete_cell(DeleteCellRequest(cell_id="0"))
         assert "x" not in k.globals
         assert "y" not in k.globals
         assert "z" not in k.globals
@@ -417,7 +417,7 @@ class TestExecution:
         assert k.errors["1"] == (MultipleDefinitionError("x", ("0",)),)
 
         # issue delete request for cell 1 to clear error and run cell 0
-        await k.delete(DeleteCellRequest(cell_id="1"))
+        await k.delete_cell(DeleteCellRequest(cell_id="1"))
         if k.lazy():
             assert k.graph.cells[er.cell_id].stale
             await k.run([er])
@@ -504,7 +504,7 @@ class TestExecution:
         _check_edges(k.errors["0"][0], [("0", ["x"], "1"), ("1", ["y"], "0")])
 
         # break cycle by deleting cell
-        await k.delete(DeleteCellRequest(cell_id="1"))
+        await k.delete_cell(DeleteCellRequest(cell_id="1"))
         if k.execution_type == "strict":
             # Still invalid in strict mode because y is missing.
             assert set(k.errors.keys()) == {"0"}
@@ -555,7 +555,7 @@ class TestExecution:
 
         # Delete the cell that defines x. There shouldn't be any more errors
         # because x no longer exists.
-        await k.delete(DeleteCellRequest(cell_id="0"))
+        await k.delete_cell(DeleteCellRequest(cell_id="0"))
         if k.execution_type != "strict":
             assert not k.errors
 
@@ -1352,7 +1352,7 @@ class TestImports:
         )
         assert "x" not in k.globals
 
-        await k.delete(DeleteCellRequest(cell_id=er.cell_id))
+        await k.delete_cell(DeleteCellRequest(cell_id=er.cell_id))
         assert "x" in k.globals
 
     async def test_different_import_same_def(

@@ -107,7 +107,7 @@ class TestDataFrameProtocolTableManager(unittest.TestCase):
         )
 
     def test_limit(self) -> None:
-        limited_manager = self.manager.limit(1)
+        limited_manager = self.manager.take(1, 0)
         expected_data = self.data.take([0])
         assert limited_manager.data == expected_data
 

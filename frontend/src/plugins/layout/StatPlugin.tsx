@@ -1,7 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { z } from "zod";
-import { IStatelessPlugin, IStatelessPluginProps } from "../stateless-plugin";
+import type {
+  IStatelessPlugin,
+  IStatelessPluginProps,
+} from "../stateless-plugin";
 import { TriangleIcon } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { prettyNumber } from "@/utils/numbers";

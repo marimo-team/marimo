@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { EffectCallback, useEffect } from "react";
+import { type EffectCallback, useEffect } from "react";
 
 /**
  * Wrapper around useEffect that makes it clearer that the effect is run, just on mount.

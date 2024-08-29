@@ -8,11 +8,11 @@ import {
   createRPCRequestHandler,
   type RPCSchema,
 } from "rpc-anywhere";
-import { ParentSchema } from "../rpc";
+import type { ParentSchema } from "../rpc";
 import { Logger } from "../../../utils/Logger";
 import { TRANSPORT_ID } from "./constants";
 import { getPyodideVersion, importPyodide } from "./getPyodideVersion";
-import { SaveNotebookRequest } from "@/core/network/types";
+import type { SaveNotebookRequest } from "@/core/network/types";
 import { WasmFileSystem } from "./fs";
 import { getController } from "./getController";
 

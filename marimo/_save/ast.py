@@ -2,14 +2,14 @@
 from __future__ import annotations
 
 import ast
-from typing import Any, Sequence, Union, cast
+from typing import Any, Sequence, cast
 
 
 class BlockException(Exception):
     pass
 
 
-def compiled_ast(block: Sequence[Union[ast.AST | ast.stmt]]) -> ast.Module:
+def compiled_ast(block: Sequence[ast.AST | ast.stmt]) -> ast.Module:
     return cast(
         ast.Module,
         compile(

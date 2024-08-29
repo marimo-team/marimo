@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { SVGProps } from "react";
+import type { SVGProps } from "react";
 
 export const PythonIcon = (props: SVGProps<SVGSVGElement>) => (
   <svg

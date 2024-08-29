@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { type components } from "@marimo-team/marimo-api";
+import type { components } from "@marimo-team/marimo-api";
 
 export type schemas = components["schemas"];
 export type DataType = schemas["DataType"];

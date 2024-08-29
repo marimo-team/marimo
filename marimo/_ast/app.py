@@ -24,7 +24,8 @@ from marimo._ast.errors import (
     MultipleDefinitionError,
     UnparsableError,
 )
-from marimo._config.config import WidthType
+from marimo._config.config import MarimoConfig, WidthType
+from marimo._config.utils import load_config
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
@@ -63,6 +64,9 @@ class _AppConfig:
 
     # The file path of the layout file, relative to the app file.
     layout_file: Optional[str] = None
+
+    # CSS file, relative to the app file
+    css_file: Optional[str] = None
 
     @staticmethod
     def from_untrusted_dict(updates: dict[str, Any]) -> _AppConfig:
@@ -145,6 +149,7 @@ class App:
         # unrecognized settings will just be dropped, instead of raising
         # a TypeError.
         self._config = _AppConfig.from_untrusted_dict(kwargs)
+        self._user_config = load_config()
 
         if runtime_context_installed():
             # nested applications get a unique cell prefix to disambiguate
@@ -570,6 +575,10 @@ class InternalApp:
     @property
     def config(self) -> _AppConfig:
         return self._app._config
+
+    @property
+    def user_config(self) -> MarimoConfig:
+        return self._app._user_config
 
     @property
     def cell_manager(self) -> CellManager:

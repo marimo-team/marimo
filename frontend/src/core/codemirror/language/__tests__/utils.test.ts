@@ -9,7 +9,7 @@ import { EditorView } from "@codemirror/view";
 import { describe, it, expect } from "vitest";
 import { adaptiveLanguageConfiguration, switchLanguage } from "../extension";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { MovementCallbacks } from "../../cells/extensions";
+import type { MovementCallbacks } from "../../cells/extensions";
 
 function createEditor(doc: string) {
   return new EditorView({
@@ -20,6 +20,7 @@ function createEditor(doc: string) {
           completionConfig: {
             activate_on_typing: true,
             copilot: false,
+            codeium_api_key: null,
           },
           hotkeys: new OverridingHotkeyProvider({}),
           showPlaceholder: true,

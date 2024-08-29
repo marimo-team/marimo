@@ -5,7 +5,7 @@ import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { findReplaceAtom } from "./state";
 import { getAllEditorViews } from "@/core/cells/cells";
-import { QueryType, asQueryCreator } from "./query";
+import { type QueryType, asQueryCreator } from "./query";
 
 function searchCommand<T>(
   f: (state: { query: QueryType; search: SearchQuery }) => T,

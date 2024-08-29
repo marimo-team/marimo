@@ -2,9 +2,9 @@
 import { ChevronUp, ChevronDown } from "lucide-react";
 import {
   NumberField as AriaNumberField,
-  NumberFieldProps as AriaNumberFieldProps,
+  type NumberFieldProps as AriaNumberFieldProps,
   Button,
-  ButtonProps,
+  type ButtonProps,
   Input as RACInput,
 } from "react-aria-components";
 import React from "react";

@@ -16,7 +16,7 @@ import time
 import traceback
 from copy import copy
 from multiprocessing import connection
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, cast
+from typing import TYPE_CHECKING, Any, Callable, Iterator, List, Optional, cast
 from uuid import uuid4
 
 from marimo import _loggers
@@ -123,6 +123,7 @@ from marimo._runtime.utils.set_ui_element_request_manager import (
 from marimo._runtime.validate_graph import check_for_errors
 from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
 from marimo._server.types import QueueType
+from marimo._tracer import kernel_tracer
 from marimo._utils.assert_never import assert_never
 from marimo._utils.platform import is_pyodide
 from marimo._utils.signals import restore_signals
@@ -373,7 +374,9 @@ class Kernel:
         self.package_manager: PackageManager | None = None
         self.module_reloader: ModuleReloader | None = None
         self.module_watcher: ModuleWatcher | None = None
+
         # Load runtime settings from user config
+        self.user_config = user_config
         self.reactive_execution_mode: OnCellChangeType = user_config[
             "runtime"
         ]["on_cell_change"]
@@ -479,6 +482,7 @@ class Kernel:
         ).start()
         self._completion_worker_started = True
 
+    @kernel_tracer.start_as_current_span("code_completion")
     def code_completion(
         self, request: CodeCompletionRequest, docstrings_limit: int
     ) -> None:
@@ -636,6 +640,27 @@ class Kernel:
                 cell_id, code, carried_imports=carried_imports
             )
 
+            # For any newly imported namespaces, add them to the metadata
+            #
+            # TODO(akshayka): Consider using the module watcher to discover
+            # packages used by a notebook; that would have the benefit of
+            # discovering transitive dependencies, ie if a notebook used a
+            # local module that in turn used packages available on PyPI.
+            if self._should_add_script_metadata():
+                cell = self.graph.cells.get(cell_id, None)
+                if cell:
+                    prev_imports: set[Name] = (
+                        set([im.namespace for im in previous_cell.imports])
+                        if previous_cell
+                        else set()
+                    )
+                    to_add = cell.imported_namespaces - prev_imports
+                    to_remove = prev_imports - cell.imported_namespaces
+                    self._add_script_metadata(
+                        import_namespaces_to_add=list(to_add),
+                        import_namespaces_to_remove=list(to_remove),
+                    )
+
         LOGGER.debug(
             "graph:\n\tcell id %s\n\tparents %s\n\tchildren %s\n\tsiblings %s",
             cell_id,
@@ -776,6 +801,14 @@ class Kernel:
         del self.cell_metadata[cell_id]
         cell = self.graph.cells[cell_id]
         cell.import_workspace.imported_defs = set()
+        if self._should_add_script_metadata():
+            self._add_script_metadata(
+                import_namespaces_to_add=[],
+                import_namespaces_to_remove=[
+                    im.namespace for im in cell.imports
+                ],
+            )
+
         return self._deactivate_cell(cell_id)
 
     def mutate_graph(
@@ -801,6 +834,7 @@ class Kernel:
         Returns
         - set of cells that must be run to return kernel to consistent state
         """
+        LOGGER.debug("Mutating graph.")
         LOGGER.debug("Current set of errors: %s", self.errors)
         cells_before_mutation = set(self.graph.cells.keys())
         cells_with_errors_before_mutation = set(self.errors.keys())
@@ -1124,7 +1158,8 @@ class Kernel:
         # TODO(akshayka): Send VariableValues message for any globals
         # bound to this state object (just like UI elements)
 
-    async def delete(self, request: DeleteCellRequest) -> None:
+    @kernel_tracer.start_as_current_span("delete_cell")
+    async def delete_cell(self, request: DeleteCellRequest) -> None:
         """Delete a cell from kernel and graph."""
         cell_id = request.cell_id
         if cell_id in self.graph.cells:
@@ -1134,6 +1169,7 @@ class Kernel:
                 )
             )
 
+    @kernel_tracer.start_as_current_span("run")
     async def run(
         self, execution_requests: Sequence[ExecutionRequest]
     ) -> None:
@@ -1176,14 +1212,17 @@ class Kernel:
             self.mutate_graph(filtered_requests, deletion_requests=[])
         )
 
+    @kernel_tracer.start_as_current_span("rename_file")
     async def rename_file(self, filename: str) -> None:
         self.globals["__file__"] = filename
+        self.app_metadata.filename = filename
         roots = set()
         for cell in self.graph.cells.values():
             if "__file__" in cell.refs:
                 roots.add(cell.cell_id)
         await self._if_autorun_then_run_cells(roots)
 
+    @kernel_tracer.start_as_current_span("run_scratchpad")
     async def run_scratchpad(self, code: str) -> None:
         roots = {SCRATCH_CELL_ID}
 
@@ -1224,6 +1263,7 @@ class Kernel:
 
         await runner.run_all()
 
+    @kernel_tracer.start_as_current_span("run_stale_cells")
     async def run_stale_cells(self) -> None:
         cells_to_run: set[CellId_t] = set()
         for cid, cell_impl in self.graph.cells.items():
@@ -1239,6 +1279,7 @@ class Kernel:
         if self.module_watcher is not None:
             self.module_watcher.run_is_processed.set()
 
+    @kernel_tracer.start_as_current_span("set_cell_config")
     async def set_cell_config(self, request: SetCellConfigRequest) -> None:
         """Update cell configs.
 
@@ -1263,9 +1304,11 @@ class Kernel:
         if stale_cells and self.reactive_execution_mode == "autorun":
             await self._run_cells(stale_cells)
 
+    @kernel_tracer.start_as_current_span("set_user_config")
     def set_user_config(self, request: SetUserConfigRequest) -> None:
         self._update_runtime_from_user_config(request.config)
 
+    @kernel_tracer.start_as_current_span("set_ui_element_value")
     async def set_ui_element_value(
         self, request: SetUIElementValueRequest
     ) -> bool:
@@ -1459,6 +1502,7 @@ class Kernel:
     def reset_ui_initializers(self) -> None:
         self.ui_initializers = {}
 
+    @kernel_tracer.start_as_current_span("function_call_request")
     async def function_call_request(
         self, request: FunctionCallRequest
     ) -> tuple[HumanReadableStatus, JSONType, bool]:
@@ -1502,6 +1546,7 @@ class Kernel:
             debug(error_title, error_message)
         else:
             found = True
+            LOGGER.debug("Executing RPC %s", request)
             with self._install_execution_context(
                 cell_id=function.cell_id
             ), ctx.provide_ui_ids(str(uuid4())):
@@ -1551,6 +1596,7 @@ class Kernel:
             found,
         )
 
+    @kernel_tracer.start_as_current_span("instantiate")
     async def instantiate(self, request: CreationRequest) -> None:
         """Instantiate the kernel with cells and UIElement initial values
 
@@ -1623,6 +1669,12 @@ class Kernel:
             for pkg in package_statuses
             if package_statuses[pkg] == "installed"
         ]
+
+        # If a package was not installed at cell registration time, it won't
+        # yet be in the script metadata.
+        if self._should_add_script_metadata():
+            self._add_script_metadata(installed_modules, [])
+
         cells_to_run = set(
             cid
             for module in installed_modules
@@ -1631,6 +1683,40 @@ class Kernel:
         if cells_to_run:
             await self._if_autorun_then_run_cells(cells_to_run)
 
+    def _should_add_script_metadata(self) -> bool:
+        return (
+            self.user_config["package_management"]["add_script_metadata"]
+            and self.app_metadata.filename is not None
+            and self.package_manager is not None
+        )
+
+    def _add_script_metadata(
+        self,
+        import_namespaces_to_add: List[str],
+        import_namespaces_to_remove: List[str],
+    ) -> None:
+        filename = self.app_metadata.filename
+
+        if not filename or not self.package_manager:
+            return
+
+        try:
+            LOGGER.debug(
+                "Updating script metadata: %s. Adding namespaces: %s."
+                " Removing namespaces: %s",
+                filename,
+                import_namespaces_to_add,
+                import_namespaces_to_remove,
+            )
+            self.package_manager.update_notebook_script_metadata(
+                filepath=filename,
+                import_namespaces_to_add=import_namespaces_to_add,
+                import_namespaces_to_remove=import_namespaces_to_remove,
+            )
+        except Exception as e:
+            LOGGER.error("Failed to add script metadata to notebook: %s", e)
+
+    @kernel_tracer.start_as_current_span("preview_dataset_column")
     async def preview_dataset_column(
         self, request: PreviewDatasetColumnRequest
     ) -> None:
@@ -1677,7 +1763,9 @@ class Kernel:
         """
         # acquiring and releasing an RLock takes ~100ns; the overhead is
         # negligible because the lock is coarse.
+        LOGGER.debug("Acquiring globals lock to handle request %s", request)
         with self.lock_globals():
+            LOGGER.debug("Handling control request: %s", request)
             if isinstance(request, CreationRequest):
                 await self.instantiate(request)
                 CompletedRun().broadcast()
@@ -1699,6 +1787,7 @@ class Kernel:
                 CompletedRun().broadcast()
             elif isinstance(request, FunctionCallRequest):
                 status, ret, _ = await self.function_call_request(request)
+                LOGGER.debug("Function returned with status %s", status)
                 FunctionCallResult(
                     function_call_id=request.function_call_id,
                     return_value=ret,
@@ -1706,7 +1795,7 @@ class Kernel:
                 ).broadcast()
                 CompletedRun().broadcast()
             elif isinstance(request, DeleteCellRequest):
-                await self.delete(request)
+                await self.delete_cell(request)
             elif isinstance(request, InstallMissingPackagesRequest):
                 await self.install_missing_packages(request)
                 CompletedRun().broadcast()
@@ -1716,6 +1805,7 @@ class Kernel:
                 return None
             else:
                 raise ValueError(f"Unknown request {request}")
+            LOGGER.debug("Handled control request: %s", request)
 
 
 def launch_kernel(
@@ -1731,10 +1821,21 @@ def launch_kernel(
     virtual_files_supported: bool,
     redirect_console_to_browser: bool,
     interrupt_queue: QueueType[bool] | None = None,
+    profile_path: Optional[str] = None,
+    log_level: int | None = None,
 ) -> None:
+    if log_level is not None:
+        _loggers.set_level(log_level)
     LOGGER.debug("Launching kernel")
     if is_edit_mode:
         restore_signals()
+
+    profiler = None
+    if profile_path is not None:
+        import cProfile
+
+        profiler = cProfile.Profile()
+        profiler.enable()
 
     n_tries = 0
     pipe: Optional[TypedConnection[KernelMessage]] = None
@@ -1842,7 +1943,7 @@ def launch_kernel(
                 # triggered on Windows when quit with Ctrl+C
                 LOGGER.debug("kernel queue.get() failed %s", e)
                 break
-            LOGGER.debug("received request %s", request)
+            LOGGER.debug("Received control request: %s", request)
             if isinstance(request, StopRequest):
                 break
             elif isinstance(request, SetUIElementValueRequest):
@@ -1862,3 +1963,7 @@ def launch_kernel(
     if stderr is not None:
         stderr._watcher.stop()
     get_context().virtual_file_registry.shutdown()
+
+    if profiler is not None and profile_path is not None:
+        profiler.disable()
+        profiler.dump_stats(profile_path)

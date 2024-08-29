@@ -58,13 +58,13 @@ export function useAudioRecorder(opts: {
         mediaRecorder.current?.pause();
         timer.stop();
         return "paused";
-      } else if (state === "paused") {
+      }
+      if (state === "paused") {
         mediaRecorder.current?.resume();
         timer.start();
         return "recording";
-      } else {
-        return state;
       }
+      return state;
     });
   });
 

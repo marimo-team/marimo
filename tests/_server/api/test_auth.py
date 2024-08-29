@@ -19,7 +19,9 @@ from tests._server.mocks import get_mock_session_manager
 
 
 async def mock_receive() -> Any:
-    return {}
+    return {
+        "type": "http.disconnect",
+    }
 
 
 async def mock_send(message: Any) -> None:

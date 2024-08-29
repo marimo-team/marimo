@@ -1,6 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { match, Match, MatchFunction, ParamData } from "path-to-regexp";
+import {
+  match,
+  type Match,
+  type MatchFunction,
+  type ParamData,
+} from "path-to-regexp";
 
 export class TinyRouter {
   private routes: Array<{

@@ -42,11 +42,11 @@ export const API = {
             ? await response.json()
             : await response.text();
           throw new Error(response.statusText, { cause: errorBody });
-        } else if (isJson) {
-          return response.json() as RESP;
-        } else {
-          return response.text() as unknown as RESP;
         }
+        if (isJson) {
+          return response.json() as RESP;
+        }
+        return response.text() as unknown as RESP;
       })
       .catch((error) => {
         // Catch and rethrow
@@ -73,13 +73,13 @@ export const API = {
       .then((response) => {
         if (!response.ok) {
           throw new Error(response.statusText);
-        } else if (
+        }
+        if (
           response.headers.get("Content-Type")?.startsWith("application/json")
         ) {
           return response.json() as RESP;
-        } else {
-          return null as RESP;
         }
+        return null as RESP;
       })
       .catch((error) => {
         // Catch and rethrow
@@ -95,19 +95,21 @@ export const API = {
   },
   handleResponse: <T>(response: {
     data?: T | undefined;
-    error?: Error;
+    error?: Record<string, unknown>;
     response: Response;
   }): Promise<T> => {
     if (response.error) {
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
       return Promise.reject(response.error);
     }
     return Promise.resolve(response.data as T);
   },
   handleResponseReturnNull: (response: {
-    error?: Error;
+    error?: Record<string, unknown>;
     response: Response;
   }): Promise<null> => {
     if (response.error) {
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
       return Promise.reject(response.error);
     }
     return Promise.resolve(null);

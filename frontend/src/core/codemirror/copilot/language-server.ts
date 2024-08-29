@@ -11,7 +11,7 @@ import type {
 import { VersionedTextDocumentIdentifier } from "vscode-languageserver-protocol";
 
 import { LanguageServerClient } from "codemirror-languageserver";
-import {
+import type {
   CopilotStatus,
   CopilotSignInInitiateParams,
   CopilotSignInInitiateResult,

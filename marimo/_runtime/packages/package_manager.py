@@ -4,6 +4,7 @@ from __future__ import annotations
 import abc
 import shutil
 import subprocess
+from typing import List
 
 
 class PackageManager(abc.ABC):
@@ -52,6 +53,21 @@ class PackageManager(abc.ABC):
     def run(self, command: list[str]) -> bool:
         proc = subprocess.run(command)  # noqa: ASYNC101
         return proc.returncode == 0
+
+    def update_notebook_script_metadata(
+        self,
+        filepath: str,
+        import_namespaces_to_add: List[str],
+        import_namespaces_to_remove: List[str],
+    ) -> None:
+        del filepath, import_namespaces_to_add, import_namespaces_to_remove
+        """
+        Add or remove inline script metadata metadata
+        in the marimo notebook.
+
+        This follows PEP 723 https://peps.python.org/pep-0723/
+        """
+        return
 
 
 class CanonicalizingPackageManager(PackageManager):

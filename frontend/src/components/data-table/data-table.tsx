@@ -1,12 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React, { memo, useEffect, useState } from "react";
 import {
+  type Column,
   type ColumnDef,
   type ColumnFiltersState,
+  ColumnPinning,
+  type ColumnPinningState,
   type OnChangeFn,
   type PaginationState,
+  type Row,
   type RowSelectionState,
   type SortingState,
+  type Table as TanStackTable,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
@@ -35,6 +40,8 @@ import { Spinner } from "../icons/spinner";
 import { FilterPills } from "./filter-pills";
 import { ColumnWrappingFeature } from "./column-wrapping/feature";
 import { ColumnFormattingFeature } from "./column-formatting/feature";
+import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
+import { SELECT_COLUMN_ID } from "./types";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
@@ -45,8 +52,10 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   sorting?: SortingState;
   setSorting?: OnChangeFn<SortingState>;
   // Pagination
+  totalRows: number | "too_many";
   pagination?: boolean;
-  pageSize?: number;
+  paginationState?: PaginationState;
+  setPaginationState?: OnChangeFn<PaginationState>;
   // Selection
   selection?: "single" | "multi" | null;
   rowSelection?: RowSelectionState;
@@ -59,6 +68,9 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   filters?: ColumnFiltersState;
   onFiltersChange?: OnChangeFn<ColumnFiltersState>;
   reloading?: boolean;
+  // Columns
+  freezeColumnsLeft?: string[];
+  freezeColumnsRight?: string[];
 }
 
 const DataTableInternal = <TData,>({
@@ -67,9 +79,11 @@ const DataTableInternal = <TData,>({
   columns,
   data,
   sorting,
+  totalRows,
   setSorting,
   rowSelection,
-  pageSize = 10,
+  paginationState,
+  setPaginationState,
   downloadAs,
   pagination = false,
   onRowSelectionChange,
@@ -80,26 +94,40 @@ const DataTableInternal = <TData,>({
   filters,
   onFiltersChange,
   reloading,
+  freezeColumnsLeft,
+  freezeColumnsRight,
 }: DataTableProps<TData>) => {
   const [isSearchEnabled, setIsSearchEnabled] = React.useState<boolean>(false);
-  const [paginationState, setPaginationState] = React.useState<PaginationState>(
-    { pageSize: pageSize, pageIndex: 0 },
-  );
+  const [columnPinning, setColumnPinning] = React.useState<ColumnPinningState>({
+    left: freezeColumnsLeft
+      ? [SELECT_COLUMN_ID, ...freezeColumnsLeft]
+      : [SELECT_COLUMN_ID],
+    right: freezeColumnsRight,
+  });
 
-  // If pageSize changes, reset pageSize
-  useEffect(() => {
-    if (paginationState.pageSize !== pageSize) {
-      setPaginationState((state) => ({ ...state, pageSize: pageSize }));
-    }
-  }, [pageSize, paginationState.pageSize]);
-
-  const table = useReactTable({
-    _features: [ColumnWrappingFeature, ColumnFormattingFeature],
+  const table = useReactTable<TData>({
+    _features: [ColumnPinning, ColumnWrappingFeature, ColumnFormattingFeature],
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
     // pagination
-    onPaginationChange: setPaginationState,
+    rowCount: totalRows === "too_many" ? undefined : totalRows,
+    ...(setPaginationState
+      ? {
+          manualPagination: true,
+          onPaginationChange: setPaginationState,
+          getRowId: (_row, idx) => {
+            if (!paginationState) {
+              return String(idx);
+            }
+            // Add offset if pagination is enabled
+            const offset = pagination
+              ? paginationState.pageIndex * paginationState.pageSize
+              : 0;
+            return String(idx + offset);
+          },
+        }
+      : {}),
     getPaginationRowModel: pagination ? getPaginationRowModel() : undefined,
     // sorting
     onSortingChange: setSorting,
@@ -116,45 +144,150 @@ const DataTableInternal = <TData,>({
       sorting,
       columnFilters: filters,
       pagination: pagination
-        ? { ...paginationState, pageSize: pageSize }
+        ? paginationState
         : { pageIndex: 0, pageSize: data.length },
       rowSelection,
+      columnPinning: columnPinning,
     },
+    onColumnPinningChange: setColumnPinning,
   });
 
-  const renderHeader = () => {
+  useEffect(() => {
+    setColumnPinning({
+      left:
+        !freezeColumnsLeft || freezeColumnsLeft?.includes(SELECT_COLUMN_ID)
+          ? freezeColumnsLeft
+          : [SELECT_COLUMN_ID, ...freezeColumnsLeft],
+      right: freezeColumnsRight,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [useDeepCompareMemoize([freezeColumnsLeft, freezeColumnsRight])]);
+
+  const getPinningStyles = (
+    column: Column<TData>,
+  ): React.HTMLAttributes<HTMLElement> => {
+    const isPinned = column.getIsPinned();
+    const isLastLeftPinnedColumn =
+      isPinned === "left" && column.getIsLastColumn("left");
+    const isFirstRightPinnedColumn =
+      isPinned === "right" && column.getIsFirstColumn("right");
+
+    return {
+      className: cn(isPinned && "bg-background", "shadow-r z-10"),
+      style: {
+        boxShadow:
+          isLastLeftPinnedColumn && column.id !== "__select__"
+            ? "-4px 0 4px -4px var(--slate-8) inset"
+            : isFirstRightPinnedColumn
+              ? "4px 0 4px -4px var(--slate-8) inset"
+              : undefined,
+        left: isPinned === "left" ? `${column.getStart("left")}px` : undefined,
+        right:
+          isPinned === "right" ? `${column.getAfter("right")}px` : undefined,
+        opacity: 1,
+        position: isPinned ? "sticky" : "relative",
+        zIndex: isPinned ? 1 : 0,
+        width: column.getSize(),
+      },
+    };
+  };
+
+  // Update column sizes in table state for column pinning offsets
+  // https://github.com/TanStack/table/discussions/3947#discussioncomment-9564867
+  const columnSizingHandler = (
+    thead: HTMLTableCellElement | null,
+    table: TanStackTable<TData>,
+    column: Column<TData>,
+  ) => {
+    if (!thead) {
+      return;
+    }
+    if (
+      table.getState().columnSizing[column.id] ===
+      thead.getBoundingClientRect().width
+    ) {
+      return;
+    }
+
+    table.setColumnSizing((prevSizes) => ({
+      ...prevSizes,
+      [column.id]: thead.getBoundingClientRect().width,
+    }));
+  };
+
+  const renderHeader = (position: "left" | "center" | "right") => {
     // Hide header if no results
     if (!table.getRowModel().rows?.length) {
       return;
     }
 
+    const headerGroups =
+      position === "left"
+        ? table.getLeftHeaderGroups()
+        : position === "right"
+          ? table.getRightHeaderGroups()
+          : table.getCenterHeaderGroups();
+
     // whitespace-pre so that strings with different whitespace look
     // different
-    return table.getHeaderGroups().map((headerGroup) => (
-      <TableRow key={headerGroup.id}>
-        {headerGroup.headers.map((header) => {
-          return (
-            <TableHead
-              key={header.id}
-              className="h-auto min-h-10 whitespace-pre align-baseline"
-            >
-              {header.isPlaceholder
-                ? null
-                : flexRender(
-                    header.column.columnDef.header,
-                    header.getContext(),
-                  )}
-            </TableHead>
-          );
-        })}
-      </TableRow>
-    ));
+    return headerGroups.map((headerGroup) =>
+      headerGroup.headers.map((header) => {
+        const { className, style } = getPinningStyles(header.column);
+        return (
+          <TableHead
+            key={header.id}
+            className={cn(
+              "h-auto min-h-10 whitespace-pre align-baseline",
+              className,
+            )}
+            style={style}
+            ref={(thead) => columnSizingHandler(thead, table, header.column)}
+          >
+            {header.isPlaceholder
+              ? null
+              : flexRender(header.column.columnDef.header, header.getContext())}
+          </TableHead>
+        );
+      }),
+    );
+  };
+
+  const renderCells = (
+    row: Row<TData>,
+    position: "left" | "center" | "right",
+  ) => {
+    const cells =
+      position === "left"
+        ? row.getLeftVisibleCells()
+        : position === "right"
+          ? row.getRightVisibleCells()
+          : row.getCenterVisibleCells();
+
+    return cells.map((cell) => {
+      const { className, style } = getPinningStyles(cell.column);
+      return (
+        <TableCell
+          key={cell.id}
+          className={cn(
+            "whitespace-pre truncate max-w-[300px]",
+            cell.column.getColumnWrapping &&
+              cell.column.getColumnWrapping() === "wrap" &&
+              "whitespace-pre-wrap min-w-[200px]",
+            className,
+          )}
+          style={style}
+          title={String(cell.getValue())}
+        >
+          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+        </TableCell>
+      );
+    });
   };
 
   return (
     <div className={cn(wrapperClassName, "flex flex-col space-y-1")}>
       <FilterPills filters={filters} table={table} />
-      <div className={cn(className || "rounded-md border")}>
+      <div className={cn(className || "rounded-md border overflow-hidden")}>
         {onSearchQueryChange && enableSearch && (
           <SearchBar
             value={searchQuery || ""}
@@ -165,7 +298,11 @@ const DataTableInternal = <TData,>({
           />
         )}
         <Table>
-          <TableHeader>{renderHeader()}</TableHeader>
+          <TableHeader>
+            {renderHeader("left")}
+            {renderHeader("center")}
+            {renderHeader("right")}
+          </TableHeader>
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
@@ -180,23 +317,9 @@ const DataTableInternal = <TData,>({
                     }
                   }}
                 >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      className={cn(
-                        "whitespace-pre truncate max-w-[300px]",
-                        cell.column.getColumnWrapping &&
-                          cell.column.getColumnWrapping() === "wrap" &&
-                          "whitespace-pre-wrap min-w-[200px]",
-                      )}
-                      title={String(cell.getValue())}
-                    >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
-                    </TableCell>
-                  ))}
+                  {renderCells(row, "left")}
+                  {renderCells(row, "center")}
+                  {renderCells(row, "right")}
                 </TableRow>
               ))
             ) : (
@@ -225,7 +348,28 @@ const DataTableInternal = <TData,>({
             </Button>
           </Tooltip>
         )}
-        {pagination ? <DataTablePagination table={table} /> : <div />}
+        {pagination ? (
+          <DataTablePagination
+            onSelectAllRowsChange={
+              onRowSelectionChange
+                ? (value) => {
+                    if (value) {
+                      const allKeys = Array.from(
+                        { length: table.getRowCount() },
+                        (_, i) => [i, true] as const,
+                      );
+                      onRowSelectionChange(Object.fromEntries(allKeys));
+                    } else {
+                      onRowSelectionChange({});
+                    }
+                  }
+                : undefined
+            }
+            table={table}
+          />
+        ) : (
+          <div />
+        )}
         {downloadAs && <DownloadAs downloadAs={downloadAs} />}
       </div>
     </div>

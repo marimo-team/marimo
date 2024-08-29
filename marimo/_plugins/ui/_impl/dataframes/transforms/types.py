@@ -60,13 +60,18 @@ class TransformType(Enum):
     SORT_COLUMN = "sort_column"
     SHUFFLE_ROWS = "shuffle_rows"
     SAMPLE_ROWS = "sample_rows"
+    EXPLODE_COLUMNS = "explode_columns"
+    EXPAND_DICT = "expand_dict"
 
 
-@dataclass
+@dataclass(frozen=True)
 class Condition:
     column_id: ColumnId
     operator: Operator
     value: Optional[Any] = None
+
+    def __hash__(self) -> int:
+        return hash((self.column_id, self.operator, self.value))
 
 
 @dataclass
@@ -134,6 +139,18 @@ class SampleRowsTransform:
     seed: int
 
 
+@dataclass
+class ExplodeColumnsTransform:
+    type: Literal[TransformType.EXPLODE_COLUMNS]
+    column_ids: ColumnIds
+
+
+@dataclass
+class ExpandDictTransform:
+    type: Literal[TransformType.EXPAND_DICT]
+    column_id: ColumnId
+
+
 Transform = Union[
     AggregateTransform,
     ColumnConversionTransform,
@@ -144,6 +161,8 @@ Transform = Union[
     SortColumnTransform,
     ShuffleRowsTransform,
     SampleRowsTransform,
+    ExplodeColumnsTransform,
+    ExpandDictTransform,
 ]
 
 
@@ -206,4 +225,14 @@ class TransformHandler(abc.ABC, Generic[T]):
     @staticmethod
     @abc.abstractmethod
     def handle_sample_rows(df: T, transform: SampleRowsTransform) -> T:
+        raise NotImplementedError
+
+    @staticmethod
+    @abc.abstractmethod
+    def handle_explode_columns(df: T, transform: ExplodeColumnsTransform) -> T:
+        raise NotImplementedError
+
+    @staticmethod
+    @abc.abstractmethod
+    def handle_expand_dict(df: T, transform: ExpandDictTransform) -> T:
         raise NotImplementedError

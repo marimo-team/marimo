@@ -1,7 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { z } from "zod";
 
-import type { Transformations } from "./schema";
+import {
+  ConditionSchema,
+  type ConditionType,
+  type Transformations,
+} from "./schema";
 import { TransformPanel } from "./panel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Code2Icon, FunctionSquareIcon } from "lucide-react";
@@ -13,10 +17,13 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { LoadingDataTableComponent } from "../DataTablePlugin";
 import { Functions } from "@/utils/functions";
 import { Arrays } from "@/utils/arrays";
-import { memo, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Banner, ErrorBanner } from "../common/error-banner";
 import type { DataType } from "../vega/vega-loader";
+
+type CsvURL = string;
+type TableData<T> = T[] | CsvURL;
 
 /**
  * Arguments for a data table
@@ -44,10 +51,19 @@ type PluginFunctions = {
     values: unknown[];
     too_many_values: boolean;
   }>;
-  sort_values: <T>(req: {
-    by: string | null;
-    descending: boolean;
-  }) => Promise<T[] | string>;
+  search: <T>(req: {
+    sort?: {
+      by: string;
+      descending: boolean;
+    };
+    query?: string;
+    filters?: ConditionType[];
+    page_number: number;
+    page_size: number;
+  }) => Promise<{
+    data: TableData<T>;
+    total_rows: number;
+  }>;
 };
 
 // Value is selection, but it is not currently exposed to the user
@@ -87,9 +103,24 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
         too_many_values: z.boolean(),
       }),
     ),
-    sort_values: rpc
-      .input(z.object({ by: z.string().nullable(), descending: z.boolean() }))
-      .output(z.union([z.string(), z.array(z.object({}).passthrough())])),
+    search: rpc
+      .input(
+        z.object({
+          sort: z
+            .object({ by: z.string(), descending: z.boolean() })
+            .optional(),
+          query: z.string().optional(),
+          filters: z.array(ConditionSchema).optional(),
+          page_number: z.number(),
+          page_size: z.number(),
+        }),
+      )
+      .output(
+        z.object({
+          data: z.union([z.string(), z.array(z.object({}).passthrough())]),
+          total_rows: z.number(),
+        }),
+      ),
   })
   .renderer((props) => (
     <TooltipProvider>
@@ -120,18 +151,34 @@ export const DataFrameComponent = memo(
     setValue,
     get_dataframe,
     get_column_values,
-    sort_values,
+    search,
   }: DataTableProps): JSX.Element => {
     const { data, error } = useAsyncData(
       () => get_dataframe({}),
       [value?.transforms],
     );
+
     const { url, has_more, total_rows, row_headers, supports_code_sample } =
       data || {};
 
     const [internalValue, setInternalValue] = useState<Transformations>(
       value || EMPTY,
     );
+
+    // If dataframe changes and value.transforms gets reset, then
+    // apply existing transformations (displayed in panel) to new data
+    const prevValueRef = useRef(internalValue);
+
+    useEffect(() => {
+      prevValueRef.current = internalValue;
+    });
+
+    useEffect(() => {
+      const prevValue = prevValueRef.current;
+      if (value?.transforms.length !== prevValue.transforms.length) {
+        setValue(prevValue);
+      }
+    }, [data, value?.transforms, prevValueRef, setValue]);
 
     return (
       <div>
@@ -183,7 +230,6 @@ export const DataFrameComponent = memo(
           label={null}
           className="rounded-b border-x border-b"
           data={url || ""}
-          hasMore={false} // Handled above
           totalRows={total_rows ?? 0}
           pageSize={pageSize}
           pagination={true}
@@ -192,12 +238,7 @@ export const DataFrameComponent = memo(
           download_as={Functions.THROW}
           enableSearch={false}
           showFilters={false}
-          search={({ sort }) => {
-            if (sort) {
-              return sort_values(sort);
-            }
-            return Promise.resolve(url || "");
-          }}
+          search={search}
           showColumnSummaries={false}
           get_column_summaries={getColumnSummaries}
           value={Arrays.EMPTY}
@@ -211,7 +252,7 @@ export const DataFrameComponent = memo(
 DataFrameComponent.displayName = "DataFrameComponent";
 
 function getColumnSummaries() {
-  return Promise.resolve({ summaries: [] });
+  return Promise.resolve({ summaries: [], data: null });
 }
 
 function prettyNumber(value: number): string {

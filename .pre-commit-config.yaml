@@ -2,7 +2,7 @@ fail_fast: true
 
 repos:
   - repo: https://github.com/abravalheri/validate-pyproject
-    rev: v0.18
+    rev: v0.19
     hooks:
       - id: validate-pyproject
 
@@ -14,12 +14,12 @@ repos:
         exclude: ^marimo/_tutorials/.*\.md
 
   - repo: https://github.com/crate-ci/typos
-    rev: v1.23.6
+    rev: v1.24.1
     hooks:
       - id: typos
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.5.6
+    rev: v0.6.2
     hooks:
       # Run the linter
       - id: ruff
@@ -30,9 +30,9 @@ repos:
   - repo: https://github.com/biomejs/pre-commit
     rev: v0.4.0
     hooks:
-      - id: biome-format
-        args: [--config-path, frontend/biome.json]
-        additional_dependencies: ["@biomejs/biome@1.8.3"]
+      - id: biome-check
+        args: [--config-path, biome.json, --diagnostic-level, warn]
+        additional_dependencies: ['@biomejs/biome@1.8.3']
         exclude: |
           (?x)^(
             docs/_static/.*|

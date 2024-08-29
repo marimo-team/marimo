@@ -15,3 +15,7 @@ class CompletionOption:
     type: str
     # docstring, type hint, or other info
     completion_info: Optional[str]
+
+    def __post_init__(self) -> None:
+        # Remove trailing quotes because frontends may automatically add quotes
+        self.name = self.name.rstrip('"').rstrip("'")

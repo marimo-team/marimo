@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { pythonPrint } from "@/plugins/impl/data-frames/python/python-print";
-import { TransformType } from "@/plugins/impl/data-frames/schema";
+import type { TransformType } from "@/plugins/impl/data-frames/schema";
 import { expect, describe, it } from "vitest";
 import {
   BOOLEAN_OPERATORS,
@@ -9,7 +9,7 @@ import {
   STRING_OPERATORS,
 } from "../../utils/operators";
 import { Objects } from "@/utils/objects";
-import { ColumnId } from "../../types";
+import type { ColumnId } from "../../types";
 
 describe("pythonPrint", () => {
   // Test for column_conversion
@@ -335,4 +335,26 @@ describe("pythonPrint: filter", () => {
       expect(result).toMatchSnapshot();
     },
   );
+
+  // Test for explode_column
+  it("generates correct Python code for explode_column", () => {
+    const transform: TransformType = {
+      type: "explode_columns",
+      column_ids: ["my_column"] as ColumnId[],
+    };
+    const result = pythonPrint("df", transform);
+    expect(result).toMatchInlineSnapshot(`"df.explode(["my_column"])"`);
+  });
+
+  // Test for expand_dict
+  it("generates correct Python code for expand_dict", () => {
+    const transform: TransformType = {
+      type: "expand_dict",
+      column_id: "my_column" as ColumnId,
+    };
+    const result = pythonPrint("df", transform);
+    expect(result).toMatchInlineSnapshot(
+      `"df.join(pd.DataFrame(df.pop("my_column").values.tolist()))"`,
+    );
+  });
 });
