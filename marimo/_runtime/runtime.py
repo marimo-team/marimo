@@ -698,9 +698,7 @@ class Kernel:
 
                 # We only drop in-memory views for the same reason.
                 duckdb.execute(f"DROP VIEW IF EXISTS memory.main.{name}")
-            elif (
-                variable.kind == "database" and DependencyManager.duckdb.has()
-            ):
+            elif variable.kind == "schema" and DependencyManager.duckdb.has():
                 import duckdb
 
                 duckdb.execute(f"DETACH DATABASE IF EXISTS {name}")

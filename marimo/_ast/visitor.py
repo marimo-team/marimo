@@ -44,9 +44,9 @@ class ImportData:
 
 @dataclass
 class VariableData:
-    # "table", "view", and "database" are SQL variables, not Python.
+    # "table", "view", and "schema" are SQL variables, not Python.
     kind: Literal[
-        "function", "class", "import", "variable", "table", "view", "database"
+        "function", "class", "import", "variable", "table", "view", "schema"
     ] = "variable"
 
     # If kind == function or class, it may be dependent on externally defined
@@ -70,7 +70,7 @@ class VariableData:
             "sql"
             if (
                 self.kind == "table"
-                or self.kind == "database"
+                or self.kind == "schema"
                 or self.kind == "view"
             )
             else "python"
@@ -436,8 +436,8 @@ class ScopedVisitor(ast.NodeVisitor):
                     try:
                         tables = duckdb.get_table_names(statement.query)
                         # TODO(akshayka): more comprehensive parsing
-                        # of the statement -- databases can show up in
-                        # joins, queries
+                        # of the statement -- schemas can show up in
+                        # joins, queries, ...
                         from_targets = find_from_targets(statement.query)
                     except duckdb.ProgrammingError:
                         self.generic_visit(node)
@@ -468,8 +468,8 @@ class ScopedVisitor(ast.NodeVisitor):
                         self._define(_table, VariableData("table"))
                     for _view in sql_defs.views:
                         self._define(_view, VariableData("view"))
-                    for _db in sql_defs.databases:
-                        self._define(_db, VariableData("database"))
+                    for _schema in sql_defs.schemas:
+                        self._define(_schema, VariableData("schema"))
 
         # Visit arguments, keyword args, etc.
         self.generic_visit(node)

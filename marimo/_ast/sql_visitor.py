@@ -118,16 +118,16 @@ class TokenExtractor:
 class SQLDefs:
     tables: list[str]
     views: list[str]
-    databases: list[str]
+    schemas: list[str]
 
 
 def find_sql_defs(sql_statement: str) -> SQLDefs:
     """
-    Find the tables, views, and databases created/attached in a SQL statement.
+    Find the tables, views, and schemas created/attached in a SQL statement.
 
     This function uses the DuckDB tokenizer to find the tables created
-    and databases attached in a SQL statement. It returns a list of the table
-    names created and databases attached in the statement.
+    and schemas attached in a SQL statement. It returns a list of the table
+    names created and schemas attached in the statement.
 
     Args:
         sql_statement: The SQL statement to parse.
@@ -146,7 +146,7 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
     )
     created_tables: list[str] = []
     created_views: list[str] = []
-    created_dbs: list[str] = []
+    created_schemas: list[str] = []
     i = 0
 
     # See
@@ -186,33 +186,33 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
                     else:
                         created_views.append(table_name)
         elif token_extractor.is_keyword(i, "attach"):
-            db_name = None
+            schema_name = None
             i += 1
             if i < len(tokens) and token_extractor.is_keyword(i, "database"):
                 i += 1  # Skip 'DATABASE'
             if i < len(tokens) and token_extractor.is_keyword(i, "if"):
                 i += 3  # Skip "IF NOT EXISTS"
             if i < len(tokens):
-                db_name = token_extractor.strip_quotes(
+                schema_name = token_extractor.strip_quotes(
                     token_extractor.token_str(i)
                 )
-                if "." in db_name:
+                if "." in schema_name:
                     # strip the extension from the name
-                    db_name = db_name.split(".")[0]
+                    schema_name = schema_name.split(".")[0]
             if i + 1 < len(tokens) and token_extractor.is_keyword(i + 1, "as"):
                 # Skip over database-path 'AS'
                 i += 2
                 # AS clause gets precedence in creating database
-                db_name = token_extractor.strip_quotes(
+                schema_name = token_extractor.strip_quotes(
                     token_extractor.token_str(i)
                 )
-            if db_name is not None:
-                created_dbs.append(db_name)
+            if schema_name is not None:
+                created_schemas.append(schema_name)
 
         i += 1
 
     return SQLDefs(
-        tables=created_tables, views=created_views, databases=created_dbs
+        tables=created_tables, views=created_views, schemas=created_schemas
     )
 
 
@@ -222,7 +222,7 @@ def find_from_targets(
     sql_statement: str,
 ) -> list[str]:
     """
-    Find tokens following the FROM keyword, which may be tables or databases.
+    Find tokens following the FROM keyword, which may be tables or schemas.
 
     Args:
         sql_statement: The SQL statement to parse.
@@ -253,7 +253,7 @@ def find_from_targets(
                     token_extractor.token_str(i)
                 )
                 if "." in name:
-                    # get the database name
+                    # get the schema
                     name = name.split(".")[0]
                 refs.append(name)
         i += 1
