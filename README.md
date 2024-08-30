@@ -32,7 +32,7 @@ and deployable as apps.
 - 🚀 **batteries-included:** replaces `jupyter`, `streamlit`, `jupytext`, `ipywidgets`, `papermill`, and more
 - ⚡️ **reactive**: run a cell, and marimo reactively [runs all dependent cells](https://docs.marimo.io/guides/reactivity.html) or <a href="#expensive-notebooks">marks them as stale</a>
 - 🖐️ **interactive:** [bind sliders, tables, plots, and more](https://docs.marimo.io/guides/interactivity.html) to Python — no callbacks required
-- 🔬 **reproducible:** [no hidden state](https://docs.marimo.io/guides/reactivity.html#no-hidden-state), deterministic execution
+- 🔬 **reproducible:** [no hidden state](https://docs.marimo.io/guides/reactivity.html#no-hidden-state), deterministic execution, [built-in package management](https://docs.marimo.io/guides/editor_features/package_management.html)
 - 🏃‍♂️ **executable:** [execute as a Python script](https://docs.marimo.io/guides/scripts.html), parametrized by CLI args
 - 🛜 **shareable**: [deploy as an interactive web app](https://docs.marimo.io/guides/apps.html) or [slides](https://docs.marimo.io/guides/apps.html#slides-layout), [run in the browser via WASM](https://docs.marimo.io/guides/wasm.html)
 - 🛢️ **designed for data**: query dataframes and databases [with SQL](https://docs.marimo.io/guides/sql.html), filter and search [dataframes](https://docs.marimo.io/guides/dataframes.html#displaying-dataframes)
@@ -89,8 +89,15 @@ Your notebooks are still pure Python, even if they use markdown or SQL.
 order, based on variable references instead of cells' positions on the page.
 Organize your notebooks to best fit the stories you'd like to tell.
 
-**Batteries-included.** marimo comes with GitHub Copilot, Ruff code
-formatting, HTML export, fast code completion, a [VS Code
+**Built-in package management.** marimo has built-in support for all major
+package managers, letting you install packages on import. marimo can even
+[serialize package
+requirements](https://docs.marimo.io/guides/editor_features/package_management.html#auto-add-inline-script-metadata-uv-only)
+in notebook files, and auto install them in
+[isolated venv sandboxes](https://docs.marimo.io/guides/editor_features/package_management.html#running-marimo-in-a-sandbox-environment-uv-only).
+
+**Batteries-included.** marimo comes with GitHub Copilot, AI assistants, Ruff
+code formatting, HTML export, fast code completion, a [VS Code
 extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo),
 an interactive dataframe viewer, and many more quality-of-life features.
 
