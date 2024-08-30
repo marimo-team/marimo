@@ -65,6 +65,14 @@ def notebook_page_template(
         "{{ mode }}",
         "read" if mode == SessionMode.RUN else "edit",
     )
+    # If has custom css, inline the css and add to the head
+    if app_config.css_file:
+        css_contents = read_css_file(app_config.css_file, filename=filename)
+        if css_contents:
+            css_contents = f"<style>{css_contents}</style>"
+            # Append to head
+            html = html.replace("</head>", f"{css_contents}</head>")
+
     return html
 
 
@@ -167,7 +175,7 @@ def static_notebook_template(
         .replace('src="./', f'crossorigin="anonymous" src="{asset_url}/')
     )
 
-    # Append to body
+    # Append to head
     html = html.replace("</head>", f"{static_block}</head>")
     # Append to body
     html = html.replace("</body>", f"{code_block}</body>")
