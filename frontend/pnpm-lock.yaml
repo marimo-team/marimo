@@ -308,9 +308,6 @@ dependencies:
   react-codemirror-merge:
     specifier: ^4.23.0
     version: 4.23.0(@babel/runtime@7.24.4)(@codemirror/autocomplete@6.18.0)(@codemirror/language@6.10.2)(@codemirror/lint@6.8.1)(@codemirror/search@6.5.6)(@codemirror/state@6.4.1)(@codemirror/theme-one-dark@6.1.2)(@codemirror/view@6.32.0)(codemirror@6.0.1)(react-dom@18.3.1)(react@18.3.1)
-  react-day-picker:
-    specifier: ^8.10.1
-    version: 8.10.1(date-fns@3.6.0)(react@18.3.1)
   react-dropzone:
     specifier: ^14.2.3
     version: 14.2.3(react@18.3.1)
@@ -15843,16 +15840,6 @@ packages:
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
     dev: true
-
-  /react-day-picker@8.10.1(date-fns@3.6.0)(react@18.3.1):
-    resolution: {integrity: sha512-TMx7fNbhLk15eqcMt+7Z7S2KF7mfTId/XJDjKE8f+IUcFn0l08/kI4FiYTL/0yuOLmEcbR4Fwe3GJf/NiiMnPA==}
-    peerDependencies:
-      date-fns: ^2.28.0 || ^3.0.0
-      react: ^16.8.0 || ^17.0.0 || ^18.0.0
-    dependencies:
-      date-fns: 3.6.0
-      react: 18.3.1
-    dev: false
 
   /react-dnd-html5-backend@14.1.0:
     resolution: {integrity: sha512-6ONeqEC3XKVf4eVmMTe0oPds+c5B9Foyj8p/ZKLb7kL2qh9COYxiBHv3szd6gztqi/efkmriywLUVlPotqoJyw==}
