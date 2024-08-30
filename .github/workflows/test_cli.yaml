@@ -14,6 +14,7 @@ jobs:
   build_wheel:
     name: Build marimo wheel
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         shell: bash
@@ -73,6 +74,7 @@ jobs:
     name: Tests CLI on ${{ matrix.os }} ${{ matrix.python-version }}
     needs: build_wheel
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     strategy:
       matrix:
         # TODO(akshayka): consider adding 3.8, 3.9
@@ -111,6 +113,7 @@ jobs:
     name: Tests examples and smoke_tests
     needs: build_wheel
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: 🛑 Cancel Previous Runs
