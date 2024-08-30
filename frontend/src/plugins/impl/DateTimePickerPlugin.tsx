@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import type { IPlugin, IPluginProps, Setter } from "../types";
 import { DatePicker } from "@/components/ui/date-picker";
-import { type CalendarDate, parseDate } from "@internationalized/date";
+import { type CalendarDateTime, parseDateTime } from "@internationalized/date";
 import { Labeled } from "./common/labeled";
 
 type T = string;
@@ -16,8 +16,8 @@ interface Data {
   fullWidth: boolean;
 }
 
-export class DatePickerPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-date";
+export class DateTimePickerPlugin implements IPlugin<T, Data> {
+  tagName = "marimo-datetime";
 
   validator = z.object({
     initialValue: z.string(),
@@ -30,7 +30,7 @@ export class DatePickerPlugin implements IPlugin<T, Data> {
 
   render(props: IPluginProps<T, Data>): JSX.Element {
     return (
-      <DatePickerComponent
+      <DateTimePickerComponent
         {...props.data}
         value={props.value}
         setValue={props.setValue}
@@ -39,30 +39,30 @@ export class DatePickerPlugin implements IPlugin<T, Data> {
   }
 }
 
-interface DatePickerProps extends Data {
+interface DateTimePickerProps extends Data {
   value: T;
   setValue: Setter<T>;
 }
 
-const DatePickerComponent = (props: DatePickerProps): JSX.Element => {
-  const handleInput = (valueAsDate: CalendarDate) => {
-    if (!valueAsDate) {
+const DateTimePickerComponent = (props: DateTimePickerProps): JSX.Element => {
+  const handleInput = (valueAsDateTime: CalendarDateTime) => {
+    if (!valueAsDateTime) {
       return;
     }
 
-    const isoStr = valueAsDate.toString();
+    const isoStr = valueAsDateTime.toString();
     props.setValue(isoStr);
   };
 
   return (
     <Labeled label={props.label} fullWidth={props.fullWidth}>
       <DatePicker
-        granularity="day"
-        value={parseDate(props.value)}
+        granularity="minute"
+        value={parseDateTime(props.value)}
         onChange={handleInput}
-        aria-label={props.label ?? "date picker"}
-        minValue={parseDate(props.start)}
-        maxValue={parseDate(props.stop)}
+        aria-label={props.label ?? "date time picker"}
+        minValue={parseDateTime(props.start)}
+        maxValue={parseDateTime(props.stop)}
       />
     </Labeled>
   );

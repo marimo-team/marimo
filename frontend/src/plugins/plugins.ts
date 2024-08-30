@@ -43,6 +43,8 @@ import { LazyPlugin } from "./layout/LazyPlugin";
 import { NavigationMenuPlugin } from "@/plugins/layout/NavigationMenuPlugin";
 import { initializeSidebarElement } from "./core/sidebar-element";
 import { RoutesPlugin } from "./layout/RoutesPlugin";
+import { DateTimePickerPlugin } from "./impl/DateTimePickerPlugin";
+import { DateRangePickerPlugin } from "./impl/DateRangePlugin";
 
 // List of UI plugins
 export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
@@ -50,6 +52,8 @@ export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
   new CheckboxPlugin(),
   DataTablePlugin,
   new DatePickerPlugin(),
+  new DateTimePickerPlugin(),
+  new DateRangePickerPlugin(),
   new DictPlugin(),
   new CodeEditorPlugin(),
   new DropdownPlugin(),

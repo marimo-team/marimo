@@ -140,3 +140,40 @@ def get_date_series_info(series: Any) -> DateSeriesInfo:
             )
 
     raise ValueError("Unsupported series type. Expected pandas or polars.")
+
+
+def get_datetime_series_info(series: Any) -> DateSeriesInfo:
+    """
+    Get the summary of a datetime series.
+    """
+
+    def validate_datetime(value: Any) -> str:
+        if isinstance(value, datetime.datetime):
+            return value.strftime("%Y-%m-%dT%H:%M:%S")
+        if isinstance(value, datetime.date):
+            # Convert date to datetime
+            value = datetime.datetime(value.year, value.month, value.day)
+            return value.strftime("%Y-%m-%d")
+        raise ValueError("Expected a datetime. Got: " + str(type(value)))
+
+    if DependencyManager.pandas.has():
+        import pandas as pd
+
+        if isinstance(series, pd.Series):
+            return DateSeriesInfo(
+                min=validate_datetime(series.min()),
+                max=validate_datetime(series.max()),
+                label=_get_name(series),
+            )
+
+    if DependencyManager.polars.has():
+        import polars as pl
+
+        if isinstance(series, pl.Series):
+            return DateSeriesInfo(
+                min=validate_datetime(series.min()),
+                max=validate_datetime(series.max()),
+                label=_get_name(series),
+            )
+
+    raise ValueError("Unsupported series type. Expected pandas or polars.")

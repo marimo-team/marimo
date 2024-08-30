@@ -65,6 +65,9 @@ dependencies:
   '@hookform/resolvers':
     specifier: ^3.9.0
     version: 3.9.0(react-hook-form@7.52.2)
+  '@internationalized/date':
+    specifier: ^3.5.5
+    version: 3.5.5
   '@lezer/common':
     specifier: ^1.2.1
     version: 1.2.1

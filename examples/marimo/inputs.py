@@ -1,6 +1,13 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "marimo",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.8.5"
+__generated_with = "0.8.7"
 app = marimo.App(width="medium")
 
 
@@ -10,7 +17,7 @@ def __(mo):
         r"""
         # Inputs
 
-        There are many way that a user can input with your notebook, such as text boxes, sliders, dates, and more. 
+        There are many way that a user can input with your notebook, such as text boxes, sliders, dates, and more.
         """
     )
     return
@@ -169,8 +176,18 @@ def __(mo):
         start=datetime.date(2020, 1, 1),
         stop=datetime.date(2020, 12, 31),
     )
-    mo.hstack([start_date, "➡️", end_date]).left()
     return datetime, end_date, start_date
+
+
+@app.cell
+def __(end_date, mo, start_date):
+    mo.hstack(
+        [
+            mo.hstack([start_date, "➡️", end_date]).left(),
+            mo.md(f"From {start_date.value} to {end_date.value}"),
+        ]
+    )
+    return
 
 
 @app.cell

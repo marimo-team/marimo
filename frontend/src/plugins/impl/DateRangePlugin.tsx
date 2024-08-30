@@ -2,11 +2,11 @@
 import { z } from "zod";
 
 import type { IPlugin, IPluginProps, Setter } from "../types";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DateRangePicker } from "@/components/ui/date-picker";
 import { type CalendarDate, parseDate } from "@internationalized/date";
 import { Labeled } from "./common/labeled";
 
-type T = string;
+type T = [string, string];
 
 interface Data {
   label: string | null;
@@ -16,11 +16,11 @@ interface Data {
   fullWidth: boolean;
 }
 
-export class DatePickerPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-date";
+export class DateRangePickerPlugin implements IPlugin<T, Data> {
+  tagName = "marimo-date-range";
 
   validator = z.object({
-    initialValue: z.string(),
+    initialValue: z.tuple([z.string(), z.string()]),
     label: z.string().nullable(),
     start: z.string(),
     stop: z.string(),
@@ -30,7 +30,7 @@ export class DatePickerPlugin implements IPlugin<T, Data> {
 
   render(props: IPluginProps<T, Data>): JSX.Element {
     return (
-      <DatePickerComponent
+      <DateRangePickerComponent
         {...props.data}
         value={props.value}
         setValue={props.setValue}
@@ -39,28 +39,35 @@ export class DatePickerPlugin implements IPlugin<T, Data> {
   }
 }
 
-interface DatePickerProps extends Data {
+interface DateRangePickerProps extends Data {
   value: T;
   setValue: Setter<T>;
 }
 
-const DatePickerComponent = (props: DatePickerProps): JSX.Element => {
-  const handleInput = (valueAsDate: CalendarDate) => {
-    if (!valueAsDate) {
+const DateRangePickerComponent = (props: DateRangePickerProps): JSX.Element => {
+  const handleInput = (valueAsDateRange: {
+    start: CalendarDate;
+    end: CalendarDate;
+  }) => {
+    if (!valueAsDateRange) {
       return;
     }
 
-    const isoStr = valueAsDate.toString();
-    props.setValue(isoStr);
+    const { start, end } = valueAsDateRange;
+    const isoStrRange: T = [start.toString(), end.toString()];
+    props.setValue(isoStrRange);
   };
 
   return (
     <Labeled label={props.label} fullWidth={props.fullWidth}>
-      <DatePicker
+      <DateRangePicker
         granularity="day"
-        value={parseDate(props.value)}
+        value={{
+          start: parseDate(props.value[0]),
+          end: parseDate(props.value[1]),
+        }}
         onChange={handleInput}
-        aria-label={props.label ?? "date picker"}
+        aria-label={props.label ?? "date range picker"}
         minValue={parseDate(props.start)}
         maxValue={parseDate(props.stop)}
       />
