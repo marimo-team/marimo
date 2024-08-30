@@ -19,7 +19,7 @@
 .. autoclass:: marimo.ui.date
   :members:
 
-  .. autoclasstoc:: marimo._plugins.ui._impl.input.date
+  .. autoclasstoc:: marimo._plugins.ui._impl.dates.date
 ```
 
 ## Date and time
