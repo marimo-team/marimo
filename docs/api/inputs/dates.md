@@ -37,6 +37,14 @@
         return
 ```
 
+```{eval-rst}
+.. autoclass:: marimo.ui.date
+  :members:
+
+  .. autoclasstoc:: marimo._plugins.ui._impl.dates.date
+```
+
+
 ## Date range
 
 ````{eval-rst}
@@ -54,3 +62,10 @@
         mo.hstack([date_range, mo.md(f"Has value: {date_range.value}")])
         return
 ````
+
+```{eval-rst}
+.. autoclass:: marimo.ui.date
+  :members:
+
+  .. autoclasstoc:: marimo._plugins.ui._impl.dates.date
+```
