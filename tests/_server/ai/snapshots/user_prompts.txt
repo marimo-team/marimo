@@ -1,0 +1,47 @@
+
+
+==================== no code ====================
+
+Create a pandas dataframe
+
+==================== with code ====================
+
+Create a pandas dataframe
+
+Current code:
+df = pd.DataFrame({'a': [1, 2, 3], 'b': [4, 5, 6]})
+
+==================== with code and other code ====================
+
+Create a pandas dataframe
+
+Code from other cells:
+import pandas as pd
+import numpy as np
+
+
+Current code:
+df = pd.DataFrame({'a': [1, 2, 3], 'b': [4, 5, 6]})
+
+==================== with just other code ====================
+
+Create a pandas dataframe
+
+Code from other cells:
+import pandas as pd
+import numpy as np
+
+
+==================== with context ====================
+
+Create a pandas dataframe
+
+Code from other cells:
+import marimo as mo
+
+Current code:
+import pandas as pd
+
+Available schema:
+- df_1: age (int), name (str)
+- d2_2: a (int), b (int)

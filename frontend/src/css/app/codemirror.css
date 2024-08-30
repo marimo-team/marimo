@@ -30,10 +30,9 @@
 /* -- Tooltips: code completion and type hints -- */
 
 #root .cm-tooltip {
-  border: none;
   border-radius: 4px;
 
-  @apply bg-popover shadow-smSolid shadow-shade;
+  @apply bg-popover shadow-sm shadow-shade border-border;
 }
 
 /*

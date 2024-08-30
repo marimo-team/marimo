@@ -1,8 +1,19 @@
-# Copyright 2024 Marimo. All rights reserved.
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "dask",
+#     "vega-datasets",
+#     "polars",
+#     "altair",
+#     "pyarrow",
+#     "marimo",
+#     "pandas",
+# ]
+# ///
 
 import marimo
 
-__generated_with = "0.8.0"
+__generated_with = "0.8.7"
 app = marimo.App(width="full")
 
 
@@ -294,6 +305,34 @@ def __():
 
     cars = vega_datasets.data.cars()
     return alt, cars, mo, pa, pd, pl, vega_datasets
+
+
+app._unparsable_cell(
+    r"""
+    SELECT * FROM cars WHERE Cylinders > 6;
+    """,
+    name="__"
+)
+
+
+@app.cell
+def __(mo):
+    _df = mo.sql(
+        f"""
+        SELECT * FROM
+        """
+    )
+    return
+
+
+@app.cell
+def __(cars, mo):
+    _df = mo.sql(
+        f"""
+        SELECT * FROM cars WHERE Cylinders > 6;
+        """
+    )
+    return
 
 
 if __name__ == "__main__":

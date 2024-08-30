@@ -252,7 +252,8 @@ const AddCellButtons: React.FC = () => {
         className={cn(
           "shadow-sm border border-border rounded transition-all duration-200 overflow-hidden divide-x divide-border flex",
           !isAiButtonOpen && "w-fit",
-          isAiButtonOpen && "opacity-100 w-full max-w-4xl shadow-lg",
+          isAiButtonOpen &&
+            "opacity-100 w-full max-w-4xl shadow-lg shadow-[var(--blue-3)]",
         )}
       >
         {renderBody()}
