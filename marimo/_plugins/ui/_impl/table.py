@@ -423,7 +423,7 @@ class table(
         # Get column summaries
         summaries: List[ColumnSummary] = []
         for column in self._manager.get_column_names():
-            summary = self._manager.get_summary(column)
+            summary = self._searched_manager.get_summary(column)
             summaries.append(
                 ColumnSummary(
                     column=column,
@@ -446,7 +446,7 @@ class table(
             )
 
         return ColumnSummaries(
-            data=self._manager.to_data({}),
+            data=self._searched_manager.to_data({}),
             summaries=summaries,
             is_disabled=False,
         )
