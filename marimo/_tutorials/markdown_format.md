@@ -12,12 +12,6 @@ work on prose-heavy marimo notebooks in your editor of choice.
 _Make sure to look at the markdown
 [source code](https://github.com/marimo-team/marimo/blob/main/marimo/_tutorials/markdown_format.md)
 of this tutorial!_
-<!---->
-When using the markdown file format, you can write and save markdown directly,
-and marimo will execute the necessary Python code for you behind the scenes.
-This allows you to focus on prose, and not formatting your text in a block
-string.
-<!---->
 ## Running markdown notebooks
 
 To edit a markdown notebook, use
