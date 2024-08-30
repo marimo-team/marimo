@@ -1,10 +1,14 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import atexit
 import os
 import re
 import subprocess
+import tempfile
 from typing import Any, Dict, List, Optional, cast
+
+import click
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -20,8 +24,6 @@ def run_in_sandbox(
     args: List[str],
     name: Optional[str] = None,
 ) -> subprocess.CompletedProcess[Any]:
-    import click
-
     if not DependencyManager.which("uv"):
         raise click.UsageError("uv must be installed to use --sandbox")
 
@@ -33,36 +35,29 @@ def run_in_sandbox(
     if name is not None and os.path.isfile(name):
         with open(name) as f:
             dependencies = _get_dependencies(f.read()) or []
-        # Add marimo, if it's not already there
-        if "marimo" not in dependencies and len(dependencies) > 0:
-            dependencies.append("marimo")
 
-    if dependencies:
-        import tempfile
+    # The sandbox needs to manage marimo, too, to make sure
+    # that the outer environment doesn't leak into the sandbox.
+    if "marimo" not in dependencies:
+        dependencies.append("marimo")
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", delete=False, suffix=".txt"
-        ) as temp_file:
-            temp_file.write("\n".join(dependencies))
-            temp_file_path = temp_file.name
+    with tempfile.NamedTemporaryFile(
+        mode="w", delete=False, suffix=".txt"
+    ) as temp_file:
+        temp_file.write("\n".join(dependencies))
+        temp_file_path = temp_file.name
+    # Clean up the temporary file after the subprocess has run
+    atexit.register(lambda: os.unlink(temp_file_path))
 
-        cmd = [
-            "uv",
-            "run",
-            "--isolated",
-            "--with-requirements",
-            temp_file_path,
-        ] + cmd
-
-        # Clean up the temporary file after the subprocess has run
-        import atexit
-
-        atexit.register(lambda: os.unlink(temp_file_path))
-    else:
-        cmd = ["uv", "run", "--isolated"] + cmd
+    cmd = [
+        "uv",
+        "run",
+        "--isolated",
+        "--with-requirements",
+        temp_file_path,
+    ] + cmd
 
     click.echo(f"Running in a sandbox: {' '.join(cmd)}")
-
     return subprocess.run(cmd)
 
 
