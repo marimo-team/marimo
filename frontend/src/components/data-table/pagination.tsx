@@ -84,14 +84,6 @@ export const DataTablePagination = <TData,>({
   );
   const totalPages = table.getPageCount();
 
-  const renderOption = (i: number) => {
-    return (
-      <option key={i} value={i + 1}>
-        {i + 1}
-      </option>
-    );
-  };
-
   return (
     <div className="flex flex-1 items-center justify-between px-2">
       <div className="text-sm text-muted-foreground">{renderTotal()}</div>
