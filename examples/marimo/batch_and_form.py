@@ -1,12 +1,12 @@
 import marimo
 
-__generated_with = "0.1.0"
+__generated_with = "0.8.5"
 app = marimo.App()
 
 
 @app.cell
 def __(mo):
-    mo.md("# Batch and Form")
+    mo.md("""# Batch and Form""")
     return
 
 
@@ -29,9 +29,9 @@ def __(mo, reset):
         mo.md(
             """
             Choose your variable values
-        
+
             {x}
-        
+
             {y}
             """
         )
@@ -39,7 +39,7 @@ def __(mo, reset):
             x=mo.ui.slider(start=1, stop=10, step=1, label="$x =$"),
             y=mo.ui.slider(start=1, stop=10, step=1, label="$y =$"),
         )
-        .form()
+        .form(show_clear_button=True, bordered=False)
     )
 
     variables
@@ -63,8 +63,7 @@ def __(mo, reset, submitted_values, variables):
 
         All values ever assumed by $x$ and $y$ are
 
-        {mo.hstack([mo.tree(submitted_values), reset],
-                   justify="start", align="center", gap=4)}
+        {mo.hstack([mo.tree(submitted_values), reset], align="center", gap=4)}
         """
     ).callout()
     return x, y
@@ -74,10 +73,7 @@ def __(mo, reset, submitted_values, variables):
 def __(reset):
     reset
 
-    submitted_values = {
-        "x": set(),
-        "y": set()
-    }
+    submitted_values = {"x": set(), "y": set()}
     return submitted_values,
 
 

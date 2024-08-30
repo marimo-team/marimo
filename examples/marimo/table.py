@@ -1,29 +1,38 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "marimo",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.1.2"
+__generated_with = "0.8.5"
 app = marimo.App()
 
 
 @app.cell
 def __(mo):
-    mo.md("""
-    # Tables
+    mo.md(
+        """
+        # Tables
 
-    > “Sometimes I’ll start a sentence and I don’t even know where it’s going. I just hope I find it along the way.”
-    — Michael Scott
-    """)
+        > “Sometimes I’ll start a sentence and I don’t even know where it’s going. I just hope I find it along the way.”
+        — Michael Scott
+        """
+    )
     return
 
 
 @app.cell
 def __(mo):
-    mo.md("_Create rich tables with selectable rows using_ `mo.ui.table`.")
+    mo.md("""_Create rich tables with selectable rows using_ `mo.ui.table`.""")
     return
 
 
 @app.cell
 def __(mo):
-    mo.md("**Single selection.**")
+    mo.md("""**Single selection.**""")
     return
 
 
@@ -45,7 +54,7 @@ def __(mo, single_select_table):
 
 @app.cell
 def __(mo):
-    mo.md("**Multi-selection.**")
+    mo.md("""**Multi-selection.**""")
     return
 
 
@@ -67,7 +76,7 @@ def __(mo, multi_select_table):
 
 @app.cell
 def __(mo):
-    mo.md("**No selection.**")
+    mo.md("""**No selection.**""")
     return
 
 

@@ -1,3 +1,13 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "pandas",
+#     "vega-datasets",
+#     "requests",
+#     "altair",
+#     "marimo",
+# ]
+# ///
 import marimo
 
 __generated_with = "0.1.68"
