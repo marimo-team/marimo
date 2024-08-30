@@ -1,3 +1,10 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "vega-datasets",
+#     "marimo",
+# ]
+# ///
 import marimo
 
 __generated_with = "0.8.3"
