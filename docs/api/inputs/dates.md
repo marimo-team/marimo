@@ -44,7 +44,6 @@
   .. autoclasstoc:: marimo._plugins.ui._impl.dates.datetime
 ```
 
-
 ## Date range
 
 ````{eval-rst}
