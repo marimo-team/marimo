@@ -58,7 +58,7 @@ class MatplotlibFormatter(FormatterFactory):
                 return ("text/plain", str(bc))
 
     def apply_theme(self, theme: Theme) -> None:
-        import matplotlib  # type: ignore
+        import matplotlib.style  # type: ignore
 
         matplotlib.style.use(
             "dark_background" if theme == "dark" else "default"
