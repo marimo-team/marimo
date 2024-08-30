@@ -41,7 +41,7 @@
 .. autoclass:: marimo.ui.date
   :members:
 
-  .. autoclasstoc:: marimo._plugins.ui._impl.dates.date
+  .. autoclasstoc:: marimo._plugins.ui._impl.dates.datetime
 ```
 
 
@@ -67,5 +67,5 @@
 .. autoclass:: marimo.ui.date
   :members:
 
-  .. autoclasstoc:: marimo._plugins.ui._impl.dates.date
+  .. autoclasstoc:: marimo._plugins.ui._impl.dates.date_range
 ```
