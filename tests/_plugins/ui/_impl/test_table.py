@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.table import SearchTableArgs, SortArgs
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
@@ -408,6 +409,58 @@ def test_with_too_many_rows_column_charts_disabled():
     )
     charts_enabled = table.get_column_summaries(EmptyArgs())
     assert charts_enabled.is_disabled is False
+
+
+def test_get_column_summaries_after_search():
+    data = {"a": list(range(20))}
+    table = ui.table(data)
+
+    # search results are 2 and 12
+    table.search(
+        SearchTableArgs(
+            query="2",
+            page_size=10,
+            page_number=0,
+        )
+    )
+    summaries = table.get_column_summaries(EmptyArgs())
+    assert summaries.is_disabled is False
+    assert summaries.data == [{"a": 2}, {"a": 12}]
+    # We don't have column summaries for non-dataframe data
+    assert summaries.summaries[0].min is None
+    assert summaries.summaries[0].max is None
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(), reason="Pandas not installed"
+)
+def test_get_column_summaries_after_search_df():
+    import pandas as pd
+
+    table = ui.table(pd.DataFrame({"a": list(range(20))}))
+    summaries = table.get_column_summaries(EmptyArgs())
+    assert summaries.is_disabled is False
+    assert isinstance(summaries.data, str)
+    assert summaries.data.startswith("data:text/csv;base64,")
+    assert summaries.summaries[0].min == 0
+    assert summaries.summaries[0].max == 19
+
+    # search results are 2 and 12
+    table.search(
+        SearchTableArgs(
+            query="2",
+            page_size=10,
+            page_number=0,
+        )
+    )
+    summaries = table.get_column_summaries(EmptyArgs())
+    assert summaries.is_disabled is False
+    assert isinstance(summaries.data, str)
+    assert summaries.data.startswith("data:text/csv;base64,")
+    # We don't have column summaries for non-dataframe data
+    assert summaries.summaries[0].min == 2
+    assert summaries.summaries[0].max == 12
+    assert summaries.summaries[0].nulls == 0
 
 
 def test_table_with_frozen_columns():
