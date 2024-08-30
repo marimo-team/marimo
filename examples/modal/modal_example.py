@@ -14,6 +14,7 @@ app = modal.App()
     image=modal.Image.debian_slim().pip_install("marimo>=0.8.3", "fastapi"),
     gpu=False,
     concurrency_limit=1,
+    allow_concurrent_inputs=2,
     memory=256,
     mounts=[modal.Mount.from_local_dir("./nbs", remote_path="/marimo")],
 )
