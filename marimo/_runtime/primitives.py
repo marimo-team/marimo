@@ -4,7 +4,6 @@ from __future__ import annotations
 import inspect
 import numbers
 import sys
-import typing
 import weakref
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
@@ -42,13 +41,23 @@ def is_clone_primitive(value: Any) -> bool:
     return isinstance(value, CLONE_PRIMITIVES)
 
 
-def is_data_primitive(_value: Any) -> bool:
-    # TODO
-    # check for __array__ and __array_interface__ to determine if it's a numpy
-    # convertible object
-    # Check numpy non-object
-    # Check pandas
-    return False
+def is_data_primitive(value: Any) -> bool:
+    if is_primitive(value):
+        return True
+
+    # Tuples don't allow for write access
+    if isinstance(value, tuple):
+        return all(map(is_data_primitive, value))
+
+    # If a numpy array, ensure that it's not an object array.
+    if hasattr(value, "__array_interface__"):
+        dtype = getattr(value, "dtype", None)
+        if dtype is not None and dtype.hasobject:
+            return False
+        return True
+
+    # Otherwise may be a closely related array object like a pandas DataFrame.
+    return hasattr(value, "__array__") or hasattr(value, "toarray")
 
 
 def is_pure_scope(
@@ -56,10 +65,8 @@ def is_pure_scope(
     defs: dict[str, Any],
     cache: FN_CACHE_TYPE = None,
 ) -> bool:
-    return (
-        inspect.ismodule(defs[ref])
-        or is_pure_function(ref, defs[ref], defs, cache)
-        or is_pure_class(defs[ref], defs, cache)
+    return inspect.ismodule(defs[ref]) or is_pure_function(
+        ref, defs[ref], defs, cache
     )
 
 
@@ -84,17 +91,17 @@ def is_pure_function(
     # builtin_function_or_method are C functions, which we assume to be pure
     if inspect.isbuiltin(value):
         return True
-    # We assume all module functions to be pure. Cache can still be be
-    # invalidated by pin_modules attribute. Note this also captures cases like
-    # functors from an external module. (e.g. numpy functions like np.sum are
-    # secretly instances of _ArrayFunctionDispatcher)
-    # TODO: Investigate embedded notebook values.
-    if getattr(value, "__module__", None) != "__main__":
-        return True
 
     # Note: isfunction still covers lambdas, coroutines, etc.
     if not inspect.isfunction(value):
         return False
+
+    # We assume all external module function references to be pure. Cache can
+    # still be be invalidated by pin_modules attribute. Note this also captures
+    # cases like functors from an external module.
+    # TODO: Investigate embedded notebook values.
+    if getattr(value, "__module__", None) != "__main__":
+        return True
 
     cache[value] = True  # Prevent recursion
 
@@ -109,8 +116,7 @@ def is_pure_function(
             # Recursion allows for effective DFS
             if not (
                 inspect.ismodule(defs[ref])
-                or is_pure_function(ref, defs[ref], defs, cache)
-                or is_pure_class(defs[ref], defs, cache)
+                or is_pure_function(ref, defs[ref], defs, cache, graph)
             ):
                 cache[value] = False
                 return False
@@ -121,60 +127,6 @@ def is_pure_function(
             {ref}, inclusive=False, predicate=cancel_predicate
         )
 
-    return cache[value]
-
-
-def is_pure_class(
-    value: Any,
-    defs: dict[str, Any],
-    cache: FN_CACHE_TYPE = None,
-) -> bool:
-    # The idea of "pure class", doesn't fully make sense- since by definition
-    # classes contain state. A class without state is more akin to a namespace,
-    # However, we can still determine if a class is "pure" in the sense that it
-    # does not mutate data outside of scoped state.
-
-    # All members are primitive, and all methods are pure.
-    if cache is None:
-        cache = {}
-    # Explicit removal of __hash__ indicates this is potentially mutable.
-    # (e.g. list)
-    if getattr(value, "__hash__", None) is None:
-        return False
-    if value in cache:
-        return cache[value]
-    if not inspect.isclass(value):
-        return False
-
-    cache[value] = True  # Prevent recursion
-
-    # Check properties
-    annotations = typing.get_type_hints(value)
-    for annotation in annotations.values():
-        types = getattr(annotation, "__args__", (annotation,))
-        for t in types:
-            if not (
-                is_primitive(t)
-                or is_primitive_type(t)
-                or is_pure_class(t, defs, cache)
-            ):
-                cache[value] = False
-                return False
-
-    # Check methods
-    _potential_attributes: set[str] = set()
-    for _name, method in inspect.getmembers(value):
-        if inspect.isfunction(method):
-            nonlocals, glbls, _builtins, unbound = inspect.getclosurevars(
-                method
-            )
-            _potential_attributes |= unbound
-            potentially_impure = {**nonlocals, **glbls}
-            for ref, data in potentially_impure.items():
-                cache[data] = False  # Prevent recursion
-                if not is_pure_scope(ref, defs, cache):
-                    cache[value] = False
-                    return False
     return cache[value]
 
 

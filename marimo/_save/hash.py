@@ -9,6 +9,7 @@ import types
 from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ast.visitor import ScopedVisitor
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.context import get_context
 from marimo._runtime.primitives import (
     FN_CACHE_TYPE,
@@ -21,21 +22,29 @@ from marimo._save.cache import Cache, CacheType
 from marimo._utils.variables import if_local_then_mangle, unmangle_local
 
 if TYPE_CHECKING:
-    from hashlib import _Hash as HASH
+    from hashlib import _Hash as Hash
     from types import CodeType
 
     from marimo._ast.cell import CellId_t, CellImpl
     from marimo._runtime.dataflow import DirectedGraph
     from marimo._save.loaders import Loader
 
+    # Union[list, torch.Tensor, jax.numpy.ndarray,
+    #             np.ndarray, scipy.sparse.spmatrix]
+    Tensor = Any
 
-def hash_module(code: Optional[CodeType], hash_type: str = "sha256") -> bytes:
+
+DEFAULT_HASH = "sha256"
+
+
+def hash_module(
+    code: Optional[CodeType], hash_type: str = DEFAULT_HASH
+) -> bytes:
+    hash_alg = hashlib.new(hash_type, usedforsecurity=False)
     if not code:
-        # SHA256 hash of 32 zero bytes, in the case of no code object
+        # Hash of zeros, in the case of no code object as a recognizable noop.
         # Artifact of typing for mypy, but reasonable fallback.
-        return b"0" * 32
-
-    hash_alg = hashlib.new(hash_type)
+        return b"0" * len(hash_alg.digest())
 
     def process(code_obj: CodeType) -> None:
         # Recursively hash the constants that are also code objects
@@ -53,7 +62,9 @@ def hash_module(code: Optional[CodeType], hash_type: str = "sha256") -> bytes:
     return hash_alg.digest()
 
 
-def hash_raw_module(module: ast.Module, hash_type: str = "sha256") -> bytes:
+def hash_raw_module(
+    module: ast.Module, hash_type: str = DEFAULT_HASH
+) -> bytes:
     # AST has to be compiled to code object prior to process.
     return hash_module(
         compile(
@@ -66,14 +77,14 @@ def hash_raw_module(module: ast.Module, hash_type: str = "sha256") -> bytes:
     )
 
 
-def hash_cell_impl(cell: CellImpl, hash_type: str = "sha256") -> bytes:
+def hash_cell_impl(cell: CellImpl, hash_type: str = DEFAULT_HASH) -> bytes:
     return hash_module(cell.body, hash_type) + hash_module(
         cell.last_expr, hash_type
     )
 
 
 def hash_and_dequeue_execution_refs(
-    hash_alg: HASH,
+    hash_alg: Hash,
     cell_id: CellId_t,
     graph: DirectedGraph,
     refs: set[str],
@@ -98,8 +109,46 @@ def hash_and_dequeue_execution_refs(
                 refs.remove(unmangled_ref)
 
 
+def standardize_tensor(tensor: Tensor) -> Optional[Tensor]:
+    # TODO: Consider moving to a more general utility module.
+    if hasattr(tensor, "__array__") or hasattr(tensor, "toarray"):
+        if not hasattr(tensor, "__array_interface__"):
+            DependencyManager.require_numpy(
+                "to render images from generic arrays in `mo.image`"
+            )
+            import numpy
+
+            # Capture those sparse cases
+            if hasattr(tensor, "toarray"):
+                tensor = tensor.toarray()
+            tensor = numpy.array(tensor)
+        return tensor
+    raise ValueError(
+        f"Expected an image object, but got {type(tensor)} instead."
+    )
+
+
+def data_to_buffer(data: Tensor) -> bytes:
+    data = standardize_tensor(data)
+    # From joblib.hashing
+    if data.shape == ():
+        # 0d arrays need to be flattened because viewing them as bytes
+        # raises a ValueError exception.
+        data_c_contiguous = data.flatten()
+    elif data.flags.c_contiguous:
+        data_c_contiguous = data
+    elif data.flags.f_contiguous:
+        data_c_contiguous = data.T
+    else:
+        # Cater for non-single-segment arrays, this creates a copy, and thus
+        # alleviates this issue. Note: There might be a more efficient way of
+        # doing this, check for joblib updates.
+        data_c_contiguous = data.flatten()
+    return memoryview(data_c_contiguous.view("uint8"))
+
+
 def hash_and_dequeue_content_refs(
-    hash_alg: HASH,
+    hash_alg: Hash,
     cell_id: CellId_t,
     defs: dict[str, Any],
     refs: set[str],
@@ -126,16 +175,18 @@ def hash_and_dequeue_content_refs(
             continue
         value = defs[ref]
 
-        # TODO: Maybe recursively explore standard containers.
-        if is_primitive(value):
-            hash_alg.update(str(value).encode("utf8"))
+        # An external module variable is assumed to be pure, with module
+        # pinning being the mechanism for invalidation.
+        if getattr(value, "__module__", None) != "__main__":
+            refs.remove(local_ref)
+        elif is_primitive(value):
+            hash_alg.update(memoryview(value))
             refs.remove(local_ref)
         elif is_data_primitive(value):
-            hash_alg.update(str(value).encode("utf8"))
+            hash_alg.update(data_to_buffer(value))
             refs.remove(local_ref)
         elif is_pure_function(ref, value, defs, fn_cache, graph):
-            if isinstance(value, types.FunctionType):
-                hash_alg.update(hash_module(value.__code__, hash_alg.name))
+            hash_alg.update(hash_module(value.__code__, hash_alg.name))
             refs.remove(local_ref)
 
 
@@ -181,7 +232,7 @@ def cache_attempt_from_hash(
     *,
     context: Optional[ast.Module] = None,
     pin_modules: bool = False,
-    hash_type: str = "sha256",
+    hash_type: str = DEFAULT_HASH,
     loader: Loader,
 ) -> Cache:
     """Hash the context of the module, and return a cache object.
@@ -226,7 +277,7 @@ def cache_attempt_from_hash(
     refs = set(visitor.refs)
     stateful_refs = normalize_and_extract_ref_state(visitor.refs, refs, defs)
 
-    hash_alg = hashlib.new(hash_type)
+    hash_alg = hashlib.new(hash_type, usedforsecurity=False)
     cache_type: CacheType = "ContentAddressed"
     # Attempt content hash
     hash_and_dequeue_content_refs(
