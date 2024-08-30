@@ -38,7 +38,7 @@
 ```
 
 ```{eval-rst}
-.. autoclass:: marimo.ui.date
+.. autoclass:: marimo.ui.datetime
   :members:
 
   .. autoclasstoc:: marimo._plugins.ui._impl.dates.datetime
@@ -64,7 +64,7 @@
 ````
 
 ```{eval-rst}
-.. autoclass:: marimo.ui.date
+.. autoclass:: marimo.ui.date_range
   :members:
 
   .. autoclasstoc:: marimo._plugins.ui._impl.dates.date_range
