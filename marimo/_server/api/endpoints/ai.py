@@ -9,6 +9,7 @@ from starlette.responses import StreamingResponse
 
 from marimo import _loggers
 from marimo._config.config import MarimoConfig
+from marimo._server.ai.prompts import Prompter
 from marimo._server.api.deps import AppState
 from marimo._server.api.status import HTTPStatus
 from marimo._server.api.utils import parse_request
@@ -16,7 +17,6 @@ from marimo._server.models.completion import (
     AiCompletionRequest,
 )
 from marimo._server.router import APIRouter
-from marimo._utils.assert_never import assert_never
 
 if TYPE_CHECKING:
     from anthropic import (  # type: ignore[import-not-found]
@@ -225,38 +225,9 @@ async def ai_completion(
     config = app_state.config_manager.get_config(hide_secrets=False)
     body = await parse_request(request, cls=AiCompletionRequest)
 
-    if body.language == "python":
-        system_prompt = (
-            "You are a helpful assistant that can answer questions "
-            "about python code. You can only output python code. "
-            "1. Do not describe the code, just write the code."
-            "2. Do not output markdown or backticks."
-            "3. When using matplotlib to show plots,"
-            "use plt.gca() instead of plt.show()."
-            "4. If an import already exists, do not import it again."
-            "5. If a variable is already defined, use another name, or"
-            "make it private by adding an underscore at the beginning."
-        )
-    elif body.language == "markdown":
-        system_prompt = (
-            "You are a helpful assistant that can answer questions "
-            "about markdown. You can only output markdown."
-        )
-    elif body.language == "sql":
-        system_prompt = (
-            "You are a helpful assistant that can answer questions "
-            "about sql. You can only output sql."
-        )
-    else:
-        assert_never(body.language)
-
-    prompt = body.prompt
-    if body.include_other_code:
-        prompt = (
-            f"{prompt}\n\nCode from other cells:\n{body.include_other_code}"
-        )
-    if body.code.strip():
-        prompt = f"{prompt}\n\nCurrent code:\n{body.code}"
+    prompter = Prompter(body.code, body.include_other_code, body.context)
+    system_prompt = Prompter.get_system_prompt(body.language)
+    prompt = prompter.get_prompt(body.prompt)
 
     model = get_model(config)
 
