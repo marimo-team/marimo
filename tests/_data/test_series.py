@@ -9,6 +9,7 @@ import pytest
 from marimo._data.series import (
     get_category_series_info,
     get_date_series_info,
+    get_datetime_series_info,
     get_number_series_info,
 )
 from marimo._dependencies.dependencies import DependencyManager
@@ -113,3 +114,44 @@ def test_date_series(df: Any) -> None:
         response = get_date_series_info(df["B"])
     with pytest.raises(ValueError):
         response = get_date_series_info(df["A"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    [
+        pd.DataFrame(
+            {
+                "A": [1, 2, 3],
+                "B": ["a", "b", "b"],
+                "C": [
+                    datetime(2024, 1, 1, 12, 0),
+                    datetime(2024, 1, 2, 13, 30),
+                    datetime(2024, 1, 3, 15, 45),
+                ],
+            }
+        ),
+        pl.DataFrame(
+            {
+                "A": [1, 2, 3],
+                "B": ["a", "b", "b"],
+                "C": [
+                    datetime(2024, 1, 1, 12, 0),
+                    datetime(2024, 1, 2, 13, 30),
+                    datetime(2024, 1, 3, 15, 45),
+                ],
+            }
+        ),
+    ],
+)
+def test_datetime_series(df: Any) -> None:
+    response = get_datetime_series_info(df["C"])
+
+    assert response.min == "2024-01-01T12:00:00"
+    assert response.max == "2024-01-03T15:45:00"
+    assert response.label == "C"
+
+    with pytest.raises(ValueError):
+        response = get_datetime_series_info(df["B"])
+    with pytest.raises(ValueError):
+        response = get_datetime_series_info(df["A"])

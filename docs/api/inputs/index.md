@@ -12,7 +12,7 @@
   code_editor
   dataframe
   data_explorer
-  date
+  dates
   dictionary
   dropdown
   file
@@ -49,6 +49,8 @@ powerful notebooks and apps. These elements are available in `marimo.ui`.
   marimo.ui.dataframe
   marimo.ui.data_explorer
   marimo.ui.date
+  marimo.ui.datetime
+  marimo.ui.date_range
   marimo.ui.dictionary
   marimo.ui.dropdown
   marimo.ui.file

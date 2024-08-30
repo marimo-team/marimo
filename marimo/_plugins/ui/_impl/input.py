@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import base64
 import dataclasses
-import datetime as dt
 import os
 import traceback
 from dataclasses import dataclass
@@ -26,7 +25,6 @@ from marimo import _loggers
 from marimo._data.series import (
     DataFrameSeries,
     get_category_series_info,
-    get_date_series_info,
     get_number_series_info,
 )
 from marimo._output.rich_help import mddoc
@@ -129,9 +127,10 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
     def from_series(series: DataFrameSeries, **kwargs: Any) -> "number":
         """Create a number picker from a dataframe series."""
         info = get_number_series_info(series)
-        return number(
-            start=info.min, stop=info.max, label=info.label, **kwargs
-        )
+        start = kwargs.pop("start", info.min)
+        stop = kwargs.pop("stop", info.max)
+        label = kwargs.pop("label", info.label)
+        return number(start=start, stop=stop, label=label, **kwargs)
 
     def _convert_value(self, value: Optional[Numeric]) -> Optional[Numeric]:
         """Value is `None` if user uses keyboard to delete contents of input"""
@@ -310,9 +309,10 @@ class slider(UIElement[Numeric, Numeric]):
     def from_series(series: DataFrameSeries, **kwargs: Any) -> "slider":
         """Create a slider from a dataframe series."""
         info = get_number_series_info(series)
-        return slider(
-            start=info.min, stop=info.max, label=info.label, **kwargs
-        )
+        start = kwargs.pop("start", info.min)
+        stop = kwargs.pop("stop", info.max)
+        label = kwargs.pop("label", info.label)
+        return slider(start=start, stop=stop, label=label, **kwargs)
 
     def _convert_value(self, value: Numeric) -> Numeric:
         if self._mapping is not None:
@@ -490,9 +490,10 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
     def from_series(series: DataFrameSeries, **kwargs: Any) -> "range_slider":
         """Create a range slider from a dataframe series."""
         info = get_number_series_info(series)
-        return range_slider(
-            start=info.min, stop=info.max, label=info.label, **kwargs
-        )
+        start = kwargs.pop("start", info.min)
+        stop = kwargs.pop("stop", info.max)
+        label = kwargs.pop("label", info.label)
+        return range_slider(start=start, stop=stop, label=label, **kwargs)
 
     def _convert_value(self, value: List[Numeric]) -> Sequence[Numeric]:
         if self._mapping is not None:
@@ -631,11 +632,9 @@ class radio(UIElement[Optional[str], Any]):
     def from_series(series: DataFrameSeries, **kwargs: Any) -> "radio":
         """Create a radio group from a dataframe series."""
         info = get_category_series_info(series)
-        return radio(
-            options=info.categories,
-            label=info.label,
-            **kwargs,
-        )
+        options = kwargs.pop("options", info.categories)
+        label = kwargs.pop("label", info.label)
+        return radio(options=options, label=label, **kwargs)
 
     def _convert_value(self, value: Optional[str]) -> Any:
         return self.options[value] if value is not None else None
@@ -942,11 +941,9 @@ class dropdown(UIElement[List[str], Any]):
     def from_series(series: DataFrameSeries, **kwargs: Any) -> "dropdown":
         """Create a dropdown from a dataframe series."""
         info = get_category_series_info(series)
-        return dropdown(
-            options=info.categories,
-            label=info.label,
-            **kwargs,
-        )
+        options = kwargs.pop("options", info.categories)
+        label = kwargs.pop("label", info.label)
+        return dropdown(options=options, label=label, **kwargs)
 
     def _convert_value(self, value: list[str]) -> Any:
         if value:
@@ -1053,11 +1050,9 @@ class multiselect(UIElement[List[str], List[object]]):
     def from_series(series: DataFrameSeries, **kwargs: Any) -> "multiselect":
         """Create a multiselect from a dataframe series."""
         info = get_category_series_info(series)
-        return multiselect(
-            options=info.categories,
-            label=info.label,
-            **kwargs,
-        )
+        options = kwargs.pop("options", info.categories)
+        label = kwargs.pop("label", info.label)
+        return multiselect(options=options, label=label, **kwargs)
 
     def _convert_value(self, value: list[str]) -> list[object]:
         return [self.options[v] for v in value]
@@ -1431,139 +1426,6 @@ class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
             return None
         else:
             return self.value[index].path
-
-
-@mddoc
-class date(UIElement[str, dt.date]):
-    """
-    A date picker with an optional start and stop date.
-
-    **Example.**
-
-    ```python
-    # initialize the date picker at a given date
-    date = mo.ui.date(value="2022-01-01")
-    ```
-
-    ```python
-    # when value is omitted, date picker initializes with today's date
-    date = mo.ui.date()
-    ```
-
-    ```python
-    # create a date picker with bounds
-    date = mo.ui.date(
-        value="2022-06-01",
-        start="2022-01-01",
-        stop="2022-12-31",
-    )
-    ```
-
-    Or from a dataframe series:
-
-    ```python
-    date = mo.ui.date.from_series(df["column_name"])
-    ```
-
-    **Attributes.**
-
-    - `value`: a str (YYYY-MM-DD) or `datetime.date` object of the chosen date
-    - `start`: the start date
-    - `stop`: the stop date
-
-    **Initialization Args.**
-
-    - `start`: minimum date selectable; if None, defaults to 01-01-0001
-    - `stop`: maximum date selectable; if None, defaults to 12-31-9999
-    - `value`: default date
-        - if `None` and `start` and `stop` are `None`, defaults to the
-          current day;
-        - else if `None` and `start` is not `None`, defaults to `start`;
-        - else if `None` and `stop` is not `None`, defaults to `stop`
-    - `label`: text label for the element
-    - `on_change`: optional callback to run when this element's value changes
-    - `full_width`: whether the input should take up the full width of its
-        container
-    """
-
-    _name: Final[str] = "marimo-date-picker"
-
-    DATEFORMAT = "%Y-%m-%d"
-
-    def __init__(
-        self,
-        start: Optional[dt.date | str] = None,
-        stop: Optional[dt.date | str] = None,
-        value: Optional[dt.date | str] = None,
-        *,
-        label: str = "",
-        on_change: Optional[Callable[[dt.date], None]] = None,
-        full_width: bool = False,
-    ) -> None:
-        if isinstance(start, str):
-            start = self._convert_value(start)
-        if isinstance(stop, str):
-            stop = self._convert_value(stop)
-        if isinstance(value, str):
-            value = self._convert_value(value)
-
-        if value is None:
-            if start is None and stop is None:
-                value = dt.date.today()
-            elif start is not None:
-                value = start
-            else:
-                value = stop
-        value = cast(dt.date, value)
-
-        self._start = dt.date(dt.MINYEAR, 1, 1) if start is None else start
-        self._stop = dt.date(dt.MAXYEAR, 12, 31) if stop is None else stop
-
-        if self._stop < self._start:
-            raise ValueError(
-                f"The stop date ({stop}) must be greater than "
-                f"the start date ({start})"
-            )
-        elif value < self._start or value > self._stop:
-            raise ValueError(
-                f"The default value ({value}) must be greater than "
-                f"the start date ({start}) and less than the stop "
-                f"date ({stop})."
-            )
-
-        super().__init__(
-            component_name=date._name,
-            initial_value=value.isoformat(),
-            label=label,
-            args={
-                "start": self._start.isoformat(),
-                "stop": self._stop.isoformat(),
-                "full-width": full_width,
-            },
-            on_change=on_change,
-        )
-
-    @staticmethod
-    def from_series(series: DataFrameSeries, **kwargs: Any) -> "date":
-        """Create a date picker from a dataframe series."""
-        info = get_date_series_info(series)
-        return date(
-            start=info.min,
-            stop=info.max,
-            label=info.label,
-            **kwargs,
-        )
-
-    def _convert_value(self, value: str) -> dt.date:
-        return dt.datetime.strptime(value, self.DATEFORMAT).date()
-
-    @property
-    def start(self) -> dt.date:
-        return self._start
-
-    @property
-    def stop(self) -> dt.date:
-        return self._stop
 
 
 T = TypeVar("T")

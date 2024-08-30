@@ -9,7 +9,6 @@ import { ErrorBoundary } from "../components/editor/boundary/ErrorBoundary";
 import { TooltipProvider } from "../components/ui/tooltip";
 import { Toaster } from "../components/ui/toaster";
 import { ModalProvider } from "../components/modal/ImperativeModal";
-import { DayPickerProvider } from "react-day-picker";
 import { useAppConfig, useUserConfig } from "@/core/config/config";
 import { initialMode } from "./mode";
 import { CssVariables } from "@/theme/ThemeProvider";
@@ -85,15 +84,13 @@ const Providers = memo(({ children }: PropsWithChildren) => {
     <ErrorBoundary>
       <Suspense>
         <TooltipProvider delayDuration={400}>
-          <DayPickerProvider initialProps={{}}>
-            <SlotzProvider controller={slotsController}>
-              <ModalProvider>
-                {children}
-                <Toaster />
-                <TailwindIndicator />
-              </ModalProvider>
-            </SlotzProvider>
-          </DayPickerProvider>
+          <SlotzProvider controller={slotsController}>
+            <ModalProvider>
+              {children}
+              <Toaster />
+              <TailwindIndicator />
+            </ModalProvider>
+          </SlotzProvider>
         </TooltipProvider>
       </Suspense>
     </ErrorBoundary>

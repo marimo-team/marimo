@@ -4,6 +4,8 @@
 This module contains a library of interactive UI elements.
 """
 
+from __future__ import annotations
+
 __all__ = [
     "altair_chart",
     "array",
@@ -13,6 +15,8 @@ __all__ = [
     "code_editor",
     "data_explorer",
     "date",
+    "date_range",
+    "datetime",
     "dataframe",
     "dictionary",
     "dropdown",
@@ -41,13 +45,17 @@ from marimo._plugins.ui._impl.array import array
 from marimo._plugins.ui._impl.batch import batch
 from marimo._plugins.ui._impl.data_explorer import data_explorer
 from marimo._plugins.ui._impl.dataframes.dataframe import dataframe
+from marimo._plugins.ui._impl.dates import (
+    date,
+    date_range,
+    datetime,
+)
 from marimo._plugins.ui._impl.dictionary import dictionary
 from marimo._plugins.ui._impl.from_anywidget import anywidget
 from marimo._plugins.ui._impl.input import (
     button,
     checkbox,
     code_editor,
-    date,
     dropdown,
     file,
     file_browser,
