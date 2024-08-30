@@ -33,11 +33,11 @@ and deployable as apps.
 - ⚡️ **reactive**: run a cell, and marimo reactively [runs all dependent cells](https://docs.marimo.io/guides/reactivity.html) or <a href="#expensive-notebooks">marks them as stale</a>
 - 🖐️ **interactive:** [bind sliders, tables, plots, and more](https://docs.marimo.io/guides/interactivity.html) to Python — no callbacks required
 - 🔬 **reproducible:** [no hidden state](https://docs.marimo.io/guides/reactivity.html#no-hidden-state), deterministic execution, [built-in package management](https://docs.marimo.io/guides/editor_features/package_management.html)
-- 🏃‍♂️ **executable:** [execute as a Python script](https://docs.marimo.io/guides/scripts.html), parametrized by CLI args
+- 🏃 **executable:** [execute as a Python script](https://docs.marimo.io/guides/scripts.html), parametrized by CLI args
 - 🛜 **shareable**: [deploy as an interactive web app](https://docs.marimo.io/guides/apps.html) or [slides](https://docs.marimo.io/guides/apps.html#slides-layout), [run in the browser via WASM](https://docs.marimo.io/guides/wasm.html)
 - 🛢️ **designed for data**: query dataframes and databases [with SQL](https://docs.marimo.io/guides/sql.html), filter and search [dataframes](https://docs.marimo.io/guides/dataframes.html#displaying-dataframes)
 - 🐍 **git-friendly:** notebooks are stored as `.py` files
-- ⌨️ **a modern editor**: GitHub Copilot, AI assistants, vim keybindings, variable explorer, and [more](https://docs.marimo.io/guides/editor_features/index.html)
+- ⌨️ **a modern editor**: [GitHub Copilot](https://docs.marimo.io/guides/editor_features/ai_completion.html#github-copilot), [AI assistants](https://docs.marimo.io/guides/editor_features/ai_completion.html#using-ollama), vim keybindings, variable explorer, and [more](https://docs.marimo.io/guides/editor_features/index.html)
 
 ```python
 pip install marimo && marimo tutorial intro
@@ -99,7 +99,8 @@ in notebook files, and auto install them in
 **Batteries-included.** marimo comes with GitHub Copilot, AI assistants, Ruff
 code formatting, HTML export, fast code completion, a [VS Code
 extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo),
-an interactive dataframe viewer, and many more quality-of-life features.
+an interactive dataframe viewer, and [many more](https://docs.marimo.io/guides/editor_features/index.html)
+quality-of-life features.
 
 ## Quickstart
 
