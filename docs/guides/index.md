@@ -15,10 +15,11 @@
   dataframes
   plotting
   editor_features/index
+  theming
   best_practices/index
   coming_from_jupyter
-  state
   integrating_with_marimo/index
+  state
   wasm
   exporting
   deploying/index
@@ -38,12 +39,12 @@ These guides cover marimo's core concepts.
 | {doc}`dataframes`                    | Working with dataframes                             |
 | {doc}`plotting`                      | Interactive and reactive plots                      |
 | {doc}`editor_features/index`         | View variables, cell dependencies, errors, and more |
+| {doc}`theming`                       | Theming notebooks                                   |
 | {doc}`best_practices/index`          | Notebook best practices                             |
 | {doc}`coming_from_jupyter`           | marimo for Jupyter users                            |
-| {doc}`state`                         | Mutable, reactive state                             |
 | {doc}`integrating_with_marimo/index` | Rich displays of objects, custom UI plugins         |
+| {doc}`state`                         | Mutable, reactive state                             |
 | {doc}`wasm`                          | Create notebooks in our online playground!          |
-| {doc}`theming`                       | Theming notebooks                                   |
 | {doc}`exporting`                     | Exporting notebooks to HTML and flat scripts        |
 | {doc}`deploying/index`               | Deploying marimo notebooks and apps                 |
 
