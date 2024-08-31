@@ -1,12 +1,30 @@
 import unittest
-from typing import Any
+from functools import wraps
+from typing import Any, Callable, TypeVar
 from unittest.mock import patch
 
 from marimo._config.config import merge_default_config
 from marimo._config.manager import MarimoConfig, UserConfigManager
+from marimo._config.utils import load_config
+
+F = TypeVar("F", bound=Callable[..., Any])
+
+
+def restore_config(f: F) -> F:
+    config = load_config()
+
+    @wraps(f)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        try:
+            return f(*args, **kwargs)
+        finally:
+            UserConfigManager().save_config(config)
+
+    return wrapper  # type: ignore
 
 
 class TestUserConfigManager(unittest.TestCase):
+    @restore_config
     @patch("tomlkit.dump")
     @patch("marimo._config.manager.load_config")
     def test_save_config(self, mock_load: Any, mock_dump: Any) -> None:
@@ -21,6 +39,7 @@ class TestUserConfigManager(unittest.TestCase):
 
         assert mock_dump.mock_calls[0][1][0] == result
 
+    @restore_config
     @patch("tomlkit.dump")
     @patch("marimo._config.manager.load_config")
     def test_can_save_secrets(self, mock_load: Any, mock_dump: Any) -> None:
@@ -50,6 +69,7 @@ class TestUserConfigManager(unittest.TestCase):
             == "super_secret"
         )
 
+    @restore_config
     @patch("marimo._config.manager.load_config")
     def test_can_read_secrets(self, mock_load: Any) -> None:
         mock_config = merge_default_config(
@@ -64,6 +84,7 @@ class TestUserConfigManager(unittest.TestCase):
             == "super_secret"
         )
 
+    @restore_config
     @patch("marimo._config.manager.load_config")
     def test_get_config(self, mock_load: Any) -> None:
         mock_config = merge_default_config(MarimoConfig())
