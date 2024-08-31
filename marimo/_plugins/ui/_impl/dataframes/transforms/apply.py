@@ -5,6 +5,7 @@ from typing import Any, Generic, List, TypeVar
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.dataframes.transforms.handlers import (
+    IbisTransformHandler,
     PandasTransformHandler,
     PolarsTransformHandler,
 )
@@ -74,6 +75,12 @@ def get_handler_for_dataframe(
 
         if isinstance(df, pl.DataFrame):
             return PolarsTransformHandler()
+
+    if DependencyManager.ibis.has():
+        import ibis
+
+        if isinstance(df, ibis.expr.types.Table):
+            return IbisTransformHandler()
 
     raise ValueError(
         "Unsupported dataframe type. Must be Pandas or Polars."

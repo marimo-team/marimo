@@ -33,6 +33,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
 HAS_DEPS = DependencyManager.pandas.has() and DependencyManager.polars.has()
 
 if HAS_DEPS:
+    import ibis
     import numpy as np
     import pandas as pd
     import polars as pl
@@ -41,6 +42,7 @@ else:
     pd = Mock()
     pl = Mock()
     np = Mock()
+    ibis = Mock()
 
 
 def apply(df: DataFrameType, transform: Transform) -> DataFrameType:
@@ -60,7 +62,25 @@ def assert_frame_equal(df1: DataFrameType, df2: DataFrameType) -> None:
     if isinstance(df1, pl.DataFrame) and isinstance(df2, pl.DataFrame):
         pl_testing.assert_frame_equal(df1, df2)
         return
+    if isinstance(df1, ibis.Expr) and isinstance(df2, ibis.Expr):
+        pl_testing.assert_frame_equal(df1.to_polars(), df2.to_polars())
+        return
     pytest.fail("DataFrames are not of the same type")
+
+
+def assert_frame_not_equal(df1: DataFrameType, df2: DataFrameType) -> None:
+    with pytest.raises(AssertionError):
+        assert_frame_equal(df1, df2)
+
+
+def df_size(df: DataFrameType) -> int:
+    if isinstance(df, pd.DataFrame):
+        return df.size
+    if isinstance(df, pl.DataFrame):
+        return df.shape[0]
+    if isinstance(df, ibis.Table):
+        return df.count().execute()
+    raise ValueError("Unsupported dataframe type")
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -76,6 +96,10 @@ class TestTransformHandler:
             (
                 pl.DataFrame({"A": ["1", "2", "3"]}),
                 pl.DataFrame({"A": [1, 2, 3]}),
+            ),
+            (
+                ibis.memtable({"A": ["1", "2", "3"]}),
+                ibis.memtable({"A": [1, 2, 3]}),
             ),
         ],
     )
@@ -103,6 +127,10 @@ class TestTransformHandler:
                 pl.DataFrame({"A": [1.1, 2.2, 3.3]}),
                 pl.DataFrame({"A": ["1.1", "2.2", "3.3"]}),
             ),
+            (
+                ibis.memtable({"A": [1.1, 2.2, 3.3]}),
+                ibis.memtable({"A": ["1.1", "2.2", "3.3"]}),
+            ),
         ],
     )
     def test_handle_column_conversion_float_to_string(
@@ -128,6 +156,10 @@ class TestTransformHandler:
             (
                 pl.DataFrame({"A": ["1", "2", "3", "a"]}),
                 pl.DataFrame({"A": [1, 2, 3, None]}),
+            ),
+            (
+                ibis.memtable({"A": ["1", "2", "3", "a"]}),
+                ibis.memtable({"A": ["1", "2", "3", "a"]}),
             ),
         ],
     )
@@ -155,6 +187,10 @@ class TestTransformHandler:
                 pl.DataFrame({"A": [1, 2, 3]}),
                 pl.DataFrame({"B": [1, 2, 3]}),
             ),
+            (
+                ibis.memtable({"A": [1, 2, 3]}),
+                ibis.memtable({"B": [1, 2, 3]}),
+            ),
         ],
     )
     def test_handle_rename_column(
@@ -179,6 +215,11 @@ class TestTransformHandler:
                 pl.DataFrame({"A": [3, 1, 2]}),
                 pl.DataFrame({"A": [1, 2, 3]}),
                 pl.DataFrame({"A": [3, 2, 1]}),
+            ),
+            (
+                ibis.memtable({"A": [3, 1, 2]}),
+                ibis.memtable({"A": [1, 2, 3]}),
+                ibis.memtable({"A": [3, 2, 1]}),
             ),
         ],
     )
@@ -217,6 +258,10 @@ class TestTransformHandler:
                 pl.DataFrame({"A": [1, 2, 3]}),
                 pl.DataFrame({"A": [2, 3]}),
             ),
+            (
+                ibis.memtable({"A": [1, 2, 3]}),
+                ibis.memtable({"A": [2, 3]}),
+            ),
         ],
     )
     def test_handle_filter_rows_1(
@@ -241,6 +286,10 @@ class TestTransformHandler:
             (
                 pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}),
                 pl.DataFrame({"A": [2], "B": [5]}),
+            ),
+            (
+                ibis.memtable({"A": [1, 2, 3], "B": [4, 5, 6]}),
+                ibis.memtable({"A": [2], "B": [5]}),
             ),
         ],
     )
@@ -267,6 +316,10 @@ class TestTransformHandler:
                 pl.DataFrame({"A": [1, 2, 3, 4, 5]}),
                 pl.DataFrame({"A": [1, 2, 3]}),
             ),
+            (
+                ibis.memtable({"A": [1, 2, 3, 4, 5]}),
+                ibis.memtable({"A": [1, 2, 3]}),
+            ),
         ],
     )
     def test_handle_filter_rows_3(
@@ -291,6 +344,10 @@ class TestTransformHandler:
             (
                 pl.DataFrame({"A": [1, 2, 3]}),
                 pl.DataFrame({"A": [1, 3]}),
+            ),
+            (
+                ibis.memtable({"A": [1, 2, 3]}),
+                ibis.memtable({"A": [1, 3]}),
             ),
         ],
     )
@@ -317,6 +374,10 @@ class TestTransformHandler:
                 pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}),
                 pl.DataFrame({"A": [2, 3], "B": [5, 6]}),
             ),
+            (
+                ibis.memtable({"A": [1, 2, 3], "B": [4, 5, 6]}),
+                ibis.memtable({"A": [2, 3], "B": [5, 6]}),
+            ),
         ],
     )
     def test_handle_filter_rows_5(
@@ -342,6 +403,10 @@ class TestTransformHandler:
                 pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}),
                 pl.DataFrame({"A": [3], "B": [6]}),
             ),
+            (
+                ibis.memtable({"A": [1, 2, 3], "B": [4, 5, 6]}),
+                ibis.memtable({"A": [3], "B": [6]}),
+            ),
         ],
     )
     def test_handle_filter_rows_6(
@@ -366,6 +431,10 @@ class TestTransformHandler:
             (
                 pl.DataFrame({"A": [1, 2, 3, 4, 5], "B": [5, 4, 3, 2, 1]}),
                 pl.DataFrame({"A": [3, 4, 5], "B": [3, 2, 1]}),
+            ),
+            (
+                ibis.memtable({"A": [1, 2, 3, 4, 5], "B": [5, 4, 3, 2, 1]}),
+                ibis.memtable({"A": [3, 4, 5], "B": [3, 2, 1]}),
             ),
         ],
     )
@@ -395,6 +464,10 @@ class TestTransformHandler:
                 pl.DataFrame({"A": [1, 2, 3, 4, 5], "B": [5, 4, 3, 2, 1]}),
                 pl.DataFrame({"A": [1, 3, 4, 5], "B": [5, 3, 2, 1]}),
             ),
+            (
+                ibis.memtable({"A": [1, 2, 3, 4, 5], "B": [5, 4, 3, 2, 1]}),
+                ibis.memtable({"A": [1, 3, 4, 5], "B": [5, 3, 2, 1]}),
+            ),
         ],
     )
     def test_handle_filter_rows_multiple_conditions_2(
@@ -422,6 +495,10 @@ class TestTransformHandler:
             (
                 pl.DataFrame({"A": [True, False, True, False]}),
                 pl.DataFrame({"A": [True, True]}),
+            ),
+            (
+                ibis.memtable({"A": [True, False, True, False]}),
+                ibis.memtable({"A": [True, True]}),
             ),
         ],
     )
@@ -456,6 +533,10 @@ class TestTransformHandler:
                 pl.DataFrame({"A": [1, 2, 3]}),
                 pl.exceptions.ColumnNotFoundError,
             ),
+            (
+                ibis.memtable({"A": [1, 2, 3]}),
+                ibis.common.exceptions.IbisTypeError,
+            ),
         ],
     )
     def test_handle_filter_rows_unknown_column(
@@ -480,6 +561,10 @@ class TestTransformHandler:
             (
                 pl.DataFrame({"1": [1, 2, 3], "2": [4, 5, 6]}),
                 pl.DataFrame({"1": [2, 3], "2": [5, 6]}),
+            ),
+            (
+                ibis.memtable({"1": [1, 2, 3], "2": [4, 5, 6]}),
+                ibis.memtable({"1": [2, 3], "2": [5, 6]}),
             ),
         ],
     )
@@ -512,6 +597,22 @@ class TestTransformHandler:
                 pl.DataFrame({"A": ["foo", "foo", "bar"], "B": [1, 2, 4]}),
                 pl.DataFrame({"A": ["foo", "bar"], "B_sum": [3, 4]}),
             ),
+            (
+                pl.DataFrame(
+                    {"A": ["foo", "foo", "bar", "bar"], "B": [1, 2, 3, 4]}
+                ),
+                pl.DataFrame({"A": ["foo", "bar"], "B_sum": [3, 7]}),
+            ),
+            (
+                ibis.memtable({"A": ["foo", "foo", "bar"], "B": [1, 2, 4]}),
+                ibis.memtable({"A": ["foo", "bar"], "B_sum": [3, 4]}),
+            ),
+            (
+                ibis.memtable(
+                    {"A": ["foo", "foo", "bar", "bar"], "B": [1, 2, 3, 4]}
+                ),
+                ibis.memtable({"A": ["foo", "bar"], "B_sum": [3, 7]}),
+            ),
         ],
     )
     def test_handle_group_by(
@@ -524,6 +625,14 @@ class TestTransformHandler:
             aggregation="sum",
         )
         result = apply(df, transform)
+        if not isinstance(result, pd.DataFrame):
+            order_by_a = SortColumnTransform(
+                type=TransformType.SORT_COLUMN,
+                column_id="A",
+                ascending=False,
+                na_position="last",
+            )
+            result = apply(result, order_by_a)
         assert_frame_equal(result, expected)
 
     @staticmethod
@@ -542,6 +651,10 @@ class TestTransformHandler:
                         "B_sum": [15],
                     }
                 ),
+            ),
+            (
+                ibis.memtable({"A": [1, 2, 3], "B": [4, 5, 6]}),
+                ibis.memtable({"A_sum": [6], "B_sum": [15]}),
             ),
         ],
     )
@@ -575,6 +688,17 @@ class TestTransformHandler:
                     }
                 ),
             ),
+            (
+                ibis.memtable({"A": [1, 2, 3], "B": [4, 5, 6]}),
+                ibis.memtable(
+                    {
+                        "A_min": [1],
+                        "B_min": [4],
+                        "A_max": [3],
+                        "B_max": [6],
+                    }
+                ),
+            ),
         ],
     )
     def test_handle_aggregate_min_max(
@@ -600,6 +724,10 @@ class TestTransformHandler:
                 pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}),
                 pl.DataFrame({"A": [1, 2, 3]}),
             ),
+            (
+                ibis.memtable({"A": [1, 2, 3], "B": [4, 5, 6]}),
+                ibis.memtable({"A": [1, 2, 3]}),
+            ),
         ],
     )
     def test_handle_select_columns_single(
@@ -622,6 +750,10 @@ class TestTransformHandler:
             (
                 pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}),
                 pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}),
+            ),
+            (
+                ibis.memtable({"A": [1, 2, 3], "B": [4, 5, 6]}),
+                ibis.memtable({"A": [1, 2, 3], "B": [4, 5, 6]}),
             ),
         ],
     )
@@ -646,6 +778,10 @@ class TestTransformHandler:
                 pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}),
                 pl.DataFrame({"A": [2, 3, 1], "B": [5, 6, 4]}),
             ),
+            (
+                ibis.memtable({"A": [1, 2, 3], "B": [4, 5, 6]}),
+                ibis.memtable({"A": [2, 3, 1], "B": [5, 6, 4]}),
+            ),
         ],
     )
     def test_shuffle_rows(df: DataFrameType, expected: DataFrameType) -> None:
@@ -653,9 +789,9 @@ class TestTransformHandler:
             type=TransformType.SHUFFLE_ROWS, seed=42
         )
         result = apply(df, transform)
-        assert len(result) == len(expected)
-        assert "A" in result.columns
-        assert "B" in result.columns
+        assert df_size(result) == df_size(expected)
+        assert "A" in result
+        assert "B" in result
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -669,6 +805,10 @@ class TestTransformHandler:
                 pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}),
                 pl.DataFrame({"A": [1, 3], "B": [4, 6]}),
             ),
+            (
+                ibis.memtable({"A": [1, 2, 3], "B": [4, 5, 6]}),
+                ibis.memtable({"A": [1, 3], "B": [4, 6]}),
+            ),
         ],
     )
     def test_sample_rows(df: DataFrameType, expected: DataFrameType) -> None:
@@ -676,7 +816,7 @@ class TestTransformHandler:
             type=TransformType.SAMPLE_ROWS, n=2, seed=42, replace=False
         )
         result = apply(df, transform)
-        assert len(result) == len(expected)
+        assert df_size(result) == df_size(expected)
         assert "A" in result.columns
         assert "B" in result.columns
 
@@ -698,48 +838,42 @@ class TestTransformHandler:
                     "C": [["a", "b", "c"], [np.nan], [], ["d", "e"]],
                 },
             ),
+            ibis.memtable(
+                {
+                    "A": [[0, 1, 2], [], [], [3, 4]],
+                    "B": [1, 1, 1, 1],
+                    "C": [["a", "b", "c"], [np.nan], [], ["d", "e"]],
+                }
+            ),
         ],
     )
     def test_explode_columns(df: DataFrameType) -> None:
+        import ibis
+
         transform = ExplodeColumnsTransform(
             type=TransformType.EXPLODE_COLUMNS, column_ids=["A", "C"]
         )
         result = apply(df, transform)
-        assert_frame_equal(result, df.explode(["A", "C"]))
+        if isinstance(result, ibis.Table):
+            assert_frame_equal(result, df.unnest("A").unnest("C"))
+        else:
+            assert_frame_equal(result, df.explode(["A", "C"]))
 
     @staticmethod
     @pytest.mark.parametrize(
         ("df", "expected"),
         [
             (
-                pd.DataFrame(
-                    {
-                        "A": [{"foo": 1, "bar": "hello"}],
-                        "B": [1],
-                    }
-                ),
-                pd.DataFrame(
-                    {
-                        "B": [1],
-                        "foo": [1],
-                        "bar": ["hello"],
-                    }
-                ),
+                pd.DataFrame({"A": [{"foo": 1, "bar": "hello"}], "B": [1]}),
+                pd.DataFrame({"B": [1], "foo": [1], "bar": ["hello"]}),
             ),
             (
-                pl.DataFrame(
-                    {
-                        "A": [{"foo": 1, "bar": "hello"}],
-                        "B": [1],
-                    }
-                ),
-                pl.DataFrame(
-                    {
-                        "B": [1],
-                        "foo": [1],
-                        "bar": ["hello"],
-                    }
-                ),
+                pl.DataFrame({"A": [{"foo": 1, "bar": "hello"}], "B": [1]}),
+                pl.DataFrame({"B": [1], "foo": [1], "bar": ["hello"]}),
+            ),
+            (
+                ibis.memtable({"A": [{"foo": 1, "bar": "hello"}], "B": [1]}),
+                ibis.memtable({"B": [1], "foo": [1], "bar": ["hello"]}),
             ),
         ],
     )
@@ -748,7 +882,11 @@ class TestTransformHandler:
             type=TransformType.EXPAND_DICT, column_id="A"
         )
         result = apply(df, transform)
-        assert_frame_equal(result, expected)
+        assert_frame_equal(
+            # Sort the columns because the order is not guaranteed
+            expected[sorted(expected.columns)],
+            result[sorted(result.columns)],
+        )
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -763,6 +901,11 @@ class TestTransformHandler:
                 pl.DataFrame({"A": [1, 2, 3], "B": [4, 6, 5]}),
                 pl.DataFrame({"A": [3, 2], "B": [5, 6]}),
                 pl.DataFrame({"A": [2], "B": [6]}),
+            ),
+            (
+                ibis.memtable({"A": [1, 2, 3], "B": [4, 6, 5]}),
+                ibis.memtable({"A": [3, 2], "B": [5, 6]}),
+                ibis.memtable({"A": [2], "B": [6]}),
             ),
         ],
     )

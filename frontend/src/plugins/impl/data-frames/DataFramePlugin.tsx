@@ -22,6 +22,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Banner, ErrorBanner } from "../common/error-banner";
 import type { DataType } from "../vega/vega-loader";
 import type { FieldTypesWithExternalType } from "@/components/data-table/types";
+import { Spinner } from "@/components/icons/spinner";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -170,7 +171,7 @@ export const DataFrameComponent = memo(
     get_column_values,
     search,
   }: DataTableProps): JSX.Element => {
-    const { data, error } = useAsyncData(
+    const { data, error, loading } = useAsyncData(
       () => get_dataframe({}),
       [value?.transforms],
     );
@@ -206,18 +207,22 @@ export const DataFrameComponent = memo(
     return (
       <div>
         <Tabs defaultValue="transform">
-          <TabsList className="h-8">
-            <TabsTrigger value="transform" className="text-xs py-1">
-              <FunctionSquareIcon className="w-3 h-3 mr-2" />
-              Transform
-            </TabsTrigger>
-            {supports_code_sample && (
-              <TabsTrigger value="code" className="text-xs py-1">
-                <Code2Icon className="w-3 h-3 mr-2" />
-                Code
+          <div className="flex items-center gap-2">
+            <TabsList className="h-8">
+              <TabsTrigger value="transform" className="text-xs py-1">
+                <FunctionSquareIcon className="w-3 h-3 mr-2" />
+                Transform
               </TabsTrigger>
-            )}
-          </TabsList>
+              {supports_code_sample && (
+                <TabsTrigger value="code" className="text-xs py-1">
+                  <Code2Icon className="w-3 h-3 mr-2" />
+                  Code
+                </TabsTrigger>
+              )}
+              <div className="flex-grow" />
+            </TabsList>
+            {loading && <Spinner size="small" />}
+          </div>
           <TabsContent
             value="transform"
             className="mt-1 border rounded-t overflow-hidden"

@@ -136,6 +136,7 @@ class DependencyManager:
 
     pandas = Dependency("pandas")
     polars = Dependency("polars")
+    ibis = Dependency("ibis")
     numpy = Dependency("numpy")
     altair = Dependency("altair", min_version="5.3.0", max_version="6.0.0")
     duckdb = Dependency("duckdb")

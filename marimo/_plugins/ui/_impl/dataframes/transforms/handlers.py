@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional, Sequence, cast
+from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, cast
 
 from marimo._plugins.ui._impl.dataframes.transforms.types import (
     AggregateTransform,
@@ -20,6 +20,8 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
 from marimo._utils.assert_never import assert_never
 
 if TYPE_CHECKING:
+    import ibis
+    import ibis.expr.types as ir
     import pandas as pd
     import polars as pl
 
@@ -407,6 +409,198 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
         column = df.select(column_id).to_series()
         df = df.drop(cast(str, column_id))
         return df.hstack(pl.DataFrame(column.to_list()))
+
+
+class IbisTransformHandler(TransformHandler["ibis.Table"]):
+    @staticmethod
+    def supports_code_sample() -> bool:
+        return False
+
+    @staticmethod
+    def handle_column_conversion(
+        df: "ibis.Table", transform: ColumnConversionTransform
+    ) -> "ibis.Table":
+        import ibis
+
+        if transform.errors == "ignore":
+            try:
+                # Use coalesce to handle conversion errors
+                return df.mutate(
+                    **{
+                        transform.column_id: ibis.coalesce(
+                            df[transform.column_id].cast(
+                                ibis.dtype(transform.data_type)
+                            ),
+                            df[transform.column_id],
+                        )
+                    }
+                )
+            except ibis.common.exceptions.IbisTypeError:
+                return df
+        else:
+            # Default behavior (raise errors)
+            return df.mutate(
+                **{
+                    transform.column_id: df[transform.column_id].cast(
+                        ibis.dtype(transform.data_type)
+                    )
+                }
+            )
+
+    @staticmethod
+    def handle_rename_column(
+        df: "ibis.Table", transform: RenameColumnTransform
+    ) -> "ibis.Table":
+        return df.rename({transform.new_column_id: transform.column_id})
+
+    @staticmethod
+    def handle_sort_column(
+        df: "ibis.Table", transform: SortColumnTransform
+    ) -> "ibis.Table":
+        return df.order_by(
+            [
+                df[transform.column_id].asc()
+                if transform.ascending
+                else df[transform.column_id].desc()
+            ]
+        )
+
+    @staticmethod
+    def handle_filter_rows(
+        df: "ibis.Table", transform: FilterRowsTransform
+    ) -> "ibis.Table":
+        import ibis
+
+        filter_conditions: list[ir.BooleanValue] = []
+        for condition in transform.where:
+            column = df[str(condition.column_id)]
+            value = condition.value
+            if condition.operator == "==":
+                filter_conditions.append(column == value)
+            elif condition.operator == "!=":
+                filter_conditions.append(column != value)
+            elif condition.operator == ">":
+                filter_conditions.append(column > value)
+            elif condition.operator == "<":
+                filter_conditions.append(column < value)
+            elif condition.operator == ">=":
+                filter_conditions.append(column >= value)
+            elif condition.operator == "<=":
+                filter_conditions.append(column <= value)
+            elif condition.operator == "is_true":
+                filter_conditions.append(column == True)  # noqa: E712
+            elif condition.operator == "is_false":
+                filter_conditions.append(column == False)  # noqa: E712
+            elif condition.operator == "is_nan":
+                filter_conditions.append(column.isnull())
+            elif condition.operator == "is_not_nan":
+                filter_conditions.append(column.notnull())
+            elif condition.operator == "equals":
+                filter_conditions.append(column == value)
+            elif condition.operator == "does_not_equal":
+                filter_conditions.append(column != value)
+            elif condition.operator == "contains":
+                filter_conditions.append(column.contains(value))
+            elif condition.operator == "regex":
+                filter_conditions.append(column.re_search(value))
+            elif condition.operator == "starts_with":
+                filter_conditions.append(column.startswith(value))
+            elif condition.operator == "ends_with":
+                filter_conditions.append(column.endswith(value))
+            elif condition.operator == "in":
+                filter_conditions.append(column.isin(value))
+            else:
+                assert_never(condition.operator)
+
+        combined_condition = ibis.and_(*filter_conditions)
+
+        if transform.operation == "keep_rows":
+            return df.filter(combined_condition)
+        elif transform.operation == "remove_rows":
+            return df.filter(~combined_condition)
+        else:
+            raise ValueError(f"Unsupported operation: {transform.operation}")
+
+    @staticmethod
+    def handle_group_by(
+        df: "ibis.Table", transform: GroupByTransform
+    ) -> "ibis.Table":
+        aggs: list[ir.Expr] = []
+
+        group_by_column_id_set = set(transform.column_ids)
+        agg_columns = [
+            column_id
+            for column_id in df.columns
+            if column_id not in group_by_column_id_set
+        ]
+        for column_id in agg_columns:
+            agg_func = transform.aggregation
+            if agg_func == "count":
+                aggs.append(df[column_id].count().name(f"{column_id}_count"))
+            elif agg_func == "sum":
+                aggs.append(df[column_id].sum().name(f"{column_id}_sum"))
+            elif agg_func == "mean":
+                aggs.append(df[column_id].mean().name(f"{column_id}_mean"))
+            elif agg_func == "median":
+                aggs.append(df[column_id].median().name(f"{column_id}_median"))
+            elif agg_func == "min":
+                aggs.append(df[column_id].min().name(f"{column_id}_min"))
+            elif agg_func == "max":
+                aggs.append(df[column_id].max().name(f"{column_id}_max"))
+            else:
+                assert_never(agg_func)
+
+        return df.group_by(transform.column_ids).aggregate(aggs)
+
+    @staticmethod
+    def handle_aggregate(
+        df: "ibis.Table", transform: AggregateTransform
+    ) -> "ibis.Table":
+        agg_dict: Dict[str, Any] = {}
+        for agg_func in transform.aggregations:
+            for column_id in transform.column_ids:
+                name = f"{column_id}_{agg_func}"
+                agg_dict[name] = getattr(df[column_id], agg_func)()
+        return df.aggregate(**agg_dict)
+
+    @staticmethod
+    def handle_select_columns(
+        df: "ibis.Table", transform: SelectColumnsTransform
+    ) -> "ibis.Table":
+        return df.select(transform.column_ids)
+
+    @staticmethod
+    def handle_shuffle_rows(
+        df: "ibis.Table", transform: ShuffleRowsTransform
+    ) -> "ibis.Table":
+        del transform
+        import ibis
+
+        return df.order_by(ibis.random())
+
+    @staticmethod
+    def handle_sample_rows(
+        df: "ibis.Table", transform: SampleRowsTransform
+    ) -> "ibis.Table":
+        return df.sample(
+            transform.n / df.count().execute(),
+            method="row",
+            seed=transform.seed,
+        )
+
+    @staticmethod
+    def handle_explode_columns(
+        df: "ibis.Table", transform: ExplodeColumnsTransform
+    ) -> "ibis.Table":
+        for column_id in transform.column_ids:
+            df = df.unnest(column_id)
+        return df
+
+    @staticmethod
+    def handle_expand_dict(
+        df: "ibis.Table", transform: ExpandDictTransform
+    ) -> "ibis.Table":
+        return df.unpack(transform.column_id)
 
 
 def _coerce_value(dtype: Any, value: Any) -> Any:
