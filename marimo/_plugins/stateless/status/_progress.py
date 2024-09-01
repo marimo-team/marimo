@@ -302,6 +302,7 @@ class progress_bar:
     - `total`: optional total number of items to iterate over
     - `show_rate`: if True, show the rate of progress (items per second)
     - `show_eta`: if True, show the estimated time of completion
+    - `remove_on_exit`: if True, remove the progress bar from output on exit
     """
 
     def __init__(
@@ -315,9 +316,11 @@ class progress_bar:
         total: Optional[int] = None,
         show_rate: bool = True,
         show_eta: bool = True,
+        remove_on_exit: bool = False,
     ):
         self.completion_title = completion_title
         self.completion_subtitle = completion_subtitle
+        self.remove_on_exit = remove_on_exit
 
         if collection is not None:
             self.collection = collection
@@ -365,4 +368,6 @@ class progress_bar:
             title=self.completion_title,
             subtitle=self.completion_subtitle,
         )
+        if self.remove_on_exit:
+            self.progress.clear()
         self.progress.close()
