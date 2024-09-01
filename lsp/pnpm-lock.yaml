@@ -6,8 +6,8 @@ settings:
 
 dependencies:
   copilot-node-server:
-    specifier: 1.39.0
-    version: 1.39.0
+    specifier: 1.40.0
+    version: 1.40.0
 
 devDependencies:
   '@sourcegraph/vscode-ws-jsonrpc':
@@ -17,8 +17,8 @@ devDependencies:
     specifier: ^1.2.5
     version: 1.2.5
   '@types/node':
-    specifier: ^20.16.1
-    version: 20.16.1
+    specifier: ^20.16.3
+    version: 20.16.3
   '@types/ws':
     specifier: ^8.5.12
     version: 8.5.12
@@ -468,8 +468,8 @@ packages:
     resolution: {integrity: sha512-hov8bUuiLiyFPGyFPE1lwWhmzYbirOXQNNo40+y3zow8aFVTeyn3VWL0VFFfdNddA8S4Vf0Tc062rzyNr7Paag==}
     dev: true
 
-  /@types/node@20.16.1:
-    resolution: {integrity: sha512-zJDo7wEadFtSyNz5QITDfRcrhqDvQI1xQNQ0VoizPjM/dVAODqqIUWbJPkvsxmTI0MYRGRikcdjMPhOssnPejQ==}
+  /@types/node@20.16.3:
+    resolution: {integrity: sha512-/wdGiWRkMOm53gAsSyFMXFZHbVg7C6CbkrzHNpaHoYfsUWPg7m6ZRKtvQjgvQ9i8WT540a3ydRlRQbxjY30XxQ==}
     dependencies:
       undici-types: 6.19.8
     dev: true
@@ -477,7 +477,7 @@ packages:
   /@types/ws@8.5.12:
     resolution: {integrity: sha512-3tPRkv1EtkDpzlgyKyI8pGsGZAGPEaXeu0DOj5DI25Ja91bdAYddYHbADRYVrZMRbfW+1l5YwXVDKohDJNQxkQ==}
     dependencies:
-      '@types/node': 20.16.1
+      '@types/node': 20.16.3
     dev: true
 
   /ansi-regex@5.0.1:
@@ -602,8 +602,8 @@ packages:
     engines: {node: ^14.18.0 || >=16.10.0}
     dev: true
 
-  /copilot-node-server@1.39.0:
-    resolution: {integrity: sha512-MHd2ATmRQcyyqjQW/4J+8fSEHPmRCApLrkPh89X/QiTtqP6CgOYwKIUfwM4ANfbIBe2XAxqmoq3XAqqFKtjefw==}
+  /copilot-node-server@1.40.0:
+    resolution: {integrity: sha512-kGWMwqGyeagS/ri/eA/wzZkHLpre2/pAvHloGITDMOIb74tSNvzK10YHLKeH2xTawCb2eFn3AcHIhDkurck++A==}
     dev: false
 
   /cross-spawn@7.0.3:
