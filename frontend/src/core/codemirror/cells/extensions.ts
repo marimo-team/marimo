@@ -317,7 +317,9 @@ export function cellCodeEditingBundle(
 export function markdownAutoRunExtension(
   callbacks: MovementCallbacks,
 ): Extension {
-  return EditorView.updateListener.of((_) => {
-    callbacks.onRun();
+  return EditorView.updateListener.of((update) => {
+    if (update.docChanged) {
+      callbacks.onRun();
+    }
   });
 }
