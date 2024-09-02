@@ -99,10 +99,7 @@ class PyArrowTableManagerFactory(TableManagerFactory):
                         [
                             pa.field(
                                 col,
-                                cast(
-                                    pa.ChunkedArray[Any],
-                                    transformed_columns[i],
-                                ).type,
+                                cast(Any, transformed_columns[i]).type,
                             )
                             for i, col in enumerate(column_names)
                         ]
@@ -158,7 +155,7 @@ class PyArrowTableManagerFactory(TableManagerFactory):
             def get_field_types(self) -> FieldTypes:
                 return {
                     column: PyArrowTableManager._get_field_type(
-                        cast(pa.ChunkedArray[Any], self.data.column(idx))
+                        cast(Any, self.data.column(idx))
                     )
                     for idx, column in enumerate(self.data.schema.names)
                 }
@@ -276,7 +273,7 @@ class PyArrowTableManagerFactory(TableManagerFactory):
             def _get_field_type(
                 column: pa.ChunkedArray[Any],
             ) -> Tuple[FieldType, ExternalDataType]:
-                dtype_string = str(column.to_string())
+                dtype_string = str(column.type)
                 if isinstance(column, pa.NullArray):
                     return ("unknown", dtype_string)
                 elif pa.types.is_string(column.type):
