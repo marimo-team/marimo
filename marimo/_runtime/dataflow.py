@@ -11,12 +11,13 @@ from marimo._ast.cell import (
     CellImpl,
 )
 from marimo._ast.compiler import code_key
-from marimo._ast.visitor import Name, VariableData
+from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._runtime.executor import execute_cell, execute_cell_async
 from marimo._utils.variables import is_mangled_local
 
 if TYPE_CHECKING:
     from collections.abc import Collection
+
 
 Edge = Tuple[CellId_t, CellId_t]
 # EdgeWithVar uses a list rather than a set for the variables linking the cells
@@ -315,6 +316,18 @@ class DirectedGraph:
                 else:
                     queue.append(parent_id)
         return False
+
+    def get_imports(
+        self, cell_id: Optional[CellId_t] = None
+    ) -> dict[Name, ImportData]:
+        imports = {}
+        cells = (
+            self.cells.values() if cell_id is None else [self.cells[cell_id]]
+        )
+        for cell in cells:
+            for imported in cell.imports:
+                imports[imported.definition] = imported
+        return imports
 
     def get_multiply_defined(self) -> list[Name]:
         names = []

@@ -33,3 +33,8 @@ def is_mangled_local(name: str, cell_id: CellId_t = "") -> bool:
 
 def is_local(name: str) -> bool:
     return name == "__" or (name.startswith("_") and not name.startswith("__"))
+
+
+def get_cell_from_local(name: str, cell_id: CellId_t = "") -> Optional[CellId_t]:
+    local = unmangle_local(if_local_then_mangle(name, cell_id)).cell
+    return local if local else None

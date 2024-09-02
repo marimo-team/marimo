@@ -129,7 +129,7 @@ class persistent_cache(object):
                 )
                 graph = ctx.graph
                 cell_id = (
-                    ctx.execution_context.cell_id
+                    ctx.cell_id
                     or ctx.execution_context.cell_id
                 )
                 pre_module, save_module = ExtractWithBlock(lineno - 1).visit(

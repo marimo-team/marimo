@@ -253,7 +253,7 @@ class TestStateCache:
         await k.run(
             [
                 exec_req.get("import marimo as mo"),
-                exec_req.get("impure = []"),
+                exec_req.get("impure = []; impure_value = []"),
                 exec_req.get("state, set_state = mo.state(0)"),
                 exec_req.get("x = state()"),
                 exec_req.get(
@@ -268,6 +268,7 @@ class TestStateCache:
 
                     if len(impure) < 4:
                         impure.append(cache._cache.hash)
+                        impure_value.append(a)
                         set_state(a % 3)
                     """
                 ),
@@ -277,6 +278,8 @@ class TestStateCache:
         assert len(k.globals["impure"]) == 4
         assert len(set(k.globals["impure"])) == 3
         assert k.globals["impure"][0] == k.globals["impure"][-1]
+
+        assert set(k.globals["impure_value"]) == {1, 2, 3}
 
         assert k.globals["a"] == 2
         assert k.globals["state"]() == 1

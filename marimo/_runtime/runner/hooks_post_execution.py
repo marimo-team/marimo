@@ -176,10 +176,7 @@ def _store_state_reference(
     run_result: cell_runner.RunResult,
 ) -> None:
     del run_result
-    for variable in cell.defs:
-        lookup = runner.glbls.get(variable, None)
-        if isinstance(lookup, State):
-            StateRegistry.register(variable, lookup)
+    StateRegistry.register_scope(cell.defs, runner.glbls)
     StateRegistry.retain_active_states(set(runner.glbls.keys()))
 
 

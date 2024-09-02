@@ -5,6 +5,7 @@ import types
 import weakref
 from dataclasses import dataclass
 from typing import Any, Callable, Generic, Optional, TypeVar
+from uuid import uuid4
 
 from marimo._output.rich_help import mddoc
 from marimo._runtime.context import ContextNotInitializedError, get_context
@@ -30,10 +31,29 @@ class StateRegistry:
                 for ref in StateRegistry._inv_states[id(state)]:
                     del StateRegistry._states[ref]
                 StateRegistry._inv_states[id(state)].clear()
-        StateRegistry._states[name] = StateItem(id(state), weakref.ref(state))
+        state_item = StateItem(id(state), weakref.ref(state))
+        StateRegistry._states[name] = state_item
         id_to_ref = StateRegistry._inv_states.get(id(state), set())
         id_to_ref.add(name)
         StateRegistry._inv_states[id(state)] = id_to_ref
+        finalizer = weakref.finalize(
+            state, StateRegistry._delete, name, state_item
+        )
+        # No need to clean up the registry at program teardown
+        finalizer.atexit = False
+
+    @staticmethod
+    def register_scope(defs: set[str], glbls: dict[str, Any]) -> None:
+        for variable in defs:
+            lookup = glbls.get(variable, None)
+            if isinstance(lookup, State):
+                StateRegistry.register(variable, lookup)
+
+
+    @staticmethod
+    def _delete(name: str, state_item: StateItem[T]) -> None:
+        StateRegistry._states.pop(name, None)
+        StateRegistry._inv_states.pop(state_item.id, None)
 
     @staticmethod
     def retain_active_states(active_variables: set[str]) -> None:
@@ -60,6 +80,11 @@ class StateRegistry:
             return StateRegistry._states[name].ref()
         return None
 
+    @staticmethod
+    def get_references(state: State[T]) -> set[str]:
+        if id(state) in StateRegistry._inv_states:
+            return StateRegistry._inv_states[id(state)]
+        return set()
 
 class State(Generic[T]):
     """Mutable reactive state"""
@@ -68,6 +93,7 @@ class State(Generic[T]):
         self._value = value
         self.allow_self_loops = allow_self_loops
         self._set_value = SetFunctor(self)
+        StateRegistry.register(str(uuid4()), self)
 
     def __call__(self) -> T:
         return self._value

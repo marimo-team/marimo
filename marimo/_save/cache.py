@@ -23,6 +23,7 @@ CACHE_PREFIX: dict[CacheType, str] = {
     "ContextExecutionPath": "X_",
     "ContentAddressed": "C_",
     "ExecutionPath": "E_",
+    "Pure": "P_",
     "Unknown": "U_",
 }
 

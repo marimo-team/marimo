@@ -5,9 +5,28 @@ from __future__ import annotations
 import pytest
 
 from marimo._ast.app import App
+from marimo._dependencies.dependencies import DependencyManager
 
 
 class TestHash:
+    @staticmethod
+    def test_pure_hash() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def one() -> tuple[int]:
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            with persistent_cache(name="one", _loader=MockLoader()) as cache:
+                Y = [1, 2, 3]
+                Z = len(Y)
+            assert cache._cache.cache_type == "Pure"
+            return Y, Z
+
+        app.run()
+
     @staticmethod
     def test_content_hash() -> None:
         app = App()
@@ -18,8 +37,9 @@ class TestHash:
             from marimo._save.save import persistent_cache
             from tests._save.mocks import MockLoader
 
+            a = 1
             with persistent_cache(name="one", _loader=MockLoader()) as cache:
-                Y = 8
+                Y = a
             assert cache._cache.cache_type == "ContentAddressed"
             return Y
 
@@ -39,7 +59,7 @@ class TestHash:
             from marimo._save.save import persistent_cache
             from tests._save.mocks import MockLoader
 
-            expected_hash = "vi8ruEJL5Wja4sNnDwJZV8b0FGEOHOn_LOJY8RG51W4"
+            expected_hash = "KJzgi4EM10ZHAqR9F81JQQchDN9n_LQpCGGFfdaEYyE"
 
             return expected_hash, persistent_cache, MockLoader
 
@@ -51,9 +71,8 @@ class TestHash:
             ) as _cache:
                 _X = 10 + _a
             assert _X == 7
-            print(_cache._cache.hash)
             assert _cache._cache.cache_type == "ContentAddressed"
-            assert _cache._cache.hash == expected_hash
+            assert _cache._cache.hash == expected_hash, _cache._cache.hash
             return
 
         @app.cell
@@ -68,9 +87,8 @@ class TestHash:
                 # More Comments
                 _X = 10 + _a
             assert _X == 7
-            print(_cache._cache.hash)
             assert _cache._cache.cache_type == "ContentAddressed"
-            assert _cache._cache.hash == expected_hash
+            assert _cache._cache.hash == expected_hash, _cache._cache.hash
             # and a post block difference
             Z = 11
             return Z
@@ -118,17 +136,12 @@ class TestHash:
             with persistent_cache(
                 name="one", _loader=MockLoader(data={"_X": 7})
             ) as _cache:
-                _X = (
-                    10
-                    + _a[0]  # Comment
-                    - len(shared)
-                )
+                _X = 10 + _a[0] - len(shared)  # Comment
             assert _X == 7
-            print(_cache._cache.hash)
             assert (
                 _cache._cache.hash
                 == "84XqUk17Yiuz_jlAVbtdCOvWHrUFj-YApa7-0rB8Kl8"
-            )
+            ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             return
 
@@ -146,14 +159,164 @@ class TestHash:
                 # More Comments
                 _X = 10 + _a[0] - len(shared)
             assert _X == 7
-            print(_cache._cache.hash)
             assert (
                 _cache._cache.hash
                 == "84XqUk17Yiuz_jlAVbtdCOvWHrUFj-YApa7-0rB8Kl8"
-            )
+            ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             # and a post block difference
             Z = 11
             return Z
 
         app.run()
+
+
+    @staticmethod
+    def test_transitive_content_hash() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def load() -> tuple[int]:
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            shared = [None, object()]
+            return persistent_cache, MockLoader, shared
+
+        @app.cell
+        def one(persistent_cache, MockLoader, shared) -> tuple[int]:
+            _a = len(shared)
+            with persistent_cache(name="one", _loader=MockLoader()) as cache:
+                Y = 8 + _a
+            assert cache._cache.cache_type == "ContentAddressed"
+            return a, Y
+
+        app.run()
+
+
+    @staticmethod
+    def test_function_state_content_hash() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def load() -> tuple[int]:
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+            import marimo as mo
+            state, set_state = mo.state(0)
+
+            def shared(state) -> str:
+                return "x" * state()
+            return persistent_cache, MockLoader, shared, state, set_state
+
+        @app.cell
+        def one(persistent_cache, MockLoader, shared, state, set_state) -> tuple[int]:
+            with persistent_cache(name="one", _loader=MockLoader()) as cache:
+                _Y = len(shared(state))
+            set_state(1)
+            assert cache._cache.cache_type == "ContentAddressed"
+            return cache
+
+        @app.cell
+        def two(persistent_cache, MockLoader, shared, state, cache) -> tuple[int]:
+            with persistent_cache(name="two", _loader=MockLoader()) as cache2:
+                _Y = len(shared(state))
+            assert cache2._cache.cache_type == "ContentAddressed"
+            assert cache2._cache.hash != cache._cache.hash
+            return cache2
+
+        app.run()
+
+
+    @staticmethod
+    def test_transitive_execution_path_when_state_dependent() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def load() -> tuple[int]:
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+            import marimo as mo
+            state, set_state = mo.state(0)
+
+            def shared() -> list[int]:
+                return "x" * state()
+            return persistent_cache, MockLoader, shared, state, set_state
+
+        @app.cell
+        def one(persistent_cache, MockLoader, shared, state, set_state) -> tuple[int]:
+            with persistent_cache(name="one", _loader=MockLoader()) as cache:
+                _Y = len(shared())
+            set_state(1)
+            assert cache._cache.cache_type == "ExecutionPath"
+            return Y, cache
+
+        @app.cell
+        def two(persistent_cache, MockLoader, shared, state, cache) -> tuple[int]:
+            with persistent_cache(name="two", _loader=MockLoader()) as cache2:
+                _Y = len(shared())
+            assert cache2._cache.cache_type == "ExecutionPath"
+            assert cache2._cache.hash != cache._cache.hash
+            return Y, cache2
+
+        app.run()
+
+
+class TestDataHash:
+    @staticmethod
+    @pytest.mark.skipif(
+        not DependencyManager.numpy.has(),
+        reason="optional dependencies not installed",
+    )
+    def test_numpy_hash() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def load() -> tuple[Any]:
+            from tests._save.mocks import MockLoader
+
+            from marimo._save.save import persistent_cache
+
+            import numpy as np
+
+            expected_hash = "iBv13AtI89eagC2BRVcUvIzEWikXVer9RRquL8ARcEU"
+            return MockLoader, persistent_cache, expected_hash, np
+
+        @app.cell
+        def one(MockLoader, persistent_cache, expected_hash, np) -> tuple[int]:
+            _a = np.ones((16, 16)) * 2
+            with persistent_cache(name="one", _loader=MockLoader()) as _cache:
+                _A = np.sum(_a)
+            one = _A
+
+            assert _cache._cache.cache_type == "ContentAddressed"
+            assert (
+                _cache._cache.hash == expected_hash
+            ), f"expected_hash != {_cache._cache.hash}"
+            return (one,)
+
+        @app.cell
+        def two(MockLoader, persistent_cache, expected_hash, np) -> tuple[int]:
+            _a = np.ones((16, 16)) + np.ones((16, 16))
+
+            with persistent_cache(name="two", _loader=MockLoader()) as _cache:
+                _A = np.sum(_a)
+            two = _A
+
+            assert _cache._cache.cache_type == "ContentAddressed"
+            assert (
+                _cache._cache.hash == expected_hash
+            ), f"expected_hash != {_cache._cache.hash}"
+            return (two,)
+
+        @app.cell
+        def three(one, two) -> tuple[int]:
+            assert one == two
+            assert one == 512
+
+        app.run()
+

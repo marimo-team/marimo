@@ -4,7 +4,7 @@ from __future__ import annotations
 import ast
 import base64
 import hashlib
-import sys
+import inspect
 import types
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -19,7 +19,7 @@ from marimo._runtime.primitives import (
 )
 from marimo._runtime.state import SetFunctor, State, StateRegistry
 from marimo._save.cache import Cache, CacheType
-from marimo._utils.variables import if_local_then_mangle, unmangle_local
+from marimo._utils.variables import if_local_then_mangle, unmangle_local, get_cell_from_local
 
 if TYPE_CHECKING:
     from hashlib import _Hash as Hash
@@ -158,13 +158,17 @@ def hash_and_dequeue_content_refs(
     # Content addressed hash is valid if every reference is accounted for and
     # can be shown to be a primitive value.
     fn_cache: FN_CACHE_TYPE = {}
+    imports = graph.get_imports()
     for local_ref in sorted(refs):
         ref = if_local_then_mangle(local_ref, cell_id)
-        if ref in sys.modules:
-            # TODO: ask Akshay about module watching
+        if ref in imports:
+            # TODO: There may be a way to tie this in with module watching.
+            # e.g. module watcher could mutate the version number based last
+            # updated timestamp.
             version = ""
             if pin_modules:
-                version = getattr(sys.modules[ref], "__version__", "")
+                module = sys.modules[imports[ref]]
+                version = getattr(module, "__version__", "")
                 hash_alg.update(f"module:{ref}:{version}".encode("utf8"))
             # No need to watch the module otherwise. If the block depends on it
             # then it should be caught when hashing the block.
@@ -175,12 +179,8 @@ def hash_and_dequeue_content_refs(
             continue
         value = defs[ref]
 
-        # An external module variable is assumed to be pure, with module
-        # pinning being the mechanism for invalidation.
-        if getattr(value, "__module__", None) != "__main__":
-            refs.remove(local_ref)
-        elif is_primitive(value):
-            hash_alg.update(memoryview(value))
+        if is_primitive(value):
+            hash_alg.update(bytes(value))
             refs.remove(local_ref)
         elif is_data_primitive(value):
             hash_alg.update(data_to_buffer(value))
@@ -188,27 +188,39 @@ def hash_and_dequeue_content_refs(
         elif is_pure_function(ref, value, defs, fn_cache, graph):
             hash_alg.update(hash_module(value.__code__, hash_alg.name))
             refs.remove(local_ref)
+        # An external module variable is assumed to be pure, with module
+        # pinning being the mechanism for invalidation.
+        elif getattr(value, "__module__", "__main__") != "__main__":
+            refs.remove(local_ref)
 
 
 def normalize_and_extract_ref_state(
-    visitor_refs: set[str], refs: set[str], defs: dict[str, Any]
+    visitor_refs: set[str], refs: set[str], defs: dict[str, Any],
+    cell_id: CellId_t
 ) -> set[str]:
     stateful_refs = set()
     ui_registry = get_context().ui_element_registry
 
     # State Setters that are not directly consumed, are not needed.
     for ref in visitor_refs:
+        ref = if_local_then_mangle(ref, cell_id)
         # If the setter is consumed, let the hash be tied to the state value.
         if ref in defs and isinstance(defs[ref], SetFunctor):
             stateful_refs.add(ref)
             defs[ref] = defs[ref]._state
 
     for ref in set(refs):
+        if ref in defs["__builtins__"]:
+            refs.remove(ref)
+            continue
+
+        ref = if_local_then_mangle(ref, cell_id)
         # State relevant to the context, should be dependent on it's value- not
         # the object.
-        state: Optional[State[Any]]
-        if state := StateRegistry.lookup(ref):
-            defs[ref] = state()
+        if isinstance(defs[ref], State):
+            value = defs[ref]()
+            for state_name in StateRegistry.get_references(defs[ref]):
+                defs[state_name] = value
 
         # Likewise, UI objects should be dependent on their value.
         if ui_id := ui_registry.lookup(ref):
@@ -218,9 +230,6 @@ def normalize_and_extract_ref_state(
             # for proper cache update.
             if ref in visitor_refs:
                 stateful_refs.add(ref)
-
-        if ref in defs["__builtins__"]:
-            refs.remove(ref)
     return stateful_refs
 
 
@@ -272,27 +281,44 @@ def cache_attempt_from_hash(
     # Empty name, so we can match and fill in cell context on load.
     visitor = ScopedVisitor("", ignore_local=True)
     visitor.visit(module)
-
     # Determine immediate references
     refs = set(visitor.refs)
-    stateful_refs = normalize_and_extract_ref_state(visitor.refs, refs, defs)
 
+    # Get stateful registeries
+    ui_registry = get_context().ui_element_registry
+    # This is typically done in post execution hook, but it will not be called
+    # in script mode.
+    StateRegistry.register_scope(defs.keys(), defs)
+    stateful_refs = normalize_and_extract_ref_state(visitor.refs, refs, defs,
+                                                    cell_id)
+
+    # usedforsecurity=False used to satisfy some static analysis tools.
     hash_alg = hashlib.new(hash_type, usedforsecurity=False)
-    cache_type: CacheType = "ContentAddressed"
+    # Default type, means that there are no references at all.
+    cache_type: CacheType = "Pure"
+
     # Attempt content hash
-    hash_and_dequeue_content_refs(
-        hash_alg, cell_id, defs, refs, graph, pin_modules=pin_modules
-    )
-    # Determine _all_ additional relevant references
-    refs |= (
-        graph.get_transitive_references(
-            visitor.defs,
-            inclusive=False,
+    if refs:
+        cache_type: CacheType = "ContentAddressed"
+        hash_and_dequeue_content_refs(
+            hash_alg, cell_id, defs, refs, graph, pin_modules=pin_modules
         )
-        - visitor.refs
-    )
-    # Need to run extract again for the expanded ref set.
-    stateful_refs |= normalize_and_extract_ref_state(visitor.refs, refs, defs)
+        # Determine _all_ additional relevant references
+        transitive_state_refs = (
+            graph.get_transitive_references(
+                visitor.refs,
+                inclusive=False)
+        )
+        refs |= set(filter(lambda ref: (StateRegistry.lookup(ref) or ui_registry.lookup(ref)), transitive_state_refs))
+        # Need to run extract again for the expanded ref set.
+        stateful_refs |= normalize_and_extract_ref_state(
+            visitor.refs, refs, defs, cell_id
+        )
+
+        # Attempt content hash
+        hash_and_dequeue_content_refs(
+            hash_alg, cell_id, defs, refs, graph, pin_modules=pin_modules
+        )
 
     # If there are still unaccounted for references, then fallback on execution
     # hashing.
@@ -313,13 +339,11 @@ def cache_attempt_from_hash(
                 cell
                 for ref in refs
                 if (
-                    cell := unmangle_local(
-                        if_local_then_mangle(ref, cell_id)
-                    ).cell
+                    cell := get_cell_from_local(ref, cell_id)
                 )
             ]
         )
-        assert len(ref_cells) <= 1, (
+        assert len(ref_cells) == 1, (
             "Inconsistent references, cannot determine execution path. "
             f"Got {ref_cells} expected set({cell_id}). "
             "This is unexpected, please report this issue to "
@@ -339,6 +363,7 @@ def cache_attempt_from_hash(
         )
         hash_alg.update(hash_raw_module(context, hash_type))
 
+    # Finally, utilize the unrun block itself, and clean up.
     hash_alg.update(hash_raw_module(module, hash_type))
     hashed_context = (
         base64.urlsafe_b64encode(hash_alg.digest()).decode("utf-8").strip("=")

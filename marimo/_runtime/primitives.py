@@ -30,6 +30,9 @@ def is_external(value: Any) -> bool:
 
 
 def is_primitive(value: Any) -> bool:
+    # Tuples don't allow for write access
+    if isinstance(value, tuple):
+        return all(map(is_primitive, value))
     return isinstance(value, PRIMITIVES)
 
 
@@ -44,10 +47,6 @@ def is_clone_primitive(value: Any) -> bool:
 def is_data_primitive(value: Any) -> bool:
     if is_primitive(value):
         return True
-
-    # Tuples don't allow for write access
-    if isinstance(value, tuple):
-        return all(map(is_data_primitive, value))
 
     # If a numpy array, ensure that it's not an object array.
     if hasattr(value, "__array_interface__"):
