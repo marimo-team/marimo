@@ -75,7 +75,7 @@ class PyArrowTableManagerFactory(TableManagerFactory):
                             for value in transformed_column
                         ]
                         formatted_type = cast(
-                            pa.ChunkedArray[Any], pa.array(transformed_values)
+                            Any, pa.array(transformed_values)
                         ).type
                         transformed_column = pa.array(
                             transformed_values, type=formatted_type
