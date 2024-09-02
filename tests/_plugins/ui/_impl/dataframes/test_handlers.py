@@ -8,7 +8,7 @@ import pytest
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.dataframes.transforms.apply import (
     TransformsContainer,
-    apply_transforms,
+    _apply_transforms,
     get_handler_for_dataframe,
 )
 from marimo._plugins.ui._impl.dataframes.transforms.types import (
@@ -47,7 +47,7 @@ else:
 
 def apply(df: DataFrameType, transform: Transform) -> DataFrameType:
     handler = get_handler_for_dataframe(df)
-    return apply_transforms(
+    return _apply_transforms(
         df, handler, Transformations(transforms=[transform])
     )
 

@@ -488,9 +488,9 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
             elif condition.operator == "<=":
                 filter_conditions.append(column <= value)
             elif condition.operator == "is_true":
-                filter_conditions.append(column == True)  # noqa: E712
+                filter_conditions.append(column)
             elif condition.operator == "is_false":
-                filter_conditions.append(column == False)  # noqa: E712
+                filter_conditions.append(~column)
             elif condition.operator == "is_nan":
                 filter_conditions.append(column.isnull())
             elif condition.operator == "is_not_nan":

@@ -137,6 +137,7 @@ testoptional = [
     "matplotlib~=3.9.2; python_version > \"3.8\"",
     "pyarrow>=15.0.2,<16",
     "pyarrow-stubs>=10.0.1.9",
+    "pyarrow-hotfix",
     "pillow~=10.4.0",
     "types-Pillow~=10.2.0.20240520",
     "polars~=1.5.0",
