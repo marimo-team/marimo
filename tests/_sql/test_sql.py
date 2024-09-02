@@ -12,7 +12,7 @@ from marimo._sql.sql import _query_includes_limit, sql
 HAS_DEPS = DependencyManager.duckdb.has() and DependencyManager.polars.has()
 
 
-@pytest.mark.skipif(not HAS_DEPS, reason="pandas or polars is required")
+@pytest.mark.skipif(not HAS_DEPS, reason="polars and duckdb is required")
 def test_query_includes_limit():
     assert _query_includes_limit("SELECT * FROM t LIMIT 10") is True
     assert _query_includes_limit("SELECT * FROM t LIMIT\n10") is True
@@ -32,7 +32,7 @@ def test_query_includes_limit():
 
 
 @patch("marimo._sql.sql.output.replace")
-@pytest.mark.skipif(not HAS_DEPS, reason="pandas or polars is required")
+@pytest.mark.skipif(not HAS_DEPS, reason="polars and duckdb is required")
 def test_applies_limit(mock_replace: MagicMock) -> None:
     import duckdb
 
@@ -50,7 +50,7 @@ def test_applies_limit(mock_replace: MagicMock) -> None:
         assert table._component_args["total-rows"] == "too_many"
         assert table._component_args["pagination"] is True
         assert len(table._data) == 300
-        assert table._filtered_manager.get_num_rows() == 300
+        assert table._searched_manager.get_num_rows() == 300
 
         # Limit 10
         mock_replace.reset_mock()
@@ -60,7 +60,7 @@ def test_applies_limit(mock_replace: MagicMock) -> None:
         assert table._component_args["total-rows"] == 10
         assert table._component_args["pagination"] is True
         assert len(table._data) == 10
-        assert table._filtered_manager.get_num_rows() == 10
+        assert table._searched_manager.get_num_rows() == 10
 
         # Limit 400
         mock_replace.reset_mock()
@@ -70,7 +70,7 @@ def test_applies_limit(mock_replace: MagicMock) -> None:
         assert table._component_args["total-rows"] == 400
         assert table._component_args["pagination"] is True
         assert len(table._data) == 400
-        assert table._filtered_manager.get_num_rows() == 400
+        assert table._searched_manager.get_num_rows() == 400
 
         # Limit above 20_0000 (which is the mo.ui.table cutoff)
         mock_replace.reset_mock()
@@ -81,9 +81,7 @@ def test_applies_limit(mock_replace: MagicMock) -> None:
         assert table._component_args["total-rows"] == 25_000
         assert table._component_args["pagination"] is True
         assert len(table._data) == 25_000
-        assert (
-            table._filtered_manager.get_num_rows() == 20_000
-        )  # cutoff by mo.ui.table DEFAULT_ROW_LIMIT
+        assert table._searched_manager.get_num_rows() == 25_000
     finally:
         del os.environ["MARIMO_SQL_DEFAULT_LIMIT"]
 
