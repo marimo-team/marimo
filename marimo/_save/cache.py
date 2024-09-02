@@ -16,7 +16,11 @@ if TYPE_CHECKING:
     from marimo._ast.visitor import Name
 
 CacheType = Literal[
-    "ContextExecutionPath", "ContentAddressed", "ExecutionPath", "Unknown"
+    "ContextExecutionPath",
+    "ContentAddressed",
+    "ExecutionPath",
+    "Pure",
+    "Unknown",
 ]
 # Easy visual identification of cache type.
 CACHE_PREFIX: dict[CacheType, str] = {

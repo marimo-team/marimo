@@ -4,7 +4,7 @@ from __future__ import annotations
 import ast
 import base64
 import hashlib
-import inspect
+import sys
 import types
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -19,7 +19,11 @@ from marimo._runtime.primitives import (
 )
 from marimo._runtime.state import SetFunctor, State, StateRegistry
 from marimo._save.cache import Cache, CacheType
-from marimo._utils.variables import if_local_then_mangle, unmangle_local, get_cell_from_local
+from marimo._utils.variables import (
+    get_cell_from_local,
+    if_local_then_mangle,
+    unmangle_local,
+)
 
 if TYPE_CHECKING:
     from hashlib import _Hash as Hash
@@ -113,7 +117,7 @@ def standardize_tensor(tensor: Tensor) -> Optional[Tensor]:
     # TODO: Consider moving to a more general utility module.
     if hasattr(tensor, "__array__") or hasattr(tensor, "toarray"):
         if not hasattr(tensor, "__array_interface__"):
-            DependencyManager.require_numpy(
+            DependencyManager.numpy.require(
                 "to render images from generic arrays in `mo.image`"
             )
             import numpy
@@ -167,7 +171,7 @@ def hash_and_dequeue_content_refs(
             # updated timestamp.
             version = ""
             if pin_modules:
-                module = sys.modules[imports[ref]]
+                module = sys.modules[imports[ref].namespace]
                 version = getattr(module, "__version__", "")
                 hash_alg.update(f"module:{ref}:{version}".encode("utf8"))
             # No need to watch the module otherwise. If the block depends on it
@@ -195,8 +199,10 @@ def hash_and_dequeue_content_refs(
 
 
 def normalize_and_extract_ref_state(
-    visitor_refs: set[str], refs: set[str], defs: dict[str, Any],
-    cell_id: CellId_t
+    visitor_refs: set[str],
+    refs: set[str],
+    defs: dict[str, Any],
+    cell_id: CellId_t,
 ) -> set[str]:
     stateful_refs = set()
     ui_registry = get_context().ui_element_registry
@@ -215,6 +221,13 @@ def normalize_and_extract_ref_state(
             continue
 
         ref = if_local_then_mangle(ref, cell_id)
+
+        # The block will likely throw a NameError, so remove and defer to
+        # execution.
+        if ref not in defs:
+            refs.remove(ref)
+            continue
+
         # State relevant to the context, should be dependent on it's value- not
         # the object.
         if isinstance(defs[ref], State):
@@ -284,13 +297,14 @@ def cache_attempt_from_hash(
     # Determine immediate references
     refs = set(visitor.refs)
 
-    # Get stateful registeries
+    # Get stateful registers
     ui_registry = get_context().ui_element_registry
     # This is typically done in post execution hook, but it will not be called
     # in script mode.
-    StateRegistry.register_scope(defs.keys(), defs)
-    stateful_refs = normalize_and_extract_ref_state(visitor.refs, refs, defs,
-                                                    cell_id)
+    StateRegistry.register_scope(set(defs.keys()), defs)
+    stateful_refs = normalize_and_extract_ref_state(
+        visitor.refs, refs, defs, cell_id
+    )
 
     # usedforsecurity=False used to satisfy some static analysis tools.
     hash_alg = hashlib.new(hash_type, usedforsecurity=False)
@@ -299,17 +313,22 @@ def cache_attempt_from_hash(
 
     # Attempt content hash
     if refs:
-        cache_type: CacheType = "ContentAddressed"
+        cache_type = "ContentAddressed"
         hash_and_dequeue_content_refs(
             hash_alg, cell_id, defs, refs, graph, pin_modules=pin_modules
         )
         # Determine _all_ additional relevant references
-        transitive_state_refs = (
-            graph.get_transitive_references(
-                visitor.refs,
-                inclusive=False)
+        transitive_state_refs = graph.get_transitive_references(
+            visitor.refs, inclusive=False
         )
-        refs |= set(filter(lambda ref: (StateRegistry.lookup(ref) or ui_registry.lookup(ref)), transitive_state_refs))
+        refs |= set(
+            filter(
+                lambda ref: (
+                    StateRegistry.lookup(ref) or ui_registry.lookup(ref)
+                ),
+                transitive_state_refs,
+            )
+        )
         # Need to run extract again for the expanded ref set.
         stateful_refs |= normalize_and_extract_ref_state(
             visitor.refs, refs, defs, cell_id
@@ -338,9 +357,7 @@ def cache_attempt_from_hash(
             [
                 cell
                 for ref in refs
-                if (
-                    cell := get_cell_from_local(ref, cell_id)
-                )
+                if (cell := get_cell_from_local(ref, cell_id))
             ]
         )
         assert len(ref_cells) == 1, (

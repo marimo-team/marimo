@@ -49,7 +49,6 @@ class StateRegistry:
             if isinstance(lookup, State):
                 StateRegistry.register(variable, lookup)
 
-
     @staticmethod
     def _delete(name: str, state_item: StateItem[T]) -> None:
         StateRegistry._states.pop(name, None)
@@ -85,6 +84,7 @@ class StateRegistry:
         if id(state) in StateRegistry._inv_states:
             return StateRegistry._inv_states[id(state)]
         return set()
+
 
 class State(Generic[T]):
     """Mutable reactive state"""

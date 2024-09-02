@@ -29,7 +29,7 @@ from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context.types import get_global_context
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.runner import cell_runner
-from marimo._runtime.state import State, StateRegistry
+from marimo._runtime.state import StateRegistry
 from marimo._tracer import kernel_tracer
 from marimo._utils.flatten import contains_instance
 

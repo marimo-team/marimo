@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from marimo._ast.cell import CellId_t
@@ -35,6 +35,8 @@ def is_local(name: str) -> bool:
     return name == "__" or (name.startswith("_") and not name.startswith("__"))
 
 
-def get_cell_from_local(name: str, cell_id: CellId_t = "") -> Optional[CellId_t]:
+def get_cell_from_local(
+    name: str, cell_id: CellId_t = ""
+) -> Optional[CellId_t]:
     local = unmangle_local(if_local_then_mangle(name, cell_id)).cell
     return local if local else None

@@ -62,6 +62,7 @@ class persistent_cache(object):
         *,
         save_path: str = "outputs",
         name: str,
+        pin_modules: bool = False,
         _loader: Optional[Loader] = None,
     ) -> None:
         self.name = name
@@ -76,6 +77,8 @@ class persistent_cache(object):
         self._old_trace: Optional[TraceFunction] = None
         self._frame: Optional[FrameType] = None
         self._body_start: int = MAXINT
+        # TODO: Consider having a user level setting.
+        self.pin_modules = pin_modules
 
     def __enter__(self) -> Self:
         sys.settrace(lambda *_args, **_keys: None)
@@ -128,10 +131,7 @@ class persistent_cache(object):
                     f"{UNEXPECTED_FAILURE_BOILERPLATE}",
                 )
                 graph = ctx.graph
-                cell_id = (
-                    ctx.cell_id
-                    or ctx.execution_context.cell_id
-                )
+                cell_id = ctx.cell_id or ctx.execution_context.cell_id
                 pre_module, save_module = ExtractWithBlock(lineno - 1).visit(
                     ast.parse(graph.cells[cell_id].code).body  # type: ignore[arg-type]
                 )
@@ -143,6 +143,7 @@ class persistent_cache(object):
                     {**globals(), **with_frame.f_locals},
                     loader=self._loader,
                     context=pre_module,
+                    pin_modules=self.pin_modules,
                 )
 
                 self.cache_type = self._cache
