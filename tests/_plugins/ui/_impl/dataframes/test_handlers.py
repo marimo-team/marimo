@@ -30,7 +30,11 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     TransformType,
 )
 
-HAS_DEPS = DependencyManager.pandas.has() and DependencyManager.polars.has()
+HAS_DEPS = (
+    DependencyManager.pandas.has()
+    and DependencyManager.polars.has()
+    and DependencyManager.ibis.has()
+)
 
 if HAS_DEPS:
     import ibis
