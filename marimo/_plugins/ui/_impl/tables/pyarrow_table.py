@@ -62,18 +62,21 @@ class PyArrowTableManagerFactory(TableManagerFactory):
                 else:  # pa.RecordBatch
                     column_names = _data.schema.names
 
-                transformed_columns: list[pa.Array[Any, Any]] = []
+                transformed_columns: list[pa.Array[Any]] = []
                 for i, col in enumerate(column_names):
+                    transformed_column: pa.Array[Any]
                     if isinstance(_data, pa.Table):
-                        transformed_column = _data.column(i).chunk(0)
+                        transformed_column = _data.column(i).chunks[0]
                     else:
                         transformed_column = _data.column(i)
                     if col in format_mapping:
-                        transformed_values = [
+                        transformed_values: list[Any] = [
                             format_value(col, value.as_py(), format_mapping)
                             for value in transformed_column
                         ]
-                        formatted_type = pa.array(transformed_values).type
+                        formatted_type = cast(
+                            pa.ChunkedArray[Any], pa.array(transformed_values)
+                        ).type
                         transformed_column = pa.array(
                             transformed_values, type=formatted_type
                         )  # type: ignore
@@ -88,17 +91,25 @@ class PyArrowTableManagerFactory(TableManagerFactory):
                     transformed_columns.append(transformed_column)
 
                 if isinstance(_data, pa.Table):
-                    _data = pa.table(transformed_columns, names=column_names)
+                    _data = pa.table(
+                        cast(Any, transformed_columns), names=column_names
+                    )
                 else:  # pa.RecordBatch
                     new_schema = pa.schema(
                         [
-                            pa.field(col, transformed_columns[i].type)
+                            pa.field(
+                                col,
+                                cast(
+                                    pa.ChunkedArray[Any],
+                                    transformed_columns[i],
+                                ).type,
+                            )
                             for i, col in enumerate(column_names)
                         ]
                     )
-                    _data = pa.RecordBatch.from_arrays(
+                    _data = pa.record_batch(
                         transformed_columns, schema=new_schema
-                    )  # type: ignore
+                    )
 
                 return _data
 
@@ -119,7 +130,7 @@ class PyArrowTableManagerFactory(TableManagerFactory):
             ) -> PyArrowTableManager:
                 if isinstance(self.data, pa.RecordBatch):
                     return PyArrowTableManager(
-                        pa.RecordBatch.from_arrays(
+                        pa.record_batch(
                             [
                                 self.data.column(
                                     self.data.schema.get_field_index(col)
@@ -147,7 +158,7 @@ class PyArrowTableManagerFactory(TableManagerFactory):
             def get_field_types(self) -> FieldTypes:
                 return {
                     column: PyArrowTableManager._get_field_type(
-                        cast(Any, self.data)[idx]
+                        cast(pa.ChunkedArray[Any], self.data.column(idx))
                     )
                     for idx, column in enumerate(self.data.schema.names)
                 }
@@ -263,9 +274,9 @@ class PyArrowTableManagerFactory(TableManagerFactory):
 
             @staticmethod
             def _get_field_type(
-                column: pa.Array[Any, Any],
+                column: pa.ChunkedArray[Any],
             ) -> Tuple[FieldType, ExternalDataType]:
-                dtype_string = str(column.type)
+                dtype_string = str(column.to_string())
                 if isinstance(column, pa.NullArray):
                     return ("unknown", dtype_string)
                 elif pa.types.is_string(column.type):

@@ -20,8 +20,8 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
 from marimo._utils.assert_never import assert_never
 
 if TYPE_CHECKING:
-    import ibis
-    import ibis.expr.types as ir
+    import ibis  # type: ignore
+    import ibis.expr.types as ir  # type: ignore
     import pandas as pd
     import polars as pl
 

@@ -77,7 +77,7 @@ def get_handler_for_dataframe(
             return PolarsTransformHandler()
 
     if DependencyManager.ibis.has():
-        import ibis
+        import ibis  # type: ignore
 
         if isinstance(df, ibis.Table):
             return IbisTransformHandler()
