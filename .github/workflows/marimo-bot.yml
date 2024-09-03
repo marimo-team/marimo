@@ -30,6 +30,7 @@ jobs:
 
       - name: 📝 Initial Comment on PR
         uses: actions/github-script@v7
+        id: comment
         with:
           script: |
             const comment = await github.rest.issues.createComment({
@@ -39,7 +40,7 @@ jobs:
               body: '🚀 Starting test release process...'
             });
             console.log(`Comment created with ID: ${comment.data.id}`);
-            core.setOutput('comment-id', comment.data.id);
+            return comment.data.id;
 
       - uses: pnpm/action-setup@v2
         with:
@@ -70,7 +71,7 @@ jobs:
           uv-venv: marimo-venv
 
       # patch __init__.py version to be of the form
-      # X.Y.Z+test{4char-hash}
+      # X.Y.Z-devN+test.{4char-hash}
       - name: 🔨 Patch version number
         run: |
           # Get the version number
@@ -79,7 +80,7 @@ jobs:
           # Generate a random 4 character hash
           random_hash=$(openssl rand -hex 2)
           # Form the new version with the random hash
-          MARIMO_VERSION="${current_version}-test${random_hash}"
+          MARIMO_VERSION="${current_version}-dev0+test.${random_hash}"
           # Set the version in the environment for later steps
           echo "MARIMO_VERSION=$MARIMO_VERSION" >> $GITHUB_ENV
           sed -i "s/__version__ = \".*\"/__version__ = \"$MARIMO_VERSION\"/" marimo/__init__.py
@@ -115,7 +116,8 @@ jobs:
         with:
           script: |
             try {
-              const commentId = core.getInput('comment-id');
+              const commentId = ${{steps.comment.outputs.result}}
+              console.log(`Updating comment with ID: ${commentId}`);
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -132,7 +134,8 @@ jobs:
         with:
           script: |
             try {
-              const commentId = core.getInput('comment-id');
+              const commentId = ${{steps.comment.outputs.result}}
+              console.log(`Updating comment with ID: ${commentId}`);
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
