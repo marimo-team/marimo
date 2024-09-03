@@ -141,6 +141,7 @@ class DependencyManager:
     duckdb = Dependency("duckdb")
     pillow = Dependency("PIL")
     plotly = Dependency("plotly")
+    bokeh = Dependency("bokeh")
     pyarrow = Dependency("pyarrow")
     openai = Dependency("openai")
     matplotlib = Dependency("matplotlib")
