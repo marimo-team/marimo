@@ -6,6 +6,7 @@ import tempfile
 from typing import Generator
 
 import pytest
+
 from marimo import __version__
 from marimo._ast.cell import CellConfig
 from marimo._server.api.status import HTTPException, HTTPStatus
