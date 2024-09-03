@@ -241,7 +241,7 @@ export const LoadingDataTableComponent = memo(
     // Data loading
     const { data, loading, error } = useAsyncData<{
       rows: T[];
-      totalRows: number;
+      totalRows: number | "too_many";
     }>(async () => {
       // If there is no data, return an empty array
       if (props.totalRows === 0) {
@@ -250,38 +250,49 @@ export const LoadingDataTableComponent = memo(
 
       // Table data is a url string or an array of objects
       let tableData = props.data;
+      let totalRows = props.totalRows;
+
+      // First page and no search query
+      const shouldSkipSearch =
+        searchQuery === "" &&
+        paginationState.pageIndex === 0 &&
+        filters.length === 0 &&
+        sorting.length === 0;
 
       if (sorting.length > 1) {
         Logger.warn("Multiple sort columns are not supported");
       }
 
-      // If we have sort configuration, fetch the sorted data
-      const searchResults = await search<T>({
-        sort:
-          sorting.length > 0
-            ? {
-                by: sorting[0].id,
-                descending: sorting[0].desc,
-              }
-            : undefined,
-        query: searchQuery,
-        page_number: paginationState.pageIndex,
-        page_size: paginationState.pageSize,
-        filters: filters.flatMap((filter) => {
-          return filterToFilterCondition(
-            filter.id,
-            filter.value as ColumnFilterValue,
-          );
-        }),
-      });
+      // If we have sort/search/filter, use the search function
+      if (!shouldSkipSearch) {
+        const searchResults = await search<T>({
+          sort:
+            sorting.length > 0
+              ? {
+                  by: sorting[0].id,
+                  descending: sorting[0].desc,
+                }
+              : undefined,
+          query: searchQuery,
+          page_number: paginationState.pageIndex,
+          page_size: paginationState.pageSize,
+          filters: filters.flatMap((filter) => {
+            return filterToFilterCondition(
+              filter.id,
+              filter.value as ColumnFilterValue,
+            );
+          }),
+        });
 
-      tableData = searchResults.data;
+        tableData = searchResults.data;
+        totalRows = searchResults.total_rows;
+      }
 
       // If we already have the data, return it
       if (Array.isArray(tableData)) {
         return {
           rows: tableData,
-          totalRows: searchResults.total_rows,
+          totalRows: totalRows,
         };
       }
 
@@ -299,7 +310,7 @@ export const LoadingDataTableComponent = memo(
 
       return {
         rows: tableData,
-        totalRows: searchResults.total_rows,
+        totalRows: totalRows,
       };
     }, [
       sorting,
@@ -337,7 +348,13 @@ export const LoadingDataTableComponent = memo(
     if (loading && !data) {
       return (
         <DelayMount milliseconds={200}>
-          <LoadingTable pageSize={props.pageSize} />
+          <LoadingTable
+            pageSize={
+              props.totalRows !== "too_many" && props.totalRows > 0
+                ? props.totalRows
+                : props.pageSize
+            }
+          />
         </DelayMount>
       );
     }
