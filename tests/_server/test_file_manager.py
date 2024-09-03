@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import pathlib
 import tempfile
 from typing import Generator
 
@@ -154,7 +155,9 @@ def test_save_app_config_valid(app_file_manager: AppFileManager) -> None:
 
 
 def test_save_app_config_exception(app_file_manager: AppFileManager) -> None:
-    app_file_manager.filename = "/invalid/path/app_config.py"
+    app_file_manager.filename = str(
+        pathlib.Path("/invalid/path/app_config.py")
+    )
     with pytest.raises(HTTPException) as e:  # noqa: PT012
         app_file_manager.save_app_config({})
     assert e.value.status_code == HTTPStatus.SERVER_ERROR
