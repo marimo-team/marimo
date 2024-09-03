@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import os
+import sys
 import tempfile
 from typing import Generator
 
 import pytest
-
 from marimo import __version__
 from marimo._ast.cell import CellConfig
 from marimo._server.api.status import HTTPException, HTTPStatus
@@ -153,6 +153,10 @@ def test_save_app_config_valid(app_file_manager: AppFileManager) -> None:
         os.remove(app_file_manager.filename)
 
 
+@pytest.mark.skipif(
+    condition=sys.platform == "win32",
+    reason="filename is not invalid on Windows",
+)
 def test_save_app_config_exception(app_file_manager: AppFileManager) -> None:
     app_file_manager.filename = "/invalid/path/app_config.py"
     with pytest.raises(HTTPException) as e:  # noqa: PT012
@@ -193,7 +197,7 @@ def test_save_successful(app_file_manager: AppFileManager) -> None:
 
 
 def test_save_cannot_rename(app_file_manager: AppFileManager) -> None:
-    save_request.filename = "ABCD://invalid/path/save_exception.py"
+    save_request.filename = "/invalid/path/save_exception.py"
     with pytest.raises(HTTPException) as e:
         app_file_manager.save(save_request)
     assert e.value.status_code == HTTPStatus.BAD_REQUEST
