@@ -443,24 +443,22 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
         if transform.errors == "ignore":
             try:
                 # Use coalesce to handle conversion errors
-                return df.select(
-                    "*",
+                return df.mutate(
                     ibis.coalesce(
                         df[transform.column_id].cast(
                             ibis.dtype(transform.data_type)
                         ),
                         df[transform.column_id],
-                    ).name(transform.column_id),
+                    ).name(transform.column_id)
                 )
             except ibis.common.exceptions.IbisTypeError:
                 return df
         else:
             # Default behavior (raise errors)
-            return df.select(
-                "*",
+            return df.mutate(
                 df[transform.column_id]
                 .cast(ibis.dtype(transform.data_type))
-                .name(transform.column_id),
+                .name(transform.column_id)
             )
 
     @staticmethod
