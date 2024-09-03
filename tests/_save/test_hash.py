@@ -351,6 +351,9 @@ class TestDataHash:
         not DependencyManager.numpy.has(),
         reason="optional dependencies not installed",
     )
+    @pytest.mark.skipif(
+        "sys.version_info < (3, 11) or sys.version_info >= (3, 12)"
+    )
     def test_numpy_hash() -> None:
         app = App()
         app._anonymous_file = True
