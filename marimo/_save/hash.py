@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ast.visitor import ScopedVisitor
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._runtime.context import get_context
+from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.primitives import (
     FN_CACHE_TYPE,
     is_data_primitive,
@@ -205,7 +205,6 @@ def normalize_and_extract_ref_state(
     cell_id: CellId_t,
 ) -> set[str]:
     stateful_refs = set()
-    ui_registry = get_context().ui_element_registry
 
     # State Setters that are not directly consumed, are not needed.
     for ref in visitor_refs:
@@ -236,13 +235,12 @@ def normalize_and_extract_ref_state(
                 defs[state_name] = value
 
         # Likewise, UI objects should be dependent on their value.
-        if ui_id := ui_registry.lookup(ref):
-            ui = ui_registry.get_object(ui_id)
+        if isinstance(defs[ref], UIElement):
+            ui = defs[ref]
             defs[ref] = ui.value
             # If the UI is directly consumed, then hold on to the reference
             # for proper cache update.
-            if ref in visitor_refs:
-                stateful_refs.add(ref)
+            stateful_refs.add(ref)
     return stateful_refs
 
 
@@ -298,7 +296,6 @@ def cache_attempt_from_hash(
     refs = set(visitor.refs)
 
     # Get stateful registers
-    ui_registry = get_context().ui_element_registry
     # This is typically done in post execution hook, but it will not be called
     # in script mode.
     StateRegistry.register_scope(set(defs.keys()), defs)
@@ -324,7 +321,8 @@ def cache_attempt_from_hash(
         refs |= set(
             filter(
                 lambda ref: (
-                    StateRegistry.lookup(ref) or ui_registry.lookup(ref)
+                    StateRegistry.lookup(ref)
+                    or isinstance(defs[ref], UIElement)
                 ),
                 transitive_state_refs,
             )

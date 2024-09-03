@@ -63,7 +63,7 @@ class Cache:
             if isinstance(value, SetFunctor):
                 value(self.defs[ref])
             elif isinstance(value, UIElement):
-                value.value = self.defs[ref]
+                value._update(self.defs[ref])
             else:
                 raise CacheException(
                     "Failure while restoring cached values. "

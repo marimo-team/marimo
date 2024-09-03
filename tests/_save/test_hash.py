@@ -195,6 +195,42 @@ class TestHash:
         app.run()
 
     @staticmethod
+    def test_function_ui_content_hash() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def load() -> tuple[Any]:
+            import marimo as mo
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            slider = mo.ui.slider(1, 10)
+
+            def shared() -> str:
+                return "x" * slider.value
+
+            return persistent_cache, MockLoader, shared, slider
+
+        @app.cell
+        def one(persistent_cache, MockLoader, shared, slider) -> tuple[Any]:
+            with persistent_cache(name="one", _loader=MockLoader()) as cache:
+                _Y = len(shared())
+            slider._update(7)
+            assert cache._cache.cache_type == "ExecutionPath"
+            return (cache,)
+
+        @app.cell
+        def two(persistent_cache, MockLoader, shared, cache) -> tuple[Any]:
+            with persistent_cache(name="two", _loader=MockLoader()) as cache2:
+                _Y = len(shared())
+            assert cache2._cache.cache_type == "ExecutionPath"
+            assert cache2._cache.hash != cache._cache.hash
+            return (cache2,)
+
+        app.run()
+
+    @staticmethod
     def test_function_state_content_hash() -> None:
         app = App()
         app._anonymous_file = True
@@ -247,7 +283,7 @@ class TestHash:
 
             state, set_state = mo.state(0)
 
-            def shared() -> list[int]:
+            def shared() -> str:
                 return "x" * state()
 
             return persistent_cache, MockLoader, shared, state, set_state
