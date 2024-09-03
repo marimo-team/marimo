@@ -122,6 +122,7 @@ dev = [
 testcore = [
     "click <8.1.4",  # https://github.com/pallets/click/issues/2558,
     # for server testing
+    "hypothesis~=6.102.1",
     "httpx~=0.27.0",
     "pytest~=8.3.2",
     "pytest-codecov~=0.5.1",
