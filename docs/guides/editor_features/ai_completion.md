@@ -46,7 +46,6 @@ can generate entirely new cells by clicking the "Generate with AI" button at
 the bottom of your notebook. You can also refactor existing cells by inputting
 `Ctrl/Cmd-Shift-e` in a cell, opening an input to modify the cell using AI.
 
-
 <div align="center">
 <figure>
 <video src="/_static/ai-completion.mp4" controls="controls" width="100%" height="100%"></video>
@@ -54,9 +53,7 @@ the bottom of your notebook. You can also refactor existing cells by inputting
 </figure>
 </div>
 
-
 ### Using OpenAI
-
 
 1. Install openai: `pip install openai`
 
