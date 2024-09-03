@@ -17,6 +17,11 @@ import type { CompletionConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { indentOneTab } from "./utils/indentOneTab";
 import { type QuotePrefixKind, splitQuotePrefix } from "./utils/quotes";
+import {
+  markdownAutoRunExtension,
+  type MovementCallbacks,
+} from "../cells/extensions";
+import type { PlaceholderType } from "../config/extension";
 
 const quoteKinds = [
   ['"""', '"""'],
@@ -136,6 +141,8 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
   getExtension(
     _completionConfig: CompletionConfig,
     hotkeys: HotkeyProvider,
+    _: PlaceholderType,
+    movementCallbacks: MovementCallbacks,
   ): Extension[] {
     return [
       markdown({
@@ -174,6 +181,8 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
         activateOnTyping: true,
         override: [emojiCompletionSource],
       }),
+      // Markdown autorun
+      markdownAutoRunExtension(movementCallbacks),
       python().support,
     ];
   }

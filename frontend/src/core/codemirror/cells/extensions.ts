@@ -310,3 +310,16 @@ export function cellCodeEditingBundle(
 
   return [onChangePlugin, formatKeymapExtension(cellId, callbacks, hotkeys)];
 }
+
+/**
+ * Extension for auto-running markdown cells
+ */
+export function markdownAutoRunExtension(
+  callbacks: MovementCallbacks,
+): Extension {
+  return EditorView.updateListener.of((update) => {
+    if (update.docChanged) {
+      callbacks.onRun();
+    }
+  });
+}
