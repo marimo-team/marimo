@@ -293,7 +293,3 @@ DataFrameComponent.displayName = "DataFrameComponent";
 function getColumnSummaries() {
   return Promise.resolve({ summaries: [], data: null });
 }
-
-function prettyNumber(value: number): string {
-  return new Intl.NumberFormat().format(value);
-}
