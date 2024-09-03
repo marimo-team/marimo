@@ -1,8 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, cast
 
+from marimo._plugins.ui._impl.dataframes.transforms.print_code import (
+    python_print_pandas,
+    python_print_polars,
+    python_print_transforms,
+)
 from marimo._plugins.ui._impl.dataframes.transforms.types import (
     AggregateTransform,
     ColumnConversionTransform,
@@ -15,6 +20,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     SelectColumnsTransform,
     ShuffleRowsTransform,
     SortColumnTransform,
+    Transform,
     TransformHandler,
 )
 from marimo._utils.assert_never import assert_never
@@ -27,10 +33,6 @@ if TYPE_CHECKING:
 
 
 class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
-    @staticmethod
-    def supports_code_sample() -> bool:
-        return True
-
     @staticmethod
     def handle_column_conversion(
         df: "pd.DataFrame", transform: ColumnConversionTransform
@@ -63,10 +65,19 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
     def handle_filter_rows(
         df: "pd.DataFrame", transform: FilterRowsTransform
     ) -> "pd.DataFrame":
+        if not transform.where:
+            return df
+
+        import pandas as pd
+
+        clauses: List[pd.Series[Any]] = []
         for condition in transform.where:
-            value = _coerce_value(
-                df[condition.column_id].dtype, condition.value
-            )
+            try:
+                value = _coerce_value(
+                    df[condition.column_id].dtype, condition.value
+                )
+            except Exception:
+                value = condition.value or ""
             if condition.operator == "==":
                 df_filter = df[condition.column_id] == value
             elif condition.operator == "!=":
@@ -108,12 +119,15 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
             else:
                 assert_never(condition.operator)
 
-            if transform.operation == "keep_rows":
-                df = df[df_filter]
-            elif transform.operation == "remove_rows":
-                df = df[~df_filter]
-            else:
-                assert_never(transform.operation)
+            clauses.append(df_filter)
+
+        if transform.operation == "keep_rows":
+            df = df[pd.concat(clauses, axis=1).all(axis=1)]
+        elif transform.operation == "remove_rows":
+            df = df[~pd.concat(clauses, axis=1).all(axis=1)]
+        else:
+            assert_never(transform.operation)
+
         return df
 
     @staticmethod
@@ -189,27 +203,27 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
             pd.DataFrame(df.pop(cast(str, column_id)).values.tolist())
         )
 
+    @staticmethod
+    def as_python_code(
+        df_name: str, columns: List[str], transforms: List[Transform]
+    ) -> str:
+        return python_print_transforms(
+            df_name, columns, transforms, python_print_pandas
+        )
+
 
 class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
-    @staticmethod
-    def supports_code_sample() -> bool:
-        return False
-
     @staticmethod
     def handle_column_conversion(
         df: "pl.DataFrame", transform: ColumnConversionTransform
     ) -> "pl.DataFrame":
         import polars.datatypes as pl_datatypes
 
-        def numpy_type_to_polars_type(dtype: str) -> pl.PolarsDataType:
-            polars_dtype = pl_datatypes.numpy_char_code_to_dtype(dtype)
-            return polars_dtype
-
         return df.cast(
             {
-                str(transform.column_id): numpy_type_to_polars_type(
-                    transform.data_type
-                )
+                str(
+                    transform.column_id
+                ): pl_datatypes.numpy_char_code_to_dtype(transform.data_type)
             },
             strict=transform.errors == "raise",
         )
@@ -410,12 +424,16 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
         df = df.drop(cast(str, column_id))
         return df.hstack(pl.DataFrame(column.to_list()))
 
+    @staticmethod
+    def as_python_code(
+        df_name: str, columns: List[str], transforms: List[Transform]
+    ) -> str:
+        return python_print_transforms(
+            df_name, columns, transforms, python_print_polars
+        )
+
 
 class IbisTransformHandler(TransformHandler["ibis.Table"]):
-    @staticmethod
-    def supports_code_sample() -> bool:
-        return False
-
     @staticmethod
     def handle_column_conversion(
         df: "ibis.Table", transform: ColumnConversionTransform
@@ -425,26 +443,24 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
         if transform.errors == "ignore":
             try:
                 # Use coalesce to handle conversion errors
-                return df.mutate(
-                    **{
-                        transform.column_id: ibis.coalesce(
-                            df[transform.column_id].cast(
-                                ibis.dtype(transform.data_type)
-                            ),
-                            df[transform.column_id],
-                        )
-                    }
+                return df.select(
+                    "*",
+                    ibis.coalesce(
+                        df[transform.column_id].cast(
+                            ibis.dtype(transform.data_type)
+                        ),
+                        df[transform.column_id],
+                    ).name(transform.column_id),
                 )
             except ibis.common.exceptions.IbisTypeError:
                 return df
         else:
             # Default behavior (raise errors)
-            return df.mutate(
-                **{
-                    transform.column_id: df[transform.column_id].cast(
-                        ibis.dtype(transform.data_type)
-                    )
-                }
+            return df.select(
+                "*",
+                df[transform.column_id]
+                .cast(ibis.dtype(transform.data_type))
+                .name(transform.column_id),
             )
 
     @staticmethod
@@ -601,6 +617,21 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
         df: "ibis.Table", transform: ExpandDictTransform
     ) -> "ibis.Table":
         return df.unpack(transform.column_id)
+
+    # TODO: support as_python_code for Ibis
+    # @staticmethod
+    # def as_python_code(
+    #     df_name: str, columns: List[str], transforms: List[Transform]
+    # ) -> str | None:
+    #     return python_print_transforms(
+    #         df_name, columns, transforms, python_print_ibis
+    #     )
+
+    @staticmethod
+    def as_sql_code(transformed_df: "ibis.Table") -> str:
+        import ibis
+
+        return str(ibis.to_sql(transformed_df))
 
 
 def _coerce_value(dtype: Any, value: Any) -> Any:
