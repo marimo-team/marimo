@@ -208,10 +208,12 @@ class DefaultTableManager(TableManager[JsonTableData]):
 
             if isinstance(self.data, dict):
                 return PyArrowTableManagerFactory.create()(
-                    pa.Table.from_pydict(self.data)
+                    pa.Table.from_pydict(cast(Any, self.data))
                 )
             return PyArrowTableManagerFactory.create()(
-                pa.Table.from_pylist(self._normalize_data(self.data))
+                pa.Table.from_pylist(
+                    cast(Any, self._normalize_data(self.data))
+                )
             )
 
         raise ValueError("No supported table libraries found.")

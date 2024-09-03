@@ -154,7 +154,7 @@ class DataFrameProtocolTableManager(TableManager[DataFrameLike]):
 # https://github.com/vega/altair/blob/18a2c3c237014591d172284560546a2f0ac1a883/altair/utils/data.py#L343
 def arrow_table_from_dataframe_protocol(
     dfi_df: DataFrameLike,
-) -> "pa.lib.Table":
+) -> "pa.Table":
     """
     Convert a DataFrame Interchange Protocol compatible object
     to an Arrow Table
@@ -176,4 +176,4 @@ def arrow_table_from_dataframe_protocol(
             if isinstance(result, pa.Table):
                 return result
 
-    return pi.from_dataframe(dfi_df)  # type: ignore[no-any-return]
+    return pi.from_dataframe(dfi_df)  # type: ignore

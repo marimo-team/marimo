@@ -89,7 +89,7 @@ dev = [
     # For testing mo.ui.chart, dataframes, tables
     "pandas>=1.5.3",
     "pandas-stubs>=1.5.3.230321",
-    "pyarrow>=15.0.2,<16",
+    "pyarrow>=15.0.2,<18",
     "pyarrow-stubs>=10.0.1.9",
     # For tracing debugging
     "opentelemetry-api~=1.26.0",
@@ -135,14 +135,16 @@ testoptional = [
     "pandas-stubs>=1.5.3.230321",
     "geopandas~=0.13.0",
     "matplotlib~=3.9.2; python_version > \"3.8\"",
-    "pyarrow>=15.0.2,<16",
-    "pyarrow-stubs>=10.0.1.9",
+    "pyarrow>=15.0.2,<18",
+    "pyarrow-stubs>=20240830",
+    "pyarrow-hotfix",
     "pillow~=10.4.0",
     "types-Pillow~=10.2.0.20240520",
     "polars~=1.5.0",
     "anywidget~=0.9.13",
     "ipython~=8.12.3",
     "openai~=1.41.1",
+    "ibis-framework[duckdb]~=9.3.0; python_version > \"3.9\"",
     "anthropic==0.34.1",
     # exporting as ipynb
     "nbformat >=5.10.4",

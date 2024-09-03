@@ -234,7 +234,7 @@ async def ai_completion(
     # If the model starts with claude, use anthropic
     if model.startswith("claude"):
         anthropic_client = get_anthropic_client(config)
-        response = anthropic_client.messages.create(
+        anthropic_response = anthropic_client.messages.create(
             model=model,
             max_tokens=1000,
             messages=[
@@ -249,7 +249,7 @@ async def ai_completion(
         )
 
         return StreamingResponse(
-            content=make_stream_response(response),
+            content=make_stream_response(anthropic_response),
             media_type="application/json",
         )
 

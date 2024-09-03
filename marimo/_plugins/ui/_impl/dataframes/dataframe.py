@@ -177,7 +177,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
         if self._error is not None:
             raise GetDataFrameError(self._error)
 
-        manager = get_table_manager(self._data)
+        manager = get_table_manager(self._value)
         response = self.search(SearchTableArgs(page_size=10, page_number=0))
         return GetDataFrameResponse(
             url=str(response.data),
