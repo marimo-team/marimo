@@ -106,6 +106,24 @@ def test_rename_create_new_file(app_file_manager: AppFileManager) -> None:
         os.remove(new_filename)
 
 
+def test_rename_create_new_directory_file(
+    app_file_manager: AppFileManager,
+) -> None:
+    app_file_manager.filename = None
+    new_directory = "new_directory"
+    new_filename = os.path.join(new_directory, "new_file.py")
+    if os.path.exists(new_filename):
+        os.remove(new_filename)
+    if os.path.exists(new_directory):
+        os.rmdir(new_directory)
+    try:
+        app_file_manager.rename(new_filename)
+        assert os.path.exists(new_filename)
+    finally:
+        os.remove(new_filename)
+        os.rmdir(new_directory)
+
+
 def test_rename_different_filetype(app_file_manager: AppFileManager) -> None:
     initial_filename = app_file_manager.filename
     assert initial_filename

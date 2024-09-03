@@ -32,31 +32,34 @@ class OSFileSystem(FileSystem):
     def list_files(self, path: str) -> List[FileInfo]:
         files: List[FileInfo] = []
         folders: List[FileInfo] = []
-        with os.scandir(path) as it:
-            for entry in it:
-                if entry.name in IGNORE_LIST:
-                    continue
-                try:
-                    is_directory = entry.is_dir()
-                    entry_stat = entry.stat()
-                except OSError:
-                    # do not include files that fail to read
-                    # (e.g. recursive/broken symlinks)
-                    continue
+        try:
+            with os.scandir(path) as it:
+                for entry in it:
+                    if entry.name in IGNORE_LIST:
+                        continue
+                    try:
+                        is_directory = entry.is_dir()
+                        entry_stat = entry.stat()
+                    except OSError:
+                        # do not include files that fail to read
+                        # (e.g. recursive/broken symlinks)
+                        continue
 
-                info = FileInfo(
-                    id=entry.path,
-                    path=entry.path,
-                    name=entry.name,
-                    is_directory=is_directory,
-                    is_marimo_file=not is_directory
-                    and self._is_marimo_file(entry.path),
-                    last_modified=entry_stat.st_mtime,
-                )
-                if is_directory:
-                    folders.append(info)
-                else:
-                    files.append(info)
+                    info = FileInfo(
+                        id=entry.path,
+                        path=entry.path,
+                        name=entry.name,
+                        is_directory=is_directory,
+                        is_marimo_file=not is_directory
+                        and self._is_marimo_file(entry.path),
+                        last_modified=entry_stat.st_mtime,
+                    )
+                    if is_directory:
+                        folders.append(info)
+                    else:
+                        files.append(info)
+        except OSError:
+            pass
 
         return sorted(folders, key=natural_sort_file) + sorted(
             files, key=natural_sort_file
