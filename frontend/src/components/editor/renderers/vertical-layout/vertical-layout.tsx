@@ -9,7 +9,7 @@ import { VerticalLayoutWrapper } from "./vertical-layout-wrapper";
 import { z } from "zod";
 import { useDelayVisibility } from "./useDelayVisibility";
 import { type AppMode, kioskModeAtom } from "@/core/mode";
-import { ReadonlyPythonCode } from "@/components/editor/code/readonly-python-code";
+import { ReadonlyCode } from "@/components/editor/code/readonly-python-code";
 import {
   Check,
   Code2Icon,
@@ -269,7 +269,7 @@ const VerticalCell = memo(
         <div tabIndex={-1} id={HTMLId} ref={cellRef} className={className}>
           {cellOutputArea === "above" && outputArea}
           <div className="tray">
-            <ReadonlyPythonCode
+            <ReadonlyCode
               initiallyHideCode={config.hide_code || kiosk}
               code={code}
             />

@@ -31,7 +31,6 @@ export const DataFrame: StoryObj = {
             ["picture" as ColumnId, "bytes"],
           ])
         }
-        dataframeName={"df"}
         pageSize={5}
         value={value}
         setValue={(v) => {

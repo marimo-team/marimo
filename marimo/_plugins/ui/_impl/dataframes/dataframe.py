@@ -43,13 +43,13 @@ from marimo._utils.parse_dataclass import parse_raw
 @dataclass
 class GetDataFrameResponse:
     url: str
-    has_more: bool
     total_rows: int
     # List of column names that are actually row headers
     # This really only applies to Pandas, that has special index columns
     row_headers: List[str]
-    supports_code_sample: bool
     field_types: FieldTypes
+    python_code: Optional[str] = None
+    sql_code: Optional[str] = None
 
 
 @dataclass
@@ -127,6 +127,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
         except Exception:
             pass
 
+        self._dataframe_name = dataframe_name
         self._data = df
         self._handler = handler
         self._manager = get_table_manager(df)
@@ -134,6 +135,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
             df, handler
         )
         self._error: Optional[str] = None
+        self._last_transforms = Transformations([])
 
         super().__init__(
             component_name=dataframe._name,
@@ -182,10 +184,14 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
         return GetDataFrameResponse(
             url=str(response.data),
             total_rows=response.total_rows,
-            has_more=False,
             row_headers=manager.get_row_headers(),
-            supports_code_sample=self._handler.supports_code_sample(),
             field_types=manager.get_field_types(),
+            python_code=self._handler.as_python_code(
+                self._dataframe_name,
+                manager.get_column_names(),
+                self._last_transforms.transforms,
+            ),
+            sql_code=self._handler.as_sql_code(self._value),
         )
 
     def get_column_values(
@@ -221,6 +227,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
             transformations = parse_raw(value, Transformations)
             result = self._transform_container.apply(transformations)
             self._error = None
+            self._last_transforms = transformations
             return result
         except Exception as e:
             error = "Error applying dataframe transform: %s\n\n" % str(e)
