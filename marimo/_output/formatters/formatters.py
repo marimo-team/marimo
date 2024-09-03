@@ -82,7 +82,7 @@ def register_formatters(theme: Theme = "light") -> None:
     for package, factory in THIRD_PARTY_FACTORIES.items():
         if package in sys.modules:
             factory.register()
-            factory.apply_theme(theme)
+            factory.apply_theme_safe(theme)
             pre_registered.add(package)
 
     third_party_factories = {
@@ -149,7 +149,7 @@ def register_formatters(theme: Theme = "light") -> None:
                 ) -> Any:
                     loader_return_value = original_exec_module(module)
                     factory.register()
-                    factory.apply_theme(theme)
+                    factory.apply_theme_safe(theme)
                     return loader_return_value
 
                 spec.loader.exec_module = exec_module
@@ -164,4 +164,4 @@ def register_formatters(theme: Theme = "light") -> None:
     # package import. So we can register them at program start-up.
     for factory in NATIVE_FACTORIES:
         factory.register()
-        factory.apply_theme(theme)
+        factory.apply_theme_safe(theme)
