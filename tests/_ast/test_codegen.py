@@ -71,7 +71,9 @@ class TestGeneration:
 
     @staticmethod
     def test_generate_filecontents_empty_with_config() -> None:
-        config = _AppConfig(app_title="test_title", width="full")
+        config = _AppConfig(
+            app_title="test_title", width="full", css_file=r"a\b.css"
+        )
         contents = wrap_generate_filecontents([], [], config=config)
         assert contents == get_expected_filecontents(
             "test_generate_filecontents_empty_with_config"
