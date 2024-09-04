@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.4.6"
-app = marimo.App(width=r"full", app_title=r"test_title", css_file=r"a\b.css")
+app = marimo.App(width="full", app_title="test_title", css_file="a\\b.css")
 
 
 

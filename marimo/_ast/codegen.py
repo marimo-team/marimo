@@ -124,9 +124,7 @@ def generate_unparsable_cell(
 def generate_app_constructor(config: Optional[_AppConfig]) -> str:
     def _format_arg(arg: Any) -> str:
         if isinstance(arg, str):
-            # Serialize string arguments as r-strings to handle backslashes
-            # in file paths
-            return f'r"{arg}"'
+            return f'"{arg}"'.replace("\\", "\\\\")
         else:
             return str(arg)
 
