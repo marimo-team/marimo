@@ -25,7 +25,7 @@ def __():
         }
     )
 
-    df["request"].str.extract("GET /([^?]+)\?", expand=True)
+    df["request"].str.extract(r"GET /([^?]+)\?", expand=True)
     return df, pd
 
 
