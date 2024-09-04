@@ -71,7 +71,7 @@ jobs:
           uv-venv: marimo-venv
 
       # patch __init__.py version to be of the form
-      # X.Y.Z-devN+test.{4char-hash}
+      # X.Y.Z-devN-test.{4char-hash}
       - name: 🔨 Patch version number
         run: |
           # Get the version number
@@ -80,7 +80,7 @@ jobs:
           # Generate a random 4 character hash
           random_hash=$(openssl rand -hex 2)
           # Form the new version with the random hash
-          MARIMO_VERSION="${current_version}-dev0+test.${random_hash}"
+          MARIMO_VERSION="${current_version}-dev0-test.${random_hash}"
           # Set the version in the environment for later steps
           echo "MARIMO_VERSION=$MARIMO_VERSION" >> $GITHUB_ENV
           sed -i "s/__version__ = \".*\"/__version__ = \"$MARIMO_VERSION\"/" marimo/__init__.py
