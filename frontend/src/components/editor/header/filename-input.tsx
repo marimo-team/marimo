@@ -154,41 +154,43 @@ export const FilenameInput = ({
         shouldFilter={false}
         className="bg-transparent group filename-input"
       >
-        <PopoverAnchor>
-          <CommandInput
-            data-testid="dir-completion-input"
-            tabIndex={-1}
-            rootClassName="border-none justify-center px-1"
-            spellCheck="false"
-            value={focused ? searchValue || "" : initialValue || ""}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") {
-                e.currentTarget.blur();
-              }
-            }}
-            icon={null}
-            ref={inputRef}
-            onValueChange={setSearchValue}
-            placeholder={placeholderText}
-            autoComplete="off"
-            style={flexibleWidth ? { maxWidth: size } : undefined}
-            className={cn(
-              className,
-              "w-full px-4 py-1 my-1 h-9 font-mono text-foreground/60",
-            )}
-          />
-        </PopoverAnchor>
+        <CommandList>
+          <PopoverAnchor>
+            <CommandInput
+              data-testid="dir-completion-input"
+              tabIndex={-1}
+              rootClassName="border-none justify-center px-1"
+              spellCheck="false"
+              value={focused ? searchValue || "" : initialValue || ""}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  e.currentTarget.blur();
+                }
+              }}
+              icon={null}
+              ref={inputRef}
+              onValueChange={setSearchValue}
+              placeholder={placeholderText}
+              autoComplete="off"
+              style={flexibleWidth ? { maxWidth: size } : undefined}
+              className={cn(
+                className,
+                "w-full px-4 py-1 my-1 h-9 font-mono text-foreground/60",
+              )}
+            />
+          </PopoverAnchor>
 
-        <PopoverContent
-          side="bottom"
-          className={cn(
-            "p-0 w-full min-w-80 max-w-80vw hidden",
-            suggestionsList && "group-focus-within:block",
-          )}
-          portal={false}
-        >
-          {suggestionsList}
-        </PopoverContent>
+          <PopoverContent
+            side="bottom"
+            className={cn(
+              "p-0 w-full min-w-80 max-w-80vw hidden",
+              suggestionsList && "group-focus-within:block",
+            )}
+            portal={false}
+          >
+            {suggestionsList}
+          </PopoverContent>
+        </CommandList>
       </Command>
     </Popover>
   );
