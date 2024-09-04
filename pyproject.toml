@@ -137,7 +137,7 @@ testoptional = [
     "geopandas~=0.13.0",
     "matplotlib~=3.9.2; python_version > \"3.8\"",
     "pyarrow>=15.0.2,<18",
-    "pyarrow-stubs>=2024.9.3",
+    "pyarrow-stubs>=17.0",
     "pyarrow-hotfix",
     "pillow~=10.4.0",
     "types-Pillow~=10.2.0.20240520",
