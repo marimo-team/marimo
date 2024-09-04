@@ -9,6 +9,7 @@ from marimo import __version__
 from marimo._utils.health import (
     get_chrome_version,
     get_node_version,
+    get_optional_modules_list,
     get_required_modules_list,
 )
 
@@ -47,5 +48,11 @@ def get_system_info() -> dict[str, Union[str, dict[str, str]]]:
     }
 
     requirements = get_required_modules_list()
+    optional_deps = get_optional_modules_list()
 
-    return {**info, "Binaries": binaries, "Requirements": requirements}
+    return {
+        **info,
+        "Binaries": binaries,
+        "Dependencies": requirements,
+        "Optional Dependencies": optional_deps,
+    }

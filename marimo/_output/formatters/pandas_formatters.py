@@ -72,7 +72,12 @@ class PandasFormatter(FormatterFactory):
         def _show_series(series: pd.Series[Any]) -> tuple[KnownMimeType, str]:
             max_rows = pd.get_option("display.max_rows")
             show_dimensions_option = pd.get_option("display.show_dimensions")
+
             if show_dimensions_option == "truncate":
+                # Handle None for max_rows
+                if max_rows is None:
+                    max_rows = len(series.index)
+
                 show_dimensions = len(series.index) > max_rows
             elif show_dimensions_option:
                 show_dimensions = True
