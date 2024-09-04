@@ -209,7 +209,7 @@ export const DataTableColumnHeader = <TData, TValue>({
       <DropdownMenuTrigger asChild={true}>
         <div
           className={cn(
-            "group flex items-center my-1 space-between w-full select-none gap-2 border hover:border-border border-transparent hover:bg-[var(--slate-3)] data-[state=open]:bg-[var(--slate-3)] data-[state=open]:border-border rounded px-2 -mx-2",
+            "group flex items-center my-1 space-between w-full select-none gap-2 border hover:border-border border-transparent hover:bg-[var(--slate-3)] data-[state=open]:bg-[var(--slate-3)] data-[state=open]:border-border rounded px-2 -mx-1",
             className,
           )}
           data-testid="data-table-sort-button"
