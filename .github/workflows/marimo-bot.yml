@@ -71,16 +71,18 @@ jobs:
           uv-venv: marimo-venv
 
       # patch __init__.py version to be of the form
-      # X.Y.Z-devN-test.{4char-hash}
+      # X.Y.Z-dev9{4random digits}
+      # This must be a valid semver version from
+      # https://packaging.python.org/en/latest/discussions/versioning/
       - name: 🔨 Patch version number
         run: |
           # Get the version number
           # - assumes version is on a line of the form __version__ == "x.y.z"
           current_version=`grep '__version__' marimo/__init__.py | awk '{print $3}' | tr -d '"'`
-          # Generate a random 4 character hash
-          random_hash=$(openssl rand -hex 2)
-          # Form the new version with the random hash
-          MARIMO_VERSION="${current_version}-dev0-test.${random_hash}"
+          # Generate a random 4-digit number
+          random_digits=`shuf -i 1000-9999 -n 1`
+          # Form the new version with the random digits
+          MARIMO_VERSION="${current_version}-dev9${random_digits}"
           # Set the version in the environment for later steps
           echo "MARIMO_VERSION=$MARIMO_VERSION" >> $GITHUB_ENV
           sed -i "s/__version__ = \".*\"/__version__ = \"$MARIMO_VERSION\"/" marimo/__init__.py
