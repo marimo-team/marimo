@@ -396,6 +396,17 @@ def edit(
     help="Base URL for the server. Should start with a /.",
     callback=validators.base_url,
 )
+@click.option(
+    "--sandbox",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="""
+    Run the command in an isolated virtual environment using
+    'uv run --isolated'. Requires `uv`.
+    """,
+)
 def new(
     port: Optional[int],
     host: str,
@@ -404,7 +415,14 @@ def new(
     token: bool,
     token_password: Optional[str],
     base_url: str,
+    sandbox: bool,
 ) -> None:
+    if sandbox:
+        from marimo._cli.sandbox import run_in_sandbox
+
+        run_in_sandbox(sys.argv[1:], None)
+        return
+
     start(
         file_router=AppFileRouter.new_file(),
         development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
