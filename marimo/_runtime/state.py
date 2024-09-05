@@ -23,77 +23,86 @@ class StateRegistry:
     _states: dict[str, StateItem[Any]] = {}
     _inv_states: dict[int, set[str]] = {}
 
-    @staticmethod
-    def register(name: str, state: State[T]) -> None:
-        if id(state) in StateRegistry._inv_states:
-            ref = next(iter(StateRegistry._inv_states[id(state)]))
-            if StateRegistry._states[ref].id != id(state):
-                for ref in StateRegistry._inv_states[id(state)]:
-                    del StateRegistry._states[ref]
-                StateRegistry._inv_states[id(state)].clear()
+    def register(self, state: State[T], name: Optional[str] = None) -> None:
+        if name is None:
+            name = str(uuid4())
+        if id(state) in self._inv_states:
+            ref = next(iter(self._inv_states[id(state)]))
+            if self._states[ref].id != id(state):
+                for ref in self._inv_states[id(state)]:
+                    del self._states[ref]
+                self._inv_states[id(state)].clear()
         state_item = StateItem(id(state), weakref.ref(state))
-        StateRegistry._states[name] = state_item
-        id_to_ref = StateRegistry._inv_states.get(id(state), set())
+        self._states[name] = state_item
+        id_to_ref = self._inv_states.get(id(state), set())
         id_to_ref.add(name)
-        StateRegistry._inv_states[id(state)] = id_to_ref
-        finalizer = weakref.finalize(
-            state, StateRegistry._delete, name, state_item
-        )
+        self._inv_states[id(state)] = id_to_ref
+        finalizer = weakref.finalize(state, self._delete, name, state_item)
         # No need to clean up the registry at program teardown
         finalizer.atexit = False
 
-    @staticmethod
-    def register_scope(defs: set[str], glbls: dict[str, Any]) -> None:
+    def register_scope(
+        self, glbls: dict[str, Any], defs: Optional[set[str]] = None
+    ) -> None:
+        if defs is None:
+            defs = set(glbls.keys())
         for variable in defs:
             lookup = glbls.get(variable, None)
             if isinstance(lookup, State):
-                StateRegistry.register(variable, lookup)
+                self.register(lookup, variable)
 
-    @staticmethod
-    def _delete(name: str, state_item: StateItem[T]) -> None:
-        StateRegistry._states.pop(name, None)
-        StateRegistry._inv_states.pop(state_item.id, None)
+    def _delete(self, name: str, state_item: StateItem[T]) -> None:
+        self._states.pop(name, None)
+        self._inv_states.pop(state_item.id, None)
 
-    @staticmethod
-    def retain_active_states(active_variables: set[str]) -> None:
+    def retain_active_states(self, active_variables: set[str]) -> None:
         """Retains only the active states in the registry."""
         # Remove all non-active states by name
         active_state_ids = set()
-        for state_name in list(StateRegistry._states.keys()):
+        for state_name in list(self._states.keys()):
             if state_name not in active_variables:
-                StateRegistry._inv_states.pop(
-                    id(StateRegistry._states[state_name]), None
-                )
-                del StateRegistry._states[state_name]
+                self._inv_states.pop(id(self._states[state_name]), None)
+                del self._states[state_name]
             else:
-                active_state_ids.add(id(StateRegistry._states[state_name]))
+                active_state_ids.add(id(self._states[state_name]))
 
         # Remove all non-active states by id
-        for state_id in list(StateRegistry._inv_states.keys()):
+        for state_id in list(self._inv_states.keys()):
             if state_id not in active_state_ids:
-                del StateRegistry._inv_states[state_id]
+                del self._inv_states[state_id]
 
-    @staticmethod
-    def lookup(name: str) -> Optional[State[T]]:
-        if name in StateRegistry._states:
-            return StateRegistry._states[name].ref()
+    def lookup(self, name: str) -> Optional[State[T]]:
+        if name in self._states:
+            return self._states[name].ref()
         return None
 
-    @staticmethod
-    def get_references(state: State[T]) -> set[str]:
-        if id(state) in StateRegistry._inv_states:
-            return StateRegistry._inv_states[id(state)]
+    def bound_names(self, state: State[T]) -> set[str]:
+        if id(state) in self._inv_states:
+            return self._inv_states[id(state)]
         return set()
 
 
 class State(Generic[T]):
     """Mutable reactive state"""
 
-    def __init__(self, value: T, allow_self_loops: bool = False) -> None:
+    def __init__(
+        self,
+        value: T,
+        allow_self_loops: bool = False,
+        _registry: Optional[StateRegistry] = None,
+    ) -> None:
         self._value = value
         self.allow_self_loops = allow_self_loops
         self._set_value = SetFunctor(self)
-        StateRegistry.register(str(uuid4()), self)
+
+        try:
+            if _registry is None:
+                _registry = get_context().state_registry
+            _registry.register(self)
+        except ContextNotInitializedError:
+            # Registration may be picked up later, but there is nothing to do
+            # at this point.
+            pass
 
     def __call__(self) -> T:
         return self._value

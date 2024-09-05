@@ -26,10 +26,9 @@ from marimo._messaging.ops import (
 from marimo._messaging.tracebacks import write_traceback
 from marimo._output import formatting
 from marimo._plugins.ui._core.ui_element import UIElement
-from marimo._runtime.context.types import get_global_context
+from marimo._runtime.context.types import get_context, get_global_context
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.runner import cell_runner
-from marimo._runtime.state import StateRegistry
 from marimo._tracer import kernel_tracer
 from marimo._utils.flatten import contains_instance
 
@@ -176,8 +175,9 @@ def _store_state_reference(
     run_result: cell_runner.RunResult,
 ) -> None:
     del run_result
-    StateRegistry.register_scope(cell.defs, runner.glbls)
-    StateRegistry.retain_active_states(set(runner.glbls.keys()))
+    ctx = get_context()
+    ctx.state_registry.register_scope(runner.glbls, defs=cell.defs)
+    ctx.state_registry.retain_active_states(set(runner.glbls.keys()))
 
 
 @kernel_tracer.start_as_current_span("broadcast_outputs")

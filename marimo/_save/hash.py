@@ -10,14 +10,14 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ast.visitor import ScopedVisitor
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._runtime.context import get_context
 from marimo._runtime.primitives import (
     FN_CACHE_TYPE,
     is_data_primitive,
     is_primitive,
     is_pure_function,
 )
-from marimo._runtime.state import SetFunctor, State, StateRegistry
+from marimo._runtime.state import SetFunctor, State
 from marimo._save.cache import Cache, CacheType
 from marimo._utils.variables import (
     get_cell_from_local,
@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from types import CodeType
 
     from marimo._ast.cell import CellId_t, CellImpl
+    from marimo._runtime.context.types import RuntimeContext
     from marimo._runtime.dataflow import DirectedGraph
     from marimo._save.loaders import Loader
 
@@ -203,6 +204,7 @@ def normalize_and_extract_ref_state(
     refs: set[str],
     defs: dict[str, Any],
     cell_id: CellId_t,
+    ctx: RuntimeContext,
 ) -> set[str]:
     stateful_refs = set()
 
@@ -229,15 +231,15 @@ def normalize_and_extract_ref_state(
 
         # State relevant to the context, should be dependent on it's value- not
         # the object.
-        if isinstance(defs[ref], State):
-            value = defs[ref]()
-            for state_name in StateRegistry.get_references(defs[ref]):
-                defs[state_name] = value
+        value: Optional[State[Any]]
+        if value := ctx.state_registry.lookup(ref):
+            for state_name in ctx.state_registry.bound_names(value):
+                defs[state_name] = value()
 
         # Likewise, UI objects should be dependent on their value.
-        if isinstance(defs[ref], UIElement):
-            ui = defs[ref]
-            defs[ref] = ui.value
+        if (ui := ctx.ui_element_registry.lookup(ref)) is not None:
+            for ui_name in ctx.ui_element_registry.bound_names(ui._id):
+                defs[ui_name] = ui.value
             # If the UI is directly consumed, then hold on to the reference
             # for proper cache update.
             stateful_refs.add(ref)
@@ -298,9 +300,12 @@ def cache_attempt_from_hash(
     # Get stateful registers
     # This is typically done in post execution hook, but it will not be called
     # in script mode.
-    StateRegistry.register_scope(set(defs.keys()), defs)
+    ctx = get_context()
+    ctx.ui_element_registry.register_scope(defs)
+    ctx.state_registry.register_scope(defs)
+
     stateful_refs = normalize_and_extract_ref_state(
-        visitor.refs, refs, defs, cell_id
+        visitor.refs, refs, defs, cell_id, ctx
     )
 
     # usedforsecurity=False used to satisfy some static analysis tools.
@@ -321,15 +326,15 @@ def cache_attempt_from_hash(
         refs |= set(
             filter(
                 lambda ref: (
-                    StateRegistry.lookup(ref)
-                    or isinstance(defs[ref], UIElement)
+                    ctx.state_registry.lookup(ref)
+                    or ctx.ui_element_registry.lookup(ref)
                 ),
                 transitive_state_refs,
             )
         )
         # Need to run extract again for the expanded ref set.
         stateful_refs |= normalize_and_extract_ref_state(
-            visitor.refs, refs, defs, cell_id
+            visitor.refs, refs, defs, cell_id, ctx
         )
 
         # Attempt content hash
