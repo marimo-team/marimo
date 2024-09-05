@@ -109,8 +109,6 @@ class _Progress(Html):
         self.closed = True
 
     def _get_text(self) -> str:
-        if self.disabled:
-            return ""
         return build_stateless_plugin(
             component_name="marimo-progress",
             args=_remove_none_values(
@@ -123,7 +121,6 @@ class _Progress(Html):
                     "progress": True if self.loading_spinner else self.current,
                     "rate": self._get_rate(),
                     "eta": self._get_eta(),
-                    "disabled": self.disabled,
                 }
             ),
         )
@@ -187,7 +184,6 @@ class Spinner(_Progress):
         self,
         title: str | None,
         subtitle: str | None,
-        disabled: bool = False,
     ) -> None:
         super().__init__(
             title=title,
@@ -195,7 +191,6 @@ class Spinner(_Progress):
             total=None,
             show_rate=False,
             show_eta=False,
-            disabled=disabled,
         )
 
     def update(
@@ -335,6 +330,7 @@ class progress_bar:
         self.completion_title = completion_title
         self.completion_subtitle = completion_subtitle
         self.remove_on_exit = remove_on_exit
+        self.disabled = disabled
 
         if collection is not None:
             self.collection = collection
@@ -363,12 +359,14 @@ class progress_bar:
             show_eta=show_eta,
             disabled=disabled,
         )
-        output.append(self.progress)
+        if not disabled:
+            output.append(self.progress)
 
     def __iter__(self) -> Iterable[S | int]:
         for item in self.collection:
             yield item
-            self.progress.update(increment=self.step)
+            if not self.disabled:
+                self.progress.update(increment=self.step)
         self._finish()
 
     def __enter__(self) -> ProgressBar:
