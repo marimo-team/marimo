@@ -4,10 +4,13 @@ import { toast } from "@/components/ui/use-toast";
 import { sendCopy } from "@/core/network/requests";
 import { PathBuilder, Paths } from "@/utils/paths";
 
-export function useCopyNotebook(filePath: string) {
+export function useCopyNotebook(filePath: string | null) {
   const { openPrompt, closeModal } = useImperativeModal();
 
   return () => {
+    if (!filePath) {
+      return null;
+    }
     const pathBuilder = new PathBuilder("/");
     openPrompt({
       title: "Copy notebook",

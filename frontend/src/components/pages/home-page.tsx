@@ -96,7 +96,7 @@ const HomePage: React.FC = () => {
   const recentsResponse = useAsyncData(() => getRecentFiles(), []);
   const workspaceResponse = useAsyncData(
     () => getWorkspaceFiles({ includeMarkdown }),
-    [includeMarkdown]
+    [includeMarkdown],
   );
 
   useInterval(
@@ -104,7 +104,7 @@ const HomePage: React.FC = () => {
       setNonce((nonce) => nonce + 1);
     },
     // Refresh every 10 seconds, or when the document becomes visible
-    { delayMs: 10_000, whenVisible: true }
+    { delayMs: 10_000, whenVisible: true },
   );
 
   const runningResponse = useAsyncData(async () => {
@@ -115,7 +115,7 @@ const HomePage: React.FC = () => {
   const response = combineAsyncData(
     recentsResponse,
     workspaceResponse,
-    runningResponse
+    runningResponse,
   );
 
   if (response.error) {
@@ -330,7 +330,7 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
     <div
       style={style}
       className={cn(
-        "flex items-center cursor-pointer ml-1 text-muted-foreground whitespace-nowrap group h-full"
+        "flex items-center cursor-pointer ml-1 text-muted-foreground whitespace-nowrap group h-full",
       )}
       onClick={(evt) => {
         evt.stopPropagation();
@@ -466,7 +466,7 @@ const SessionShutdownButton: React.FC<{ filePath: string }> = ({
 }) => {
   const { openConfirm, closeModal } = useImperativeModal();
   const { runningNotebooks, setRunningNotebooks } = useContext(
-    RunningNotebooksContext
+    RunningNotebooksContext,
   );
   if (!runningNotebooks.has(filePath)) {
     return null;
@@ -494,7 +494,7 @@ const SessionShutdownButton: React.FC<{ filePath: string }> = ({
                     sessionId: ids.sessionId as SessionId,
                   }).then((response) => {
                     setRunningNotebooks(
-                      Maps.keyBy(response.files, (file) => file.path)
+                      Maps.keyBy(response.files, (file) => file.path),
                     );
                   });
                   closeModal();
