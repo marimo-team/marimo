@@ -51,7 +51,7 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
   if (config.copilot === "github") {
     extensions.push(
       inlineSuggestion({
-        delay: 200, // default is 500ms
+        delay: 500, // default is 500ms
         fetchFn: async (state) => {
           if (!isCopilotEnabled()) {
             return "";

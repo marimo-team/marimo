@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
+import { CopilotStatusIcon } from "./copilot-status";
 
 export const MachineStats: React.FC = (props) => {
   const [nonce, setNonce] = useState(0);
@@ -48,6 +49,7 @@ export const MachineStats: React.FC = (props) => {
         />
       )}
       {data && <CPUBar cpu={data.cpu} />}
+      <CopilotStatusIcon />
       <BackendConnection connection={connection.state} />
     </div>
   );

@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { getUserConfig, userConfigAtom } from "@/core/config/config";
-import { waitFor } from "@/core/state/jotai";
+import { store, waitFor } from "@/core/state/jotai";
+import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 
 const KEY = "marimo:copilot:signedIn";
 
-export const copilotSignedInState = atomWithStorage<boolean | null>(
+export const isGitHubCopilotSignedInState = atomWithStorage<boolean | null>(
   KEY,
   null,
   undefined,
@@ -13,6 +14,24 @@ export const copilotSignedInState = atomWithStorage<boolean | null>(
     getOnInit: true,
   },
 );
+
+export const githubCopilotLoadingVersion = atom<number | null>(null);
+
+/**
+ * Set the currently loading document version
+ */
+export function setGitHubCopilotStartLoadingVersion(version: number) {
+  store.set(githubCopilotLoadingVersion, version);
+}
+/**
+ * Clear the currently loading document version, if it matches the current version
+ */
+export function clearGitHubCopilotStopLoadingVersion(expectedVersion: number) {
+  const currentVersion = store.get(githubCopilotLoadingVersion);
+  if (currentVersion === expectedVersion) {
+    store.set(githubCopilotLoadingVersion, null);
+  }
+}
 
 function getIsLastSignedIn() {
   const lastSignedIn = localStorage.getItem(KEY);
