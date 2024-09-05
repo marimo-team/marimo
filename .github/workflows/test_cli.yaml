@@ -3,7 +3,13 @@ name: cli test
 on:
   push:
     branches: [main]
-  pull_request: {}
+    paths-ignore:
+      - 'docs/**'
+      - README.md
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - README.md
 
 env:
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
