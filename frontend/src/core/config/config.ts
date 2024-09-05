@@ -53,6 +53,10 @@ export function isAiEnabled(config: UserConfig) {
  */
 const appConfigAtom = atom<AppConfig>(parseAppConfig());
 
+export const contentFontSizeAtom = atom((get) => {
+  return get(appConfigAtom).content_font_size;
+});
+
 /**
  * Returns the app config.
  */

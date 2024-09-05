@@ -15,6 +15,7 @@ import {
   AppConfigSchema,
   APP_WIDTHS,
   AppTitleSchema,
+  CONTENT_FONT_SIZES,
 } from "../../core/config/config-schema";
 import { Input } from "../ui/input";
 import { NativeSelect } from "../ui/native-select";
@@ -112,6 +113,36 @@ export const AppConfigForm: React.FC = () => {
                 and typically displayed in the title bar of the browser window.
               </FormDescription>
             </div>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="content_font_size"
+          render={({ field }) => (
+            <FormItem
+              className={"flex flex-row items-center space-x-1 space-y-0"}
+            >
+              <FormLabel>Content font size</FormLabel>
+              <FormControl>
+                <NativeSelect
+                  data-testid="content-font-size-select"
+                  onChange={(e) => {
+                    const nextValue = e.target.value;
+                    field.onChange(nextValue);
+                  }}
+                  value={field.value}
+                  disabled={field.disabled}
+                  className="inline-flex mr-2"
+                >
+                  {CONTENT_FONT_SIZES.map((option) => (
+                    <option value={option} key={option}>
+                      {option}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
           )}
         />
         <FormField

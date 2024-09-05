@@ -1768,6 +1768,15 @@ export interface components {
   schemas: {
     AiCompletionRequest: {
       code: string;
+      context?: {
+        schema: {
+          columns: {
+            name: string;
+            type: string;
+          }[];
+          name: string;
+        }[];
+      } | null;
       includeOtherCode: string;
       /** @enum {string} */
       language: "python" | "markdown" | "sql";
@@ -2098,6 +2107,8 @@ export interface components {
     KernelReady: {
       app_config: {
         app_title?: string | null;
+        /** @enum {string} */
+        content_font_size: "sm" | "default" | "lg" | "xl" | "2xl";
         css_file?: string | null;
         layout_file?: string | null;
         /** @enum {string} */

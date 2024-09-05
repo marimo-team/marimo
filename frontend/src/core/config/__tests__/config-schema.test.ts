@@ -19,6 +19,7 @@ test("another AppConfig", () => {
   expect(config).toMatchInlineSnapshot(`
     {
       "app_title": null,
+      "content_font_size": "default",
       "width": "medium",
     }
   `);

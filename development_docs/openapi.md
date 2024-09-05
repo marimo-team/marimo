@@ -9,7 +9,7 @@ marimo development openapi
 ## Writing a new OpenAPI schema
 
 ```bash
-marimo development openapi > openapi/api.yaml
+marimo development openapi > openapi/api.yaml && make fe-codegen
 ```
 
 ## Validating an OpenAPI schema

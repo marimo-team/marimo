@@ -29,6 +29,8 @@ import { CsvViewer } from "./file-tree/renderers";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 import { MarimoTracebackOutput } from "./output/MarimoTracebackOutput";
 import { useTheme } from "@emotion/react";
+import { useAtomValue } from "jotai";
+import { contentFontSizeAtom } from "@/core/config/config";
 
 /**
  * Renders an output based on an OutputMessage.
@@ -149,8 +151,17 @@ interface OutputAreaProps {
   className?: string;
 }
 
+const CONTENT_FONT_SIZE: Record<string, string> = {
+  sm: "prose-sm",
+  default: "",
+  lg: "prose-lg",
+  xl: "prose-xl",
+  "2xl": "prose-2xl",
+};
+
 export const OutputArea = React.memo(
   ({ output, cellId, stale, allowExpand, className }: OutputAreaProps) => {
+    const contentFontSize = useAtomValue(contentFontSizeAtom);
     if (output === null) {
       return null;
     }
@@ -171,7 +182,11 @@ export const OutputArea = React.memo(
           title={title}
           cellId={cellId}
           id={`output-${cellId}`}
-          className={cn(stale && "marimo-output-stale", className)}
+          className={cn(
+            stale && "marimo-output-stale",
+            CONTENT_FONT_SIZE[contentFontSize],
+            className,
+          )}
         >
           <OutputRenderer message={output} />
         </Container>

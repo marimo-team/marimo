@@ -15,6 +15,7 @@ export const PackageManagerNames = [
 export type PackageManagerName = (typeof PackageManagerNames)[number];
 
 export const APP_WIDTHS = ["compact", "medium", "full"] as const;
+export const CONTENT_FONT_SIZES = ["sm", "default", "lg", "xl", "2xl"] as const;
 /**
  * normal == compact, but normal is deprecated
  */
@@ -151,6 +152,7 @@ export const AppConfigSchema = z
         return width;
       }),
     app_title: AppTitleSchema.nullish(),
+    content_font_size: z.enum(CONTENT_FONT_SIZES).default("default"),
     css_file: z.string().nullish(),
   })
   .default({ width: "medium" });
