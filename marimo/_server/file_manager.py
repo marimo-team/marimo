@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 from typing import Any, Dict, Optional
 
 from marimo import _loggers
@@ -15,7 +16,10 @@ from marimo._runtime.layout.layout import (
     save_layout_config,
 )
 from marimo._server.api.status import HTTPException, HTTPStatus
-from marimo._server.models.models import SaveNotebookRequest
+from marimo._server.models.models import (
+    CopyNotebookRequest,
+    SaveNotebookRequest,
+)
 from marimo._server.utils import canonicalize_filename
 
 LOGGER = _loggers.marimo_logger()
@@ -260,6 +264,11 @@ class AppFileManager:
             self.app.config,
             persist=request.persist,
         )
+
+    def copy(self, request: CopyNotebookRequest) -> str:
+        source, destination = request.source, request.destination
+        shutil.copy(source, destination)
+        return os.path.basename(destination)
 
     def to_code(self) -> str:
         """Read the contents of the unsaved file."""

@@ -99,6 +99,8 @@ export function useImperativeModal() {
       title: React.ReactNode;
       description?: React.ReactNode;
       defaultValue?: string;
+      spellCheck?: boolean;
+      confirmText?: string;
       onConfirm: (value: string) => void;
     }) => {
       context.setModal(
@@ -124,6 +126,7 @@ export function useImperativeModal() {
                   {opts.description}
                 </AlertDialogDescription>
                 <Input
+                  spellCheck={opts.spellCheck}
                   defaultValue={opts.defaultValue}
                   className="my-4 h-8"
                   name="prompt"
@@ -136,7 +139,7 @@ export function useImperativeModal() {
                 <AlertDialogCancel onClick={closeModal}>
                   Cancel
                 </AlertDialogCancel>
-                <Button type="submit">Ok</Button>
+                <Button type="submit">{opts.confirmText ?? "Ok"}</Button>
               </AlertDialogFooter>
             </form>
           </AlertDialogContent>

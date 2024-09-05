@@ -56,6 +56,7 @@ export type RunScratchpadRequest = schemas["RunScratchpadRequest"];
 export type SaveAppConfigurationRequest =
   schemas["SaveAppConfigurationRequest"];
 export type SaveNotebookRequest = schemas["SaveNotebookRequest"];
+export type CopyNotebookRequest = schemas["CopyNotebookRequest"];
 export type SaveUserConfigurationRequest =
   schemas["SaveUserConfigurationRequest"];
 export interface SetCellConfigRequest {
@@ -95,6 +96,7 @@ export interface RunRequests {
 export interface EditRequests {
   sendRename: (request: RenameFileRequest) => Promise<null>;
   sendSave: (request: SaveNotebookRequest) => Promise<null>;
+  sendCopy: (request: CopyNotebookRequest) => Promise<null>;
   sendStdin: (request: StdinRequest) => Promise<null>;
   sendRun: (request: RunRequest) => Promise<null>;
   sendRunScratchpad: (request: RunScratchpadRequest) => Promise<null>;

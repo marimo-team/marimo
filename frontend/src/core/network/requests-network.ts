@@ -40,6 +40,14 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    sendCopy: (request) => {
+      return marimoClient
+        .POST("/api/kernel/copy", {
+          body: request,
+          parseAs: "text",
+        })
+        .then(handleResponseReturnNull);
+    },
     sendFormat: (request) => {
       return marimoClient
         .POST("/api/kernel/format", {

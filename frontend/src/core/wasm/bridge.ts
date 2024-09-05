@@ -187,6 +187,11 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
+  sendCopy: EditRequests["sendCopy"] = async () => {
+    // TODO: Implement copy with pyodide!
+    return null;
+  };
+
   sendStdin: EditRequests["sendStdin"] = async (request) => {
     await this.rpc.proxy.request.bridge({
       functionName: "put_input",
