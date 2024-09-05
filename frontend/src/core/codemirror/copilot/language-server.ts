@@ -24,9 +24,14 @@ import type {
   CopilotAcceptCompletionParams,
   CopilotRejectCompletionParams,
 } from "./types";
-import { isCopilotEnabled } from "./state";
+import {
+  isCopilotEnabled,
+  setGitHubCopilotLoadingVersion,
+  clearGitHubCopilotLoadingVersion,
+} from "./state";
 import { getCodes } from "./getCodes";
 import { Logger } from "@/utils/Logger";
+import { debounce } from "lodash-es";
 
 // A map of request methods and their parameters and return types
 export interface LSPRequestMap {
@@ -128,19 +133,20 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     return this._request("notifyRejected", params);
   }
 
-  async getCompletion(params: CopilotGetCompletionsParams) {
-    if (this.isDisabled()) {
-      return { completions: [] };
-    }
-
-    const version = this.documentVersion;
-
+  private async getCompletionInternal(
+    params: CopilotGetCompletionsParams,
+    version: number,
+  ): Promise<CopilotGetCompletionsResult> {
+    // Start a loading indicator
+    setGitHubCopilotLoadingVersion(version);
     const response = await this._request("getCompletions", {
       doc: {
         ...params.doc,
         version: version,
       },
     });
+    // Stop the loading indicator (only if the version hasn't changed)
+    clearGitHubCopilotLoadingVersion(version);
 
     // If the document version has changed since the request was made, return an empty response
     if (version !== this.documentVersion) {
@@ -148,5 +154,31 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     }
 
     return response;
+  }
+
+  // Even though the copilot extension has a debounce,
+  // there are multiple requests sent at the same time
+  // when multiple Codemirror instances are mounted at the same time.
+  private debouncedGetCompletionInternal = debounce(
+    this.getCompletionInternal.bind(this),
+    300,
+  );
+
+  async getCompletion(
+    params: CopilotGetCompletionsParams,
+  ): Promise<CopilotGetCompletionsResult> {
+    if (this.isDisabled()) {
+      return { completions: [] };
+    }
+
+    const version = this.documentVersion;
+
+    // If version is 0, it means the document hasn't been opened yet
+    if (version === 0) {
+      return { completions: [] };
+    }
+
+    const response = await this.debouncedGetCompletionInternal(params, version);
+    return response || { completions: [] };
   }
 }

@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { useAtom } from "jotai";
-import { copilotSignedInState } from "./state";
+import { isGitHubCopilotSignedInState } from "./state";
 import { memo, useEffect, useState } from "react";
 import { getCopilotClient } from "./client";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -17,7 +17,9 @@ type Step =
   | "notConnected";
 
 export const CopilotConfig = memo(() => {
-  const [copilotSignedIn, copilotChangeSignIn] = useAtom(copilotSignedInState);
+  const [copilotSignedIn, copilotChangeSignIn] = useAtom(
+    isGitHubCopilotSignedInState,
+  );
   const [step, setStep] = useState<Step>();
 
   const [localData, setLocalData] = useState<{ url: string; code: string }>();
