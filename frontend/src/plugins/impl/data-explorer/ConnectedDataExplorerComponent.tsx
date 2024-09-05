@@ -23,7 +23,7 @@ import { ColumnSummary } from "./components/column-summary";
 import type { VegaLiteProps } from "react-vega/lib/VegaLite";
 import { useOnMount } from "@/hooks/useLifecycle";
 import type { ChartSpec } from "./state/types";
-import { useTheme } from "@/theme/useTheme"; // P7a34
+import { useTheme } from "@/theme/useTheme";
 
 /**
  * @param label - a label of the table
