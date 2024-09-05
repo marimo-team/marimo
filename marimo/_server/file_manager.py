@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import pathlib
 import shutil
 from typing import Any, Dict, Optional
 
@@ -62,11 +63,18 @@ class AppFileManager:
                 detail="Save handler cannot rename files.",
             )
 
+    def _create_parent_directories(self, filename: str) -> None:
+        try:
+            pathlib.Path(filename).parent.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            pass
+
     def _create_file(
         self,
         filename: str,
         contents: str = "",
     ) -> None:
+        self._create_parent_directories(filename)
         try:
             with open(filename, "w", encoding="utf-8") as f:
                 f.write(contents)
@@ -78,6 +86,7 @@ class AppFileManager:
 
     def _rename_file(self, new_filename: str) -> None:
         assert self.filename is not None
+        self._create_parent_directories(new_filename)
         try:
             os.rename(self.filename, new_filename)
         except Exception as err:

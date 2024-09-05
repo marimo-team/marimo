@@ -4,7 +4,10 @@ from __future__ import annotations
 import abc
 from typing import Callable, Optional
 
+from marimo import _loggers
 from marimo._config.config import Theme
+
+LOGGER = _loggers.marimo_logger()
 
 
 # Abstract base class for formatters that are installed at runtime.
@@ -42,3 +45,18 @@ class FormatterFactory(abc.ABC):
         """
         del theme
         return
+
+    def apply_theme_safe(self, theme: Theme) -> None:
+        """
+        Apply the theme (light/dark) to third party libraries.
+        If the theme is set to "system", then we fallback to "light".
+
+        Args:
+            theme: The theme to apply.
+        """
+        try:
+            self.apply_theme(theme)
+        except Exception as e:
+            LOGGER.error(
+                f"Error applying theme {theme} fro {self.package_name()}: {e}"
+            )

@@ -485,6 +485,7 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "htmloutput": "nosehtmloutput",
         "hvad": "django-hvad",
         "hydra": "hydra-core",
+        "ibis": "ibis-framework[duckdb]",
         "i99fix": "199Fix",
         "igraph": "python-igraph",
         "imdb": "IMDbPY",

@@ -34,6 +34,7 @@ import {
 import { sql } from "@codemirror/lang-sql";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
 import { atomWithStorage } from "jotai/utils";
+import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
 
 const pythonExtensions = [
   customPythonLanguageSupport(),
@@ -89,6 +90,7 @@ export const AddCellWithAI: React.FC<{
   const { createNewCell } = useCellActions();
   const [completionBody, setCompletionBody] = useState<object>({});
   const [language, setLanguage] = useAtom(languageAtom);
+  const { theme } = useTheme();
 
   const {
     completion,
@@ -139,6 +141,7 @@ export const AddCellWithAI: React.FC<{
         </DropdownMenuContent>
       </DropdownMenu>
       <PromptInput
+        theme={theme}
         onClose={() => {
           setCompletion("");
           onClose();
@@ -207,6 +210,7 @@ export const AddCellWithAI: React.FC<{
           value={completion}
           className="cm border-t"
           onChange={setCompletion}
+          theme={theme === "dark" ? "dark" : "light"}
           extensions={language === "python" ? pythonExtensions : sqlExtensions}
         />
       )}
@@ -219,6 +223,7 @@ interface PromptInputProps {
   onClose: () => void;
   onChange: (value: string) => void;
   onSubmit: () => void;
+  theme: ResolvedTheme;
 }
 
 const PromptInput = ({
@@ -226,6 +231,7 @@ const PromptInput = ({
   onChange,
   onSubmit,
   onClose,
+  theme,
 }: PromptInputProps) => {
   const handleSubmit = onSubmit;
   const handleEscape = onClose;
@@ -327,6 +333,7 @@ const PromptInput = ({
       basicSetup={false}
       extensions={extensions}
       onChange={onChange}
+      theme={theme === "dark" ? "dark" : "light"}
       placeholder={"Generate with AI"}
     />
   );

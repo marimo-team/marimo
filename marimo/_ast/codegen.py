@@ -124,7 +124,7 @@ def generate_unparsable_cell(
 def generate_app_constructor(config: Optional[_AppConfig]) -> str:
     def _format_arg(arg: Any) -> str:
         if isinstance(arg, str):
-            return f'"{arg}"'
+            return f'"{arg}"'.replace("\\", "\\\\")
         else:
             return str(arg)
 

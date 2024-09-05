@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 import tempfile
 from typing import Generator
 
@@ -68,7 +69,7 @@ def test_rename_to_existing_filename(app_file_manager: AppFileManager) -> None:
     try:
         with pytest.raises(HTTPException) as e:  # noqa: PT012
             app_file_manager.rename(existing_filename)
-            assert e.value == HTTPStatus.BAD_REQUEST
+        assert e.value.status_code == HTTPStatus.BAD_REQUEST
     finally:
         os.remove(existing_filename)
 
@@ -91,7 +92,7 @@ def test_rename_exception(app_file_manager: AppFileManager) -> None:
     new_filename = "/invalid/path/new_filename.py"
     with pytest.raises(HTTPException) as e:  # noqa: PT012
         app_file_manager.rename(new_filename)
-        assert e.value.status_code == HTTPStatus.SERVER_ERROR
+    assert e.value.status_code == HTTPStatus.SERVER_ERROR
 
 
 def test_rename_create_new_file(app_file_manager: AppFileManager) -> None:
@@ -104,6 +105,24 @@ def test_rename_create_new_file(app_file_manager: AppFileManager) -> None:
         assert os.path.exists(new_filename)
     finally:
         os.remove(new_filename)
+
+
+def test_rename_create_new_directory_file(
+    app_file_manager: AppFileManager,
+) -> None:
+    app_file_manager.filename = None
+    new_directory = "new_directory"
+    new_filename = os.path.join(new_directory, "new_file.py")
+    if os.path.exists(new_filename):
+        os.remove(new_filename)
+    if os.path.exists(new_directory):
+        os.rmdir(new_directory)
+    try:
+        app_file_manager.rename(new_filename)
+        assert os.path.exists(new_filename)
+    finally:
+        os.remove(new_filename)
+        os.rmdir(new_directory)
 
 
 def test_rename_different_filetype(app_file_manager: AppFileManager) -> None:
@@ -135,11 +154,15 @@ def test_save_app_config_valid(app_file_manager: AppFileManager) -> None:
         os.remove(app_file_manager.filename)
 
 
+@pytest.mark.skipif(
+    condition=sys.platform == "win32",
+    reason="filename is not invalid on Windows",
+)
 def test_save_app_config_exception(app_file_manager: AppFileManager) -> None:
     app_file_manager.filename = "/invalid/path/app_config.py"
     with pytest.raises(HTTPException) as e:  # noqa: PT012
         app_file_manager.save_app_config({})
-        assert e.value.status_code == HTTPStatus.SERVER_ERROR
+    assert e.value.status_code == HTTPStatus.SERVER_ERROR
 
 
 def test_save_filename_change_not_allowed(
@@ -149,7 +172,7 @@ def test_save_filename_change_not_allowed(
     save_request.filename = "new.py"
     with pytest.raises(HTTPException) as e:  # noqa: PT012
         app_file_manager.save(save_request)
-        assert e.value.status_code == HTTPStatus.BAD_REQUEST
+    assert e.value.status_code == HTTPStatus.BAD_REQUEST
 
 
 def test_save_existing_filename(app_file_manager: AppFileManager) -> None:
@@ -160,7 +183,7 @@ def test_save_existing_filename(app_file_manager: AppFileManager) -> None:
     try:
         with pytest.raises(HTTPException) as e:  # noqa: PT012
             app_file_manager.save(save_request)
-            assert e.value.status_code == HTTPStatus.BAD_REQUEST
+        assert e.value.status_code == HTTPStatus.BAD_REQUEST
     finally:
         os.remove(existing_filename)
 

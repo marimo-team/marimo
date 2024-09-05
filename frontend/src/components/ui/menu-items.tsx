@@ -25,14 +25,22 @@ export const menuSubTriggerVariants = cva(
   },
 );
 
+export const MENU_ITEM_DISABLED =
+  "data-[disabled]:pointer-events-none data-[disabled]:opacity-50";
+
 export const menuControlVariants = cva(
-  "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+  cn(
+    "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground",
+    MENU_ITEM_DISABLED,
+  ),
   { variants: {} },
 );
 
 export const menuControlCheckVariants = cva(
   "absolute left-2 flex h-3.5 w-3.5 items-center justify-center",
-  { variants: {} },
+  {
+    variants: {},
+  },
 );
 
 export const menuLabelVariants = cva("px-2 py-1.5 text-sm font-semibold", {
@@ -44,7 +52,10 @@ export const menuLabelVariants = cva("px-2 py-1.5 text-sm font-semibold", {
 });
 
 export const menuItemVariants = cva(
-  "menu-item relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+  cn(
+    "menu-item relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none",
+    MENU_ITEM_DISABLED,
+  ),
   {
     variants: {
       inset: {

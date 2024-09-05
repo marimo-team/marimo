@@ -58,9 +58,11 @@ class HoloViewsFormatter(FormatterFactory):
     def apply_theme(self, theme: Theme) -> None:
         import holoviews as hv  # type: ignore
 
-        hv.renderer("bokeh").theme = (
-            "dark_minimal" if theme == "dark" else None
-        )
-        hv.renderer("plotly").theme = (
-            "plotly_dark" if theme == "dark" else "plotly"
-        )
+        if DependencyManager.bokeh.has():
+            hv.renderer("bokeh").theme = (
+                "dark_minimal" if theme == "dark" else None
+            )
+        if DependencyManager.plotly.has():
+            hv.renderer("plotly").theme = (
+                "plotly_dark" if theme == "dark" else "plotly"
+            )

@@ -73,6 +73,12 @@ class Condition:
     def __hash__(self) -> int:
         return hash((self.column_id, self.operator, self.value))
 
+    def __post_init__(self) -> None:
+        if self.operator == "in":
+            assert isinstance(
+                self.value, list
+            ), "value must be a list for 'in' operator"
+
 
 @dataclass
 class ColumnConversionTransform:
@@ -177,11 +183,6 @@ T = TypeVar("T")
 class TransformHandler(abc.ABC, Generic[T]):
     @staticmethod
     @abc.abstractmethod
-    def supports_code_sample() -> bool:
-        raise NotImplementedError
-
-    @staticmethod
-    @abc.abstractmethod
     def handle_column_conversion(
         df: T, transform: ColumnConversionTransform
     ) -> T:
@@ -236,3 +237,15 @@ class TransformHandler(abc.ABC, Generic[T]):
     @abc.abstractmethod
     def handle_expand_dict(df: T, transform: ExpandDictTransform) -> T:
         raise NotImplementedError
+
+    @staticmethod
+    def as_python_code(
+        df_name: str, columns: List[str], transforms: List[Transform]
+    ) -> str | None:
+        del df_name, transforms, columns
+        return None
+
+    @staticmethod
+    def as_sql_code(transformed_df: T) -> str | None:
+        del transformed_df
+        return None

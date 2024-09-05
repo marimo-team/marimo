@@ -28,6 +28,7 @@ import { invariant } from "@/utils/invariant";
 import { CsvViewer } from "./file-tree/renderers";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 import { MarimoTracebackOutput } from "./output/MarimoTracebackOutput";
+import { useTheme } from "@emotion/react";
 
 /**
  * Renders an output based on an OutputMessage.
@@ -37,6 +38,7 @@ export const OutputRenderer: React.FC<{
   onRefactorWithAI?: (opts: { prompt: string }) => void;
 }> = memo((props) => {
   const { message, onRefactorWithAI } = props;
+  const theme = useTheme();
 
   // Memoize parsing the json data
   const parsedJsonData = useMemo(() => {
@@ -125,7 +127,13 @@ export const OutputRenderer: React.FC<{
         typeof data === "string",
         `Expected string data for mime=${mimetype}. Got ${typeof data}`,
       );
-      return <LazyAnyLanguageCodeMirror value={data} language="markdown" />;
+      return (
+        <LazyAnyLanguageCodeMirror
+          theme={theme === "dark" ? "dark" : "light"}
+          value={data}
+          language="markdown"
+        />
+      );
     default:
       logNever(mimetype);
       return null;

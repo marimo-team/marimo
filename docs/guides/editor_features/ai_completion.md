@@ -35,9 +35,25 @@ copilot = "codeium"
 codeium_api_key = ""
 ```
 
-## Using AI to modify cells
+## Generate code with our AI assistant
 
-This feature is currently experimental and is not enabled by default. To enable it:
+marimo has built-in support for generating and refactoring code with AI, with a
+variety of providers. marimo works with both hosted AI providers, such as
+OpenAI and Anthropic, as well as local models served via Ollama.
+
+Below we describe how to connect marimo to your AI provider. Once enabled, you
+can generate entirely new cells by clicking the "Generate with AI" button at
+the bottom of your notebook. You can also refactor existing cells by inputting
+`Ctrl/Cmd-Shift-e` in a cell, opening an input to modify the cell using AI.
+
+<div align="center">
+<figure>
+<video src="/_static/ai-completion.mp4" controls="controls" width="100%" height="100%"></video>
+<figcaption>Use AI to modify a cell by pressing `Ctrl/Cmd-Shift-e`.</figcaption>
+</figure>
+</div>
+
+### Using OpenAI
 
 1. Install openai: `pip install openai`
 
@@ -52,16 +68,6 @@ model = "gpt-4-turbo"
 # Change the base_url if you are using a different OpenAI-compatible API
 base_url = "https://api.openai.com/v1"
 ```
-
-Once enabled, you can use AI completion by pressing `Ctrl/Cmd-Shift-e` in a
-cell. This will open an input to modify the cell using AI.
-
-<div align="center">
-<figure>
-<video src="/_static/ai-completion.mp4" controls="controls" width="100%" height="100%"></video>
-<figcaption>Use AI to modify a cell by pressing `Ctrl/Cmd-Shift-e`.</figcaption>
-</figure>
-</div>
 
 ### Using Anthropic
 
@@ -85,9 +91,10 @@ marimo supports OpenAI's GPT-3.5 API by default. If your provider is compatible 
 
 For other providers not compatible with OpenAI's API, please submit a [feature request](https://github.com/marimo-team/marimo/issues) or "thumbs up" an existing one.
 
-### Using Ollama
+### Using local models with Ollama
 
-Ollama allows you to run open-source LLMs (e.g. Llama 3.1, Phi 3, Mistral, Gemma 2) on your local machine. To integrate Ollama with marimo:
+Ollama allows you to run open-source LLMs (e.g. Llama 3.1, Phi 3, Mistral,
+Gemma 2) on your local machine. To integrate Ollama with marimo:
 
 1. Download and install [Ollama](https://ollama.com/).
 2. Download the model you want to use:

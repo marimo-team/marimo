@@ -4,7 +4,9 @@ from __future__ import annotations
 import atexit
 import os
 import re
+import signal
 import subprocess
+import sys
 import tempfile
 from typing import Any, Dict, List, Optional, cast
 
@@ -23,7 +25,7 @@ REGEX = (
 def run_in_sandbox(
     args: List[str],
     name: Optional[str] = None,
-) -> subprocess.CompletedProcess[Any]:
+) -> int:
     if not DependencyManager.which("uv"):
         raise click.UsageError("uv must be installed to use --sandbox")
 
@@ -58,7 +60,20 @@ def run_in_sandbox(
     ] + cmd
 
     click.echo(f"Running in a sandbox: {' '.join(cmd)}")
-    return subprocess.run(cmd)
+
+    process = subprocess.Popen(cmd)
+
+    def handler(sig: int, frame: Any) -> None:
+        del sig
+        del frame
+        if sys.platform == "win32":
+            os.kill(process.pid, signal.CTRL_C_EVENT)
+        else:
+            os.kill(process.pid, signal.SIGINT)
+
+    signal.signal(signal.SIGINT, handler)
+
+    return process.wait()
 
 
 def _get_dependencies(script: str) -> List[str] | None:
