@@ -38,6 +38,7 @@ class _Progress(Html):
         total: Optional[int],
         show_rate: bool,
         show_eta: bool,
+        disabled: bool = False,
     ) -> None:
         self.title = title
         self.subtitle = subtitle
@@ -48,6 +49,7 @@ class _Progress(Html):
         self.loading_spinner = total is None
         self.show_rate = show_rate
         self.show_eta = show_eta
+        self.disabled = disabled
         self.start_time = time.time()
         super().__init__(self._get_text())
 
@@ -107,6 +109,8 @@ class _Progress(Html):
         self.closed = True
 
     def _get_text(self) -> str:
+        if self.disabled:
+            return ""
         return build_stateless_plugin(
             component_name="marimo-progress",
             args=_remove_none_values(
@@ -119,6 +123,7 @@ class _Progress(Html):
                     "progress": True if self.loading_spinner else self.current,
                     "rate": self._get_rate(),
                     "eta": self._get_eta(),
+                    "disabled": self.disabled,
                 }
             ),
         )
@@ -152,6 +157,7 @@ class ProgressBar(_Progress):
         total: int,
         show_rate: bool,
         show_eta: bool,
+        disabled: bool = False,
     ) -> None:
         super().__init__(
             title=title,
@@ -159,6 +165,7 @@ class ProgressBar(_Progress):
             total=total,
             show_rate=show_rate,
             show_eta=show_eta,
+            disabled=disabled,
         )
 
     def update(
@@ -176,13 +183,19 @@ class ProgressBar(_Progress):
 class Spinner(_Progress):
     """A spinner output representing a loading state"""
 
-    def __init__(self, title: str | None, subtitle: str | None) -> None:
+    def __init__(
+        self,
+        title: str | None,
+        subtitle: str | None,
+        disabled: bool = False,
+    ) -> None:
         super().__init__(
             title=title,
             subtitle=subtitle,
             total=None,
             show_rate=False,
             show_eta=False,
+            disabled=disabled,
         )
 
     def update(
@@ -317,6 +330,7 @@ class progress_bar:
         show_rate: bool = True,
         show_eta: bool = True,
         remove_on_exit: bool = False,
+        disabled: bool = False,
     ):
         self.completion_title = completion_title
         self.completion_subtitle = completion_subtitle
@@ -347,6 +361,7 @@ class progress_bar:
             total=total,
             show_rate=show_rate,
             show_eta=show_eta,
+            disabled=disabled,
         )
         output.append(self.progress)
 
