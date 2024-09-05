@@ -24,17 +24,26 @@ export function useCopyNotebook(source: string | null) {
         sendCopy({
           source: source,
           destination: pathBuilder.join(Paths.dirname(source), destination),
-        });
-        closeModal();
-        toast({
-          title: "Notebook copied",
-          description: "A copy of the notebook has been created.",
-        });
-        const notebookCopy = window.location.href.replace(
-          filename,
-          destination,
-        );
-        window.open(notebookCopy);
+        })
+          .then(() => {
+            closeModal();
+            toast({
+              title: "Notebook copied",
+              description: "A copy of the notebook has been created.",
+            });
+            const notebookCopy = window.location.href.replace(
+              filename,
+              destination,
+            );
+            window.open(notebookCopy);
+          })
+          .catch((error) => {
+            toast({
+              title: "Failed to copy notebook",
+              description: error.detail,
+              variant: "danger",
+            });
+          });
       },
     });
   };
