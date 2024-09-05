@@ -143,9 +143,10 @@ class CopyNotebookRequest:
         destination = os.path.basename(self.destination)
         assert self.source is not None
         assert self.destination is not None
-        assert os.path.exists(
-            self.source
-        ), f'File "{self.source}" does not exist. Please save the notebook and try again.'
+        assert os.path.exists(self.source), (
+            f'File "{self.source}" does not exist.'
+            + "Please save the notebook and try again."
+        )
         assert not os.path.exists(
             self.destination
         ), f'File "{destination}" already exists in this directory.'
