@@ -232,6 +232,32 @@ def test_save_app_config(client: TestClient) -> None:
     assert 'marimo.App(width="medium"' in file_contents
 
 
+@with_session(SESSION_ID)
+def test_copy_file(client: TestClient) -> None:
+    filename = get_session_manager(client).file_router.get_unique_file_key()
+    assert filename
+    assert os.path.exists(filename)
+    file_contents = open(filename).read()
+    assert "import marimo as mo" in file_contents
+    assert 'marimo.App(width="full"' in file_contents
+
+    filename_copy = f"_{os.path.basename(filename)}"
+    copied_file = os.path.join(os.path.dirname(filename), filename_copy)
+    response = client.post(
+        "/api/kernel/copy",
+        headers=HEADERS,
+        json={
+            "source": filename,
+            "destination": copied_file,
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert filename_copy in response.text
+    file_contents = open(copied_file).read()
+    assert "import marimo as mo" in file_contents
+    assert 'marimo.App(width="full"' in file_contents
+
+
 @with_websocket_session(SESSION_ID)
 def test_rename_propagates(
     client: TestClient, websocket: WebSocketTestSession
