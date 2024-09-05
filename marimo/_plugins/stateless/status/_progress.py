@@ -176,7 +176,11 @@ class ProgressBar(_Progress):
 class Spinner(_Progress):
     """A spinner output representing a loading state"""
 
-    def __init__(self, title: str | None, subtitle: str | None) -> None:
+    def __init__(
+        self,
+        title: str | None,
+        subtitle: str | None,
+    ) -> None:
         super().__init__(
             title=title,
             subtitle=subtitle,
@@ -317,10 +321,12 @@ class progress_bar:
         show_rate: bool = True,
         show_eta: bool = True,
         remove_on_exit: bool = False,
+        disabled: bool = False,
     ):
         self.completion_title = completion_title
         self.completion_subtitle = completion_subtitle
         self.remove_on_exit = remove_on_exit
+        self.disabled = disabled
 
         if collection is not None:
             self.collection = collection
@@ -348,12 +354,14 @@ class progress_bar:
             show_rate=show_rate,
             show_eta=show_eta,
         )
-        output.append(self.progress)
+        if not disabled:
+            output.append(self.progress)
 
     def __iter__(self) -> Iterable[S | int]:
         for item in self.collection:
             yield item
-            self.progress.update(increment=self.step)
+            if not self.disabled:
+                self.progress.update(increment=self.step)
         self._finish()
 
     def __enter__(self) -> ProgressBar:
