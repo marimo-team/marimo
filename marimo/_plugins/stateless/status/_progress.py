@@ -38,7 +38,6 @@ class _Progress(Html):
         total: Optional[int],
         show_rate: bool,
         show_eta: bool,
-        disabled: bool = False,
     ) -> None:
         self.title = title
         self.subtitle = subtitle
@@ -49,7 +48,6 @@ class _Progress(Html):
         self.loading_spinner = total is None
         self.show_rate = show_rate
         self.show_eta = show_eta
-        self.disabled = disabled
         self.start_time = time.time()
         super().__init__(self._get_text())
 
@@ -154,7 +152,6 @@ class ProgressBar(_Progress):
         total: int,
         show_rate: bool,
         show_eta: bool,
-        disabled: bool = False,
     ) -> None:
         super().__init__(
             title=title,
@@ -162,7 +159,6 @@ class ProgressBar(_Progress):
             total=total,
             show_rate=show_rate,
             show_eta=show_eta,
-            disabled=disabled,
         )
 
     def update(
@@ -357,7 +353,6 @@ class progress_bar:
             total=total,
             show_rate=show_rate,
             show_eta=show_eta,
-            disabled=disabled,
         )
         if not disabled:
             output.append(self.progress)
