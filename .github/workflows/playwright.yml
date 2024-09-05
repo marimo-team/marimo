@@ -3,7 +3,13 @@ name: playwright
 on:
   push:
     branches: [main]
-  pull_request: {}
+    paths-ignore:
+      - 'docs/**'
+      - README.md
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - README.md
 
 env:
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
@@ -19,7 +25,7 @@ jobs:
         shell: bash
     env:
       NODE_ENV: test
-      DEBUG: "pw:webserver"
+      DEBUG: 'pw:webserver'
 
     steps:
       - name: 🛑 Cancel Previous Runs
@@ -41,8 +47,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: "pnpm"
-          cache-dependency-path: "**/pnpm-lock.yaml"
+          cache: 'pnpm'
+          cache-dependency-path: '**/pnpm-lock.yaml'
 
       - uses: turbocache-build/turbocache-action@v1
 
@@ -52,8 +58,8 @@ jobs:
       - name: 🐍 Setup Python 3.10
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
-          cache: "pip"
+          python-version: '3.10'
+          cache: 'pip'
 
       # We tried to add uv, but marimo is unable to
       # start when installed.

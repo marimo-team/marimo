@@ -1,78 +1,24 @@
-name: test
+name: Test BE
 
+# Run on push to main and pull requests
+# only for backend changes
 on:
   push:
     branches: [main]
-  pull_request: {}
+    paths:
+      - 'marimo/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+  pull_request:
+    paths:
+      - 'marimo/**'
+      - 'tests/**'
+      - 'pyproject.toml'
 
 env:
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-  TURBO_TEAM: marimo
   MARIMO_SKIP_UPDATE_CHECK: 1
 
 jobs:
-  test_frontend:
-    name: 🖥️ Lint, test, build frontend
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: ./frontend
-        shell: bash
-
-    steps:
-      - name: 🛑 Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
-
-      - name: ⬇️ Checkout repo
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # so we can run --since on the main branch and turbo can do faster cache hashing
-
-      - uses: pnpm/action-setup@v2
-        with:
-          version: 8
-
-      - name: ⎔ Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: "pnpm"
-          cache-dependency-path: "**/pnpm-lock.yaml"
-
-      - uses: turbocache-build/turbocache-action@v1
-
-      - name: 📥 Install dependencies
-        run: pnpm install
-
-      - name: 📦 pnpm dedupe
-        if: github.event_name == 'pull_request'
-        run: pnpm dedupe --check
-
-      - name: 🧹 Lint
-        run: pnpm turbo lint
-
-      - name: 🔎 Type check
-        run: pnpm turbo typecheck
-
-      - name: 🧪 Test
-        run: pnpm test
-
-      - name: 📦 Build
-        run: pnpm turbo build
-        env:
-          NODE_ENV: production
-
-      - name: 📦 Build islands frontend
-        env:
-          NODE_ENV: production
-          VITE_MARIMO_ISLANDS: "true"
-          VITE_MARIMO_VERSION: "0.0.0"
-        run: |
-          npm version 0.0.0 --no-git-tag-version
-          pnpm turbo build:islands
-          ./islands/validate.sh
-
   test_python:
     name: Tests on ${{ matrix.os }}, Python ${{ matrix.python-version }} with ${{ matrix.dependencies }} dependencies
     runs-on: ${{ matrix.os }}
@@ -84,33 +30,33 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        dependencies: ["core", "core,optional"]
-        python-version: ["3.8"]
+        dependencies: ['core', 'core,optional']
+        python-version: ['3.8']
         include:
           - os: ubuntu-latest
-            python-version: "3.9"
-            dependencies: "core"
+            python-version: '3.9'
+            dependencies: 'core'
           - os: ubuntu-latest
-            python-version: "3.10"
-            dependencies: "core"
+            python-version: '3.10'
+            dependencies: 'core'
           - os: ubuntu-latest
-            python-version: "3.11"
-            dependencies: "core"
+            python-version: '3.11'
+            dependencies: 'core'
           - os: ubuntu-latest
-            python-version: "3.12"
-            dependencies: "core"
+            python-version: '3.12'
+            dependencies: 'core'
           - os: ubuntu-latest
-            python-version: "3.9"
-            dependencies: "core,optional"
+            python-version: '3.9'
+            dependencies: 'core,optional'
           - os: ubuntu-latest
-            python-version: "3.10"
-            dependencies: "core,optional"
+            python-version: '3.10'
+            dependencies: 'core,optional'
           - os: ubuntu-latest
-            python-version: "3.11"
-            dependencies: "core,optional"
+            python-version: '3.11'
+            dependencies: 'core,optional'
           - os: ubuntu-latest
-            python-version: "3.12"
-            dependencies: "core,optional"
+            python-version: '3.12'
+            dependencies: 'core,optional'
     steps:
       - name: 🛑 Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.12.1
@@ -119,7 +65,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
+          cache: 'pip'
       - name: 🐍 Setup uv
         uses: yezz123/setup-uv@v4
       # This step is needed since some of our tests rely on the index.html file
@@ -184,12 +130,3 @@ jobs:
           uv pip install --upgrade pip
           uv pip install .[testcore,testoptional]
           pytest -v tests/ -k "not test_cli"
-
-  typos:
-    name: Check for typos
-    runs-on: ubuntu-latest
-    steps:
-      - name: 🛑 Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
-      - uses: actions/checkout@v4
-      - uses: crate-ci/typos@v1.23.6
