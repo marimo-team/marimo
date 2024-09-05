@@ -188,8 +188,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendCopy: EditRequests["sendCopy"] = async () => {
-    // TODO: Implement copy with pyodide!
-    return null;
+    throwNotImplemented();
   };
 
   sendStdin: EditRequests["sendStdin"] = async (request) => {

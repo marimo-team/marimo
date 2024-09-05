@@ -5,7 +5,6 @@ import {
   getRunningNotebooks,
   shutdownSession,
   openTutorial,
-  sendCopy,
 } from "@/core/network/requests";
 import { combineAsyncData, useAsyncData } from "@/hooks/useAsyncData";
 import type React from "react";
@@ -20,7 +19,6 @@ import {
   ChevronRightIcon,
   ChevronsDownUpIcon,
   ClockIcon,
-  Copy,
   DatabaseIcon,
   ExternalLinkIcon,
   FileIcon,
@@ -75,7 +73,7 @@ import {
 } from "../home/state";
 import { Maps } from "@/utils/maps";
 import { Input } from "../ui/input";
-import { PathBuilder, Paths } from "@/utils/paths";
+import { Paths } from "@/utils/paths";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -98,7 +96,7 @@ const HomePage: React.FC = () => {
   const recentsResponse = useAsyncData(() => getRecentFiles(), []);
   const workspaceResponse = useAsyncData(
     () => getWorkspaceFiles({ includeMarkdown }),
-    [includeMarkdown],
+    [includeMarkdown]
   );
 
   useInterval(
@@ -106,7 +104,7 @@ const HomePage: React.FC = () => {
       setNonce((nonce) => nonce + 1);
     },
     // Refresh every 10 seconds, or when the document becomes visible
-    { delayMs: 10_000, whenVisible: true },
+    { delayMs: 10_000, whenVisible: true }
   );
 
   const runningResponse = useAsyncData(async () => {
@@ -117,7 +115,7 @@ const HomePage: React.FC = () => {
   const response = combineAsyncData(
     recentsResponse,
     workspaceResponse,
-    runningResponse,
+    runningResponse
   );
 
   if (response.error) {
@@ -332,7 +330,7 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
     <div
       style={style}
       className={cn(
-        "flex items-center cursor-pointer ml-1 text-muted-foreground whitespace-nowrap group h-full",
+        "flex items-center cursor-pointer ml-1 text-muted-foreground whitespace-nowrap group h-full"
       )}
       onClick={(evt) => {
         evt.stopPropagation();
@@ -443,8 +441,9 @@ const MarimoFileComponent = ({
       </div>
       <div className="flex flex-col gap-1 items-end">
         <div className="flex gap-3 items-center">
-          <CopyNotebookButton filePath={file.path} />
-          <SessionShutdownButton filePath={file.path} />
+          <div>
+            <SessionShutdownButton filePath={file.path} />
+          </div>
           {openNewTab && (
             <ExternalLinkIcon
               size={20}
@@ -467,7 +466,7 @@ const SessionShutdownButton: React.FC<{ filePath: string }> = ({
 }) => {
   const { openConfirm, closeModal } = useImperativeModal();
   const { runningNotebooks, setRunningNotebooks } = useContext(
-    RunningNotebooksContext,
+    RunningNotebooksContext
   );
   if (!runningNotebooks.has(filePath)) {
     return null;
@@ -495,7 +494,7 @@ const SessionShutdownButton: React.FC<{ filePath: string }> = ({
                     sessionId: ids.sessionId as SessionId,
                   }).then((response) => {
                     setRunningNotebooks(
-                      Maps.keyBy(response.files, (file) => file.path),
+                      Maps.keyBy(response.files, (file) => file.path)
                     );
                   });
                   closeModal();
@@ -512,46 +511,6 @@ const SessionShutdownButton: React.FC<{ filePath: string }> = ({
         }}
       >
         <PowerOffIcon size={14} />
-      </Button>
-    </Tooltip>
-  );
-};
-
-const CopyNotebookButton: React.FC<{ filePath: string }> = ({ filePath }) => {
-  const { openPrompt, closeModal } = useImperativeModal();
-  return (
-    <Tooltip content="Copy">
-      <Button
-        size={"icon"}
-        variant="outline"
-        className="opacity-0 group-hover:opacity-100 hover:bg-accent text-primary border-primary hover:border-primary hover:text-primary bg-background hover:bg-[var(--blue-1)]"
-        onClick={(e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          const pathBuilder = new PathBuilder("/");
-          openPrompt({
-            title: "Copy notebook",
-            description: "Enter a new filename for the notebook copy.",
-            defaultValue: `_${Paths.basename(filePath)}`,
-            confirmText: "Copy notebook",
-            spellCheck: false,
-            onConfirm: (destination: string) => {
-              sendCopy({
-                source: filePath,
-                destination: pathBuilder.join(
-                  Paths.dirname(filePath),
-                  destination,
-                ),
-              });
-              closeModal();
-              toast({
-                description: "Notebook has been copied.",
-              });
-            },
-          });
-        }}
-      >
-        <Copy size={14} />
       </Button>
     </Tooltip>
   );

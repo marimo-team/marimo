@@ -61,6 +61,8 @@ import { LAYOUT_TYPES } from "../renderers/types";
 import { displayLayoutName, getLayoutIcon } from "../renderers/layout-select";
 import { useLayoutState, useLayoutActions } from "@/core/layout/layout";
 import { useTogglePresenting } from "@/core/layout/useTogglePresenting";
+import { useCopyNotebook } from "./useCopyNotebook";
+import { isWasm } from "@/core/wasm/utils";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -78,6 +80,7 @@ export function useNotebookActions() {
   const notebook = useNotebook();
   const { updateCellConfig, undoDeleteCell } = useCellActions();
   const restartKernel = useRestartKernel();
+  const copyNotebook = useCopyNotebook(filename!);
   const setCommandPaletteOpen = useSetAtom(commandPaletteAtom);
   const setKeyboardShortcutsOpen = useSetAtom(keyboardShortcutsAtom);
 
@@ -193,7 +196,7 @@ export function useNotebookActions() {
             const md = await exportAsMarkdown({ download: false });
             downloadBlob(
               new Blob([md], { type: "text/plain" }),
-              Filenames.toMarkdown(document.title),
+              Filenames.toMarkdown(document.title)
             );
           },
         },
@@ -204,7 +207,7 @@ export function useNotebookActions() {
             const code = await readCode();
             downloadBlob(
               new Blob([code.contents], { type: "text/plain" }),
-              Filenames.toPY(document.title),
+              Filenames.toPY(document.title)
             );
           },
         },
@@ -276,6 +279,12 @@ export function useNotebookActions() {
 
     {
       icon: <ClipboardCopyIcon size={14} strokeWidth={1.5} />,
+      label: "Create notebook copy",
+      hidden: !filename || isWasm(),
+      handle: copyNotebook,
+    },
+    {
+      icon: <ClipboardCopyIcon size={14} strokeWidth={1.5} />,
       label: "Copy code to clipboard",
       hidden: !filename,
       handle: async () => {
@@ -294,7 +303,7 @@ export function useNotebookActions() {
       handle: async () => {
         const ids = disabledCells.map((cell) => cell.id);
         const newConfigs = Objects.fromEntries(
-          ids.map((cellId) => [cellId, { disabled: false }]),
+          ids.map((cellId) => [cellId, { disabled: false }])
         );
         // send to BE
         await saveCellConfig({ configs: newConfigs });
@@ -311,7 +320,7 @@ export function useNotebookActions() {
       handle: async () => {
         const ids = enabledCells.map((cell) => cell.id);
         const newConfigs = Objects.fromEntries(
-          ids.map((cellId) => [cellId, { disabled: true }]),
+          ids.map((cellId) => [cellId, { disabled: true }])
         );
         // send to BE
         await saveCellConfig({ configs: newConfigs });
