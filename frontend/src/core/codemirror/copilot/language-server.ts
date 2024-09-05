@@ -135,11 +135,18 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
 
     const version = this.documentVersion;
 
-    return this._request("getCompletions", {
+    const response = await this._request("getCompletions", {
       doc: {
         ...params.doc,
         version: version,
       },
     });
+
+    // If the document version has changed since the request was made, return an empty response
+    if (version !== this.documentVersion) {
+      return { completions: [] };
+    }
+
+    return response;
   }
 }
