@@ -23,6 +23,7 @@ import { ColumnSummary } from "./components/column-summary";
 import type { VegaLiteProps } from "react-vega/lib/VegaLite";
 import { useOnMount } from "@/hooks/useLifecycle";
 import type { ChartSpec } from "./state/types";
+import { useTheme } from "@/theme/useTheme";
 
 /**
  * @param label - a label of the table
@@ -104,6 +105,7 @@ export const DataExplorerComponent = ({
 
   const { mark } = useAtomValue(chartSpecAtom);
   const charts = useAtomValue(relatedChartSpecsAtom);
+  const { theme } = useTheme();
 
   if (error) {
     return <ErrorBanner error={error} />;
@@ -133,6 +135,7 @@ export const DataExplorerComponent = ({
           padding={PADDING}
           actions={ACTIONS}
           spec={makeResponsive(mainPlot.spec)}
+          theme={theme === "dark" ? "dark" : undefined}
         />
       </div>
     );
@@ -207,6 +210,7 @@ export const DataExplorerComponent = ({
                 key={idx}
                 actions={false}
                 spec={plot.spec}
+                theme={theme === "dark" ? "dark" : undefined}
               />
             </HorizontalCarouselItem>
           ))}
