@@ -70,11 +70,6 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
           const request = getCopilotRequest(state, allCode);
           const response = await getCopilotClient().getCompletion(request);
 
-          // If not focused, don't show
-          if (!state) {
-            return "";
-          }
-
           const suggestion = getSuggestion(
             response,
             request.doc.position,
