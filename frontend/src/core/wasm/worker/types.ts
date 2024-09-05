@@ -2,6 +2,7 @@
 import type { PyodideInterface } from "pyodide";
 import type {
   CodeCompletionRequest,
+  CopyNotebookRequest,
   ExportAsHTMLRequest,
   FileCreateRequest,
   FileCreateResponse,
@@ -66,6 +67,7 @@ export interface RawBridge {
   read_snippets(): Promise<Snippets>;
   format(request: FormatRequest): Promise<FormatResponse>;
   save(request: SaveNotebookRequest): Promise<string>;
+  copy(request: CopyNotebookRequest): Promise<string>;
   save_app_config(request: SaveAppConfigurationRequest): Promise<string>;
   save_user_config(request: SaveUserConfigurationRequest): Promise<null>;
   rename_file(request: string): Promise<string>;

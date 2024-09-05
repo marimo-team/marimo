@@ -2241,6 +2241,20 @@ paths:
               schema:
                 type: string
           description: Save the current app
+  /api/kernel/copy:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CopyNotebookRequest'
+      responses:
+        200:
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: Copy notebook
   /api/kernel/save_app_config:
     post:
       requestBody:

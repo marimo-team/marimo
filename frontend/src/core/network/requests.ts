@@ -31,6 +31,7 @@ export const {
   sendRestart,
   syncCellIds,
   sendSave,
+  sendCopy,
   sendStdin,
   sendFormat,
   sendInterrupt,

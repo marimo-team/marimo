@@ -149,6 +149,7 @@ def _generate_schema() -> dict[str, Any]:
         models.RunScratchpadRequest,
         models.SaveAppConfigurationRequest,
         models.SaveNotebookRequest,
+        models.CopyNotebookRequest,
         models.SaveUserConfigurationRequest,
         models.StdinRequest,
         models.SuccessResponse,

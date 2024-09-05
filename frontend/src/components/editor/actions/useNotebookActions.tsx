@@ -29,6 +29,7 @@ import {
   PresentationIcon,
   EditIcon,
   LayoutTemplateIcon,
+  Files,
 } from "lucide-react";
 import { commandPaletteAtom } from "../controls/command-palette";
 import { useCellActions, useNotebook } from "@/core/cells/cells";
@@ -61,6 +62,8 @@ import { LAYOUT_TYPES } from "../renderers/types";
 import { displayLayoutName, getLayoutIcon } from "../renderers/layout-select";
 import { useLayoutState, useLayoutActions } from "@/core/layout/layout";
 import { useTogglePresenting } from "@/core/layout/useTogglePresenting";
+import { useCopyNotebook } from "./useCopyNotebook";
+import { isWasm } from "@/core/wasm/utils";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -78,6 +81,7 @@ export function useNotebookActions() {
   const notebook = useNotebook();
   const { updateCellConfig, undoDeleteCell } = useCellActions();
   const restartKernel = useRestartKernel();
+  const copyNotebook = useCopyNotebook(filename);
   const setCommandPaletteOpen = useSetAtom(commandPaletteAtom);
   const setKeyboardShortcutsOpen = useSetAtom(keyboardShortcutsAtom);
 
@@ -274,6 +278,12 @@ export function useNotebookActions() {
       ],
     },
 
+    {
+      icon: <Files size={14} strokeWidth={1.5} />,
+      label: "Create notebook copy",
+      hidden: !filename || isWasm(),
+      handle: copyNotebook,
+    },
     {
       icon: <ClipboardCopyIcon size={14} strokeWidth={1.5} />,
       label: "Copy code to clipboard",
