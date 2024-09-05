@@ -1,6 +1,16 @@
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#     "altair",
+#     "marimo",
+#     "numpy",
+#     "polars",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.1.47"
+__generated_with = "0.8.11"
 app = marimo.App(width="full")
 
 
@@ -58,7 +68,7 @@ def __(df, mo):
 @app.cell
 def __(alt, filtered, mo):
     _chart = (
-        alt.Chart(filtered.to_pandas())
+        alt.Chart(filtered)
         .mark_circle()
         .encode(
             x="Attack",
