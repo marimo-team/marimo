@@ -4,30 +4,37 @@ import { toast } from "@/components/ui/use-toast";
 import { sendCopy } from "@/core/network/requests";
 import { PathBuilder, Paths } from "@/utils/paths";
 
-export function useCopyNotebook(filePath: string | null) {
+export function useCopyNotebook(source: string | null) {
   const { openPrompt, closeModal } = useImperativeModal();
 
   return () => {
-    if (!filePath) {
+    if (!source) {
       return null;
     }
     const pathBuilder = new PathBuilder("/");
+    const filename = Paths.basename(source);
+
     openPrompt({
       title: "Copy notebook",
       description: "Enter a new filename for the notebook copy.",
-      defaultValue: `_${Paths.basename(filePath)}`,
+      defaultValue: `_${filename}`,
       confirmText: "Copy notebook",
       spellCheck: false,
       onConfirm: (destination: string) => {
         sendCopy({
-          source: filePath,
-          destination: pathBuilder.join(Paths.dirname(filePath), destination),
+          source: source,
+          destination: pathBuilder.join(Paths.dirname(source), destination),
         });
         closeModal();
         toast({
           title: "Notebook copied",
           description: "A copy of the notebook has been created.",
         });
+        const notebookCopy = window.location.href.replace(
+          filename,
+          destination,
+        );
+        window.open(notebookCopy);
       },
     });
   };

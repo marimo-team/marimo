@@ -29,6 +29,7 @@ import {
   PresentationIcon,
   EditIcon,
   LayoutTemplateIcon,
+  Files,
 } from "lucide-react";
 import { commandPaletteAtom } from "../controls/command-palette";
 import { useCellActions, useNotebook } from "@/core/cells/cells";
@@ -278,7 +279,7 @@ export function useNotebookActions() {
     },
 
     {
-      icon: <ClipboardCopyIcon size={14} strokeWidth={1.5} />,
+      icon: <Files size={14} strokeWidth={1.5} />,
       label: "Create notebook copy",
       hidden: !filename || isWasm(),
       handle: copyNotebook,
