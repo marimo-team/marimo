@@ -2409,7 +2409,7 @@ export interface components {
     CopyNotebookRequest: {
       source: string;
       destination: string;
-    }
+    };
     SaveUserConfigurationRequest: {
       config: components["schemas"]["MarimoConfig"];
     };
