@@ -204,13 +204,17 @@ class PandasTableManagerFactory(TableManagerFactory):
                         p95=col.quantile(0.95),
                     )
 
+                import numpy as np
+
                 return ColumnSummary(
                     total=col.count(),
                     nulls=col.isnull().sum(),
                     min=col.min(),
                     max=col.max(),
                     mean=col.mean(),
-                    median=col.median(),
+                    # Pandas prints an unhelpful RuntimeWarning when taking
+                    # the median of an all nan column
+                    median=col.median() if not col.isna().all() else np.nan,
                     std=col.std(),
                     p5=col.quantile(0.05),
                     p25=col.quantile(0.25),
