@@ -26,8 +26,8 @@ import type {
 } from "./types";
 import {
   isCopilotEnabled,
-  setGitHubCopilotStartLoadingVersion,
-  clearGitHubCopilotStopLoadingVersion,
+  setGitHubCopilotLoadingVersion,
+  clearGitHubCopilotLoadingVersion,
 } from "./state";
 import { getCodes } from "./getCodes";
 import { Logger } from "@/utils/Logger";
@@ -138,7 +138,7 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     version: number,
   ) {
     // Start a loading indicator
-    setGitHubCopilotStartLoadingVersion(version);
+    setGitHubCopilotLoadingVersion(version);
     const response = await this._request("getCompletions", {
       doc: {
         ...params.doc,
@@ -146,7 +146,7 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
       },
     });
     // Stop the loading indicator (only if the version hasn't changed)
-    clearGitHubCopilotStopLoadingVersion(version);
+    clearGitHubCopilotLoadingVersion(version);
 
     // If the document version has changed since the request was made, return an empty response
     if (version !== this.documentVersion) {

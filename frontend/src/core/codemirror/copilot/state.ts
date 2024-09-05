@@ -20,13 +20,13 @@ export const githubCopilotLoadingVersion = atom<number | null>(null);
 /**
  * Set the currently loading document version
  */
-export function setGitHubCopilotStartLoadingVersion(version: number) {
+export function setGitHubCopilotLoadingVersion(version: number) {
   store.set(githubCopilotLoadingVersion, version);
 }
 /**
  * Clear the currently loading document version, if it matches the current version
  */
-export function clearGitHubCopilotStopLoadingVersion(expectedVersion: number) {
+export function clearGitHubCopilotLoadingVersion(expectedVersion: number) {
   const currentVersion = store.get(githubCopilotLoadingVersion);
   if (currentVersion === expectedVersion) {
     store.set(githubCopilotLoadingVersion, null);
