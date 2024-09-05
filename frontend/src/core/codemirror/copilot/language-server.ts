@@ -136,7 +136,7 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
   private async getCompletionInternal(
     params: CopilotGetCompletionsParams,
     version: number,
-  ) {
+  ): Promise<CopilotGetCompletionsResult> {
     // Start a loading indicator
     setGitHubCopilotLoadingVersion(version);
     const response = await this._request("getCompletions", {
@@ -164,7 +164,9 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     300,
   );
 
-  async getCompletion(params: CopilotGetCompletionsParams) {
+  async getCompletion(
+    params: CopilotGetCompletionsParams,
+  ): Promise<CopilotGetCompletionsResult> {
     if (this.isDisabled()) {
       return { completions: [] };
     }
@@ -176,6 +178,7 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
       return { completions: [] };
     }
 
-    return this.debouncedGetCompletionInternal(params, version);
+    const response = await this.debouncedGetCompletionInternal(params, version);
+    return response || { completions: [] };
   }
 }
