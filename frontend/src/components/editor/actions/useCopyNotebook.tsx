@@ -11,7 +11,7 @@ export function useCopyNotebook(source: string | null) {
     if (!source) {
       return null;
     }
-    const pathBuilder = new PathBuilder("/");
+    const pathBuilder = PathBuilder.guessDeliminator(source);
     const filename = Paths.basename(source);
 
     openPrompt({
@@ -24,26 +24,14 @@ export function useCopyNotebook(source: string | null) {
         sendCopy({
           source: source,
           destination: pathBuilder.join(Paths.dirname(source), destination),
-        })
-          .then(() => {
-            closeModal();
-            toast({
-              title: "Notebook copied",
-              description: "A copy of the notebook has been created.",
-            });
-            const notebookCopy = window.location.href.replace(
-              filename,
-              destination,
-            );
-            window.open(notebookCopy);
-          })
-          .catch((error) => {
-            toast({
-              title: "Failed to copy notebook",
-              description: error.detail,
-              variant: "danger",
-            });
+        }).then(() => {
+          closeModal();
+          toast({
+            title: "Notebook copied",
+            description: "A copy of the notebook has been created.",
           });
+          window.open(`/?file=${destination}`, "_blank");
+        });
       },
     });
   };
