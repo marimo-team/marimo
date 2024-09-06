@@ -293,12 +293,12 @@ export function cellCodeEditingBundle(
   const { updateCellCode } = callbacks;
 
   const onChangePlugin = EditorView.updateListener.of((update) => {
-    // Check if the doc update was a formatting change
-    // e.g. changing from python to markdown
-    const isFormattingChange = update.transactions.some((tr) =>
-      tr.effects.some((effect) => effect.is(formattingChangeEffect)),
-    );
     if (update.docChanged) {
+      // Check if the doc update was a formatting change
+      // e.g. changing from python to markdown
+      const isFormattingChange = update.transactions.some((tr) =>
+        tr.effects.some((effect) => effect.is(formattingChangeEffect)),
+      );
       const nextCode = getEditorCodeAsPython(update.view);
       updateCellCode({
         cellId,
@@ -318,8 +318,20 @@ export function markdownAutoRunExtension(
   callbacks: MovementCallbacks,
 ): Extension {
   return EditorView.updateListener.of((update) => {
-    if (update.docChanged) {
-      callbacks.onRun();
+    // If the doc didn't change, ignore
+    if (!update.docChanged) {
+      return;
     }
+
+    // This happens on mount when we start in markdown mode
+    const isFormattingChange = update.transactions.some((tr) =>
+      tr.effects.some((effect) => effect.is(formattingChangeEffect)),
+    );
+    if (isFormattingChange) {
+      // Ignore formatting changes
+      return;
+    }
+
+    callbacks.onRun();
   });
 }

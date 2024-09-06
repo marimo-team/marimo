@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { EditorView, keymap } from "@codemirror/view";
 import type { CellId } from "../cells/ids";
-import { formatEditorViews } from "./format";
+import { formatEditorViews, formattingChangeEffect } from "./format";
 import {
   getCurrentLanguageAdapter,
   toggleToLanguage,
@@ -60,8 +60,21 @@ export function formatKeymapExtension(
  */
 export function scrollActiveLineIntoView() {
   return EditorView.updateListener.of((update) => {
+    // Ignore the editor does not have focus, ignore
+    if (!update.view.hasFocus) {
+      return;
+    }
+
     // A new line was added, scroll the active line into view
     if (update.heightChanged && update.docChanged) {
+      // Ignore formatting changes
+      const isFormattingChange = update.transactions.some((tr) =>
+        tr.effects.some((effect) => effect.is(formattingChangeEffect)),
+      );
+      if (isFormattingChange) {
+        return;
+      }
+
       const activeLines = update.view.dom.getElementsByClassName(
         "cm-activeLine cm-line",
       );
