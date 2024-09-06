@@ -7,7 +7,7 @@ import { type DropzoneOptions, useDropzone } from "react-dropzone";
 import { refreshRoot } from "./state";
 import { Logger } from "@/utils/Logger";
 
-const MAX_SIZE = 1024 * 1024 * 50; // 50MB
+const MAX_SIZE = 1024 * 1024 * 100; // 100MB
 
 export function useFileExplorerUpload(options: DropzoneOptions = {}) {
   return useDropzone({
