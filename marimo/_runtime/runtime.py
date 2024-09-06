@@ -1908,6 +1908,11 @@ def launch_kernel(
         else None
     )
 
+    # In run mode, the kernel should always be in autorun
+    if not is_edit_mode:
+        user_config = user_config.copy()
+        user_config["runtime"]["on_cell_change"] = "autorun"
+
     kernel = Kernel(
         cell_configs=configs,
         app_metadata=app_metadata,
