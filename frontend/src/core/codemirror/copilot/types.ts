@@ -58,6 +58,7 @@ export interface CopilotGetCompletionsParams {
 export interface CopilotGetCompletionsResult {
   completions: Array<{
     text: string;
+    docVersion: number;
     position: {
       line: number;
       character: number;
