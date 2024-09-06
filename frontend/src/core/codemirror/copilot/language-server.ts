@@ -137,21 +137,12 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     params: CopilotGetCompletionsParams,
     version: number,
   ): Promise<CopilotGetCompletionsResult> {
-    // Start a loading indicator
-    setGitHubCopilotLoadingVersion(version);
     const response = await this._request("getCompletions", {
       doc: {
         ...params.doc,
         version: version,
       },
     });
-    // Stop the loading indicator (only if the version hasn't changed)
-    clearGitHubCopilotLoadingVersion(version);
-
-    // If the document version has changed since the request was made, return an empty response
-    if (version !== this.documentVersion) {
-      return { completions: [] };
-    }
 
     return response;
   }
@@ -159,9 +150,10 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
   // Even though the copilot extension has a debounce,
   // there are multiple requests sent at the same time
   // when multiple Codemirror instances are mounted at the same time.
+  // So we only need to debounce around 10ms.
   private debouncedGetCompletionInternal = debounce(
     this.getCompletionInternal.bind(this),
-    300,
+    10,
   );
 
   async getCompletion(
@@ -178,7 +170,17 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
       return { completions: [] };
     }
 
+    // Start a loading indicator
+    setGitHubCopilotLoadingVersion(version);
     const response = await this.debouncedGetCompletionInternal(params, version);
+    // Stop the loading indicator (only if the version hasn't changed)
+    clearGitHubCopilotLoadingVersion(version);
+
+    // If the document version has changed since the request was made, return an empty response
+    if (version !== this.documentVersion) {
+      return { completions: [] };
+    }
+
     return response || { completions: [] };
   }
 }
