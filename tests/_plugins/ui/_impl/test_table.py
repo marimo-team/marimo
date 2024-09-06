@@ -372,6 +372,11 @@ def test_table_with_too_many_rows_unknown_total():
     assert len(table._component_args["data"]) == 10
 
 
+def test_empty_table():
+    table = ui.table([])
+    assert table._component_args["total-rows"] == 0
+
+
 def test_table_with_too_many_rows_column_summaries_disabled():
     data = {"a": list(range(20))}
     table = ui.table(data, _internal_summary_row_limit=10)
