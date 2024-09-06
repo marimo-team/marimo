@@ -289,7 +289,8 @@ class table(
         if _internal_total_rows is not None:
             total_rows = _internal_total_rows
         else:
-            total_rows = self._manager.get_num_rows(force=True) or "too_many"
+            num_rows = self._manager.get_num_rows(force=True)
+            total_rows = num_rows if num_rows is not None else "too_many"
 
         if pagination is False and total_rows != "too_many":
             page_size = total_rows
