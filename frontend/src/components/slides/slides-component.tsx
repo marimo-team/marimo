@@ -56,7 +56,7 @@ const SlidesComponent = ({
     <Swiper
       ref={el}
       className={cn(
-        "relative w-full border rounded bg-background mo-slides-theme",
+        "relative w-full border rounded bg-background mo-slides-theme prose-slides",
         className,
       )}
       spaceBetween={50}
