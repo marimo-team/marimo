@@ -75,7 +75,9 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
             request.doc.position,
             state,
           );
-          Logger.debug("Copilot suggestion:", suggestion);
+          if (suggestion) {
+            Logger.debug("Copilot suggestion:", suggestion);
+          }
           return suggestion;
         },
       }),
