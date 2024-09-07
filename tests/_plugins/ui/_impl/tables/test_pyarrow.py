@@ -116,6 +116,13 @@ class TestPyArrowTableManagerFactory(unittest.TestCase):
         expected_data = self.data.take([0])
         assert limited_manager.data == expected_data
 
+    def test_take_out_of_bounds(self) -> None:
+        # Too large of page
+        assert self.manager.take(10, 0).data == self.data
+
+        # Too large of page and offset
+        assert len(self.manager.take(10, 10).data) == 0
+
     def test_limit_more_than_num_rows(self) -> None:
         limited_manager = self.manager.take(500, 0)
         assert limited_manager.data == self.data
@@ -371,6 +378,13 @@ class TestPyArrowRecordBatchManagerFactory(unittest.TestCase):
         limited_manager = self.manager.take(1, 0)
         expected_data = self.data.slice(0, 1)
         assert limited_manager.data == expected_data
+
+    def test_take_out_of_bounds(self) -> None:
+        # Too large of page
+        assert self.manager.take(10, 0).data == self.data
+
+        # Too large of page and offset
+        assert len(self.manager.take(10, 10).data) == 0
 
     def test_limit_more_than_num_rows(self) -> None:
         limited_manager = self.manager.take(500, 0)
