@@ -49,13 +49,15 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   columns: Array<ColumnDef<TData>>;
   data: TData[];
   // Sorting
-  sorting?: SortingState;
-  setSorting?: OnChangeFn<SortingState>;
+  manualSorting?: boolean; // server-side sorting
+  sorting?: SortingState; // controlled sorting
+  setSorting?: OnChangeFn<SortingState>; // controlled sorting
   // Pagination
   totalRows: number | "too_many";
   pagination?: boolean;
-  paginationState?: PaginationState;
-  setPaginationState?: OnChangeFn<PaginationState>;
+  manualPagination?: boolean; // server-side pagination
+  paginationState?: PaginationState; // controlled pagination
+  setPaginationState?: OnChangeFn<PaginationState>; // controlled pagination
   // Selection
   selection?: "single" | "multi" | null;
   rowSelection?: RowSelectionState;
@@ -78,13 +80,15 @@ const DataTableInternal = <TData,>({
   className,
   columns,
   data,
-  sorting,
   totalRows,
+  manualSorting = false,
+  sorting,
   setSorting,
   rowSelection,
   paginationState,
   setPaginationState,
   downloadAs,
+  manualPagination = false,
   pagination = false,
   onRowSelectionChange,
   enableSearch = false,
@@ -114,24 +118,24 @@ const DataTableInternal = <TData,>({
     rowCount: totalRows === "too_many" ? undefined : totalRows,
     ...(setPaginationState
       ? {
-          manualPagination: true,
           onPaginationChange: setPaginationState,
           getRowId: (_row, idx) => {
             if (!paginationState) {
               return String(idx);
             }
-            // Add offset if pagination is enabled
-            const offset = pagination
+            // Add offset if manualPagination is enabled
+            const offset = manualPagination
               ? paginationState.pageIndex * paginationState.pageSize
               : 0;
             return String(idx + offset);
           },
         }
       : {}),
-    getPaginationRowModel: pagination ? getPaginationRowModel() : undefined,
+    manualPagination: manualPagination,
+    getPaginationRowModel: getPaginationRowModel(),
     // sorting
-    onSortingChange: setSorting,
-    manualSorting: true,
+    ...(setSorting ? { onSortingChange: setSorting } : {}),
+    manualSorting: manualSorting,
     getSortedRowModel: getSortedRowModel(),
     // filtering
     manualFiltering: true,
@@ -141,11 +145,16 @@ const DataTableInternal = <TData,>({
     // selection
     onRowSelectionChange: onRowSelectionChange,
     state: {
-      sorting,
+      ...(sorting ? { sorting } : {}),
       columnFilters: filters,
-      pagination: pagination
-        ? paginationState
-        : { pageIndex: 0, pageSize: data.length },
+      ...// Controlled state
+      (paginationState
+        ? { pagination: paginationState }
+        : // Uncontrolled state
+          pagination && !paginationState
+          ? {}
+          : // No pagination, show all rows
+            { pagination: { pageIndex: 0, pageSize: data.length } }),
       rowSelection,
       columnPinning: columnPinning,
     },
