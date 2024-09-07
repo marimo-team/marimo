@@ -231,12 +231,20 @@ export const LoadingDataTableComponent = memo(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [props.setValue, filters, searchQuery, sorting]);
 
-    // If pageSize changes, reset pageSize
+    // If pageSize changes, reset pagination state
     useEffect(() => {
       if (paginationState.pageSize !== props.pageSize) {
-        setPaginationState((state) => ({ ...state, pageSize: props.pageSize }));
+        setPaginationState({
+          pageIndex: 0,
+          pageSize: props.pageSize,
+        });
       }
     }, [props.pageSize, paginationState.pageSize]);
+
+    // If total rows change, reset pageIndex
+    useEffect(() => {
+      setPaginationState((state) => ({ ...state, pageIndex: 0 }));
+    }, [props.totalRows]);
 
     // Data loading
     const { data, loading, error } = useAsyncData<{
@@ -502,8 +510,10 @@ const DataTableComponent = ({
             className={className}
             sorting={sorting}
             totalRows={totalRows}
+            manualSorting={true}
             setSorting={setSorting}
             pagination={pagination}
+            manualPagination={true}
             paginationState={paginationState}
             setPaginationState={setPaginationState}
             rowSelection={rowSelection}

@@ -4,11 +4,18 @@ import { DataTable } from "@/components/data-table/data-table";
 import { parseCsvData } from "@/plugins/impl/vega/loader";
 import { Objects } from "@/utils/objects";
 import type React from "react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { type Base64String, base64ToDataURL } from "@/utils/json/base64";
+import type { PaginationState } from "@tanstack/react-table";
+
+const PAGE_SIZE = 25;
 
 export const CsvViewer: React.FC<{ contents: string }> = ({ contents }) => {
   const data = useMemo(() => parseCsvData(contents), [contents]);
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: PAGE_SIZE,
+  });
   const columns = useMemo(
     () =>
       generateColumns({
@@ -25,6 +32,9 @@ export const CsvViewer: React.FC<{ contents: string }> = ({ contents }) => {
       data={data}
       totalRows={data.length}
       columns={columns}
+      manualPagination={false}
+      paginationState={pagination}
+      setPaginationState={setPagination}
       wrapperClassName="h-full justify-between pb-1 px-1"
       pagination={true}
       className="rounded-none border-b flex overflow-hidden"
