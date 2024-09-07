@@ -215,6 +215,14 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         expected_data = self.data.head(1)
         assert limited_manager.data.equals(expected_data)
 
+    def test_take_out_of_bounds(self) -> None:
+        # Too large of page
+        assert len(self.manager.take(10, 0).data) == 3
+        assert len(self.data) == 3
+
+        # Too large of page and offset
+        assert self.manager.take(10, 10).data.is_empty()
+
     def test_summary_integer(self) -> None:
         column = "A"
         summary = self.manager.get_summary(column)

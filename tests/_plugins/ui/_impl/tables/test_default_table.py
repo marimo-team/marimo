@@ -63,6 +63,15 @@ class TestDefaultTable(unittest.TestCase):
         ]
         assert limited_manager.data == expected_data
 
+    def test_take_out_of_bounds(self) -> None:
+        # Too large of page
+        limited_manager = self.manager.take(10, 0)
+        assert limited_manager.data == self.data
+
+        # Too large of page and offset
+        limited_manager = self.manager.take(10, 10)
+        assert limited_manager.data == []
+
     def test_sort(self) -> None:
         sorted_data = self.manager.sort_values(by="name", descending=True).data
         expected_data = [
@@ -309,6 +318,16 @@ class TestColumnarDefaultTable(unittest.TestCase):
         }
         assert limited_manager.data == expected_data
 
+    def test_take_out_of_bounds(self) -> None:
+        # Too large of page
+        limited_manager = self.manager.take(10, 0)
+        assert limited_manager.data == self.data
+
+        # Too large of page and offset
+        limited_manager = self.manager.take(10, 10)
+        assert limited_manager.data["age"] == []
+        assert limited_manager.data["name"] == []
+
     def test_sort(self) -> None:
         sorted_data = self.manager.sort_values(by="name", descending=True).data
         expected_data = [
@@ -508,6 +527,18 @@ class TestDictionaryDefaultTable(unittest.TestCase):
     def test_limit(self) -> None:
         limited_manager = self.manager.take(1, 0)
         assert limited_manager.data == [{"key": "a", "value": 1}]
+
+    def test_take_out_of_bounds(self) -> None:
+        # Too large of page
+        limited_manager = self.manager.take(10, 0)
+        assert limited_manager.data == [
+            {"key": "a", "value": 1},
+            {"key": "b", "value": 2},
+        ]
+
+        # Too large of page and offset
+        limited_manager = self.manager.take(10, 10)
+        assert limited_manager.data == []
 
     def test_sort(self) -> None:
         sorted_manager = self.manager.sort_values(by="value", descending=True)

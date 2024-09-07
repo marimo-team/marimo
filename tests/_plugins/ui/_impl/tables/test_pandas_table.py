@@ -240,6 +240,14 @@ class TestPandasTableManager(unittest.TestCase):
         expected_data = self.data.head(limit)
         pd.testing.assert_frame_equal(limited_manager.data, expected_data)
 
+    def test_take_out_of_bounds(self) -> None:
+        # Too large of page
+        assert len(self.manager.take(10, 0).data) == 3
+        assert len(self.data) == 3
+
+        # Too large of page and offset
+        assert len(self.manager.take(10, 10).data) == 0
+
     def test_summary_integer(self) -> None:
         column = "A"
         summary = self.manager.get_summary(column)
