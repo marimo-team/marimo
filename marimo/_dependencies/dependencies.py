@@ -134,6 +134,7 @@ def _version_check(
 class DependencyManager:
     """Utilities for checking the status of dependencies."""
 
+    sympy = Dependency("sympy")
     pandas = Dependency("pandas")
     polars = Dependency("polars")
     ibis = Dependency("ibis")

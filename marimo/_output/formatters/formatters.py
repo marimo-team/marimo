@@ -24,8 +24,8 @@ from marimo._output.formatters.pandas_formatters import PandasFormatter
 from marimo._output.formatters.plotly_formatters import PlotlyFormatter
 from marimo._output.formatters.seaborn_formatters import SeabornFormatter
 from marimo._output.formatters.structures import StructuresFormatter
-from marimo._output.formatters.tqdm_formatters import TqdmFormatter
 from marimo._output.formatters.sympy_formatters import SympyFormatter
+from marimo._output.formatters.tqdm_formatters import TqdmFormatter
 
 # Map from formatter factory's package name to formatter, for third-party
 # modules. These formatters will be registered if and when their associated
