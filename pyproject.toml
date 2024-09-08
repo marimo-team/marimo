@@ -149,6 +149,7 @@ testoptional = [
     "anthropic==0.34.1",
     # exporting as ipynb
     "nbformat >=5.10.4",
+    "sympy>=1.13.2",
 ]
 
 [project.urls]

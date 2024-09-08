@@ -49,7 +49,7 @@ class SympyFormatter(FormatterFactory):
         from sympy.core.basic import Printable  # type: ignore
 
         # We will monkey-patch the Printable class so most Sympy constructs
-        # that can be "pretty-printed" that with sympy.latex
+        # that can be "pretty-printed" with sympy.latex
         # can also be rendered in marimo.
         # One way to test if an expression is supported is
         # with latex(expr)
