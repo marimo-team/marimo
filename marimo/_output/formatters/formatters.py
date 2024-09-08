@@ -25,6 +25,7 @@ from marimo._output.formatters.plotly_formatters import PlotlyFormatter
 from marimo._output.formatters.seaborn_formatters import SeabornFormatter
 from marimo._output.formatters.structures import StructuresFormatter
 from marimo._output.formatters.tqdm_formatters import TqdmFormatter
+from marimo._output.formatters.sympy_formatters import SympyFormatter
 
 # Map from formatter factory's package name to formatter, for third-party
 # modules. These formatters will be registered if and when their associated
@@ -45,6 +46,7 @@ THIRD_PARTY_FACTORIES: dict[str, FormatterFactory] = {
     AnyWidgetFormatter.package_name(): AnyWidgetFormatter(),
     TqdmFormatter.package_name(): TqdmFormatter(),
     LetsPlotFormatter.package_name(): LetsPlotFormatter(),
+    SympyFormatter.package_name(): SympyFormatter(),
 }
 
 # Formatters for builtin types and other things that don't require a
