@@ -1,8 +1,4 @@
 from marimo._output.formatters.formatter_factory import FormatterFactory
-from marimo._plugins.ui._impl.anywidget.init import init_marimo_widget
-
-
-from marimo._output.formatters.formatter_factory import FormatterFactory
 
 def patch_sympy(*objs):
     import marimo as mo
