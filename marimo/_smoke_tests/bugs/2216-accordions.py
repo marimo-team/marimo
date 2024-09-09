@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.8.11"
+__generated_with = "0.8.13"
 app = marimo.App(width="medium")
 
 
@@ -44,6 +44,26 @@ def __(mo):
                 - A estimativa para $\beta_1$ é inesperada, pois contradiz a teoria económica de que existe uma relação negativa entre o preço e as vendas.
                 """
             )
+        }
+    )
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md(r"""**b)** Se o valor esperado de $X$ for a média dos seus dois valores referidos na alínea anterior, qual acha que será o valor esperado de $Y$? Confirme a sua resposta usando a lei das expectativas iteradas.""")
+    return
+
+
+@app.cell
+def __(mo):
+    mo.accordion(
+        {
+            """**b)** Se o valor esperado de $X$ for a média dos seus dois valores referidos na alínea anterior, qual acha que será o valor esperado de $Y$? Confirme a sua resposta usando a lei das expectativas iteradas.""": mo.md("""        
+    		$$\\mathbb{{E}}\\left[Y \\middle| X = \\frac{{800 + 1400}}{{2}}\\right] = \\mathbb{{E}}\\left[Y | X = 1100\\right] = 0.7 + 0.002 \\times 1100$$
+
+            Podemos confirmar a lei das expectativas iteradas:
+            """)
         }
     )
     return
