@@ -14,6 +14,7 @@ from marimo._plugins.ui._impl.dataframes.dataframe import (
 )
 from marimo._plugins.ui._impl.table import SearchTableArgs
 from marimo._runtime.functions import EmptyArgs
+from marimo._utils.platform import is_windows
 
 HAS_DEPS = (
     DependencyManager.pandas.has()
@@ -69,6 +70,9 @@ class TestDataframes:
             pd.DataFrame({1: [1, 2, 3], 2: ["a", "a", "a"]}),
         ],
     )
+    @pytest.mark.skipif(
+        is_windows(), reason="windows produces different csv output"
+    )
     def test_dataframe_numeric_columns(
         df: Any,
     ) -> None:
@@ -90,6 +94,9 @@ class TestDataframes:
             subject.get_column_values(GetColumnValuesArgs(column="1"))
 
     @staticmethod
+    @pytest.mark.skipif(
+        is_windows(), reason="windows produces different csv output"
+    )
     @pytest.mark.parametrize(
         "df",
         [
