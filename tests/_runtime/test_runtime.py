@@ -2142,7 +2142,7 @@ class TestSQL:
         )
 
         # make sure cell 1 executed, defining df
-        assert k.globals["df"].to_dict(as_series=False) == {"a": [42]}
+        assert k.globals["t1_df"].to_dict(as_series=False) == {"a": [42]}
 
         await k.delete_cell(DeleteCellRequest(cell_id="3"))
         # t1 should be dropped since it's an in-memory table;
