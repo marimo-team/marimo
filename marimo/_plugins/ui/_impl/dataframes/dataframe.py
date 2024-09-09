@@ -136,6 +136,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
         )
         self._error: Optional[str] = None
         self._last_transforms = Transformations([])
+        self._page_size = page_size or 5  # Default to 5 rows (.head())
 
         super().__init__(
             component_name=dataframe._name,
@@ -180,7 +181,9 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
             raise GetDataFrameError(self._error)
 
         manager = get_table_manager(self._value)
-        response = self.search(SearchTableArgs(page_size=10, page_number=0))
+        response = self.search(
+            SearchTableArgs(page_size=self._page_size, page_number=0)
+        )
         return GetDataFrameResponse(
             url=str(response.data),
             total_rows=response.total_rows,

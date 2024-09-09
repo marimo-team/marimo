@@ -107,7 +107,7 @@ export const DataSourcesPanel: React.FC = () => {
     let code = "";
     switch (table.source_type) {
       case "local":
-        code = `mo.data.table(${table.name})`;
+        code = `mo.ui.table(${table.name})`;
         break;
       case "duckdb":
         code = `_df = mo.sql(f"SELECT * FROM ${table.name} LIMIT 100")`;
