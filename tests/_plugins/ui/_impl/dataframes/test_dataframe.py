@@ -12,6 +12,8 @@ from marimo._plugins.ui._impl.dataframes.dataframe import (
     GetColumnValuesArgs,
     GetColumnValuesResponse,
 )
+from marimo._plugins.ui._impl.table import SearchTableArgs
+from marimo._runtime.functions import EmptyArgs
 
 HAS_DEPS = (
     DependencyManager.pandas.has()
@@ -86,3 +88,39 @@ class TestDataframes:
             subject.get_column_values(GetColumnValuesArgs(column="idk"))
         with pytest.raises(ColumnNotFound):
             subject.get_column_values(GetColumnValuesArgs(column="1"))
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        "df",
+        [
+            pd.DataFrame({1: [1, 2, 3], 2: ["a", "a", "a"]}),
+        ],
+    )
+    def test_dataframe_page_size(
+        df: Any,
+    ) -> None:
+        # size 1
+        subject = ui.dataframe(df, page_size=1)
+        result = subject.get_dataframe(EmptyArgs())
+        assert result.total_rows == 3
+        assert result.url == "data:text/csv;base64,MSwyCjEsYQo="
+
+        # search
+        search_result = subject.search(
+            SearchTableArgs(page_size=1, page_number=0)
+        )
+        assert search_result.total_rows == 3
+        assert search_result.data == result.url
+
+        # size 2
+        subject = ui.dataframe(df, page_size=2)
+        result = subject.get_dataframe(EmptyArgs())
+        assert result.total_rows == 3
+        assert result.url == "data:text/csv;base64,MSwyCjEsYQoyLGEK"
+
+        # search
+        search_result = subject.search(
+            SearchTableArgs(page_size=2, page_number=0)
+        )
+        assert search_result.total_rows == 3
+        assert search_result.data == result.url
