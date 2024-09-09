@@ -654,9 +654,15 @@ class Kernel:
             if previous_cell is not None:
                 LOGGER.debug("Deleting cell %s", cell_id)
                 previous_children = self._deactivate_cell(cell_id)
+
             error = self._try_registering_cell(
                 cell_id, code, carried_imports=carried_imports
             )
+            if error is not None and previous_cell is not None:
+                # The frontend keeps the cell around in the case of a
+                # registration error; let the FE know the cell is no longer
+                # stale.
+                previous_cell.set_stale(False)
 
             # For any newly imported namespaces, add them to the metadata
             #
@@ -1000,17 +1006,20 @@ class Kernel:
 
         self.errors = all_errors
         for cid in self.errors:
+            cell = self.graph.cells[cid] if cid in self.graph.cells else None
             if (
-                # Cells with syntax errors are not in the graph
-                cid in self.graph.cells
-                and not self.graph.cells[cid].config.disabled
+                cell is not None
+                and not cell.config.disabled
                 and self.graph.is_disabled(cid)
             ):
                 # this may be the first time we're seeing the cell: set its
                 # status
-                self.graph.cells[cid].set_runtime_state(
-                    "disabled-transitively"
-                )
+                cell.set_runtime_state("disabled-transitively")
+
+            if cell is not None:
+                # The error is up-to-date, since we just processed the graph
+                cell.set_stale(False)
+
             CellOp.broadcast_error(
                 data=self.errors[cid],
                 clear_console=True,
@@ -1042,7 +1051,8 @@ class Kernel:
                             for cid in cells_transitioned_to_error
                             if cid in self.graph.children
                         ]
-                    ),
+                    )
+                    - cells_with_errors_after_mutation,
                     cells_that_no_longer_have_errors,
                 )
             )
