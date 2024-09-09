@@ -125,16 +125,30 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
       return true;
     }
 
-    const markdownLines = pythonCode
-      .trim()
-      .split("\n")
-      .map((line) => line.startsWith("mo.md("))
-      .filter(Boolean);
-    if (markdownLines.length > 1) {
-      // more than line starting with mo.md(; as a heuristic,
-      // don't show "view as markdown"
-      return false;
+    // Handle mo.md("foo"), mo.plain_text("bar") in the same line
+    // If it starts with mo.md, but we have more than one function call, return false
+    if (pythonCode.trim().startsWith("mo.md(")) {
+      const tree = pythonLanguage.parser.parse(pythonCode);
+      let functionCallCount = 0;
+
+      // Parse the code using Lezer to check for multiple function calls
+      tree.iterate({
+        enter: (node) => {
+          if (node.name === "CallExpression") {
+            functionCallCount++;
+            if (functionCallCount > 1) {
+              return false; // Stop iterating if we've found more than one function call
+            }
+          }
+        },
+      });
+
+      // If the function call count is greater than 1, we don't want to show "view as markdown"
+      if (functionCallCount > 1) {
+        return false;
+      }
     }
+
     return regexes.some(([, regex]) => regex.test(pythonCode));
   }
 
