@@ -19,10 +19,6 @@ def get_default_result_limit() -> Optional[int]:
     return int(limit) if limit is not None else None
 
 
-# if "duckdb" not in globals():
-#     import duckdb
-
-
 @mddoc
 def sql(
     query: str,
