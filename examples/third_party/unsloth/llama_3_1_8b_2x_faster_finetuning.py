@@ -1,3 +1,16 @@
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#     "accelerate",
+#     "bitsandbytes",
+#     "marimo",
+#     "peft",
+#     "torch",
+#     "triton",
+#     "trl",
+#     "xformers",
+# ]
+# ///
 import marimo
 
 __generated_with = "0.8.13"
