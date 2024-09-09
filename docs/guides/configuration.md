@@ -41,3 +41,14 @@ You can customize:
 - Formatting settings
 - [AI settings](/guides/editor_features/ai_completion.md)
 - _and more_
+
+## Environment Variables
+
+There are some configuration options that can be set via environment variables. These are:
+
+| Environment Variable          | Description                                                                                                                  | Default Value   |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| `MARIMO_OUTPUT_MAX_BYTES`     | Maximum size of output that marimo will display. Outputs larger than this will be truncated.                                 | 5,000,000 (5MB) |
+| `MARIMO_STD_STREAM_MAX_BYTES` | Maximum size of standard stream (stdout/stderr) output that marimo will display. Outputs larger than this will be truncated. | 1,000,000 (1MB) |
+| `MARIMO_SKIP_UPDATE_CHECK`    | If set to "1", marimo will skip checking for updates when starting.                                                          | Not set         |
+| `MARIMO_SQL_DEFAULT_LIMIT`    | Default limit for SQL query results. If not set, no limit is applied.                                                        | Not set         |
