@@ -8,11 +8,19 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._impl import table
 from marimo._runtime import output
+from marimo._runtime.context.types import (
+    ContextNotInitializedError,
+    get_context,
+)
 
 
 def get_default_result_limit() -> Optional[int]:
     limit = os.environ.get("MARIMO_SQL_DEFAULT_LIMIT")
     return int(limit) if limit is not None else None
+
+
+# if "duckdb" not in globals():
+#     import duckdb
 
 
 @mddoc
@@ -37,7 +45,22 @@ def sql(
 
     import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
-    relation = duckdb.sql(query=query)
+    # Update globals() with the context globals so that the query can scan
+    # the global namespace for dataframes.
+    original_globals: Optional[dict[str, Any]] = None
+    try:
+        ctx = get_context()
+        globals().update(ctx.globals)
+        original_globals = dict(globals())
+    except ContextNotInitializedError:
+        pass
+
+    try:
+        relation = duckdb.sql(query=query)
+    finally:
+        # Restore the original globals
+        if original_globals is not None:
+            globals().update(original_globals)
 
     if not relation:
         return None
