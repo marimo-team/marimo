@@ -87,26 +87,33 @@ class MetaUnderlineVariablePlugin {
   // Exit the cmd+click mode
   private keyup = (event: KeyboardEvent) => {
     if (event.key === "Meta" || event.key === "Control") {
-      this.commandClickMode = false;
-      this.view.dom.removeEventListener("mousemove", this.mousemove);
-      this.view.dom.removeEventListener("click", this.click);
-      this.clearUnderline();
+      this.exitCommandClickMode();
     }
   };
 
   // Handle window blur event to reset state
   private windowBlur = () => {
     if (this.commandClickMode) {
-      this.commandClickMode = false;
-      this.view.dom.removeEventListener("mousemove", this.mousemove);
-      this.view.dom.removeEventListener("click", this.click);
-      this.clearUnderline();
+      this.exitCommandClickMode();
     }
   };
+
+  private exitCommandClickMode() {
+    this.commandClickMode = false;
+    this.view.dom.removeEventListener("mousemove", this.mousemove);
+    this.view.dom.removeEventListener("click", this.click);
+    this.clearUnderline();
+  }
 
   // While moving the mouse in cmd+click mode,
   // Track the variables we are hovering
   private mousemove = (event: MouseEvent) => {
+    // Check if the key is still pressed
+    if (!event.metaKey && !event.ctrlKey) {
+      this.exitCommandClickMode();
+      return;
+    }
+
     if (!this.commandClickMode) {
       this.clearUnderline();
       return;

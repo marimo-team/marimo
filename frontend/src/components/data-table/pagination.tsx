@@ -13,11 +13,13 @@ import { range } from "lodash-es";
 
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;
+  selection?: "single" | "multi" | null;
   onSelectAllRowsChange?: (value: boolean) => void;
 }
 
 export const DataTablePagination = <TData,>({
   table,
+  selection,
   onSelectAllRowsChange,
 }: DataTablePaginationProps<TData>) => {
   const renderTotal = () => {
@@ -72,11 +74,15 @@ export const DataTablePagination = <TData,>({
       );
     }
 
-    return (
-      <span>
-        {prettyNumber(numRows)} {new PluralWord("row").pluralize(numRows)}
-      </span>
-    );
+    let numColumns = table.getAllColumns().length;
+    // If we have a selection column, subtract one from the total columns
+    if (selection != null) {
+      numColumns -= 1;
+    }
+    const rowsLabel = `${prettyNumber(numRows)} ${new PluralWord("row").pluralize(numRows)}`;
+    const columnsLabel = `${prettyNumber(numColumns)} ${new PluralWord("column").pluralize(numColumns)}`;
+
+    return <span>{[rowsLabel, columnsLabel].join(", ")}</span>;
   };
   const currentPage = Math.min(
     table.getState().pagination.pageIndex + 1,

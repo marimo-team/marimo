@@ -80,6 +80,7 @@ const DataTableInternal = <TData,>({
   className,
   columns,
   data,
+  selection,
   totalRows,
   manualSorting = false,
   sorting,
@@ -246,7 +247,7 @@ const DataTableInternal = <TData,>({
           <TableHead
             key={header.id}
             className={cn(
-              "h-auto min-h-10 whitespace-pre align-baseline",
+              "h-auto min-h-10 whitespace-pre align-top",
               className,
             )}
             style={style}
@@ -359,6 +360,7 @@ const DataTableInternal = <TData,>({
         )}
         {pagination ? (
           <DataTablePagination
+            selection={selection}
             onSelectAllRowsChange={
               onRowSelectionChange
                 ? (value) => {
