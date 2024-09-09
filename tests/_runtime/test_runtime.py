@@ -14,6 +14,7 @@ from marimo._messaging.errors import (
     DeleteNonlocalError,
     Error,
     MarimoStrictExecutionError,
+    MarimoSyntaxError,
     MultipleDefinitionError,
 )
 from marimo._messaging.ops import CellOp
@@ -577,6 +578,93 @@ class TestExecution:
             await k.run([er])
         assert not k.graph.cells[er.cell_id].stale
         assert k.globals["y"] == 2
+
+    async def test_cell_transitioned_to_error_is_not_stale(
+        self, lazy_kernel: Kernel
+    ) -> None:
+        k = lazy_kernel
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="x=0"),
+                ExecutionRequest(cell_id="1", code="x"),
+            ]
+        )
+
+        # make cell 1 stale
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="x=1"),
+            ]
+        )
+
+        # introduce an error to cell 1; it shouldn't be stale
+        await k.run(
+            [
+                ExecutionRequest(cell_id="1", code="x=0"),
+            ]
+        )
+        assert set(k.errors.keys()) == {"1"}
+        assert not k.graph.cells["1"].stale
+
+    async def test_cell_transitioned_to_syntax_error_is_not_stale(
+        self, lazy_kernel: Kernel
+    ) -> None:
+        k = lazy_kernel
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="x=0"),
+                ExecutionRequest(cell_id="1", code="x"),
+            ]
+        )
+
+        # make cell 1 stale
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="x=1"),
+            ]
+        )
+        cell = k.graph.cells["1"]
+        assert cell.stale
+
+        # introduce a syntax error to cell 1; it shouldn't be stale
+        await k.run(
+            [
+                ExecutionRequest(cell_id="1", code="x ^ !"),
+            ]
+        )
+        assert set(k.errors.keys()) == {"1"}
+        assert isinstance(k.errors["1"][0], MarimoSyntaxError)
+        assert not cell.stale
+
+    async def test_child_of_errored_cell_with_error_not_stale(
+        self,
+        any_kernel: Kernel,
+    ) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="x=0"),
+            ]
+        )
+
+        # multiple definition error
+        await k.run(
+            [
+                ExecutionRequest(cell_id="1", code="y; x=1"),
+            ]
+        )
+
+        # 0 also has a multiple definition error; 1 now depends on 0, but it
+        # is errored and its error is up-to-date, so don't mark it as stale.
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="y = 0; x=1"),
+            ]
+        )
+
+        assert "x" not in k.globals
+        assert set(k.errors.keys()) == {"0", "1"}
+        assert not k.graph.cells["1"].stale
 
     async def test_syntax_error(self, any_kernel: Kernel) -> None:
         k = any_kernel
