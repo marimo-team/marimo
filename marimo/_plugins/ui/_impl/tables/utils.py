@@ -42,13 +42,16 @@ def get_table_manager_or_none(data: Any) -> TableManager[Any] | None:
 
     # Try to find a manager specifically for the data type
     for manager_factory in MANAGERS:
-        if DependencyManager.has(manager_factory.package_name()):
+        # We use `imported` instead of `has()` because `has()` can be very
+        # slow. If a variable created by a package is in memory, then the
+        # module will have been imported.
+        if DependencyManager.imported(manager_factory.package_name()):
             manager = manager_factory.create()
             if manager.is_type(data):
                 return manager(data)
 
     # Unpack narwhal dataframe wrapper
-    if DependencyManager.narwhals.has():
+    if DependencyManager.narwhals.imported():
         import narwhals  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
         if isinstance(data, narwhals.DataFrame):

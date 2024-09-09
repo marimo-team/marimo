@@ -16,12 +16,16 @@ def test_dependencies() -> None:
 
         assert altair is not None
         DependencyManager.altair.require("for testing")
+        assert DependencyManager.altair.imported()
+        assert DependencyManager.imported("altair")
 
     if DependencyManager.pandas.has():
         import pandas
 
         assert pandas is not None
         DependencyManager.pandas.require("for testing")
+        assert DependencyManager.pandas.imported()
+        assert DependencyManager.imported("pandas")
 
 
 def test_without_dependencies() -> None:
