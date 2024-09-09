@@ -37,6 +37,7 @@ import { formatOptions } from "./column-formatting/types";
 import { DATA_TYPE_ICON } from "../datasets/icons";
 import { formattingExample } from "./column-formatting/feature";
 import { PinLeftIcon, PinRightIcon } from "@radix-ui/react-icons";
+import { NAMELESS_COLUMN_PREFIX } from "./columns";
 
 interface DataTableColumnHeaderProps<TData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {
@@ -209,7 +210,7 @@ export const DataTableColumnHeader = <TData, TValue>({
       <DropdownMenuTrigger asChild={true}>
         <div
           className={cn(
-            "group flex items-center my-1 space-between w-full select-none gap-2 border hover:border-border border-transparent hover:bg-[var(--slate-3)] data-[state=open]:bg-[var(--slate-3)] data-[state=open]:border-border rounded px-2 -mx-1",
+            "group flex items-center my-1 space-between w-full select-none gap-2 border hover:border-border border-transparent hover:bg-[var(--slate-3)] data-[state=open]:bg-[var(--slate-3)] data-[state=open]:border-border rounded px-1 -mx-1",
             className,
           )}
           data-testid="data-table-sort-button"
@@ -217,7 +218,7 @@ export const DataTableColumnHeader = <TData, TValue>({
           <span className="flex-1">{header}</span>
           <span
             className={cn(
-              "h-5 py-1 px-2 mr-2",
+              "h-5 py-1 px-1",
               !column.getIsSorted() &&
                 "invisible group-hover:visible data-[state=open]:visible",
             )}
@@ -242,16 +243,18 @@ export const DataTableColumnHeader = <TData, TValue>({
           </>
         )}
         {renderSorts()}
-        <DropdownMenuItem
-          onClick={() =>
-            navigator.clipboard.writeText(
-              typeof header === "string" ? header : column.id,
-            )
-          }
-        >
-          <CopyIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-          Copy column name
-        </DropdownMenuItem>
+        {!column.id.startsWith(NAMELESS_COLUMN_PREFIX) && (
+          <DropdownMenuItem
+            onClick={() =>
+              navigator.clipboard.writeText(
+                typeof header === "string" ? header : column.id,
+              )
+            }
+          >
+            <CopyIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+            Copy column name
+          </DropdownMenuItem>
+        )}
         {renderColumnPinning()}
         {renderColumnWrapping()}
         {renderFormatOptions()}

@@ -514,6 +514,7 @@ const DataTableComponent = ({
             setSorting={setSorting}
             pagination={pagination}
             manualPagination={true}
+            selection={selection}
             paginationState={paginationState}
             setPaginationState={setPaginationState}
             rowSelection={rowSelection}

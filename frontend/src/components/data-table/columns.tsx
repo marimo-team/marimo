@@ -65,6 +65,8 @@ function getColumnInfo<T>(items: T[]): ColumnInfo[] {
   return [...keys.values()];
 }
 
+export const NAMELESS_COLUMN_PREFIX = "__m_column__";
+
 export function generateColumns<T>({
   items,
   rowHeaders,
@@ -83,7 +85,7 @@ export function generateColumns<T>({
 
   const columns = columnInfo.map(
     (info, idx): ColumnDef<T> => ({
-      id: info.key || `__m_column__${idx}`,
+      id: info.key || `${NAMELESS_COLUMN_PREFIX}${idx}`,
       // Use an accessorFn instead of an accessorKey because column names
       // may have periods in them ...
       // https://github.com/TanStack/table/issues/1671
@@ -93,18 +95,32 @@ export function generateColumns<T>({
       },
 
       header: ({ column }) => {
+        const dtype = column.columnDef.meta?.dtype;
+        const headerWithType = (
+          <div className="flex flex-col">
+            <span className="font-bold">{info.key}</span>
+            {dtype && (
+              <span className="text-xs text-muted-foreground">{dtype}</span>
+            )}
+          </div>
+        );
+
         // Row headers have no summaries
         if (rowHeadersSet.has(info.key)) {
-          return <DataTableColumnHeader header={info.key} column={column} />;
+          return (
+            <DataTableColumnHeader header={headerWithType} column={column} />
+          );
         }
 
         if (!showColumnSummaries) {
-          return <DataTableColumnHeader header={info.key} column={column} />;
+          return (
+            <DataTableColumnHeader header={headerWithType} column={column} />
+          );
         }
 
         return (
           <DataTableColumnHeaderWithSummary
-            header={info.key}
+            header={headerWithType}
             column={column}
             summary={<TableColumnSummary columnId={info.key} />}
           />
@@ -162,7 +178,7 @@ export function generateColumns<T>({
               table.toggleAllPageRowsSelected(!!value)
             }
             aria-label="Select all"
-            className="mx-2"
+            className="mx-1.5 my-4"
           />
         ) : null,
       cell: ({ row }) => (
