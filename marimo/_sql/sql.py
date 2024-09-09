@@ -50,8 +50,8 @@ def sql(
     original_globals: Optional[dict[str, Any]] = None
     try:
         ctx = get_context()
-        globals().update(ctx.globals)
         original_globals = dict(globals())
+        globals().update(ctx.globals)
     except ContextNotInitializedError:
         pass
 
@@ -60,6 +60,7 @@ def sql(
     finally:
         # Restore the original globals
         if original_globals is not None:
+            globals().clear()
             globals().update(original_globals)
 
     if not relation:
