@@ -73,7 +73,7 @@ marimo = "marimo._cli.cli:main"
 
 [project.optional-dependencies]
 sql = [
-    "duckdb >= 1.0.0",
+    "duckdb>=1.0.0,<1.1.0",
 ]
 
 dev = [
