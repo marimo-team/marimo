@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.8.13"
-app = marimo.App()
+app = marimo.App(width="full")
 
 
 @app.cell
@@ -10,16 +10,28 @@ def __():
     return mo,
 
 
+@app.cell
+def __():
+    from unsloth import FastLanguageModel
+    from transformers import TextStreamer
+
+    import torch
+    return FastLanguageModel, TextStreamer, torch
+
+
 @app.cell(hide_code=True)
 def __(mo):
     mo.md(
-        r"""
-        To run this, press "*Runtime*" and press "*Run all*" on a **free** Tesla T4 Google Colab instance!
-        <div class="align-center">
+        """
+        <span class="align-center" style="display:flex; flex-direction:row; gap: 16px">
           <a href="https://github.com/unslothai/unsloth"><img src="https://github.com/unslothai/unsloth/raw/main/images/unsloth%20new%20logo.png" width="115"></a>
           <a href="https://discord.gg/u54VK8m8tk"><img src="https://github.com/unslothai/unsloth/raw/main/images/Discord button.png" width="145"></a>
-          <a href="https://ko-fi.com/unsloth"><img src="https://github.com/unslothai/unsloth/raw/main/images/Kofi button.png" width="145"></a></a> Join Discord if you need help + ⭐ <i>Star us on <a href="https://github.com/unslothai/unsloth">Github</a> </i> ⭐
-        </div>
+          <a href="https://ko-fi.com/unsloth"><img src="https://github.com/unslothai/unsloth/raw/main/images/Kofi button.png" width="145"></a></a>
+        </span>
+        This example shows how to use [Unsloth](https://github.com/unslothai/unsloth) to finetune Llama-3.1 8b. It uses
+        marimo's UI elements to make the experience interactive, so you don't need to edit any code!
+
+        _Join Discord if you need help + ⭐ Star us on <a href="https://github.com/unslothai/unsloth">Github</a>⭐_
 
         To install Unsloth on your own computer, follow the installation instructions on our Github page [here](https://github.com/unslothai/unsloth?tab=readme-ov-file#-installation-instructions).
 
@@ -49,74 +61,75 @@ def __(mo):
 
 
 @app.cell
-def __():
-    from unsloth import FastLanguageModel
-    import torch
-    max_seq_length = 2048 # Choose any! We auto support RoPE Scaling internally!
-    dtype = None # None for auto detection. Float16 for Tesla T4, V100, Bfloat16 for Ampere+
-    load_in_4bit = True # Use 4bit quantization to reduce memory usage. Can be False.
+def __(mo):
+    mo.md("### Load the model")
+    return
 
-    # 4bit pre quantized models we support for 4x faster downloading + no OOMs.
-    fourbit_models = [
-        "unsloth/Meta-Llama-3.1-8B-bnb-4bit",      # Llama-3.1 15 trillion tokens model 2x faster!
-        "unsloth/Meta-Llama-3.1-8B-Instruct-bnb-4bit",
-        "unsloth/Meta-Llama-3.1-70B-bnb-4bit",
-        "unsloth/Meta-Llama-3.1-405B-bnb-4bit",    # We also uploaded 4bit for 405b!
-        "unsloth/Mistral-Nemo-Base-2407-bnb-4bit", # New Mistral 12b 2x faster!
-        "unsloth/Mistral-Nemo-Instruct-2407-bnb-4bit",
-        "unsloth/mistral-7b-v0.3-bnb-4bit",        # Mistral v3 2x faster!
-        "unsloth/mistral-7b-instruct-v0.3-bnb-4bit",
-        "unsloth/Phi-3.5-mini-instruct",           # Phi-3.5 2x faster!
-        "unsloth/Phi-3-medium-4k-instruct",
-        "unsloth/gemma-2-9b-bnb-4bit",
-        "unsloth/gemma-2-27b-bnb-4bit",            # Gemma 2x faster!
-    ] # More models at https://huggingface.co/unsloth
 
-    model, tokenizer = FastLanguageModel.from_pretrained(
-        model_name = "unsloth/Meta-Llama-3.1-8B",
-        max_seq_length = max_seq_length,
-        dtype = dtype,
-        load_in_4bit = load_in_4bit,
-        # token = "hf_...", # use one if using gated models like meta-llama/Llama-2-7b-hf
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md("""Start by choosing a couple of parameters:""")
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    max_seq_length = mo.ui.number(
+        value=2048, start=1, stop=4096, label="Max sequence length"
     )
-    return (
-        FastLanguageModel,
-        dtype,
-        fourbit_models,
-        load_in_4bit,
-        max_seq_length,
-        model,
-        tokenizer,
-        torch,
-    )
+
+    load_in_4bit = mo.ui.checkbox(value=True, label="Load in 4-bit?")
+
+    mo.vstack([max_seq_length, load_in_4bit])
+    return load_in_4bit, max_seq_length
 
 
 @app.cell
+def __():
+    dtype = None  # None for auto detection. Float16 for Tesla T4, V100, Bfloat16 for Ampere+
+    return dtype,
+
+
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(r"""We now add LoRA adapters so we only need to update 1 to 10% of all parameters!""")
     return
 
 
 @app.cell
-def __(FastLanguageModel, model):
+def __(FastLanguageModel, dtype, load_in_4bit, max_seq_length):
+    model, tokenizer = FastLanguageModel.from_pretrained(
+        model_name="unsloth/Meta-Llama-3.1-8B",
+        max_seq_length=max_seq_length.value,
+        dtype=dtype,
+        load_in_4bit=load_in_4bit.value,
+        # token = "hf_...", # use one if using gated models like meta-llama/Llama-2-7b-hf
+    )
     model = FastLanguageModel.get_peft_model(
         model,
-        r = 16, # Choose any number > 0 ! Suggested 8, 16, 32, 64, 128
-        target_modules = ["q_proj", "k_proj", "v_proj", "o_proj",
-                          "gate_proj", "up_proj", "down_proj",],
-        lora_alpha = 16,
-        lora_dropout = 0, # Supports any, but = 0 is optimized
-        bias = "none",    # Supports any, but = "none" is optimized
+        r=16,  # Choose any number > 0 ! Suggested 8, 16, 32, 64, 128
+        target_modules=[
+            "q_proj",
+            "k_proj",
+            "v_proj",
+            "o_proj",
+            "gate_proj",
+            "up_proj",
+            "down_proj",
+        ],
+        lora_alpha=16,
+        lora_dropout=0,  # Supports any, but = 0 is optimized
+        bias="none",  # Supports any, but = "none" is optimized
         # [NEW] "unsloth" uses 30% less VRAM, fits 2x larger batch sizes!
-        use_gradient_checkpointing = "unsloth", # True or "unsloth" for very long context
-        random_state = 3407,
-        use_rslora = False,  # We support rank stabilized LoRA
-        loftq_config = None, # And LoftQ
+        use_gradient_checkpointing="unsloth",  # True or "unsloth" for very long context
+        random_state=3407,
+        use_rslora=False,  # We support rank stabilized LoRA
+        loftq_config=None,  # And LoftQ
     )
-    return model,
+    return model, tokenizer
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         r"""
@@ -149,22 +162,32 @@ def __(tokenizer):
     ### Response:
     {}"""
 
-    EOS_TOKEN = tokenizer.eos_token # Must add EOS_TOKEN
+    EOS_TOKEN = tokenizer.eos_token  # Must add EOS_TOKEN
+
+
     def formatting_prompts_func(examples):
         instructions = examples["instruction"]
-        inputs       = examples["input"]
-        outputs      = examples["output"]
+        inputs = examples["input"]
+        outputs = examples["output"]
         texts = []
         for instruction, input, output in zip(instructions, inputs, outputs):
             # Must add EOS_TOKEN, otherwise your generation will go on forever!
             text = alpaca_prompt.format(instruction, input, output) + EOS_TOKEN
             texts.append(text)
-        return { "text" : texts, }
+        return {
+            "text": texts,
+        }
+
+
     pass
 
     from datasets import load_dataset
-    dataset = load_dataset("yahma/alpaca-cleaned", split = "train")
-    dataset = dataset.map(formatting_prompts_func, batched = True,)
+
+    dataset = load_dataset("yahma/alpaca-cleaned", split="train")
+    dataset = dataset.map(
+        formatting_prompts_func,
+        batched=True,
+    )
     return (
         EOS_TOKEN,
         alpaca_prompt,
@@ -174,11 +197,10 @@ def __(tokenizer):
     )
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         r"""
-        <a name="Train"></a>
         ### Train the model
         Now let's use Huggingface TRL's `SFTTrainer`! More docs here: [TRL SFT docs](https://huggingface.co/docs/trl/sft_trainer). We do 60 steps to speed things up, but you can set `num_train_epochs=1` for a full run, and turn off `max_steps=None`. We also support TRL's `DPOTrainer`!
         """
@@ -186,45 +208,47 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(dataset, max_seq_length, model, tokenizer):
     from trl import SFTTrainer
     from transformers import TrainingArguments
     from unsloth import is_bfloat16_supported
 
     trainer = SFTTrainer(
-        model = model,
-        tokenizer = tokenizer,
-        train_dataset = dataset,
-        dataset_text_field = "text",
-        max_seq_length = max_seq_length,
-        dataset_num_proc = 2,
-        packing = False, # Can make training 5x faster for short sequences.
-        args = TrainingArguments(
-            per_device_train_batch_size = 2,
-            gradient_accumulation_steps = 4,
-            warmup_steps = 5,
+        model=model,
+        tokenizer=tokenizer,
+        train_dataset=dataset,
+        dataset_text_field="text",
+        max_seq_length=max_seq_length,
+        dataset_num_proc=2,
+        packing=False,  # Can make training 5x faster for short sequences.
+        args=TrainingArguments(
+            per_device_train_batch_size=2,
+            gradient_accumulation_steps=4,
+            warmup_steps=5,
             # num_train_epochs = 1, # Set this for 1 full training run.
-            max_steps = 60,
-            learning_rate = 2e-4,
-            fp16 = not is_bfloat16_supported(),
-            bf16 = is_bfloat16_supported(),
-            logging_steps = 1,
-            optim = "adamw_8bit",
-            weight_decay = 0.01,
-            lr_scheduler_type = "linear",
-            seed = 3407,
-            output_dir = "outputs",
+            max_steps=60,
+            learning_rate=2e-4,
+            fp16=not is_bfloat16_supported(),
+            bf16=is_bfloat16_supported(),
+            logging_steps=1,
+            optim="adamw_8bit",
+            weight_decay=0.01,
+            lr_scheduler_type="linear",
+            seed=3407,
+            output_dir="outputs",
         ),
     )
     return SFTTrainer, TrainingArguments, is_bfloat16_supported, trainer
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(torch):
-    #@title Show current memory stats
+    # @title Show current memory stats
     gpu_stats = torch.cuda.get_device_properties(0)
-    start_gpu_memory = round(torch.cuda.max_memory_reserved() / 1024 / 1024 / 1024, 3)
+    start_gpu_memory = round(
+        torch.cuda.max_memory_reserved() / 1024 / 1024 / 1024, 3
+    )
     max_memory = round(gpu_stats.total_memory / 1024 / 1024 / 1024, 3)
     print(f"GPU = {gpu_stats.name}. Max memory = {max_memory} GB.")
     print(f"{start_gpu_memory} GB of memory reserved.")
@@ -232,24 +256,39 @@ def __(torch):
 
 
 @app.cell
-def __(trainer):
-    trainer_stats = trainer.train()
+def __(mo):
+    train_button = mo.ui.run_button(label="Click to train!", kind="danger"); train_button.center()
+    return train_button,
+
+
+@app.cell
+def __(train_button, trainer):
+    if train_button.value:
+        trainer_stats = trainer.train()
+    else:
+        trainer_stats = None
     return trainer_stats,
 
 
 @app.cell
-def __(max_memory, start_gpu_memory, torch, trainer_stats):
-    #@title Show final memory and time stats
+def __(max_memory, mo, start_gpu_memory, torch, trainer_stats):
+    mo.stop(trainer_stats is None, mo.md("Train the model 👆"))
+
+    # Show final memory and time stats
     used_memory = round(torch.cuda.max_memory_reserved() / 1024 / 1024 / 1024, 3)
     used_memory_for_lora = round(used_memory - start_gpu_memory, 3)
-    used_percentage = round(used_memory         /max_memory*100, 3)
-    lora_percentage = round(used_memory_for_lora/max_memory*100, 3)
+    used_percentage = round(used_memory / max_memory * 100, 3)
+    lora_percentage = round(used_memory_for_lora / max_memory * 100, 3)
     print(f"{trainer_stats.metrics['train_runtime']} seconds used for training.")
-    print(f"{round(trainer_stats.metrics['train_runtime']/60, 2)} minutes used for training.")
+    print(
+        f"{round(trainer_stats.metrics['train_runtime']/60, 2)} minutes used for training."
+    )
     print(f"Peak reserved memory = {used_memory} GB.")
     print(f"Peak reserved memory for training = {used_memory_for_lora} GB.")
     print(f"Peak reserved memory % of max memory = {used_percentage} %.")
-    print(f"Peak reserved memory for training % of max memory = {lora_percentage} %.")
+    print(
+        f"Peak reserved memory for training % of max memory = {lora_percentage} %."
+    )
     return (
         lora_percentage,
         used_memory,
@@ -258,7 +297,7 @@ def __(max_memory, start_gpu_memory, torch, trainer_stats):
     )
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         r"""
@@ -273,219 +312,52 @@ def __(mo):
 
 
 @app.cell
-def __(FastLanguageModel, alpaca_prompt, model, tokenizer):
-    # alpaca_prompt = Copied from above
-    FastLanguageModel.for_inference(model) # Enable native 2x faster inference
-    inputs = tokenizer(
-    [
-        alpaca_prompt.format(
-            "Continue the fibonnaci sequence.", # instruction
-            "1, 1, 2, 3, 5, 8", # input
-            "", # output - leave this blank for generation!
-        )
-    ], return_tensors = "pt").to("cuda")
+def __(mo):
+    inf_instr_inp = mo.md(
+        """
+        {instr}
 
-    outputs = model.generate(**inputs, max_new_tokens = 64, use_cache = True)
+        {inp}
+        """
+    ).batch(
+        instr=mo.ui.text_area(placeholder="Your instruction ..."),
+        inp=mo.ui.text_area(placeholder="Your input ..."),
+    ).form()
+
+
+    inf_instr_inp
+    return inf_instr_inp,
+
+
+@app.cell
+def __(
+    FastLanguageModel,
+    alpaca_prompt,
+    inf_instr_inp,
+    mo,
+    model,
+    tokenizer,
+):
+    mo.stop(inf_instr_inp.value is None)
+
+    FastLanguageModel.for_inference(model)  # Enable native 2x faster inference
+    _inputs = tokenizer(
+        [
+            alpaca_prompt.format(
+                inf_instr_inp.value["instr"],
+                inf_instr_inp.value["inp"],
+                "",  # output - leave this blank for generation!
+            )
+        ],
+        return_tensors="pt",
+    ).to("cuda")
+
+    outputs = model.generate(**_inputs, max_new_tokens=64, use_cache=True)
     tokenizer.batch_decode(outputs)
-    return inputs, outputs
+    return outputs,
 
 
-@app.cell
-def __(mo):
-    mo.md(r"""You can also use a `TextStreamer` for continuous inference - so you can see the generation token by token, instead of waiting the whole time!""")
-    return
-
-
-@app.cell
-def __(FastLanguageModel, alpaca_prompt, model, tokenizer):
-    # alpaca_prompt = Copied from above
-    FastLanguageModel.for_inference(model) # Enable native 2x faster inference
-    inputs = tokenizer(
-    [
-        alpaca_prompt.format(
-            "Continue the fibonnaci sequence.", # instruction
-            "1, 1, 2, 3, 5, 8", # input
-            "", # output - leave this blank for generation!
-        )
-    ], return_tensors = "pt").to("cuda")
-
-    from transformers import TextStreamer
-    text_streamer = TextStreamer(tokenizer)
-    _ = model.generate(**inputs, streamer = text_streamer, max_new_tokens = 128)
-    return TextStreamer, inputs, text_streamer
-
-
-@app.cell
-def __(mo):
-    mo.md(
-        r"""
-        <a name="Save"></a>
-        ### Saving, loading finetuned models
-        To save the final model as LoRA adapters, either use Huggingface's `push_to_hub` for an online save or `save_pretrained` for a local save.
-
-        **[NOTE]** This ONLY saves the LoRA adapters, and not the full model. To save to 16bit or GGUF, scroll down!
-        """
-    )
-    return
-
-
-@app.cell
-def __(model, tokenizer):
-    model.save_pretrained("lora_model") # Local saving
-    tokenizer.save_pretrained("lora_model")
-    # model.push_to_hub("your_name/lora_model", token = "...") # Online saving
-    # tokenizer.push_to_hub("your_name/lora_model", token = "...") # Online saving
-    return
-
-
-@app.cell
-def __(mo):
-    mo.md(r"""Now if you want to load the LoRA adapters we just saved for inference, set `False` to `True`:""")
-    return
-
-
-@app.cell
-def __(alpaca_prompt, dtype, load_in_4bit, max_seq_length):
-    if False:
-        from unsloth import FastLanguageModel
-        model, tokenizer = FastLanguageModel.from_pretrained(
-            model_name = "lora_model", # YOUR MODEL YOU USED FOR TRAINING
-            max_seq_length = max_seq_length,
-            dtype = dtype,
-            load_in_4bit = load_in_4bit,
-        )
-        FastLanguageModel.for_inference(model) # Enable native 2x faster inference
-
-    # alpaca_prompt = You MUST copy from above!
-
-    inputs = tokenizer(
-    [
-        alpaca_prompt.format(
-            "What is a famous tall tower in Paris?", # instruction
-            "", # input
-            "", # output - leave this blank for generation!
-        )
-    ], return_tensors = "pt").to("cuda")
-
-    from transformers import TextStreamer
-    text_streamer = TextStreamer(tokenizer)
-    _ = model.generate(**inputs, streamer = text_streamer, max_new_tokens = 128)
-    return (
-        FastLanguageModel,
-        TextStreamer,
-        inputs,
-        model,
-        text_streamer,
-        tokenizer,
-    )
-
-
-@app.cell
-def __(mo):
-    mo.md(r"""You can also use Hugging Face's `AutoModelForPeftCausalLM`. Only use this if you do not have `unsloth` installed. It can be hopelessly slow, since `4bit` model downloading is not supported, and Unsloth's **inference is 2x faster**.""")
-    return
-
-
-@app.cell
-def __(load_in_4bit):
-    if False:
-        # I highly do NOT suggest - use Unsloth if possible
-        from peft import AutoPeftModelForCausalLM
-        from transformers import AutoTokenizer
-        model = AutoPeftModelForCausalLM.from_pretrained(
-            "lora_model", # YOUR MODEL YOU USED FOR TRAINING
-            load_in_4bit = load_in_4bit,
-        )
-        tokenizer = AutoTokenizer.from_pretrained("lora_model")
-    return AutoPeftModelForCausalLM, AutoTokenizer, model, tokenizer
-
-
-@app.cell
-def __(mo):
-    mo.md(
-        r"""
-        ### Saving to float16 for VLLM
-
-        We also support saving to `float16` directly. Select `merged_16bit` for float16 or `merged_4bit` for int4. We also allow `lora` adapters as a fallback. Use `push_to_hub_merged` to upload to your Hugging Face account! You can go to https://huggingface.co/settings/tokens for your personal tokens.
-        """
-    )
-    return
-
-
-@app.cell
-def __(model, tokenizer):
-    # Merge to 16bit
-    if False: model.save_pretrained_merged("model", tokenizer, save_method = "merged_16bit",)
-    if False: model.push_to_hub_merged("hf/model", tokenizer, save_method = "merged_16bit", token = "")
-
-    # Merge to 4bit
-    if False: model.save_pretrained_merged("model", tokenizer, save_method = "merged_4bit",)
-    if False: model.push_to_hub_merged("hf/model", tokenizer, save_method = "merged_4bit", token = "")
-
-    # Just LoRA adapters
-    if False: model.save_pretrained_merged("model", tokenizer, save_method = "lora",)
-    if False: model.push_to_hub_merged("hf/model", tokenizer, save_method = "lora", token = "")
-    return
-
-
-@app.cell
-def __(mo):
-    mo.md(
-        r"""
-        ### GGUF / llama.cpp Conversion
-        To save to `GGUF` / `llama.cpp`, we support it natively now! We clone `llama.cpp` and we default save it to `q8_0`. We allow all methods like `q4_k_m`. Use `save_pretrained_gguf` for local saving and `push_to_hub_gguf` for uploading to HF.
-
-        Some supported quant methods (full list on our [Wiki page](https://github.com/unslothai/unsloth/wiki#gguf-quantization-options)):
-        * `q8_0` - Fast conversion. High resource use, but generally acceptable.
-        * `q4_k_m` - Recommended. Uses Q6_K for half of the attention.wv and feed_forward.w2 tensors, else Q4_K.
-        * `q5_k_m` - Recommended. Uses Q6_K for half of the attention.wv and feed_forward.w2 tensors, else Q5_K.
-
-        [**NEW**] To finetune and auto export to Ollama, try our [Ollama notebook](https://colab.research.google.com/drive/1WZDi7APtQ9VsvOrQSSC5DDtxq159j8iZ?usp=sharing)
-        """
-    )
-    return
-
-
-@app.cell
-def __(model, tokenizer):
-    # Save to 8bit Q8_0
-    if False: model.save_pretrained_gguf("model", tokenizer,)
-    # Remember to go to https://huggingface.co/settings/tokens for a token!
-    # And change hf to your username!
-    if False: model.push_to_hub_gguf("hf/model", tokenizer, token = "")
-
-    # Save to 16bit GGUF
-    if False: model.save_pretrained_gguf("model", tokenizer, quantization_method = "f16")
-    if False: model.push_to_hub_gguf("hf/model", tokenizer, quantization_method = "f16", token = "")
-
-    # Save to q4_k_m GGUF
-    if False: model.save_pretrained_gguf("model", tokenizer, quantization_method = "q4_k_m")
-    if False: model.push_to_hub_gguf("hf/model", tokenizer, quantization_method = "q4_k_m", token = "")
-
-    # Save to multiple GGUF options - much faster if you want multiple!
-    if False:
-        model.push_to_hub_gguf(
-            "hf/model", # Change hf to your username!
-            tokenizer,
-            quantization_method = ["q4_k_m", "q8_0", "q5_k_m",],
-            token = "", # Get a token at https://huggingface.co/settings/tokens
-        )
-    return
-
-
-@app.cell
-def __(mo):
-    mo.md(
-        r"""
-        Now, use the `model-unsloth.gguf` file or `model-unsloth-Q4_K_M.gguf` file in `llama.cpp` or a UI based system like `GPT4All`. You can install GPT4All by going [here](https://gpt4all.io/index.html).
-
-        **[NEW] Try 2x faster inference in a free Colab for Llama-3.1 8b Instruct [here](https://colab.research.google.com/drive/1T-YBVfnphoVc8E2E854qF3jdia2Ll2W2?usp=sharing)**
-        """
-    )
-    return
-
-
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         r"""
