@@ -85,7 +85,7 @@ dev = [
     # For server testing
     "httpx~=0.27.0",
     # For SQL
-    "duckdb~=1.0.0",
+    "duckdb~=1.1.0",
     # For testing mo.ui.chart, dataframes, tables
     "pandas>=1.5.3",
     "pandas-stubs>=1.5.3.230321",

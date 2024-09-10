@@ -8,6 +8,10 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._impl import table
 from marimo._runtime import output
+from marimo._runtime.context.types import (
+    ContextNotInitializedError,
+    get_context,
+)
 
 
 def get_default_result_limit() -> Optional[int]:
@@ -37,7 +41,22 @@ def sql(
 
     import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
-    relation = duckdb.sql(query=query)
+    # In Python globals() are scoped to modules; since this function
+    # is in a different module than user code, globals() doesn't return
+    # the kernel globals, it just returns this module's global namespace.
+    #
+    # However, duckdb needs access to the kernel's globals. For this reason,
+    # we manually exec duckdb and provide it with the kernel's globals.
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        relation = duckdb.sql(query=query)
+    else:
+        relation = eval(
+            "duckdb.sql(query=query)",
+            ctx.globals,
+            {"query": query, "duckdb": duckdb},
+        )
 
     if not relation:
         return None
