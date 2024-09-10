@@ -5,6 +5,10 @@ import type { ColumnHeaderSummary, FieldTypes } from "./types";
 import { asURL } from "@/utils/url";
 
 const MAX_BAR_HEIGHT = 24; // px
+const MAX_BAR_WIDTH = 24; // px
+const CONTAINER_WIDTH = 120; // px
+const PAD = 1; // px
+const VARIABLE_WIDTH = `min(${MAX_BAR_WIDTH}, ${CONTAINER_WIDTH} / length(data('source_0')) - ${PAD})`;
 
 export class ColumnChartSpecModel<T> {
   private columnSummaries = new Map<string | number, ColumnHeaderSummary>();
@@ -61,7 +65,11 @@ export class ColumnChartSpecModel<T> {
       case "date":
         return {
           ...base,
-          mark: { type: "bar", color: mint.mint11 },
+          mark: {
+            type: "bar",
+            color: mint.mint11,
+            width: { expr: VARIABLE_WIDTH },
+          },
           encoding: {
             x: { field: column, type: "temporal", axis: null, bin: true },
             y: { aggregate: "count", type: "quantitative", axis: null },
@@ -95,7 +103,11 @@ export class ColumnChartSpecModel<T> {
         const format = type === "integer" ? ",d" : ".2f";
         return {
           ...base,
-          mark: { type: "bar", color: mint.mint11 },
+          mark: {
+            type: "bar",
+            color: mint.mint11,
+            width: { expr: VARIABLE_WIDTH },
+          },
           encoding: {
             x: { field: column, type: "nominal", axis: null, bin: true },
             y: {
