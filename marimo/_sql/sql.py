@@ -41,20 +41,25 @@ def sql(
 
     import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
-    # Update globals() with the context globals so that the query can scan
-    # the global namespace for dataframes.
+    # In Python globals() are scoped to modules; since this function
+    # is in a different module than user code, globals() doesn't return
+    # the kernel globals, it just returns this module's global namespace.
+    #
+    # However, duckdb needs access to the kernel's globals. For this reason,
+    # we temporarily update globals() to include the context globals so that
+    # the query can scan the global namespace for dataframes.
     original_globals: Optional[dict[str, Any]] = None
     try:
         ctx = get_context()
-        original_globals = dict(globals())
-        globals().update(ctx.globals)
     except ContextNotInitializedError:
         pass
+    else:
+        original_globals = dict(globals())
+        globals().update(ctx.globals)
 
     try:
         relation = duckdb.sql(query=query)
     finally:
-        # Restore the original globals
         if original_globals is not None:
             globals().clear()
             globals().update(original_globals)
