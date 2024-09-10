@@ -37,6 +37,7 @@ import { useAtomValue } from "jotai";
 import { FloatingOutline } from "../../chrome/panels/outline/floating-outline";
 import { KnownQueryParams } from "@/core/constants";
 import { useUserConfig } from "@/core/config/config";
+import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
 
 type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;
@@ -265,15 +266,21 @@ const VerticalCell = memo(
         />
       );
 
+      const isCodeEmpty = code.trim() === "";
+      const isPureMarkdown = new MarkdownLanguageAdapter().isSupported(code);
+
       return (
         <div tabIndex={-1} id={HTMLId} ref={cellRef} className={className}>
           {cellOutputArea === "above" && outputArea}
-          <div className="tray">
-            <ReadonlyCode
-              initiallyHideCode={config.hide_code || kiosk}
-              code={code}
-            />
-          </div>
+          {/* Hide code if it's empty or pure markdown */}
+          {!isPureMarkdown && !isCodeEmpty && (
+            <div className="tray">
+              <ReadonlyCode
+                initiallyHideCode={config.hide_code || kiosk}
+                code={code}
+              />
+            </div>
+          )}
           {cellOutputArea === "below" && outputArea}
           <ConsoleOutput
             consoleOutputs={consoleOutputs}
