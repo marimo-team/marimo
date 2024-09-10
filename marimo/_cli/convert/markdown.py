@@ -62,6 +62,7 @@ def app_config_from_root(root: Element) -> _AppConfig:
         "title": "app_title",
         "marimo-layout": "layout_file",
         "marimo-css": "css_file",
+        "marimo-content-font-size": "content_font_size",
     }
     config = {
         config_keys[key]: value

@@ -10,6 +10,7 @@ from typing import (
     Callable,
     Iterable,
     Iterator,
+    Literal,
     Mapping,
     Optional,
 )
@@ -67,6 +68,11 @@ class _AppConfig:
 
     # CSS file, relative to the app file
     css_file: Optional[str] = None
+
+    # Text context size
+    # We use t-shirt sizes since this will increase/decrease the size of the
+    # headers and body text in lockstep.
+    content_font_size: Literal["sm", "default", "lg", "xl", "2xl"] = "default"
 
     @staticmethod
     def from_untrusted_dict(updates: dict[str, Any]) -> _AppConfig:

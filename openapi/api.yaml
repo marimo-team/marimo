@@ -4,6 +4,34 @@ components:
       properties:
         code:
           type: string
+        context:
+          nullable: true
+          properties:
+            schema:
+              items:
+                properties:
+                  columns:
+                    items:
+                      properties:
+                        name:
+                          type: string
+                        type:
+                          type: string
+                      required:
+                      - name
+                      - type
+                      type: object
+                    type: array
+                  name:
+                    type: string
+                required:
+                - name
+                - columns
+                type: object
+              type: array
+          required:
+          - schema
+          type: object
         includeOtherCode:
           type: string
         language:
@@ -823,6 +851,14 @@ components:
             app_title:
               nullable: true
               type: string
+            content_font_size:
+              enum:
+              - sm
+              - default
+              - lg
+              - xl
+              - 2xl
+              type: string
             css_file:
               nullable: true
               type: string
@@ -838,6 +874,7 @@ components:
               type: string
           required:
           - width
+          - content_font_size
           type: object
         capabilities:
           properties:
@@ -1816,7 +1853,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.8.4
+  version: 0.8.11
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
