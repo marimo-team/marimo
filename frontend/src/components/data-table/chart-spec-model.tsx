@@ -137,7 +137,8 @@ export class ColumnChartSpecModel<T> {
               field: column,
               type: "nominal",
               axis: {
-                labelExpr: "datum.label === 'true' ? 'True' : 'False'",
+                labelExpr:
+                  "datum.label === 'true' || datum.label === 'True'  ? 'True' : 'False'",
                 tickWidth: 0,
                 title: null,
                 labelColor: slate.slate9,
@@ -150,7 +151,7 @@ export class ColumnChartSpecModel<T> {
               scale: { type: "linear" },
             },
             tooltip: [
-              { field: column, type: "nominal", format: ",d", title: "Value" },
+              { field: column, type: "nominal", title: "Value" },
               {
                 aggregate: "count",
                 type: "quantitative",
