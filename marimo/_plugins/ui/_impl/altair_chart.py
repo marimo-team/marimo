@@ -262,7 +262,7 @@ def _parse_spec(spec: altair.TopLevelMixin) -> VegaSpec:
 
     # vegafusion requires creating a vega spec,
     # instead of using a vega-lite spec
-    if altair.data_transformers.active == "vegafusion":
+    if altair.data_transformers.active.startswith("vegafusion"):
         return spec.to_dict(format="vega")  # type: ignore
 
     # If this is a geoshape, use default transformer
@@ -362,11 +362,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
             )
 
         # Make full-width if no width is specified
-        if (
-            isinstance(chart, (alt.Chart, alt.LayerChart))
-            and chart.width is alt.Undefined
-        ):
-            chart = chart.properties(width="container")
+        chart = maybe_make_full_width(chart)
 
         vega_spec = _parse_spec(chart)
 
@@ -586,3 +582,21 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
     def value(self, value: ChartDataType) -> None:
         del value
         raise RuntimeError("Setting the value of a UIElement is not allowed.")
+
+
+def maybe_make_full_width(chart: altair.Chart) -> altair.Chart:
+    import altair
+
+    try:
+        if (
+            isinstance(chart, (altair.Chart, altair.LayerChart))
+            and chart.width is altair.Undefined
+        ):
+            return chart.properties(width="container")
+        return chart
+    except Exception:
+        LOGGER.exception(
+            "Failed to set width to full container. "
+            "This is likely due to a missing dependency or an invalid chart."
+        )
+        return chart

@@ -8,6 +8,7 @@ from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.builder import h
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._output.utils import flatten_string
+from marimo._plugins.ui._impl.altair_chart import altair_chart
 
 
 class AltairFormatter(FormatterFactory):
@@ -29,6 +30,12 @@ class AltairFormatter(FormatterFactory):
         @formatting.formatter(altair.TopLevelMixin)
         def _show_chart(chart: altair.Chart) -> tuple[KnownMimeType, str]:
             import altair as alt
+
+            # If vegafusion is enabled, just print the vega spec
+            if alt.data_transformers.active.startswith("vegafusion"):
+                return altair_chart(
+                    chart, chart_selection=False, legend_selection=False
+                )._mime_()
 
             # If the user has not set the max_rows option, we set it to 20_000
             # since we are able to handle the larger sizes (default is 5000)
