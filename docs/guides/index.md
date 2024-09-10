@@ -22,6 +22,7 @@
   state
   wasm
   exporting
+  configuration
   deploying/index
 ```
 
@@ -46,6 +47,7 @@ These guides cover marimo's core concepts.
 | {doc}`state`                         | Mutable, reactive state                             |
 | {doc}`wasm`                          | Create notebooks in our online playground!          |
 | {doc}`exporting`                     | Exporting notebooks to HTML and flat scripts        |
+| {doc}`configuration`                 | User and app configuration                          |
 | {doc}`deploying/index`               | Deploying marimo notebooks and apps                 |
 
 ```{admonition} Learn by doing!
