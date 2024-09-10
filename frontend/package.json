@@ -109,7 +109,7 @@
     "lz-string": "^1.5.0",
     "mermaid": "^10.9.1",
     "partysocket": "1.0.2",
-    "path-to-regexp": "^7.1.0",
+    "path-to-regexp": "^8.0.0",
     "plotly.js": "^2.34.0",
     "pyodide": "^0.26.2",
     "react-arborist": "^3.4.0",
