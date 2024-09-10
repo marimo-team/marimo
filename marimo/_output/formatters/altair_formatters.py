@@ -31,7 +31,7 @@ class AltairFormatter(FormatterFactory):
         def _show_chart(chart: altair.Chart) -> tuple[KnownMimeType, str]:
             import altair as alt
 
-            # If vegafusion is enabled, just print the vega spec
+            # If vegafusion is enabled, just wrap in altair_chart
             if alt.data_transformers.active.startswith("vegafusion"):
                 return altair_chart(
                     chart, chart_selection=False, legend_selection=False
