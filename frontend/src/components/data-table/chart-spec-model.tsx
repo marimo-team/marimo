@@ -4,6 +4,8 @@ import { mint, orange, slate } from "@radix-ui/colors";
 import type { ColumnHeaderSummary, FieldTypes } from "./types";
 import { asURL } from "@/utils/url";
 
+const MAX_BAR_HEIGHT = 24; // px
+
 export class ColumnChartSpecModel<T> {
   private columnSummaries = new Map<string | number, ColumnHeaderSummary>();
 
@@ -137,7 +139,8 @@ export class ColumnChartSpecModel<T> {
               field: column,
               type: "nominal",
               axis: {
-                labelExpr: "datum.label === 'true' ? 'True' : 'False'",
+                labelExpr:
+                  "datum.label === 'true' || datum.label === 'True'  ? 'True' : 'False'",
                 tickWidth: 0,
                 title: null,
                 labelColor: slate.slate9,
@@ -150,7 +153,7 @@ export class ColumnChartSpecModel<T> {
               scale: { type: "linear" },
             },
             tooltip: [
-              { field: column, type: "nominal", format: ",d", title: "Value" },
+              { field: column, type: "nominal", title: "Value" },
               {
                 aggregate: "count",
                 type: "quantitative",
@@ -161,7 +164,11 @@ export class ColumnChartSpecModel<T> {
           },
           layer: [
             {
-              mark: { type: "bar", color: mint.mint11 },
+              mark: {
+                type: "bar",
+                color: mint.mint11,
+                height: MAX_BAR_HEIGHT,
+              },
             },
             {
               mark: {
