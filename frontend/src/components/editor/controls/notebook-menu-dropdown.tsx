@@ -38,7 +38,7 @@ export const NotebookMenuDropdown: React.FC = () => {
     return (
       <>
         {action.icon && <span className="flex-0 mr-2">{action.icon}</span>}
-        <span className="flex-1">{action.label}</span>
+        <span className="flex-1">{action.labelElement || action.label}</span>
         {action.hotkey && (
           <MinimalShortcut shortcut={action.hotkey} className="ml-4" />
         )}

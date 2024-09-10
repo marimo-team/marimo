@@ -30,6 +30,7 @@ import {
   EditIcon,
   LayoutTemplateIcon,
   Files,
+  FolderSyncIcon,
 } from "lucide-react";
 import { commandPaletteAtom } from "../controls/command-palette";
 import { useCellActions, useNotebook } from "@/core/cells/cells";
@@ -64,6 +65,11 @@ import { useLayoutState, useLayoutActions } from "@/core/layout/layout";
 import { useTogglePresenting } from "@/core/layout/useTogglePresenting";
 import { useCopyNotebook } from "./useCopyNotebook";
 import { isWasm } from "@/core/wasm/utils";
+import {
+  autoExportHTMLAtom,
+  autoExportMarkdownAtom,
+} from "@/core/export/state";
+import { Kbd } from "@/components/ui/kbd";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -90,6 +96,16 @@ export function useNotebookActions() {
   const { selectedLayout } = useLayoutState();
   const { setLayoutView } = useLayoutActions();
   const togglePresenting = useTogglePresenting();
+  const [autoExportHTML, setAutoExportHTML] = useAtom(autoExportHTMLAtom);
+  const [autoExportMarkdown, setAutoExportMarkdown] = useAtom(
+    autoExportMarkdownAtom,
+  );
+
+  const renderCheckboxElement = (checked: boolean) => (
+    <div className="w-8 flex justify-end">
+      {checked && <CheckIcon size={14} />}
+    </div>
+  );
 
   const actions: ActionButton[] = [
     {
@@ -216,6 +232,65 @@ export function useNotebookActions() {
     },
 
     {
+      icon: <FolderSyncIcon size={14} strokeWidth={1.5} />,
+      label: "Auto-export",
+      hidden: isWasm(),
+      handle: NOOP_HANDLER,
+      dropdown: [
+        {
+          label: "",
+          labelElement: (
+            <span className="text-muted-foreground text-sm block w-[18rem]">
+              When enabled, the notebook will automatically export to HTML or
+              Markdown to a folder <Kbd className="inline">.marimo</Kbd> in the
+              notebook's directory.
+            </span>
+          ),
+          variant: "disabled",
+          handle: NOOP_HANDLER,
+          disableClick: true,
+        },
+        {
+          divider: true,
+          icon: <FolderDownIcon size={14} strokeWidth={1.5} />,
+          label: "Auto Export HTML on changes",
+          rightElement: renderCheckboxElement(autoExportHTML),
+          handle: async () => {
+            if (!filename) {
+              toast({
+                variant: "danger",
+                title: "Error",
+                description: "Notebooks must be named to be exported.",
+              });
+              return;
+            }
+
+            setAutoExportHTML((val) => !val);
+          },
+        },
+        {
+          icon: (
+            <MarkdownIcon strokeWidth={1.5} style={{ width: 14, height: 14 }} />
+          ),
+          label: "Auto Export Markdown on changes",
+          rightElement: renderCheckboxElement(autoExportMarkdown),
+          handle: async () => {
+            if (!filename) {
+              toast({
+                variant: "danger",
+                title: "Error",
+                description: "Notebooks must be named to be exported.",
+              });
+              return;
+            }
+
+            setAutoExportMarkdown((val) => !val);
+          },
+        },
+      ],
+    },
+
+    {
       divider: true,
       icon: <PanelLeftIcon size={14} strokeWidth={1.5} />,
       label: "Helper panel",
@@ -226,11 +301,7 @@ export function useNotebookActions() {
         }
         return {
           label: startCase(type),
-          rightElement: (
-            <div className="w-8 flex justify-end">
-              {selectedPanel === type && <CheckIcon size={14} />}
-            </div>
-          ),
+          rightElement: renderCheckboxElement(selectedPanel === type),
           icon: <Icon size={14} strokeWidth={1.5} />,
           handle: () => openApplication(type),
         };

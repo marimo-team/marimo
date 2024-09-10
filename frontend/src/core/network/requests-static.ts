@@ -66,5 +66,7 @@ export function createStaticRequests(): EditRequests & RunRequests {
     shutdownSession: throwNotInEditMode,
     exportAsHTML: throwNotInEditMode,
     exportAsMarkdown: throwNotInEditMode,
+    autoExportAsHTML: throwNotInEditMode,
+    autoExportAsMarkdown: throwNotInEditMode,
   };
 }

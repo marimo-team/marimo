@@ -266,5 +266,19 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponse);
     },
+    autoExportAsHTML: async (request) => {
+      return marimoClient
+        .POST("/api/export/auto_export/html", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
+    },
+    autoExportAsMarkdown: async (request) => {
+      return marimoClient
+        .POST("/api/export/auto_export/markdown", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
+    },
   };
 }
