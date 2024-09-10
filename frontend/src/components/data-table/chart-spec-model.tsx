@@ -4,6 +4,8 @@ import { mint, orange, slate } from "@radix-ui/colors";
 import type { ColumnHeaderSummary, FieldTypes } from "./types";
 import { asURL } from "@/utils/url";
 
+const MAX_BAR_HEIGHT = 24; // px
+
 export class ColumnChartSpecModel<T> {
   private columnSummaries = new Map<string | number, ColumnHeaderSummary>();
 
@@ -162,7 +164,11 @@ export class ColumnChartSpecModel<T> {
           },
           layer: [
             {
-              mark: { type: "bar", color: mint.mint11 },
+              mark: {
+                type: "bar",
+                color: mint.mint11,
+                height: MAX_BAR_HEIGHT,
+              },
             },
             {
               mark: {
