@@ -248,3 +248,43 @@ class Exporter:
 
         download_filename = get_download_filename(file_manager, ".md")
         return "\n".join(document).strip(), download_filename
+
+
+class AutoExporter:
+    EXPORT_DIR = ".marimo"
+
+    def save_html(self, file_manager: AppFileManager, html: str) -> None:
+        # get filename
+        directory = os.path.dirname(get_filename(file_manager))
+        filename = get_download_filename(file_manager, "html")
+
+        # make directory if it doesn't exist
+        self._make_export_dir(directory)
+        filepath = os.path.join(directory, self.EXPORT_DIR, filename)
+
+        # save html to .marimo directory
+        with open(filepath, "w") as f:
+            f.write(html)
+
+    def save_md(self, file_manager: AppFileManager, markdown: str) -> None:
+        # get filename
+        directory = os.path.dirname(get_filename(file_manager))
+        filename = get_download_filename(file_manager, "md")
+
+        # make directory if it doesn't exist
+        self._make_export_dir(directory)
+        filepath = os.path.join(directory, self.EXPORT_DIR, filename)
+
+        # save md to .marimo directory
+        with open(filepath, "w") as f:
+            f.write(markdown)
+
+    def _make_export_dir(self, directory: str) -> None:
+        # make .marimo dir if it doesn't exist
+        # don't make the other directories
+        if not os.path.exists(directory):
+            raise FileNotFoundError(f"Directory {directory} does not exist")
+
+        export_dir = os.path.join(directory, self.EXPORT_DIR)
+        if not os.path.exists(export_dir):
+            os.mkdir(export_dir)

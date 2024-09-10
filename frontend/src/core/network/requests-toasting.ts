@@ -32,7 +32,7 @@ export function createErrorToastingRequests(
     readSnippets: "Failed to fetch snippets",
     previewDatasetColumn: "Failed to fetch data sources",
     openFile: "Failed to open file",
-    getUsageStats: "", // Empty string because we don't show a toast for this
+    getUsageStats: "", // No toast
     sendListFiles: "Failed to list files",
     sendCreateFileOrFolder: "Failed to create file or folder",
     sendDeleteFileOrFolder: "Failed to delete file or folder",
@@ -47,6 +47,8 @@ export function createErrorToastingRequests(
     shutdownSession: "Failed to shutdown session",
     exportAsHTML: "Failed to export HTML",
     exportAsMarkdown: "Failed to export Markdown",
+    autoExportAsHTML: "", // No toast
+    autoExportAsMarkdown: "", // No toast
   };
 
   const handlers = {} as EditRequests & RunRequests;

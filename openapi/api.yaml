@@ -4,6 +4,34 @@ components:
       properties:
         code:
           type: string
+        context:
+          nullable: true
+          properties:
+            schema:
+              items:
+                properties:
+                  columns:
+                    items:
+                      properties:
+                        name:
+                          type: string
+                        type:
+                          type: string
+                      required:
+                      - name
+                      - type
+                      type: object
+                    type: array
+                  name:
+                    type: string
+                required:
+                - name
+                - columns
+                type: object
+              type: array
+          required:
+          - schema
+          type: object
         includeOtherCode:
           type: string
         language:
@@ -274,6 +302,16 @@ components:
       - prefix_length
       - options
       - name
+      type: object
+    CopyNotebookRequest:
+      properties:
+        destination:
+          type: string
+        source:
+          type: string
+      required:
+      - source
+      - destination
       type: object
     CreationRequest:
       properties:
@@ -1816,7 +1854,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.8.4
+  version: 0.8.14
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -1877,6 +1915,38 @@ paths:
               schema:
                 $ref: '#/components/schemas/Snippets'
           description: Load the snippets for the documentation page
+  /api/export/auto_export/html:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportAsHTMLRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Export the notebook as HTML
+        400:
+          description: File must be saved before downloading
+  /api/export/auto_export/markdown:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportAsMarkdownRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Export the notebook as a markdown
+        400:
+          description: File must be saved before downloading
   /api/export/html:
     post:
       requestBody:
@@ -2083,6 +2153,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Complete a code fragment
+  /api/kernel/copy:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CopyNotebookRequest'
+      responses:
+        200:
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: Copy notebook
   /api/kernel/delete:
     post:
       requestBody:
@@ -2241,20 +2325,6 @@ paths:
               schema:
                 type: string
           description: Save the current app
-  /api/kernel/copy:
-    post:
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CopyNotebookRequest'
-      responses:
-        200:
-          content:
-            text/plain:
-              schema:
-                type: string
-          description: Copy notebook
   /api/kernel/save_app_config:
     post:
       requestBody:

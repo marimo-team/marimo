@@ -10,9 +10,10 @@ export function useInterval(
   opts: {
     delayMs: number | null;
     whenVisible: boolean;
+    disabled?: boolean;
   },
 ) {
-  const { delayMs, whenVisible } = opts;
+  const { delayMs, whenVisible, disabled = false } = opts;
   const savedCallback = useRef<() => void>();
 
   // Store the callback
@@ -22,7 +23,7 @@ export function useInterval(
 
   // Run the interval
   useEffect(() => {
-    if (delayMs === null) {
+    if (delayMs === null || disabled) {
       return;
     }
 
@@ -35,11 +36,11 @@ export function useInterval(
     }, delayMs);
 
     return () => clearInterval(id);
-  }, [delayMs, whenVisible]);
+  }, [delayMs, whenVisible, disabled]);
 
   // When the document becomes visible, run the callback
   useEventListener(document, "visibilitychange", () => {
-    if (document.visibilityState === "visible" && whenVisible) {
+    if (document.visibilityState === "visible" && whenVisible && !disabled) {
       savedCallback.current?.();
     }
   });

@@ -64,4 +64,6 @@ export const {
   shutdownSession,
   exportAsHTML,
   exportAsMarkdown,
+  autoExportAsHTML,
+  autoExportAsMarkdown,
 } = getRequest();

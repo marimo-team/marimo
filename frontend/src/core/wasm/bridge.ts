@@ -424,6 +424,8 @@ export class PyodideBridge implements RunRequests, EditRequests {
   getWorkspaceFiles = throwNotImplemented;
   getRunningNotebooks = throwNotImplemented;
   shutdownSession = throwNotImplemented;
+  autoExportAsHTML = throwNotImplemented;
+  autoExportAsMarkdown = throwNotImplemented;
 
   private async putControlRequest(operation: object) {
     await this.rpc.proxy.request.bridge({

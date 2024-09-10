@@ -604,3 +604,31 @@ def test_get_cell_console_outputs(time_mock: Any) -> None:
         cell_id: [CellOutput.stdout("one"), CellOutput.stdout("two")],
         cell_2_id: [CellOutput.stdout("two")],
     }
+
+
+def test_mark_auto_export():
+    session_view = SessionView()
+    assert not session_view.has_auto_exported_html
+    assert not session_view.has_auto_exported_md
+
+    session_view.mark_auto_export_html()
+    assert session_view.has_auto_exported_html
+
+    session_view.mark_auto_export_md()
+    assert session_view.has_auto_exported_md
+
+    session_view._touch()
+    assert not session_view.has_auto_exported_html
+    assert not session_view.has_auto_exported_md
+
+    session_view.mark_auto_export_html()
+    session_view.mark_auto_export_md()
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            output=initial_output,
+            status=initial_status,
+        ),
+    )
+    assert not session_view.has_auto_exported_html
+    assert not session_view.has_auto_exported_md

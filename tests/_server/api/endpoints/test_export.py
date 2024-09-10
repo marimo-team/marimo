@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING
 
 from marimo import __version__
@@ -163,3 +164,116 @@ def test_other_exports_dont_work_in_read(client: TestClient) -> None:
         },
     )
     assert response.status_code == 401
+
+
+@with_session(SESSION_ID)
+def test_auto_export_html(client: TestClient, temp_marimo_file: str) -> None:
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    print(temp_marimo_file)
+    assert temp_marimo_file is not None
+    session.app_file_manager.filename = temp_marimo_file
+
+    response = client.post(
+        "/api/export/auto_export/html",
+        headers=HEADERS,
+        json={
+            "download": False,
+            "files": [],
+            "include_code": True,
+        },
+    )
+    assert response.status_code == 200
+    assert response.json() == {"success": True}
+
+    response = client.post(
+        "/api/export/auto_export/html",
+        headers=HEADERS,
+        json={
+            "download": False,
+            "files": [],
+            "include_code": True,
+        },
+    )
+    # Not modified response
+    assert response.status_code == 304
+    assert response.json() == {}
+
+    # Assert .marimo file is created
+    assert os.path.exists(
+        os.path.join(os.path.dirname(temp_marimo_file), ".marimo")
+    )
+
+
+@with_session(SESSION_ID)
+def test_auto_export_html_no_code(
+    client: TestClient, temp_marimo_file: str
+) -> None:
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.filename = temp_marimo_file
+
+    response = client.post(
+        "/api/export/auto_export/html",
+        headers=HEADERS,
+        json={
+            "download": False,
+            "files": [],
+            "include_code": False,
+        },
+    )
+    assert response.status_code == 200
+    assert response.json() == {"success": True}
+
+    response = client.post(
+        "/api/export/auto_export/html",
+        headers=HEADERS,
+        json={
+            "download": False,
+            "files": [],
+            "include_code": False,
+        },
+    )
+    # Not modified response
+    assert response.status_code == 304
+    assert response.json() == {}
+
+    # Assert .marimo file is created
+    assert os.path.exists(
+        os.path.join(os.path.dirname(temp_marimo_file), ".marimo")
+    )
+
+
+@with_session(SESSION_ID)
+def test_auto_export_markdown(
+    client: TestClient, *, temp_marimo_file: str
+) -> None:
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.filename = temp_marimo_file
+
+    response = client.post(
+        "/api/export/auto_export/markdown",
+        headers=HEADERS,
+        json={
+            "download": False,
+        },
+    )
+    assert response.status_code == 200
+    assert response.json() == {"success": True}
+
+    response = client.post(
+        "/api/export/auto_export/markdown",
+        headers=HEADERS,
+        json={
+            "download": False,
+        },
+    )
+    # Not modified response
+    assert response.status_code == 304
+    assert response.json() == {}
+
+    # Assert .marimo file is created
+    assert os.path.exists(
+        os.path.join(os.path.dirname(temp_marimo_file), ".marimo")
+    )

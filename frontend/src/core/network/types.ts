@@ -143,6 +143,8 @@ export interface EditRequests {
   ) => Promise<RunningNotebooksResponse>;
   exportAsHTML: (request: ExportAsHTMLRequest) => Promise<string>;
   exportAsMarkdown: (request: ExportAsMarkdownRequest) => Promise<string>;
+  autoExportAsHTML: (request: ExportAsHTMLRequest) => Promise<null>;
+  autoExportAsMarkdown: (request: ExportAsMarkdownRequest) => Promise<null>;
 }
 
 export type RequestKey = keyof (EditRequests & RunRequests);
