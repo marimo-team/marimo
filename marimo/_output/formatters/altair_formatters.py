@@ -40,8 +40,8 @@ class AltairFormatter(FormatterFactory):
                 pass
 
             # Handle where there are multiple mime types
+            # return as a mimebundle
             if len(mimebundle) > 1:
-                # If its a list, return the first one
                 return (
                     "application/vnd.marimo+mimebundle",
                     json.dumps(mimebundle),
