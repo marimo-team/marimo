@@ -25,6 +25,7 @@ KnownMimeType = Literal[
     "text/html",
     "text/plain",
     "text/markdown",
+    "text/latex",
     "text/csv",
 ]
 

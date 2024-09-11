@@ -2400,6 +2400,7 @@ export interface components {
       | "text/html"
       | "text/plain"
       | "text/markdown"
+      | "text/latex"
       | "text/csv";
     MissingPackageAlert: {
       isolated: boolean;

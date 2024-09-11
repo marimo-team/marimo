@@ -147,15 +147,22 @@ def get_formatter(
 
         return f_mime
 
+    md_mime_types: list[KnownMimeType] = [
+        "text/markdown",
+        "text/latex",
+    ]
+
     # Check for the misc _repr_ methods
     reprs: list[Tuple[str, KnownMimeType]] = [
         ("_repr_html_", "text/html"),  # text/html is preferred first
         ("_repr_mimebundle_", "application/vnd.marimo+mimebundle"),
-        ("_repr_text_", "text/plain"),
-        ("_repr_json_", "application/json"),
         ("_repr_svg_", "image/svg+xml"),
+        ("_repr_json_", "application/json"),
         ("_repr_png_", "image/png"),
         ("_repr_jpeg_", "image/jpeg"),
+        ("_repr_markdown_", "text/markdown"),
+        ("_repr_latex_", "text/latex"),
+        ("_repr_text_", "text/plain"),  # last
     ]
 
     for attr, mime_type in reprs:
@@ -177,21 +184,15 @@ def get_formatter(
                     )
                     return (mime_type, data_url or "")
 
+                # Handle markdown and latex
+                if mime_type in md_mime_types:
+                    from marimo._output.md import md
+
+                    return ("text/html", md(contents).text)
+
                 return (mime_type, contents)
 
             return f_repr
-
-    # Prefer text/html over markdown and latex
-    # Check for the _repr_markdown_ and _repr_latex_ methods
-    for attr in ["_repr_markdown_", "_repr_latex_"]:
-        if _is_callable_method(obj, attr):
-            from marimo._output.md import md
-
-            def f_md(obj: T, attr: str = attr) -> tuple[KnownMimeType, str]:
-                content = getattr(obj, attr)()
-                return ("text/html", md(content).text)
-
-            return f_md
 
     return None
 

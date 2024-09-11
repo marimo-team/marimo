@@ -142,6 +142,7 @@ export const OutputRenderer: React.FC<{
         `Expected string data for mime=${mimetype}. Got ${typeof data}`,
       );
       return <CsvViewer contents={data} />;
+    case "text/latex":
     case "text/markdown":
       invariant(
         typeof data === "string",

@@ -1303,6 +1303,7 @@ components:
       - text/html
       - text/plain
       - text/markdown
+      - text/latex
       - text/csv
       type: string
     MissingPackageAlert:
