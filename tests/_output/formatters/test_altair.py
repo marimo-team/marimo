@@ -6,6 +6,7 @@ import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.runtime import Kernel
+from marimo._utils.platform import is_mac
 from tests.conftest import ExecReqProvider
 
 HAS_DEPS = DependencyManager.altair.has()
@@ -45,7 +46,10 @@ async def test_altair(
     assert json.loads(result[1])
 
 
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.skipif(
+    not HAS_DEPS and not is_mac(),
+    reason="optional dependencies not installed and fails on mac",
+)
 async def test_altair_with_svg(
     executing_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
