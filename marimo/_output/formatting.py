@@ -30,7 +30,9 @@ from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._output.utils import flatten_string
+from marimo._plugins.core.media import io_to_data_url
 from marimo._plugins.stateless.json_output import json_output
+from marimo._plugins.stateless.mime import mime_renderer
 from marimo._plugins.stateless.plain_text import plain_text
 
 T = TypeVar("T")
@@ -130,26 +132,68 @@ def get_formatter(
         for t in FORMATTERS.keys():
             if isinstance(obj, t):
                 return FORMATTERS[t]
-    elif hasattr(obj, "_mime_"):
-        method = obj._mime_
-        if inspect.isclass(obj) and not isinstance(method, (types.MethodType)):
-            return None
-        if callable(method):
 
-            def f(obj: T) -> tuple[KnownMimeType, str]:
-                return obj._mime_()  # type: ignore
+    # Check for the MIME protocol
+    if _is_callable_method(obj, "_mime_"):
 
-            return f
-    elif hasattr(obj, "_repr_html_"):
-        method = obj._repr_html_
-        if inspect.isclass(obj) and not isinstance(method, (types.MethodType)):
-            return None
-        if callable(method):
+        def f_mime(obj: T) -> tuple[KnownMimeType, str]:
+            mime, data = obj._mime_()  # type: ignore
+            # Data should ideally a string, but in case it's bytes,
+            # we convert it to a data URL
+            if isinstance(data, bytes):
+                return (mime, io_to_data_url(data, mime) or "")  # type: ignore
 
-            def f(obj: T) -> tuple[KnownMimeType, str]:
-                return ("text/html", obj._repr_html_())  # type: ignore
+            return (mime, data)  # type: ignore
 
-            return f
+        return f_mime
+
+    md_mime_types: list[KnownMimeType] = [
+        "text/markdown",
+        "text/latex",
+    ]
+
+    # Check for the misc _repr_ methods
+    reprs: list[Tuple[str, KnownMimeType]] = [
+        ("_repr_html_", "text/html"),  # text/html is preferred first
+        ("_repr_mimebundle_", "application/vnd.marimo+mimebundle"),
+        ("_repr_svg_", "image/svg+xml"),
+        ("_repr_json_", "application/json"),
+        ("_repr_png_", "image/png"),
+        ("_repr_jpeg_", "image/jpeg"),
+        ("_repr_markdown_", "text/markdown"),
+        ("_repr_latex_", "text/latex"),
+        ("_repr_text_", "text/plain"),  # last
+    ]
+
+    for attr, mime_type in reprs:
+        if _is_callable_method(obj, attr):
+
+            def f_repr(
+                obj: T,
+                mime_type: KnownMimeType = mime_type,
+                attr: str = attr,
+            ) -> tuple[KnownMimeType, str]:
+                contents = getattr(obj, attr)()
+
+                # Handle the case where the contents are bytes
+                if isinstance(contents, bytes):
+                    # Data should ideally a string, but in case it's bytes,
+                    # we convert it to a data URL
+                    data_url = io_to_data_url(
+                        contents, fallback_mime_type=mime_type
+                    )
+                    return (mime_type, data_url or "")
+
+                # Handle markdown and latex
+                if mime_type in md_mime_types:
+                    from marimo._output.md import md
+
+                    return ("text/html", md(contents).text)
+
+                return (mime_type, contents)
+
+            return f_repr
+
     return None
 
 
@@ -278,8 +322,8 @@ def as_html(value: object) -> Html:
         return Html(
             flatten_string(json_output(json_data=json.loads(data)).text)
         )
-    else:
-        raise ValueError(f"Unsupported mimetype {mimetype}")
+
+    return mime_renderer(mimetype, data)
 
 
 @mddoc
@@ -313,3 +357,12 @@ class Plain:
 
     def __init__(self, child: Any):
         self.child = child
+
+
+def _is_callable_method(obj: Any, attr: str) -> bool:
+    if not hasattr(obj, attr):
+        return False
+    method = getattr(obj, attr)
+    if inspect.isclass(obj) and not isinstance(method, (types.MethodType)):
+        return False
+    return callable(method)

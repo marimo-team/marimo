@@ -2385,6 +2385,9 @@ export interface components {
       | "application/json"
       | "application/vnd.marimo+error"
       | "application/vnd.marimo+traceback"
+      | "application/vnd.marimo+mimebundle"
+      | "application/vnd.vega.v5+json"
+      | "application/vnd.vegalite.v5+json"
       | "image/png"
       | "image/svg+xml"
       | "image/tiff"
@@ -2397,6 +2400,7 @@ export interface components {
       | "text/html"
       | "text/plain"
       | "text/markdown"
+      | "text/latex"
       | "text/csv";
     MissingPackageAlert: {
       isolated: boolean;

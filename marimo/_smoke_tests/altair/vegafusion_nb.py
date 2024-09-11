@@ -55,6 +55,13 @@ def __(alt, flights, mo):
 
 
 @app.cell
+def __(alt, delay_hist, mo):
+    alt.data_transformers.enable("vegafusion")
+    mo.as_html(delay_hist)
+    return
+
+
+@app.cell
 def __(alt, delay_hist):
     alt.data_transformers.enable("vegafusion")
     delay_hist
@@ -258,6 +265,49 @@ def __(alt, make_movie_chart, pd):
         "https://vegafusion-datasets.s3.amazonaws.com/vega/movies_201k.parquet"
     )
     make_movie_chart(_source_data)
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md(r"""# Vega fusion mimes""")
+    return
+
+
+@app.cell
+def __(alt, flights, vf):
+    vf.enable(mimetype="html")
+    alt.data_transformers.enable("vegafusion")
+    alt.Chart(flights).mark_bar().encode(
+        alt.X("delay", bin=alt.Bin(maxbins=30)), alt.Y("count()")
+    )
+    return
+
+
+@app.cell
+def __(alt, flights, vf):
+    vf.enable(mimetype="svg")
+    alt.Chart(flights).mark_bar().encode(
+        alt.X("delay", bin=alt.Bin(maxbins=30)), alt.Y("count()")
+    )
+    return
+
+
+@app.cell
+def __(alt, flights, vf):
+    vf.enable(mimetype="vega")
+    alt.Chart(flights).mark_bar().encode(
+        alt.X("delay", bin=alt.Bin(maxbins=30)), alt.Y("count()")
+    )
+    return
+
+
+@app.cell
+def __(alt, flights, vf):
+    vf.enable(mimetype="png")
+    alt.Chart(flights).mark_bar().encode(
+        alt.X("delay", bin=alt.Bin(maxbins=30)), alt.Y("count()")
+    )
     return
 
 
