@@ -1288,6 +1288,9 @@ components:
       - application/json
       - application/vnd.marimo+error
       - application/vnd.marimo+traceback
+      - application/vnd.marimo+mimebundle
+      - application/vnd.vega.v5+json
+      - application/vnd.vegalite.v5+json
       - image/png
       - image/svg+xml
       - image/tiff
