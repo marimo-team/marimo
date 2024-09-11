@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 
 from marimo._config.config import Theme
-from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.mimetypes import KnownMimeType, MimeBundleOrTuple
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._plugins.core.media import io_to_data_url
 
@@ -33,9 +33,9 @@ class AltairFormatter(FormatterFactory):
             # If its HTML, we want to handle this ourselves
             # if its svg, vega, or png, then we want to pass that instead
             # because that means the user has configured the that renderer
-            mimebundle = {}
+            mimebundle: MimeBundleOrTuple = {}
             try:
-                mimebundle = chart._repr_mimebundle_() or {}
+                mimebundle = chart._repr_mimebundle_() or {}  # type: ignore
             except Exception:
                 pass
 

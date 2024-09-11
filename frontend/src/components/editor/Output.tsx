@@ -159,7 +159,6 @@ export const OutputRenderer: React.FC<{
       return (
         <LazyVegaLite
           spec={parsedJsonData as TopLevelFacetedUnitSpec}
-          // actions={false}
           theme={theme === "dark" ? "dark" : undefined}
         />
       );
