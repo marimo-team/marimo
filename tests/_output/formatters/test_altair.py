@@ -47,7 +47,7 @@ async def test_altair(
 
 
 @pytest.mark.skipif(
-    not HAS_DEPS and not is_mac(),
+    not HAS_DEPS or is_mac(),
     reason="optional dependencies not installed and fails on mac",
 )
 async def test_altair_with_svg(
