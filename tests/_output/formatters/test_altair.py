@@ -6,13 +6,15 @@ import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.runtime import Kernel
-from marimo._utils.platform import is_mac
 from tests.conftest import ExecReqProvider
 
-HAS_DEPS = DependencyManager.altair.has()
+HAS_ALTAIR = DependencyManager.altair.has()
+HAS_VL_CONVERT = DependencyManager.has("vl-convert")
 
 
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.skipif(
+    not HAS_ALTAIR, reason="optional dependencies not installed"
+)
 async def test_altair(
     executing_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
@@ -47,7 +49,7 @@ async def test_altair(
 
 
 @pytest.mark.skipif(
-    not HAS_DEPS or is_mac(),
+    not HAS_ALTAIR or not HAS_VL_CONVERT,
     reason="optional dependencies not installed and fails on mac",
 )
 async def test_altair_with_svg(
