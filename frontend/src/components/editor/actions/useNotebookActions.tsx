@@ -181,7 +181,7 @@ export function useNotebookActions() {
         },
         {
           icon: <FileIcon size={14} strokeWidth={1.5} />,
-          label: "Print PDF",
+          label: "Download PDF",
           handle: async () => {
             const toasted = toast({
               title: "Starting download",
@@ -233,7 +233,7 @@ export function useNotebookActions() {
 
     {
       icon: <FolderSyncIcon size={14} strokeWidth={1.5} />,
-      label: "Auto-export",
+      label: "Auto-download",
       hidden: isWasm(),
       handle: NOOP_HANDLER,
       dropdown: [
@@ -241,9 +241,9 @@ export function useNotebookActions() {
           label: "",
           labelElement: (
             <span className="text-muted-foreground text-sm block w-[18rem]">
-              When enabled, the notebook will automatically export to HTML or
-              Markdown to a folder <Kbd className="inline">.marimo</Kbd> in the
-              notebook's directory.
+              When enabled, the notebook will automatically download the HTML or
+              Markdown snapshot to a folder{" "}
+              <Kbd className="inline">.marimo</Kbd> in the notebook's directory.
             </span>
           ),
           variant: "disabled",
@@ -253,7 +253,7 @@ export function useNotebookActions() {
         {
           divider: true,
           icon: <FolderDownIcon size={14} strokeWidth={1.5} />,
-          label: "Auto Export HTML on changes",
+          label: "Auto-download HTML on changes",
           rightElement: renderCheckboxElement(autoExportHTML),
           handle: async () => {
             if (!filename) {
@@ -272,7 +272,7 @@ export function useNotebookActions() {
           icon: (
             <MarkdownIcon strokeWidth={1.5} style={{ width: 14, height: 14 }} />
           ),
-          label: "Auto Export Markdown on changes",
+          label: "Auto-download Markdown on changes",
           rightElement: renderCheckboxElement(autoExportMarkdown),
           handle: async () => {
             if (!filename) {
