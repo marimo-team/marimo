@@ -1,7 +1,14 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "marimo",
+# ]
+# ///
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.3.4"
+__generated_with = "0.8.14"
 app = marimo.App()
 
 
@@ -68,11 +75,7 @@ def __(mo, query_params):
 
 @app.cell
 def __(mo):
-    mo.md(
-        """
-    You can also initialized with query params. Open this URL [/?foo=1&bar=2&bar=3&baz=4](/?foo=1&bar=2&bar=3&baz=4) and restart the kernel
-    """
-    )
+    mo.md("""You can also initialized with query params. Open this URL [/?foo=1&bar=2&bar=3&baz=4](/?foo=1&bar=2&bar=3&baz=4) and restart the kernel""")
     return
 
 

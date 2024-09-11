@@ -1,3 +1,18 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "seaborn",
+#     "matplotlib",
+#     "holoviews",
+#     "bokeh",
+#     "vega-datasets",
+#     "altair",
+#     "plotly",
+#     "marimo",
+#     "pandas",
+#     "numpy",
+# ]
+# ///
 import marimo
 
 __generated_with = "0.8.3"

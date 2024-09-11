@@ -2,13 +2,13 @@
 
 import marimo
 
-__generated_with = "0.5.0"
+__generated_with = "0.8.14"
 app = marimo.App()
 
 
 @app.cell
 def __(mo):
-    mo.md("# Horizontal")
+    mo.md("""# Horizontal""")
     return
 
 
@@ -26,7 +26,7 @@ def __(mo):
 
 @app.cell
 def __(mo):
-    mo.md("-----")
+    mo.md("""-----""")
     return
 
 
@@ -58,7 +58,7 @@ def __(mo):
 
 @app.cell
 def __(mo):
-    mo.md("# Vertical")
+    mo.md("""# Vertical""")
     return
 
 
@@ -77,7 +77,7 @@ def __(mo):
 
 @app.cell
 def __(mo):
-    mo.md("-----")
+    mo.md("""-----""")
     return
 
 

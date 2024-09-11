@@ -1,13 +1,20 @@
-# Copyright 2024 Marimo. All rights reserved.
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "plotly",
+#     "pandas",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.1.51"
+__generated_with = "0.8.14"
 app = marimo.App(width="full")
 
 
 @app.cell
 def __(mo):
-    mo.md("# Plotly Express Chart")
+    mo.md("""# Plotly Express Chart""")
     return
 
 
@@ -59,7 +66,7 @@ def __(mo, plot):
 
 @app.cell
 def __(mo):
-    mo.md("# Plotly Graph Objects Chart")
+    mo.md("""# Plotly Graph Objects Chart""")
     return
 
 
@@ -121,7 +128,7 @@ def __(mo, plot2):
 
 @app.cell
 def __(mo):
-    mo.md("# Re-rendering Chart")
+    mo.md("""# Re-rendering Chart""")
     return
 
 
@@ -166,7 +173,7 @@ def __(mo, plot3):
 
 @app.cell
 def __(mo):
-    mo.md("# 3D Chart")
+    mo.md("""# 3D Chart""")
     return
 
 

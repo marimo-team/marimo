@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import os.path
 import sys
+from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
@@ -158,6 +159,7 @@ def test_repr_markdown():
     )
 
 
+@pytest.mark.skip
 def test_repr_latex():
     class ReprLatex:
         def _repr_latex_(self):
@@ -274,7 +276,21 @@ def test_repr_mimebundle():
     assert formatter
     mime, content = formatter(obj)
     assert mime == "application/vnd.marimo+mimebundle"
-    assert content == {
-        "application/json": {"message": "Hello, World!"},
-        "text/plain": "Hello, World!",
-    }
+    assert content == {"application/json": {"message": "Hello, World!"}}
+
+
+def test_repr_mimebundle_with_exclude():
+    class ReprMimeBundle:
+        def _repr_mimebundle_(self, include: Any = None, exclude: Any = None):
+            del include, exclude
+            return {
+                "application/json": {"message": "Hello, World!"},
+                "text/plain": "Hello, World!",
+            }
+
+    obj = ReprMimeBundle()
+    formatter = get_formatter(obj)
+    assert formatter
+    mime, content = formatter(obj)
+    assert mime == "application/vnd.marimo+mimebundle"
+    assert content == {"application/json": {"message": "Hello, World!"}}

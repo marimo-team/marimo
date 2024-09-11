@@ -1,7 +1,14 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "marimo",
+# ]
+# ///
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.2.1"
+__generated_with = "0.8.14"
 app = marimo.App()
 
 
@@ -13,7 +20,7 @@ def __():
 
 @app.cell
 def __(mo):
-    mo.md("# Tables")
+    mo.md("""# Tables""")
     return
 
 
@@ -46,7 +53,7 @@ def __(mo):
 
 @app.cell
 def __(mo):
-    mo.md("# Footnotes")
+    mo.md("""# Footnotes""")
     return
 
 
@@ -72,7 +79,7 @@ def __(mo):
 
 @app.cell
 def __(mo):
-    mo.md("# External links")
+    mo.md("""# External links""")
     return
 
 

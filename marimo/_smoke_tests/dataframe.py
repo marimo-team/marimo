@@ -8,12 +8,13 @@
 #     "pyarrow",
 #     "marimo",
 #     "pandas",
+#     "ibis",
 # ]
 # ///
 
 import marimo
 
-__generated_with = "0.8.7"
+__generated_with = "0.8.14"
 app = marimo.App(width="full")
 
 
@@ -305,24 +306,6 @@ def __():
 
     cars = vega_datasets.data.cars()
     return alt, cars, mo, pa, pd, pl, vega_datasets
-
-
-app._unparsable_cell(
-    r"""
-    SELECT * FROM cars WHERE Cylinders > 6;
-    """,
-    name="__"
-)
-
-
-@app.cell
-def __(mo):
-    _df = mo.sql(
-        f"""
-        SELECT * FROM
-        """
-    )
-    return
 
 
 @app.cell

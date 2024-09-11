@@ -161,7 +161,9 @@ def get_formatter(
         ("_repr_png_", "image/png"),
         ("_repr_jpeg_", "image/jpeg"),
         ("_repr_markdown_", "text/markdown"),
-        ("_repr_latex_", "text/latex"),
+        # Commenting out _repr_latex_ for now, since pandas pd.Series
+        # uses it for some reason, but returns empty
+        # ("_repr_latex_", "text/latex"),
         ("_repr_text_", "text/plain"),  # last
     ]
 
@@ -173,7 +175,23 @@ def get_formatter(
                 mime_type: KnownMimeType = mime_type,
                 attr: str = attr,
             ) -> tuple[KnownMimeType, str]:
-                contents = getattr(obj, attr)()
+                method = getattr(obj, attr)
+                # Try to call _repr_mimebundle_ with include/exclude parameters
+                if attr == "_repr_mimebundle_":
+                    try:
+                        contents = method(include=[], exclude=[])
+                    except TypeError:
+                        # If that fails, call the method without parameters
+                        contents = method()
+                    # Remove text/plain from the mimebundle if it's present
+                    # since there are other representations available
+                    # N.B. We cannot pass this as an argument to the method
+                    # because this unfortunately could break some libraries
+                    # (e.g. ibis)
+                    if "text/plain" in contents and len(contents) > 1:
+                        contents.pop("text/plain")
+                else:
+                    contents = method()
 
                 # Handle the case where the contents are bytes
                 if isinstance(contents, bytes):
@@ -188,7 +206,7 @@ def get_formatter(
                 if mime_type in md_mime_types:
                     from marimo._output.md import md
 
-                    return ("text/html", md(contents).text)
+                    return ("text/html", md(contents or "_empty_").text)
 
                 return (mime_type, contents)
 
