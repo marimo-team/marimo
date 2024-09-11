@@ -16,7 +16,7 @@ class WebComponentEncoder(JSONEncoder):
     def default(self, o: Any) -> Any:
         obj = o
         # Handle numpy objects
-        if DependencyManager.numpy.has():
+        if DependencyManager.numpy.imported():
             import numpy as np
 
             dtypes = (np.datetime64, np.complexfloating)
@@ -34,7 +34,7 @@ class WebComponentEncoder(JSONEncoder):
                 return str(obj)
 
         # Handle pandas objects
-        if DependencyManager.pandas.has():
+        if DependencyManager.pandas.imported():
             import pandas as pd
 
             # Opinionated or known types

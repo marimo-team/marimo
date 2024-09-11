@@ -1,4 +1,15 @@
-# Copyright 2024 Marimo. All rights reserved.
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "numpy",
+#     "holoviews",
+#     "pandas",
+#     "marimo",
+#     "hvplot",
+#     "bokeh",
+#     "polars",
+# ]
+# ///
 
 import marimo
 

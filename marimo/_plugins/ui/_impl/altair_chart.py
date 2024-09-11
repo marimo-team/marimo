@@ -54,7 +54,13 @@ def _has_binning(spec: VegaSpec) -> bool:
 
 def _has_geoshape(spec: altair.TopLevelMixin) -> bool:
     """Return True if the spec has geoshape."""
-    return hasattr(spec, "mark") and spec.mark == "geoshape"
+    try:
+        if not hasattr(spec, "mark"):
+            return False
+        mark = spec.mark  # type: ignore
+        return mark == "geoshape" or mark.type == "geoshape"  # type: ignore
+    except Exception:
+        return False
 
 
 def _filter_dataframe(
@@ -63,13 +69,13 @@ def _filter_dataframe(
     if not isinstance(selection, dict):
         raise TypeError("Input 'selection' must be a dictionary")
 
-    if DependencyManager.pandas.has():
+    if DependencyManager.pandas.imported():
         import pandas as pd
 
         if isinstance(df, pd.DataFrame):
             return _filter_pandas_dataframe(df, selection)
 
-    if DependencyManager.polars.has():
+    if DependencyManager.polars.imported():
         import polars as pl
 
         if isinstance(df, pl.DataFrame):
@@ -435,7 +441,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         if not isinstance(chart.data, str):
             return chart.data
 
-        if DependencyManager.pandas.has():
+        if DependencyManager.pandas.imported():
             import pandas as pd
 
             if chart.data.endswith(".csv"):
@@ -443,7 +449,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
             if chart.data.endswith(".json"):
                 return pd.read_json(chart.data)
 
-        if DependencyManager.polars.has():
+        if DependencyManager.polars.imported():
             import polars as pl
 
             if chart.data.startswith("http"):
@@ -468,6 +474,18 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         self._chart_selection = value
         flat, _ = flatten.flatten(value)
         if not value or not flat:
+            if DependencyManager.pandas.imported():
+                import pandas as pd
+
+                if isinstance(self.dataframe, pd.DataFrame):
+                    return pd.DataFrame()
+
+            if DependencyManager.polars.imported():
+                import polars as pl
+
+                if isinstance(self.dataframe, pl.DataFrame):
+                    return pl.DataFrame()
+
             return []
 
         # When using layered charts, you can no longer access the
