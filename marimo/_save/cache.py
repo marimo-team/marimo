@@ -7,12 +7,10 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
 from marimo._plugins.ui._core.ui_element import UIElement
-from marimo._runtime.context import get_context
+from marimo._runtime.context import ContextNotInitializedError, get_context
 from marimo._runtime.state import SetFunctor
 
 if TYPE_CHECKING:
-    from types import FrameType
-
     from marimo._ast.visitor import Name
 
 CacheType = Literal[
@@ -32,6 +30,7 @@ CACHE_PREFIX: dict[CacheType, str] = {
 }
 
 ValidCacheSha = namedtuple("ValidCacheSha", ("sha", "cache_type"))
+MetaKey = str  # e.g. Literal["code", "output"]
 
 
 # BaseException because "raise _ as e" is utilized.
@@ -46,12 +45,19 @@ class Cache:
     stateful_refs: set[str]
     cache_type: CacheType
     hit: bool
+    # meta corresponds to internally used data, kept as a dictionary to allow
+    # for backwards pickle compatibility with future entries.
+    # TODO: Utilize to store code and output in cache.
+    # TODO: Consider storing graph information such that execution history can
+    # be explored and visualized.
+    meta: dict[MetaKey, Any]
 
-    def restore(self, frame: FrameType) -> None:
-        for lookup, var in self.contextual_defs():
-            frame.f_locals[var] = self.defs[lookup]
+    def restore(self, scope: dict[str, Any]) -> None:
+        """Restores values from cache, into scope."""
+        for var, lookup in self.contextual_defs():
+            scope[lookup] = self.defs[var]
 
-        defs = {**globals(), **frame.f_locals}
+        defs = {**globals(), **scope}
         for ref in self.stateful_refs:
             if ref not in defs:
                 raise CacheException(
@@ -71,11 +77,12 @@ class Cache:
                     f"({type(ref)}:{ref})."
                 )
 
-    def load(self, frame: FrameType) -> None:
-        for lookup, var in self.contextual_defs():
-            self.defs[lookup] = frame.f_locals[var]
+    def update(self, scope: dict[str, Any]) -> None:
+        """Loads values from scope, updating the cache."""
+        for var, lookup in self.contextual_defs():
+            self.defs[var] = scope[lookup]
 
-        defs = {**globals(), **frame.f_locals}
+        defs = {**globals(), **scope}
         for ref in self.stateful_refs:
             if ref not in defs:
                 raise CacheException(
@@ -97,9 +104,13 @@ class Cache:
 
     def contextual_defs(self) -> dict[tuple[Name, Name], Any]:
         """Uses context to resolve private variable names."""
-        context = get_context().execution_context
-        assert context is not None, "Context could not be resolved"
-        private_prefix = f"_cell_{context.cell_id}_"
+        try:
+            context = get_context().execution_context
+            assert context is not None, "Context could not be resolved"
+            private_prefix = f"_cell_{context.cell_id}_"
+        except (ContextNotInitializedError, AssertionError):
+            private_prefix = r"^_cell_\w+_"
+
         return {
             (var, re.sub(r"^_", private_prefix, var)): value
             for var, value in self.defs.items()

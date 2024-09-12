@@ -61,7 +61,7 @@ class TestHash:
             from marimo._save.save import persistent_cache
             from tests._save.mocks import MockLoader
 
-            expected_hash = "KJzgi4EM10ZHAqR9F81JQQchDN9n_LQpCGGFfdaEYyE"
+            expected_hash = "rzWe8aalExwCRLmrdG0NkCp0QbSupaZdiimloFs9SKw"
 
             return expected_hash, persistent_cache, MockLoader
 
@@ -133,15 +133,16 @@ class TestHash:
 
         @app.cell
         def one(persistent_cache, MockLoader, shared) -> tuple[int]:
-            _a = [1]
+            _a = [1, object()]
             with persistent_cache(
                 name="one", _loader=MockLoader(data={"_X": 7})
             ) as _cache:
                 _X = 10 + _a[0] - len(shared)  # Comment
             assert _X == 7
+            # Cannot be reused/ shared, because it will change the hash.
             assert (
                 _cache._cache.hash
-                == "84XqUk17Yiuz_jlAVbtdCOvWHrUFj-YApa7-0rB8Kl8"
+                == "ZOoW-62h9ubJQ92u9h1UWydCsuwtXafS2tmDUcH8dLc"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             return
@@ -151,8 +152,8 @@ class TestHash:
             # The same as cell one, but with this comment
             _a = [
                 1,  # Comment
+                object(),
             ]
-
             # Some white space
             with persistent_cache(
                 name="one", _loader=MockLoader(data={"_X": 7})
@@ -162,7 +163,7 @@ class TestHash:
             assert _X == 7
             assert (
                 _cache._cache.hash
-                == "84XqUk17Yiuz_jlAVbtdCOvWHrUFj-YApa7-0rB8Kl8"
+                == "ZOoW-62h9ubJQ92u9h1UWydCsuwtXafS2tmDUcH8dLc"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             # and a post block difference
@@ -351,6 +352,8 @@ class TestDataHash:
         not DependencyManager.numpy.has(),
         reason="optional dependencies not installed",
     )
+    # Pin to a particular python version for differences in underlying library
+    # implementations / memory layout.
     @pytest.mark.skipif(
         "sys.version_info < (3, 11) or sys.version_info >= (3, 12)"
     )
@@ -365,7 +368,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.mocks import MockLoader
 
-            expected_hash = "iBv13AtI89eagC2BRVcUvIzEWikXVer9RRquL8ARcEU"
+            expected_hash = "MsiRwkuTRK94PyMbWFPVGgYtpz-TNWoQhE7X87FXK2o"
             return MockLoader, persistent_cache, expected_hash, np
 
         @app.cell

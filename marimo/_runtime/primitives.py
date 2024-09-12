@@ -12,7 +12,7 @@ from marimo._ast.visitor import Name, VariableData
 if TYPE_CHECKING:
     from marimo._runtime.dataflow import DirectedGraph
 
-PRIMITIVES: tuple[type, ...] = (str, numbers.Number, type(None))
+PRIMITIVES: tuple[type, ...] = (bytes, str, numbers.Number, type(None))
 # Weakref instances should be disassociated from related references, as should
 # other "primitives" as they are results and hopefully not hiding some scoped
 # reference.
@@ -57,6 +57,37 @@ def is_data_primitive(value: Any) -> bool:
 
     # Otherwise may be a closely related array object like a pandas DataFrame.
     return hasattr(value, "__array__") or hasattr(value, "toarray")
+
+
+def _is_primitive_container(value: Any, predicate) -> bool:
+    visited = set()
+
+    def recurse_container(value: Any) -> bool:
+        if is_primitive(value):
+            return True
+
+        if id(value) in visited:
+            return True
+
+        if isinstance(value, dict):
+            visited.add(id(value))
+            return all(map(predicate, value.items()))
+        # Tuple has to be considered too, since a tuple can contain containers.
+        if isinstance(value, (set, list, tuple)):
+            visited.add(id(value))
+            return all(map(predicate, value))
+
+        return False
+
+    return recurse_container(value)
+
+
+def is_data_primitive_container(value: Any) -> bool:
+    return _is_primitive_container(value, is_data_primitive)
+
+
+def is_primitive_container(value: Any) -> bool:
+    return _is_primitive_container(value, is_primitive)
 
 
 def is_pure_scope(

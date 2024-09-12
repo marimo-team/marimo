@@ -175,6 +175,7 @@ def _store_state_reference(
     run_result: cell_runner.RunResult,
 ) -> None:
     del run_result
+    # Associate state variables with variable names
     ctx = get_context()
     ctx.state_registry.register_scope(runner.glbls, defs=cell.defs)
     ctx.state_registry.retain_active_states(set(runner.glbls.keys()))

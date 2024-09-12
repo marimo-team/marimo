@@ -56,6 +56,7 @@ class Loader(ABC):
                 stateful_refs,
                 cache_type,
                 False,
+                {},
             )
         loaded = self.load_cache(hashed_context, cache_type)
         # TODO: Consider more robust verification
@@ -64,7 +65,12 @@ class Loader(ABC):
             loaded.defs
         ), INCONSISTENT_CACHE_BOILER_PLATE
         return Cache(
-            loaded.defs, hashed_context, stateful_refs, cache_type, True
+            loaded.defs,
+            hashed_context,
+            stateful_refs,
+            cache_type,
+            True,
+            loaded.meta,
         )
 
     @abstractmethod
@@ -95,7 +101,8 @@ class PickleLoader(Loader):
         return Path(f"{super().build_path(hashed_context, cache_type)}.pickle")
 
     def cache_hit(self, hashed_context: str, cache_type: CacheType) -> bool:
-        return os.path.exists(self.build_path(hashed_context, cache_type))
+        path = self.build_path(hashed_context, cache_type)
+        return os.path.exists(path) and os.path.getsize(path) > 0
 
     def load_cache(self, hashed_context: str, cache_type: CacheType) -> Cache:
         assert self.cache_hit(

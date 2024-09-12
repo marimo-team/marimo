@@ -183,7 +183,7 @@ class persistent_cache(object):
         # Backfill the loaded values into global scope.
         if self._cache and self._cache.hit:
             assert self._frame is not None, UNEXPECTED_FAILURE_BOILERPLATE
-            self._cache.restore(self._frame)
+            self._cache.restore(self._frame.f_locals)
             # Return true to suppress the SkipWithBlock exception.
             return True
 
@@ -200,7 +200,7 @@ class persistent_cache(object):
         # Fill the cache object and save.
         assert self._cache is not None, UNEXPECTED_FAILURE_BOILERPLATE
         assert self._frame is not None, UNEXPECTED_FAILURE_BOILERPLATE
-        self._cache.load(self._frame)
+        self._cache.update(self._frame.f_locals)
 
         try:
             self._loader.save_cache(self._cache)

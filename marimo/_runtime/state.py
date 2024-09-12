@@ -11,17 +11,21 @@ from marimo._output.rich_help import mddoc
 from marimo._runtime.context import ContextNotInitializedError, get_context
 
 T = TypeVar("T")
+Id = int
 
 
 @dataclass
 class StateItem(Generic[T]):
-    id: int
+    id: Id
     ref: weakref.ref[State[T]]
 
 
 class StateRegistry:
     _states: dict[str, StateItem[Any]] = {}
-    _inv_states: dict[int, set[str]] = {}
+    # id -> variable name for state
+    # NB. python reuses IDs, but an active pruning of the registry should help
+    # protect against this.
+    _inv_states: dict[Id, set[str]] = {}
 
     def register(self, state: State[T], name: Optional[str] = None) -> None:
         if name is None:
@@ -44,6 +48,8 @@ class StateRegistry:
     def register_scope(
         self, glbls: dict[str, Any], defs: Optional[set[str]] = None
     ) -> None:
+        """Finds instances of state and scope, and adds them to registry if not
+        already present."""
         if defs is None:
             defs = set(glbls.keys())
         for variable in defs:
