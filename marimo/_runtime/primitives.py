@@ -51,9 +51,11 @@ def is_data_primitive(value: Any) -> bool:
     # If a numpy array, ensure that it's not an object array.
     if hasattr(value, "__array_interface__"):
         dtype = getattr(value, "dtype", None)
-        if dtype is not None and dtype.hasobject:
-            return False
-        return True
+        return not (
+            dtype is not None
+            and hasattr(dtype, "hasobject")
+            and dtype.hasobject
+        )
 
     # Otherwise may be a closely related array object like a pandas DataFrame.
     return hasattr(value, "__array__") or hasattr(value, "toarray")
@@ -169,6 +171,7 @@ def build_ref_predicate_for_primitives(
 
     Args:
         glbls: The global variables dictionary to base the predicate on
+        primitives: A tuple of types that should be considered as base types
     Returns:
         A function that takes a variable name and associated data and
         returns True if its reference should be included in a reference search.
