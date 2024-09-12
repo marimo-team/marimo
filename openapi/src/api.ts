@@ -2302,7 +2302,6 @@ export interface components {
         preset: "default" | "vim";
       };
       package_management: {
-        add_script_metadata: boolean;
         /** @enum {string} */
         manager: "pip" | "rye" | "uv" | "poetry" | "pixi";
       };

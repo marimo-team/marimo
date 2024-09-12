@@ -1104,8 +1104,6 @@ components:
           type: object
         package_management:
           properties:
-            add_script_metadata:
-              type: boolean
             manager:
               enum:
               - pip
@@ -1116,7 +1114,6 @@ components:
               type: string
           required:
           - manager
-          - add_script_metadata
           type: object
         runtime:
           properties:

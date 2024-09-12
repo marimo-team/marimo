@@ -25,6 +25,12 @@ if TYPE_CHECKING:
 
 
 def instantiate(session: PyodideSession) -> None:
+    """
+    Instantiate the marimo app in the session.
+
+    This function is called by the WebAssembly frontend.
+    """
+
     app = session.app_manager.app
     execution_requests = tuple(
         ExecutionRequest(cell_id=cell_data.cell_id, code=cell_data.code)
@@ -47,6 +53,22 @@ def create_session(
     message_callback: Callable[[str], None],
     user_config: MarimoConfig,
 ) -> tuple[PyodideSession, PyodideBridge]:
+    """
+    Create a session with the given filename and query parameters.
+
+    Args:
+        filename: The filename of the app.
+        query_params: The query parameters from the URL.
+        message_callback: A callback that can be used to send messages to the
+            frontend.
+        user_config: The user configuration.
+
+    Returns:
+        A tuple of (session, bridge)
+
+    This function is called by the WebAssembly frontend.
+    """
+
     def write_kernel_message(op: KernelMessage) -> None:
         message_callback(
             json.dumps({"op": op[0], "data": op[1]}, cls=WebComponentEncoder)
@@ -105,6 +127,15 @@ def save_file(
     request: str,
     filename: str,
 ) -> None:
+    """
+    Save the app to the given filename.
+
+    Args:
+        request: serialized/stringified SaveNotebookRequest
+        filename: the filename of the app
+
+    This function is called by the WebAssembly frontend.
+    """
     parsed = parse_raw(json.loads(request), SaveNotebookRequest)
     app_file_manager = AppFileManager(filename=filename)
     app_file_manager.save(parsed)

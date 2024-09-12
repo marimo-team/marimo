@@ -122,7 +122,7 @@ class PyodideSession:
             consumer(msg)
 
     async def start(self) -> None:
-        self.kernel_task = launch_pyodide_kernel(
+        self.kernel_task = _launch_pyodide_kernel(
             control_queue=self._queue_manager.control_queue,
             set_ui_element_queue=self._queue_manager.set_ui_element_queue,
             completion_queue=self._queue_manager.completion_queue,
@@ -297,7 +297,7 @@ class PyodideBridge:
         return json.dumps(md)
 
 
-def launch_pyodide_kernel(
+def _launch_pyodide_kernel(
     control_queue: asyncio.Queue[ControlRequest],
     set_ui_element_queue: asyncio.Queue[SetUIElementValueRequest],
     completion_queue: asyncio.Queue[CodeCompletionRequest],
