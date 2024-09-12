@@ -36,4 +36,4 @@ For example, whenever you add or remove a package, marimo will automatically upd
 # ///
 ```
 
-This means your notebook file is a completing self-contained artifact with all the necessary information to run.
+This means your notebook file is a completely self-contained artifact with all the necessary information to run.
