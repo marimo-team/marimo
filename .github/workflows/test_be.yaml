@@ -20,7 +20,8 @@ env:
 
 jobs:
   test_python:
-    name: Tests on ${{ matrix.os }}, Python ${{ matrix.python-version }} with ${{ matrix.dependencies }} dependencies
+    # short name otherwise GitHub Actions will truncate it
+    name: ${{ matrix.os }} / Py ${{ matrix.python-version }} / ${{ matrix.dependencies }} deps
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     defaults:

@@ -2,11 +2,15 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
 from marimo._config.config import Theme
 from marimo._messaging.mimetypes import KnownMimeType, MimeBundleOrTuple
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._plugins.core.media import io_to_data_url
+
+if TYPE_CHECKING:
+    import altair  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
 
 class AltairFormatter(FormatterFactory):
@@ -76,10 +80,34 @@ class AltairFormatter(FormatterFactory):
             if "max_rows" not in alt.data_transformers.options:
                 alt.data_transformers.options["max_rows"] = 20_000
 
-            # Return the chart as a vega-lite chart
+            chart = _apply_embed_options(chart)
+
+            # Return the chart as a vega-lite chart with embed options
             return ("application/vnd.vegalite.v5+json", chart.to_json())
 
     def apply_theme(self, theme: Theme) -> None:
         import altair as alt  # type: ignore
 
         alt.themes.enable("dark" if theme == "dark" else "default")  # type: ignore
+
+
+# This is only needed since it seems that altair does not
+# handle this internally.
+# https://github.com/marimo-team/marimo/issues/2302
+def _apply_embed_options(chart: altair.Chart) -> altair.Chart:
+    import altair as alt
+
+    # Respect user-set embed options
+    # Note:
+    # The python key is `embed_options`
+    # The javascript key is `embedOptions`
+    embed_options = alt.renderers.options.get("embed_options", {})
+    prev_usermeta = {} if alt.Undefined is chart.usermeta else chart.usermeta
+    chart["usermeta"] = {
+        **prev_usermeta,
+        "embedOptions": {
+            **embed_options,
+            **prev_usermeta.get("embedOptions", {}),
+        },
+    }
+    return chart
