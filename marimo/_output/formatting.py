@@ -153,6 +153,7 @@ def get_formatter(
     ]
 
     # Check for the misc _repr_ methods
+    # Order dictates preference
     reprs: list[Tuple[str, KnownMimeType]] = [
         ("_repr_html_", "text/html"),  # text/html is preferred first
         ("_repr_mimebundle_", "application/vnd.marimo+mimebundle"),
@@ -161,20 +162,21 @@ def get_formatter(
         ("_repr_png_", "image/png"),
         ("_repr_jpeg_", "image/jpeg"),
         ("_repr_markdown_", "text/markdown"),
-        # Commenting out _repr_latex_ for now, since pandas pd.Series
-        # uses it for some reason, but returns empty
-        # ("_repr_latex_", "text/latex"),
+        ("_repr_latex_", "text/latex"),
         ("_repr_text_", "text/plain"),  # last
     ]
+    has_possible_repr = any(
+        _is_callable_method(obj, attr) for attr, _ in reprs
+    )
+    if has_possible_repr:
+        # If there is any match, we return a formatter that calls
+        # all the possible _repr_ methods, since some can be implemented
+        # but return None
+        def f_repr(obj: T) -> tuple[KnownMimeType, str]:
+            for attr, mime_type in reprs:
+                if not _is_callable_method(obj, attr):
+                    continue
 
-    for attr, mime_type in reprs:
-        if _is_callable_method(obj, attr):
-
-            def f_repr(
-                obj: T,
-                mime_type: KnownMimeType = mime_type,
-                attr: str = attr,
-            ) -> tuple[KnownMimeType, str]:
                 method = getattr(obj, attr)
                 # Try to call _repr_mimebundle_ with include/exclude parameters
                 if attr == "_repr_mimebundle_":
@@ -193,6 +195,10 @@ def get_formatter(
                 else:
                     contents = method()
 
+                # If the method returns None, continue to the next method
+                if contents is None:
+                    continue
+
                 # Handle the case where the contents are bytes
                 if isinstance(contents, bytes):
                     # Data should ideally a string, but in case it's bytes,
@@ -206,11 +212,13 @@ def get_formatter(
                 if mime_type in md_mime_types:
                     from marimo._output.md import md
 
-                    return ("text/html", md(contents or "_empty_").text)
+                    return ("text/html", md(contents or "").text)
 
                 return (mime_type, contents)
 
-            return f_repr
+            return ("text/html", "")
+
+        return f_repr
 
     return None
 

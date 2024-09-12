@@ -294,3 +294,38 @@ def test_repr_mimebundle_with_exclude():
     mime, content = formatter(obj)
     assert mime == "application/vnd.marimo+mimebundle"
     assert content == {"application/json": {"message": "Hello, World!"}}
+
+
+def test_repr_returns_none():
+    class ReprNone:
+        def _repr_html_(self):
+            return None
+
+        def _repr_json_(self):
+            return "{}"
+
+        def _repr_plain_(self):
+            return "plain"
+
+    obj = ReprNone()
+    formatter = get_formatter(obj)
+    assert formatter
+    mime, content = formatter(obj)
+    assert mime == "application/json"
+    assert content == "{}"
+
+
+def test_repr_empty_string():
+    class ReprNone:
+        def _repr_json_(self):
+            return ""
+
+        def _repr_plain_(self):
+            return "plain"
+
+    obj = ReprNone()
+    formatter = get_formatter(obj)
+    assert formatter
+    mime, content = formatter(obj)
+    assert mime == "application/json"
+    assert content == ""
