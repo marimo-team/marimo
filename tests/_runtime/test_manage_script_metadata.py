@@ -45,6 +45,7 @@ async def test_manage_script_metadata_uv(
     with open(filename) as f:  # noqa: ASYNC230
         contents = f.read()
         assert '"marimo",' in contents
+        assert "markdown" not in contents
         assert '"os",' not in contents
 
     # Add markdown
@@ -54,7 +55,7 @@ async def test_manage_script_metadata_uv(
         contents = f.read()
         assert '"marimo",' in contents
         assert '"os",' not in contents
-        assert '"markdown",' in contents
+        assert '"markdown==' in contents
 
     # Remove marimo
     k._maybe_register_cell("0", "import os")
@@ -62,7 +63,7 @@ async def test_manage_script_metadata_uv(
     with open(filename) as f:  # noqa: ASYNC230
         contents = f.read()
         assert '"marimo",' not in contents
-        assert '"markdown",' in contents
+        assert '"markdown==' in contents
         assert '"os",' not in contents
 
 
@@ -103,7 +104,7 @@ async def test_manage_script_metadata_uv_deletion(
         contents = f.read()
         assert '"marimo",' in contents
         assert '"os",' not in contents
-        assert '"markdown",' in contents
+        assert '"markdown==' in contents
 
     # Remove marimo
     k._delete_cell("0")
@@ -111,7 +112,7 @@ async def test_manage_script_metadata_uv_deletion(
     with open(filename) as f:  # noqa: ASYNC230
         contents = f.read()
         assert '"marimo",' not in contents
-        assert '"markdown",' in contents
+        assert '"markdown==' in contents
         assert '"os",' not in contents
 
     # Remove markdown
@@ -120,7 +121,7 @@ async def test_manage_script_metadata_uv_deletion(
     with open(filename) as f:  # noqa: ASYNC230
         contents = f.read()
         assert '"marimo",' not in contents
-        assert '"markdown",' not in contents
+        assert '"markdown==' not in contents
         assert '"os",' not in contents
 
 

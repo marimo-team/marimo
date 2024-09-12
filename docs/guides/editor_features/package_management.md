@@ -30,8 +30,8 @@ For example, whenever you add or remove a package, marimo will automatically upd
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#     "pandas",
-#     "altair",
+#     "pandas==<version>",
+#     "altair==<version>",
 # ]
 # ///
 ```

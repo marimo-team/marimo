@@ -1,6 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
+import subprocess
 from typing import List
 
 from marimo._runtime.packages.module_name_to_pypi_name import (
@@ -56,6 +58,9 @@ class UvPackageManager(PypiPackageManager):
         import_namespaces_to_add: List[str],
         import_namespaces_to_remove: List[str],
     ) -> None:
+        if not import_namespaces_to_add and not import_namespaces_to_remove:
+            return
+
         # Convert from module name to package name
         packages_to_add = [
             self.module_to_package(im) for im in import_namespaces_to_add
@@ -68,6 +73,23 @@ class UvPackageManager(PypiPackageManager):
         packages_to_add = [
             im for im in packages_to_add if self._is_installed(im)
         ]
+        if packages_to_add:
+            version_map = self._get_version_map()
+
+            def _maybe_add_version(package: str) -> str:
+                # Skip marimo
+                if package == "marimo":
+                    return package
+                version = version_map.get(package.lower())
+                if version:
+                    return f"{package}=={version}"
+                return package
+
+            # Add version if it's available
+            packages_to_add = [
+                _maybe_add_version(im) for im in packages_to_add
+            ]
+
         packages_to_remove = [
             im for im in packages_to_remove if self._is_installed(im)
         ]
@@ -83,8 +105,20 @@ class UvPackageManager(PypiPackageManager):
                 + packages_to_remove
             )
 
+    def _get_version_map(self) -> dict[str, str]:
+        cmd = ["uv", "pip", "list", "--format=json"]
+        proc = subprocess.run(cmd, capture_output=True, text=True)
+        if proc.returncode != 0:
+            return {}
+        try:
+            packages = json.loads(proc.stdout)
+            return {pkg["name"]: pkg["version"] for pkg in packages}
+        except json.JSONDecodeError:
+            return {}
+
     def _is_installed(self, package: str) -> bool:
-        return self.run(["uv", "--quiet", "pip", "show", package])
+        cmd = ["uv", "pip", "show", package]
+        return subprocess.run(cmd, capture_output=True).returncode == 0
 
 
 class RyePackageManager(PypiPackageManager):
