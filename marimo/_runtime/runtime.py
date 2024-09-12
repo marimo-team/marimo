@@ -24,6 +24,7 @@ from marimo._ast.cell import CellConfig, CellId_t, CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._data.preview_column import get_column_preview
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel
@@ -670,7 +671,7 @@ class Kernel:
             # packages used by a notebook; that would have the benefit of
             # discovering transitive dependencies, ie if a notebook used a
             # local module that in turn used packages available on PyPI.
-            if self._should_add_script_metadata():
+            if self._should_update_script_metadata():
                 cell = self.graph.cells.get(cell_id, None)
                 if cell:
                     prev_imports: set[Name] = (
@@ -680,7 +681,7 @@ class Kernel:
                     )
                     to_add = cell.imported_namespaces - prev_imports
                     to_remove = prev_imports - cell.imported_namespaces
-                    self._add_script_metadata(
+                    self._update_script_metadata(
                         import_namespaces_to_add=list(to_add),
                         import_namespaces_to_remove=list(to_remove),
                     )
@@ -839,8 +840,8 @@ class Kernel:
         del self.cell_metadata[cell_id]
         cell = self.graph.cells[cell_id]
         cell.import_workspace.imported_defs = set()
-        if self._should_add_script_metadata():
-            self._add_script_metadata(
+        if self._should_update_script_metadata():
+            self._update_script_metadata(
                 import_namespaces_to_add=[],
                 import_namespaces_to_remove=[
                     im.namespace for im in cell.imports
@@ -1714,8 +1715,8 @@ class Kernel:
 
         # If a package was not installed at cell registration time, it won't
         # yet be in the script metadata.
-        if self._should_add_script_metadata():
-            self._add_script_metadata(installed_modules, [])
+        if self._should_update_script_metadata():
+            self._update_script_metadata(installed_modules, [])
 
         cells_to_run = set(
             cid
@@ -1725,14 +1726,14 @@ class Kernel:
         if cells_to_run:
             await self._if_autorun_then_run_cells(cells_to_run)
 
-    def _should_add_script_metadata(self) -> bool:
+    def _should_update_script_metadata(self) -> bool:
         return (
-            self.user_config["package_management"]["add_script_metadata"]
+            GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA is True
             and self.app_metadata.filename is not None
             and self.package_manager is not None
         )
 
-    def _add_script_metadata(
+    def _update_script_metadata(
         self,
         import_namespaces_to_add: List[str],
         import_namespaces_to_remove: List[str],

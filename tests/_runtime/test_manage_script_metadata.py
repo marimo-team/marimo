@@ -8,6 +8,7 @@ import pytest
 from marimo._config.config import (
     merge_default_config,
 )
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
 from tests.conftest import MockedKernel
 
@@ -18,9 +19,10 @@ HAS_UV = DependencyManager.which("uv")
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv not installed")
-async def test_add_script_metadata_uv(
+async def test_manage_script_metadata_uv(
     tmp_path: pathlib.Path, mocked_kernel: MockedKernel
 ) -> None:
+    GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA = True
     filename = str(tmp_path / "notebook.py")
     # Create empty file
     with open(filename, "w") as f:  # noqa: ASYNC230
@@ -33,12 +35,10 @@ async def test_add_script_metadata_uv(
             {
                 "package_management": {
                     "manager": "uv",
-                    "add_script_metadata": True,
                 }
             },
         )
     )
-
     # Add marimo, skip os
     k._maybe_register_cell("0", "import marimo as mo\nimport os")
 
@@ -67,9 +67,10 @@ async def test_add_script_metadata_uv(
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv not installed")
-async def test_add_script_metadata_uv_deletion(
+async def test_manage_script_metadata_uv_deletion(
     tmp_path: pathlib.Path, mocked_kernel: MockedKernel
 ) -> None:
+    GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA = True
     filename = str(tmp_path / "notebook.py")
     # Create empty file
     with open(filename, "w") as f:  # noqa: ASYNC230
@@ -82,7 +83,6 @@ async def test_add_script_metadata_uv_deletion(
             {
                 "package_management": {
                     "manager": "uv",
-                    "add_script_metadata": True,
                 }
             },
         )
@@ -125,9 +125,10 @@ async def test_add_script_metadata_uv_deletion(
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv not installed")
-async def test_add_script_metadata_uv_off(
+async def test_manage_script_metadata_uv_off(
     tmp_path: pathlib.Path, mocked_kernel: MockedKernel
 ) -> None:
+    GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA = False
     filename = str(tmp_path / "notebook.py")
     # Create empty file
     with open(filename, "w") as f:  # noqa: ASYNC230
@@ -140,7 +141,6 @@ async def test_add_script_metadata_uv_off(
             {
                 "package_management": {
                     "manager": "uv",
-                    "add_script_metadata": False,
                 }
             },
         )
@@ -154,9 +154,10 @@ async def test_add_script_metadata_uv_off(
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv not installed")
-async def test_add_script_metadata_uv_no_filename(
+async def test_manage_script_metadata_uv_no_filename(
     tmp_path: pathlib.Path, mocked_kernel: MockedKernel
 ) -> None:
+    GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA = True
     filename = str(tmp_path / "notebook.py")
     # Create empty file
     with open(filename, "w") as f:  # noqa: ASYNC230
@@ -168,7 +169,6 @@ async def test_add_script_metadata_uv_no_filename(
             {
                 "package_management": {
                     "manager": "uv",
-                    "add_script_metadata": True,
                 }
             },
         )
@@ -181,9 +181,10 @@ async def test_add_script_metadata_uv_no_filename(
         assert "" == f.read()
 
 
-async def test_add_script_metadata_pip_noop(
+async def test_manage_script_metadata_pip_noop(
     tmp_path: pathlib.Path, mocked_kernel: MockedKernel
 ) -> None:
+    GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA = True
     filename = str(tmp_path / "notebook.py")
     # Create empty file
     with open(filename, "w") as f:  # noqa: ASYNC230
@@ -196,7 +197,6 @@ async def test_add_script_metadata_pip_noop(
             {
                 "package_management": {
                     "manager": "pip",
-                    "add_script_metadata": True,
                 }
             },
         )

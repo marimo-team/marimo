@@ -61,7 +61,10 @@ def run_in_sandbox(
 
     click.echo(f"Running in a sandbox: {' '.join(cmd)}")
 
-    process = subprocess.Popen(cmd)
+    env = os.environ.copy()
+    env["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
+
+    process = subprocess.Popen(cmd, env=env)
 
     def handler(sig: int, frame: Any) -> None:
         del sig

@@ -32,7 +32,6 @@ def test_configure_full() -> None:
             keymap={"preset": "vim", "overrides": {}},
             package_management={
                 "manager": "pip",
-                "add_script_metadata": False,
             },
         )
     )

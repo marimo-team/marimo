@@ -458,47 +458,6 @@ export const UserConfigForm: React.FC = () => {
               </FormItem>
             )}
           />
-          <FormField
-            control={form.control}
-            disabled={isWasmRuntime}
-            name="package_management.add_script_metadata"
-            render={({ field }) => {
-              if (form.getValues("package_management.manager") !== "uv") {
-                return <div />;
-              }
-
-              return (
-                <div className="flex flex-col gap-y-1">
-                  <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">
-                      Auto-add script metadata
-                    </FormLabel>
-                    <FormControl>
-                      <Checkbox
-                        data-testid="auto-instantiate-checkbox"
-                        disabled={field.disabled}
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                  <FormDescription>
-                    Whether marimo should automatically add package metadata to
-                    scripts. See more about{" "}
-                    <a
-                      href="https://docs.marimo.io/guides/editor_features/package_management.html"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-link hover:underline"
-                    >
-                      package metadata
-                    </a>
-                    .
-                  </FormDescription>
-                </div>
-              );
-            }}
-          />
         </SettingGroup>
         <SettingGroup title="Runtime">
           <FormField
