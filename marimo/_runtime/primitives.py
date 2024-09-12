@@ -61,7 +61,9 @@ def is_data_primitive(value: Any) -> bool:
     return hasattr(value, "__array__") or hasattr(value, "toarray")
 
 
-def _is_primitive_container(value: Any, predicate) -> bool:
+def _is_primitive_container(
+    value: Any, predicate: Callable[[Any], bool]
+) -> bool:
     visited = set()
 
     def recurse_container(value: Any) -> bool:
