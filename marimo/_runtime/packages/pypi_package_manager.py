@@ -69,29 +69,29 @@ class UvPackageManager(PypiPackageManager):
             self.module_to_package(im) for im in import_namespaces_to_remove
         ]
 
-        # Filter to packages that are found by "uv pip show"
-        packages_to_add = [
-            im for im in packages_to_add if self._is_installed(im)
-        ]
-        if packages_to_add:
-            version_map = self._get_version_map()
+        version_map = self._get_version_map()
 
-            def _maybe_add_version(package: str) -> str:
-                # Skip marimo
-                if package == "marimo":
-                    return package
-                version = version_map.get(package.lower())
-                if version:
-                    return f"{package}=={version}"
+        def _is_installed(package: str) -> bool:
+            return package.lower() in version_map
+
+        def _maybe_add_version(package: str) -> str:
+            # Skip marimo
+            if package == "marimo":
                 return package
+            version = version_map.get(package.lower())
+            if version:
+                return f"{package}=={version}"
+            return package
 
-            # Add version if it's available
-            packages_to_add = [
-                _maybe_add_version(im) for im in packages_to_add
-            ]
+        # Filter to packages that are found in "uv pip list"
+        packages_to_add = [
+            _maybe_add_version(im)
+            for im in packages_to_add
+            if _is_installed(im)
+        ]
 
         packages_to_remove = [
-            im for im in packages_to_remove if self._is_installed(im)
+            im for im in packages_to_remove if _is_installed(im)
         ]
 
         if packages_to_add:
@@ -115,10 +115,6 @@ class UvPackageManager(PypiPackageManager):
             return {pkg["name"]: pkg["version"] for pkg in packages}
         except json.JSONDecodeError:
             return {}
-
-    def _is_installed(self, package: str) -> bool:
-        cmd = ["uv", "pip", "show", package]
-        return subprocess.run(cmd, capture_output=True).returncode == 0
 
 
 class RyePackageManager(PypiPackageManager):
