@@ -6,6 +6,7 @@ from typing import Any, Callable, Sequence
 
 from marimo._output.formatters.altair_formatters import AltairFormatter
 from marimo._output.formatters.anywidget_formatters import AnyWidgetFormatter
+from marimo._output.formatters.arviz_formatters import ArviZFormatter
 from marimo._output.formatters.bokeh_formatters import BokehFormatter
 from marimo._output.formatters.cell import CellFormatter
 from marimo._output.formatters.df_formatters import (
@@ -21,7 +22,6 @@ from marimo._output.formatters.pandas_formatters import PandasFormatter
 from marimo._output.formatters.plotly_formatters import PlotlyFormatter
 from marimo._output.formatters.seaborn_formatters import SeabornFormatter
 from marimo._output.formatters.structures import StructuresFormatter
-from marimo._output.formatters.arviz_formatters import ArviZFormatter
 
 # Map from formatter factory's package name to formatter, for third-party
 # modules. These formatters will be registered if and when their associated

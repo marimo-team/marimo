@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from typing import Any, Union
-from marimo._messaging.mimetypes import KnownMimeType
-from marimo._output.formatters.formatter_factory import FormatterFactory
+from typing import Any
+
 import matplotlib.pyplot as plt
 import numpy as np
+
+from marimo._messaging.mimetypes import KnownMimeType
+from marimo._output.formatters.formatter_factory import FormatterFactory
+
 
 class ArviZFormatter(FormatterFactory):
     @staticmethod
@@ -13,6 +16,7 @@ class ArviZFormatter(FormatterFactory):
 
     def register(self) -> None:
         import arviz as az
+
         from marimo._output import formatting
 
         @formatting.formatter(az.InferenceData)
@@ -77,8 +81,8 @@ class ArviZFormatter(FormatterFactory):
 
     @staticmethod
     def _get_plot_html(fig: plt.Figure) -> str:
-        from io import BytesIO
         import base64
+        from io import BytesIO
 
         buf = BytesIO()
         fig.savefig(buf, format="png", bbox_inches="tight")  # Retain default settings
