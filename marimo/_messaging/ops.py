@@ -472,7 +472,7 @@ class VariableValue:
             # HACK: We pretty-print tables to avoid str(ibis_table)
             # which can be very slow when `ibis.options.interactive = True`
             table_manager = get_table_manager_or_none(value)
-            if table_manager:
+            if table_manager is not None:
                 return str(table_manager)
             else:
                 return str(value)[:50]
