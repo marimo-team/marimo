@@ -19,6 +19,8 @@ class ArviZFormatter(FormatterFactory):
 
     def register(self) -> None:
         import arviz as az
+        import matplotlib.pyplot as plt
+        import numpy as np
 
         from marimo._output import formatting
 
