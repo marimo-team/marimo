@@ -164,12 +164,13 @@ class IbisTableManagerFactory(TableManagerFactory):
             def get_unique_column_values(
                 self, column: str
             ) -> list[str | int | float]:
-                return (
+                result = (
                     self.data.distinct(on=column)
                     .select(column)
                     .execute()[column]
-                    .tolist()  # type: ignore
+                    .tolist()
                 )
+                return result  # type: ignore
 
             def sort_values(
                 self, by: ColumnName, descending: bool
