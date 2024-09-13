@@ -187,8 +187,8 @@ export const AppConfigForm: React.FC = () => {
                 <FormMessage />
               </FormItem>
               <FormDescription>
-                When enabled, the notebook will automatically download the HTML
-                snapshot to a folder <Kbd className="inline">.marimo</Kbd> in
+                When enabled, marimo will periodically save this notebook
+                as HTML to a folder <Kbd className="inline">.marimo</Kbd> in
                 the notebook's directory.
               </FormDescription>
             </div>
