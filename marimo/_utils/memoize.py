@@ -8,8 +8,9 @@ sentinel = object()  # Unique sentinel object
 
 
 def memoize_last_value(func: Callable[..., T]) -> Callable[..., T]:
-    last_input: Tuple[Tuple[Any, ...], frozenset[Tuple[str, Any]]] | None = (
-        None
+    last_input: Tuple[Tuple[Any, ...], frozenset[Tuple[str, Any]]] = (
+        (),
+        frozenset(),
     )
     last_output: T = cast(T, sentinel)
 
@@ -21,7 +22,15 @@ def memoize_last_value(func: Callable[..., T]) -> Callable[..., T]:
             frozenset(kwargs.items()),
         )
 
-        if current_input is last_input:
+        if (
+            last_output is not sentinel
+            and all(
+                current_input[0][i] is last_input[0][i]
+                for i in range(len(current_input[0]))
+                if i < len(last_input[0])
+            )
+            and current_input[1] == last_input[1]
+        ):
             assert last_output is not sentinel
             return last_output
 

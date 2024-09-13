@@ -84,7 +84,4 @@ class WebComponentEncoder(JSONEncoder):
             return obj.isoformat()
 
         # Fallthrough to default encoder
-        try:
-            return JSONEncoder.default(self, obj)
-        except TypeError:
-            return str(obj)
+        return JSONEncoder.default(self, obj)
