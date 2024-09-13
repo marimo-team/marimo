@@ -29,6 +29,7 @@ def memoize_last_value(func: Callable[..., T]) -> Callable[..., T]:
 
         if (
             last_output is not sentinel
+            and len(current_input[0]) == len(last_input[0])
             and all(
                 current_input[0][i] is last_input[0][i]
                 for i in range(len(current_input[0]))
