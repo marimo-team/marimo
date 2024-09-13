@@ -39,6 +39,7 @@ from marimo._output.hypertext import Html
 from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._plugins.ui._impl.tables.utils import get_table_manager_or_none
 from marimo._runtime.context import get_context
 from marimo._runtime.layout.layout import LayoutConfig
 from marimo._utils.platform import is_pyodide, is_windows
@@ -468,6 +469,14 @@ class VariableValue:
 
     def _stringify(self, value: object) -> str:
         try:
+            # HACK: We pretty-print tables to avoid str(ibis_table)
+            # which can be very slow when `ibis.options.interactive = True`
+            table_manager = get_table_manager_or_none(value)
+            if table_manager:
+                return str(table_manager)
+            else:
+                return str(value)[:50]
+
             return str(value)[:50]
         except BaseException:
             # Catch-all: some libraries like Polars have bugs and raise

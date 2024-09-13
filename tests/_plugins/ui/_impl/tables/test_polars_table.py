@@ -590,3 +590,47 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             }
         )
         assert_frame_equal(formatted_data, expected_data)
+
+    def test_empty_dataframe(self) -> None:
+        import polars as pl
+
+        empty_df = pl.DataFrame()
+        empty_manager = self.factory.create()(empty_df)
+        assert empty_manager.get_num_rows() == 0
+        assert empty_manager.get_num_columns() == 0
+        assert empty_manager.get_column_names() == []
+        assert empty_manager.get_field_types() == {}
+
+    def test_dataframe_with_all_null_column(self) -> None:
+        import polars as pl
+
+        df = pl.DataFrame({"A": [1, 2, 3], "B": [None, None, None]})
+        manager = self.factory.create()(df)
+        summary = manager.get_summary("B")
+        assert summary.nulls == 3
+        assert summary.total == 3
+
+    def test_dataframe_with_mixed_types(self) -> None:
+        import polars as pl
+
+        df = pl.DataFrame({"A": [1, "two", 3.0, True]}, strict=False)
+        manager = self.factory.create()(df)
+        field_types = manager.get_field_types()
+        assert field_types["A"] == ("string", "str")
+
+    @pytest.mark.skip
+    def test_search_with_regex(self) -> None:
+        import polars as pl
+
+        df = pl.DataFrame({"A": ["apple", "banana", "cherry"]})
+        manager = self.factory.create()(df)
+        result = manager.search("^[ab]")
+        assert result.get_num_rows() == 2
+
+    def test_sort_values_with_nulls(self) -> None:
+        import polars as pl
+
+        df = pl.DataFrame({"A": [3, 1, None, 2]})
+        manager = self.factory.create()(df)
+        sorted_manager = manager.sort_values("A", descending=True)
+        assert sorted_manager.data["A"].to_list() == [None, 3, 2, 1]

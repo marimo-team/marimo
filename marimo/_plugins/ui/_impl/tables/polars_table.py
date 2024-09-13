@@ -185,6 +185,11 @@ class PolarsTableManagerFactory(TableManagerFactory):
                         p75=col.quantile(0.75),
                         p95=col.quantile(0.95),
                     )
+                if col.dtype.is_(pl.Null):
+                    return ColumnSummary(
+                        total=total,
+                        nulls=col.null_count(),
+                    )
                 return ColumnSummary(
                     total=total,
                     nulls=col.null_count(),

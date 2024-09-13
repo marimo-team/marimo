@@ -8,6 +8,7 @@ from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
 from marimo._plugins.ui._impl.tables.df_protocol_table import (
     DataFrameProtocolTableManager,
 )
+from marimo._plugins.ui._impl.tables.ibis_table import IbisTableManagerFactory
 from marimo._plugins.ui._impl.tables.pandas_table import (
     PandasTableManagerFactory,
 )
@@ -29,6 +30,7 @@ MANAGERS: List[TableManagerFactory] = [
     PandasTableManagerFactory(),
     PolarsTableManagerFactory(),
     PyArrowTableManagerFactory(),
+    IbisTableManagerFactory(),
 ]
 
 

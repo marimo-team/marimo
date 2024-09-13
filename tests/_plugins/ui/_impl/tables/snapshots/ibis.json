@@ -1,0 +1,26 @@
+[
+  {
+    "strings": "a",
+    "bool": true,
+    "int": 1,
+    "float": 1.0,
+    "datetime": 1609459200,
+    "nulls": null
+  },
+  {
+    "strings": "b",
+    "bool": false,
+    "int": 2,
+    "float": 2.0,
+    "datetime": 1609545600,
+    "nulls": "data"
+  },
+  {
+    "strings": "c",
+    "bool": true,
+    "int": 3,
+    "float": 3.0,
+    "datetime": 1609632000,
+    "nulls": null
+  }
+]
