@@ -30,9 +30,13 @@ def require_header(header: list[str] | None) -> str:
     return header[0]
 
 
-async def parse_request(request: Request, cls: Type[T]) -> T:
+async def parse_request(
+    request: Request, cls: Type[T], allow_unknown_keys: bool = False
+) -> T:
     """Parse the request body as a dataclass of type `cls`"""
-    return parse_raw(await request.body(), cls=cls)
+    return parse_raw(
+        await request.body(), cls=cls, allow_unknown_keys=allow_unknown_keys
+    )
 
 
 def parse_title(filename: Optional[str]) -> str:

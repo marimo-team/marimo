@@ -5,7 +5,7 @@ import base64
 import io
 import mimetypes
 import os
-from typing import cast
+from typing import Optional, cast
 
 from marimo import __version__
 from marimo._ast.cell import Cell, CellConfig, CellImpl
@@ -177,25 +177,35 @@ class Exporter:
         # documents are executable.
 
         #  Put data from AppFileManager into the yaml header.
-        ignored_keys = {"app_title", "layout_file", "css_file"}
-        metadata = {
+        ignored_keys = {"app_title"}
+        metadata: dict[str, str | list[str]] = {
             "title": get_app_title(file_manager),
             "marimo-version": __version__,
-            "marimo-layout": file_manager.app.config.layout_file,
-            "marimo-css": file_manager.app.config.css_file,
         }
+
+        def _format_value(v: Optional[str | list[str]]) -> str | list[str]:
+            if isinstance(v, list):
+                return v
+            return str(v)
+
+        default_config = _AppConfig().asdict()
+
         # Get values defined in _AppConfig without explicitly extracting keys,
         # as long as it isn't the default.
         metadata.update(
             {
-                k: str(v)
+                k: _format_value(v)
                 for k, v in file_manager.app.config.asdict().items()
-                if k not in ignored_keys and v != _AppConfig.__dict__[k]
+                if k not in ignored_keys and v != default_config.get(k)
             }
         )
 
         header = yaml.dump(
-            {k: v for k, v in metadata.items() if v is not None},
+            {
+                k: v
+                for k, v in metadata.items()
+                if v is not None and v != "" and v != []
+            },
             sort_keys=False,
         )
         document = ["---", header.strip(), "---", ""]

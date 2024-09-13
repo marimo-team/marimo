@@ -2,10 +2,10 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#     "polars",
 #     "marimo",
-#     "quak",
-#     "vega-datasets",
+#     "polars==1.5.0",
+#     "quak==0.1.8",
+#     "vega-datasets==0.9.0",
 # ]
 # ///
 

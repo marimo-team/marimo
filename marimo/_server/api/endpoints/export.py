@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 from starlette.exceptions import HTTPException
-from starlette.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from starlette.responses import HTMLResponse, PlainTextResponse
 
 from marimo import _loggers
 from marimo._server.api.deps import AppState
@@ -86,7 +86,7 @@ async def export_as_html(
 async def auto_export_as_html(
     *,
     request: Request,
-) -> SuccessResponse | JSONResponse:
+) -> SuccessResponse | PlainTextResponse:
     """
     requestBody:
         content:
@@ -111,10 +111,7 @@ async def auto_export_as_html(
     # If we have already exported to HTML, don't do it again
     if session_view.has_auto_exported_html:
         LOGGER.debug("Already auto-exported to HTML")
-        return JSONResponse(
-            status_code=HTTPStatus.NOT_MODIFIED,
-            content={},
-        )
+        return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
     # Reload the file manager to get the latest state
     session.app_file_manager.reload()
@@ -235,7 +232,7 @@ async def export_as_markdown(
 async def auto_export_as_markdown(
     *,
     request: Request,
-) -> SuccessResponse | JSONResponse:
+) -> SuccessResponse | PlainTextResponse:
     """
     requestBody:
         content:
@@ -259,10 +256,7 @@ async def auto_export_as_markdown(
     # If we have already exported to Markdown, don't do it again
     if session_view.has_auto_exported_md:
         LOGGER.debug("Already auto-exported to Markdown")
-        return JSONResponse(
-            status_code=HTTPStatus.NOT_MODIFIED,
-            content={},
-        )
+        return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
     # Reload the file manager to get the latest state
     session.app_file_manager.reload()

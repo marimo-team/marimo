@@ -22,6 +22,9 @@ import { useAppConfig } from "@/core/config/config";
 import { saveAppConfig } from "@/core/network/requests";
 import { SettingTitle, SettingDescription } from "./common";
 import { useEffect } from "react";
+import { Checkbox } from "../ui/checkbox";
+import { arrayToggle } from "@/utils/arrays";
+import { Kbd } from "../ui/kbd";
 
 export const AppConfigForm: React.FC = () => {
   const [config, setConfig] = useAppConfig();
@@ -139,6 +142,54 @@ export const AppConfigForm: React.FC = () => {
               <FormDescription>
                 A filepath to a custom css file to be injected into the
                 notebook.
+              </FormDescription>
+            </div>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="auto_download"
+          render={({ field }) => (
+            <div className="flex flex-col gap-y-1">
+              <FormItem className="flex flex-col gap-2">
+                <FormControl>
+                  <div className="flex gap-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="html-checkbox"
+                        checked={field.value.includes("html")}
+                        onCheckedChange={() => {
+                          field.onChange(arrayToggle(field.value, "html"));
+                        }}
+                      />
+                      <FormLabel htmlFor="html-checkbox">
+                        Auto-download HTML
+                      </FormLabel>
+                    </div>
+                    {/* Disable markdown until we save outputs in the exported markdown */}
+                    {/* <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="markdown-checkbox"
+                        checked={field.value.includes("markdown")}
+                        onCheckedChange={() => {
+                          field.onChange(arrayToggle(field.value, "markdown"));
+                        }}
+                      />
+                      <label
+                        htmlFor="markdown-checkbox"
+                        className="cursor-pointer"
+                      >
+                        Markdown
+                      </label>
+                    </div> */}
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+              <FormDescription>
+                When enabled, marimo will periodically save this notebook as
+                HTML to a folder <Kbd className="inline">.marimo</Kbd> in the
+                notebook's directory.
               </FormDescription>
             </div>
           )}
