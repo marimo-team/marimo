@@ -51,7 +51,7 @@ class DataclassParser:
             ):
                 return origin_cls(
                     self._build_value(v, arg_types[0]) for v in value
-                )  # type: ignore # noqa: E501
+                )  # type: ignore
             else:
                 return origin_cls(  # type: ignore # noqa: E501
                     self._build_value(v, t) for v, t in zip(value, arg_types)
