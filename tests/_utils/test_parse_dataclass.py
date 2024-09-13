@@ -239,7 +239,17 @@ def test_build_optional() -> None:
 
 def test_build_empty_dataclass() -> None:
     @dataclass
-    class Empty: ...
+    class Empty:
+        ...
 
     parsed = parse_raw({}, Empty)
+    assert parsed == Empty()
+
+
+def test_with_unknown_keys() -> None:
+    @dataclass
+    class Empty:
+        ...
+
+    parsed = parse_raw({"key": "value"}, Empty, allow_unknown_keys=True)
     assert parsed == Empty()
