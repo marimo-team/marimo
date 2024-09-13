@@ -13,7 +13,7 @@ import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import {
   SortableContext,
   sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
+  rectSortingStrategy,
 } from "@dnd-kit/sortable";
 import { useCellActions, useNotebook } from "../../core/cells/cells";
 import { useEvent } from "../../hooks/useEvent";
@@ -64,7 +64,7 @@ const SortableCellsProviderInternal = ({
   //            scrollable container
   return (
     <DndContext
-      autoScroll={{ threshold: { x: 0, y: 0.1 } }}
+      autoScroll={{ threshold: { x: 0.1, y: 0.1 } }}
       sensors={sensors}
       collisionDetection={closestCenter}
       modifiers={[restrictToVerticalAxis]}
@@ -73,7 +73,7 @@ const SortableCellsProviderInternal = ({
       <SortableContext
         items={ids}
         disabled={disabled}
-        strategy={verticalListSortingStrategy}
+        strategy={rectSortingStrategy}
       >
         {children}
       </SortableContext>

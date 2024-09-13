@@ -57,6 +57,10 @@ export interface NotebookState {
    */
   cellIds: CollapsibleTree<CellId>;
   /**
+   * Column breakpoints
+   */
+  columnBreakpoints: Array<number>;
+  /**
    * Map of cells to their view state
    */
   cellData: Record<CellId, CellData>;
@@ -151,13 +155,14 @@ function initialNotebookState(): NotebookState {
         output: outputMessage,
         outline: parseOutline(outputMessage),
         consoleOutputs: outputs.map((output) =>
-          deserializeJson(deserializeBase64(output)),
+          deserializeJson(deserializeBase64(output))
         ),
       };
     }
 
     return {
       cellIds: CollapsibleTree.from(cellIds),
+      columnBreakpoints: [],
       cellData: cellData,
       cellRuntime: cellRuntime,
       cellHandles: {},
@@ -169,6 +174,7 @@ function initialNotebookState(): NotebookState {
 
   return withScratchCell({
     cellIds: CollapsibleTree.from([]),
+    columnBreakpoints: [],
     cellData: {},
     cellRuntime: {},
     cellHandles: {},
@@ -197,7 +203,7 @@ const {
       lastExecutionTime?: number;
       newCellId?: CellId;
       autoFocus?: boolean;
-    },
+    }
   ) => {
     const {
       cellId,
@@ -355,6 +361,11 @@ const {
       scrollKey: cellId,
     };
   },
+  addColumnBreakpoint: (state, action: { cellId: CellId }) => {
+    const index = state.cellIds.indexOfOrThrow(action.cellId);
+    const columnBreakpoints = [...state.columnBreakpoints, index];
+    return { ...state, columnBreakpoints: columnBreakpoints };
+  },
   deleteCell: (state, action: { cellId: CellId }) => {
     const cellId = action.cellId;
     if (state.cellIds.length === 1) {
@@ -439,7 +450,7 @@ const {
        * if so, the 'edited' state will be handled differently.
        */
       formattingChange: boolean;
-    },
+    }
   ) => {
     const { cellId, code, formattingChange } = action;
     if (!state.cellData[cellId]) {
@@ -473,7 +484,7 @@ const {
   },
   updateCellConfig: (
     state,
-    action: { cellId: CellId; config: Partial<CellConfig> },
+    action: { cellId: CellId; config: Partial<CellConfig> }
   ) => {
     const { cellId, config } = action;
     return updateCellData(state, cellId, (cell) => {
@@ -535,7 +546,7 @@ const {
   setCellCodes: (state, action: { codes: string[]; ids: CellId[] }) => {
     invariant(
       action.codes.length === action.ids.length,
-      "Expected codes and ids to have the same length",
+      "Expected codes and ids to have the same length"
     );
 
     for (let i = 0; i < action.codes.length; i++) {
@@ -556,7 +567,7 @@ const {
   },
   setStdinResponse: (
     state,
-    action: { cellId: CellId; response: string; outputIndex: number },
+    action: { cellId: CellId; response: string; outputIndex: number }
   ) => {
     const { cellId, response, outputIndex } = action;
     return updateCellRuntimeState(state, cellId, (cell) => {
@@ -586,7 +597,7 @@ const {
     const cellData = Object.fromEntries(cells.map((cell) => [cell.id, cell]));
 
     const cellRuntime = Object.fromEntries(
-      cells.map((cell) => [cell.id, createCellRuntimeState()]),
+      cells.map((cell) => [cell.id, createCellRuntimeState()])
     );
 
     return withScratchCell({
@@ -595,7 +606,7 @@ const {
       cellData: cellData,
       cellRuntime: cellRuntime,
       cellHandles: Object.fromEntries(
-        cells.map((cell) => [cell.id, createRef()]),
+        cells.map((cell) => [cell.id, createRef()])
       ),
     });
   },
@@ -610,7 +621,7 @@ const {
    */
   moveToNextCell: (
     state,
-    action: { cellId: CellId; before: boolean; noCreate?: boolean },
+    action: { cellId: CellId; before: boolean; noCreate?: boolean }
   ) => {
     const { cellId, before, noCreate = false } = action;
     const index = state.cellIds.indexOfOrThrow(cellId);
@@ -702,14 +713,14 @@ const {
   },
   foldAll: (state) => {
     const targets = Object.values(state.cellHandles).map(
-      (handle) => handle.current?.editorView,
+      (handle) => handle.current?.editorView
     );
     foldAllBulk(targets);
     return state;
   },
   unfoldAll: (state) => {
     const targets = Object.values(state.cellHandles).map(
-      (handle) => handle.current?.editorView,
+      (handle) => handle.current?.editorView
     );
     unfoldAllBulk(targets);
     return state;
@@ -777,7 +788,7 @@ const {
     }
 
     const { beforeCursorCode, afterCursorCode } = splitEditor(
-      cellHandle.editorView,
+      cellHandle.editorView
     );
 
     updateEditorCodeFromPython(cellHandle.editorView, beforeCursorCode);
@@ -862,7 +873,7 @@ const {
 function updateCellRuntimeState(
   state: NotebookState,
   cellId: CellId,
-  cellReducer: ReducerWithoutAction<CellRuntimeState>,
+  cellReducer: ReducerWithoutAction<CellRuntimeState>
 ) {
   if (!(cellId in state.cellRuntime)) {
     Logger.warn(`Cell ${cellId} not found in state`);
@@ -880,7 +891,7 @@ function updateCellRuntimeState(
 function updateCellData(
   state: NotebookState,
   cellId: CellId,
-  cellReducer: ReducerWithoutAction<CellData>,
+  cellReducer: ReducerWithoutAction<CellData>
 ) {
   if (!(cellId in state.cellData)) {
     Logger.warn(`Cell ${cellId} not found in state`);
@@ -920,7 +931,7 @@ const cellErrorsAtom = atom((get) => {
         // but nothing the user can take action on.
         invariant(Array.isArray(cell.output.data), "Expected array data");
         const nonAncestorErrors = cell.output.data.filter(
-          (error) => !error.type.includes("ancestor"),
+          (error) => !error.type.includes("ancestor")
         );
 
         if (nonAncestorErrors.length > 0) {
@@ -943,7 +954,7 @@ export const notebookHasCellsAtom = atom((get) => get(cellIdsAtom).length > 0);
 export const notebookOutline = atom((get) => {
   const { cellIds, cellRuntime } = get(notebookAtom);
   const outlines = cellIds.inOrderIds.map(
-    (cellId) => cellRuntime[cellId].outline,
+    (cellId) => cellRuntime[cellId].outline
   );
   return mergeOutlines(outlines);
 });
@@ -953,7 +964,7 @@ export const cellErrorCount = atom((get) => get(cellErrorsAtom).length);
 export const cellIdToNamesMap = atom((get) => {
   const { cellIds, cellData } = get(notebookAtom);
   const names: Record<CellId, string | undefined> = Objects.fromEntries(
-    cellIds.inOrderIds.map((cellId) => [cellId, cellData[cellId]?.name]),
+    cellIds.inOrderIds.map((cellId) => [cellId, cellData[cellId]?.name])
   );
   return names;
 });
@@ -1007,16 +1018,16 @@ export const getCellNames = () => {
 
 const cellDataAtoms = splitAtom(
   selectAtom(notebookAtom, (cells) =>
-    cells.cellIds.inOrderIds.map((id) => cells.cellData[id]),
-  ),
+    cells.cellIds.inOrderIds.map((id) => cells.cellData[id])
+  )
 );
 export const useCellDataAtoms = () => useAtom(cellDataAtoms);
 
 export const notebookIsRunningAtom = atom((get) =>
-  notebookIsRunning(get(notebookAtom)),
+  notebookIsRunning(get(notebookAtom))
 );
 export const notebookQueuedOrRunningCountAtom = atom((get) =>
-  notebookQueueOrRunningCount(get(notebookAtom)),
+  notebookQueueOrRunningCount(get(notebookAtom))
 );
 
 /**
@@ -1040,7 +1051,7 @@ export function isUninstantiated(
   status: RuntimeState,
   errored: boolean,
   interrupted: boolean,
-  stopped: boolean,
+  stopped: boolean
 ) {
   return (
     // autorun on startup is off ...
@@ -1073,7 +1084,7 @@ export function staleCellIds(state: NotebookState) {
         cellRuntime[cellId].status,
         cellRuntime[cellId].errored,
         cellRuntime[cellId].interrupted,
-        cellRuntime[cellId].stopped,
+        cellRuntime[cellId].stopped
       ) ||
       cellData[cellId].edited ||
       cellRuntime[cellId].interrupted ||
@@ -1082,12 +1093,12 @@ export function staleCellIds(state: NotebookState) {
         !(
           cellRuntime[cellId].status === "disabled-transitively" ||
           cellData[cellId].config.disabled
-        )),
+        ))
   );
 }
 
 export function flattenTopLevelNotebookCells(
-  state: NotebookState,
+  state: NotebookState
 ): Array<CellData & CellRuntimeState> {
   const { cellIds, cellData, cellRuntime } = state;
   return cellIds.topLevelIds.map((cellId) => ({
@@ -1112,7 +1123,7 @@ export type CellActions = ReturnType<typeof createActions>;
 export const CellEffects = {
   onCellIdsChange: (
     cellIds: CollapsibleTree<CellId>,
-    prevCellIds: CollapsibleTree<CellId>,
+    prevCellIds: CollapsibleTree<CellId>
   ) => {
     const kioskMode = store.get(kioskModeAtom);
     if (kioskMode) {

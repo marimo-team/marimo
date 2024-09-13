@@ -29,6 +29,7 @@ import {
   EyeOffIcon,
   SparklesIcon,
   DatabaseIcon,
+  Columns2Icon,
 } from "lucide-react";
 import type { ActionButton } from "./types";
 import { MultiIcon } from "@/components/icons/multi-icon";
@@ -75,6 +76,7 @@ export function useCellActionButtons({ cell }: Props) {
     moveCell,
     sendToTop,
     sendToBottom,
+    addColumnBreakpoint
   } = useCellActions();
   const runCell = useRunCell(cell?.cellId);
   const hasOnlyOneCell = useAtomValue(hasOnlyOneCellAtom);
@@ -151,7 +153,7 @@ export function useCellActionButtons({ cell }: Props) {
                   }
                 />
               </div>
-            </DialogContent>,
+            </DialogContent>
           );
         },
         rightElement: (
@@ -179,7 +181,7 @@ export function useCellActionButtons({ cell }: Props) {
         hidden: !aiEnabled,
         handle: () => {
           setAiCompletionCell((current) =>
-            current?.cellId === cellId ? null : { cellId },
+            current?.cellId === cellId ? null : { cellId }
           );
         },
         hotkey: "cell.aiCompletion",
@@ -321,6 +323,12 @@ export function useCellActionButtons({ cell }: Props) {
         label: "Send to bottom",
         hotkey: "cell.sendToBottom",
         handle: () => sendToBottom({ cellId }),
+      },
+      {
+        icon: <Columns2Icon size={13} strokeWidth={1.5} />,
+        label: "Add column breakpoint",
+        hotkey: "cell.addColumnBreakpoint",
+        handle: () => addColumnBreakpoint({ cellId }),
       },
     ],
 
