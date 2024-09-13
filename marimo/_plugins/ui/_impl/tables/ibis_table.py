@@ -152,14 +152,14 @@ class IbisTableManagerFactory(TableManagerFactory):
             @memoize_last_value
             def get_num_rows(self, force: bool = True) -> Optional[int]:
                 if force:
-                    return self.data.count().execute()
+                    return self.data.count().execute()  # type: ignore
                 return None
 
             def get_num_columns(self) -> int:
                 return len(self.data.columns)
 
             def get_column_names(self) -> list[str]:
-                return self.data.columns
+                return self.data.columns  # type: ignore
 
             def get_unique_column_values(
                 self, column: str
@@ -169,7 +169,7 @@ class IbisTableManagerFactory(TableManagerFactory):
                     .select(column)
                     .execute()[column]
                     .tolist()
-                )
+                )  # type: ignore
 
             def sort_values(
                 self, by: ColumnName, descending: bool
