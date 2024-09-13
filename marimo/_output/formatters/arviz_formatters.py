@@ -70,19 +70,28 @@ class ArviZFormatter(FormatterFactory):
 
     @staticmethod
     def _contains_axes(arr: np.ndarray) -> bool:
-        if arr.ndim == 1:
-            return any(isinstance(item, plt.Axes) for item in arr)
-        elif arr.ndim == 2:
-            return any(isinstance(item, plt.Axes) for row in arr for item in row)
-        return False
+        """
+        Check if the numpy array contains any matplotlib Axes objects.
+        To ensure performance for large arrays, we limit the check to the first 1000 items.
+        This should be sufficient for most use cases while avoiding excessive computation time.
+        """
+        # Cap the number of items to check for performance reasons
+        MAX_ITEMS_TO_CHECK = 1000
 
-    @staticmethod
-    def _get_axes_info(fig: plt.Figure) -> str:
-        axes_info = []
-        for i, ax in enumerate(fig.axes):
-            bbox = ax.get_position()
-            axes_info.append(f"Axes({bbox.x0:.3f},{bbox.y0:.3f};{bbox.width:.3f}x{bbox.height:.3f})")
-        return "\n".join(axes_info)
+        if arr.ndim == 1:
+            # For 1D arrays, check up to MAX_ITEMS_TO_CHECK items
+            return any(isinstance(item, plt.Axes) for item in arr[:MAX_ITEMS_TO_CHECK])
+        elif arr.ndim == 2:
+            # For 2D arrays, check up to MAX_ITEMS_TO_CHECK items in total
+            items_checked = 0
+            for row in arr:
+                for item in row:
+                    if isinstance(item, plt.Axes):
+                        return True
+                    items_checked += 1
+                    if items_checked >= MAX_ITEMS_TO_CHECK:
+                        return False
+        return False
 
     @staticmethod
     def _get_plot_html(fig: plt.Figure) -> str:
