@@ -75,4 +75,14 @@ class ArviZFormatter(FormatterFactory):
             axes_info.append(f"Axes({bbox.x0:.3f},{bbox.y0:.3f};{bbox.width:.3f}x{bbox.height:.3f})")
         return "\n".join(axes_info)
 
+    @staticmethod
+    def _get_plot_html(fig: plt.Figure) -> str:
+        from io import BytesIO
+        import base64
+
+        buf = BytesIO()
+        fig.savefig(buf, format="png", bbox_inches="tight")  # Retain default settings
+        data = base64.b64encode(buf.getbuffer()).decode("ascii")
+        return f"<img src='data:image/png;base64,{data}'/>"
+
     
