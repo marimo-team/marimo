@@ -68,7 +68,7 @@ class IbisTableManagerFactory(TableManagerFactory):
                     return self.take(0, 0)  # Return empty table
                 # Select rows using Ibis API
                 return IbisTableManager(
-                    self.data.filter(ibis.row_number().isin(indices))
+                    self.data.filter(ibis.row_number().over().isin(indices))
                 )
 
             def select_columns(
