@@ -59,4 +59,12 @@ class ArviZFormatter(FormatterFactory):
         # Fallback to plain text if no axes or plot are present
         return ("text/plain", str(arr))
 
+    @staticmethod
+    def _contains_axes(arr: np.ndarray) -> bool:
+        if arr.ndim == 1:
+            return any(isinstance(item, plt.Axes) for item in arr)
+        elif arr.ndim == 2:
+            return any(isinstance(item, plt.Axes) for row in arr for item in row)
+        return False
+
     
