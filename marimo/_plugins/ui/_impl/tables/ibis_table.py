@@ -168,8 +168,8 @@ class IbisTableManagerFactory(TableManagerFactory):
                     self.data.distinct(on=column)
                     .select(column)
                     .execute()[column]
-                    .tolist()
-                )  # type: ignore
+                    .tolist()  # type: ignore
+                )
 
             def sort_values(
                 self, by: ColumnName, descending: bool
