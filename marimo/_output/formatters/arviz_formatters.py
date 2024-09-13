@@ -45,4 +45,18 @@ class ArviZFormatter(FormatterFactory):
         ) -> tuple[KnownMimeType, str]:
             return self.format_arviz_plot(obj)
 
+    @classmethod
+    def format_numpy_axes(cls, arr: np.ndarray) -> tuple[KnownMimeType, str]:
+        # Check if array contains axes (to render plots) or not
+        if arr.dtype == object and cls._contains_axes(arr):
+            fig = plt.gcf()
+            if fig.get_axes():  # Only process if there are axes to show
+                axes_info = cls._get_axes_info(fig)
+                plot_html = cls._get_plot_html(fig)
+                plt.close(fig)  # Safely close the figure after saving
+                combined_html = f"<pre>{axes_info}</pre><br>{plot_html}"
+                return ("text/html", combined_html)
+        # Fallback to plain text if no axes or plot are present
+        return ("text/plain", str(arr))
+
     
