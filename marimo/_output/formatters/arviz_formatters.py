@@ -67,4 +67,12 @@ class ArviZFormatter(FormatterFactory):
             return any(isinstance(item, plt.Axes) for row in arr for item in row)
         return False
 
+    @staticmethod
+    def _get_axes_info(fig: plt.Figure) -> str:
+        axes_info = []
+        for i, ax in enumerate(fig.axes):
+            bbox = ax.get_position()
+            axes_info.append(f"Axes({bbox.x0:.3f},{bbox.y0:.3f};{bbox.width:.3f}x{bbox.height:.3f})")
+        return "\n".join(axes_info)
+
     
