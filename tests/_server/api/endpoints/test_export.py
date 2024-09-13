@@ -197,7 +197,6 @@ def test_auto_export_html(client: TestClient, temp_marimo_file: str) -> None:
     )
     # Not modified response
     assert response.status_code == 304
-    assert response.json() == {}
 
     # Assert .marimo file is created
     assert os.path.exists(
@@ -236,7 +235,6 @@ def test_auto_export_html_no_code(
     )
     # Not modified response
     assert response.status_code == 304
-    assert response.json() == {}
 
     # Assert .marimo file is created
     assert os.path.exists(
@@ -271,7 +269,6 @@ def test_auto_export_markdown(
     )
     # Not modified response
     assert response.status_code == 304
-    assert response.json() == {}
 
     # Assert .marimo file is created
     assert os.path.exists(

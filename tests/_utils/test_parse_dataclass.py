@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 import pytest
 
 from marimo._runtime.requests import SetCellConfigRequest
-from marimo._utils.parse_dataclass import build_dataclass, parse_raw
+from marimo._utils.parse_dataclass import parse_raw
 
 
 @dataclass
@@ -230,10 +230,10 @@ def test_build_optional() -> None:
     class TestOptional:
         x: Optional[str] = None
 
-    parsed = build_dataclass({}, TestOptional)
+    parsed = parse_raw({}, TestOptional)
     assert parsed == TestOptional(x=None)
 
-    parsed = build_dataclass({"x": "hello"}, TestOptional)
+    parsed = parse_raw({"x": "hello"}, TestOptional)
     assert parsed == TestOptional(x="hello")
 
 
@@ -241,5 +241,5 @@ def test_build_empty_dataclass() -> None:
     @dataclass
     class Empty: ...
 
-    parsed = build_dataclass({}, Empty)
+    parsed = parse_raw({}, Empty)
     assert parsed == Empty()

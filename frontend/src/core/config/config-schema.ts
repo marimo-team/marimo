@@ -151,8 +151,9 @@ export const AppConfigSchema = z
       }),
     app_title: AppTitleSchema.nullish(),
     css_file: z.string().nullish(),
+    auto_download: z.array(z.string()).default([]),
   })
-  .default({ width: "medium" });
+  .default({ width: "medium", auto_download: [] });
 export type AppConfig = z.infer<typeof AppConfigSchema>;
 
 export function parseAppConfig() {

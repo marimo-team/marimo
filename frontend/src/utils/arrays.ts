@@ -44,3 +44,10 @@ export const Arrays = {
     return result;
   },
 };
+
+export function arrayToggle<T>(arr: T[], item: T): T[] {
+  if (!arr) {
+    return [item];
+  }
+  return arr.includes(item) ? arr.filter((i) => i !== item) : [...arr, item];
+}

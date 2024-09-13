@@ -1,18 +1,20 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { useAtomValue } from "jotai";
-import { autoExportHTMLAtom, autoExportMarkdownAtom } from "./state";
 import { useInterval } from "@/hooks/useInterval";
 import { autoExportAsHTML, autoExportAsMarkdown } from "../network/requests";
 import { VirtualFileTracker } from "../static/virtual-file-tracker";
 import { connectionAtom } from "../network/connection";
 import { WebSocketState } from "../websocket/types";
+import { appConfigAtom } from "@/core/config/config";
 
 const DELAY = 5000; // 5 seconds;
 
 export function useAutoExport() {
-  const markdownEnabled = useAtomValue(autoExportMarkdownAtom);
-  const htmlEnabled = useAtomValue(autoExportHTMLAtom);
+  const appConfig = useAtomValue(appConfigAtom);
   const { state } = useAtomValue(connectionAtom);
+
+  const markdownEnabled = appConfig.auto_download.includes("markdown");
+  const htmlEnabled = appConfig.auto_download.includes("html");
 
   const markdownDisabled = !markdownEnabled || state !== WebSocketState.OPEN;
   const htmlDisabled = !htmlEnabled || state !== WebSocketState.OPEN;

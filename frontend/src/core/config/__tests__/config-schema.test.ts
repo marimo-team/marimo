@@ -5,9 +5,10 @@ import { AppConfigSchema, UserConfigSchema } from "../config-schema";
 test("default AppConfig", () => {
   const defaultConfig = AppConfigSchema.parse({});
   expect(defaultConfig).toMatchInlineSnapshot(`
-  {
-    "width": "medium",
-  }
+    {
+      "auto_download": [],
+      "width": "medium",
+    }
   `);
 });
 
@@ -19,6 +20,7 @@ test("another AppConfig", () => {
   expect(config).toMatchInlineSnapshot(`
     {
       "app_title": null,
+      "auto_download": [],
       "width": "medium",
     }
   `);
