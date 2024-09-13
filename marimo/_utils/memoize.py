@@ -8,6 +8,11 @@ sentinel = object()  # Unique sentinel object
 
 
 def memoize_last_value(func: Callable[..., T]) -> Callable[..., T]:
+    """
+    This differs from functools.lru_cache in that is checks for
+    object identity for positional arguments instead of equality
+    which for functools requires the arguments to be hashable.
+    """
     last_input: Tuple[Tuple[Any, ...], frozenset[Tuple[str, Any]]] = (
         (),
         frozenset(),

@@ -37,7 +37,7 @@ class IbisTableManagerFactory(TableManagerFactory):
 
     @staticmethod
     def create() -> type[TableManager[Any]]:
-        import ibis
+        import ibis  # type: ignore
 
         class IbisTableManager(TableManager[ibis.Table]):
             type = "ibis"
