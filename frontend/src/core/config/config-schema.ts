@@ -14,7 +14,7 @@ export const PackageManagerNames = [
 ] as const;
 export type PackageManagerName = (typeof PackageManagerNames)[number];
 
-export const APP_WIDTHS = ["compact", "medium", "full"] as const;
+export const APP_WIDTHS = ["compact", "medium", "full", "columns"] as const;
 /**
  * normal == compact, but normal is deprecated
  */

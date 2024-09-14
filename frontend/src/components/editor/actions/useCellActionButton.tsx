@@ -49,7 +49,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { MarkdownIcon, PythonIcon } from "../cell/code/icons";
-import { aiEnabledAtom, autoInstantiateAtom } from "@/core/config/config";
+import { aiEnabledAtom, autoInstantiateAtom, getAppConfig } from "@/core/config/config";
 import { useDeleteCellCallback } from "../cell/useDeleteCell";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import type { CellConfig, RuntimeState } from "@/core/network/types";
@@ -76,7 +76,7 @@ export function useCellActionButtons({ cell }: Props) {
     moveCell,
     sendToTop,
     sendToBottom,
-    addColumnBreakpoint
+    addColumnBreakpoint,
   } = useCellActions();
   const runCell = useRunCell(cell?.cellId);
   const hasOnlyOneCell = useAtomValue(hasOnlyOneCellAtom);
@@ -88,6 +88,7 @@ export function useCellActionButtons({ cell }: Props) {
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const cellIds = useCellIds();
   const kioskMode = useAtomValue(kioskModeAtom);
+  const appConfig = getAppConfig()
 
   if (!cell || kioskMode) {
     return [];
@@ -153,7 +154,7 @@ export function useCellActionButtons({ cell }: Props) {
                   }
                 />
               </div>
-            </DialogContent>
+            </DialogContent>,
           );
         },
         rightElement: (
@@ -181,7 +182,7 @@ export function useCellActionButtons({ cell }: Props) {
         hidden: !aiEnabled,
         handle: () => {
           setAiCompletionCell((current) =>
-            current?.cellId === cellId ? null : { cellId }
+            current?.cellId === cellId ? null : { cellId },
           );
         },
         hotkey: "cell.aiCompletion",
@@ -328,6 +329,7 @@ export function useCellActionButtons({ cell }: Props) {
         icon: <Columns2Icon size={13} strokeWidth={1.5} />,
         label: "Add column breakpoint",
         hotkey: "cell.addColumnBreakpoint",
+        hidden: appConfig.width !== "columns",
         handle: () => addColumnBreakpoint({ cellId }),
       },
     ],

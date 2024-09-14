@@ -835,6 +835,7 @@ components:
               - compact
               - medium
               - full
+              - columns
               type: string
           required:
           - width

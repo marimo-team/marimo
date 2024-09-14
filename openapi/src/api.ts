@@ -2101,7 +2101,7 @@ export interface components {
         css_file?: string | null;
         layout_file?: string | null;
         /** @enum {string} */
-        width: "normal" | "compact" | "medium" | "full";
+        width: "normal" | "compact" | "medium" | "full" | "columns";
       };
       capabilities: {
         sql: boolean;
@@ -2179,7 +2179,7 @@ export interface components {
         /** @enum {string} */
         dataframes: "rich" | "plain";
         /** @enum {string} */
-        default_width: "normal" | "compact" | "medium" | "full";
+        default_width: "normal" | "compact" | "medium" | "full" | "columns";
         /** @enum {string} */
         theme: "light" | "dark" | "system";
       };
