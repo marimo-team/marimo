@@ -69,15 +69,17 @@ class ArviZFormatter(FormatterFactory):
     def _contains_axes(arr: np.ndarray) -> bool:
         """
         Check if the numpy array contains any matplotlib Axes objects.
-        To ensure performance for large arrays, we limit the check to the first 100 items.
-        This should be sufficient for most use cases while avoiding excessive computation time.
+        To ensure performance for large arrays, we limit the check to the
+        first 100 items. This should be sufficient for most use cases
+        while avoiding excessive computation time.
         """
         # Cap the number of items to check for performance reasons
         MAX_ITEMS_TO_CHECK = 100
 
         if arr.ndim == 1:
             # For 1D arrays, check up to MAX_ITEMS_TO_CHECK items
-            return any(isinstance(item, plt.Axes) for item in arr[:MAX_ITEMS_TO_CHECK])
+            return any(isinstance(item, plt.Axes)
+                       for item in arr[:MAX_ITEMS_TO_CHECK])
         elif arr.ndim == 2:
             # For 2D arrays, check up to MAX_ITEMS_TO_CHECK items in total
             items_checked = 0
@@ -96,7 +98,7 @@ class ArviZFormatter(FormatterFactory):
         from io import BytesIO
 
         buf = BytesIO()
-        fig.savefig(buf, format="png", bbox_inches="tight")  # Retain default settings
+        fig.savefig(buf, format="png", bbox_inches="tight")  # Retain default
         data = base64.b64encode(buf.getbuffer()).decode("ascii")
         return f"<img src='data:image/png;base64,{data}'/>"
 
@@ -108,7 +110,8 @@ class ArviZFormatter(FormatterFactory):
             axes_info = cls._get_axes_info(fig)
             plot_html = cls._get_plot_html(fig)
             plt.close(fig)
-            combined_html = f"<pre>{str_repr}\n{axes_info}</pre><br>{plot_html}"
+            combined_html = (f"<pre>{str_repr}\n{axes_info}</pre><br>"
+                             f"{plot_html}")
             return ("text/html", combined_html)
         return ("text/plain", str_repr)
 
