@@ -69,7 +69,7 @@ class ArviZFormatter(FormatterFactory):
     def _contains_axes(arr: np.ndarray) -> bool:
         """
         Check if the numpy array contains any matplotlib Axes objects.
-        To ensure performance for large arrays, we limit the check to the first 1000 items.
+        To ensure performance for large arrays, we limit the check to the first 100 items.
         This should be sufficient for most use cases while avoiding excessive computation time.
         """
         # Cap the number of items to check for performance reasons
