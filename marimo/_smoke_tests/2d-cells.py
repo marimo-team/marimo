@@ -7,46 +7,67 @@ app = marimo.App(width="columns")
 @app.cell
 def __():
     import marimo as mo
+    import altair as alt
     from vega_datasets import data
-    return data, mo
+    return alt, data, mo
 
 
 @app.cell
-def __(mo):
-    mo.ui.button(
-        kind="success",
-        label="You may click.",
-        on_click=lambda scold: print("Very good!")
-    )
+def __(dataset, mo, plot, x, y):
+    mo.vstack([dataset, x, y, plot])
     return
 
 
 @app.cell
-def __(mo):
-    mo.ui.button(
-        kind="danger",
-        label="You may not click!",
-        on_click=lambda scold: print("Hey! Stop it!")
-    )
-    return
-
-
-@app.cell
-def __(data):
-    df = data.iris()
+def __(selected_dataset):
+    df = selected_dataset()
     df
     return df,
 
 
 @app.cell
-def __(data):
-    data.airports()
+def __(plot_type, x, y):
+    plot_type().encode(
+        x=x.value,
+        y=y.value,
+    ).interactive()
     return
 
 
 @app.cell
-def __():
-    return
+def __(data, mo):
+    dataset = mo.ui.dropdown(
+        label="Choose dataset", options=data.list_datasets(), value="jobs"
+    )
+    return dataset,
+
+
+@app.cell
+def __(df, mo):
+    x = mo.ui.dropdown(
+        label="Choose X value", options=df.columns.to_list(), value=df.columns[0]
+    )
+    y = mo.ui.dropdown(
+        label="Choose Y value", options=df.columns.to_list(), value=df.columns[1]
+    )
+    plot = mo.ui.dropdown(
+        label="Choose plot type",
+        options=["mark_bar", "mark_circle"],
+        value="mark_bar",
+    )
+    return plot, x, y
+
+
+@app.cell
+def __(data, dataset):
+    selected_dataset = getattr(data, dataset.value)
+    return selected_dataset,
+
+
+@app.cell
+def __(alt, df, plot):
+    plot_type = getattr(alt.Chart(df), plot.value)
+    return plot_type,
 
 
 if __name__ == "__main__":
