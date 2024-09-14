@@ -224,7 +224,9 @@ const {
         : state.cellIds.topLevelIds.indexOf(cellId);
     const insertionIndex = before ? index : index + 1;
 
-    updateColumnBreakpoints(state.columnBreakpoints, insertionIndex, true);
+    if (!(before && state.columnBreakpoints.includes(index))) {
+      updateColumnBreakpoints(state.columnBreakpoints, insertionIndex, true);
+    }
 
     return {
       ...state,
@@ -370,7 +372,7 @@ const {
   addColumnBreakpoint: (state, action: { cellId: CellId }) => {
     const index = state.cellIds.indexOfOrThrow(action.cellId);
     const columnBreakpoints = [...state.columnBreakpoints, index];
-    return { ...state, columnBreakpoints: columnBreakpoints };
+    return { ...state, columnBreakpoints: columnBreakpoints.sort() };
   },
   deleteCell: (state, action: { cellId: CellId }) => {
     const cellId = action.cellId;
@@ -386,7 +388,9 @@ const {
       cellId
     ].current?.editorView.state.toJSON({ history: historyField });
 
-    updateColumnBreakpoints(state.columnBreakpoints, index, false);
+    if (!state.columnBreakpoints.includes(index)) {
+      updateColumnBreakpoints(state.columnBreakpoints, index, false);
+    }
 
     return {
       ...state,
