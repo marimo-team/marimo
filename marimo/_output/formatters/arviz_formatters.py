@@ -76,7 +76,7 @@ class ArviZFormatter(FormatterFactory):
         This should be sufficient for most use cases while avoiding excessive computation time.
         """
         # Cap the number of items to check for performance reasons
-        MAX_ITEMS_TO_CHECK = 1000
+        MAX_ITEMS_TO_CHECK = 100
 
         if arr.ndim == 1:
             # For 1D arrays, check up to MAX_ITEMS_TO_CHECK items
