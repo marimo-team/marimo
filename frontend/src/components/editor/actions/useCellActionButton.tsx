@@ -49,7 +49,11 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { MarkdownIcon, PythonIcon } from "../cell/code/icons";
-import { aiEnabledAtom, autoInstantiateAtom, getAppConfig } from "@/core/config/config";
+import {
+  aiEnabledAtom,
+  autoInstantiateAtom,
+  getAppConfig,
+} from "@/core/config/config";
 import { useDeleteCellCallback } from "../cell/useDeleteCell";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import type { CellConfig, RuntimeState } from "@/core/network/types";
@@ -88,7 +92,7 @@ export function useCellActionButtons({ cell }: Props) {
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const cellIds = useCellIds();
   const kioskMode = useAtomValue(kioskModeAtom);
-  const appConfig = getAppConfig()
+  const appConfig = getAppConfig();
 
   if (!cell || kioskMode) {
     return [];

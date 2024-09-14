@@ -29,7 +29,11 @@ import { deserializeBase64, deserializeJson } from "@/utils/json/base64";
 import { historyField } from "@codemirror/commands";
 import { clamp } from "@/utils/math";
 import type { LayoutState } from "../layout/layout";
-import { notebookIsRunning, notebookQueueOrRunningCount } from "./utils";
+import {
+  notebookIsRunning,
+  notebookQueueOrRunningCount,
+  updateColumnBreakpoints,
+} from "./utils";
 import {
   splitEditor,
   updateEditorCodeFromPython,
@@ -220,6 +224,8 @@ const {
         : state.cellIds.topLevelIds.indexOf(cellId);
     const insertionIndex = before ? index : index + 1;
 
+    updateColumnBreakpoints(state.columnBreakpoints, insertionIndex, true);
+
     return {
       ...state,
       cellIds: state.cellIds.insert(newCellId, insertionIndex),
@@ -379,6 +385,9 @@ const {
     const serializedEditorState = state.cellHandles[
       cellId
     ].current?.editorView.state.toJSON({ history: historyField });
+
+    updateColumnBreakpoints(state.columnBreakpoints, index, false);
+
     return {
       ...state,
       cellIds: state.cellIds.delete(index),
@@ -413,6 +422,9 @@ const {
       edited: serializedEditorState.doc.trim().length > 0,
       serializedEditorState,
     });
+
+    updateColumnBreakpoints(state.columnBreakpoints, index, true);
+
     return {
       ...state,
       cellIds: state.cellIds.insert(cellId, index),

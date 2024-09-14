@@ -102,3 +102,19 @@ export function getDescendantsStatus(state: NotebookState, cellId: CellId) {
     runningOrQueued,
   };
 }
+
+export function updateColumnBreakpoints(
+  breakpoints: number[],
+  cellIndex: number,
+  increment: boolean,
+) {
+  breakpoints.forEach((breakpoint, i) => {
+    if (breakpoint >= cellIndex) {
+      if (increment) {
+        breakpoints[i] += 1;
+      } else {
+        breakpoints[i] -= 1;
+      }
+    }
+  });
+}
