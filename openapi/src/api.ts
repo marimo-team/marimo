@@ -2203,6 +2203,7 @@ export interface components {
     KernelReady: {
       app_config: {
         app_title?: string | null;
+        auto_download: ("html" | "markdown")[];
         css_file?: string | null;
         layout_file?: string | null;
         /** @enum {string} */

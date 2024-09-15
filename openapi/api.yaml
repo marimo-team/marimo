@@ -861,6 +861,13 @@ components:
             app_title:
               nullable: true
               type: string
+            auto_download:
+              items:
+                enum:
+                - html
+                - markdown
+                type: string
+              type: array
             css_file:
               nullable: true
               type: string
@@ -876,6 +883,7 @@ components:
               type: string
           required:
           - width
+          - auto_download
           type: object
         capabilities:
           properties:
@@ -1855,7 +1863,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.8.14
+  version: 0.8.15
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
