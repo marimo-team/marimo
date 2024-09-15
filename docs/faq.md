@@ -194,7 +194,7 @@ _Here are some tips to avoid accidental execution of expensive cells:_
 
 - [Disable expensive cells](guides/reactivity.md#disabling-cells).
 When a cell is disabled, it and its descendants are blocked from running.
-- Use Python's `functools.cache` to cache expensive
+- Use marimo's `mo.cache` or Python's `functools.cache` to cache expensive
 intermediate computations (see our [best practices guide](guides/best_practices.md)).
 - Wrap UI elements in a [form](api/inputs/form.md#marimo.ui.form).
 - Use [`mo.stop`](api/control_flow.md#marimo.stop) to conditionally stop

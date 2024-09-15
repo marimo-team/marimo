@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+import inspect
 import io
 import sys
 import traceback
@@ -9,6 +10,7 @@ from sys import maxsize as MAXINT
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     Optional,
     Type,
     Union,
@@ -16,10 +18,11 @@ from typing import (
 
 from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime.context import get_context
-from marimo._save.ast import ExtractWithBlock
+from marimo._runtime.state import State
+from marimo._save.ast import ExtractWithBlock, strip_function
 from marimo._save.cache import Cache, CacheException
 from marimo._save.hash import cache_attempt_from_hash
-from marimo._save.loaders import Loader, PickleLoader
+from marimo._save.loaders import Loader, MemoryLoader, PickleLoader
 
 # Many assertions are for typing and should always pass. This message is a
 # catch all to motive users to report if something does fail.
@@ -37,34 +40,235 @@ if TYPE_CHECKING:
     from _typeshed import TraceFunction
     from typing_extensions import Self
 
+    from marimo._runtime.dataflow import DirectedGraph
+
 
 class SkipWithBlock(Exception):
     """Special exception to get around executing the with block body."""
 
 
+class cache(object):
+    """Decorator for caching the return value of a function.
+
+    Decorating a function with `@mo.save.cache` will "memoize" the return
+    value. Memoization helps optimize performance by storing the results of
+    expensive function calls and reusing them when the same inputs occur again.
+
+    This is analogous to `functools.cache`, but with the added benefit of
+    context-aware cache invalidations specific to marimo notebooks.
+
+    Since a dictionary is used to cache results, the positional and keyword
+    arguments to the function must be hashable. There are certain exceptions
+    for marimo specific variables, such as `mo.state` and `UIElement` objects.
+
+    **Basic Usage.**
+
+    ```python
+    import marimo as mo
+
+
+    @mo.save.cache
+    def fib(n):
+        if n <= 1:
+            return n
+        return fib(n - 1) + fib(n - 2)
+    ```
+
+    **LRU Cache.**
+
+    The cache has an unlimited maximum size. To limit the cache size, use
+    `@mo.save.lru_cache` (a default maxsize of 128), or specify the `maxsize`
+    parameter. Set this value to -1 to disable cache limits (default).
+
+    ```python
+    @mo.save.cache(maxsize=128)
+    def expensive_function():
+        pass
+    ```
+
+    **Args**:
+
+    - `maxsize`: the maximum number of entries in the cache; defaults to -1.
+      Setting to -1 disables cache limits.
+    - `pin_modules`: if True, the cache will be invalidated if module versions
+      differ.
+    """
+
+    graph: DirectedGraph
+    cell_id: str
+    module: ast.Module
+    _args: list[str]
+    _loader: Optional[State[MemoryLoader]] = None
+    name: str
+    fn: Optional[Callable[..., Any]]
+    DEFAULT_MAX_SIZE = -1
+
+    def __init__(
+        self,
+        _fn: Optional[Callable[..., Any]] = None,
+        *,
+        maxsize: Optional[int] = None,
+        pin_modules: bool = False,
+    ) -> None:
+        self.max_size = (
+            maxsize if maxsize is not None else self.DEFAULT_MAX_SIZE
+        )
+        self.pin_modules = pin_modules
+        if _fn is None:
+            self.fn = None
+        else:
+            self.fn = _fn
+            self._set_context()
+
+    @property
+    def hits(self) -> int:
+        if self._loader is None:
+            return 0
+        return self._loader().hits
+
+    def _set_context(self) -> None:
+        assert callable(self.fn), "the provided function must be callable"
+        ctx = get_context()
+        assert ctx.execution_context is not None, (
+            "Could not resolve context for cache. "
+            "Either @cache is not called from a top level cell or "
+            f"{UNEXPECTED_FAILURE_BOILERPLATE}"
+        )
+        self.graph = ctx.graph
+        self.cell_id = ctx.cell_id or ctx.execution_context.cell_id
+        self._args = list(self.fn.__code__.co_varnames)
+
+        self.module = strip_function(self.fn)
+        # frame is _set_context -> __call__ (or init) -> fn wrap
+        f_locals = inspect.stack()[2][0].f_locals
+        self.scope = {**ctx.globals, **f_locals}
+
+        # Load global cache from state
+        name = self.fn.__name__
+        # Note, that if the function name shadows a global variable, the
+        # lifetime of the cache will be tied to the global variable.
+        # We can invalidate that by making an invalid namespace.
+        if ctx.globals != f_locals:
+            name = name + "*"
+
+        context = "cache"
+        self._loader = ctx.state_registry.lookup(name, context=context)
+        if self._loader is None:
+            loader = MemoryLoader(name, max_size=self.max_size)
+            self._loader = State(loader, _name=name, _context=context)
+        else:
+            self._loader().resize(self.max_size)
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        # Capture the deferred call case
+        if self.fn is None:
+            if len(args) != 1:
+                raise TypeError(
+                    "cache() takes at most 1 argument (expecting function)"
+                )
+            self.fn = args[0]
+            self._set_context()
+            return self
+
+        # Capture the call case
+        arg_dict = {k: v for (k, v) in zip(self._args, args)}
+        scope = {**self.scope, **arg_dict, **kwargs}
+        assert self._loader is not None, UNEXPECTED_FAILURE_BOILERPLATE
+        attempt = cache_attempt_from_hash(
+            self.module,
+            self.graph,
+            self.cell_id,
+            scope,
+            loader=self._loader(),
+            pin_modules=self.pin_modules,
+            scoped_refs=set(self._args),
+            as_fn=True,
+        )
+        if attempt.hit:
+            attempt.restore(scope)
+            return attempt.meta["return"]
+        response = self.fn(*args, **kwargs)
+        # stateful variables may be global
+        scope = {k: v for k, v in scope.items() if k in attempt.stateful_refs}
+        attempt.update(scope, meta={"return": response})
+        self._loader().save_cache(attempt)
+        return response
+
+
+class lru_cache(cache):
+    """Decorator for LRU caching the return value of a function.
+
+    This is analogous to `functools.lru_cache`, but with the added benefit of
+    being context aware, with cache invalidations particular to marimo
+    notebooks. As an LRU (Least Recently Used) cache, only the last used
+    `maxsize` values are retained, with the oldest values being discarded.
+
+    **Basic Usage.**
+
+    ```python
+    import marimo as mo
+
+
+    @mo.save.lru_cache(maxsize=128)
+    def factorial(n):
+        return n * factorial(n - 1) if n else 1
+    ```
+
+    For more details, or a cache without a limit by default, refer to
+    `mo.save.cache`.
+
+    **Args**:
+
+    - `maxsize`: the maximum number of entries in the cache; defaults to 128.
+      Setting to -1 disables cache limits.
+    - `pin_modules`: if True, the cache will be invalidated if module versions
+      differ.
+    """
+
+    DEFAULT_MAX_SIZE = 128
+
+
 class persistent_cache(object):
     """Context block for cache lookup of a block of code.
 
-    Example usage:
+    **Basic Usage.**
 
-    >>> with persistent_cache(name="my_cache"):
-    >>>     variable = expensive_function() # This will be cached.
+    ```python
+    with persistent_cache(name="my_cache"):
+        variable = expensive_function()  # This will be cached.
+    ```
 
-    For an implementation sibling regarding the block skipping, see `withhacks`
-    in pypi.
+    Here, `variable` will be cached and restored on subsequent runs of the
+    block. The contents of the `with` block will be skipped on execution, if
+    cache conditions are met. Note, this means that stdout and stderr will be
+    skipped on cache hits. For function level memoization, use `@mo.save.cache`
+    or `@mo.save.lru_cache`.
 
-    NB: Since context abuses sys frame trace, this may conflict with debugging
-    tools that also use sys.settrace.
+    Note that `mo.state` and `UIElement` changes will also trigger cache
+    invalidation, and be accordingly updated.
+
+    **Warning.** Since context abuses sys frame trace, this may conflict with
+    debugging tools or libraries that also use `sys.settrace`.
+
+    **Args**:
+
+    - `name`: the name of the cache, used to set saving path- to manually
+      invalidate the cache, change the name.
+    - `save_path`: the folder in which to save the cache, defaults to "outputs"
+    - `pin_modules`: if True, the cache will be invalidated if module versions
+      differ between runs, defaults to False.
     """
 
     def __init__(
         self,
         *,
-        save_path: str = "outputs",
         name: str,
+        save_path: str = "outputs",
         pin_modules: bool = False,
         _loader: Optional[Loader] = None,
     ) -> None:
+        # For an implementation sibling regarding the block skipping, see
+        # `withhacks` in pypi.
         self.name = name
         if _loader:
             self._loader = _loader

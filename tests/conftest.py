@@ -4,6 +4,7 @@ from __future__ import annotations
 import dataclasses
 import inspect
 import os
+import re
 import sys
 import textwrap
 from tempfile import TemporaryDirectory
@@ -58,6 +59,9 @@ class MockStdout(ThreadSafeStdout):
         self.messages.append(data)
         return len(data)
 
+    def __repr__(self) -> str:
+        return "".join(self.messages)
+
 
 class MockStderr(ThreadSafeStderr):
     """Captures the output sent through the stream"""
@@ -72,6 +76,10 @@ class MockStderr(ThreadSafeStderr):
         del mimetype
         self.messages.append(data)
         return len(data)
+
+    def __repr__(self) -> str:
+        # Error meesages are commonly formatted for output in HTML
+        return re.sub(r"<.*?>", "", "".join(self.messages))
 
 
 class MockStdin(ThreadSafeStdin):

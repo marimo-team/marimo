@@ -210,6 +210,7 @@ class BlockHasher:
         pin_modules: bool = False,
         hash_type: str = DEFAULT_HASH,
         content_hash: bool = True,
+        scoped_refs: Optional[set[Name]] = None,
     ) -> None:
         """Hash the context of the module, and return a cache object.
 
@@ -250,12 +251,16 @@ class BlockHasher:
           - hash_type: The type of hash to use.
           - content_hash: If True, then the content hash will be attempted,
             otheriwise only use execution path hash.
-
+          - scoped_refs: A set of references that cannot be traced via
+            execution path, and must be accounted for via content hashing.
         """
 
         # Hash should not be pinned to cell id
         scope = {unmangle_local(k, cell_id).name: v for k, v in scope.items()}
         self.module = DeprivateVisitor().visit(module)
+
+        if not scoped_refs:
+            scoped_refs = set()
 
         self.graph = graph
         self.cell_id = cell_id
@@ -299,6 +304,14 @@ class BlockHasher:
         if refs and content_hash:
             cache_type = "ContentAddressed"
             refs = self.hash_and_dequeue_content_refs(refs, scope)
+            # If scoped refs are present, then they are unhashable
+            # and we should fail here.
+            if unhashable := refs & scoped_refs:
+                ref_list = ", ".join(
+                    [f"{ref}: {type(ref)}" for ref in unhashable]
+                )
+                raise TypeError("unhashable arguments: " + ref_list)
+
             # Given an active thread, extract state based variables that
             # influence the graph, and hash them accordingly.
             if ctx:
@@ -587,10 +600,16 @@ def cache_attempt_from_hash(
     context: Optional[ast.Module] = None,
     pin_modules: bool = False,
     hash_type: str = DEFAULT_HASH,
+    scoped_refs: Optional[set[Name]] = None,
     loader: Loader,
+    as_fn: bool = False,
 ) -> Cache:
     """Hash a code block with context from the same cell, and return a cache
     object.
+
+    Extra args
+          - loader: The loader to use for cache operations.
+          - as_fn: If True, then the block is treated as a function
 
     Returns:
       - A cache object that may, or may not be fully populated.
@@ -604,7 +623,11 @@ def cache_attempt_from_hash(
         context=context,
         pin_modules=pin_modules,
         hash_type=hash_type,
+        scoped_refs=scoped_refs,
     )
+
+    if as_fn:
+        hasher.defs.clear()
 
     return loader.cache_attempt(
         hasher.defs,

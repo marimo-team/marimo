@@ -1,15 +1,16 @@
 # Performance
 
-## Cache computations with `@functools.cache`
+## Cache computations with `@mo.save.cache`
 
-Use Python's builtin `functools` library to cache expensive computations.
-
-For example,
+You may use `mo.save.cache` to cache expensive computations, in a notebook aware manner.
 
 ```python
-import functools
+import mo
 
-@functools.cache
+# Re-running the cell won't invalidate the cache if the function is the same.
+# However, the cache will also automatically become invalidated if relevant
+# state, ui, or code changes occur.
+@mo.save.cache
 def compute_predictions(problem_parameters):
  ...
 ```
@@ -18,6 +19,12 @@ Whenever `compute_predictions` is called with a value of `problem_parameters`
 it has not seen, it will compute the predictions and store them in a cache. The
 next time it is called with the same parameters, instead of recomputing the
 predictions, it will return the previously computed value from the cache.
+
+Alternatively, you may use Python's builtin `functools` library to cache
+expensive computations. It is important to note that `mo.save.cache` is more
+expensive than `functools.cache`, and there are certain instances where
+`functools.cache` is more appropriate.
+
 
 ## Disable expensive cells
 

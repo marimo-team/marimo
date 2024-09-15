@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import ast
-from typing import Any, Sequence, cast
+import inspect
+import textwrap
+from typing import Any, Callable, Sequence, cast
 
 from marimo._utils.variables import unmangle_local
 
@@ -140,3 +142,22 @@ class DeprivateVisitor(ast.NodeTransformer):
         if hasattr(node, "name") and node.name:
             node.name = unmangle_local(node.name).name
         return super().generic_visit(node)
+
+
+class RemoveReturns(ast.NodeTransformer):
+    def visit_Return(self, node: ast.Return) -> ast.Expr:
+        expr = ast.Expr(value=node.value)
+        expr.lineno = node.lineno
+        expr.col_offset = node.col_offset
+        return expr
+
+
+def strip_function(fn: Callable[..., Any]) -> ast.Module:
+    code, _ = inspect.getsourcelines(fn)
+    function_ast = ast.parse(textwrap.dedent("".join(code)))
+    body = function_ast.body.pop()
+    assert isinstance(body, ast.FunctionDef), "Expected a function definition"
+    extracted = ast.Module(body.body, type_ignores=[])
+    module = RemoveReturns().visit(extracted)
+    assert isinstance(module, ast.Module), "Expected a module"
+    return module

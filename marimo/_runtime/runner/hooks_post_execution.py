@@ -178,7 +178,9 @@ def _store_state_reference(
     # Associate state variables with variable names
     ctx = get_context()
     ctx.state_registry.register_scope(runner.glbls, defs=cell.defs)
-    ctx.state_registry.retain_active_states(set(runner.glbls.keys()))
+    ctx.state_registry.retain_active_states(
+        set(runner.graph.definitions.keys())
+    )
 
 
 @kernel_tracer.start_as_current_span("broadcast_outputs")
