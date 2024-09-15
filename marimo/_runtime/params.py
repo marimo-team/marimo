@@ -18,7 +18,7 @@ from marimo._runtime.requests import (
     SerializedCLIArgs,
     SerializedQueryParams,
 )
-from marimo._runtime.state import State
+from marimo._runtime.state import State, StateRegistry
 
 
 @mddoc
@@ -31,8 +31,9 @@ class QueryParams(State[SerializedQueryParams]):
         self,
         params: Dict[str, Union[str, List[str]]],
         stream: Optional[Stream] = None,
+        _registry: Optional[StateRegistry] = None,
     ):
-        super().__init__(params)
+        super().__init__(params, _registry=_registry)
         self._params = params
         self._stream = stream
 

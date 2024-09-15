@@ -2,9 +2,7 @@
 from __future__ import annotations
 
 import inspect
-import numbers
 import re
-import weakref
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Callable, Optional, Type
@@ -16,10 +14,13 @@ from marimo._runtime.copy import (
     ZeroCopy,
     shallow_copy,
 )
+from marimo._runtime.primitives import (
+    CLONE_PRIMITIVES,
+    build_ref_predicate_for_primitives,
+)
 from marimo._utils.variables import is_mangled_local, unmangle_local
 
 if TYPE_CHECKING:
-    from marimo._ast.visitor import Name, VariableData
     from marimo._runtime.dataflow import DirectedGraph
 
 
@@ -37,7 +38,6 @@ UNCLONABLE_MODULES = set(
         "numpy.lib.npyio",
     ]
 )
-PRIMITIVES = (weakref.ref, str, numbers.Number, type(None))
 
 EXECUTION_TYPES: dict[str, Type[Executor]] = {}
 
@@ -183,7 +183,10 @@ class StrictExecutor(Executor):
     ) -> Any:
         # Manage globals and references, but refers to the default beyond that.
         refs = graph.get_transitive_references(
-            cell.refs, predicate=build_ref_predicate(glbls)
+            cell.refs,
+            predicate=build_ref_predicate_for_primitives(
+                glbls, CLONE_PRIMITIVES
+            ),
         )
         backup = StrictExecutor.sanitize_inputs(cell, refs, glbls)
         try:
@@ -200,7 +203,10 @@ class StrictExecutor(Executor):
         cell: CellImpl, glbls: dict[str, Any], graph: DirectedGraph
     ) -> Any:
         refs = graph.get_transitive_references(
-            cell.refs, predicate=build_ref_predicate(glbls)
+            cell.refs,
+            predicate=build_ref_predicate_for_primitives(
+                glbls, CLONE_PRIMITIVES
+            ),
         )
         backup = StrictExecutor.sanitize_inputs(cell, refs, glbls)
         try:
@@ -307,77 +313,6 @@ class StrictExecutor(Executor):
         for df in lcls:
             if is_mangled_local(df, cell.cell_id):
                 glbls[df] = lcls[df]
-
-
-def build_ref_predicate(
-    glbls: dict[str, Any],
-) -> Callable[[Name, VariableData], bool]:
-    """
-    Builds a predicate function to determine if a reference should be included
-
-    Args:
-        glbls: The global variables dictionary to base the predicate on
-    Returns:
-        A function that takes a variable name and associated data and
-        returns True if its reference should be included in a reference search.
-
-    All declared variables are tied together under the graph of required_refs.
-    Strict execution gets the minimum graph of definitions for execution.
-    Certain definitions, like lambdas, functions, and classes contain an
-    executable body and require their `required_refs` to be scope (included in
-    this graph). This function determines if a potential reference should be
-    included in the graph based on its computed type. Consider:
-
-    >>> def foo():
-    ...     return bar()
-
-    here `foo` is a function with `bar` as a reference in the execution body,
-    so if `foo` is a reference, both `bar` and `foo` should be included in the
-    graph, otherwise we'll get a NameError on `bar` if `foo` is called.
-    Compare that to:
-
-    >>> x = foo()
-
-    if `x` is the only reference, should `foo` be included in the graph? It
-    depends on the context, so we defer to the type of `x` which has already
-    been computed at this point. If `x` is a known 'primitive' type, and thus
-    does not have an executable body, we can exclude `foo` from the graph.
-    However, `foo` may return a object or another function, which in turn may
-    have references; so if x doesn't match the very low bar 'primitive', its
-    `required_refs` are included in the graph.
-
-    NB: lambdas, as anonymous functions, do not have a name to refer to them-
-    so visitor injects the dummy variable `_lambda` into the `required_refs` to
-    denote their presence.
-    """
-
-    def check_ref(ref: Name) -> bool:
-        return ref in glbls and (
-            inspect.isfunction(glbls[ref])
-            or inspect.ismodule(glbls[ref])
-            or inspect.isclass(glbls[ref])
-            or callable(glbls[ref])
-        )
-
-    def only_scoped_refs(ref: Name, data: VariableData) -> bool:
-        # Weakref instances should be disassociated from related references,
-        # as should other "primitives" as they are results and hopefully not
-        # hiding some scoped reference. Other common types could be added here,
-        # like numpy arrays that are not dtype=object, etc.. that are known not
-        # to be dependent on the functions that created them.
-
-        # This errs on the side of including too much, but that's a better user
-        # experience than not having definitions available.
-        return (
-            ref in glbls
-            and not isinstance(glbls[ref], PRIMITIVES)
-            and (
-                "_lambda" in data.required_refs
-                or any(map(check_ref, data.required_refs | {ref}))
-            )
-        )
-
-    return only_scoped_refs
 
 
 def is_instance_by_name(obj: object, name: str) -> bool:

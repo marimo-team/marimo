@@ -4,6 +4,8 @@ from __future__ import annotations
 import ast
 from typing import Any, Sequence, cast
 
+from marimo._utils.variables import unmangle_local
+
 
 class BlockException(Exception):
     pass
@@ -125,3 +127,16 @@ class ExtractWithBlock(ast.NodeTransformer):
         raise BlockException(
             "Saving on a shared line may lead to unexpected behavior."
         )
+
+
+class DeprivateVisitor(ast.NodeTransformer):
+    """Removes the mangling of private variables from a module."""
+
+    def visit_Name(self, node: ast.Name) -> ast.Name:
+        node.id = unmangle_local(node.id).name
+        return node
+
+    def generic_visit(self, node: ast.AST) -> ast.AST:
+        if hasattr(node, "name") and node.name:
+            node.name = unmangle_local(node.name).name
+        return super().generic_visit(node)

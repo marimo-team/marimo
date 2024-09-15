@@ -18,12 +18,12 @@ from marimo._runtime.context.types import (
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._runtime.functions import FunctionRegistry
 from marimo._runtime.params import CLIArgs, QueryParams
+from marimo._runtime.state import State, StateRegistry
 
 if TYPE_CHECKING:
     from marimo._ast.app import InternalApp
     from marimo._ast.cell import CellId_t
     from marimo._messaging.types import Stream
-    from marimo._runtime.state import State
 
 
 @dataclass
@@ -34,7 +34,7 @@ class ScriptRuntimeContext(RuntimeContext):
 
     def __post_init__(self) -> None:
         self._cli_args: CLIArgs | None = None
-        self._query_params = QueryParams({})
+        self._query_params = QueryParams({}, _registry=self.state_registry)
 
     @property
     def graph(self) -> DirectedGraph:
@@ -120,6 +120,7 @@ def initialize_script_context(app: InternalApp, stream: Stream) -> None:
     runtime_context = ScriptRuntimeContext(
         _app=app,
         ui_element_registry=UIElementRegistry(),
+        state_registry=StateRegistry(),
         function_registry=FunctionRegistry(),
         cell_lifecycle_registry=CellLifecycleRegistry(),
         virtual_file_registry=VirtualFileRegistry(),

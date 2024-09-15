@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from marimo._output.hypertext import Html
     from marimo._plugins.ui._core.registry import UIElementRegistry
     from marimo._runtime.params import CLIArgs, QueryParams
-    from marimo._runtime.state import State
+    from marimo._runtime.state import State, StateRegistry
     from marimo._runtime.virtual_file import VirtualFileRegistry
 
 
@@ -64,6 +64,7 @@ class ExecutionContext:
 @dataclass
 class RuntimeContext(abc.ABC):
     ui_element_registry: UIElementRegistry
+    state_registry: StateRegistry
     function_registry: FunctionRegistry
     cell_lifecycle_registry: CellLifecycleRegistry
     virtual_file_registry: VirtualFileRegistry
