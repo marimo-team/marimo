@@ -69,6 +69,14 @@ export class ColumnChartSpecModel<T> {
     };
     const type = this.fieldTypes[column];
 
+    // https://github.com/vega/altair/blob/32990a597af7c09586904f40b3f5e6787f752fa5/doc/user_guide/encodings/index.rst#escaping-special-characters-in-column-names
+    // escape periods in column names
+    column = column.replaceAll(".", "\\.");
+    // escape brackets in column names
+    column = column.replaceAll("[", "\\[").replaceAll("]", "\\]");
+    // escape colons in column names
+    column = column.replaceAll(":", "\\:");
+
     switch (type) {
       case "date":
         return {
