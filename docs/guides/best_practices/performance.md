@@ -25,7 +25,6 @@ expensive computations. It is important to note that `mo.save.cache` is more
 expensive than `functools.cache`, and there are certain instances where
 `functools.cache` is more appropriate.
 
-
 ## Disable expensive cells
 
 marimo lets you temporarily disable cells from automatically running. This is
