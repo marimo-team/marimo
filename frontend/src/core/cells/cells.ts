@@ -257,6 +257,16 @@ const {
     const { cellId, before } = action;
     const index = state.cellIds.indexOfOrThrow(cellId);
 
+    if (state.columnBreakpoints.length > 1) {
+      const [columnIndex, breakpoint] = getCellColumn(state, index);
+      if (
+        (before && breakpoint > index - 1) ||
+        (!before && state.columnBreakpoints[columnIndex + 1] <= index + 1)
+      ) {
+        return state;
+      }
+    }
+
     if (before && index === 0) {
       return {
         ...state,
