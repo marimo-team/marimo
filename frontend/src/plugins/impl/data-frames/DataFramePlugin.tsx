@@ -288,6 +288,7 @@ export const DataFrameComponent = memo(
           value={Arrays.EMPTY}
           setValue={Functions.NOOP}
           selection={null}
+          heatmap={false}
         />
       </div>
     );
