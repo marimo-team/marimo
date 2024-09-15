@@ -600,7 +600,7 @@ See our [best practices guide](guides/best_practices) to learn more.
 **Use case.** If you are using marimo to capture very compute intensive
 results, you may want to save the state of your computations to disk. Ideally,
 if you update your code, then this save should be invalidated. It may also be
-advantagous to add UI elements to explore your results, without having to
+advantageous to add UI elements to explore your results, without having to
 recompute expensive computations.
 
 **Recipe.**

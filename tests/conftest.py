@@ -78,7 +78,7 @@ class MockStderr(ThreadSafeStderr):
         return len(data)
 
     def __repr__(self) -> str:
-        # Error meesages are commonly formatted for output in HTML
+        # Error messages are commonly formatted for output in HTML
         return re.sub(r"<.*?>", "", "".join(self.messages))
 
 
