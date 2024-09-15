@@ -30,6 +30,7 @@ import { historyField } from "@codemirror/commands";
 import { clamp } from "@/utils/math";
 import type { LayoutState } from "../layout/layout";
 import {
+  getCellColumn,
   notebookIsRunning,
   notebookQueueOrRunningCount,
   updateColumnBreakpoints,
@@ -225,7 +226,7 @@ const {
     const insertionIndex = before ? index : index + 1;
 
     if (!(before && state.columnBreakpoints.includes(index))) {
-      updateColumnBreakpoints(state.columnBreakpoints, insertionIndex, true);
+      updateColumnBreakpoints(state, insertionIndex, true);
     }
 
     return {
@@ -350,9 +351,17 @@ const {
 
     const { cellId } = action;
     const index = state.cellIds.indexOfOrThrow(cellId);
+
+    const [_, breakpoint] = getCellColumn(state, index);
+    const newIndex = state.columnBreakpoints.length > 1 ? breakpoint : 0;
+
+    if (index === newIndex) {
+      return state;
+    }
+
     return {
       ...state,
-      cellIds: state.cellIds.move(index, 0),
+      cellIds: state.cellIds.move(index, newIndex),
       scrollKey: cellId,
     };
   },
@@ -363,14 +372,31 @@ const {
 
     const { cellId } = action;
     const index = state.cellIds.indexOfOrThrow(cellId);
+    let newIndex = state.cellIds.length - 1;
+
+    if (index === newIndex) {
+      return state;
+    }
+
+    const [columnIndex, _] = getCellColumn(state, index);
+    if (
+      state.columnBreakpoints.length > 1 &&
+      state.columnBreakpoints.length >= columnIndex + 1
+    ) {
+      newIndex = state.columnBreakpoints[columnIndex + 1] - 1;
+    }
+
     return {
       ...state,
-      cellIds: state.cellIds.move(index, state.cellIds.length - 1),
+      cellIds: state.cellIds.move(index, newIndex),
       scrollKey: cellId,
     };
   },
   addColumnBreakpoint: (state, action: { cellId: CellId }) => {
     const index = state.cellIds.indexOfOrThrow(action.cellId);
+    if (index === 0 || index === state.cellIds.length - 1) {
+      return state;
+    }
     const columnBreakpoints = [...state.columnBreakpoints, index];
     return { ...state, columnBreakpoints: columnBreakpoints.sort() };
   },
@@ -389,7 +415,7 @@ const {
     ].current?.editorView.state.toJSON({ history: historyField });
 
     if (!state.columnBreakpoints.includes(index)) {
-      updateColumnBreakpoints(state.columnBreakpoints, index, false);
+      updateColumnBreakpoints(state, index, false);
     }
 
     return {
@@ -427,7 +453,7 @@ const {
       serializedEditorState,
     });
 
-    updateColumnBreakpoints(state.columnBreakpoints, index, true);
+    updateColumnBreakpoints(state, index, true);
 
     return {
       ...state,

@@ -103,17 +103,32 @@ export function getDescendantsStatus(state: NotebookState, cellId: CellId) {
   };
 }
 
+export function getCellColumn(state: NotebookState, cellIndex: number) {
+  let columnIndex = 0;
+  let columnBreakpoint = state.columnBreakpoints[0];
+
+  for (const [index, breakpoint] of state.columnBreakpoints.entries()) {
+    if (cellIndex < breakpoint) {
+      break;
+    }
+    columnIndex = index;
+    columnBreakpoint = breakpoint;
+  }
+
+  return [columnIndex, columnBreakpoint];
+}
+
 export function updateColumnBreakpoints(
-  breakpoints: number[],
+  state: NotebookState,
   cellIndex: number,
   increment: boolean,
 ) {
-  breakpoints.forEach((breakpoint, i) => {
+  state.columnBreakpoints.forEach((breakpoint, i) => {
     if (breakpoint >= cellIndex) {
       if (increment) {
-        breakpoints[i] += 1;
+        state.columnBreakpoints[i] += 1;
       } else {
-        breakpoints[i] -= 1;
+        state.columnBreakpoints[i] -= 1;
       }
     }
   });
