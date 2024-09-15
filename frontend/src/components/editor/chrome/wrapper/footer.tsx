@@ -1,39 +1,54 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { PropsWithChildren } from "react";
+import type React from "react";
+import type { PropsWithChildren } from "react";
 import { cn } from "@/utils/cn";
 import { useChromeActions, useChromeState } from "../state";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useAtomValue } from "jotai";
 import { cellErrorCount } from "@/core/cells/cells";
-import { PANEL_ICONS, PanelType } from "../types";
+import { type PanelDescriptor, PANELS } from "../types";
 import { MachineStats } from "./machine-stats";
 import { useUserConfig } from "@/core/config/config";
-import { ZapIcon, ZapOffIcon } from "lucide-react";
+import { TerminalSquareIcon, ZapIcon, ZapOffIcon } from "lucide-react";
 import { saveUserConfig } from "@/core/network/requests";
-import { UserConfig } from "@/core/config/config-schema";
+import type { UserConfig } from "@/core/config/config-schema";
 import { ShowInKioskMode } from "../../kiosk-mode";
+import { invariant } from "@/utils/invariant";
+import { IfCapability } from "@/core/config/if-capability";
 
 export const Footer: React.FC = () => {
-  const { selectedPanel } = useChromeState();
-  const { openApplication } = useChromeActions();
+  const { selectedPanel, isTerminalOpen } = useChromeState();
+  const { openApplication, toggleTerminal } = useChromeActions();
   const [config, setConfig] = useUserConfig();
   const errorCount = useAtomValue(cellErrorCount);
 
-  const renderIcon = (type: PanelType, className?: string) => {
-    const Icon = PANEL_ICONS[type];
+  const renderIcon = ({ Icon }: PanelDescriptor, className?: string) => {
     return <Icon className={cn("h-5 w-5", className)} />;
   };
 
+  const errorPanel = PANELS.find((p) => p.type === "errors");
+  invariant(errorPanel, "Error panel not found");
+
   return (
-    <footer className="h-10 py-2 bg-background flex items-center text-muted-foreground text-md pl-1 pr-4 border-t border-border select-none no-print text-sm shadow-[0_0_4px_1px_rgba(0,0,0,0.1)] z-50">
+    <footer className="h-10 py-2 bg-background flex items-center text-muted-foreground text-md pl-1 pr-4 border-t border-border select-none no-print text-sm shadow-[0_0_4px_1px_rgba(0,0,0,0.1)] z-50 print:hidden">
       <FooterItem
-        tooltip="View errors"
-        selected={selectedPanel === "errors"}
-        onClick={() => openApplication("errors")}
+        tooltip={errorPanel.tooltip}
+        selected={selectedPanel === errorPanel.type}
+        onClick={() => openApplication(errorPanel.type)}
       >
-        {renderIcon("errors", errorCount > 0 ? "text-destructive" : "")}
+        {renderIcon(errorPanel, errorCount > 0 ? "text-destructive" : "")}
         <span className="ml-1 font-mono mt-[0.125rem]">{errorCount}</span>
       </FooterItem>
+
+      <IfCapability capability="terminal">
+        <FooterItem
+          tooltip="Open terminal"
+          selected={isTerminalOpen}
+          onClick={() => toggleTerminal()}
+        >
+          <TerminalSquareIcon className="h-5 w-5" />
+        </FooterItem>
+      </IfCapability>
 
       <FooterItem
         tooltip={

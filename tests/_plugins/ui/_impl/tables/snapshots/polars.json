@@ -1,0 +1,44 @@
+[
+  {
+    "strings": "a",
+    "bool": true,
+    "int": 1,
+    "float": 1.0,
+    "datetime": "2021-01-01 00:00:00",
+    "struct": { "a": 1, "b": 2 },
+    "list": [1, 2],
+    "array": [1, 2, 3],
+    "nulls": null,
+    "categorical": "cat",
+    "duration": "PT86400S",
+    "mixed_list": ["1", "two"]
+  },
+  {
+    "strings": "b",
+    "bool": false,
+    "int": 2,
+    "float": 2.0,
+    "datetime": "2021-01-02 00:00:00",
+    "struct": { "a": 3, "b": 4 },
+    "list": [3, 4],
+    "array": [4],
+    "nulls": "data",
+    "categorical": "dog",
+    "duration": "PT172800S",
+    "mixed_list": ["3.0", "0.0"]
+  },
+  {
+    "strings": "c",
+    "bool": true,
+    "int": 3,
+    "float": 3.0,
+    "datetime": "2021-01-03 00:00:00",
+    "struct": { "a": 5, "b": 6 },
+    "list": [5, 6],
+    "array": [],
+    "nulls": null,
+    "categorical": "mouse",
+    "duration": "PT259200S",
+    "mixed_list": [null, "2021-01-01 00:00:00.000000"]
+  }
+]

@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { Marks } from "./marks";
-import {
+import type {
   AnyMark,
   EncodingType,
   Encodings,

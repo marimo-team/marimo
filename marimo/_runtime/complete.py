@@ -279,6 +279,7 @@ def _get_completions_with_interpreter(
     completions = []
     locked = glbls_lock.acquire(blocking=False)
     if locked:
+        LOGGER.debug("Completion worker acquired globals lock")
         completions = script.complete()
     return script, completions
 
@@ -437,6 +438,8 @@ def complete(
         except Exception:
             # RLock raises if released when not acquired.
             pass
+        else:
+            LOGGER.debug("Completion worker released globals lock.")
 
 
 def completion_worker(

@@ -5,10 +5,11 @@ import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.from_anywidget import anywidget
+from marimo._runtime.requests import SetUIElementValueRequest
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
-HAS_DEPS = DependencyManager.has_anywidget()
+HAS_DEPS = DependencyManager.anywidget.has()
 
 if HAS_DEPS:
     import anywidget as _anywidget
@@ -108,6 +109,62 @@ x = as_marimo_element.count
                 ),
             ]
         )
-        assert isinstance(k.globals["w"], anywidget)
+
+        ui_element = k.globals["w"]
+        assert isinstance(ui_element, anywidget)
         assert k.globals["w_value"]["count"] == 10
         assert k.globals["w_count"] == 10
+        assert ui_element.value == {"count": 10}
+
+        await k.set_ui_element_value(
+            SetUIElementValueRequest.from_ids_and_values(
+                [(ui_element._id, {"count": 5})]
+            )
+        )
+
+        assert k.globals["w_value"]["count"] == 5
+        assert k.globals["w_count"] == 5
+        assert ui_element.value == {"count": 5}
+
+    @staticmethod
+    async def test_getters_setters() -> None:
+        # Test on wrapped
+        wrapped = anywidget(CounterWidget())
+        assert wrapped.count == 0
+        wrapped.count = 10
+        assert wrapped.count == 10
+
+        # Test on wrapped, with initialization
+        wrapped = anywidget(CounterWidget(count=5))
+        assert wrapped.count == 5
+        wrapped.count = 10
+        assert wrapped.count == 10
+
+        # Test on wrapped.widget, with initialization
+        wrapped = anywidget(CounterWidget(count=7))
+        assert wrapped.widget.count == 7  # type: ignore
+        wrapped.widget.count = 10  # type: ignore
+        assert wrapped.count == 10
+
+        assert wrapped._initialized is True
+
+    @staticmethod
+    async def test_set_trait() -> None:
+        # Test on wrapped
+        wrapped = anywidget(CounterWidget())
+        assert wrapped.count == 0
+        wrapped.set_trait("count", 10)
+        assert wrapped.count == 10
+        assert wrapped.widget.count == 10  # type: ignore
+        wrapped.widget.set_trait("count", 7)
+        assert wrapped.count == 7
+        assert wrapped.widget.count == 7  # type: ignore
+
+        assert wrapped._initialized is True
+
+    @staticmethod
+    async def test_can_set_value() -> None:
+        wrapped = anywidget(CounterWidget())
+        assert wrapped.value == {"count": 0}
+        wrapped._update({"count": 10})
+        assert wrapped.value == {"count": 10}

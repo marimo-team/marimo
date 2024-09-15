@@ -4,9 +4,10 @@
 
 **marimo** is a reactive notebook for Python that models notebooks as dataflow
 graphs. Run a cell or interact with a UI element, and marimo automatically runs
-affected cells (or marks them as stale), keeping code and outputs consistent
-and preventing bugs before they happen. Every marimo notebook is stored as pure
-Python, executable as a script, and deployable as an app.
+affected cells (or [marks them as stale](/guides/reactivity.md#runtime-configuration)),
+keeping code and outputs consistent and preventing bugs before they happen.
+Every marimo notebook is stored as pure Python, executable as a script, and
+deployable as an app.
 
 ```{admonition} Built from the ground up
 :class: tip
@@ -24,6 +25,13 @@ pip install marimo && marimo tutorial intro
 ```
 
 :::
+:::{tab-item} install with uv
+
+```bash
+uv pip install marimo && marimo tutorial intro
+```
+
+:::
 :::{tab-item} install with conda
 
 ```bash
@@ -36,13 +44,17 @@ conda install -c conda-forge marimo && marimo tutorial intro
 Developer experience is core to marimo, with an emphasis on
 reproducibility, maintainability, composability, and shareability.
 
-**Highlights.**
+**Highlights**.
 
-- **reactive**: run a cell and marimo automatically runs affected cells and updates their outputs
-- **interactive**: bind sliders, tables, plots, and more to Python — no callbacks required
-- **reproducible**: no hidden state, deterministic execution order — code with confidence in your notebook's correctness
-- **deployable**: executable as a script, deployable as an app
-- **developer-friendly**: git-friendly `.py` file format, GitHub Copilot, fast autocomplete, code formatting, and more
+- 🚀 **batteries-included:** replaces `jupyter`, `streamlit`, `jupytext`, `ipywidgets`, `papermill`, & more
+- ⚡️ **reactive**: run a cell, and marimo reactively [runs all dependent cells](https://docs.marimo.io/guides/reactivity.html) or <a href="#expensive-notebooks">marks them as stale</a>
+- 🖐️ **interactive:** [bind sliders, tables, plots, and more](https://docs.marimo.io/guides/interactivity.html) to Python — no callbacks required
+- 🔬 **reproducible:** [no hidden state](https://docs.marimo.io/guides/reactivity.html#no-hidden-state), deterministic execution, [built-in package management](https://docs.marimo.io/guides/editor_features/package_management.html)
+- 🏃 **executable:** [execute as a Python script](https://docs.marimo.io/guides/scripts.html), parametrized by CLI args
+- 🛜 **shareable**: [deploy as an interactive web app](https://docs.marimo.io/guides/apps.html) or [slides](https://docs.marimo.io/guides/apps.html#slides-layout), [run in the browser via WASM](https://docs.marimo.io/guides/wasm.html)
+- 🛢️ **designed for data**: query dataframes and databases [with SQL](https://docs.marimo.io/guides/sql.html), filter and search [dataframes](https://docs.marimo.io/guides/dataframes.html#displaying-dataframes)
+- 🐍 **git-friendly:** notebooks are stored as `.py` files
+- ⌨️ **a modern editor**: [GitHub Copilot](https://docs.marimo.io/guides/editor_features/ai_completion.html#github-copilot), [AI assistants](https://docs.marimo.io/guides/editor_features/ai_completion.html#using-ollama), vim keybindings, variable explorer, and [more](https://docs.marimo.io/guides/editor_features/index.html)
 
 > ⚡ marimo notebooks run automatically with interactions and code changes
 

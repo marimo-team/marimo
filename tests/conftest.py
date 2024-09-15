@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import dataclasses
 import inspect
+import os
 import sys
 import textwrap
 from tempfile import TemporaryDirectory
@@ -21,8 +22,10 @@ from marimo._messaging.streams import (
     ThreadSafeStream,
 )
 from marimo._output.formatters.formatters import register_formatters
+from marimo._runtime import patches
 from marimo._runtime.context import teardown_context
 from marimo._runtime.context.kernel_context import initialize_kernel_context
+from marimo._runtime.input_override import input_override
 from marimo._runtime.marimo_pdb import MarimoPdb
 from marimo._runtime.requests import AppMetadata, ExecutionRequest
 from marimo._runtime.runtime import Kernel
@@ -93,6 +96,9 @@ class MockedKernel:
         self.stderr = MockStderr(self.stream)
         self.stdin = MockStdin(self.stream)
         self._main = sys.modules["__main__"]
+        module = patches.patch_main_module(
+            file=None, input_override=input_override
+        )
 
         self.k = Kernel(
             stream=self.stream,
@@ -106,6 +112,7 @@ class MockedKernel:
             ),
             debugger_override=MarimoPdb(stdout=self.stdout, stdin=self.stdin),
             enqueue_control_request=lambda _: None,
+            module=module,
         )
 
         initialize_kernel_context(
@@ -182,7 +189,7 @@ def executing_kernel() -> Generator[Kernel, None, None]:
 @pytest.fixture
 def temp_marimo_file() -> Generator[str, None, None]:
     tmp_dir = TemporaryDirectory()
-    tmp_file = tmp_dir.name + "/notebook.py"
+    tmp_file = os.path.join(tmp_dir.name, "notebook.py")
     content = inspect.cleandoc(
         """
         import marimo
@@ -214,7 +221,7 @@ def temp_marimo_file() -> Generator[str, None, None]:
 @pytest.fixture
 def temp_async_marimo_file() -> Generator[str, None, None]:
     tmp_dir = TemporaryDirectory()
-    tmp_file = tmp_dir.name + "/notebook.py"
+    tmp_file = os.path.join(tmp_dir.name, "notebook.py")
     content = inspect.cleandoc(
         """
         import marimo
@@ -243,7 +250,7 @@ def temp_async_marimo_file() -> Generator[str, None, None]:
 @pytest.fixture
 def temp_unparsable_marimo_file() -> Generator[str, None, None]:
     tmp_dir = TemporaryDirectory()
-    tmp_file = tmp_dir.name + "/notebook.py"
+    tmp_file = os.path.join(tmp_dir.name, "notebook.py")
     content = inspect.cleandoc(
         """
         import marimo
@@ -285,7 +292,7 @@ def temp_unparsable_marimo_file() -> Generator[str, None, None]:
 @pytest.fixture
 def temp_marimo_file_with_md() -> Generator[str, None, None]:
     tmp_dir = TemporaryDirectory()
-    tmp_file = tmp_dir.name + "/notebook.py"
+    tmp_file = os.path.join(tmp_dir.name, "notebook.py")
     content = inspect.cleandoc(
         """
         import marimo
@@ -325,7 +332,7 @@ def temp_marimo_file_with_md() -> Generator[str, None, None]:
 @pytest.fixture
 def temp_md_marimo_file() -> Generator[str, None, None]:
     tmp_dir = TemporaryDirectory()
-    tmp_file = tmp_dir.name + "/notebook.md"
+    tmp_file = os.path.join(tmp_dir.name, "notebook.md")
     content = inspect.cleandoc(
         """
         ---

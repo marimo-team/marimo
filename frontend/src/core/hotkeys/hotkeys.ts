@@ -265,7 +265,7 @@ const DEFAULT_HOT_KEY = {
     key: "Mod-k",
   },
   "global.runStale": {
-    name: "Run all modified cells",
+    name: "Run all stale cells",
     group: "Running Cells",
     key: "Mod-Shift-r",
   },

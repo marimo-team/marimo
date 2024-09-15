@@ -1,12 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 // @ts-expect-error - no types
 import * as vl from "vega-loader";
-import { DataFormat } from "./types";
-import { DataType } from "@/core/kernel/messages";
+import type { DataFormat } from "./types";
+import type { DataType } from "@/core/kernel/messages";
 
 // Re-export the vega-loader functions to add TypeScript types
 
-export function read(
+export function read<T = object>(
   data: string | Record<string, unknown> | Array<Record<string, unknown>>,
   format:
     | DataFormat
@@ -19,7 +19,7 @@ export function read(
         parse: FieldTypes;
       }
     | undefined,
-): object[] {
+): T[] {
   return vl.read(data, format);
 }
 

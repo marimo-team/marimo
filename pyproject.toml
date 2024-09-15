@@ -45,7 +45,9 @@ dependencies = [
     "itsdangerous>=2.0.0",
     # for cell formatting; if user version is not compatible, no-op
     # so no lower bound needed
-    "black",
+    "ruff",
+    # for packaging.version; not sure what the lower bound is.
+    "packaging",
 ]
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -70,72 +72,85 @@ classifiers = [
 marimo = "marimo._cli.cli:main"
 
 [project.optional-dependencies]
+sql = [
+    "duckdb >= 1.0.0",
+]
+
 dev = [
-    "click < 8.1.4",  # https://github.com/pallets/click/issues/2558
-    "black~=23.3.0",
+    "click <8.1.4",  # https://github.com/pallets/click/issues/2558
+    "black~=23.12.1",
     "build~=0.10.0",
-    "types-Pygments~=2.17.0.20240310",
-    "types-psutil~=5.9.5.20240423",
-    # for server testing
-    "httpx~=0.26.0",
+    "types-Pygments~=2.18.0.20240506",
+    "types-psutil~=5.9.5.20240516",
+    # For server testing
+    "httpx~=0.27.0",
+    # For SQL
+    "duckdb~=1.1.0",
     # For testing mo.ui.chart, dataframes, tables
-    "pandas>=1.3.0",
-    "pandas-stubs>=1.3.0",
-    "pyarrow>=15.0.2,<16",
-    "pyarrow-stubs>=10",
+    "pandas>=1.5.3",
+    "pandas-stubs>=1.5.3.230321",
+    "pyarrow>=15.0.2,<18",
+    "pyarrow-stubs>=17.0",
+    # For tracing debugging
+    "opentelemetry-api~=1.26.0",
+    "opentelemetry-sdk~=1.26.0",
     # For testing mo.image
-    "pillow~=10.2.0",
-    "types-Pillow~=10.2.0.20240311",
-    # polars 0.19.13 requires building maturn from source, but we don't
-    # have the rust toolchain installed on CI
-    "polars==0.20.30",
-    "pytest~=7.4.0",
+    "pillow~=10.4.0",
+    "types-Pillow~=10.2.0.20240520",
+    "polars~=1.5.0",
+    "hypothesis~=6.102.1",
+    "pytest~=8.3.2",
     "pytest-codecov~=0.5.1",
-    "pytest-asyncio~=0.23.4",
+    "pytest-asyncio~=0.23.8",
     "types-Markdown~=3.6.0.20240316",
-    "types-PyYAML~=6.0.12.20240311",
-    "mypy~=1.10.0",
-    "ruff~=0.5.0",
-    "typos~=1.17.1",
+    "types-PyYAML~=6.0.12.20240808",
+    "mypy~=1.10.1",
+    "ruff~=0.6.1",
+    "typos~=1.23.6",
     # For docs
-    "pypandoc~=1.11",
+    "pypandoc~=1.13",
     "autoclasstoc~=1.6.0",
     # furo raises an error during docs build when sphinx is upgraded
-    "sphinx==7.0.1",
+    "sphinx~=7.0.1",
     "sphinx-copybutton~=0.5.2",
-    "sphinx-new-tab-link~=0.4.0",
+    "sphinx-new-tab-link~=0.5.3",
     "sphinx-sitemap~=2.6.0",
     "sphinx-design~=0.5.0",
     "myst_parser~=3.0.1",
-    "furo==2024.5.6"
+    "furo==2024.8.6"
 ]
 
 testcore = [
-    "click < 8.1.4",  # https://github.com/pallets/click/issues/2558,
+    "click <8.1.4",  # https://github.com/pallets/click/issues/2558,
     # for server testing
-    "httpx~=0.26.0",
-    "pytest~=7.4.0",
+    "hypothesis~=6.102.1",
+    "httpx~=0.27.0",
+    "pytest~=8.3.2",
     "pytest-codecov~=0.5.1",
-    "pytest-asyncio~=0.23.4",
+    "pytest-asyncio~=0.23.8",
 ]
 
 testoptional = [
     # For testing mo.ui.chart, table, ...
-    "altair>=5.0.0",
-    "pandas>=1.3.0",
-    "pandas-stubs>=1.3.0",
-    "pyarrow>=15.0.2,<16",
-    "pyarrow-stubs>=10",
-    "pillow~=10.2.0",
-    "types-Pillow~=10.2.0.20240311",
-    # polars 0.19.13 requires building maturn from source, but we don't
-    # have the rust toolchain installed on CI
-    "polars==0.20.30",
-    "anywidget~=0.9.3",
+    "altair>=5.4.0",
+    "pandas>=1.5.3",
+    "pandas-stubs>=1.5.3.230321",
+    "geopandas~=0.14.4; python_version > \"3.8\"",
+    "matplotlib~=3.9.2; python_version > \"3.8\"",
+    "pyarrow>=15.0.2,<18",
+    "pyarrow-stubs>=17.0",
+    "pyarrow-hotfix",
+    "pillow~=10.4.0",
+    "types-Pillow~=10.2.0.20240520",
+    "polars~=1.5.0",
+    "anywidget~=0.9.13",
     "ipython~=8.12.3",
-    "openai~=1.12.0",
+    "openai~=1.41.1",
+    "ibis-framework[duckdb]~=9.3.0; python_version > \"3.9\"",
+    "anthropic==0.34.1",
     # exporting as ipynb
-    "nbformat >= 5.0.0",
+    "nbformat >=5.10.4",
+    "sympy>=1.13.2",
 ]
 
 [project.urls]
@@ -152,7 +167,7 @@ include = ["marimo*"]
 line-length=79
 exclude = [
     "examples",
-    "scripts/print_banned_cell_names.py",
+    "scripts",
     "marimo/_tutorials",
     "marimo/_snippets/data",
     "marimo/_smoke_tests",
@@ -254,7 +269,7 @@ docstring-code-format = true
 ban-relative-imports = "all"
 # Ban certain modules from being imported at module level, instead requiring
 # that they're imported lazily (e.g., within a function definition).
-banned-module-level-imports = ["numpy", "pandas"]
+banned-module-level-imports = ["numpy", "pandas", "tomlkit", "polars"]
 
 [tool.ruff.lint.flake8-pytest-style]
 mark-parentheses = false

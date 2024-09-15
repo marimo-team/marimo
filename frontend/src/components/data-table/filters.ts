@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { ConditionType } from "@/plugins/impl/data-frames/schema";
-import { ColumnId } from "@/plugins/impl/data-frames/types";
+import type { DataType } from "@/core/kernel/messages";
+import type { ConditionType } from "@/plugins/impl/data-frames/schema";
+import type { ColumnId } from "@/plugins/impl/data-frames/types";
 import { assertNever } from "@/utils/assertNever";
-import { RowData } from "@tanstack/react-table";
+import type { RowData } from "@tanstack/react-table";
 
 declare module "@tanstack/react-table" {
   //allows us to define custom properties for our columns
@@ -11,6 +12,7 @@ declare module "@tanstack/react-table" {
     type?: "primitive" | "mime";
     rowHeader?: boolean;
     dtype?: string;
+    dataType?: DataType;
     filterType?: FilterType;
   }
 }

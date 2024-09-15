@@ -1,16 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import ReactCodeMirror, {
-  Extension,
-  ReactCodeMirrorProps,
+  type Extension,
+  type ReactCodeMirrorProps,
 } from "@uiw/react-codemirror";
 import {
   loadLanguage,
   langs,
-  LanguageName,
+  type LanguageName,
 } from "@uiw/codemirror-extensions-langs";
 import React, { useMemo } from "react";
 import { Logger } from "@/utils/Logger";
 import { ErrorBanner } from "../common/error-banner";
+import type { ResolvedTheme } from "@/theme/useTheme";
 
 /**
  * A code editor that supports any language.
@@ -21,6 +22,7 @@ import { ErrorBanner } from "../common/error-banner";
 const AnyLanguageCodeMirror: React.FC<
   ReactCodeMirrorProps & {
     language: string;
+    theme: ResolvedTheme;
   }
 > = ({ language, extensions = [], ...props }) => {
   const isNotSupported = !(language in langs);

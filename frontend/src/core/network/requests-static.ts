@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { toast } from "@/components/ui/use-toast";
-import { EditRequests, RunRequests } from "./types";
+import type { EditRequests, RunRequests } from "./types";
 import { Logger } from "@/utils/Logger";
 
 export function createStaticRequests(): EditRequests & RunRequests {
@@ -34,8 +34,10 @@ export function createStaticRequests(): EditRequests & RunRequests {
     sendRestart: throwNotInEditMode,
     syncCellIds: throwNotInEditMode,
     sendRun: throwNotInEditMode,
+    sendRunScratchpad: throwNotInEditMode,
     sendRename: throwNotInEditMode,
     sendSave: throwNotInEditMode,
+    sendCopy: throwNotInEditMode,
     sendInterrupt: throwNotInEditMode,
     sendShutdown: throwNotInEditMode,
     sendFormat: throwNotInEditMode,
@@ -56,6 +58,7 @@ export function createStaticRequests(): EditRequests & RunRequests {
     sendRenameFileOrFolder: throwNotInEditMode,
     sendUpdateFile: throwNotInEditMode,
     sendFileDetails: throwNotInEditMode,
+    openTutorial: throwNotInEditMode,
     sendInstallMissingPackages: throwNotInEditMode,
     getRecentFiles: throwNotInEditMode,
     getWorkspaceFiles: throwNotInEditMode,
@@ -63,5 +66,7 @@ export function createStaticRequests(): EditRequests & RunRequests {
     shutdownSession: throwNotInEditMode,
     exportAsHTML: throwNotInEditMode,
     exportAsMarkdown: throwNotInEditMode,
+    autoExportAsHTML: throwNotInEditMode,
+    autoExportAsMarkdown: throwNotInEditMode,
   };
 }

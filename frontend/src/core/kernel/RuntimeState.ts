@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import {
-  marimoValueReadyEvent,
-  MarimoValueReadyEventType,
+  MarimoValueReadyEvent,
+  type MarimoValueReadyEventType,
 } from "../dom/events";
-import { UI_ELEMENT_REGISTRY, UIElementRegistry } from "../dom/uiregistry";
-import { RunRequests } from "../network/types";
+import { UI_ELEMENT_REGISTRY, type UIElementRegistry } from "../dom/uiregistry";
+import type { RunRequests } from "../network/types";
 import { Logger } from "@/utils/Logger";
 
 /**
@@ -47,7 +47,10 @@ export class RuntimeState {
       return;
     }
     this._sendComponentValues = sendComponentValues;
-    document.addEventListener(marimoValueReadyEvent, this.handleReadyEvent);
+    document.addEventListener(
+      MarimoValueReadyEvent.TYPE,
+      this.handleReadyEvent,
+    );
     this.hasStarted = true;
   }
 
@@ -59,7 +62,10 @@ export class RuntimeState {
       Logger.warn("RuntimeState already stopped");
       return;
     }
-    document.removeEventListener(marimoValueReadyEvent, this.handleReadyEvent);
+    document.removeEventListener(
+      MarimoValueReadyEvent.TYPE,
+      this.handleReadyEvent,
+    );
     this.hasStarted = false;
   }
 

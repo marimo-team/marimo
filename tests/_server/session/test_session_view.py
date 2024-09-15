@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import patch
 
-from marimo._ast.cell import CellId_t, CellStatusType
+from marimo._ast.cell import CellId_t, RuntimeStateType
 from marimo._data.models import DataTable, DataTableColumn
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.ops import (
@@ -38,8 +38,8 @@ updated_output = CellOutput(
     mimetype="text/plain",
 )
 
-initial_status: CellStatusType = "running"
-updated_status: CellStatusType = "running"
+initial_status: RuntimeStateType = "running"
+updated_status: RuntimeStateType = "running"
 
 
 def test_session_view_cell_op() -> None:
@@ -241,7 +241,8 @@ def test_add_datasets() -> None:
             Datasets(
                 tables=[
                     DataTable(
-                        source="Local",
+                        source_type="local",
+                        source="df",
                         name="table1",
                         columns=[
                             DataTableColumn(
@@ -255,7 +256,8 @@ def test_add_datasets() -> None:
                         variable_name="df1",
                     ),
                     DataTable(
-                        source="Local",
+                        source_type="local",
+                        source="df",
                         name="table2",
                         columns=[
                             DataTableColumn(
@@ -285,7 +287,8 @@ def test_add_datasets() -> None:
             Datasets(
                 tables=[
                     DataTable(
-                        source="Local",
+                        source_type="local",
+                        source="df",
                         name="table2",
                         columns=[
                             DataTableColumn(
@@ -299,7 +302,8 @@ def test_add_datasets() -> None:
                         variable_name="df2",
                     ),
                     DataTable(
-                        source="Local",
+                        source_type="local",
+                        source="df",
                         name="table3",
                         columns=[],
                         num_rows=3,
@@ -335,6 +339,67 @@ def test_add_datasets() -> None:
 
     assert len(session_view.datasets.tables) == 1
     assert session_view.datasets.tables[0].name == "table2"
+
+
+def test_add_datasets_clear_channel() -> None:
+    session_view = SessionView()
+    session_view.add_raw_operation(
+        serialize(
+            Datasets(
+                tables=[
+                    DataTable(
+                        source_type="duckdb",
+                        source="db",
+                        name="db.table1",
+                        columns=[],
+                        num_rows=1,
+                        num_columns=1,
+                        variable_name=None,
+                    ),
+                    DataTable(
+                        source_type="local",
+                        source="memory",
+                        name="df1",
+                        columns=[],
+                        num_rows=1,
+                        num_columns=1,
+                        variable_name="df1",
+                    ),
+                ],
+                clear_channel="duckdb",
+            )
+        )
+    )
+
+    assert len(session_view.datasets.tables) == 2
+    names = [t.name for t in session_view.datasets.tables]
+    assert "db.table1" in names
+    assert "df1" in names
+
+    session_view.add_raw_operation(
+        serialize(
+            Datasets(
+                tables=[
+                    DataTable(
+                        source_type="local",
+                        source="db",
+                        name="db.table2",
+                        columns=[],
+                        num_rows=1,
+                        num_columns=1,
+                        variable_name=None,
+                    )
+                ],
+                clear_channel="duckdb",
+            )
+        )
+    )
+
+    assert len(session_view.datasets.tables) == 2
+    names = [t.name for t in session_view.datasets.tables]
+    assert "db.table1" not in names
+    assert "df1" in names
+    assert "db.table2" in names
 
 
 def test_add_cell_op() -> None:
@@ -539,3 +604,31 @@ def test_get_cell_console_outputs(time_mock: Any) -> None:
         cell_id: [CellOutput.stdout("one"), CellOutput.stdout("two")],
         cell_2_id: [CellOutput.stdout("two")],
     }
+
+
+def test_mark_auto_export():
+    session_view = SessionView()
+    assert not session_view.has_auto_exported_html
+    assert not session_view.has_auto_exported_md
+
+    session_view.mark_auto_export_html()
+    assert session_view.has_auto_exported_html
+
+    session_view.mark_auto_export_md()
+    assert session_view.has_auto_exported_md
+
+    session_view._touch()
+    assert not session_view.has_auto_exported_html
+    assert not session_view.has_auto_exported_md
+
+    session_view.mark_auto_export_html()
+    session_view.mark_auto_export_md()
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            output=initial_output,
+            status=initial_status,
+        ),
+    )
+    assert not session_view.has_auto_exported_html
+    assert not session_view.has_auto_exported_md

@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   DataTableColumnHeader,
   DataTableColumnHeaderWithSummary,
@@ -7,10 +7,11 @@ import {
 import { Checkbox } from "../ui/checkbox";
 import { MimeCell } from "./mime-cell";
 import { uniformSample } from "./uniformSample";
-import { DataType } from "@/core/kernel/messages";
+import type { DataType } from "@/core/kernel/messages";
 import { TableColumnSummary } from "./column-summary";
-import { FilterType } from "./filters";
-import { FieldTypesWithExternalType } from "./types";
+import type { FilterType } from "./filters";
+import type { FieldTypesWithExternalType } from "./types";
+import { UrlDetector } from "./url-detector";
 
 interface ColumnInfo {
   key: string;
@@ -64,6 +65,8 @@ function getColumnInfo<T>(items: T[]): ColumnInfo[] {
   return [...keys.values()];
 }
 
+export const NAMELESS_COLUMN_PREFIX = "__m_column__";
+
 export function generateColumns<T>({
   items,
   rowHeaders,
@@ -82,7 +85,7 @@ export function generateColumns<T>({
 
   const columns = columnInfo.map(
     (info, idx): ColumnDef<T> => ({
-      id: info.key || `__m_column__${idx}`,
+      id: info.key || `${NAMELESS_COLUMN_PREFIX}${idx}`,
       // Use an accessorFn instead of an accessorKey because column names
       // may have periods in them ...
       // https://github.com/TanStack/table/issues/1671
@@ -90,35 +93,60 @@ export function generateColumns<T>({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return (row as any)[info.key];
       },
+
       header: ({ column }) => {
+        const dtype = column.columnDef.meta?.dtype;
+        const headerWithType = (
+          <div className="flex flex-col">
+            <span className="font-bold">{info.key}</span>
+            {dtype && (
+              <span className="text-xs text-muted-foreground">{dtype}</span>
+            )}
+          </div>
+        );
+
         // Row headers have no summaries
         if (rowHeadersSet.has(info.key)) {
-          return <DataTableColumnHeader header={info.key} column={column} />;
+          return (
+            <DataTableColumnHeader header={headerWithType} column={column} />
+          );
         }
 
         if (!showColumnSummaries) {
-          return <DataTableColumnHeader header={info.key} column={column} />;
+          return (
+            <DataTableColumnHeader header={headerWithType} column={column} />
+          );
         }
 
         return (
           <DataTableColumnHeaderWithSummary
-            header={info.key}
+            header={headerWithType}
             column={column}
             summary={<TableColumnSummary columnId={info.key} />}
           />
         );
       },
-      cell: ({ renderValue, getValue }) => {
+
+      cell: ({ column, renderValue, getValue }) => {
         // Row headers are bold
         if (rowHeadersSet.has(info.key)) {
           return <b>{String(renderValue())}</b>;
         }
 
         const value = getValue();
+
+        const format = column.getColumnFormatting?.();
+        if (format) {
+          return column.applyColumnFormatting(value);
+        }
+
         if (isPrimitiveOrNullish(value)) {
           const rendered = renderValue();
           if (rendered == null) {
             return "";
+          }
+          if (typeof rendered === "string") {
+            return <UrlDetector text={rendered} />;
           }
           return String(rendered);
         }
@@ -133,13 +161,14 @@ export function generateColumns<T>({
         rowHeader: rowHeadersSet.has(info.key),
         filterType: getFilterTypeForFieldType(fieldTypes?.[info.key]?.[0]),
         dtype: fieldTypes?.[info.key]?.[1],
+        dataType: fieldTypes?.[info.key]?.[0],
       },
     }),
   );
 
   if (selection === "single" || selection === "multi") {
     columns.unshift({
-      id: "select",
+      id: "__select__",
       header: ({ table }) =>
         selection === "multi" ? (
           <Checkbox
@@ -149,7 +178,7 @@ export function generateColumns<T>({
               table.toggleAllPageRowsSelected(!!value)
             }
             aria-label="Select all"
-            className="mx-2"
+            className="mx-1.5 my-4"
           />
         ) : null,
       cell: ({ row }) => (

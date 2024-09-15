@@ -4,12 +4,16 @@ from __future__ import annotations
 import abc
 import shutil
 import subprocess
+from typing import List
 
 
 class PackageManager(abc.ABC):
     """Interface for a package manager that can install packages."""
 
     name: str
+
+    def __init__(self) -> None:
+        self._attempted_packages: set[str] = set()
 
     @abc.abstractmethod
     def module_to_package(self, module_name: str) -> str:
@@ -26,12 +30,21 @@ class PackageManager(abc.ABC):
         return shutil.which(self.name) is not None
 
     @abc.abstractmethod
+    async def _install(self, package: str) -> bool:
+        """Installation logic."""
+        ...
+
     async def install(self, package: str) -> bool:
         """Attempt to install a package that makes this module available.
 
         Returns True if installation succeeded, else False.
         """
-        ...
+        self._attempted_packages.add(package)
+        return await self._install(package)
+
+    def attempted_to_install(self, package: str) -> bool:
+        """True iff package installation was previously attempted."""
+        return package in self._attempted_packages
 
     def should_auto_install(self) -> bool:
         """Should this package manager auto-install packages"""
@@ -40,6 +53,21 @@ class PackageManager(abc.ABC):
     def run(self, command: list[str]) -> bool:
         proc = subprocess.run(command)  # noqa: ASYNC101
         return proc.returncode == 0
+
+    def update_notebook_script_metadata(
+        self,
+        filepath: str,
+        import_namespaces_to_add: List[str],
+        import_namespaces_to_remove: List[str],
+    ) -> None:
+        del filepath, import_namespaces_to_add, import_namespaces_to_remove
+        """
+        Add or remove inline script metadata metadata
+        in the marimo notebook.
+
+        This follows PEP 723 https://peps.python.org/pep-0723/
+        """
+        return
 
 
 class CanonicalizingPackageManager(PackageManager):
@@ -56,6 +84,7 @@ class CanonicalizingPackageManager(PackageManager):
         # Initialized lazily
         self._module_name_to_repo_name: dict[str, str] | None = None
         self._repo_name_to_module_name: dict[str, str] | None = None
+        super().__init__()
 
     @abc.abstractmethod
     def _construct_module_name_mapping(self) -> dict[str, str]: ...

@@ -1,29 +1,39 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { sendFileDetails, sendUpdateFile } from "@/core/network/requests";
-import { FileInfo } from "@/core/network/types";
+import type { FileInfo } from "@/core/network/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { useTheme } from "@/theme/useTheme";
 import { EditorView, keymap } from "@codemirror/view";
-import React, { useEffect, useRef, useState } from "react";
+import type React from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "../inputs/Inputs";
-import { CopyIcon, DownloadIcon, SaveIcon } from "lucide-react";
+import {
+  CopyIcon,
+  DownloadIcon,
+  ExternalLinkIcon,
+  SaveIcon,
+} from "lucide-react";
 import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 import { Tooltip } from "@/components/ui/tooltip";
 import { downloadBlob, downloadByURL } from "@/utils/download";
-import { Base64String, base64ToDataURL } from "@/utils/json/base64";
+import { type Base64String, base64ToDataURL } from "@/utils/json/base64";
 import { hotkeysAtom } from "@/core/config/config";
 import { useAtomValue } from "jotai";
 import { ImageViewer, CsvViewer, AudioViewer, VideoViewer } from "./renderers";
+import { isWasm } from "@/core/wasm/utils";
 
 interface Props {
   file: FileInfo;
+  onOpenNotebook: (
+    evt: Pick<Event, "stopPropagation" | "preventDefault">,
+  ) => void;
 }
 
 const unsavedContentsForFile = new Map<string, string>();
 
-export const FileViewer: React.FC<Props> = ({ file }) => {
+export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
   const { theme } = useTheme();
   const hotkeys = useAtomValue(hotkeysAtom);
   // undefined value means not modified yet
@@ -82,8 +92,9 @@ export const FileViewer: React.FC<Props> = ({ file }) => {
   }
 
   const mimeType = data.mimeType || "text/plain";
+  const isEditable = mimeType in mimeToLanguage;
 
-  if (!data.contents) {
+  if (!data.contents && !isEditable) {
     // Show details instead of contents
     return (
       <div className="grid grid-cols-2 gap-2 p-6">
@@ -110,6 +121,13 @@ export const FileViewer: React.FC<Props> = ({ file }) => {
 
   const header = (
     <div className="text-xs text-muted-foreground p-1 flex justify-end gap-2 border-b">
+      {file.isMarimoFile && !isWasm() && (
+        <Tooltip content="Open notebook">
+          <Button size="small" onClick={(evt) => onOpenNotebook(evt)}>
+            <ExternalLinkIcon />
+          </Button>
+        </Tooltip>
+      )}
       <Tooltip content="Download">
         <Button size="small" onClick={handleDownload}>
           <DownloadIcon />
@@ -153,7 +171,7 @@ export const FileViewer: React.FC<Props> = ({ file }) => {
     );
   }
 
-  if (mimeType === "text/csv") {
+  if (mimeType === "text/csv" && data.contents) {
     return (
       <>
         {header}

@@ -3,10 +3,16 @@ from __future__ import annotations
 
 from functools import partial
 
+import pytest
+
 from marimo._ast import compiler
 from marimo._ast.app import CellManager
+from marimo._ast.visitor import ImportData, VariableData
+from marimo._dependencies.dependencies import DependencyManager
 
 compile_cell = partial(compiler.compile_cell, cell_id="0")
+
+HAS_DUCKDB = DependencyManager.duckdb.has()
 
 
 class TestParseCell:
@@ -21,7 +27,7 @@ class TestParseCell:
 
     @staticmethod
     def test_local_variables() -> None:
-        code = "_, y = f(x)\ndef _foo():\n  _bar = 0\nimport _secret_module as module"  # noqa: E501
+        code = "__ = 10\n_, y = f(x)\ndef _foo():\n  _bar = 0\nimport _secret_module as module"  # noqa: E501
         cell = compile_cell(code)
         assert cell.defs == {"module", "y"}
         assert cell.refs == {"f", "x"}
@@ -29,9 +35,9 @@ class TestParseCell:
 
     @staticmethod
     def test_dunder_dunder_excluded() -> None:
-        code = "__ = 10; __name__ = 20"
+        code = "__name__ = 20"
         cell = compile_cell(code)
-        assert cell.defs == {"__", "__name__"}
+        assert cell.defs == {"__name__"}
         assert cell.refs == set()
 
     @staticmethod
@@ -64,6 +70,8 @@ class TestParseCell:
         assert cell.refs == set()
         assert not cell.imported_namespaces
 
+
+class TestImportWorkspace:
     @staticmethod
     def test_import() -> None:
         code = "from a.b.c import d; x = None"
@@ -73,6 +81,197 @@ class TestParseCell:
         assert cell.refs == set()
         # but "a" is the module from which it was imported
         assert cell.imported_namespaces == {"a"}
+        assert not cell.import_workspace.is_import_block
+
+    @staticmethod
+    def test_simple_import_statement() -> None:
+        code = "import foo"
+        cell = compile_cell(code)
+        assert cell.defs == set(["foo"])
+        assert cell.import_workspace.is_import_block
+        assert not cell.import_workspace.imported_defs
+        assert len(list(cell.imports)) == 1
+        assert list(cell.imports)[0].definition == "foo"
+        assert list(cell.imports)[0].imported_symbol is None
+        assert list(cell.imports)[0].module == "foo"
+        assert list(cell.imports)[0].namespace == "foo"
+        assert list(cell.imports)[0].import_level is None
+
+    @staticmethod
+    def test_dotted_import_statement() -> None:
+        code = "import foo.bar"
+        cell = compile_cell(code)
+        assert cell.defs == set(["foo"])
+        assert cell.import_workspace.is_import_block
+        assert not cell.import_workspace.imported_defs
+        assert len(list(cell.imports)) == 1
+        assert list(cell.imports)[0].definition == "foo"
+        assert list(cell.imports)[0].imported_symbol is None
+        assert list(cell.imports)[0].module == "foo.bar"
+        assert list(cell.imports)[0].namespace == "foo"
+        assert list(cell.imports)[0].import_level is None
+
+    @staticmethod
+    def test_from_import() -> None:
+        code = "from foo.bar import baz"
+        cell = compile_cell(code)
+        assert cell.defs == set(["baz"])
+        assert cell.import_workspace.is_import_block
+        assert not cell.import_workspace.imported_defs
+        assert len(list(cell.imports)) == 1
+        assert list(cell.imports)[0].definition == "baz"
+        assert list(cell.imports)[0].imported_symbol == "foo.bar.baz"
+        assert list(cell.imports)[0].module == "foo.bar"
+        assert list(cell.imports)[0].namespace == "foo"
+        assert list(cell.imports)[0].import_level == 0
+
+    @staticmethod
+    def test_multiple_imports() -> None:
+        code = "import foo; import foo.bar; from foo.bar import baz"
+        cell = compile_cell(code)
+        assert cell.defs == set(["foo", "baz"])
+        assert cell.import_workspace.is_import_block
+        assert not cell.import_workspace.imported_defs
+        assert len(list(cell.imports)) == 3
+
+        foo = ImportData(
+            definition="foo",
+            imported_symbol=None,
+            module="foo",
+            import_level=None,
+        )
+        foo_bar = ImportData(
+            definition="foo",
+            imported_symbol=None,
+            module="foo.bar",
+            import_level=None,
+        )
+        foo_bar_baz = ImportData(
+            definition="baz",
+            imported_symbol="foo.bar.baz",
+            module="foo.bar",
+            import_level=0,
+        )
+        assert foo in cell.imports
+        assert foo_bar in cell.imports
+        assert foo_bar_baz in cell.imports
+
+    @staticmethod
+    def test_mixed_statements_not_import_block() -> None:
+        code = "import foo; foo.configure()"
+        cell = compile_cell(code)
+        assert not cell.import_workspace.is_import_block
+        assert not cell.import_workspace.imported_defs
+
+        code = "x = 0; import foo"
+        cell = compile_cell(code)
+        assert not cell.import_workspace.is_import_block
+        assert not cell.import_workspace.imported_defs
+
+    @staticmethod
+    def test_single_carried_import() -> None:
+        foo = ImportData(
+            definition="foo",
+            imported_symbol=None,
+            module="foo",
+            import_level=None,
+        )
+        foo_bar = ImportData(
+            definition="foo",
+            imported_symbol=None,
+            module="foo.bar",
+            import_level=None,
+        )
+        foo_bar_baz = ImportData(
+            definition="baz",
+            imported_symbol="foo.bar.baz",
+            module="foo.bar",
+            import_level=0,
+        )
+
+        code = "import foo; import foo.bar; from foo.bar import baz"
+        cell = compile_cell(code, carried_imports=[foo])
+        assert cell.defs == set(["foo", "baz"])
+        assert cell.import_workspace.is_import_block
+        assert cell.import_workspace.imported_defs == set(["foo"])
+
+        assert len(list(cell.imports)) == 3
+        assert foo in cell.imports
+        assert foo_bar in cell.imports
+        assert foo_bar_baz in cell.imports
+
+    @staticmethod
+    def test_multiple_carried_imports() -> None:
+        foo = ImportData(
+            definition="foo",
+            imported_symbol=None,
+            module="foo",
+            import_level=None,
+        )
+        foo_bar = ImportData(
+            definition="foo",
+            imported_symbol=None,
+            module="foo.bar",
+            import_level=None,
+        )
+        foo_bar_baz = ImportData(
+            definition="baz",
+            imported_symbol="foo.bar.baz",
+            module="foo.bar",
+            import_level=0,
+        )
+
+        code = "import foo; import foo.bar; from foo.bar import baz"
+        cell = compile_cell(code, carried_imports=[foo, foo_bar, foo_bar_baz])
+        assert cell.defs == set(["foo", "baz"])
+        assert cell.import_workspace.is_import_block
+        assert cell.import_workspace.imported_defs == set(["foo", "baz"])
+
+        assert len(list(cell.imports)) == 3
+        assert foo in cell.imports
+        assert foo_bar in cell.imports
+        assert foo_bar_baz in cell.imports
+
+    @staticmethod
+    def test_carried_imports_mismatch() -> None:
+        # import foo and import foo.bar both define "foo", but they are
+        # different imports; as such, the import should not be carried over
+        foo = ImportData(
+            definition="foo",
+            imported_symbol=None,
+            module="foo",
+            import_level=None,
+        )
+        code = "import foo.bar"
+        cell = compile_cell(code, carried_imports=[foo])
+        assert cell.defs == set(["foo"])
+        assert cell.import_workspace.is_import_block
+        assert not cell.import_workspace.imported_defs
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="Missing DuckDB")
+class TestParseSQLCell:
+    @staticmethod
+    def test_table_definition() -> None:
+        code = 'mo.sql("CREATE TABLE t1 (i INTEGER, j INTEGER)")'
+        cell = compile_cell(code)
+        assert cell.key == hash(code)
+        assert cell.code == code
+        assert cell.defs == set(["t1"])
+        assert cell.refs == set(["mo"])
+        assert cell.language == "sql"
+        assert cell.variable_data == {"t1": [VariableData("table")]}
+
+    @staticmethod
+    def test_table_reference() -> None:
+        code = 'mo.sql("SELECT * from t1")'
+        cell = compile_cell(code)
+        assert cell.key == hash(code)
+        assert cell.code == code
+        assert not cell.defs
+        assert cell.refs == set(["mo", "t1"])
+        assert cell.language == "sql"
+        assert not cell.variable_data
 
 
 class TestCellFactory:

@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import datetime
 from typing import Any
 
 import pytest
@@ -9,7 +8,7 @@ import pytest
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
 
-HAS_PANDAS = DependencyManager.has_pandas()
+HAS_PANDAS = DependencyManager.pandas.has()
 
 
 def test_number_init() -> None:
@@ -56,11 +55,12 @@ def test_number_from_dataframe() -> None:
     import pandas as pd
 
     df = pd.DataFrame({"A": [1, 2, 3]})
-    number = ui.number.from_series(df["A"], step=0.1)
+    number = ui.number.from_series(df["A"], step=0.1, label="Custom label")
     assert number.start == 1
     assert number.stop == 3
     assert number.value == 1
     assert number.step == 0.1
+    assert number._args.label == "Custom label"
 
 
 def test_slider_init() -> None:
@@ -150,11 +150,12 @@ def test_slider_from_dataframe() -> None:
     import pandas as pd
 
     df = pd.DataFrame({"A": [1, 2, 3]})
-    slider = ui.slider.from_series(df["A"], step=0.1)
+    slider = ui.slider.from_series(df["A"], step=0.1, label="Custom label")
     assert slider.start == 1
     assert slider.stop == 3
     assert slider.value == 1
     assert slider.step == 0.1
+    assert slider._args.label == "Custom label"
 
 
 def test_range_slider_init() -> None:
@@ -247,11 +248,14 @@ def test_range_slider_from_dataframe() -> None:
     import pandas as pd
 
     df = pd.DataFrame({"A": [1, 2, 3]})
-    slider = ui.range_slider.from_series(df["A"], step=0.1)
+    slider = ui.range_slider.from_series(
+        df["A"], step=0.1, label="Custom label"
+    )
     assert slider.start == 1
     assert slider.stop == 3
     assert slider.value == [1, 3]
     assert slider.step == 0.1
+    assert slider._args.label == "Custom label"
 
 
 def test_text() -> None:
@@ -426,33 +430,11 @@ def test_form_in_array_retains_on_change() -> None:
     assert array[0]._on_change == on_change
 
 
+def test_form_in_dictionary_allowed() -> None:
+    checkbox = ui.checkbox()
+    form = checkbox.form()
+    d = ui.dictionary({"form": form})
+    assert checkbox._id != d["form"].element._id
+
+
 # TODO(akshayka): test file
-
-
-def test_date() -> None:
-    date = ui.date()
-    today = date.value
-    assert today == datetime.date.today()
-
-    date._update("2024-01-01")
-    assert date.value == datetime.date(2024, 1, 1)
-
-    date = ui.date(value="2024-01-01")
-    assert date.value == datetime.date(2024, 1, 1)
-
-    date = ui.date(value="2024-01-01")
-    date._update("2024-01-02")
-    assert date.value == datetime.date(2024, 1, 2)
-
-
-@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
-def test_date_from_dataframe() -> None:
-    import pandas as pd
-
-    df = pd.DataFrame(
-        {"A": [pd.Timestamp("2024-01-01"), pd.Timestamp("2024-01-02")]}
-    )
-    date = ui.date.from_series(df["A"], value=datetime.date(2024, 1, 2))
-    assert date.value == datetime.date(2024, 1, 2)
-    assert date.start == datetime.date(2024, 1, 1)
-    assert date.stop == datetime.date(2024, 1, 2)

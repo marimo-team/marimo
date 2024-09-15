@@ -2,15 +2,27 @@
 from __future__ import annotations
 
 import ast
+import itertools
 import sys
+from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Literal, Optional
 from uuid import uuid4
 
+from marimo import _loggers
+from marimo._ast.sql_visitor import (
+    find_from_targets,
+    find_sql_defs,
+    normalize_sql_f_string,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.variables import is_local
 
+LOGGER = _loggers.marimo_logger()
+
 Name = str
+
+Language = Literal["python", "sql"]
 
 
 @dataclass
@@ -18,6 +30,8 @@ class ImportData:
     # full module name
     # e.g., a.b.c.
     module: str
+    # variable name
+    definition: str
     # fully qualified import symbol:
     # import a.b => symbol == None
     # from a.b import c => symbol == a.b.c
@@ -30,7 +44,10 @@ class ImportData:
 
 @dataclass
 class VariableData:
-    kind: Literal["function", "class", "import", "variable"] = "variable"
+    # "table", "view", and "schema" are SQL variables, not Python.
+    kind: Literal[
+        "function", "class", "import", "variable", "table", "view", "schema"
+    ] = "variable"
 
     # If kind == function or class, it may be dependent on externally defined
     # variables.
@@ -47,6 +64,18 @@ class VariableData:
     # For kind == import
     import_data: Optional[ImportData] = None
 
+    @property
+    def language(self) -> Language:
+        return (
+            "sql"
+            if (
+                self.kind == "table"
+                or self.kind == "schema"
+                or self.kind == "view"
+            )
+            else "python"
+        )
+
 
 @dataclass
 class Block:
@@ -57,7 +86,9 @@ class Block:
     # Names defined with the global keyword
     global_names: set[Name] = field(default_factory=set)
     # Map from defined names to metadata about their variables
-    variable_data: dict[Name, VariableData] = field(default_factory=dict)
+    variable_data: dict[Name, list[VariableData]] = field(
+        default_factory=lambda: defaultdict(list)
+    )
     # Comprehensions have special scoping rules
     is_comprehension: bool = False
 
@@ -84,7 +115,9 @@ class RefData:
 
 
 class ScopedVisitor(ast.NodeVisitor):
-    def __init__(self, mangle_prefix: Optional[str] = None) -> None:
+    def __init__(
+        self, mangle_prefix: Optional[str] = None, ignore_local: bool = False
+    ) -> None:
         self.block_stack: list[Block] = [Block()]
         # Names to be loaded into a variable required_refs
         self.ref_stack: list[set[Name]] = [set()]
@@ -97,6 +130,8 @@ class ScopedVisitor(ast.NodeVisitor):
             if mangle_prefix is None
             else mangle_prefix
         )
+        self.is_local = (lambda _: False) if ignore_local else is_local
+        self.language: Language = "python"
 
     @property
     def defs(self) -> set[Name]:
@@ -104,7 +139,7 @@ class ScopedVisitor(ast.NodeVisitor):
         return self.block_stack[0].defs
 
     @property
-    def variable_data(self) -> dict[Name, VariableData]:
+    def variable_data(self) -> dict[Name, list[VariableData]]:
         """Get data accompanying globals."""
         return self.block_stack[0].variable_data
 
@@ -122,7 +157,9 @@ class ScopedVisitor(ast.NodeVisitor):
         self, name: str, ignore_scope: bool = False
     ) -> str:
         """Mangle local variable name declared at top-level scope."""
-        if is_local(name) and (len(self.block_stack) == 1 or ignore_scope):
+        if self.is_local(name) and (
+            len(self.block_stack) == 1 or ignore_scope
+        ):
             return f"_{self.id}{name}"
         else:
             return name
@@ -177,7 +214,7 @@ class ScopedVisitor(ast.NodeVisitor):
         """Define a name in a given block."""
 
         self.block_stack[block_idx].defs.add(name)
-        self.block_stack[block_idx].variable_data[name] = variable_data
+        self.block_stack[block_idx].variable_data[name].append(variable_data)
         # If `name` is added to the top-level block, it is also evicted from
         # any captured refs (if present) --- this handles cases where a name is
         # encountered and captured before it is declared, such as in
@@ -342,6 +379,10 @@ class ScopedVisitor(ast.NodeVisitor):
         # If the call name is sql and has one argument, and the argument is
         # a string literal, then it's likely to be a SQL query.
         # It must also come from the `mo` module.
+        #
+        # This check is brittle, since we can't detect at parse time whether
+        # 'mo'/'marimo' actually refer to the marimo library, but it gets
+        # the job done.
         if (
             isinstance(node.func, ast.Attribute)
             and isinstance(node.func.value, ast.Name)
@@ -349,6 +390,7 @@ class ScopedVisitor(ast.NodeVisitor):
             and node.func.attr == "sql"
             and len(node.args) == 1
         ):
+            self.language = "sql"
             first_arg = node.args[0]
             sql: Optional[str] = None
             if isinstance(first_arg, ast.Constant):
@@ -356,17 +398,78 @@ class ScopedVisitor(ast.NodeVisitor):
             elif isinstance(first_arg, ast.JoinedStr):
                 sql = normalize_sql_f_string(first_arg)
 
-            if isinstance(sql, str) and DependencyManager.has_duckdb() and sql:
+            if (
+                isinstance(sql, str)
+                and DependencyManager.duckdb.has_at_version(
+                    min_version="1.0.0"
+                )
+                and sql
+            ):
                 import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
                 # Add all tables in the query to the ref scope
                 try:
-                    tables = duckdb.get_table_names(sql)
-                    for table in tables:
-                        self._add_ref(table, deleted=False)
-                except (duckdb.ParserException, duckdb.InvalidInputException):
-                    # The user's sql query may have a syntax error
-                    pass
+                    # TODO: This function raises a CatalogError on CREATE VIEW
+                    # statements that reference tables that are not yet
+                    # defined, such
+                    #
+                    # as CREATE OR REPLACE VIEW my_view as SELECT * from my_df
+                    #
+                    # This breaks dependency parsing.
+                    statements = duckdb.extract_statements(sql)
+                except duckdb.ProgrammingError:
+                    # The user's sql query may have a syntax error,
+                    # or duckdb failed for an unknown reason; don't
+                    # break marimo.
+                    self.generic_visit(node)
+                    return
+                except BaseException as e:
+                    # We catch base exceptions because we don't want to
+                    # fail due to bugs in duckdb -- users code should
+                    # be saveable no matter what
+                    LOGGER.warning("Unexpected duckdb error %s", e)
+                    self.generic_visit(node)
+                    return
+
+                for statement in statements:
+                    # Parse the refs and defs of each statement
+                    try:
+                        tables = duckdb.get_table_names(statement.query)
+                        # TODO(akshayka): more comprehensive parsing
+                        # of the statement -- schemas can show up in
+                        # joins, queries, ...
+                        from_targets = find_from_targets(statement.query)
+                    except duckdb.ProgrammingError:
+                        self.generic_visit(node)
+                        continue
+                    except BaseException as e:
+                        LOGGER.warning("Unexpected duckdb error %s", e)
+                        self.generic_visit(node)
+                        continue
+
+                    for name in itertools.chain(tables, from_targets):
+                        # Name (table, db) may be a URL or something else that
+                        # isn't a Python variable
+                        if name.isidentifier():
+                            self._add_ref(name, deleted=False)
+
+                    # Add all tables/dbs created in the query to the defs
+                    try:
+                        sql_defs = find_sql_defs(sql)
+                    except duckdb.ProgrammingError:
+                        self.generic_visit(node)
+                        continue
+                    except BaseException as e:
+                        LOGGER.warning("Unexpected duckdb error %s", e)
+                        self.generic_visit(node)
+                        continue
+
+                    for _table in sql_defs.tables:
+                        self._define(_table, VariableData("table"))
+                    for _view in sql_defs.views:
+                        self._define(_view, VariableData("view"))
+                    for _schema in sql_defs.schemas:
+                        self._define(_schema, VariableData("schema"))
 
         # Visit arguments, keyword args, etc.
         self.generic_visit(node)
@@ -499,16 +602,16 @@ class ScopedVisitor(ast.NodeVisitor):
         elif (
             isinstance(node.ctx, ast.Load)
             and not self._is_defined(node.id)
-            and not is_local(node.id)
+            and not self.is_local(node.id)
         ):
             self._add_ref(node.id, deleted=False)
         elif (
             isinstance(node.ctx, ast.Del)
             and not self._is_defined(node.id)
-            and not is_local(node.id)
+            and not self.is_local(node.id)
         ):
             self._add_ref(node.id, deleted=True)
-        elif is_local(node.id):
+        elif self.is_local(node.id):
             mangled_name = self._if_local_then_mangle(
                 node.id, ignore_scope=True
             )
@@ -552,7 +655,9 @@ class ScopedVisitor(ast.NodeVisitor):
                 VariableData(
                     kind="import",
                     import_data=ImportData(
-                        module=alias_node.name, imported_symbol=None
+                        module=alias_node.name,
+                        definition=variable_name,
+                        imported_symbol=None,
                     ),
                 ),
             )
@@ -570,6 +675,7 @@ class ScopedVisitor(ast.NodeVisitor):
                     kind="import",
                     import_data=ImportData(
                         module=module,
+                        definition=variable_name,
                         imported_symbol=module + "." + original_name,
                         import_level=node.level,
                     ),
@@ -648,18 +754,3 @@ class ScopedVisitor(ast.NodeVisitor):
                     kind="variable", required_refs=self.ref_stack[-1]
                 ),
             )
-
-
-def normalize_sql_f_string(node: ast.JoinedStr) -> str:
-    def print_part(part: ast.expr) -> str:
-        if isinstance(part, ast.FormattedValue):
-            return print_part(part.value)
-        elif isinstance(part, ast.JoinedStr):
-            return normalize_sql_f_string(part)
-        elif isinstance(part, ast.Constant):
-            return str(part.s)
-        else:
-            # Just add '_' as a placeholder for {...} expressions
-            return "'_'"
-
-    return "".join(print_part(part) for part in node.values)

@@ -17,6 +17,7 @@ from marimo._server.models.models import (
     BaseResponse,
     InstantiateRequest,
     RunRequest,
+    RunScratchpadRequest,
     SuccessResponse,
     UpdateComponentValuesRequest,
 )
@@ -164,6 +165,35 @@ async def run_cell(
     return SuccessResponse()
 
 
+@router.post("/scratchpad/run")
+@requires("edit")
+async def run_scratchpad(
+    *,
+    request: Request,
+) -> BaseResponse:
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/RunScratchpadRequest"
+    responses:
+        200:
+            description: Run the scratchpad
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """  # noqa: E501
+    app_state = AppState(request)
+    body = await parse_request(request, cls=RunScratchpadRequest)
+    app_state.require_current_session().put_control_request(
+        body.as_execution_request()
+    )
+
+    return SuccessResponse()
+
+
 @router.post("/restart_session")
 @requires("edit")
 async def restart_session(
@@ -213,9 +243,10 @@ async def shutdown(
         close_uvicorn(app_state.server)
 
     # If we are only operating on a single file (new or explicit file),
-    # then we should shutdown the whole server
+    # and there are no other sessions (user may have opened another notebook
+    # from the file explorer) then we should shutdown the whole server
     key = file_router.get_unique_file_key()
-    if key:
+    if key and len(session_manager.sessions) <= 1:
         shutdown_server()
         return SuccessResponse()
 

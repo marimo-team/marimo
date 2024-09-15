@@ -1,25 +1,31 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { EditorView } from "@codemirror/view";
+import type { EditorView } from "@codemirror/view";
 import { languageAdapterState } from "./extension";
 import { SQLLanguageAdapter } from "./sql";
 import { normalizeName } from "@/core/cells/names";
+import { useAutoGrowInputProps } from "@/hooks/useAutoGrowInputProps";
 
 export const LanguagePanelComponent: React.FC<{
   view: EditorView;
 }> = ({ view }) => {
   const languageAdapter = view.state.field(languageAdapterState);
+  const { spanProps, inputProps } = useAutoGrowInputProps({ minWidth: 50 });
   let actions: React.ReactNode = <div />;
 
   if (languageAdapter instanceof SQLLanguageAdapter) {
     actions = (
-      <div className="flex gap-2">
+      <div className="flex gap-2 relative">
         Output variable:{" "}
         <input
+          {...inputProps}
           defaultValue={languageAdapter.dataframeName}
-          onChange={(e) => (languageAdapter.dataframeName = e.target.value)}
+          onChange={(e) => {
+            languageAdapter.dataframeName = e.target.value;
+            inputProps.onChange?.(e);
+          }}
           onBlur={(e) => {
             // Normalize the name to a valid variable name
-            const name = normalizeName(e.target.value);
+            const name = normalizeName(e.target.value, false);
             languageAdapter.dataframeName = name;
             e.target.value = name;
 
@@ -32,8 +38,9 @@ export const LanguagePanelComponent: React.FC<{
               },
             });
           }}
-          className="w-20 border border-border rounded px-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="min-w-14 w-auto border border-border rounded px-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         />
+        <span {...spanProps} />
       </div>
     );
   }

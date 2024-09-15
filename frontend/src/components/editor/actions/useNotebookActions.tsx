@@ -1,7 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { kioskModeAtom, runDuringPresentMode } from "@/core/mode";
+import {
+  kioskModeAtom,
+  runDuringPresentMode,
+  viewStateAtom,
+} from "@/core/mode";
 import { downloadBlob, downloadHTMLAsImage } from "@/utils/download";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   ImageIcon,
   CommandIcon,
@@ -20,6 +24,12 @@ import {
   CheckIcon,
   KeyboardIcon,
   Undo2Icon,
+  FileIcon,
+  Home,
+  PresentationIcon,
+  EditIcon,
+  LayoutTemplateIcon,
+  Files,
 } from "lucide-react";
 import { commandPaletteAtom } from "../controls/command-palette";
 import { useCellActions, useNotebook } from "@/core/cells/cells";
@@ -34,20 +44,26 @@ import {
   saveCellConfig,
 } from "@/core/network/requests";
 import { Objects } from "@/utils/objects";
-import { ActionButton } from "./types";
+import type { ActionButton } from "./types";
 import { downloadAsHTML } from "@/core/static/download-html";
 import { toast } from "@/components/ui/use-toast";
 import { useFilename } from "@/core/saving/filename";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { ShareStaticNotebookModal } from "@/components/static-html/share-modal";
 import { useRestartKernel } from "./useRestartKernel";
-import { createShareableLink } from "@/core/pyodide/share";
+import { createShareableLink } from "@/core/wasm/share";
 import { useChromeActions, useChromeState } from "../chrome/state";
-import { PANEL_ICONS, PANEL_TYPES } from "../chrome/types";
+import { PANELS } from "../chrome/types";
 import { startCase } from "lodash-es";
 import { keyboardShortcutsAtom } from "../controls/keyboard-shortcuts";
 import { MarkdownIcon } from "@/components/editor/cell/code/icons";
 import { Filenames } from "@/utils/filenames";
+import { LAYOUT_TYPES } from "../renderers/types";
+import { displayLayoutName, getLayoutIcon } from "../renderers/layout-select";
+import { useLayoutState, useLayoutActions } from "@/core/layout/layout";
+import { useTogglePresenting } from "@/core/layout/useTogglePresenting";
+import { useCopyNotebook } from "./useCopyNotebook";
+import { isWasm } from "@/core/wasm/utils";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -59,16 +75,27 @@ export function useNotebookActions() {
   const { openModal, closeModal } = useImperativeModal();
   const { openApplication } = useChromeActions();
   const { selectedPanel } = useChromeState();
+  const [viewState] = useAtom(viewStateAtom);
   const kioskMode = useAtomValue(kioskModeAtom);
 
   const notebook = useNotebook();
   const { updateCellConfig, undoDeleteCell } = useCellActions();
   const restartKernel = useRestartKernel();
+  const copyNotebook = useCopyNotebook(filename);
   const setCommandPaletteOpen = useSetAtom(commandPaletteAtom);
   const setKeyboardShortcutsOpen = useSetAtom(keyboardShortcutsAtom);
 
   const disabledCells = disabledCellIds(notebook);
   const enabledCells = enabledCellIds(notebook);
+  const { selectedLayout } = useLayoutState();
+  const { setLayoutView } = useLayoutActions();
+  const togglePresenting = useTogglePresenting();
+
+  const renderCheckboxElement = (checked: boolean) => (
+    <div className="w-8 flex justify-end">
+      {checked && <CheckIcon size={14} />}
+    </div>
+  );
 
   const actions: ActionButton[] = [
     {
@@ -133,13 +160,38 @@ export function useNotebookActions() {
                 return;
               }
 
-              // Wait 2 seconds for the app to render
-              await new Promise((resolve) => setTimeout(resolve, 2000));
+              // Wait 3 seconds for the app to render
+              await new Promise((resolve) => setTimeout(resolve, 3000));
 
               await downloadHTMLAsImage(app, document.title);
             });
 
             toasted.dismiss();
+          },
+        },
+        {
+          icon: <FileIcon size={14} strokeWidth={1.5} />,
+          label: "Download PDF",
+          handle: async () => {
+            const toasted = toast({
+              title: "Starting download",
+              description: "Downloading as PDF...",
+            });
+
+            await runDuringPresentMode(async () => {
+              // Wait 3 seconds for the app to render
+              await new Promise((resolve) => setTimeout(resolve, 3000));
+              toasted.dismiss();
+
+              const beforeprint = new Event("export-beforeprint");
+              const afterprint = new Event("export-afterprint");
+              function print() {
+                window.dispatchEvent(beforeprint);
+                setTimeout(() => window.print(), 0);
+                setTimeout(() => window.dispatchEvent(afterprint), 0);
+              }
+              print();
+            });
           },
         },
         {
@@ -174,21 +226,66 @@ export function useNotebookActions() {
       icon: <PanelLeftIcon size={14} strokeWidth={1.5} />,
       label: "Helper panel",
       handle: NOOP_HANDLER,
-      dropdown: PANEL_TYPES.map((type) => {
-        const Icon = PANEL_ICONS[type];
+      dropdown: PANELS.flatMap(({ type, Icon, hidden }) => {
+        if (hidden) {
+          return [];
+        }
         return {
           label: startCase(type),
-          rightElement: (
-            <div className="w-8 flex justify-end">
-              {selectedPanel === type && <CheckIcon size={14} />}
-            </div>
-          ),
+          rightElement: renderCheckboxElement(selectedPanel === type),
           icon: <Icon size={14} strokeWidth={1.5} />,
           handle: () => openApplication(type),
         };
       }),
     },
 
+    {
+      icon: <PresentationIcon size={14} strokeWidth={1.5} />,
+      label: "Present as",
+      handle: NOOP_HANDLER,
+      dropdown: [
+        {
+          icon:
+            viewState.mode === "present" ? (
+              <EditIcon size={14} strokeWidth={1.5} />
+            ) : (
+              <LayoutTemplateIcon size={14} strokeWidth={1.5} />
+            ),
+          label: "Toggle app view",
+          hotkey: "global.hideCode",
+          handle: () => {
+            togglePresenting();
+          },
+        },
+        ...LAYOUT_TYPES.map((type, idx) => {
+          const Icon = getLayoutIcon(type);
+          return {
+            divider: idx === 0,
+            label: displayLayoutName(type),
+            icon: <Icon size={14} strokeWidth={1.5} />,
+            rightElement: (
+              <div className="w-8 flex justify-end">
+                {selectedLayout === type && <CheckIcon size={14} />}
+              </div>
+            ),
+            handle: () => {
+              setLayoutView(type);
+              // Toggle if it's not in present mode
+              if (viewState.mode === "edit") {
+                togglePresenting();
+              }
+            },
+          };
+        }),
+      ],
+    },
+
+    {
+      icon: <Files size={14} strokeWidth={1.5} />,
+      label: "Create notebook copy",
+      hidden: !filename || isWasm(),
+      handle: copyNotebook,
+    },
     {
       icon: <ClipboardCopyIcon size={14} strokeWidth={1.5} />,
       label: "Copy code to clipboard",
@@ -202,7 +299,6 @@ export function useNotebookActions() {
         });
       },
     },
-
     {
       icon: <ZapIcon size={14} strokeWidth={1.5} />,
       label: "Enable all cells",
@@ -215,9 +311,9 @@ export function useNotebookActions() {
         // send to BE
         await saveCellConfig({ configs: newConfigs });
         // update on FE
-        ids.forEach((cellId) =>
-          updateCellConfig({ cellId, config: { disabled: false } }),
-        );
+        for (const cellId of ids) {
+          updateCellConfig({ cellId, config: { disabled: false } });
+        }
       },
     },
     {
@@ -232,9 +328,9 @@ export function useNotebookActions() {
         // send to BE
         await saveCellConfig({ configs: newConfigs });
         // update on FE
-        ids.forEach((cellId) =>
-          updateCellConfig({ cellId, config: { disabled: true } }),
-        );
+        for (const cellId of ids) {
+          updateCellConfig({ cellId, config: { disabled: true } });
+        }
       },
     },
     {
@@ -271,6 +367,15 @@ export function useNotebookActions() {
 
     {
       divider: true,
+      icon: <Home size={14} strokeWidth={1.5} />,
+      label: "Return home",
+      hidden: !location.search.includes("file"),
+      handle: () => {
+        window.location.href = document.baseURI;
+      },
+    },
+
+    {
       icon: <PowerSquareIcon size={14} strokeWidth={1.5} />,
       label: "Restart kernel",
       variant: "danger",

@@ -4,10 +4,12 @@ import * as PopoverPrimitive from "@radix-ui/react-popover";
 
 import { cn } from "@/utils/cn";
 import { StyleNamespace } from "@/theme/namespace";
+import { withFullScreenAsRoot } from "./fullscreen";
 
 const Popover = PopoverPrimitive.Root;
 
 const PopoverTrigger = PopoverPrimitive.Trigger;
+const PopoverPortal = withFullScreenAsRoot(PopoverPrimitive.Portal);
 
 const PopoverContent = React.forwardRef<
   React.ElementRef<typeof PopoverPrimitive.Content>,
@@ -34,7 +36,7 @@ const PopoverContent = React.forwardRef<
       </StyleNamespace>
     );
     if (portal) {
-      return <PopoverPrimitive.Portal>{content}</PopoverPrimitive.Portal>;
+      return <PopoverPortal>{content}</PopoverPortal>;
     }
 
     return content;

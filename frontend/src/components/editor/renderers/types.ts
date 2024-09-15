@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { AppConfig } from "@/core/config/config-schema";
-import { CellData, CellRuntimeState } from "@/core/cells/types";
-import { ZodType, ZodTypeDef } from "zod";
-import { AppMode } from "@/core/mode";
+import type { AppConfig } from "@/core/config/config-schema";
+import type { CellData, CellRuntimeState } from "@/core/cells/types";
+import type { ZodType, ZodTypeDef } from "zod";
+import type { AppMode } from "@/core/mode";
 
 /**
  * The props passed to a cell renderer.
@@ -36,7 +36,16 @@ export interface ICellRendererProps<L> {
   setLayout: (layout: L) => void;
 }
 
-export type LayoutType = "grid" | "vertical";
+export type LayoutType = "vertical" | "grid" | "slides";
+/**
+ * List of supported layout types, in the order to be displayed.
+ */
+export const LAYOUT_TYPES: LayoutType[] = ["vertical", "grid", "slides"];
+/**
+ * Overridable layout types.
+ * These types can override the current layout via a URL parameter.
+ */
+export const OVERRIDABLE_LAYOUT_TYPES: LayoutType[] = ["slides"];
 
 /**
  * A cell renderer plugin.

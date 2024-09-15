@@ -1,22 +1,27 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Extension } from "@codemirror/state";
-import { LanguageAdapter } from "./types";
+import type { Extension } from "@codemirror/state";
+import type { LanguageAdapter } from "./types";
 import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { parseMixed } from "@lezer/common";
 import { python, pythonLanguage } from "@codemirror/lang-python";
 import dedent from "string-dedent";
 import {
-  Completion,
-  CompletionSource,
+  type Completion,
+  type CompletionSource,
   autocompletion,
 } from "@codemirror/autocomplete";
 import { once } from "lodash-es";
 import { enhancedMarkdownExtension } from "../markdown/extension";
-import { CompletionConfig } from "@/core/config/config-schema";
-import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+import type { CompletionConfig } from "@/core/config/config-schema";
+import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { indentOneTab } from "./utils/indentOneTab";
-import { QuotePrefixKind, splitQuotePrefix } from "./utils/quotes";
+import { type QuotePrefixKind, splitQuotePrefix } from "./utils/quotes";
+import {
+  markdownAutoRunExtension,
+  type MovementCallbacks,
+} from "../cells/extensions";
+import type { PlaceholderType } from "../config/extension";
 
 const quoteKinds = [
   ['"""', '"""'],
@@ -54,10 +59,6 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
   lastQuotePrefix: QuotePrefixKind = "";
 
   transformIn(pythonCode: string): [string, number] {
-    if (!this.isSupported(pythonCode)) {
-      throw new Error("Not supported");
-    }
-
     pythonCode = pythonCode.trim();
 
     // empty string
@@ -82,6 +83,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
       }
     }
 
+    // no match
     return [pythonCode, 0];
   }
 
@@ -89,20 +91,27 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
     // Get the quote type from the last transformIn
     const prefix = this.lastQuotePrefix;
 
+    // Empty string
+    if (code === "") {
+      // Need at least a space, otherwise the output will be 6 quotes
+      code = " ";
+    }
+
+    // We always transform back with triple quotes, as to avoid needing to
+    // escape single quotes.
+    const escapedCode = code.replaceAll('"""', String.raw`\"""`);
+
+    // If its one line and not bounded by quotes, write it as single line
     const isOneLine = !code.includes("\n");
-    if (isOneLine) {
-      // This logic breaks f-strings:
-      //
-      // https://github.com/marimo-team/marimo/issues/1727
-      const escapedCode = code.replaceAll('"', '\\"');
-      const start = `mo.md(${prefix}"`;
-      const end = `")`;
+    const boundedByQuote = code.startsWith('"') || code.endsWith('"');
+    if (isOneLine && !boundedByQuote) {
+      const start = `mo.md(${prefix}"""`;
+      const end = `""")`;
       return [start + escapedCode + end, start.length];
     }
 
     // Multiline code
     const start = `mo.md(\n    ${prefix}"""\n`;
-    const escapedCode = code.replaceAll('"""', String.raw`\"""`);
     const end = `\n    """\n)`;
     return [start + indentOneTab(escapedCode) + end, start.length + 1];
   }
@@ -116,22 +125,38 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
       return true;
     }
 
-    const markdownLines = pythonCode
-      .trim()
-      .split("\n")
-      .map((line) => line.startsWith("mo.md("))
-      .filter(Boolean);
-    if (markdownLines.length > 1) {
-      // more than line starting with mo.md(; as a heuristic,
-      // don't show "view as markdown"
-      return false;
+    // Handle mo.md("foo"), mo.plain_text("bar") in the same line
+    // If it starts with mo.md, but we have more than one function call, return false
+    if (pythonCode.trim().startsWith("mo.md(")) {
+      const tree = pythonLanguage.parser.parse(pythonCode);
+      let functionCallCount = 0;
+
+      // Parse the code using Lezer to check for multiple function calls
+      tree.iterate({
+        enter: (node) => {
+          if (node.name === "CallExpression") {
+            functionCallCount++;
+            if (functionCallCount > 1) {
+              return false; // Stop iterating if we've found more than one function call
+            }
+          }
+        },
+      });
+
+      // If the function call count is greater than 1, we don't want to show "view as markdown"
+      if (functionCallCount > 1) {
+        return false;
+      }
     }
+
     return regexes.some(([, regex]) => regex.test(pythonCode));
   }
 
   getExtension(
     _completionConfig: CompletionConfig,
     hotkeys: HotkeyProvider,
+    _: PlaceholderType,
+    movementCallbacks: MovementCallbacks,
   ): Extension[] {
     return [
       markdown({
@@ -145,7 +170,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
 
               // Find all { } groupings
               const pattern = /{(.*?)}/g;
-              let match;
+              let match: RegExpExecArray | null;
 
               while ((match = pattern.exec(text)) !== null) {
                 const start = match.index + 1;
@@ -170,6 +195,8 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
         activateOnTyping: true,
         override: [emojiCompletionSource],
       }),
+      // Markdown autorun
+      markdownAutoRunExtension(movementCallbacks),
       python().support,
     ];
   }

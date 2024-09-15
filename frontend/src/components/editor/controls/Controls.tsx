@@ -20,11 +20,12 @@ import { ConfigButton } from "../../app-config/app-config-button";
 import { LayoutSelect } from "../renderers/layout-select";
 import { NotebookMenuDropdown } from "@/components/editor/controls/notebook-menu-dropdown";
 import { FindReplace } from "@/components/find-replace/find-replace";
-import { AppConfig } from "@/core/config/config-schema";
+import type { AppConfig } from "@/core/config/config-schema";
 import { useShouldShowInterrupt } from "../cell/useShouldShowInterrupt";
 import { CommandPaletteButton } from "./command-palette-button";
 import { cn } from "@/utils/cn";
 import { HideInKioskMode } from "../kiosk-mode";
+import { Functions } from "@/utils/functions";
 
 interface ControlsProps {
   filename: string | null;
@@ -148,13 +149,9 @@ export const Controls = ({
           <div className="flex flex-col gap-2 items-center">
             {undoControl}
             {!closed && (
-              <RunControlButton
-                running={running}
-                needsRun={needsRun}
-                onRun={onRun}
-                onInterrupt={onInterrupt}
-              />
+              <StopControlButton running={running} onInterrupt={onInterrupt} />
             )}
+            {!closed && <RunControlButton needsRun={needsRun} onRun={onRun} />}
           </div>
         </HideInKioskMode>
       </div>
@@ -163,34 +160,13 @@ export const Controls = ({
 };
 
 const RunControlButton = ({
-  running,
   needsRun,
   onRun,
-  onInterrupt,
 }: {
-  running: boolean;
   needsRun: boolean;
   onRun: () => void;
-  onInterrupt: () => void;
 }) => {
-  // Show the interrupt button after 200ms to avoid flickering.
-  const showInterrupt = useShouldShowInterrupt(running);
-
-  if (showInterrupt) {
-    return (
-      <Tooltip content={renderShortcut("global.interrupt")}>
-        <Button
-          data-testid="interrupt-button"
-          size="medium"
-          color="yellow"
-          shape="circle"
-          onClick={onInterrupt}
-        >
-          <SquareIcon strokeWidth={1.5} size={16} />
-        </Button>
-      </Tooltip>
-    );
-  } else if (needsRun) {
+  if (needsRun) {
     return (
       <Tooltip content={renderShortcut("global.runStale")}>
         <Button
@@ -221,8 +197,36 @@ const RunControlButton = ({
   );
 };
 
+const StopControlButton = ({
+  running,
+  onInterrupt,
+}: {
+  running: boolean;
+  onInterrupt: () => void;
+}) => {
+  // Show the interrupt button after 200ms to avoid flickering.
+  const showInterrupt = useShouldShowInterrupt(running);
+
+  return (
+    <Tooltip content={renderShortcut("global.interrupt")}>
+      <Button
+        className={cn(
+          !showInterrupt && "inactive-button active:shadow-xsSolid",
+        )}
+        data-testid="interrupt-button"
+        size="medium"
+        color={showInterrupt ? "yellow" : "disabled"}
+        shape="circle"
+        onClick={showInterrupt ? onInterrupt : Functions.NOOP}
+      >
+        <SquareIcon strokeWidth={1.5} size={16} />
+      </Button>
+    </Tooltip>
+  );
+};
+
 const topRightControls =
-  "absolute top-3 right-5 m-0 flex items-center space-x-3 min-h-[28px] no-print pointer-events-auto z-30";
+  "absolute top-3 right-5 m-0 flex items-center space-x-3 min-h-[28px] no-print pointer-events-auto z-30 print:hidden";
 
 const bottomRightControls =
-  "absolute bottom-5 right-5 flex flex-col gap-2 items-center no-print pointer-events-auto z-30";
+  "absolute bottom-5 right-5 flex flex-col gap-2 items-center no-print pointer-events-auto z-30 print:hidden";

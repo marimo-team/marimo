@@ -9,6 +9,7 @@ from starlette.responses import StreamingResponse
 
 from marimo import _loggers
 from marimo._config.config import MarimoConfig
+from marimo._server.ai.prompts import Prompter
 from marimo._server.api.deps import AppState
 from marimo._server.api.status import HTTPStatus
 from marimo._server.api.utils import parse_request
@@ -16,10 +17,19 @@ from marimo._server.models.completion import (
     AiCompletionRequest,
 )
 from marimo._server.router import APIRouter
-from marimo._utils.assert_never import assert_never
 
 if TYPE_CHECKING:
-    from openai import OpenAI, Stream  # type: ignore[import-not-found]
+    from anthropic import (  # type: ignore[import-not-found]
+        Client,
+        Stream as AnthropicStream,
+    )
+    from anthropic.types import (  # type: ignore[import-not-found]
+        RawMessageStreamEvent,
+    )
+    from openai import (  # type: ignore[import-not-found]
+        OpenAI,
+        Stream as OpenAiStream,
+    )
     from openai.types.chat import (  # type: ignore[import-not-found]
         ChatCompletionChunk,
     )
@@ -36,7 +46,8 @@ def get_openai_client(config: MarimoConfig) -> "OpenAI":
         from openai import OpenAI  # type: ignore[import-not-found]
     except ImportError:
         raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST, detail="OpenAI not installed"
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="OpenAI not installed. Run `pip install openai`",
         ) from None
 
     if "ai" not in config:
@@ -68,6 +79,42 @@ def get_openai_client(config: MarimoConfig) -> "OpenAI":
     return OpenAI(api_key=key, base_url=base_url)
 
 
+def get_anthropic_client(config: MarimoConfig) -> "Client":
+    try:
+        from anthropic import Client  # type: ignore[import-not-found]
+    except ImportError:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="Anthropic not installed. Run `pip install anthropic`",
+        ) from None
+
+    if "ai" not in config:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="Anthropic not configured",
+        )
+    if "anthropic" not in config["ai"]:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="Anthropic not configured",
+        )
+    if "api_key" not in config["ai"]["anthropic"]:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="Anthropic API key not configured",
+        )
+
+    key: str = config["ai"]["anthropic"]["api_key"]
+
+    if not key:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="Anthropic API key not configured",
+        )
+
+    return Client(api_key=key)
+
+
 def get_model(config: MarimoConfig) -> str:
     model: str = (
         config.get("ai", {}).get("open_ai", {}).get("model", "gpt-4-turbo")
@@ -77,15 +124,34 @@ def get_model(config: MarimoConfig) -> str:
     return model
 
 
+def get_content(
+    response: RawMessageStreamEvent | ChatCompletionChunk,
+) -> str | None:
+    if hasattr(response, "choices"):
+        return response.choices[0].delta.content  # type: ignore
+
+    from anthropic.types import (
+        RawContentBlockDeltaEvent,
+        TextDelta,
+    )
+
+    if isinstance(response, RawContentBlockDeltaEvent):
+        if isinstance(response.delta, TextDelta):
+            return response.delta.text  # type: ignore
+
+    return None
+
+
 def make_stream_response(
-    response: Stream[ChatCompletionChunk],
+    response: OpenAiStream[ChatCompletionChunk]
+    | AnthropicStream[RawMessageStreamEvent],
 ) -> Generator[str, None, None]:
     original_content = ""
-    buffer: str = ""
+    buffer = ""
     in_code_fence = False
-    # If it starts or ends with markdown, remove it
+
     for chunk in response:
-        content = chunk.choices[0].delta.content
+        content = get_content(chunk)
         if not content:
             continue
 
@@ -158,42 +224,37 @@ async def ai_completion(
     app_state.require_current_session()
     config = app_state.config_manager.get_config(hide_secrets=False)
     body = await parse_request(request, cls=AiCompletionRequest)
-    client = get_openai_client(config)
 
-    if body.language == "python":
-        system_prompt = (
-            "You are a helpful assistant that can answer questions "
-            "about python code. You can only output python code. "
-            "1. Do not describe the code, just write the code."
-            "2. Do not output markdown or backticks."
-            "3. When using matplotlib to show plots,"
-            "use plt.gca() instead of plt.show()."
-            "4. If an import already exists, do not import it again."
-            "5. If a variable is already defined, use another name, or"
-            "make it private by adding an underscore at the beginning."
-        )
-    elif body.language == "markdown":
-        system_prompt = (
-            "You are a helpful assistant that can answer questions "
-            "about markdown. You can only output markdown."
-        )
-    elif body.language == "sql":
-        system_prompt = (
-            "You are a helpful assistant that can answer questions "
-            "about sql. You can only output sql."
-        )
-    else:
-        assert_never(body.language)
+    prompter = Prompter(body.code, body.include_other_code, body.context)
+    system_prompt = Prompter.get_system_prompt(body.language)
+    prompt = prompter.get_prompt(body.prompt)
 
-    prompt = body.prompt
-    if body.include_other_code:
-        prompt = (
-            f"{prompt}\n\nCode from other cells:\n{body.include_other_code}"
-        )
-    if body.code.strip():
-        prompt = f"{prompt}\n\nCurrent code:\n{body.code}"
+    model = get_model(config)
 
-    response = client.chat.completions.create(
+    # If the model starts with claude, use anthropic
+    if model.startswith("claude"):
+        anthropic_client = get_anthropic_client(config)
+        anthropic_response = anthropic_client.messages.create(
+            model=model,
+            max_tokens=1000,
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+            system=system_prompt,
+            stream=True,
+            temperature=0,
+        )
+
+        return StreamingResponse(
+            content=make_stream_response(anthropic_response),
+            media_type="application/json",
+        )
+
+    openai_client = get_openai_client(config)
+    response = openai_client.chat.completions.create(
         model=get_model(config),
         messages=[
             {

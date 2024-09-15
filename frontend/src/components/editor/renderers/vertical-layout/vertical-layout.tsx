@@ -1,20 +1,21 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { memo, useRef, useState } from "react";
-import { CellRuntimeState } from "@/core/cells/types";
-import { CellId, HTMLCellId } from "@/core/cells/ids";
+import type React from "react";
+import { memo, useRef, useState } from "react";
+import type { CellRuntimeState } from "@/core/cells/types";
+import { type CellId, HTMLCellId } from "@/core/cells/ids";
 import { OutputArea } from "@/components/editor/Output";
-import { ICellRendererPlugin, ICellRendererProps } from "../types";
+import type { ICellRendererPlugin, ICellRendererProps } from "../types";
 import { VerticalLayoutWrapper } from "./vertical-layout-wrapper";
 import { z } from "zod";
 import { useDelayVisibility } from "./useDelayVisibility";
-import { AppMode, kioskModeAtom } from "@/core/mode";
-import { ReadonlyPythonCode } from "@/components/editor/code/readonly-python-code";
+import { type AppMode, kioskModeAtom } from "@/core/mode";
+import { ReadonlyCode } from "@/components/editor/code/readonly-python-code";
 import {
-  ChevronDown,
+  Check,
   Code2Icon,
-  Download,
   FolderDownIcon,
   ImageIcon,
+  MoreHorizontalIcon,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/ui/button";
@@ -26,12 +27,17 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { downloadHTMLAsImage } from "@/utils/download";
 import { downloadAsHTML } from "@/core/static/download-html";
-import { isPyodide } from "@/core/pyodide/utils";
-import { CellConfig } from "@/core/network/types";
+import { isWasm } from "@/core/wasm/utils";
+import type { CellConfig } from "@/core/network/types";
 import { useAtomValue } from "jotai";
+import { FloatingOutline } from "../../chrome/panels/outline/floating-outline";
+import { KnownQueryParams } from "@/core/constants";
+import { useUserConfig } from "@/core/config/config";
+import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
 
 type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;
@@ -43,13 +49,14 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
 }) => {
   const { invisible } = useDelayVisibility(cells.length, mode);
   const kioskMode = useAtomValue(kioskModeAtom);
+  const [userConfig] = useUserConfig();
 
   const urlParams = new URLSearchParams(window.location.search);
-  const showCodeDefault = urlParams.get("show-code");
+  const showCodeDefault = urlParams.get(KnownQueryParams.showCode);
   const [showCode, setShowCode] = useState(() => {
-    // Default to showing code if the notebook is static
+    // Default to showing code if the notebook is static or wasm
     return showCodeDefault === null
-      ? isStaticNotebook() || isPyodide()
+      ? isStaticNotebook() || isWasm() || kioskMode
       : showCodeDefault === "true";
   });
 
@@ -65,14 +72,14 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
     // If it is a static-notebook or wasm-read-only-notebook, code is always included,
     // but it can be turned it off via a query parameter (include-code=false)
 
-    const includeCode = urlParams.get("include-code");
+    const includeCode = urlParams.get(KnownQueryParams.includeCode);
     return mode === "read" && includeCode !== "false" && cellsHaveCode;
   };
 
   const canShowCode = evaluateCanShowCode();
 
-  return (
-    <VerticalLayoutWrapper invisible={invisible} appConfig={appConfig}>
+  const verticalCells = (
+    <>
       {cells.map((cell) => (
         <VerticalCell
           key={cell.id}
@@ -82,6 +89,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
           status={cell.status}
           code={cell.code}
           config={cell.config}
+          cellOutputArea={userConfig.display.cell_output}
           stopped={cell.stopped}
           showCode={showCode && canShowCode}
           errored={cell.errored}
@@ -93,6 +101,19 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
           kiosk={kioskMode}
         />
       ))}
+    </>
+  );
+
+  // in read mode (required for canShowCode to be true), we need to insert
+  // spacing between cells to prevent them from colliding; in edit mode,
+  // spacing is handled elsewhere
+  return (
+    <VerticalLayoutWrapper invisible={invisible} appConfig={appConfig}>
+      {showCode && canShowCode ? (
+        <div className="flex flex-col gap-5"> {verticalCells}</div>
+      ) : (
+        verticalCells
+      )}
       {mode === "read" && (
         <ActionButtons
           canShowCode={canShowCode}
@@ -100,6 +121,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
           onToggleShowCode={() => setShowCode((v) => !v)}
         />
       )}
+      <FloatingOutline />
     </VerticalLayoutWrapper>
   );
 };
@@ -128,33 +150,30 @@ const ActionButtons: React.FC<{
   return (
     <div
       className={cn(
-        "right-0 top-0 z-50 m-4 no-print flex gap-2",
+        "right-0 top-0 z-50 m-4 no-print flex gap-2 print:hidden",
         // If the notebook is static, we have a banner at the top, so
         // we can't use fixed positioning. Ideally this is sticky, but the
         // current dom structure makes that difficult.
         isStaticNotebook() ? "absolute" : "fixed",
       )}
     >
-      {canShowCode && (
-        <Button
-          variant="secondary"
-          onClick={onToggleShowCode}
-          size="xs"
-          data-testid="show-code"
-        >
-          <Code2Icon className="w-4 h-4 mr-2" />
-          {showCode ? "Hide code" : "Show code"}
-        </Button>
-      )}
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild={true}>
-          <Button variant="secondary" size="xs" data-testid="download-as">
-            <Download className="w-4 h-4 mr-2" />
-            Download as
-            <ChevronDown className="w-4 h-4 ml-2" />
+          <Button variant="secondary" size="xs">
+            <MoreHorizontalIcon className="w-4 h-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="no-print w-[220px]">
+          {canShowCode && (
+            <>
+              <DropdownMenuItem onSelect={onToggleShowCode}>
+                <Code2Icon className="mr-2" size={14} strokeWidth={1.5} />
+                <span className="flex-1">Show code</span>
+                {showCode && <Check className="h-4 w-4" />}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
+          )}
           <DropdownMenuItem onSelect={handleDownloadAsHTML}>
             <FolderDownIcon className="mr-2" size={14} strokeWidth={1.5} />
             Download as HTML
@@ -181,6 +200,7 @@ interface VerticalCellProps
     | "staleInputs"
     | "runStartTimestamp"
   > {
+  cellOutputArea: "above" | "below";
   cellId: CellId;
   config: CellConfig;
   code: string;
@@ -194,6 +214,7 @@ const VerticalCell = memo(
   ({
     output,
     consoleOutputs,
+    cellOutputArea,
     cellId,
     status,
     stopped,
@@ -235,21 +256,32 @@ const VerticalCell = memo(
 
     // Read mode and show code
     if ((mode === "read" && showCode) || kioskFull) {
+      const outputArea = (
+        <OutputArea
+          allowExpand={true}
+          output={output}
+          className="output-area"
+          cellId={cellId}
+          stale={outputStale}
+        />
+      );
+
+      const isCodeEmpty = code.trim() === "";
+      const isPureMarkdown = new MarkdownLanguageAdapter().isSupported(code);
+
       return (
         <div tabIndex={-1} id={HTMLId} ref={cellRef} className={className}>
-          <OutputArea
-            allowExpand={true}
-            output={output}
-            className="output-area"
-            cellId={cellId}
-            stale={outputStale}
-          />
-          <div className="tray">
-            <ReadonlyPythonCode
-              initiallyHideCode={config.hide_code || kiosk}
-              code={code}
-            />
-          </div>
+          {cellOutputArea === "above" && outputArea}
+          {/* Hide code if it's empty or pure markdown */}
+          {!isPureMarkdown && !isCodeEmpty && (
+            <div className="tray">
+              <ReadonlyCode
+                initiallyHideCode={config.hide_code || kiosk}
+                code={code}
+              />
+            </div>
+          )}
+          {cellOutputArea === "below" && outputArea}
           <ConsoleOutput
             consoleOutputs={consoleOutputs}
             stale={outputStale}

@@ -6,7 +6,7 @@ import {
   KeyboardSensor,
   PointerSensor,
   useSensor,
-  DragEndEvent,
+  type DragEndEvent,
   useSensors,
 } from "@dnd-kit/core";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
@@ -17,7 +17,7 @@ import {
 } from "@dnd-kit/sortable";
 import { useCellActions, useNotebook } from "../../core/cells/cells";
 import { useEvent } from "../../hooks/useEvent";
-import { CellId } from "@/core/cells/ids";
+import type { CellId } from "@/core/cells/ids";
 
 interface SortableCellsProviderProps {
   children: React.ReactNode;
@@ -43,7 +43,7 @@ const SortableCellsProviderInternal = ({
     }),
   );
 
-  const ids = notebook.cellIds;
+  const ids = notebook.cellIds.topLevelIds;
 
   const handleDragEnd = useEvent((event: DragEndEvent) => {
     const { active, over } = event;
@@ -59,8 +59,12 @@ const SortableCellsProviderInternal = ({
     });
   });
 
+  // autoScroll threshold x: 0 is required to disable horizontal scroll
+  //            threshold y: 0.1 means scroll y when near bottom/top 10% of
+  //            scrollable container
   return (
     <DndContext
+      autoScroll={{ threshold: { x: 0, y: 0.1 } }}
       sensors={sensors}
       collisionDetection={closestCenter}
       modifiers={[restrictToVerticalAxis]}

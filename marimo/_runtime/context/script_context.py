@@ -5,8 +5,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Iterator, Optional
 
-from marimo._ast.app import InternalApp
 from marimo._cli.parse_args import args_from_argv
+from marimo._config.config import MarimoConfig
 from marimo._plugins.ui._core.ids import NoIDProviderException
 from marimo._plugins.ui._core.registry import UIElementRegistry
 from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
@@ -20,6 +20,7 @@ from marimo._runtime.functions import FunctionRegistry
 from marimo._runtime.params import CLIArgs, QueryParams
 
 if TYPE_CHECKING:
+    from marimo._ast.app import InternalApp
     from marimo._ast.cell import CellId_t
     from marimo._messaging.types import Stream
     from marimo._runtime.state import State
@@ -46,6 +47,10 @@ class ScriptRuntimeContext(RuntimeContext):
     @property
     def execution_context(self) -> ExecutionContext | None:
         return self._app.execution_context
+
+    @property
+    def user_config(self) -> MarimoConfig:
+        return self._app.user_config
 
     @property
     def cell_id(self) -> Optional[CellId_t]:
@@ -100,6 +105,10 @@ class ScriptRuntimeContext(RuntimeContext):
         finally:
             self._app.set_execution_context(old)
 
+    @property
+    def app(self) -> InternalApp:
+        return self._app
+
 
 def initialize_script_context(app: InternalApp, stream: Stream) -> None:
     """Initializes thread-local/session-specific context.
@@ -118,5 +127,7 @@ def initialize_script_context(app: InternalApp, stream: Stream) -> None:
         stream=stream,
         stdout=None,
         stderr=None,
+        children=[],
+        parent=None,
     )
     initialize_context(runtime_context=runtime_context)

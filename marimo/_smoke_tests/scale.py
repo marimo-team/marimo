@@ -1,13 +1,20 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "marimo",
+# ]
+# ///
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.0"
+__generated_with = "0.8.14"
 app = marimo.App()
 
 
 @app.cell
 def __(mo):
-    mo.md("# Scale")
+    mo.md("""# Scale""")
     return
 
 
@@ -134,36 +141,36 @@ def __():
 def __(mo):
     mo.md(
         """
-    ---
+        ---
 
-    # h1 Heading
-    ## h2 Heading
-    ### h3 Heading
-    #### h4 Heading
-    ##### h5 Heading
-    ###### h6 Heading
-
-
-    ## Emphasis
-
-    **This is bold text**
-
-    __This is bold text__
-
-    *This is italic text*
-
-    _This is italic text_
-
-    ~~Strikethrough~~
+        # h1 Heading
+        ## h2 Heading
+        ### h3 Heading
+        #### h4 Heading
+        ##### h5 Heading
+        ###### h6 Heading
 
 
-    ## Blockquotes
+        ## Emphasis
+
+        **This is bold text**
+
+        __This is bold text__
+
+        *This is italic text*
+
+        _This is italic text_
+
+        ~~Strikethrough~~
 
 
-    > Blockquotes can also be nested...
-    >> ...by using additional greater-than signs right next to each other...
-    > > > ...or with spaces between arrows.
-    """
+        ## Blockquotes
+
+
+        > Blockquotes can also be nested...
+        >> ...by using additional greater-than signs right next to each other...
+        > > > ...or with spaces between arrows.
+        """
     )
     return
 

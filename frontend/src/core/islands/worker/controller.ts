@@ -2,11 +2,11 @@
 import type { PyodideInterface } from "pyodide";
 import { Logger } from "../../../utils/Logger";
 import { defaultUserConfig } from "@/core/config/config-schema";
-import { SerializedBridge } from "@/core/pyodide/worker/types";
-import { OperationMessage } from "@/core/kernel/messages";
-import { JsonString } from "@/utils/json/base64";
-import { DefaultWasmController } from "@/core/pyodide/worker/bootstrap";
-import { WasmFileSystem } from "@/core/pyodide/worker/fs";
+import type { SerializedBridge } from "@/core/wasm/worker/types";
+import type { OperationMessage } from "@/core/kernel/messages";
+import type { JsonString } from "@/utils/json/base64";
+import { DefaultWasmController } from "@/core/wasm/worker/bootstrap";
+import { WasmFileSystem } from "@/core/wasm/worker/fs";
 
 export class ReadonlyWasmController extends DefaultWasmController {
   override async bootstrap(opts: {

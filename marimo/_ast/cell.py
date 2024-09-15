@@ -1,17 +1,18 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import ast
 import dataclasses
 import inspect
 from typing import TYPE_CHECKING, Any, Literal, Mapping, Optional
 
-from marimo._ast.visitor import ImportData, Name, VariableData
+from marimo._ast.sql_visitor import SQLVisitor
+from marimo._ast.visitor import ImportData, Language, Name, VariableData
 from marimo._utils.deep_merge import deep_merge
 
 CellId_t = str
 
 if TYPE_CHECKING:
-    import ast
     from collections.abc import Awaitable, Iterable
     from types import CodeType
 
@@ -55,18 +56,50 @@ CellConfigKeys = frozenset(
 )
 
 
-# Cell Statuses
+# States in a cell's runtime state machine
 #
 # idle: cell has run with latest inputs
 # queued: cell is queued to run
 # running: cell is running
 # disabled-transitively: cell is disabled because a parent is disabled
-CellStatusType = Literal["idle", "queued", "running", "disabled-transitively"]
+RuntimeStateType = Literal[
+    "idle", "queued", "running", "disabled-transitively"
+]
 
 
 @dataclasses.dataclass
-class CellStatus:
-    state: Optional[CellStatusType] = None
+class RuntimeState:
+    state: Optional[RuntimeStateType] = None
+
+
+# Statuses for a cell's attempted execution
+#
+# cancelled:    an ancestor raised an exception
+# marimo-error: cell was prevented from executing
+# disabled:     skipped because the cell is disabled
+RunResultStatusType = Literal[
+    "success",
+    "exception",
+    "cancelled",
+    "interrupted",
+    "marimo-error",
+    "disabled",
+]
+
+
+@dataclasses.dataclass
+class RunResultStatus:
+    state: Optional[RunResultStatusType] = None
+
+
+@dataclasses.dataclass
+class ImportWorkspace:
+    """A workspace for runtimes to use to manage a cell's imports."""
+
+    # A cell is an import block if all statements are import statements
+    is_import_block: bool = False
+    # Defs that have been imported by the runtime
+    imported_defs: set[Name] = dataclasses.field(default_factory=set)
 
 
 def _is_coroutine(code: Optional[CodeType]) -> bool:
@@ -85,6 +118,11 @@ class CellOutput:
     output: Any = None
 
 
+@dataclasses.dataclass
+class ParsedSQLStatements:
+    parsed: Optional[list[str]] = None
+
+
 @dataclasses.dataclass(frozen=True)
 class CellImpl:
     # hash of code
@@ -94,22 +132,35 @@ class CellImpl:
     defs: set[Name]
     refs: set[Name]
     # metadata about definitions
-    variable_data: dict[Name, VariableData]
+    variable_data: dict[Name, list[VariableData]]
     deleted_refs: set[Name]
     body: Optional[CodeType]
     last_expr: Optional[CodeType]
+    # whether this cell is Python or SQL
+    language: Language
     # unique id
     cell_id: CellId_t
 
     # Mutable fields
-    # config: explicit configuration of cell
+    # explicit configuration of cell
     config: CellConfig = dataclasses.field(default_factory=CellConfig)
-    # status: execution status, inferred at runtime
-    _status: CellStatus = dataclasses.field(default_factory=CellStatus)
+    # workspace for runtimes to use to store metadata about imports
+    import_workspace: ImportWorkspace = dataclasses.field(
+        default_factory=ImportWorkspace
+    )
+    # execution status, inferred at runtime
+    _status: RuntimeState = dataclasses.field(default_factory=RuntimeState)
+    _run_result_status: RunResultStatus = dataclasses.field(
+        default_factory=RunResultStatus
+    )
     # whether the cell is stale, inferred at runtime
     _stale: CellStaleState = dataclasses.field(default_factory=CellStaleState)
     # cells can optionally hold a reference to their output
     _output: CellOutput = dataclasses.field(default_factory=CellOutput)
+    # parsed sql statements
+    _sqls: ParsedSQLStatements = dataclasses.field(
+        default_factory=ParsedSQLStatements
+    )
 
     def configure(self, update: dict[str, Any] | CellConfig) -> CellImpl:
         """Update the cell config.
@@ -120,8 +171,28 @@ class CellImpl:
         return self
 
     @property
-    def status(self) -> Optional[CellStatusType]:
+    def runtime_state(self) -> Optional[RuntimeStateType]:
         return self._status.state
+
+    @property
+    def run_result_status(self) -> Optional[RunResultStatusType]:
+        return self._run_result_status.state
+
+    @property
+    def sqls(self) -> list[str]:
+        """Return a list of SQL statements for this cell."""
+        if self._sqls.parsed is not None:
+            return self._sqls.parsed
+
+        try:
+            visitor = SQLVisitor()
+            visitor.visit(ast.parse(self.code))
+            sqls = visitor.get_sqls()
+            self._sqls.parsed = sqls
+        except Exception:
+            self._sqls.parsed = []
+
+        return self._sqls.parsed
 
     @property
     def stale(self) -> bool:
@@ -129,24 +200,27 @@ class CellImpl:
 
     @property
     def disabled_transitively(self) -> bool:
-        return self.status == "disabled-transitively"
+        return self.runtime_state == "disabled-transitively"
 
     @property
     def imports(self) -> Iterable[ImportData]:
         """Return a set of import data for this cell."""
-        return [
-            data.import_data
-            for _, data in self.variable_data.items()
-            if data.import_data is not None
-        ]
+        import_data = []
+        for data in self.variable_data.values():
+            import_data.extend(
+                [
+                    datum.import_data
+                    for datum in data
+                    if datum.import_data is not None
+                ]
+            )
+        return import_data
 
     @property
     def imported_namespaces(self) -> set[Name]:
         """Return a set of the namespaces imported by this cell."""
         return set(
-            data.import_data.module.split(".")[0]
-            for _, data in self.variable_data.items()
-            if data.import_data is not None
+            import_data.module.split(".")[0] for import_data in self.imports
         )
 
     def namespace_to_variable(self, namespace: str) -> Name | None:
@@ -158,19 +232,16 @@ class CellImpl:
 
         In this case the namespace is "matplotlib" but the name is "plt".
         """
-        for name, data in self.variable_data.items():
-            if (
-                data.import_data is not None
-                and data.import_data.namespace == namespace
-            ):
-                return name
+        for import_data in self.imports:
+            if import_data.namespace == namespace:
+                return import_data.definition
         return None
 
     def is_coroutine(self) -> bool:
         return _is_coroutine(self.body) or _is_coroutine(self.last_expr)
 
-    def set_status(
-        self, status: CellStatusType, stream: Stream | None = None
+    def set_runtime_state(
+        self, status: RuntimeStateType, stream: Stream | None = None
     ) -> None:
         """Set execution status and broadcast to frontends."""
         from marimo._messaging.ops import CellOp
@@ -189,6 +260,11 @@ class CellImpl:
         CellOp.broadcast_status(
             cell_id=self.cell_id, status=status, stream=stream
         )
+
+    def set_run_result_status(
+        self, run_result_status: RunResultStatusType
+    ) -> None:
+        self._run_result_status.state = run_result_status
 
     def set_stale(self, stale: bool, stream: Stream | None = None) -> None:
         from marimo._messaging.ops import CellOp
@@ -431,6 +507,13 @@ class Cell:
             f"Calling marimo cells using `{self.name}()` is not supported. "
             f"Use {call_str} instead. "
         )
+
+
+@dataclasses.dataclass
+class SourcePosition:
+    filename: str
+    lineno: int
+    col_offset: int
 
 
 def is_ws(char: str) -> bool:

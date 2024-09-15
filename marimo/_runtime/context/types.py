@@ -12,12 +12,14 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Iterator, Optional
 
+from marimo._config.config import MarimoConfig
 from marimo._messaging.types import Stderr, Stdout
 from marimo._runtime import dataflow
 from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
 from marimo._runtime.functions import FunctionRegistry
 
 if TYPE_CHECKING:
+    from marimo._ast.app import InternalApp
     from marimo._ast.cell import CellId_t
     from marimo._messaging.types import Stream
     from marimo._output.hypertext import Html
@@ -52,6 +54,9 @@ def get_global_context() -> GlobalContext:
 class ExecutionContext:
     cell_id: CellId_t
     setting_element_value: bool
+    # Cell ID corresponding to local graph object, and not prefixed in script
+    # context.
+    local_cell_id: Optional[CellId_t] = None
     # output object set imperatively
     output: Optional[list[Html]] = None
 
@@ -66,6 +71,8 @@ class RuntimeContext(abc.ABC):
     stream: Stream
     stdout: Stdout | None
     stderr: Stderr | None
+    children: list[RuntimeContext]
+    parent: RuntimeContext | None
 
     @property
     @abc.abstractmethod
@@ -80,6 +87,11 @@ class RuntimeContext(abc.ABC):
     @property
     @abc.abstractmethod
     def execution_context(self) -> ExecutionContext | None:
+        pass
+
+    @property
+    @abc.abstractmethod
+    def user_config(self) -> MarimoConfig:
         pass
 
     @property
@@ -120,6 +132,29 @@ class RuntimeContext(abc.ABC):
     @contextmanager
     @abc.abstractmethod
     def with_cell_id(self, cell_id: CellId_t) -> Iterator[None]:
+        pass
+
+    def add_child(self, runtime_context: RuntimeContext) -> None:
+        if runtime_context not in self.children:
+            self.children.append(runtime_context)
+
+    def remove_child(self, runtime_context: RuntimeContext) -> None:
+        self.children.remove(runtime_context)
+        assert runtime_context not in self.children
+
+    @contextmanager
+    def install(self) -> Iterator[None]:
+        global _THREAD_LOCAL_CONTEXT
+        old_ctx = _THREAD_LOCAL_CONTEXT.runtime_context
+        try:
+            _THREAD_LOCAL_CONTEXT.runtime_context = self
+            yield
+        finally:
+            _THREAD_LOCAL_CONTEXT.runtime_context = old_ctx
+
+    @property
+    @abc.abstractmethod
+    def app(self) -> InternalApp:
         pass
 
 

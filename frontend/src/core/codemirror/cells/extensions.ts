@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { EditorView, type KeyBinding, keymap } from "@codemirror/view";
 import { type CellId, HTMLCellId } from "@/core/cells/ids";
 import { type Extension, Prec } from "@codemirror/state";
@@ -12,10 +12,8 @@ import { isAtEndOfEditor, isAtStartOfEditor } from "../utils";
 import { goToDefinitionAtCursorPosition } from "../go-to-definition/utils";
 
 export interface MovementCallbacks
-  extends Pick<
-    CellActions,
-    "splitCell" | "sendToTop" | "sendToBottom" | "moveToNextCell"
-  > {
+  extends Pick<CellActions, "splitCell" | "sendToTop" | "sendToBottom"> {
+  moveToNextCell: CellActions["moveToNextCell"] | undefined;
   onRun: () => void;
   deleteCell: () => void;
   createAbove: () => void;
@@ -69,6 +67,9 @@ export function cellMovementBundle(
       stopPropagation: true,
       run: (ev) => {
         onRun();
+        if (!moveToNextCell) {
+          return true;
+        }
         ev.contentDOM.blur();
         moveToNextCell({ cellId, before: false });
         return true;
@@ -80,6 +81,9 @@ export function cellMovementBundle(
       stopPropagation: true,
       run: (ev) => {
         onRun();
+        if (!moveToNextCell) {
+          return true;
+        }
         ev.contentDOM.blur();
         moveToNextCell({ cellId, before: true });
         return true;
@@ -257,6 +261,9 @@ export function cellMovementBundle(
       stopPropagation: true,
       run: (ev) => {
         splitCell({ cellId });
+        if (!moveToNextCell) {
+          return true;
+        }
         requestAnimationFrame(() => {
           ev.contentDOM.blur();
           moveToNextCell({ cellId, before: false }); // focus new cell
@@ -286,12 +293,12 @@ export function cellCodeEditingBundle(
   const { updateCellCode } = callbacks;
 
   const onChangePlugin = EditorView.updateListener.of((update) => {
-    // Check if the doc update was a formatting change
-    // e.g. changing from python to markdown
-    const isFormattingChange = update.transactions.some((tr) =>
-      tr.effects.some((effect) => effect.is(formattingChangeEffect)),
-    );
     if (update.docChanged) {
+      // Check if the doc update was a formatting change
+      // e.g. changing from python to markdown
+      const isFormattingChange = update.transactions.some((tr) =>
+        tr.effects.some((effect) => effect.is(formattingChangeEffect)),
+      );
       const nextCode = getEditorCodeAsPython(update.view);
       updateCellCode({
         cellId,
@@ -302,4 +309,29 @@ export function cellCodeEditingBundle(
   });
 
   return [onChangePlugin, formatKeymapExtension(cellId, callbacks, hotkeys)];
+}
+
+/**
+ * Extension for auto-running markdown cells
+ */
+export function markdownAutoRunExtension(
+  callbacks: MovementCallbacks,
+): Extension {
+  return EditorView.updateListener.of((update) => {
+    // If the doc didn't change, ignore
+    if (!update.docChanged) {
+      return;
+    }
+
+    // This happens on mount when we start in markdown mode
+    const isFormattingChange = update.transactions.some((tr) =>
+      tr.effects.some((effect) => effect.is(formattingChangeEffect)),
+    );
+    if (isFormattingChange) {
+      // Ignore formatting changes
+      return;
+    }
+
+    callbacks.onRun();
+  });
 }

@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import subprocess
 from typing import Dict
 
@@ -22,24 +24,32 @@ class Formatter:
 
 class DefaultFormatter(Formatter):
     """
-    Tries black, then ruff, then no formatting.
+    Tries ruff, then black, then no formatting.
     """
 
     def format(self, codes: CellCodes) -> CellCodes:
-        if DependencyManager.has("black"):
-            return BlackFormatter(self.line_length).format(codes)
-        elif DependencyManager.has("ruff"):
+        if DependencyManager.ruff.has():
             return RuffFormatter(self.line_length).format(codes)
+        elif DependencyManager.black.has():
+            return BlackFormatter(self.line_length).format(codes)
         else:
             LOGGER.warning(
-                "To enable code formatting, install black (pip install black) "
-                "or ruff (pip install ruff)"
+                "To enable code formatting, install ruff (pip install ruff) "
+                "or black (pip install black)"
             )
             return {}
 
 
 class RuffFormatter(Formatter):
     def format(self, codes: CellCodes) -> CellCodes:
+        try:
+            process = subprocess.run("ruff", capture_output=True)
+        except FileNotFoundError:
+            LOGGER.warning(
+                "To enable code formatting, install ruff (pip install ruff)"
+            )
+            return {}
+
         formatted_codes: CellCodes = {}
         for key, code in codes.items():
             try:
@@ -74,7 +84,8 @@ class BlackFormatter(Formatter):
             import black
         except ModuleNotFoundError:
             LOGGER.warning(
-                "To enable code formatting, install black (pip install black)"
+                "To enable code formatting, install ruff (pip install ruff) "
+                "or black (pip install black)"
             )
             return {}
 

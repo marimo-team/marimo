@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Iterator, Optional
 
+from marimo._config.config import MarimoConfig
 from marimo._messaging.types import Stderr, Stdout
 from marimo._plugins.ui._core.ids import IDProvider, NoIDProviderException
 from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
@@ -18,6 +19,7 @@ from marimo._runtime.functions import FunctionRegistry
 from marimo._runtime.params import CLIArgs, QueryParams
 
 if TYPE_CHECKING:
+    from marimo._ast.app import InternalApp
     from marimo._ast.cell import CellId_t
     from marimo._messaging.types import Stream
     from marimo._runtime.runtime import Kernel
@@ -29,6 +31,8 @@ class KernelRuntimeContext(RuntimeContext):
     """Encapsulates runtime state for a session."""
 
     _kernel: Kernel
+    # app that owns this context; None for top-level contexts
+    _app: Optional[InternalApp] = None
     _id_provider: Optional[IDProvider] = None
 
     @property
@@ -42,6 +46,10 @@ class KernelRuntimeContext(RuntimeContext):
     @property
     def execution_context(self) -> ExecutionContext | None:
         return self._kernel.execution_context
+
+    @property
+    def user_config(self) -> MarimoConfig:
+        return self._kernel.user_config
 
     @property
     def lazy(self) -> bool:
@@ -93,11 +101,45 @@ class KernelRuntimeContext(RuntimeContext):
             else:
                 setting_element_value = False
             self._kernel.execution_context = ExecutionContext(
-                cell_id=cell_id, setting_element_value=setting_element_value
+                cell_id=cell_id,
+                setting_element_value=setting_element_value,
             )
             yield
         finally:
             self._kernel.execution_context = old
+
+    @property
+    def app(self) -> InternalApp:
+        assert self._app is not None
+        return self._app
+
+
+def create_kernel_context(
+    kernel: Kernel,
+    stream: Stream,
+    stdout: Stdout | None,
+    stderr: Stderr | None,
+    virtual_files_supported: bool = True,
+    app: InternalApp | None = None,
+    parent: KernelRuntimeContext | None = None,
+) -> KernelRuntimeContext:
+    from marimo._plugins.ui._core.registry import UIElementRegistry
+    from marimo._runtime.virtual_file import VirtualFileRegistry
+
+    return KernelRuntimeContext(
+        _kernel=kernel,
+        _app=app,
+        ui_element_registry=UIElementRegistry(),
+        function_registry=FunctionRegistry(),
+        cell_lifecycle_registry=CellLifecycleRegistry(),
+        virtual_file_registry=VirtualFileRegistry(),
+        virtual_files_supported=virtual_files_supported,
+        stream=stream,
+        stdout=stdout,
+        stderr=stderr,
+        children=[],
+        parent=parent,
+    )
 
 
 def initialize_kernel_context(
@@ -111,18 +153,8 @@ def initialize_kernel_context(
 
     Must be called exactly once for each client thread.
     """
-    from marimo._plugins.ui._core.registry import UIElementRegistry
-    from marimo._runtime.virtual_file import VirtualFileRegistry
-
-    runtime_context = KernelRuntimeContext(
-        _kernel=kernel,
-        ui_element_registry=UIElementRegistry(),
-        function_registry=FunctionRegistry(),
-        cell_lifecycle_registry=CellLifecycleRegistry(),
-        virtual_file_registry=VirtualFileRegistry(),
-        virtual_files_supported=virtual_files_supported,
-        stream=stream,
-        stdout=stdout,
-        stderr=stderr,
+    initialize_context(
+        runtime_context=create_kernel_context(
+            kernel, stream, stdout, stderr, virtual_files_supported
+        )
     )
-    initialize_context(runtime_context=runtime_context)

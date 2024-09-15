@@ -1,7 +1,14 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "marimo",
+# ]
+# ///
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.88"
+__generated_with = "0.8.3"
 app = marimo.App()
 
 
@@ -49,6 +56,45 @@ def __():
     # Colors input()
     input("\x1b[34mPress Enter to continue\x1b[0m")
     return
+
+
+@app.cell
+def __():
+    import logging
+
+    # ANSI escape codes for colors
+    class AnsiColorFormatter(logging.Formatter):
+        COLOR_CODES = {
+            'DEBUG': '\033[94m',    # Blue
+            'INFO': '\033[92m',     # Green
+            'WARNING': '\033[93m',  # Yellow
+            'ERROR': '\033[91m',    # Red
+            'CRITICAL': '\033[95m', # Magenta
+        }
+        RESET_CODE = '\033[0m'
+
+        def format(self, record):
+            color = self.COLOR_CODES.get(record.levelname, self.RESET_CODE)
+            return f"{color}{super().format(record)}{self.RESET_CODE}"
+
+    # Configure the logging
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+
+    # Add a new handler
+    handler = logging.StreamHandler()
+    formatter = AnsiColorFormatter('%(levelname)s: %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
+    # Example log messages
+    logging.error(f"\033[1;32mDirectory created at /path/to/dir\033[0m")
+    logger.debug("This is a debug message")
+    logger.info("This is an info message")
+    logger.warning("This is a warning message")
+    logger.error("This is an error message")
+    logger.critical("This is a critical message")
+    return AnsiColorFormatter, formatter, handler, logger, logging
 
 
 if __name__ == "__main__":

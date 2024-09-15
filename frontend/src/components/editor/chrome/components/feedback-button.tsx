@@ -8,7 +8,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Slot } from "@radix-ui/react-slot";
-import React, { PropsWithChildren } from "react";
+import React, { type PropsWithChildren } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
@@ -108,7 +108,7 @@ const FeedbackModal: React.FC<{
             id="message"
             name="message"
             autoFocus={true}
-            placeholder="Your feedback"
+            placeholder="Your feedback; if you'd like us to respond, please include your email!"
             rows={5}
             required={true}
             autoComplete="off"

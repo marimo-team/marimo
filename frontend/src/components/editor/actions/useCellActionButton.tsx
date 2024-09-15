@@ -51,13 +51,13 @@ import { MarkdownIcon, PythonIcon } from "../cell/code/icons";
 import { aiEnabledAtom, autoInstantiateAtom } from "@/core/config/config";
 import { useDeleteCellCallback } from "../cell/useDeleteCell";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { CellConfig, CellStatus } from "@/core/network/types";
+import type { CellConfig, RuntimeState } from "@/core/network/types";
 import { kioskModeAtom } from "@/core/mode";
 
 export interface CellActionButtonProps
   extends Pick<CellData, "name" | "config"> {
   cellId: CellId;
-  status: CellStatus;
+  status: RuntimeState;
   hasOutput: boolean;
   getEditorView: () => EditorView | null;
 }
@@ -92,7 +92,7 @@ export function useCellActionButtons({ cell }: Props) {
   }
 
   const { cellId, config, getEditorView, name, hasOutput, status } = cell;
-  const cellIdx = cellIds.indexOf(cellId);
+  const cellIdx = cellIds.inOrderIds.indexOf(cellId);
   const editorView = getEditorView();
 
   const toggleDisabled = async () => {
@@ -179,7 +179,7 @@ export function useCellActionButtons({ cell }: Props) {
         hidden: !aiEnabled,
         handle: () => {
           setAiCompletionCell((current) =>
-            current === cellId ? null : cellId,
+            current?.cellId === cellId ? null : { cellId },
           );
         },
         hotkey: "cell.aiCompletion",
@@ -205,14 +205,16 @@ export function useCellActionButtons({ cell }: Props) {
         icon: <MarkdownIcon />,
         label: "View as Markdown",
         hotkey: "cell.viewAsMarkdown",
-        hidden: !canToggleToLanguage(editorView, "markdown"),
+        // We allow them to toggle to markdown in Python
+        // even if its not wrapped in a mo.md
+        hidden: getCurrentLanguageAdapter(editorView) !== "python",
         handle: () => {
           if (!editorView) {
             return;
           }
           maybeAddMarimoImport(autoInstantiate, createCell);
 
-          toggleToLanguage(editorView, "markdown");
+          toggleToLanguage(editorView, "markdown", { force: true });
         },
       },
       {
@@ -255,11 +257,11 @@ export function useCellActionButtons({ cell }: Props) {
       },
       {
         icon: config.disabled ? (
-          <ZapIcon size={13} strokeWidth={1.5} />
-        ) : (
           <ZapOffIcon size={13} strokeWidth={1.5} />
+        ) : (
+          <ZapIcon size={13} strokeWidth={1.5} />
         ),
-        label: config.disabled ? "Enable cell" : "Disable cell",
+        label: "Reactive execution",
         rightElement: (
           <Switch
             data-testid="cell-disable-switch"

@@ -1,10 +1,10 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import os
 from dataclasses import asdict
 from tempfile import TemporaryDirectory
 from typing import Any, Optional, Type, TypeVar
-
-import tomlkit
 
 from marimo._utils.parse_dataclass import parse_raw
 
@@ -30,14 +30,18 @@ class ConfigReader:
         return ConfigReader(filepath)
 
     def read_toml(self, cls: Type[T], *, fallback: T) -> T:
+        import tomlkit
+
         try:
             with open(self.filepath, "r") as file:
                 data = tomlkit.parse(file.read())
-                return parse_raw(data, cls)
+                return parse_raw(data, cls, allow_unknown_keys=True)
         except FileNotFoundError:
             return fallback
 
     def write_toml(self, data: Any) -> None:
+        import tomlkit
+
         _maybe_create_directory(self.filepath)
         with open(self.filepath, "w") as file:
             tomlkit.dump(asdict(data), file)
@@ -46,8 +50,13 @@ class ConfigReader:
     def _get_home_directory() -> str:
         # If in pytest, we want to set a temporary directory
         if os.environ.get("PYTEST_CURRENT_TEST"):
-            tmpdir = TemporaryDirectory()
-            return tmpdir.name
+            # If the home directory is given by test, take it
+            home_dir = os.environ.get("MARIMO_PYTEST_HOME_DIR")
+            if home_dir is not None:
+                return home_dir
+            else:
+                tmpdir = TemporaryDirectory()
+                return tmpdir.name
         else:
             return os.path.expanduser("~")
 

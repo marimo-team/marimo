@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { defineConfig, Plugin } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { JSDOM } from "jsdom";
@@ -46,7 +46,7 @@ const htmlDevPlugin = (): Plugin => {
         }
         html = html.replace("{{ filename }}", "notebook.py");
         html = html.replace("{{ mode }}", modeFromUrl);
-        html = html.replace(/<\/head>/, `<marimo-wasm></marimo-wasm></head>`);
+        html = html.replace(/<\/head>/, "<marimo-wasm></marimo-wasm></head>");
         return html;
       }
 
@@ -100,7 +100,7 @@ const htmlDevPlugin = (): Plugin => {
         devDoc.head.append(element);
       });
 
-      return "<!DOCTYPE html>\n" + devDoc.documentElement.outerHTML;
+      return `<!DOCTYPE html>\n${devDoc.documentElement.outerHTML}`;
     },
   };
 };
@@ -125,7 +125,19 @@ export default defineConfig({
         target: TARGET,
         changeOrigin: true,
       },
+      "/custom.css": {
+        target: TARGET,
+        changeOrigin: true,
+      },
       "/ws": {
+        target: `ws://${HOST}:${SERVER_PORT}`,
+        ws: true,
+        changeOrigin: true,
+        headers: {
+          origin: TARGET,
+        },
+      },
+      "/terminal/ws": {
         target: `ws://${HOST}:${SERVER_PORT}`,
         ws: true,
         changeOrigin: true,

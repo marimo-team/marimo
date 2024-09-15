@@ -1,9 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { marimoValueReadyEvent } from "@/core/dom/events";
 import { UIElementRegistry } from "@/core/dom/uiregistry";
-import { describe, beforeEach, expect, vi, test, MockedFunction } from "vitest";
+import {
+  describe,
+  beforeEach,
+  expect,
+  vi,
+  test,
+  type MockedFunction,
+} from "vitest";
 import { RuntimeState } from "../RuntimeState";
-import { RunRequests } from "@/core/network/types";
+import type { RunRequests } from "@/core/network/types";
+import { MarimoValueReadyEvent } from "@/core/dom/events";
 
 const addEventListenerSpy = vi.spyOn(document, "addEventListener");
 const removeEventListenerSpy = vi.spyOn(document, "removeEventListener");
@@ -27,7 +34,7 @@ describe("RuntimeState", () => {
   test("start should register event listener", () => {
     runtimeState.start(mockSendComponentValues);
     expect(addEventListenerSpy).toHaveBeenCalledWith(
-      marimoValueReadyEvent,
+      MarimoValueReadyEvent.TYPE,
       expect.any(Function),
     );
   });
@@ -42,7 +49,7 @@ describe("RuntimeState", () => {
     runtimeState.start(mockSendComponentValues);
     runtimeState.stop();
     expect(removeEventListenerSpy).toHaveBeenCalledWith(
-      marimoValueReadyEvent,
+      MarimoValueReadyEvent.TYPE,
       expect.any(Function),
     );
   });

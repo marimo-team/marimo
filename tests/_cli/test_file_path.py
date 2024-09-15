@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import tempfile
 from typing import Any
 from unittest.mock import mock_open, patch
@@ -103,7 +105,7 @@ def test_handle_github_issue(mock_urlopen: Any) -> None:
 
 
 def test_create_tmp_file_from_url() -> None:
-    url = "https://raw.githubusercontent.com/marimo-team/marimo/main/examples/optimization/regularization_and_sparsity.py"
+    url = "https://raw.githubusercontent.com/marimo-team/marimo/0.8.5/examples/optimization/regularization_and_sparsity.py"
     result = _create_tmp_file_from_url(url, temp_dir)
 
     # Check if the result is a path to a temporary file

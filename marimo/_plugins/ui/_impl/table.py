@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import functools
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -11,6 +12,7 @@ from typing import (
     List,
     Literal,
     Optional,
+    Sequence,
     Union,
 )
 
@@ -67,17 +69,27 @@ class ColumnSummary:
 
 @dataclass
 class ColumnSummaries:
+    data: Union[JSONType, str]
     summaries: List[ColumnSummary]
+    is_disabled: Optional[bool] = None
 
 
-@dataclass
+@dataclass(frozen=True)
 class SearchTableArgs:
+    page_size: int
+    page_number: int
     query: Optional[str] = None
     sort: Optional[SortArgs] = None
     filters: Optional[List[Condition]] = None
 
 
-@dataclass
+@dataclass(frozen=True)
+class SearchTableResponse:
+    data: Union[JSONType, str]
+    total_rows: int
+
+
+@dataclass(frozen=True)
 class SortArgs:
     by: ColumnName
     descending: bool
@@ -134,6 +146,27 @@ class table(
     )
     ```
 
+    Create a table with format mapping:
+
+    ```python
+    # format_mapping is a dict keyed by column names,
+    # with values as formatting functions or strings
+    def format_name(name):
+        return name.upper()
+
+
+    table = mo.ui.table(
+        data=[
+            {"first_name": "Michael", "last_name": "Scott", "age": 45},
+            {"first_name": "Dwight", "last_name": "Schrute", "age": 40},
+        ],
+        format_mapping={
+            "first_name": format_name,  # Use callable to format first names
+            "age": "{:.1f}".format,  # Use string format for age
+        },
+        label="Format Mapping",
+    )
+    ```
     In each case, access the table data with `table.value`.
 
     **Attributes.**
@@ -161,6 +194,10 @@ class table(
     - `page_size`: the number of rows to show per page.
       defaults to 10
     - `show_column_summaries`: whether to show column summaries
+    - `format_mapping`: a mapping from column names to formatting strings
+    or functions
+    - `freeze_columns_left`: list of column names to freeze on the left
+    - `freeze_columns_right`: list of column names to freeze on the right
     - `label`: text label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
@@ -181,6 +218,11 @@ class table(
         selection: Optional[Literal["single", "multi"]] = "multi",
         page_size: int = 10,
         show_column_summaries: bool = True,
+        format_mapping: Optional[
+            Dict[str, Union[str, Callable[..., Any]]]
+        ] = None,
+        freeze_columns_left: Optional[Sequence[str]] = None,
+        freeze_columns_right: Optional[Sequence[str]] = None,
         *,
         label: str = "",
         on_change: Optional[
@@ -197,39 +239,112 @@ class table(
                 None,
             ]
         ] = None,
+        # The _internal_* arguments are for overriding and unit tests
+        # table should take the value unconditionally
+        _internal_column_charts_row_limit: Optional[int] = None,
+        _internal_summary_row_limit: Optional[int] = None,
+        _internal_total_rows: Optional[Union[int, Literal["too_many"]]] = None,
     ) -> None:
+        # The original data passed in
         self._data = data
         # Holds the original data
         self._manager = get_table_manager(data)
-        # Holds the data after filtering (sort, search, limit etc.)
-        self._filtered_manager = self._manager
-        # Holds the data after selection and filtering
-        self._selected_manager: Optional[TableManager[Any]] = None
 
-        totalRows = self._manager.get_num_rows(force=True) or 0
-        hasMore = totalRows > TableManager.DEFAULT_LIMIT
-        if hasMore:
-            self._filtered_manager = self._filtered_manager.limit(
-                TableManager.DEFAULT_LIMIT
+        if (
+            total_cols := self._manager.get_num_columns()
+        ) > TableManager.DEFAULT_COL_LIMIT:
+            raise ValueError(
+                f"Your table has {total_cols} columns, "
+                "which is greater than the maximum allowed columns of "
+                f"{TableManager.DEFAULT_COL_LIMIT} for mo.ui.table(). "
+                "If this is a problem, please open a GitHub issue: "
+                "https://github.com/marimo-team/marimo/issues"
             )
 
-        # pagination defaults to True if there are more than 10 rows
-        if pagination is None:
-            pagination = totalRows > 10
+        if _internal_column_charts_row_limit is not None:
+            self._column_charts_row_limit = _internal_column_charts_row_limit
+        else:
+            self._column_charts_row_limit = (
+                TableManager.DEFAULT_SUMMARY_CHARTS_ROW_LIMIT
+            )
+
+        if _internal_summary_row_limit is not None:
+            self._column_summary_row_limit = _internal_summary_row_limit
+        else:
+            self._column_summary_row_limit = (
+                TableManager.DEFAULT_SUMMARY_STATS_ROW_LIMIT
+            )
+
+        # Holds the data after user searching from original data
+        # (searching operations include query, sort, filter, etc.)
+        self._searched_manager = self._manager
+        # Holds the data after user selecting from the component
+        self._selected_manager: Optional[TableManager[Any]] = None
+
+        # We will need this when calling table manager's to_data()
+        self._format_mapping = format_mapping
 
         field_types = self._manager.get_field_types()
+
+        if _internal_total_rows is not None:
+            total_rows = _internal_total_rows
+        else:
+            num_rows = self._manager.get_num_rows(force=True)
+            total_rows = num_rows if num_rows is not None else "too_many"
+
+        if pagination is False and total_rows != "too_many":
+            page_size = total_rows
+        # pagination defaults to True if there are more than 10 rows
+        if pagination is None:
+            pagination = total_rows == "too_many" or total_rows > 10
+
+        # Search first page
+        search_result = self.search(
+            SearchTableArgs(
+                page_size=page_size,
+                page_number=0,
+                query=None,
+                sort=None,
+                filters=None,
+            )
+        )
+
+        # Validate frozen columns
+        if (
+            freeze_columns_left is not None
+            and freeze_columns_right is not None
+        ):
+            for column in freeze_columns_left:
+                if column not in freeze_columns_right:
+                    continue
+                raise ValueError(
+                    "The same column cannot be frozen on both sides."
+                )
+        else:
+            column_names = self._manager.get_column_names()
+            if freeze_columns_left is not None:
+                for column in freeze_columns_left:
+                    if column not in column_names:
+                        raise ValueError(
+                            f"Column '{column}' not found in table."
+                        )
+            if freeze_columns_right is not None:
+                for column in freeze_columns_right:
+                    if column not in column_names:
+                        raise ValueError(
+                            f"Column '{column}' not found in table."
+                        )
 
         super().__init__(
             component_name=table._name,
             label=label,
             initial_value=[],
             args={
-                "data": self._filtered_manager.to_data(),
-                "has-more": hasMore,
-                "total-rows": totalRows,
+                "data": search_result.data,
+                "total-rows": total_rows,
                 "pagination": pagination,
                 "page-size": page_size,
-                "field-types": field_types if field_types else None,
+                "field-types": field_types or None,
                 "selection": (
                     selection if self._manager.supports_selection() else None
                 ),
@@ -237,6 +352,8 @@ class table(
                 "show-download": self._manager.supports_download(),
                 "show-column-summaries": show_column_summaries,
                 "row-headers": self._manager.get_row_headers(),
+                "freeze-columns-left": freeze_columns_left,
+                "freeze-columns-right": freeze_columns_right,
             },
             on_change=on_change,
             functions=(
@@ -268,16 +385,18 @@ class table(
         self, value: list[str]
     ) -> Union[List[JSONType], "pd.DataFrame", "pl.DataFrame"]:
         indices = [int(v) for v in value]
-        self._selected_manager = self._filtered_manager.select_rows(indices)
+        self._selected_manager = self._searched_manager.select_rows(indices)
         self._has_any_selection = len(indices) > 0
         return self._selected_manager.data  # type: ignore[no-any-return]
 
     def download_as(self, args: DownloadAsArgs) -> str:
         # download selected rows if there are any, otherwise use all rows
+        # not apply formatting here, raw data is downloaded
         manager = (
             self._selected_manager
             if self._selected_manager and self._has_any_selection
-            else self._filtered_manager
+            # use _searched_manager here to download the full data
+            else self._searched_manager
         )
 
         ext = args.format
@@ -290,9 +409,22 @@ class table(
 
     def get_column_summaries(self, args: EmptyArgs) -> ColumnSummaries:
         del args
+
+        total_rows = self._searched_manager.get_num_rows(force=True) or 0
+
+        # Avoid expensive column summaries calculation by setting a upper limit
+        # if we are above the limit, we hide the column summaries
+        if total_rows > self._column_summary_row_limit:
+            return ColumnSummaries(
+                data=None,
+                summaries=[],
+                is_disabled=True,
+            )
+
+        # Get column summaries
         summaries: List[ColumnSummary] = []
-        for column in self._filtered_manager.get_column_names():
-            summary = self._filtered_manager.get_summary(column)
+        for column in self._manager.get_column_names():
+            summary = self._searched_manager.get_summary(column)
             summaries.append(
                 ColumnSummary(
                     column=column,
@@ -305,33 +437,81 @@ class table(
                 )
             )
 
-        return ColumnSummaries(summaries)
+        # If we are above the limit to show charts,
+        # we don't return the chart data
+        if total_rows > self._column_charts_row_limit:
+            return ColumnSummaries(
+                data=None,
+                summaries=summaries,
+                is_disabled=False,
+            )
 
-    def search(self, args: SearchTableArgs) -> Union[JSONType, str]:
-        # Start with the original manager, then filter
+        return ColumnSummaries(
+            data=self._searched_manager.to_data({}),
+            summaries=summaries,
+            is_disabled=False,
+        )
+
+    @functools.lru_cache(maxsize=1)  # noqa: B019
+    def _apply_filters_query_sort(
+        self,
+        filters: Optional[List[Condition]],
+        query: Optional[str],
+        sort: Optional[SortArgs],
+    ) -> TableManager[Any]:
         result = self._manager
 
-        # If no query or sort, return nothing
-        # The frontend will just show the original data
-        if not args.query and not args.sort and not args.filters:
-            self._filtered_manager = self._manager
-            return []
-
-        if args.filters:
-            handler = get_handler_for_dataframe(self._manager.data)
+        if filters:
+            handler = get_handler_for_dataframe(result.data)
             data = handler.handle_filter_rows(
                 result.data,
                 FilterRowsTransform(
                     type=TransformType.FILTER_ROWS,
-                    where=args.filters,
+                    where=filters,
                     operation="keep_rows",
                 ),
             )
             result = get_table_manager(data)
-        if args.query:
-            result = result.search(args.query)
-        if args.sort:
-            result = result.sort_values(args.sort.by, args.sort.descending)
+
+        if query:
+            result = result.search(query)
+
+        if sort:
+            result = result.sort_values(sort.by, sort.descending)
+
+        return result
+
+    def search(self, args: SearchTableArgs) -> SearchTableResponse:
+        offset = args.page_number * args.page_size
+
+        # If no query or sort, return nothing
+        # The frontend will just show the original data
+        if not args.query and not args.sort and not args.filters:
+            self._searched_manager = self._manager
+            data = self._manager.take(args.page_size, offset).to_data(
+                self._format_mapping
+            )
+            return SearchTableResponse(
+                data=data,
+                total_rows=self._manager.get_num_rows(force=True) or 0,
+            )
+
+        # Apply filters, query, and functools.sort using the cached method
+        result = self._apply_filters_query_sort(
+            tuple(args.filters) if args.filters else None,
+            args.query,
+            args.sort,
+        )
+
         # Save the manager to be used for selection
-        self._filtered_manager = result
-        return result.limit(TableManager.DEFAULT_LIMIT).to_data()
+        self._searched_manager = result
+        data = result.take(args.page_size, offset).to_data(
+            self._format_mapping
+        )
+        return SearchTableResponse(
+            data=data,
+            total_rows=result.get_num_rows(force=True) or 0,
+        )
+
+    def __hash__(self) -> int:
+        return id(self)

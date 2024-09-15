@@ -1,11 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { OutputMessage } from "../kernel/messages";
-import { SerializedEditorState } from "../codemirror/types";
-import { Outline } from "./outline";
-import { CellId } from "./ids";
+import type { OutputMessage } from "../kernel/messages";
+import type { SerializedEditorState } from "../codemirror/types";
+import type { Outline } from "./outline";
+import type { CellId } from "./ids";
 import { DEFAULT_CELL_NAME } from "./names";
-import { Milliseconds, Seconds } from "@/utils/time";
-import { CellConfig, CellStatus } from "../network/types";
+import type { Milliseconds, Seconds } from "@/utils/time";
+import type { CellConfig, RuntimeState } from "../network/types";
 
 /**
  * Create a new cell with default state.
@@ -42,7 +42,7 @@ export function createCellRuntimeState(
     outline: null,
     output: null,
     consoleOutputs: [],
-    status: "idle" as CellStatus,
+    status: "idle" as RuntimeState,
     staleInputs: false,
     interrupted: false,
     errored: false,
@@ -83,7 +83,7 @@ export interface CellRuntimeState {
   /** messages encoding the cell's console outputs. */
   consoleOutputs: Array<WithResponse<OutputMessage>>;
   /** current status of the cell */
-  status: CellStatus;
+  status: RuntimeState;
   /** whether the cell has stale inputs*/
   staleInputs: boolean;
   /** whether this cell has been interrupted since its last run */

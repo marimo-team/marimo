@@ -1,21 +1,21 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.6.19"
+__generated_with = "0.8.0"
 app = marimo.App(app_title="1654 - Virtualize Multiselect")
 
 
 @app.cell
 def __():
     import marimo as mo
-    mo.md("[improve: Virtualize mo.ui.multiselect to handle large lists #1654](https://github.com/marimo-team/marimo/pull/1654)")
     return mo,
 
 
 @app.cell
 def __(mo):
     fuzzy_match_test = ["foo bar", "bar foo", "foob", "foobar", "barfoo"]
-    mo.ui.multiselect(fuzzy_match_test, label="Fuzzy match search")
+    mo.ui.multiselect(fuzzy_match_test, label="Fuzzy match test")
     return fuzzy_match_test,
 
 
@@ -57,7 +57,10 @@ def __(mo, xxl_list):
 
 @app.cell
 def __(mo, xxxl_list):
-    mo.ui.multiselect(xxxl_list, label="XXXL list with 200K items")
+    try:
+        mo.ui.multiselect(xxxl_list, label="XXXL list with 200K items")
+    except ValueError as e:
+        print(e)
     return
 
 

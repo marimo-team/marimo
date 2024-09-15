@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { paths, type components } from "@marimo-team/marimo-api";
-import { CellId } from "../cells/ids";
+import type { paths, components } from "@marimo-team/marimo-api";
+import type { CellId } from "../cells/ids";
 
 export type schemas = components["schemas"];
 export type AiCompletionRequest = schemas["AiCompletionRequest"];
@@ -15,7 +15,7 @@ export type CellConfig = schemas["CellConfig"];
  * idle: not running.
  * disabled-transitively: disabled because an ancestor was disabled.
  */
-export type CellStatus = schemas["CellStatus"];
+export type RuntimeState = schemas["RuntimeState"];
 export type CodeCompletionRequest = schemas["CodeCompletionRequest"];
 export type CreationRequest = schemas["CreationRequest"];
 export type DeleteCellRequest = schemas["DeleteCellRequest"];
@@ -52,9 +52,11 @@ export type ReadCodeResponse = schemas["ReadCodeResponse"];
 export type RecentFilesResponse = schemas["RecentFilesResponse"];
 export type RenameFileRequest = schemas["RenameFileRequest"];
 export type RunRequest = schemas["RunRequest"];
+export type RunScratchpadRequest = schemas["RunScratchpadRequest"];
 export type SaveAppConfigurationRequest =
   schemas["SaveAppConfigurationRequest"];
 export type SaveNotebookRequest = schemas["SaveNotebookRequest"];
+export type CopyNotebookRequest = schemas["CopyNotebookRequest"];
 export type SaveUserConfigurationRequest =
   schemas["SaveUserConfigurationRequest"];
 export interface SetCellConfigRequest {
@@ -75,6 +77,9 @@ export type UsageResponse =
   paths["/api/usage"]["get"]["responses"]["200"]["content"]["application/json"];
 export type WorkspaceFilesRequest = schemas["WorkspaceFilesRequest"];
 export type WorkspaceFilesResponse = schemas["WorkspaceFilesResponse"];
+export type RunningNotebooksResponse = schemas["RunningNotebooksResponse"];
+export type OpenTutorialRequest = schemas["OpenTutorialRequest"];
+export type TutorialId = OpenTutorialRequest["tutorialId"];
 
 /**
  * Requests sent to the BE during run/edit mode.
@@ -91,8 +96,10 @@ export interface RunRequests {
 export interface EditRequests {
   sendRename: (request: RenameFileRequest) => Promise<null>;
   sendSave: (request: SaveNotebookRequest) => Promise<null>;
+  sendCopy: (request: CopyNotebookRequest) => Promise<null>;
   sendStdin: (request: StdinRequest) => Promise<null>;
   sendRun: (request: RunRequest) => Promise<null>;
+  sendRunScratchpad: (request: RunScratchpadRequest) => Promise<null>;
   sendInterrupt: () => Promise<null>;
   sendShutdown: () => Promise<null>;
   sendFormat: (request: FormatRequest) => Promise<FormatResponse>;
@@ -125,16 +132,19 @@ export interface EditRequests {
   sendUpdateFile: (request: FileUpdateRequest) => Promise<FileUpdateResponse>;
   sendFileDetails: (request: { path: string }) => Promise<FileDetailsResponse>;
   // Homepage requests
+  openTutorial: (request: OpenTutorialRequest) => Promise<MarimoFile>;
   getRecentFiles: () => Promise<RecentFilesResponse>;
   getWorkspaceFiles: (
     request: WorkspaceFilesRequest,
   ) => Promise<WorkspaceFilesResponse>;
-  getRunningNotebooks: () => Promise<WorkspaceFilesResponse>;
+  getRunningNotebooks: () => Promise<RunningNotebooksResponse>;
   shutdownSession: (
     request: ShutdownSessionRequest,
-  ) => Promise<WorkspaceFilesResponse>;
+  ) => Promise<RunningNotebooksResponse>;
   exportAsHTML: (request: ExportAsHTMLRequest) => Promise<string>;
   exportAsMarkdown: (request: ExportAsMarkdownRequest) => Promise<string>;
+  autoExportAsHTML: (request: ExportAsHTMLRequest) => Promise<null>;
+  autoExportAsMarkdown: (request: ExportAsMarkdownRequest) => Promise<null>;
 }
 
 export type RequestKey = keyof (EditRequests & RunRequests);

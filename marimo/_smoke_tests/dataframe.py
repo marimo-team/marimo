@@ -1,14 +1,26 @@
-# Copyright 2024 Marimo. All rights reserved.
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "dask",
+#     "vega-datasets",
+#     "polars",
+#     "altair",
+#     "pyarrow",
+#     "marimo",
+#     "pandas",
+#     "ibis",
+# ]
+# ///
 
 import marimo
 
-__generated_with = "0.6.18"
+__generated_with = "0.8.14"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md("# 🤖 Lists/Dicts")
+    mo.md("""# 🤖 Lists/Dicts""")
     return
 
 
@@ -63,13 +75,13 @@ def __(as_primitives):
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md("# 🐼 Pandas")
+    mo.md("""# 🐼 Pandas""")
     return
 
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md("## mo.ui.dataframe")
+    mo.md("""## mo.ui.dataframe""")
     return
 
 
@@ -82,7 +94,7 @@ def __(cars, mo):
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md("## mo.ui.table")
+    mo.md("""## mo.ui.table""")
     return
 
 
@@ -94,7 +106,7 @@ def __(dataframe, mo):
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md("## .value")
+    mo.md("""## .value""")
     return
 
 
@@ -112,7 +124,7 @@ def __(dataframe):
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md("## mo.ui.data_explorer")
+    mo.md("""## mo.ui.data_explorer""")
     return
 
 
@@ -124,13 +136,13 @@ def __(mo, pl_dataframe):
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md("# 🐻‍❄️ Polars")
+    mo.md("""# 🐻‍❄️ Polars""")
     return
 
 
 @app.cell
 def __(mo):
-    mo.md("## mo.ui.dataframe")
+    mo.md("""## mo.ui.dataframe""")
     return
 
 
@@ -149,7 +161,7 @@ def __(pl_dataframe_prime):
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md("## mo.ui.table")
+    mo.md("""## mo.ui.table""")
     return
 
 
@@ -162,7 +174,7 @@ def __(cars, mo, pl):
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md("## mo.ui.data_explorer")
+    mo.md("""## mo.ui.data_explorer""")
     return
 
 
@@ -174,7 +186,7 @@ def __(mo, pl_dataframe):
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md("# 🏹 Arrow")
+    mo.md("""# 🏹 Arrow""")
     return
 
 
@@ -187,7 +199,7 @@ def __(cars, mo, pa):
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md("## mo.ui.table")
+    mo.md("""## mo.ui.table""")
     return
 
 
@@ -200,7 +212,7 @@ def __(arrow_table, mo):
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md("## .value")
+    mo.md("""## .value""")
     return
 
 
@@ -294,6 +306,16 @@ def __():
 
     cars = vega_datasets.data.cars()
     return alt, cars, mo, pa, pd, pl, vega_datasets
+
+
+@app.cell
+def __(cars, mo):
+    _df = mo.sql(
+        f"""
+        SELECT * FROM cars WHERE Cylinders > 6;
+        """
+    )
+    return
 
 
 if __name__ == "__main__":

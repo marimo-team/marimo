@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import * as React from "react";
 import * as ToastPrimitives from "@radix-ui/react-toast";
-import { VariantProps, cva } from "class-variance-authority";
+import { type VariantProps, cva } from "class-variance-authority";
 import { X } from "lucide-react";
 
 import { cn } from "@/utils/cn";
@@ -30,7 +30,7 @@ const toastVariants = cva(
       variant: {
         default: "bg-background border",
         danger:
-          "group destructive text-error border-destructive bg-[var(--red-1)] shadow-smError",
+          "group destructive text-error border-destructive bg-[var(--red-1)] shadow-mdSolid shadow-error",
       },
     },
     defaultVariants: {
@@ -49,6 +49,7 @@ const Toast = React.forwardRef<
       ref={ref}
       className={cn(
         toastVariants({ variant: variant || "default" }),
+        "print:hidden",
         className,
       )}
       {...props}

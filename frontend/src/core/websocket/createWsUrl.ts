@@ -1,4 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import { KnownQueryParams } from "../constants";
+
 export function createWsUrl(sessionId: string): string {
   const baseURI = document.baseURI;
 
@@ -8,7 +10,7 @@ export function createWsUrl(sessionId: string): string {
   url.pathname = `${withoutTrailingSlash(url.pathname)}/ws`;
 
   const searchParams = new URLSearchParams(window.location.search);
-  searchParams.set("session_id", sessionId);
+  searchParams.set(KnownQueryParams.sessionId, sessionId);
   url.search = searchParams.toString();
 
   return url.toString();

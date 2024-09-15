@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { PropsWithChildren } from "react";
+import type { PropsWithChildren } from "react";
 
 export const SettingTitle: React.FC<PropsWithChildren> = ({ children }) => {
   return (

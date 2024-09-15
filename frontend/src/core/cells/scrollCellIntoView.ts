@@ -37,6 +37,11 @@ export function focusAndScrollCellIntoView({
     if (!editor) {
       return;
     }
+    // If already focused, do nothing.
+    if (editor.hasFocus) {
+      return;
+    }
+
     editor.focus();
     if (codeFocus === "top") {
       // If codeFocus is top, move the cursor to the top of the editor.
@@ -94,7 +99,7 @@ export function focusAndScrollCellOutputIntoView(cellId: CellId) {
  */
 export function scrollToBottom() {
   const app = document.getElementById("App");
-  app?.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+  app?.scrollTo({ top: app.scrollHeight, behavior: "smooth" });
 }
 
 export function scrollToTop() {

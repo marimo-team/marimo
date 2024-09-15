@@ -29,21 +29,19 @@
 
 /* -- Tooltips: code completion and type hints -- */
 
-#App .cm-tooltip {
-  border: none;
-  box-shadow: var(--light-shadow);
+#root .cm-tooltip {
   border-radius: 4px;
 
-  @apply bg-popover;
+  @apply bg-popover shadow-sm shadow-shade border-border;
 }
 
 /*
  First selector is when there is a tooltip by hover
  Second selector is when there is tooltip by cursor
  Third selector is during code completion */
-#App .cm-tooltip.cm-tooltip-hover,
-#App .cm-tooltip.mo-cm-tooltip,
-#App .cm-tooltip.cm-completionInfo {
+#root .cm-tooltip.cm-tooltip-hover,
+#root .cm-tooltip.mo-cm-tooltip,
+#root .cm-tooltip.cm-completionInfo {
   max-height: 45vh; /* 45% of viewport height */
   max-width: 40vw; /* 40% of viewport width */
   overflow: auto;
@@ -54,33 +52,33 @@
 }
 
 /* Hover tooltips get highest priority in display. */
-#App .cm-tooltip.cm-tooltip-hover {
+#root .cm-tooltip.cm-tooltip-hover {
   z-index: 1000;
 }
 
 /* -- Completion Info -- */
 
 /* Compeletion Symbol */
-#App .cm-tooltip-autocomplete {
+#root .cm-tooltip-autocomplete {
   /* CodeMirror's default is too wide. */
   max-width: 200px;
 }
 
-#App .cm-tooltip.cm-tooltip-autocomplete > ul {
+#root .cm-tooltip.cm-tooltip-autocomplete > ul {
   min-width: unset;
 }
 
-#App .cm-tooltip-autocomplete ul li[aria-selected] {
+#root .cm-tooltip-autocomplete ul li[aria-selected] {
   background: #1177ccb0;
   max-width: 200px;
 }
 
-.dark #App .cm-tooltip-autocomplete ul li[aria-selected] {
+.dark #root .cm-tooltip-autocomplete ul li[aria-selected] {
   background: #1177cc80;
   max-width: 200px;
 }
 
-#App .cm-tooltip.cm-completionInfo {
+#root .cm-tooltip.cm-completionInfo {
   /* Codemirror generates an inline style for these properties,
    * so we have to override them with !important. */
   top: 0 !important;
@@ -89,7 +87,7 @@
   max-width: 36rem !important;
 }
 
-#App .cm-completionInfo.cm-completionInfo-right-narrow {
+#root .cm-completionInfo.cm-completionInfo-right-narrow {
   /* CodeMirror's default makes the completionInfo overlap with the
    * compeletion symbol */
   left: 100%;
@@ -98,34 +96,34 @@
 /* Completion Info may show up to the left or right of another menu item.
  First is the parent (completion list)
  Second is the child (completion info) */
-#App .cm-tooltip:has(.cm-completionInfo-left),
-#App .cm-tooltip.cm-completionInfo-right {
+#root .cm-tooltip:has(.cm-completionInfo-left),
+#root .cm-tooltip.cm-completionInfo-right {
   border-top-left-radius: 0;
 }
 
-#App .cm-tooltip:has(.cm-completionInfo-right),
-#App .cm-tooltip.cm-completionInfo-left {
+#root .cm-tooltip:has(.cm-completionInfo-right),
+#root .cm-tooltip.cm-completionInfo-left {
   border-top-right-radius: 0;
 }
 
 .cm .cm-completionIcon-function::after {
-  content: "λ";
+  content: 'λ';
 }
 
 .cm .cm-completionIcon-class::after {
-  content: "τ";
+  content: 'τ';
 }
 
 .cm .cm-completionIcon-module::after {
-  content: "μ";
+  content: 'μ';
 }
 
 .cm .cm-completionIcon-statement::after {
-  content: "χ";
+  content: 'χ';
 }
 
 .cm .cm-completionIcon-keyword::after {
-  content: "κ";
+  content: 'κ';
 }
 
 /* -- Panels -- */

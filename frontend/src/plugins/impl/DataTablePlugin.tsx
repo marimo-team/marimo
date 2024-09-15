@@ -12,34 +12,40 @@ import { vegaLoadData } from "./vega/loader";
 import { getVegaFieldTypes } from "./vega/utils";
 import { Arrays } from "@/utils/arrays";
 import { Banner } from "./common/error-banner";
-import { prettyNumber } from "@/utils/numbers";
 import { ColumnChartSpecModel } from "@/components/data-table/chart-spec-model";
 import { ColumnChartContext } from "@/components/data-table/column-summary";
 import { Logger } from "@/utils/Logger";
 import { LoadingTable } from "@/components/data-table/loading-table";
 import { DelayMount } from "@/components/utils/delay-mount";
-import {
+import type {
   ColumnHeaderSummary,
   FieldTypesWithExternalType,
 } from "@/components/data-table/types";
-import {
+import type {
   ColumnFiltersState,
   OnChangeFn,
+  PaginationState,
   RowSelectionState,
   SortingState,
 } from "@tanstack/react-table";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import useEvent from "react-use-event-hook";
 import { Functions } from "@/utils/functions";
-import { ConditionSchema, ConditionType } from "./data-frames/schema";
+import { ConditionSchema, type ConditionType } from "./data-frames/schema";
 import {
-  ColumnFilterValue,
+  type ColumnFilterValue,
   filterToFilterCondition,
 } from "@/components/data-table/filters";
 import { Objects } from "@/utils/objects";
+import React from "react";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
+interface ColumnSummaries<T = unknown> {
+  data: TableData<T> | null | undefined;
+  summaries: ColumnHeaderSummary[];
+  is_disabled?: boolean;
+}
 
 /**
  * Arguments for a data table
@@ -50,8 +56,7 @@ type TableData<T> = T[] | CsvURL;
 interface Data<T> {
   label: string | null;
   data: TableData<T>;
-  hasMore: boolean;
-  totalRows: number;
+  totalRows: number | "too_many";
   pagination: boolean;
   pageSize: number;
   selection: "single" | "multi" | null;
@@ -60,14 +65,14 @@ interface Data<T> {
   showColumnSummaries: boolean;
   rowHeaders: string[];
   fieldTypes?: FieldTypesWithExternalType | null;
+  freezeColumnsLeft?: string[];
+  freezeColumnsRight?: string[];
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type Functions = {
   download_as: (req: { format: "csv" | "json" }) => Promise<string>;
-  get_column_summaries: (opts: {}) => Promise<{
-    summaries: ColumnHeaderSummary[];
-  }>;
+  get_column_summaries: <T>(opts: {}) => Promise<ColumnSummaries<T>>;
   search: <T>(req: {
     sort?: {
       by: string;
@@ -75,7 +80,12 @@ type Functions = {
     };
     query?: string;
     filters?: ConditionType[];
-  }) => Promise<TableData<T>>;
+    page_number: number;
+    page_size: number;
+  }) => Promise<{
+    data: TableData<T>;
+    total_rows: number;
+  }>;
 };
 
 type S = Array<string | number>;
@@ -86,8 +96,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       initialValue: z.array(z.number()),
       label: z.string().nullable(),
       data: z.union([z.string(), z.array(z.object({}).passthrough())]),
-      hasMore: z.boolean().default(false),
-      totalRows: z.number(),
+      totalRows: z.union([z.number(), z.literal("too_many")]),
       pagination: z.boolean().default(false),
       pageSize: z.number().default(10),
       selection: z.enum(["single", "multi"]).nullable().default(null),
@@ -95,6 +104,8 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       showFilters: z.boolean().default(false),
       showColumnSummaries: z.boolean().default(true),
       rowHeaders: z.array(z.string()),
+      freezeColumnsLeft: z.array(z.string()).optional(),
+      freezeColumnsRight: z.array(z.string()).optional(),
       fieldTypes: z
         .record(
           z.tuple([
@@ -118,6 +129,9 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       .output(z.string()),
     get_column_summaries: rpc.input(z.object({}).passthrough()).output(
       z.object({
+        data: z
+          .union([z.string(), z.array(z.object({}).passthrough())])
+          .nullable(),
         summaries: z.array(
           z.object({
             column: z.union([z.number(), z.string()]),
@@ -129,6 +143,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             false: z.number().nullish(),
           }),
         ),
+        is_disabled: z.boolean().optional(),
       }),
     ),
     search: rpc
@@ -139,9 +154,16 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             .optional(),
           query: z.string().optional(),
           filters: z.array(ConditionSchema).optional(),
+          page_number: z.number(),
+          page_size: z.number(),
         }),
       )
-      .output(z.union([z.string(), z.array(z.object({}).passthrough())])),
+      .output(
+        z.object({
+          data: z.union([z.string(), z.array(z.object({}).passthrough())]),
+          total_rows: z.number(),
+        }),
+      ),
   })
   .renderer((props) => {
     return (
@@ -170,6 +192,9 @@ interface DataTableProps<T> extends Data<T>, Functions {
 }
 
 interface DataTableSearchProps {
+  // Pagination
+  paginationState: PaginationState;
+  setPaginationState: OnChangeFn<PaginationState>;
   // Sorting
   sorting: SortingState;
   setSorting: OnChangeFn<SortingState>;
@@ -189,25 +214,65 @@ export const LoadingDataTableComponent = memo(
     const search = props.search;
     // Sorting/searching state
     const [sorting, setSorting] = useState<SortingState>([]);
+    const [paginationState, setPaginationState] =
+      React.useState<PaginationState>({
+        pageSize: props.pageSize,
+        pageIndex: 0,
+      });
     const [searchQuery, setSearchQuery] = useState<string>("");
     const [filters, setFilters] = useState<ColumnFiltersState>([]);
 
+    // We need to clear the selection when sort, query, or filters change
+    // Currently, our selection is index-based,
+    // so we can't rely on the data to be the same
+    // We can remove this when we have a stable key for each row
+    useEffect(() => {
+      props.setValue([]);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [props.setValue, filters, searchQuery, sorting]);
+
+    // If pageSize changes, reset pagination state
+    useEffect(() => {
+      if (paginationState.pageSize !== props.pageSize) {
+        setPaginationState({
+          pageIndex: 0,
+          pageSize: props.pageSize,
+        });
+      }
+    }, [props.pageSize, paginationState.pageSize]);
+
+    // If total rows change, reset pageIndex
+    useEffect(() => {
+      setPaginationState((state) => ({ ...state, pageIndex: 0 }));
+    }, [props.totalRows]);
+
     // Data loading
-    const { data, loading, error } = useAsyncData<T[]>(async () => {
+    const { data, loading, error } = useAsyncData<{
+      rows: T[];
+      totalRows: number | "too_many";
+    }>(async () => {
       // If there is no data, return an empty array
       if (props.totalRows === 0) {
-        return [];
+        return { rows: [], totalRows: 0 };
       }
 
       // Table data is a url string or an array of objects
       let tableData = props.data;
+      let totalRows = props.totalRows;
+
+      // First page and no search query
+      const shouldSkipSearch =
+        searchQuery === "" &&
+        paginationState.pageIndex === 0 &&
+        filters.length === 0 &&
+        sorting.length === 0;
 
       if (sorting.length > 1) {
         Logger.warn("Multiple sort columns are not supported");
       }
 
-      // If we have sort configuration, fetch the sorted data
-      if (sorting.length > 0 || searchQuery || filters.length > 0) {
+      // If we have sort/search/filter, use the search function
+      if (!shouldSkipSearch) {
         const searchResults = await search<T>({
           sort:
             sorting.length > 0
@@ -217,6 +282,8 @@ export const LoadingDataTableComponent = memo(
                 }
               : undefined,
           query: searchQuery,
+          page_number: paginationState.pageIndex,
+          page_size: paginationState.pageSize,
           filters: filters.flatMap((filter) => {
             return filterToFilterCondition(
               filter.id,
@@ -225,15 +292,16 @@ export const LoadingDataTableComponent = memo(
           }),
         });
 
-        tableData = searchResults;
-      } else {
-        // Send an empty search to clear the backend search state
-        void search<T>({});
+        tableData = searchResults.data;
+        totalRows = searchResults.total_rows;
       }
 
       // If we already have the data, return it
       if (Array.isArray(tableData)) {
-        return tableData;
+        return {
+          rows: tableData,
+          totalRows: totalRows,
+        };
       }
 
       const withoutExternalTypes = Objects.mapValues(
@@ -242,21 +310,42 @@ export const LoadingDataTableComponent = memo(
       );
 
       // Otherwise, load the data from the URL
-      return vegaLoadData(
+      tableData = await vegaLoadData(
         tableData,
         { type: "csv", parse: getVegaFieldTypes(withoutExternalTypes) },
         { handleBigInt: true },
       );
-    }, [sorting, search, filters, searchQuery, props.fieldTypes, props.data]);
+
+      return {
+        rows: tableData,
+        totalRows: totalRows,
+      };
+    }, [
+      sorting,
+      search,
+      filters,
+      searchQuery,
+      props.fieldTypes,
+      props.data,
+      paginationState.pageSize,
+      paginationState.pageIndex,
+    ]);
 
     // Column summaries
-    const { data: columnSummaries, error: columnSummariesError } =
-      useAsyncData(() => {
-        if (props.totalRows === 0) {
-          return Promise.resolve({ summaries: [] });
-        }
-        return props.get_column_summaries({});
-      }, [props.get_column_summaries, props.totalRows]);
+    const { data: columnSummaries, error: columnSummariesError } = useAsyncData<
+      ColumnSummaries<T>
+    >(() => {
+      if (props.totalRows === 0) {
+        return Promise.resolve({ data: null, summaries: [] });
+      }
+      return props.get_column_summaries({});
+    }, [
+      props.get_column_summaries,
+      filters,
+      searchQuery,
+      props.totalRows,
+      props.data,
+    ]);
 
     useEffect(() => {
       if (columnSummariesError) {
@@ -267,7 +356,13 @@ export const LoadingDataTableComponent = memo(
     if (loading && !data) {
       return (
         <DelayMount milliseconds={200}>
-          <LoadingTable pageSize={props.pageSize} />
+          <LoadingTable
+            pageSize={
+              props.totalRows !== "too_many" && props.totalRows > 0
+                ? props.totalRows
+                : props.pageSize
+            }
+          />
         </DelayMount>
       );
     }
@@ -289,8 +384,8 @@ export const LoadingDataTableComponent = memo(
         {errorComponent}
         <DataTableComponent
           {...props}
-          data={data || Arrays.EMPTY}
-          columnSummaries={columnSummaries?.summaries}
+          data={data?.rows || Arrays.EMPTY}
+          columnSummaries={columnSummaries}
           sorting={sorting}
           setSorting={setSorting}
           searchQuery={searchQuery}
@@ -298,6 +393,9 @@ export const LoadingDataTableComponent = memo(
           filters={filters}
           setFilters={setFilters}
           reloading={loading}
+          totalRows={data?.totalRows ?? props.totalRows}
+          paginationState={paginationState}
+          setPaginationState={setPaginationState}
         />
       </>
     );
@@ -308,10 +406,8 @@ LoadingDataTableComponent.displayName = "LoadingDataTableComponent";
 const DataTableComponent = ({
   label,
   data,
-  hasMore,
   totalRows,
   pagination,
-  pageSize,
   selection,
   value,
   showFilters,
@@ -319,6 +415,8 @@ const DataTableComponent = ({
   rowHeaders,
   showColumnSummaries,
   fieldTypes,
+  paginationState,
+  setPaginationState,
   download_as: downloadAs,
   columnSummaries,
   className,
@@ -331,15 +429,18 @@ const DataTableComponent = ({
   filters,
   setFilters,
   reloading,
+  freezeColumnsLeft,
+  freezeColumnsRight,
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
-    columnSummaries?: ColumnHeaderSummary[];
+    columnSummaries?: ColumnSummaries;
   }): JSX.Element => {
-  const resultsAreClipped = hasMore && totalRows > 0;
-
   const chartSpecModel = useMemo(() => {
-    if (!fieldTypes || !data || !columnSummaries) {
+    if (!columnSummaries) {
+      return ColumnChartSpecModel.EMPTY;
+    }
+    if (!fieldTypes || !columnSummaries.summaries) {
       return ColumnChartSpecModel.EMPTY;
     }
     const fieldTypesWithoutExternalTypes = Objects.mapValues(
@@ -347,14 +448,14 @@ const DataTableComponent = ({
       ([type]) => type,
     );
     return new ColumnChartSpecModel(
-      data,
+      columnSummaries.data || [],
       fieldTypesWithoutExternalTypes,
-      columnSummaries,
+      columnSummaries.summaries,
       {
-        includeCharts: !resultsAreClipped,
+        includeCharts: Boolean(columnSummaries.data),
       },
     );
-  }, [data, fieldTypes, columnSummaries, resultsAreClipped]);
+  }, [fieldTypes, columnSummaries]);
 
   const columns = useMemo(
     () =>
@@ -384,22 +485,21 @@ const DataTableComponent = ({
     },
   );
 
-  // We need to clear the selection when reloading
-  // Currently, our selection is index-based,
-  // so we can't rely on the data to be the same
-  // We can remove this when we have a stable key for each row
-  useEffect(() => {
-    // If reloading and has a selection, clear the selection
-    if (reloading && value.length > 0) {
-      setValue([]);
-    }
-  }, [reloading, value, setValue]);
-
   return (
     <>
-      {hasMore && totalRows && (
+      {/* // HACK: We assume "too_many" is coming from a SQL table */}
+      {totalRows === "too_many" && (
         <Banner className="mb-2 rounded">
-          Result clipped. Total rows {prettyNumber(totalRows)}.
+          Result clipped. If no LIMIT is given, we only show the first 300 rows.
+        </Banner>
+      )}
+      {columnSummaries?.is_disabled && (
+        // Note: Keep the text in sync with the constant defined in table_manager.py
+        //       This hard-code can be removed when Functions can pass structural
+        //       error information from the backend
+        <Banner className="mb-2 rounded">
+          Column summaries are unavailable. Filter your data to fewer than
+          1,000,000 rows.
         </Banner>
       )}
       <ColumnChartContext.Provider value={chartSpecModel}>
@@ -409,9 +509,14 @@ const DataTableComponent = ({
             columns={columns}
             className={className}
             sorting={sorting}
+            totalRows={totalRows}
+            manualSorting={true}
             setSorting={setSorting}
             pagination={pagination}
-            pageSize={pageSize}
+            manualPagination={true}
+            selection={selection}
+            paginationState={paginationState}
+            setPaginationState={setPaginationState}
             rowSelection={rowSelection}
             downloadAs={showDownload ? downloadAs : undefined}
             enableSearch={enableSearch}
@@ -422,6 +527,8 @@ const DataTableComponent = ({
             onFiltersChange={setFilters}
             reloading={reloading}
             onRowSelectionChange={handleRowSelectionChange}
+            freezeColumnsLeft={freezeColumnsLeft}
+            freezeColumnsRight={freezeColumnsRight}
           />
         </Labeled>
       </ColumnChartContext.Provider>

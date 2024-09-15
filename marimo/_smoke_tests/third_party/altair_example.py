@@ -1,8 +1,15 @@
-# Copyright 2024 Marimo. All rights reserved.
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "marimo",
+#     "vega-datasets",
+#     "altair",
+# ]
+# ///
 
 import marimo
 
-__generated_with = "0.3.12"
+__generated_with = "0.8.0"
 app = marimo.App()
 
 
@@ -24,9 +31,7 @@ def __(alt, source):
             scale=alt.Scale(domain=[0, 360], scheme="rainbow"),
             legend=None,
         ),
-        angle=alt.Angle(
-            "dir", scale=alt.Scale(domain=[0, 360], range=[180, 540])
-        ),
+        angle=alt.Angle("dir", scale=alt.Scale(domain=[0, 360], range=[180, 540])),
         size=alt.Size("speed", scale=alt.Scale(rangeMax=500)),
     ).project("equalEarth")
     return
@@ -58,11 +63,11 @@ def __(alt, cars, mo):
 
 
 @app.cell
-def __(alt, datum, stocks):
+def __(alt, stocks):
     base = (
         alt.Chart(stocks)
         .encode(x="date:T", y="price:Q", color="symbol:N")
-        .transform_filter(datum.symbol == "GOOG")
+        .transform_filter(alt.datum.symbol == "GOOG")
     )
 
     (base.mark_line() + base.mark_point())
@@ -78,9 +83,8 @@ def __():
 @app.cell
 def __():
     import altair as alt
-    from altair.expr import datum
     from vega_datasets import data
-    return alt, data, datum
+    return alt, data
 
 
 if __name__ == "__main__":

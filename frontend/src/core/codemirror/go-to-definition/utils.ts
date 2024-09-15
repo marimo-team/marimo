@@ -7,7 +7,7 @@ import { store } from "../../state/jotai";
 import { notebookAtom } from "../../cells/cells";
 import { variablesAtom } from "../../variables/state";
 import type { CellId } from "@/core/cells/ids";
-import { goToVariableDefinition } from "./commands";
+import { goToVariableDefinition, goToLine } from "./commands";
 import { closeCompletion } from "@codemirror/autocomplete";
 
 /**
@@ -78,6 +78,19 @@ export function goToDefinition(
 }
 
 /**
+ * Go to the given line number in the cell with the given ID.
+ * @param cellId The ID of the cell to go to.
+ * @param line The line number to go to.
+ */
+export function goToCellLine(cellId: CellId, lineNumber: number): boolean {
+  const view = getEditorForCell(cellId);
+  if (!view) {
+    return false;
+  }
+  return goToLine(view, lineNumber);
+}
+
+/**
  * @param editor The editor view at which the command was invoked.
  * @param variableName  The name of the variable to go to.
  */
@@ -95,9 +108,18 @@ function getEditorForVariable(
 
   const cellId = getCellIdOfDefinition(variables, variableName);
   if (cellId) {
-    const notebookState = store.get(notebookAtom);
-    return notebookState.cellHandles[cellId].current?.editorView ?? null;
+    return getEditorForCell(cellId);
   }
 
   return null;
+}
+
+/**
+ * Go to the given line number in the editor view.
+ * @param view The editor view to go to.
+ * @param line The line number to go to.
+ */
+function getEditorForCell(cellId: CellId): EditorView | null {
+  const notebookState = store.get(notebookAtom);
+  return notebookState.cellHandles[cellId].current?.editorView ?? null;
 }

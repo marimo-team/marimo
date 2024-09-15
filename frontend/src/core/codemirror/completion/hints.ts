@@ -3,7 +3,7 @@ import { HTMLCellId } from "@/core/cells/ids";
 import { EditorView, hoverTooltip } from "@codemirror/view";
 import { AUTOCOMPLETER, Autocompleter } from "./Autocompleter";
 import { Logger } from "@/utils/Logger";
-import { EditorState, Text } from "@codemirror/state";
+import type { EditorState, Text } from "@codemirror/state";
 import { debounce } from "lodash-es";
 import { documentationAtom } from "@/core/documentation/state";
 import { store } from "@/core/state/jotai";

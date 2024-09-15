@@ -4,7 +4,8 @@ import {
   openFindReplacePanel,
 } from "@/core/codemirror/find-replace/state";
 import { useAtom, useAtomValue } from "jotai";
-import React, { useEffect, useState, useRef } from "react";
+import type React from "react";
+import { useEffect, useState, useRef } from "react";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import {
@@ -25,7 +26,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { useHotkey } from "@/hooks/useHotkey";
-import { EditorView } from "@codemirror/view";
+import type { EditorView } from "@codemirror/view";
 import { FocusScope } from "@react-aria/focus";
 import { toast } from "../ui/use-toast";
 import {
@@ -34,6 +35,7 @@ import {
 } from "@/core/codemirror/find-replace/search-highlight";
 import { KeyboardHotkeys } from "../shortcuts/renderShortcut";
 import { hotkeysAtom } from "@/core/config/config";
+import { UndoButton } from "../buttons/undo-button";
 
 export const FindReplace: React.FC = () => {
   const [isFocused, setIsFocused] = useState(false);
@@ -107,7 +109,7 @@ export const FindReplace: React.FC = () => {
           e.preventDefault();
         }}
         onBlur={() => setIsFocused(false)}
-        className="fixed top-0 right-0 w-[500px] flex flex-col bg-[var(--sage-1)] p-4 z-50 mt-2 mr-3 rounded-md shadow-lg border gap-2"
+        className="fixed top-0 right-0 w-[500px] flex flex-col bg-[var(--sage-1)] p-4 z-50 mt-2 mr-3 rounded-md shadow-lg border gap-2 print:hidden"
         onKeyDown={(e) => {
           if (e.key === "Escape") {
             dispatch({ type: "setIsOpen", isOpen: false });
@@ -223,17 +225,13 @@ export const FindReplace: React.FC = () => {
                   const { dismiss } = toast({
                     title: "Replaced all occurrences",
                     action: (
-                      <Button
+                      <UndoButton
                         data-testid="undo-replace-all-button"
-                        size="sm"
-                        variant="outline"
                         onClick={() => {
                           undo();
                           dismiss();
                         }}
-                      >
-                        Undo
-                      </Button>
+                      />
                     ),
                   });
                 }}

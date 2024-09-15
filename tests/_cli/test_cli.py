@@ -15,6 +15,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
 import urllib.request
 from typing import Any, Callable, Iterator, Optional
 
@@ -23,10 +24,23 @@ import pytest
 from marimo import __version__
 from marimo._ast import codegen
 from marimo._ast.cell import CellConfig
+from marimo._dependencies.dependencies import DependencyManager
+from marimo._utils.config.config import ROOT_DIR as CONFIG_ROOT_DIR
+
+HAS_UV = DependencyManager.which("uv")
 
 
 def _is_win32() -> bool:
     return sys.platform == "win32"
+
+
+def _can_access_pypi() -> bool:
+    try:
+        pypi_url = "https://pypi.org/pypi/marimo/json"
+        with urllib.request.urlopen(pypi_url, timeout=5):
+            return True
+    except urllib.error.URLError:
+        return False
 
 
 @contextlib.contextmanager
@@ -125,6 +139,15 @@ def _get_port() -> int:
     raise OSError("Could not find an unused port.")
 
 
+def _read_toml(filepath: str) -> Optional[dict]:
+    import tomlkit
+
+    if not os.path.exists(filepath):
+        return None
+    with open(filepath, "r") as file:
+        return tomlkit.parse(file.read())
+
+
 def test_cli_help_exit_code() -> None:
     # smoke test: makes sure CLI starts
     # helpful for catching issues related to
@@ -141,7 +164,15 @@ def test_cli_edit_none() -> None:
     # annotations
     port = _get_port()
     p = subprocess.Popen(
-        ["marimo", "edit", "-p", str(port), "--headless", "--no-token"]
+        [
+            "marimo",
+            "edit",
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+            "--skip-update-check",
+        ]
     )
     contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode='home'", contents)
@@ -166,6 +197,7 @@ def test_cli_edit_token() -> None:
             "--headless",
             "--token-password",
             "secret",
+            "--skip-update-check",
         ]
     )
     contents = _try_fetch(port, "localhost", "secret")
@@ -180,7 +212,16 @@ def test_cli_edit_directory() -> None:
     d = tempfile.TemporaryDirectory()
     port = _get_port()
     p = subprocess.Popen(
-        ["marimo", "edit", d.name, "-p", str(port), "--headless", "--no-token"]
+        [
+            "marimo",
+            "edit",
+            d.name,
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+            "--skip-update-check",
+        ]
     )
     contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode='home'", contents)
@@ -195,7 +236,16 @@ def test_cli_edit_new_file() -> None:
     path = os.path.join(d.name, "new.py")
     port = _get_port()
     p = subprocess.Popen(
-        ["marimo", "edit", path, "-p", str(port), "--headless", "--no-token"]
+        [
+            "marimo",
+            "edit",
+            path,
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+            "--skip-update-check",
+        ]
     )
     contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode='edit'", contents)
@@ -216,6 +266,7 @@ def test_cli_edit_with_additional_args(temp_marimo_file: str) -> None:
             str(port),
             "--headless",
             "--no-token",
+            "--skip-update-check",
             "--",
             "-a=foo",
             "--b=bar",
@@ -226,6 +277,61 @@ def test_cli_edit_with_additional_args(temp_marimo_file: str) -> None:
     _check_contents(
         p, f"marimo-version data-version='{__version__}'".encode(), contents
     )
+
+
+@pytest.mark.skipif(
+    condition=not _can_access_pypi(),
+    reason="update check won't work without access to pypi",
+)
+def test_cli_edit_update_check() -> None:
+    with tempfile.TemporaryDirectory() as tempdir:
+        port = _get_port()
+        env = {**os.environ, "MARIMO_PYTEST_HOME_DIR": tempdir}
+        # pop off MARIMO_SKIP_UPDATE_CHECK
+        env.pop("MARIMO_SKIP_UPDATE_CHECK", None)
+        p = subprocess.Popen(
+            ["marimo", "edit", "-p", str(port), "--headless", "--no-token"],
+            env=env,
+        )
+        contents = _try_fetch(port)
+        _check_contents(p, b"marimo-mode data-mode='home'", contents)
+
+        state_contents = _read_toml(
+            os.path.join(tempdir, CONFIG_ROOT_DIR, "state.toml")
+        )
+        assert state_contents is not None
+        assert state_contents.get("last_checked_at") is not None
+
+
+@pytest.mark.skipif(
+    condition=not _can_access_pypi(),
+    reason="update check skip is only detectable if pypi is accessible",
+)
+def test_cli_edit_skip_update_check() -> None:
+    with tempfile.TemporaryDirectory() as tempdir:
+        port = _get_port()
+        p = subprocess.Popen(
+            [
+                "marimo",
+                "edit",
+                "-p",
+                str(port),
+                "--headless",
+                "--no-token",
+                "--skip-update-check",
+            ],
+            env={**os.environ, "MARIMO_PYTEST_HOME_DIR": tempdir},
+        )
+        contents = _try_fetch(port)
+        _check_contents(p, b"marimo-mode data-mode='home'", contents)
+
+        state_contents = _read_toml(
+            os.path.join(tempdir, CONFIG_ROOT_DIR, "state.toml")
+        )
+        assert (
+            state_contents is None
+            or state_contents.get("last_checked_at") is None
+        )
 
 
 def test_cli_new() -> None:
@@ -360,6 +466,7 @@ def test_cli_md_edit(temp_md_marimo_file: str) -> None:
             str(port),
             "--no-token",
             "--headless",
+            "--skip-update-check",
         ]
     )
     contents = _try_fetch(port)
@@ -389,12 +496,57 @@ def test_cli_custom_host() -> None:
     _check_contents(p, b"marimo-mode data-mode='edit'", contents)
 
 
+@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+def test_cli_sandbox_edit(temp_marimo_file: str) -> None:
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            temp_marimo_file,
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+            "--sandbox",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b"marimo-mode data-mode='edit'", contents)
+
+
+@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+def test_cli_sandbox_run(temp_marimo_file: str) -> None:
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            temp_marimo_file,
+            "-p",
+            str(port),
+            "--headless",
+            "--sandbox",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b"marimo-mode data-mode='read'", contents)
+
+
 @pytest.mark.xfail(condition=_is_win32(), reason="flaky on Windows")
 def test_cli_edit_interrupt_twice() -> None:
     # two SIGINTs should kill the CLI
     port = _get_port()
     p = subprocess.Popen(
-        ["marimo", "edit", "-p", str(port), "--headless", "--no-token"]
+        [
+            "marimo",
+            "edit",
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+            "--skip-update-check",
+        ]
     )
     _check_started(port)
     with _patch_signals_win32():
@@ -427,7 +579,15 @@ def test_cli_run_interrupt_twice() -> None:
 def test_cli_edit_shutdown() -> None:
     port = _get_port()
     p = subprocess.Popen(
-        ["marimo", "edit", "-p", str(port), "--headless", "--no-token"],
+        [
+            "marimo",
+            "edit",
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+            "--skip-update-check",
+        ],
         stdin=subprocess.PIPE,
     )
     _check_started(port)

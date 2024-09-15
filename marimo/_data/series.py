@@ -61,7 +61,7 @@ def get_number_series_info(series: Any) -> NumberSeriesInfo:
             raise ValueError("Expected a number. Got: " + str(type(value)))
         return value
 
-    if DependencyManager.has_pandas():
+    if DependencyManager.pandas.imported():
         import pandas as pd
 
         if isinstance(series, pd.Series):
@@ -71,7 +71,7 @@ def get_number_series_info(series: Any) -> NumberSeriesInfo:
                 label=_get_name(series),
             )
 
-    if DependencyManager.has_polars():
+    if DependencyManager.polars.imported():
         import polars as pl
 
         if isinstance(series, pl.Series):
@@ -88,7 +88,7 @@ def get_category_series_info(series: Any) -> CategorySeriesInfo:
     """
     Get the summary of a categorical series.
     """
-    if DependencyManager.has_pandas():
+    if DependencyManager.pandas.imported():
         import pandas as pd
 
         if isinstance(series, pd.Series):
@@ -97,7 +97,7 @@ def get_category_series_info(series: Any) -> CategorySeriesInfo:
                 label=_get_name(series),
             )
 
-    if DependencyManager.has_polars():
+    if DependencyManager.polars.imported():
         import polars as pl
 
         if isinstance(series, pl.Series):
@@ -119,7 +119,7 @@ def get_date_series_info(series: Any) -> DateSeriesInfo:
             raise ValueError("Expected a date. Got: " + str(type(value)))
         return value.strftime("%Y-%m-%d")
 
-    if DependencyManager.has_pandas():
+    if DependencyManager.pandas.imported():
         import pandas as pd
 
         if isinstance(series, pd.Series):
@@ -129,13 +129,50 @@ def get_date_series_info(series: Any) -> DateSeriesInfo:
                 label=_get_name(series),
             )
 
-    if DependencyManager.has_polars():
+    if DependencyManager.polars.imported():
         import polars as pl
 
         if isinstance(series, pl.Series):
             return DateSeriesInfo(
                 min=validate_date(series.min()),
                 max=validate_date(series.max()),
+                label=_get_name(series),
+            )
+
+    raise ValueError("Unsupported series type. Expected pandas or polars.")
+
+
+def get_datetime_series_info(series: Any) -> DateSeriesInfo:
+    """
+    Get the summary of a datetime series.
+    """
+
+    def validate_datetime(value: Any) -> str:
+        if isinstance(value, datetime.datetime):
+            return value.strftime("%Y-%m-%dT%H:%M:%S")
+        if isinstance(value, datetime.date):
+            # Convert date to datetime
+            value = datetime.datetime(value.year, value.month, value.day)
+            return value.strftime("%Y-%m-%d")
+        raise ValueError("Expected a datetime. Got: " + str(type(value)))
+
+    if DependencyManager.pandas.imported():
+        import pandas as pd
+
+        if isinstance(series, pd.Series):
+            return DateSeriesInfo(
+                min=validate_datetime(series.min()),
+                max=validate_datetime(series.max()),
+                label=_get_name(series),
+            )
+
+    if DependencyManager.polars.imported():
+        import polars as pl
+
+        if isinstance(series, pl.Series):
+            return DateSeriesInfo(
+                min=validate_datetime(series.min()),
+                max=validate_datetime(series.max()),
                 label=_get_name(series),
             )
 

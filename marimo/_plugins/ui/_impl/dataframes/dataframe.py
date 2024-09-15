@@ -14,9 +14,7 @@ from typing import (
     Union,
 )
 
-import marimo._output.data.data as mo_data
 from marimo._output.rich_help import mddoc
-from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.dataframes.transforms.apply import (
     TransformsContainer,
@@ -26,7 +24,15 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     DataFrameType,
     Transformations,
 )
-from marimo._plugins.ui._impl.tables.table_manager import ColumnName
+from marimo._plugins.ui._impl.table import (
+    SearchTableArgs,
+    SearchTableResponse,
+    SortArgs,
+)
+from marimo._plugins.ui._impl.tables.table_manager import (
+    FieldTypes,
+    TableManager,
+)
 from marimo._plugins.ui._impl.tables.utils import (
     get_table_manager,
 )
@@ -37,12 +43,13 @@ from marimo._utils.parse_dataclass import parse_raw
 @dataclass
 class GetDataFrameResponse:
     url: str
-    has_more: bool
     total_rows: int
     # List of column names that are actually row headers
     # This really only applies to Pandas, that has special index columns
     row_headers: List[str]
-    supports_code_sample: bool
+    field_types: FieldTypes
+    python_code: Optional[str] = None
+    sql_code: Optional[str] = None
 
 
 @dataclass
@@ -54,12 +61,6 @@ class GetColumnValuesArgs:
 class GetColumnValuesResponse:
     values: List[str | int | float]
     too_many_values: bool
-
-
-@dataclass
-class SortValuesArgs:
-    by: ColumnName
-    descending: bool
 
 
 class ColumnNotFound(Exception):
@@ -126,6 +127,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
         except Exception:
             pass
 
+        self._dataframe_name = dataframe_name
         self._data = df
         self._handler = handler
         self._manager = get_table_manager(df)
@@ -133,6 +135,8 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
             df, handler
         )
         self._error: Optional[str] = None
+        self._last_transforms = Transformations([])
+        self._page_size = page_size or 5  # Default to 5 rows (.head())
 
         super().__init__(
             component_name=dataframe._name,
@@ -159,9 +163,9 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
                     function=self.get_column_values,
                 ),
                 Function(
-                    name=self.sort_values.__name__,
-                    arg_cls=SortValuesArgs,
-                    function=self.sort_values,
+                    name=self.search.__name__,
+                    arg_cls=SearchTableArgs,
+                    function=self.search,
                 ),
             ),
         )
@@ -177,14 +181,20 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
             raise GetDataFrameError(self._error)
 
         manager = get_table_manager(self._value)
-        total_rows = manager.get_num_rows(force=True) or self.DISPLAY_LIMIT
-        url = mo_data.csv(manager.limit(self.DISPLAY_LIMIT).to_csv()).url
+        response = self.search(
+            SearchTableArgs(page_size=self._page_size, page_number=0)
+        )
         return GetDataFrameResponse(
-            url=url,
-            total_rows=total_rows,
-            has_more=total_rows > self.DISPLAY_LIMIT,
+            url=str(response.data),
+            total_rows=response.total_rows,
             row_headers=manager.get_row_headers(),
-            supports_code_sample=self._handler.supports_code_sample(),
+            field_types=manager.get_field_types(),
+            python_code=self._handler.as_python_code(
+                self._dataframe_name,
+                manager.get_column_names(),
+                self._last_transforms.transforms,
+            ),
+            sql_code=self._handler.as_sql_code(self._value),
         )
 
     def get_column_values(
@@ -220,6 +230,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
             transformations = parse_raw(value, Transformations)
             result = self._transform_container.apply(transformations)
             self._error = None
+            self._last_transforms = transformations
             return result
         except Exception as e:
             error = "Error applying dataframe transform: %s\n\n" % str(e)
@@ -227,9 +238,43 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
             self._error = error
             return self._data
 
-    def sort_values(self, args: SortValuesArgs) -> Union[JSONType, str]:
-        return (
-            self._manager.sort_values(args.by, args.descending)
-            .limit(self.DISPLAY_LIMIT)
-            .to_data()
+    def search(self, args: SearchTableArgs) -> SearchTableResponse:
+        offset = args.page_number * args.page_size
+
+        # If no query or sort, return nothing
+        # The frontend will just show the original data
+        if not args.query and not args.sort and not args.filters:
+            manager = get_table_manager(self._value)
+            data = manager.take(args.page_size, offset).to_data()
+            return SearchTableResponse(
+                data=data,
+                total_rows=manager.get_num_rows(force=True) or 0,
+            )
+
+        # Apply filters, query, and functools.sort using the cached method
+        result = self._apply_filters_query_sort(
+            args.query,
+            args.sort,
         )
+
+        # Save the manager to be used for selection
+        data = result.take(args.page_size, offset).to_data()
+        return SearchTableResponse(
+            data=data,
+            total_rows=result.get_num_rows(force=True) or 0,
+        )
+
+    def _apply_filters_query_sort(
+        self,
+        query: Optional[str],
+        sort: Optional[SortArgs],
+    ) -> TableManager[Any]:
+        result = get_table_manager(self._value)
+
+        if query:
+            result = result.search(query)
+
+        if sort:
+            result = result.sort_values(sort.by, sort.descending)
+
+        return result

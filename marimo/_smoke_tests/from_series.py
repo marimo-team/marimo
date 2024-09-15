@@ -1,4 +1,11 @@
-# Copyright 2024 Marimo. All rights reserved.
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "vega-datasets",
+#     "marimo",
+#     "polars",
+# ]
+# ///
 import marimo
 
 __generated_with = "0.6.23"

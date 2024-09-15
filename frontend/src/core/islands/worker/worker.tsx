@@ -10,18 +10,18 @@ import {
   type RPCSchema,
 } from "rpc-anywhere";
 import { invariant } from "../../../utils/invariant";
-import { ParentSchema } from "@/core/pyodide/rpc";
-import { TRANSPORT_ID } from "@/core/pyodide/worker/constants";
-import { MessageBuffer } from "@/core/pyodide/worker/message-buffer";
-import { SerializedBridge, RawBridge } from "@/core/pyodide/worker/types";
+import type { ParentSchema } from "@/core/wasm/rpc";
+import { TRANSPORT_ID } from "@/core/wasm/worker/constants";
+import { MessageBuffer } from "@/core/wasm/worker/message-buffer";
+import type { SerializedBridge, RawBridge } from "@/core/wasm/worker/types";
 import { ReadonlyWasmController } from "./controller";
-import { OperationMessage } from "@/core/kernel/messages";
-import { JsonString } from "@/utils/json/base64";
+import type { OperationMessage } from "@/core/kernel/messages";
+import type { JsonString } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
 import {
   getPyodideVersion,
   importPyodide,
-} from "@/core/pyodide/worker/getPyodideVersion";
+} from "@/core/wasm/worker/getPyodideVersion";
 
 declare const self: Window & {
   pyodide: PyodideInterface;
@@ -86,10 +86,16 @@ const requestHandler = createRPCRequestHandler({
   /**
    * Load packages
    */
-  loadPackages: async (packages: string) => {
+  loadPackages: async (code: string) => {
     await pyodideReadyPromise; // Make sure loading is done
 
-    await self.pyodide.loadPackagesFromImports(packages, {
+    if (code.includes("mo.sql")) {
+      // Add pandas and duckdb to the code
+      code = `import pandas\n${code}`;
+      code = `import duckdb\n${code}`;
+    }
+
+    await self.pyodide.loadPackagesFromImports(code, {
       messageCallback: Logger.log,
       errorCallback: Logger.error,
     });

@@ -1,12 +1,14 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union
 from uuid import uuid4
 
 from marimo._ast.cell import CellId_t
 from marimo._config.config import MarimoConfig
+from marimo._data.models import DataTableSource
 
 UIElementId = str
 CompletionRequestId = str
@@ -23,6 +25,7 @@ SerializedCLIArgs = Dict[str, ListOrValue[Primitive]]
 class ExecutionRequest:
     cell_id: CellId_t
     code: str
+    timestamp: float = field(default_factory=time.time)
 
 
 @dataclass
@@ -35,11 +38,15 @@ class ExecuteMultipleRequest:
     cell_ids: List[CellId_t]
     # code to register/run for each cell
     codes: List[str]
+    # time at which the request was received
+    timestamp: float = field(default_factory=time.time)
 
     @property
     def execution_requests(self) -> List[ExecutionRequest]:
         return [
-            ExecutionRequest(cell_id=cell_id, code=code)
+            ExecutionRequest(
+                cell_id=cell_id, code=code, timestamp=self.timestamp
+            )
             for cell_id, code in zip(self.cell_ids, self.codes)
         ]
 
@@ -47,6 +54,16 @@ class ExecuteMultipleRequest:
         assert len(self.cell_ids) == len(
             self.codes
         ), "Mismatched cell_ids and codes"
+
+
+@dataclass
+class ExecuteScratchpadRequest:
+    code: str
+
+
+@dataclass
+class RenameRequest:
+    filename: str
 
 
 @dataclass
@@ -138,6 +155,8 @@ class InstallMissingPackagesRequest:
 
 @dataclass
 class PreviewDatasetColumnRequest:
+    # The source type of the dataset
+    source_type: DataTableSource
     # The source of the dataset
     source: str
     # The name of the dataset
@@ -149,10 +168,12 @@ class PreviewDatasetColumnRequest:
 
 ControlRequest = Union[
     ExecuteMultipleRequest,
+    ExecuteScratchpadRequest,
     ExecuteStaleRequest,
     CreationRequest,
     DeleteCellRequest,
     FunctionCallRequest,
+    RenameRequest,
     SetCellConfigRequest,
     SetUserConfigRequest,
     SetUIElementValueRequest,

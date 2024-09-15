@@ -5,6 +5,7 @@ from typing import Any, Generic, List, TypeVar
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.dataframes.transforms.handlers import (
+    IbisTransformHandler,
     PandasTransformHandler,
     PolarsTransformHandler,
 )
@@ -19,7 +20,7 @@ from marimo._utils.assert_never import assert_never
 T = TypeVar("T")
 
 
-def handle(df: T, handler: TransformHandler[T], transform: Transform) -> T:
+def _handle(df: T, handler: TransformHandler[T], transform: Transform) -> T:
     if transform.type is TransformType.COLUMN_CONVERSION:
         return handler.handle_column_conversion(df, transform)
     elif transform.type is TransformType.RENAME_COLUMN:
@@ -38,17 +39,21 @@ def handle(df: T, handler: TransformHandler[T], transform: Transform) -> T:
         return handler.handle_shuffle_rows(df, transform)
     elif transform.type is TransformType.SAMPLE_ROWS:
         return handler.handle_sample_rows(df, transform)
+    elif transform.type is TransformType.EXPLODE_COLUMNS:
+        return handler.handle_explode_columns(df, transform)
+    elif transform.type is TransformType.EXPAND_DICT:
+        return handler.handle_expand_dict(df, transform)
     else:
         assert_never(transform.type)
 
 
-def apply_transforms(
+def _apply_transforms(
     df: T, handler: TransformHandler[T], transforms: Transformations
 ) -> T:
     if not transforms.transforms:
         return df
     for transform in transforms.transforms:
-        df = handle(df, handler, transform)
+        df = _handle(df, handler, transform)
     return df
 
 
@@ -60,18 +65,27 @@ def get_handler_for_dataframe(
 
     raises ValueError if the dataframe type is not supported.
     """
-    if DependencyManager.has_pandas():
+    if DependencyManager.pandas.imported():
         import pandas as pd
 
         if isinstance(df, pd.DataFrame):
             return PandasTransformHandler()
-    if DependencyManager.has_polars():
+    if DependencyManager.polars.imported():
         import polars as pl
 
         if isinstance(df, pl.DataFrame):
             return PolarsTransformHandler()
 
-    raise ValueError("Unsupported dataframe type. Must be Pandas or Polars.")
+    if DependencyManager.ibis.imported():
+        import ibis  # type: ignore
+
+        if isinstance(df, ibis.Table):
+            return IbisTransformHandler()
+
+    raise ValueError(
+        "Unsupported dataframe type. Must be Pandas or Polars."
+        f" Got: {type(df)}"
+    )
 
 
 class TransformsContainer(Generic[T]):
@@ -95,7 +109,7 @@ class TransformsContainer(Generic[T]):
         # then we can just apply the new ones to the snapshot dataframe.
         if self._is_superset(transform):
             transforms_to_apply = self._get_next_transformations(transform)
-            self._snapshot_df = apply_transforms(
+            self._snapshot_df = _apply_transforms(
                 self._snapshot_df, self._handler, transforms_to_apply
             )
             self._transforms = transform.transforms
@@ -104,7 +118,7 @@ class TransformsContainer(Generic[T]):
         # If the new transformations are not a superset of the existing ones,
         # then we need to start from the original dataframe.
         else:
-            self._snapshot_df = apply_transforms(
+            self._snapshot_df = _apply_transforms(
                 self._original_df, self._handler, transform
             )
             self._transforms = transform.transforms

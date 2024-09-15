@@ -11,7 +11,7 @@ import type {
 import { VersionedTextDocumentIdentifier } from "vscode-languageserver-protocol";
 
 import { LanguageServerClient } from "codemirror-languageserver";
-import {
+import type {
   CopilotStatus,
   CopilotSignInInitiateParams,
   CopilotSignInInitiateResult,
@@ -24,9 +24,14 @@ import {
   CopilotAcceptCompletionParams,
   CopilotRejectCompletionParams,
 } from "./types";
-import { isCopilotEnabled } from "./state";
+import {
+  isCopilotEnabled,
+  setGitHubCopilotLoadingVersion,
+  clearGitHubCopilotLoadingVersion,
+} from "./state";
 import { getCodes } from "./getCodes";
 import { Logger } from "@/utils/Logger";
+import { throttle } from "lodash-es";
 
 // A map of request methods and their parameters and return types
 export interface LSPRequestMap {
@@ -128,18 +133,56 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     return this._request("notifyRejected", params);
   }
 
-  async getCompletion(params: CopilotGetCompletionsParams) {
-    if (this.isDisabled()) {
-      return { completions: [] };
-    }
-
-    const version = this.documentVersion;
-
-    return this._request("getCompletions", {
+  private getCompletionInternal = async (
+    params: CopilotGetCompletionsParams,
+    version: number,
+  ): Promise<CopilotGetCompletionsResult> => {
+    return await this._request("getCompletions", {
       doc: {
         ...params.doc,
         version: version,
       },
     });
+  };
+
+  // Even though the copilot extension has a debounce,
+  // there are multiple requests sent at the same time
+  // when multiple Codemirror instances are mounted at the same time.
+  // So we throttle it to ignore multiple requests at the same time.
+  private throttledGetCompletionInternal = throttle(
+    this.getCompletionInternal,
+    200,
+  );
+
+  async getCompletion(
+    params: CopilotGetCompletionsParams,
+  ): Promise<CopilotGetCompletionsResult> {
+    if (this.isDisabled()) {
+      return { completions: [] };
+    }
+
+    const requestVersion = this.documentVersion;
+    params.doc.version = requestVersion;
+
+    // If version is 0, it means the document hasn't been opened yet
+    if (requestVersion === 0) {
+      return { completions: [] };
+    }
+
+    // Start a loading indicator
+    setGitHubCopilotLoadingVersion(requestVersion);
+    const response = await this.throttledGetCompletionInternal(
+      params,
+      requestVersion,
+    );
+    // Stop the loading indicator (only if the version hasn't changed)
+    clearGitHubCopilotLoadingVersion(requestVersion);
+
+    // If the document version has changed since the request was made, return an empty response
+    if (requestVersion !== this.documentVersion) {
+      return { completions: [] };
+    }
+
+    return response || { completions: [] };
   }
 }

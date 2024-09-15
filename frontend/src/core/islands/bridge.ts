@@ -1,11 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { EditRequests, RunRequests } from "../network/types";
+import type { EditRequests, RunRequests } from "../network/types";
 import { Deferred } from "@/utils/Deferred";
 import { getMarimoVersion } from "../dom/marimo-tag";
-import { getWorkerRPC } from "@/core/pyodide/rpc";
-import { OperationMessage } from "../kernel/messages";
-import { JsonString } from "@/utils/json/base64";
+import { getWorkerRPC } from "@/core/wasm/rpc";
+import type { OperationMessage } from "../kernel/messages";
+import type { JsonString } from "@/utils/json/base64";
 import { throwNotImplemented } from "@/utils/functions";
 import type { WorkerSchema } from "./worker/worker";
 import workerUrl from "./worker/worker.tsx?worker&url";
@@ -125,6 +125,8 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   getUsageStats = throwNotImplemented;
   sendRename = throwNotImplemented;
   sendSave = throwNotImplemented;
+  sendCopy = throwNotImplemented;
+  sendRunScratchpad = throwNotImplemented;
   sendStdin = throwNotImplemented;
   sendInterrupt = throwNotImplemented;
   sendShutdown = throwNotImplemented;
@@ -147,8 +149,11 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   sendRenameFileOrFolder = throwNotImplemented;
   sendUpdateFile = throwNotImplemented;
   sendFileDetails = throwNotImplemented;
+  openTutorial = throwNotImplemented;
   exportAsHTML = throwNotImplemented;
   exportAsMarkdown = throwNotImplemented;
+  autoExportAsHTML = throwNotImplemented;
+  autoExportAsMarkdown = throwNotImplemented;
   getRecentFiles = throwNotImplemented;
   getWorkspaceFiles = throwNotImplemented;
   getRunningNotebooks = throwNotImplemented;

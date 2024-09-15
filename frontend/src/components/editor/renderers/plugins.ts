@@ -1,13 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { GridLayoutPlugin } from "./grid-layout/plugin";
-import { ICellRendererPlugin, LayoutType } from "./types";
-import { CellData } from "@/core/cells/types";
+import type { ICellRendererPlugin, LayoutType } from "./types";
+import type { CellData } from "@/core/cells/types";
 import { VerticalLayoutPlugin } from "./vertical-layout/vertical-layout";
+import { SlidesLayoutPlugin } from "./slides-layout/plugin";
 
 // If more renderers are added, we may want to consider lazy loading them.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const cellRendererPlugins: Array<ICellRendererPlugin<any, any>> = [
   GridLayoutPlugin,
+  SlidesLayoutPlugin,
   VerticalLayoutPlugin,
 ];
 

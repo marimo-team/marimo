@@ -9,6 +9,7 @@ from marimo._plugins.ui._impl.tables.dataframe_protocol import (
     Column,
     DtypeKind,
 )
+from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.pyarrow_table import (
     PyArrowTableManagerFactory,
 )
@@ -46,7 +47,7 @@ class DataFrameProtocolTableManager(TableManager[DataFrameLike]):
     def _ensure_delegate(
         self,
     ) -> TableManager[Union[pa.Table, pa.RecordBatch]]:
-        DependencyManager.require_pyarrow(
+        DependencyManager.pyarrow.require(
             "for table support using the dataframe protocol"
         )
 
@@ -56,12 +57,17 @@ class DataFrameProtocolTableManager(TableManager[DataFrameLike]):
             )
         return self._delegate
 
+    def apply_formatting(  # type: ignore
+        self, format_mapping: FormatMapping
+    ) -> Union[pa.Table, pa.RecordBatch]:
+        return self._ensure_delegate().apply_formatting(format_mapping)
+
     def supports_filters(self) -> bool:
         # Does't support filters until pyarrow supports it
         return False
 
-    def to_csv(self) -> bytes:
-        return self._ensure_delegate().to_csv()
+    def to_csv(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
+        return self._ensure_delegate().to_csv(format_mapping)
 
     def to_json(self) -> bytes:
         return self._ensure_delegate().to_json()
@@ -91,8 +97,10 @@ class DataFrameProtocolTableManager(TableManager[DataFrameLike]):
             for column in self._df.column_names()
         }
 
-    def limit(self, num: int) -> TableManager[Union[pa.Table, pa.RecordBatch]]:
-        return self._ensure_delegate().limit(num)
+    def take(
+        self, count: int, offset: int
+    ) -> TableManager[Union[pa.Table, pa.RecordBatch]]:
+        return self._ensure_delegate().take(count, offset)
 
     def search(self, query: str) -> TableManager[Any]:
         return self._ensure_delegate().search(query)
@@ -146,7 +154,7 @@ class DataFrameProtocolTableManager(TableManager[DataFrameLike]):
 # https://github.com/vega/altair/blob/18a2c3c237014591d172284560546a2f0ac1a883/altair/utils/data.py#L343
 def arrow_table_from_dataframe_protocol(
     dfi_df: DataFrameLike,
-) -> "pa.lib.Table":
+) -> "pa.Table":
     """
     Convert a DataFrame Interchange Protocol compatible object
     to an Arrow Table
@@ -168,4 +176,4 @@ def arrow_table_from_dataframe_protocol(
             if isinstance(result, pa.Table):
                 return result
 
-    return pi.from_dataframe(dfi_df)  # type: ignore[no-any-return]
+    return pi.from_dataframe(dfi_df)  # type: ignore

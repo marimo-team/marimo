@@ -1,89 +1,32 @@
-.markdown p,
-.markdown .paragraph,
-.markdown ol,
-.markdown ul,
-.markdown span:not(code *, .MuiBox-root) {
-  /* the not selector makes sure we don't change katex/LaTeX styles */
-  line-height: 1.5rem;
-  font-family: var(--text-font);
-}
-
 .markdown p:first-child,
 .markdown .paragraph:first-child {
+  /* This is needed when markdown is used inside buttons or labels  */
   margin-block-start: 0;
 }
 
 .markdown p:last-child,
+/* This is needed when markdown is used inside buttons or labels  */
 .markdown .paragraph:last-child {
   margin-block-end: 0;
 }
 
-.markdown h1,
-.markdown h2,
-.markdown h3 {
-  font-weight: normal;
-}
-
 .markdown h1 {
-  /* provide by the browser, but removed from 'reset' */
-  display: block;
-  font-size: 2rem;
-  margin-block-end: 0.67rem;
-  margin-inline: 0 0;
   text-align: center;
 }
 
 .config-width-full .markdown h1 {
-  /* In full-width display, centered headings look odd */
+  /* In full-width display, we left-align the title */
   text-align: start;
 }
 
-.markdown h2 {
-  /* provide by the browser, but removed from 'reset' */
-  display: block;
-  font-size: 1.5rem;
-  margin-block-end: 0.83rem;
-  margin-inline: 0 0;
-}
-
-.markdown h3 {
-  /* provide by the browser, but removed from 'reset' */
-  display: block;
-  font-size: 1.17rem;
-  margin-block-end: 1rem;
-  margin-inline: 0 0;
-}
-
-.markdown p,
 .markdown .paragraph {
-  /* provide by the browser, but removed from 'reset' */
+  /*
+  we convert <p> to span.paragraph to support nesting,
+  so we need to apply the same formatting
+  */
   display: block;
-  margin-block: 1rem 1rem;
-  margin-inline: 0 0;
-}
-
-.markdown ul {
-  /* provide by the browser, but removed from 'reset' */
-  display: block;
-  list-style-type: disc;
-  margin-block: 1rem 1rem;
-  margin-inline: 0 0;
-  padding-inline-start: 40px;
-}
-
-.markdown ol {
-  /* provide by the browser, but removed from 'reset' */
-  display: block;
-  list-style-type: decimal;
-  margin-block: 1rem 1rem;
-  margin-inline: 0 0;
-  padding-inline-start: 40px;
-}
-
-.markdown li {
-  /* provided by the browser, but removed from 'reset' */
-  display: list-itrem;
-  text-align: -webkit-match-parent;
+  margin-block: 1rem;
+  margin-inline: 0;
 }
 
 .markdown h1,
@@ -92,39 +35,13 @@
 .markdown h4,
 .markdown h5,
 .markdown h6 {
+  font-weight: inherit;
   font-family: var(--heading-font);
-}
-
-.markdown pre {
-  /* source code */
-  margin: 30px;
-  line-height: 1.8rem;
-  font-family: var(--monospace-font);
-  overflow: auto;
-  white-space: pre;
-}
-
-.markdown p code,
-.markdown .paragraph code,
-.markdown pre code,
-.markdown li code {
-  font-size: 0.875rem;
-  scroll-margin:;
-}
-
-.markdown sup,
-.markdown sub {
-  vertical-align: baseline;
-  position: relative;
-  top: -0.4rem;
-}
-
-.markdown sub {
-  top: 0.4rem;
 }
 
 .markdown a {
   cursor: pointer;
+  text-decoration: inherit;
 
   @apply text-link;
 }
@@ -138,17 +55,11 @@
   @apply text-link-visited;
 }
 
-.markdown blockquote {
-  padding: 0 1rem;
-
-  @apply border-l-4;
-  @apply text-muted-foreground;
-}
-
 .mo-label .markdown p,
 .mo-label-block .markdown p,
 .mo-label .markdown .paragraph,
 .mo-label-block .markdown .paragraph {
+  /* This is needed when markdown is used inside labels  */
   padding: 0;
   margin: 0;
 }
@@ -167,7 +78,6 @@ a .markdown iconify-icon:first-child {
 
 /* align icons with buttons better */
 button .markdown .paragraph {
-  display: inline-flex;
   align-items: baseline;
   gap: 0.4em;
 
@@ -177,3 +87,11 @@ button .markdown .paragraph {
 }
 
 /* stylelint-enable unit-allowed-list */
+
+/*
+Disable max-width for prose in buttons
+This change includes accordions https://github.com/marimo-team/marimo/issues/2217
+*/
+button .prose.prose {
+  max-width: none;
+}

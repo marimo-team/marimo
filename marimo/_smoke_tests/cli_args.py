@@ -1,7 +1,14 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "marimo",
+# ]
+# ///
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.4.0"
+__generated_with = "0.8.14"
 app = marimo.App()
 
 
@@ -13,13 +20,15 @@ def __():
 
 @app.cell
 def __(mo):
-    mo.md("""
-    Re-run this with notebook with the following command line:
+    mo.md(
+        """
+        Re-run this with notebook with the following command line:
 
-    ```bash
-    marimo edit marimo/_smoke_tests/cli_args.py -- -a foo --b=bar -d 10 -d 20 -d false
-    ```
-    """)
+        ```bash
+        marimo edit marimo/_smoke_tests/cli_args.py -- -a foo --b=bar -d 10 -d 20 -d false
+        ```
+        """
+    )
     return
 
 

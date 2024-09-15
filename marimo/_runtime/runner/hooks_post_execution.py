@@ -1,9 +1,16 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import Callable
+
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
-from marimo._data.get_datasets import get_datasets_from_variables
+from marimo._data.get_datasets import (
+    get_datasets_from_duckdb,
+    get_datasets_from_variables,
+    has_updates_to_datasource,
+)
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
     MarimoExceptionRaisedError,
@@ -22,11 +29,33 @@ from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context.types import get_global_context
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.runner import cell_runner
-from marimo._utils.flatten import flatten
+from marimo._tracer import kernel_tracer
+from marimo._utils.flatten import contains_instance
 
 LOGGER = _loggers.marimo_logger()
 
+PostExecutionHookType = Callable[
+    [CellImpl, cell_runner.Runner, cell_runner.RunResult], None
+]
 
+
+@kernel_tracer.start_as_current_span("set_imported_defs")
+def _set_imported_defs(
+    cell: CellImpl,
+    runner: cell_runner.Runner,
+    run_result: cell_runner.RunResult,
+) -> None:
+    del run_result
+    LOGGER.debug("Acquiring graph lock to update cell import workspace")
+    with runner.graph.lock:
+        LOGGER.debug("Acquired graph lock to update import workspace.")
+        if cell.import_workspace.is_import_block:
+            cell.import_workspace.imported_defs = set(
+                name for name in cell.defs if name in runner.glbls
+            )
+
+
+@kernel_tracer.start_as_current_span("set_status_idle")
 def _set_status_idle(
     cell: CellImpl,
     runner: cell_runner.Runner,
@@ -34,9 +63,26 @@ def _set_status_idle(
 ) -> None:
     del run_result
     del runner
-    cell.set_status(status="idle")
+    cell.set_runtime_state(status="idle")
 
 
+@kernel_tracer.start_as_current_span("set_run_result_status")
+def _set_run_result_status(
+    cell: CellImpl,
+    runner: cell_runner.Runner,
+    run_result: cell_runner.RunResult,
+) -> None:
+    if isinstance(run_result.exception, MarimoInterruptionError):
+        cell.set_run_result_status("interrupted")
+    elif runner.cancelled(cell.cell_id):
+        cell.set_run_result_status("cancelled")
+    elif run_result.exception is not None:
+        cell.set_run_result_status("exception")
+    else:
+        cell.set_run_result_status("success")
+
+
+@kernel_tracer.start_as_current_span("broadcast_variables")
 def _broadcast_variables(
     cell: CellImpl,
     runner: cell_runner.Runner,
@@ -56,6 +102,7 @@ def _broadcast_variables(
         VariableValues(variables=values).broadcast()
 
 
+@kernel_tracer.start_as_current_span("broadcast_datasets")
 def _broadcast_datasets(
     cell: CellImpl,
     runner: cell_runner.Runner,
@@ -70,9 +117,42 @@ def _broadcast_datasets(
         ]
     )
     if tables:
+        LOGGER.debug("Broadcasting data tables")
         Datasets(tables=tables).broadcast()
 
 
+@kernel_tracer.start_as_current_span("broadcast_duckdb_tables")
+def _broadcast_duckdb_tables(
+    cell: CellImpl,
+    runner: cell_runner.Runner,
+    run_result: cell_runner.RunResult,
+) -> None:
+    del run_result
+    del runner
+    if not DependencyManager.duckdb.has():
+        return
+
+    try:
+        sqls = cell.sqls
+        if not sqls:
+            return
+        modifies_datasources = any(
+            has_updates_to_datasource(sql) for sql in sqls
+        )
+        if not modifies_datasources:
+            return
+
+        tables = get_datasets_from_duckdb()
+        if not tables:
+            return
+
+        LOGGER.debug("Broadcasting duckdb tables")
+        Datasets(tables=tables, clear_channel="duckdb").broadcast()
+    except Exception:
+        return
+
+
+@kernel_tracer.start_as_current_span("store_reference_to_output")
 def _store_reference_to_output(
     cell: CellImpl,
     runner: cell_runner.Runner,
@@ -85,11 +165,11 @@ def _store_reference_to_output(
     if isinstance(run_result.output, UIElement):
         cell.set_output(run_result.output)
     elif run_result.output is not None:
-        flattened, _ = flatten(run_result.output)
-        if any(isinstance(v, UIElement) for v in flattened):
+        if contains_instance(run_result.output, UIElement):
             cell.set_output(run_result.output)
 
 
+@kernel_tracer.start_as_current_span("broadcast_outputs")
 def _broadcast_outputs(
     cell: CellImpl,
     runner: cell_runner.Runner,
@@ -114,6 +194,13 @@ def _broadcast_outputs(
 
         def format_output() -> formatting.FormattedOutput:
             formatted_output = formatting.try_format(run_result.output)
+
+            if formatted_output.exception is not None:
+                # Try a plain formatter; maybe an opinionated one failed.
+                formatted_output = formatting.try_format(
+                    run_result.output, include_opinionated=False
+                )
+
             if formatted_output.traceback is not None:
                 write_traceback(formatted_output.traceback)
             return formatted_output
@@ -123,6 +210,7 @@ def _broadcast_outputs(
                 formatted_output = format_output()
         else:
             formatted_output = format_output()
+
         CellOp.broadcast_output(
             channel=CellChannel.OUTPUT,
             mimetype=formatted_output.mimetype,
@@ -144,6 +232,12 @@ def _broadcast_outputs(
         # its console outputs are not stale
         CellOp.broadcast_error(
             data=[MarimoInterruptionError()],
+            clear_console=False,
+            cell_id=cell.cell_id,
+        )
+    elif isinstance(run_result.exception, MarimoExceptionRaisedError):
+        CellOp.broadcast_error(
+            data=[run_result.exception],
             clear_console=False,
             cell_id=cell.cell_id,
         )
@@ -177,6 +271,7 @@ def _broadcast_outputs(
         )
 
 
+@kernel_tracer.start_as_current_span("reset_matplotlib_context")
 def _reset_matplotlib_context(
     cell: CellImpl,
     runner: cell_runner.Runner,
@@ -189,11 +284,17 @@ def _reset_matplotlib_context(
         exec("__marimo__._output.mpl.close_figures()", runner.glbls)
 
 
-POST_EXECUTION_HOOKS = [
-    _set_status_idle,
+POST_EXECUTION_HOOKS: list[PostExecutionHookType] = [
+    _set_imported_defs,
+    _set_run_result_status,
     _store_reference_to_output,
     _broadcast_variables,
     _broadcast_datasets,
+    _broadcast_duckdb_tables,
     _broadcast_outputs,
     _reset_matplotlib_context,
+    # set status to idle after all post-processing is done, in case the
+    # other hooks take a long time (broadcast outputs can take a long time
+    # if a formatter is slow).
+    _set_status_idle,
 ]

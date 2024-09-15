@@ -4,10 +4,10 @@ import { z } from "zod";
 
 import { getUIElementObjectId, isUIElement } from "../../core/dom/ui-element";
 import {
-  marimoValueInputEvent,
-  MarimoValueInputEventType,
+  MarimoValueInputEvent,
+  type MarimoValueInputEventType,
 } from "@/core/dom/events";
-import { Setter } from "../types";
+import type { Setter } from "../types";
 import { Button } from "../../components/ui/button";
 import { UI_ELEMENT_REGISTRY } from "@/core/dom/uiregistry";
 import { cn } from "../../utils/cn";
@@ -247,9 +247,9 @@ const Form = ({
         setInternalValue(e.detail.value);
       }
     };
-    document.addEventListener(marimoValueInputEvent, handleUpdate);
+    document.addEventListener(MarimoValueInputEvent.TYPE, handleUpdate);
     return () => {
-      document.removeEventListener(marimoValueInputEvent, handleUpdate);
+      document.removeEventListener(MarimoValueInputEvent.TYPE, handleUpdate);
     };
   }, [elementId, setValue]);
 

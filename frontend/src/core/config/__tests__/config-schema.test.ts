@@ -5,9 +5,10 @@ import { AppConfigSchema, UserConfigSchema } from "../config-schema";
 test("default AppConfig", () => {
   const defaultConfig = AppConfigSchema.parse({});
   expect(defaultConfig).toMatchInlineSnapshot(`
-  {
-    "width": "medium",
-  }
+    {
+      "auto_download": [],
+      "width": "medium",
+    }
   `);
 });
 
@@ -19,6 +20,7 @@ test("another AppConfig", () => {
   expect(config).toMatchInlineSnapshot(`
     {
       "app_title": null,
+      "auto_download": [],
       "width": "medium",
     }
   `);
@@ -36,6 +38,7 @@ test("default UserConfig - empty", () => {
       "display": {
         "cell_output": "above",
         "code_editor_font_size": 14,
+        "dataframes": "rich",
         "default_width": "medium",
         "theme": "light",
       },
@@ -85,6 +88,7 @@ test("default UserConfig - one level", () => {
       "display": {
         "cell_output": "above",
         "code_editor_font_size": 14,
+        "dataframes": "rich",
         "default_width": "medium",
         "theme": "light",
       },

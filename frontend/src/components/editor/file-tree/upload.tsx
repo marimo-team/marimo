@@ -1,13 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { toast } from "@/components/ui/use-toast";
 import { sendCreateFileOrFolder } from "@/core/network/requests";
-import { FilePath } from "@/utils/paths";
+import type { FilePath } from "@/utils/paths";
 import { serializeBlob } from "@/utils/blob";
-import { DropzoneOptions, useDropzone } from "react-dropzone";
+import { type DropzoneOptions, useDropzone } from "react-dropzone";
 import { refreshRoot } from "./state";
 import { Logger } from "@/utils/Logger";
 
-const MAX_SIZE = 1024 * 1024 * 50; // 50MB
+const MAX_SIZE = 1024 * 1024 * 100; // 100MB
 
 export function useFileExplorerUpload(options: DropzoneOptions = {}) {
   return useDropzone({

@@ -26,8 +26,8 @@ from typing import (
 
 from marimo import _loggers as loggers
 from marimo._ast.app import _AppConfig
-from marimo._ast.cell import CellConfig, CellId_t, CellStatusType
-from marimo._data.models import ColumnSummary, DataTable
+from marimo._ast.cell import CellConfig, CellId_t, RuntimeStateType
+from marimo._data.models import ColumnSummary, DataTable, DataTableSource
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.completion_option import CompletionOption
@@ -41,6 +41,7 @@ from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import get_context
 from marimo._runtime.layout.layout import LayoutConfig
+from marimo._utils.platform import is_pyodide, is_windows
 
 LOGGER = loggers.marimo_logger()
 
@@ -114,7 +115,7 @@ class CellOp(Op):
     cell_id: CellId_t
     output: Optional[CellOutput] = None
     console: Optional[Union[CellOutput, List[CellOutput]]] = None
-    status: Optional[CellStatusType] = None
+    status: Optional[RuntimeStateType] = None
     stale_inputs: Optional[bool] = None
     timestamp: float = field(default_factory=lambda: time.time())
 
@@ -160,7 +161,7 @@ class CellOp(Op):
         mimetype: KnownMimeType,
         data: str,
         cell_id: Optional[CellId_t],
-        status: Optional[CellStatusType],
+        status: Optional[RuntimeStateType],
         stream: Stream | None = None,
     ) -> None:
         mimetype, data = CellOp.maybe_truncate_output(mimetype, data)
@@ -181,7 +182,7 @@ class CellOp(Op):
     @staticmethod
     def broadcast_empty_output(
         cell_id: Optional[CellId_t],
-        status: Optional[CellStatusType],
+        status: Optional[RuntimeStateType],
         stream: Stream | None = None,
     ) -> None:
         cell_id = (
@@ -204,7 +205,7 @@ class CellOp(Op):
         mimetype: KnownMimeType,
         data: str,
         cell_id: Optional[CellId_t],
-        status: Optional[CellStatusType],
+        status: Optional[RuntimeStateType],
         stream: Stream | None = None,
     ) -> None:
         mimetype, data = CellOp.maybe_truncate_output(mimetype, data)
@@ -224,7 +225,9 @@ class CellOp(Op):
 
     @staticmethod
     def broadcast_status(
-        cell_id: CellId_t, status: CellStatusType, stream: Stream | None = None
+        cell_id: CellId_t,
+        status: RuntimeStateType,
+        stream: Stream | None = None,
     ) -> None:
         if status != "running":
             CellOp(cell_id=cell_id, status=status).broadcast()
@@ -309,6 +312,16 @@ class RemoveUIElements(Op):
 
 
 @dataclass
+class SendUIElementMessage(Op):
+    """Send a message to a UI element."""
+
+    name: ClassVar[str] = "send-ui-element-message"
+    ui_element: str
+    message: Dict[str, object]
+    buffers: Optional[Sequence[str]]
+
+
+@dataclass
 class Interrupted(Op):
     """Written when the kernel is interrupted by the user."""
 
@@ -325,9 +338,12 @@ class CompletedRun(Op):
 @dataclass
 class KernelCapabilities:
     sql: bool = False
+    terminal: bool = False
 
     def __post_init__(self) -> None:
-        self.sql = DependencyManager.has_duckdb()
+        self.sql = DependencyManager.duckdb.has_at_version(min_version="1.0.0")
+        # Only available in mac/linux
+        self.terminal = not is_windows() and not is_pyodide()
 
 
 @dataclass
@@ -491,6 +507,7 @@ class Datasets(Op):
 
     name: ClassVar[str] = "datasets"
     tables: List[DataTable]
+    clear_channel: Optional[DataTableSource] = None
 
 
 @dataclass
@@ -568,6 +585,7 @@ MessageOperation = Union[
     # Cell operations
     CellOp,
     FunctionCallResult,
+    SendUIElementMessage,
     RemoveUIElements,
     # Notebook operations
     Reload,

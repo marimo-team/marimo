@@ -2,7 +2,7 @@
 import { memo, useState } from "react";
 import CodeMirror, {
   EditorView,
-  ReactCodeMirrorProps,
+  type ReactCodeMirrorProps,
 } from "@uiw/react-codemirror";
 import { CopyIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,17 +11,31 @@ import { toast } from "@/components/ui/use-toast";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/python";
+import { sql } from "@codemirror/lang-sql";
 
-export const ReadonlyPythonCode = memo(
+const pythonExtensions = [
+  customPythonLanguageSupport(),
+  EditorView.lineWrapping,
+];
+const sqlExtensions = [sql(), EditorView.lineWrapping];
+
+export const ReadonlyCode = memo(
   (
     props: {
       className?: string;
       code: string;
       initiallyHideCode?: boolean;
+      language?: "python" | "sql";
     } & ReactCodeMirrorProps,
   ) => {
     const { theme } = useTheme();
-    const { code, className, initiallyHideCode, ...rest } = props;
+    const {
+      code,
+      className,
+      initiallyHideCode,
+      language = "python",
+      ...rest
+    } = props;
     const [hideCode, setHideCode] = useState(initiallyHideCode);
 
     return (
@@ -44,7 +58,7 @@ export const ReadonlyPythonCode = memo(
           theme={theme === "dark" ? "dark" : "light"}
           height="100%"
           editable={!hideCode}
-          extensions={[customPythonLanguageSupport(), EditorView.lineWrapping]}
+          extensions={language === "python" ? pythonExtensions : sqlExtensions}
           value={code}
           readOnly={true}
         />
@@ -52,7 +66,7 @@ export const ReadonlyPythonCode = memo(
     );
   },
 );
-ReadonlyPythonCode.displayName = "ReadonlyPythonCode";
+ReadonlyCode.displayName = "ReadonlyCode";
 
 const CopyButton = (props: { text: string }) => {
   const copy = Events.stopPropagation(() => {

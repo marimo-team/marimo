@@ -2,13 +2,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { z } from "zod";
 
-import { IPlugin, IPluginProps } from "@/plugins/types";
+import type { IPluginProps } from "@/plugins/types";
 import { useEffect, useRef } from "react";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { dequal } from "dequal";
 import { useOnMount } from "@/hooks/useLifecycle";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { ErrorBanner } from "../common/error-banner";
+import { createPlugin } from "@/plugins/core/builder";
+import { rpc } from "@/plugins/core/rpc";
+import type { AnyModel, AnyWidget, EventHandler, Experimental } from "./types";
+import { Logger } from "@/utils/Logger";
+import { useEventListener } from "@/hooks/useEventListener";
+import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 
 interface Data {
   jsUrl: string;
@@ -17,20 +23,28 @@ interface Data {
 
 type T = Record<string, any>;
 
-export class AnyWidgetPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-anywidget";
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
+type PluginFunctions = {
+  send_to_widget: <T>(req: { content?: any }) => Promise<null | undefined>;
+};
 
-  validator = z.object({
-    jsUrl: z.string(),
-    css: z.string().nullish(),
-  });
+export const AnyWidgetPlugin = createPlugin<T>("marimo-anywidget")
+  .withData(
+    z.object({
+      jsUrl: z.string(),
+      css: z.string().nullish(),
+    }),
+  )
+  .withFunctions<PluginFunctions>({
+    send_to_widget: rpc
+      .input(z.object({ content: z.any() }))
+      .output(z.null().optional()),
+  })
+  .renderer((props) => <AnyWidgetSlot {...props} />);
 
-  render(props: IPluginProps<T, Data>): JSX.Element {
-    return <AnyWidgetSlot {...props} />;
-  }
-}
+type Props = IPluginProps<T, Data, PluginFunctions>;
 
-const AnyWidgetSlot = (props: IPluginProps<T, Data>) => {
+const AnyWidgetSlot = (props: Props) => {
   const { css, jsUrl } = props.data;
   // JS is an ESM file with a render function on it
   // export function render({ model, el }) {
@@ -66,32 +80,72 @@ const AnyWidgetSlot = (props: IPluginProps<T, Data>) => {
     return null;
   }
 
-  if (!module.default.render) {
+  if (!isAnyWidgetModule(module)) {
     const error = new Error(
-      `Module at ${jsUrl} does not have a default export with a render function`,
+      `Module at ${jsUrl} does not appear to be a valid anywidget`,
     );
     return <ErrorBanner error={error} />;
   }
 
-  return <LoadedSlot {...props} render={module.default.render} />;
+  return <LoadedSlot {...props} widget={module.default} />;
 };
+
+/**
+ * Run the anywidget module
+ *
+ * @param widgetDef - The anywidget definition
+ * @param model - The model to pass to the widget
+ */
+async function runAnyWidgetModule(
+  widgetDef: AnyWidget,
+  model: Model<T>,
+  el: HTMLElement,
+) {
+  const experimental: Experimental = {
+    invoke: async (name, msg, options) => {
+      const message =
+        "anywidget.invoke not supported in marimo. Please file an issue at https://github.com/marimo-team/marimo/issues";
+      Logger.warn(message);
+      throw new Error(message);
+    },
+  };
+  const widget =
+    typeof widgetDef === "function" ? await widgetDef() : widgetDef;
+  await widget.initialize?.({ model, experimental });
+  await widget.render?.({ model, el, experimental });
+}
+
+function isAnyWidgetModule(mod: any): mod is { default: AnyWidget } {
+  return (
+    mod.default &&
+    (typeof mod.default === "function" ||
+      mod.default?.render ||
+      mod.default?.initialize)
+  );
+}
 
 const LoadedSlot = ({
   value,
   setValue,
-  render,
-}: IPluginProps<T, Data> & {
-  render: ({ model, el }: any) => void;
-}) => {
+  widget,
+  functions,
+  host,
+}: Props & { widget: AnyWidget }) => {
   const ref = useRef<HTMLDivElement>(null);
-  const model = useRef<Model<T>>(new Model(value, setValue));
+  const model = useRef<Model<T>>(
+    new Model(value, setValue, functions.send_to_widget),
+  );
+
+  // Listen to incoming messages
+  useEventListener(host, MarimoIncomingMessageEvent.TYPE, (e) => {
+    model.current.receiveCustomMessage(e.detail.message, e.detail.buffers);
+  });
 
   useOnMount(() => {
     if (!ref.current) {
       return;
     }
-
-    render({ model: model.current, el: ref.current });
+    runAnyWidgetModule(widget, model.current, ref.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   });
 
@@ -104,28 +158,68 @@ const LoadedSlot = ({
   return <div ref={ref} />;
 };
 
-class Model<T extends Record<string, any>> {
+class Model<T extends Record<string, any>> implements AnyModel<T> {
   constructor(
-    public data: T,
-    public onChange: (value: T) => void,
+    private data: T,
+    private onChange: (value: T) => void,
+    private send_to_widget: (req: { content?: any }) => Promise<
+      null | undefined
+    >,
   ) {}
 
-  private listeners: Record<string, Array<(value: any) => void>> = {};
+  off(eventName?: string | null, callback?: EventHandler | null): void {
+    if (!eventName) {
+      this.listeners = {};
+      return;
+    }
 
-  public get<K extends keyof T>(key: K): T[K] {
+    if (!callback) {
+      this.listeners[eventName] = new Set();
+      return;
+    }
+
+    this.listeners[eventName]?.delete(callback);
+  }
+
+  send(
+    content: any,
+    callbacks?: any,
+    buffers?: ArrayBuffer[] | ArrayBufferView[],
+  ): void {
+    if (buffers) {
+      Logger.warn("buffers not supported in marimo anywidget.send");
+    }
+    this.send_to_widget({ content }).then(callbacks);
+  }
+
+  widget_manager = new Proxy(
+    {},
+    {
+      get() {
+        throw new Error("widget_manager not supported in marimo");
+      },
+      set() {
+        throw new Error("widget_manager not supported in marimo");
+      },
+    },
+  );
+
+  private listeners: Record<string, Set<EventHandler>> = {};
+
+  get<K extends keyof T>(key: K): T[K] {
     return this.data[key];
   }
 
-  public set<K extends keyof T>(key: K, value: T[K]): void {
+  set<K extends keyof T>(key: K, value: T[K]): void {
     this.data = { ...this.data, [key]: value };
     this.emit(`change:${key as K & string}`, value);
   }
 
-  public save_changes(): void {
+  save_changes(): void {
     this.onChange(this.data);
   }
 
-  public updateAndEmitDiffs(value: T): void {
+  updateAndEmitDiffs(value: T): void {
     Object.keys(value).forEach((key) => {
       const k = key as keyof T;
       if (!dequal(this.data[k], value[k])) {
@@ -134,14 +228,34 @@ class Model<T extends Record<string, any>> {
     });
   }
 
-  public on<K extends keyof T>(
-    event: `change:${K & string}`,
-    callback: (value: T[K]) => void,
-  ): void {
-    if (!this.listeners[event]) {
-      this.listeners[event] = [];
+  /**
+   * When receiving a message from the backend.
+   * We want to notify all listeners with `msg:custom`
+   */
+  receiveCustomMessage(message: any, buffers?: DataView[]): void {
+    const response = WidgetMessageSchema.safeParse(message);
+    if (response.success) {
+      const data = response.data;
+      switch (data.method) {
+        case "update":
+          this.updateAndEmitDiffs(data.state as T);
+          break;
+        case "custom":
+          this.listeners["msg:custom"]?.forEach((cb) =>
+            cb(data.content, buffers),
+          );
+          break;
+      }
+    } else {
+      Logger.error("Failed to parse message", message, response.error);
     }
-    this.listeners[event].push(callback);
+  }
+
+  on(eventName: string, callback: EventHandler): void {
+    if (!this.listeners[eventName]) {
+      this.listeners[eventName] = new Set();
+    }
+    this.listeners[eventName].add(callback);
   }
 
   private emit<K extends keyof T>(event: `change:${K & string}`, value: T[K]) {
@@ -151,3 +265,14 @@ class Model<T extends Record<string, any>> {
     this.listeners[event].forEach((cb) => cb(value));
   }
 }
+
+const WidgetMessageSchema = z.union([
+  z.object({
+    method: z.literal("update"),
+    state: z.record(z.any()),
+  }),
+  z.object({
+    method: z.literal("custom"),
+    content: z.any(),
+  }),
+]);

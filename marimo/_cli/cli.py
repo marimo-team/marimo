@@ -4,8 +4,9 @@ from __future__ import annotations
 import json
 import os
 import pathlib
+import sys
 import tempfile
-from typing import Any, Optional, get_args
+from typing import Any, Optional
 
 import click
 
@@ -20,21 +21,18 @@ from marimo._cli.export.commands import export
 from marimo._cli.file_path import validate_name
 from marimo._cli.parse_args import parse_args
 from marimo._cli.print import red
-from marimo._cli.upgrade import check_for_updates
+from marimo._cli.upgrade import check_for_updates, print_latest_version
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import SessionMode
 from marimo._server.start import start
 from marimo._server.tokens import AuthToken
 from marimo._tutorials import (
-    PythonTutorial,
     Tutorial,
-    get_tutorial_source,
+    create_temp_tutorial_file,
     tutorial_order,
 )
 from marimo._utils.marimo_path import MarimoPath
-
-DEVELOPMENT_MODE = False
-QUIET = False
 
 
 def helpful_usage_error(self: Any, file: Any = None) -> None:
@@ -169,10 +167,9 @@ def main(log_level: str, quiet: bool, development_mode: bool) -> None:
     log_level = "DEBUG" if development_mode else log_level
     _loggers.set_level(log_level)
 
-    global DEVELOPMENT_MODE
-    global QUIET
-    DEVELOPMENT_MODE = development_mode
-    QUIET = quiet
+    GLOBAL_SETTINGS.DEVELOPMENT_MODE = development_mode
+    GLOBAL_SETTINGS.QUIET = quiet
+    GLOBAL_SETTINGS.LOG_LEVEL = _loggers.log_level_string_to_int(log_level)
 
 
 edit_help_msg = "\n".join(
@@ -244,6 +241,32 @@ edit_help_msg = "\n".join(
     help="Base URL for the server. Should start with a /.",
     callback=validators.base_url,
 )
+@click.option(
+    "--allow-origins",
+    default=None,
+    multiple=True,
+    help="Allowed origins for CORS. Can be repeated. Use * for all origins.",
+)
+@click.option(
+    "--skip-update-check",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="Don't check if a new version of marimo is available for download.",
+)
+@click.option(
+    "--sandbox",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="""
+    Run the command in an isolated virtual environment using
+    'uv run --isolated'. Requires 'uv'.
+    """,
+)
+@click.option("--profile-dir", default=None, type=str, hidden=True)
 @click.argument("name", required=False)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def edit(
@@ -254,11 +277,24 @@ def edit(
     token: bool,
     token_password: Optional[str],
     base_url: str,
+    allow_origins: Optional[tuple[str, ...]],
+    skip_update_check: bool,
+    sandbox: bool,
+    profile_dir: Optional[str],
     name: Optional[str],
-    args: tuple[str],
+    args: tuple[str, ...],
 ) -> None:
-    # Check for version updates
-    check_for_updates()
+    if sandbox:
+        from marimo._cli.sandbox import run_in_sandbox
+
+        run_in_sandbox(sys.argv[1:], name)
+        return
+
+    GLOBAL_SETTINGS.PROFILE_DIR = profile_dir
+    if not skip_update_check and os.getenv("MARIMO_SKIP_UPDATE_CHECK") != "1":
+        GLOBAL_SETTINGS.CHECK_STATUS_UPDATE = True
+        # Check for version updates
+        check_for_updates(print_latest_version)
 
     if name is not None:
         # Validate name, or download from URL
@@ -278,15 +314,21 @@ def edit(
             try:
                 with open(name, "w"):
                     pass
-            except OSError:
+            except OSError as e:
+                if isinstance(e, FileNotFoundError):
+                    # This means that the parent directory does not exist
+                    parent_dir = os.path.dirname(name)
+                    raise click.ClickException(
+                        f"Parent directory does not exist: {parent_dir}"
+                    ) from e
                 raise
     else:
         name = os.getcwd()
 
     start(
         file_router=AppFileRouter.infer(name),
-        development_mode=DEVELOPMENT_MODE,
-        quiet=QUIET,
+        development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
+        quiet=GLOBAL_SETTINGS.QUIET,
         host=host,
         port=port,
         proxy=proxy,
@@ -297,6 +339,8 @@ def edit(
         cli_args=parse_args(args),
         auth_token=_resolve_token(token, token_password),
         base_url=base_url,
+        allow_origins=allow_origins,
+        redirect_console_to_browser=True,
     )
 
 
@@ -352,6 +396,17 @@ def edit(
     help="Base URL for the server. Should start with a /.",
     callback=validators.base_url,
 )
+@click.option(
+    "--sandbox",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="""
+    Run the command in an isolated virtual environment using
+    'uv run --isolated'. Requires `uv`.
+    """,
+)
 def new(
     port: Optional[int],
     host: str,
@@ -360,11 +415,18 @@ def new(
     token: bool,
     token_password: Optional[str],
     base_url: str,
+    sandbox: bool,
 ) -> None:
+    if sandbox:
+        from marimo._cli.sandbox import run_in_sandbox
+
+        run_in_sandbox(sys.argv[1:], None)
+        return
+
     start(
         file_router=AppFileRouter.new_file(),
-        development_mode=DEVELOPMENT_MODE,
-        quiet=QUIET,
+        development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
+        quiet=GLOBAL_SETTINGS.QUIET,
         host=host,
         port=port,
         proxy=proxy,
@@ -375,6 +437,7 @@ def new(
         cli_args={},
         auth_token=_resolve_token(token, token_password),
         base_url=base_url,
+        redirect_console_to_browser=True,
     )
 
 
@@ -460,6 +523,31 @@ Example:
     help="Base URL for the server. Should start with a /.",
     callback=validators.base_url,
 )
+@click.option(
+    "--allow-origins",
+    default=None,
+    multiple=True,
+    help="Allowed origins for CORS. Can be repeated.",
+)
+@click.option(
+    "--redirect-console-to-browser",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="Redirect console logs to the browser console.",
+)
+@click.option(
+    "--sandbox",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="""
+    Run the command in an isolated virtual environment using
+    'uv run --isolated'. Requires `uv`.
+    """,
+)
 @click.argument("name", required=True)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def run(
@@ -472,9 +560,18 @@ def run(
     include_code: bool,
     watch: bool,
     base_url: str,
+    allow_origins: tuple[str, ...],
+    redirect_console_to_browser: bool,
+    sandbox: bool,
     name: str,
-    args: tuple[str],
+    args: tuple[str, ...],
 ) -> None:
+    if sandbox:
+        from marimo._cli.sandbox import run_in_sandbox
+
+        run_in_sandbox(sys.argv[1:], name)
+        return
+
     # Validate name, or download from URL
     # The second return value is an optional temporary directory. It is unused,
     # but must be kept around because its lifetime on disk is bound to the life
@@ -486,8 +583,8 @@ def run(
 
     start(
         file_router=AppFileRouter.from_filename(MarimoPath(name)),
-        development_mode=DEVELOPMENT_MODE,
-        quiet=QUIET,
+        development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
+        quiet=GLOBAL_SETTINGS.QUIET,
         host=host,
         port=port,
         proxy=proxy,
@@ -496,8 +593,10 @@ def run(
         include_code=include_code,
         watch=watch,
         base_url=base_url,
+        allow_origins=allow_origins,
         cli_args=parse_args(args),
         auth_token=_resolve_token(token, token_password),
+        redirect_console_to_browser=redirect_console_to_browser,
     )
 
 
@@ -587,17 +686,13 @@ def tutorial(
     token_password: Optional[str],
     name: Tutorial,
 ) -> None:
-    source = get_tutorial_source(name)
-    d = tempfile.TemporaryDirectory()
-    extension = "py" if name in get_args(PythonTutorial) else "md"
-    fname = os.path.join(d.name, f"{name}.{extension}")
-    path = MarimoPath(fname)
-    path.write_text(source)
+    temp_dir = tempfile.TemporaryDirectory()
+    path = create_temp_tutorial_file(name, temp_dir)
 
     start(
         file_router=AppFileRouter.from_filename(path),
-        development_mode=DEVELOPMENT_MODE,
-        quiet=QUIET,
+        development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
+        quiet=GLOBAL_SETTINGS.QUIET,
         host=host,
         port=port,
         proxy=proxy,
@@ -607,6 +702,7 @@ def tutorial(
         watch=False,
         cli_args={},
         auth_token=_resolve_token(token, token_password),
+        redirect_console_to_browser=False,
     )
 
 

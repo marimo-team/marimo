@@ -2,11 +2,19 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, Dict, Generic, Optional, Tuple, TypeVar
+from typing import (
+    Any,
+    Dict,
+    Generic,
+    Optional,
+    Tuple,
+    TypeVar,
+)
 
 import marimo._output.data.data as mo_data
 from marimo._data.models import ColumnSummary, DataType, ExternalDataType
 from marimo._plugins.core.web_component import JSONType
+from marimo._plugins.ui._impl.tables.format import FormatMapping
 
 T = TypeVar("T")
 
@@ -16,20 +24,30 @@ FieldTypes = Dict[ColumnName, Tuple[FieldType, ExternalDataType]]
 
 
 class TableManager(abc.ABC, Generic[T]):
-    DEFAULT_LIMIT = 20_000
+    DEFAULT_COL_LIMIT = 100
+    # Upper limit for frontend table component to show column summary charts
+    # to ensure browser performance
+    DEFAULT_SUMMARY_CHARTS_ROW_LIMIT = 20_000
+    # Upper limit for column summaries to avoid hanging up the kernel
+    # Note: Keep this value in sync with DataTablePlugin's banner text
+    DEFAULT_SUMMARY_STATS_ROW_LIMIT = 1_000_000
+
     type: str = ""
 
     def __init__(self, data: T) -> None:
         self.data = data
 
-    def to_data(self) -> JSONType:
+    def to_data(
+        self,
+        format_mapping: Optional[FormatMapping] = None,
+    ) -> JSONType:
         """
         The best way to represent the data in a table as JSON.
 
         By default, this method calls `to_csv` and returns the result as
         a string.
         """
-        return mo_data.csv(self.to_csv()).url
+        return mo_data.csv(self.to_csv(format_mapping)).url
 
     def supports_download(self) -> bool:
         return True
@@ -39,6 +57,10 @@ class TableManager(abc.ABC, Generic[T]):
 
     def supports_altair(self) -> bool:
         return True
+
+    @abc.abstractmethod
+    def apply_formatting(self, format_mapping: FormatMapping) -> T:
+        raise NotImplementedError
 
     @abc.abstractmethod
     def supports_filters(self) -> bool:
@@ -51,7 +73,10 @@ class TableManager(abc.ABC, Generic[T]):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def to_csv(self) -> bytes:
+    def to_csv(
+        self,
+        format_mapping: Optional[FormatMapping] = None,
+    ) -> bytes:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -76,7 +101,7 @@ class TableManager(abc.ABC, Generic[T]):
         return {}
 
     @abc.abstractmethod
-    def limit(self, num: int) -> TableManager[Any]:
+    def take(self, count: int, offset: int) -> TableManager[Any]:
         raise NotImplementedError
 
     @abc.abstractmethod

@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { test, expect, Page } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { getAppUrl } from "../playwright.config";
 import { takeScreenshot } from "./helper";
 import { fileURLToPath } from "node:url";

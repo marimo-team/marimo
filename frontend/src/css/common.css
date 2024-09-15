@@ -8,14 +8,12 @@
 }
 
 .hover-action:hover,
-.hover-action:focus,
-.hover-action:focus-within {
+.hover-action:focus {
   display: inline-flex !important;
 }
 
 .hover-actions-parent:hover .hover-action,
-.hover-actions-parent:focus .hover-action,
-.hover-actions-parent:focus-within .hover-action {
+.hover-actions-parent:focus .hover-action {
   display: inline-flex !important;
 }
 

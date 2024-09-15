@@ -4,6 +4,7 @@
 *.txt
 
 # Byte-compiled / optimized / DLL files
+__pycache__
 __pycache__/
 *.py[cod]
 *$py.class
@@ -109,3 +110,4 @@ marimo/_lsp/
 .vscode
 
 .marimo.toml
+.mypy_cache/

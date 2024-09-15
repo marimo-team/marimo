@@ -2,7 +2,7 @@
 import { VariableTable } from "@/components/variables/variables-table";
 import { useCellIds } from "@/core/cells/cells";
 import { useVariables } from "@/core/variables/state";
-import React from "react";
+import type React from "react";
 import { PanelEmptyState } from "./empty-state";
 import { FunctionSquareIcon } from "lucide-react";
 
@@ -21,6 +21,10 @@ export const VariablePanel: React.FC = () => {
   }
 
   return (
-    <VariableTable className="flex-1" cellIds={cellIds} variables={variables} />
+    <VariableTable
+      className="flex-1"
+      cellIds={cellIds.inOrderIds}
+      variables={variables}
+    />
   );
 };

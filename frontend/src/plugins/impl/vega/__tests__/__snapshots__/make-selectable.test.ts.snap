@@ -87,7 +87,18 @@ exports[`makeSelectable > should return correctly if existing legend selection 1
         "encodings": [
           "color",
         ],
+        "on": "click[!event.metaKey]",
         "type": "point",
+      },
+    },
+    {
+      "bind": "scales",
+      "name": "pan_zoom",
+      "select": {
+        "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "type": "interval",
+        "zoom": "wheel![event.metaKey]",
       },
     },
   ],
@@ -127,6 +138,7 @@ exports[`makeSelectable > should return correctly if mark is a string 1`] = `
           "x",
           "y",
         ],
+        "on": "click[!event.metaKey]",
         "type": "point",
       },
     },
@@ -143,7 +155,19 @@ exports[`makeSelectable > should return correctly if mark is a string 1`] = `
           "stroke": "#669EFF",
           "strokeOpacity": 0.4,
         },
+        "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+        "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
         "type": "interval",
+      },
+    },
+    {
+      "bind": "scales",
+      "name": "pan_zoom",
+      "select": {
+        "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "type": "interval",
+        "zoom": "wheel![event.metaKey]",
       },
     },
   ],
@@ -183,6 +207,7 @@ exports[`makeSelectable > should return correctly if mark is not string 1`] = `
           "x",
           "y",
         ],
+        "on": "click[!event.metaKey]",
         "type": "point",
       },
     },
@@ -199,7 +224,19 @@ exports[`makeSelectable > should return correctly if mark is not string 1`] = `
           "stroke": "#669EFF",
           "strokeOpacity": 0.4,
         },
+        "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+        "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
         "type": "interval",
+      },
+    },
+    {
+      "bind": "scales",
+      "name": "pan_zoom",
+      "select": {
+        "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "type": "interval",
+        "zoom": "wheel![event.metaKey]",
       },
     },
   ],
@@ -272,6 +309,7 @@ exports[`makeSelectable > should return correctly if overlapping encodings 1`] =
           "x",
           "y",
         ],
+        "on": "click[!event.metaKey]",
         "type": "point",
       },
     },
@@ -288,7 +326,19 @@ exports[`makeSelectable > should return correctly if overlapping encodings 1`] =
           "stroke": "#669EFF",
           "strokeOpacity": 0.4,
         },
+        "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+        "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
         "type": "interval",
+      },
+    },
+    {
+      "bind": "scales",
+      "name": "pan_zoom",
+      "select": {
+        "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "type": "interval",
+        "zoom": "wheel![event.metaKey]",
       },
     },
   ],
@@ -362,6 +412,7 @@ exports[`makeSelectable > should return correctly with multiple encodings 1`] = 
           "x",
           "y",
         ],
+        "on": "click[!event.metaKey]",
         "type": "point",
       },
     },
@@ -378,7 +429,19 @@ exports[`makeSelectable > should return correctly with multiple encodings 1`] = 
           "stroke": "#669EFF",
           "strokeOpacity": 0.4,
         },
+        "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+        "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
         "type": "interval",
+      },
+    },
+    {
+      "bind": "scales",
+      "name": "pan_zoom",
+      "select": {
+        "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "type": "interval",
+        "zoom": "wheel![event.metaKey]",
       },
     },
   ],
@@ -438,6 +501,7 @@ exports[`makeSelectable > should skip field selection if empty or false 1`] = `
           "x",
           "y",
         ],
+        "on": "click[!event.metaKey]",
         "type": "point",
       },
     },
@@ -454,10 +518,43 @@ exports[`makeSelectable > should skip field selection if empty or false 1`] = `
           "stroke": "#669EFF",
           "strokeOpacity": 0.4,
         },
+        "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+        "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
         "type": "interval",
       },
     },
+    {
+      "bind": "scales",
+      "name": "pan_zoom",
+      "select": {
+        "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+        "type": "interval",
+        "zoom": "wheel![event.metaKey]",
+      },
+    },
   ],
+}
+`;
+
+exports[`makeSelectable > should work for geoshape 1`] = `
+{
+  "encoding": {
+    "color": {
+      "datum": "red",
+      "type": "nominal",
+    },
+    "x": {
+      "field": "x",
+      "type": "quantitative",
+    },
+    "y": {
+      "field": "y",
+      "type": "quantitative",
+    },
+  },
+  "mark": "geoshape",
+  "params": [],
 }
 `;
 
@@ -509,6 +606,18 @@ exports[`makeSelectable > should work for multi-layered charts 1`] = `
         "ticks": true,
         "type": "errorbar",
       },
+      "params": [
+        {
+          "bind": "scales",
+          "name": "pan_zoom",
+          "select": {
+            "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+            "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+            "type": "interval",
+            "zoom": "wheel![event.metaKey]",
+          },
+        },
+      ],
     },
     {
       "encoding": {
@@ -548,6 +657,7 @@ exports[`makeSelectable > should work for multi-layered charts 1`] = `
               "x",
               "y",
             ],
+            "on": "click[!event.metaKey]",
             "type": "point",
           },
         },
@@ -564,6 +674,8 @@ exports[`makeSelectable > should work for multi-layered charts 1`] = `
               "stroke": "#669EFF",
               "strokeOpacity": 0.4,
             },
+            "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
             "type": "interval",
           },
         },
@@ -632,6 +744,7 @@ exports[`makeSelectable > should work for multi-layered charts with different se
             "encodings": [
               "y",
             ],
+            "on": "click[!event.metaKey]",
             "type": "point",
           },
         },
@@ -647,7 +760,19 @@ exports[`makeSelectable > should work for multi-layered charts with different se
               "stroke": "#669EFF",
               "strokeOpacity": 0.4,
             },
+            "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
             "type": "interval",
+          },
+        },
+        {
+          "bind": "scales",
+          "name": "pan_zoom",
+          "select": {
+            "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+            "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+            "type": "interval",
+            "zoom": "wheel![event.metaKey]",
           },
         },
       ],

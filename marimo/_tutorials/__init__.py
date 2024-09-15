@@ -3,7 +3,10 @@ from __future__ import annotations
 
 import inspect
 import os
+import tempfile
 from typing import get_args, Literal, Union
+
+from marimo._utils.marimo_path import MarimoPath
 
 
 PythonTutorial = Literal[
@@ -12,6 +15,7 @@ PythonTutorial = Literal[
     "ui",
     "markdown",
     "plots",
+    "sql",
     "layout",
     "fileformat",
     "for-jupyter-users",
@@ -25,6 +29,7 @@ tutorial_order: list[Tutorial] = [
     "ui",
     "markdown",
     "plots",
+    "sql",
     "layout",
     "fileformat",
     "markdown-format",
@@ -45,3 +50,11 @@ def get_tutorial_source(name: Tutorial) -> str:
     file = os.path.join(os.path.dirname(__file__), f"{name}.md")
     with open(file, "r", encoding="utf8") as f:
         return f.read()
+
+def create_temp_tutorial_file(name: Tutorial, temp_dir: tempfile.TemporaryDirectory[str]) -> MarimoPath:
+    source = get_tutorial_source(name)
+    extension = "py" if name in get_args(PythonTutorial) else "md"
+    fname = os.path.join(temp_dir.name, f"{name}.{extension}")
+    path = MarimoPath(fname)
+    path.write_text(source)
+    return path

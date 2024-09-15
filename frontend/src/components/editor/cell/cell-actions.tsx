@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import {
   Fragment,
-  PropsWithChildren,
+  type PropsWithChildren,
   useImperativeHandle,
   useMemo,
   useState,
@@ -28,13 +28,14 @@ import {
 import { renderMinimalShortcut } from "@/components/shortcuts/renderShortcut";
 import React from "react";
 import {
-  CellActionButtonProps,
+  type CellActionButtonProps,
   useCellActionButtons,
 } from "../actions/useCellActionButton";
 import { useRestoreFocus } from "@/components/ui/use-restore-focus";
 import { useAtomValue } from "jotai";
 import { cellFocusDetailsAtom } from "@/core/cells/focus";
-import { CellId } from "@/core/cells/ids";
+import type { CellId } from "@/core/cells/ids";
+import { CommandList } from "cmdk";
 
 interface Props extends CellActionButtonProps {
   children: React.ReactNode;
@@ -63,40 +64,43 @@ const CellActionsDropdownInternal = (
     <PopoverContent className="w-[300px] p-0 pt-1" {...restoreFocus}>
       <Command>
         <CommandInput placeholder="Search actions..." className="h-6 m-1" />
-        <CommandEmpty>No results</CommandEmpty>
-        {actions.map((group, i) => (
-          <Fragment key={i}>
-            <CommandGroup key={i}>
-              {group.map((action) => {
-                return (
-                  <CommandItem
-                    key={action.label}
-                    onSelect={() => {
-                      if (action.disableClick) {
-                        return;
-                      }
-                      action.handle();
-                      setOpen(false);
-                    }}
-                    variant={action.variant}
-                  >
-                    <div className="flex items-center flex-1">
-                      {action.icon && (
-                        <div className="mr-2 w-5">{action.icon}</div>
-                      )}
-                      <div className="flex-1">{action.label}</div>
-                      <div className="flex-shrink-0 text-sm">
-                        {action.hotkey && renderMinimalShortcut(action.hotkey)}
-                        {action.rightElement}
+        <CommandList>
+          <CommandEmpty>No results</CommandEmpty>
+          {actions.map((group, i) => (
+            <Fragment key={i}>
+              <CommandGroup key={i}>
+                {group.map((action) => {
+                  return (
+                    <CommandItem
+                      key={action.label}
+                      onSelect={() => {
+                        if (action.disableClick) {
+                          return;
+                        }
+                        action.handle();
+                        setOpen(false);
+                      }}
+                      variant={action.variant}
+                    >
+                      <div className="flex items-center flex-1">
+                        {action.icon && (
+                          <div className="mr-2 w-5">{action.icon}</div>
+                        )}
+                        <div className="flex-1">{action.label}</div>
+                        <div className="flex-shrink-0 text-sm">
+                          {action.hotkey &&
+                            renderMinimalShortcut(action.hotkey)}
+                          {action.rightElement}
+                        </div>
                       </div>
-                    </div>
-                  </CommandItem>
-                );
-              })}
-            </CommandGroup>
-            {i < actions.length - 1 && <CommandSeparator />}
-          </Fragment>
-        ))}
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+              {i < actions.length - 1 && <CommandSeparator />}
+            </Fragment>
+          ))}
+        </CommandList>
       </Command>
     </PopoverContent>
   );

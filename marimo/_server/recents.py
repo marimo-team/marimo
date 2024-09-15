@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import os
 import pathlib
 from dataclasses import dataclass, field
@@ -24,7 +26,7 @@ def _is_tmp_file(filename: str) -> bool:
 
 
 class RecentFilesManager:
-    MAX_FILES = 10
+    MAX_FILES = 5
     LOCATION = "recent_files.toml"
 
     def __init__(self) -> None:
@@ -70,7 +72,8 @@ class RecentFilesManager:
         files: List[MarimoFile] = []
 
         cwd = pathlib.Path.cwd()
-        for file in state.files:
+        limited_files = state.files[: self.MAX_FILES]
+        for file in limited_files:
             file_path = pathlib.Path(file)
             if _is_tmp_file(file) or cwd not in file_path.parents:
                 continue

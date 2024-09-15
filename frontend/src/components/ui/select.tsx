@@ -11,11 +11,14 @@ import {
 
 import { cn } from "@/utils/cn";
 import { selectStyles } from "./native-select";
-import { VariantProps } from "class-variance-authority";
+import type { VariantProps } from "class-variance-authority";
+import { withFullScreenAsRoot } from "./fullscreen";
+import { MENU_ITEM_DISABLED } from "./menu-items";
 
 const Select = SelectPrimitive.Root;
 
 const SelectGroup = SelectPrimitive.Group;
+const SelectPortal = withFullScreenAsRoot(SelectPrimitive.Portal);
 
 const SelectValue = SelectPrimitive.Value;
 
@@ -60,7 +63,7 @@ const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
 >(({ className, children, position = "popper", ...props }, ref) => (
-  <SelectPrimitive.Portal>
+  <SelectPortal>
     <SelectPrimitive.Content
       ref={ref}
       className={cn(
@@ -90,7 +93,7 @@ const SelectContent = React.forwardRef<
         <ChevronDownIcon className="h-4 w-4 opacity-50" />
       </SelectPrimitive.ScrollDownButton>
     </SelectPrimitive.Content>
-  </SelectPrimitive.Portal>
+  </SelectPortal>
 ));
 SelectContent.displayName = SelectPrimitive.Content.displayName;
 
@@ -113,7 +116,8 @@ const SelectItem = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-2 pr-8 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-2 pr-8 text-sm outline-none focus:bg-accent focus:text-accent-foreground",
+      MENU_ITEM_DISABLED,
       className,
     )}
     {...props}

@@ -8,11 +8,13 @@ from typing import TYPE_CHECKING, Sequence
 import pytest
 
 from marimo._config.config import DEFAULT_CONFIG
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.errors import (
     CycleError,
     DeleteNonlocalError,
     Error,
     MarimoStrictExecutionError,
+    MarimoSyntaxError,
     MultipleDefinitionError,
 )
 from marimo._messaging.ops import CellOp
@@ -20,6 +22,7 @@ from marimo._messaging.types import NoopStream
 from marimo._plugins.ui._core.ids import IDProvider
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.dataflow import EdgeWithVar
+from marimo._runtime.patches import create_main_module
 from marimo._runtime.requests import (
     AppMetadata,
     CreationRequest,
@@ -29,12 +32,12 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
 )
 from marimo._runtime.runtime import Kernel
+from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._utils.parse_dataclass import parse_raw
 from tests.conftest import ExecReqProvider, MockedKernel
 
 if TYPE_CHECKING:
     import pathlib
-    from types import ModuleType
 
 
 def _check_edges(error: Error, expected_edges: Sequence[EdgeWithVar]) -> None:
@@ -44,7 +47,32 @@ def _check_edges(error: Error, expected_edges: Sequence[EdgeWithVar]) -> None:
         assert edge in error.edges_with_vars
 
 
+HAS_SQL = DependencyManager.duckdb.has() and DependencyManager.polars.has()
+
+
 class TestExecution:
+    async def test_expected_gloals(self, any_kernel: Kernel):
+        k = any_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0", code="assert __file__; success = 1"
+                )
+            ]
+        )
+        expected_globals = {
+            "__builtin__",
+            "__doc__",
+            "__file__",
+            "__marimo__",
+            "__name__",
+            "__package__",
+            "__loader__",
+            "__spec__",
+        }
+        assert not (expected_globals - set(k.globals.keys()))
+        assert k.globals["success"] == 1
+
     async def test_triangle(self, any_kernel: Kernel) -> None:
         k = any_kernel
         # x
@@ -93,7 +121,7 @@ class TestExecution:
             await k.run([er2])
         assert k.globals["z"] == 2
 
-        await k.delete(DeleteCellRequest(cell_id="1"))
+        await k.delete_cell(DeleteCellRequest(cell_id="1"))
         assert k.globals["x"] == 2
         assert "y" not in k.globals
         if k.lazy():
@@ -101,7 +129,7 @@ class TestExecution:
             await k.run([er2])
         assert "z" not in k.globals
 
-        await k.delete(DeleteCellRequest(cell_id="0"))
+        await k.delete_cell(DeleteCellRequest(cell_id="0"))
         assert "x" not in k.globals
         assert "y" not in k.globals
         assert "z" not in k.globals
@@ -179,9 +207,11 @@ class TestExecution:
         array
         """
         await k.run([exec_req.get(code=cell_one_code)])
+        assert not k.errors
 
         # Reference the array's value
         await k.run([er := exec_req.get(code="x = array.value[0] + 1")])
+        assert not k.errors
         assert k.globals["x"] == 2
 
         # Set a child of the array to 5 ...
@@ -388,7 +418,7 @@ class TestExecution:
         assert k.errors["1"] == (MultipleDefinitionError("x", ("0",)),)
 
         # issue delete request for cell 1 to clear error and run cell 0
-        await k.delete(DeleteCellRequest(cell_id="1"))
+        await k.delete_cell(DeleteCellRequest(cell_id="1"))
         if k.lazy():
             assert k.graph.cells[er.cell_id].stale
             await k.run([er])
@@ -475,7 +505,7 @@ class TestExecution:
         _check_edges(k.errors["0"][0], [("0", ["x"], "1"), ("1", ["y"], "0")])
 
         # break cycle by deleting cell
-        await k.delete(DeleteCellRequest(cell_id="1"))
+        await k.delete_cell(DeleteCellRequest(cell_id="1"))
         if k.execution_type == "strict":
             # Still invalid in strict mode because y is missing.
             assert set(k.errors.keys()) == {"0"}
@@ -526,7 +556,7 @@ class TestExecution:
 
         # Delete the cell that defines x. There shouldn't be any more errors
         # because x no longer exists.
-        await k.delete(DeleteCellRequest(cell_id="0"))
+        await k.delete_cell(DeleteCellRequest(cell_id="0"))
         if k.execution_type != "strict":
             assert not k.errors
 
@@ -548,6 +578,93 @@ class TestExecution:
             await k.run([er])
         assert not k.graph.cells[er.cell_id].stale
         assert k.globals["y"] == 2
+
+    async def test_cell_transitioned_to_error_is_not_stale(
+        self, lazy_kernel: Kernel
+    ) -> None:
+        k = lazy_kernel
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="x=0"),
+                ExecutionRequest(cell_id="1", code="x"),
+            ]
+        )
+
+        # make cell 1 stale
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="x=1"),
+            ]
+        )
+
+        # introduce an error to cell 1; it shouldn't be stale
+        await k.run(
+            [
+                ExecutionRequest(cell_id="1", code="x=0"),
+            ]
+        )
+        assert set(k.errors.keys()) == {"1"}
+        assert not k.graph.cells["1"].stale
+
+    async def test_cell_transitioned_to_syntax_error_is_not_stale(
+        self, lazy_kernel: Kernel
+    ) -> None:
+        k = lazy_kernel
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="x=0"),
+                ExecutionRequest(cell_id="1", code="x"),
+            ]
+        )
+
+        # make cell 1 stale
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="x=1"),
+            ]
+        )
+        cell = k.graph.cells["1"]
+        assert cell.stale
+
+        # introduce a syntax error to cell 1; it shouldn't be stale
+        await k.run(
+            [
+                ExecutionRequest(cell_id="1", code="x ^ !"),
+            ]
+        )
+        assert set(k.errors.keys()) == {"1"}
+        assert isinstance(k.errors["1"][0], MarimoSyntaxError)
+        assert not cell.stale
+
+    async def test_child_of_errored_cell_with_error_not_stale(
+        self,
+        any_kernel: Kernel,
+    ) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="x=0"),
+            ]
+        )
+
+        # multiple definition error
+        await k.run(
+            [
+                ExecutionRequest(cell_id="1", code="y; x=1"),
+            ]
+        )
+
+        # 0 also has a multiple definition error; 1 now depends on 0, but it
+        # is errored and its error is up-to-date, so don't mark it as stale.
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="y = 0; x=1"),
+            ]
+        )
+
+        assert "x" not in k.globals
+        assert set(k.errors.keys()) == {"0", "1"}
+        assert not k.graph.cells["1"].stale
 
     async def test_syntax_error(self, any_kernel: Kernel) -> None:
         k = any_kernel
@@ -692,6 +809,34 @@ class TestExecution:
         # make sure the interrupt wasn't caught by the try/except
         assert k.globals["tries"] == 0
 
+    async def test_interrupt_cancels_old_run_requests(
+        self, any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = any_kernel
+        er_interrupt = exec_req.get(
+            """
+            from marimo._runtime.control_flow import MarimoInterrupt
+
+            tries = 0
+            while tries < 5:
+                try:
+                    raise MarimoInterrupt
+                except Exception:
+                    ...
+                tries += 1
+            """
+        )
+        er_other = exec_req.get("x = 0")
+        # set a timestamp that's guaranteed to be less than the time
+        # of the interrupt -- so er_other shouldn't run
+        er_other.timestamp = -1
+        await k.run([er_interrupt])
+        # make sure the interrupt wasn't caught by the try/except
+        assert k.globals["tries"] == 0
+        await k.run([er_other])
+        assert er_other.cell_id not in k.graph.cells
+        assert "x" not in k.globals
+
     async def test_running_in_notebook(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:
@@ -743,12 +888,8 @@ class TestExecution:
         assert k.globals["pickle_output"] is not None
 
     def test_sys_path_updated(self, tmp_path: pathlib.Path) -> None:
-        main: ModuleType | None = None
         try:
             filename = str(tmp_path / "notebook.py")
-            if "__main__" in sys.modules:
-                # kernel patches __main__; need to reset it after test
-                main = sys.modules["__main__"]
             Kernel(
                 stream=NoopStream(),
                 stdout=None,
@@ -760,14 +901,13 @@ class TestExecution:
                     query_params={}, filename=filename, cli_args={}
                 ),
                 enqueue_control_request=lambda _: None,
+                module=create_main_module(None, None),
             )
             assert str(tmp_path) in sys.path
             assert str(tmp_path) == sys.path[0]
         finally:
             if str(tmp_path) in sys.path:
                 sys.path.remove(str(tmp_path))
-            if main is not None:
-                sys.modules["__main__"] = main
 
     async def test_set_config_before_registering_cell(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
@@ -842,6 +982,143 @@ class TestExecution:
         assert "exc" not in k.graph.cells[er_1.cell_id].refs
         assert "exc" not in k.graph.cells[er_1.cell_id].defs
         assert "e" in k.globals
+
+    @staticmethod
+    async def test_runtime_name_error_reference_caught(
+        execution_kernel: Kernel,
+    ) -> None:
+        k = execution_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent(
+                        """
+                    try:
+                        R = R # Causes error since no def
+                        C = 0 # Unaccessible
+                    except:
+                        pass
+                    """
+                    ),
+                ),
+                ExecutionRequest(
+                    cell_id="1",
+                    code=textwrap.dedent(
+                        """
+                    C
+                    """
+                    ),
+                ),
+            ]
+        )
+        # Runtime error expected- since not a kernel error check stderr
+        assert "C" not in k.globals
+        if k.execution_type == "strict":
+            assert (
+                "name `R` is referenced before definition."
+                in k.stream.messages[-4][1]["output"]["data"][0]["msg"]
+            )
+            assert (
+                "This cell wasn't run"
+                in k.stream.messages[-1][1]["output"]["data"][0]["msg"]
+            )
+        else:
+            assert (
+                "marimo came across the undefined variable `C` during runtime."
+                in k.stream.messages[-2][1]["output"]["data"][0]["msg"]
+            )
+            assert "NameError" in k.stderr.messages[0]
+            assert "NameError" in k.stderr.messages[-1]
+
+    @staticmethod
+    async def test_run_scratch(mocked_kernel: MockedKernel) -> None:
+        k = mocked_kernel.k
+        await k.run_scratchpad("x = 1; x")
+        # Has no errors
+        assert not k.errors
+        messages = mocked_kernel.stream.messages
+        (m1, m2, m3, m4) = messages
+        assert all(m[0] == "cell-op" for m in messages)
+        assert all(m[1]["cell_id"] == SCRATCH_CELL_ID for m in messages)
+        assert m1[1]["status"] == "queued"
+        assert m2[1]["status"] == "running"
+        assert m3[1]["status"] is None
+        assert (
+            m3[1]["output"]["data"] == "<pre style='font-size: 12px'>1</pre>"
+        )
+        assert m4[1]["status"] == "idle"
+        # Does not pollute globals
+        assert "x" not in k.globals
+
+    @staticmethod
+    async def test_run_scratch_with_other_globals(
+        mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = mocked_kernel.k
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    z = 10
+                    """
+                ),
+            ]
+        )
+
+        await k.run_scratchpad("y = z * 2; y")
+        # Has no errors
+        assert not k.errors
+        messages = mocked_kernel.stream.messages
+        output_message = messages[-2]
+        assert (
+            output_message[1]["output"]["data"]
+            == "<pre style='font-size: 12px'>20</pre>"
+        )
+        assert "z" in k.globals
+        # Does not pollute globals
+        assert "y" not in k.globals
+
+    @staticmethod
+    async def test_run_scratch_can_temporarily_overwrite_globals(
+        mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = mocked_kernel.k
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    z = 10
+                    """
+                ),
+            ]
+        )
+
+        await k.run_scratchpad("z = 20; z")
+        # Has no errors
+        assert not k.errors
+        messages = mocked_kernel.stream.messages
+        output_message = messages[-2]
+        assert (
+            output_message[1]["output"]["data"]
+            == "<pre style='font-size: 12px'>20</pre>"
+        )
+        assert "z" in k.globals
+        # Does not pollute globals, reverts back to 10
+        assert k.globals["z"] == 10
+
+    async def test_rename(
+        self, any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = any_kernel
+        await k.run([er := exec_req.get("x = __file__")])
+        assert "pytest" in k.globals["x"]
+        await k.rename_file("foo")
+        if k.lazy():
+            assert "pytest" in k.globals["x"]
+            assert k.graph.get_stale() == set([er.cell_id])
+            await k.run([er])
+        assert k.globals["x"] == "foo"
 
 
 class TestStrictExecution:
@@ -1019,13 +1296,15 @@ class TestStrictExecution:
             [
                 ExecutionRequest(
                     cell_id="0",
-                    code=textwrap.dedent("""
+                    code=textwrap.dedent(
+                        """
                     try:
                         missing
                     except:
                         pass
                     x = 1
-                    """),
+                    """
+                    ),
                 ),
             ]
         )
@@ -1040,6 +1319,160 @@ class TestStrictExecution:
         else:
             assert "x" in k.globals
             assert not k.errors
+
+    @staticmethod
+    async def test_runtime_failure(strict_kernel: Kernel) -> None:
+        k = strict_kernel
+        # We keep variable data for reassignments, so static analysis should
+        # succeed
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent(
+                        """
+                    X = 1
+                    Y = 2
+                    l = lambda x: x + X
+                    L = l
+                    l = lambda x: x + Y
+                    """
+                    ),
+                ),
+                ExecutionRequest(
+                    cell_id="1",
+                    code=textwrap.dedent(
+                        """
+                    x = L(1)
+                    """
+                    ),
+                ),
+            ]
+        )
+        assert "x" in k.globals
+        assert k.globals["x"] == 2
+
+    @staticmethod
+    async def test_runtime_resolution_private(
+        strict_kernel: Kernel,
+    ) -> None:
+        k = strict_kernel
+        # We keep variable data for reassignments, so static analysis should
+        # succeed
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent(
+                        """
+                    _X = 1
+                    Y = 2
+                    l = lambda x: x + _X
+                    L = l
+                    l = lambda x: x + Y
+                    """
+                    ),
+                ),
+                ExecutionRequest(
+                    cell_id="1",
+                    code=textwrap.dedent(
+                        """
+                    x = L(1)
+                    """
+                    ),
+                ),
+            ]
+        )
+        assert "x" in k.globals
+        assert k.globals["x"] == 2
+
+
+class TestImports:
+    async def test_import_triggers_execution(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run([exec_req.get("random; x = 0")])
+        assert "x" not in k.globals
+
+        await k.run([exec_req.get("import random")])
+        assert k.globals["x"] == 0
+
+    async def test_reimport_doesnt_trigger_execution(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run([er := exec_req.get("import random")])
+
+        await k.run([exec_req.get("x = random.randint(0, 100000)")])
+        x = k.globals["x"]
+
+        # re-running an import shouldn't retrigger execution
+        await k.run([er])
+        assert k.globals["x"] == x
+
+    async def test_incremental_import_doesnt_trigger_execution(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run([er := exec_req.get("import random")])
+
+        await k.run([exec_req.get("x = random.randint(0, 100000)")])
+        x = k.globals["x"]
+
+        # adding another import to the cell shouldn't rerun dependents
+        # of already imported modules
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id=er.cell_id, code="import random; import time"
+                )
+            ]
+        )
+        assert k.globals["x"] == x
+
+    async def test_transition_out_of_error_triggers_run(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get("import random"),
+                er := exec_req.get("import random"),
+                exec_req.get("random; x = 0"),
+            ]
+        )
+        assert "x" not in k.globals
+
+        await k.delete_cell(DeleteCellRequest(cell_id=er.cell_id))
+        assert "x" in k.globals
+
+    async def test_different_import_same_def(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run([er := exec_req.get("import random")])
+
+        await k.run([exec_req.get("x = random.randint(0, 100000)")])
+        assert "x" in k.globals
+
+        # er.cell_id is still an import block, still defines random,
+        # but brings random from another place; descendant should run
+        await k.run(
+            [ExecutionRequest(er.cell_id, code="from random import random")]
+        )
+        assert "random" in k.globals
+        # randint is on toplevel random, not random.random
+        assert "x" not in k.globals
+
+    async def test_after_import_error(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                er := exec_req.get("import time; import fake_module"),
+                exec_req.get("time; x = 1"),
+            ]
+        )
+        assert "x" not in k.globals
+
+        await k.run([ExecutionRequest(er.cell_id, code="import time")])
+        assert k.globals["x"] == 1
 
 
 class TestStoredOutput:
@@ -1453,7 +1886,7 @@ class TestDisable:
         )
         assert not k.graph.cells[er_1.cell_id].config.disabled
         assert not k.graph.cells[er_2.cell_id].disabled_transitively
-        assert k.graph.cells[er_2.cell_id].status == "idle"
+        assert k.graph.cells[er_2.cell_id].runtime_state == "idle"
 
 
 class TestAsyncIO:
@@ -1677,6 +2110,80 @@ class TestAsyncIO:
         assert k.globals["res"] == "done"
 
 
+@pytest.mark.skipif(not HAS_SQL, reason="SQL deps not available")
+class TestSQL:
+    async def test_sql_table(self, k: Kernel) -> None:
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code="import marimo as mo",
+                ),
+                ExecutionRequest(
+                    cell_id="1", code="df = mo.sql('SELECT * from t1')"
+                ),
+            ]
+        )
+        assert "df" not in k.globals
+
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="2",
+                    code="import polars as pl; t1_df = pl.from_dict({'a': [42]})",  # noqa: E501
+                ),
+                # cell 1 should automatically execute due to the definition of
+                # t1
+                ExecutionRequest(
+                    cell_id="3",
+                    code="mo.sql('CREATE OR REPLACE TABLE t1 as SELECT * FROM t1_df')",  # noqa: E501
+                ),
+            ]
+        )
+
+        # make sure cell 1 executed, defining df
+        assert k.globals["t1_df"].to_dict(as_series=False) == {"a": [42]}
+
+        await k.delete_cell(DeleteCellRequest(cell_id="3"))
+        # t1 should be dropped since it's an in-memory table;
+        # cell 1 should re-run but will fail to find t1
+        assert "df" not in k.globals
+
+    async def test_sql_view(self, k: Kernel) -> None:
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code="import marimo as mo",
+                ),
+                ExecutionRequest(
+                    cell_id="1", code="df = mo.sql('SELECT * from view')"
+                ),
+            ]
+        )
+        assert "df" not in k.globals
+
+        await k.run(
+            [
+                # cell 1 should automatically execute due to the definition of
+                # t1
+                ExecutionRequest(
+                    cell_id="2",
+                    code="mo.sql('CREATE OR REPLACE VIEW view as SELECT 42')",  # noqa: E501
+                ),
+            ]
+        )
+
+        assert not k.errors
+        # make sure cell 1 executed, defining df
+        assert "df" in k.globals
+
+        await k.delete_cell(DeleteCellRequest(cell_id="2"))
+        # view should be dropped since it's an in-memory table;
+        # cell 1 should re-run but will fail to find t1
+        assert "df" not in k.globals
+
+
 class TestStateTransitions:
     async def test_statuses_not_repeated_ok_run(
         self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
@@ -1809,8 +2316,8 @@ class TestStateTransitions:
         n_idle = sum([1 for op in cell_ops if op.status == "idle"])
         assert n_idle == 2
 
-        assert k.graph.cells[er_1.cell_id].status == "idle"
-        assert k.graph.cells[er_2.cell_id].status == "idle"
+        assert k.graph.cells[er_1.cell_id].runtime_state == "idle"
+        assert k.graph.cells[er_2.cell_id].runtime_state == "idle"
 
     async def test_descendant_status_reset_to_idle_on_interrupt(
         self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
@@ -1848,5 +2355,5 @@ class TestStateTransitions:
         n_idle = sum([1 for op in cell_ops if op.status == "idle"])
         assert n_idle == 2
 
-        assert k.graph.cells[er_1.cell_id].status == "idle"
-        assert k.graph.cells[er_2.cell_id].status == "idle"
+        assert k.graph.cells[er_1.cell_id].runtime_state == "idle"
+        assert k.graph.cells[er_2.cell_id].runtime_state == "idle"

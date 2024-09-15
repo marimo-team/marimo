@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { ICellRendererPlugin } from "../types";
-import {
+import type { ICellRendererPlugin } from "../types";
+import type {
   GridLayout,
   GridLayoutCellSide,
   SerializedGridLayout,
@@ -10,7 +10,7 @@ import { Logger } from "@/utils/Logger";
 import { z } from "zod";
 import { Maps } from "@/utils/maps";
 import { GridLayoutRenderer } from "./grid-layout";
-import { CellId } from "@/core/cells/ids";
+import type { CellId } from "@/core/cells/ids";
 
 /**
  * Plugin definition for the grid layout.

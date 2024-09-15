@@ -6,7 +6,7 @@ import mimetypes
 import os
 import re
 import shutil
-from typing import List, Optional, Union
+from typing import List, Literal, Optional, Union
 
 from marimo._server.files.file_system import FileSystem
 from marimo._server.models.files import FileDetailsResponse, FileInfo
@@ -32,31 +32,34 @@ class OSFileSystem(FileSystem):
     def list_files(self, path: str) -> List[FileInfo]:
         files: List[FileInfo] = []
         folders: List[FileInfo] = []
-        with os.scandir(path) as it:
-            for entry in it:
-                if entry.name in IGNORE_LIST:
-                    continue
-                try:
-                    is_directory = entry.is_dir()
-                    entry_stat = entry.stat()
-                except OSError:
-                    # do not include files that fail to read
-                    # (e.g. recursive/broken symlinks)
-                    continue
+        try:
+            with os.scandir(path) as it:
+                for entry in it:
+                    if entry.name in IGNORE_LIST:
+                        continue
+                    try:
+                        is_directory = entry.is_dir()
+                        entry_stat = entry.stat()
+                    except OSError:
+                        # do not include files that fail to read
+                        # (e.g. recursive/broken symlinks)
+                        continue
 
-                info = FileInfo(
-                    id=entry.path,
-                    path=entry.path,
-                    name=entry.name,
-                    is_directory=is_directory,
-                    is_marimo_file=not is_directory
-                    and self._is_marimo_file(entry.path),
-                    last_modified_date=entry_stat.st_mtime,
-                )
-                if is_directory:
-                    folders.append(info)
-                else:
-                    files.append(info)
+                    info = FileInfo(
+                        id=entry.path,
+                        path=entry.path,
+                        name=entry.name,
+                        is_directory=is_directory,
+                        is_marimo_file=not is_directory
+                        and self._is_marimo_file(entry.path),
+                        last_modified=entry_stat.st_mtime,
+                    )
+                    if is_directory:
+                        folders.append(info)
+                    else:
+                        files.append(info)
+        except OSError:
+            pass
 
         return sorted(folders, key=natural_sort_file) + sorted(
             files, key=natural_sort_file
@@ -71,7 +74,7 @@ class OSFileSystem(FileSystem):
             name=os.path.basename(path),
             is_directory=is_directory,
             is_marimo_file=not is_directory and self._is_marimo_file(path),
-            last_modified_date=stat.st_mtime,
+            last_modified=stat.st_mtime,
         )
 
     def get_details(
@@ -107,7 +110,7 @@ class OSFileSystem(FileSystem):
     def create_file_or_directory(
         self,
         path: str,
-        file_type: str,
+        file_type: Literal["file", "directory"],
         name: str,
         contents: Optional[bytes],
     ) -> FileInfo:

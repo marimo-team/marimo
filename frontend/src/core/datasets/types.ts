@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { DataColumnPreview, DataTable } from "../kernel/messages";
+import type { DataColumnPreview, DataTable } from "../kernel/messages";
 
 /**
  * A qualified column name, e.g. `table:column`.

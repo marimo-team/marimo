@@ -81,6 +81,29 @@ class TestNotebookPageTemplate(unittest.TestCase):
         assert self.filename in result
         assert "edit" in result
 
+    def test_notebook_page_template_custom_css(self) -> None:
+        # Create css file
+        css = "/* custom css */"
+
+        css_file = os.path.join(os.path.dirname(self.filename), "custom.css")
+        with open(css_file, "w") as f:
+            f.write(css)
+
+        try:
+            result = templates.notebook_page_template(
+                self.html,
+                self.base_url,
+                self.user_config,
+                self.server_token,
+                _AppConfig(css_file="custom.css"),
+                self.filename,
+                self.mode,
+            )
+
+            assert css in result
+        finally:
+            os.remove(css_file)
+
 
 class TestHomePageTemplate(unittest.TestCase):
     def setUp(self) -> None:
@@ -213,3 +236,32 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         )
 
         snapshot("export3.txt", normalize_index_html(result))
+
+    def test_static_notebook_template_with_css(self) -> None:
+        # Create css file
+        css = "/* custom css */"
+
+        css_file = os.path.join(os.path.dirname(self.filename), "custom.css")
+        with open(css_file, "w") as f:
+            f.write(css)
+
+        try:
+            result = templates.static_notebook_template(
+                self.html,
+                self.user_config,
+                self.server_token,
+                _AppConfig(css_file="custom.css"),
+                self.filename,
+                "",
+                [],
+                [],
+                [],
+                [],
+                {},
+                {},
+                {},
+            )
+
+            snapshot("export4.txt", normalize_index_html(result))
+        finally:
+            os.remove(css_file)

@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from marimo._server.ids import SessionId
+from marimo._server.models.files import FileInfo
+from marimo._tutorials import Tutorial
 
 
 @dataclass
@@ -14,7 +16,7 @@ class MarimoFile:
     # Absolute path to the file
     path: str
     # Last modified time of the file
-    last_modified: float
+    last_modified: Optional[float] = None
     # Session id
     session_id: Optional[SessionId] = None
     # Session initialization id
@@ -28,13 +30,24 @@ class RecentFilesResponse:
 
 
 @dataclass
+class RunningNotebooksResponse:
+    files: List[MarimoFile]
+
+
+@dataclass
+class OpenTutorialRequest:
+    tutorial_id: Tutorial
+
+
+@dataclass
 class WorkspaceFilesRequest:
     include_markdown: bool = False
 
 
 @dataclass
 class WorkspaceFilesResponse:
-    files: List[MarimoFile]
+    root: str
+    files: List[FileInfo]
 
 
 @dataclass

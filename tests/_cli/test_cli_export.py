@@ -69,7 +69,7 @@ class TestExportHTML:
         assert '<marimo-code hidden=""></marimo-code>' not in html
 
     @pytest.mark.skipif(
-        condition=DependencyManager.has_watchdog(),
+        condition=DependencyManager.watchdog.has(),
         reason="hangs when watchdog is installed",
     )
     async def test_export_watch(self, temp_marimo_file: str) -> None:
@@ -111,7 +111,7 @@ class TestExportHTML:
                 break
 
     @pytest.mark.skipif(
-        condition=DependencyManager.has_watchdog(),
+        condition=DependencyManager.watchdog.has(),
         reason="hangs when watchdog is installed",
     )
     def test_export_watch_no_out_dir(self, temp_marimo_file: str) -> None:
@@ -253,7 +253,7 @@ class TestExportScript:
         )
 
     @pytest.mark.skipif(
-        condition=DependencyManager.has_watchdog(),
+        condition=DependencyManager.watchdog.has(),
         reason="hangs when watchdog is installed",
     )
     async def test_export_watch_script(self, temp_marimo_file: str) -> None:
@@ -297,7 +297,7 @@ class TestExportScript:
         assert path.exists(temp_out_file)
 
     @pytest.mark.skipif(
-        condition=DependencyManager.has_watchdog(),
+        condition=DependencyManager.watchdog.has(),
         reason="hangs when watchdog is installed",
     )
     def test_export_watch_script_no_out_dir(
@@ -340,7 +340,7 @@ class TestExportMarkdown:
         snapshot("markdown.txt", output)
 
     @staticmethod
-    def test_export_script_async(temp_async_marimo_file: str) -> None:
+    def test_export_markdown_async(temp_async_marimo_file: str) -> None:
         p = subprocess.run(
             ["marimo", "export", "md", temp_async_marimo_file],
             capture_output=True,
@@ -351,7 +351,7 @@ class TestExportMarkdown:
         snapshot("async.txt", output)
 
     @staticmethod
-    def test_export_broken(temp_unparsable_marimo_file: str) -> None:
+    def test_export_markdown_broken(temp_unparsable_marimo_file: str) -> None:
         p = subprocess.run(
             ["marimo", "export", "md", temp_unparsable_marimo_file],
             capture_output=True,
@@ -362,11 +362,11 @@ class TestExportMarkdown:
         snapshot("broken.txt", output)
 
     @pytest.mark.skipif(
-        condition=DependencyManager.has_watchdog(),
+        condition=DependencyManager.watchdog.has(),
         reason="hangs when watchdog is installed",
     )
-    async def test_export_watch_script(self, temp_marimo_file: str) -> None:
-        temp_out_file = temp_marimo_file.replace(".md", ".script.md")
+    async def test_export_watch_markdown(self, temp_marimo_file: str) -> None:
+        temp_out_file = temp_marimo_file.replace(".py", ".md")
         p = subprocess.Popen(  # noqa: ASYNC101 ASYNC220
             [
                 "marimo",
@@ -406,10 +406,10 @@ class TestExportMarkdown:
         assert path.exists(temp_out_file)
 
     @pytest.mark.skipif(
-        condition=DependencyManager.has_watchdog(),
+        condition=DependencyManager.watchdog.has(),
         reason="hangs when watchdog is installed",
     )
-    def test_export_watch_script_no_out_dir(
+    def test_export_watch_markdown_no_out_dir(
         self, temp_marimo_file: str
     ) -> None:
         p = subprocess.Popen(
@@ -438,7 +438,7 @@ class TestExportMarkdown:
 
 class TestExportIpynb:
     @pytest.mark.skipif(
-        not DependencyManager.has_nbformat(),
+        not DependencyManager.nbformat.has(),
         reason="This test requires nbformat.",
     )
     def test_export_ipynb(self, temp_marimo_file_with_md: str) -> None:

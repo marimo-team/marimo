@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/form";
 import {
   APP_WIDTHS,
-  UserConfig,
+  type UserConfig,
   UserConfigSchema,
 } from "../../core/config/config-schema";
 import { Checkbox } from "../ui/checkbox";
@@ -24,7 +24,7 @@ import { KEYMAP_PRESETS } from "@/core/codemirror/keymaps/keymaps";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
 import { SettingTitle, SettingDescription, SettingSubtitle } from "./common";
 import { THEMES } from "@/theme/useTheme";
-import { isPyodide } from "@/core/pyodide/utils";
+import { isWasm } from "@/core/wasm/utils";
 import { PackageManagerNames } from "../../core/config/config-schema";
 import { Kbd } from "../ui/kbd";
 import { NumberField } from "@/components/ui/number-field";
@@ -52,7 +52,7 @@ export const UserConfigForm: React.FC = () => {
     });
   };
 
-  const isWasm = isPyodide();
+  const isWasmRuntime = isWasm();
 
   const renderCopilotProvider = () => {
     const copilot = form.getValues("completion.copilot");
@@ -66,7 +66,7 @@ export const UserConfigForm: React.FC = () => {
             To get a Codeium API key, follow{" "}
             <a
               className="text-link hover:underline"
-              href="https://docs.marimo.io/guides/ai_completion.html#codeium-copilot"
+              href="https://docs.marimo.io/guides/editor_features/ai_completion.html#codeium-copilot"
               target="_blank"
               rel="noreferrer"
             >
@@ -342,32 +342,6 @@ export const UserConfigForm: React.FC = () => {
           />
           <FormField
             control={form.control}
-            name="display.code_editor_font_size"
-            render={({ field }) => (
-              <FormItem className={formItemClasses}>
-                <FormLabel>Code editor font size</FormLabel>
-                <FormControl>
-                  <span className="inline-flex mr-2">
-                    <NumberField
-                      data-testid="code-editor-font-size-input"
-                      className="m-0 w-24"
-                      {...field}
-                      value={field.value}
-                      minValue={8}
-                      maxValue={20}
-                      onChange={(value) => {
-                        field.onChange(value);
-                        onSubmit(form.getValues());
-                      }}
-                    />
-                  </span>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
             name="display.cell_output"
             render={({ field }) => (
               <div className="flex flex-col space-y-1">
@@ -397,12 +371,70 @@ export const UserConfigForm: React.FC = () => {
               </div>
             )}
           />
+          <FormField
+            control={form.control}
+            name="display.dataframes"
+            render={({ field }) => (
+              <div className="flex flex-col space-y-1">
+                <FormItem className={formItemClasses}>
+                  <FormLabel>Dataframe viewer</FormLabel>
+                  <FormControl>
+                    <NativeSelect
+                      data-testid="display-dataframes-select"
+                      onChange={(e) => field.onChange(e.target.value)}
+                      value={field.value}
+                      disabled={field.disabled}
+                      className="inline-flex mr-2"
+                    >
+                      {["rich", "plain"].map((option) => (
+                        <option value={option} key={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+
+                <FormDescription>
+                  Whether to use marimo's rich dataframe viewer or a plain HTML
+                  table; requires notebook restart to take effect.
+                </FormDescription>
+              </div>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="display.code_editor_font_size"
+            render={({ field }) => (
+              <FormItem className={formItemClasses}>
+                <FormLabel>Code editor font size</FormLabel>
+                <FormControl>
+                  <span className="inline-flex mr-2">
+                    <NumberField
+                      data-testid="code-editor-font-size-input"
+                      className="m-0 w-24"
+                      {...field}
+                      value={field.value}
+                      minValue={8}
+                      maxValue={32}
+                      onChange={(value) => {
+                        field.onChange(value);
+                        onSubmit(form.getValues());
+                      }}
+                    />
+                  </span>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </SettingGroup>
 
         <SettingGroup title="Package Management">
           <FormField
             control={form.control}
-            disabled={isWasm}
+            disabled={isWasmRuntime}
             name="package_management.manager"
             render={({ field }) => (
               <FormItem className={formItemClasses}>
@@ -493,7 +525,7 @@ export const UserConfigForm: React.FC = () => {
                       data-testid="auto-reload-select"
                       onChange={(e) => field.onChange(e.target.value)}
                       value={field.value}
-                      disabled={isWasm}
+                      disabled={isWasmRuntime}
                       className="inline-flex mr-2"
                     >
                       {["off", "lazy", "autorun"].map((option) => (
@@ -520,7 +552,7 @@ export const UserConfigForm: React.FC = () => {
             activate marimo's AI assistant; see{" "}
             <a
               className="text-link hover:underline"
-              href="https://docs.marimo.io/guides/ai_completion.html"
+              href="https://docs.marimo.io/guides/editor_features/ai_completion.html"
               target="_blank"
               rel="noreferrer"
             >
@@ -530,7 +562,7 @@ export const UserConfigForm: React.FC = () => {
           </p>
           <FormField
             control={form.control}
-            disabled={isWasm}
+            disabled={isWasmRuntime}
             name="ai.open_ai.base_url"
             render={({ field }) => (
               <FormItem className={formItemClasses}>
@@ -539,7 +571,7 @@ export const UserConfigForm: React.FC = () => {
                   <Input
                     data-testid="ai-base-url-input"
                     className="m-0 inline-flex"
-                    placeholder="https://api.openai.com"
+                    placeholder="https://api.openai.com/v1"
                     {...field}
                   />
                 </FormControl>
@@ -549,21 +581,27 @@ export const UserConfigForm: React.FC = () => {
           />
           <FormField
             control={form.control}
-            disabled={isWasm}
+            disabled={isWasmRuntime}
             name="ai.open_ai.model"
             render={({ field }) => (
-              <FormItem className={formItemClasses}>
-                <FormLabel>Model</FormLabel>
-                <FormControl>
-                  <Input
-                    data-testid="ai-model-input"
-                    className="m-0 inline-flex"
-                    placeholder="gpt-4-turbo"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
+              <div className="flex flex-col space-y-1">
+                <FormItem className={formItemClasses}>
+                  <FormLabel>Model</FormLabel>
+                  <FormControl>
+                    <Input
+                      data-testid="ai-model-input"
+                      className="m-0 inline-flex"
+                      placeholder="gpt-4-turbo"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+                <FormDescription>
+                  If the model starts with "claude-", we will use your Anthropic
+                  API key. Otherwise, we will use your OpenAI API key.
+                </FormDescription>
+              </div>
             )}
           />
         </SettingGroup>

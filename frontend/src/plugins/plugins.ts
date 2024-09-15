@@ -18,9 +18,9 @@ import { SliderPlugin } from "./impl/SliderPlugin";
 import { SwitchPlugin } from "./impl/SwitchPlugin";
 import { TextInputPlugin } from "./impl/TextInputPlugin";
 import { TextAreaPlugin } from "./impl/TextAreaPlugin";
-import { IPlugin } from "./types";
+import type { IPlugin } from "./types";
 import { DataTablePlugin } from "./impl/DataTablePlugin";
-import { IStatelessPlugin } from "./stateless-plugin";
+import type { IStatelessPlugin } from "./stateless-plugin";
 import { AccordionPlugin } from "./layout/AccordionPlugin";
 import { CalloutPlugin } from "./layout/CalloutPlugin";
 import { JsonOutputPlugin } from "./layout/JsonOutputPlugin";
@@ -43,6 +43,9 @@ import { LazyPlugin } from "./layout/LazyPlugin";
 import { NavigationMenuPlugin } from "@/plugins/layout/NavigationMenuPlugin";
 import { initializeSidebarElement } from "./core/sidebar-element";
 import { RoutesPlugin } from "./layout/RoutesPlugin";
+import { DateTimePickerPlugin } from "./impl/DateTimePickerPlugin";
+import { DateRangePickerPlugin } from "./impl/DateRangePlugin";
+import { MimeRendererPlugin } from "./layout/MimeRenderPlugin";
 
 // List of UI plugins
 export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
@@ -50,6 +53,8 @@ export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
   new CheckboxPlugin(),
   DataTablePlugin,
   new DatePickerPlugin(),
+  new DateTimePickerPlugin(),
+  new DateRangePickerPlugin(),
   new DictPlugin(),
   new CodeEditorPlugin(),
   new DropdownPlugin(),
@@ -72,7 +77,7 @@ export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
   DataExplorerPlugin,
   DataFramePlugin,
   LazyPlugin,
-  new AnyWidgetPlugin(),
+  AnyWidgetPlugin,
 ];
 
 // List of output / layout plugins
@@ -82,6 +87,7 @@ const LAYOUT_PLUGINS: Array<IStatelessPlugin<unknown>> = [
   new CarouselPlugin(),
   new DownloadPlugin(),
   new JsonOutputPlugin(),
+  new MimeRendererPlugin(),
   new MermaidPlugin(),
   new NavigationMenuPlugin(),
   new ProgressPlugin(),

@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import {
+import type {
   GenericVegaSpec,
   Mark,
   SelectionType,
@@ -29,6 +29,7 @@ export function makeSelectable<T extends VegaLiteSpec>(
     const subSpecs = spec.vconcat.map((subSpec) =>
       "mark" in subSpec ? makeChartInteractive(subSpec) : subSpec,
     );
+    // No pan/zoom for vconcat
     return { ...spec, vconcat: subSpecs };
   }
 
@@ -36,6 +37,7 @@ export function makeSelectable<T extends VegaLiteSpec>(
     const subSpecs = spec.hconcat.map((subSpec) =>
       "mark" in subSpec ? makeChartInteractive(subSpec) : subSpec,
     );
+    // No pan/zoom for hconcat
     return { ...spec, hconcat: subSpecs };
   }
 
@@ -47,6 +49,9 @@ export function makeSelectable<T extends VegaLiteSpec>(
       let resolvedSpec = subSpec as VegaLiteUnitSpec;
       resolvedSpec = makeChartSelectable(resolvedSpec, chartSelection, idx);
       resolvedSpec = makeChartInteractive(resolvedSpec);
+      if (idx === 0) {
+        resolvedSpec = makeChartPanZoom(resolvedSpec);
+      }
       return resolvedSpec;
     });
     return { ...spec, layer: subSpecs };
@@ -60,6 +65,7 @@ export function makeSelectable<T extends VegaLiteSpec>(
   resolvedSpec = makeLegendSelectable(resolvedSpec, fieldSelection);
   resolvedSpec = makeChartSelectable(resolvedSpec, chartSelection, undefined);
   resolvedSpec = makeChartInteractive(resolvedSpec);
+  resolvedSpec = makeChartPanZoom(resolvedSpec);
 
   return resolvedSpec as T;
 }
@@ -95,6 +101,10 @@ function makeLegendSelectable(
 
 /**
  * Given a spec, add the necessary parameters to make the chart selectable.
+ *
+ * Not supported marks:
+ * - geoshape
+ * - text
  */
 function makeChartSelectable(
   spec: VegaLiteUnitSpec,
@@ -117,8 +127,8 @@ function makeChartSelectable(
     return spec;
   }
 
-  // We don't do anything if the mark is text
-  if (mark === "text") {
+  // We don't do anything if the mark is text or geoshape
+  if (mark === "geoshape" || mark === "text") {
     return spec;
   }
 
@@ -144,7 +154,42 @@ function makeChartSelectable(
 }
 
 /**
+ * Given a spec, add the necessary parameters to make the chart pan/zoomable.
+ *
+ * Not supported marks:
+ * - geoshape
+ */
+function makeChartPanZoom(spec: VegaLiteUnitSpec): VegaLiteUnitSpec {
+  let mark: Mark | undefined;
+  try {
+    mark = Marks.getMarkType(spec.mark);
+  } catch {
+    // noop
+  }
+
+  // We don't do anything if the mark is geoshape
+  if (mark === "geoshape") {
+    return spec;
+  }
+
+  const params = spec.params || [];
+
+  const alreadyHasScalesParam = params.some((param) => param.bind === "scales");
+  if (alreadyHasScalesParam) {
+    return spec;
+  }
+
+  return {
+    ...spec,
+    params: [...params, Params.panZoom()],
+  };
+}
+
+/**
  * Makes a chart clickable and adds an opacity encoding to the chart.
+ *
+ * Not supported marks:
+ * - text
  */
 function makeChartInteractive<T extends GenericVegaSpec>(spec: T): T {
   const prevEncodings = "encoding" in spec ? spec.encoding : undefined;
@@ -156,6 +201,7 @@ function makeChartInteractive<T extends GenericVegaSpec>(spec: T): T {
   }
 
   const mark = Marks.getMarkType(spec.mark);
+
   // We don't do anything if the mark is text
   if (mark === "text") {
     return spec;

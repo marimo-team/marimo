@@ -101,6 +101,7 @@ class RuntimeConfig(TypedDict):
 # TODO(akshayka): remove normal, migrate to compact
 # normal == compact
 WidthType = Literal["normal", "compact", "medium", "full"]
+Theme = Literal["light", "dark", "system"]
 
 
 @mddoc
@@ -113,12 +114,14 @@ class DisplayConfig(TypedDict):
     - `theme`: `"light"`, `"dark"`, or `"system"`
     - `code_editor_font_size`: font size for the code editor
     - `cell_output`: `"above"` or `"below"`
+    - `dataframes`: `"rich"` or `"plain"`
     """
 
-    theme: Literal["light", "dark", "system"]
+    theme: Theme
     code_editor_font_size: int
     cell_output: Literal["above", "below"]
     default_width: WidthType
+    dataframes: Literal["rich", "plain"]
 
 
 @mddoc
@@ -169,9 +172,11 @@ class AiConfig(TypedDict):
     **Keys.**
 
     - `open_ai`: the OpenAI config
+    - `anthropic`: the Anthropic config
     """
 
     open_ai: OpenAiConfig
+    anthropic: AnthropicConfig
 
 
 @dataclass
@@ -181,13 +186,26 @@ class OpenAiConfig(TypedDict):
     **Keys.**
 
     - `api_key`: the OpenAI API key
-    - `model`: the model to use
+    - `model`: the model to use.
+        if model starts with `claude-` we use the AnthropicConfig
     - `base_url`: the base URL for the API
     """
 
     api_key: str
     model: NotRequired[str]
     base_url: NotRequired[str]
+
+
+@dataclass
+class AnthropicConfig(TypedDict):
+    """Configuration options for Anthropic.
+
+    **Keys.**
+
+    - `api_key`: the Anthropic
+    """
+
+    api_key: str
 
 
 @mddoc
@@ -214,6 +232,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "code_editor_font_size": 14,
         "cell_output": "above",
         "default_width": "medium",
+        "dataframes": "rich",
     },
     "formatting": {"line_length": 79},
     "keymap": {"preset": "default", "overrides": {}},
@@ -297,7 +316,7 @@ def mask_secrets(config: MarimoConfig) -> MarimoConfig:
         else:
             deep_remove_from_path(path[1:], cast(Dict[str, Any], obj[key]))
 
-    secrets = [["ai", "open_ai", "api_key"]]
+    secrets = [["ai", "open_ai", "api_key"], ["ai", "anthropic", "api_key"]]
 
     new_config = _deep_copy(config)
     for secret in secrets:

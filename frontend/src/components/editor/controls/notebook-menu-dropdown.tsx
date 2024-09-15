@@ -13,9 +13,9 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { renderMinimalShortcut } from "../../shortcuts/renderShortcut";
+import { MinimalShortcut } from "../../shortcuts/renderShortcut";
 import { useNotebookActions } from "../actions/useNotebookActions";
-import { ActionButton } from "../actions/types";
+import type { ActionButton } from "../actions/types";
 import { getMarimoVersion } from "@/core/dom/marimo-tag";
 
 export const NotebookMenuDropdown: React.FC = () => {
@@ -38,8 +38,10 @@ export const NotebookMenuDropdown: React.FC = () => {
     return (
       <>
         {action.icon && <span className="flex-0 mr-2">{action.icon}</span>}
-        <span className="flex-1">{action.label}</span>
-        {action.hotkey && renderMinimalShortcut(action.hotkey)}
+        <span className="flex-1">{action.labelElement || action.label}</span>
+        {action.hotkey && (
+          <MinimalShortcut shortcut={action.hotkey} className="ml-4" />
+        )}
         {action.rightElement}
       </>
     );
@@ -61,7 +63,7 @@ export const NotebookMenuDropdown: React.FC = () => {
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild={true}>{button}</DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="no-print w-[220px]">
+      <DropdownMenuContent align="end" className="no-print w-[240px]">
         {actions.map((action) => {
           if (action.hidden) {
             return null;
@@ -77,7 +79,14 @@ export const NotebookMenuDropdown: React.FC = () => {
                 </DropdownMenuSubTrigger>
                 <DropdownMenuPortal>
                   <DropdownMenuSubContent>
-                    {action.dropdown.map(renderLeafAction)}
+                    {action.dropdown.map((action) => {
+                      return (
+                        <React.Fragment key={action.label}>
+                          {action.divider && <DropdownMenuSeparator />}
+                          {renderLeafAction(action)}
+                        </React.Fragment>
+                      );
+                    })}
                   </DropdownMenuSubContent>
                 </DropdownMenuPortal>
               </DropdownMenuSub>

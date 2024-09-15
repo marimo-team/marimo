@@ -22,7 +22,7 @@ TYPES: List[Tuple[DataType, bool]] = [
 
 snapshot = snapshotter(__file__)
 
-HAS_DEPS = DependencyManager.has_pandas() and DependencyManager.has_altair()
+HAS_DEPS = DependencyManager.pandas.has() and DependencyManager.altair.has()
 
 
 def test_get_chart_builder():

@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Button } from "@/components/ui/button";
+import { UndoButton } from "@/components/buttons/undo-button";
 import { toast } from "@/components/ui/use-toast";
 import { getCells, useCellActions } from "@/core/cells/cells";
-import { CellId } from "@/core/cells/ids";
+import type { CellId } from "@/core/cells/ids";
 import { sendDeleteCell } from "@/core/network/requests";
 import useEvent from "react-use-event-hook";
 
@@ -28,17 +28,13 @@ export function useDeleteCellCallback() {
       description:
         "You can bring it back by clicking undo or through the command palette.",
       action: (
-        <Button
+        <UndoButton
           data-testid="undo-delete-button"
-          size="sm"
-          variant="outline"
           onClick={() => {
             undoDeleteCell();
             dismiss();
           }}
-        >
-          Undo
-        </Button>
+        />
       ),
     });
   });

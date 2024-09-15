@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { TransformType } from "@/plugins/impl/data-frames/schema";
+import type { TransformType } from "@/plugins/impl/data-frames/schema";
 import { logNever } from "@/utils/assertNever";
-import { OperatorType } from "../utils/operators";
-import { ColumnId } from "../types";
+import type { OperatorType } from "../utils/operators";
+import type { ColumnId } from "../types";
 
 export function pythonPrintTransforms(
   dfName: string,
@@ -102,7 +102,15 @@ export function pythonPrint(dfName: string, transform: TransformType): string {
     }
     case "shuffle_rows":
       return `${dfName}.sample(frac=1)`;
-
+    case "explode_columns": {
+      const { column_ids } = transform;
+      return `${dfName}.explode(${listOfStrings(column_ids)})`;
+    }
+    case "expand_dict": {
+      const column_id = asLiteral(transform.column_id);
+      const args = `df.pop(${column_id}).values.tolist())`;
+      return `${dfName}.join(pd.DataFrame(${args})`;
+    }
     default:
       logNever(transform);
       return "";

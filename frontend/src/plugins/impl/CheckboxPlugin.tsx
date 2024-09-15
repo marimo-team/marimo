@@ -2,9 +2,9 @@
 import { useId } from "react";
 import { z } from "zod";
 
-import { IPlugin, IPluginProps } from "../types";
+import type { IPlugin, IPluginProps } from "../types";
 import { Checkbox } from "../../components/ui/checkbox";
-import { CheckedState } from "@radix-ui/react-checkbox";
+import type { CheckedState } from "@radix-ui/react-checkbox";
 import { Labeled } from "./common/labeled";
 
 export class CheckboxPlugin

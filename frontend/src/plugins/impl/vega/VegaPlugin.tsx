@@ -1,13 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { z } from "zod";
-import { IPlugin, IPluginProps } from "@/plugins/types";
+import type { IPlugin, IPluginProps } from "@/plugins/types";
 import type { VegaLiteSpec } from "./types";
 
 import type { VegaComponentState, Data } from "./vega-component";
 
 import "./vega.css";
 import React from "react";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const LazyVegaComponent = React.lazy(() => import("./vega-component"));
 
@@ -27,11 +28,13 @@ export class VegaPlugin implements IPlugin<VegaComponentState, Data> {
 
   render(props: IPluginProps<VegaComponentState, Data>): JSX.Element {
     return (
-      <LazyVegaComponent
-        value={props.value}
-        setValue={props.setValue}
-        {...props.data}
-      />
+      <TooltipProvider>
+        <LazyVegaComponent
+          value={props.value}
+          setValue={props.setValue}
+          {...props.data}
+        />
+      </TooltipProvider>
     );
   }
 }

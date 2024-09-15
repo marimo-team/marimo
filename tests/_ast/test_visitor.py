@@ -22,7 +22,7 @@ def test_assign_simple() -> None:
     v.visit(mod)
     assert v.defs == set(["x"])
     assert v.refs == set()
-    assert v.variable_data == {"x": VariableData(kind="variable")}
+    assert v.variable_data == {"x": [VariableData(kind="variable")]}
 
 
 def test_multiple_assign() -> None:
@@ -33,8 +33,8 @@ def test_multiple_assign() -> None:
     assert v.defs == set(["x", "y"])
     assert v.refs == set()
     assert v.variable_data == {
-        "x": VariableData(kind="variable"),
-        "y": VariableData(kind="variable"),
+        "x": [VariableData(kind="variable")],
+        "y": [VariableData(kind="variable")],
     }
 
 
@@ -46,8 +46,8 @@ def test_assign_multiple_statements() -> None:
     assert v.defs == set(["x", "y"])
     assert v.refs == set()
     assert v.variable_data == {
-        "x": VariableData(kind="variable"),
-        "y": VariableData(kind="variable"),
+        "x": [VariableData(kind="variable")],
+        "y": [VariableData(kind="variable")],
     }
 
 
@@ -78,7 +78,7 @@ def test_read_attr_of_defined_variable() -> None:
     v.visit(mod)
     assert v.defs == set(["x"])
     assert v.refs == set()
-    assert v.variable_data == {"x": VariableData(kind="variable")}
+    assert v.variable_data == {"x": [VariableData(kind="variable")]}
 
 
 def test_assign_nested_attr() -> None:
@@ -109,7 +109,7 @@ def test_assign_same_name() -> None:
     assert v.defs == set(["x"])
     assert v.refs == set(["x"])
     assert v.variable_data == {
-        "x": VariableData(kind="variable", required_refs={"x"})
+        "x": [VariableData(kind="variable", required_refs={"x"})]
     }
 
     expr = "x=1; x = x"
@@ -119,7 +119,10 @@ def test_assign_same_name() -> None:
     assert v.defs == set(["x"])
     assert v.refs == set()
     assert v.variable_data == {
-        "x": VariableData(kind="variable", required_refs={"x"})
+        "x": [
+            VariableData(kind="variable", required_refs=set()),
+            VariableData(kind="variable", required_refs={"x"}),
+        ]
     }
 
     expr = "(x := x)"
@@ -129,7 +132,7 @@ def test_assign_same_name() -> None:
     assert v.defs == set(["x"])
     assert v.refs == set(["x"])
     assert v.variable_data == {
-        "x": VariableData(kind="variable", required_refs={"x"})
+        "x": [VariableData(kind="variable", required_refs={"x"})]
     }
 
     expr = "x += x"
@@ -139,7 +142,7 @@ def test_assign_same_name() -> None:
     assert v.defs == set(["x"])
     assert v.refs == set(["x"])
     assert v.variable_data == {
-        "x": VariableData(kind="variable", required_refs={"x"})
+        "x": [VariableData(kind="variable", required_refs={"x"})]
     }
 
     expr = "def f(): x = x; return x"
@@ -149,7 +152,7 @@ def test_assign_same_name() -> None:
     assert v.defs == set(["f"])
     assert v.refs == set(["x"])
     assert v.variable_data == {
-        "f": VariableData(kind="function", required_refs={"x"})
+        "f": [VariableData(kind="function", required_refs={"x"})]
     }
 
     expr = "class F(): x = x"
@@ -159,7 +162,7 @@ def test_assign_same_name() -> None:
     assert v.defs == set(["F"])
     assert v.refs == set(["x"])
     assert v.variable_data == {
-        "F": VariableData(kind="class", required_refs={"x"})
+        "F": [VariableData(kind="class", required_refs={"x"})]
     }
 
     expr = "{x: x}"
@@ -190,14 +193,14 @@ def test_structured_assignment() -> None:
     assert v.defs == names
     assert v.refs == set()
     assert v.variable_data == {
-        "a": VariableData(kind="variable"),
-        "b": VariableData(kind="variable"),
-        "c": VariableData(kind="variable"),
-        "d": VariableData(kind="variable"),
-        "e": VariableData(kind="variable"),
-        "f": VariableData(kind="variable"),
-        "g": VariableData(kind="variable"),
-        "h": VariableData(kind="variable"),
+        "a": [VariableData(kind="variable")],
+        "b": [VariableData(kind="variable")],
+        "c": [VariableData(kind="variable")],
+        "d": [VariableData(kind="variable")],
+        "e": [VariableData(kind="variable")],
+        "f": [VariableData(kind="variable")],
+        "g": [VariableData(kind="variable")],
+        "h": [VariableData(kind="variable")],
     }
 
 
@@ -209,8 +212,8 @@ def test_starred_assignment() -> None:
     assert v.defs == set(["a", "b"])
     assert v.refs == set()
     assert v.variable_data == {
-        "a": VariableData(kind="variable"),
-        "b": VariableData(kind="variable"),
+        "a": [VariableData(kind="variable")],
+        "b": [VariableData(kind="variable")],
     }
 
 
@@ -228,7 +231,7 @@ def test_scope_does_not_leak() -> None:
     assert v.defs == set(["foo"])
     assert v.refs == set("z")
     assert v.variable_data == {
-        "foo": VariableData(kind="function"),
+        "foo": [VariableData(kind="function")],
     }
 
 
@@ -264,11 +267,11 @@ def test_walrus_leaks_to_global_in_comprehension() -> None:
     # "a" should not be a ref!
     assert v.refs == set(["range"])
     assert v.variable_data == {
-        "a": VariableData(kind="variable"),
-        "b": VariableData(kind="variable"),
-        "c": VariableData(kind="variable"),
-        "d": VariableData(kind="variable"),
-        "foo": VariableData(kind="function", required_refs={"a"}),
+        "a": [VariableData(kind="variable")],
+        "b": [VariableData(kind="variable")],
+        "c": [VariableData(kind="variable")],
+        "d": [VariableData(kind="variable")],
+        "foo": [VariableData(kind="function", required_refs={"a"})],
     }
 
 
@@ -280,8 +283,8 @@ def test_nested_walrus_leaks_to_global_in_comprehension() -> None:
     assert v.defs == set(["a", "b"])
     assert v.refs == set(["range"])
     assert v.variable_data == {
-        "a": VariableData(kind="variable"),
-        "b": VariableData(kind="variable"),
+        "a": [VariableData(kind="variable")],
+        "b": [VariableData(kind="variable")],
     }
 
 
@@ -293,7 +296,7 @@ def test_pep572_walrus_comprehension_examples() -> None:
     assert v.defs == set(["y"])
     assert v.refs == set(["input_data", "f"])
     assert v.variable_data == {
-        "y": VariableData(kind="variable"),
+        "y": [VariableData(kind="variable")],
     }
 
     code = "[[y := f(x), x/y] for x in range(5)]"
@@ -303,7 +306,7 @@ def test_pep572_walrus_comprehension_examples() -> None:
     assert v.defs == set(["y"])
     assert v.refs == set(["f", "range"])
     assert v.variable_data == {
-        "y": VariableData(kind="variable"),
+        "y": [VariableData(kind="variable")],
     }
 
 
@@ -317,7 +320,7 @@ def test_walrus_in_comp_in_fn_block_does_not_leak_to_global() -> None:
     assert v.defs == set(["f"])  # x should _not_ leak to global scope
     assert v.refs == set(["range"])  # x should leak to f's scope
     assert v.variable_data == {
-        "f": VariableData(kind="function", required_refs={"range"}),
+        "f": [VariableData(kind="function", required_refs={"range"})],
     }
 
 
@@ -339,9 +342,9 @@ def test_assignments_in_multiple_scopes() -> None:
     assert v.defs == set(["a", "e", "foo"])
     assert v.refs == set()
     assert v.variable_data == {
-        "a": VariableData(kind="variable"),
-        "e": VariableData(kind="variable"),
-        "foo": VariableData(kind="function"),
+        "a": [VariableData(kind="variable")],
+        "e": [VariableData(kind="variable")],
+        "foo": [VariableData(kind="function")],
     }
 
 
@@ -359,7 +362,7 @@ def test_function_with_args() -> None:
     assert v.defs == set(["foo"])
     assert v.refs == set("z")
     assert v.variable_data == {
-        "foo": VariableData(kind="function", required_refs={"z"}),
+        "foo": [VariableData(kind="function", required_refs={"z"})],
     }
 
 
@@ -377,7 +380,7 @@ def test_function_with_defaults() -> None:
     assert v.refs == set(["x", "y", "a"])
     # TODO: Are these required refs?
     assert v.variable_data == {
-        "foo": VariableData(kind="function", required_refs={"x", "y", "a"}),
+        "foo": [VariableData(kind="function", required_refs={"x", "y", "a"})],
     }
 
 
@@ -396,8 +399,8 @@ def test_async_function_def() -> None:
     assert v.defs == set(["foo", "x"])
     assert v.refs == set("z")
     assert v.variable_data == {
-        "foo": VariableData(kind="function", required_refs={"z"}),
-        "x": VariableData(kind="variable"),
+        "foo": [VariableData(kind="function", required_refs={"z"})],
+        "x": [VariableData(kind="variable")],
     }
 
 
@@ -415,8 +418,8 @@ def test_global_def() -> None:
     assert v.defs == set(["foo", "x"])
     assert v.refs == set()
     assert v.variable_data == {
-        "foo": VariableData(kind="function", required_refs={"x"}),
-        "x": VariableData(kind="variable"),
+        "foo": [VariableData(kind="function", required_refs={"x"})],
+        "x": [VariableData(kind="variable")],
     }
 
 
@@ -434,7 +437,7 @@ def test_global_ref() -> None:
     assert v.defs == set(["foo"])
     assert v.refs == set(["x", "print"])
     assert v.variable_data == {
-        "foo": VariableData(kind="function", required_refs={"x", "print"}),
+        "foo": [VariableData(kind="function", required_refs={"x", "print"})],
     }
 
 
@@ -454,7 +457,7 @@ def test_nested_local_def_and_global_ref() -> None:
     assert v.defs == set(["foo"])
     assert v.refs == set(["x", "print"])
     assert v.variable_data == {
-        "foo": VariableData(kind="function", required_refs={"x", "print"}),
+        "foo": [VariableData(kind="function", required_refs={"x", "print"})],
     }
 
 
@@ -482,7 +485,7 @@ def test_call_defined() -> None:
     assert v.defs == set(["foo"])
     assert v.refs == set()
     assert v.variable_data == {
-        "foo": VariableData(kind="function"),
+        "foo": [VariableData(kind="function")],
     }
 
 
@@ -494,7 +497,7 @@ def test_mutation_generates_def() -> None:
     assert v.defs == set(["x"])
     assert v.refs == set()
     assert v.variable_data == {
-        "x": VariableData(kind="variable"),
+        "x": [VariableData(kind="variable")],
     }
 
 
@@ -594,12 +597,12 @@ def test_matchas() -> None:
     assert v.defs == set(["a", "b", "c", "d", "e", "f"])
     assert v.refs == set(["value"])
     assert v.variable_data == {
-        "a": VariableData(kind="variable"),
-        "b": VariableData(kind="variable"),
-        "c": VariableData(kind="variable"),
-        "d": VariableData(kind="variable"),
-        "e": VariableData(kind="variable"),
-        "f": VariableData(kind="variable"),
+        "a": [VariableData(kind="variable")],
+        "b": [VariableData(kind="variable")],
+        "c": [VariableData(kind="variable")],
+        "d": [VariableData(kind="variable")],
+        "e": [VariableData(kind="variable")],
+        "f": [VariableData(kind="variable")],
     }
 
 
@@ -620,7 +623,7 @@ def test_matchstar() -> None:
     assert v.defs == set(["rest"])
     assert v.refs == set(["value"])
     assert v.variable_data == {
-        "rest": VariableData(kind="variable"),
+        "rest": [VariableData(kind="variable")],
     }
 
 
@@ -643,8 +646,8 @@ def test_matchmapping() -> None:
     assert v.defs == set(["a", "b"])
     assert v.refs == set(["value"])
     assert v.variable_data == {
-        "a": VariableData(kind="variable"),
-        "b": VariableData(kind="variable"),
+        "a": [VariableData(kind="variable")],
+        "b": [VariableData(kind="variable")],
     }
 
 
@@ -655,10 +658,14 @@ def test_import_nested() -> None:
     v.visit(mod)
     assert v.defs == set(["a"])
     assert v.refs == set()
-    assert v.variable_data["a"] == VariableData(
-        kind="import",
-        import_data=ImportData(module="a.b.c", imported_symbol=None),
-    )
+    assert v.variable_data["a"] == [
+        VariableData(
+            kind="import",
+            import_data=ImportData(
+                definition="a", module="a.b.c", imported_symbol=None
+            ),
+        )
+    ]
 
 
 def test_import_as() -> None:
@@ -668,10 +675,14 @@ def test_import_as() -> None:
     v.visit(mod)
     assert v.defs == set(["d"])
     assert v.refs == set()
-    assert v.variable_data["d"] == VariableData(
-        kind="import",
-        import_data=ImportData(module="a.b.c", imported_symbol=None),
-    )
+    assert v.variable_data["d"] == [
+        VariableData(
+            kind="import",
+            import_data=ImportData(
+                definition="d", module="a.b.c", imported_symbol=None
+            ),
+        )
+    ]
 
 
 def test_import_multiple() -> None:
@@ -681,13 +692,22 @@ def test_import_multiple() -> None:
     v.visit(mod)
     assert v.defs == set(["a", "d"])
     assert v.refs == set()
-    assert v.variable_data["a"] == VariableData(
-        kind="import",
-        import_data=ImportData(module="a.b.c", imported_symbol=None),
-    )
-    assert v.variable_data["d"] == VariableData(
-        kind="import", import_data=ImportData(module="d", imported_symbol=None)
-    )
+    assert v.variable_data["a"] == [
+        VariableData(
+            kind="import",
+            import_data=ImportData(
+                definition="a", module="a.b.c", imported_symbol=None
+            ),
+        )
+    ]
+    assert v.variable_data["d"] == [
+        VariableData(
+            kind="import",
+            import_data=ImportData(
+                definition="d", module="d", imported_symbol=None
+            ),
+        )
+    ]
 
 
 def test_from_import() -> None:
@@ -697,12 +717,17 @@ def test_from_import() -> None:
     v.visit(mod)
     assert v.defs == set(["d"])
     assert v.refs == set()
-    assert v.variable_data["d"] == VariableData(
-        kind="import",
-        import_data=ImportData(
-            module="a.b.c", imported_symbol="a.b.c.d", import_level=0
-        ),
-    )
+    assert v.variable_data["d"] == [
+        VariableData(
+            kind="import",
+            import_data=ImportData(
+                definition="d",
+                module="a.b.c",
+                imported_symbol="a.b.c.d",
+                import_level=0,
+            ),
+        )
+    ]
 
 
 def test_relative_from_import() -> None:
@@ -712,12 +737,17 @@ def test_relative_from_import() -> None:
     v.visit(mod)
     assert v.defs == set(["d"])
     assert v.refs == set()
-    assert v.variable_data["d"] == VariableData(
-        kind="import",
-        import_data=ImportData(
-            module="a.b.c", imported_symbol="a.b.c.d", import_level=2
-        ),
-    )
+    assert v.variable_data["d"] == [
+        VariableData(
+            kind="import",
+            import_data=ImportData(
+                definition="d",
+                module="a.b.c",
+                imported_symbol="a.b.c.d",
+                import_level=2,
+            ),
+        )
+    ]
 
 
 def test_from_import_star() -> None:
@@ -857,15 +887,15 @@ def test_private_ref_requirement_caught() -> None:
     assert private.endswith("_x")
     assert v.refs == set(["X"])
     assert v.variable_data == {
-        private: VariableData(kind="variable"),
-        "x": VariableData(kind="variable"),
-        "foo": VariableData(
-            kind="function", required_refs={"X", "x", private}
-        ),
+        private: [VariableData(kind="variable")],
+        "x": [VariableData(kind="variable")],
+        "foo": [
+            VariableData(kind="function", required_refs={"X", "x", private})
+        ],
     }
 
 
-HAS_DEPS = DependencyManager.has_duckdb()
+HAS_DEPS = DependencyManager.duckdb.has()
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
@@ -933,6 +963,14 @@ def test_print_f_string() -> None:
         == "select * from cars where name = '_'"
     )
 
+    joined_str = ast.parse(
+        "f'select * from \\'{table}\\' where name = {name}'"
+    )
+    assert (
+        normalize_sql_f_string(joined_str.body[0].value)  # type: ignore
+        == "select * from '_' where name = '_'"
+    )
+
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_empty_statement() -> None:
@@ -975,3 +1013,34 @@ def test_sql_from_another_module() -> None:
     v.visit(mod)
     assert v.defs == set(["df"])
     assert v.refs == set(["lib"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_statement_with_url() -> None:
+    code = "\n".join(
+        [
+            'mo.sql("CREATE OR replace TABLE cars as '
+            "FROM 'https://datasets.marimo.app/cars.csv';\")",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["cars"])
+    assert v.variable_data == {"cars": [VariableData("table")]}
+    assert v.refs == set(["mo"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_unparsable_sql_doesnt_fail() -> None:
+    code = "\n".join(
+        [
+            # duckdb will raise a BinderError, but codegen shouldnt fail
+            "df = mo.sql('select * from cars where cars.foo = ANY({bar})')",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["df"])
+    assert v.refs == set(["mo"])

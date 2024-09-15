@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
+import type React from "react";
 import {
   Select,
   SelectContent,
@@ -9,18 +9,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { LayoutType } from "./types";
-import { SquareIcon, Grid3x3Icon, ListIcon } from "lucide-react";
-import { isPyodide } from "@/core/pyodide/utils";
+import { LAYOUT_TYPES, type LayoutType } from "./types";
+import {
+  SquareIcon,
+  Grid3x3Icon,
+  ListIcon,
+  PresentationIcon,
+} from "lucide-react";
+import { isWasm } from "@/core/wasm/utils";
 import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
+import { logNever } from "@/utils/assertNever";
+import { getFeatureFlag } from "@/core/config/feature-flag";
+import { startCase } from "lodash-es";
 
 export const LayoutSelect: React.FC = () => {
   const { selectedLayout } = useLayoutState();
   const { setLayoutView } = useLayoutActions();
-  const layouts: LayoutType[] = ["vertical", "grid"];
 
-  // Layouts are not supported in Pyodide
-  if (isPyodide()) {
+  // Layouts are not supported in WASM mode by default,
+  // unless the feature flag is enabled
+  if (isWasm() && !getFeatureFlag("wasm_layouts")) {
     return null;
   }
 
@@ -39,11 +47,11 @@ export const LayoutSelect: React.FC = () => {
       <SelectContent>
         <SelectGroup>
           <SelectLabel>View as</SelectLabel>
-          {layouts.map((layout) => (
+          {LAYOUT_TYPES.map((layout) => (
             <SelectItem key={layout} value={layout}>
               <div className="flex items-center gap-1.5 leading-5">
                 {renderIcon(layout)}
-                <span>{displayName(layout)}</span>
+                <span>{displayLayoutName(layout)}</span>
               </div>
             </SelectItem>
           ))}
@@ -54,23 +62,24 @@ export const LayoutSelect: React.FC = () => {
 };
 
 function renderIcon(layoutType: LayoutType) {
+  const Icon = getLayoutIcon(layoutType);
+  return <Icon className="h-4 w-4" />;
+}
+
+export function getLayoutIcon(layoutType: LayoutType) {
   switch (layoutType) {
     case "vertical":
-      return <ListIcon className="h-4 w-4" />;
+      return ListIcon;
     case "grid":
-      return <Grid3x3Icon className="h-4 w-4" />;
+      return Grid3x3Icon;
+    case "slides":
+      return PresentationIcon;
     default:
-      return <SquareIcon className="h-4 w-4" />;
+      logNever(layoutType);
+      return SquareIcon;
   }
 }
 
-function displayName(layoutType: LayoutType) {
-  switch (layoutType) {
-    case "vertical":
-      return "Vertical";
-    case "grid":
-      return "Grid";
-    default:
-      return "Unknown";
-  }
+export function displayLayoutName(layoutType: LayoutType) {
+  return startCase(layoutType);
 }

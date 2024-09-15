@@ -2,14 +2,23 @@
 import { deserializeLayout } from "@/components/editor/renderers/plugins";
 import { Objects } from "@/utils/objects";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
-import { LayoutData, LayoutState, initialLayoutState } from "../layout/layout";
+import {
+  type LayoutData,
+  type LayoutState,
+  initialLayoutState,
+} from "../layout/layout";
 import { sendInstantiate } from "../network/requests";
-import { Capabilities, CellMessage, OperationMessageData } from "./messages";
-import { LayoutType } from "@/components/editor/renderers/types";
-import { AppConfig } from "../config/config-schema";
-import { CellData, createCell } from "../cells/types";
+import type {
+  Capabilities,
+  CellMessage,
+  OperationMessageData,
+} from "./messages";
+import type { LayoutType } from "@/components/editor/renderers/types";
+import { AppConfigSchema, type AppConfig } from "../config/config-schema";
+import { type CellData, createCell } from "../cells/types";
 import { VirtualFileTracker } from "../static/virtual-file-tracker";
-import { CellId, UIElementId } from "../cells/ids";
+import type { CellId, UIElementId } from "../cells/ids";
+import { isWasm } from "../wasm/utils";
 
 export function handleKernelReady(
   data: OperationMessageData<"kernel-ready">,
@@ -86,10 +95,15 @@ export function handleKernelReady(
     setLayoutData({ layoutView: layoutType, data: layoutData });
   }
   setCells(cells, layoutState);
-  setAppConfig({
-    ...app_config,
-  } as AppConfig);
-  setCapabilities(capabilities);
+  const parsedAppConfig = AppConfigSchema.safeParse(app_config);
+  if (parsedAppConfig.success) {
+    setAppConfig(parsedAppConfig.data);
+  }
+  setCapabilities({
+    ...capabilities,
+    // always enable sql if wasm
+    sql: capabilities.sql || isWasm(),
+  });
 
   // If resumed, we don't need to instantiate the UI elements,
   // and we should read in th existing values from the kernel.

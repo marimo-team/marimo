@@ -1,8 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { PropsWithChildren } from "react";
+import React, { type PropsWithChildren } from "react";
 
 import { z } from "zod";
-import { IStatelessPlugin, IStatelessPluginProps } from "../stateless-plugin";
+import type {
+  IStatelessPlugin,
+  IStatelessPluginProps,
+} from "../stateless-plugin";
 import { renderHTML } from "../core/RenderHTML";
 import { Progress } from "@/components/ui/progress";
 import { Loader2Icon } from "lucide-react";

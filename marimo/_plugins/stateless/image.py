@@ -56,13 +56,13 @@ def _normalize_image(src: ImageLike) -> Image:
         or hasattr(src, "__array__")
         or hasattr(src, "toarray")
     ):
-        DependencyManager.require_pillow(
+        DependencyManager.pillow.require(
             "to render images from arrays in `mo.image`"
         )
         from PIL import Image as _Image
 
         if not hasattr(src, "__array_interface__"):
-            DependencyManager.require_numpy(
+            DependencyManager.numpy.require(
                 "to render images from generic arrays in `mo.image`"
             )
             import numpy
@@ -139,10 +139,12 @@ def image(
         resolved_src = mo_data.image(src.read()).url
     elif isinstance(src, bytes):
         resolved_src = mo_data.image(src).url
-    elif isinstance(src, str) and os.path.isfile(src):
-        with open(src, "rb") as f:
+    elif isinstance(src, str) and os.path.isfile(
+        expanded_path := os.path.expanduser(src)
+    ):
+        with open(expanded_path, "rb") as f:
             resolved_src = mo_data.image(
-                f.read(), ext=os.path.splitext(src)[1]
+                f.read(), ext=os.path.splitext(expanded_path)[1]
             ).url
     else:
         resolved_src = io_to_data_url(src, fallback_mime_type="image/png")

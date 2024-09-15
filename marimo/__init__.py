@@ -24,6 +24,7 @@ __all__ = [
     "MarimoIslandGenerator",
     "accordion",
     "carousel",
+    "app_meta",
     "as_html",
     "audio",
     "callout",
@@ -68,7 +69,7 @@ __all__ = [
     "video",
     "vstack",
 ]
-__version__ = "0.7.0"
+__version__ = "0.8.15"
 
 from marimo._ast.app import App
 from marimo._ast.cell import Cell
@@ -109,7 +110,13 @@ from marimo._runtime.capture import (
 )
 from marimo._runtime.context.utils import running_in_notebook
 from marimo._runtime.control_flow import MarimoStopError, stop
-from marimo._runtime.runtime import cli_args, defs, query_params, refs
+from marimo._runtime.runtime import (
+    app_meta,
+    cli_args,
+    defs,
+    query_params,
+    refs,
+)
 from marimo._runtime.state import state
 from marimo._server.asgi import create_asgi_app
-from marimo._sql import sql
+from marimo._sql.sql import sql

@@ -4,32 +4,84 @@ import {
   getRecentFiles,
   getRunningNotebooks,
   shutdownSession,
+  openTutorial,
 } from "@/core/network/requests";
 import { combineAsyncData, useAsyncData } from "@/hooks/useAsyncData";
-import React, { Suspense, useState } from "react";
+import type React from "react";
+import { Suspense, useContext, useEffect, useRef, useState } from "react";
 import { Spinner } from "../icons/spinner";
-import { ExternalLinkIcon, PowerOffIcon } from "lucide-react";
+import {
+  ActivityIcon,
+  BarChart2Icon,
+  BookOpenIcon,
+  BookTextIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  ChevronsDownUpIcon,
+  ClockIcon,
+  DatabaseIcon,
+  ExternalLinkIcon,
+  FileIcon,
+  FileTextIcon,
+  GraduationCapIcon,
+  GridIcon,
+  LayoutIcon,
+  OrbitIcon,
+  PlayCircleIcon,
+  PowerOffIcon,
+  RefreshCcwIcon,
+  SearchIcon,
+} from "lucide-react";
 import { ShutdownButton } from "../editor/controls/shutdown-button";
 import {
-  SessionId,
+  type SessionId,
   generateSessionId,
   getSessionId,
   isSessionId,
 } from "@/core/kernel/session";
 import { useInterval } from "@/hooks/useInterval";
-import { cn } from "@/utils/cn";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { AlertDialogDestructiveAction } from "@/components/ui/alert-dialog";
 import { assertExists } from "@/utils/assertExists";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
-import { WorkspaceFilesResponse } from "@/core/network/types";
+import type { FileInfo, MarimoFile, TutorialId } from "@/core/network/types";
 import { ConfigButton } from "../app-config/app-config-button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { MarkdownIcon } from "@/components/editor/cell/code/icons";
 import { asURL } from "@/utils/url";
+import { timeAgo } from "@/utils/dates";
+import {
+  type NodeApi,
+  type NodeRendererProps,
+  Tree,
+  type TreeApi,
+} from "react-arborist";
+import { cn } from "@/utils/cn";
+import {
+  type FileType,
+  guessFileType,
+  FILE_TYPE_ICONS,
+} from "../editor/file-tree/types";
+import { useAtom, useSetAtom } from "jotai";
+import {
+  expandedFoldersAtom,
+  includeMarkdownAtom,
+  RunningNotebooksContext,
+} from "../home/state";
+import { Maps } from "@/utils/maps";
+import { Input } from "../ui/input";
+import { Paths } from "@/utils/paths";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { Objects } from "@/utils/objects";
+import { CaretDownIcon } from "@radix-ui/react-icons";
 
 function tabTarget(path: string) {
   // Consistent tab target so we open in the same tab when clicking on the same notebook
@@ -37,17 +89,16 @@ function tabTarget(path: string) {
 }
 
 const HomePage: React.FC = () => {
-  const [includeMarkdown, setIncludeMarkdown] = useState(false);
-
-  const fileResponse = useAsyncData(async () => {
-    const [workspace, recents] = await Promise.all([
-      getWorkspaceFiles({ includeMarkdown: includeMarkdown }),
-      getRecentFiles(),
-    ]);
-    return { workspace, recents };
-  }, [includeMarkdown]);
-
+  const [includeMarkdown, setIncludeMarkdown] = useAtom(includeMarkdownAtom);
+  const [searchText, setSearchText] = useState("");
   const [nonce, setNonce] = useState(0);
+
+  const recentsResponse = useAsyncData(() => getRecentFiles(), []);
+  const workspaceResponse = useAsyncData(
+    () => getWorkspaceFiles({ includeMarkdown }),
+    [includeMarkdown],
+  );
+
   useInterval(
     () => {
       setNonce((nonce) => nonce + 1);
@@ -57,211 +108,275 @@ const HomePage: React.FC = () => {
   );
 
   const runningResponse = useAsyncData(async () => {
-    return getRunningNotebooks();
+    const response = await getRunningNotebooks();
+    return Maps.keyBy(response.files, (file) => file.path);
   }, [nonce]);
 
-  const error = fileResponse.error || runningResponse.error;
-  if (error) {
-    throw error;
+  const response = combineAsyncData(
+    recentsResponse,
+    workspaceResponse,
+    runningResponse,
+  );
+
+  if (response.error) {
+    throw response.error;
   }
 
-  const data = combineAsyncData(fileResponse, runningResponse).data;
+  const data = response.data;
   if (!data) {
     return <Spinner centered={true} size="xlarge" />;
   }
 
-  const [{ workspace, recents }, running] = data;
-
-  const runningNotebooks = new Map(
-    running.files.flatMap((file) =>
-      file.initializationId && file.sessionId
-        ? [
-            [
-              file.path,
-              {
-                sessionId: file.sessionId as SessionId,
-                initializationId: file.initializationId,
-              },
-            ],
-          ]
-        : [],
-    ),
-  );
+  const [recents, workspace, running] = data;
 
   return (
     <Suspense>
-      {/*<GridBackground />*/}
-      <div className="absolute top-3 right-5 flex gap-2 z-10">
-        <ConfigButton showAppConfig={false} />
-        <ShutdownButton
-          description={`This will shutdown the notebook server and terminate all running notebooks (${running.files.length}). You'll lose all data that's in memory.`}
-        />
-      </div>
-      <div className="flex flex-col gap-8 max-w-5xl container pt-10 pb-20 z-10">
-        <img src="logo.png" alt="marimo logo" className="w-64 mb-4" />
-        <CreateNewNotebook />
-        <NotebookList
-          header="Running notebooks"
-          files={running.files}
-          runningNotebooks={runningNotebooks}
-          setRunningNotebooks={runningResponse.setData}
-        />
-        <NotebookList
-          header="Recent notebooks"
-          files={recents.files}
-          runningNotebooks={runningNotebooks}
-          setRunningNotebooks={runningResponse.setData}
-        />
-        <NotebookList
-          header="All notebooks"
-          control={
-            <div className="flex items-center gap-2">
-              {fileResponse.loading && <Spinner size="small" />}
-              <Checkbox
-                data-testid="include-markdown-checkbox"
-                id="include-markdown"
-                checked={includeMarkdown}
-                onCheckedChange={(checked) =>
-                  setIncludeMarkdown(Boolean(checked))
-                }
+      <RunningNotebooksContext.Provider
+        value={{
+          runningNotebooks: running,
+          root: workspace.root,
+          setRunningNotebooks: runningResponse.setData,
+        }}
+      >
+        <div className="absolute top-3 right-5 flex gap-2 z-50">
+          <OpenTutorialDropDown />
+          <ConfigButton showAppConfig={false} />
+          <ShutdownButton
+            description={`This will shutdown the notebook server and terminate all running notebooks (${running.size}). You'll lose all data that's in memory.`}
+          />
+        </div>
+        <div className="flex flex-col gap-6 max-w-5xl container pt-5 pb-20 z-10">
+          <img src="logo.png" alt="marimo logo" className="w-64 mb-4" />
+          <CreateNewNotebook />
+          <NotebookList
+            header={<Header Icon={PlayCircleIcon}>Running notebooks</Header>}
+            files={[...running.values()]}
+            openNewTab={false}
+          />
+          <NotebookList
+            header={<Header Icon={ClockIcon}>Recent notebooks</Header>}
+            files={recents.files}
+            openNewTab={true}
+          />
+          <div className="flex flex-col gap-2">
+            <Header
+              Icon={BookTextIcon}
+              control={
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="search"
+                    value={searchText}
+                    icon={<SearchIcon size={13} />}
+                    onChange={(e) => setSearchText(e.target.value)}
+                    placeholder="Search"
+                    className="mb-0 border-border"
+                  />
+                  <CollapseAllButton />
+                  <Checkbox
+                    data-testid="include-markdown-checkbox"
+                    id="include-markdown"
+                    checked={includeMarkdown}
+                    onCheckedChange={(checked) =>
+                      setIncludeMarkdown(Boolean(checked))
+                    }
+                  />
+                  <Label htmlFor="include-markdown">Include markdown</Label>
+                </div>
+              }
+            >
+              Workspace
+              <RefreshCcwIcon
+                className="w-4 h-4 ml-1 cursor-pointer opacity-70 hover:opacity-100"
+                onClick={() => workspaceResponse.reload()}
               />
-              <Label htmlFor="include-markdown">Include markdown</Label>
+              {workspaceResponse.loading && <Spinner size="small" />}
+            </Header>
+            <div className="flex flex-col divide-y divide-[var(--slate-3)] border rounded overflow-hidden max-h-[48rem] overflow-y-auto shadow-sm bg-background">
+              <NotebookFileTree
+                searchText={searchText}
+                files={workspace.files}
+              />
             </div>
-          }
-          files={workspace.files}
-          runningNotebooks={runningNotebooks}
-          setRunningNotebooks={runningResponse.setData}
-        />
-        {/* <NotebookFromOrCodeUrl /> */}
-      </div>
+          </div>
+        </div>
+      </RunningNotebooksContext.Provider>
     </Suspense>
   );
 };
 
-const NotebookList: React.FC<{
-  header: string;
-  control?: React.ReactNode;
-  files: Array<{
-    name: string;
-    path: string;
-    sessionId?: string | null;
-    initializationId?: string | null;
-  }>;
-  runningNotebooks: Map<
-    string,
-    {
-      sessionId: SessionId;
-      initializationId: string;
-    }
-  >;
-  setRunningNotebooks: (data: WorkspaceFilesResponse) => void;
-}> = ({ control, header, files, runningNotebooks, setRunningNotebooks }) => {
-  const { openConfirm, closeModal } = useImperativeModal();
+const CollapseAllButton: React.FC = () => {
+  const setOpenState = useSetAtom(expandedFoldersAtom);
+  return (
+    <Button
+      variant="text"
+      size="sm"
+      className="h-fit"
+      onClick={() => {
+        setOpenState({});
+      }}
+    >
+      <ChevronsDownUpIcon className="w-4 h-4 mr-1" />
+      Collapse all
+    </Button>
+  );
+};
 
+const NotebookFileTree: React.FC<{
+  files: FileInfo[];
+  searchText?: string;
+}> = ({ files, searchText }) => {
+  const [openState, setOpenState] = useAtom(expandedFoldersAtom);
+  const openStateIsEmpty = Object.keys(openState).length === 0;
+  const ref = useRef<TreeApi<FileInfo>>();
+
+  useEffect(() => {
+    // If empty, collapse all
+    if (openStateIsEmpty) {
+      ref.current?.closeAll();
+    }
+  }, [openStateIsEmpty]);
+
+  if (files.length === 0) {
+    return (
+      <div className="flex flex-col px-5 py-10 items-center justify-center">
+        <p className="text-center text-muted-foreground">
+          No files in this workspace
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <Tree<FileInfo>
+      ref={ref}
+      width="100%"
+      height={500}
+      searchTerm={searchText}
+      className="h-full"
+      idAccessor={(data) => data.path}
+      data={files}
+      openByDefault={false}
+      initialOpenState={openState}
+      onToggle={async (id) => {
+        const prevOpen = openState[id] ?? false;
+        setOpenState({ ...openState, [id]: !prevOpen });
+      }}
+      padding={5}
+      rowHeight={35}
+      indent={15}
+      overscanCount={1000}
+      // Hide the drop cursor
+      renderCursor={() => null}
+      // Disable interactions
+      disableDrop={true}
+      disableDrag={true}
+      disableEdit={true}
+      disableMultiSelection={true}
+    >
+      {Node}
+    </Tree>
+  );
+};
+
+const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
+  const fileType: FileType = node.data.isDirectory
+    ? "directory"
+    : guessFileType(node.data.name);
+
+  const Icon = FILE_TYPE_ICONS[fileType];
+  const iconEl = <Icon className="w-5 h-5 flex-shrink-0" strokeWidth={1.5} />;
+  const root = useContext(RunningNotebooksContext).root;
+
+  const renderItem = () => {
+    const itemClassName =
+      "flex items-center pl-1 cursor-pointer hover:bg-accent/50 hover:text-accent-foreground rounded-l flex-1 overflow-hidden h-full pr-3 gap-2";
+    if (node.data.isDirectory) {
+      return (
+        <span className={itemClassName}>
+          {iconEl}
+          {node.data.name}
+        </span>
+      );
+    }
+
+    const relativePath =
+      node.data.path.startsWith(root) && Paths.isAbsolute(node.data.path)
+        ? Paths.rest(node.data.path, root)
+        : node.data.path;
+
+    const isMarkdown = relativePath.endsWith(".md");
+
+    return (
+      <a
+        className={itemClassName}
+        href={asURL(`?file=${relativePath}`).toString()}
+        target={tabTarget(relativePath)}
+      >
+        {iconEl}
+        <span className="flex-1 overflow-hidden text-ellipsis">
+          {node.data.name}
+          {isMarkdown && <MarkdownIcon className="ml-2 inline opacity-80" />}
+        </span>
+        <SessionShutdownButton filePath={relativePath} />
+        <ExternalLinkIcon
+          size={20}
+          className="group-hover:opacity-100 opacity-0 text-primary"
+        />
+      </a>
+    );
+  };
+
+  return (
+    <div
+      style={style}
+      className={cn(
+        "flex items-center cursor-pointer ml-1 text-muted-foreground whitespace-nowrap group h-full",
+      )}
+      onClick={(evt) => {
+        evt.stopPropagation();
+        if (node.data.isDirectory) {
+          node.toggle();
+        }
+      }}
+    >
+      <FolderArrow node={node} />
+      {renderItem()}
+    </div>
+  );
+};
+
+const FolderArrow = ({ node }: { node: NodeApi<FileInfo> }) => {
+  if (!node.data.isDirectory) {
+    return <span className="w-5 h-5 flex-shrink-0" />;
+  }
+
+  return node.isOpen ? (
+    <ChevronDownIcon className="w-5 h-5 flex-shrink-0" />
+  ) : (
+    <ChevronRightIcon className="w-5 h-5 flex-shrink-0" />
+  );
+};
+
+const NotebookList: React.FC<{
+  header: React.ReactNode;
+  files: MarimoFile[];
+  openNewTab: boolean;
+}> = ({ header, files, openNewTab }) => {
   if (files.length === 0) {
     return null;
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-2">
-        <Header>{header}</Header>
-        {control}
-      </div>
-      <div
-        className="flex flex-col divide-y divide-[var(--slate-3)] border rounded overflow-hidden
-        max-h-[48rem] overflow-y-auto shadow-sm bg-background
-        "
-      >
+    <div className="flex flex-col gap-2">
+      {header}
+      <div className="flex flex-col divide-y divide-[var(--slate-3)] border rounded overflow-hidden max-h-[48rem] overflow-y-auto shadow-sm bg-background">
         {files.map((file) => {
-          // If path is a sessionId, then it has not been saved yet
-          // We want to keep the sessionId in this case
-          const isNewNotebook = isSessionId(file.path);
-          const href = isNewNotebook
-            ? asURL(`?file=${file.initializationId}&session_id=${file.path}`)
-            : asURL(`?file=${file.path}`);
-
-          const isMarkdown = file.path.endsWith(".md");
-
           return (
-            <a
-              className="py-2 px-4 hover:bg-[var(--blue-2)] hover:text-primary transition-all duration-300 cursor-pointer group relative"
+            <MarimoFileComponent
               key={file.path}
-              href={href.toString()}
-              target={tabTarget(file.initializationId || file.path)}
-            >
-              <div className="flex flex-col justify-between">
-                <span className="flex items-center gap-2">
-                  {file.name}
-                  {isMarkdown && (
-                    <span className="opacity-80">
-                      <MarkdownIcon />
-                    </span>
-                  )}
-                </span>
-                <p
-                  title={file.path}
-                  className="text-sm text-muted-foreground
-                overflow-hidden whitespace-nowrap overflow-ellipsis
-              "
-                >
-                  {file.path}
-                </p>
-              </div>
-              <div className="absolute right-16 top-0 bottom-0 flex items-center">
-                {runningNotebooks.has(file.path) && (
-                  <Tooltip content="Shutdown">
-                    <Button
-                      size={"xs"}
-                      variant="outline"
-                      className="m-0 opacity-80 hover:opacity-100 hover:bg-accent text-destructive border-destructive hover:border-destructive hover:text-destructive bg-background hover:bg-[var(--red-1)]"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        openConfirm({
-                          title: "Shutdown",
-                          description:
-                            "This will terminate the Python kernel. You'll lose all data that's in memory.",
-                          variant: "destructive",
-                          confirmAction: (
-                            <AlertDialogDestructiveAction
-                              onClick={(e) => {
-                                const ids = runningNotebooks.get(file.path);
-                                assertExists(ids);
-                                shutdownSession({
-                                  sessionId: ids.sessionId,
-                                }).then((response) => {
-                                  setRunningNotebooks(response);
-                                });
-                                closeModal();
-                                toast({
-                                  description: "Notebook has been shutdown.",
-                                });
-                              }}
-                              aria-label="Confirm Shutdown"
-                            >
-                              Shutdown
-                            </AlertDialogDestructiveAction>
-                          ),
-                        });
-                      }}
-                    >
-                      <PowerOffIcon size={16} />
-                    </Button>
-                  </Tooltip>
-                )}
-              </div>
-              <div
-                className={cn(
-                  "absolute right-8 top-0 bottom-0 rounded-lg flex items-center justify-center text-muted-foreground text-primary",
-                )}
-              >
-                <ExternalLinkIcon
-                  size={24}
-                  className="absolute group-hover:opacity-100 opacity-0 transition-all duration-300"
-                />
-              </div>
-            </a>
+              file={file}
+              openNewTab={openNewTab}
+            />
           );
         })}
       </div>
@@ -269,9 +384,135 @@ const NotebookList: React.FC<{
   );
 };
 
-const Header: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const Header: React.FC<{
+  Icon: React.FC<React.SVGProps<SVGSVGElement>>;
+  control?: React.ReactNode;
+  children: React.ReactNode;
+}> = ({ Icon, control, children }) => {
   return (
-    <h2 className="text-xl font-semibold text-muted-foreground">{children}</h2>
+    <div className="flex items-center justify-between gap-2">
+      <h2 className="flex items-center gap-2 text-xl font-semibold text-muted-foreground select-none">
+        <Icon className="h-5 w-5" />
+        {children}
+      </h2>
+      {control}
+    </div>
+  );
+};
+
+const MarimoFileComponent = ({
+  file,
+  openNewTab,
+}: {
+  file: MarimoFile;
+  openNewTab: boolean;
+}) => {
+  // If path is a sessionId, then it has not been saved yet
+  // We want to keep the sessionId in this case
+  const isNewNotebook = isSessionId(file.path);
+  const href = isNewNotebook
+    ? asURL(`?file=${file.initializationId}&session_id=${file.path}`)
+    : asURL(`?file=${file.path}`);
+
+  const isMarkdown = file.path.endsWith(".md");
+
+  return (
+    <a
+      className="py-1.5 px-4 hover:bg-[var(--blue-2)] hover:text-primary transition-all duration-300 cursor-pointer group relative flex gap-4 items-center"
+      key={file.path}
+      href={href.toString()}
+      target={openNewTab ? tabTarget(file.initializationId || file.path) : ""}
+    >
+      <div className="flex flex-col justify-between flex-1">
+        <span className="flex items-center gap-2">
+          {file.name}
+          {isMarkdown && (
+            <span className="opacity-80">
+              <MarkdownIcon />
+            </span>
+          )}
+        </span>
+        <p
+          title={file.path}
+          className="text-sm text-muted-foreground overflow-hidden whitespace-nowrap overflow-ellipsis"
+        >
+          {file.path}
+        </p>
+      </div>
+      <div className="flex flex-col gap-1 items-end">
+        <div className="flex gap-3 items-center">
+          <div>
+            <SessionShutdownButton filePath={file.path} />
+          </div>
+          {openNewTab && (
+            <ExternalLinkIcon
+              size={20}
+              className="group-hover:opacity-100 opacity-0 transition-all duration-300 text-primary"
+            />
+          )}
+        </div>
+        {!!file.lastModified && (
+          <div className="text-xs text-muted-foreground opacity-80">
+            {timeAgo(file.lastModified * 1000)}
+          </div>
+        )}
+      </div>
+    </a>
+  );
+};
+
+const SessionShutdownButton: React.FC<{ filePath: string }> = ({
+  filePath,
+}) => {
+  const { openConfirm, closeModal } = useImperativeModal();
+  const { runningNotebooks, setRunningNotebooks } = useContext(
+    RunningNotebooksContext,
+  );
+  if (!runningNotebooks.has(filePath)) {
+    return null;
+  }
+  return (
+    <Tooltip content="Shutdown">
+      <Button
+        size={"icon"}
+        variant="outline"
+        className="opacity-80 hover:opacity-100 hover:bg-accent text-destructive border-destructive hover:border-destructive hover:text-destructive bg-background hover:bg-[var(--red-1)]"
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          openConfirm({
+            title: "Shutdown",
+            description:
+              "This will terminate the Python kernel. You'll lose all data that's in memory.",
+            variant: "destructive",
+            confirmAction: (
+              <AlertDialogDestructiveAction
+                onClick={(e) => {
+                  const ids = runningNotebooks.get(filePath);
+                  assertExists(ids);
+                  shutdownSession({
+                    sessionId: ids.sessionId as SessionId,
+                  }).then((response) => {
+                    setRunningNotebooks(
+                      Maps.keyBy(response.files, (file) => file.path),
+                    );
+                  });
+                  closeModal();
+                  toast({
+                    description: "Notebook has been shutdown.",
+                  });
+                }}
+                aria-label="Confirm Shutdown"
+              >
+                Shutdown
+              </AlertDialogDestructiveAction>
+            ),
+          });
+        }}
+      >
+        <PowerOffIcon size={14} />
+      </Button>
+    </Tooltip>
   );
 };
 
@@ -281,7 +522,7 @@ const CreateNewNotebook: React.FC = () => {
   return (
     <a
       className="relative rounded-lg p-6 group
-      text-primary hover:bg-[var(--blue-2)] shadow-smAccent border
+      text-primary hover:bg-[var(--blue-2)] shadow-mdSolid shadow-accent border
       transition-all duration-300 cursor-pointer
       "
       href={asURL(`?file=${initializationId}`).toString()}
@@ -295,19 +536,51 @@ const CreateNewNotebook: React.FC = () => {
   );
 };
 
-// const NotebookFromOrCodeUrl: React.FC = () => {
-//   return (
-//     <div className="flex flex-col gap-2">
-//       <h3 className="text-lg font-semibold">
-//         Open a notebook from URL or paste code
-//       </h3>
-//       <Input
-//         className="h-12 px-4 border-border"
-//         type="text"
-//         placeholder="Enter URL"
-//       />
-//     </div>
-//   );
-// };
+const TUTORIALS: Record<
+  TutorialId,
+  [string, React.FC<React.SVGProps<SVGSVGElement>>]
+> = {
+  intro: ["Introduction", BookOpenIcon],
+  dataflow: ["Dataflow", ActivityIcon],
+  ui: ["UI Elements", LayoutIcon],
+  markdown: ["Markdown", FileTextIcon],
+  plots: ["Plots", BarChart2Icon],
+  sql: ["SQL", DatabaseIcon],
+  layout: ["Layout", GridIcon],
+  fileformat: ["File format", FileIcon],
+  "for-jupyter-users": ["For Jupyter users", OrbitIcon],
+  "markdown-format": ["Markdown format", MarkdownIcon],
+};
+
+const OpenTutorialDropDown: React.FC = () => {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild={true}>
+        <Button data-testid="open-tutorial-button" size="xs" variant="outline">
+          <GraduationCapIcon className="w-4 h-4 mr-2" />
+          Tutorials
+          <CaretDownIcon className="w-3 h-3 ml-1" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="bottom" className="no-print">
+        {Objects.entries(TUTORIALS).map(([tutorialId, [label, Icon]]) => (
+          <DropdownMenuItem
+            key={tutorialId}
+            onSelect={async () => {
+              const file = await openTutorial({ tutorialId });
+              if (!file) {
+                return;
+              }
+              window.open(asURL(`?file=${file.path}`).toString(), "_blank");
+            }}
+          >
+            <Icon strokeWidth={1.5} className="w-4 h-4 mr-2" />
+            {label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
 
 export default HomePage;

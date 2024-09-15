@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from marimo._config.config import Theme
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._output.hypertext import Html
@@ -25,6 +26,10 @@ class PlotlyFormatter(FormatterFactory):
         def _show_plotly_figure(
             fig: plotly.graph_objects.Figure,
         ) -> tuple[KnownMimeType, str]:
+            dragmode = getattr(fig.layout, "dragmode", None)
+            if dragmode is None:
+                # Users are accustomed to default zoom.
+                fig.update_layout(dragmode="zoom")
             json_str: str = pio.to_json(fig)
             plugin = PlotlyFormatter.render_plotly_dict(json.loads(json_str))
             return ("text/html", plugin.text)
@@ -47,3 +52,8 @@ class PlotlyFormatter(FormatterFactory):
                 args={"figure": json, "config": resolved_config},
             )
         )
+
+    def apply_theme(self, theme: Theme) -> None:
+        import plotly.io as pio  # type: ignore
+
+        pio.templates.default = "plotly_dark" if theme == "dark" else "plotly"

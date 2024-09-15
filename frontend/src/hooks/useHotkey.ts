@@ -5,7 +5,7 @@ import { parseShortcut } from "../core/hotkeys/shortcuts";
 import { useEventListener } from "./useEventListener";
 import { useEvent } from "./useEvent";
 import { useSetRegisteredAction } from "../core/hotkeys/actions";
-import { HotkeyAction } from "@/core/hotkeys/hotkeys";
+import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
 import { Objects } from "@/utils/objects";
 import { Logger } from "@/utils/Logger";
 import { Functions } from "@/utils/functions";

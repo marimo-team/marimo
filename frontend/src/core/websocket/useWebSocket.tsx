@@ -3,8 +3,8 @@ import { useEffect, useState } from "react";
 import ReconnectingWebSocket from "partysocket/ws";
 import type { IReconnectingWebSocket } from "./types";
 import { StaticWebsocket } from "./StaticWebsocket";
-import { isPyodide } from "../pyodide/utils";
-import { PyodideBridge, PyodideWebsocket } from "../pyodide/bridge";
+import { isWasm } from "../wasm/utils";
+import { PyodideBridge, PyodideWebsocket } from "../wasm/bridge";
 import { Logger } from "@/utils/Logger";
 
 interface UseWebSocketOptions {
@@ -26,7 +26,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
 
   // eslint-disable-next-line react/hook-use-state
   const [ws] = useState<IReconnectingWebSocket>(() => {
-    const socket: IReconnectingWebSocket = isPyodide()
+    const socket: IReconnectingWebSocket = isWasm()
       ? new PyodideWebsocket(PyodideBridge.INSTANCE)
       : options.static
         ? new StaticWebsocket()

@@ -5,26 +5,29 @@ import { X } from "lucide-react";
 
 import { cn } from "@/utils/cn";
 import { useRestoreFocus } from "./use-restore-focus";
+import { withFullScreenAsRoot } from "./fullscreen";
 
 const Dialog = DialogPrimitive.Root;
 
 const DialogTrigger = DialogPrimitive.Trigger;
 
-const DialogPortal = ({
-  className,
-  children,
-  ...props
-}: DialogPrimitive.DialogPortalProps & { className?: string }) => (
-  <DialogPrimitive.Portal {...props}>
-    <div
-      className={cn(
-        "fixed inset-0 z-50 flex items-start justify-center sm:items-start sm:top-[15%]",
-        className,
-      )}
-    >
-      {children}
-    </div>
-  </DialogPrimitive.Portal>
+const DialogPortal = withFullScreenAsRoot(
+  ({
+    className,
+    children,
+    ...props
+  }: DialogPrimitive.DialogPortalProps & { className?: string }) => (
+    <DialogPrimitive.Portal {...props}>
+      <div
+        className={cn(
+          "fixed inset-0 z-50 flex items-start justify-center sm:items-start sm:top-[15%]",
+          className,
+        )}
+      >
+        {children}
+      </div>
+    </DialogPrimitive.Portal>
+  ),
 );
 DialogPortal.displayName = DialogPrimitive.Portal.displayName;
 

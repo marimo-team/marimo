@@ -7,7 +7,7 @@ import textwrap
 from typing import TYPE_CHECKING, Any
 
 import pytest
-from marimo._ast.app import App, _AppConfig
+from marimo._ast.app import App, _AppConfig, InternalApp
 from marimo._ast.errors import (
     CycleError,
     DeleteNonlocalError,
@@ -276,6 +276,25 @@ class TestApp:
         app.run()
 
     @staticmethod
+    def test_dunder_rewritten_as_local() -> None:
+        app = App()
+
+        @app.cell
+        def _() -> None:
+            __ = 1  # noqa: F841
+            return
+
+        @app.cell
+        def _() -> None:
+            __  # type: ignore
+            return
+
+        with pytest.raises(NameError) as e:
+            app.run()
+
+        assert "'__' is not defined" in str(e.value)
+
+    @staticmethod
     def test_app_width_config() -> None:
         app = App(width="full")
         assert app._config.width == "full"
@@ -290,8 +309,10 @@ class TestApp:
         app = App(width="full", fake_config="foo")
         assert app._config.asdict() == {
             "app_title": None,
+            "css_file": None,
             "width": "full",
             "layout_file": None,
+            "auto_download": [],
         }
 
     @staticmethod
@@ -397,7 +418,7 @@ class TestApp:
         assert defs["y"] == 1
 
     @pytest.mark.skipif(
-        condition=not DependencyManager.has_matplotlib(),
+        condition=not DependencyManager.matplotlib.has(),
         reason="requires matplotlib",
     )
     def test_marimo_mpl_backend_not_used(self):
@@ -415,7 +436,7 @@ class TestApp:
         assert defs["backend"] != "module://marimo._output.mpl"
 
     @pytest.mark.skipif(
-        condition=not DependencyManager.has_matplotlib(),
+        condition=not DependencyManager.matplotlib.has(),
         reason="requires matplotlib",
     )
     def test_app_run_matplotlib_figures_closed(self) -> None:
@@ -440,6 +461,36 @@ class TestApp:
         assert isinstance(outputs[1], Axes)
         assert outputs[0] != outputs[1]
 
+    @staticmethod
+    def test_app_config_auto_download():
+        # Test default value
+        config = _AppConfig()
+        assert config.auto_download == []
+
+        # Test setting auto_download
+        config = _AppConfig(auto_download=["html", "markdown"])
+        assert config.auto_download == ["html", "markdown"]
+
+        # Test updating auto_download
+        config.update({"auto_download": ["html"]})
+        assert config.auto_download == ["html"]
+
+        # Test setting empty list
+        config.update({"auto_download": []})
+        assert config.auto_download == []
+
+        # Test from_untrusted_dict
+        config = _AppConfig.from_untrusted_dict({"auto_download": ["markdown"]})
+        assert config.auto_download == ["markdown"]
+
+        # Test asdict
+        config_dict = config.asdict()
+        assert config_dict["auto_download"] == ["markdown"]
+
+        # Test invalid values are allowed for forward compatibility
+        config = _AppConfig(auto_download=["invalid"])
+        assert config.auto_download == ["invalid"]
+
 
 def test_app_config() -> None:
     config = _AppConfig.from_untrusted_dict({"width": "full"})
@@ -447,8 +498,10 @@ def test_app_config() -> None:
     assert config.layout_file is None
     assert config.asdict() == {
         "app_title": None,
+        "css_file": None,
         "width": "full",
         "layout_file": None,
+        "auto_download": [],
     }
 
 
@@ -460,8 +513,10 @@ def test_app_config_extra_args_ignored() -> None:
     assert config.layout_file is None
     assert config.asdict() == {
         "app_title": None,
+        "css_file": None,
         "width": "full",
         "layout_file": None,
+        "auto_download": [],
     }
 
 
@@ -494,21 +549,24 @@ def test_cli_args(tmp_path: pathlib.Path) -> None:
 
 
 class TestAppComposition:
-    def test_app_as_html(self) -> None:
+    async def test_app_embed(self) -> None:
         app = App()
 
         @app.cell
         def __() -> None:
+            x = 1
             "hello"
 
         @app.cell
         def __() -> None:
             "world"
 
-        app_html = as_html(app).text
-        assert app_html == vstack(["hello", "world"]).text
+        result = await app.embed()
+        assert result.output.text == vstack(["hello", "world"]).text
+        assert set(result.defs.keys()) == set(["x"])
+        assert result.defs["x"] == 1
 
-    def test_app_as_html_none_stripped(self) -> None:
+    async def test_app_embed_none_stripped(self) -> None:
         app = App()
 
         @app.cell
@@ -523,21 +581,10 @@ class TestAppComposition:
         def __() -> None:
             "world"
 
-        app_html = as_html(app).text
+        result = await app.embed()
         # None shouldn't show up in output
-        assert app_html == vstack(["hello", "world"]).text
-
-    def test_app_as_html_is_cached(self) -> None:
-        app = App()
-
-        @app.cell
-        def __() -> None:
-            import random
-
-            random.randint(0, 10000)
-
-        # the app should only run once
-        assert as_html(app).text == as_html(app).text
+        assert result.output.text == vstack(["hello", "world"]).text
+        assert not result.defs
 
     async def test_app_comp_basic(
         self, k: Kernel, exec_req: ExecReqProvider
@@ -554,7 +601,7 @@ class TestAppComposition:
                     import random
 
                     token = random.randint(0, 10000)
-                    app
+                    result = await app.embed()
                     """
                 ),
             ]
@@ -564,12 +611,12 @@ class TestAppComposition:
         # store the token value now, so we can make sure it changes later,
         # ie can make sure cell re-ran
         token = k.globals["token"]
-        app = k.globals["app"]
+        result = k.globals["result"]
         # dropdown has name d in app
-        dropdown_element = app._cached_defs["d"]
+        dropdown_element = result.defs["d"]
         assert dropdown_element.value == "first"
 
-        html = as_html(app).text
+        html = result.output.text
         assert "value is first" in html
         assert "value is second" not in html
 
@@ -579,13 +626,12 @@ class TestAppComposition:
             )
         )
         assert token != k.globals["token"]
-        assert not app._pending_ui_element_updates
 
         # make sure ui element value updated
         assert dropdown_element.value == "second"
         # make sure cell referencing app re-ran
-
-        html = as_html(app).text
+        result = k.globals["result"]
+        html = result.output.text
         assert "value is first" not in html
         assert "value is second" in html
 
@@ -601,17 +647,17 @@ class TestAppComposition:
                 ),
                 exec_req.get(
                     """
-                    app
+                    result = await app.embed()
                     """
                 ),
             ]
         )
         assert not k.errors
 
-        app = k.globals["app"]
+        result = k.globals["result"]
         # two number inputs: x and y
-        x = app._cached_defs["x"]
-        y = app._cached_defs["y"]
+        x = result.defs["x"]
+        y = result.defs["y"]
         assert x.value == 1
         assert y.value == 1
 

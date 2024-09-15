@@ -12,8 +12,14 @@
 </p>
 
 <p align="center">
+  <b>English | </b>
+  <a href="https://github.com/marimo-team/marimo/blob/main/README_Chinese.md" target="_blank"><b>简体中文</b></a>
+</p>
+
+<p align="center">
 <a href="https://pypi.org/project/marimo/"><img src="https://img.shields.io/pypi/v/marimo?color=%2334D058&label=pypi" /></a>
 <a href="https://anaconda.org/conda-forge/marimo"><img src="https://img.shields.io/conda/vn/conda-forge/marimo.svg"/></a>
+<a href="https://discord.gg/JE7nhX6mD8"><img src="https://shields.io/discord/1059888774789730424" alt="discord" /></a>
 <a href="https://github.com/marimo-team/marimo/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/marimo" /></a>
 </p>
 
@@ -24,12 +30,15 @@ and deployable as apps.
 
 **Highlights**.
 
-- **reactive**: run a cell, and marimo automatically runs all dependent cells
-- **interactive**: bind sliders, tables, plots, and more to Python — no callbacks required
-- **reproducible**: no hidden state, deterministic execution
-- **executable**: execute as a Python script, parametrized by CLI args
-- **shareable**: deploy as an interactive web app, or run in the browser via WASM
-- **git-friendly**: stored as `.py` files
+- 🚀 **batteries-included:** replaces `jupyter`, `streamlit`, `jupytext`, `ipywidgets`, `papermill`, and more
+- ⚡️ **reactive**: run a cell, and marimo reactively [runs all dependent cells](https://docs.marimo.io/guides/reactivity.html) or <a href="#expensive-notebooks">marks them as stale</a>
+- 🖐️ **interactive:** [bind sliders, tables, plots, and more](https://docs.marimo.io/guides/interactivity.html) to Python — no callbacks required
+- 🔬 **reproducible:** [no hidden state](https://docs.marimo.io/guides/reactivity.html#no-hidden-state), deterministic execution, [built-in package management](https://docs.marimo.io/guides/editor_features/package_management.html)
+- 🏃 **executable:** [execute as a Python script](https://docs.marimo.io/guides/scripts.html), parametrized by CLI args
+- 🛜 **shareable**: [deploy as an interactive web app](https://docs.marimo.io/guides/apps.html) or [slides](https://docs.marimo.io/guides/apps.html#slides-layout), [run in the browser via WASM](https://docs.marimo.io/guides/wasm.html)
+- 🛢️ **designed for data**: query dataframes and databases [with SQL](https://docs.marimo.io/guides/sql.html), filter and search [dataframes](https://docs.marimo.io/guides/dataframes.html#displaying-dataframes)
+- 🐍 **git-friendly:** notebooks are stored as `.py` files
+- ⌨️ **a modern editor**: [GitHub Copilot](https://docs.marimo.io/guides/editor_features/ai_completion.html#github-copilot), [AI assistants](https://docs.marimo.io/guides/editor_features/ai_completion.html#using-ollama), vim keybindings, variable explorer, and [more](https://docs.marimo.io/guides/editor_features/index.html)
 
 ```python
 pip install marimo && marimo tutorial intro
@@ -51,9 +60,12 @@ memory, eliminating hidden state.
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/reactive.gif" width="700px" />
 
-**Deterministic execution order.** Notebooks are executed in a deterministic
-order, based on variable references instead of cells' positions on the page.
-Organize your notebooks to best fit the stories you'd like to tell.
+<a name="expensive-notebooks"></a>
+
+**Compatible with expensive notebooks.** marimo lets you configure the runtime
+to be lazy, marking affected cells as stale instead of automatically running
+them. This gives you guarantees on program state while preventing accidental
+execution of expensive cells.
 
 **Synchronized UI elements.** Interact with UI elements like sliders,
 dropdowns, and dataframe transformers, and the cells that use them are
@@ -64,16 +76,32 @@ automatically re-run with their latest values.
 **Performant runtime.** marimo runs only those cells that need to be run by
 statically analyzing your code.
 
-<a name="expensive-notebooks"></a>
+**Dynamic markdown and SQL.** Use markdown to tell dynamic stories that depend on
+Python data. Or build [SQL](https://docs.marimo.io/guides/sql.html) queries
+that depend on Python values and execute them against dataframes, databases,
+CSVs, Google Sheets, or anything else using our built-in SQL engine, which
+returns the result as a Python dataframe.
 
-**Compatible with expensive notebooks.** You can optionally disable expensive cells to
-prevent them from automatically running, or configure the runtime to be
-lazy and mark affected stales as stale instead of automatically running them.
+<img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-sql-cell.png" width="700px" />
 
-**Batteries-included.** marimo comes with GitHub Copilot, Black code
-formatting, HTML export, fast code completion, a [VS Code
+Your notebooks are still pure Python, even if they use markdown or SQL.
+
+**Deterministic execution order.** Notebooks are executed in a deterministic
+order, based on variable references instead of cells' positions on the page.
+Organize your notebooks to best fit the stories you'd like to tell.
+
+**Built-in package management.** marimo has built-in support for all major
+package managers, letting you install packages on import. marimo can even
+[serialize package
+requirements](https://docs.marimo.io/guides/editor_features/package_management.html#auto-add-inline-script-metadata-uv-only)
+in notebook files, and auto install them in
+[isolated venv sandboxes](https://docs.marimo.io/guides/editor_features/package_management.html#running-marimo-in-a-sandbox-environment-uv-only).
+
+**Batteries-included.** marimo comes with GitHub Copilot, AI assistants, Ruff
+code formatting, HTML export, fast code completion, a [VS Code
 extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo),
-and many more quality-of-life features.
+an interactive dataframe viewer, and [many more](https://docs.marimo.io/guides/editor_features/index.html)
+quality-of-life features.
 
 ## Quickstart
 

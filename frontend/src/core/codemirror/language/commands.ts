@@ -37,9 +37,10 @@ export function canToggleToLanguage(
 export function toggleToLanguage(
   editorView: EditorView,
   language: LanguageAdapterType,
+  opts: { force?: boolean } = {},
 ): LanguageAdapterType | false {
   // Check if the language can be toggled
-  if (!canToggleToLanguage(editorView, language)) {
+  if (!opts.force && !canToggleToLanguage(editorView, language)) {
     return false;
   }
 

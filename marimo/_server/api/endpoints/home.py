@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import os
+import tempfile
 from typing import TYPE_CHECKING, List
 
 from starlette.authentication import requires
+from starlette.responses import JSONResponse
 
 from marimo import _loggers
 from marimo._server.api.deps import AppState
@@ -13,12 +15,15 @@ from marimo._server.file_router import LazyListOfFilesAppFileRouter
 from marimo._server.model import ConnectionState
 from marimo._server.models.home import (
     MarimoFile,
+    OpenTutorialRequest,
     RecentFilesResponse,
+    RunningNotebooksResponse,
     ShutdownSessionRequest,
     WorkspaceFilesRequest,
     WorkspaceFilesResponse,
 )
 from marimo._server.router import APIRouter
+from marimo._tutorials import create_temp_tutorial_file
 from marimo._utils.paths import pretty_path
 
 if TYPE_CHECKING:
@@ -74,13 +79,18 @@ async def workspace_files(
     session_manager = AppState(request).session_manager
 
     # Maybe enable markdown
+    root = ""
     if isinstance(session_manager.file_router, LazyListOfFilesAppFileRouter):
+        # Mark stale in case new files are added
+        session_manager.file_router.mark_stale()
+        # Toggle markdown
         session_manager.file_router = (
             session_manager.file_router.toggle_markdown(body.include_markdown)
         )
+        root = session_manager.file_router.directory
 
     files = session_manager.file_router.files
-    return WorkspaceFilesResponse(files=files)
+    return WorkspaceFilesResponse(files=files, root=root)
 
 
 def _get_active_sessions(app_state: AppState) -> List[MarimoFile]:
@@ -108,7 +118,7 @@ def _get_active_sessions(app_state: AppState) -> List[MarimoFile]:
 async def running_notebooks(
     *,
     request: Request,
-) -> WorkspaceFilesResponse:
+) -> RunningNotebooksResponse:
     """
     responses:
         200:
@@ -116,10 +126,10 @@ async def running_notebooks(
             content:
                 application/json:
                     schema:
-                        $ref: "#/components/schemas/WorkspaceFilesResponse"
+                        $ref: "#/components/schemas/RunningNotebooksResponse"
     """
     app_state = AppState(request)
-    return WorkspaceFilesResponse(files=_get_active_sessions(app_state))
+    return RunningNotebooksResponse(files=_get_active_sessions(app_state))
 
 
 @router.post("/shutdown_session")
@@ -127,7 +137,7 @@ async def running_notebooks(
 async def shutdown_session(
     *,
     request: Request,
-) -> WorkspaceFilesResponse:
+) -> RunningNotebooksResponse:
     """
     requestBody:
         content:
@@ -140,9 +150,47 @@ async def shutdown_session(
             content:
                 application/json:
                     schema:
-                        $ref: "#/components/schemas/WorkspaceFilesResponse"
+                        $ref: "#/components/schemas/RunningNotebooksResponse"
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=ShutdownSessionRequest)
     app_state.session_manager.close_session(body.session_id)
-    return WorkspaceFilesResponse(files=_get_active_sessions(app_state))
+    return RunningNotebooksResponse(files=_get_active_sessions(app_state))
+
+
+@router.post("/tutorial/open")
+@requires("edit")
+async def tutorial(
+    *,
+    request: Request,
+) -> MarimoFile | JSONResponse:
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/OpenTutorialRequest"
+    responses:
+        200:
+            description: Open a new tutorial
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/MarimoFile"
+    """
+    # Create a new tutorial file and return the filepath
+    try:
+        body = await parse_request(request, cls=OpenTutorialRequest)
+    except ValueError:
+        return JSONResponse({"detail": "Tutorial not found"}, status_code=400)
+    temp_dir = tempfile.TemporaryDirectory()
+    path = create_temp_tutorial_file(body.tutorial_id, temp_dir)
+
+    import atexit
+
+    atexit.register(temp_dir.cleanup)
+
+    return MarimoFile(
+        name=os.path.basename(path.absolute_name),
+        path=path.absolute_name,
+    )

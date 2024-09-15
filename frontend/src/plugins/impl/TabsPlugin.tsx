@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { PropsWithChildren } from "react";
+import React, { type PropsWithChildren } from "react";
 
 import {
   Tabs,
@@ -9,7 +9,7 @@ import {
 } from "../../components/ui/tabs";
 import { z } from "zod";
 import { renderHTML } from "../core/RenderHTML";
-import { IPlugin, IPluginProps } from "../types";
+import type { IPlugin, IPluginProps } from "../types";
 
 interface Data {
   /**

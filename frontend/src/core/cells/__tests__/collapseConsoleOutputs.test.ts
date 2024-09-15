@@ -2,7 +2,7 @@
 
 import { expect, describe, it } from "vitest";
 import { collapseConsoleOutputs } from "../collapseConsoleOutputs";
-import { OutputMessage } from "@/core/kernel/messages";
+import type { OutputMessage } from "@/core/kernel/messages";
 
 describe("collapseConsoleOutputs", () => {
   it("should collapse last two text/plain outputs on the same channel", () => {

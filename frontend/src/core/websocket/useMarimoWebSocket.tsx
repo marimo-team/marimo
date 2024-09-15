@@ -32,12 +32,13 @@ import {
 import { queryParamHandlers } from "../kernel/queryParamHandlers";
 import type { JsonString } from "@/utils/json/base64";
 import { useDatasetsActions } from "../datasets/state";
-import { RequestId } from "../network/DeferredRequestRegistry";
-import { VariableName } from "../variables/types";
-import { CellId } from "../cells/ids";
+import type { RequestId } from "../network/DeferredRequestRegistry";
+import type { VariableName } from "../variables/types";
+import type { CellId, UIElementId } from "../cells/ids";
 import { kioskModeAtom } from "../mode";
 import { focusAndScrollCellOutputIntoView } from "../cells/scrollCellIntoView";
 import { capabilitiesAtom } from "../config/capabilities";
+import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -85,6 +86,14 @@ export function useMarimoWebSocket(opts: {
       case "completed-run":
         return;
       case "interrupted":
+        return;
+
+      case "send-ui-element-message":
+        UI_ELEMENT_REGISTRY.broadcastMessage(
+          msg.data.ui_element as UIElementId,
+          msg.data.message,
+          msg.data.buffers,
+        );
         return;
 
       case "remove-ui-elements":

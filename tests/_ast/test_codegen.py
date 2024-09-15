@@ -6,6 +6,7 @@ import os
 import tempfile
 from functools import partial
 from inspect import cleandoc
+from textwrap import dedent
 from typing import Optional
 
 import codegen_data.test_main as mod
@@ -70,7 +71,9 @@ class TestGeneration:
 
     @staticmethod
     def test_generate_filecontents_empty_with_config() -> None:
-        config = _AppConfig(app_title="test_title", width="full")
+        config = _AppConfig(
+            app_title="test_title", width="full", css_file=r"a\b.css"
+        )
         contents = wrap_generate_filecontents([], [], config=config)
         assert contents == get_expected_filecontents(
             "test_generate_filecontents_empty_with_config"
@@ -228,6 +231,37 @@ class TestGeneration:
         assert contents == get_expected_filecontents(
             "test_generate_filecontents_shadowed_builtin"
         )
+
+    @staticmethod
+    def test_generate_app_constructor_with_auto_download() -> None:
+        config = _AppConfig(
+            width="full",
+            app_title="Test App",
+            css_file="custom.css",
+            auto_download=["html", "markdown"],
+        )
+        result = codegen.generate_app_constructor(config)
+        expected = (
+            "app = marimo.App(\n"
+            '    width="full",\n'
+            '    app_title="Test App",\n'
+            '    css_file="custom.css",\n'
+            '    auto_download=["html", "markdown"],\n'
+            ")"
+        )
+        assert result == expected
+
+    @staticmethod
+    def test_generate_app_constructor_with_empty_auto_download() -> None:
+        config = _AppConfig(auto_download=[])
+        result = codegen.generate_app_constructor(config)
+        assert result == "app = marimo.App()"
+
+    @staticmethod
+    def test_generate_app_constructor_with_single_auto_download() -> None:
+        config = _AppConfig(auto_download=["html"])
+        result = codegen.generate_app_constructor(config)
+        assert result == 'app = marimo.App(auto_download=["html"])'
 
 
 class TestGetCodes:
@@ -561,3 +595,15 @@ def test_get_header_comments_invalid() -> None:
     comments = codegen.get_header_comments(filepath)
 
     assert comments is None, "Comments found when there should be none"
+
+
+def test_sqls() -> None:
+    code = dedent(
+        """
+    db.sql("SELECT * FROM foo")
+    db.sql("ATTACH TABLE bar")
+    """
+    )
+    cell = compile_cell(code)
+    sqls = cell.sqls
+    assert sqls == ["SELECT * FROM foo", "ATTACH TABLE bar"]

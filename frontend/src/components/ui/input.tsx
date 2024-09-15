@@ -4,7 +4,10 @@ import * as React from "react";
 import { cn } from "@/utils/cn";
 import { useDebounceControlledState } from "@/hooks/useDebounce";
 import { Events } from "@/utils/events";
-import { NumberField, NumberFieldProps } from "@/components/ui/number-field";
+import {
+  NumberField,
+  type NumberFieldProps,
+} from "@/components/ui/number-field";
 import { SearchIcon, XIcon } from "lucide-react";
 
 export type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {

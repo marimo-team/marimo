@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { VegaLiteSpec } from "@/plugins/impl/vega/types";
+import type { VegaLiteSpec } from "@/plugins/impl/vega/types";
 
 export const BAR_CHART: VegaLiteSpec = {
   data: {

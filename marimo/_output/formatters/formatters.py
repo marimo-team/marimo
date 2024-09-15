@@ -4,6 +4,7 @@ from __future__ import annotations
 import sys
 from typing import Any, Callable, Sequence
 
+from marimo._config.config import Theme
 from marimo._output.formatters.altair_formatters import AltairFormatter
 from marimo._output.formatters.anywidget_formatters import AnyWidgetFormatter
 from marimo._output.formatters.arviz_formatters import ArviZFormatter
@@ -16,12 +17,16 @@ from marimo._output.formatters.df_formatters import (
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._output.formatters.holoviews_formatters import HoloViewsFormatter
 from marimo._output.formatters.ipython_formatters import IPythonFormatter
+from marimo._output.formatters.ipywidgets_formatters import IPyWidgetsFormatter
 from marimo._output.formatters.leafmap_formatters import LeafmapFormatter
+from marimo._output.formatters.lets_plot_formatters import LetsPlotFormatter
 from marimo._output.formatters.matplotlib_formatters import MatplotlibFormatter
 from marimo._output.formatters.pandas_formatters import PandasFormatter
 from marimo._output.formatters.plotly_formatters import PlotlyFormatter
 from marimo._output.formatters.seaborn_formatters import SeabornFormatter
 from marimo._output.formatters.structures import StructuresFormatter
+from marimo._output.formatters.sympy_formatters import SympyFormatter
+from marimo._output.formatters.tqdm_formatters import TqdmFormatter
 
 # Map from formatter factory's package name to formatter, for third-party
 # modules. These formatters will be registered if and when their associated
@@ -38,8 +43,12 @@ THIRD_PARTY_FACTORIES: dict[str, FormatterFactory] = {
     BokehFormatter.package_name(): BokehFormatter(),
     HoloViewsFormatter.package_name(): HoloViewsFormatter(),
     IPythonFormatter.package_name(): IPythonFormatter(),
+    IPyWidgetsFormatter.package_name(): IPyWidgetsFormatter(),
     AnyWidgetFormatter.package_name(): AnyWidgetFormatter(),
-    ArviZFormatter.package_name(): ArviZFormatter()
+    ArviZFormatter.package_name(): ArviZFormatter(),
+    TqdmFormatter.package_name(): TqdmFormatter(),
+    LetsPlotFormatter.package_name(): LetsPlotFormatter(),
+    SympyFormatter.package_name(): SympyFormatter(),
 }
 
 # Formatters for builtin types and other things that don't require a
@@ -51,7 +60,7 @@ NATIVE_FACTORIES: Sequence[FormatterFactory] = [
 ]
 
 
-def register_formatters() -> None:
+def register_formatters(theme: Theme = "light") -> None:
     """Register formatters with marimo.
 
     marimo comes packaged with rich formatters for a number of third-party
@@ -69,6 +78,22 @@ def register_formatters() -> None:
     UX at the cost of increased complexity that we have to maintain. In this
     case, the trade-off is worth it.
     """
+
+    # For modules that are already imported, register their formatters
+    # immediately; their import hook wouldn't be triggered since they are
+    # already imported. This is relevant when executing as a script.
+    pre_registered: set[str] = set()
+    for package, factory in THIRD_PARTY_FACTORIES.items():
+        if package in sys.modules:
+            factory.register()
+            factory.apply_theme_safe(theme)
+            pre_registered.add(package)
+
+    third_party_factories = {
+        package: factory
+        for package, factory in THIRD_PARTY_FACTORIES.items()
+        if package not in pre_registered
+    }
 
     # We loop over all MetaPathFinders, monkey-patching them to run third-party
     # formatters whenever a supported third-party package is imported (in
@@ -109,7 +134,7 @@ def register_formatters() -> None:
             if spec is None:
                 return spec
 
-            if spec.loader is not None and fullname in THIRD_PARTY_FACTORIES:
+            if spec.loader is not None and fullname in third_party_factories:
                 # We're now in the process of importing a module with
                 # an associated formatter factory. We'll hook into its
                 # loader to register the formatters.
@@ -128,6 +153,7 @@ def register_formatters() -> None:
                 ) -> Any:
                     loader_return_value = original_exec_module(module)
                     factory.register()
+                    factory.apply_theme_safe(theme)
                     return loader_return_value
 
                 spec.loader.exec_module = exec_module
@@ -142,3 +168,4 @@ def register_formatters() -> None:
     # package import. So we can register them at program start-up.
     for factory in NATIVE_FACTORIES:
         factory.register()
+        factory.apply_theme_safe(theme)

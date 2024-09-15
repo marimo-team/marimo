@@ -41,6 +41,30 @@ For more information about plotting, see the [plotting guide](../guides/plotting
         return
 ```
 
+### Disabling automatic selection
+
+marimo automatically adds a default selection based on the mark type, however, you may want to customize the selection behavior of your Altair chart. You can do this by setting `chart_selection` and `legend_selection` to `False`, and using `.add_params` directly on your Altair chart.
+
+```python
+# Create an interval selection
+brush = alt.selection_interval(encodings=["x"])
+
+_chart = (
+    alt.Chart(traces, height=150)
+    .mark_line()
+    .encode(x="index:Q", y="value:Q", color="traces:N")
+    .add_params(brush) # add the selection to the chart
+)
+
+chart = mo.ui.altair_chart(
+    _chart,
+    # disable automatic selection
+    chart_selection=False,
+    legend_selection=False
+)
+chart # You can now access chart.value to get the selected data
+```
+
 ```{eval-rst}
 .. autofunction:: marimo.ui.altair_chart
 ```

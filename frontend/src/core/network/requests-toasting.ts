@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { toast } from "@/components/ui/use-toast";
-import { EditRequests, RequestKey, RunRequests } from "./types";
+import type { EditRequests, RequestKey, RunRequests } from "./types";
 import { Logger } from "@/utils/Logger";
 import { prettyError } from "@/utils/errors";
 
@@ -15,8 +15,10 @@ export function createErrorToastingRequests(
     sendRestart: "Failed to restart",
     syncCellIds: "Failed to sync cell IDs",
     sendRun: "Failed to run",
+    sendRunScratchpad: "Failed to run scratchpad",
     sendRename: "Failed to rename",
     sendSave: "Failed to save",
+    sendCopy: "Failed to copy",
     sendInterrupt: "Failed to interrupt",
     sendShutdown: "Failed to shutdown",
     sendFormat: "Failed to format",
@@ -30,13 +32,14 @@ export function createErrorToastingRequests(
     readSnippets: "Failed to fetch snippets",
     previewDatasetColumn: "Failed to fetch data sources",
     openFile: "Failed to open file",
-    getUsageStats: "", // Empty string because we don't show a toast for this
+    getUsageStats: "", // No toast
     sendListFiles: "Failed to list files",
     sendCreateFileOrFolder: "Failed to create file or folder",
     sendDeleteFileOrFolder: "Failed to delete file or folder",
     sendRenameFileOrFolder: "Failed to rename file or folder",
     sendUpdateFile: "Failed to update file",
     sendFileDetails: "Failed to get file details",
+    openTutorial: "Failed to open tutorial",
     sendInstallMissingPackages: "Failed to install missing packages",
     getRecentFiles: "Failed to get recent files",
     getWorkspaceFiles: "Failed to get workspace files",
@@ -44,6 +47,8 @@ export function createErrorToastingRequests(
     shutdownSession: "Failed to shutdown session",
     exportAsHTML: "Failed to export HTML",
     exportAsMarkdown: "Failed to export Markdown",
+    autoExportAsHTML: "", // No toast
+    autoExportAsMarkdown: "", // No toast
   };
 
   const handlers = {} as EditRequests & RunRequests;

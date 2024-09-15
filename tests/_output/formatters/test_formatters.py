@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import importlib
 import os.path
+import sys
+from typing import Any
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -29,7 +32,7 @@ def test_path_finder_find_spec() -> None:
     assert spec is not None
 
 
-HAS_DEPS = DependencyManager.has_pandas() and DependencyManager.has_polars()
+HAS_DEPS = DependencyManager.pandas.has() and DependencyManager.polars.has()
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -117,7 +120,7 @@ def test_broken_formatter():
 
     def _format(cls: _ClsForBrokenFormatter) -> tuple[KnownMimeType, str]:
         del cls
-        raise BaseException("Broken Formatter")
+        raise BaseException("Broken Formatter")  # noqa: TRY002
 
     formatter(_ClsForBrokenFormatter)(_format)
 
@@ -125,3 +128,204 @@ def test_broken_formatter():
     formatted = try_format(obj)
     assert formatted.traceback is not None
     assert "Broken Formatter" in formatted.traceback
+
+
+@patch(
+    "marimo._output.formatters.formatters.THIRD_PARTY_FACTORIES",
+    new_callable=dict,
+)
+@patch.dict(sys.modules, {"fake_module": Mock()})
+def test_pre_imported_formatter(mock_third_party_factories):
+    mock_factory = Mock()
+    mock_third_party_factories["fake_module"] = mock_factory
+
+    register_formatters()
+    assert mock_factory.register.call_count == 1
+
+
+def test_repr_markdown():
+    class ReprMarkdown:
+        def _repr_markdown_(self):
+            return "# Hello, World!"
+
+    obj = ReprMarkdown()
+    formatter = get_formatter(obj)
+    assert formatter
+    mime, content = formatter(obj)
+    assert mime == "text/html"
+    assert (
+        content
+        == '<span class="markdown prose dark:prose-invert"><h1 id="hello-world">Hello, World!</h1></span>'  # noqa: E501
+    )
+
+
+@pytest.mark.skip
+def test_repr_latex():
+    class ReprLatex:
+        def _repr_latex_(self):
+            return r"$f(x) = e^x$"
+
+    obj = ReprLatex()
+    formatter = get_formatter(obj)
+    assert formatter
+    mime, content = formatter(obj)
+    assert mime == "text/html"
+    assert (
+        content
+        == '<span class="markdown prose dark:prose-invert"><span class="paragraph"><marimo-tex class="arithmatex">||(f(x) = e^x||)</marimo-tex></span></span>'  # noqa: E501
+    )
+
+
+def test_repr_html():
+    class ReprHTML:
+        def _repr_html_(self):
+            return "<h1>Hello, World!</h1>"
+
+    obj = ReprHTML()
+    formatter = get_formatter(obj)
+    assert formatter
+    mime, content = formatter(obj)
+    assert mime == "text/html"
+    assert content == "<h1>Hello, World!</h1>"
+
+
+def test_repr_png():
+    png = "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABaElEQVR42mNk"
+
+    class ReprPNG:
+        def _repr_png_(self):
+            return png
+
+    obj = ReprPNG()
+    formatter = get_formatter(obj)
+    assert formatter
+    mime, content = formatter(obj)
+    assert mime == "image/png"
+    assert content == png
+
+
+def test_repr_jpeg():
+    jpeg = "/9j/4AAQSkZJRgABAQEAYABgAAD/4QBoRXhpZgAATU0AKgAAAAgAA1IBAAAB"
+
+    class ReprJPEG:
+        def _repr_jpeg_(self):
+            return jpeg
+
+    obj = ReprJPEG()
+    formatter = get_formatter(obj)
+    assert formatter
+    mime, content = formatter(obj)
+    assert mime == "image/jpeg"
+    assert content == jpeg
+
+
+def test_repr_svg():
+    svg = "<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'></svg>"  # noqa: E501
+
+    class ReprSVG:
+        def _repr_svg_(self):
+            return svg
+
+    obj = ReprSVG()
+    formatter = get_formatter(obj)
+    assert formatter
+    mime, content = formatter(obj)
+    assert mime == "image/svg+xml"
+    assert content == svg
+
+
+def test_repr_json():
+    class ReprJSON:
+        def _repr_json_(self):
+            return {"message": "Hello, World!"}
+
+    obj = ReprJSON()
+    formatter = get_formatter(obj)
+    assert formatter
+    mime, content = formatter(obj)
+    assert mime == "application/json"
+    assert content == {"message": "Hello, World!"}
+
+
+def test_prefer_repr_html_over_repr_markdown():
+    class ReprBoth:
+        def _repr_html_(self):
+            return "<h6>Hello, World!</h6>"
+
+        def _repr_markdown_(self):
+            return "# Hello, World!"
+
+    obj = ReprBoth()
+    formatter = get_formatter(obj)
+    assert formatter
+    mime, content = formatter(obj)
+    assert mime == "text/html"
+    assert content == "<h6>Hello, World!</h6>"
+
+
+def test_repr_mimebundle():
+    class ReprMimeBundle:
+        def _repr_mimebundle_(self):
+            return {
+                "application/json": {"message": "Hello, World!"},
+                "text/plain": "Hello, World!",
+            }
+
+    obj = ReprMimeBundle()
+    formatter = get_formatter(obj)
+    assert formatter
+    mime, content = formatter(obj)
+    assert mime == "application/vnd.marimo+mimebundle"
+    assert content == {"application/json": {"message": "Hello, World!"}}
+
+
+def test_repr_mimebundle_with_exclude():
+    class ReprMimeBundle:
+        def _repr_mimebundle_(self, include: Any = None, exclude: Any = None):
+            del include, exclude
+            return {
+                "application/json": {"message": "Hello, World!"},
+                "text/plain": "Hello, World!",
+            }
+
+    obj = ReprMimeBundle()
+    formatter = get_formatter(obj)
+    assert formatter
+    mime, content = formatter(obj)
+    assert mime == "application/vnd.marimo+mimebundle"
+    assert content == {"application/json": {"message": "Hello, World!"}}
+
+
+def test_repr_returns_none():
+    class ReprNone:
+        def _repr_html_(self):
+            return None
+
+        def _repr_json_(self):
+            return "{}"
+
+        def _repr_plain_(self):
+            return "plain"
+
+    obj = ReprNone()
+    formatter = get_formatter(obj)
+    assert formatter
+    mime, content = formatter(obj)
+    assert mime == "application/json"
+    assert content == "{}"
+
+
+def test_repr_empty_string():
+    class ReprNone:
+        def _repr_json_(self):
+            return ""
+
+        def _repr_plain_(self):
+            return "plain"
+
+    obj = ReprNone()
+    formatter = get_formatter(obj)
+    assert formatter
+    mime, content = formatter(obj)
+    assert mime == "application/json"
+    assert content == ""

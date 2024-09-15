@@ -7,10 +7,10 @@ import {
 } from "../../../../components/ui/input";
 import { Checkbox } from "../../../../components/ui/checkbox";
 import {
-  FieldValues,
+  type FieldValues,
   FormProvider,
-  Path,
-  UseFormReturn,
+  type Path,
+  type UseFormReturn,
   useController,
   useFieldArray,
 } from "react-hook-form";
@@ -60,7 +60,7 @@ import {
   TextAreaMultiSelect,
   ensureStringArray,
 } from "@/components/forms/switchable-multi-select";
-import { ColumnId } from "../types";
+import type { ColumnId } from "../types";
 
 interface Props<T extends FieldValues> {
   form: UseFormReturn<T>;
@@ -136,13 +136,15 @@ function renderZodSchema<T extends FieldValues, S>(
         })}
       </div>
     );
-  } else if (schema instanceof z.ZodString) {
+  }
+  if (schema instanceof z.ZodString) {
     if (special === "column_values") {
       return <ColumnValuesFormField schema={schema} form={form} path={path} />;
     }
 
     return <StringFormField schema={schema} form={form} path={path} />;
-  } else if (schema instanceof z.ZodBoolean) {
+  }
+  if (schema instanceof z.ZodBoolean) {
     return (
       <FormField
         control={form.control}
@@ -165,7 +167,8 @@ function renderZodSchema<T extends FieldValues, S>(
         )}
       />
     );
-  } else if (schema instanceof z.ZodNumber) {
+  }
+  if (schema instanceof z.ZodNumber) {
     if (special === "random_number_button") {
       return (
         <FormField
@@ -208,7 +211,8 @@ function renderZodSchema<T extends FieldValues, S>(
         )}
       />
     );
-  } else if (schema instanceof z.ZodDate) {
+  }
+  if (schema instanceof z.ZodDate) {
     return (
       <FormField
         control={form.control}
@@ -230,9 +234,11 @@ function renderZodSchema<T extends FieldValues, S>(
         )}
       />
     );
-  } else if (schema instanceof z.ZodAny) {
+  }
+  if (schema instanceof z.ZodAny) {
     return <StringFormField schema={schema} form={form} path={path} />;
-  } else if (schema instanceof z.ZodEnum) {
+  }
+  if (schema instanceof z.ZodEnum) {
     return (
       <SelectFormField
         schema={schema}
@@ -241,7 +247,8 @@ function renderZodSchema<T extends FieldValues, S>(
         options={schema._def.values}
       />
     );
-  } else if (schema instanceof z.ZodArray) {
+  }
+  if (schema instanceof z.ZodArray) {
     if (special === "text_area_multiline") {
       return <MultiStringFormField schema={schema} form={form} path={path} />;
     }
@@ -294,7 +301,8 @@ function renderZodSchema<T extends FieldValues, S>(
         />
       </div>
     );
-  } else if (schema instanceof z.ZodUnion) {
+  }
+  if (schema instanceof z.ZodUnion) {
     return (
       <FormField
         control={form.control}
@@ -336,7 +344,8 @@ function renderZodSchema<T extends FieldValues, S>(
         }}
       />
     );
-  } else if (schema instanceof z.ZodLiteral) {
+  }
+  if (schema instanceof z.ZodLiteral) {
     return (
       <FormField
         control={form.control}
@@ -344,19 +353,19 @@ function renderZodSchema<T extends FieldValues, S>(
         render={({ field }) => <input {...field} type="hidden" />}
       />
     );
-  } else if (
+  }
+  if (
     schema instanceof z.ZodEffects &&
     ["refinement", "transform"].includes(schema._def.effect.type)
   ) {
     return renderZodSchema(schema._def.schema, form, path);
-  } else {
-    return (
-      <div>
-        Unknown schema type{" "}
-        {schema == null ? path : JSON.stringify(schema._type ?? schema)}
-      </div>
-    );
   }
+  return (
+    <div>
+      Unknown schema type{" "}
+      {schema == null ? path : JSON.stringify(schema._type ?? schema)}
+    </div>
+  );
 }
 
 const StyledFormMessage = ({ className }: { className?: string }) => {
@@ -610,7 +619,7 @@ const FilterForm = ({
 
   const children = [
     <ColumnFormField
-      key={`column_id`}
+      key={"column_id"}
       schema={columnIdSchema}
       form={form}
       path={`${path}.column_id`}
@@ -645,7 +654,7 @@ const FilterForm = ({
     if (operators.length === 0) {
       children.push(
         <div
-          key={`no_operator`}
+          key={"no_operator"}
           className="text-muted-foreground text-xs font-semibold"
         >
           <FormLabel className="whitespace-pre"> </FormLabel>
@@ -655,7 +664,7 @@ const FilterForm = ({
     } else {
       children.push(
         <FormField
-          key={`operator`}
+          key={"operator"}
           control={form.control}
           name={`${path}.operator`}
           render={({ field }) => (
@@ -697,7 +706,7 @@ const FilterForm = ({
     const operandSchemas = getSchemaForOperator(dtype, operator);
     if (operandSchemas.length === 1) {
       children.push(
-        <React.Fragment key={`value`}>
+        <React.Fragment key={"value"}>
           <ColumnNameContext.Provider value={columnId}>
             {renderZodSchema(operandSchemas[0], form, `${path}.value`)}
           </ColumnNameContext.Provider>

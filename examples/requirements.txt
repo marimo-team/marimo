@@ -35,3 +35,11 @@ drawdata
 anywidget
 db-dtypes
 google-cloud-storage
+quak
+dask
+ibis-framework[duckdb]
+pygwalker
+maplibre
+mosaic_widget
+geopandas
+great_tables

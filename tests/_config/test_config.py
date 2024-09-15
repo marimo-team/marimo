@@ -30,7 +30,9 @@ def test_configure_full() -> None:
                 "format_on_save": False,
             },
             keymap={"preset": "vim", "overrides": {}},
-            package_management={"manager": "pip"},
+            package_management={
+                "manager": "pip",
+            },
         )
     )
 

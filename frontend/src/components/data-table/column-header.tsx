@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Column } from "@tanstack/react-table";
+import type { Column } from "@tanstack/react-table";
 import {
   ChevronsUpDown,
   ArrowDownNarrowWideIcon,
@@ -11,6 +11,7 @@ import {
   SearchIcon,
   WrapTextIcon,
   AlignJustifyIcon,
+  PinOffIcon,
 } from "lucide-react";
 
 import { cn } from "@/utils/cn";
@@ -29,8 +30,14 @@ import { Button } from "../ui/button";
 import { useRef, useState } from "react";
 import { NumberField } from "../ui/number-field";
 import { Input } from "../ui/input";
-import { ColumnFilterForType, Filter } from "./filters";
+import { type ColumnFilterForType, Filter } from "./filters";
 import { logNever } from "@/utils/assertNever";
+import type { DataType } from "@/core/kernel/messages";
+import { formatOptions } from "./column-formatting/types";
+import { DATA_TYPE_ICON } from "../datasets/icons";
+import { formattingExample } from "./column-formatting/feature";
+import { PinLeftIcon, PinRightIcon } from "@radix-ui/react-icons";
+import { NAMELESS_COLUMN_PREFIX } from "./columns";
 
 interface DataTableColumnHeaderProps<TData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {
@@ -79,8 +86,6 @@ export const DataTableColumnHeader = <TData, TValue>({
     );
   };
 
-  const dtype = column.columnDef.meta?.dtype;
-
   const renderColumnWrapping = () => {
     if (!column.getCanWrap?.() || !column.getColumnWrapping) {
       return null;
@@ -110,12 +115,102 @@ export const DataTableColumnHeader = <TData, TValue>({
     );
   };
 
+  const renderColumnPinning = () => {
+    if (!column.getCanPin?.() || !column.getIsPinned) {
+      return null;
+    }
+
+    const pinnedPosition = column.getIsPinned();
+
+    if (pinnedPosition !== false) {
+      return (
+        <DropdownMenuItem
+          onClick={() => column.pin(false)}
+          className="flex items-center"
+        >
+          <PinOffIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+          Unfreeze
+        </DropdownMenuItem>
+      );
+    }
+
+    return (
+      <>
+        <DropdownMenuItem
+          onClick={() => column.pin("left")}
+          className="flex items-center"
+        >
+          <PinLeftIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+          Freeze left
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => column.pin("right")}
+          className="flex items-center"
+        >
+          <PinRightIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+          Freeze right
+        </DropdownMenuItem>
+      </>
+    );
+  };
+
+  const dtype: string | undefined = column.columnDef.meta?.dtype;
+  const dataType: DataType | undefined = column.columnDef.meta?.dataType;
+  const columnFormatOptions = dataType ? formatOptions[dataType] : [];
+
+  const renderFormatOptions = () => {
+    if (columnFormatOptions.length === 0 || !column.getCanFormat?.()) {
+      return null;
+    }
+    const FormatIcon = DATA_TYPE_ICON[dataType || "unknown"];
+    const currentFormat = column.getColumnFormatting?.();
+    return (
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger>
+          <FormatIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+          Format
+        </DropdownMenuSubTrigger>
+        <DropdownMenuPortal>
+          <DropdownMenuSubContent>
+            {Boolean(currentFormat) && (
+              <>
+                <DropdownMenuItem
+                  key={"clear"}
+                  variant={"danger"}
+                  onClick={() => column.setColumnFormatting(undefined)}
+                >
+                  Clear
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
+            {columnFormatOptions.map((option) => (
+              <DropdownMenuItem
+                key={option}
+                onClick={() => column.setColumnFormatting(option)}
+              >
+                <span
+                  className={cn(currentFormat === option && "font-semibold")}
+                >
+                  {option}
+                </span>
+                <span className="ml-auto pl-5 text-xs text-muted-foreground">
+                  {formattingExample(option)}
+                </span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuPortal>
+      </DropdownMenuSub>
+    );
+  };
+
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild={true}>
         <div
           className={cn(
-            "group flex items-center my-1 space-between w-full select-none gap-2 border hover:border-border border-transparent hover:bg-[var(--slate-3)] data-[state=open]:bg-[var(--slate-3)] data-[state=open]:border-border rounded px-2 -mx-2",
+            "group flex items-center my-1 space-between w-full select-none gap-2 border hover:border-border border-transparent hover:bg-[var(--slate-3)] data-[state=open]:bg-[var(--slate-3)] data-[state=open]:border-border rounded px-1 -mx-1",
             className,
           )}
           data-testid="data-table-sort-button"
@@ -123,7 +218,7 @@ export const DataTableColumnHeader = <TData, TValue>({
           <span className="flex-1">{header}</span>
           <span
             className={cn(
-              "h-5 py-1 px-2 mr-2",
+              "h-5 py-1 px-1",
               !column.getIsSorted() &&
                 "invisible group-hover:visible data-[state=open]:visible",
             )}
@@ -140,23 +235,29 @@ export const DataTableColumnHeader = <TData, TValue>({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         {dtype && (
-          <div className="flex-1 px-2 text-xs text-muted-foreground font-bold">
-            {dtype}
-          </div>
+          <>
+            <div className="flex-1 px-2 text-xs text-muted-foreground font-bold">
+              {dtype}
+            </div>
+            <DropdownMenuSeparator />
+          </>
         )}
-        <DropdownMenuSeparator />
         {renderSorts()}
-        <DropdownMenuItem
-          onClick={() =>
-            navigator.clipboard.writeText(
-              typeof header === "string" ? header : column.id,
-            )
-          }
-        >
-          <CopyIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-          Copy column name
-        </DropdownMenuItem>
+        {!column.id.startsWith(NAMELESS_COLUMN_PREFIX) && (
+          <DropdownMenuItem
+            onClick={() =>
+              navigator.clipboard.writeText(
+                typeof header === "string" ? header : column.id,
+              )
+            }
+          >
+            <CopyIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+            Copy column name
+          </DropdownMenuItem>
+        )}
+        {renderColumnPinning()}
         {renderColumnWrapping()}
+        {renderFormatOptions()}
         <DropdownMenuItemFilter column={column} />
       </DropdownMenuContent>
     </DropdownMenu>
@@ -294,7 +395,9 @@ export const DropdownMenuItemFilter = <TData, TValue>({
 
 const NumberRangeFilter = <TData, TValue>({
   column,
-}: { column: Column<TData, TValue> }) => {
+}: {
+  column: Column<TData, TValue>;
+}) => {
   const currentFilter = column.getFilterValue() as
     | ColumnFilterForType<"number">
     | undefined;
@@ -330,7 +433,7 @@ const NumberRangeFilter = <TData, TValue>({
               maxRef.current?.focus();
             }
           }}
-          className="shadow-none! border-border hover:shadow-none! w-[150px]"
+          className="shadow-none! border-border hover:shadow-none!"
         />
         <MinusIcon className="h-5 w-5 text-muted-foreground" />
         <NumberField
@@ -346,7 +449,7 @@ const NumberRangeFilter = <TData, TValue>({
             }
           }}
           placeholder="max"
-          className="shadow-none! border-border hover:shadow-none! w-[150px]"
+          className="shadow-none! border-border hover:shadow-none!"
         />
       </div>
       <div className="flex gap-2 px-2 justify-between">
@@ -373,7 +476,9 @@ const NumberRangeFilter = <TData, TValue>({
 
 const TextFilter = <TData, TValue>({
   column,
-}: { column: Column<TData, TValue> }) => {
+}: {
+  column: Column<TData, TValue>;
+}) => {
   const currentFilter = column.getFilterValue() as
     | ColumnFilterForType<"text">
     | undefined;

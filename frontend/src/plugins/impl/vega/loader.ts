@@ -1,7 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { DataFormat } from "./types";
+import type { DataFormat } from "./types";
 import { isNumber } from "lodash-es";
-import { typeParsers, createLoader, read, FieldTypes } from "./vega-loader";
+import {
+  typeParsers,
+  createLoader,
+  read,
+  type FieldTypes,
+} from "./vega-loader";
 
 // Augment the typeParsers to support Date
 typeParsers.date = (value: string) => new Date(value).toISOString();
@@ -96,9 +101,23 @@ export function vegaLoadData<T = object>(
 ): Promise<T[]> {
   const { handleBigInt = false, replacePeriod = false } = opts;
 
-  const isCsv = format?.type === "csv";
-
   return vegaLoader.load(url).then((csvOrJsonData) => {
+    if (!format) {
+      // Infer by trying to parse
+      if (typeof csvOrJsonData === "string") {
+        try {
+          JSON.parse(csvOrJsonData);
+          format = { type: "json" };
+        } catch {
+          format = { type: "csv", parse: "auto" };
+        }
+      }
+      if (typeof csvOrJsonData === "object") {
+        format = { type: "json" };
+      }
+    }
+
+    const isCsv = format?.type === "csv";
     // CSV data comes columnar and may have duplicate column names.
     // We need to uniquify the column names before parsing since vega-loader
     // returns an array of objects which drops duplicate keys.
@@ -126,7 +145,7 @@ export function vegaLoadData<T = object>(
       ? // csv -> json
         read(csvOrJsonData, {
           ...format,
-          parse: (format.parse as FieldTypes) || "auto",
+          parse: (format?.parse as FieldTypes) || "auto",
         })
       : read(csvOrJsonData, format);
 

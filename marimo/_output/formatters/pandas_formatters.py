@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any
 
 from marimo._messaging.mimetypes import KnownMimeType
+from marimo._output.formatters.df_formatters import include_opinionated
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._output.utils import flatten_string
 from marimo._plugins.ui._impl.table import table
@@ -23,11 +24,13 @@ class PandasFormatter(FormatterFactory):
 
         from marimo._output import formatting
 
-        @formatting.opinionated_formatter(pd.DataFrame)
-        def _show_marimo_dataframe(
-            df: pd.DataFrame,
-        ) -> tuple[KnownMimeType, str]:
-            return table(df, selection=None, pagination=True)._mime_()
+        if include_opinionated():
+
+            @formatting.opinionated_formatter(pd.DataFrame)
+            def _show_marimo_dataframe(
+                df: pd.DataFrame,
+            ) -> tuple[KnownMimeType, str]:
+                return table(df, selection=None, pagination=True)._mime_()
 
         @formatting.formatter(pd.DataFrame)
         def _show_dataframe(df: pd.DataFrame) -> tuple[KnownMimeType, str]:
@@ -69,7 +72,12 @@ class PandasFormatter(FormatterFactory):
         def _show_series(series: pd.Series[Any]) -> tuple[KnownMimeType, str]:
             max_rows = pd.get_option("display.max_rows")
             show_dimensions_option = pd.get_option("display.show_dimensions")
+
             if show_dimensions_option == "truncate":
+                # Handle None for max_rows
+                if max_rows is None:
+                    max_rows = len(series.index)
+
                 show_dimensions = len(series.index) > max_rows
             elif show_dimensions_option:
                 show_dimensions = True

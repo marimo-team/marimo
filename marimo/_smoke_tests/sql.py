@@ -1,8 +1,17 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "duckdb",
+#     "vega-datasets",
+#     "marimo",
+#     "altair",
+# ]
+# ///
 # Copyright 2024 Marimo. All rights reserved.
 
 import marimo
 
-__generated_with = "0.6.25"
+__generated_with = "0.8.14"
 app = marimo.App(width="medium")
 
 
@@ -17,7 +26,7 @@ def __():
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md("## Cars")
+    mo.md("""## Cars""")
     return
 
 
@@ -56,7 +65,7 @@ def __(alt, df, mo):
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md("## Airports")
+    mo.md("""## Airports""")
     return
 
 
@@ -84,7 +93,7 @@ def __(less_airports):
 
 @app.cell
 def __(mo):
-    mo.md("## Google Sheets")
+    mo.md("""## Google Sheets""")
     return
 
 
@@ -126,7 +135,7 @@ def __(job_title, mo, sheet):
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md("Debug")
+    mo.md("""Debug""")
     return
 
 

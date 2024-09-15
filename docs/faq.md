@@ -28,6 +28,7 @@
   - [What packages can I use?](#faq-packages)
   - [How do I use marimo on a remote server?](#faq-remote)
   - [How do I make marimo accessible on all network interfaces?](#faq-interfaces)
+  - [How do I use marimo behind JupyterHub?](#faq-jupyter-hub)
   - [How do I deploy apps?](#faq-app-deploy)
   - [Is marimo free?](#faq-marimo-free)
 
@@ -119,7 +120,7 @@ re-running cells.
 
 ## Using marimo
 
-<a name="faq-notebook-library"></a>
+<a name="faq-notebook-or-library"></a>
 
 ### Is marimo a notebook or a library?
 
@@ -454,6 +455,13 @@ Use `--host 0.0.0.0` with `marimo edit`, `marimo run`, or `marimo tutorial`:
 ```bash
 marimo edit --host 0.0.0.0
 ```
+
+<a name="faq-jupyter-hub"></a>
+
+### How do I use marimo behind JupyterHub?
+
+JupyterHub can be configured to launch marimo using the [`jupyter-marimo-proxy`
+package](https://github.com/jyio/jupyter-marimo-proxy).
 
 <a name="faq-app-deploy"></a>
 

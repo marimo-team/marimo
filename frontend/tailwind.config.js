@@ -19,31 +19,27 @@ module.exports = {
       boxShadow: {
         none: "none",
         // fuzzy shadows
-        xxs: "var(--shadow-xxs)",
-        xs: "var(--shadow-xs)",
-        sm: "var(--shadow-sm)",
-        md: "var(--shadow-md)",
-        lg: "var(--shadow-lg)",
-        xl: "var(--shadow-xl)",
-        // solid shadows
+        xxs: "0px 0px 2px 0px var(--base-shadow-darker)",
+        xs: "1px 1px 2px 0px var(--base-shadow), 0px 0px 2px 0px hsl(0deg 0% 25% / var(--base-shadow-opacity))",
+        sm: "2px 2px 2px 0px var(--base-shadow), 0px 0px 2px 0px hsl(0deg 0% 25% / var(--base-shadow-opacity))",
+        md: "4px 4px 4px 0px var(--base-shadow), 0 0px 4px 0px hsl(0deg 0% 60% / var(--base-shadow-opacity))",
+        lg: "5px 6px 4px 0px var(--base-shadow), 0 0px 4px 0px hsl(0deg 0% 75% / var(--base-shadow-opacity))",
+        xl: "8px 9px 4px 0px var(--base-shadow), 0 0px 6px 0px hsl(0deg 0% 85% / var(--base-shadow-opacity))",
+        "2xl":
+          "10px 12px 10px 0px var(--base-shadow), 0 0px 8px 0px hsl(0deg 0% 90% / var(--base-shadow-opacity))",
+
         xsSolid:
-          "1px 1px 0px 0px var(--tw-shadow-color, var(--base-shadow-darker)), 0px 0px 2px 0px hsl(0deg 0% 25% / 5%)",
+          "1px 1px 0px 0px var(--base-shadow-darker), 0px 0px 2px 0px hsl(0deg 0% 50% / 20%)",
         smSolid:
-          "2px 2px 0px 0px var(--tw-shadow-color, var(--base-shadow-darker)), 0px 0px 2px 0px hsl(0deg 0% 25% / 5%)",
+          "2px 2px 0px 0px var(--base-shadow-darker), 0px 0px 2px 0px hsl(0deg 0% 50% / 20%)",
         mdSolid:
-          "4px 4px 0px 0px var(--tw-shadow-color, var(--base-shadow-darker)), 0 0px 4px 0px hsl(0deg 0% 60% / 5%)",
+          "4px 4px 0px 0px var(--base-shadow-darker), 0 0px 2px 0px hsl(0deg 0% 60% / 50%)",
         lgSolid:
-          "5px 6px 0px 0px var(--tw-shadow-color, var(--base-shadow-darker)), 0 0px 4px 0px hsl(0deg 0% 75% / 5%)",
+          "5px 6px 0px 0px var(--base-shadow-darker), 0 0px 4px 0px hsl(0deg 0% 75% / 50%)",
         xlSolid:
-          "8px 9px 0px 0px var(--tw-shadow-color, var(--base-shadow-darker)), 0 0px 6px 0px hsl(0deg 0% 85% / 5%)",
-        // neutral shadows (used for cells, ...)
-        // TODO(akshayka): clean these up to use tw-shadow-color
-        smNeutral: "var(--light-shadow)",
-        mdNeutral: "var(--medium-shadow)",
-        lgNeutral: "var(--heavy-shadow)",
-        // accent/error shadows
-        smError: "var(--light-shadow-error)",
-        smAccent: "var(--light-shadow-accent)",
+          "7px 8px 0px 0px var(--base-shadow-darker), 0 0px 4px 0px hsl(0deg 0% 85% / 50%)",
+        "2xlSolid":
+          "10px 12px 0px 0px var(--base-shadow-darker), 0 0px 8px 0px hsl(0deg 0% 90% / 50%)",
       },
       maxWidth: {
         contentWidth: "var(--content-width)",
@@ -53,49 +49,74 @@ module.exports = {
         18: "4.5rem",
       },
       colors: {
-        border: "hsl(var(--border) / <alpha-value>)",
-        input: "hsl(var(--input) / <alpha-value>)",
-        ring: "hsl(var(--ring) / <alpha-value>)",
-        background: "hsl(var(--background) / <alpha-value>)",
-        foreground: "hsl(var(--foreground) / <alpha-value>)",
-        link: "hsl(var(--link))",
-        "link-visited": "hsl(var(--link-visited))",
+        border:
+          "color-mix(in srgb, var(--border), transparent calc((1 - <alpha-value>) * 100%))",
+        shade: "var(--base-shadow)",
+        input:
+          "color-mix(in srgb, var(--input), transparent calc((1 - <alpha-value>) * 100%))",
+        ring: "color-mix(in srgb, var(--ring), transparent calc((1 - <alpha-value>) * 100%))",
+        background:
+          "color-mix(in srgb, var(--background), transparent calc((1 - <alpha-value>) * 100%))",
+        foreground:
+          "color-mix(in srgb, var(--foreground), transparent calc((1 - <alpha-value>) * 100%))",
+        link: "var(--link)",
+        "link-visited": "var(--link-visited)",
         primary: {
-          DEFAULT: "hsl(var(--primary) / <alpha-value>)",
-          foreground: "hsl(var(--primary-foreground) / <alpha-value>)",
+          DEFAULT:
+            "color-mix(in srgb, var(--primary), transparent calc((1 - <alpha-value>) * 100%))",
+          foreground:
+            "color-mix(in srgb, var(--primary-foreground), transparent calc((1 - <alpha-value>) * 100%))",
         },
         secondary: {
-          DEFAULT: "hsl(var(--secondary) / <alpha-value>)",
-          foreground: "hsl(var(--secondary-foreground) / <alpha-value>)",
+          DEFAULT:
+            "color-mix(in srgb, var(--secondary), transparent calc((1 - <alpha-value>) * 100%))",
+          foreground:
+            "color-mix(in srgb, var(--secondary-foreground), transparent calc((1 - <alpha-value>) * 100%))",
         },
         destructive: {
-          DEFAULT: "hsl(var(--destructive) / <alpha-value>)",
-          foreground: "hsl(var(--destructive-foreground) / <alpha-value>)",
+          DEFAULT:
+            "color-mix(in srgb, var(--destructive), transparent calc((1 - <alpha-value>) * 100%))",
+          foreground:
+            "color-mix(in srgb, var(--destructive-foreground), transparent calc((1 - <alpha-value>) * 100%))",
         },
         error: {
-          DEFAULT: "hsl(var(--error) / <alpha-value>)",
-          foreground: "hsl(var(--error-foreground) / <alpha-value>)",
+          DEFAULT:
+            "color-mix(in srgb, var(--error), transparent calc((1 - <alpha-value>) * 100%))",
+          foreground:
+            "color-mix(in srgb, var(--error-foreground), transparent calc((1 - <alpha-value>) * 100%))",
         },
+        stale: "var(--stale)",
         muted: {
-          DEFAULT: "hsl(var(--muted) / <alpha-value>)",
-          foreground: "hsl(var(--muted-foreground) / <alpha-value>)",
+          DEFAULT:
+            "color-mix(in srgb, var(--muted), transparent calc((1 - <alpha-value>) * 100%))",
+          foreground:
+            "color-mix(in srgb, var(--muted-foreground), transparent calc((1 - <alpha-value>) * 100%))",
         },
         accent: {
-          DEFAULT: "hsl(var(--accent) / <alpha-value>)",
-          foreground: "hsl(var(--accent-foreground) / <alpha-value>)",
+          DEFAULT:
+            "color-mix(in srgb, var(--accent), transparent calc((1 - <alpha-value>) * 100%))",
+          foreground:
+            "color-mix(in srgb, var(--accent-foreground), transparent calc((1 - <alpha-value>) * 100%))",
         },
         action: {
-          DEFAULT: "hsl(var(--action) / <alpha-value>)",
-          hover: "hsl(var(--action-hover) / <alpha-value>)",
-          foreground: "hsl(var(--action-foreground) / <alpha-value>)",
+          DEFAULT:
+            "color-mix(in srgb, var(--action), transparent calc((1 - <alpha-value>) * 100%))",
+          hover:
+            "color-mix(in srgb, var(--action-hover), transparent calc((1 - <alpha-value>) * 100%))",
+          foreground:
+            "color-mix(in srgb, var(--action-foreground), transparent calc((1 - <alpha-value>) * 100%))",
         },
         popover: {
-          DEFAULT: "hsl(var(--popover) / <alpha-value>)",
-          foreground: "hsl(var(--popover-foreground) / <alpha-value>)",
+          DEFAULT:
+            "color-mix(in srgb, var(--popover), transparent calc((1 - <alpha-value>) * 100%))",
+          foreground:
+            "color-mix(in srgb, var(--popover-foreground), transparent calc((1 - <alpha-value>) * 100%))",
         },
         card: {
-          DEFAULT: "hsl(var(--card) / <alpha-value>)",
-          foreground: "hsl(var(--card-foreground) / <alpha-value>)",
+          DEFAULT:
+            "color-mix(in srgb, var(--card), transparent calc((1 - <alpha-value>) * 100%))",
+          foreground:
+            "color-mix(in srgb, var(--card-foreground), transparent calc((1 - <alpha-value>) * 100%))",
         },
       },
       fontFamily: {
@@ -137,11 +158,113 @@ module.exports = {
         "2-fit": "repeat(2, minmax(0, max-content))",
         "3-fit": "repeat(3, minmax(0, max-content))",
       },
+      typography: {
+        DEFAULT: {
+          css: {
+            fontFamily: "var(--text-font)",
+            color: "inherit",
+            pre: {
+              color: "inherit",
+              background: "inherit",
+            },
+            "code::before": {
+              content: "",
+            },
+            "code::after": {
+              content: "",
+            },
+            code: {
+              fontWeight: 500,
+            },
+            "ul > li::marker": {
+              color: "var(--muted-foreground)",
+            },
+            "ol > li::marker": {
+              color: "var(--muted-foreground)",
+            },
+          },
+        },
+        slides: {
+          // This aims to match Google Slides' typography
+          // h1 -> 52pts (70px)
+          // h2 -> 36pts (48px)
+          // h3 -> 28pts (37.33px)
+          // h4 -> 25pts (33.33px)
+          // p -> 18pts (24px)
+          // code -> 18pts (24px)
+          css: {
+            h1: {
+              fontSize: `${70 / 16}rem`,
+              lineHeight: 1.2,
+            },
+            "h1 code": {
+              fontSize: `${70 / 16}rem`,
+            },
+            h2: {
+              fontSize: `${48 / 16}rem`,
+              lineHeight: 1.3,
+            },
+            "h2 code": {
+              fontSize: `${48 / 16}rem`,
+            },
+            h3: {
+              fontSize: `${37 / 16}rem`,
+              lineHeight: 1.4,
+            },
+            "h3 code": {
+              fontSize: `${37 / 16}rem`,
+            },
+            h4: {
+              fontSize: `${33 / 16}rem`,
+              lineHeight: 1.5,
+            },
+            "h4 code": {
+              fontSize: `${33 / 16}rem`,
+            },
+            h5: {
+              fontSize: `${24 / 16}rem`,
+              lineHeight: 1.5,
+            },
+            "h5 code": {
+              fontSize: `${24 / 16}rem`,
+            },
+            h6: {
+              fontSize: `${20 / 16}rem`,
+              lineHeight: 1.5,
+            },
+            "h6 code": {
+              fontSize: `${20 / 16}rem`,
+            },
+            p: {
+              fontSize: `${24 / 16}rem`,
+              lineHeight: 1.5,
+            },
+            li: {
+              fontSize: `${24 / 16}rem`,
+              lineHeight: 1.5,
+            },
+            ".paragraph": {
+              fontSize: `${24 / 16}rem`,
+              lineHeight: 1.5,
+            },
+            ".markdown > span.paragraph": {
+              fontSize: `${24 / 16}rem`,
+              lineHeight: 1.5,
+            },
+            // Set default font size for prose content
+            ".prose": {
+              fontSize: `${24 / 16}rem`,
+              lineHeight: 1.5,
+            },
+          },
+        },
+      },
     },
   },
   plugins: [
     require("tailwindcss-animate"),
-    plugin(({ addUtilities }) => {
+    require("@tailwindcss/typography"),
+    plugin(({ addUtilities, addVariant }) => {
       const newUtilities = {
         ".increase-pointer-area-x": {
           border: "none",
@@ -165,6 +288,7 @@ module.exports = {
         },
       };
 
+      addVariant("fullscreen", "&:fullscreen");
       addUtilities(newUtilities);
     }),
   ],

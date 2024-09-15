@@ -11,25 +11,27 @@ import traceback
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, Union
 
-from marimo._ast.cell import (
-    CellId_t,
-    CellImpl,
-)
+from marimo._ast.cell import CellId_t, CellImpl
 from marimo._config.config import ExecutionType, OnCellChangeType
 from marimo._loggers import marimo_logger
-from marimo._messaging.errors import Error, MarimoStrictExecutionError
+from marimo._messaging.errors import (
+    Error,
+    MarimoExceptionRaisedError,
+    MarimoStrictExecutionError,
+    UnknownError,
+)
 from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime import dataflow
-from marimo._runtime.control_flow import (
-    MarimoInterrupt,
-    MarimoStopError,
-)
+from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.executor import (
     MarimoMissingRefError,
+    MarimoNameError,
+    MarimoRuntimeException,
     execute_cell,
     execute_cell_async,
 )
 from marimo._runtime.marimo_pdb import MarimoPdb
+from marimo._utils.variables import unmangle_local
 
 LOGGER = marimo_logger()
 
@@ -37,6 +39,12 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from marimo._runtime.context.types import ExecutionContext
+    from marimo._runtime.runner.hooks_on_finish import OnFinishHookType
+    from marimo._runtime.runner.hooks_post_execution import (
+        PostExecutionHookType,
+    )
+    from marimo._runtime.runner.hooks_pre_execution import PreExecutionHookType
+    from marimo._runtime.runner.hooks_preparation import PreparationHookType
     from marimo._runtime.state import State
 
 
@@ -78,14 +86,10 @@ class Runner:
             [CellId_t], contextlib._GeneratorContextManager[ExecutionContext]
         ]
         | None = None,
-        preparation_hooks: Sequence[Callable[["Runner"], Any]] | None = None,
-        pre_execution_hooks: Sequence[Callable[[CellImpl, "Runner"], Any]]
-        | None = None,
-        post_execution_hooks: Sequence[
-            Callable[[CellImpl, "Runner", RunResult], Any]
-        ]
-        | None = None,
-        on_finish_hooks: Sequence[Callable[["Runner"], Any]] | None = None,
+        preparation_hooks: Sequence[PreparationHookType] | None = None,
+        pre_execution_hooks: Sequence[PreExecutionHookType] | None = None,
+        post_execution_hooks: Sequence[PostExecutionHookType] | None = None,
+        on_finish_hooks: Sequence[OnFinishHookType] | None = None,
     ):
         self.graph = graph
         self.debugger = debugger
@@ -108,7 +112,7 @@ class Runner:
 
         # runtime globals
         self.glbls = glbls
-        self.execution_mode = execution_mode
+        self.execution_mode: OnCellChangeType = execution_mode
         self.execution_type = execution_type
 
         # cells that the runner will run, subtracting out cells with errors:
@@ -116,24 +120,11 @@ class Runner:
         # cells with errors can't be run, but are still in the graph
         # so that they can be transitioned out of error if a future
         # run request repairs the graph
+        self.roots = roots
         self.cells_to_run: list[CellId_t]
 
-        # Runner always runs stale ancestors, if any.
-        cells_to_run = roots.union(
-            dataflow.transitive_closure(
-                graph,
-                roots,
-                children=False,
-                inclusive=False,
-                predicate=lambda cell: cell.stale,
-            )
-        )
-        if self.execution_mode == "autorun":
-            # in autorun/eager mode, descendants are also run
-            cells_to_run = dataflow.transitive_closure(graph, cells_to_run)
-        self.cells_to_run = dataflow.topological_sort(
-            graph,
-            cells_to_run - self.excluded_cells,
+        self.cells_to_run = Runner.compute_cells_to_run(
+            self.graph, self.roots, self.excluded_cells, self.execution_mode
         )
 
         # map from a cell that was cancelled to its descendants that have
@@ -148,6 +139,34 @@ class Runner:
         self._run_position = {
             cell_id: index for index, cell_id in enumerate(self.cells_to_run)
         }
+
+    @staticmethod
+    def compute_cells_to_run(
+        graph: dataflow.DirectedGraph,
+        roots: set[CellId_t],
+        excluded_cells: set[CellId_t],
+        execution_mode: OnCellChangeType,
+    ) -> list[CellId_t]:
+        # Runner always runs stale ancestors, if any.
+        cells_to_run = roots.union(
+            dataflow.transitive_closure(
+                graph,
+                roots,
+                children=False,
+                inclusive=False,
+                predicate=lambda cell: cell.stale,
+            )
+        )
+        if execution_mode == "autorun":
+            # in autorun/eager mode, descendants are also run;
+            cells_to_run = dataflow.transitive_closure(
+                graph, cells_to_run, relatives=dataflow.import_block_relatives
+            )
+
+        return dataflow.topological_sort(
+            graph,
+            cells_to_run - excluded_cells,
+        )
 
     # Adapted from
     # https://github.com/ipython/ipykernel/blob/eddd3e666a82ebec287168b0da7cfa03639a3772/ipykernel/ipkernel.py#L312  # noqa: E501
@@ -203,6 +222,8 @@ class Runner:
             for cid in dataflow.transitive_closure(self.graph, set([cell_id]))
             if cid in self.cells_to_run
         )
+        for cid in self.cells_cancelled[cell_id]:
+            self.graph.cells[cid].set_run_result_status("cancelled")
 
     def cancelled(self, cell_id: CellId_t) -> bool:
         """Return whether a cell has been cancelled."""
@@ -323,56 +344,135 @@ class Runner:
                     execution_type=self.execution_type,
                 )
             run_result = RunResult(output=return_value, exception=None)
-        except (MarimoInterrupt, asyncio.exceptions.CancelledError) as e:
+        except asyncio.exceptions.CancelledError:
             # User interrupt
             # interrupt the entire runner
-            if isinstance(e, asyncio.exceptions.CancelledError):
-                # Async cells can only be cancelled via a user interrupt
-                e = MarimoInterrupt()
-            self.interrupted = True
-            run_result = RunResult(output=None, exception=e)
+            # Async cells can only be cancelled via a user interrupt
+            run_result = RunResult(output=None, exception=MarimoInterrupt())
+            # Still provide a general traceback.
             tmpio = io.StringIO()
             traceback.print_exc(file=tmpio)
             tmpio.seek(0)
             write_traceback(tmpio.read())
-        except MarimoStopError as e:
-            # Raised by mo.stop().
-            # cancel only the descendants of this cell
+        # Strict mode errors may also raise errors outside of execution.
+        except MarimoNameError as e:
             self.cancel(cell_id)
-            run_result = RunResult(output=e.output, exception=e)
-            # don't print a traceback, since quitting is the intended
-            # behavior (like sys.exit())
+            strict_exception = MarimoStrictExecutionError(str(e), e.ref, None)
+            run_result = RunResult(
+                output=strict_exception, exception=strict_exception
+            )
         except MarimoMissingRefError as e:
             # In strict mode, marimo refuses to evaluate a cell if there are
             # missing definitions. Since the cell hasn't run, this is a pre
             # check error, but still mark descendants as cancelled.
             self.cancel(cell_id)
-            try:
-                (blamed_cell, *_) = self.graph.get_defining_cells(e.ref)
-            except KeyError:
-                # The reference is not found anywhere else in the graph
-                blamed_cell = None
-
-            output = MarimoStrictExecutionError(
-                f"marimo was unable to resolve "
-                f"a reference to `{e.ref}` in cell : ",
-                e.ref,
+            ref, blamed_cell = self._get_blamed_cell(e)
+            name_output = MarimoStrictExecutionError(
+                "marimo was unable to resolve "
+                f"a reference to `{ref}` in cell : ",
+                ref,
                 blamed_cell,
             )
-            run_result = RunResult(output=output, exception=output)
-        except BaseException as e:
-            # Catch-all: some libraries have bugs and raise BaseExceptions,
-            # which shouldn't crash the marimo kernel
-            if isinstance(e, ModuleNotFoundError):
+            run_result = RunResult(output=name_output, exception=name_output)
+        # Should cover all cell runtime exceptions.
+        except MarimoRuntimeException as e:
+            print_traceback = True
+            output: Any = None
+            unwrapped_exception: Optional[BaseException] = e.__cause__
+            exception: Optional[ErrorObjects] = unwrapped_exception
+
+            # Exceptions trigger cancellation of descendants.
+            self.cancel(cell_id)
+
+            if isinstance(exception, MarimoMissingRefError):
+                ref, blamed_cell = self._get_blamed_cell(exception)
+                # All MarimoMissingRefErrors should be caused caused by
+                # NameErrors if they are the cause of MarimoRuntimeExceptions.
+                if exception.name_error is not None:
+                    unwrapped_exception = exception.name_error
+                # Provide output context for said missing reference errors.
+                if self.execution_type == "strict":
+                    output = MarimoExceptionRaisedError(
+                        f"marimo came across the undefined variable `{ref}` "
+                        "during runtime. This is possible in strict mode when "
+                        "static analysis is unable to properly resolve the "
+                        "reference due  to direct access (e.g. "
+                        "`globals()['var']`) or circuitous definitions (e.g.  "
+                        "by reassigning variables to different functions). If "
+                        "this failure is not the result of either of these "
+                        "cases, please consider reporting this issue to "
+                        "https://github.com/marimo-team/marimo/issues. "
+                        "Definition expected in cell : ",
+                        "NameError",
+                        blamed_cell,
+                    )
+                    exception = output
+                elif blamed_cell != cell_id:
+                    output = MarimoExceptionRaisedError(
+                        f"marimo came across the undefined variable `{ref}` "
+                        "during runtime. Definition expected in cell : ",
+                        "NameError",
+                        blamed_cell,
+                    )
+                    exception = output
+                else:
+                    # Default to regular error for self reference in relaxed
+                    # mode.
+                    exception = unwrapped_exception
+
+            # Handle other special runtime errors.
+            elif isinstance(unwrapped_exception, ModuleNotFoundError):
                 self.missing_packages = True
 
-            self.cancel(cell_id)
-            run_result = RunResult(output=None, exception=e)
-            tmpio = io.StringIO()
-            traceback.print_exc(file=tmpio)
-            tmpio.seek(0)
-            write_traceback(tmpio.read())
+            elif isinstance(unwrapped_exception, MarimoStopError):
+                output = unwrapped_exception.output
+                exception = unwrapped_exception
+                # don't print a traceback, since quitting is the intended
+                # behavior (like sys.exit())
+                print_traceback = False
+
+            run_result = RunResult(output=output, exception=exception)
+            if print_traceback:
+                tmpio = io.StringIO()
+                # The executors explicitly raise cell exceptions from base
+                # exceptions such that the stack trace is cleaner.
+                # Verbosity is for Python < 3.10 compat
+                # See https://docs.python.org/3/library/traceback.html
+                exception_type = (
+                    type(unwrapped_exception) if unwrapped_exception else None
+                )
+                maybe_traceback = (
+                    unwrapped_exception.__traceback__
+                    if unwrapped_exception
+                    else None
+                )
+                traceback.print_exception(
+                    exception_type,
+                    unwrapped_exception,
+                    maybe_traceback,
+                    file=tmpio,
+                )
+                tmpio.seek(0)
+                write_traceback(tmpio.read())
+        except BaseException as e:
+            # Check that MarimoRuntimeException has't already handled the
+            # error, since exceptions fall through except blocks.
+            # If not, then this is an unexpected error.
+            if not isinstance(e, MarimoRuntimeException):
+                LOGGER.error(f"Unexpected error type: {e}")
+                self.cancel(cell_id)
+                unknown_error = UnknownError(f"{e}")
+                run_result = RunResult(output=None, exception=unknown_error)
+                tmpio = io.StringIO()
+                traceback.print_exc(file=tmpio)
+                tmpio.seek(0)
+                write_traceback(tmpio.read())
         finally:
+            # Mark as interrupted if the cell raised a MarimoInterrupt
+            # Set here since failed async can also trigger an Interrupt.
+            if isinstance(run_result.exception, MarimoInterrupt):
+                self.interrupted = True
+
             # if a debugger is active, force it to skip past marimo code.
             try:
                 # Bdb defines the botframe attribute and sets it to non-None
@@ -402,27 +502,65 @@ class Runner:
 
         return run_result
 
+    def _get_blamed_cell(
+        self, e: MarimoMissingRefError
+    ) -> tuple[str, Optional[CellId_t]]:
+        ref = e.ref
+        blamed_cell = None
+        try:
+            (blamed_cell, *_) = self.graph.get_defining_cells(ref)
+        except KeyError:
+            # The reference is not found anywhere else in the graph
+            # but it might be private
+            ref, var_cell_id = unmangle_local(ref)
+            if var_cell_id:
+                blamed_cell = var_cell_id
+        return ref, blamed_cell
+
     async def run_all(self) -> None:
+        LOGGER.debug("Running preparation hooks")
         for prep_hook in self.preparation_hooks:
             prep_hook(self)
 
         while self.pending():
             cell_id = self.pop_cell()
+            LOGGER.debug("Cell runner processing %s", cell_id)
+            cell = self.graph.cells[cell_id]
+
+            # Update run result status for cells that won't run.
+            #
+            # Hack: frontend sets status to queued on run, so we also have to
+            # set runtime_state to get FE to transition.
             if self.cancelled(cell_id):
+                LOGGER.debug("%s cancelled", cell_id)
+                cell.set_run_result_status("cancelled")
+                cell.set_runtime_state("idle")
+                continue
+            if cell.config.disabled:
+                LOGGER.debug("%s disabled", cell_id)
+                cell.set_run_result_status("disabled")
+                cell.set_runtime_state("idle")
                 continue
             if self.graph.is_disabled(cell_id):
+                LOGGER.debug("%s disabled transitively", cell_id)
+                cell.set_run_result_status("disabled")
+                cell.set_runtime_state("disabled-transitively")
                 continue
-            cell = self.graph.cells[cell_id]
+
+            LOGGER.debug("Running pre_execution hooks")
             for pre_hook in self.pre_execution_hooks:
                 pre_hook(cell, self)
+            LOGGER.debug("Running cell %s", cell_id)
             if self.execution_context is not None:
                 with self.execution_context(cell_id) as exc_ctx:
                     run_result = await self.run(cell_id)
                     run_result.accumulated_output = exc_ctx.output
             else:
                 run_result = await self.run(cell_id)
+            LOGGER.debug("Running post_execution hooks")
             for post_hook in self.post_execution_hooks:
                 post_hook(cell, self, run_result)
 
+        LOGGER.debug("Running on_finish hooks")
         for finish_hook in self.on_finish_hooks:
             finish_hook(self)

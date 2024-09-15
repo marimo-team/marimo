@@ -139,7 +139,7 @@ def test_kernel_manager_interrupt(tmp_path) -> None:
                             import time
                             with open("{file}", 'w') as f:
                                 f.write('0')
-                            time.sleep(1)
+                            time.sleep(5)
                             with open("{file}", 'w') as f:
                                 f.write('1')
                             """
@@ -155,7 +155,7 @@ def test_kernel_manager_interrupt(tmp_path) -> None:
 
     # give time for the file to be written to 0, but not enough for it to be
     # written to 1
-    time.sleep(0.1)
+    time.sleep(0.5)
     kernel_manager.interrupt_kernel()
 
     try:

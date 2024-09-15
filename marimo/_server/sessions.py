@@ -23,6 +23,7 @@ import signal
 import subprocess
 import sys
 import threading
+import time
 from multiprocessing import connection
 from multiprocessing.queues import Queue as MPQueue
 from pathlib import Path
@@ -33,6 +34,7 @@ from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t
 from marimo._cli.print import red
 from marimo._config.manager import UserConfigManager
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.ops import (
     Alert,
     FocusCell,
@@ -63,6 +65,7 @@ from marimo._server.session.session_view import SessionView
 from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._server.types import QueueType
 from marimo._server.utils import print_tabbed
+from marimo._tracer import server_tracer
 from marimo._utils.disposable import Disposable
 from marimo._utils.distributor import Distributor
 from marimo._utils.file_watcher import FileWatcher
@@ -153,6 +156,7 @@ class KernelManager:
         app_metadata: AppMetadata,
         user_config_manager: UserConfigManager,
         virtual_files_supported: bool,
+        redirect_console_to_browser: bool = False,
     ) -> None:
         self.kernel_task: Optional[threading.Thread] | Optional[mp.Process]
         self.queue_manager = queue_manager
@@ -160,6 +164,7 @@ class KernelManager:
         self.configs = configs
         self.app_metadata = app_metadata
         self.user_config_manager = user_config_manager
+        self.redirect_console_to_browser = redirect_console_to_browser
         self._read_conn: Optional[TypedConnection[KernelMessage]] = None
         self._virtual_files_supported = virtual_files_supported
 
@@ -185,7 +190,10 @@ class KernelManager:
                     self.app_metadata,
                     self.user_config_manager.config,
                     self._virtual_files_supported,
+                    self.redirect_console_to_browser,
                     self.queue_manager.win32_interrupt_queue,
+                    self.profile_path,
+                    GLOBAL_SETTINGS.LOG_LEVEL,
                 ),
                 # The process can't be a daemon, because daemonic processes
                 # can't create children
@@ -207,7 +215,9 @@ class KernelManager:
             # install formatter import hooks, which will be shared by all
             # threads (in edit mode, the single kernel process installs
             # formatters ...)
-            register_formatters()
+            register_formatters(
+                theme=self.user_config_manager.config["display"]["theme"]
+            )
 
             # Make threads daemons so killing the server immediately brings
             # down all client sessions
@@ -224,8 +234,13 @@ class KernelManager:
                     self.app_metadata,
                     self.user_config_manager.config,
                     self._virtual_files_supported,
+                    self.redirect_console_to_browser,
                     # win32 interrupt queue
                     None,
+                    # profile path
+                    None,
+                    # log level
+                    GLOBAL_SETTINGS.LOG_LEVEL,
                 ),
                 # daemon threads can create child processes, unlike
                 # daemon processes
@@ -236,6 +251,27 @@ class KernelManager:
         # First thing kernel does is connect to the socket, so it's safe to
         # call accept
         self._read_conn = TypedConnection[KernelMessage].of(listener.accept())
+
+    @property
+    def profile_path(self) -> str | None:
+        self._profile_path: str | None
+
+        if hasattr(self, "_profile_path"):
+            return self._profile_path
+
+        profile_dir = GLOBAL_SETTINGS.PROFILE_DIR
+        if profile_dir is not None:
+            self._profile_path = os.path.join(
+                profile_dir,
+                (
+                    os.path.basename(self.app_metadata.filename) + str(uuid4())
+                    if self.app_metadata.filename is not None
+                    else str(uuid4())
+                ),
+            )
+        else:
+            self._profile_path = None
+        return self._profile_path
 
     def is_alive(self) -> bool:
         return self.kernel_task is not None and self.kernel_task.is_alive()
@@ -257,6 +293,19 @@ class KernelManager:
         assert self.kernel_task is not None, "kernel not started"
 
         if isinstance(self.kernel_task, mp.Process):
+            if self.profile_path is not None and self.kernel_task.is_alive():
+                self.queue_manager.control_queue.put(requests.StopRequest())
+                # Hack: Wait for kernel to exit and write out profile;
+                # joining the process hangs, but not sure why.
+                print(
+                    "\tWriting profile statistics to",
+                    self.profile_path,
+                    " ...",
+                )
+                while not os.path.exists(self.profile_path):
+                    time.sleep(0.1)
+                time.sleep(1)
+
             self.queue_manager.close_queues()
             if self.kernel_task.is_alive():
                 self.kernel_task.terminate()
@@ -349,6 +398,7 @@ class Session:
         app_file_manager: AppFileManager,
         user_config_manager: UserConfigManager,
         virtual_files_supported: bool,
+        redirect_console_to_browser: bool = False,
     ) -> Session:
         """
         Create a new session.
@@ -363,6 +413,7 @@ class Session:
             app_metadata,
             user_config_manager,
             virtual_files_supported=virtual_files_supported,
+            redirect_console_to_browser=redirect_console_to_browser,
         )
         return cls(
             initialization_id,
@@ -583,6 +634,7 @@ class SessionManager:
         user_config_manager: UserConfigManager,
         cli_args: SerializedCLIArgs,
         auth_token: Optional[AuthToken],
+        redirect_console_to_browser: bool = False,
     ) -> None:
         self.file_router = file_router
         self.mode = mode
@@ -595,6 +647,7 @@ class SessionManager:
         self.recents = RecentFilesManager()
         self.user_config_manager = user_config_manager
         self.cli_args = cli_args
+        self.redirect_console_to_browser = redirect_console_to_browser
 
         # Auth token and Skew-protection token
         if auth_token is not None:
@@ -661,6 +714,7 @@ class SessionManager:
                 app_file_manager=app_file_manager,
                 user_config_manager=self.user_config_manager,
                 virtual_files_supported=True,
+                redirect_console_to_browser=self.redirect_console_to_browser,
             )
         return self.sessions[session_id]
 
@@ -838,6 +892,7 @@ class LspServer:
         self.port = port
         self.process: Optional[subprocess.Popen[bytes]] = None
 
+    @server_tracer.start_as_current_span("lsp_server.start")
     def start(self) -> Optional[Alert]:
         if self.process is not None:
             LOGGER.debug("LSP server already started")

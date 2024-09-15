@@ -2,9 +2,13 @@
 from __future__ import annotations
 
 import io
-from typing import Any, Tuple, Union, cast
+from typing import Any, Optional, Tuple, Union, cast
 
 from marimo._data.models import ColumnSummary, ExternalDataType
+from marimo._plugins.ui._impl.tables.format import (
+    FormatMapping,
+    format_value,
+)
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
     FieldType,
@@ -29,11 +33,16 @@ class PyArrowTableManagerFactory(TableManagerFactory):
         ):
             type = "pyarrow"
 
-            def to_csv(self) -> bytes:
+            def to_csv(
+                self, format_mapping: Optional[FormatMapping] = None
+            ) -> bytes:
                 import pyarrow.csv as csv  # type: ignore
 
+                _data = self.data
+                if format_mapping:
+                    _data = self.apply_formatting(format_mapping)
                 buffer = io.BytesIO()
-                csv.write_csv(self.data, buffer)
+                csv.write_csv(_data, buffer)
                 return buffer.getvalue()
 
             def to_json(self) -> bytes:
@@ -43,6 +52,63 @@ class PyArrowTableManagerFactory(TableManagerFactory):
                     .to_json(orient="records")
                     .encode("utf-8")
                 )
+
+            def apply_formatting(
+                self, format_mapping: FormatMapping
+            ) -> Union[pa.Table, pa.RecordBatch]:
+                _data = self.data
+                if isinstance(_data, pa.Table):
+                    column_names = _data.column_names
+                else:  # pa.RecordBatch
+                    column_names = _data.schema.names
+
+                transformed_columns: list[pa.Array[Any]] = []
+                for i, col in enumerate(column_names):
+                    transformed_column: pa.Array[Any]
+                    if isinstance(_data, pa.Table):
+                        transformed_column = _data.column(i).chunks[0]
+                    else:
+                        transformed_column = _data.column(i)
+                    if col in format_mapping:
+                        transformed_values: list[Any] = [
+                            format_value(col, value.as_py(), format_mapping)
+                            for value in transformed_column
+                        ]
+                        formatted_type = cast(
+                            Any, pa.array(transformed_values)
+                        ).type
+                        transformed_column = pa.array(
+                            transformed_values, type=formatted_type
+                        )  # type: ignore
+
+                    # Raise ValueError if transformed_column is pa.ChunkedArray
+                    if isinstance(transformed_column, pa.ChunkedArray):
+                        raise ValueError(
+                            f"Column {col} is a ChunkedArray, "
+                            "which is not supported."
+                        )
+
+                    transformed_columns.append(transformed_column)
+
+                if isinstance(_data, pa.Table):
+                    _data = pa.table(
+                        cast(Any, transformed_columns), names=column_names
+                    )
+                else:  # pa.RecordBatch
+                    new_schema = pa.schema(
+                        [
+                            pa.field(
+                                col,
+                                cast(Any, transformed_columns[i]).type,
+                            )
+                            for i, col in enumerate(column_names)
+                        ]
+                    )
+                    _data = pa.record_batch(
+                        transformed_columns, schema=new_schema
+                    )
+
+                return _data
 
             def select_rows(self, indices: list[int]) -> PyArrowTableManager:
                 if not indices:
@@ -61,7 +127,7 @@ class PyArrowTableManagerFactory(TableManagerFactory):
             ) -> PyArrowTableManager:
                 if isinstance(self.data, pa.RecordBatch):
                     return PyArrowTableManager(
-                        pa.RecordBatch.from_arrays(
+                        pa.record_batch(
                             [
                                 self.data.column(
                                     self.data.schema.get_field_index(col)
@@ -89,17 +155,24 @@ class PyArrowTableManagerFactory(TableManagerFactory):
             def get_field_types(self) -> FieldTypes:
                 return {
                     column: PyArrowTableManager._get_field_type(
-                        cast(Any, self.data)[idx]
+                        cast(Any, self.data.column(idx))
                     )
                     for idx, column in enumerate(self.data.schema.names)
                 }
 
-            def limit(self, num: int) -> PyArrowTableManager:
-                if num < 0:
-                    raise ValueError("Limit must be a positive integer")
-                if num >= self.data.num_rows:
-                    return PyArrowTableManager(self.data)
-                return PyArrowTableManager(self.data.take(list(range(num))))
+            def take(self, count: int, offset: int) -> PyArrowTableManager:
+                if count < 0:
+                    raise ValueError("Count must be a positive integer")
+                if offset < 0:
+                    raise ValueError("Offset must be a non-negative integer")
+                if offset >= self.data.num_rows:
+                    return PyArrowTableManager(
+                        pa.Table.from_pylist([], schema=self.data.schema)
+                    )
+                end = min(offset + count, self.data.num_rows)
+                return PyArrowTableManager(
+                    self.data.slice(offset, end - offset)
+                )
 
             def search(self, query: str) -> TableManager[Any]:
                 query = query.lower()
@@ -198,7 +271,7 @@ class PyArrowTableManagerFactory(TableManagerFactory):
 
             @staticmethod
             def _get_field_type(
-                column: pa.Array[Any, Any],
+                column: pa.ChunkedArray[Any],
             ) -> Tuple[FieldType, ExternalDataType]:
                 dtype_string = str(column.type)
                 if isinstance(column, pa.NullArray):

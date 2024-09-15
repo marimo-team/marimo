@@ -1,7 +1,11 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Dict
+import ast
+import os
+import subprocess
+import sys
+from typing import TYPE_CHECKING, Any, Dict
 
 import click
 from starlette.schemas import SchemaGenerator
@@ -17,16 +21,24 @@ import marimo._server.models.home as home
 import marimo._server.models.models as models
 import marimo._snippets.snippets as snippets
 from marimo import __version__
-from marimo._ast.cell import CellConfig, CellStatusType
+from marimo._ast.cell import CellConfig, RuntimeStateType
+from marimo._cli.print import orange
 from marimo._config.config import MarimoConfig
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.mime import MIME
 from marimo._plugins.core.web_component import JSONType
+from marimo._runtime.packages.module_name_to_pypi_name import (
+    module_name_to_pypi_name,
+)
 from marimo._server.api.router import build_routes
 from marimo._utils.dataclass_to_openapi import (
     PythonTypeToOpenAPI,
 )
+
+if TYPE_CHECKING:
+    import psutil
 
 
 def _generate_schema() -> dict[str, Any]:
@@ -35,7 +47,7 @@ def _generate_schema() -> dict[str, Any]:
     MESSAGES = [
         # Base
         MIME,
-        CellStatusType,
+        RuntimeStateType,
         KnownMimeType,
         CellChannel,
         data.NonNestedLiteral,
@@ -64,6 +76,7 @@ def _generate_schema() -> dict[str, Any]:
         ops.CellOp,
         ops.HumanReadableStatus,
         ops.FunctionCallResult,
+        ops.SendUIElementMessage,
         ops.RemoveUIElements,
         ops.Interrupted,
         ops.CompletedRun,
@@ -119,7 +132,9 @@ def _generate_schema() -> dict[str, Any]:
         files.FileMoveResponse,
         files.FileUpdateRequest,
         files.FileUpdateResponse,
+        home.OpenTutorialRequest,
         home.RecentFilesResponse,
+        home.RunningNotebooksResponse,
         home.ShutdownSessionRequest,
         home.WorkspaceFilesRequest,
         home.WorkspaceFilesResponse,
@@ -131,8 +146,10 @@ def _generate_schema() -> dict[str, Any]:
         models.ReadCodeResponse,
         models.RenameFileRequest,
         models.RunRequest,
+        models.RunScratchpadRequest,
         models.SaveAppConfigurationRequest,
         models.SaveNotebookRequest,
+        models.CopyNotebookRequest,
         models.SaveUserConfigurationRequest,
         models.StdinRequest,
         models.SuccessResponse,
@@ -142,11 +159,13 @@ def _generate_schema() -> dict[str, Any]:
         requests.CreationRequest,
         requests.DeleteCellRequest,
         requests.ExecuteMultipleRequest,
+        requests.ExecuteScratchpadRequest,
         requests.ExecuteStaleRequest,
         requests.ExecutionRequest,
         requests.FunctionCallRequest,
         requests.InstallMissingPackagesRequest,
         requests.PreviewDatasetColumnRequest,
+        requests.RenameRequest,
         requests.SetCellConfigRequest,
         requests.SetUserConfigRequest,
         requests.StopRequest,
@@ -176,7 +195,7 @@ def _generate_schema() -> dict[str, Any]:
         KnownMimeType: "MimeType",
         data.DataType: "DataType",
         data.NonNestedLiteral: "NonNestedLiteral",
-        CellStatusType: "CellStatus",
+        RuntimeStateType: "RuntimeState",
         CellChannel: "CellChannel",
         ops.MessageOperation: "MessageOperation",
     }
@@ -236,7 +255,161 @@ def openapi() -> None:
     """
     import yaml
 
-    print(yaml.dump(_generate_schema(), default_flow_style=False))
+    click.echo(yaml.dump(_generate_schema(), default_flow_style=False))
 
 
+@click.group(help="Various commands for the marimo processes", hidden=True)
+def ps() -> None:
+    pass
+
+
+def get_marimo_processes() -> list["psutil.Process"]:
+    import psutil
+
+    def is_marimo_process(proc: psutil.Process) -> bool:
+        if proc.name() == "marimo":
+            return True
+
+        if proc.name().lower() == "python":
+            try:
+                cmds = proc.cmdline()
+            except psutil.AccessDenied:
+                return False
+            except psutil.ZombieProcess:
+                return False
+            # any endswith marimo
+            has_marimo = any(x.endswith("marimo") for x in cmds)
+            # any command equals "tutorial", "edit", or "run"
+            has_running_command = any(
+                x in {"run", "tutorial", "edit"} for x in cmds
+            )
+            return has_marimo and has_running_command
+
+        return False
+
+    result: list[psutil.Process] = []
+
+    for proc in psutil.process_iter():
+        if is_marimo_process(proc):
+            result.append(proc)
+
+    return result
+
+
+@ps.command(help="List the marimo processes", name="list")
+def list_processes() -> None:
+    """
+    Example usage:
+
+        marimo development ps list
+    """
+    # pretty print processes
+    result = get_marimo_processes()
+    for proc in result:
+        cmds = proc.cmdline()
+        cmd = " ".join(cmds[1:])
+        click.echo(f"PID: {orange(str(proc.pid))} | {cmd}")
+
+
+@ps.command(help="Kill the marimo processes")
+def killall() -> None:
+    """
+    Example usage:
+
+        marimo development ps killall
+    """
+    import os
+
+    for proc in get_marimo_processes():
+        # Ignore self
+        if proc.pid == os.getpid():
+            continue
+        proc.kill()
+        click.echo(f"Killed process {proc.pid}")
+
+    click.echo("Killed all marimo processes")
+
+
+@click.command(
+    help="Inline packages according to PEP 723", name="inline-packages"
+)
+@click.argument("name", required=True)
+def inline_packages(
+    name: str,
+) -> None:
+    """
+    Example usage:
+
+        marimo development inline-packages
+
+    This uses some heuristics to guess the package names from the imports in
+    the file.
+
+    Requires uv.
+    Installation: https://docs.astral.sh/uv/getting-started/installation/
+    """
+
+    # Validate uv is installed
+    if not DependencyManager.which("uv"):
+        raise click.UsageError(
+            "uv is not installed. See https://docs.astral.sh/uv/getting-started/installation/"
+        )
+
+    # Validate the file exists
+    if not os.path.exists(name):
+        raise click.FileError(name)
+
+    # Validate >=3.10 for sys.stdlib_module_names
+    if sys.version_info < (3, 10):
+        # TOD: add support for < 3.10
+        # We can use https://github.com/omnilib/stdlibs
+        # to get the stdlib module names
+        raise click.UsageError("Requires Python >=3.10")
+
+    package_names = module_name_to_pypi_name()
+
+    def get_pypi_package_names() -> list[str]:
+        with open(name, "r") as file:
+            tree = ast.parse(file.read(), filename=name)
+
+        imported_modules = set[str]()
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    imported_modules.add(alias.name.split(".")[0])
+            elif isinstance(node, ast.ImportFrom):
+                if node.module:
+                    imported_modules.add(node.module.split(".")[0])
+
+        pypi_names = [
+            package_names.get(mod, mod.replace("_", "-"))
+            for mod in imported_modules
+        ]
+
+        return pypi_names
+
+    def is_stdlib_module(module_name: str) -> bool:
+        return module_name in sys.stdlib_module_names
+
+    pypi_names = get_pypi_package_names()
+
+    # Filter out python distribution packages
+    pypi_names = [name for name in pypi_names if not is_stdlib_module(name)]
+
+    click.echo(f"Inlining packages: {pypi_names}")
+    click.echo(f"into script: {name}")
+    subprocess.run(
+        [
+            "uv",
+            "add",
+            "--script",
+            name,
+        ]
+        + pypi_names
+    )
+
+
+development.add_command(inline_packages)
 development.add_command(openapi)
+development.add_command(ps)

@@ -3,42 +3,68 @@
  * Do not make direct changes to the file.
  */
 
-/** OneOf type helpers */
-type Without<T, U> = { [P in Exclude<keyof T, keyof U>]?: never };
-type XOR<T, U> = T | U extends object
-  ? (Without<T, U> & U) | (Without<U, T> & T)
-  : T | U;
-type OneOf<T extends any[]> = T extends [infer Only]
-  ? Only
-  : T extends [infer A, infer B, ...infer Rest]
-    ? OneOf<[XOR<A, B>, ...Rest]>
-    : never;
-
 export interface paths {
   "/@file/{filename_and_length}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
     get: {
       parameters: {
+        query?: never;
+        header?: never;
         path: {
           /** @description The filename and byte length of the virtual file */
           filename_and_length: string;
         };
+        cookie?: never;
       };
+      requestBody?: never;
       responses: {
         /** @description Get a virtual file */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/octet-stream": string;
           };
         };
         /** @description Invalid byte length in virtual file request */
         404: {
-          content: never;
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
         };
       };
     };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/ai/completion": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       /** @description The prompt to get AI completion for */
       requestBody: {
         content: {
@@ -48,6 +74,9 @@ export interface paths {
       responses: {
         /** @description Get AI completion for a prompt */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": {
               [key: string]: unknown;
@@ -56,9 +85,28 @@ export interface paths {
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/datasources/preview_column": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["PreviewDatasetColumnRequest"];
@@ -67,27 +115,72 @@ export interface paths {
       responses: {
         /** @description Preview a column in a dataset */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["SuccessResponse"];
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/documentation/snippets": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
     get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
       responses: {
         /** @description Load the snippets for the documentation page */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["Snippets"];
           };
         };
       };
     };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
-  "/api/export/html": {
+  "/api/export/auto_export/html": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["ExportAsHTMLRequest"];
@@ -96,19 +189,44 @@ export interface paths {
       responses: {
         /** @description Export the notebook as HTML */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
-            "text/html": string;
+            "application/json": components["schemas"]["SuccessResponse"];
           };
         };
         /** @description File must be saved before downloading */
         400: {
-          content: never;
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
-  "/api/export/markdown": {
+  "/api/export/auto_export/markdown": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["ExportAsMarkdownRequest"];
@@ -117,19 +235,136 @@ export interface paths {
       responses: {
         /** @description Export the notebook as a markdown */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+        /** @description File must be saved before downloading */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/export/html": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["ExportAsHTMLRequest"];
+        };
+      };
+      responses: {
+        /** @description Export the notebook as HTML */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "text/html": string;
+          };
+        };
+        /** @description File must be saved before downloading */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/export/markdown": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["ExportAsMarkdownRequest"];
+        };
+      };
+      responses: {
+        /** @description Export the notebook as a markdown */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "text/plain": string;
           };
         };
         /** @description File must be saved before downloading */
         400: {
-          content: never;
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/export/script": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["ExportAsScriptRequest"];
@@ -138,19 +373,44 @@ export interface paths {
       responses: {
         /** @description Export the notebook as a script */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "text/plain": string;
           };
         };
         /** @description File must be saved before downloading */
         400: {
-          content: never;
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/files/create": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["FileCreateRequest"];
@@ -159,15 +419,37 @@ export interface paths {
       responses: {
         /** @description Create a new file or directory */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["FileCreateResponse"];
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/files/delete": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["FileDeleteRequest"];
@@ -176,15 +458,37 @@ export interface paths {
       responses: {
         /** @description Delete a file or directory */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["FileDeleteResponse"];
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/files/file_details": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["FileDetailsRequest"];
@@ -193,15 +497,37 @@ export interface paths {
       responses: {
         /** @description Get details of a specific file or directory */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["FileDetailsResponse"];
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/files/list_files": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["FileListRequest"];
@@ -210,15 +536,37 @@ export interface paths {
       responses: {
         /** @description List files and directories in a given path */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["FileListResponse"];
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/files/move": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["FileMoveRequest"];
@@ -227,15 +575,37 @@ export interface paths {
       responses: {
         /** @description Move a file or directory */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["FileMoveResponse"];
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/files/update": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["FileUpdateRequest"];
@@ -244,39 +614,107 @@ export interface paths {
       responses: {
         /** @description Update a file or directory */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["FileUpdateResponse"];
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/home/recent_files": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
       responses: {
         /** @description Get the recent files */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["RecentFilesResponse"];
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/home/running_notebooks": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
       responses: {
         /** @description Get the running files */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
-            "application/json": components["schemas"]["WorkspaceFilesResponse"];
+            "application/json": components["schemas"]["RunningNotebooksResponse"];
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/home/shutdown_session": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["ShutdownSessionRequest"];
@@ -285,15 +723,76 @@ export interface paths {
       responses: {
         /** @description Shutdown the current session */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
-            "application/json": components["schemas"]["WorkspaceFilesResponse"];
+            "application/json": components["schemas"]["RunningNotebooksResponse"];
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/home/tutorial/open": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["OpenTutorialRequest"];
+        };
+      };
+      responses: {
+        /** @description Open a new tutorial */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["MarimoFile"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/home/workspace_files": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["WorkspaceFilesRequest"];
@@ -302,15 +801,37 @@ export interface paths {
       responses: {
         /** @description Get the files in the workspace */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["WorkspaceFilesResponse"];
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/kernel/code_autocomplete": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["CodeCompletionRequest"];
@@ -319,15 +840,76 @@ export interface paths {
       responses: {
         /** @description Complete a code fragment */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["SuccessResponse"];
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/kernel/copy": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["CopyNotebookRequest"];
+        };
+      };
+      responses: {
+        /** @description Copy notebook */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "text/plain": string;
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/kernel/delete": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["DeleteCellRequest"];
@@ -336,15 +918,37 @@ export interface paths {
       responses: {
         /** @description Delete a cell */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["SuccessResponse"];
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/kernel/format": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["FormatRequest"];
@@ -353,15 +957,37 @@ export interface paths {
       responses: {
         /** @description Format code */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["FormatResponse"];
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/kernel/function_call": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["FunctionCallRequest"];
@@ -370,15 +996,37 @@ export interface paths {
       responses: {
         /** @description Invoke an RPC */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["SuccessResponse"];
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/kernel/install_missing_packages": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["InstallMissingPackagesRequest"];
@@ -387,15 +1035,37 @@ export interface paths {
       responses: {
         /** @description Install missing packages */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["SuccessResponse"];
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/kernel/instantiate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["InstantiateRequest"];
@@ -404,27 +1074,72 @@ export interface paths {
       responses: {
         /** @description Instantiate a component */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["SuccessResponse"];
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/kernel/interrupt": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
       responses: {
         /** @description Interrupt the kernel's execution */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["SuccessResponse"];
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/kernel/open": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["OpenFileRequest"];
@@ -433,35 +1148,86 @@ export interface paths {
       responses: {
         /** @description Open a file */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["SuccessResponse"];
           };
         };
         /** @description File does not exist */
         400: {
-          content: never;
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/kernel/read_code": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
       responses: {
         /** @description Read the code from the server */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["ReadCodeResponse"];
           };
         };
         /** @description File must be saved before downloading */
         400: {
-          content: never;
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/kernel/rename": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["RenameFileRequest"];
@@ -470,27 +1236,72 @@ export interface paths {
       responses: {
         /** @description Rename the current app */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["SuccessResponse"];
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/kernel/restart_session": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
       responses: {
         /** @description Restart the current session without affecting other sessions. */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["SuccessResponse"];
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/kernel/run": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["RunRequest"];
@@ -499,15 +1310,37 @@ export interface paths {
       responses: {
         /** @description Run a cell. Updates cell code in the kernel if needed; registers new cells for unseen cell IDs. Only allowed in edit mode. */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["SuccessResponse"];
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/kernel/save": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["SaveNotebookRequest"];
@@ -516,15 +1349,37 @@ export interface paths {
       responses: {
         /** @description Save the current app */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "text/plain": string;
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/kernel/save_app_config": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["SaveAppConfigurationRequest"];
@@ -533,15 +1388,37 @@ export interface paths {
       responses: {
         /** @description Save the app configuration */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "text/plain": string;
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/kernel/save_user_config": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["SaveUserConfigurationRequest"];
@@ -550,15 +1427,76 @@ export interface paths {
       responses: {
         /** @description Update the user config on disk and in the kernel. Only allowed in edit mode. */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["SuccessResponse"];
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/kernel/scratchpad/run": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["RunScratchpadRequest"];
+        };
+      };
+      responses: {
+        /** @description Run the scratchpad */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/kernel/set_cell_config": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["SetCellConfigRequest"];
@@ -567,15 +1505,37 @@ export interface paths {
       responses: {
         /** @description Set the configuration of a cell */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["SuccessResponse"];
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/kernel/set_ui_element_value": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["UpdateComponentValuesRequest"];
@@ -584,27 +1544,72 @@ export interface paths {
       responses: {
         /** @description Set UI element values */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["SuccessResponse"];
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/kernel/shutdown": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
       responses: {
         /** @description Shutdown the kernel */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["SuccessResponse"];
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/kernel/stdin": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["StdinRequest"];
@@ -613,15 +1618,37 @@ export interface paths {
       responses: {
         /** @description Send input to the stdin stream */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["SuccessResponse"];
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/kernel/sync/cell_ids": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/json": components["schemas"]["UpdateCellIdsRequest"];
@@ -630,18 +1657,42 @@ export interface paths {
       responses: {
         /** @description Sync cell ids */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": components["schemas"]["SuccessResponse"];
           };
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/status": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
     get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
       responses: {
         /** @description Get the status of the application */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": {
               filenames?: string[];
@@ -657,12 +1708,35 @@ export interface paths {
         };
       };
     };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/usage": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
     get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
       responses: {
         /** @description Get the current memory and CPU usage of the application */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "application/json": {
               cpu: {
@@ -686,22 +1760,66 @@ export interface paths {
         };
       };
     };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/api/version": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
     get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
       responses: {
         /** @description Get the version of the application */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "text/plain": string;
           };
         };
       };
     };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
   "/auth/login": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     /** Submit login form */
     post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
       requestBody?: {
         content: {
           "application/x-www-form-urlencoded": {
@@ -713,6 +1831,9 @@ export interface paths {
       responses: {
         /** @description Login page */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
           content: {
             "text/html": string;
           };
@@ -721,21 +1842,36 @@ export interface paths {
         302: {
           headers: {
             Location?: string;
+            [name: string]: unknown;
           };
-          content: never;
+          content?: never;
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
   };
 }
-
 export type webhooks = Record<string, never>;
-
 export interface components {
   schemas: {
     AiCompletionRequest: {
       code: string;
+      context?: {
+        schema: {
+          columns: {
+            name: string;
+            type: string;
+          }[];
+          name: string;
+        }[];
+      } | null;
       includeOtherCode: string;
+      /** @enum {string} */
+      language: "python" | "markdown" | "sql";
       prompt: string;
     };
     Alert: {
@@ -788,32 +1924,29 @@ export interface components {
     CellOp: {
       cell_id: string;
       console?:
-        | components["schemas"]["CellOutput"]
-        | components["schemas"]["CellOutput"][]
+        | (
+            | components["schemas"]["CellOutput"]
+            | components["schemas"]["CellOutput"][]
+          )
         | null;
       /** @enum {string} */
       name: "cell-op";
       output?: components["schemas"]["CellOutput"];
       stale_inputs?: boolean | null;
-      status?: components["schemas"]["CellStatus"];
+      status?: components["schemas"]["RuntimeState"];
       timestamp: number;
     };
     CellOutput: {
       channel: components["schemas"]["CellChannel"];
-      data: OneOf<
-        [
-          string,
-          components["schemas"]["Error"][],
-          {
+      data:
+        | string
+        | components["schemas"]["Error"][]
+        | {
             [key: string]: unknown;
-          },
-        ]
-      >;
+          };
       mimetype: components["schemas"]["MimeType"];
       timestamp: number;
     };
-    /** @enum {string} */
-    CellStatus: "idle" | "queued" | "running" | "disabled-transitively";
     CodeCompletionRequest: {
       cellId: string;
       document: string;
@@ -850,6 +1983,10 @@ export interface components {
       }[];
       prefix_length: number;
     };
+    CopyNotebookRequest: {
+      destination: string;
+      source: string;
+    };
     CreationRequest: {
       executionRequests: components["schemas"]["ExecutionRequest"][];
       setUiElementValueRequest: components["schemas"]["SetUIElementValueRequest"];
@@ -876,6 +2013,8 @@ export interface components {
       num_columns?: number | null;
       num_rows?: number | null;
       source: string;
+      /** @enum {string} */
+      source_type: "local" | "duckdb";
       variable_name?: string | null;
     };
     DataTableColumn: {
@@ -886,6 +2025,8 @@ export interface components {
     /** @enum {string} */
     DataType: "string" | "boolean" | "integer" | "number" | "date" | "unknown";
     Datasets: {
+      /** @enum {string|null} */
+      clear_channel?: "local" | "duckdb" | null;
       /** @enum {string} */
       name: "datasets";
       tables: components["schemas"]["DataTable"][];
@@ -913,11 +2054,16 @@ export interface components {
     ExecuteMultipleRequest: {
       cellIds: string[];
       codes: string[];
+      timestamp: number;
+    };
+    ExecuteScratchpadRequest: {
+      code: string;
     };
     ExecuteStaleRequest: Record<string, never>;
     ExecutionRequest: {
       cellId: string;
       code: string;
+      timestamp: number;
     };
     ExportAsHTMLRequest: {
       assetUrl?: string | null;
@@ -935,7 +2081,8 @@ export interface components {
       contents?: string | null;
       name: string;
       path: string;
-      type: string;
+      /** @enum {string} */
+      type: "file" | "directory";
     };
     FileCreateResponse: {
       info?: components["schemas"]["FileInfo"];
@@ -962,7 +2109,7 @@ export interface components {
       id: string;
       isDirectory: boolean;
       isMarimoFile: boolean;
-      lastModifiedDate?: number | null;
+      lastModified?: number | null;
       name: string;
       path: string;
     };
@@ -1056,12 +2203,14 @@ export interface components {
     KernelReady: {
       app_config: {
         app_title?: string | null;
+        css_file?: string | null;
         layout_file?: string | null;
         /** @enum {string} */
         width: "normal" | "compact" | "medium" | "full";
       };
       capabilities: {
         sql: boolean;
+        terminal: boolean;
       };
       cell_ids: string[];
       codes: string[];
@@ -1085,14 +2234,16 @@ export interface components {
       resumed: boolean;
       ui_values?: {
         [key: string]:
-          | {
-              [key: string]: components["schemas"]["JSONType"];
-            }
-          | components["schemas"]["JSONType"][]
-          | string
-          | number
-          | boolean
-          | components["schemas"]["MIME"]
+          | (
+              | {
+                  [key: string]: components["schemas"]["JSONType"];
+                }
+              | components["schemas"]["JSONType"][]
+              | string
+              | number
+              | boolean
+              | components["schemas"]["MIME"]
+            )
           | null;
       } | null;
     };
@@ -1112,6 +2263,9 @@ export interface components {
     };
     MarimoConfig: {
       ai: {
+        anthropic: {
+          api_key: string;
+        };
         open_ai: {
           api_key: string;
           base_url: string;
@@ -1127,6 +2281,8 @@ export interface components {
         /** @enum {string} */
         cell_output: "above" | "below";
         code_editor_font_size: number;
+        /** @enum {string} */
+        dataframes: "rich" | "plain";
         /** @enum {string} */
         default_width: "normal" | "compact" | "medium" | "full";
         /** @enum {string} */
@@ -1176,7 +2332,7 @@ export interface components {
     };
     MarimoFile: {
       initializationId?: string | null;
-      lastModified: number;
+      lastModified?: number | null;
       name: string;
       path: string;
       sessionId?: string | null;
@@ -1200,6 +2356,7 @@ export interface components {
     MessageOperation:
       | components["schemas"]["CellOp"]
       | components["schemas"]["FunctionCallResult"]
+      | components["schemas"]["SendUIElementMessage"]
       | components["schemas"]["RemoveUIElements"]
       | components["schemas"]["Reload"]
       | components["schemas"]["Reconnected"]
@@ -1226,6 +2383,10 @@ export interface components {
     MimeType:
       | "application/json"
       | "application/vnd.marimo+error"
+      | "application/vnd.marimo+traceback"
+      | "application/vnd.marimo+mimebundle"
+      | "application/vnd.vega.v5+json"
+      | "application/vnd.vegalite.v5+json"
       | "image/png"
       | "image/svg+xml"
       | "image/tiff"
@@ -1238,6 +2399,7 @@ export interface components {
       | "text/html"
       | "text/plain"
       | "text/markdown"
+      | "text/latex"
       | "text/csv";
     MissingPackageAlert: {
       isolated: boolean;
@@ -1255,9 +2417,26 @@ export interface components {
     OpenFileRequest: {
       path: string;
     };
+    OpenTutorialRequest: {
+      tutorialId:
+        | (
+            | "intro"
+            | "dataflow"
+            | "ui"
+            | "markdown"
+            | "plots"
+            | "sql"
+            | "layout"
+            | "fileformat"
+            | "for-jupyter-users"
+          )
+        | "markdown-format";
+    };
     PreviewDatasetColumnRequest: {
       columnName: string;
       source: string;
+      /** @enum {string} */
+      sourceType: "local" | "duckdb";
       tableName: string;
     };
     QueryParamsAppend: {
@@ -1304,10 +2483,21 @@ export interface components {
     RenameFileRequest: {
       filename: string;
     };
+    RenameRequest: {
+      filename: string;
+    };
     RunRequest: {
       cellIds: string[];
       codes: string[];
     };
+    RunScratchpadRequest: {
+      code: string;
+    };
+    RunningNotebooksResponse: {
+      files: components["schemas"]["MarimoFile"][];
+    };
+    /** @enum {string} */
+    RuntimeState: "idle" | "queued" | "running" | "disabled-transitively";
     SaveAppConfigurationRequest: {
       config: {
         [key: string]: unknown;
@@ -1326,6 +2516,17 @@ export interface components {
     };
     SaveUserConfigurationRequest: {
       config: components["schemas"]["MarimoConfig"];
+    };
+    SendUIElementMessage: {
+      buffers?: string[] | null;
+      message: {
+        [key: string]: {
+          [key: string]: unknown;
+        };
+      };
+      /** @enum {string} */
+      name: "send-ui-element-message";
+      ui_element: string;
     };
     SetCellConfigRequest: {
       configs: {
@@ -1408,7 +2609,8 @@ export interface components {
       includeMarkdown: boolean;
     };
     WorkspaceFilesResponse: {
-      files: components["schemas"]["MarimoFile"][];
+      files: components["schemas"]["FileInfo"][];
+      root: string;
     };
   };
   responses: never;
@@ -1417,9 +2619,5 @@ export interface components {
   headers: never;
   pathItems: never;
 }
-
 export type $defs = Record<string, never>;
-
-export type external = Record<string, never>;
-
 export type operations = Record<string, never>;

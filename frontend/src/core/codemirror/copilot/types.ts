@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-empty-interface */
 
-export interface CopilotSignInInitiateParams {}
+export type CopilotSignInInitiateParams = {};
 export interface CopilotSignInInitiateResult {
   verificationUri: string;
   status: string;
@@ -33,7 +33,7 @@ export interface CopilotSignInConfirmResult {
   status: CopilotStatus;
   user: string;
 }
-export interface CopilotSignOutParams {}
+export type CopilotSignOutParams = {};
 export interface CopilotSignOutResult {
   status: CopilotStatus;
 }
@@ -58,6 +58,7 @@ export interface CopilotGetCompletionsParams {
 export interface CopilotGetCompletionsResult {
   completions: Array<{
     text: string;
+    docVersion: number;
     position: {
       line: number;
       character: number;

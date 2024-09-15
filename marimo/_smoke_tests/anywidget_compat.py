@@ -1,4 +1,14 @@
-# Copyright 2024 Marimo. All rights reserved.
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "marimo",
+#     "traitlets",
+#     "anywidget",
+#     "pandas",
+#     "altair",
+#     "drawdata",
+# ]
+# ///
 import marimo
 
 __generated_with = "0.2.13"

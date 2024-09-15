@@ -1,8 +1,17 @@
-# Copyright 2024 Marimo. All rights reserved.
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "pandas",
+#     "vega-datasets",
+#     "marimo",
+#     "polars",
+#     "pyarrow",
+# ]
+# ///
 
 import marimo
 
-__generated_with = "0.6.19"
+__generated_with = "0.8.13"
 app = marimo.App(width="full")
 
 
@@ -73,6 +82,36 @@ def __(mo, pyarrow_df):
 def __(df, mo):
     mo.ui.table(df)
     return
+
+
+@app.cell
+def __(mo, polars_df):
+    _df = mo.sql(
+        f"""
+        SELECT * FROM polars_df
+        """
+    )
+    return
+
+
+@app.cell
+def __(mo):
+    mo.ui.table({"a": [2, 2, 12], "b": [2, 5, 6]})
+    return
+
+
+@app.cell
+def __(mo, polars_df):
+    mo.plain(polars_df)
+    return
+
+
+@app.cell
+def __(pd):
+    date_range = pd.date_range(start="2023-01-01", periods=10, freq="D")
+    date_indexed_df = pd.DataFrame({"Data": range(10)}, index=date_range)
+    date_indexed_df
+    return date_indexed_df, date_range
 
 
 if __name__ == "__main__":

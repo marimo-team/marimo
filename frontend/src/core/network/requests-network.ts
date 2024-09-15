@@ -40,6 +40,14 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    sendCopy: (request) => {
+      return marimoClient
+        .POST("/api/kernel/copy", {
+          body: request,
+          parseAs: "text",
+        })
+        .then(handleResponseReturnNull);
+    },
     sendFormat: (request) => {
       return marimoClient
         .POST("/api/kernel/format", {
@@ -60,6 +68,13 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     sendRun: (request) => {
       return marimoClient
         .POST("/api/kernel/run", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
+    },
+    sendRunScratchpad: (request) => {
+      return marimoClient
+        .POST("/api/kernel/scratchpad/run", {
           body: request,
         })
         .then(handleResponseReturnNull);
@@ -200,6 +215,13 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponse);
     },
+    openTutorial: (request) => {
+      return marimoClient
+        .POST("/api/home/tutorial/open", {
+          body: request,
+        })
+        .then(handleResponse);
+    },
     getRecentFiles: () => {
       return marimoClient.POST("/api/home/recent_files").then(handleResponse);
     },
@@ -243,6 +265,20 @@ export function createNetworkRequests(): EditRequests & RunRequests {
           parseAs: "text",
         })
         .then(handleResponse);
+    },
+    autoExportAsHTML: async (request) => {
+      return marimoClient
+        .POST("/api/export/auto_export/html", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
+    },
+    autoExportAsMarkdown: async (request) => {
+      return marimoClient
+        .POST("/api/export/auto_export/markdown", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
     },
   };
 }

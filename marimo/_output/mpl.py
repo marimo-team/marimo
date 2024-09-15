@@ -17,10 +17,10 @@ import io
 from typing import Optional
 
 import matplotlib.pyplot as plt  # type: ignore
+from matplotlib._pylab_helpers import Gcf  # type: ignore
 from matplotlib.backend_bases import (  # type: ignore
     FigureCanvasBase,
     FigureManagerBase,
-    Gcf,
 )
 from matplotlib.backends.backend_agg import FigureCanvasAgg  # type: ignore
 
