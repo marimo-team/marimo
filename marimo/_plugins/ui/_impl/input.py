@@ -4,6 +4,7 @@ from __future__ import annotations
 import base64
 import dataclasses
 import os
+import pathlib
 import traceback
 from dataclasses import dataclass
 from typing import (
@@ -1360,6 +1361,16 @@ class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
         if not initial_path:
             initial_path = os.getcwd()
 
+        # frontend plugin can't handle relative paths
+        initial_path = os.path.realpath(os.path.expanduser(initial_path))
+        # initial path must be a directory
+        if not os.path.isdir(initial_path):
+            raise ValueError(
+                f"Initial path {initial_path} is not a directory."
+            )
+
+        self.restrict_navigation = restrict_navigation
+        self.initial_path = initial_path
         super().__init__(
             component_name=file_browser._name,
             initial_value=[],
@@ -1382,6 +1393,18 @@ class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
         )
 
     def list_directory(self, args: ListDirectoryArgs) -> ListDirectoryResponse:
+        # When navigation is restricted, the navigated-to path cannot be
+        # be a parent of the initial path
+        if (
+            self.restrict_navigation
+            and pathlib.Path(args.path)
+            in pathlib.Path(self.initial_path).parents
+        ):
+            raise RuntimeError(
+                "Navigation is restricted; navigating to a "
+                "parent of initial path is not allowed."
+            )
+
         files = []
         files_in_path = OSFileSystem().list_files(args.path)
 
