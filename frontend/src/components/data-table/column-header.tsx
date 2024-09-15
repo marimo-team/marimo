@@ -12,6 +12,7 @@ import {
   WrapTextIcon,
   AlignJustifyIcon,
   PinOffIcon,
+  PaletteIcon,
 } from "lucide-react";
 
 import { cn } from "@/utils/cn";
@@ -27,17 +28,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "../ui/button";
-import { useRef, useState } from "react";
 import { NumberField } from "../ui/number-field";
 import { Input } from "../ui/input";
 import { type ColumnFilterForType, Filter } from "./filters";
-import { logNever } from "@/utils/assertNever";
 import type { DataType } from "@/core/kernel/messages";
 import { formatOptions } from "./column-formatting/types";
 import { DATA_TYPE_ICON } from "../datasets/icons";
 import { formattingExample } from "./column-formatting/feature";
 import { PinLeftIcon, PinRightIcon } from "@radix-ui/react-icons";
 import { NAMELESS_COLUMN_PREFIX } from "./columns";
+import { logNever } from "@/utils/assertNever";
+import { useState, useRef } from "react";
 
 interface DataTableColumnHeaderProps<TData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {
@@ -205,6 +206,40 @@ export const DataTableColumnHeader = <TData, TValue>({
     );
   };
 
+  const renderColorOptions = () => {
+    if (!column.getIsColumnHeatmapEnabled || !column.toggleColumnHeatmap) {
+      return null;
+    }
+
+    // Get type, should be a number
+    let dataType = column.columnDef.meta?.dataType;
+
+    // HACK: If no dataType, check if column is numeric manually
+    if (!dataType) {
+      // Check if column is numeric
+      // Check if first or last column is numeric
+      const rows = column.getFacetedRowModel().flatRows;
+      const first = rows[0]?.getValue(column.id);
+      const last = rows[rows.length - 1]?.getValue(column.id);
+      if (typeof first === "number" || typeof last === "number") {
+        dataType = "number";
+      }
+    }
+
+    if (dataType !== "integer" && dataType !== "number") {
+      return null;
+    }
+
+    const enabled = column.getIsColumnHeatmapEnabled();
+
+    return (
+      <DropdownMenuItem onClick={() => column.toggleColumnHeatmap?.()}>
+        <PaletteIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+        {enabled ? "Disable heatmap" : "Enable heatmap"}
+      </DropdownMenuItem>
+    );
+  };
+
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild={true}>
@@ -258,6 +293,7 @@ export const DataTableColumnHeader = <TData, TValue>({
         {renderColumnPinning()}
         {renderColumnWrapping()}
         {renderFormatOptions()}
+        {renderColorOptions()}
         <DropdownMenuItemFilter column={column} />
       </DropdownMenuContent>
     </DropdownMenu>

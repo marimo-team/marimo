@@ -64,6 +64,7 @@ export function renderTableBody<TData>(
   const renderCells = (row: Row<TData>, cells: Array<Cell<TData, unknown>>) => {
     return cells.map((cell) => {
       const { className, style } = getPinningStyles(cell.column);
+      const heatmapColor = cell.column.getCellHeatmapColor?.(cell.getValue());
       return (
         <TableCell
           key={cell.id}
@@ -74,7 +75,10 @@ export function renderTableBody<TData>(
               "whitespace-pre-wrap min-w-[200px]",
             className,
           )}
-          style={style}
+          style={{
+            ...style,
+            backgroundColor: heatmapColor,
+          }}
           title={String(cell.getValue())}
         >
           {flexRender(cell.column.columnDef.cell, cell.getContext())}
