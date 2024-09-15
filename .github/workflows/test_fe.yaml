@@ -1,19 +1,9 @@
 name: Test FE
 
-# Run on push to main and pull requests
-# only for changes in the frontend directory
 on:
   push:
     branches: [main]
-    paths:
-      - 'frontend/**'
-      - 'lsp/**'
-      - 'openapi/**'
   pull_request:
-    paths:
-      - 'frontend/**'
-      - 'lsp/**'
-      - 'openapi/**'
 
 env:
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
@@ -21,7 +11,24 @@ env:
   MARIMO_SKIP_UPDATE_CHECK: 1
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+              - 'lsp/**'
+              - 'openapi/**'
+
   test_frontend:
+    needs: changes
+    if: ${{ needs.changes.outputs.frontend == 'true' }}
     name: 🖥️ Lint, test, build frontend
     runs-on: ubuntu-latest
     timeout-minutes: 15
