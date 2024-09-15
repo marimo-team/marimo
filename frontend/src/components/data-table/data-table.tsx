@@ -58,7 +58,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   freezeColumnsLeft?: string[];
   freezeColumnsRight?: string[];
   // Heatmap
-  initialHeatmap?: boolean;
+  initialHeatmap?: boolean | string[];
 }
 
 const DataTableInternal = <TData,>({
@@ -138,10 +138,15 @@ const DataTableInternal = <TData,>({
     // selection
     onRowSelectionChange: onRowSelectionChange,
     initialState: {
-      columnHeatmap: initialHeatmap
-        ? // Initialize heatmap state for all columns
-          Object.fromEntries(columns.map((column) => [column.id, true]))
-        : {},
+      columnHeatmap:
+        initialHeatmap === true
+          ? // Initialize heatmap state for all columns
+            Object.fromEntries(columns.map((column) => [column.id, true]))
+          : Array.isArray(initialHeatmap)
+            ? Object.fromEntries(
+                initialHeatmap.map((columnId) => [columnId, true]),
+              )
+            : {},
     },
     state: {
       ...(sorting ? { sorting } : {}),

@@ -227,7 +227,7 @@ class table(
         ] = None,
         freeze_columns_left: Optional[Sequence[str]] = None,
         freeze_columns_right: Optional[Sequence[str]] = None,
-        heatmap: bool = False,
+        heatmap: Union[bool, List[str]] = False,
         *,
         label: str = "",
         on_change: Optional[

@@ -38,5 +38,17 @@ def __(mo):
     return
 
 
+@app.cell
+def __(mo):
+    _size = 20
+    mo.ui.table(
+        [{"one": x, "two": x * 3} for x in range(0, _size)],
+        page_size=_size,
+        heatmap=["two"],
+        selection=None,
+    )
+    return
+
+
 if __name__ == "__main__":
     app.run()
