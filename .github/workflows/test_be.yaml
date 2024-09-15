@@ -1,26 +1,32 @@
 name: Test BE
 
-# Run on push to main and pull requests
-# only for backend changes
 on:
   push:
     branches: [main]
-    paths:
-      - 'marimo/**'
-      - 'tests/**'
-      - 'pyproject.toml'
   pull_request:
-    paths:
-      - 'marimo/**'
-      - 'tests/**'
-      - 'pyproject.toml'
 
 env:
   MARIMO_SKIP_UPDATE_CHECK: 1
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'marimo/**'
+              - 'tests/**'
+              - 'pyproject.toml'
+
   test_python:
-    # short name otherwise GitHub Actions will truncate it
+    needs: changes
+    if: ${{ needs.changes.outputs.backend == 'true' }}
     name: ${{ matrix.os }} / Py ${{ matrix.python-version }} / ${{ matrix.dependencies }} deps
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15

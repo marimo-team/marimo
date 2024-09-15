@@ -3,13 +3,7 @@ name: cli test
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - 'docs/**'
-      - README.md
   pull_request:
-    paths-ignore:
-      - 'docs/**'
-      - README.md
 
 env:
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
@@ -17,7 +11,24 @@ env:
   MARIMO_SKIP_UPDATE_CHECK: 1
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      cli: ${{ steps.filter.outputs.cli }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            cli:
+              - '**'
+              - '!docs/**'
+              - '!README.md'
+
   build_wheel:
+    needs: changes
+    if: ${{ needs.changes.outputs.cli == 'true' }}
     name: Build marimo wheel
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -77,8 +88,9 @@ jobs:
           retention-days: 1
 
   test_cli:
+    needs: [changes, build_wheel]
+    if: ${{ needs.changes.outputs.cli == 'true' }}
     name: Tests CLI on ${{ matrix.os }} ${{ matrix.python-version }}
-    needs: build_wheel
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
@@ -116,8 +128,9 @@ jobs:
         run: pytest -v tests/_cli/test_cli.py tests/_cli/test_cli_export.py
 
   test_examples:
+    needs: [changes, build_wheel]
+    if: ${{ needs.changes.outputs.cli == 'true' }}
     name: Tests examples and smoke_tests
-    needs: build_wheel
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
