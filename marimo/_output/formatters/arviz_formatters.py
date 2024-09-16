@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     import matplotlib.pyplot as plt
     import numpy as np
 
+
 class ArviZFormatter(FormatterFactory):
     @staticmethod
     def package_name() -> str:
