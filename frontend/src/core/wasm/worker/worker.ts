@@ -113,7 +113,6 @@ const requestHandler = createRPCRequestHandler({
           messageBuffer.push(msg);
         },
       });
-      initializeOnce();
       bridgeReady.resolve(bridge);
       workerInitSpan.end("ok");
     } catch (error) {
@@ -246,7 +245,7 @@ export type WorkerSchema = RPCSchema<
       kernelMessage: { message: JsonString<OperationMessage> };
       // Emitted when the Pyodide is initialized
       initialized: {};
-      // Emitted when the Pyodide is initializing
+      // Emitted when the Pyodide is initializing, with new messages
       initializingMessage: { message: string };
       // Emitted when the Pyodide fails to initialize
       initializedError: { error: string };
