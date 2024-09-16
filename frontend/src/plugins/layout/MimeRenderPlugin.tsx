@@ -7,11 +7,10 @@ import type {
 } from "../stateless-plugin";
 import { OutputRenderer } from "../../components/editor/Output";
 import type { OutputMessage } from "@/core/kernel/messages";
-import { Logger } from "@/utils/Logger";
 
 interface Data {
   mime: OutputMessage["mimetype"];
-  data: string;
+  data: OutputMessage["data"] | null;
 }
 
 export class MimeRendererPlugin implements IStatelessPlugin<Data> {
@@ -19,28 +18,22 @@ export class MimeRendererPlugin implements IStatelessPlugin<Data> {
 
   validator = z.object({
     mime: z.string().transform((val) => val as OutputMessage["mimetype"]),
-    data: z.string(),
+    data: z.union([z.string(), z.null(), z.record(z.unknown())]),
   });
 
   render({ data }: IStatelessPluginProps<Data>): JSX.Element {
-    if (!data) {
+    if (!data.data) {
       return <div />;
     }
 
-    try {
-      const parsed = JSON.parse(data.data);
-      return (
-        <OutputRenderer
-          message={{
-            data: parsed as OutputMessage["data"],
-            channel: "output",
-            mimetype: data.mime,
-          }}
-        />
-      );
-    } catch {
-      Logger.error("Failed to parse data");
-      return <pre>{data.data}</pre>;
-    }
+    return (
+      <OutputRenderer
+        message={{
+          data: data.data,
+          channel: "output",
+          mimetype: data.mime,
+        }}
+      />
+    );
   }
 }
