@@ -22,6 +22,7 @@ export const LargeSpinner = ({ title }: { title?: string }) => {
     <div className="flex flex-col h-full flex-1 items-center justify-center p-4">
       <Loader2Icon
         className="size-20 animate-spin text-primary"
+        data-testid="large-spinner"
         strokeWidth={1}
       />
       <div
