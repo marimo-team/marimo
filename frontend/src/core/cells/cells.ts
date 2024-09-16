@@ -258,10 +258,10 @@ const {
     const index = state.cellIds.indexOfOrThrow(cellId);
 
     if (state.columnBreakpoints.length > 1) {
-      const [columnIndex, breakpoint] = getCellColumn(state, index);
+      const [column, breakpoint] = getCellColumn(state, index);
       if (
         (before && breakpoint > index - 1) ||
-        (!before && state.columnBreakpoints[columnIndex + 1] <= index + 1)
+        (!before && state.columnBreakpoints[column + 1] <= index + 1)
       ) {
         return state;
       }
@@ -298,6 +298,14 @@ const {
     const { cellId, overCellId } = action;
     const fromIndex = state.cellIds.indexOfOrThrow(cellId);
     const toIndex = state.cellIds.indexOfOrThrow(overCellId);
+
+    const [column, breakpoint] = getCellColumn(state, fromIndex);
+    if (toIndex < breakpoint) {
+      updateColumnBreakpoints(state, toIndex, true);
+    } else if (toIndex > state.columnBreakpoints[column + 1]) {
+      updateColumnBreakpoints(state, toIndex, false);
+    }
+
     return {
       ...state,
       cellIds: state.cellIds.move(fromIndex, toIndex),
@@ -388,12 +396,12 @@ const {
       return state;
     }
 
-    const [columnIndex, _] = getCellColumn(state, index);
+    const [column, _] = getCellColumn(state, index);
     if (
       state.columnBreakpoints.length > 1 &&
-      state.columnBreakpoints.length >= columnIndex + 1
+      state.columnBreakpoints.length >= column + 1
     ) {
-      newIndex = state.columnBreakpoints[columnIndex + 1] - 1;
+      newIndex = state.columnBreakpoints[column + 1] - 1;
     }
 
     return {

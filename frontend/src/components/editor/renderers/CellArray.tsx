@@ -117,7 +117,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
         {columns.map((column, columnIndex) => (
           <div
             key={columnIndex}
-            className="flex flex-col gap-5 max-w-contentWidth min-w-[550px]"
+            className="flex flex-col gap-5 w-[600px] max-w-[600px] min-w-[600px]"
           >
             {column.map((cell) => (
               <Cell
