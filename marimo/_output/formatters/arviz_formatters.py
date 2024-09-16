@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.formatter_factory import FormatterFactory
 
-
-class ArviZFormatter(FormatterFactory):
+if TYPE_CHECKING:
     import matplotlib.pyplot as plt
     import numpy as np
 
+class ArviZFormatter(FormatterFactory):
     @staticmethod
     def package_name() -> str:
         return "arviz"
