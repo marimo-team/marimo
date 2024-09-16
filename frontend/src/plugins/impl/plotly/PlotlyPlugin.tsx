@@ -186,13 +186,20 @@ export const PlotlyComponent = memo(
               ? figure.layout.selections
               : [];
           if (selections.length === 0) {
-            setValue((prev) => ({
-              ...prev,
-              selections: selections,
-              points: [],
-              indices: [],
-              range: undefined,
-            }));
+            setValue((prev) => {
+              const prevSelections = prev?.selections ?? [];
+              if (prevSelections.length === 0) {
+                return prev;
+              }
+
+              return {
+                ...prev,
+                selections: selections,
+                points: [],
+                indices: [],
+                range: undefined,
+              };
+            });
           }
         }}
         config={plotlyConfig}
