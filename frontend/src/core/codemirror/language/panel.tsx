@@ -17,12 +17,9 @@ export const LanguagePanelComponent: React.FC<{
     showDivider = true;
     actions = (
       <div className="flex flex-1 gap-2 relative items-center justify-between">
-        <div className="flex gap-2 items-center">
-          <label htmlFor="dataframeName" className="select-none">
-            Output variable:{" "}
-          </label>
+        <label className="flex gap-2 items-center">
+          <span className="select-none">Output variable: </span>
           <input
-            id="dataframeName"
             {...inputProps}
             defaultValue={languageAdapter.dataframeName}
             onChange={(e) => {
@@ -47,11 +44,10 @@ export const LanguagePanelComponent: React.FC<{
             className="min-w-14 w-auto border border-border rounded px-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
           <span {...spanProps} />
-        </div>
-        <div className="flex items-center gap-2">
+        </label>
+        <label className="flex items-center gap-2">
           <input
             type="checkbox"
-            id="hideOutput"
             onChange={(e) => {
               languageAdapter.showOutput = !e.target.checked;
               // Trigger an update to reflect the change
@@ -65,10 +61,8 @@ export const LanguagePanelComponent: React.FC<{
             }}
             checked={!languageAdapter.showOutput}
           />
-          <label className="select-none" htmlFor="hideOutput">
-            Hide output
-          </label>
-        </div>
+          <span className="select-none">Hide output</span>
+        </label>
       </div>
     );
   }
