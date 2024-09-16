@@ -89,6 +89,29 @@ describe("SQLLanguageAdapter", () => {
       expect(innerCode).toBe("SELECT * FROM {df}");
       expect(offset).toBe(22);
     });
+
+    it("should handle output flag set to True", () => {
+      const pythonCode = '_df = mo.sql("""SELECT * FROM table""", output=True)';
+      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      expect(innerCode).toBe("SELECT * FROM table");
+      expect(adapter.showOutput).toBe(true);
+      expect(offset).toBe(16);
+    });
+
+    it("should handle output flag set to False", () => {
+      const pythonCode =
+        '_df = mo.sql("""SELECT * FROM table""", output=False)';
+      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      expect(innerCode).toBe("SELECT * FROM table");
+      expect(adapter.showOutput).toBe(false);
+      expect(offset).toBe(16);
+    });
+
+    it("should default to showing output when flag is not specified", () => {
+      const pythonCode = '_df = mo.sql("""SELECT * FROM table""")';
+      adapter.transformIn(pythonCode);
+      expect(adapter.showOutput).toBe(true);
+    });
   });
 
   describe("transformOut", () => {
@@ -101,6 +124,38 @@ describe("SQLLanguageAdapter", () => {
         "my_df = mo.sql(
             f"""
             SELECT * FROM {df}
+            """
+        )"
+      `);
+      expect(offset).toBe(26);
+    });
+
+    it("should include output flag when set to False", () => {
+      const code = "SELECT * FROM table";
+      adapter.lastQuotePrefix = "f";
+      adapter.dataframeName = "my_df";
+      adapter.showOutput = false;
+      const [wrappedCode, offset] = adapter.transformOut(code);
+      expect(wrappedCode).toMatchInlineSnapshot(`
+        "my_df = mo.sql(
+            f"""
+            SELECT * FROM table
+            """, output=False
+        )"
+      `);
+      expect(offset).toBe(26);
+    });
+
+    it("should not include output flag when set to True", () => {
+      const code = "SELECT * FROM table";
+      adapter.lastQuotePrefix = "f";
+      adapter.dataframeName = "my_df";
+      adapter.showOutput = true;
+      const [wrappedCode, offset] = adapter.transformOut(code);
+      expect(wrappedCode).toMatchInlineSnapshot(`
+        "my_df = mo.sql(
+            f"""
+            SELECT * FROM table
             """
         )"
       `);
@@ -133,6 +188,19 @@ describe("SQLLanguageAdapter", () => {
       const once = 'df = mo.sql("""SELECT * FROM {df}""")';
       const pythonCode = [once, once].join("\n");
       expect(adapter.isSupported(pythonCode)).toBe(false);
+    });
+
+    it("should support SQL strings with output flag", () => {
+      expect(
+        adapter.isSupported(
+          'df = mo.sql("""SELECT * FROM table""", output=True)',
+        ),
+      ).toBe(true);
+      expect(
+        adapter.isSupported(
+          'df = mo.sql("""SELECT * FROM table""", output=False)',
+        ),
+      ).toBe(true);
     });
   });
 });

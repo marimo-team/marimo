@@ -31,7 +31,7 @@ def test_query_includes_limit():
     )
 
 
-@patch("marimo._sql.sql.output.replace")
+@patch("marimo._sql.sql.replace")
 @pytest.mark.skipif(not HAS_DEPS, reason="polars and duckdb is required")
 def test_applies_limit(mock_replace: MagicMock) -> None:
     import duckdb
@@ -90,3 +90,36 @@ def test_applies_limit(mock_replace: MagicMock) -> None:
 def test_sql_raises_error_without_duckdb():
     with pytest.raises(ModuleNotFoundError):
         sql("SELECT * FROM t")
+
+
+@patch("marimo._sql.sql.replace")
+@pytest.mark.skipif(not HAS_DEPS, reason="polars and duckdb is required")
+def test_sql_output_flag(mock_replace: MagicMock) -> None:
+    import duckdb
+    import polars as pl
+
+    from marimo._sql.sql import sql
+
+    # Create a test table
+    duckdb.sql("CREATE TABLE test_table AS SELECT * FROM range(10)")
+
+    # Test when output is None (default, True)
+    result = sql("SELECT * FROM test_table")
+    assert isinstance(result, pl.DataFrame)
+    mock_replace.assert_called_once()
+    mock_replace.reset_mock()
+
+    # Test when output is False
+    result = sql("SELECT * FROM test_table", output=False)
+    assert isinstance(result, pl.DataFrame)
+    mock_replace.assert_not_called()
+    mock_replace.reset_mock()
+
+    # Test when output is True
+    result = sql("SELECT * FROM test_table", output=True)
+    assert isinstance(result, pl.DataFrame)
+    mock_replace.assert_called_once()
+    mock_replace.reset_mock()
+
+    # Clean up
+    duckdb.sql("DROP TABLE test_table")
