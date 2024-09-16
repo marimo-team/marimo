@@ -42,6 +42,7 @@ import { Functions } from "@/utils/functions";
 import { StyleNamespace } from "@/theme/namespace";
 import { UIElementRegistry } from "@/core/dom/uiregistry";
 import { useEventListener } from "@/hooks/useEventListener";
+import { shallowCompare } from "@/utils/shallow-compare";
 
 export interface PluginSlotHandle {
   /**
@@ -134,6 +135,12 @@ function PluginSlotInternal<T>(
     setValue((prevValue) => {
       const updater = Functions.asUpdater(value);
       const nextValue = updater(prevValue);
+      // Shallow compare the values
+      // If the value hasn't changed, we don't need to send an input event
+      if (shallowCompare(nextValue, prevValue)) {
+        return nextValue;
+      }
+
       hostElement.dispatchEvent(createInputEvent(nextValue, hostElement));
       return nextValue;
     });
