@@ -9,6 +9,7 @@ from marimo._output.formatters.formatter_factory import FormatterFactory
 class ArviZFormatter(FormatterFactory):
     import matplotlib.pyplot as plt
     import numpy as np
+
     @staticmethod
     def package_name() -> str:
         return "arviz"
@@ -53,6 +54,7 @@ class ArviZFormatter(FormatterFactory):
     @classmethod
     def format_numpy_axes(cls, arr: np.ndarray) -> tuple[KnownMimeType, str]:
         import matplotlib.pyplot as plt
+
         # Check if array contains axes (to render plots) or not
         if arr.dtype == object and cls._contains_axes(arr):
             fig = plt.gcf()
@@ -68,6 +70,7 @@ class ArviZFormatter(FormatterFactory):
     @staticmethod
     def _contains_axes(arr: np.ndarray) -> bool:
         import matplotlib.pyplot as plt
+
         """
         Check if the numpy array contains any matplotlib Axes objects.
         To ensure performance for large arrays, we limit the check to the
@@ -79,8 +82,9 @@ class ArviZFormatter(FormatterFactory):
 
         if arr.ndim == 1:
             # For 1D arrays, check up to MAX_ITEMS_TO_CHECK items
-            return any(isinstance(item, plt.Axes)
-                       for item in arr[:MAX_ITEMS_TO_CHECK])
+            return any(
+                isinstance(item, plt.Axes) for item in arr[:MAX_ITEMS_TO_CHECK]
+            )
         elif arr.ndim == 2:
             # For 2D arrays, check up to MAX_ITEMS_TO_CHECK items in total
             items_checked = 0
@@ -106,20 +110,23 @@ class ArviZFormatter(FormatterFactory):
     @classmethod
     def format_dict_with_plot(cls, d: dict) -> tuple[KnownMimeType, str]:
         import matplotlib.pyplot as plt
+
         str_repr = str(d)
         fig = plt.gcf()
         if fig.get_axes():
             axes_info = cls._get_axes_info(fig)
             plot_html = cls._get_plot_html(fig)
             plt.close(fig)
-            combined_html = (f"<pre>{str_repr}\n{axes_info}</pre><br>"
-                             f"{plot_html}")
+            combined_html = (
+                f"<pre>{str_repr}\n{axes_info}</pre><br>" f"{plot_html}"
+            )
             return ("text/html", combined_html)
         return ("text/plain", str_repr)
 
     @classmethod
     def format_figure(cls, fig: plt.Figure) -> tuple[KnownMimeType, str]:
         import matplotlib.pyplot as plt
+
         axes_info = cls._get_axes_info(fig)
         plot_html = cls._get_plot_html(fig)
         plt.close(fig)
@@ -130,6 +137,7 @@ class ArviZFormatter(FormatterFactory):
     def format_arviz_plot(cls, result: Any) -> tuple[KnownMimeType, str]:
         import matplotlib.pyplot as plt
         import numpy as np
+
         if isinstance(result, plt.Figure):
             return cls.format_figure(result)
         elif isinstance(result, np.ndarray):
