@@ -7,6 +7,8 @@ from marimo._output.formatters.formatter_factory import FormatterFactory
 
 
 class ArviZFormatter(FormatterFactory):
+    import matplotlib.pyplot as plt
+    import numpy as np
     @staticmethod
     def package_name() -> str:
         return "arviz"
@@ -50,6 +52,7 @@ class ArviZFormatter(FormatterFactory):
 
     @classmethod
     def format_numpy_axes(cls, arr: np.ndarray) -> tuple[KnownMimeType, str]:
+        import matplotlib.pyplot as plt
         # Check if array contains axes (to render plots) or not
         if arr.dtype == object and cls._contains_axes(arr):
             fig = plt.gcf()
@@ -64,6 +67,7 @@ class ArviZFormatter(FormatterFactory):
 
     @staticmethod
     def _contains_axes(arr: np.ndarray) -> bool:
+        import matplotlib.pyplot as plt
         """
         Check if the numpy array contains any matplotlib Axes objects.
         To ensure performance for large arrays, we limit the check to the
@@ -101,6 +105,7 @@ class ArviZFormatter(FormatterFactory):
 
     @classmethod
     def format_dict_with_plot(cls, d: dict) -> tuple[KnownMimeType, str]:
+        import matplotlib.pyplot as plt
         str_repr = str(d)
         fig = plt.gcf()
         if fig.get_axes():
@@ -114,6 +119,7 @@ class ArviZFormatter(FormatterFactory):
 
     @classmethod
     def format_figure(cls, fig: plt.Figure) -> tuple[KnownMimeType, str]:
+        import matplotlib.pyplot as plt
         axes_info = cls._get_axes_info(fig)
         plot_html = cls._get_plot_html(fig)
         plt.close(fig)
@@ -122,6 +128,8 @@ class ArviZFormatter(FormatterFactory):
 
     @classmethod
     def format_arviz_plot(cls, result: Any) -> tuple[KnownMimeType, str]:
+        import matplotlib.pyplot as plt
+        import numpy as np
         if isinstance(result, plt.Figure):
             return cls.format_figure(result)
         elif isinstance(result, np.ndarray):
