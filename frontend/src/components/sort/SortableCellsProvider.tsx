@@ -18,6 +18,7 @@ import {
 import { useCellActions, useNotebook } from "../../core/cells/cells";
 import { useEvent } from "../../hooks/useEvent";
 import type { CellId } from "@/core/cells/ids";
+import { notebookHasColumns } from "@/core/cells/utils";
 
 interface SortableCellsProviderProps {
   children: React.ReactNode;
@@ -67,7 +68,7 @@ const SortableCellsProviderInternal = ({
       autoScroll={{ threshold: { x: 0.1, y: 0.1 } }}
       sensors={sensors}
       collisionDetection={closestCenter}
-      modifiers={[restrictToVerticalAxis]}
+      modifiers={notebookHasColumns() ? [] : [restrictToVerticalAxis]}
       onDragEnd={handleDragEnd}
     >
       <SortableContext

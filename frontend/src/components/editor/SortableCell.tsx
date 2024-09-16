@@ -6,6 +6,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVerticalIcon } from "lucide-react";
 import type { CellId } from "@/core/cells/ids";
 import { cn } from "@/utils/cn";
+import { notebookHasColumns } from "@/core/cells/utils";
 
 interface Props extends React.HTMLAttributes<HTMLDivElement> {
   cellId: CellId;
@@ -37,8 +38,7 @@ const SortableCellInternal = React.forwardRef(
     const style: React.CSSProperties = {
       transform: transform
         ? CSS.Transform.toString({
-            // No x-transform since only sorting in the y-axis
-            x: 0,
+            x: notebookHasColumns() ? transform.x : 0,
             y: transform.y,
             scaleX: 1,
             scaleY: 1,
