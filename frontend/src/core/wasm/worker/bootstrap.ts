@@ -15,6 +15,16 @@ declare let loadPyodide: (opts: {
   indexURL: string;
 }) => Promise<PyodideInterface>;
 
+// This class initializes the wasm environment
+// We would like this initialization to be parallelizable
+// however, there is some waterfall in the initialization process
+// 1. Load Pyodide
+// 2. Install marimo and it's required dependencies
+// 3. Install the dependencies from the notebook
+//   3.a Install from pyodide supported wheels
+//   3.b Install from micropip
+// 4. Initialize the notebook
+
 export class DefaultWasmController implements WasmController {
   protected pyodide: PyodideInterface | null = null;
 
@@ -27,7 +37,7 @@ export class DefaultWasmController implements WasmController {
     version: string;
     pyodideVersion: string;
   }): Promise<PyodideInterface> {
-    const pyodide = await this.loadPyoideAndPackages(opts.pyodideVersion);
+    const pyodide = await this.loadPyodideAndPackages(opts.pyodideVersion);
 
     const { version } = opts;
 
@@ -42,7 +52,7 @@ export class DefaultWasmController implements WasmController {
     return pyodide;
   }
 
-  private async loadPyoideAndPackages(
+  private async loadPyodideAndPackages(
     pyodideVersion: string,
   ): Promise<PyodideInterface> {
     if (!loadPyodide) {
@@ -148,7 +158,8 @@ export class DefaultWasmController implements WasmController {
     self.user_config = userConfig;
 
     const span = t.startSpan("startSession.runPython");
-    const [bridge, init] = this.requirePyodide.runPython(
+    const nbFilename = filename || WasmFileSystem.NOTEBOOK_FILENAME;
+    const [bridge, init, imports] = this.requirePyodide.runPython(
       `
       print("[py] Starting marimo...")
       import asyncio
@@ -159,7 +170,7 @@ export class DefaultWasmController implements WasmController {
       assert js.query_params, "query_params is not defined"
 
       session, bridge = create_session(
-        filename="${filename || WasmFileSystem.NOTEBOOK_FILENAME}",
+        filename="${nbFilename}",
         query_params=js.query_params.to_py(),
         message_callback=js.messenger.callback,
         user_config=js.user_config.to_py(),
@@ -170,30 +181,66 @@ export class DefaultWasmController implements WasmController {
           instantiate(session)
         asyncio.create_task(session.start())
 
-      bridge, init`,
+      # Load the imports
+      import pyodide.code
+      with open("${nbFilename}", "r") as f:
+        imports = pyodide.code.find_imports(f.read())
+
+      bridge, init, imports`,
     );
     span.end();
+
+    const moduleImports = new Set<string>(imports.toJs());
 
     // Fire and forgot load packages and instantiation
     // We don't want to wait for this to finish,
     // as it blocks the initial code from being shown.
-    let codeForPackages = code;
-    if (codeForPackages.includes("mo.sql")) {
-      // Add pandas and duckdb to the codeForPackages
-      codeForPackages = `import pandas\n${codeForPackages}`;
-      codeForPackages = `import duckdb\n${codeForPackages}`;
-    }
-    const loadSpan = t.startSpan("loadPackagesFromImports");
-    void this.requirePyodide
-      .loadPackagesFromImports(codeForPackages, {
-        messageCallback: Logger.log,
-        errorCallback: Logger.error,
-      })
-      .then(() => {
-        loadSpan.end();
-        init(userConfig.runtime.auto_instantiate);
-      });
+    void this.loadNotebookDeps(code, moduleImports).then(() => {
+      return init(userConfig.runtime.auto_instantiate);
+    });
 
     return bridge;
+  }
+
+  private async loadNotebookDeps(code: string, foundImports: Set<string>) {
+    const pyodide = this.requirePyodide;
+
+    if (code.includes("mo.sql")) {
+      // We need pandas and duckdb for mo.sql
+      code = `import pandas\n${code}`;
+      code = `import duckdb\n${code}`;
+    }
+
+    const imports = [...foundImports];
+
+    // Load from pyodide
+    let loadSpan = t.startSpan("pyodide.loadPackage");
+    await pyodide.loadPackagesFromImports(code, {
+      errorCallback: Logger.error,
+      messageCallback: Logger.log,
+    });
+    loadSpan.end();
+
+    // Load from micropip
+    loadSpan = t.startSpan("micropip.install");
+    const missingPackages = imports.filter(
+      (pkg) => !pyodide.loadedPackages[pkg],
+    );
+    if (missingPackages.length > 0) {
+      await pyodide
+        .runPythonAsync(`
+        import micropip
+        import sys
+        # Filter out builtins
+        missing = [p for p in ${JSON.stringify(missingPackages)} if p not in sys.modules]
+        print("[py] Loading packages from micropip:", missing)
+        await micropip.install(missing)
+      `)
+        .catch((error) => {
+          // Don't let micropip loading failures stop the notebook from loading
+          Logger.error("Failed to load packages from micropip", error);
+        });
+    }
+    loadSpan.end();
   }
 }
