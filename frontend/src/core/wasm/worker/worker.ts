@@ -43,6 +43,9 @@ async function loadPyodideAndPackages() {
     await t.wrapAsync(importPyodide)(marimoVersion);
     const controller = await t.wrapAsync(getController)(marimoVersion);
     self.controller = controller;
+    rpc.send.initializingMessage({
+      message: "Loading marimo's dependencies...",
+    });
     self.pyodide = await t.wrapAsync(controller.bootstrap.bind(controller))({
       version: marimoVersion,
       pyodideVersion: pyodideVersion,
@@ -55,7 +58,6 @@ async function loadPyodideAndPackages() {
   }
 }
 
-const pyodideReadyPromise = t.wrapAsync(loadPyodideAndPackages)();
 const messageBuffer = new MessageBuffer(
   (message: JsonString<OperationMessage>) => {
     rpc.send.kernelMessage({ message });
@@ -93,7 +95,13 @@ const requestHandler = createRPCRequestHandler({
         self.controller.startSession.bind(self.controller),
       );
       const initializeOnce = once(() => {
+        rpc.send.initializingMessage({
+          message: "Initializing notebook...",
+        });
         rpc.send.initialized({});
+      });
+      rpc.send.initializingMessage({
+        message: "Loading notebook and dependencies...",
       });
       const bridge = await startSession({
         code: opts.code,
@@ -105,6 +113,7 @@ const requestHandler = createRPCRequestHandler({
           messageBuffer.push(msg);
         },
       });
+      initializeOnce();
       bridgeReady.resolve(bridge);
       workerInitSpan.end("ok");
     } catch (error) {
@@ -237,6 +246,8 @@ export type WorkerSchema = RPCSchema<
       kernelMessage: { message: JsonString<OperationMessage> };
       // Emitted when the Pyodide is initialized
       initialized: {};
+      // Emitted when the Pyodide is initializing
+      initializingMessage: { message: string };
       // Emitted when the Pyodide fails to initialize
       initializedError: { error: string };
     };
@@ -273,3 +284,5 @@ const namesThatRequireSync = new Set<keyof RawBridge>([
 function getMarimoVersion() {
   return self.name; // We store the version in the worker name
 }
+
+const pyodideReadyPromise = t.wrapAsync(loadPyodideAndPackages)();

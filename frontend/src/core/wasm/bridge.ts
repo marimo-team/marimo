@@ -33,7 +33,12 @@ import { toast } from "@/components/ui/use-toast";
 import { generateUUID } from "@/utils/uuid";
 import { store } from "../state/jotai";
 import { notebookIsRunningAtom } from "../cells/cells";
-import { getInitialAppMode } from "../mode";
+import { getInitialAppMode, initialMode } from "../mode";
+import { wasmInitializationAtom } from "./state";
+
+type SaveWorker = ReturnType<
+  typeof getWorkerRPC<SaveWorkerSchema>
+>["proxy"]["request"];
 
 export class PyodideBridge implements RunRequests, EditRequests {
   static get INSTANCE(): PyodideBridge {
@@ -45,11 +50,36 @@ export class PyodideBridge implements RunRequests, EditRequests {
   }
 
   private rpc!: ReturnType<typeof getWorkerRPC<WorkerSchema>>;
-  private saveRpc!: ReturnType<typeof getWorkerRPC<SaveWorkerSchema>>;
+  private saveRpc!: SaveWorker;
   private interruptBuffer?: Uint8Array;
   private messageConsumer: ((message: string) => void) | undefined;
 
   public initialized = new Deferred<void>();
+
+  private getSaveWorker(): SaveWorker {
+    if (initialMode === "read") {
+      Logger.debug("Skipping SaveWorker in read-mode");
+      return {
+        readFile: throwNotImplemented,
+        readNotebook: throwNotImplemented,
+        saveNotebook: throwNotImplemented,
+      };
+    }
+
+    // Create save worker
+    const saveWorker = new Worker(
+      // eslint-disable-next-line unicorn/relative-url-style
+      new URL("./worker/save-worker.ts", import.meta.url),
+      {
+        type: "module",
+        // Pass the version to the worker
+        /* @vite-ignore */
+        name: getMarimoVersion(),
+      },
+    );
+
+    return getWorkerRPC<SaveWorkerSchema>(saveWorker).proxy.request;
+  }
 
   private constructor() {
     if (!isWasm()) {
@@ -68,21 +98,9 @@ export class PyodideBridge implements RunRequests, EditRequests {
       },
     );
 
-    // Create save worker
-    const saveWorker = new Worker(
-      // eslint-disable-next-line unicorn/relative-url-style
-      new URL("./worker/save-worker.ts", import.meta.url),
-      {
-        type: "module",
-        // Pass the version
-        /* @vite-ignore */
-        name: getMarimoVersion(),
-      },
-    );
-
     // Create the RPC
     this.rpc = getWorkerRPC<WorkerSchema>(worker);
-    this.saveRpc = getWorkerRPC<SaveWorkerSchema>(saveWorker);
+    this.saveRpc = this.getSaveWorker();
 
     // Listeners
     this.rpc.addMessageListener("ready", () => {
@@ -91,6 +109,9 @@ export class PyodideBridge implements RunRequests, EditRequests {
     this.rpc.addMessageListener("initialized", () => {
       this.setInterruptBuffer();
       this.initialized.resolve();
+    });
+    this.rpc.addMessageListener("initializingMessage", ({ message }) => {
+      store.set(wasmInitializationAtom, message);
     });
     this.rpc.addMessageListener("initializedError", ({ error }) => {
       // If already resolved, show a toast
@@ -178,7 +199,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendSave: EditRequests["sendSave"] = async (request) => {
-    await this.saveRpc.proxy.request.saveNotebook(request);
+    await this.saveRpc.saveNotebook(request);
     const code = await this.readCode();
     if (code.contents) {
       notebookFileStore.saveFile(code.contents);
@@ -294,7 +315,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   readCode: EditRequests["readCode"] = async () => {
-    const contents = await this.saveRpc.proxy.request.readNotebook();
+    const contents = await this.saveRpc.readNotebook();
     return { contents };
   };
 
