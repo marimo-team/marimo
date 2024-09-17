@@ -131,6 +131,8 @@ class CellImpl:
     mod: ast.Module
     defs: set[Name]
     refs: set[Name]
+    temporaries: set[Name]
+
     # metadata about definitions
     variable_data: dict[Name, list[VariableData]]
     deleted_refs: set[Name]

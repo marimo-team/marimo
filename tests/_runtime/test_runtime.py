@@ -1120,6 +1120,14 @@ class TestExecution:
             await k.run([er])
         assert k.globals["x"] == "foo"
 
+    async def test_temporaries_deleted(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run([er := exec_req.get("_x = 1")])
+        assert k.globals[f"_cell_{er.cell_id}_x"] == 1
+        await k.run([ExecutionRequest(er.cell_id, "None")])
+        assert f"_cell_{er.cell_id}_x" not in k.globals
+
 
 class TestStrictExecution:
     @staticmethod

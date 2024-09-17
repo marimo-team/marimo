@@ -765,8 +765,12 @@ class Kernel:
         missing_modules_before_deletion = (
             self.module_registry.missing_modules()
         )
+
+        temporaries = {
+            name: [VariableData(kind="variable")] for name in cell.temporaries
+        }
         self._delete_variables(
-            cell.variable_data,
+            {**cell.variable_data, **temporaries},
             exclude_defs if exclude_defs is not None else set(),
         )
 
