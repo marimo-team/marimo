@@ -5,9 +5,7 @@ import pytest
 from marimo import __version__
 from marimo._islands.island_generator import (
     MarimoIslandGenerator,
-    handle_mimetypes,
 )
-from marimo._messaging.cell_output import CellChannel, CellOutput
 from tests.mocks import snapshotter
 
 snapshot = snapshotter(__file__)
@@ -39,6 +37,12 @@ async def test_render():
     generator = MarimoIslandGenerator()
     block1 = generator.add_code("import marimo as mo")
     block2 = generator.add_code("mo.md('Hello, islands!')")
+    imageBlock = generator.add_code(
+        "mo.image('https://example.com/image.png')"
+    )
+    tableBlock = generator.add_code("mo.ui.table([1, 2])")
+    jsonBlock = generator.add_code("{'key': 'value'}")
+    arrayBlock = generator.add_code("[1, mo.md('Hello')]")
 
     await generator.build()
 
@@ -55,6 +59,19 @@ async def test_render():
 
     snapshot("island-no-output.txt", block2.render(display_output=False))
 
+    snapshot(
+        "island-mimetypes.txt",
+        "\n".join(
+            [
+                block2.render(display_code=False),
+                imageBlock.render(display_code=False),
+                tableBlock.render(display_code=False),
+                jsonBlock.render(display_code=False),
+                arrayBlock.render(display_code=False),
+            ]
+        ),
+    )
+
 
 async def test_render_head():
     generator = MarimoIslandGenerator()
@@ -65,21 +82,3 @@ async def test_render_head():
     snapshot(
         "header.txt", generator.render_head().replace(__version__, "0.0.0")
     )
-
-
-async def test_handle_image_mimetype():
-    small_image = CellOutput(
-        data="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==",
-        mimetype="image/gif",
-        channel=CellChannel.OUTPUT,
-    )
-    assert handle_mimetypes(small_image).startswith("<img")
-
-
-async def test_handle_json_mimetype():
-    small_image = CellOutput(
-        data="[1, 2, 3]",
-        mimetype="application/json",
-        channel=CellChannel.OUTPUT,
-    )
-    assert handle_mimetypes(small_image).startswith("<marimo-json")

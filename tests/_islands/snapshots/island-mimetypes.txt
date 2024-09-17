@@ -1,0 +1,50 @@
+<marimo-island
+    data-app-id="main"
+    data-cell-id="MJUe"
+    data-reactive="true"
+>
+    <marimo-cell-output>
+    <span class="markdown prose dark:prose-invert"><span class="paragraph">Hello, islands!</span></span>
+    </marimo-cell-output>
+    <marimo-cell-code hidden>mo.md('Hello%2C%20islands!')</marimo-cell-code>
+</marimo-island>
+<marimo-island
+    data-app-id="main"
+    data-cell-id="vblA"
+    data-reactive="true"
+>
+    <marimo-cell-output>
+    <img src='https://example.com/image.png' />
+    </marimo-cell-output>
+    <marimo-cell-code hidden>mo.image('https%3A%2F%2Fexample.com%2Fimage.png')</marimo-cell-code>
+</marimo-island>
+<marimo-island
+    data-app-id="main"
+    data-cell-id="bkHC"
+    data-reactive="true"
+>
+    <marimo-cell-output>
+    <marimo-ui-element object-id='bkHC-0' random-id='34d19bd1-f967-45b1-95c2-f745e11c6f92'><marimo-table data-initial-value='[]' data-label='null' data-data='[{&quot;value&quot;: 1}, {&quot;value&quot;: 2}]' data-total-rows='2' data-pagination='false' data-page-size='10' data-selection='&quot;multi&quot;' data-show-filters='false' data-show-download='true' data-show-column-summaries='true' data-row-headers='[]'></marimo-table></marimo-ui-element>
+    </marimo-cell-output>
+    <marimo-cell-code hidden>mo.ui.table(%5B1%2C%202%5D)</marimo-cell-code>
+</marimo-island>
+<marimo-island
+    data-app-id="main"
+    data-cell-id="lEQa"
+    data-reactive="true"
+>
+    <marimo-cell-output>
+    <marimo-json-output data-json-data='{&quot;key&quot;: &quot;text/plain:&#92;&quot;value&#92;&quot;&quot;}'></marimo-json-output>
+    </marimo-cell-output>
+    <marimo-cell-code hidden>%7B'key'%3A%20'value'%7D</marimo-cell-code>
+</marimo-island>
+<marimo-island
+    data-app-id="main"
+    data-cell-id="PKri"
+    data-reactive="true"
+>
+    <marimo-cell-output>
+    <marimo-json-output data-json-data='[&quot;text/plain:1&quot;, &quot;text/html:&lt;span class=&#92;&quot;markdown prose dark:prose-invert&#92;&quot;&gt;&lt;span class=&#92;&quot;paragraph&#92;&quot;&gt;Hello&lt;/span&gt;&lt;/span&gt;&quot;]'></marimo-json-output>
+    </marimo-cell-output>
+    <marimo-cell-code hidden>%5B1%2C%20mo.md('Hello')%5D</marimo-cell-code>
+</marimo-island>
