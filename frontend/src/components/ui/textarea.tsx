@@ -73,7 +73,7 @@ export const OnBlurredTextarea = React.forwardRef<
 
   const [value, setValue] = useControllableState<string>({
     prop: props.value,
-    defaultProp: props.value,
+    defaultProp: internalValue,
     onChange: onValueChange,
   });
 
