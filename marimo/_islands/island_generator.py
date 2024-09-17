@@ -98,7 +98,7 @@ class MarimoIslandStub:
 
         output = (
             mime_to_html(self.output.mimetype, self.output.data)
-            if self.output
+            if self.output is not None
             else None
         )
 

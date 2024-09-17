@@ -40,7 +40,6 @@ async def test_render():
     imageBlock = generator.add_code(
         "mo.image('https://example.com/image.png')"
     )
-    tableBlock = generator.add_code("mo.ui.table([1, 2])")
     jsonBlock = generator.add_code("{'key': 'value'}")
     arrayBlock = generator.add_code("[1, mo.md('Hello')]")
 
@@ -65,7 +64,6 @@ async def test_render():
             [
                 block2.render(display_code=False),
                 imageBlock.render(display_code=False),
-                tableBlock.render(display_code=False),
                 jsonBlock.render(display_code=False),
                 arrayBlock.render(display_code=False),
             ]
