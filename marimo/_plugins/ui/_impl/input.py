@@ -665,7 +665,7 @@ class text(UIElement[str, str]):
     - `max_length`: maximum length of input
     - `disabled`: whether the input is disabled
     - `debounce`: whether the input is debounced. If number, debounce by
-        that many milliseconds. If True, then value is only emitted on Enter 
+        that many milliseconds. If True, then value is only emitted on Enter
         or when the input loses focus.
     - `label`: text label for the element
     - `on_change`: optional callback to run when this element's value changes
@@ -729,7 +729,7 @@ class text_area(UIElement[str, str]):
     - `max_length`: maximum length of input
     - `disabled`: whether the input is disabled
     - `debounce`: whether the input is debounced. If number, debounce by that
-        many milliseconds. If True, then value is only emitted on Ctrl+Enter 
+        many milliseconds. If True, then value is only emitted on Ctrl+Enter
         or when the input loses focus.
     - `rows`: number of rows of text to display
     - `label`: text label for the element
