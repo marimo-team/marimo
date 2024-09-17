@@ -2,7 +2,11 @@
 import { z } from "zod";
 import type { IPlugin, IPluginProps, Setter } from "../types";
 
-import { Input } from "../../components/ui/input";
+import {
+  DebouncedInput,
+  Input,
+  OnBlurredInput,
+} from "../../components/ui/input";
 import { cn } from "../../utils/cn";
 import { AtSignIcon, GlobeIcon, LockIcon } from "lucide-react";
 import { useState } from "react";
@@ -19,6 +23,7 @@ interface Data {
   maxLength?: number;
   minLength?: number;
   disabled?: boolean;
+  debounce?: boolean | number;
   fullWidth: boolean;
 }
 
@@ -34,6 +39,7 @@ export class TextInputPlugin implements IPlugin<T, Data> {
     minLength: z.number().optional(),
     fullWidth: z.boolean().default(false),
     disabled: z.boolean().optional(),
+    debounce: z.optional(z.union([z.boolean(), z.number()])),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -70,6 +76,56 @@ const TextComponent = (props: TextComponentProps) => {
       {props.value.length}/{props.maxLength}
     </span>
   ) : null;
+
+  if (props.debounce === true) {
+    return (
+      <Labeled label={props.label} fullWidth={props.fullWidth}>
+        <OnBlurredInput
+          data-testid="marimo-plugin-text-input"
+          type={props.kind}
+          icon={icon[props.kind]}
+          placeholder={props.placeholder}
+          maxLength={props.maxLength}
+          minLength={props.minLength}
+          required={props.minLength != null && props.minLength > 0}
+          disabled={props.disabled}
+          className={cn({
+            "border-destructive": !isValid,
+            "w-full": props.fullWidth,
+          })}
+          endAdornment={endAdornment}
+          value={props.value}
+          onValueChange={props.setValue}
+        />
+      </Labeled>
+    );
+  }
+
+  if (typeof props.debounce === "number") {
+    return (
+      <Labeled label={props.label} fullWidth={props.fullWidth}>
+        <DebouncedInput
+          data-testid="marimo-plugin-text-input"
+          type={props.kind}
+          icon={icon[props.kind]}
+          placeholder={props.placeholder}
+          maxLength={props.maxLength}
+          minLength={props.minLength}
+          required={props.minLength != null && props.minLength > 0}
+          disabled={props.disabled}
+          className={cn({
+            "border-destructive": !isValid,
+            "w-full": props.fullWidth,
+          })}
+          endAdornment={endAdornment}
+          value={props.value}
+          onValueChange={props.setValue}
+          onBlur={(event) => setValueOnBlur(event.currentTarget.value)}
+          delay={props.debounce}
+        />
+      </Labeled>
+    );
+  }
 
   return (
     <Labeled label={props.label} fullWidth={props.fullWidth}>

@@ -3,6 +3,7 @@ import * as React from "react";
 
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
+import { useDebounceControlledState } from "@/hooks/useDebounce";
 
 export interface TextareaProps
   extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
@@ -33,5 +34,59 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   },
 );
 Textarea.displayName = "Textarea";
+
+export const DebouncedTextarea = React.forwardRef<
+  HTMLTextAreaElement,
+  TextareaProps & {
+    value: string;
+    onValueChange: (value: string) => void;
+    delay?: number;
+  }
+>(({ className, onValueChange, ...props }, ref) => {
+  const { value, onChange } = useDebounceControlledState<string>({
+    initialValue: props.value,
+    delay: props.delay,
+    onChange: onValueChange,
+  });
+
+  return (
+    <Textarea
+      ref={ref}
+      className={className}
+      {...props}
+      onChange={(evt) => onChange(evt.target.value)}
+      value={value}
+    />
+  );
+});
+DebouncedTextarea.displayName = "DebouncedTextarea";
+
+export const OnBlurredTextarea = React.forwardRef<
+  HTMLTextAreaElement,
+  TextareaProps & {
+    value: string;
+    onValueChange: (value: string) => void;
+  }
+>(({ className, onValueChange, ...props }, ref) => {
+  const [internalValue, setInternalValue] = React.useState(props.value);
+  return (
+    <Textarea
+      ref={ref}
+      className={className}
+      {...props}
+      onChange={(event) => setInternalValue(event.target.value)}
+      onBlur={() => onValueChange(internalValue)}
+      onKeyDown={(event) => {
+        if (!(event.ctrlKey && event.key === "Enter")) {
+          return;
+        }
+        event.preventDefault();
+        onValueChange(internalValue);
+      }}
+      value={internalValue}
+    />
+  );
+});
+OnBlurredTextarea.displayName = "OnBlurredTextarea";
 
 export { Textarea };

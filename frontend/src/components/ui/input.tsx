@@ -59,12 +59,12 @@ export const DebouncedInput = React.forwardRef<
   InputProps & {
     value: string;
     onValueChange: (value: string) => void;
+    delay?: number;
   }
 >(({ className, onValueChange, ...props }, ref) => {
-  // Create a debounced value of 200
   const { value, onChange } = useDebounceControlledState<string>({
     initialValue: props.value,
-    delay: 200,
+    delay: props.delay,
     onChange: onValueChange,
   });
 
@@ -154,5 +154,32 @@ export const SearchInput = React.forwardRef<
   );
 });
 SearchInput.displayName = "SearchInput";
+
+export const OnBlurredInput = React.forwardRef<
+  HTMLInputElement,
+  InputProps & {
+    value: string;
+    onValueChange: (value: string) => void;
+  }
+>(({ className, onValueChange, ...props }, ref) => {
+  const [internalValue, setInternalValue] = React.useState(props.value);
+  return (
+    <Input
+      ref={ref}
+      className={className}
+      {...props}
+      onChange={(event) => setInternalValue(event.target.value)}
+      onBlur={() => onValueChange(internalValue)}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter") {
+          return;
+        }
+        onValueChange(internalValue);
+      }}
+      value={internalValue}
+    />
+  );
+});
+OnBlurredInput.displayName = "OnBlurredInput";
 
 export { Input };
