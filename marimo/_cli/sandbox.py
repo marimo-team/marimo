@@ -55,6 +55,9 @@ def run_in_sandbox(
         "uv",
         "run",
         "--isolated",
+        # sandboxed notebook shouldn't pick up existing pyproject.toml,
+        # which may conflict with the sandbox requirements
+        "--no-project",
         "--with-requirements",
         temp_file_path,
     ] + cmd
