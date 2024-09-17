@@ -342,7 +342,7 @@ class MarimoIslandGenerator:
             ).strip()
 
         marimo_tags = """
-        <marimo-filename hidden></>
+        <marimo-filename hidden></marimo-filename>
         <marimo-mode data-mode='read' hidden></marimo-mode>
         """.strip()
 
