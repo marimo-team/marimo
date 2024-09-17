@@ -15,13 +15,13 @@ def __(debounce, debounce_options, mo):
     name_input = mo.ui.text(
         label="Enter your name for the greeting of a lifetime:", debounce=debounce
     )
-    mo.vstack([debounce_options, name_input])
+    mo.vstack([debounce_options, name_input, name_input])
     return name_input,
 
 
 @app.cell
 def __(name_input):
-    if len(name_input.value) > 1:
+    if len(name_input.value) > 0:
         print(f"Hello {name_input.value}!")
     return
 
@@ -31,13 +31,14 @@ def __(debounce, debounce_options, mo):
     story_input = mo.ui.text_area(
         label="Now tell me a story from your childhood:", debounce=debounce
     )
-    mo.vstack([debounce_options, story_input])
+    mo.vstack([debounce_options, mo.hstack([story_input, story_input])])
     return story_input,
 
 
 @app.cell
 def __(story_input):
-    print(story_input.value)
+    if (len(story_input.value) > 0):
+        print(story_input.value)
     return
 
 

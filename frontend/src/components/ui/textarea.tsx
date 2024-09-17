@@ -4,6 +4,7 @@ import * as React from "react";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import { useDebounceControlledState } from "@/hooks/useDebounce";
+import { useControllableState } from "@radix-ui/react-use-controllable-state";
 
 export interface TextareaProps
   extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
@@ -69,21 +70,32 @@ export const OnBlurredTextarea = React.forwardRef<
   }
 >(({ className, onValueChange, ...props }, ref) => {
   const [internalValue, setInternalValue] = React.useState(props.value);
+
+  const [value, setValue] = useControllableState<string>({
+    prop: props.value,
+    defaultProp: props.value,
+    onChange: onValueChange,
+  });
+
+  React.useEffect(() => {
+    setInternalValue(value || "");
+  }, [value]);
+
   return (
     <Textarea
       ref={ref}
       className={className}
       {...props}
+      value={internalValue}
       onChange={(event) => setInternalValue(event.target.value)}
-      onBlur={() => onValueChange(internalValue)}
+      onBlur={() => setValue(internalValue)}
       onKeyDown={(event) => {
         if (!(event.ctrlKey && event.key === "Enter")) {
           return;
         }
         event.preventDefault();
-        onValueChange(internalValue);
+        setValue(internalValue);
       }}
-      value={internalValue}
     />
   );
 });

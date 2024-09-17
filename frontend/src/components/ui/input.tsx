@@ -9,6 +9,7 @@ import {
   type NumberFieldProps,
 } from "@/components/ui/number-field";
 import { SearchIcon, XIcon } from "lucide-react";
+import { useControllableState } from "@radix-ui/react-use-controllable-state";
 
 export type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   icon?: React.ReactNode;
@@ -163,20 +164,31 @@ export const OnBlurredInput = React.forwardRef<
   }
 >(({ className, onValueChange, ...props }, ref) => {
   const [internalValue, setInternalValue] = React.useState(props.value);
+
+  const [value, setValue] = useControllableState<string>({
+    prop: props.value,
+    defaultProp: props.value,
+    onChange: onValueChange,
+  });
+
+  React.useEffect(() => {
+    setInternalValue(value || "");
+  }, [value]);
+
   return (
     <Input
       ref={ref}
       className={className}
       {...props}
+      value={internalValue}
       onChange={(event) => setInternalValue(event.target.value)}
-      onBlur={() => onValueChange(internalValue)}
+      onBlur={() => setValue(internalValue || "")}
       onKeyDown={(event) => {
         if (event.key !== "Enter") {
           return;
         }
-        onValueChange(internalValue);
+        setValue(internalValue || "");
       }}
-      value={internalValue}
     />
   );
 });
