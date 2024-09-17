@@ -326,6 +326,10 @@ def as_html(value: object) -> Html:
         return Html(f"<span>{escape(str(value))}</span>")
 
     mimetype, data = formatter(value)
+    return mime_to_html(mimetype, data)
+
+
+def mime_to_html(mimetype: KnownMimeType, data: Any) -> Html:
     if mimetype == "text/html":
         # Using `as_html` to embed multiline HTML content
         # into a multiline markdown string can break Python markdown's

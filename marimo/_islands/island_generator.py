@@ -10,9 +10,8 @@ from marimo._ast.app import App, InternalApp, _AppConfig
 from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._messaging.cell_output import CellOutput
-from marimo._output.formatting import as_html
+from marimo._output.formatting import as_html, mime_to_html
 from marimo._output.utils import uri_encode_component
-from marimo._plugins.stateless.json_output import json_output
 from marimo._plugins.ui import code_editor
 from marimo._server.export import run_app_until_completion
 from marimo._server.file_manager import AppFileManager
@@ -97,7 +96,11 @@ class MarimoIslandStub:
         if not (display_code or display_output or is_reactive):
             raise ValueError("You must include either code or output")
 
-        output = handle_mimetypes(self.output) if self.output else None
+        output = (
+            mime_to_html(self.output.mimetype, self.output.data)
+            if self.output is not None
+            else None
+        )
 
         # Specifying display_code=False will hide the code block, but still
         # make it present for reactivity, unless reactivity is disabled.
@@ -513,19 +516,3 @@ class MarimoIslandGenerator:
 
 def remove_empty_lines(text: str) -> str:
     return "\n".join([line for line in text.split("\n") if line.strip() != ""])
-
-
-def handle_mimetypes(output: CellOutput) -> str:
-    data = output.data
-    if not isinstance(data, str):
-        return f"{data}"
-    mimetype = output.mimetype
-    # Since raw data, without wrapping in an image tag, this is just a huge
-    # blob.
-    if mimetype.startswith("image/"):
-        data = f"<img src='{data}'/>"
-    elif mimetype == "application/json":
-        data = f"{json_output(json.loads(data))}"
-    # TODO: Errors are displayed as just json strings until reactivity kicks
-    # in. Ideally, handle application/vnd.marimo+error
-    return data
