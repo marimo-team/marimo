@@ -9,6 +9,7 @@ import {
   type NumberFieldProps,
 } from "@/components/ui/number-field";
 import { SearchIcon, XIcon } from "lucide-react";
+import { useControllableState } from "@radix-ui/react-use-controllable-state";
 
 export type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   icon?: React.ReactNode;
@@ -59,12 +60,12 @@ export const DebouncedInput = React.forwardRef<
   InputProps & {
     value: string;
     onValueChange: (value: string) => void;
+    delay?: number;
   }
 >(({ className, onValueChange, ...props }, ref) => {
-  // Create a debounced value of 200
   const { value, onChange } = useDebounceControlledState<string>({
     initialValue: props.value,
-    delay: 200,
+    delay: props.delay,
     onChange: onValueChange,
   });
 
@@ -154,5 +155,43 @@ export const SearchInput = React.forwardRef<
   );
 });
 SearchInput.displayName = "SearchInput";
+
+export const OnBlurredInput = React.forwardRef<
+  HTMLInputElement,
+  InputProps & {
+    value: string;
+    onValueChange: (value: string) => void;
+  }
+>(({ className, onValueChange, ...props }, ref) => {
+  const [internalValue, setInternalValue] = React.useState(props.value);
+
+  const [value, setValue] = useControllableState<string>({
+    prop: props.value,
+    defaultProp: internalValue,
+    onChange: onValueChange,
+  });
+
+  React.useEffect(() => {
+    setInternalValue(value || "");
+  }, [value]);
+
+  return (
+    <Input
+      ref={ref}
+      className={className}
+      {...props}
+      value={internalValue}
+      onChange={(event) => setInternalValue(event.target.value)}
+      onBlur={() => setValue(internalValue || "")}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter") {
+          return;
+        }
+        setValue(internalValue || "");
+      }}
+    />
+  );
+});
+OnBlurredInput.displayName = "OnBlurredInput";
 
 export { Input };

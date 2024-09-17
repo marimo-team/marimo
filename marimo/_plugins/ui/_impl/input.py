@@ -664,6 +664,9 @@ class text(UIElement[str, str]):
         defaults to `"text"`
     - `max_length`: maximum length of input
     - `disabled`: whether the input is disabled
+    - `debounce`: whether the input is debounced. If number, debounce by
+        that many milliseconds. If True, then value is only emitted on Enter
+        or when the input loses focus.
     - `label`: text label for the element
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
@@ -679,6 +682,7 @@ class text(UIElement[str, str]):
         kind: Literal["text", "password", "email", "url"] = "text",
         max_length: Optional[int] = None,
         disabled: bool = False,
+        debounce: bool | int = True,
         *,
         label: str = "",
         on_change: Optional[Callable[[str], None]] = None,
@@ -694,6 +698,7 @@ class text(UIElement[str, str]):
                 "max-length": max_length,
                 "full-width": full_width,
                 "disabled": disabled,
+                "debounce": debounce,
             },
             on_change=on_change,
         )
@@ -723,6 +728,9 @@ class text_area(UIElement[str, str]):
     - `placeholder`: placeholder text to display when the text area is empty
     - `max_length`: maximum length of input
     - `disabled`: whether the input is disabled
+    - `debounce`: whether the input is debounced. If number, debounce by that
+        many milliseconds. If True, then value is only emitted on Ctrl+Enter
+        or when the input loses focus.
     - `rows`: number of rows of text to display
     - `label`: text label for the element
     - `on_change`: optional callback to run when this element's value changes
@@ -738,6 +746,7 @@ class text_area(UIElement[str, str]):
         placeholder: str = "",
         max_length: Optional[int] = None,
         disabled: bool = False,
+        debounce: bool | int = True,
         rows: Optional[int] = None,
         *,
         label: str = "",
@@ -752,6 +761,7 @@ class text_area(UIElement[str, str]):
                 "placeholder": placeholder,
                 "max-length": max_length,
                 "disabled": disabled,
+                "debounce": debounce,
                 "full-width": full_width,
                 "rows": rows,
             },
