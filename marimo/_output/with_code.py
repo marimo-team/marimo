@@ -1,12 +1,13 @@
 from __future__ import annotations
+
 import re
 
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html
 from marimo._output.md import md
+from marimo._plugins.ui._impl.input import code_editor
 from marimo._runtime.context import get_context
 from marimo._runtime.context.types import ContextNotInitializedError
-from marimo._plugins.ui._impl.input import code_editor
 
 
 def with_code(output: object = None) -> Html:
