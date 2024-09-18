@@ -9,7 +9,7 @@ def one(a,
         b,      c,d) -> int:
     # comment
     x = 0 + a + b + c + d
-    return x,
+    return (x,)
 
 
 if __name__ == "__main__":

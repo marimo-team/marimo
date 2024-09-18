@@ -431,7 +431,7 @@ class TestToFunctionDef:
         cell = compile_cell(code)
         fndef = codegen.to_functiondef(cell, "foo")
         expected = "\n".join(
-            ["@app.cell", "def foo():", "    x = 0", "    return x,"]
+            ["@app.cell", "def foo():", "    x = 0", "    return (x,)"]
         )
         assert fndef == expected
 
@@ -491,7 +491,7 @@ class TestToFunctionDef:
         cell = cell.configure(CellConfig())
         fndef = codegen.to_functiondef(cell, "foo")
         expected = "\n".join(
-            ["@app.cell", "def foo():", "    x = 0", "    return x,"]
+            ["@app.cell", "def foo():", "    x = 0", "    return (x,)"]
         )
         assert fndef == expected
 
@@ -505,7 +505,7 @@ class TestToFunctionDef:
                 "@app.cell(disabled=True)",
                 "def foo():",
                 "    x = 0",
-                "    return x,",
+                "    return (x,)",
             ]
         )
         assert fndef == expected
@@ -520,7 +520,7 @@ class TestToFunctionDef:
                 "@app.cell(disabled=True, hide_code=True)",
                 "def foo():",
                 "    x = 0",
-                "    return x,",
+                "    return (x,)",
             ]
         )
         assert fndef == expected
@@ -535,7 +535,7 @@ class TestToFunctionDef:
                 "@app.cell",
                 "def foo():",
                 "    x = 0",
-                "    return x,",
+                "    return (x,)",
             ]
         )
         assert fndef == expected

@@ -7,7 +7,7 @@ app = marimo.App()
 @app.cell
 def one():
     import numpy as np
-    return np,
+    return (np,)
 
 
 @app.cell
@@ -20,14 +20,14 @@ def two():
 @app.cell
 def three(x):
     y = x + 1
-    return y,
+    return (y,)
 
 
 @app.cell
 def four(np, x, y):
     # comment
     z = np.array(x + y)
-    return z,
+    return (z,)
 
 
 @app.cell
