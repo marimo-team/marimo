@@ -8,7 +8,6 @@ from marimo._output.formatters.formatter_factory import FormatterFactory
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt  # type: ignore
     import numpy as np  # type: ignore
-    from matplotlib.axes import Axes  # type: ignore
     from matplotlib.figure import Figure  # type: ignore
 
 
