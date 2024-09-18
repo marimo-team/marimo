@@ -122,7 +122,7 @@ function getPinningStyles<TData>(
     isPinned === "right" && column.getIsFirstColumn("right");
 
   return {
-    className: cn(isPinned && "bg-background", "shadow-r z-10"),
+    className: cn(isPinned && "bg-inherit", "shadow-r z-10"),
     style: {
       boxShadow:
         isLastLeftPinnedColumn && column.id !== "__select__"
