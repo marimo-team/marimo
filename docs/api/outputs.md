@@ -38,6 +38,15 @@ already written. Wrap the last expression in `mo.output.append` if you want
 to add to an existing output instead of replacing it.
 ```
 
+### Display cell code in marimo's app views
+
+Use `mo.show_code()` to display the cell's code in the output area, which
+will then be visible in all app views.
+
+```{eval-rst}
+.. autofunction:: marimo.show_code
+```
+
 ## Console outputs
 
 ```{admonition} Console outputs
