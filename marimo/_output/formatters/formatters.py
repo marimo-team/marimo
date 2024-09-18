@@ -7,6 +7,7 @@ from typing import Any, Callable, Sequence
 from marimo._config.config import Theme
 from marimo._output.formatters.altair_formatters import AltairFormatter
 from marimo._output.formatters.anywidget_formatters import AnyWidgetFormatter
+from marimo._output.formatters.arviz_formatters import ArviZFormatter
 from marimo._output.formatters.bokeh_formatters import BokehFormatter
 from marimo._output.formatters.cell import CellFormatter
 from marimo._output.formatters.df_formatters import (
@@ -44,6 +45,7 @@ THIRD_PARTY_FACTORIES: dict[str, FormatterFactory] = {
     IPythonFormatter.package_name(): IPythonFormatter(),
     IPyWidgetsFormatter.package_name(): IPyWidgetsFormatter(),
     AnyWidgetFormatter.package_name(): AnyWidgetFormatter(),
+    ArviZFormatter.package_name(): ArviZFormatter(),
     TqdmFormatter.package_name(): TqdmFormatter(),
     LetsPlotFormatter.package_name(): LetsPlotFormatter(),
     SympyFormatter.package_name(): SympyFormatter(),
