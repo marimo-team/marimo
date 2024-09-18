@@ -56,6 +56,7 @@ __all__ = [
     "right",
     "running_in_notebook",
     "routes",
+    "show_code",
     "sidebar",
     "stat",
     "state",
@@ -79,6 +80,7 @@ from marimo._output.formatting import as_html, plain
 from marimo._output.hypertext import Html
 from marimo._output.justify import center, left, right
 from marimo._output.md import md
+from marimo._output.show_code import show_code
 from marimo._plugins import ui
 from marimo._plugins.stateless import mpl, status
 from marimo._plugins.stateless.accordion import accordion
