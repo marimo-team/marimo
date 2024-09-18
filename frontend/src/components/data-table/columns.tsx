@@ -169,6 +169,7 @@ export function generateColumns<T>({
   if (selection === "single" || selection === "multi") {
     columns.unshift({
       id: "__select__",
+      maxSize: 40,
       header: ({ table }) =>
         selection === "multi" ? (
           <Checkbox

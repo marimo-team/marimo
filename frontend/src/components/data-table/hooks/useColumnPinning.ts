@@ -13,29 +13,31 @@ export function useColumnPinning(
   freezeColumnsRight?: string[],
 ): UseColumnPinningResult {
   const [columnPinning, setColumnPinning] = React.useState<ColumnPinningState>({
-    left: freezeColumnsLeft
-      ? [SELECT_COLUMN_ID, ...freezeColumnsLeft]
-      : [SELECT_COLUMN_ID],
+    left: maybeAddSelectColumnId(freezeColumnsLeft),
     right: freezeColumnsRight,
   });
 
-  const setColumnPinningWithFreeze = React.useCallback(
-    (newState: React.SetStateAction<ColumnPinningState>) => {
-      setColumnPinning((prevState) => {
-        const updatedState =
-          typeof newState === "function" ? newState(prevState) : newState;
-        return {
-          left:
-            !freezeColumnsLeft || freezeColumnsLeft?.includes(SELECT_COLUMN_ID)
-              ? freezeColumnsLeft
-              : [SELECT_COLUMN_ID, ...(freezeColumnsLeft || [])],
-          right: freezeColumnsRight,
-          ...updatedState,
-        };
-      });
-    },
-    [freezeColumnsLeft, freezeColumnsRight],
-  );
+  const setColumnPinningWithFreeze = (
+    newState: React.SetStateAction<ColumnPinningState>,
+  ) => {
+    setColumnPinning((prevState) => {
+      const updatedState =
+        typeof newState === "function" ? newState(prevState) : newState;
+      return {
+        left: maybeAddSelectColumnId(updatedState.left),
+        right: updatedState.right,
+      };
+    });
+  };
 
   return { columnPinning, setColumnPinning: setColumnPinningWithFreeze };
+}
+
+function maybeAddSelectColumnId(freezeColumns: string[] | undefined): string[] {
+  if (!freezeColumns || freezeColumns.length === 0) {
+    return [];
+  }
+  return freezeColumns.includes(SELECT_COLUMN_ID)
+    ? freezeColumns
+    : [SELECT_COLUMN_ID, ...freezeColumns];
 }

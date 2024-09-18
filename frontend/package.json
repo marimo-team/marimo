@@ -178,6 +178,7 @@
     "@storybook/testing-library": "^0.2.2",
     "@swc-jotai/react-refresh": "^0.1.1",
     "@testing-library/react": "^16.0.0",
+    "@testing-library/react-hooks": "^8.0.1",
     "@types/emscripten": "^1.39.13",
     "@types/katex": "^0.16.7",
     "@types/lodash-es": "^4.17.12",
