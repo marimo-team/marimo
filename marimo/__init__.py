@@ -68,6 +68,7 @@ __all__ = [
     "ui",
     "video",
     "vstack",
+    "with_code",
 ]
 __version__ = "0.8.15"
 
@@ -79,6 +80,7 @@ from marimo._output.formatting import as_html, plain
 from marimo._output.hypertext import Html
 from marimo._output.justify import center, left, right
 from marimo._output.md import md
+from marimo._output.with_code import with_code
 from marimo._plugins import ui
 from marimo._plugins.stateless import mpl, status
 from marimo._plugins.stateless.accordion import accordion
