@@ -1,28 +1,55 @@
 from __future__ import annotations
-import ast
+import re
 
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html
 from marimo._output.md import md
 from marimo._runtime.context import get_context
 from marimo._runtime.context.types import ContextNotInitializedError
+from marimo._plugins.ui._impl.input import code_editor
 
 
-class ReplaceWithCodeCalls(ast.NodeTransformer):
+def with_code(output: object = None) -> Html:
+    """Display an output above the code of the current cell.
 
-    def visit_Call(self, node: ast.Call) -> ast.Expression | ast.Call:
-        if (
-            isinstance(node.func, ast.Attribute)
-            and isinstance(node.func.value, ast.Name)
-            and node.func.value.id == "mo"
-            and node.func.attr == "with_code"
-            and len(node.args) > 0
-        ):
-            return ast.Expression(node.args[0])
-        return node
+    Use `mo.with_code` to show the code of the current cell below
+    the cell's output. This is useful if you want a cell's code to
+    appear in the app preview or when running the notebook as an app
+    with `marimo run`.
 
+    In the displayed code, all occurrences of mo.with_code(...) will be
+    replaced with ...
 
-def with_code(output: object) -> Html:
+    Show code that produces the output `factorial(5)`:
+
+    ```python
+    def factorial(n: int) -> int:
+        if n == 0:
+            return 1
+        return n * factorial(n - 1)
+
+    mo.with_code(factorial(5))
+    ```
+
+    Show code of a cell, without an output:
+
+    ```python
+    def factorial(n: int) -> int:
+        if n == 0:
+            return 1
+        return n * factorial(n - 1)
+    mo.show_code()
+    ```
+
+    **Args:**
+
+    - output: the output to display above the cell's code; omit the output
+      to just show the cel's code, without an output.
+
+    **Returns:**
+
+    HTML of the `output` arg with its code displayed below it.
+    """
     try:
         context = get_context()
     except ContextNotInitializedError:
@@ -33,18 +60,16 @@ def with_code(output: object) -> Html:
         return as_html(output)
 
     cell = context.graph.cells[cell_id]
-    try:
-        tree = ast.parse(cell.code)
-    except Exception:
-        return as_html(output)
+    pattern = r"mo\.with_code\((.*?)\)"
+    code = re.sub(pattern, r"\1", cell.code, flags=re.DOTALL).strip()
 
-    transformed = ReplaceWithCodeCalls().visit(tree)
-    return md(
-        f"""
+    if output is not None:
+        return md(
+            f"""
 {as_html(output)}
 
-```python
-{cell.code}
-```
+{code_editor(value=code, disabled=True, min_height=1)}
 """
-    )
+        )
+    else:
+        return code_editor(value=code, disabled=True, min_height=1)
