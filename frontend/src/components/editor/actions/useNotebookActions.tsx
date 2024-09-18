@@ -30,6 +30,7 @@ import {
   EditIcon,
   LayoutTemplateIcon,
   Files,
+  SettingsIcon,
 } from "lucide-react";
 import { commandPaletteAtom } from "../controls/command-palette";
 import { useCellActions, useNotebook } from "@/core/cells/cells";
@@ -64,6 +65,7 @@ import { useLayoutState, useLayoutActions } from "@/core/layout/layout";
 import { useTogglePresenting } from "@/core/layout/useTogglePresenting";
 import { useCopyNotebook } from "./useCopyNotebook";
 import { isWasm } from "@/core/wasm/utils";
+import { settingDialogAtom } from "@/components/app-config/app-config-button";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -83,6 +85,7 @@ export function useNotebookActions() {
   const restartKernel = useRestartKernel();
   const copyNotebook = useCopyNotebook(filename);
   const setCommandPaletteOpen = useSetAtom(commandPaletteAtom);
+  const setSettingsDialogOpen = useSetAtom(settingDialogAtom);
   const setKeyboardShortcutsOpen = useSetAtom(keyboardShortcutsAtom);
 
   const disabledCells = disabledCellIds(notebook);
@@ -348,6 +351,12 @@ export function useNotebookActions() {
       label: "Command palette",
       hotkey: "global.commandPalette",
       handle: () => setCommandPaletteOpen((open) => !open),
+    },
+
+    {
+      icon: <SettingsIcon size={14} strokeWidth={1.5} />,
+      label: "User settings",
+      handle: () => setSettingsDialogOpen((open) => !open),
     },
 
     {
