@@ -53,7 +53,7 @@ def show_code(
 
     - output: the output to display above the cell's code; omit the output
       to just show the cel's code, without an output.
-    - position: whether the output should be above or below the cell
+    - position: whether the output should be above or below the code
 
     **Returns:**
 
