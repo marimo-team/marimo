@@ -6,7 +6,7 @@ RUN useradd -m appuser
 
 WORKDIR /app
 
-ARG marimo_version=0.8.0
+ARG marimo_version=0.8.15
 ENV MARIMO_SKIP_UPDATE_CHECK=1
 RUN pip install --no-cache-dir marimo==${marimo_version} && \
   mkdir -p /app/data && \
