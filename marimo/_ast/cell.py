@@ -30,9 +30,6 @@ class CellConfig:
     # If True, the cell is hidden from the editor.
     hide_code: bool = False
 
-    # Visibility of source and outputs in app view.
-    app_visibility: Literal["output", "source-and-output"] = "output"
-
     @classmethod
     def from_dict(cls, kwargs: dict[str, Any]) -> CellConfig:
         return cls(**{k: v for k, v in kwargs.items() if k in CellConfigKeys})
