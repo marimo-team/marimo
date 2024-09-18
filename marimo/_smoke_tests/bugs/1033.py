@@ -233,11 +233,11 @@ def __(az):
 
 
 @app.cell
-def __(az, plt):
+def __(az):
     _data = az.load_arviz_data('centered_eight')
     # [az.plot_parallel(_data, var_names=["mu", "tau"]), type(az.plot_parallel(_data, var_names=["mu", "tau"]))]
     az.plot_parallel(_data, var_names=["mu", "tau"])
-    plt.show()
+    # plt.show()
     return
 
 
