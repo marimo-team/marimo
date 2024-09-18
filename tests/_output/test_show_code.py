@@ -1,5 +1,6 @@
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
+from marimo._output.show_code import substitute_show_code_with_arg
 
 
 async def test_show_code_basic(k: Kernel, exec_req: ExecReqProvider) -> None:
@@ -37,3 +38,45 @@ async def test_show_code_multiline(
     assert "(" not in k.globals["x"].text
     assert ")" not in k.globals["x"].text
     assert "mo.show_code" not in k.globals["x"].text
+
+
+def test_substitute_show_code() -> None:
+    code = "mo.show_code()"
+    assert substitute_show_code_with_arg(code) == ""
+
+    code = "mo.show_code(1)"
+    assert substitute_show_code_with_arg(code) == "1"
+
+    code = "mo.show_code(foo(1) + 1)"
+    assert substitute_show_code_with_arg(code) == "foo(1) + 1"
+
+    code = "mo.show_code(mo.show_code(1))"
+    assert substitute_show_code_with_arg(code) == "mo.show_code(1)"
+
+    code = """
+mo.show_code(
+'''
+hello, world
+'''
+)
+"""
+    assert (
+        substitute_show_code_with_arg(code)
+        == """'''
+hello, world
+'''"""
+    )
+
+    code = """
+mo.show_code(
+foo(1) + '''
+hello, world
+'''
+)
+"""
+    assert (
+        substitute_show_code_with_arg(code)
+        == """foo(1) + '''
+hello, world
+'''"""
+    )

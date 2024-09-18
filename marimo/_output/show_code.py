@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import re
-from typing import Literal
 
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html
@@ -12,9 +11,12 @@ from marimo._runtime.context import get_context
 from marimo._runtime.context.types import ContextNotInitializedError
 
 
-def show_code(
-    output: object = None, position: Literal["above", "below"] = "below"
-) -> Html:
+def substitute_show_code_with_arg(code: str) -> str:
+    pattern = r"mo\.show_code\((.*)\)"
+    return re.sub(pattern, r"\1", code, flags=re.DOTALL).strip()
+
+
+def show_code(output: object = None) -> Html:
     """Display an output along with the code of the current cell.
 
     Use `mo.show_code` to show the code of the current cell along with
@@ -53,7 +55,6 @@ def show_code(
 
     - output: the output to display above the cell's code; omit the output
       to just show the cel's code, without an output.
-    - position: whether the output should be above or below the code
 
     **Returns:**
 
@@ -69,19 +70,13 @@ def show_code(
         return as_html(output)
 
     cell = context.graph.cells[cell_id]
-    pattern = r"mo\.show_code\((.*?)\)"
-    code = re.sub(pattern, r"\1", cell.code, flags=re.DOTALL).strip()
+    code = substitute_show_code_with_arg(cell.code)
 
     if output is not None:
         return vstack(
             [
                 code_editor(value=code, disabled=True, min_height=1),
                 as_html(output),
-            ]
-            if position == "below"
-            else [
-                as_html(output),
-                code_editor(value=code, disabled=True, min_height=1),
             ]
         )
     else:
