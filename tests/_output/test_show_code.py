@@ -1,6 +1,6 @@
+from marimo._output.show_code import substitute_show_code_with_arg
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
-from marimo._output.show_code import substitute_show_code_with_arg
 
 
 async def test_show_code_basic(k: Kernel, exec_req: ExecReqProvider) -> None:
