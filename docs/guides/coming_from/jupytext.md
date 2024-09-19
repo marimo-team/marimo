@@ -12,9 +12,9 @@ on IPython/Jupyter. Here's a comparison to help you transition smoothly.
 :::{list-table}
 :widths: 50 50
 
-* - **Jupytext**
+* * **Jupytext**
   * **marimo**
-* - Jupytext uses comments or special markers to define cell types in notebooks.
+* * Jupytext uses comments or special markers to define cell types in notebooks.
   * Notebooks are pure Python (`.py`) files by default, using
       standard Python syntax, such as decorators and functions, to define cells.
 :::
@@ -26,9 +26,9 @@ on IPython/Jupyter. Here's a comparison to help you transition smoothly.
 :::{list-table}
 :widths: 50 50
 
-* - **Jupytext**
+* * **Jupytext**
   * **marimo**
-* - `jupytext --to py notebook.ipynb`
+* * `jupytext --to py notebook.ipynb`
   * `marimo convert notebook.ipynb > notebook.py`
 :::
 
@@ -50,9 +50,9 @@ marimo convert notebook.ipynb > marimo_notebook.py
 :::{list-table}
 :widths: 50 50
 
-* - **Jupytext**
+* * **Jupytext**
   * **marimo**
-* - `jupytext --to notebook.ipynb notebook.py`
+* * `jupytext --to notebook.ipynb notebook.py`
   * `marimo export ipynb notebook.py > notebook.ipynb`
 :::
 
@@ -61,9 +61,9 @@ marimo convert notebook.ipynb > marimo_notebook.py
 :::{list-table}
 :widths: 50 50
 
-* - **Jupytext**
+* * **Jupytext**
   * **marimo**
-* - Requires synchronization between `.ipynb` and `.py` files.
+* * Requires synchronization between `.ipynb` and `.py` files.
   * Edit marimo notebooks files directly in the marimo editor (`marimo edit
       notebook.py`), and changes are read from and written to the same file.
 :::
@@ -73,9 +73,9 @@ marimo convert notebook.ipynb > marimo_notebook.py
 :::{list-table}
 :widths: 50 50
 
-* - **Jupytext**
+* * **Jupytext**
   * **marimo**
-* - Use Jupyter to edit notebooks interactively, or Papermill to execute notebooks
+* * Use Jupyter to edit notebooks interactively, or Papermill to execute notebooks
       from the command line.
   * In addition to running notebooks interactively (`marimo
       notebook.py`), you can run notebooks as scripts (`python notebook.py`) or as apps
@@ -88,9 +88,9 @@ marimo convert notebook.ipynb > marimo_notebook.py
 :::{list-table}
 :widths: 50 50
 
-* - **Jupytext**
+* * **Jupytext**
   * **marimo**
-* - Jupyter notebooks are stored as JSON by default, making them difficult to
+* * Jupyter notebooks are stored as JSON by default, making them difficult to
       meaningfully version with git. Use Jupytext to pair and synchronize
       jupyter notebooks with text representations for smaller git diffs.
   * Notebooks are already in `.py` format, making them git-friendly
@@ -103,9 +103,9 @@ marimo convert notebook.ipynb > marimo_notebook.py
 :::{list-table}
 :widths: 50 50
 
-* - **Jupytext**
+* * **Jupytext**
   * **marimo**
-* - Uses special markers or formats to distinguish cell types. Magical syntax is required.
+* * Uses special markers or formats to distinguish cell types. Magical syntax is required.
   * Uses `mo.md("...")` for Markdown content, and interpolate Python values with `mo.md(f"...")`; no magical syntax.
 :::
 
@@ -114,8 +114,8 @@ marimo convert notebook.ipynb > marimo_notebook.py
 :::{list-table}
 :widths: 50 50
 
-* - **Jupytext**
+* * **Jupytext**
   * **marimo**
-* - Requires migrating to other libraries like Voila or Streamlit for deployment.
+* * Requires migrating to other libraries like Voila or Streamlit for deployment.
   * Can be deployed as interactive web apps with `marimo run`.
 :::
