@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+from collections import namedtuple
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
@@ -21,7 +22,7 @@ def test_numpy_encoding() -> None:
 
     arr = np.array([1, 2, 3])
     encoded = json.dumps(arr, cls=WebComponentEncoder)
-    assert encoded == '"[1, 2, 3]"'
+    assert encoded == "[1, 2, 3]"
 
     dt64 = np.datetime64("2021-01-01T12:00:00")
     encoded_dt64 = json.dumps(dt64, cls=WebComponentEncoder)
@@ -53,7 +54,7 @@ def test_pandas_encoding() -> None:
     # Timestamp
     timestamp = pd.Timestamp("2021-01-01T12:00:00")
     encoded_timestamp = json.dumps(timestamp, cls=WebComponentEncoder)
-    assert encoded_timestamp == '"2021-01-01 12:00:00"'
+    assert encoded_timestamp == '"2021-01-01T12:00:00"'
 
     # DatetimeTZDtype
     datetime_with_tz = pd.Series(
@@ -62,7 +63,7 @@ def test_pandas_encoding() -> None:
     encoded_datetime_with_tz = json.dumps(
         datetime_with_tz, cls=WebComponentEncoder
     )
-    assert '"2021-01-01 00:00:00+00:00"' in encoded_datetime_with_tz
+    assert '"2021-01-01T00:00:00+00:00"' in encoded_datetime_with_tz
 
     # Categorical
     cat = pd.Categorical(["test", "train", "test", "train"])
@@ -81,7 +82,7 @@ def test_pandas_encoding() -> None:
 
     timedelta_arr = pd.to_timedelta(["1 days", "2 days", "3 days"])
     encoded_timedelta_arr = json.dumps(timedelta_arr, cls=WebComponentEncoder)
-    assert encoded_timedelta_arr == "\"['1 days', '2 days', '3 days']\""
+    assert encoded_timedelta_arr == '["1 days", "2 days", "3 days"]'
 
     # Catch-all
     other = pd.Series(["a", "b", "c"])
@@ -256,3 +257,123 @@ def test_empty_encoding() -> None:
     empty_nested = [[], [], []]
     encoded_nested = json.dumps(empty_nested, cls=WebComponentEncoder)
     assert encoded_nested == "[[], [], []]"
+
+
+def test_complex_number_encoding() -> None:
+    complex_num = 3 + 4j
+    encoded = json.dumps(complex_num, cls=WebComponentEncoder)
+    assert encoded == '"(3+4j)"'
+
+
+def test_custom_class_encoding() -> None:
+    @dataclass
+    class CustomClass:
+        name: str
+        value: int
+
+    custom_obj = CustomClass(name="test", value=42)
+    encoded = json.dumps(custom_obj, cls=WebComponentEncoder)
+    assert encoded == '{"name": "test", "value": 42}'
+
+
+def test_nested_structure_encoding() -> None:
+    nested_structure = {
+        "list": [1, 2, 3],
+        "dict": {"a": 1, "b": 2},
+        "tuple": (4, 5, 6),
+        "set": {7, 8, 9},
+    }
+    encoded = json.dumps(nested_structure, cls=WebComponentEncoder)
+    decoded = json.loads(encoded)
+    assert decoded["list"] == [1, 2, 3]
+    assert decoded["dict"] == {"a": 1, "b": 2}
+    assert decoded["tuple"] == [4, 5, 6]  # Tuples are converted to lists
+    assert set(decoded["set"]) == {7, 8, 9}
+
+
+def test_date_time_encoding() -> None:
+    import datetime
+
+    date_obj = datetime.date(2023, 1, 1)
+    time_obj = datetime.time(12, 30, 45)
+    datetime_obj = datetime.datetime(2023, 1, 1, 12, 30, 45)
+
+    encoded_date = json.dumps(date_obj, cls=WebComponentEncoder)
+    encoded_time = json.dumps(time_obj, cls=WebComponentEncoder)
+    encoded_datetime = json.dumps(datetime_obj, cls=WebComponentEncoder)
+
+    assert encoded_date == '"2023-01-01"'
+    assert encoded_time == '"12:30:45"'
+    assert encoded_datetime == '"2023-01-01T12:30:45"'
+
+
+def test_enum_encoding() -> None:
+    from enum import Enum
+
+    class Color(Enum):
+        RED = 1
+        GREEN = 2
+        BLUE = 3
+
+    encoded = json.dumps(Color.RED, cls=WebComponentEncoder)
+    assert encoded == '"RED"'
+
+
+def test_uuid_encoding() -> None:
+    import uuid
+
+    uuid_obj = uuid.uuid4()
+    encoded = json.dumps(uuid_obj, cls=WebComponentEncoder)
+    assert encoded == f'"{str(uuid_obj)}"'
+
+
+def test_circular_reference_encoding():
+    circular_dict = {}
+    circular_dict["self"] = circular_dict
+    with pytest.raises(ValueError):
+        json.dumps(circular_dict, cls=WebComponentEncoder)
+
+
+def test_custom_object_with_dict():
+    class CustomObject:
+        def __init__(self):
+            self.attr = "value"
+
+    obj = CustomObject()
+    encoded = json.dumps(obj, cls=WebComponentEncoder)
+    assert encoded == '{"attr": "value"}'
+
+
+def test_object_with_slots():
+    class SlottedObject:
+        __slots__ = ["x", "y"]
+
+        def __init__(self, x, y):
+            self.x = x
+            self.y = y
+
+    obj = SlottedObject(1, 2)
+    encoded = json.dumps(obj, cls=WebComponentEncoder)
+    assert encoded == '{"x": 1, "y": 2}'
+
+
+def test_named_tuple_encoding():
+    Point = namedtuple("Point", ["x", "y"])
+    p = Point(1, 2)
+    encoded = json.dumps(p, cls=WebComponentEncoder)
+    assert encoded == "[1, 2]"
+
+
+def test_complex_nested_structure():
+    complex_obj = {
+        "list": [1, {"a": 2}, (3, 4)],
+        "dict": {"b": [5, 6], "c": {"d": 7}},
+        "set": {8, 9, 10},
+        "tuple": (11, [12, 13], {"e": 14}),
+    }
+    encoded = json.dumps(complex_obj, cls=WebComponentEncoder)
+    decoded = json.loads(encoded)
+    assert decoded["list"] == [1, {"a": 2}, [3, 4]]
+    assert decoded["dict"] == {"b": [5, 6], "c": {"d": 7}}
+    assert set(decoded["set"]) == {8, 9, 10}
+    assert decoded["tuple"] == [11, [12, 13], {"e": 14}]

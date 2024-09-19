@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import json
 import weakref
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Optional
@@ -113,10 +112,13 @@ class anywidget(UIElement[T, T]):
         for k, v in args.items():
             try:
                 # Try to see if it is json-serializable
-                json.dumps(v, cls=WebComponentEncoder)
+                WebComponentEncoder.json_dumps(v)
                 # Just add the plain value, it will be json-serialized later
                 json_args[k] = v
             except TypeError:
+                pass
+            except ValueError:
+                # Handle circular dependencies
                 pass
 
         def on_change(change: T) -> None:
