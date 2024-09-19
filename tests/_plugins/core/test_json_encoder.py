@@ -1,12 +1,15 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import dataclasses
 import json
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._output.mime import MIME
 from marimo._plugins.core.json_encoder import WebComponentEncoder
 
 HAS_DEPS = DependencyManager.pandas.has() and DependencyManager.altair.has()
@@ -98,16 +101,86 @@ def test_mime_encoding() -> None:
     assert encoded == '{"mimetype": "text/plain", "data": "data"}'
 
 
+def test_list_mime_encoding() -> None:
+    mime_obj = [MockMIMEObject(), MockMIMEObject()]
+    encoded = json.dumps(mime_obj, cls=WebComponentEncoder)
+    assert (
+        encoded
+        == '[{"mimetype": "text/plain", "data": "data"}, {"mimetype": "text/plain", "data": "data"}]'  # noqa: E501
+    )
+
+
+def test_dict_mime_encoding() -> None:
+    mime_obj = {"key": MockMIMEObject()}
+    encoded = json.dumps(mime_obj, cls=WebComponentEncoder)
+    assert encoded == '{"key": {"mimetype": "text/plain", "data": "data"}}'
+
+
+def test_nested_mime_encoding() -> None:
+    mime_obj = {"key": [MockMIMEObject(), MockMIMEObject()]}
+    encoded = json.dumps(mime_obj, cls=WebComponentEncoder)
+    assert (
+        encoded
+        == '{"key": [{"mimetype": "text/plain", "data": "data"}, {"mimetype": "text/plain", "data": "data"}]}'  # noqa: E501
+    )
+
+
 @dataclass
 class MockDataclass:
     a: int
     b: str
+    items: Optional[List[Any]] = None
+    other_items: Optional[Dict[str, Any]] = None
+
+
+class Button(MIME):
+    def _mime_(self) -> tuple[str, str]:
+        return "text/html", "<button>Click me!</button>"
 
 
 def test_dataclass_encoding() -> None:
     dataclass_obj = MockDataclass(1, "hello")
     encoded = json.dumps(dataclass_obj, cls=WebComponentEncoder)
-    assert encoded == '{"a": 1, "b": "hello"}'
+    assert (
+        encoded == '{"a": 1, "b": "hello", "items": null, "other_items": null}'
+    )
+
+
+def test_dataclass_with_list_encoding() -> None:
+    dataclass_obj = MockDataclass(
+        1, "hello", items=[1, "2", MockMIMEObject(), Button()]
+    )
+    # as dict
+    assert dataclasses.asdict(dataclass_obj) == {
+        "a": 1,
+        "b": "hello",
+        "items": [1, "2", {}, {}],  # asdict will convert to empty dictionaries
+        "other_items": None,
+    }
+
+    # But our encoder handles nested dataclasses back through the encoder
+    encoded = json.dumps(dataclass_obj, cls=WebComponentEncoder)
+    assert (
+        encoded
+        == '{"a": 1, "b": "hello", "items": [1, "2", {"mimetype": "text/plain", "data": "data"}, {"mimetype": "text/html", "data": "<button>Click me!</button>"}], "other_items": null}'  # noqa: E501
+    )
+
+
+def test_dataclass_with_dict_encoding() -> None:
+    dataclass_obj = MockDataclass(
+        1, "hello", other_items={"key": MockMIMEObject()}
+    )
+    encoded = json.dumps(dataclass_obj, cls=WebComponentEncoder)
+    assert (
+        encoded
+        == '{"a": 1, "b": "hello", "items": null, "other_items": {"key": {"mimetype": "text/plain", "data": "data"}}}'  # noqa: E501
+    )
+
+
+def test_dict_encoding() -> None:
+    dict_obj = {"key": "value"}
+    encoded = json.dumps(dict_obj, cls=WebComponentEncoder)
+    assert encoded == '{"key": "value"}'
 
 
 def test_bytes_encoding() -> None:
@@ -125,6 +198,27 @@ def test_set_encoding() -> None:
     assert encoded_empty == "[]"
     number_set = set([1, 2])
     encoded_number = json.dumps(number_set, cls=WebComponentEncoder)
+    assert encoded_number == "[1, 2]" or encoded_number == "[2, 1]"
+
+
+def test_tuple_encoding() -> None:
+    tuple_obj = ("a", "b")
+    encoded = json.dumps(tuple_obj, cls=WebComponentEncoder)
+    assert encoded == '["a", "b"]'
+    empty_tuple = ()
+    encoded_empty = json.dumps(empty_tuple, cls=WebComponentEncoder)
+    assert encoded_empty == "[]"
+
+
+def test_frozen_set_encoding() -> None:
+    frozen_set_obj = frozenset(["a", "b"])
+    encoded = json.dumps(frozen_set_obj, cls=WebComponentEncoder)
+    assert encoded == '["a", "b"]' or encoded == '["b", "a"]'
+    empty_frozen_set = frozenset()
+    encoded_empty = json.dumps(empty_frozen_set, cls=WebComponentEncoder)
+    assert encoded_empty == "[]"
+    number_frozen_set = frozenset([1, 2])
+    encoded_number = json.dumps(number_frozen_set, cls=WebComponentEncoder)
     assert encoded_number == "[1, 2]" or encoded_number == "[2, 1]"
 
 

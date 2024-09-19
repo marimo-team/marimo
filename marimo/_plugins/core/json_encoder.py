@@ -14,6 +14,10 @@ class WebComponentEncoder(JSONEncoder):
     """Custom JSON encoder for WebComponents"""
 
     def default(self, o: Any) -> Any:
+        """Override default method to handle additional types."""
+        return self._default_internal(o)
+
+    def _default_internal(self, o: Any) -> Any:
         obj = o
         # Handle numpy objects
         if DependencyManager.numpy.imported():
@@ -69,14 +73,19 @@ class WebComponentEncoder(JSONEncoder):
 
         # Must come after MIME objects
         if dataclasses.is_dataclass(obj):
-            return dataclasses.asdict(obj)
+            # We cannot use asdict since we need to recursively encode
+            # the values
+            return {
+                field.name: self._default_internal(getattr(obj, field.name))
+                for field in dataclasses.fields(obj)
+            }
 
         # Handle bytes objects
         if isinstance(obj, bytes):
             return obj.decode("utf-8")
 
-        # Handle set
-        if isinstance(obj, set):
+        # Handle iterable objects
+        if isinstance(obj, (set, frozenset)):
             return list(obj)
 
         # Handle datetime objects
@@ -84,4 +93,4 @@ class WebComponentEncoder(JSONEncoder):
             return obj.isoformat()
 
         # Fallthrough to default encoder
-        return JSONEncoder.default(self, obj)
+        return obj
