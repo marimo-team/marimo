@@ -85,7 +85,7 @@ def to_functiondef(
         defs = tuple(name for name in sorted(cell.defs))
         returns = INDENT + "return "
         if len(cell.defs) == 1:
-            returns += f"{defs[0]},"
+            returns += f"({defs[0]},)"
         else:
             returns += ", ".join(defs)
         fndef += (
