@@ -11,7 +11,9 @@
   streamlit
 ```
 
-marimo comes **batteries-included** replacing `jupyter`, `streamlit`, `jupytext`, `ipywidgets`, `papermill`, and more.
+marimo is a **single tool** that replaces  `jupyter`, `streamlit`, `jupytext`,
+`ipywidgets`, `papermill`, and more.
+
 
 | Guide            | Description                          |
 | :--------------- | :----------------------------------- |

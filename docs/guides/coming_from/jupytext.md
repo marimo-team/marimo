@@ -1,55 +1,136 @@
 # Coming from Jupytext
 
-If you're familiar with Jupytext, you'll find that marimo offers similar functionality for working with notebooks as python files, but without the need for additional setup or synchronization issues. Here's a comparison to help you transition smoothly.
+If you're familiar with Jupytext, you'll find that marimo offers similar
+functionality for working with notebooks as Python files, but without the need
+for additional setup or synchronization issues because marimo notebooks
+are stored as `.py` files by default. However, Jupytext works with IPython
+notebooks, whereas marimo works with marimo notebooks, which are not based
+on IPython/Jupyter. Here's a comparison to help you transition smoothly.
 
 ## Notebook Format
 
-- **Jupytext**: Jupytext uses comments or special markers to define cell types in notebooks.
-- **marimo**: Notebooks are pure Python (`.py`) files by default, using standard Python syntax, such as decorators and functions to define cells.
+:::{list-table}
+:widths: 50 50
 
-## Converting Jupyter Notebooks (ipynb)
+
+*   - **Jupytext**
+    - **marimo**
+*   - Jupytext uses comments or special markers to define cell types in notebooks.
+    - Notebooks are pure Python (`.py`) files by default, using
+      standard Python syntax, such as decorators and functions, to define cells.
+:::
+
+## Converting Jupyter notebooks
 
 ### From `.ipynb`
 
-- **Jupytext**: `jupytext --to py notebook.ipynb`
-- **marimo**: `marimo convert notebook.ipynb > notebook.py`
+:::{list-table}
+:widths: 50 50
+
+
+*   - **Jupytext**
+    - **marimo**
+*   - `jupytext --to py notebook.ipynb`
+    - `marimo convert notebook.ipynb > notebook.py`
+:::
+
+:::{admonition} From py:percent notebooks to marimo notebooks
+:class: tip
+
+If you have a Python file encoded in the [py:percent](https://jupytext.readthedocs.io/en/latest/#text-notebooks)
+format, you can convert it to a marimo notebook in two steps:
+
+```
+jupytext --to notebook.ipynb percent_notebook.py
+marimo convert notebook.ipynb > marimo_notebook.py
+```
+:::
+
 
 ### To `.ipynb`
 
-- **Jupytext**: `jupytext --to notebook.ipynb notebook.py`
-- **marimo**: `marimo export ipynb notebook.py > notebook.ipynb`
+:::{list-table}
+:widths: 50 50
+
+
+*   - **Jupytext**
+    - **marimo**
+*   - `jupytext --to notebook.ipynb notebook.py`
+    - `marimo export ipynb notebook.py > notebook.ipynb`
+:::
+
 
 ## Editing Notebooks
 
-- **Jupytext**: Requires synchronization between `.ipynb` and `.py` files.
-- **marimo**: Edit marimo notebooks files directly in the marimo editor (`marimo edit notebook.py`) and changes are read from and written to the same file.
+:::{list-table}
+:widths: 50 50
+
+
+*   - **Jupytext**
+    - **marimo**
+*   - Requires synchronization between `.ipynb` and `.py` files.
+    - Edit marimo notebooks files directly in the marimo editor (`marimo edit
+      notebook.py`), and changes are read from and written to the same file.
+:::
+
 
 ## Executing Notebooks
 
-- **Jupytext**: Use Jupyter or Papermill to execute notebooks.
-- **marimo**: Run notebooks as scripts (`python notebook.py`) or as apps (`marimo run notebook.py`).
+:::{list-table}
+:widths: 50 50
+
+
+*   - **Jupytext**
+    - **marimo**
+*   - Use Jupyter to edit notebooks interactively, or Papermill to execute notebooks
+      from the command line.
+    - In addition to running notebooks interactively (`marimo
+      notebook.py`), you can run notebooks as scripts (`python notebook.py`) or as apps
+      (`marimo run notebook.py`), passing values to them with marimo's built-in support
+      for [CLI args](/api/cli_args.md).
+:::
+
 
 ## Version Control
 
-- **Jupytext**: Pair and synchronize notebooks (ipynb) with text representations for smaller git diffs.
-- **marimo**: Notebooks are already in `.py` format, making them git-friendly by default. They can be linted and formatted like any other Python file.
+:::{list-table}
+:widths: 50 50
 
+
+*   - **Jupytext**
+    - **marimo**
+*   - Jupyter notebooks are stored as JSON by default, making them difficult to
+      meaningfully version with git. Use Jupytext to pair and synchronize
+      jupyter notebooks with text representations for smaller git diffs.
+    -  Notebooks are already in `.py` format, making them git-friendly
+       by default. Small changes to the notebook are guaranteed to yield small
+       diffs.
+:::
+
+
+  
 ## Markdown and Code Cells
 
-- **Jupytext**: Uses special markers or formats to distinguish cell types. Magical syntax is required.
-- **marimo**: Uses `mo.md("...")` for Markdown content. Regular Python code doesn't need special markers.
+:::{list-table}
+:widths: 50 50
 
-## Interactive Elements
 
-- **Jupytext**: Relies on Jupyter widgets, requires additional setup.
-- **marimo**: Built-in `mo.ui` module for interactive elements, automatically synchronized with Python.
+*   - **Jupytext**
+    - **marimo**
+*   - Uses special markers or formats to distinguish cell types. Magical syntax is required.
+    - Uses `mo.md("...")` for Markdown content, and interpolate Python values with `mo.md(f"...")`; no magical syntax. 
+:::
 
-## Reactive Execution
 
-- **Jupytext**: Not available; cells execute in order from top to bottom.
-- **marimo**: Automatic reactive execution based on cell dependencies.
 
 ## Deployment
 
-- **Jupytext**: Requires additional tools for deployment.
-- **marimo**: Can be deployed as interactive web apps with `marimo run`.
+:::{list-table}
+:widths: 50 50
+
+
+*   - **Jupytext**
+    - **marimo**
+*   - Requires migrating to other libraries like Voila or Streamlit for deployment.
+    - Can be deployed as interactive web apps with `marimo run`.
+:::

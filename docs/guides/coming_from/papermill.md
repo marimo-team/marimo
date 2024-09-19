@@ -1,25 +1,28 @@
 # Coming from Papermill
 
-If you're familiar with Papermill and looking to transition to marimo, this guide will help you understand how to achieve similar functionality using marimo's features.
+marimo provides built-in support for parametrizing and executing marimo
+notebooks. If you're familiar with Papermill, this guide will help you
+understand how to achieve similar functionality using marimo's features.
 
 ## Parameterizing Notebooks
 
 **Papermill**
 
-Papermill allows you to parameterize notebooks by defining a "parameters" cell and injecting values at runtime.
+Papermill allows you to parameterize Jupyter notebooks by defining a "parameters" cell
+and injecting values at runtime.
 
 **marimo**
 
 marimo offers two main ways to parameterize notebooks:
 
 1. **Command Line Arguments**:
-   Use `mo.cli_args` to access command-line arguments passed to your notebook.
+   Use [`mo.cli_args`](/api/cli_args.md) to access command-line arguments passed to your notebook.
 
    ```python
    import marimo as mo
 
    # Access CLI args
-   args = mo.cli_args
+   args = mo.cli_args()
    param1 = args.get("param1", "default_value")
    ```
 
@@ -66,15 +69,24 @@ Papermill allows you to execute notebooks programmatically and pass parameters.
 
 **marimo**
 
-marimo notebooks are pure Python files, making them easy to execute programmatically:
+marimo notebooks are pure Python files, making them easy to execute
+programmatically.
 
-1. **As a module**:
+1. **Running a named cell**:
+
+   After naming a cell in your file, you can run it using the
+   [cell execution API](/api/cell.md#marimo.Cell.run).
 
    ```python
-   import notebook
+   from my_notebook import my_cell
 
-   notebook.app.run()
+   # last_expression is the visual output of the cell
+   # definitions is a dictionary of the variables defined by the cell
+   last_expression, definitions = my_cell.run()
    ```
+
+   This API also allows for parametrizing the inputs to the cell; to learn more, 
+   make sure to checkout [the example](#marimo.Cell.run) in our API reference.
 
 2. **Using subprocess**:
 
@@ -97,7 +109,7 @@ marimo offers several options for storing and sharing outputs:
 1. **Export to HTML**:
 
    ```bash
-   marimo export html notebook.py -o notebook.html
+   marimo export html notebook.py -o notebook.html -- -arg1 foo --arg2 bar
    ```
 
 2. **Deploy as Web App**:
