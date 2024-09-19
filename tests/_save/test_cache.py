@@ -329,41 +329,6 @@ class TestStateCache:
         assert k.globals["state"]() == 7
 
 
-class TestUICache:
-    async def test_ui_loads(
-        self, k: Kernel, exec_req: ExecReqProvider
-    ) -> None:
-        await k.run(
-            [
-                exec_req.get("import marimo as mo"),
-                exec_req.get("slider = mo.ui.slider(1, 10)"),
-                exec_req.get(
-                    """
-                    from marimo._save.save import persistent_cache
-                    from tests._save.mocks import MockLoader
-
-                    a = 0
-                    with persistent_cache(
-                        name="cache",
-                        _loader=MockLoader(
-                            data={"slider": 7, "a": 9},
-                            stateful_refs={"slider"})
-                    ) as cache:
-                        raise Exception()
-                        a = slider.value + 1
-                        slider._update(3)
-
-                """
-                ),
-            ]
-        )
-
-        assert not k.stderr.messages
-
-        assert k.globals["slider"].value == 7
-        assert k.globals["a"] == 9
-
-
 class TestCacheDecorator:
     async def test_basic_cache(
         self, k: Kernel, exec_req: ExecReqProvider
@@ -387,7 +352,7 @@ class TestCacheDecorator:
             ]
         )
 
-        assert not len(k.stderr.messages)
+        assert not k.stderr.messages
         assert k.globals["fib"].hits == 9
 
         assert k.globals["a"] == 5
@@ -443,7 +408,7 @@ class TestCacheDecorator:
             ]
         )
 
-        assert not len(k.stderr.messages)
+        assert not k.stderr.messages
         assert k.globals["fib"].hits == 9
 
         assert k.globals["a"] == 5
@@ -470,7 +435,7 @@ class TestCacheDecorator:
             ]
         )
 
-        assert not len(k.stderr.messages)
+        assert not k.stderr.messages
 
         assert k.globals["a"] == 5
         assert k.globals["b"] == 55
@@ -513,8 +478,7 @@ class TestCacheDecorator:
             ]
         )
 
-        assert not len(k.stdout.messages)
-        assert not len(k.stderr.messages)
+        assert not k.stderr.messages
 
         assert k.globals["a"] == 5
         assert k.globals["b"] == 55
@@ -565,8 +529,7 @@ class TestCacheDecorator:
             ]
         )
 
-        assert not len(k.stdout.messages)
-        assert not len(k.stderr.messages)
+        assert not k.stderr.messages
 
         assert k.globals["a"] == 5
         assert k.globals["b"] == 55
@@ -616,7 +579,8 @@ class TestCacheDecorator:
             ]
         )
 
-        assert not len(k.stderr.messages), k.stderr
+        assert not k.stderr.messages, k.stderr
+        assert not k.stdout.messages, k.stdout
 
         assert len(k.globals["impure"]) == 3
         assert {

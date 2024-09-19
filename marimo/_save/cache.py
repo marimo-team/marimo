@@ -68,9 +68,9 @@ class Cache:
             value = defs[ref]
             if isinstance(value, SetFunctor):
                 value(self.defs[ref])
-            elif isinstance(value, UIElement):
-                value._update(self.defs[ref])
-            else:
+            # UI Values cannot be easily programmatically set, so only update
+            # state values.
+            elif not isinstance(value, UIElement):
                 raise CacheException(
                     "Failure while restoring cached values. "
                     "Unexpected stateful reference type "
