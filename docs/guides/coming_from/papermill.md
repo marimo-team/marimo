@@ -42,7 +42,7 @@ marimo offers two main ways to parameterize notebooks:
    import marimo as mo
 
    # Access query params
-   params = mo.query_params
+   params = mo.query_params()
    param1 = params.get("param1", "default_value")
    ```
 
