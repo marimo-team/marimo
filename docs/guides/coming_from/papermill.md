@@ -85,7 +85,7 @@ programmatically.
    last_expression, definitions = my_cell.run()
    ```
 
-   This API also allows for parametrizing the inputs to the cell; to learn more, 
+   This API also allows for parametrizing the inputs to the cell; to learn more,
    make sure to checkout [the example](#marimo.Cell.run) in our API reference.
 
 2. **Using subprocess**:
