@@ -1,6 +1,10 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
+from contextlib import contextmanager
+from pathlib import Path
+
 from marimo._config.config import (
     DEFAULT_CONFIG,
     MarimoConfig,
@@ -9,6 +13,7 @@ from marimo._config.config import (
     merge_default_config,
     remove_secret_placeholders,
 )
+from marimo._config.utils import _get_xdg_config_path
 
 
 def assert_config(override: MarimoConfig) -> None:
@@ -151,3 +156,26 @@ def test_remove_secret_placeholders() -> None:
 
     # Ensure the original config is not modified
     assert config["ai"]["open_ai"]["api_key"] == "********"
+
+
+@contextmanager
+def _create_temp_file_at(path):
+    file_existed = os.path.exists(path)
+
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    if not file_existed:
+        open(path, "a").close()
+
+    try:
+        yield path
+    finally:
+        if not file_existed:
+            os.remove(path)
+
+
+def test_get_xdg_config_path():
+    xdg_config_path = str(Path("~/.config/marimo/marimo.toml").expanduser())
+    with _create_temp_file_at(xdg_config_path):
+        found_config_path = _get_xdg_config_path()
+
+    assert found_config_path == xdg_config_path
