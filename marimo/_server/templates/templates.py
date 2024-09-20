@@ -83,6 +83,7 @@ def static_notebook_template(
     app_config: _AppConfig,
     filename: Optional[str],
     code: str,
+    code_hash: str,
     cell_ids: list[str],
     cell_names: list[str],
     cell_codes: list[str],
@@ -159,13 +160,18 @@ def static_notebook_template(
             </style>
             """)
 
-    code_block = f"""
+    code_block = dedent(f"""
     <marimo-code hidden="">
         {uri_encode_component(code)}
     </marimo-code>
-    """
+    """)
     if not code:
         code_block = '<marimo-code hidden=""></marimo-code>'
+
+    # Add a 256-bit hash of the code, for cache busting or CI checks
+    code_block += (
+        f'\n<marimo-code-hash hidden="">{code_hash}</marimo-code-hash>\n'
+    )
 
     # Replace all relative href and src with absolute URL
     html = (

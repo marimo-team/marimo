@@ -73,5 +73,7 @@
 </head>
   <body>
     <div id="root"></div>
-  <marimo-code hidden=""></marimo-code></body>
+  <marimo-code hidden=""></marimo-code>
+<marimo-code-hash hidden="">2b33215fadf3c54926d5c4100348afc158dbff4c94b15044e3a7fe804f80ed2d</marimo-code-hash>
+</body>
 </html>
