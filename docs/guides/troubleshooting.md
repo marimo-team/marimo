@@ -1,8 +1,8 @@
 # Troubleshooting
 
-This guide covers common issues and unexpected behaviors you might encounter when using marimo notebooks, along with ways to debug and resolve them.
+This guide covers common issues and unexpected behaviors you might encounter when using marimo notebooks, along with ways to debug and resolve them. If your issue isn't covered here, try checking our [FAQ](/guides/faq.md).
 
-## Why aren't tied cells running?
+## Why aren't my cells running?
 
 If you're expecting cells to run in response to changes in other cells, but they're not, consider the following:
 
