@@ -388,7 +388,7 @@ class progress_bar:
 def toast(
     title: str,
     description: str = "",
-    variant: Optional[Literal["danger"]] = None,
+    kind: Optional[Literal["danger"]] = None,
 ) -> None:
     """Show a toast notification
 
@@ -407,6 +407,6 @@ def toast(
 
     - `title`: The main message of the toast
     - `description`: Optional additional details (can include HTML)
-    - `variant`: Optional variant, use "danger" for error toasts
+    - `kind`: Optional kind, use "danger" for error toasts
     """
-    Alert(title=title, description=description, variant=variant).broadcast()
+    Alert(title=title, description=description, variant=kind).broadcast()
