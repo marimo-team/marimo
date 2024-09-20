@@ -148,7 +148,7 @@ class RemoveReturns(ast.NodeTransformer):
     # NB: Won't work for generators since not replacing Yield.
     # Note that functools caches the generator, which is then dequeue'd,
     # so in that sense, it doesn't work either.
-    def visit_Return(self, node: ast.Node) -> ast.Expr:
+    def visit_Return(self, node: ast.Return) -> ast.Expr:
         expr = ast.Expr(value=node.value)
         expr.lineno = node.lineno
         expr.col_offset = node.col_offset
