@@ -29,6 +29,8 @@ export const AppContainer: React.FC<PropsWithChildren<Props>> = ({
         <WrappedWithSidebar>
           <div
             id="App"
+            data-config-width={width}
+            data-connection-state={connectionState}
             className={cn(
               connectionState === WebSocketState.CLOSED && "disconnected",
               "bg-background w-full h-full text-textColor",
