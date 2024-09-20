@@ -7,6 +7,7 @@ app = marimo.App(width="medium")
 @app.cell
 def __():
     import marimo as mo
+
     return (mo,)
 
 
@@ -18,9 +19,10 @@ def __(mo):
 
 @app.cell
 def __(mo):
-    def show_toast(title, description="", variant=None):
-        mo.status.toast(title, description, variant)
+    def show_toast(title, description="", kind=None):
+        mo.status.toast(title, description, kind)
         return None
+
     return (show_toast,)
 
 
@@ -61,7 +63,7 @@ def __(danger_toast, html_toast, show_toast, simple_toast):
         )
 
     if danger_toast.value:
-        show_toast("Error Occurred", "Something went wrong!", variant="danger")
+        show_toast("Error Occurred", "Something went wrong!", kind="danger")
     return
 
 
