@@ -61,7 +61,11 @@ const CellActionsDropdownInternal = (
   }));
 
   const content = (
-    <PopoverContent className="w-[300px] p-0 pt-1" {...restoreFocus}>
+    <PopoverContent
+      align="start"
+      className="w-[300px] p-0 pt-1"
+      {...restoreFocus}
+    >
       <Command>
         <CommandInput placeholder="Search actions..." className="h-6 m-1" />
         <CommandList>

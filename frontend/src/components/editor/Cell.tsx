@@ -19,12 +19,10 @@ import { type CellActions, isUninstantiated } from "../../core/cells/cells";
 import { derefNotNull } from "../../utils/dereference";
 import { OutputArea } from "./Output";
 import { ConsoleOutput } from "./output/ConsoleOutput";
-import { CreateCellButton } from "./cell/CreateCellButton";
 import { RunButton } from "./cell/RunButton";
 import { DeleteButton } from "./cell/DeleteButton";
 import { CellStatusComponent } from "./cell/CellStatus";
 import clsx from "clsx";
-import { renderShortcut } from "../shortcuts/renderShortcut";
 import { useCellRenderCount } from "../../hooks/useCellRenderCount";
 import { Functions } from "../../utils/functions";
 import { Logger } from "../../utils/Logger";
@@ -459,17 +457,17 @@ const CellComponent = (
           {userConfig.display.cell_output === "above" && outputArea}
           <div className="tray">
             <div className="absolute flex flex-col gap-[2px] justify-center h-full left-[-34px] z-2">
-              <CreateCellButton
-                tooltipContent={renderShortcut("cell.createAbove")}
-                appClosed={appClosed}
-                onClick={appClosed ? undefined : createAbove}
-              />
-              <div className="flex-1" />
-              <CreateCellButton
-                tooltipContent={renderShortcut("cell.createBelow")}
-                appClosed={appClosed}
-                onClick={appClosed ? undefined : createBelow}
-              />
+              <CellActionsDropdown
+                ref={cellActionDropdownRef}
+                cellId={cellId}
+                status={status}
+                getEditorView={getEditorView}
+                name={name}
+                config={cellConfig}
+                hasOutput={hasOutput}
+              >
+                <CellDragHandle />
+              </CellActionsDropdown>
             </div>
             <CellEditor
               theme={theme}
@@ -514,17 +512,6 @@ const CellComponent = (
                   needsRun={needsRun}
                 />
                 <StopButton status={status} appClosed={appClosed} />
-                <CellActionsDropdown
-                  ref={cellActionDropdownRef}
-                  cellId={cellId}
-                  status={status}
-                  getEditorView={getEditorView}
-                  name={name}
-                  config={cellConfig}
-                  hasOutput={hasOutput}
-                >
-                  <CellDragHandle />
-                </CellActionsDropdown>
               </div>
             </div>
             <div className="shoulder-bottom hover-action">

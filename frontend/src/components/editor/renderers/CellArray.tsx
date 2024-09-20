@@ -42,6 +42,8 @@ import { capabilitiesAtom } from "@/core/config/capabilities";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Kbd } from "@/components/ui/kbd";
 import { FloatingOutline } from "../chrome/panels/outline/floating-outline";
+import React from "react";
+import { AddCellDivider } from "../add-cell-divider";
 
 interface CellArrayProps {
   notebook: NotebookState;
@@ -99,42 +101,54 @@ export const CellArray: React.FC<CellArrayProps> = ({
     >
       <PackageAlert />
       <NotebookBanner />
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col">
         {cells.map((cell) => (
-          <Cell
-            key={cell.id.toString()}
-            theme={theme}
-            showPlaceholder={cells.length === 1}
-            allowFocus={!invisible && !notebook.scrollKey}
-            id={cell.id}
-            code={cell.code}
-            outline={cell.outline}
-            output={cell.output}
-            consoleOutputs={cell.consoleOutputs}
-            status={cell.status}
-            edited={cell.edited}
-            interrupted={cell.interrupted}
-            errored={cell.errored}
-            stopped={cell.stopped}
-            staleInputs={cell.staleInputs}
-            runStartTimestamp={cell.runStartTimestamp}
-            runElapsedTimeMs={
-              cell.runElapsedTimeMs ?? (cell.lastExecutionTime as Milliseconds)
-            }
-            serializedEditorState={cell.serializedEditorState}
-            showDeleteButton={cells.length > 1 && !cell.config.hide_code}
-            mode={mode}
-            appClosed={connStatus.state !== WebSocketState.OPEN}
-            ref={notebook.cellHandles[cell.id]}
-            userConfig={userConfig}
-            debuggerActive={cell.debuggerActive}
-            config={cell.config}
-            name={cell.name}
-            isCollapsed={notebook.cellIds.isCollapsed(cell.id)}
-            collapseCount={notebook.cellIds.getCount(cell.id)}
-            {...actions}
-            deleteCell={onDeleteCell}
-          />
+          <React.Fragment key={cell.id.toString()}>
+            <AddCellDivider
+              onAddCell={(opts) =>
+                actions.createNewCell({
+                  cellId: cell.id,
+                  before: true,
+                  ...opts,
+                })
+              }
+            />
+            <Cell
+              key={cell.id.toString()}
+              theme={theme}
+              showPlaceholder={cells.length === 1}
+              allowFocus={!invisible && !notebook.scrollKey}
+              id={cell.id}
+              code={cell.code}
+              outline={cell.outline}
+              output={cell.output}
+              consoleOutputs={cell.consoleOutputs}
+              status={cell.status}
+              edited={cell.edited}
+              interrupted={cell.interrupted}
+              errored={cell.errored}
+              stopped={cell.stopped}
+              staleInputs={cell.staleInputs}
+              runStartTimestamp={cell.runStartTimestamp}
+              runElapsedTimeMs={
+                cell.runElapsedTimeMs ??
+                (cell.lastExecutionTime as Milliseconds)
+              }
+              serializedEditorState={cell.serializedEditorState}
+              showDeleteButton={cells.length > 1 && !cell.config.hide_code}
+              mode={mode}
+              appClosed={connStatus.state !== WebSocketState.OPEN}
+              ref={notebook.cellHandles[cell.id]}
+              userConfig={userConfig}
+              debuggerActive={cell.debuggerActive}
+              config={cell.config}
+              name={cell.name}
+              isCollapsed={notebook.cellIds.isCollapsed(cell.id)}
+              collapseCount={notebook.cellIds.getCount(cell.id)}
+              {...actions}
+              deleteCell={onDeleteCell}
+            />
+          </React.Fragment>
         ))}
       </div>
       <AddCellButtons />

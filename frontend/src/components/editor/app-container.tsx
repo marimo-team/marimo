@@ -37,6 +37,7 @@ export const AppContainer: React.FC<PropsWithChildren<Props>> = ({
               "flex flex-col overflow-y-auto overflow-x-hidden",
               width === "full" && "config-width-full",
               "print:height-fit",
+              "pr-12", // matches the sidebar width
             )}
           >
             {children}
