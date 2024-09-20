@@ -93,6 +93,7 @@ class anywidget(UIElement[T, T]):
             "_esm",
             "_css",
             "_anywidget_id",
+            "_msg_callbacks",
             "_dom_classes",
             "_model_module",
             "_model_module_version",
