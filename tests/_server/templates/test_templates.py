@@ -8,6 +8,7 @@ from marimo._ast.app import _AppConfig
 from marimo._ast.cell import CellConfig
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.cell_output import CellChannel, CellOutput
+from marimo._server.export.exporter import hash_code
 from marimo._server.model import SessionMode
 from marimo._server.templates import templates
 from marimo._server.tokens import SkewProtectionToken
@@ -188,6 +189,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             self.app_config,
             self.filename,
             self.code,
+            hash_code(self.code),
             self.cell_ids,
             self.cell_names,
             self.cell_codes,
@@ -207,6 +209,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             self.app_config,
             None,
             self.code,
+            hash_code(self.code),
             self.cell_ids,
             self.cell_names,
             self.cell_codes,
@@ -226,6 +229,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             self.app_config,
             self.filename,
             "",
+            hash_code(self.code),
             [],
             [],
             [],
@@ -253,6 +257,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
                 _AppConfig(css_file="custom.css"),
                 self.filename,
                 "",
+                hash_code(self.code),
                 [],
                 [],
                 [],

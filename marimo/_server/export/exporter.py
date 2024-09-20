@@ -87,6 +87,9 @@ class Exporter:
             configs = [CellConfig() for _ in cell_ids]
             console_outputs = {}
 
+        # We include the code hash regardless of whether we include the code
+        code_hash = hash_code(file_manager.to_code())
+
         html = static_notebook_template(
             html=index_html,
             user_config=config,
@@ -94,6 +97,7 @@ class Exporter:
             app_config=file_manager.app.config,
             filename=file_manager.filename,
             code=code,
+            code_hash=code_hash,
             cell_ids=cell_ids,
             cell_names=list(file_manager.app.cell_manager.names()),
             cell_codes=list(codes),
@@ -298,3 +302,9 @@ class AutoExporter:
         export_dir = os.path.join(directory, self.EXPORT_DIR)
         if not os.path.exists(export_dir):
             os.mkdir(export_dir)
+
+
+def hash_code(code: str) -> str:
+    import hashlib
+
+    return hashlib.sha256(code.encode("utf-8")).hexdigest()
