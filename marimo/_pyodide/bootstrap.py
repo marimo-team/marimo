@@ -71,7 +71,7 @@ def create_session(
 
     def write_kernel_message(op: KernelMessage) -> None:
         message_callback(
-            json.dumps({"op": op[0], "data": op[1]}, cls=WebComponentEncoder)
+            WebComponentEncoder.json_dumps({"op": op[0], "data": op[1]})
         )
 
     # Lazy import to decrease startup time

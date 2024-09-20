@@ -58,7 +58,7 @@ def serialize(datacls: Any) -> Dict[str, JSONType]:
         # If that fails, try to serialize using the WebComponentEncoder
         return cast(
             Dict[str, JSONType],
-            json.loads(json.dumps(datacls, cls=WebComponentEncoder)),
+            json.loads(WebComponentEncoder.json_dumps(datacls)),
         )
 
 
@@ -281,6 +281,19 @@ class FunctionCallResult(Op):
     function_call_id: str
     return_value: JSONType
     status: HumanReadableStatus
+
+    def __post_init__(self) -> None:
+        # We want to serialize the return_value using our custom JSON encoder
+        try:
+            self.return_value = json.loads(
+                WebComponentEncoder.json_dumps(self.return_value)
+            )
+        except Exception as e:
+            LOGGER.exception(
+                "Error serializing function call result %s: %s",
+                self.__class__.__name__,
+                e,
+            )
 
     def serialize(self) -> dict[str, Any]:
         try:
