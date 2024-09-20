@@ -307,6 +307,7 @@ class progress_bar:
     - `show_rate`: if True, show the rate of progress (items per second)
     - `show_eta`: if True, show the estimated time of completion
     - `remove_on_exit`: if True, remove the progress bar from output on exit
+    - `disabled`: if True, disable the progress bar
     """
 
     def __init__(
