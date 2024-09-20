@@ -28,6 +28,16 @@ if HAS_DEPS:
         _css = """button { padding: 5px !important; }"""
         count = traitlets.Int(0).tag(sync=True)
 
+    class Widget(_anywidget.AnyWidget):
+        _esm = """
+        function render({ model, el }) {
+            let arr = model.get("arr");
+            el.innerText = arr.bytes instanceof DataView;
+        }
+        export default { render };
+        """
+        arr = traitlets.Dict().tag(sync=True)
+
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 class TestAnywidget:
@@ -168,3 +178,24 @@ x = as_marimo_element.count
         assert wrapped.value == {"count": 0}
         wrapped._update({"count": 10})
         assert wrapped.value == {"count": 10}
+
+    @staticmethod
+    async def test_initialization() -> None:
+        wrapped = anywidget(CounterWidget())
+        assert wrapped._initial_value == {"count": 0}
+        assert wrapped._component_args == {"buffer-paths": []}
+
+    @staticmethod
+    async def test_initialization_with_dataview() -> None:
+        # Create a simple array-like structure without numpy
+        arr = [1, 2, 3]
+        wrapped = anywidget(
+            Widget(arr={"bytes": bytes(arr), "shape": (len(arr),)})
+        )
+        assert wrapped._initial_value == {
+            "arr": {"bytes": bytes([1, 2, 3]), "shape": (3,)}
+        }
+        assert wrapped._component_args == {
+            "state": {"arr": {"bytes": bytes([1, 2, 3]), "shape": (3,)}},
+            "buffer-paths": [],
+        }
