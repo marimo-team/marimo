@@ -15,6 +15,7 @@ import { Objects } from "@/utils/objects";
 import { isEqual, set } from "lodash-es";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { usePrevious } from "@uidotdev/usehooks";
+import { Arrays } from "@/utils/arrays";
 
 interface Data {
   figure: Figure;
@@ -177,31 +178,17 @@ export const PlotlyComponent = memo(
             setValue((prev) => ({ ...prev, ...obj }));
           }
         }}
-        onUpdate={(figure) => {
-          // If the user double-clicks, all selection will be cleared
-          // But this does not call onSelected, so we need to clear it here
-          const selections =
-            "selections" in figure.layout &&
-            Array.isArray(figure.layout.selections)
-              ? figure.layout.selections
-              : [];
-          if (selections.length === 0) {
-            setValue((prev) => {
-              const prevSelections = prev?.selections ?? [];
-              if (prevSelections.length === 0) {
-                return prev;
-              }
-
-              return {
-                ...prev,
-                selections: selections,
-                points: [],
-                indices: [],
-                range: undefined,
-              };
-            });
-          }
-        }}
+        onDeselect={useEvent(() => {
+          setValue((prev) => {
+            return {
+              ...prev,
+              selections: Arrays.EMPTY,
+              points: Arrays.EMPTY,
+              indices: Arrays.EMPTY,
+              range: undefined,
+            };
+          });
+        })}
         config={plotlyConfig}
         onSelected={useEvent((evt: Readonly<Plotly.PlotSelectionEvent>) => {
           if (!evt) {
