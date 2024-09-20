@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 
 class MemoryLoader(Loader):
-    """In memory loader for serializable objects."""
+    """In memory loader for saved objects."""
 
     def __init__(
         self,

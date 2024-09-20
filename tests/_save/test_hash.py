@@ -272,6 +272,31 @@ class TestHash:
         app.run()
 
     @staticmethod
+    def test_function_state_content_hash_distinct() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def load() -> tuple[Any]:
+            import marimo as mo
+            from marimo._save.save import cache
+
+            state, _set_state = mo.state(0)
+
+            @cache
+            def check_type(v) -> str:
+                return str(type(v))
+
+            a = check_type(0)
+            b = check_type(state)
+            assert a != b, (a, "!=", b)
+            assert a == "<class 'int'>", a
+            assert "State" in b, b
+            return a, b
+
+        app.run()
+
+    @staticmethod
     def test_transitive_execution_path_when_state_dependent() -> None:
         app = App()
         app._anonymous_file = True

@@ -198,6 +198,20 @@ def data_to_buffer(data: Tensor) -> bytes:
     return type_sign(memoryview(data_c_contiguous.view("uint8")), "data")
 
 
+def attempt_signed_bytes(value: bytes, label: str) -> bytes:
+    # Prevents hash collisions like:
+    # >>> fib(1)
+    # >>> s, _ = state(1)
+    # >>> fib(s)
+    # ^ would be a cache hit as is even though fib(s) would fail by
+    # itself
+    try:
+        return type_sign(common_container_to_bytes(value), label)
+    # Fallback to raw state for eval in content hash.
+    except TypeError:
+        return value
+
+
 class BlockHasher:
     def __init__(
         self,
@@ -380,7 +394,9 @@ class BlockHasher:
             # value.
             if ref in scope and isinstance(scope[ref], SetFunctor):
                 stateful_refs.add(ref)
-                scope[ref] = scope[ref]._state
+                scope[ref] = attempt_signed_bytes(
+                    scope[ref]._state, "state-set"
+                )
 
         for ref in set(refs):
             if ref in scope.get("__builtins__", ()):
@@ -398,12 +414,12 @@ class BlockHasher:
             value: Optional[State[Any]]
             if ctx and (value := ctx.state_registry.lookup(ref)):
                 for state_name in ctx.state_registry.bound_names(value):
-                    scope[state_name] = value()
+                    scope[state_name] = attempt_signed_bytes(value(), "state")
 
             # Likewise, UI objects should be dependent on their value.
             if ctx and (ui := ctx.ui_element_registry.lookup(ref)) is not None:
                 for ui_name in ctx.ui_element_registry.bound_names(ui._id):
-                    scope[ui_name] = ui.value
+                    scope[ui_name] = attempt_signed_bytes(ui.value, "ui")
                 # If the UI is directly consumed, then hold on to the reference
                 # for proper cache update.
                 stateful_refs.add(ref)

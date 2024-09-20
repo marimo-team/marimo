@@ -140,6 +140,8 @@ class cache(object):
 
         self.module = strip_function(self.fn)
         # frame is _set_context -> __call__ (or init) -> fn wrap
+        # Note, that deeply nested frames may cause issues, however
+        # checking a single frame- should be good enough.
         f_locals = inspect.stack()[2][0].f_locals
         self.scope = {**ctx.globals, **f_locals}
 

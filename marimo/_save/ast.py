@@ -145,7 +145,10 @@ class DeprivateVisitor(ast.NodeTransformer):
 
 
 class RemoveReturns(ast.NodeTransformer):
-    def visit_Return(self, node: ast.Return) -> ast.Expr:
+    # NB: Won't work for generators since not replacing Yield.
+    # Note that functools caches the generator, which is then dequeue'd,
+    # so in that sense, it doesn't work either.
+    def visit_Return(self, node: ast.Node) -> ast.Expr:
         expr = ast.Expr(value=node.value)
         expr.lineno = node.lineno
         expr.col_offset = node.col_offset
@@ -156,7 +159,9 @@ def strip_function(fn: Callable[..., Any]) -> ast.Module:
     code, _ = inspect.getsourcelines(fn)
     function_ast = ast.parse(textwrap.dedent("".join(code)))
     body = function_ast.body.pop()
-    assert isinstance(body, ast.FunctionDef), "Expected a function definition"
+    assert isinstance(
+        body, (ast.FunctionDef, ast.AsyncFunctionDef)
+    ), "Expected a function definition"
     extracted = ast.Module(body.body, type_ignores=[])
     module = RemoveReturns().visit(extracted)
     assert isinstance(module, ast.Module), "Expected a module"
