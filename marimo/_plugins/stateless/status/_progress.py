@@ -397,7 +397,10 @@ def toast(
     **Example.**
 
     ```python
-    mo.status.toast("Operation completed", "Your task has finished successfully")
+    mo.status.toast(
+        "Operation completed",
+        "Your task has finished successfully",
+    )
     ```
 
     **Args:**
