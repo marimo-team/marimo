@@ -29,13 +29,7 @@ if HAS_DEPS:
         count = traitlets.Int(0).tag(sync=True)
 
     class Widget(_anywidget.AnyWidget):
-        _esm = """
-        function render({ model, el }) {
-            let arr = model.get("arr");
-            el.innerText = arr.bytes instanceof DataView;
-        }
-        export default { render };
-        """
+        _esm = ""
         arr = traitlets.Dict().tag(sync=True)
 
 
@@ -181,9 +175,13 @@ x = as_marimo_element.count
 
     @staticmethod
     async def test_initialization() -> None:
-        wrapped = anywidget(CounterWidget())
-        assert wrapped._initial_value == {"count": 0}
-        assert wrapped._component_args == {"buffer-paths": []}
+        wrapped = anywidget(Widget(arr={"a": 1}))
+        assert wrapped._initial_value == {"arr": {"a": 1}}
+        assert wrapped._component_args == {
+            "buffer-paths": [],
+            "css": "",
+            "js-url": "",
+        }
 
     @staticmethod
     async def test_initialization_with_dataview() -> None:
@@ -196,6 +194,7 @@ x = as_marimo_element.count
             "arr": {"bytes": bytes([1, 2, 3]), "shape": (3,)}
         }
         assert wrapped._component_args == {
-            "state": {"arr": {"bytes": bytes([1, 2, 3]), "shape": (3,)}},
-            "buffer-paths": [],
+            "buffer-paths": [["arr", "bytes"]],
+            "css": "",
+            "js-url": "",
         }
