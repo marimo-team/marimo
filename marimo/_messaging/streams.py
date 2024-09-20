@@ -82,6 +82,9 @@ class ThreadSafeStream(Stream):
     def write(self, op: str, data: dict[Any, Any]) -> None:
         with self.stream_lock:
             try:
+                print("writing op: ")
+                #print(op)
+                #print(data)
                 self.pipe.send((op, data))
             except OSError as e:
                 # Most likely a BrokenPipeError, caused by the

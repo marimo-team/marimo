@@ -48,6 +48,9 @@ LOGGER = loggers.marimo_logger()
 
 
 def serialize(datacls: Any) -> Dict[str, JSONType]:
+    # TODO(akshayka): maybe serialize as bytes (JSON), not objects ...,
+    # then `send_bytes` over connection ... to try to avoid pickling
+    # issues
     try:
         # Try to serialize as a dataclass
         return cast(

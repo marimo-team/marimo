@@ -94,7 +94,7 @@ class QueueManager:
         # requests.
         self.set_ui_element_queue: QueueType[
             requests.SetUIElementValueRequest
-        ] = context.Queue() if context is not None else queue.Queue()
+        ] = (context.Queue() if context is not None else queue.Queue())
 
         # Code completion requests are sent through a separate queue
         self.completion_queue: QueueType[requests.CodeCompletionRequest] = (
@@ -165,6 +165,7 @@ class KernelManager:
         self.app_metadata = app_metadata
         self.user_config_manager = user_config_manager
         self.redirect_console_to_browser = redirect_console_to_browser
+        # TODO: threading-based solution for run mode
         self._read_conn: Optional[TypedConnection[KernelMessage]] = None
         self._virtual_files_supported = virtual_files_supported
 
@@ -176,6 +177,7 @@ class KernelManager:
         # with a SIGINT; we don't mind the additional memory consumption,
         # since there's only one client sess
         is_edit_mode = self.mode == SessionMode.EDIT
+        print("ADDRESS: ", listener.address)
         if is_edit_mode:
             self.kernel_task = mp.Process(
                 target=runtime.launch_kernel,
@@ -441,11 +443,13 @@ class Session:
         self.room = Room()
         self._queue_manager = queue_manager
         self.kernel_manager = kernel_manager
+        # TODO(akshayka): NoopSessionView for run mode
         self.session_view = SessionView()
 
         self.kernel_manager.start_kernel()
         # Reads from the kernel connection and distributes the
         # messages to each subscriber.
+        # TODO(akshayka): threading based solution for run mode
         self.message_distributor = Distributor[KernelMessage](
             self.kernel_manager.kernel_connection
         )
