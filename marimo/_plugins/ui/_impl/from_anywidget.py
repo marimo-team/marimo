@@ -128,6 +128,10 @@ class anywidget(UIElement[T, T]):
 
         js: str = widget._esm if hasattr(widget, "_esm") else ""  # type: ignore [unused-ignore]  # noqa: E501
         css: str = widget._css if hasattr(widget, "_css") else ""  # type: ignore [unused-ignore]  # noqa: E501
+        import ipywidgets  # type: ignore
+
+        _remove_buffers = ipywidgets.widgets.widget._remove_buffers  # type: ignore
+        _state, buffer_paths, _buffers = _remove_buffers(widget.get_state())  # type: ignore
 
         super().__init__(
             component_name="marimo-anywidget",
@@ -136,6 +140,7 @@ class anywidget(UIElement[T, T]):
             args={
                 "js-url": mo_data.js(js).url if js else "",  # type: ignore [unused-ignore]  # noqa: E501
                 "css": css,
+                "buffer-paths": buffer_paths,
             },
             on_change=on_change,
             functions=(
