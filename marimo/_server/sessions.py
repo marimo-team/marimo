@@ -111,7 +111,7 @@ class QueueManager:
         # requests.
         self.set_ui_element_queue: QueueType[
             requests.SetUIElementValueRequest
-        ] = context.Queue() if context is not None else queue.Queue()
+        ] = (context.Queue() if context is not None else queue.Queue())
 
         # Code completion requests are sent through a separate queue
         self.completion_queue: QueueType[requests.CodeCompletionRequest] = (
@@ -177,7 +177,6 @@ class KernelManager:
         app_metadata: AppMetadata,
         user_config_manager: UserConfigManager,
         virtual_files_supported: bool,
-        key: str,
         redirect_console_to_browser: bool = False,
     ) -> None:
         self.kernel_task: Optional[threading.Thread] | Optional[mp.Process]
@@ -188,7 +187,7 @@ class KernelManager:
         self.user_config_manager = user_config_manager
         self.redirect_console_to_browser = redirect_console_to_browser
         # a unique key identifying this kernel
-        self.key = key
+        self.key = str(uuid4())
 
         # Only used in edit mode
         self._read_conn: Optional[TypedConnection[KernelMessage]] = None
@@ -449,7 +448,6 @@ class Session:
             user_config_manager,
             virtual_files_supported=virtual_files_supported,
             redirect_console_to_browser=redirect_console_to_browser,
-            key=str(uuid4()),
         )
         return cls(
             initialization_id,
