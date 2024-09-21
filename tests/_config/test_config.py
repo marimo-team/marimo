@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import os
+import tempfile
 from contextlib import contextmanager
 from pathlib import Path
+from typing import List, Optional
+from unittest import mock
 
 from marimo._config.config import (
     DEFAULT_CONFIG,
@@ -13,7 +16,7 @@ from marimo._config.config import (
     merge_default_config,
     remove_secret_placeholders,
 )
-from marimo._config.utils import _get_xdg_config_path
+from marimo._config.utils import get_config_path, get_or_create_config_path
 
 
 def assert_config(override: MarimoConfig) -> None:
@@ -159,23 +162,76 @@ def test_remove_secret_placeholders() -> None:
 
 
 @contextmanager
-def _create_temp_file_at(path):
-    file_existed = os.path.exists(path)
+def _mock_file_exists(
+    exists: Optional[str | List[str]] = None,
+    doesnt_exist: Optional[str | List[str]] = None,
+):
+    if isinstance(exists, str):
+        exists = [exists]
+    if isinstance(doesnt_exist, str):
+        doesnt_exist = [doesnt_exist]
 
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    if not file_existed:
-        open(path, "a").close()
+    isfile = os.path.isfile
 
-    try:
-        yield path
-    finally:
-        if not file_existed:
-            os.remove(path)
+    def mock_exists(check_path):
+        if (exists is not None) and (check_path in exists):
+            return True
+        if (doesnt_exist is not None) and (check_path in doesnt_exist):
+            return False
+        return isfile(check_path)
+
+    with mock.patch(
+        "marimo._config.utils.os.path.isfile",
+        side_effect=mock_exists,
+    ):
+        yield
 
 
-def test_get_xdg_config_path():
+def test_get_config_path():
     xdg_config_path = str(Path("~/.config/marimo/marimo.toml").expanduser())
-    with _create_temp_file_at(xdg_config_path):
-        found_config_path = _get_xdg_config_path()
+    home_config_path = str(Path("~/.marimo.toml").expanduser())
 
-    assert found_config_path == xdg_config_path
+    # If neither config exists, return None
+    with _mock_file_exists(doesnt_exist=[xdg_config_path, home_config_path]):
+        found_config_path = get_config_path()
+        assert found_config_path is None
+
+    # If only XDG path exists, use XDG path
+    with _mock_file_exists(
+        exists=xdg_config_path, doesnt_exist=home_config_path
+    ):
+        found_config_path = get_config_path()
+        assert found_config_path == xdg_config_path
+
+    # If both config paths exist, home config takes precedence
+    with _mock_file_exists(exists=[xdg_config_path, home_config_path]):
+        found_config_path = get_config_path()
+        assert found_config_path == home_config_path
+
+
+def test_get_or_create_config_path():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Use temp dir to avoid creating stray xdg config.
+        # Still creates home one though, unfortunately.
+        os.environ["XDG_CONFIG_HOME"] = temp_dir
+        xdg_config_path = str(Path(temp_dir) / "marimo/marimo.toml")
+        home_config_path = str(Path("~/.marimo.toml").expanduser())
+
+        # If neither config exists, XDG config should be created and used
+        with _mock_file_exists(
+            doesnt_exist=[xdg_config_path, home_config_path]
+        ):
+            found_config_path = get_or_create_config_path()
+            assert found_config_path == xdg_config_path
+
+        # If only XDG path exists, use XDG path
+        with _mock_file_exists(
+            exists=xdg_config_path, doesnt_exist=home_config_path
+        ):
+            found_config_path = get_or_create_config_path()
+            assert found_config_path == xdg_config_path
+
+        # If both config paths exist, home config takes precedence
+        with _mock_file_exists(exists=[xdg_config_path, home_config_path]):
+            found_config_path = get_or_create_config_path()
+            assert found_config_path == home_config_path
