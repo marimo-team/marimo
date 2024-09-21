@@ -61,7 +61,7 @@ from marimo._server.ids import ConsumerId, SessionId
 from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
 from marimo._server.models.models import InstantiateRequest
 from marimo._server.recents import RecentFilesManager
-from marimo._server.session.session_view import NoopSessionView, SessionView
+from marimo._server.session.session_view import SessionView
 from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._server.types import QueueType
 from marimo._server.utils import print_tabbed
@@ -97,7 +97,7 @@ class QueueManager:
         # requests.
         self.set_ui_element_queue: QueueType[
             requests.SetUIElementValueRequest
-        ] = context.Queue() if context is not None else queue.Queue()
+        ] = (context.Queue() if context is not None else queue.Queue())
 
         # Code completion requests are sent through a separate queue
         self.completion_queue: QueueType[requests.CodeCompletionRequest] = (
@@ -455,11 +455,7 @@ class Session:
         self.room = Room()
         self._queue_manager = queue_manager
         self.kernel_manager = kernel_manager
-        self.session_view = (
-            SessionView()
-            if self.kernel_manager.mode == SessionMode.EDIT
-            else NoopSessionView()
-        )
+        self.session_view = SessionView()
 
         self.kernel_manager.start_kernel()
         # Reads from the kernel connection and distributes the
@@ -472,13 +468,14 @@ class Session:
             self.message_distributor = ConnectionDistributor[KernelMessage](
                 self.kernel_manager.kernel_connection
             )
-            self.message_distributor.add_consumer(
-                lambda msg: self.session_view.add_raw_operation(msg[1])
-            )
         else:
             q = self._queue_manager.stream_queue
             assert q is not None
             self.message_distributor = QueueDistributor[KernelMessage](queue=q)
+
+        self.message_distributor.add_consumer(
+            lambda msg: self.session_view.add_raw_operation(msg[1])
+        )
         self.connect_consumer(session_consumer, main=True)
         self.message_distributor.start()
 
