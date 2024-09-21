@@ -107,6 +107,7 @@ class QueueDistributor(Generic[T]):
     def __init__(self, queue: queue.Queue[tuple[str, T]]) -> None:
         self.consumers: list[Consumer[T]] = []
         self.queue = queue
+        self._stop = False
 
     def add_consumer(self, consumer: Consumer[T]) -> Disposable:
         """Add a consumer to the distributor."""
@@ -119,11 +120,13 @@ class QueueDistributor(Generic[T]):
         return Disposable(_remove)
 
     def start(self) -> None:
-        while True:
+        while not self._stop:
             msg = self.queue.get()
+            print("got msg: ", msg)
 
             for consumer in self.consumers:
                 if consumer.accepts(msg[0]):
+                    print('sending msg: ', msg[1])
                     consumer(msg[1])
 
     def stop(self, key: str) -> None:

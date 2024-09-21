@@ -1,7 +1,16 @@
+from __future__ import annotations
+
+import queue
+import threading
+import time
 from typing import Any
 from unittest.mock import MagicMock, patch
 
-from marimo._utils.distributor import ConnectionDistributor
+from marimo._utils.distributor import (
+    ConnectionDistributor,
+    Consumer,
+    QueueDistributor,
+)
 
 
 @patch("asyncio.get_event_loop")
@@ -51,45 +60,71 @@ def test_start(mock_get_event_loop: Any) -> None:
     assert mock_connection.closed
 
 
-def test_queued_distributor(mock_get_event_loop: Any) -> None:
-    mock_connection = MagicMock()
-    distributor = ConnectionDistributor[str](mock_connection)
+def test_queued_distributor() -> None:
+    q = queue.Queue[tuple[str, str]]()
+    distributor = QueueDistributor[str](q)
 
     # Define two mock consumer functions
-    mock_consumer1 = MagicMock()
-    mock_consumer2 = MagicMock()
+    l1 = []
+    l2 = []
+    l3 = []
+    consumer1 = Consumer(
+        accepts=lambda key: key == "a", consume=lambda msg: l1.append(msg)
+    )
+    consumer2 = Consumer(
+        accepts=lambda key: key == "b", consume=lambda msg: l2.append(msg)
+    )
+    consumer3 = Consumer(
+        accepts=lambda key: key == "z", consume=lambda msg: l3.append(msg)
+    )
 
     # Add the consumers to the distributor
-    distributor.add_consumer(mock_consumer1)
-    distributor.add_consumer(mock_consumer2)
+    distributor.add_consumer(consumer1)
+    distributor.add_consumer(consumer2)
 
-    distributor.start()
+    threading.Thread(target=distributor.start, daemon=True).start()
 
-    # Send
-    mock_connection.recv.side_effect = ["test message"]
-    mock_connection.poll.return_value = True
-    distributor._on_change()
+    q.put(("a", "msg1"))
+    q.put(("b", "msg2"))
+    q.put(("c", "msg3"))
 
-    # Assert both consumers received the message
-    mock_consumer1.assert_called_once_with("test message")
-    mock_consumer2.assert_called_once_with("test message")
+    waited_s = 0
+    while not q.empty and waited_s < 2.0:
+        time.sleep(0.1)
+        waited_s += 0.1
+    assert q.empty
+    time.sleep(0.1)
+    assert q.empty
+    assert l1 == ["msg1"]
+    assert l2 == ["msg2"]
+    assert l3 == []
+    # msg3 should not be accepted
 
     # Remove one of the consumers
-    distributor.consumers.remove(mock_consumer1)
-
-    # Distribute another message
-    mock_consumer1.reset_mock()
-    mock_consumer2.reset_mock()
+    distributor.stop(key="a")
+    assert distributor.consumers == [consumer2, consumer3]
 
     # Send
-    mock_connection.recv.side_effect = ["test message"]
-    mock_connection.poll.return_value = True
-    distributor._on_change()
+    q.put_nowait(("a", "msg1"))
+    q.put_nowait(("b", "msg2"))
+    q.put_nowait(("c", "msg3"))
 
-    # Assert only one consumer received the message
-    mock_consumer1.assert_not_called()
-    mock_consumer2.assert_called_once_with("test message")
+    waited_s = 0
+    while not q.empty and waited_s < 2.0:
+        time.sleep(0.1)
+        waited_s += 0.1
+    assert q.empty
+    time.sleep(0.1)
+    # l1 should not have gotten another message, it was removed
+    assert l1 == ["msg1"]
+    assert l2 == ["msg2", "msg2"]
+    assert l3 == []
 
-    # Assert the event loop had the reader removed
-    distributor.stop()
-    assert mock_connection.closed
+    # Test stopping consumers for specific kernels
+    assert distributor.consumers == [consumer2, consumer3]
+    distributor.stop(key="a")
+    assert distributor.consumers == [consumer2, consumer3]
+    distributor.stop(key="b")
+    assert distributor.consumers == [consumer3]
+    distributor.stop(key="c")
+    assert not distributor.consumers

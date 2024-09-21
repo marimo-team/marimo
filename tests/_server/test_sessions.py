@@ -10,7 +10,6 @@ import time
 from multiprocessing.queues import Queue as MPQueue
 from typing import Any
 from unittest.mock import MagicMock
-from uuid import uuid4
 
 from marimo._ast.app import App, InternalApp
 from marimo._config.manager import UserConfigManager
@@ -94,6 +93,7 @@ def test_kernel_manager_run_mode() -> None:
     assert queue_manager.input_queue.empty()
     assert queue_manager.control_queue.empty()
 
+
 @save_and_restore_main
 def test_kernel_manager_edit_mode() -> None:
     # Mock objects and data for testing
@@ -124,7 +124,6 @@ def test_kernel_manager_edit_mode() -> None:
     assert not kernel_manager.is_alive()
     assert queue_manager.input_queue.empty()
     assert queue_manager.control_queue.empty()
-
 
 
 @save_and_restore_main
