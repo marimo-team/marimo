@@ -4,10 +4,11 @@ from __future__ import annotations
 import contextlib
 import io
 import os
+import queue
 import sys
 import threading
 from collections import deque
-from typing import Any, Iterable, Iterator, Optional
+from typing import Any, Iterable, Iterator, Optional, Protocol
 
 from marimo import _loggers
 from marimo._ast.cell import CellId_t
@@ -52,12 +53,25 @@ OUTPUT_MAX_BYTES = int(os.getenv("MARIMO_OUTPUT_MAX_BYTES", 5_000_000))
 STD_STREAM_MAX_BYTES = int(os.getenv("MARIMO_STD_STREAM_MAX_BYTES", 1_000_000))
 
 
+class PipeProtocol(Protocol):
+    def send(self, obj: Any) -> None: ...
+
+
+class QueuePipe:
+    def __init__(self, key: str, queue: queue.Queue):
+        self._queue = queue
+        self._key = key
+
+    def send(self, obj: Any) -> None:
+        self._queue.put_nowait((self._key, obj))
+
+
 class ThreadSafeStream(Stream):
     """A thread-safe wrapper around a pipe."""
 
     def __init__(
         self,
-        pipe: TypedConnection[KernelMessage],
+        pipe: PipeProtocol,
         input_queue: QueueType[str],
         cell_id: Optional[CellId_t] = None,
     ):
@@ -82,9 +96,9 @@ class ThreadSafeStream(Stream):
     def write(self, op: str, data: dict[Any, Any]) -> None:
         with self.stream_lock:
             try:
-                print("writing op: ")
-                #print(op)
-                #print(data)
+                # print("writing op: ")
+                # print(op)
+                # print(data)
                 self.pipe.send((op, data))
             except OSError as e:
                 # Most likely a BrokenPipeError, caused by the

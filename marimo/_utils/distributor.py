@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import queue
 import time
 from typing import TYPE_CHECKING, Callable, Generic, TypeVar
 
@@ -15,6 +16,17 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 T = TypeVar("T")
+
+
+class Consumer(Generic[T]):
+    def __init__(
+        self, accepts: Callable[[str], bool], consume: Callable[[T], None]
+    ) -> None:
+        self.accepts = accepts
+        self._consume = consume
+
+    def __call__(self, msg: T) -> None:
+        self._consume(msg)
 
 
 class Distributor(Generic[T]):
@@ -34,11 +46,11 @@ class Distributor(Generic[T]):
     """
 
     def __init__(self, input_connection: TypedConnection[T]) -> None:
-        self.consumers: list[Callable[[T], None]] = []
+        self.consumers: list[Consumer[T]] = []
         self.input_connection = input_connection
         self.thread: Thread | None = None
 
-    def add_consumer(self, consumer: Callable[[T], None]) -> Disposable:
+    def add_consumer(self, consumer: Consumer[T]) -> Disposable:
         """Add a consumer to the distributor."""
         self.consumers.append(consumer)
 
@@ -87,3 +99,35 @@ class Distributor(Generic[T]):
                 self.input_connection.recv()
             except EOFError:
                 break
+
+
+class ThreadedDistributor(Generic[T]):
+    def __init__(self, queue: queue.Queue) -> None:
+        self.consumers: list[Callable[[T], None]] = []
+        self.queue = queue
+
+    def add_consumer(self, consumer: Callable[[T], None]) -> Disposable:
+        """Add a consumer to the distributor."""
+        self.consumers.append(consumer)
+
+        def _remove() -> None:
+            if consumer in self.consumers:
+                self.consumers.remove(consumer)
+
+        return Disposable(_remove)
+
+    def start(self) -> Disposable:
+        while True:
+            msg = self.queue.get()
+
+            for consumer in self.consumers:
+                if consumer.accepts(msg[0]):
+                    consumer(msg[1])
+
+    def stop(self) -> None:
+        """Stop distributing the response."""
+        self.consumers.clear()
+
+    def flush(self) -> None:
+        """Flush the distributor."""
+        pass

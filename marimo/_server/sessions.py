@@ -27,7 +27,7 @@ import time
 from multiprocessing import connection
 from multiprocessing.queues import Queue as MPQueue
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 from uuid import uuid4
 
 from marimo import _loggers
@@ -42,6 +42,7 @@ from marimo._messaging.ops import (
     Reload,
     UpdateCellCodes,
 )
+from marimo._messaging.streams import QueuePipe
 from marimo._messaging.types import KernelMessage
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import requests, runtime
@@ -67,7 +68,11 @@ from marimo._server.types import QueueType
 from marimo._server.utils import print_tabbed
 from marimo._tracer import server_tracer
 from marimo._utils.disposable import Disposable
-from marimo._utils.distributor import Distributor
+from marimo._utils.distributor import (
+    Consumer,
+    Distributor,
+    ThreadedDistributor,
+)
 from marimo._utils.file_watcher import FileWatcher
 from marimo._utils.paths import import_files
 from marimo._utils.repr import format_repr
@@ -75,6 +80,18 @@ from marimo._utils.typed_connection import TypedConnection
 
 LOGGER = _loggers.marimo_logger()
 SESSION_MANAGER: Optional["SessionManager"] = None
+
+# global queue used as an alternative to socket-based IPC in run mode
+_STREAM_QUEUE = queue.Queue()
+_THREADED_DISTRIBUTOR = None
+
+
+def _maybe_start_threaded_distributor() -> ThreadedDistributor[KernelMessage]:
+    global _THREADED_DISTRIBUTOR
+    if _THREADED_DISTRIBUTOR is None:
+        _THREADED_DISTRIBUTOR = ThreadedDistributor(_STREAM_QUEUE)
+        threading.Thread(target=_THREADED_DISTRIBUTOR.start).start()
+    return _THREADED_DISTRIBUTOR
 
 
 class QueueManager:
@@ -117,6 +134,10 @@ class QueueManager:
             else queue.Queue(maxsize=1)
         )
 
+    @property
+    def stream_queue(self) -> queue.Queue:
+        return _STREAM_QUEUE
+
     def close_queues(self) -> None:
         if isinstance(self.control_queue, MPQueue):
             # cancel join thread because we don't care if the queues still have
@@ -156,6 +177,7 @@ class KernelManager:
         app_metadata: AppMetadata,
         user_config_manager: UserConfigManager,
         virtual_files_supported: bool,
+        key: str,
         redirect_console_to_browser: bool = False,
     ) -> None:
         self.kernel_task: Optional[threading.Thread] | Optional[mp.Process]
@@ -165,20 +187,22 @@ class KernelManager:
         self.app_metadata = app_metadata
         self.user_config_manager = user_config_manager
         self.redirect_console_to_browser = redirect_console_to_browser
-        # TODO: threading-based solution for run mode
+        self.key = key
+
+        # Only used in edit mode
         self._read_conn: Optional[TypedConnection[KernelMessage]] = None
         self._virtual_files_supported = virtual_files_supported
 
     def start_kernel(self) -> None:
-        # Need to use a socket for windows compatibility
-        listener = connection.Listener(family="AF_INET")
 
         # We use a process in edit mode so that we can interrupt the app
         # with a SIGINT; we don't mind the additional memory consumption,
         # since there's only one client sess
         is_edit_mode = self.mode == SessionMode.EDIT
-        print("ADDRESS: ", listener.address)
+        listener = None
         if is_edit_mode:
+            # Need to use a socket for windows compatibility
+            listener = connection.Listener(family="AF_INET")
             self.kernel_task = mp.Process(
                 target=runtime.launch_kernel,
                 args=(
@@ -186,6 +210,8 @@ class KernelManager:
                     self.queue_manager.set_ui_element_queue,
                     self.queue_manager.completion_queue,
                     self.queue_manager.input_queue,
+                    # stream queue unused
+                    None,
                     listener.address,
                     is_edit_mode,
                     self.configs,
@@ -211,8 +237,6 @@ class KernelManager:
             # naturally exit before cleaning up resources
             def launch_kernel_with_cleanup(*args: Any) -> None:
                 runtime.launch_kernel(*args)
-                if not self.kernel_connection.closed:
-                    self.kernel_connection.close()
 
             # install formatter import hooks, which will be shared by all
             # threads (in edit mode, the single kernel process installs
@@ -230,7 +254,12 @@ class KernelManager:
                     self.queue_manager.set_ui_element_queue,
                     self.queue_manager.completion_queue,
                     self.queue_manager.input_queue,
-                    listener.address,
+                    QueuePipe(
+                        key=self.key,
+                        queue=self.queue_manager.stream_queue,
+                    ),
+                    # IPC not used in run mode
+                    None,
                     is_edit_mode,
                     self.configs,
                     self.app_metadata,
@@ -250,9 +279,12 @@ class KernelManager:
             )
 
         self.kernel_task.start()  # type: ignore
-        # First thing kernel does is connect to the socket, so it's safe to
-        # call accept
-        self._read_conn = TypedConnection[KernelMessage].of(listener.accept())
+        if listener is not None:
+            # First thing kernel does is connect to the socket, so it's safe to
+            # call accept
+            self._read_conn = TypedConnection[KernelMessage].of(
+                listener.accept()
+            )
 
     @property
     def profile_path(self) -> str | None:
@@ -311,7 +343,8 @@ class KernelManager:
             self.queue_manager.close_queues()
             if self.kernel_task.is_alive():
                 self.kernel_task.terminate()
-            self.kernel_connection.close()
+            if self._read_conn is not None:
+                self._read_conn.close()
         elif self.kernel_task.is_alive():
             # We don't join the kernel thread because we don't want to server
             # to block on it finishing
@@ -416,6 +449,7 @@ class Session:
             user_config_manager,
             virtual_files_supported=virtual_files_supported,
             redirect_console_to_browser=redirect_console_to_browser,
+            key=str(uuid4()),
         )
         return cls(
             initialization_id,
@@ -435,8 +469,8 @@ class Session:
     ) -> None:
         """Initialize kernel and client connection to it."""
         # This is some unique ID that we can use to identify the session
-        # We don't use the session_id because this can change if the
-        # session is resumed
+        # in edit mode. We don't use the session_id because this can change if
+        # the session is resumed
         self.initialization_id = initialization_id
         self._queue_manager: QueueManager
         self.app_file_manager = app_file_manager
@@ -450,15 +484,36 @@ class Session:
         # Reads from the kernel connection and distributes the
         # messages to each subscriber.
         # TODO(akshayka): threading based solution for run mode
-        self.message_distributor = Distributor[KernelMessage](
-            self.kernel_manager.kernel_connection
-        )
-        self.message_distributor.add_consumer(
-            lambda msg: self.session_view.add_raw_operation(msg[1])
-        )
-        self.connect_consumer(session_consumer, main=True)
 
-        self.message_distributor.start()
+        if self.kernel_manager.mode == SessionMode.EDIT:
+            self.message_distributor = Distributor[KernelMessage](
+                self.kernel_manager.kernel_connection
+            )
+            self.message_distributor.add_consumer(
+                Consumer[KernelMessage](
+                    accepts=lambda _: True,
+                    consume=lambda msg: self.session_view.add_raw_operation(
+                        msg[1]
+                    ),
+                )
+            )
+            self.connect_consumer(session_consumer, main=True)
+            self.message_distributor.start()
+        else:
+            # TODO(akshayka):
+            # start global distributor
+            self.message_distributor = _maybe_start_threaded_distributor()
+
+            self.message_distributor.add_consumer(
+                Consumer[KernelMessage](
+                    accepts=lambda key: key == self.kernel_manager.key,
+                    consume=lambda msg: self.session_view.add_raw_operation(
+                        msg[1]
+                    ),
+                )
+            )
+            self.connect_consumer(session_consumer, main=True)
+
         self.heartbeat_task: Optional[asyncio.Task[Any]] = None
         self._start_heartbeat()
         self._closed = False
@@ -546,7 +601,14 @@ class Session:
         an exception is raised.
         """
         subscribe = session_consumer.on_start()
-        unsubscribe_consumer = self.message_distributor.add_consumer(subscribe)
+        if self.kernel_manager.mode == SessionMode.EDIT:
+            consumer = Consumer(accepts=lambda _: True, consume=subscribe)
+        else:
+            consumer = Consumer(
+                accepts=lambda key: key == self.kernel_manager.key,
+                consume=subscribe,
+            )
+        unsubscribe_consumer = self.message_distributor.add_consumer(consumer)
         self.room.add_consumer(
             session_consumer,
             unsubscribe_consumer,

@@ -9,6 +9,7 @@ import io
 import itertools
 import os
 import pathlib
+import queue
 import signal
 import sys
 import threading
@@ -52,6 +53,7 @@ from marimo._messaging.ops import (
     VariableValues,
 )
 from marimo._messaging.streams import (
+    QueuePipe,
     ThreadSafeStderr,
     ThreadSafeStdin,
     ThreadSafeStdout,
@@ -1860,7 +1862,8 @@ def launch_kernel(
     set_ui_element_queue: QueueType[SetUIElementValueRequest],
     completion_queue: QueueType[CodeCompletionRequest],
     input_queue: QueueType[str],
-    socket_addr: tuple[str, int],
+    queue_pipe: QueuePipe | None,
+    socket_addr: tuple[str, int] | None,
     is_edit_mode: bool,
     configs: dict[CellId_t, CellConfig],
     app_metadata: AppMetadata,
@@ -1884,24 +1887,31 @@ def launch_kernel(
         profiler = cProfile.Profile()
         profiler.enable()
 
-    n_tries = 0
-    pipe: Optional[TypedConnection[KernelMessage]] = None
-    while n_tries < 100:
-        try:
-            pipe = TypedConnection[KernelMessage].of(
-                connection.Client(socket_addr)
-            )
-            break
-        except Exception:
-            n_tries += 1
-            time.sleep(0.01)
-
-    if n_tries == 100 or pipe is None:
-        LOGGER.debug("Failed to connect to socket.")
-        return
-
     # Create communication channels
-    stream = ThreadSafeStream(pipe=pipe, input_queue=input_queue)
+    if socket_addr is not None:
+        n_tries = 0
+        pipe: Optional[TypedConnection[KernelMessage]] = None
+        while n_tries < 100:
+            try:
+                pipe = TypedConnection[KernelMessage].of(
+                    connection.Client(socket_addr)
+                )
+                break
+            except Exception:
+                n_tries += 1
+                time.sleep(0.01)
+
+        if n_tries == 100 or pipe is None:
+            LOGGER.debug("Failed to connect to socket.")
+            return
+
+        stream = ThreadSafeStream(pipe=pipe, input_queue=input_queue)
+    elif queue_pipe is not None:
+        stream = ThreadSafeStream(pipe=queue_pipe, input_queue=input_queue)
+    else:
+        raise RuntimeError(
+            "One of queue_pipe and socket_addr must be non None"
+        )
     # Console output is hidden in run mode, so no need to redirect
     # (redirection of console outputs is not thread-safe anyway)
     stdout = (
