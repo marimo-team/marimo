@@ -230,6 +230,23 @@ class SessionView:
         self.has_auto_exported_md = False
 
 
+class NoopSessionView(SessionView):
+    def add_raw_operation(self, raw_operation: Any) -> None:
+        del raw_operation
+
+    def add_control_request(self, request: ControlRequest) -> None:
+        del request
+
+    def add_stdin(self, stdin: str) -> None:
+        del stdin
+
+    def save_execution_time(
+        self, operation: MessageOperation, event: Literal["start", "end"]
+    ) -> None:
+        del operation
+        del event
+
+
 def merge_cell_operation(
     previous: Optional[CellOp],
     next_: CellOp,

@@ -1,7 +1,7 @@
 from typing import Any
 from unittest.mock import MagicMock, patch
 
-from marimo._utils.distributor import Distributor
+from marimo._utils.distributor import ConnectionDistributor
 
 
 @patch("asyncio.get_event_loop")
@@ -9,7 +9,7 @@ def test_start(mock_get_event_loop: Any) -> None:
     mock_get_event_loop.return_value = MagicMock()
 
     mock_connection = MagicMock()
-    distributor = Distributor[str](mock_connection)
+    distributor = ConnectionDistributor[str](mock_connection)
 
     # Define two mock consumer functions
     mock_consumer1 = MagicMock()

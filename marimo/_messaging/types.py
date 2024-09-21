@@ -9,6 +9,7 @@ from marimo._messaging.mimetypes import KnownMimeType
 # The message from the kernel is a tuple of message type
 # and a json representation of the message
 KernelMessage = Tuple[str, Any]
+KeyedKernelMessage = Tuple[str, Tuple[str, Any]]
 
 
 class Stream(abc.ABC):

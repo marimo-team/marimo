@@ -27,7 +27,7 @@ import time
 from multiprocessing import connection
 from multiprocessing.queues import Queue as MPQueue
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Dict, Optional
 from uuid import uuid4
 
 from marimo import _loggers
@@ -43,7 +43,7 @@ from marimo._messaging.ops import (
     UpdateCellCodes,
 )
 from marimo._messaging.streams import QueuePipe
-from marimo._messaging.types import KernelMessage
+from marimo._messaging.types import KernelMessage, KeyedKernelMessage
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import requests, runtime
 from marimo._runtime.requests import (
@@ -62,16 +62,16 @@ from marimo._server.ids import ConsumerId, SessionId
 from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
 from marimo._server.models.models import InstantiateRequest
 from marimo._server.recents import RecentFilesManager
-from marimo._server.session.session_view import SessionView
+from marimo._server.session.session_view import NoopSessionView, SessionView
 from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._server.types import QueueType
 from marimo._server.utils import print_tabbed
 from marimo._tracer import server_tracer
 from marimo._utils.disposable import Disposable
 from marimo._utils.distributor import (
+    ConnectionDistributor,
     Consumer,
-    Distributor,
-    ThreadedDistributor,
+    QueueDistributor,
 )
 from marimo._utils.file_watcher import FileWatcher
 from marimo._utils.paths import import_files
@@ -82,16 +82,16 @@ LOGGER = _loggers.marimo_logger()
 SESSION_MANAGER: Optional["SessionManager"] = None
 
 # global queue used as an alternative to socket-based IPC in run mode
-_STREAM_QUEUE = queue.Queue()
-_THREADED_DISTRIBUTOR = None
+_STREAM_QUEUE: queue.Queue[KeyedKernelMessage] = queue.Queue()
+_QUEUE_DISTRIBUTOR = None
 
 
-def _maybe_start_threaded_distributor() -> ThreadedDistributor[KernelMessage]:
-    global _THREADED_DISTRIBUTOR
-    if _THREADED_DISTRIBUTOR is None:
-        _THREADED_DISTRIBUTOR = ThreadedDistributor(_STREAM_QUEUE)
-        threading.Thread(target=_THREADED_DISTRIBUTOR.start).start()
-    return _THREADED_DISTRIBUTOR
+def _maybe_start_threaded_distributor() -> QueueDistributor[KernelMessage]:
+    global _QUEUE_DISTRIBUTOR
+    if _QUEUE_DISTRIBUTOR is None:
+        _QUEUE_DISTRIBUTOR = QueueDistributor(_STREAM_QUEUE)
+        threading.Thread(target=_QUEUE_DISTRIBUTOR.start, daemon=True).start()
+    return _QUEUE_DISTRIBUTOR
 
 
 class QueueManager:
@@ -111,7 +111,7 @@ class QueueManager:
         # requests.
         self.set_ui_element_queue: QueueType[
             requests.SetUIElementValueRequest
-        ] = (context.Queue() if context is not None else queue.Queue())
+        ] = context.Queue() if context is not None else queue.Queue()
 
         # Code completion requests are sent through a separate queue
         self.completion_queue: QueueType[requests.CodeCompletionRequest] = (
@@ -135,7 +135,7 @@ class QueueManager:
         )
 
     @property
-    def stream_queue(self) -> queue.Queue:
+    def stream_queue(self) -> queue.Queue[KeyedKernelMessage]:
         return _STREAM_QUEUE
 
     def close_queues(self) -> None:
@@ -187,6 +187,7 @@ class KernelManager:
         self.app_metadata = app_metadata
         self.user_config_manager = user_config_manager
         self.redirect_console_to_browser = redirect_console_to_browser
+        # a unique key identifying this kernel
         self.key = key
 
         # Only used in edit mode
@@ -194,7 +195,6 @@ class KernelManager:
         self._virtual_files_supported = virtual_files_supported
 
     def start_kernel(self) -> None:
-
         # We use a process in edit mode so that we can interrupt the app
         # with a SIGINT; we don't mind the additional memory consumption,
         # since there's only one client sess
@@ -477,16 +477,21 @@ class Session:
         self.room = Room()
         self._queue_manager = queue_manager
         self.kernel_manager = kernel_manager
-        # TODO(akshayka): NoopSessionView for run mode
-        self.session_view = SessionView()
+        self.session_view = (
+            SessionView()
+            if self.kernel_manager.mode == SessionMode.EDIT
+            else NoopSessionView()
+        )
 
         self.kernel_manager.start_kernel()
         # Reads from the kernel connection and distributes the
         # messages to each subscriber.
-        # TODO(akshayka): threading based solution for run mode
-
+        self.message_distributor: (
+            ConnectionDistributor[KernelMessage]
+            | QueueDistributor[KernelMessage]
+        )
         if self.kernel_manager.mode == SessionMode.EDIT:
-            self.message_distributor = Distributor[KernelMessage](
+            self.message_distributor = ConnectionDistributor[KernelMessage](
                 self.kernel_manager.kernel_connection
             )
             self.message_distributor.add_consumer(
@@ -500,18 +505,7 @@ class Session:
             self.connect_consumer(session_consumer, main=True)
             self.message_distributor.start()
         else:
-            # TODO(akshayka):
-            # start global distributor
             self.message_distributor = _maybe_start_threaded_distributor()
-
-            self.message_distributor.add_consumer(
-                Consumer[KernelMessage](
-                    accepts=lambda key: key == self.kernel_manager.key,
-                    consume=lambda msg: self.session_view.add_raw_operation(
-                        msg[1]
-                    ),
-                )
-            )
             self.connect_consumer(session_consumer, main=True)
 
         self.heartbeat_task: Optional[asyncio.Task[Any]] = None
@@ -643,7 +637,10 @@ class Session:
         # Close the room
         self.room.close()
         # Close the kernel
-        self.message_distributor.stop()
+        if isinstance(self.message_distributor, ConnectionDistributor):
+            self.message_distributor.stop()
+        else:
+            self.message_distributor.stop(key=self.kernel_manager.key)
         if self.heartbeat_task:
             self.heartbeat_task.cancel()
         self.kernel_manager.close_kernel()

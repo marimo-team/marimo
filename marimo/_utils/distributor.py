@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import queue
 import time
 from typing import TYPE_CHECKING, Callable, Generic, TypeVar
 
@@ -11,6 +10,7 @@ from marimo._utils.disposable import Disposable
 from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
+    import queue
     from threading import Thread
 
 LOGGER = _loggers.marimo_logger()
@@ -29,7 +29,7 @@ class Consumer(Generic[T]):
         self._consume(msg)
 
 
-class Distributor(Generic[T]):
+class ConnectionDistributor(Generic[T]):
     """
     Used to distribute the response of a multiprocessing Connection to multiple
     consumers.
@@ -65,6 +65,8 @@ class Distributor(Generic[T]):
         retry_sleep_seconds = 0.001
         while self.input_connection.poll():
             try:
+                # TODO: just recv_bytes (and change stream to send_bytes)
+                # to eliminate pickling overhead/bugs
                 response = self.input_connection.recv()
             except BlockingIOError as e:
                 # recv() sporadically fails with EAGAIN, EDEADLK ...
@@ -101,12 +103,12 @@ class Distributor(Generic[T]):
                 break
 
 
-class ThreadedDistributor(Generic[T]):
-    def __init__(self, queue: queue.Queue) -> None:
-        self.consumers: list[Callable[[T], None]] = []
+class QueueDistributor(Generic[T]):
+    def __init__(self, queue: queue.Queue[tuple[str, T]]) -> None:
+        self.consumers: list[Consumer[T]] = []
         self.queue = queue
 
-    def add_consumer(self, consumer: Callable[[T], None]) -> Disposable:
+    def add_consumer(self, consumer: Consumer[T]) -> Disposable:
         """Add a consumer to the distributor."""
         self.consumers.append(consumer)
 
@@ -116,7 +118,7 @@ class ThreadedDistributor(Generic[T]):
 
         return Disposable(_remove)
 
-    def start(self) -> Disposable:
+    def start(self) -> None:
         while True:
             msg = self.queue.get()
 
@@ -124,9 +126,13 @@ class ThreadedDistributor(Generic[T]):
                 if consumer.accepts(msg[0]):
                     consumer(msg[1])
 
-    def stop(self) -> None:
-        """Stop distributing the response."""
-        self.consumers.clear()
+    def stop(self, key: str) -> None:
+        """Stop distributing responses to consumers identified by key."""
+        self.consumers = [
+            consumer
+            for consumer in self.consumers
+            if not consumer.accepts(key)
+        ]
 
     def flush(self) -> None:
         """Flush the distributor."""

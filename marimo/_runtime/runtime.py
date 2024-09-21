@@ -9,7 +9,6 @@ import io
 import itertools
 import os
 import pathlib
-import queue
 import signal
 import sys
 import threading

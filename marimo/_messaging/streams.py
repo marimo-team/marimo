@@ -4,11 +4,17 @@ from __future__ import annotations
 import contextlib
 import io
 import os
-import queue
 import sys
 import threading
 from collections import deque
-from typing import Any, Iterable, Iterator, Optional, Protocol
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Iterable,
+    Iterator,
+    Optional,
+    Protocol,
+)
 
 from marimo import _loggers
 from marimo._ast.cell import CellId_t
@@ -23,7 +29,9 @@ from marimo._messaging.types import (
     Stream,
 )
 from marimo._server.types import QueueType
-from marimo._utils.typed_connection import TypedConnection
+
+if TYPE_CHECKING:
+    import queue
 
 LOGGER = _loggers.marimo_logger()
 
@@ -54,11 +62,14 @@ STD_STREAM_MAX_BYTES = int(os.getenv("MARIMO_STD_STREAM_MAX_BYTES", 1_000_000))
 
 
 class PipeProtocol(Protocol):
-    def send(self, obj: Any) -> None: ...
+    def send(self, obj: Any) -> None:
+        pass
 
 
 class QueuePipe:
-    def __init__(self, key: str, queue: queue.Queue):
+    def __init__(
+        self, key: str, queue: queue.Queue[tuple[str, KernelMessage]]
+    ):
         self._queue = queue
         self._key = key
 
@@ -96,9 +107,6 @@ class ThreadSafeStream(Stream):
     def write(self, op: str, data: dict[Any, Any]) -> None:
         with self.stream_lock:
             try:
-                # print("writing op: ")
-                # print(op)
-                # print(data)
                 self.pipe.send((op, data))
             except OSError as e:
                 # Most likely a BrokenPipeError, caused by the
