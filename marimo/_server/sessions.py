@@ -42,8 +42,7 @@ from marimo._messaging.ops import (
     Reload,
     UpdateCellCodes,
 )
-from marimo._messaging.streams import QueuePipe
-from marimo._messaging.types import KernelMessage, KeyedKernelMessage
+from marimo._messaging.types import KernelMessage
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import requests, runtime
 from marimo._runtime.requests import (
@@ -70,7 +69,6 @@ from marimo._tracer import server_tracer
 from marimo._utils.disposable import Disposable
 from marimo._utils.distributor import (
     ConnectionDistributor,
-    Consumer,
     QueueDistributor,
 )
 from marimo._utils.file_watcher import FileWatcher
@@ -80,18 +78,6 @@ from marimo._utils.typed_connection import TypedConnection
 
 LOGGER = _loggers.marimo_logger()
 SESSION_MANAGER: Optional["SessionManager"] = None
-
-# global queue used as an alternative to socket-based IPC in run mode
-_STREAM_QUEUE: queue.Queue[KeyedKernelMessage] = queue.Queue()
-_QUEUE_DISTRIBUTOR = None
-
-
-def _maybe_start_threaded_distributor() -> QueueDistributor[KernelMessage]:
-    global _QUEUE_DISTRIBUTOR
-    if _QUEUE_DISTRIBUTOR is None:
-        _QUEUE_DISTRIBUTOR = QueueDistributor(_STREAM_QUEUE)
-        threading.Thread(target=_QUEUE_DISTRIBUTOR.start, daemon=True).start()
-    return _QUEUE_DISTRIBUTOR
 
 
 class QueueManager:
@@ -133,10 +119,9 @@ class QueueManager:
             if context is not None
             else queue.Queue(maxsize=1)
         )
-
-    @property
-    def stream_queue(self) -> queue.Queue[KeyedKernelMessage]:
-        return _STREAM_QUEUE
+        self.stream_queue: queue.Queue[KernelMessage | None] | None = None
+        if not use_multiprocessing:
+            self.stream_queue = queue.Queue[KernelMessage | None]()
 
     def close_queues(self) -> None:
         if isinstance(self.control_queue, MPQueue):
@@ -244,6 +229,7 @@ class KernelManager:
                 theme=self.user_config_manager.config["display"]["theme"]
             )
 
+            assert self.queue_manager.stream_queue is not None
             # Make threads daemons so killing the server immediately brings
             # down all client sessions
             self.kernel_task = threading.Thread(
@@ -253,10 +239,7 @@ class KernelManager:
                     self.queue_manager.set_ui_element_queue,
                     self.queue_manager.completion_queue,
                     self.queue_manager.input_queue,
-                    QueuePipe(
-                        key=self.key,
-                        queue=self.queue_manager.stream_queue,
-                    ),
+                    self.queue_manager.stream_queue,
                     # IPC not used in run mode
                     None,
                     is_edit_mode,
@@ -470,7 +453,6 @@ class Session:
         # in edit mode. We don't use the session_id because this can change if
         # the session is resumed
         self.initialization_id = initialization_id
-        self._queue_manager: QueueManager
         self.app_file_manager = app_file_manager
         self.room = Room()
         self._queue_manager = queue_manager
@@ -493,18 +475,14 @@ class Session:
                 self.kernel_manager.kernel_connection
             )
             self.message_distributor.add_consumer(
-                Consumer[KernelMessage](
-                    accepts=lambda _: True,
-                    consume=lambda msg: self.session_view.add_raw_operation(
-                        msg[1]
-                    ),
-                )
+                lambda msg: self.session_view.add_raw_operation(msg[1])
             )
-            self.connect_consumer(session_consumer, main=True)
-            self.message_distributor.start()
         else:
-            self.message_distributor = _maybe_start_threaded_distributor()
-            self.connect_consumer(session_consumer, main=True)
+            q = self._queue_manager.stream_queue
+            assert q is not None
+            self.message_distributor = QueueDistributor[KernelMessage](queue=q)
+        self.connect_consumer(session_consumer, main=True)
+        self.message_distributor.start()
 
         self.heartbeat_task: Optional[asyncio.Task[Any]] = None
         self._start_heartbeat()
@@ -593,14 +571,7 @@ class Session:
         an exception is raised.
         """
         subscribe = session_consumer.on_start()
-        if self.kernel_manager.mode == SessionMode.EDIT:
-            consumer = Consumer(accepts=lambda _: True, consume=subscribe)
-        else:
-            consumer = Consumer(
-                accepts=lambda key: key == self.kernel_manager.key,
-                consume=subscribe,
-            )
-        unsubscribe_consumer = self.message_distributor.add_consumer(consumer)
+        unsubscribe_consumer = self.message_distributor.add_consumer(subscribe)
         self.room.add_consumer(
             session_consumer,
             unsubscribe_consumer,
@@ -635,10 +606,7 @@ class Session:
         # Close the room
         self.room.close()
         # Close the kernel
-        if isinstance(self.message_distributor, ConnectionDistributor):
-            self.message_distributor.stop()
-        else:
-            self.message_distributor.stop(key=self.kernel_manager.key)
+        self.message_distributor.stop()
         if self.heartbeat_task:
             self.heartbeat_task.cancel()
         self.kernel_manager.close_kernel()

@@ -67,14 +67,11 @@ class PipeProtocol(Protocol):
 
 
 class QueuePipe:
-    def __init__(
-        self, key: str, queue: queue.Queue[tuple[str, KernelMessage]]
-    ):
+    def __init__(self, queue: queue.Queue[KernelMessage]):
         self._queue = queue
-        self._key = key
 
     def send(self, obj: Any) -> None:
-        self._queue.put_nowait((self._key, obj))
+        self._queue.put_nowait(obj)
 
 
 class ThreadSafeStream(Stream):

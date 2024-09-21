@@ -134,6 +134,7 @@ from marimo._utils.typed_connection import TypedConnection
 from marimo._utils.variables import is_local
 
 if TYPE_CHECKING:
+    import queue
     from collections.abc import Sequence
     from types import ModuleType
 
@@ -1861,7 +1862,7 @@ def launch_kernel(
     set_ui_element_queue: QueueType[SetUIElementValueRequest],
     completion_queue: QueueType[CodeCompletionRequest],
     input_queue: QueueType[str],
-    queue_pipe: QueuePipe | None,
+    stream_queue: queue.Queue[KernelMessage] | None,
     socket_addr: tuple[str, int] | None,
     is_edit_mode: bool,
     configs: dict[CellId_t, CellConfig],
@@ -1905,8 +1906,10 @@ def launch_kernel(
             return
 
         stream = ThreadSafeStream(pipe=pipe, input_queue=input_queue)
-    elif queue_pipe is not None:
-        stream = ThreadSafeStream(pipe=queue_pipe, input_queue=input_queue)
+    elif stream_queue is not None:
+        stream = ThreadSafeStream(
+            pipe=QueuePipe(stream_queue), input_queue=input_queue
+        )
     else:
         raise RuntimeError(
             "One of queue_pipe and socket_addr must be non None"

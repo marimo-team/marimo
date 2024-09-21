@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import queue
-import threading
 import time
 from typing import Any
 from unittest.mock import MagicMock, patch
 
 from marimo._utils.distributor import (
     ConnectionDistributor,
-    Consumer,
     QueueDistributor,
 )
 
@@ -61,32 +59,23 @@ def test_start(mock_get_event_loop: Any) -> None:
 
 
 def test_queued_distributor() -> None:
-    q = queue.Queue[tuple[str, str]]()
+    q = queue.Queue[str | None]()
     distributor = QueueDistributor[str](q)
 
     # Define two mock consumer functions
     l1 = []
     l2 = []
-    l3 = []
-    consumer1 = Consumer(
-        accepts=lambda key: key == "a", consume=lambda msg: l1.append(msg)
-    )
-    consumer2 = Consumer(
-        accepts=lambda key: key == "b", consume=lambda msg: l2.append(msg)
-    )
-    consumer3 = Consumer(
-        accepts=lambda key: key == "z", consume=lambda msg: l3.append(msg)
-    )
+    consumer1 = lambda msg: l1.append(msg)  # noqa: E731
+    consumer2 = lambda msg: l2.append(msg)  # noqa: E731
 
     # Add the consumers to the distributor
-    distributor.add_consumer(consumer1)
+    dispose = distributor.add_consumer(consumer1)
     distributor.add_consumer(consumer2)
 
-    threading.Thread(target=distributor.start, daemon=True).start()
+    thread = distributor.start()
 
-    q.put(("a", "msg1"))
-    q.put(("b", "msg2"))
-    q.put(("c", "msg3"))
+    q.put("msg1")
+    q.put("msg2")
 
     waited_s = 0
     while not q.empty and waited_s < 2.0:
@@ -95,19 +84,16 @@ def test_queued_distributor() -> None:
     assert q.empty
     time.sleep(0.1)
     assert q.empty
-    assert l1 == ["msg1"]
-    assert l2 == ["msg2"]
-    assert l3 == []
-    # msg3 should not be accepted
+    assert l1 == ["msg1", "msg2"]
+    assert l2 == ["msg1", "msg2"]
 
     # Remove one of the consumers
-    distributor.stop(key="a")
-    assert distributor.consumers == [consumer2, consumer3]
+    dispose()
+    time.sleep(0.1)
+    assert distributor.consumers == [consumer2]
 
     # Send
-    q.put_nowait(("a", "msg1"))
-    q.put_nowait(("b", "msg2"))
-    q.put_nowait(("c", "msg3"))
+    q.put_nowait("msg3")
 
     waited_s = 0
     while not q.empty and waited_s < 2.0:
@@ -116,15 +102,9 @@ def test_queued_distributor() -> None:
     assert q.empty
     time.sleep(0.1)
     # l1 should not have gotten another message, it was removed
-    assert l1 == ["msg1"]
-    assert l2 == ["msg2", "msg2"]
-    assert l3 == []
+    assert l1 == ["msg1", "msg2"]
+    assert l2 == ["msg1", "msg2", "msg3"]
 
-    # Test stopping consumers for specific kernels
-    assert distributor.consumers == [consumer2, consumer3]
-    distributor.stop(key="a")
-    assert distributor.consumers == [consumer2, consumer3]
-    distributor.stop(key="b")
-    assert distributor.consumers == [consumer3]
-    distributor.stop(key="c")
-    assert not distributor.consumers
+    distributor.stop()
+    thread.join(timeout=1.0)
+    assert not thread.is_alive()
