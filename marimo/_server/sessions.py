@@ -171,8 +171,6 @@ class KernelManager:
         self.app_metadata = app_metadata
         self.user_config_manager = user_config_manager
         self.redirect_console_to_browser = redirect_console_to_browser
-        # a unique key identifying this kernel
-        self.key = str(uuid4())
 
         # Only used in edit mode
         self._read_conn: Optional[TypedConnection[KernelMessage]] = None
