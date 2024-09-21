@@ -34,23 +34,30 @@ def _check_directory_for_file(directory: str, filename: str) -> Optional[str]:
     return None
 
 
-def _get_xdg_config_path() -> Optional[str]:
+def _xdg_config_path() -> str:
     """Search XDG paths for marimo config file"""
     home_expansion = os.path.expanduser("~")
-    if home_expansion == "~":
-        # path expansion failed
-        return None
     home_directory = os.path.realpath(home_expansion)
-
-    # If not found between current directory and home, check XDG paths
     xdg_config_home = os.environ.get("XDG_CONFIG_HOME") or os.path.join(
         home_directory, ".config"
     )
-    xdg_config_path = os.path.join(xdg_config_home, "marimo", "marimo.toml")
-    if os.path.isfile(xdg_config_path):
-        return xdg_config_path
+    return os.path.join(xdg_config_home, "marimo", "marimo.toml")
 
-    return None
+
+def get_or_create_config_path() -> str:
+    """Find path of config file, or create it
+
+    If no config file is found, one will be created under the proper XDG path
+    (i.e. `~/.config/marimo` or `$XDG_CONFIG_HOME/marimo`)
+    """
+    current_config_path = get_config_path()
+    if current_config_path:
+        return current_config_path
+    else:
+        config_path = _xdg_config_path()
+        os.makedirs(os.path.dirname(config_path), exist_ok=True)
+        open(config_path, "a").close()
+        return config_path
 
 
 def get_config_path() -> Optional[str]:
@@ -105,8 +112,8 @@ def get_config_path() -> Optional[str]:
     if os.path.isfile(config_path):
         return config_path
 
-    xdg_config_path = _get_xdg_config_path()
-    if xdg_config_path:
+    xdg_config_path = _xdg_config_path()
+    if os.path.isfile(xdg_config_path):
         return xdg_config_path
 
     return None
