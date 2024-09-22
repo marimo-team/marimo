@@ -183,8 +183,8 @@ class PyArrowTableManagerFactory(TableManagerFactory):
                     # Cast to string to handle non-string columns
                     column = pc.cast(column, pa.string())  # type: ignore
                     mask: pa.BooleanArray = pc.match_substring(  # type: ignore
-                        column,
-                        query,
+                        column,  # type: ignore
+                        query,  # type: ignore
                         ignore_case=True,  # type: ignore
                     )
                     masks.append(mask)
