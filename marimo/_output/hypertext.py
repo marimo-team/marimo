@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import weakref
-from typing import TYPE_CHECKING, Any, Literal, final
+from typing import TYPE_CHECKING, Any, Literal, Optional, final
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.mime import MIME
@@ -236,22 +236,26 @@ class Html(MIME):
         return _callout(self, kind=kind)
 
     @mddoc
-    def style(self, style: dict[str, Any]) -> Html:
+    def style(
+        self, style: Optional[dict[str, Any]] = None, **kwargs: Any
+    ) -> Html:
         """Wrap an object in a styled container.
 
         **Example.**
 
         ```python
         mo.md("...").style({"max-height": "300px", "overflow": "auto"})
+        mo.md("...").style(max_height="300px", overflow="auto")
         ```
 
         **Args.**
 
-        - `styles`: a dict of CSS styles, keyed by property name
+        - `style`: an optional dict of CSS styles, keyed by property name
+        - `**kwargs`: CSS styles as keyword arguments
         """
         from marimo._plugins.stateless import style as _style
 
-        return _style.style(self, style)
+        return _style.style(self, style=style, **kwargs)
 
 
 def _js(text: str) -> Html:
