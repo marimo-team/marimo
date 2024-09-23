@@ -12,6 +12,7 @@ import {
   SquareDashedBottomCodeIcon,
   DatabaseIcon,
   NotebookPenIcon,
+  BoxIcon,
 } from "lucide-react";
 
 export type PanelType =
@@ -20,6 +21,7 @@ export type PanelType =
   | "variables"
   | "outline"
   | "dependencies"
+  | "packages"
   | "documentation"
   | "snippets"
   | "datasources"
@@ -57,6 +59,12 @@ export const PANELS: PanelDescriptor[] = [
     type: "dependencies",
     Icon: NetworkIcon,
     tooltip: "Explore dependencies",
+    position: "sidebar",
+  },
+  {
+    type: "packages",
+    Icon: BoxIcon,
+    tooltip: "Manage packages",
     position: "sidebar",
   },
   {

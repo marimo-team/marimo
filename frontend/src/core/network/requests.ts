@@ -66,4 +66,7 @@ export const {
   exportAsMarkdown,
   autoExportAsHTML,
   autoExportAsMarkdown,
+  addPackage,
+  removePackage,
+  getPackageList,
 } = getRequest();
