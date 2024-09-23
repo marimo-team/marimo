@@ -10,6 +10,7 @@ import {
   historyKeymap,
   indentWithTab,
   indentMore,
+  insertTab,
 } from "@codemirror/commands";
 import {
   bracketMatching,
@@ -94,7 +95,7 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
   ];
 };
 
-const startCompletionAtEndOfLine = (cm: EditorView): boolean => {
+const insertTabOrComplete = (cm: EditorView): boolean => {
   const { from, to } = cm.state.selection.main;
   if (from !== to) {
     // this is a selection
@@ -102,9 +103,12 @@ const startCompletionAtEndOfLine = (cm: EditorView): boolean => {
   }
 
   const line = cm.state.doc.lineAt(to);
-  return line.text.slice(0, to - line.from).trim() === ""
-    ? // in the whitespace prefix of a line
-      false
+  // to - line.from gets the position in the line
+  const pos = to - line.from;
+  // If the previous character is whitespace, we insert a tab, otherwise we
+  // start a completion.
+  return (pos == 0 || line.text.charAt(pos - 1).trim() == "")
+    ? insertTab(cm)
     : startCompletion(cm);
 };
 
@@ -158,7 +162,9 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
         run: (cm) => {
           return (
             acceptCompletion(cm) ||
-            startCompletionAtEndOfLine(cm) ||
+            // If not a selection, either insert a tab or start a completion
+            insertTabOrComplete(cm) ||
+            // Indent an entire selection
             indentMore(cm)
           );
         },
