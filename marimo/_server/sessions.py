@@ -27,7 +27,7 @@ import time
 from multiprocessing import connection
 from multiprocessing.queues import Queue as MPQueue
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 from uuid import uuid4
 
 from marimo import _loggers
@@ -67,7 +67,10 @@ from marimo._server.types import QueueType
 from marimo._server.utils import print_tabbed
 from marimo._tracer import server_tracer
 from marimo._utils.disposable import Disposable
-from marimo._utils.distributor import Distributor
+from marimo._utils.distributor import (
+    ConnectionDistributor,
+    QueueDistributor,
+)
 from marimo._utils.file_watcher import FileWatcher
 from marimo._utils.paths import import_files
 from marimo._utils.repr import format_repr
@@ -116,6 +119,11 @@ class QueueManager:
             if context is not None
             else queue.Queue(maxsize=1)
         )
+        self.stream_queue: (
+            "queue.Queue[Union[KernelMessage , None]]" | None
+        ) = None
+        if not use_multiprocessing:
+            self.stream_queue = queue.Queue()
 
     def close_queues(self) -> None:
         if isinstance(self.control_queue, MPQueue):
@@ -165,18 +173,20 @@ class KernelManager:
         self.app_metadata = app_metadata
         self.user_config_manager = user_config_manager
         self.redirect_console_to_browser = redirect_console_to_browser
+
+        # Only used in edit mode
         self._read_conn: Optional[TypedConnection[KernelMessage]] = None
         self._virtual_files_supported = virtual_files_supported
 
     def start_kernel(self) -> None:
-        # Need to use a socket for windows compatibility
-        listener = connection.Listener(family="AF_INET")
-
         # We use a process in edit mode so that we can interrupt the app
         # with a SIGINT; we don't mind the additional memory consumption,
         # since there's only one client sess
         is_edit_mode = self.mode == SessionMode.EDIT
+        listener = None
         if is_edit_mode:
+            # Need to use a socket for windows compatibility
+            listener = connection.Listener(family="AF_INET")
             self.kernel_task = mp.Process(
                 target=runtime.launch_kernel,
                 args=(
@@ -184,6 +194,8 @@ class KernelManager:
                     self.queue_manager.set_ui_element_queue,
                     self.queue_manager.completion_queue,
                     self.queue_manager.input_queue,
+                    # stream queue unused
+                    None,
                     listener.address,
                     is_edit_mode,
                     self.configs,
@@ -209,8 +221,6 @@ class KernelManager:
             # naturally exit before cleaning up resources
             def launch_kernel_with_cleanup(*args: Any) -> None:
                 runtime.launch_kernel(*args)
-                if not self.kernel_connection.closed:
-                    self.kernel_connection.close()
 
             # install formatter import hooks, which will be shared by all
             # threads (in edit mode, the single kernel process installs
@@ -219,6 +229,7 @@ class KernelManager:
                 theme=self.user_config_manager.config["display"]["theme"]
             )
 
+            assert self.queue_manager.stream_queue is not None
             # Make threads daemons so killing the server immediately brings
             # down all client sessions
             self.kernel_task = threading.Thread(
@@ -228,7 +239,9 @@ class KernelManager:
                     self.queue_manager.set_ui_element_queue,
                     self.queue_manager.completion_queue,
                     self.queue_manager.input_queue,
-                    listener.address,
+                    self.queue_manager.stream_queue,
+                    # IPC not used in run mode
+                    None,
                     is_edit_mode,
                     self.configs,
                     self.app_metadata,
@@ -248,9 +261,12 @@ class KernelManager:
             )
 
         self.kernel_task.start()  # type: ignore
-        # First thing kernel does is connect to the socket, so it's safe to
-        # call accept
-        self._read_conn = TypedConnection[KernelMessage].of(listener.accept())
+        if listener is not None:
+            # First thing kernel does is connect to the socket, so it's safe to
+            # call accept
+            self._read_conn = TypedConnection[KernelMessage].of(
+                listener.accept()
+            )
 
     @property
     def profile_path(self) -> str | None:
@@ -309,7 +325,8 @@ class KernelManager:
             self.queue_manager.close_queues()
             if self.kernel_task.is_alive():
                 self.kernel_task.terminate()
-            self.kernel_connection.close()
+            if self._read_conn is not None:
+                self._read_conn.close()
         elif self.kernel_task.is_alive():
             # We don't join the kernel thread because we don't want to server
             # to block on it finishing
@@ -433,10 +450,9 @@ class Session:
     ) -> None:
         """Initialize kernel and client connection to it."""
         # This is some unique ID that we can use to identify the session
-        # We don't use the session_id because this can change if the
-        # session is resumed
+        # in edit mode. We don't use the session_id because this can change if
+        # the session is resumed
         self.initialization_id = initialization_id
-        self._queue_manager: QueueManager
         self.app_file_manager = app_file_manager
         self.room = Room()
         self._queue_manager = queue_manager
@@ -446,15 +462,25 @@ class Session:
         self.kernel_manager.start_kernel()
         # Reads from the kernel connection and distributes the
         # messages to each subscriber.
-        self.message_distributor = Distributor[KernelMessage](
-            self.kernel_manager.kernel_connection
+        self.message_distributor: (
+            ConnectionDistributor[KernelMessage]
+            | QueueDistributor[KernelMessage]
         )
+        if self.kernel_manager.mode == SessionMode.EDIT:
+            self.message_distributor = ConnectionDistributor[KernelMessage](
+                self.kernel_manager.kernel_connection
+            )
+        else:
+            q = self._queue_manager.stream_queue
+            assert q is not None
+            self.message_distributor = QueueDistributor[KernelMessage](queue=q)
+
         self.message_distributor.add_consumer(
             lambda msg: self.session_view.add_raw_operation(msg[1])
         )
         self.connect_consumer(session_consumer, main=True)
-
         self.message_distributor.start()
+
         self.heartbeat_task: Optional[asyncio.Task[Any]] = None
         self._start_heartbeat()
         self._closed = False
