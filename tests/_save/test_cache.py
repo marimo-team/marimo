@@ -486,7 +486,7 @@ class TestCacheDecorator:
         assert k.globals["impure"] == [60, 157, 60]
         # Cache hit value may be flakey depending on when state is evicted from
         # the registry. The actual cache hit is less important than caching
-        # occuring in the first place.
+        # occurring in the first place.
         # 2 * 9 + 2
         assert k.globals["fib"].hits in (9, 18, 20)
 
