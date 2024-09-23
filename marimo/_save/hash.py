@@ -394,9 +394,7 @@ class BlockHasher:
             # value.
             if ref in scope and isinstance(scope[ref], SetFunctor):
                 stateful_refs.add(ref)
-                scope[ref] = attempt_signed_bytes(
-                    scope[ref]._state, "state-set"
-                )
+                scope[ref] = scope[ref]._state
 
         for ref in set(refs):
             if ref in scope.get("__builtins__", ()):

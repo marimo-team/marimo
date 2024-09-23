@@ -253,7 +253,8 @@ class TestStateCache:
             ]
         )
 
-        # Should be hit because of rerun
+        # Should be hit on rerun, because set_state does not have a state
+        # itself.
         assert len(k.globals["impure"]) == 2
         assert k.globals["impure"][0] == k.globals["impure"][1]
         assert k.globals["state"]() == 9
