@@ -2177,6 +2177,9 @@ export interface components {
     };
     InstallMissingPackagesRequest: {
       manager: string;
+      versions: {
+        [key: string]: string;
+      };
     };
     InstallingPackageAlert: {
       /** @enum {string} */

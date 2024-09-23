@@ -4,7 +4,9 @@ from __future__ import annotations
 import abc
 import shutil
 import subprocess
-from typing import List
+from typing import List, Optional
+
+from marimo._runtime.packages.utils import append_version
 
 
 class PackageManager(abc.ABC):
@@ -34,13 +36,13 @@ class PackageManager(abc.ABC):
         """Installation logic."""
         ...
 
-    async def install(self, package: str) -> bool:
+    async def install(self, package: str, version: Optional[str]) -> bool:
         """Attempt to install a package that makes this module available.
 
         Returns True if installation succeeded, else False.
         """
         self._attempted_packages.add(package)
-        return await self._install(package)
+        return await self._install(append_version(package, version))
 
     def attempted_to_install(self, package: str) -> bool:
         """True iff package installation was previously attempted."""

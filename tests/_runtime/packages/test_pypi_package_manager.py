@@ -23,4 +23,4 @@ def test_package_to_module() -> None:
 async def test_failed_install_returns_false() -> None:
     mgr = PipPackageManager()
     # almost surely does not exist
-    assert not await mgr.install("asdfasdfasdfasdfqwerty")
+    assert not await mgr.install("asdfasdfasdfasdfqwerty", version=None)

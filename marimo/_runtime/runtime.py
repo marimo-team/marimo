@@ -428,7 +428,7 @@ class Kernel:
         self, package_manager: str
     ) -> None:
         return self.enqueue_control_request(
-            InstallMissingPackagesRequest(manager=package_manager)
+            InstallMissingPackagesRequest(manager=package_manager, versions={})
         )
 
     def _update_runtime_from_user_config(self, config: MarimoConfig) -> None:
@@ -1703,7 +1703,8 @@ class Kernel:
                 continue
             package_statuses[pkg] = "installing"
             InstallingPackageAlert(packages=package_statuses).broadcast()
-            if await self.package_manager.install(pkg):
+            version = request.versions.get(pkg)
+            if await self.package_manager.install(pkg, version=version):
                 package_statuses[pkg] = "installed"
                 InstallingPackageAlert(packages=package_statuses).broadcast()
             else:

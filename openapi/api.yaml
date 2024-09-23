@@ -802,8 +802,13 @@ components:
       properties:
         manager:
           type: string
+        versions:
+          additionalProperties:
+            type: string
+          type: object
       required:
       - manager
+      - versions
       type: object
     InstallingPackageAlert:
       properties:
@@ -1863,7 +1868,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.8.15
+  version: 0.8.18
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
