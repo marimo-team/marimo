@@ -107,7 +107,7 @@ const insertTabOrComplete = (cm: EditorView): boolean => {
   const pos = to - line.from;
   // If the previous character is whitespace, we insert a tab, otherwise we
   // start a completion.
-  return (pos == 0 || line.text.charAt(pos - 1).trim() == "")
+  return pos == 0 || line.text.charAt(pos - 1).trim() == ""
     ? insertTab(cm)
     : startCompletion(cm);
 };
