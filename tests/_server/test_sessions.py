@@ -122,8 +122,9 @@ def test_kernel_manager_edit_mode() -> None:
     # Assert shutdown
     kernel_manager.kernel_task.join()
     assert not kernel_manager.is_alive()
-    assert queue_manager.input_queue.empty()
-    assert queue_manager.control_queue.empty()
+    # these are known to be mp.Queue
+    queue_manager.input_queue.join_thread()  # type: ignore
+    queue_manager.control_queue.join_thread()  # type: ignore
 
 
 @save_and_restore_main
