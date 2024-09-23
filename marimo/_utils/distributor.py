@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
-from typing import TYPE_CHECKING, Callable, Generic, TypeVar
+from typing import TYPE_CHECKING, Callable, Generic, TypeVar, Union
 
 from marimo import _loggers
 from marimo._utils.disposable import Disposable
@@ -95,7 +95,7 @@ class ConnectionDistributor(Generic[T]):
 
 
 class QueueDistributor(Generic[T]):
-    def __init__(self, queue: queue.Queue[T | None]) -> None:
+    def __init__(self, queue: queue.Queue[Union[T, None]]) -> None:
         self.consumers: list[Consumer[T]] = []
         # distributor uses None as a signal to stop
         self.queue = queue
