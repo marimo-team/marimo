@@ -39,7 +39,7 @@ const regexes = pairs.map(
     [
       start,
       new RegExp(
-        `^(?<dataframe>\\w*)\\s*=\\s*mo\\.sql\\(\\s*${start}(?<sql>.*)${end}\\s*(?:,\\s*output\\s*=\\s*(?<output>True|False))?\\s*\\)$`,
+        `^(?<dataframe>\\w*)\\s*=\\s*mo\\.sql\\(\\s*${start}(?<sql>.*)${end}\\s*(?:,\\s*output\\s*=\\s*(?<output>True|False),?)?\\s*\\)$`,
         "s",
       ),
     ] as const,
