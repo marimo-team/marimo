@@ -4,7 +4,9 @@ from __future__ import annotations
 import abc
 import os
 import pathlib
-from typing import List, Optional
+import signal
+from contextlib import contextmanager
+from typing import TYPE_CHECKING, Generator, List, Optional
 
 from marimo import _loggers
 from marimo._config.config import WidthType
@@ -14,6 +16,9 @@ from marimo._server.files.os_file_system import natural_sort_file
 from marimo._server.models.files import FileInfo
 from marimo._server.models.home import MarimoFile
 from marimo._utils.marimo_path import MarimoPath
+
+if TYPE_CHECKING:
+    from types import FrameType
 
 LOGGER = _loggers.marimo_logger()
 
@@ -209,60 +214,80 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
         return self._lazy_files
 
     def _load_files(self) -> List[FileInfo]:
+        import time
+
+        start_time = time.time()
+        MAX_EXECUTION_TIME = 5  # 5 seconds timeout
+
         def recurse(
             directory: str, depth: int = 0
         ) -> Optional[List[FileInfo]]:
             if depth > MAX_DEPTH:
                 return None
 
+            if time.time() - start_time > MAX_EXECUTION_TIME:
+                raise HTTPException(
+                    status_code=HTTPStatus.REQUEST_TIMEOUT,
+                    detail="Request timed out: Loading workspace files took too long.",  # noqa: E501
+                )
+
             try:
-                entries = os.listdir(directory)
+                entries = os.scandir(directory)
             except OSError as e:
-                LOGGER.debug("OSError listing directory: %s", str(e))
+                LOGGER.debug("OSError scanning directory: %s", str(e))
                 return None
 
             files: List[FileInfo] = []
             folders: List[FileInfo] = []
+
             for entry in entries:
-                full_path = os.path.join(directory, entry)
-                if os.path.isdir(full_path):
-                    if entry in skip_dirs or depth == MAX_DEPTH:
+                # Skip hidden files and directories
+                if entry.name.startswith("."):
+                    continue
+
+                if entry.is_dir():
+                    if entry.name in skip_dirs or depth == MAX_DEPTH:
                         continue
-                    children = recurse(full_path, depth + 1)
+                    children = recurse(entry.path, depth + 1)
                     if children:
                         folders.append(
                             FileInfo(
-                                id=full_path,
-                                path=full_path,
-                                name=entry,
+                                id=entry.path,
+                                path=entry.path,
+                                name=entry.name,
                                 is_directory=True,
                                 is_marimo_file=False,
                                 children=children,
                             )
                         )
-                else:
-                    if any(
-                        entry.endswith(ext) for ext in allowed_extensions
-                    ) and self._is_marimo_app(full_path):
+                elif entry.name.endswith(tuple(allowed_extensions)):
+                    if self._is_marimo_app(entry.path):
                         files.append(
                             FileInfo(
-                                id=full_path,
-                                path=full_path,
-                                name=entry,
+                                id=entry.path,
+                                path=entry.path,
+                                name=entry.name,
                                 is_directory=False,
                                 is_marimo_file=True,
-                                last_modified=os.path.getmtime(full_path),
+                                last_modified=entry.stat().st_mtime,
                             )
                         )
+
             # Sort folders then files, based on natural sort (alpha, then num)
             return sorted(folders, key=natural_sort_file) + sorted(
                 files, key=natural_sort_file
             )
 
         MAX_DEPTH = 5
-        skip_dirs = {".git", ".venv", "__pycache__", "node_modules"}
+        skip_dirs = {
+            "venv",
+            "__pycache__",
+            "node_modules",
+            "site-packages",
+            "eggs",
+        }
         allowed_extensions = (
-            {".py", ".md"} if self.include_markdown else {".py"}
+            (".py", ".md") if self.include_markdown else (".py",)
         )
 
         return recurse(self.directory) or []
@@ -285,3 +310,22 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
 
     def maybe_get_single_file(self) -> MarimoFile | None:
         return None
+
+
+@contextmanager
+def timeout(seconds: int, message: str) -> Generator[None, None, None]:
+    def timeout_handler(signum: int, frame: Optional[FrameType]) -> None:
+        del signum, frame
+        raise HTTPException(
+            status_code=HTTPStatus.REQUEST_TIMEOUT,
+            detail="Request timed out: {0}".format(message),
+        )
+
+    # Set the timeout handler
+    original_handler = signal.signal(signal.SIGALRM, timeout_handler)
+    try:
+        signal.alarm(seconds)
+        yield
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, original_handler)

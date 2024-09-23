@@ -19,6 +19,7 @@ User Configuration applies globally across all marimo notebooks and is stored in
 1. Current directory
 2. Parent directories (moving up the tree)
 3. Home directory (`~/.marimo.toml`)
+4. [XDG](https://xdgbasedirectoryspecification.com/) directory (`~/.config/marimo/marimo.toml` or `$XDG_CONFIG_HOME/marimo/marimo.toml`)
 
 If no `.marimo.toml` file is found, marimo creates a default one in your home directory.
 

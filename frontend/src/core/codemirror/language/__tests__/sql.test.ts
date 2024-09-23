@@ -202,5 +202,40 @@ describe("SQLLanguageAdapter", () => {
         ),
       ).toBe(true);
     });
+
+    it("should support SQL strings with output flag multi-line", () => {
+      expect(
+        adapter.isSupported(
+          `
+        countries = mo.sql(
+            f"""
+            SELECT * from "https://raw.githubusercontent.com/data.csv"
+            """,
+            output=False
+        )`.trim(),
+        ),
+      ).toBe(true);
+      expect(
+        adapter.isSupported(
+          `
+        countries = mo.sql(
+            f"""
+            SELECT * from "https://raw.githubusercontent.com/data.csv"
+            """,
+            output=False,
+        )`.trim(),
+        ),
+      ).toBe(true);
+      expect(
+        adapter.isSupported(
+          `
+        countries = mo.sql(
+            f"""
+            SELECT * from "https://raw.githubusercontent.com/data.csv"
+            """,
+            output=False)`.trim(),
+        ),
+      ).toBe(true);
+    });
   });
 });

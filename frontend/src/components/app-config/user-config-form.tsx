@@ -690,8 +690,8 @@ export const UserConfigForm: React.FC = () => {
           <>
             <SettingGroup title="AI Assist">
               <p className="text-sm text-muted-secondary">
-                Add an API key to <Kbd className="inline">~/.marimo.toml</Kbd>{" "}
-                to activate marimo's AI assistant; see{" "}
+                Add an API key to <Kbd className="inline">marimo.toml</Kbd> to
+                activate marimo's AI assistant; see{" "}
                 <a
                   className="text-link hover:underline"
                   href="https://docs.marimo.io/guides/editor_features/ai_completion.html"
@@ -807,7 +807,7 @@ export const UserConfigForm: React.FC = () => {
 
   const configMessage = (
     <p className="text-muted-secondary">
-      User configuration is stored in <Kbd className="inline">.marimo.toml</Kbd>
+      User configuration is stored in <Kbd className="inline">marimo.toml</Kbd>
       <br />
       Run <Kbd className="inline">marimo config show</Kbd> in your terminal to
       show your current configuration and file location.

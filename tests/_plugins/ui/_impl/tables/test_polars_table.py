@@ -277,7 +277,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             false=1,
         )
 
-    def test_summary_date(self) -> None:
+    def test_summary_datetime(self) -> None:
         column = "E"
         summary = self.manager.get_summary(column)
         assert summary == ColumnSummary(
@@ -287,6 +287,25 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             max=datetime.datetime(2021, 1, 3, 0, 0),
             mean=datetime.datetime(2021, 1, 2, 0, 0),
             median=datetime.datetime(2021, 1, 2, 0, 0),
+        )
+
+    def test_summary_date(self) -> None:
+        import polars as pl
+
+        data = pl.DataFrame(
+            {
+                "A": [datetime.date(2021, 1, 1), datetime.date(2021, 1, 2)],
+            }
+        )
+        manager = self.factory.create()(data)
+        summary = manager.get_summary("A")
+        assert summary == ColumnSummary(
+            total=2,
+            nulls=0,
+            min=datetime.date(2021, 1, 1),
+            max=datetime.date(2021, 1, 2),
+            mean=datetime.datetime(2021, 1, 1, 12, 0),
+            median=datetime.datetime(2021, 1, 1, 12, 0),
         )
 
     def test_sort_values(self) -> None:

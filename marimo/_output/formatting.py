@@ -329,6 +329,17 @@ def as_html(value: object) -> Html:
     return mime_to_html(mimetype, data)
 
 
+def as_dom_node(value: object) -> Html:
+    """
+    Similar to as_html, but allows for string, int, float, and bool values
+    to be passed through without being wrapped in an Html object.
+    """
+    if isinstance(value, (str, int, float, bool)):
+        return Html(escape(str(value)))
+
+    return as_html(value)
+
+
 def mime_to_html(mimetype: KnownMimeType, data: Any) -> Html:
     if mimetype == "text/html":
         # Using `as_html` to embed multiline HTML content

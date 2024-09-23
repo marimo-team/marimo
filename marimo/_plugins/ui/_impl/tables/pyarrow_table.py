@@ -184,8 +184,8 @@ class PyArrowTableManagerFactory(TableManagerFactory):
                     column = pc.cast(column, pa.string())  # type: ignore
                     mask: pa.BooleanArray = pc.match_substring(  # type: ignore
                         column,  # type: ignore
-                        query,  # type: ignore
-                        ignore_case=True,  # type: ignore
+                        query,
+                        ignore_case=True,
                     )
                     masks.append(mask)
 

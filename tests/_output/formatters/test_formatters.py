@@ -13,6 +13,7 @@ from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.formatters import register_formatters
 from marimo._output.formatting import (
     Plain,
+    as_dom_node,
     as_html,
     formatter,
     get_formatter,
@@ -329,3 +330,13 @@ def test_repr_empty_string():
     mime, content = formatter(obj)
     assert mime == "application/json"
     assert content == ""
+
+
+def test_as_dom_node():
+    assert as_dom_node("test").text == "test"
+    assert as_dom_node(123).text == "123"
+    assert as_dom_node(123.456).text == "123.456"
+    assert as_dom_node(None).text == "<span>None</span>"
+    assert as_dom_node(True).text == "True"
+    assert as_dom_node(False).text == "False"
+    assert as_dom_node({"key": "value"}).text.startswith("<marimo-json")
