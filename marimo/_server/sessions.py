@@ -119,11 +119,11 @@ class QueueManager:
             if context is not None
             else queue.Queue(maxsize=1)
         )
-        self.stream_queue: queue.Queue[Union[KernelMessage, None]] | None = (
-            None
-        )
+        self.stream_queue: (
+            "queue.Queue[Union[KernelMessage , None]]" | None
+        ) = None
         if not use_multiprocessing:
-            self.stream_queue = queue.Queue[Union[KernelMessage, None]]()
+            self.stream_queue = queue.Queue()
 
     def close_queues(self) -> None:
         if isinstance(self.control_queue, MPQueue):

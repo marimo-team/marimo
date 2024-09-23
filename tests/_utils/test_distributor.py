@@ -59,7 +59,7 @@ def test_start(mock_get_event_loop: Any) -> None:
 
 
 def test_queued_distributor() -> None:
-    q = queue.Queue[str | None]()
+    q = queue.Queue()
     distributor = QueueDistributor[str](q)
 
     # Define two mock consumer functions
