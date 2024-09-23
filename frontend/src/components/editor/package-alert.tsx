@@ -60,6 +60,9 @@ export const PackageAlert: React.FC = () => {
     return null;
   }
 
+  const doesSupportVersioning =
+    userConfig.package_management.manager !== "pixi";
+
   if (isMissingPackageAlert(packageAlert)) {
     return (
       <div className="flex flex-col gap-4 mb-5 fixed top-5 left-12 min-w-[400px] z-[200] opacity-95">
@@ -92,16 +95,18 @@ export const PackageAlert: React.FC = () => {
                   >
                     <BoxIcon size="1rem" />
                     {pkg}
-                    <PackageVersionSelect
-                      value={desiredPackageVersions[pkg] ?? "latest"}
-                      onChange={(value) =>
-                        setDesiredPackageVersions((prev) => ({
-                          ...prev,
-                          [pkg]: value,
-                        }))
-                      }
-                      packageName={pkg}
-                    />
+                    {doesSupportVersioning && (
+                      <PackageVersionSelect
+                        value={desiredPackageVersions[pkg] ?? "latest"}
+                        onChange={(value) =>
+                          setDesiredPackageVersions((prev) => ({
+                            ...prev,
+                            [pkg]: value,
+                          }))
+                        }
+                        packageName={pkg}
+                      />
+                    )}
                   </li>
                 ))}
               </ul>
