@@ -66,7 +66,7 @@ export const CommandPalette = () => {
     shortcut: HotkeyAction,
     props: {
       disabled?: boolean;
-      tooltip?: string;
+      tooltip?: React.ReactNode;
     },
   ) => {
     const action = registeredActions[shortcut];
@@ -103,7 +103,7 @@ export const CommandPalette = () => {
   const renderCommandItem = (
     label: string,
     handle: () => void,
-    props: { disabled?: boolean; tooltip?: string } = {},
+    props: { disabled?: boolean; tooltip?: React.ReactNode } = {},
     hotkey?: HotkeyAction,
   ) => {
     return (
