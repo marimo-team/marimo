@@ -107,3 +107,28 @@ If you find yourself needing to force execution order often, it might be a sign 
 - Use the "Lazy" runtime configuration to see which cells are being marked as stale without automatically running them.
 
 Remember, marimo's reactivity is based on global variable definitions and references, and mutations to objects aren't tracked. Keeping this in mind can help you understand and debug unexpected behaviors in your notebooks.
+
+## Why is the notebook returning 404s on the web assets?
+
+If you're seeing 404 errors for web assets like JS or CSS files, it may be due to symlink settings or proxy settings.
+
+### Check symlink settings
+
+If you are using `bazel` or `uv`'s [**link-mode: symlink**](https://docs.astral.sh/uv/reference/settings/#link-mode), you may need to adjust your symlink settings to ensure that web assets are correctly found. By default marimo does not follow symlinks, so you may need to turn this setting on.
+
+Locate your `marimo.toml` configuration file with `marimo config show`, and edit the `follow_symlink` flag:
+
+```toml
+[server]
+follow_symlink = true
+```
+
+### Check proxy settings
+
+If you are using a proxy server, you need to include the `--proxy` flag when running marimo. The proxy will default to port 80 if no port is specified. For example, if your proxy is `example.com` and it uses port 8080, you would run:
+
+```bash
+marimo edit --proxy example.com:8080
+# or
+marimo run --proxy example.com:8080
+```
