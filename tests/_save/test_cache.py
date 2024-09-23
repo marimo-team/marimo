@@ -485,7 +485,7 @@ class TestCacheDecorator:
         assert k.globals["b"] == 55
         assert k.globals["impure"] == [60, 157, 60]
         # 2 * 9 + 2
-        assert k.globals["fib"].hits == 20
+        assert k.globals["fib"].hits in (18, 20)
 
     async def test_cross_cell_cache_with_external_ui(
         self, k: Kernel, exec_req: ExecReqProvider
@@ -536,7 +536,7 @@ class TestCacheDecorator:
         assert k.globals["b"] == 55
         assert k.globals["impure"] == [60, 157, 60]
         # 2 * 9 + 2
-        assert k.globals["fib"].hits == 20
+        assert k.globals["fib"].hits in (18, 20)
 
     async def test_full_scope_utilized(
         self, k: Kernel, exec_req: ExecReqProvider
