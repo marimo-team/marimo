@@ -4,11 +4,11 @@
 This folder contains example marimo notebooks.
 
 - 🖱️ [`ui/`](ui/): marimo's many UI elements or widgets
-- 🛢️ `sql/`: SQL and Python inter-op
-- 🤖 `ai/`: AI-related examples
-- 📦 `third_party/`: using popular third-party packages in marimo
-- ☁️  `cloud/`: using various cloud providers
-- ✨ `misc/`: miscellenous topical examples
+- 🛢️ [`sql/`](sql/): SQL and Python inter-op
+- 🤖 [`ai/`](ai/): AI-related examples
+- 📦 [`third_party/`](third_party/): using popular third-party packages in marimo
+- ☁️  [`cloud/`](cloud/): using various cloud providers
+- ✨ [`misc/`](misc/): miscellenous topical examples
 
 > [!NOTE]
 > Submit a
