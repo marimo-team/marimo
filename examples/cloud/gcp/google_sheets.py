@@ -1,12 +1,21 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "gspread==6.1.2",
+#     "marimo",
+#     "oauth2client==4.1.3",
+#     "pandas==2.2.3",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.1.43"
+__generated_with = "0.8.19"
 app = marimo.App(width="full")
 
 
 @app.cell
 def __():
-    # Imports
     import marimo as mo
     import pandas as pd
     import os
@@ -18,36 +27,19 @@ def __():
 
 @app.cell
 def __(mo):
+    # Configuration
+    credentials = mo.ui.text(placeholder="path/to/creds.json")
     mo.md(
         f"""
-    # Google Sheets
+        ## **⚙ Configuration**
 
-    Required dependencies:
-    ```sh
-    $ pip install gspread
-    ```
-    """
+        This app requires a Google Cloud Platform account and a bucket to access.
+
+        Authenticate with `gcloud auth login`, or provide a path to a credentials
+        file: {credentials}
+        """
     )
-    return
-
-
-@app.cell
-def __(mo):
-    # Configuration
-    credentials = mo.ui.text(label="(Optional) Path to credentials file").form()
-    mo.accordion(
-        {
-            "⚙️ Configuration": mo.md(
-                f"""
-                This app requires a Google Cloud Platform account and a bucket to access. You will need to be authenticated with `gcloud auth login`, 
-                or provide a path to a credentials file.
-
-                {credentials}
-                 """
-            )
-        }
-    )
-    return credentials,
+    return (credentials,)
 
 
 @app.cell
@@ -79,9 +71,9 @@ def __(
 
 @app.cell
 def __(mo):
-    spreadsheet_url = mo.ui.text_area(label="Spreadsheet URL").form()
+    spreadsheet_url = mo.ui.text(label="Spreadsheet URL", full_width=True)
     spreadsheet_url
-    return spreadsheet_url,
+    return (spreadsheet_url,)
 
 
 @app.cell
@@ -91,7 +83,7 @@ def __(gc, mo, pd, spreadsheet_url):
     # Get sheet records
     wks = gc.open_by_url(spreadsheet_url.value).sheet1
     mo.ui.table(pd.DataFrame(wks.get_all_records()), selection=None)
-    return wks,
+    return (wks,)
 
 
 if __name__ == "__main__":
