@@ -5,8 +5,8 @@ This folder contains example marimo notebooks, organized into folders.
 - 🖱️ `ui/`: marimo's many UI elements or widgets
 - 🛢️ `sql/`: SQL and Python inter-op
 - 🤖 `ai/`: AI-related examples
+- 📦 `third_party/`: using popular third-party packages in marimo
 - ☁️  `cloud/`: using various cloud providers
-- 📦 `third_party/`: a showcase of how to use popular third-party packages in marimo
 - ✨ `misc/`: miscellenous topical examples
 
 > [!Tip]
@@ -16,7 +16,8 @@ This folder contains example marimo notebooks, organized into folders.
 > [!NOTE]
 > Want to add an example to our repo? Submit a
 > [pull request](https://github.com/marimo-team/marimo/pulls)! All
-> contributions are welcome! 🙏
+> contributions are welcome; we especially welcome library developers to add
+> examples to `third_party/`.
 
 
 ## Running an example
@@ -29,5 +30,5 @@ comment. Here are the steps to open an example notebook:
 3. Open an example with `marimo edit --sandbox <notebook.py>`.
 
 > [!TIP]
-> The `--sandbox` flag will open the notebook in an isolated virtual environment,
+> The `--sandbox` flag opens the notebook in an isolated virtual environment,
 > automatically installing the notebook's dependencies 📦
