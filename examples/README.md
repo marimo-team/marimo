@@ -1,6 +1,5 @@
 # Examples
 
-
 This folder contains example marimo notebooks.
 
 - 🖱️ [`ui/`](ui/): marimo's many UI elements or widgets
