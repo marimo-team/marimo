@@ -30,3 +30,9 @@ comment. Here are the steps to open an example notebook:
 
 > [!TIP]
 > The [`--sandbox` flag](https://docs.marimo.io/guides/editor_features/package_management.html) opens the notebook in an isolated virtual environment, > automatically installing the notebook's dependencies 📦
+
+## More examples 🌟
+
+Every week, we highlight stellar examples and projects from our community.
+Check them out at our [marimo spotlights](https://github.com/marimo-team/spotlights)
+repo!
