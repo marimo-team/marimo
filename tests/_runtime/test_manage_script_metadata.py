@@ -57,12 +57,12 @@ async def test_manage_script_metadata_uv(
         assert '"os",' not in contents
         assert '"markdown==' in contents
 
-    # Remove marimo
+    # Remove marimo, it's still in requirements
     k._maybe_register_cell("0", "import os")
 
     with open(filename) as f:  # noqa: ASYNC230
         contents = f.read()
-        assert '"marimo",' not in contents
+        assert '"marimo",' in contents
         assert '"markdown==' in contents
         assert '"os",' not in contents
 
@@ -106,22 +106,22 @@ async def test_manage_script_metadata_uv_deletion(
         assert '"os",' not in contents
         assert '"markdown==' in contents
 
-    # Remove marimo
+    # Remove marimo, it's still in requirements
     k._delete_cell("0")
 
     with open(filename) as f:  # noqa: ASYNC230
         contents = f.read()
-        assert '"marimo",' not in contents
+        assert '"marimo",' in contents
         assert '"markdown==' in contents
         assert '"os",' not in contents
 
-    # Remove markdown
+    # Remove markdown, still in reqs
     k._delete_cell("1")
 
     with open(filename) as f:  # noqa: ASYNC230
         contents = f.read()
-        assert '"marimo",' not in contents
-        assert '"markdown==' not in contents
+        assert '"marimo",' in contents
+        assert '"markdown==' in contents
         assert '"os",' not in contents
 
 
