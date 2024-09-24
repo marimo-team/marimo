@@ -1,12 +1,21 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "altair==5.4.1",
+#     "marimo",
+#     "vega-datasets==0.9.0",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.1.29"
+__generated_with = "0.8.19"
 app = marimo.App(width="full")
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
-    mo.md("# Welcome to marimo!")
+    mo.md("""# Welcome to marimo!""")
     return
 
 
@@ -14,13 +23,13 @@ def __(mo):
 def __(bars, mo, scatter):
     chart = mo.ui.altair_chart(scatter & bars)
     chart
-    return chart,
+    return (chart,)
 
 
 @app.cell
 def __(chart, mo):
     (filtered_data := mo.ui.table(chart.value))
-    return filtered_data,
+    return (filtered_data,)
 
 
 @app.cell
@@ -73,7 +82,7 @@ def __():
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 if __name__ == "__main__":

@@ -678,6 +678,7 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "sika": "ahonya-sika",
         "singleton": "pysingleton",
         "skbio": "scikit-bio",
+        "skimage": "scikit-image",
         "sklearn": "scikit-learn",
         "slack": "slackclient",
         "slugify": "unicode-slugify",

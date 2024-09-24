@@ -7,11 +7,11 @@
 
 import marimo
 
-__generated_with = "0.8.7"
+__generated_with = "0.8.19"
 app = marimo.App(width="medium")
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         r"""
@@ -190,7 +190,7 @@ def __(end_date, mo, start_date):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("""## Dropdowns""")
     return
@@ -214,7 +214,7 @@ def __(mo):
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 if __name__ == "__main__":

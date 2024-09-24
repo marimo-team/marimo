@@ -1,32 +1,43 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "marimo",
+#     "pandas==2.2.3",
+#     "plotly==5.24.1",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.1.51"
+__generated_with = "0.8.19"
 app = marimo.App()
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
-        """# Mapping Example
+        """
+        # Mapping Example
 
-    This example uses <a href="https://plotly.com/python/scattermapbox/" target="_blank">Mapbox</a> in `plotly.express` to build a scatter plot on a street map. The switch enables the satellite view.
-    """
+        This example uses <a href="https://plotly.com/python/scattermapbox/" target="_blank">Mapbox</a> in `plotly.express` to build a scatter plot on a street map. The switch enables the satellite view.
+        """
     )
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     view_button = mo.ui.switch(value=False)
     mo.hstack([mo.md("Satellite view:"), view_button], justify="start")
-    return view_button,
+    return (view_button,)
 
 
 @app.cell
-def __(mo, get_map, view_button):
+def __(get_map, mo, view_button):
     f = mo.ui.plotly(get_map(satellite=view_button.value))
     f
-    return f,
+    return (f,)
+
 
 @app.cell
 def __(f, mo):
@@ -66,7 +77,7 @@ def __(px, us_cities):
             map.update_layout(mapbox_style="open-street-map")
             map.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
         return map
-    return get_map,
+    return (get_map,)
 
 
 @app.cell
@@ -74,7 +85,7 @@ def __(pd):
     us_cities = pd.read_csv(
         "https://raw.githubusercontent.com/plotly/datasets/master/us-cities-top-1k.csv"
     )
-    return us_cities,
+    return (us_cities,)
 
 
 @app.cell

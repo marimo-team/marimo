@@ -1,18 +1,25 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "marimo",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.1.0"
+__generated_with = "0.8.19"
 app = marimo.App()
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
-    mo.md("# Stacks")
+    mo.md("""# Stacks""")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
-    mo.md("Use `mo.hstack` and `mo.vstack` to layout outputs in rows and columns.")
+    mo.md("""Use `mo.hstack` and `mo.vstack` to layout outputs in rows and columns.""")
     return
 
 
@@ -43,7 +50,7 @@ def __(mo):
 
 @app.cell
 def __(mo):
-    mo.md("## Horizontal Stack: `hstack`")
+    mo.md("""## Horizontal Stack: `hstack`""")
     return
 
 
@@ -61,7 +68,7 @@ def __(align, boxes, gap, justify, mo, wrap):
 
 @app.cell
 def __(mo):
-    mo.md("## Vertical Stack: `vstack`")
+    mo.md("""## Vertical Stack: `vstack`""")
     return
 
 
@@ -91,7 +98,7 @@ def __(mo, size):
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 if __name__ == "__main__":

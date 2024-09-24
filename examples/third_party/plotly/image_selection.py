@@ -1,6 +1,16 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "marimo",
+#     "pandas",
+#     "plotly==5.24.1",
+#     "scikit-image",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.1.60"
+__generated_with = "0.8.19"
 app = marimo.App(width="full")
 
 
@@ -13,19 +23,9 @@ def __():
     return go, io, mo, px
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
-    mo.md(
-        f"""
-    Required dependencies: `pip install plotly scikit-image`
-    """
-    )
-    return
-
-
-@app.cell
-def __(mo):
-    mo.md("#Example: Image with range selection")
+    mo.md("""#Example: Image with range selection""")
     return
 
 
@@ -58,7 +58,7 @@ def __(mo, plot):
 
 @app.cell
 def __(mo):
-    mo.md("#Example: Image with overlaid trace")
+    mo.md("""#Example: Image with overlaid trace""")
     return
 
 
@@ -88,7 +88,7 @@ def __(go, mo):
     # Set templates
     _fig.update_layout(template="plotly_white")
     plot2 = mo.ui.plotly(_fig)
-    return plot2,
+    return (plot2,)
 
 
 @app.cell

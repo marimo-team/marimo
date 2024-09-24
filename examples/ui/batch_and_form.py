@@ -1,6 +1,13 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "marimo",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.8.5"
+__generated_with = "0.8.19"
 app = marimo.App()
 
 
@@ -43,7 +50,7 @@ def __(mo, reset):
     )
 
     variables
-    return variables,
+    return (variables,)
 
 
 @app.cell
@@ -74,19 +81,19 @@ def __(reset):
     reset
 
     submitted_values = {"x": set(), "y": set()}
-    return submitted_values,
+    return (submitted_values,)
 
 
 @app.cell
 def __(mo):
     reset = mo.ui.button(label="reset history")
-    return reset,
+    return (reset,)
 
 
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 if __name__ == "__main__":

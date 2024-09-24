@@ -1,6 +1,15 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "great-tables==0.11.1",
+#     "marimo",
+#     "polars==1.8.2",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.8.2"
+__generated_with = "0.8.19"
 app = marimo.App(width="medium")
 
 
@@ -35,7 +44,7 @@ def __(__file__):
 @app.cell
 def __(coffee_sales, mo):
     revenue = mo.ui.range_slider.from_series(coffee_sales["revenue_dollars"])
-    return revenue,
+    return (revenue,)
 
 
 @app.cell(hide_code=True)

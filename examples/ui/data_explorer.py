@@ -2,25 +2,25 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #     "marimo",
-#     "pandas",
-#     "matplotlib",
-#     "altair",
+#     "pandas==2.2.3",
+#     "matplotlib==3.9.2",
+#     "altair==5.4.1",
 # ]
 # ///
 
 import marimo
 
-__generated_with = "0.8.5"
+__generated_with = "0.8.19"
 app = marimo.App(width="full")
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("""# Data Explorer""")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     sample = "https://github.com/vega/vega/blob/main/docs/data/stocks.csv"
 
@@ -31,28 +31,26 @@ def __(mo):
         You can download a <a href="{sample}" target="_blank">sample CSV</a> if you'd like.
         """
     )
-    return sample,
+    return (sample,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo, uploaded_file):
-    callout_kind = "alert" if (uploaded_file.name() is None) else "neutral"
-
     mo.md(
         f"""
         {mo.hstack([mo.md("**Upload a CSV.**")], justify="center")}
 
         {uploaded_file}
         """
-    ).callout(kind=callout_kind)
-    return callout_kind,
+    )
+    return
 
 
 @app.cell
 def __(io, mo, pd, uploaded_file):
     mo.stop(not uploaded_file.name())
     df = pd.read_csv(io.StringIO(uploaded_file.contents().decode()))
-    return df,
+    return (df,)
 
 
 @app.cell
@@ -100,13 +98,13 @@ def __(alt, color_column, df, mo, plot_type, x_column, y_column):
 
 
     plot(x_column.value, y_column.value, color_column.value)
-    return plot,
+    return (plot,)
 
 
 @app.cell
 def __(mo):
     uploaded_file = mo.ui.file(filetypes=[".csv"], kind="area")
-    return uploaded_file,
+    return (uploaded_file,)
 
 
 @app.cell

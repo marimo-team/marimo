@@ -1,10 +1,18 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "marimo",
+#     "pandas==2.2.3",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.8.5"
+__generated_with = "0.8.19"
 app = marimo.App(width="medium")
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(r"""# Filterable DataFrame""")
     return
@@ -14,7 +22,7 @@ def __(mo):
 def __(data_url, pd):
     # Read the csv
     df = pd.read_json(data_url("cars.json"))
-    return df,
+    return (df,)
 
 
 @app.cell
@@ -65,14 +73,14 @@ def __(cylinders, horse_power, manufacturer):
                 & (filtered_df["Horsepower"] <= right)
             ]
         return filtered_df
-    return filter_df,
+    return (filter_df,)
 
 
 @app.cell
 def __():
     def data_url(file):
         return f"https://cdn.jsdelivr.net/npm/vega-datasets@v1.29.0/data/{file}"
-    return data_url,
+    return (data_url,)
 
 
 @app.cell

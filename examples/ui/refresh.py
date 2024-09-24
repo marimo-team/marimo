@@ -1,10 +1,10 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#     "pandas",
-#     "vega-datasets",
-#     "requests",
-#     "altair",
+#     "pandas==2.2.3",
+#     "vega-datasets==0.9.0",
+#     "requests==2.32.3",
+#     "altair==5.4.1",
 #     "marimo",
 # ]
 # ///

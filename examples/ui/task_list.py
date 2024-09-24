@@ -4,13 +4,14 @@
 #     "marimo",
 # ]
 # ///
+
 import marimo
 
-__generated_with = "0.1.4"
+__generated_with = "0.8.19"
 app = marimo.App()
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("# Task List").left()
     return
@@ -22,7 +23,7 @@ def __(dataclass):
     class Task:
         name: str
         done: bool = False
-    return Task,
+    return (Task,)
 
 
 @app.cell
@@ -37,7 +38,7 @@ def __(mo, mutation_signal):
     mutation_signal
 
     task_entry_box = mo.ui.text(placeholder="a task ...")
-    return task_entry_box,
+    return (task_entry_box,)
 
 
 @app.cell
@@ -79,7 +80,7 @@ def __(Task, get_tasks, mo, set_tasks):
             [Task(task.name, done=v[i]) for i, task in enumerate(get_tasks())]
         ),
     )
-    return task_list,
+    return (task_list,)
 
 
 @app.cell
@@ -91,13 +92,13 @@ def __(mo, task_list):
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
 def __():
     from dataclasses import dataclass
-    return dataclass,
+    return (dataclass,)
 
 
 if __name__ == "__main__":
