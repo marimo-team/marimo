@@ -5,6 +5,7 @@ import base64
 import dataclasses
 import os
 import pathlib
+import sys
 import traceback
 from dataclasses import dataclass
 from typing import (
@@ -229,9 +230,9 @@ class slider(UIElement[Numeric, Numeric]):
                 value = steps[0] if value is None else value
                 value = steps.index(value)
             except ValueError:
-                print(
+                sys.stderr.write(
                     "Value out of bounds: default value should be in the steps"
-                    ", set to first value."
+                    ", set to first value.\n"
                 )
                 value = 0
             except AssertionError as e:
@@ -411,9 +412,9 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
                 value = [steps[0], steps[-1]] if value is None else value
                 value = [steps.index(num) for num in value]
             except ValueError:
-                print(
+                sys.stderr.write(
                     "Value out of bounds: default value should be in the"
-                    "steps, set to first and last values."
+                    "steps, set to first and last values.\n"
                 )
                 value = [0, len(steps) - 1]
             except AssertionError as e:
@@ -1151,10 +1152,9 @@ class button(UIElement[Any, Any]):
         try:
             return self._on_click(self._value)
         except Exception:
-            LOGGER.error(
-                "on_click handler for button (%s) raised an Exception:\n %s ",
-                str(self),
-                traceback.format_exc(),
+            sys.stderr.write(
+                "on_click handler for button (%s) raised an Exception:\n %s\n"
+                % (str(self), traceback.format_exc())
             )
             return None
 
