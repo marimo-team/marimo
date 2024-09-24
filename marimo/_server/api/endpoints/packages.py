@@ -1,10 +1,11 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from starlette.authentication import requires
 
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._runtime.packages.package_manager import PackageManager
 from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._server.api.deps import AppState
@@ -45,6 +46,16 @@ async def install_package(request: Request) -> PackageOperationResponse:
 
     package_manager = _get_package_manager(request)
     success = await package_manager.install(body.package, version=None)
+
+    # Update the script metadata
+    filename = _get_filename(request)
+    if filename is not None and GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
+        package_manager.update_notebook_script_metadata(
+            filepath=filename,
+            import_namespaces_to_add=[body.package],
+            import_namespaces_to_remove=[],
+        )
+
     if success:
         return PackageOperationResponse.of_success()
 
@@ -74,6 +85,16 @@ async def uninstall_package(request: Request) -> PackageOperationResponse:
 
     package_manager = _get_package_manager(request)
     success = await package_manager.uninstall(body.package)
+
+    # Update the script metadata
+    filename = _get_filename(request)
+    if filename is not None and GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
+        package_manager.update_notebook_script_metadata(
+            filepath=filename,
+            import_namespaces_to_add=[],
+            import_namespaces_to_remove=[body.package],
+        )
+
     if success:
         return PackageOperationResponse.of_success()
 
@@ -105,3 +126,10 @@ def _get_package_manager(request: Request) -> PackageManager:
     return create_package_manager(
         config_manager.get_config()["package_management"]["manager"]
     )
+
+
+def _get_filename(request: Request) -> Optional[str]:
+    session = AppState(request).get_current_session()
+    if session is None:
+        return None
+    return session.app_file_manager.filename

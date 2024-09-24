@@ -134,10 +134,6 @@ class UvPackageManager(PypiPackageManager):
             if _is_installed(im)
         ]
 
-        packages_to_remove = [
-            im for im in packages_to_remove if _is_installed(im)
-        ]
-
         if packages_to_add:
             self.run(
                 ["uv", "--quiet", "add", "--script", filepath]
