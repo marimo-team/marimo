@@ -19,7 +19,7 @@ This folder contains example marimo notebooks.
 > marimo ships with tutorials to help you get started: start with
 > `marimo tutorial intro` at the command line.
 
-## Running an example
+## Running examples
 
 The requirements of each notebook are serialized in them as a top-level
 comment. Here are the steps to open an example notebook:
@@ -29,6 +29,4 @@ comment. Here are the steps to open an example notebook:
 3. Open an example with `marimo edit --sandbox <notebook.py>`.
 
 > [!TIP]
-> The `--sandbox` flag opens the notebook in an isolated virtual environment,
-> automatically installing the notebook's dependencies 📦
-
+> The [`--sandbox` flag](https://docs.marimo.io/guides/editor_features/package_management.html) opens the notebook in an isolated virtual environment, > automatically installing the notebook's dependencies 📦
