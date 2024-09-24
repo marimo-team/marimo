@@ -10,9 +10,9 @@ This folder contains example marimo notebooks, organized into folders.
 - 📦 `third_party/`: a showcase of how to use popular third-party packages in marimo
 - ✨ `misc/`: miscellenous topical examples
 
-> [!IMPORTANT] Want to contribute an example?
+> [!NOTE]
 > Submit a [pull request](https://github.com/marimo-team/marimo/pulls) to add
-> an example to our repo.
+> an example to our repo. All contributions are welcome! 🙏
 
 ## Running an example
 
@@ -25,4 +25,4 @@ comment. Here are the steps to open an example notebook:
 
 > [!TIP]
 > The `--sandbox` flag will open the notebook in an isolated virtual environment,
-> automatically installing the notebook's dependencies.
+> automatically installing the notebook's dependencies 📦
