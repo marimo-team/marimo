@@ -3,7 +3,7 @@
 
 This folder contains example marimo notebooks.
 
-- 🖱️ `ui/`: marimo's many UI elements or widgets
+- 🖱️ [`ui/`](ui/): marimo's many UI elements or widgets
 - 🛢️ `sql/`: SQL and Python inter-op
 - 🤖 `ai/`: AI-related examples
 - 📦 `third_party/`: using popular third-party packages in marimo
