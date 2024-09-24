@@ -1,22 +1,27 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "langchain==0.3.0",
+#     "marimo",
+#     "pypdf2==3.0.1",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.1.0"
+__generated_with = "0.8.19"
 app = marimo.App()
 
 
 @app.cell
 def __(mo):
-    mo.md("# PDF Q&A")
+    mo.md("""# PDF Q&A""")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
-    mo.md(
-        """
-        This app lets you upload a PDF and ask questions about it.
-        """
-    )
+    mo.md("""This app lets you upload a PDF and ask questions about it.""")
     return
 
 
@@ -50,7 +55,7 @@ def __(mo, openaikey):
         label="Upload PDF", filetypes=[".pdf"], multiple=False, kind="area"
     )
     pdf if openaikey.value else mo.md("👆 Add an Open AI Key").callout(kind="warn")
-    return pdf,
+    return (pdf,)
 
 
 @app.cell
@@ -103,7 +108,7 @@ def __(mo):
         placeholder="💬 What are the 3 key points of the document?"
     ).form()
     user_question
-    return user_question,
+    return (user_question,)
 
 
 @app.cell
