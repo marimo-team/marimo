@@ -28,7 +28,8 @@ comment. Here are the steps to open an example notebook:
 3. Open an example with `marimo edit --sandbox <notebook.py>`.
 
 > [!TIP]
-> The [`--sandbox` flag](https://docs.marimo.io/guides/editor_features/package_management.html) opens the notebook in an isolated virtual environment, > automatically installing the notebook's dependencies 📦
+> The [`--sandbox` flag](https://docs.marimo.io/guides/editor_features/package_management.html) opens the notebook in an isolated virtual environment,
+> automatically installing the notebook's dependencies 📦
 
 ## More examples 🌟
 
