@@ -2,7 +2,6 @@
 
 This folder contains example marimo notebooks, organized into folders.
 
-- 🍃 `tutorials/`: get up and running with marimo
 - 🖱️ `ui/`: marimo's many UI elements or widgets
 - 🛢️ `sql/`: SQL and Python inter-op
 - 🤖 `ai/`: AI-related examples
@@ -10,10 +9,15 @@ This folder contains example marimo notebooks, organized into folders.
 - 📦 `third_party/`: a showcase of how to use popular third-party packages in marimo
 - ✨ `misc/`: miscellenous topical examples
 
+> [!Tip]
+> marimo also ships with tutorials to help you get started. Start the
+> `marimo tutorial intro` at the command-line.
+
 > [!NOTE]
 > Want to add an example to our repo? Submit a
 > [pull request](https://github.com/marimo-team/marimo/pulls)! All
 > contributions are welcome! 🙏
+
 
 ## Running an example
 
