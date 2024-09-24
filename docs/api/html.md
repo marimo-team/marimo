@@ -12,3 +12,7 @@ All marimo elements extend the HTML element class.
 
   .. autoclasstoc::
 ```
+
+```{eval-rst}
+.. autofunction:: marimo.iframe
+```

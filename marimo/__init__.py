@@ -38,6 +38,7 @@ __all__ = [
     "hstack",
     "Html",
     "icon",
+    "iframe",
     "image",
     "lazy",
     "left",
@@ -76,7 +77,7 @@ from marimo._ast.app import App
 from marimo._ast.cell import Cell
 from marimo._islands.island_generator import MarimoIslandGenerator
 from marimo._output.doc import doc
-from marimo._output.formatting import as_html, plain
+from marimo._output.formatting import as_html, iframe, plain
 from marimo._output.hypertext import Html
 from marimo._output.justify import center, left, right
 from marimo._output.md import md
