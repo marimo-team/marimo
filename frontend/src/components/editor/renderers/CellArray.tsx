@@ -5,11 +5,7 @@ import {
   type ConnectionStatus,
   WebSocketState,
 } from "../../../core/websocket/types";
-import {
-  type NotebookState,
-  flattenTopLevelNotebookCells,
-  useCellActions,
-} from "../../../core/cells/cells";
+import { type NotebookState, useCellActions } from "../../../core/cells/cells";
 import type { AppConfig, UserConfig } from "../../../core/config/config-schema";
 import type { AppMode } from "../../../core/mode";
 import { useHotkey } from "../../../hooks/useHotkey";
@@ -42,7 +38,6 @@ import { capabilitiesAtom } from "@/core/config/capabilities";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Kbd } from "@/components/ui/kbd";
 import { FloatingOutline } from "../chrome/panels/outline/floating-outline";
-import type { CellData, CellRuntimeState } from "@/core/cells/types";
 
 interface CellArrayProps {
   notebook: NotebookState;
@@ -63,7 +58,10 @@ export const CellArray: React.FC<CellArrayProps> = ({
   const { theme } = useTheme();
   const { toggleSidebarPanel } = useChromeActions();
 
-  const { invisible } = useDelayVisibility(notebook.cellIds.length, mode);
+  const { invisible } = useDelayVisibility(
+    notebook.cellIds.columns.length,
+    mode
+  );
 
   // HOTKEYS
   useHotkey("global.focusTop", actions.focusTopCell);
@@ -89,20 +87,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
     }
   }, [notebook.cellIds, notebook.scrollKey, scrollToTarget]);
 
-  const cells = flattenTopLevelNotebookCells(notebook);
-
-  // TODO(wasim): There may be a cleaner way to achieve this
-  const breakpoints = notebook.columnBreakpoints;
-  const columns: Array<Array<CellData & CellRuntimeState>> = breakpoints.map(
-    () => [],
-  );
-
-  breakpoints.forEach((breakpoint, columnIndex) => {
-    const nextBreakpoint = breakpoints[columnIndex + 1] ?? cells.length;
-    for (let cellIndex = breakpoint; cellIndex < nextBreakpoint; cellIndex++) {
-      columns[columnIndex].push(cells[cellIndex]);
-    }
-  });
+  const columns = notebook.cellIds.columns;
 
   return (
     <VerticalLayoutWrapper
@@ -119,43 +104,49 @@ export const CellArray: React.FC<CellArrayProps> = ({
             key={columnIndex}
             className="flex flex-col gap-5 w-[600px] max-w-[600px] min-w-[600px]"
           >
-            {column.map((cell) => (
-              <Cell
-                key={cell.id.toString()}
-                theme={theme}
-                showPlaceholder={cells.length === 1}
-                allowFocus={!invisible && !notebook.scrollKey}
-                id={cell.id}
-                code={cell.code}
-                outline={cell.outline}
-                output={cell.output}
-                consoleOutputs={cell.consoleOutputs}
-                status={cell.status}
-                edited={cell.edited}
-                interrupted={cell.interrupted}
-                errored={cell.errored}
-                stopped={cell.stopped}
-                staleInputs={cell.staleInputs}
-                runStartTimestamp={cell.runStartTimestamp}
-                runElapsedTimeMs={
-                  cell.runElapsedTimeMs ??
-                  (cell.lastExecutionTime as Milliseconds)
-                }
-                serializedEditorState={cell.serializedEditorState}
-                showDeleteButton={cells.length > 1 && !cell.config.hide_code}
-                mode={mode}
-                appClosed={connStatus.state !== WebSocketState.OPEN}
-                ref={notebook.cellHandles[cell.id]}
-                userConfig={userConfig}
-                debuggerActive={cell.debuggerActive}
-                config={cell.config}
-                name={cell.name}
-                isCollapsed={notebook.cellIds.isCollapsed(cell.id)}
-                collapseCount={notebook.cellIds.getCount(cell.id)}
-                {...actions}
-                deleteCell={onDeleteCell}
-              />
-            ))}
+            {column.topLevelIds.map((cellId) => {
+              const cellData = notebook.cellData[cellId];
+              const cellRuntime = notebook.cellRuntime[cellId];
+              return (
+                <Cell
+                  key={cellData.id.toString()}
+                  theme={theme}
+                  showPlaceholder={column.length === 1}
+                  allowFocus={!invisible && !notebook.scrollKey}
+                  id={cellData.id}
+                  code={cellData.code}
+                  outline={cellRuntime.outline}
+                  output={cellRuntime.output}
+                  consoleOutputs={cellRuntime.consoleOutputs}
+                  status={cellRuntime.status}
+                  edited={cellData.edited}
+                  interrupted={cellRuntime.interrupted}
+                  errored={cellRuntime.errored}
+                  stopped={cellRuntime.stopped}
+                  staleInputs={cellRuntime.staleInputs}
+                  runStartTimestamp={cellRuntime.runStartTimestamp}
+                  runElapsedTimeMs={
+                    cellRuntime.runElapsedTimeMs ??
+                    (cellData.lastExecutionTime as Milliseconds)
+                  }
+                  serializedEditorState={cellData.serializedEditorState}
+                  showDeleteButton={
+                    column.length > 1 && !cellData.config.hide_code
+                  }
+                  mode={mode}
+                  appClosed={connStatus.state !== WebSocketState.OPEN}
+                  ref={notebook.cellHandles[cellId]}
+                  userConfig={userConfig}
+                  debuggerActive={cellRuntime.debuggerActive}
+                  config={cellData.config}
+                  name={cellData.name}
+                  isCollapsed={column.isCollapsed(cellId)}
+                  collapseCount={column.getCount(cellId)}
+                  {...actions}
+                  deleteCell={onDeleteCell}
+                />
+              );
+            })}
           </div>
         ))}
       </div>
@@ -174,7 +165,7 @@ const AddCellButtons: React.FC = () => {
 
   const buttonClass = cn(
     "mb-0 rounded-none sm:px-4 md:px-5 lg:px-8 tracking-wide no-wrap whitespace-nowrap",
-    "hover:bg-accent hover:text-accent-foreground font-semibold uppercase text-xs",
+    "hover:bg-accent hover:text-accent-foreground font-semibold uppercase text-xs"
   );
 
   const renderBody = () => {
@@ -275,7 +266,7 @@ const AddCellButtons: React.FC = () => {
           "shadow-sm border border-border rounded transition-all duration-200 overflow-hidden divide-x divide-border flex",
           !isAiButtonOpen && "w-fit",
           isAiButtonOpen &&
-            "opacity-100 w-full max-w-4xl shadow-lg shadow-[var(--blue-3)]",
+            "opacity-100 w-full max-w-4xl shadow-lg shadow-[var(--blue-3)]"
         )}
       >
         {renderBody()}

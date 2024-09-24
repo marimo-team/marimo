@@ -29,12 +29,7 @@ import { deserializeBase64, deserializeJson } from "@/utils/json/base64";
 import { historyField } from "@codemirror/commands";
 import { clamp } from "@/utils/math";
 import type { LayoutState } from "../layout/layout";
-import {
-  getCellColumn,
-  notebookIsRunning,
-  notebookQueueOrRunningCount,
-  updateColumnBreakpoints,
-} from "./utils";
+import { notebookIsRunning, notebookQueueOrRunningCount } from "./utils";
 import {
   splitEditor,
   updateEditorCodeFromPython,
@@ -48,7 +43,7 @@ import type {
 import { getUserConfig } from "@/core/config/config";
 import { syncCellIds } from "../network/requests";
 import { kioskModeAtom } from "../mode";
-import { CollapsibleTree } from "@/utils/id-tree";
+import { MultiColumn } from "@/utils/id-tree";
 import { isEqual } from "lodash-es";
 
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
@@ -60,11 +55,7 @@ export interface NotebookState {
   /**
    * Order of cells on the page.
    */
-  cellIds: CollapsibleTree<CellId>;
-  /**
-   * Column breakpoints
-   */
-  columnBreakpoints: number[];
+  cellIds: MultiColumn<CellId>;
   /**
    * Map of cells to their view state
    */
@@ -83,7 +74,12 @@ export interface NotebookState {
    * (CodeMirror types the serialized config as any.)
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  history: Array<{ name: string; serializedEditorState: any; index: number }>;
+  history: Array<{
+    name: string;
+    serializedEditorState: any;
+    column: number;
+    index: number;
+  }>;
   /**
    * Key of cell to scroll to; typically set by actions that re-order the cell
    * array. Call the SCROLL_TO_TARGET action to scroll to the specified cell
@@ -160,14 +156,13 @@ function initialNotebookState(): NotebookState {
         output: outputMessage,
         outline: parseOutline(outputMessage),
         consoleOutputs: outputs.map((output) =>
-          deserializeJson(deserializeBase64(output)),
+          deserializeJson(deserializeBase64(output))
         ),
       };
     }
 
     return {
-      cellIds: CollapsibleTree.from(cellIds),
-      columnBreakpoints: [0],
+      cellIds: MultiColumn.from([cellIds]),
       cellData: cellData,
       cellRuntime: cellRuntime,
       cellHandles: {},
@@ -178,8 +173,7 @@ function initialNotebookState(): NotebookState {
   }
 
   return withScratchCell({
-    cellIds: CollapsibleTree.from([]),
-    columnBreakpoints: [0],
+    cellIds: MultiColumn.from([]),
     cellData: {},
     cellRuntime: {},
     cellHandles: {},
@@ -208,7 +202,7 @@ const {
       lastExecutionTime?: number;
       newCellId?: CellId;
       autoFocus?: boolean;
-    },
+    }
   ) => {
     const {
       cellId,
@@ -218,21 +212,23 @@ const {
       lastExecutionTime = null,
       autoFocus = true,
     } = action;
+    const column =
+      cellId === "__end__"
+        ? state.cellIds.columns[state.cellIds.columns.length - 1]
+        : state.cellIds.getColumnWithId(cellId)[0];
+
     const newCellId = action.newCellId || CellId.create();
     const index =
       cellId === "__end__"
-        ? state.cellIds.length - 1
-        : state.cellIds.topLevelIds.indexOf(cellId);
+        ? column.length - 1
+        : column.topLevelIds.indexOf(cellId);
     const insertionIndex = before ? index : index + 1;
-
-    if (!(before && state.columnBreakpoints.includes(index))) {
-      updateColumnBreakpoints(state, insertionIndex, true);
-    }
+    column.insert(newCellId, insertionIndex);
 
     return {
       ...state,
-      cellIds: state.cellIds.insert(newCellId, insertionIndex),
       cellData: {
+        ...state.cellIds,
         ...state.cellData,
         [newCellId]: createCell({
           id: newCellId,
@@ -255,29 +251,20 @@ const {
   },
   moveCell: (state, action: { cellId: CellId; before: boolean }) => {
     const { cellId, before } = action;
-    const index = state.cellIds.indexOfOrThrow(cellId);
-
-    if (state.columnBreakpoints.length > 1) {
-      const [column, breakpoint] = getCellColumn(state, index);
-      if (
-        (before && breakpoint > index - 1) ||
-        (!before && state.columnBreakpoints[column + 1] <= index + 1)
-      ) {
-        return state;
-      }
-    }
+    const [column, col] = state.cellIds.getColumnWithId(cellId);
+    const index = column.indexOfOrThrow(cellId);
 
     if (before && index === 0) {
       return {
         ...state,
-        cellIds: state.cellIds.moveToFront(cellId),
+        cellIds: state.cellIds.moveWithinColumn(col, index, 0),
         scrollKey: cellId,
       };
     }
-    if (!before && index === state.cellIds.length - 1) {
+    if (!before && index === column.length - 1) {
       return {
         ...state,
-        cellIds: state.cellIds.moveToBack(cellId),
+        cellIds: state.cellIds.moveWithinColumn(col, index, column.length - 1),
         scrollKey: cellId,
       };
     }
@@ -285,44 +272,54 @@ const {
     return before
       ? {
           ...state,
-          cellIds: state.cellIds.move(index, index - 1),
+          cellIds: state.cellIds.moveWithinColumn(col, index, index - 1),
           scrollKey: cellId,
         }
       : {
           ...state,
-          cellIds: state.cellIds.move(index, index + 1),
+          cellIds: state.cellIds.moveWithinColumn(col, index, index + 1),
           scrollKey: cellId,
         };
   },
   dropCellOver: (state, action: { cellId: CellId; overCellId: CellId }) => {
     const { cellId, overCellId } = action;
-    const fromIndex = state.cellIds.indexOfOrThrow(cellId);
-    const toIndex = state.cellIds.indexOfOrThrow(overCellId);
 
-    const [column, breakpoint] = getCellColumn(state, fromIndex);
-    if (toIndex < breakpoint) {
-      updateColumnBreakpoints(state, toIndex, true);
-    } else if (toIndex > state.columnBreakpoints[column + 1]) {
-      updateColumnBreakpoints(state, toIndex, false);
+    const [fromColumn, fromCol] = state.cellIds.getColumnWithId(cellId);
+    const fromIndex = fromColumn.indexOfOrThrow(cellId);
+    const [toColumn, toCol] = state.cellIds.getColumnWithId(overCellId);
+    const toIndex = toColumn.indexOfOrThrow(overCellId);
+
+    if (fromIndex === toIndex) {
+      return {
+        ...state,
+        cellIds: state.cellIds.moveWithinColumn(fromCol, fromIndex, toIndex),
+        scrollKey: null,
+      };
     }
 
     return {
       ...state,
-      cellIds: state.cellIds.move(fromIndex, toIndex),
+      cellIds: state.cellIds.moveAcrossColumns(
+        fromCol,
+        fromIndex,
+        toCol,
+        toIndex
+      ),
       scrollKey: null,
     };
   },
   focusCell: (state, action: { cellId: CellId; before: boolean }) => {
-    if (state.cellIds.length === 0) {
+    const [column, _] = state.cellIds.getColumnWithId(action.cellId);
+    if (column.length === 0) {
       return state;
     }
 
     const { cellId, before } = action;
-    const index = state.cellIds.indexOfOrThrow(cellId);
+    const index = column.indexOfOrThrow(cellId);
     let focusIndex = before ? index - 1 : index + 1;
     // clamp
-    focusIndex = clamp(focusIndex, 0, state.cellIds.length - 1);
-    const focusCellId = state.cellIds.atOrThrow(focusIndex);
+    focusIndex = clamp(focusIndex, 0, column.length - 1);
+    const focusCellId = column.atOrThrow(focusIndex);
     // can scroll immediately, without setting scrollKey in state, because
     // CellArray won't need to re-render
     focusAndScrollCellIntoView({
@@ -363,87 +360,82 @@ const {
     return state;
   },
   sendToTop: (state, action: { cellId: CellId }) => {
-    if (state.cellIds.length === 0) {
+    const [column, col] = state.cellIds.getColumnWithId(action.cellId);
+    if (column.length === 0) {
       return state;
     }
 
     const { cellId } = action;
-    const index = state.cellIds.indexOfOrThrow(cellId);
-
-    const [_, breakpoint] = getCellColumn(state, index);
-    const newIndex = state.columnBreakpoints.length > 1 ? breakpoint : 0;
-
-    if (index === newIndex) {
+    const index = column.indexOfOrThrow(cellId);
+    if (index === 0) {
       return state;
     }
 
     return {
       ...state,
-      cellIds: state.cellIds.move(index, newIndex),
+      cellIds: state.cellIds.moveWithinColumn(col, index, 0),
       scrollKey: cellId,
     };
   },
   sendToBottom: (state, action: { cellId: CellId }) => {
-    if (state.cellIds.length === 0) {
+    const [column, col] = state.cellIds.getColumnWithId(action.cellId);
+    if (column.length === 0) {
       return state;
     }
 
     const { cellId } = action;
-    const index = state.cellIds.indexOfOrThrow(cellId);
-    let newIndex = state.cellIds.length - 1;
+    const index = column.indexOfOrThrow(cellId);
+    let newIndex = column.length - 1;
 
     if (index === newIndex) {
       return state;
     }
 
-    const [column, _] = getCellColumn(state, index);
-    if (
-      state.columnBreakpoints.length > 1 &&
-      state.columnBreakpoints.length >= column + 1
-    ) {
-      newIndex = state.columnBreakpoints[column + 1] - 1;
-    }
-
     return {
       ...state,
-      cellIds: state.cellIds.move(index, newIndex),
+      cellIds: state.cellIds.moveWithinColumn(col, index, newIndex),
       scrollKey: cellId,
     };
   },
   addColumnBreakpoint: (state, action: { cellId: CellId }) => {
-    const index = state.cellIds.indexOfOrThrow(action.cellId);
-    if (index === 0 || index === state.cellIds.length - 1) {
+    const [column, columnIndex] = state.cellIds.getColumnWithId(action.cellId);
+    if (!column) {
       return state;
     }
-    const columnBreakpoints = [...state.columnBreakpoints, index];
-    return { ...state, columnBreakpoints: columnBreakpoints.sort() };
+    const cellIndex = column.indexOfOrThrow(action.cellId);
+    if (cellIndex === 0) {
+      return state;
+    }
+    return {
+      ...state,
+      cellIds: state.cellIds.insertBreakpoint(columnIndex, cellIndex),
+    };
   },
   deleteCell: (state, action: { cellId: CellId }) => {
     const cellId = action.cellId;
-    if (state.cellIds.length === 1) {
+    const [column, _] = state.cellIds.getColumnWithId(cellId);
+
+    if (column.length === 1) {
       return state;
     }
 
-    const index = state.cellIds.indexOfOrThrow(cellId);
+    const index = column.indexOfOrThrow(cellId);
     const focusIndex = index === 0 ? 1 : index - 1;
-    const scrollKey = state.cellIds.atOrThrow(focusIndex);
+    const scrollKey = column.atOrThrow(focusIndex);
 
     const serializedEditorState = state.cellHandles[
       cellId
     ].current?.editorView.state.toJSON({ history: historyField });
 
-    if (!state.columnBreakpoints.includes(index)) {
-      updateColumnBreakpoints(state, index, false);
-    }
-
     return {
       ...state,
-      cellIds: state.cellIds.delete(index),
+      cellIds: state.cellIds.deleteId(cellId),
       history: [
         ...state.history,
         {
           name: state.cellData[cellId].name,
           serializedEditorState: serializedEditorState,
+          column: state.cellIds.columns.indexOf(column),
           index: index,
         },
       ],
@@ -460,6 +452,7 @@ const {
     const {
       name,
       serializedEditorState = { doc: "" },
+      column,
       index,
     } = mostRecentlyDeleted;
     const cellId = CellId.create();
@@ -471,11 +464,9 @@ const {
       serializedEditorState,
     });
 
-    updateColumnBreakpoints(state, index, true);
-
     return {
       ...state,
-      cellIds: state.cellIds.insert(cellId, index),
+      cellIds: state.cellIds.insertId(column, cellId, index),
       cellData: {
         ...state.cellData,
         [cellId]: undoCell,
@@ -510,7 +501,7 @@ const {
        * if so, the 'edited' state will be handled differently.
        */
       formattingChange: boolean;
-    },
+    }
   ) => {
     const { cellId, code, formattingChange } = action;
     if (!state.cellData[cellId]) {
@@ -544,7 +535,7 @@ const {
   },
   updateCellConfig: (
     state,
-    action: { cellId: CellId; config: Partial<CellConfig> },
+    action: { cellId: CellId; config: Partial<CellConfig> }
   ) => {
     const { cellId, config } = action;
     return updateCellData(state, cellId, (cell) => {
@@ -597,7 +588,7 @@ const {
 
     return {
       ...state,
-      cellIds: CollapsibleTree.from(action.cellIds),
+      cellIds: MultiColumn.from([action.cellIds]),
       cellData: nextCellData,
       cellRuntime: nextCellRuntime,
       cellHandles: nextCellHandles,
@@ -606,7 +597,7 @@ const {
   setCellCodes: (state, action: { codes: string[]; ids: CellId[] }) => {
     invariant(
       action.codes.length === action.ids.length,
-      "Expected codes and ids to have the same length",
+      "Expected codes and ids to have the same length"
     );
 
     for (let i = 0; i < action.codes.length; i++) {
@@ -627,7 +618,7 @@ const {
   },
   setStdinResponse: (
     state,
-    action: { cellId: CellId; response: string; outputIndex: number },
+    action: { cellId: CellId; response: string; outputIndex: number }
   ) => {
     const { cellId, response, outputIndex } = action;
     return updateCellRuntimeState(state, cellId, (cell) => {
@@ -657,16 +648,16 @@ const {
     const cellData = Object.fromEntries(cells.map((cell) => [cell.id, cell]));
 
     const cellRuntime = Object.fromEntries(
-      cells.map((cell) => [cell.id, createCellRuntimeState()]),
+      cells.map((cell) => [cell.id, createCellRuntimeState()])
     );
 
     return withScratchCell({
       ...state,
-      cellIds: CollapsibleTree.from(cells.map((cell) => cell.id)),
+      cellIds: MultiColumn.from([cells.map((cell) => cell.id)]),
       cellData: cellData,
       cellRuntime: cellRuntime,
       cellHandles: Object.fromEntries(
-        cells.map((cell) => [cell.id, createRef()]),
+        cells.map((cell) => [cell.id, createRef()])
       ),
     });
   },
@@ -681,18 +672,19 @@ const {
    */
   moveToNextCell: (
     state,
-    action: { cellId: CellId; before: boolean; noCreate?: boolean },
+    action: { cellId: CellId; before: boolean; noCreate?: boolean }
   ) => {
     const { cellId, before, noCreate = false } = action;
-    const index = state.cellIds.indexOfOrThrow(cellId);
+    const [column, col] = state.cellIds.getColumnWithId(cellId);
+    const index = column.indexOfOrThrow(cellId);
     const nextCellIndex = before ? index - 1 : index + 1;
     // Create a new cell at the end; no need to update scrollKey,
     // because cell will be created with autoScrollIntoView
-    if (nextCellIndex === state.cellIds.length && !noCreate) {
+    if (nextCellIndex === column.length && !noCreate) {
       const newCellId = CellId.create();
       return {
         ...state,
-        cellIds: state.cellIds.insertAtEnd(newCellId),
+        cellIds: state.cellIds.insertId(col, newCellId, nextCellIndex),
         cellData: {
           ...state.cellData,
           [newCellId]: createCell({ id: newCellId }),
@@ -714,7 +706,7 @@ const {
       const newCellId = CellId.create();
       return {
         ...state,
-        cellIds: state.cellIds.insertAtStart(newCellId),
+        cellIds: state.cellIds.insertId(col, newCellId, 0),
         cellData: {
           ...state.cellData,
           [newCellId]: createCell({ id: newCellId }),
@@ -730,7 +722,7 @@ const {
       };
     }
 
-    const nextCellId = state.cellIds.atOrThrow(nextCellIndex);
+    const nextCellId = column.atOrThrow(nextCellIndex);
     // Just focus, no state change
     focusAndScrollCellIntoView({
       cellId: nextCellId,
@@ -748,15 +740,16 @@ const {
       return state;
     }
 
-    const index = state.cellIds.indexOfOrThrow(scrollKey);
+    const [column, _] = state.cellIds.getColumnWithId(scrollKey);
+    const index = column.indexOfOrThrow(scrollKey);
 
     // Special-case scrolling to the end of the page: bug in Chrome where
     // browser fails to scrollIntoView an element at the end of a long page
-    if (index === state.cellIds.length - 1) {
-      const cellId = state.cellIds.last();
+    if (index === column.length - 1) {
+      const cellId = column.last();
       state.cellHandles[cellId].current?.editorView.focus();
     } else {
-      const nextCellId = state.cellIds.atOrThrow(index);
+      const nextCellId = column.atOrThrow(index);
       focusAndScrollCellIntoView({
         cellId: nextCellId,
         cell: state.cellHandles[nextCellId],
@@ -773,14 +766,14 @@ const {
   },
   foldAll: (state) => {
     const targets = Object.values(state.cellHandles).map(
-      (handle) => handle.current?.editorView,
+      (handle) => handle.current?.editorView
     );
     foldAllBulk(targets);
     return state;
   },
   unfoldAll: (state) => {
     const targets = Object.values(state.cellHandles).map(
-      (handle) => handle.current?.editorView,
+      (handle) => handle.current?.editorView
     );
     unfoldAllBulk(targets);
     return state;
@@ -848,7 +841,7 @@ const {
     }
 
     const { beforeCursorCode, afterCursorCode } = splitEditor(
-      cellHandle.editorView,
+      cellHandle.editorView
     );
 
     updateEditorCodeFromPython(cellHandle.editorView, beforeCursorCode);
@@ -933,7 +926,7 @@ const {
 function updateCellRuntimeState(
   state: NotebookState,
   cellId: CellId,
-  cellReducer: ReducerWithoutAction<CellRuntimeState>,
+  cellReducer: ReducerWithoutAction<CellRuntimeState>
 ) {
   if (!(cellId in state.cellRuntime)) {
     Logger.warn(`Cell ${cellId} not found in state`);
@@ -951,7 +944,7 @@ function updateCellRuntimeState(
 function updateCellData(
   state: NotebookState,
   cellId: CellId,
-  cellReducer: ReducerWithoutAction<CellData>,
+  cellReducer: ReducerWithoutAction<CellData>
 ) {
   if (!(cellId in state.cellData)) {
     Logger.warn(`Cell ${cellId} not found in state`);
@@ -991,7 +984,7 @@ const cellErrorsAtom = atom((get) => {
         // but nothing the user can take action on.
         invariant(Array.isArray(cell.output.data), "Expected array data");
         const nonAncestorErrors = cell.output.data.filter(
-          (error) => !error.type.includes("ancestor"),
+          (error) => !error.type.includes("ancestor")
         );
 
         if (nonAncestorErrors.length > 0) {
@@ -1014,7 +1007,7 @@ export const notebookHasCellsAtom = atom((get) => get(cellIdsAtom).length > 0);
 export const notebookOutline = atom((get) => {
   const { cellIds, cellRuntime } = get(notebookAtom);
   const outlines = cellIds.inOrderIds.map(
-    (cellId) => cellRuntime[cellId].outline,
+    (cellId) => cellRuntime[cellId].outline
   );
   return mergeOutlines(outlines);
 });
@@ -1024,7 +1017,7 @@ export const cellErrorCount = atom((get) => get(cellErrorsAtom).length);
 export const cellIdToNamesMap = atom((get) => {
   const { cellIds, cellData } = get(notebookAtom);
   const names: Record<CellId, string | undefined> = Objects.fromEntries(
-    cellIds.inOrderIds.map((cellId) => [cellId, cellData[cellId]?.name]),
+    cellIds.inOrderIds.map((cellId) => [cellId, cellData[cellId]?.name])
   );
   return names;
 });
@@ -1078,16 +1071,16 @@ export const getCellNames = () => {
 
 const cellDataAtoms = splitAtom(
   selectAtom(notebookAtom, (cells) =>
-    cells.cellIds.inOrderIds.map((id) => cells.cellData[id]),
-  ),
+    cells.cellIds.inOrderIds.map((id) => cells.cellData[id])
+  )
 );
 export const useCellDataAtoms = () => useAtom(cellDataAtoms);
 
 export const notebookIsRunningAtom = atom((get) =>
-  notebookIsRunning(get(notebookAtom)),
+  notebookIsRunning(get(notebookAtom))
 );
 export const notebookQueuedOrRunningCountAtom = atom((get) =>
-  notebookQueueOrRunningCount(get(notebookAtom)),
+  notebookQueueOrRunningCount(get(notebookAtom))
 );
 
 /**
@@ -1111,7 +1104,7 @@ export function isUninstantiated(
   status: RuntimeState,
   errored: boolean,
   interrupted: boolean,
-  stopped: boolean,
+  stopped: boolean
 ) {
   return (
     // autorun on startup is off ...
@@ -1144,7 +1137,7 @@ export function staleCellIds(state: NotebookState) {
         cellRuntime[cellId].status,
         cellRuntime[cellId].errored,
         cellRuntime[cellId].interrupted,
-        cellRuntime[cellId].stopped,
+        cellRuntime[cellId].stopped
       ) ||
       cellData[cellId].edited ||
       cellRuntime[cellId].interrupted ||
@@ -1153,15 +1146,15 @@ export function staleCellIds(state: NotebookState) {
         !(
           cellRuntime[cellId].status === "disabled-transitively" ||
           cellData[cellId].config.disabled
-        )),
+        ))
   );
 }
 
 export function flattenTopLevelNotebookCells(
-  state: NotebookState,
+  state: NotebookState
 ): Array<CellData & CellRuntimeState> {
   const { cellIds, cellData, cellRuntime } = state;
-  return cellIds.topLevelIds.map((cellId) => ({
+  return cellIds.columns.map((cellId) => ({
     ...cellData[cellId],
     ...cellRuntime[cellId],
   }));
@@ -1182,20 +1175,20 @@ export type CellActions = ReturnType<typeof createActions>;
 
 export const CellEffects = {
   onCellIdsChange: (
-    cellIds: CollapsibleTree<CellId>,
-    prevCellIds: CollapsibleTree<CellId>,
+    cellIds: MultiColumn<CellId>,
+    prevCellIds: MultiColumn<CellId>
   ) => {
     const kioskMode = store.get(kioskModeAtom);
     if (kioskMode) {
       return;
     }
     // If cellIds is empty, return early
-    if (cellIds.length === 0) {
+    if (cellIds.columns.length === 0) {
       return;
     }
     // If prevCellIds is empty, also return early
     // this means that the notebook was just created
-    if (prevCellIds.length === 0) {
+    if (prevCellIds.columns.length === 0) {
       return;
     }
 

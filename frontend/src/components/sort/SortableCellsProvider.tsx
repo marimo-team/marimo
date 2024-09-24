@@ -41,10 +41,10 @@ const SortableCellsProviderInternal = ({
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    }),
+    })
   );
 
-  const ids = notebook.cellIds.topLevelIds;
+  const ids = notebook.cellIds.topLevelIds.flat();
 
   const handleDragEnd = useEvent((event: DragEndEvent) => {
     const { active, over } = event;

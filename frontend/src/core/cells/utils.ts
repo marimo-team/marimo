@@ -108,34 +108,3 @@ export function notebookHasColumns() {
   const appConfig = getAppConfig();
   return appConfig.width === "columns";
 }
-
-export function getCellColumn(state: NotebookState, cellIndex: number) {
-  let columnIndex = 0;
-  let columnBreakpoint = state.columnBreakpoints[0];
-
-  for (const [index, breakpoint] of state.columnBreakpoints.entries()) {
-    if (cellIndex < breakpoint) {
-      break;
-    }
-    columnIndex = index;
-    columnBreakpoint = breakpoint;
-  }
-
-  return [columnIndex, columnBreakpoint];
-}
-
-export function updateColumnBreakpoints(
-  state: NotebookState,
-  cellIndex: number,
-  increment: boolean,
-) {
-  state.columnBreakpoints.forEach((breakpoint, i) => {
-    if (breakpoint >= cellIndex) {
-      if (increment) {
-        state.columnBreakpoints[i] += 1;
-      } else {
-        state.columnBreakpoints[i] -= 1;
-      }
-    }
-  });
-}
