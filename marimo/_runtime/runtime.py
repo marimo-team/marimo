@@ -682,10 +682,8 @@ class Kernel:
                         else set()
                     )
                     to_add = cell.imported_namespaces - prev_imports
-                    to_remove = prev_imports - cell.imported_namespaces
                     self._update_script_metadata(
-                        import_namespaces_to_add=list(to_add),
-                        import_namespaces_to_remove=list(to_remove),
+                        import_namespaces_to_add=list(to_add)
                     )
 
         LOGGER.debug(
@@ -849,9 +847,6 @@ class Kernel:
         if self._should_update_script_metadata():
             self._update_script_metadata(
                 import_namespaces_to_add=[],
-                import_namespaces_to_remove=[
-                    im.namespace for im in cell.imports
-                ],
             )
 
         return self._deactivate_cell(cell_id)
@@ -1723,7 +1718,7 @@ class Kernel:
         # If a package was not installed at cell registration time, it won't
         # yet be in the script metadata.
         if self._should_update_script_metadata():
-            self._update_script_metadata(installed_modules, [])
+            self._update_script_metadata(installed_modules)
 
         cells_to_run = set(
             cid
@@ -1741,9 +1736,7 @@ class Kernel:
         )
 
     def _update_script_metadata(
-        self,
-        import_namespaces_to_add: List[str],
-        import_namespaces_to_remove: List[str],
+        self, import_namespaces_to_add: List[str]
     ) -> None:
         filename = self.app_metadata.filename
 
@@ -1752,16 +1745,14 @@ class Kernel:
 
         try:
             LOGGER.debug(
-                "Updating script metadata: %s. Adding namespaces: %s."
-                " Removing namespaces: %s",
+                "Updating script metadata: %s. Adding namespaces: %s.",
                 filename,
                 import_namespaces_to_add,
-                import_namespaces_to_remove,
             )
             self.package_manager.update_notebook_script_metadata(
                 filepath=filename,
                 import_namespaces_to_add=import_namespaces_to_add,
-                import_namespaces_to_remove=import_namespaces_to_remove,
+                import_namespaces_to_remove=[],
             )
         except Exception as e:
             LOGGER.error("Failed to add script metadata to notebook: %s", e)
