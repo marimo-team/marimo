@@ -11,16 +11,17 @@ This folder contains example marimo notebooks, organized into folders.
 - ✨ `misc/`: miscellenous topical examples
 
 > [!NOTE]
-> Submit a [pull request](https://github.com/marimo-team/marimo/pulls) to add
-> an example to our repo. All contributions are welcome! 🙏
+> Want to add an example to our repo? Submit a
+> [pull request](https://github.com/marimo-team/marimo/pulls)! All
+> contributions are welcome! 🙏
 
 ## Running an example
 
 The requirements of each notebook are serialized in them as a top-level
 comment. Here are the steps to open an example notebook:
 
-1. [Install marimo](https://docs.marimo.io/getting_started/index.html#installation).
-2. [Install `uv`](https://github.com/astral-sh/uv/?tab=readme-ov-file#installation).
+1. [Install marimo](https://docs.marimo.io/getting_started/index.html#installation)
+2. [Install `uv`](https://github.com/astral-sh/uv/?tab=readme-ov-file#installation)
 3. Open an example with `marimo edit --sandbox <notebook.py>`.
 
 > [!TIP]
