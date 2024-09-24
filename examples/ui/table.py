@@ -7,11 +7,11 @@
 
 import marimo
 
-__generated_with = "0.8.5"
+__generated_with = "0.8.19"
 app = marimo.App()
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -24,7 +24,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("""_Create rich tables with selectable rows using_ `mo.ui.table`.""")
     return
@@ -43,7 +43,7 @@ def __(mo, office_characters):
         selection="single",
         pagination=True,
     )
-    return single_select_table,
+    return (single_select_table,)
 
 
 @app.cell
@@ -65,7 +65,7 @@ def __(mo, office_characters):
         selection="multi",
         pagination=True,
     )
-    return multi_select_table,
+    return (multi_select_table,)
 
 
 @app.cell
@@ -89,7 +89,7 @@ def __(mo, office_characters):
     )
 
     table
-    return table,
+    return (table,)
 
 
 @app.cell
@@ -216,13 +216,13 @@ def __(mo):
             "favorite place": mo.image(src="https://picsum.photos/100"),
         },
     ]
-    return office_characters,
+    return (office_characters,)
 
 
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 if __name__ == "__main__":

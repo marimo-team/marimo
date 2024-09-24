@@ -1,16 +1,29 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "marimo",
+#     "matplotlib==3.9.2",
+#     "numpy==1.26.4",
+#     "pandas==2.2.3",
+#     "plotly==5.24.1",
+#     "requests==2.32.3",
+#     "seaborn==0.13.2",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.1.21"
+__generated_with = "0.8.19"
 app = marimo.App(width="full")
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
-    mo.md("# Pokémon Statistics 📊🔬")
+    mo.md("""# Pokémon Statistics 📊🔬""")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(clear_selection, mo, pokemon_types):
     mo.md(
         f"""
@@ -34,14 +47,14 @@ def __(pokemon):
 @app.cell
 def __(mo):
     clear_selection = mo.ui.button(label="_Clear selection_")
-    return clear_selection,
+    return (clear_selection,)
 
 
 @app.cell
 def __(clear_selection, mo, types_name):
     clear_selection
     pokemon_types = mo.ui.multiselect(types_name)
-    return pokemon_types,
+    return (pokemon_types,)
 
 
 @app.cell
@@ -58,7 +71,7 @@ def __(mo):
             "Sp. Attack / Sp. Defense": "Sp. Atk / Sp. Def",
         }
     )
-    return attribute,
+    return (attribute,)
 
 
 @app.cell
@@ -182,7 +195,7 @@ def __(pokemon):
         ]
         ax.fill(angles, stats, alpha=0.2, label=name)
         return ax
-    return plot_single_pokemon,
+    return (plot_single_pokemon,)
 
 
 @app.cell
@@ -202,7 +215,7 @@ def __(np, plot_single_pokemon, plt):
         if names:
             plt.legend(loc="upper left")
         return ax
-    return plot_pokemon,
+    return (plot_pokemon,)
 
 
 @app.cell
@@ -246,13 +259,13 @@ def __():
         "Steel": "#B7B7CE",
         "Water": "#6390F0",
     }
-    return colors,
+    return (colors,)
 
 
 @app.cell
 def __():
     import plotly.express as px
-    return px,
+    return (px,)
 
 
 if __name__ == "__main__":

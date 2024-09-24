@@ -1,16 +1,34 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "marimo",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.1.8"
+__generated_with = "0.8.19"
 app = marimo.App()
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
-    mo.md("# Model Comparison")
+    mo.md("""# Model Comparison""")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        r"""
+        !!! tip "This notebook is best viewed as an app."
+            Hit `Cmd/Ctrl+.` or click the "app view" button in the bottom right.
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
 def __(NUMBER_OF_EXAMPLES, mo):
     get_index, set_index = mo.state(0)
 
@@ -36,7 +54,7 @@ def __(NUMBER_OF_EXAMPLES, mo):
     )
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(NUMBER_OF_EXAMPLES, get_index, mo, set_index):
     index = mo.ui.number(
         0,
@@ -47,16 +65,16 @@ def __(NUMBER_OF_EXAMPLES, get_index, mo, set_index):
         label="example number",
         on_change=set_index,
     )
-    return index,
+    return (index,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(f"_Models A and B both predict spans. Which do you prefer?_")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(NUMBER_OF_EXAMPLES, mo, num_a_preferred, num_b_preferred):
     mo.ui.table(
         [
@@ -74,16 +92,16 @@ def __(index, mo, next_button, previous_button):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(CHOICES_PATH, get_choices, index, mo, write_choices):
     preference = get_choices()[index.value]
     mo.stop(preference is None, mo.md("**Choose the better model**.").center())
     write_choices(get_choices(), CHOICES_PATH)
     mo.md(f"You prefer **model {preference}**.").center()
-    return preference,
+    return (preference,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(annotate, mo):
     mo.hstack(
         [
@@ -95,7 +113,7 @@ def __(annotate, mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(CHOICES_PATH, PARAGRAPHS, load_choices, mo):
     get_choices, set_choices = mo.state(
         load_choices(CHOICES_PATH, len(PARAGRAPHS))
@@ -103,7 +121,7 @@ def __(CHOICES_PATH, PARAGRAPHS, load_choices, mo):
     return get_choices, set_choices
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(index, mo, set_choices):
     model_A = mo.ui.button(
         label="Model A",
@@ -122,7 +140,7 @@ def __(index, mo, set_choices):
     return model_A, model_B
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(PARAGRAPHS, SPANS, annotate, index, mo):
     model_A_prediction = mo.md(
         annotate(
@@ -160,7 +178,7 @@ def __(get_choices):
 @app.cell
 def __():
     CHOICES_PATH = "choices.json"
-    return CHOICES_PATH,
+    return (CHOICES_PATH,)
 
 
 @app.cell
@@ -209,7 +227,7 @@ def __(HAMLET, textwrap):
         for block in HAMLET.split("\n\n")
         if block
     ]
-    return PARAGRAPHS,
+    return (PARAGRAPHS,)
 
 
 @app.cell
@@ -223,13 +241,13 @@ def __():
             + "</mark>"
             + text[span[1] :]
         )
-    return annotate,
+    return (annotate,)
 
 
 @app.cell
 def __(PARAGRAPHS):
     NUMBER_OF_EXAMPLES = len(PARAGRAPHS)
-    return NUMBER_OF_EXAMPLES,
+    return (NUMBER_OF_EXAMPLES,)
 
 
 @app.cell
@@ -244,7 +262,7 @@ def __(urllib):
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell

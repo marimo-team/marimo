@@ -1,18 +1,28 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "marimo",
+#     "matplotlib==3.9.2",
+#     "mortgage==1.0.5",
+#     "numpy==1.26.4",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.1.0"
+__generated_with = "0.8.19"
 app = marimo.App()
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
-    mo.md("# Mortgage Calculator")
+    mo.md("""# Mortgage Calculator""")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
-    mo.md("## Income")
+    mo.md("""## Income""")
     return
 
 
@@ -24,7 +34,7 @@ def __(mo):
     mo.md(
         f"""
         How much do you expect to make this year, **after taxes**?
-        
+
         {income.center()}
         """
     )
@@ -37,10 +47,10 @@ def __(mo):
         mo.md(
             """
             **Heads-up!**
-            
+
             This calculator does not take taxes into account. Please make sure
             that you provide **after-tax** income. Also exclude 401k contributions.
-            
+
             You can estimate your federal and state taxes using an online 
             calculator, such as the one
             [linked here](https://smartasset.com/taxes/income-taxes).
@@ -200,13 +210,13 @@ def __(
         f"""
         You're purchasing a home worth **\${home_price.value * 1000:,}**, with a 
         down payment of **\${down_payment*1000:,.02f}**.
-        
+
         At a rate of **{rate.value}**%,
         you will owe **\${annual_home_payment:,.02f}** per year on home expenses.
         That's **\${monthly_home_payment:,.02f}** per month, which is
         **{monthly_home_payment / (net_cash_per_month) * 100:,.02f}%** of
         your take-home pay.
-        
+
         You'll have **\${cash_less_housing/12:,.02f}** left over per 
         month for expenses and saving.
           """
@@ -224,7 +234,7 @@ def __(
 
 @app.cell
 def __(mo):
-    mo.md("## Monthly Expenses")
+    mo.md("""## Monthly Expenses""")
     return
 
 
@@ -333,7 +343,7 @@ def __(
 @app.cell
 def __(loan):
     schedule = loan.schedule()[1:]
-    return schedule,
+    return (schedule,)
 
 
 @app.cell
@@ -385,7 +395,7 @@ def __(interest_payments, mo, np, principal_payments, years):
         The plots below visualize your mortgage payments, over the duration of the
         entire mortgage. The left plot shows cumulative payments, and the right one
         shows monthly payments.
-        
+
         {mo.as_html(fig)}
         """
     )

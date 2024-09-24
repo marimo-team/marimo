@@ -1,12 +1,20 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "marimo",
+#     "openai==1.47.1",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.1.0"
+__generated_with = "0.8.19"
 app = marimo.App()
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
-    mo.md("## Build a Superhero with Generative AI")
+    mo.md("""## Build a Superhero with Generative AI""")
     return
 
 
@@ -14,6 +22,7 @@ def __(mo):
 def __(mo):
     openaikey = mo.ui.text(label="🤖 OpenAI Key", kind="password")
     config = mo.hstack([openaikey])
+
     mo.accordion({"⚙️ Enter your OpenAI key": config})
     return config, openaikey
 
@@ -22,7 +31,7 @@ def __(mo):
 def __(mo):
     item = mo.ui.text(label="Enter the name of an animal: ").form()
     item
-    return item,
+    return (item,)
 
 
 @app.cell
@@ -30,7 +39,7 @@ def __(item, mo):
     content = f"💬 Suggest three superhero names, given the following animal: {item.value}"
 
     mo.md(content) if item.value else None
-    return content,
+    return (content,)
 
 
 @app.cell
@@ -54,32 +63,10 @@ def __(content, item, mo, openai, openaikey):
 
     mo.md(
         f"""
-    🤖 Response:
-
-    {result}
-    """
-    ) if item.value else None
-    result = None
-    if item.value:
-        response = openai.ChatCompletion.create(
-            model="gpt-4-turbo",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a creative assistant. Your responses should use newlines.",
-                },
-                {"role": "user", "content": content},
-            ],
-        )
-
-        result = response.choices[0].message.content
-
-    mo.md(
-        f"""
-    🤖 Response:
-
-    {result}
-    """
+        🤖 Response:
+        
+        {result}
+        """
     ) if item.value else None
     return response, result
 
@@ -91,7 +78,7 @@ def __(mo, result):
 
     mo.md(
         f"""
-        Choose a super hero: {superhero}
+        Choose a superhero: {superhero}
         """
     ) if result else None
     return choices, superhero
@@ -131,7 +118,7 @@ def __(mo, openai, superhero):
 def __(catchphrase, mo):
     generate_image_button = mo.ui.button(label="📷 Generate Image")
     generate_image_button if catchphrase else None
-    return generate_image_button,
+    return (generate_image_button,)
 
 
 @app.cell

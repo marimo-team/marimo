@@ -4,16 +4,17 @@
 #     "marimo",
 # ]
 # ///
+
 import marimo
 
-__generated_with = "0.1.76"
+__generated_with = "0.8.19"
 app = marimo.App()
 
 
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
@@ -44,7 +45,7 @@ def __(mo):
         label="Mermaid editor",
     )
     graph
-    return graph,
+    return (graph,)
 
 
 @app.cell

@@ -1,7 +1,29 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "altair==5.4.1",
+#     "marimo",
+#     "pandas==2.2.3",
+#     "vega-datasets==0.9.0",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.1.33"
+__generated_with = "0.8.19"
 app = marimo.App(width="full")
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        r"""
+        !!! tip "This notebook is best viewed as an app."
+            If you're editing this notebook and see code cells, hit `Cmd/Ctrl+.` or
+            click the "app view" button in the bottom right.
+        """
+    )
+    return
 
 
 @app.cell
@@ -48,7 +70,6 @@ def __(mo, pd, set_end_date, set_start_date):
             label=f"{decade}s",
             on_click=handle_click,
         )
-
 
     button_80s = decade_button(1980)
     button_90s = decade_button(1990)
@@ -187,8 +208,12 @@ def __(
 def __(filtered_movies, mo):
     mo.ui.tabs(
         {
-            "📑 Data": mo.ui.table(filtered_movies, selection=None, page_size=5),
-            "📊 Summary": mo.ui.table(filtered_movies.describe(), selection=None),
+            "📑 Data": mo.ui.table(
+                filtered_movies, selection=None, page_size=5
+            ),
+            "📊 Summary": mo.ui.table(
+                filtered_movies.describe(), selection=None
+            ),
         }
     )
     return
@@ -215,7 +240,7 @@ def __(alt, filtered_movies, mo):
     )
     chart = mo.ui.altair_chart(_chart)
     chart
-    return chart,
+    return (chart,)
 
 
 @app.cell
@@ -259,7 +284,13 @@ def __(
     )
 
     mo.hstack(
-        [_total_movies, _gross_stat, _budget_stat, _runtime_stat, _average_rating],
+        [
+            _total_movies,
+            _gross_stat,
+            _budget_stat,
+            _runtime_stat,
+            _average_rating,
+        ],
         widths="equal",
         gap=1,
     )
@@ -282,7 +313,7 @@ def __(alt, filtered_movies, mo):
     )
     bar_chart = mo.ui.altair_chart(_bar_chart)
     bar_chart
-    return bar_chart,
+    return (bar_chart,)
 
 
 @app.cell
@@ -293,13 +324,11 @@ def __(datetime):
         rate = (current - previous) / previous
         return (current, previous, rate)
 
-
     def get_average_gross(df, previous):
         current = df["Worldwide_Gross"].mean()
         previous = previous["Worldwide_Gross"].mean()
         rate = (current - previous) / previous
         return (current, previous, rate)
-
 
     def get_average_runtime(df, previous):
         current = df["Running_Time_min"].mean()
@@ -307,13 +336,11 @@ def __(datetime):
         rate = (current - previous) / previous
         return (current, previous, rate)
 
-
     def get_average_rating(df, previous):
         current = df["IMDB_Rating"].mean()
         previous = previous["IMDB_Rating"].mean()
         rate = (current - previous) / previous
         return (current, previous, rate)
-
 
     def get_previous_date_range(start_date, end_date):
         delta = end_date - start_date
@@ -321,7 +348,6 @@ def __(datetime):
             (start_date - datetime.timedelta(days=delta.days)),
             (end_date - datetime.timedelta(days=delta.days)),
         )
-
 
     def format_date(date):
         return date.strftime("%Y-%m-%d")
@@ -352,7 +378,7 @@ def __(data, pd):
 
     # convert to date
     movies["Release_Date"] = pd.to_datetime(movies["Release_Date"])
-    return movies,
+    return (movies,)
 
 
 @app.cell

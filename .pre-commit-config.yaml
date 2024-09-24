@@ -10,7 +10,7 @@ repos:
     rev: v0.41.0
     hooks:
       - id: markdownlint-fix
-        args: [-c, configs/.markdownlint.yaml, --fix]
+        args: [-c, configs/.markdownlint.yaml, --fix, --disable, MD028]
         exclude: ^marimo/_tutorials/.*\.md
 
   - repo: https://github.com/crate-ci/typos

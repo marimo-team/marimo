@@ -158,7 +158,6 @@ jobs:
         run: |
           uv pip install pytest pytest-asyncio
           uv pip install ./marimo*whl
-          uv pip install -r examples/requirements.txt
 
       - name: Test examples
         shell: bash

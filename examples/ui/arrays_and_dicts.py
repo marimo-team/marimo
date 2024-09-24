@@ -1,16 +1,23 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "marimo",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.1.0"
+__generated_with = "0.8.19"
 app = marimo.App()
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
-    mo.md("# Arrays and Dictionaries")
+    mo.md("""# Arrays and Dictionaries""")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -28,7 +35,7 @@ def __(mo):
 @app.cell
 def __(mo):
     create = mo.ui.button(label="Create new collections")
-    return create,
+    return (create,)
 
 
 @app.cell
@@ -39,7 +46,7 @@ def __(create):
 
 @app.cell
 def __(mo):
-    mo.md("UI Elements ...")
+    mo.md("""UI Elements ...""")
     return
 
 
@@ -61,7 +68,7 @@ def __(create, mo, random):
 
 @app.cell
 def __(mo):
-    mo.md(" ... and their values")
+    mo.md("""... and their values""")
     return
 
 

@@ -1,10 +1,20 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "cvxpy==1.5.3",
+#     "marimo",
+#     "matplotlib==3.9.2",
+#     "numpy==1.26.4",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.1.0"
+__generated_with = "0.8.19"
 app = marimo.App()
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -23,15 +33,15 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     number_of_circles = mo.ui.slider(
         1, 15, value=3, label='Number of circles')
     number_of_circles
-    return number_of_circles,
+    return (number_of_circles,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo, number_of_circles):
     resample_button = mo.ui.button(label='Click this button')
     mo.md(
@@ -40,10 +50,10 @@ def __(mo, number_of_circles):
         {number_of_circles.value} circles.
         """
     )
-    return resample_button,
+    return (resample_button,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(np):
     def generate_circles(number_of_circles):
         circles = []
@@ -52,15 +62,15 @@ def __(np):
             r_i = np.abs(np.random.randn())
             circles.append((c_i, r_i))
         return circles
-    return generate_circles,
+    return (generate_circles,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(generate_circles, number_of_circles, resample_button):
     resample_button
 
     circles = generate_circles(number_of_circles.value)
-    return circles,
+    return (circles,)
 
 
 @app.cell
@@ -88,12 +98,12 @@ def __(plt):
         ax = plt.gca() if ax is None else ax
         ax.add_patch(plt.Circle(center, radius, fill=False, **kwargs))
         return ax
-    return plot_circle,
+    return (plot_circle,)
 
 
 @app.cell
 def __(mo):
-    mo.md("## The solution method")
+    mo.md("""## The solution method""")
     return
 
 
@@ -153,7 +163,7 @@ def __(cp):
         objective = cp.Minimize(radius)
         cp.Problem(objective, constraints).solve()
         return (center.value, radius.value)
-    return smallest_enclosing_circle,
+    return (smallest_enclosing_circle,)
 
 
 @app.cell
@@ -167,7 +177,7 @@ def __():
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 if __name__ == "__main__":
