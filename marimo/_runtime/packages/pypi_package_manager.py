@@ -42,7 +42,7 @@ class PipPackageManager(PypiPackageManager):
         return self.run(["pip", "install", package])
 
     async def uninstall(self, package: str) -> bool:
-        return self.run(["pip", "uninstall", package])
+        return self.run(["pip", "uninstall", "-y", package])
 
     def list_packages(self) -> List[PackageDescription]:
         cmd = ["pip", "list", "--format=json"]
@@ -179,10 +179,10 @@ class PoetryPackageManager(PypiPackageManager):
     name = "poetry"
 
     async def _install(self, package: str) -> bool:
-        return self.run(["poetry", "add", package])
+        return self.run(["poetry", "add", "--no-interaction", package])
 
     async def uninstall(self, package: str) -> bool:
-        return self.run(["poetry", "remove", package])
+        return self.run(["poetry", "remove", "--no-interaction", package])
 
     def list_packages(self) -> List[PackageDescription]:
         cmd = ["poetry", "show", "--no-dev", "--format=json"]
