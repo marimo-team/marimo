@@ -68,5 +68,8 @@ export function createStaticRequests(): EditRequests & RunRequests {
     exportAsMarkdown: throwNotInEditMode,
     autoExportAsHTML: throwNotInEditMode,
     autoExportAsMarkdown: throwNotInEditMode,
+    addPackage: throwNotInEditMode,
+    removePackage: throwNotInEditMode,
+    getPackageList: throwNotInEditMode,
   };
 }

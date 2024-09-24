@@ -4,9 +4,16 @@ from __future__ import annotations
 import abc
 import shutil
 import subprocess
+from dataclasses import dataclass
 from typing import List, Optional
 
 from marimo._runtime.packages.utils import append_version
+
+
+@dataclass
+class PackageDescription:
+    name: str
+    version: str
 
 
 class PackageManager(abc.ABC):
@@ -44,6 +51,14 @@ class PackageManager(abc.ABC):
         self._attempted_packages.add(package)
         return await self._install(append_version(package, version))
 
+    @abc.abstractmethod
+    async def uninstall(self, package: str) -> bool:
+        """Attempt to uninstall a package
+
+        Returns True if the package was uninstalled, else False.
+        """
+        ...
+
     def attempted_to_install(self, package: str) -> bool:
         """True iff package installation was previously attempted."""
         return package in self._attempted_packages
@@ -70,6 +85,11 @@ class PackageManager(abc.ABC):
         This follows PEP 723 https://peps.python.org/pep-0723/
         """
         return
+
+    @abc.abstractmethod
+    def list_packages(self) -> List[PackageDescription]:
+        """List installed packages."""
+        ...
 
 
 class CanonicalizingPackageManager(PackageManager):
