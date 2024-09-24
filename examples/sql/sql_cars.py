@@ -1,3 +1,13 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "altair==5.4.1",
+#     "duckdb==1.1.1",
+#     "marimo",
+#     "pandas==2.2.3",
+#     "vega-datasets==0.9.0",
+# ]
+# ///
 import marimo
 
 __generated_with = "0.7.14"

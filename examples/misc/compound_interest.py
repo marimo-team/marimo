@@ -1,16 +1,24 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "marimo",
+#     "matplotlib==3.9.2",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.1.0"
+__generated_with = "0.8.19"
 app = marimo.App()
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
-    mo.md("# Compound Interest")
+    mo.md("""# Compound Interest""")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -21,7 +29,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     initial_investment = mo.ui.slider(0, 1000000, step=1e4, value=10000)
     monthly_investment = mo.ui.slider(0, 50000, value=1000, step=1e3)
@@ -57,7 +65,7 @@ def __(mo):
 
     mo.md(
         f"""## Investment Parameters
-        
+
         {table}
         """)
     return (
@@ -70,7 +78,7 @@ def __(mo):
     )
 
 
-@app.cell
+@app.cell(hide_code=True)
 def simulate(
     annual_return,
     capital_gains_tax_rate,

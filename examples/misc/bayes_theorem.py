@@ -1,10 +1,17 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "marimo",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.2.5"
-app = marimo.App(width="full")
+__generated_with = "0.8.19"
+app = marimo.App(width="medium")
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         r"""
@@ -22,21 +29,21 @@ def __(mo):
 
         **The numerator.** The numerator is the probability of events $E$ and $H$ happening
         together; that is,
-        
+
         \[
            P(H) P(E \mid H) = P(E \cap H).
         \]
-        
+
         **The denominator.**
         In most calculations, it is helpful to rewrite the denominator $P(E)$ as 
-        
+
         \[
         P(E) = P(H)P(E \mid H) + P(\neg H) P (E \mid \neg H),
         \]
-        
+
         which in turn can also be written as
 
-        
+
         \[
         P(E) = P(E \cap H) + P(E \cap \neg H).
         \]
@@ -45,24 +52,7 @@ def __(mo):
     return
 
 
-@app.cell
-def __(mo):
-    p_h = mo.ui.slider(0.0, 1, label="$P(H)$", value=0.1, step=0.1)
-    p_e_given_h = mo.ui.slider(0.0, 1, label="$P(E \mid H)$", value=0.3, step=0.1)
-    p_e_given_not_h = mo.ui.slider(
-        0.0, 1, label=r"$P(E \mid \neg H)$", value=0.3, step=0.1
-    )
-    return p_e_given_h, p_e_given_not_h, p_h
-
-
-@app.cell
-def __(p_e_given_h, p_e_given_not_h, p_h):
-    p_e = p_h.value*p_e_given_h.value + (1 - p_h.value)*p_e_given_not_h.value
-    bayes_result = p_h.value * p_e_given_h.value / p_e
-    return bayes_result, p_e
-
-
-@app.cell
+@app.cell(hide_code=True)
 def __(
     bayes_result,
     construct_probability_plot,
@@ -83,7 +73,7 @@ def __(
                 {mo.as_html([p_h, p_e_given_h, p_e_given_not_h])}
 
                 The plot on the right visualizes the probabilities of these events. 
-                
+
                 1. The yellow rectangle represents the event $H$, and its area is $P(H) = {p_h.value:0.2f}$.
                 2. The teal rectangle overlapping with the yellow one represents the event $E \cap H$, and
                    its area is $P(H) \cdot P(E \mid H) = {p_h.value * p_e_given_h.value:0.2f}$.
@@ -91,12 +81,12 @@ def __(
                    its area is $P(\neg H) \cdot P(E \mid \neg H) = {(1 - p_h.value) * p_e_given_not_h.value:0.2f}$.
 
                 Notice that the sum of the areas in $2$ and $3$ is the probability $P(E) = {p_e:0.2f}$. 
-                
+
                 One way to think about Bayes' Theorem is the following: the probability $P(H \mid E)$ is the probability
                 of $E$ and $H$ happening together (the area of the rectangle $2$), divided by the probability of $E$ happening
                 at all (the sum of the areas of $2$ and $3$).
                 In this case, Bayes' Theorem says
-                
+
                 \[
                 P(H \mid E) = \frac{{P(H) P(E \mid H)}}{{P(E)}} = \frac{{{p_h.value} \cdot {p_e_given_h.value}}}{{{p_e:0.2f}}} = {bayes_result:0.2f}
                 \]
@@ -110,6 +100,23 @@ def __(
         widths=[0.33, 0.5],
     )
     return
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    p_h = mo.ui.slider(0.0, 1, label="$P(H)$", value=0.1, step=0.1)
+    p_e_given_h = mo.ui.slider(0.0, 1, label="$P(E \mid H)$", value=0.3, step=0.1)
+    p_e_given_not_h = mo.ui.slider(
+        0.0, 1, label=r"$P(E \mid \neg H)$", value=0.3, step=0.1
+    )
+    return p_e_given_h, p_e_given_not_h, p_h
+
+
+@app.cell(hide_code=True)
+def __(p_e_given_h, p_e_given_not_h, p_h):
+    p_e = p_h.value*p_e_given_h.value + (1 - p_h.value)*p_e_given_not_h.value
+    bayes_result = p_h.value * p_e_given_h.value / p_e
+    return bayes_result, p_e
 
 
 @app.cell
@@ -141,13 +148,13 @@ def __(p_e_given_h, p_e_given_not_h, p_h):
         plt.gca().add_patch(e_given_h)
         plt.legend()
         return plt.gca()
-    return construct_probability_plot,
+    return (construct_probability_plot,)
 
 
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,16 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "altair==5.4.1",
+#     "duckdb==1.1.0",
+#     "marimo",
+#     "pandas==2.2.3",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.7.20"
+__generated_with = "0.8.19"
 app = marimo.App(width="medium")
 
 
@@ -10,7 +20,7 @@ def __(mo):
         r"""
         # MotherDuck 🧡 marimo
 
-        Throughout this notebook, we will explore using MotherDuck inside marimo. If you’re new to marimo, check out our [GitHub](https://github.com/marimo-team/marimo) repo: marimo is free and open source.
+        Throughout this notebook, we will explore using [MotherDuck](https://motherduck.com) inside marimo. If you’re new to marimo, check out our [GitHub](https://github.com/marimo-team/marimo) repo: marimo is free and open source.
 
         _You can expand the code of any cells to see how the output are being created._
         """
@@ -33,7 +43,7 @@ def __(__file__, md_token, mo):
         mo.output.replace(
             mo.accordion({"Tired of logging in to MotherDuck?": callout})
         )
-    return callout,
+    return (callout,)
 
 
 @app.cell(hide_code=True)
@@ -101,11 +111,11 @@ def __(mo):
         -- We've named the result of this dataframe to be `most_shared_websites`. Now we can use this in any downstream Python or SQL code.
         """
     )
-    return most_shared_websites,
+    return (most_shared_websites,)
 
 
 @app.cell
-def __(hacker_news, mo):
+def __(hacker_news, mo, ranked_stories, sample_data):
     most_commented_stories_each_month = mo.sql(
         f"""
         -- Most Commented Stories Each Month
@@ -141,7 +151,7 @@ def __(hacker_news, mo):
         -- Which can be used in Python to create charts
         """
     )
-    return most_commented_stories_each_month,
+    return (most_commented_stories_each_month,)
 
 
 @app.cell(hide_code=True)
@@ -220,11 +230,18 @@ def __(hn_type_select, mo, month_select):
             hn_type_select,
         ],
     ).left()
-    return month_list,
+    return (month_list,)
 
 
 @app.cell(hide_code=True)
-def __(hacker_news, hn_type_select, mo, month_list):
+def __(
+    hacker_news,
+    hn_type_select,
+    mo,
+    month_list,
+    ranked_stories,
+    sample_data,
+):
     most_monthly_voted = mo.sql(
         f"""
         -- Most monthly voted
@@ -265,7 +282,7 @@ def __(hacker_news, hn_type_select, mo, month_list):
         ORDER BY year, month;
         """
     )
-    return most_monthly_voted,
+    return (most_monthly_voted,)
 
 
 @app.cell(hide_code=True)
@@ -304,7 +321,7 @@ def __(mo):
 def __(mo):
     search_input = mo.ui.text(label="Search for keywords", value="duckdb")
     search_input
-    return search_input,
+    return (search_input,)
 
 
 @app.cell
@@ -322,13 +339,13 @@ def __(mo, search_value):
         ORDER BY year ASC, month ASC;
         """
     )
-    return keyword_results,
+    return (keyword_results,)
 
 
 @app.cell(hide_code=True)
 def __(search_input):
     search_value = search_input.value
-    return search_value,
+    return (search_value,)
 
 
 @app.cell(hide_code=True)
@@ -383,7 +400,7 @@ def __():
         "November": 11,
         "December": 12,
     }
-    return MONTHS,
+    return (MONTHS,)
 
 
 if __name__ == "__main__":

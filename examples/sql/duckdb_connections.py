@@ -1,6 +1,14 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "duckdb==1.1.1",
+#     "marimo",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.7.18"
+__generated_with = "0.8.19"
 app = marimo.App(width="full")
 
 
@@ -11,7 +19,7 @@ def __():
     return mo, os
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(r"""## Create a connection""")
     return
@@ -25,10 +33,10 @@ def __(mo, os):
         value=os.environ.get("DATABASE_URL", ""),
     )
     database_url
-    return database_url,
+    return (database_url,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(database_url):
     import duckdb
 
@@ -42,7 +50,7 @@ def __(database_url):
                 ATTACH DATABASE '{database_url.value}' AS my_db  (TYPE postgres, READ_ONLY);
             """
         )
-    return duckdb,
+    return (duckdb,)
 
 
 @app.cell
@@ -105,7 +113,7 @@ def __():
         "duckdb_views()",  # views
         "duckdb_temporary_files()",  # the temporary files DuckDB has written to disk, to offload data from memory
     ]
-    return FUNCTIONS,
+    return (FUNCTIONS,)
 
 
 @app.cell
@@ -116,7 +124,7 @@ def __(FUNCTIONS, mo):
         value=FUNCTIONS[0],
     )
     function
-    return function,
+    return (function,)
 
 
 @app.cell
@@ -170,7 +178,7 @@ def __(mo, table_names):
 def __(mo, table_select):
     mo.stop(not table_select.value)
     table_select_value = table_select.value
-    return table_select_value,
+    return (table_select_value,)
 
 
 @app.cell
@@ -180,7 +188,7 @@ def __(limit, mo, table_select_value):
         select * from my_db.{table_select_value} LIMIT {limit.value};
         """
     )
-    return selected_table,
+    return (selected_table,)
 
 
 @app.cell
