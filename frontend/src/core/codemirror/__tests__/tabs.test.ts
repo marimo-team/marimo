@@ -49,6 +49,7 @@ describe("insertTab", () => {
 describe("startCompletionIfAtEndOfLine", () => {
   beforeAll(() => {
     // Mock getBoundingClientRect
+    // @ts-expect-error - JSDOM doesn't have createRange
     document.createRange = vi.fn(() => ({
       getBoundingClientRect: vi.fn(() => ({ width: 0 })),
       setStart: vi.fn(),
