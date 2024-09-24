@@ -23,7 +23,10 @@ import { getPyodideVersion, importPyodide } from "./getPyodideVersion";
 import { t } from "./tracer";
 import { once } from "@/utils/once";
 import { getController } from "./getController";
-import type { ListPackagesResponse } from "@/core/network/types";
+import type {
+  ListPackagesResponse,
+  PackageOperationResponse,
+} from "@/core/network/types";
 
 /**
  * Web worker responsible for running the notebook.
@@ -166,7 +169,9 @@ const requestHandler = createRPCRequestHandler({
     self.pyodide.setInterruptBuffer(payload);
   },
 
-  addPackage: async (opts: { package: string }) => {
+  addPackage: async (opts: {
+    package: string;
+  }): Promise<PackageOperationResponse> => {
     await pyodideReadyPromise; // Make sure loading is done
 
     const { package: packageName } = opts;
@@ -181,10 +186,12 @@ const requestHandler = createRPCRequestHandler({
         response = {"success": False, "error": str(e)}
       json.dumps(response)
     `);
-    return JSON.parse(response);
+    return JSON.parse(response) as PackageOperationResponse;
   },
 
-  removePackage: async (opts: { package: string }) => {
+  removePackage: async (opts: {
+    package: string;
+  }): Promise<PackageOperationResponse> => {
     await pyodideReadyPromise; // Make sure loading is done
 
     const { package: packageName } = opts;
@@ -199,7 +206,7 @@ const requestHandler = createRPCRequestHandler({
           response = {"success": False, "error": str(e)}
         json.dumps(response)
       `);
-    return JSON.parse(response);
+    return JSON.parse(response) as PackageOperationResponse;
   },
 
   listPackages: async (): Promise<ListPackagesResponse> => {
