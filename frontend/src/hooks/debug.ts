@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable react-hooks/rules-of-hooks */
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useMemo } from "react";
 import { dequal } from "dequal";
 import { Logger } from "@/utils/Logger";
 
@@ -65,4 +65,50 @@ export function usePropsDidChange(
 
     prevProps.current = props;
   });
+}
+
+/**
+ * Like useMemo, but logs when the value changes.
+ */
+export function useMemoDebugChanges<T>(
+  name: string,
+  fn: () => T,
+  deps: unknown[],
+) {
+  if (process.env.NODE_ENV !== "development") {
+    return fn();
+  }
+
+  const previousDeps = useRef<unknown[]>([]);
+
+  return useMemo(() => {
+    if (previousDeps.current.length === 0) {
+      previousDeps.current = deps;
+      return fn();
+    }
+
+    const changedIndices: number[] = [];
+    const changedDeps = deps.filter((dep, idx) => {
+      if (!dequal(dep, previousDeps.current[idx])) {
+        changedIndices.push(idx);
+        return true;
+      }
+      return false;
+    });
+
+    if (changedDeps.length > 0) {
+      Logger.debug(
+        `[${name}] Memo deps changed at indices: ${changedIndices}`,
+        {
+          previous: previousDeps.current,
+          current: deps,
+        },
+      );
+    }
+
+    previousDeps.current = deps;
+
+    return fn();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
 }
