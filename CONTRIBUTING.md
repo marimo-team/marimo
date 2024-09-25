@@ -43,6 +43,14 @@ when making a commit:
 pre-commit install
 ```
 
+> [!NOTE]
+>
+> As an alternative to building from source, you can try developing
+> [in Gitpod](https://gitpod.io/#https://github.com/marimo-team/marimo).
+> Note that developing in Gitpod is not officially supported by the marimo
+> team.
+
+
 ## Building from source
 
 Be sure to install the dependencies above before building from source.
