@@ -13,14 +13,9 @@ HAS_MPL = DependencyManager.matplotlib.has()
 async def test_matplotlib_rc_light(
     executing_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    # import matplotlib so that it's in sys.modules() and register_formatters
-    # picks it up
-    import matplotlib
-
     from marimo._output.formatters.formatters import register_formatters
 
     register_formatters(theme="light")
-    del matplotlib
 
     await executing_kernel.run(
         [
@@ -28,6 +23,7 @@ async def test_matplotlib_rc_light(
                 """
                 import matplotlib.pyplot as plt
 
+                plt.rcParams["font.family"] = ["monospace"]
                 rcParams = plt.rcParams
                 """
             )
@@ -43,14 +39,9 @@ async def test_matplotlib_rc_light(
 async def test_matplotlib_rc_dark(
     executing_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    # import matplotlib so that it's in sys.modules() and register_formatters
-    # picks it up
-    import matplotlib
-
     from marimo._output.formatters.formatters import register_formatters
 
     register_formatters(theme="dark")
-    del matplotlib
 
     await executing_kernel.run(
         [
@@ -58,6 +49,7 @@ async def test_matplotlib_rc_dark(
                 """
                 import matplotlib.pyplot as plt
 
+                plt.rcParams["font.family"] = ["monospace"]
                 rcParams = plt.rcParams
                 """
             )
