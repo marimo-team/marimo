@@ -15,6 +15,10 @@ async def test_matplotlib_rc_light(
 ) -> None:
     from marimo._output.formatters.formatters import register_formatters
 
+    import matplotlib.pyplot as plt  # type: ignore
+
+    plt.rcParams["font.family"] = ["monospace"]
+
     register_formatters(theme="light")
 
     await executing_kernel.run(
@@ -23,7 +27,6 @@ async def test_matplotlib_rc_light(
                 """
                 import matplotlib.pyplot as plt
 
-                plt.rcParams["font.family"] = ["monospace"]
                 rcParams = plt.rcParams
                 """
             )
@@ -41,6 +44,10 @@ async def test_matplotlib_rc_dark(
 ) -> None:
     from marimo._output.formatters.formatters import register_formatters
 
+    import matplotlib.pyplot as plt  # type: ignore
+
+    plt.rcParams["font.family"] = ["monospace"]
+
     register_formatters(theme="dark")
 
     await executing_kernel.run(
@@ -49,7 +56,6 @@ async def test_matplotlib_rc_dark(
                 """
                 import matplotlib.pyplot as plt
 
-                plt.rcParams["font.family"] = ["monospace"]
                 rcParams = plt.rcParams
                 """
             )
