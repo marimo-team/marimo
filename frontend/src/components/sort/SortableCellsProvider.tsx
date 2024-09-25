@@ -41,7 +41,7 @@ const SortableCellsProviderInternal = ({
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   const ids = notebook.cellIds.topLevelIds.flat();

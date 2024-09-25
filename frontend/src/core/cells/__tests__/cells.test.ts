@@ -113,7 +113,7 @@ describe("cell reducer", () => {
 
     state = initialNotebookState();
     actions.createNewCell({ cellId: undefined!, before: false });
-    firstCellId = state.cellIds.atOrThrow(0);
+    firstCellId = state.cellIds.columns[0].atOrThrow(0);
   });
 
   afterAll(() => {
@@ -1202,7 +1202,7 @@ describe("cell reducer", () => {
       code: "## Subheader",
     });
 
-    const id = state.cellIds.atOrThrow(1);
+    const id = state.cellIds.columns[0].atOrThrow(1);
     state.cellRuntime[id] = {
       ...state.cellRuntime[id],
       outline: {
@@ -1210,10 +1210,10 @@ describe("cell reducer", () => {
       },
     };
     actions.collapseCell({ cellId: id });
-    expect(state.cellIds.isCollapsed(id)).toBe(true);
+    expect(state.cellIds.columns[0].isCollapsed(id)).toBe(true);
 
     actions.expandCell({ cellId: id });
-    expect(state.cellIds.isCollapsed(id)).toBe(false);
+    expect(state.cellIds.columns[0].isCollapsed(id)).toBe(false);
   });
 
   it("can show hidden cells", () => {
@@ -1222,7 +1222,7 @@ describe("cell reducer", () => {
     actions.collapseCell({ cellId: firstCellId });
 
     actions.showCellIfHidden({ cellId: "1" as CellId });
-    expect(state.cellIds.isCollapsed(firstCellId)).toBe(false);
+    expect(state.cellIds.columns[0].isCollapsed(firstCellId)).toBe(false);
   });
 
   it("can split and undo split cells", () => {
@@ -1231,9 +1231,9 @@ describe("cell reducer", () => {
       before: false,
       code: "line1\nline2",
     });
-    const nextCellId = state.cellIds.atOrThrow(1);
+    const nextCellId = state.cellIds.columns[0].atOrThrow(1);
 
-    const originalCellCount = state.cellIds.length;
+    const originalCellCount = state.cellIds.columns[0].length;
     // Move cursor to the second line
     const editor = state.cellHandles[nextCellId].current?.editorView;
     if (!editor) {
@@ -1241,12 +1241,14 @@ describe("cell reducer", () => {
     }
     editor.dispatch({ selection: { anchor: 5, head: 5 } });
     actions.splitCell({ cellId: nextCellId });
-    expect(state.cellIds.length).toBe(originalCellCount + 1);
+    expect(state.cellIds.columns[0].length).toBe(originalCellCount + 1);
     expect(state.cellData[nextCellId].code).toBe("line1");
-    expect(state.cellData[state.cellIds.atOrThrow(2)].code).toBe("line2");
+    expect(state.cellData[state.cellIds.columns[0].atOrThrow(2)].code).toBe(
+      "line2",
+    );
 
     actions.undoSplitCell({ cellId: nextCellId, snapshot: "line1\nline2" });
-    expect(state.cellIds.length).toBe(originalCellCount);
+    expect(state.cellIds.columns[0].length).toBe(originalCellCount);
     expect(state.cellData[nextCellId].code).toBe("line1\nline2");
   });
 

@@ -12,7 +12,7 @@ export class TreeNode<T> {
   constructor(
     public value: T,
     public isCollapsed: boolean,
-    public children: Array<TreeNode<T>>
+    public children: Array<TreeNode<T>>,
   ) {}
 
   /**
@@ -21,7 +21,7 @@ export class TreeNode<T> {
   geDescendantCount(): number {
     return this.children.reduce(
       (acc, child) => acc + 1 + child.geDescendantCount(),
-      0
+      0,
     );
   }
 
@@ -74,7 +74,7 @@ export class CollapsibleTree<T> {
     const node = this.nodes.find((n) => n.value === id);
     if (!node) {
       Logger.warn(
-        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`
+        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`,
       );
       return [];
     }
@@ -90,7 +90,7 @@ export class CollapsibleTree<T> {
     const node = this.nodes.find((n) => n.value === id);
     if (!node) {
       Logger.warn(
-        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`
+        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`,
       );
       return false;
     }
@@ -104,7 +104,7 @@ export class CollapsibleTree<T> {
     const index = this.nodes.findIndex((n) => n.value === id);
     if (index === -1) {
       throw new Error(
-        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`
+        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`,
       );
     }
     return index;
@@ -124,7 +124,7 @@ export class CollapsibleTree<T> {
   moveToBack(id: T): CollapsibleTree<T> {
     const index = this.indexOfOrThrow(id);
     return new CollapsibleTree(
-      arrayMove(this.nodes, index, this.nodes.length - 1)
+      arrayMove(this.nodes, index, this.nodes.length - 1),
     );
   }
 
@@ -136,7 +136,7 @@ export class CollapsibleTree<T> {
     const nodeIndex = this.nodes.findIndex((n) => n.value === id);
     if (nodeIndex === -1) {
       throw new Error(
-        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`
+        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`,
       );
     }
 
@@ -172,7 +172,7 @@ export class CollapsibleTree<T> {
     const nodeIndex = this.nodes.findIndex((n) => n.value === id);
     if (nodeIndex === -1) {
       throw new Error(
-        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`
+        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`,
       );
     }
 
@@ -371,7 +371,7 @@ export class MultiColumn<T> {
   moveWithinColumn(
     col: number,
     fromIdx: number,
-    toIdx: number
+    toIdx: number,
   ): MultiColumn<T> {
     const columns = [...this.columns];
     const id = columns[col].atOrThrow(fromIdx);
@@ -383,7 +383,7 @@ export class MultiColumn<T> {
     fromCol: number,
     fromIdx: number,
     toCol: number,
-    toIdx: number
+    toIdx: number,
   ): MultiColumn<T> {
     const columns = [...this.columns];
     const id = columns[fromCol].atOrThrow(fromIdx);
@@ -408,25 +408,24 @@ export class MultiColumn<T> {
     if (!column) {
       throw new Error(
         `Column with id ${id} not found in tree. 
-        Valid ids: ${this.topLevelIds}`
+        Valid ids: ${this.topLevelIds}`,
       );
     }
     return [column, index];
   }
 
-  insertId(col: number, id: T, index: number): MultiColumn<T> {
+  insertId(id: T, col: number, index: number): MultiColumn<T> {
     const column = this.columns[col];
     const columns = [...this.columns];
     columns[col] = column.insert(id, index);
     return new MultiColumn([...columns]);
   }
 
-  deleteId(id: T): MultiColumn<T> {
-    const [column, columnIndex] = this.getColumnWithId(id);
-    const cellIndex = column.indexOfOrThrow(id);
-    const newColumn = column.delete(cellIndex);
+  deleteId(col: number, index: number): MultiColumn<T> {
     const columns = [...this.columns];
-    columns[columnIndex] = newColumn;
+    const column = columns[col];
+    const newColumn = column.delete(index);
+    columns[col] = newColumn;
     return new MultiColumn(columns);
   }
 }

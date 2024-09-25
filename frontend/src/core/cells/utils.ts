@@ -86,7 +86,8 @@ export function canUndoDeletes(state: NotebookState) {
  * Get the status of the descendants of the given cell.
  */
 export function getDescendantsStatus(state: NotebookState, cellId: CellId) {
-  const descendants = state.cellIds.getDescendants(cellId);
+  const [column, _] = state.cellIds.getColumnWithId(cellId);
+  const descendants = column.getDescendants(cellId);
   const stale = descendants.some(
     (id) => state.cellRuntime[id]?.staleInputs || state.cellData[id]?.edited,
   );

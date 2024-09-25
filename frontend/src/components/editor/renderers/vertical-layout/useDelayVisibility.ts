@@ -30,7 +30,7 @@ export function useDelayVisibility(numCells: number, mode: AppMode) {
 function focusFirstEditor() {
   const { cellIds, cellData, cellHandles } = getNotebook();
   // Focus on the first cell if it's been mounted and is not hidden
-  for (const cellId of cellIds.topLevelIds) {
+  for (const cellId of cellIds.columns[0].topLevelIds) {
     const handle = cellHandles[cellId];
     const hidden = cellData[cellId].config.hide_code;
     if (!hidden && handle?.current?.editorView) {

@@ -40,7 +40,8 @@ export class MarimoIslandElement extends HTMLElement {
     invariant(this.dataset.cellIdx, "Missing data-cell-idx attribute");
     const { cellIds } = store.get(notebookAtom);
     const idx = Number.parseInt(this.dataset.cellIdx, 10);
-    return cellIds.atOrThrow(idx);
+    // TODO(wasim): Fix after column serialization implemented
+    return cellIds.columns[0].atOrThrow(idx);
   }
 
   get code(): string {
