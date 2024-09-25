@@ -15,3 +15,12 @@ export interface SendMessageRequest {
     presence_penalty?: number;
   };
 }
+
+export interface ChatConfig {
+  maxTokens: number;
+  temperature: number;
+  topP: number;
+  topK: number;
+  frequencyPenalty: number;
+  presencePenalty: number;
+}

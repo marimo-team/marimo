@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import List, Optional, cast
+from typing import Callable, List, Optional, cast
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.chat.convert import convert_to_openai_messages
@@ -10,6 +10,18 @@ from marimo._plugins.ui._impl.chat.types import (
     ChatModel,
     ChatModelConfig,
 )
+
+
+def model_from_callable(
+    model: Callable[[List[ChatClientMessage], ChatModelConfig], str],
+) -> ChatModel:
+    class Model(ChatModel):
+        def generate_text(
+            self, message: List[ChatClientMessage], config: ChatModelConfig
+        ) -> object:
+            return model(message, config)
+
+    return Model()
 
 
 class openai(ChatModel):
@@ -26,11 +38,25 @@ class openai(ChatModel):
 
     @property
     def require_api_key(self) -> str:
+        # If the api key is provided, use it
         if self.api_key is not None:
             return self.api_key
+
+        # Then check the environment variable
         env_key = os.environ.get("OPENAI_API_KEY")
         if env_key is not None:
             return env_key
+
+        # Then check the user's config
+        try:
+            from marimo._runtime.context.types import get_context
+
+            api_key = get_context().user_config["ai"]["open_ai"]["api_key"]
+            if api_key:
+                return api_key
+        except Exception:
+            pass
+
         raise ValueError(
             "openai api key not provided. Pass it as an argument or "
             "set OPENAI_API_KEY as an environment variable"
@@ -38,7 +64,7 @@ class openai(ChatModel):
 
     def generate_text(
         self, message: List[ChatClientMessage], config: ChatModelConfig
-    ) -> str:
+    ) -> object:
         DependencyManager.openai.require(
             "chat model requires openai. `pip install openai`"
         )

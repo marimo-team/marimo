@@ -5,29 +5,27 @@ import { rpc } from "@/plugins/core/rpc";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Chatbot } from "./chat-ui";
 import type { ChatClientMessage, SendMessageRequest } from "./types";
+import { Arrays } from "@/utils/arrays";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type PluginFunctions = {
   get_chat_history: () => Promise<{ messages: ChatClientMessage[] }>;
-  send_prompt: (
-    req: SendMessageRequest,
-    // ) => Promise<{ messages: ChatClientMessage[] }>;
-  ) => Promise<string>;
+  send_prompt: (req: SendMessageRequest) => Promise<string>;
 };
 
-// Update the plugin definition
 export const ChatPlugin = createPlugin<ChatClientMessage[]>("marimo-chatbot")
   .withData(
     z.object({
-      systemMessage: z
-        .string()
-        .default("You are a helpful assistant specializing in data science."),
-      maxTokens: z.number().optional(),
-      temperature: z.number().optional(),
-      top_p: z.number().optional(),
-      top_k: z.number().optional(),
-      frequency_penalty: z.number().optional(),
-      presence_penalty: z.number().optional(),
+      systemMessage: z.string(),
+      prompts: z.array(z.string()).default(Arrays.EMPTY),
+      showConfigurationControls: z.boolean(),
+      // Config
+      maxTokens: z.number(),
+      temperature: z.number(),
+      topP: z.number(),
+      topK: z.number(),
+      frequencyPenalty: z.number(),
+      presencePenalty: z.number(),
     }),
   )
   .withFunctions<PluginFunctions>({
@@ -51,12 +49,12 @@ export const ChatPlugin = createPlugin<ChatClientMessage[]>("marimo-chatbot")
             }),
           ),
           config: z.object({
-            max_tokens: z.number().optional(),
-            temperature: z.number().optional(),
-            top_p: z.number().optional(),
-            top_k: z.number().optional(),
-            frequency_penalty: z.number().optional(),
-            presence_penalty: z.number().optional(),
+            max_tokens: z.number(),
+            temperature: z.number(),
+            top_p: z.number(),
+            top_k: z.number(),
+            frequency_penalty: z.number(),
+            presence_penalty: z.number(),
           }),
         }),
       )
@@ -75,13 +73,18 @@ export const ChatPlugin = createPlugin<ChatClientMessage[]>("marimo-chatbot")
   .renderer((props) => (
     <TooltipProvider>
       <Chatbot
-        systemMessage={props.data.systemMessage}
+        prompts={props.data.prompts}
+        showConfigurationControls={props.data.showConfigurationControls}
         maxTokens={props.data.maxTokens}
         temperature={props.data.temperature}
-        getChatHistory={props.functions.get_chat_history}
+        topP={props.data.topP}
+        topK={props.data.topK}
+        frequencyPenalty={props.data.frequencyPenalty}
+        presencePenalty={props.data.presencePenalty}
+        // getChatHistory={props.functions.get_chat_history}
         sendPrompt={props.functions.send_prompt}
-        value={props.value}
-        setValue={props.setValue}
+        // value={props.value}
+        // setValue={props.setValue}
       />
     </TooltipProvider>
   ));

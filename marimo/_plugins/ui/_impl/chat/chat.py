@@ -3,8 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Final, List, Optional
 
+from marimo._output.formatting import as_html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._plugins.ui._impl.chat.models import model_from_callable
 from marimo._plugins.ui._impl.chat.types import (
     ChatClientMessage,
     ChatModel,
@@ -28,11 +30,37 @@ class chat(UIElement[Dict[str, Any], List[ChatClientMessage]]):
     """
     A chatbot UI element for interactive conversations.
 
-    **Example.**
+    **Example - Using a custom model.**
+
+    You can define a custom chat model that takes a
+    prompt, previous messages, and optional attachments as input
+    and returns a response.
+
+    The response can be an object, a marimo UI element, or a string.
+
+    ```python
+    def my_rag_model(prompt, messages, attachments):
+        docs = find_docs(prompt)
+        prompt = template(prompt, docs, messages)
+        response = query(prompt)
+        if is_dataset(response):
+            return dataset_to_chart(response)
+        return response
+
+
+    chat = mo.ai.chatbot(
+        my_rag_model,
+        system_message="You are a helpful assistant.",
+    )
+    ```
+
+    **Example - Using a built-in model.**
+
+    You can use a built-in model from the `mo.ai` module.
 
     ```python
     chat = mo.ai.chatbot(
-        model=mo.ai.openai("gpt-4o"),
+        mo.ai.openai("gpt-4o"),
         system_message="You are a helpful assistant.",
     )
     ```
@@ -45,6 +73,7 @@ class chat(UIElement[Dict[str, Any], List[ChatClientMessage]]):
 
     - `model`: the chatbot model
     - `system_message`: the initial system message for the chatbot
+    - `prompts`: optional list of prompts to start the conversation
     - `on_message`: optional callback function to handle new messages
     - `max_tokens`: maximum number of tokens in the response
     - `temperature`: sampling temperature for response generation
@@ -55,12 +84,22 @@ class chat(UIElement[Dict[str, Any], List[ChatClientMessage]]):
     def __init__(
         self,
         model: ChatModel,
+        *,
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
+        prompts: Optional[List[str]] = None,
         on_message: Optional[Callable[[List[ChatClientMessage]], None]] = None,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        show_configuration_controls: bool = False,
+        max_tokens: int = 100,
+        temperature: float = 0.5,
+        top_p: float = 1,
+        top_k: int = 40,
+        frequency_penalty: float = 0,
+        presence_penalty: float = 0,
     ) -> None:
-        self._model = model
+        if callable(model):
+            self._model = model_from_callable(model)
+        else:
+            self._model = model
         self._system_message = system_message
         self._max_tokens = max_tokens
         self._temperature = temperature
@@ -74,9 +113,16 @@ class chat(UIElement[Dict[str, Any], List[ChatClientMessage]]):
             on_change=on_message,
             label="",
             args={
+                "prompts": prompts,
                 "system-message": system_message,
+                "show-configuration-controls": show_configuration_controls,
+                # Config
                 "max-tokens": max_tokens,
                 "temperature": temperature,
+                "top-p": top_p,
+                "top-k": top_k,
+                "frequency-penalty": frequency_penalty,
+                "presence-penalty": presence_penalty,
             },
             functions=(
                 Function(
@@ -99,15 +145,16 @@ class chat(UIElement[Dict[str, Any], List[ChatClientMessage]]):
         messages = args.messages
 
         response = self._model.generate_text(messages, args.config)
+        html = as_html(response)
         self._chat_history = messages + [
-            ChatClientMessage(role="assistant", content=response)
+            ChatClientMessage(role="assistant", content=html.text)
         ]
 
         self._value = self._chat_history
         if self._on_change:
             self._on_change(self._value)
 
-        return response
+        return html.text
 
     def _convert_value(self, value: Dict[str, Any]) -> List[ChatClientMessage]:
         if not isinstance(value, dict) or "messages" not in value:

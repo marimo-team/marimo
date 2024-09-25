@@ -81,5 +81,5 @@ class ChatModel(abc.ABC):
     @abc.abstractmethod
     def generate_text(
         self, message: List[ChatClientMessage], config: ChatModelConfig
-    ) -> str:
+    ) -> object:
         pass
