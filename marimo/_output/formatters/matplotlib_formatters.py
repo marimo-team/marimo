@@ -58,8 +58,14 @@ class MatplotlibFormatter(FormatterFactory):
                 return ("text/plain", str(bc))
 
     def apply_theme(self, theme: Theme) -> None:
+        import matplotlib  # type: ignore
         import matplotlib.style  # type: ignore
 
         matplotlib.style.use(
             "dark_background" if theme == "dark" else "default"
+        )
+        # restore the user's rc params, if any; use_default_template=False
+        # makes this a merge of rc params, instead of overwriting all rc params
+        matplotlib.rc_file(
+            matplotlib.matplotlib_fname(), use_default_template=False
         )
