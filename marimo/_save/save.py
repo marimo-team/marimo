@@ -256,7 +256,8 @@ class persistent_cache(object):
 
     - `name`: the name of the cache, used to set saving path- to manually
       invalidate the cache, change the name.
-    - `save_path`: the folder in which to save the cache, defaults to "outputs"
+    - `save_path`: the folder in which to save the cache, defaults to
+      ".marimo/cache"
     - `pin_modules`: if True, the cache will be invalidated if module versions
       differ between runs, defaults to False.
     """
@@ -265,13 +266,14 @@ class persistent_cache(object):
         self,
         *,
         name: str,
-        save_path: str = "outputs",
+        save_path: str = ".marimo/cache",
         pin_modules: bool = False,
         _loader: Optional[Loader] = None,
     ) -> None:
         # For an implementation sibling regarding the block skipping, see
         # `withhacks` in pypi.
         self.name = name
+        save_path = save_path
         if _loader:
             self._loader = _loader
         else:
