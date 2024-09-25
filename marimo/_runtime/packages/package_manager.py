@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import abc
+import os
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -68,7 +69,10 @@ class PackageManager(abc.ABC):
         return False
 
     def run(self, command: list[str]) -> bool:
-        proc = subprocess.run(command)  # noqa: ASYNC101
+        proc = subprocess.run(
+            command,
+            env=os.environ,
+        )
         return proc.returncode == 0
 
     def update_notebook_script_metadata(

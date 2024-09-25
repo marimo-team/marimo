@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 import subprocess
 from typing import Dict
 
@@ -43,7 +44,9 @@ class DefaultFormatter(Formatter):
 class RuffFormatter(Formatter):
     def format(self, codes: CellCodes) -> CellCodes:
         try:
-            process = subprocess.run("ruff", capture_output=True)
+            process = subprocess.run(
+                "ruff", capture_output=True, env=os.environ
+            )
         except FileNotFoundError:
             LOGGER.warning(
                 "To enable code formatting, install ruff (pip install ruff)"
@@ -64,6 +67,7 @@ class RuffFormatter(Formatter):
                     input=code.encode(),
                     capture_output=True,
                     check=True,
+                    env=os.environ,
                 )
                 if process.returncode != 0:
                     raise FormatError("Failed to format code with ruff")

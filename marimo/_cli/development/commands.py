@@ -415,7 +415,8 @@ def inline_packages(
             "--script",
             name,
         ]
-        + pypi_names
+        + pypi_names,
+        env=os.environ,
     )
 
 

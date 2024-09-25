@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from typing import List
 
@@ -22,7 +23,9 @@ class PypiPackageManager(CanonicalizingPackageManager):
     def _list_packages_from_cmd(
         self, cmd: List[str]
     ) -> List[PackageDescription]:
-        proc = subprocess.run(cmd, capture_output=True, text=True)
+        proc = subprocess.run(
+            cmd, capture_output=True, text=True, env=os.environ
+        )
         if proc.returncode != 0:
             return []
         try:

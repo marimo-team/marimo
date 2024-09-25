@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 from typing import List
 
 from marimo._runtime.packages.module_name_to_conda_name import (
@@ -36,6 +37,7 @@ class PixiPackageManager(CondaPackageManager):
                 capture_output=True,
                 text=True,
                 check=True,
+                env=os.environ,
             )
             packages = json.loads(proc.stdout)
             return [
