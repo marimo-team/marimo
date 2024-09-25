@@ -5,13 +5,20 @@ from __future__ import annotations
 # Print helpers
 
 
-def green(text: str) -> str:
-    return "\033[32m" + text + "\033[0m"
+def bold(text: str) -> str:
+    return "\033[1m" + text + "\033[0m"
 
 
-def orange(text: str) -> str:
-    return "\033[33m" + text + "\033[0m"
+def green(text: str, bold: bool = False) -> str:
+    prefix = "\033[32m" if not bold else "\033[1;32m"
+    return prefix + text + "\033[0m"
 
 
-def red(text: str) -> str:
-    return "\033[31m" + text + "\033[0m"
+def orange(text: str, bold: bool = False) -> str:
+    prefix = "\033[33m" if not bold else "\033[1;33m"
+    return prefix + text + "\033[0m"
+
+
+def red(text: str, bold: bool = False) -> str:
+    prefix = "\033[31m" if not bold else "\033[1;31m"
+    return prefix + text + "\033[0m"

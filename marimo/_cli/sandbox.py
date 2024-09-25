@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional, cast
 import click
 
 from marimo import _loggers
+from marimo._cli.print import bold, green
 from marimo._dependencies.dependencies import DependencyManager
 
 LOGGER = _loggers.marimo_logger()
@@ -20,6 +21,79 @@ LOGGER = _loggers.marimo_logger()
 REGEX = (
     r"(?m)^# /// (?P<type>[a-zA-Z0-9-]+)$\s(?P<content>(^#(| .*)$\s)+)^# ///$"
 )
+
+
+def _get_dependencies(script: str) -> List[str] | None:
+    """Get dependencies from string representation of script"""
+    try:
+        pyproject = _read_pyproject(script) or {}
+        return cast(List[str], pyproject.get("dependencies", []))
+    except Exception as e:
+        LOGGER.warning(f"Failed to parse dependencies: {e}")
+        return None
+
+
+def get_dependencies_from_filename(name: str) -> List[str]:
+    if os.path.isfile(name):
+        with open(name) as f:
+            dependencies = _get_dependencies(f.read())
+            return dependencies if dependencies is not None else []
+    return []
+
+
+def _read_pyproject(script: str) -> Dict[str, Any] | None:
+    """
+    Read the pyproject.toml file from the script.
+
+    Adapted from https://peps.python.org/pep-0723/#reference-implementation
+    """
+    name = "script"
+    matches = list(
+        filter(lambda m: m.group("type") == name, re.finditer(REGEX, script))
+    )
+    if len(matches) > 1:
+        raise ValueError(f"Multiple {name} blocks found")
+    elif len(matches) == 1:
+        content = "".join(
+            line[2:] if line.startswith("# ") else line[1:]
+            for line in matches[0].group("content").splitlines(keepends=True)
+        )
+        import tomlkit
+
+        return tomlkit.parse(content)
+    else:
+        return None
+
+
+def prompt_run_in_sandbox(name: str | None) -> bool:
+    if name is None:
+        return False
+
+    dependencies = get_dependencies_from_filename(name)
+    if not dependencies:
+        return False
+
+    # Notebook has inlined dependencies.
+    if DependencyManager.which("uv"):
+        return click.confirm(
+            "This notebook has inlined package dependencies.\n"
+            + green(
+                "Run in a sandboxed venv containing this notebook's "
+                "dependencies?",
+                bold=True,
+            ),
+            default=True,
+        )
+    else:
+        click.echo(
+            bold(
+                "This notebook has inlined package dependencies. \n"
+                + "Consider installing uv so that marimo can create a "
+                "temporary venv with the notebook's packages: "
+                "https://github.com/astral-sh/uv"
+            )
+        )
+    return False
 
 
 def run_in_sandbox(
@@ -30,13 +104,13 @@ def run_in_sandbox(
         raise click.UsageError("uv must be installed to use --sandbox")
 
     cmd = ["marimo"] + args
-    cmd.remove("--sandbox")
+    if "--sandbox" in cmd:
+        cmd.remove("--sandbox")
 
     # If name if a filepath, parse the dependencies from the file
-    dependencies = []
-    if name is not None and os.path.isfile(name):
-        with open(name) as f:
-            dependencies = _get_dependencies(f.read()) or []
+    dependencies = (
+        get_dependencies_from_filename(name) if name is not None else []
+    )
 
     # The sandbox needs to manage marimo, too, to make sure
     # that the outer environment doesn't leak into the sandbox.
@@ -80,36 +154,3 @@ def run_in_sandbox(
     signal.signal(signal.SIGINT, handler)
 
     return process.wait()
-
-
-def _get_dependencies(script: str) -> List[str] | None:
-    try:
-        pyproject = _read_pyproject(script) or {}
-        return cast(List[str], pyproject.get("dependencies", []))
-    except Exception as e:
-        LOGGER.warning(f"Failed to parse dependencies: {e}")
-        return None
-
-
-def _read_pyproject(script: str) -> Dict[str, Any] | None:
-    """
-    Read the pyproject.toml file from the script.
-
-    Adapted from https://peps.python.org/pep-0723/#reference-implementation
-    """
-    name = "script"
-    matches = list(
-        filter(lambda m: m.group("type") == name, re.finditer(REGEX, script))
-    )
-    if len(matches) > 1:
-        raise ValueError(f"Multiple {name} blocks found")
-    elif len(matches) == 1:
-        content = "".join(
-            line[2:] if line.startswith("# ") else line[1:]
-            for line in matches[0].group("content").splitlines(keepends=True)
-        )
-        import tomlkit
-
-        return tomlkit.parse(content)
-    else:
-        return None

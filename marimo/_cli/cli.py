@@ -284,7 +284,9 @@ def edit(
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
-    if sandbox:
+    from marimo._cli.sandbox import prompt_run_in_sandbox
+
+    if sandbox or prompt_run_in_sandbox(name):
         from marimo._cli.sandbox import run_in_sandbox
 
         run_in_sandbox(sys.argv[1:], name)
@@ -566,7 +568,9 @@ def run(
     name: str,
     args: tuple[str, ...],
 ) -> None:
-    if sandbox:
+    from marimo._cli.sandbox import prompt_run_in_sandbox
+
+    if sandbox or prompt_run_in_sandbox(name):
         from marimo._cli.sandbox import run_in_sandbox
 
         run_in_sandbox(sys.argv[1:], name)
