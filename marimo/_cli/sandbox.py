@@ -14,6 +14,7 @@ import click
 
 from marimo import _loggers
 from marimo._cli.print import bold, green
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
 
 LOGGER = _loggers.marimo_logger()
@@ -66,6 +67,9 @@ def _read_pyproject(script: str) -> Dict[str, Any] | None:
 
 
 def prompt_run_in_sandbox(name: str | None) -> bool:
+    if GLOBAL_SETTINGS.QUIET:
+        return False
+
     if name is None:
         return False
 
