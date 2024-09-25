@@ -6,7 +6,6 @@ You may use `mo.cache` to cache expensive computations, in a "notebook aware" ma
 That is, re-running the cell won't flush the cache if the function is the same.
 However, the cache will also automatically become invalidated if relevant
 state, ui, external references, or code changes occur.
-
 ```python
 import mo
 
@@ -51,7 +50,6 @@ with mo.persistent_cache(name="my_cache"):
     # This block of code, and results will be cached to disk
     ...
 ```
-
 
 ## Disable expensive cells
 

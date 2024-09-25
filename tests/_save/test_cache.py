@@ -18,10 +18,8 @@ class TestScriptCache:
 
         @app.cell
         def one() -> tuple[int]:
-            from marimo import save
-
             # Check top level import
-            persistent_cache = save.persistent_cache
+            from marimo import persistent_cache
             from tests._save.mocks import MockLoader
 
             with persistent_cache(name="one", _loader=MockLoader()) as cache:
@@ -484,7 +482,7 @@ class TestCacheDecorator:
         assert k.globals["a"] == 5
         assert k.globals["b"] == 55
         assert k.globals["impure"] == [60, 157, 60]
-        # Cache hit value may be flakey depending on when state is evicted from
+        # Cache hit value may be flaky depending on when state is evicted from
         # the registry. The actual cache hit is less important than caching
         # occurring in the first place.
         # 2 * 9 + 2
