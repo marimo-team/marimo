@@ -7,6 +7,7 @@ import type React from "react";
 import { useMemo, useState } from "react";
 import { type Base64String, base64ToDataURL } from "@/utils/json/base64";
 import type { PaginationState } from "@tanstack/react-table";
+import { Arrays } from "@/utils/arrays";
 
 const PAGE_SIZE = 25;
 
@@ -20,9 +21,8 @@ export const CsvViewer: React.FC<{ contents: string }> = ({ contents }) => {
     () =>
       generateColumns({
         items: data,
-        rowHeaders: [],
+        rowHeaders: Arrays.EMPTY,
         selection: null,
-        showColumnSummaries: false,
       }),
     [data],
   );
