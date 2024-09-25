@@ -31,6 +31,9 @@ comment. Here are the steps to open an example notebook:
 > The [`--sandbox` flag](https://docs.marimo.io/guides/editor_features/package_management.html) opens the notebook in an isolated virtual environment,
 > automatically installing the notebook's dependencies 📦
 
+You can also open notebooks without `uv`, with just `marimo edit <notebook.py>`;
+however, you'll need to install the requirements yourself.
+
 ## More examples 🌟
 
 Every week, we highlight stellar examples and projects from our community.

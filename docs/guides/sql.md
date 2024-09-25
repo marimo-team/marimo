@@ -33,7 +33,9 @@ The SQL statement itself is an formatted string (f-string), so this means they c
 
 ## Reference a local dataframe
 
-You can reference a local dataframe in your SQL cell by using the name of the Python variable that holds the dataframe. If you have a database connection with a table of the same name, the database table will be used instead.
+You can reference a local dataframe in your SQL cell by using the name of the
+Python variable that holds the dataframe. If you have a database connection
+with a table of the same name, the database table will be used instead.
 
 <div align="center">
   <figure>
@@ -57,7 +59,9 @@ Defining a non-private (non-underscored) output variable in the SQL cell allows 
 
 ## Querying files, databases, and APIs
 
-In the above example, you may have noticed we queried an HTTP endpoint instead of a local dataframe. We are not only limited to querying local dataframes; we can also query files, databases, and APIs:
+In the above example, you may have noticed we queried an HTTP endpoint instead
+of a local dataframe. We are not only limited to querying local dataframes; we
+can also query files, databases such as Postgres and SQLite, and APIs:
 
 ```sql
 -- or
@@ -69,6 +73,7 @@ SELECT * FROM read_parquet('path/to/example.parquet');
 ```
 
 For a full list you can check out the [duckdb extensions](https://duckdb.org/docs/extensions/overview).
+You can also check out our [examples on GitHub](https://github.com/marimo-team/marimo/tree/main/examples/sql).
 
 ## Interactive tutorial
 
@@ -79,3 +84,7 @@ marimo tutorial sql
 ```
 
 at your command-line.
+
+## Examples
+
+Check out our [examples on GitHub](https://github.com/marimo-team/marimo/tree/main/examples/sql).
