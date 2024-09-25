@@ -1,16 +1,16 @@
 # Performance
 
-## Cache computations with `@mo.save.cache`
+## Cache computations with `@mo.cache`
 
-You may use `mo.save.cache` to cache expensive computations, in a notebook aware manner.
+You may use `mo.cache` to cache expensive computations, in a "notebook aware" manner.
+That is, re-running the cell won't flush the cache if the function is the same.
+However, the cache will also automatically become invalidated if relevant
+state, ui, external references, or code changes occur.
 
 ```python
 import mo
 
-# Re-running the cell won't invalidate the cache if the function is the same.
-# However, the cache will also automatically become invalidated if relevant
-# state, ui, or code changes occur.
-@mo.save.cache
+@mo.cache
 def compute_predictions(problem_parameters):
  ...
 ```
@@ -21,9 +21,37 @@ next time it is called with the same parameters, instead of recomputing the
 predictions, it will return the previously computed value from the cache.
 
 Alternatively, you may use Python's builtin `functools` library to cache
-expensive computations. It is important to note that `mo.save.cache` is more
+expensive computations. It is important to note that `mo.cache` is more
 expensive than `functools.cache`, and there are certain instances where
 `functools.cache` is more appropriate.
+
+### When should I use `mo.cache` over `functools.cache`?
+
+
+ 1. if you are looking to leverage memoization for dynamic programming, use
+    `functools.cache`.
+ 2. if you are actively working on a notebook, and just want to speed up and
+    expensive function- use `mo.cache`.
+ 3. if you are using State/ UI or any marimo specific objects, use `mo.cache`.
+ 4. if your function has external references, consider refactoring your code to
+    use `functools.cache`, or use `mo.cache`.
+
+## Caching to disk for long-term storage
+
+If you would like to leverage caching on restart of the marimo notebook,
+consider using `mo.persistent_cache`. This will cache the results to disk, and
+will be available on restart. Reserve this for very expensive computations that
+you would like to persist across notebook restarts. Outputs are automatically
+saved to `.marimo/cache`.
+
+```python
+import marimo as mo
+
+with mo.persistent_cache(name="my_cache"):
+    # This block of code, and results will be cached to disk
+    ...
+```
+
 
 ## Disable expensive cells
 

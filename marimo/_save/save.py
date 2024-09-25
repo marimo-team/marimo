@@ -50,7 +50,7 @@ class SkipWithBlock(Exception):
 class cache(object):
     """Decorator for caching the return value of a function.
 
-    Decorating a function with `@mo.save.cache` will "memoize" the return
+    Decorating a function with `@mo.cache` will "memoize" the return
     value. Memoization helps optimize performance by storing the results of
     expensive function calls and reusing them when the same inputs occur again.
 
@@ -67,7 +67,7 @@ class cache(object):
     import marimo as mo
 
 
-    @mo.save.cache
+    @mo.cache
     def fib(n):
         if n <= 1:
             return n
@@ -77,11 +77,11 @@ class cache(object):
     **LRU Cache.**
 
     The cache has an unlimited maximum size. To limit the cache size, use
-    `@mo.save.lru_cache` (a default maxsize of 128), or specify the `maxsize`
+    `@mo.lru_cache` (a default maxsize of 128), or specify the `maxsize`
     parameter. Set this value to -1 to disable cache limits (default).
 
     ```python
-    @mo.save.cache(maxsize=128)
+    @mo.cache(maxsize=128)
     def expensive_function():
         pass
     ```
@@ -211,13 +211,13 @@ class lru_cache(cache):
     import marimo as mo
 
 
-    @mo.save.lru_cache(maxsize=128)
+    @mo.lru_cache(maxsize=128)
     def factorial(n):
         return n * factorial(n - 1) if n else 1
     ```
 
     For more details, or a cache without a limit by default, refer to
-    `mo.save.cache`.
+    `mo.cache`.
 
     **Args**:
 
@@ -243,8 +243,8 @@ class persistent_cache(object):
     Here, `variable` will be cached and restored on subsequent runs of the
     block. The contents of the `with` block will be skipped on execution, if
     cache conditions are met. Note, this means that stdout and stderr will be
-    skipped on cache hits. For function level memoization, use `@mo.save.cache`
-    or `@mo.save.lru_cache`.
+    skipped on cache hits. For function level memoization, use `@mo.cache`
+    or `@mo.lru_cache`.
 
     Note that `mo.state` and `UIElement` changes will also trigger cache
     invalidation, and be accordingly updated.
@@ -264,8 +264,8 @@ class persistent_cache(object):
 
     def __init__(
         self,
-        *,
         name: str,
+        *,
         save_path: str = ".marimo/cache",
         pin_modules: bool = False,
         _loader: Optional[Loader] = None,

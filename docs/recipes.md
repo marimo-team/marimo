@@ -573,12 +573,12 @@ for different configurations of the elements would greatly speed up your noteboo
 
 **Recipe.**
 
-1. Use `mo.save.cache` to cache function outputs given inputs.
+1. Use `mo.cache` to cache function outputs given inputs.
 
 ```python
 import marimo as mo
 
-@mo.save.cache
+@mo.cache
 def compute_predictions(problem_parameters):
    # replace with your own function/parameters
    ...
@@ -591,26 +591,28 @@ predictions, it will return the previously computed value from the cache.
 
 Unlike `functools.cache`, `mo.cache` is notebook aware; and will become
 invalidated if a relevant global variable is changed (including State and UI
-Elements), or the function definition is changed.
+Elements), or the function definition is changed- but not if the cell is rerun
+with no changes
 
 See our [best practices guide](guides/best_practices) to learn more.
 
-### Persistent caching for very expensivve computations
+### Persistent caching for very expensive computations
 
 **Use case.** If you are using marimo to capture very compute intensive
 results, you may want to save the state of your computations to disk. Ideally,
 if you update your code, then this save should be invalidated. It may also be
 advantageous to add UI elements to explore your results, without having to
-recompute expensive computations.
+recompute expensive computations. Outputs are automatically saved to
+`.marimo/cache`, but can be overridden with the `save_path` keyword argument.
 
 **Recipe.**
 
-1. Use `mo.save.persistent_cache` to cache blocks of code to disk.
+1. Use `mo.persistent_cache` to cache blocks of code to disk.
 
 ```python
 import marimo as mo
 
-with mo.save.persistent_cache("my_cache"):
+with mo.persistent_cache("my_cache"):
     # This block of code, and results will be cached to disk
     ...
 ```
