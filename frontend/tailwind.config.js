@@ -186,7 +186,7 @@ module.exports = {
         },
         slides: {
           // This aims to match Google Slides' typography
-          // h1 -> 52pts (70px)
+          // h1 -> 80px
           // h2 -> 36pts (48px)
           // h3 -> 28pts (37.33px)
           // h4 -> 25pts (33.33px)
