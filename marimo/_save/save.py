@@ -21,8 +21,13 @@ from marimo._runtime.context import get_context
 from marimo._runtime.state import State
 from marimo._save.ast import ExtractWithBlock, strip_function
 from marimo._save.cache import Cache, CacheException
-from marimo._save.hash import cache_attempt_from_hash
+from marimo._save.hash import (
+    BlockHasher,
+    cache_attempt_from_hash,
+    content_cache_attempt_from_base,
+)
 from marimo._save.loaders import Loader, MemoryLoader, PickleLoader
+from marimo._utils.variables import is_mangled_local, unmangle_local
 
 # Many assertions are for typing and should always pass. This message is a
 # catch all to motive users to report if something does fail.
@@ -92,6 +97,7 @@ class cache(object):
       Setting to -1 disables cache limits.
     - `pin_modules`: if True, the cache will be invalidated if module versions
       differ.
+    - `hash_type`: the hashing algorithm to use, defaults to "sha256".
     """
 
     graph: DirectedGraph
@@ -109,16 +115,17 @@ class cache(object):
         *,
         maxsize: Optional[int] = None,
         pin_modules: bool = False,
+        hash_type: str = "sha256",
     ) -> None:
         self.max_size = (
             maxsize if maxsize is not None else self.DEFAULT_MAX_SIZE
         )
         self.pin_modules = pin_modules
+        self.hash_type = hash_type
         if _fn is None:
             self.fn = None
         else:
-            self.fn = _fn
-            self._set_context()
+            self._set_context(_fn)
 
     @property
     def hits(self) -> int:
@@ -126,24 +133,56 @@ class cache(object):
             return 0
         return self._loader().hits
 
-    def _set_context(self) -> None:
-        assert callable(self.fn), "the provided function must be callable"
+    def _set_context(self, fn: Callable[..., Any]) -> None:
+        assert callable(fn), "the provided function must be callable"
         ctx = get_context()
         assert ctx.execution_context is not None, (
             "Could not resolve context for cache. "
             "Either @cache is not called from a top level cell or "
             f"{UNEXPECTED_FAILURE_BOILERPLATE}"
         )
-        self.graph = ctx.graph
-        self.cell_id = ctx.cell_id or ctx.execution_context.cell_id
-        self._args = list(self.fn.__code__.co_varnames)
 
-        self.module = strip_function(self.fn)
+        self.fn = fn
+        self._args = list(self.fn.__code__.co_varnames)
         # frame is _set_context -> __call__ (or init) -> fn wrap
         # Note, that deeply nested frames may cause issues, however
         # checking a single frame- should be good enough.
         f_locals = inspect.stack()[2][0].f_locals
         self.scope = {**ctx.globals, **f_locals}
+
+        # Scoped refs are references particular to this block, that may not be
+        # defined out of the context of the block, or the cell.
+        # For instance, the args of the invoked function are restricted to the
+        # block.
+        cell_id = ctx.cell_id or ctx.execution_context.cell_id or ""
+        self.scoped_refs = set(self._args)
+        # As are the "locals" not in globals
+        self.scoped_refs |= set(f_locals.keys()) - set(ctx.globals.keys())
+        # Defined in the cell, and currently available in scope
+        self.scoped_refs |= ctx.graph.cells[cell_id].defs & set(
+            ctx.globals.keys()
+        )
+        # The defined private variables of this cell, normalized
+        self.scoped_refs |= set(
+            unmangle_local(x).name
+            for x in ctx.globals.keys()
+            if is_mangled_local(x, cell_id)
+        )
+
+        graph = ctx.graph
+        cell_id = ctx.cell_id or ctx.execution_context.cell_id
+        module = strip_function(self.fn)
+
+        self.base_block = BlockHasher(
+            module=module,
+            graph=graph,
+            cell_id=cell_id,
+            scope=self.scope,
+            pin_modules=self.pin_modules,
+            hash_type=self.hash_type,
+            scoped_refs=self.scoped_refs,
+            content_hash=False,
+        )
 
         # Load global cache from state
         name = self.fn.__name__
@@ -168,24 +207,21 @@ class cache(object):
                 raise TypeError(
                     "cache() takes at most 1 argument (expecting function)"
                 )
-            self.fn = args[0]
-            self._set_context()
+            self._set_context(args[0])
             return self
 
         # Capture the call case
         arg_dict = {k: v for (k, v) in zip(self._args, args)}
         scope = {**self.scope, **arg_dict, **kwargs}
         assert self._loader is not None, UNEXPECTED_FAILURE_BOILERPLATE
-        attempt = cache_attempt_from_hash(
-            self.module,
-            self.graph,
-            self.cell_id,
+        attempt = content_cache_attempt_from_base(
+            self.base_block,
             scope,
-            loader=self._loader(),
-            pin_modules=self.pin_modules,
-            scoped_refs=set(self._args),
+            self._loader(),
+            scoped_refs=self.scoped_refs,
             as_fn=True,
         )
+
         if attempt.hit:
             attempt.restore(scope)
             return attempt.meta["return"]
