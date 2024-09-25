@@ -1,4 +1,4 @@
-# UI 🤖
+# UI 🖱️
 
 These examples showcase how to use marimo's built-in UI elements.
 
