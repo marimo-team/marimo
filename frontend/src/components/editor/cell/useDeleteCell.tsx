@@ -4,6 +4,7 @@ import { toast } from "@/components/ui/use-toast";
 import { hasOnlyOneCellAtom, useCellActions } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { sendDeleteCell } from "@/core/network/requests";
+import { store } from "@/core/state/jotai";
 import useEvent from "react-use-event-hook";
 
 export function useDeleteCellCallback() {
@@ -11,7 +12,7 @@ export function useDeleteCellCallback() {
 
   return useEvent((opts: { cellId: CellId }) => {
     // Can't delete the last cell
-    if (hasOnlyOneCellAtom) {
+    if (store.get(hasOnlyOneCellAtom)) {
       return;
     }
 
