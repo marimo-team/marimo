@@ -7,7 +7,7 @@ app = marimo.App()
 @app.cell
 def one():
     type = 1
-    return type,
+    return (type,)
 
 
 @app.cell

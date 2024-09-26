@@ -6,7 +6,7 @@ app = marimo.App()
 
 @app.cell
 def one(): c = """
-  a, b"""; return c,
+  a, b"""; return (c,)
 
 
 if __name__ == "__main__":

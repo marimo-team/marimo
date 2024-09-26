@@ -17,6 +17,13 @@ export function prettyError(error: unknown): string {
     }
     return maybeExtractDetails(error.message);
   }
+  if (typeof error === "object") {
+    const details = DetailsSchema.safeParse(error);
+    if (details.success) {
+      return details.data.detail;
+    }
+    return JSON.stringify(error);
+  }
   try {
     return JSON.stringify(error);
   } catch {

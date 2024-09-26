@@ -135,15 +135,12 @@ def watch_modules(
         # Collect the modules used by each cell
         modules: dict[str, types.ModuleType] = {}
         modname_to_cell_id: dict[str, CellId_t] = {}
-        LOGGER.debug("Acquiring graph lock to find imported modules.")
         with graph.lock:
-            LOGGER.debug("Acquired graph lock.")
             for cell_id, cell in graph.cells.items():
                 for modname in modules_imported_by_cell(cell, sys_modules):
                     if modname in sys_modules:
                         modules[modname] = sys_modules[modname]
                         modname_to_cell_id[modname] = cell_id
-        LOGGER.debug("Released graph lock and found imported modules.")
 
         stale_modules = _check_modules(
             modules=modules,

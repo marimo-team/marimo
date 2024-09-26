@@ -14,7 +14,7 @@ def __(a,
 
     # yet another comment
     x = 0 + a + b + c + d
-    return x,
+    return (x,)
 
 
 if __name__ == "__main__":

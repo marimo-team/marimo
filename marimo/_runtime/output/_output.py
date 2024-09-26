@@ -1,4 +1,5 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
 
 from marimo._ast.cell import CellId_t
 from marimo._messaging.cell_output import CellChannel
@@ -8,6 +9,7 @@ from marimo._output import formatting
 from marimo._output.rich_help import mddoc
 from marimo._plugins.stateless.flex import vstack
 from marimo._runtime.context import get_context
+from marimo._runtime.context.types import ContextNotInitializedError
 
 
 def write_internal(cell_id: CellId_t, value: object) -> None:
@@ -34,7 +36,11 @@ def replace(value: object) -> None:
 
     - `value`: object to output
     """
-    ctx = get_context()
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        return
+
     if ctx.execution_context is None:
         return
     elif value is None:
@@ -57,7 +63,11 @@ def replace_at_index(value: object, idx: int) -> None:
     - `idx`: index of output to replace
     """
 
-    ctx = get_context()
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        return
+
     if ctx.execution_context is None or ctx.execution_context.output is None:
         return
     elif idx > len(ctx.execution_context.output):
@@ -85,7 +95,11 @@ def append(value: object) -> None:
 
     - `value`: object to output
     """
-    ctx = get_context()
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        return
+
     if ctx.execution_context is None:
         return
 
@@ -107,7 +121,11 @@ def clear() -> None:
 
 def flush() -> None:
     """Internal function to re-render the cell's output."""
-    ctx = get_context()
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        return
+
     if ctx.execution_context is None:
         return
 
@@ -120,7 +138,11 @@ def flush() -> None:
 
 def remove(value: object) -> None:
     """Internal function to remove an object from a cell's output."""
-    ctx = get_context()
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        return
+
     if ctx.execution_context is None or ctx.execution_context.output is None:
         return
     output = [

@@ -9,12 +9,11 @@ export type RunningNotebooksMap = Map<string, MarimoFile>;
 export const RunningNotebooksContext = React.createContext<{
   runningNotebooks: RunningNotebooksMap;
   setRunningNotebooks: (data: RunningNotebooksMap) => void;
-  root: string;
 }>({
   runningNotebooks: new Map(),
-  root: "",
   setRunningNotebooks: Functions.NOOP,
 });
+export const WorkspaceRootContext = React.createContext<string>("");
 
 export const includeMarkdownAtom = atomWithStorage<boolean>(
   "marimo:home:include-markdown",

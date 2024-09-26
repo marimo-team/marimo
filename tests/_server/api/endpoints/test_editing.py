@@ -71,6 +71,7 @@ def test_install_missing_packages(client: TestClient) -> None:
         headers=HEADERS,
         json={
             "manager": "pip",
+            "versions": {},
         },
     )
     assert response.status_code == 200, response.text

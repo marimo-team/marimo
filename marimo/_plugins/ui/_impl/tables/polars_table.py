@@ -172,6 +172,15 @@ class PolarsTableManagerFactory(TableManagerFactory):
                         true=cast(int, col.sum()),
                         false=cast(int, total - col.sum()),
                     )
+                if col.dtype == pl.Date:
+                    return ColumnSummary(
+                        total=total,
+                        nulls=col.null_count(),
+                        min=cast(NonNestedLiteral, col.min()),
+                        max=cast(NonNestedLiteral, col.max()),
+                        mean=cast(NonNestedLiteral, col.mean()),
+                        median=cast(NonNestedLiteral, col.median()),
+                    )
                 if col.dtype.is_temporal():
                     return ColumnSummary(
                         total=total,
@@ -184,6 +193,11 @@ class PolarsTableManagerFactory(TableManagerFactory):
                         p25=col.quantile(0.25),
                         p75=col.quantile(0.75),
                         p95=col.quantile(0.95),
+                    )
+                if col.dtype.is_(pl.Null):
+                    return ColumnSummary(
+                        total=total,
+                        nulls=col.null_count(),
                     )
                 return ColumnSummary(
                     total=total,

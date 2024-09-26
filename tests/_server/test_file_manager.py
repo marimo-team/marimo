@@ -241,7 +241,7 @@ def test_to_code(app_file_manager: AppFileManager) -> None:
             "@app.cell",
             "def __():",
             "    import marimo as mo",
-            "    return mo,",
+            "    return (mo,)",
             "",
             "",
             'if __name__ == "__main__":',

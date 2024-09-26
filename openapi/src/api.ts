@@ -165,6 +165,98 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/export/auto_export/html": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["ExportAsHTMLRequest"];
+        };
+      };
+      responses: {
+        /** @description Export the notebook as HTML */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+        /** @description File must be saved before downloading */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/export/auto_export/markdown": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["ExportAsMarkdownRequest"];
+        };
+      };
+      responses: {
+        /** @description Export the notebook as a markdown */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+        /** @description File must be saved before downloading */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/export/html": {
     parameters: {
       query?: never;
@@ -763,6 +855,45 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/kernel/copy": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["CopyNotebookRequest"];
+        };
+      };
+      responses: {
+        /** @description Copy notebook */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "text/plain": string;
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/kernel/delete": {
     parameters: {
       query?: never;
@@ -1233,45 +1364,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/kernel/copy": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["CopyNotebookRequest"];
-        };
-      };
-      responses: {
-        /** @description Save the app as a new file */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "text/plain": string;
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/kernel/save_app_config": {
     parameters: {
       query?: never;
@@ -1580,6 +1672,119 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/packages/add": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["AddPackageRequest"];
+        };
+      };
+      responses: {
+        /** @description Install package */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["PackageOperationResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/packages/list": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description List installed packages */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["ListPackagesResponse"];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/packages/remove": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["RemovePackageRequest"];
+        };
+      };
+      responses: {
+        /** @description Uninstall package */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["PackageOperationResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/status": {
     parameters: {
       query?: never;
@@ -1766,8 +1971,20 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    AddPackageRequest: {
+      package: string;
+    };
     AiCompletionRequest: {
       code: string;
+      context?: {
+        schema: {
+          columns: {
+            name: string;
+            type: string;
+          }[];
+          name: string;
+        }[];
+      } | null;
       includeOtherCode: string;
       /** @enum {string} */
       language: "python" | "markdown" | "sql";
@@ -1881,6 +2098,10 @@ export interface components {
         type: string;
       }[];
       prefix_length: number;
+    };
+    CopyNotebookRequest: {
+      destination: string;
+      source: string;
     };
     CreationRequest: {
       executionRequests: components["schemas"]["ExecutionRequest"][];
@@ -2072,6 +2293,9 @@ export interface components {
     };
     InstallMissingPackagesRequest: {
       manager: string;
+      versions: {
+        [key: string]: string;
+      };
     };
     InstallingPackageAlert: {
       /** @enum {string} */
@@ -2098,6 +2322,7 @@ export interface components {
     KernelReady: {
       app_config: {
         app_title?: string | null;
+        auto_download: ("html" | "markdown")[];
         css_file?: string | null;
         layout_file?: string | null;
         /** @enum {string} */
@@ -2141,6 +2366,9 @@ export interface components {
             )
           | null;
       } | null;
+    };
+    ListPackagesResponse: {
+      packages: components["schemas"]["PackageDescription"][];
     };
     MIME: Record<string, never>;
     MarimoAncestorPreventedError: {
@@ -2197,7 +2425,6 @@ export interface components {
         preset: "default" | "vim";
       };
       package_management: {
-        add_script_metadata: boolean;
         /** @enum {string} */
         manager: "pip" | "rye" | "uv" | "poetry" | "pixi";
       };
@@ -2280,6 +2507,9 @@ export interface components {
       | "application/json"
       | "application/vnd.marimo+error"
       | "application/vnd.marimo+traceback"
+      | "application/vnd.marimo+mimebundle"
+      | "application/vnd.vega.v5+json"
+      | "application/vnd.vegalite.v5+json"
       | "image/png"
       | "image/svg+xml"
       | "image/tiff"
@@ -2292,6 +2522,7 @@ export interface components {
       | "text/html"
       | "text/plain"
       | "text/markdown"
+      | "text/latex"
       | "text/csv";
     MissingPackageAlert: {
       isolated: boolean;
@@ -2323,6 +2554,14 @@ export interface components {
             | "for-jupyter-users"
           )
         | "markdown-format";
+    };
+    PackageDescription: {
+      name: string;
+      version: string;
+    };
+    PackageOperationResponse: {
+      error?: string | null;
+      success: boolean;
     };
     PreviewDatasetColumnRequest: {
       columnName: string;
@@ -2367,6 +2606,9 @@ export interface components {
       /** @enum {string} */
       name: "reload";
     };
+    RemovePackageRequest: {
+      package: string;
+    };
     RemoveUIElements: {
       cell_id: string;
       /** @enum {string} */
@@ -2405,10 +2647,6 @@ export interface components {
       } | null;
       names: string[];
       persist: boolean;
-    };
-    CopyNotebookRequest: {
-      source: string;
-      destination: string;
     };
     SaveUserConfigurationRequest: {
       config: components["schemas"]["MarimoConfig"];

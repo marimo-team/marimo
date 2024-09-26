@@ -1,3 +1,10 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "vega-datasets",
+#     "marimo",
+# ]
+# ///
 # Copyright 2024 Marimo. All rights reserved.
 
 import marimo

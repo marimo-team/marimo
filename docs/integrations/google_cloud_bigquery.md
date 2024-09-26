@@ -63,10 +63,10 @@ mo.ui.table(results.to_dataframe(), selection=None)
 
 ## Example
 
-Check out our full example using Google Cloud BigQuery [here](https://github.com/marimo-team/marimo/blob/main/examples/integrations/google_cloud_bigquery.py)
+Check out our full example using Google Cloud BigQuery [here](https://github.com/marimo-team/marimo/blob/main/examples/cloud/gcp/google_cloud_bigquery.py)
 
 Or run it yourself:
 
 ```bash
-marimo run https://raw.githubusercontent.com/marimo-team/marimo/main/examples/integrations/google_cloud_bigquery.py
+marimo run https://raw.githubusercontent.com/marimo-team/marimo/main/examples/cloud/gcp/google_cloud_bigquery.py
 ```

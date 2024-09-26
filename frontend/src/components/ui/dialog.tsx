@@ -6,6 +6,7 @@ import { X } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useRestoreFocus } from "./use-restore-focus";
 import { withFullScreenAsRoot } from "./fullscreen";
+import { StyleNamespace } from "@/theme/namespace";
 
 const Dialog = DialogPrimitive.Root;
 
@@ -18,14 +19,16 @@ const DialogPortal = withFullScreenAsRoot(
     ...props
   }: DialogPrimitive.DialogPortalProps & { className?: string }) => (
     <DialogPrimitive.Portal {...props}>
-      <div
-        className={cn(
-          "fixed inset-0 z-50 flex items-start justify-center sm:items-start sm:top-[15%]",
-          className,
-        )}
-      >
-        {children}
-      </div>
+      <StyleNamespace>
+        <div
+          className={cn(
+            "fixed inset-0 z-50 flex items-start justify-center sm:items-start sm:top-[15%]",
+            className,
+          )}
+        >
+          {children}
+        </div>
+      </StyleNamespace>
     </DialogPrimitive.Portal>
   ),
 );

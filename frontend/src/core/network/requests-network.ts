@@ -266,5 +266,36 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponse);
     },
+    autoExportAsHTML: async (request) => {
+      return marimoClient
+        .POST("/api/export/auto_export/html", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
+    },
+    autoExportAsMarkdown: async (request) => {
+      return marimoClient
+        .POST("/api/export/auto_export/markdown", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
+    },
+    addPackage: (request) => {
+      return marimoClient
+        .POST("/api/packages/add", {
+          body: request,
+        })
+        .then(handleResponse);
+    },
+    removePackage: (request) => {
+      return marimoClient
+        .POST("/api/packages/remove", {
+          body: request,
+        })
+        .then(handleResponse);
+    },
+    getPackageList: () => {
+      return marimoClient.GET("/api/packages/list").then(handleResponse);
+    },
   };
 }

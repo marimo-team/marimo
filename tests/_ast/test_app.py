@@ -312,6 +312,7 @@ class TestApp:
             "css_file": None,
             "width": "full",
             "layout_file": None,
+            "auto_download": [],
         }
 
     @staticmethod
@@ -460,6 +461,36 @@ class TestApp:
         assert isinstance(outputs[1], Axes)
         assert outputs[0] != outputs[1]
 
+    @staticmethod
+    def test_app_config_auto_download():
+        # Test default value
+        config = _AppConfig()
+        assert config.auto_download == []
+
+        # Test setting auto_download
+        config = _AppConfig(auto_download=["html", "markdown"])
+        assert config.auto_download == ["html", "markdown"]
+
+        # Test updating auto_download
+        config.update({"auto_download": ["html"]})
+        assert config.auto_download == ["html"]
+
+        # Test setting empty list
+        config.update({"auto_download": []})
+        assert config.auto_download == []
+
+        # Test from_untrusted_dict
+        config = _AppConfig.from_untrusted_dict({"auto_download": ["markdown"]})
+        assert config.auto_download == ["markdown"]
+
+        # Test asdict
+        config_dict = config.asdict()
+        assert config_dict["auto_download"] == ["markdown"]
+
+        # Test invalid values are allowed for forward compatibility
+        config = _AppConfig(auto_download=["invalid"])
+        assert config.auto_download == ["invalid"]
+
 
 def test_app_config() -> None:
     config = _AppConfig.from_untrusted_dict({"width": "full"})
@@ -470,6 +501,7 @@ def test_app_config() -> None:
         "css_file": None,
         "width": "full",
         "layout_file": None,
+        "auto_download": [],
     }
 
 
@@ -484,6 +516,7 @@ def test_app_config_extra_args_ignored() -> None:
         "css_file": None,
         "width": "full",
         "layout_file": None,
+        "auto_download": [],
     }
 
 

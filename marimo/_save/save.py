@@ -5,6 +5,7 @@ import ast
 import io
 import sys
 import traceback
+from sys import maxsize as MAXINT
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -16,7 +17,7 @@ from typing import (
 from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime.context import get_context
 from marimo._save.ast import ExtractWithBlock
-from marimo._save.cache import Cache, contextual_defs
+from marimo._save.cache import Cache, CacheException
 from marimo._save.hash import cache_attempt_from_hash
 from marimo._save.loaders import Loader, PickleLoader
 
@@ -41,11 +42,6 @@ class SkipWithBlock(Exception):
     """Special exception to get around executing the with block body."""
 
 
-# BaseException because "raise _ as e" is utilized.
-class CacheException(BaseException):
-    pass
-
-
 class persistent_cache(object):
     """Context block for cache lookup of a block of code.
 
@@ -66,6 +62,7 @@ class persistent_cache(object):
         *,
         save_path: str = "outputs",
         name: str,
+        pin_modules: bool = False,
         _loader: Optional[Loader] = None,
     ) -> None:
         self.name = name
@@ -79,6 +76,9 @@ class persistent_cache(object):
         self._entered_trace = False
         self._old_trace: Optional[TraceFunction] = None
         self._frame: Optional[FrameType] = None
+        self._body_start: int = MAXINT
+        # TODO: Consider having a user level setting.
+        self.pin_modules = pin_modules
 
     def __enter__(self) -> Self:
         sys.settrace(lambda *_args, **_keys: None)
@@ -87,10 +87,10 @@ class persistent_cache(object):
         self._old_trace = frame.f_trace
         # Setting the frametrace, will cause the function to be run on _every_
         # single context call until the trace is cleared.
-        frame.f_trace = self.trace
+        frame.f_trace = self._trace
         return self
 
-    def trace(
+    def _trace(
         self, with_frame: FrameType, _event: str, _arg: Any
     ) -> Union[TraceFunction | None]:
         # General flow is as follows:
@@ -103,20 +103,19 @@ class persistent_cache(object):
         #  otherwise) Set _skipped such that the block continues to execute.
 
         self._entered_trace = True
-        stack = traceback.extract_stack()
 
         if not self._skipped:
             return self._old_trace
 
         # This is possible if `With` spans multiple lines.
-        # This behavior may be a python bug.
-        # Could not replicate in 3.10, 3.11 or 3.12 with direct testing; but it
-        # may be due to the block being compiled prior to traversal.
-        # See failure in:
-        # github:marimo/actions/runs/9947523119/job/27480334273?pr=1758
-        # TODO: Dig in and report bug to CPython.
+        # This behavior arguably a python bug.
+        # Note the behavior does subtly change in 3.14, but will still be
+        # captured by this check.
         if self._cache and self._cache.hit:
-            raise SkipWithBlock()
+            if with_frame.f_lineno >= self._body_start:
+                raise SkipWithBlock()
+
+        stack = traceback.extract_stack()
 
         # This only executes on the first line of code in the block. If the
         # cache is hit, the block terminates early with a SkipWithBlock
@@ -132,10 +131,7 @@ class persistent_cache(object):
                     f"{UNEXPECTED_FAILURE_BOILERPLATE}",
                 )
                 graph = ctx.graph
-                cell_id = (
-                    ctx.execution_context.cell_id
-                    or ctx.execution_context.cell_id
-                )
+                cell_id = ctx.cell_id or ctx.execution_context.cell_id
                 pre_module, save_module = ExtractWithBlock(lineno - 1).visit(
                     ast.parse(graph.cells[cell_id].code).body  # type: ignore[arg-type]
                 )
@@ -147,15 +143,15 @@ class persistent_cache(object):
                     {**globals(), **with_frame.f_locals},
                     loader=self._loader,
                     context=pre_module,
+                    pin_modules=self.pin_modules,
                 )
 
                 self.cache_type = self._cache
-                # Raising on the first valid line, prevents a bug where
-                # whitespace in `With`, changes behavior. This might be
-                # an issue with Python's parser? Noticed because lint/ format
-                # breaks things.
+                # Raising on the first valid line, prevents a discrepancy where
+                # whitespace in `With`, changes behavior.
+                self._body_start = save_module.body[0].lineno
                 if self._cache and self._cache.hit:
-                    if lineno >= save_module.body[0].lineno:
+                    if lineno >= self._body_start:
                         raise SkipWithBlock()
                     return self._old_trace
                 self._skipped = False
@@ -187,8 +183,7 @@ class persistent_cache(object):
         # Backfill the loaded values into global scope.
         if self._cache and self._cache.hit:
             assert self._frame is not None, UNEXPECTED_FAILURE_BOILERPLATE
-            for lookup, var in contextual_defs(self._cache):
-                self._frame.f_locals[var] = self._cache.defs[lookup]
+            self._cache.restore(self._frame.f_locals)
             # Return true to suppress the SkipWithBlock exception.
             return True
 
@@ -205,8 +200,7 @@ class persistent_cache(object):
         # Fill the cache object and save.
         assert self._cache is not None, UNEXPECTED_FAILURE_BOILERPLATE
         assert self._frame is not None, UNEXPECTED_FAILURE_BOILERPLATE
-        for lookup, var in contextual_defs(self._cache):
-            self._cache.defs[lookup] = self._frame.f_locals[var]
+        self._cache.update(self._frame.f_locals)
 
         try:
             self._loader.save_cache(self._cache)

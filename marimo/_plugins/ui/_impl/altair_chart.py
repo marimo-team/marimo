@@ -54,7 +54,13 @@ def _has_binning(spec: VegaSpec) -> bool:
 
 def _has_geoshape(spec: altair.TopLevelMixin) -> bool:
     """Return True if the spec has geoshape."""
-    return hasattr(spec, "mark") and spec.mark == "geoshape"
+    try:
+        if not hasattr(spec, "mark"):
+            return False
+        mark = spec.mark  # type: ignore
+        return mark == "geoshape" or mark.type == "geoshape"  # type: ignore
+    except Exception:
+        return False
 
 
 def _filter_dataframe(
@@ -63,13 +69,13 @@ def _filter_dataframe(
     if not isinstance(selection, dict):
         raise TypeError("Input 'selection' must be a dictionary")
 
-    if DependencyManager.pandas.has():
+    if DependencyManager.pandas.imported():
         import pandas as pd
 
         if isinstance(df, pd.DataFrame):
             return _filter_pandas_dataframe(df, selection)
 
-    if DependencyManager.polars.has():
+    if DependencyManager.polars.imported():
         import polars as pl
 
         if isinstance(df, pl.DataFrame):
@@ -262,7 +268,7 @@ def _parse_spec(spec: altair.TopLevelMixin) -> VegaSpec:
 
     # vegafusion requires creating a vega spec,
     # instead of using a vega-lite spec
-    if altair.data_transformers.active == "vegafusion":
+    if altair.data_transformers.active.startswith("vegafusion"):
         return spec.to_dict(format="vega")  # type: ignore
 
     # If this is a geoshape, use default transformer
@@ -362,11 +368,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
             )
 
         # Make full-width if no width is specified
-        if (
-            isinstance(chart, (alt.Chart, alt.LayerChart))
-            and chart.width is alt.Undefined
-        ):
-            chart = chart.properties(width="container")
+        chart = maybe_make_full_width(chart)
 
         vega_spec = _parse_spec(chart)
 
@@ -439,7 +441,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         if not isinstance(chart.data, str):
             return chart.data
 
-        if DependencyManager.pandas.has():
+        if DependencyManager.pandas.imported():
             import pandas as pd
 
             if chart.data.endswith(".csv"):
@@ -447,7 +449,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
             if chart.data.endswith(".json"):
                 return pd.read_json(chart.data)
 
-        if DependencyManager.polars.has():
+        if DependencyManager.polars.imported():
             import polars as pl
 
             if chart.data.startswith("http"):
@@ -472,6 +474,18 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         self._chart_selection = value
         flat, _ = flatten.flatten(value)
         if not value or not flat:
+            if DependencyManager.pandas.imported():
+                import pandas as pd
+
+                if isinstance(self.dataframe, pd.DataFrame):
+                    return pd.DataFrame()
+
+            if DependencyManager.polars.imported():
+                import polars as pl
+
+                if isinstance(self.dataframe, pl.DataFrame):
+                    return pl.DataFrame()
+
             return []
 
         # When using layered charts, you can no longer access the
@@ -586,3 +600,21 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
     def value(self, value: ChartDataType) -> None:
         del value
         raise RuntimeError("Setting the value of a UIElement is not allowed.")
+
+
+def maybe_make_full_width(chart: altair.Chart) -> altair.Chart:
+    import altair
+
+    try:
+        if (
+            isinstance(chart, (altair.Chart, altair.LayerChart))
+            and chart.width is altair.Undefined
+        ):
+            return chart.properties(width="container")
+        return chart
+    except Exception:
+        LOGGER.exception(
+            "Failed to set width to full container. "
+            "This is likely due to a missing dependency or an invalid chart."
+        )
+        return chart

@@ -43,19 +43,29 @@ import {
   PackageManagerNames,
 } from "../../core/config/config-schema";
 import { Logger } from "@/utils/Logger";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { Tooltip } from "../ui/tooltip";
+import { useState } from "react";
+import { cleanPythonModuleName, reverseSemverSort } from "@/utils/versions";
 
-export const PackageAlert: React.FC = (props) => {
+export const PackageAlert: React.FC = () => {
   const { packageAlert } = useAlerts();
   const { clearPackageAlert } = useAlertActions();
   const [userConfig] = useUserConfig();
+  const [desiredPackageVersions, setDesiredPackageVersions] = useState<
+    Record<string, string>
+  >({});
 
   if (packageAlert === null) {
     return null;
   }
 
+  const doesSupportVersioning =
+    userConfig.package_management.manager !== "pixi";
+
   if (isMissingPackageAlert(packageAlert)) {
     return (
-      <div className="flex flex-col gap-4 mb-5 fixed top-5 left-12 w-[400px] z-[200] opacity-95">
+      <div className="flex flex-col gap-4 mb-5 fixed top-5 left-12 min-w-[400px] z-[200] opacity-95">
         <Banner
           kind="danger"
           className="flex flex-col rounded py-3 px-5 animate-in slide-in-from-left"
@@ -85,6 +95,18 @@ export const PackageAlert: React.FC = (props) => {
                   >
                     <BoxIcon size="1rem" />
                     {pkg}
+                    {doesSupportVersioning && (
+                      <PackageVersionSelect
+                        value={desiredPackageVersions[pkg] ?? "latest"}
+                        onChange={(value) =>
+                          setDesiredPackageVersions((prev) => ({
+                            ...prev,
+                            [pkg]: value,
+                          }))
+                        }
+                        packageName={pkg}
+                      />
+                    )}
                   </li>
                 ))}
               </ul>
@@ -94,10 +116,11 @@ export const PackageAlert: React.FC = (props) => {
                 <>
                   <InstallPackagesButton
                     manager={userConfig.package_management.manager}
+                    versions={desiredPackageVersions}
                     clearPackageAlert={() => clearPackageAlert(packageAlert.id)}
                   />
 
-                  {isWasm() ? null : (
+                  {!isWasm() && (
                     <>
                       <span className="px-2 text-sm">with</span>{" "}
                       <PackageManagerForm />
@@ -124,6 +147,7 @@ export const PackageAlert: React.FC = (props) => {
       </div>
     );
   }
+
   if (isInstallingPackageAlert(packageAlert)) {
     const { status, title, titleIcon, description } =
       getInstallationStatusElements(packageAlert.packages);
@@ -132,7 +156,7 @@ export const PackageAlert: React.FC = (props) => {
     }
 
     return (
-      <div className="flex flex-col gap-4 mb-5 fixed top-5 left-12 w-[400px] z-[200] opacity-95">
+      <div className="flex flex-col gap-4 mb-5 fixed top-5 left-12 min-w-[400px] z-[200] opacity-95">
         <Banner
           kind={status === "failed" ? "danger" : "info"}
           className="flex flex-col rounded pt-3 pb-4 px-5"
@@ -186,6 +210,7 @@ export const PackageAlert: React.FC = (props) => {
       </div>
     );
   }
+
   logNever(packageAlert);
   return null;
 };
@@ -243,21 +268,13 @@ const ProgressIcon = ({
   }
 };
 
-async function installPackages(
-  manager: PackageManagerName,
-  clearPackageAlert: () => void,
-) {
-  clearPackageAlert();
-  await sendInstallMissingPackages({ manager: manager }).catch((error) => {
-    Logger.error(error);
-  });
-}
-
 const InstallPackagesButton = ({
   manager,
+  versions,
   clearPackageAlert,
 }: {
   manager: PackageManagerName;
+  versions: Record<string, string>;
   clearPackageAlert: () => void;
 }) => {
   return (
@@ -265,7 +282,14 @@ const InstallPackagesButton = ({
       variant="outline"
       data-testid="install-packages-button"
       size="sm"
-      onClick={() => installPackages(manager, clearPackageAlert)}
+      onClick={async () => {
+        clearPackageAlert();
+        await sendInstallMissingPackages({ manager, versions }).catch(
+          (error) => {
+            Logger.error(error);
+          },
+        );
+      }}
     >
       <DownloadCloudIcon className="w-4 h-4 mr-2" />
       <span className="font-semibold">Install</span>
@@ -273,7 +297,7 @@ const InstallPackagesButton = ({
   );
 };
 
-export const PackageManagerForm: React.FC = () => {
+const PackageManagerForm: React.FC = () => {
   const [config, setConfig] = useUserConfig();
 
   // Create form
@@ -322,5 +346,73 @@ export const PackageManagerForm: React.FC = () => {
         </div>
       </form>
     </Form>
+  );
+};
+
+interface PackageVersionSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  packageName: string;
+}
+
+interface PyPiResponse {
+  releases: Record<string, unknown>;
+}
+
+const PackageVersionSelect: React.FC<PackageVersionSelectProps> = ({
+  value,
+  onChange,
+  packageName,
+}) => {
+  const {
+    data = [],
+    loading,
+    error,
+  } = useAsyncData(async () => {
+    const response = await fetch(
+      `https://pypi.org/pypi/${cleanPythonModuleName(packageName)}/json`,
+      {
+        method: "GET",
+        signal: AbortSignal.timeout(5000), // 5s timeout
+      },
+    );
+    const json = await response.json<PyPiResponse>();
+    const versions = Object.keys(json.releases).sort(reverseSemverSort);
+    // Add latest, limit to 100 versions
+    return ["latest", ...versions.slice(0, 100)];
+  }, [packageName]);
+
+  if (error) {
+    return (
+      <Tooltip content="Failed to fetch package versions">
+        <NativeSelect
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={true}
+          className="inline-flex ml-2"
+        >
+          <option value="latest">latest</option>
+        </NativeSelect>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <NativeSelect
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={loading}
+      className="inline-flex ml-2"
+    >
+      {loading ? (
+        <option value="latest">latest</option>
+      ) : (
+        data.map((version) => (
+          <option value={version} key={version}>
+            {version}
+          </option>
+        ))
+      )}
+    </NativeSelect>
   );
 };

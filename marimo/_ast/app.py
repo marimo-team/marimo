@@ -3,13 +3,15 @@ from __future__ import annotations
 
 import random
 import string
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
     Iterable,
     Iterator,
+    List,
+    Literal,
     Mapping,
     Optional,
 )
@@ -67,6 +69,11 @@ class _AppConfig:
 
     # CSS file, relative to the app file
     css_file: Optional[str] = None
+
+    # Whether to automatically download the app as HTML and Markdown
+    auto_download: List[Literal["html", "markdown"]] = field(
+        default_factory=list
+    )
 
     @staticmethod
     def from_untrusted_dict(updates: dict[str, Any]) -> _AppConfig:

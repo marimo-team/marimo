@@ -12,6 +12,7 @@ import { TableColumnSummary } from "./column-summary";
 import type { FilterType } from "./filters";
 import type { FieldTypesWithExternalType } from "./types";
 import { UrlDetector } from "./url-detector";
+import { Arrays } from "@/utils/arrays";
 
 interface ColumnInfo {
   key: string;
@@ -21,12 +22,12 @@ interface ColumnInfo {
 function getColumnInfo<T>(items: T[]): ColumnInfo[] {
   // No items
   if (items.length === 0) {
-    return [];
+    return Arrays.EMPTY;
   }
 
   // Not an object
   if (typeof items[0] !== "object") {
-    return [];
+    return Arrays.EMPTY;
   }
 
   const keys = new Map<string, ColumnInfo>();
@@ -71,13 +72,11 @@ export function generateColumns<T>({
   items,
   rowHeaders,
   selection,
-  showColumnSummaries,
   fieldTypes,
 }: {
   items: T[];
   rowHeaders: string[];
   selection: "single" | "multi" | null;
-  showColumnSummaries: boolean;
   fieldTypes?: FieldTypesWithExternalType;
 }): Array<ColumnDef<T>> {
   const columnInfo = getColumnInfo(items);
@@ -107,12 +106,6 @@ export function generateColumns<T>({
 
         // Row headers have no summaries
         if (rowHeadersSet.has(info.key)) {
-          return (
-            <DataTableColumnHeader header={headerWithType} column={column} />
-          );
-        }
-
-        if (!showColumnSummaries) {
           return (
             <DataTableColumnHeader header={headerWithType} column={column} />
           );
@@ -169,6 +162,7 @@ export function generateColumns<T>({
   if (selection === "single" || selection === "multi") {
     columns.unshift({
       id: "__select__",
+      maxSize: 40,
       header: ({ table }) =>
         selection === "multi" ? (
           <Checkbox

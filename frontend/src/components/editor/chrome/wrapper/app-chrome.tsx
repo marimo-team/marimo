@@ -27,6 +27,7 @@ import { DataSourcesPanel } from "../panels/datasources-panel";
 import { LazyMount } from "@/components/utils/lazy-mount";
 import { ScratchpadPanel } from "../panels/scratchpad-panel";
 import { IfCapability } from "@/core/config/if-capability";
+import { PackagesPanel } from "../panels/packages-panel";
 
 const LazyTerminal = React.lazy(() => import("@/components/terminal/terminal"));
 
@@ -141,6 +142,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
           {selectedPanel === "errors" && <ErrorsPanel />}
           {selectedPanel === "variables" && <VariablePanel />}
           {selectedPanel === "dependencies" && <DependencyGraphPanel />}
+          {selectedPanel === "packages" && <PackagesPanel />}
           {selectedPanel === "outline" && <OutlinePanel />}
           {selectedPanel === "datasources" && <DataSourcesPanel />}
           {selectedPanel === "documentation" && <DocumentationPanel />}

@@ -4,6 +4,20 @@ import { mint, orange, slate } from "@radix-ui/colors";
 import type { ColumnHeaderSummary, FieldTypes } from "./types";
 import { asURL } from "@/utils/url";
 
+const MAX_BAR_HEIGHT = 24; // px
+const MAX_BAR_WIDTH = 28; // px
+const CONTAINER_WIDTH = 120; // px
+const PAD = 1; // px
+const VARIABLE_WIDTH = `min(${MAX_BAR_WIDTH}, ${CONTAINER_WIDTH} / length(data('source_0')) - ${PAD})`;
+
+const scale = {
+  align: 0,
+  paddingInner: 0,
+  paddingOuter: {
+    expr: "length(data('source_0')) == 2 ? 1 : length(data('source_0')) == 3 ? 0.5 : length(data('source_0')) == 4 ? 0 : 0",
+  },
+};
+
 export class ColumnChartSpecModel<T> {
   private columnSummaries = new Map<string | number, ColumnHeaderSummary>();
 
@@ -55,13 +69,31 @@ export class ColumnChartSpecModel<T> {
     };
     const type = this.fieldTypes[column];
 
+    // https://github.com/vega/altair/blob/32990a597af7c09586904f40b3f5e6787f752fa5/doc/user_guide/encodings/index.rst#escaping-special-characters-in-column-names
+    // escape periods in column names
+    column = column.replaceAll(".", "\\.");
+    // escape brackets in column names
+    column = column.replaceAll("[", "\\[").replaceAll("]", "\\]");
+    // escape colons in column names
+    column = column.replaceAll(":", "\\:");
+
     switch (type) {
       case "date":
         return {
           ...base,
-          mark: { type: "bar", color: mint.mint11 },
+          mark: {
+            type: "bar",
+            color: mint.mint11,
+            width: { expr: VARIABLE_WIDTH },
+          },
           encoding: {
-            x: { field: column, type: "temporal", axis: null, bin: true },
+            x: {
+              field: column,
+              type: "temporal",
+              axis: null,
+              bin: true,
+              scale: scale,
+            },
             y: { aggregate: "count", type: "quantitative", axis: null },
             tooltip: [
               {
@@ -93,9 +125,20 @@ export class ColumnChartSpecModel<T> {
         const format = type === "integer" ? ",d" : ".2f";
         return {
           ...base,
-          mark: { type: "bar", color: mint.mint11 },
+          mark: {
+            type: "bar",
+            color: mint.mint11,
+            size: { expr: VARIABLE_WIDTH },
+            align: "right",
+          },
           encoding: {
-            x: { field: column, type: "nominal", axis: null, bin: true },
+            x: {
+              field: column,
+              type: "nominal",
+              axis: null,
+              bin: true,
+              scale: scale,
+            },
             y: {
               aggregate: "count",
               type: "quantitative",
@@ -137,7 +180,8 @@ export class ColumnChartSpecModel<T> {
               field: column,
               type: "nominal",
               axis: {
-                labelExpr: "datum.label === 'true' ? 'True' : 'False'",
+                labelExpr:
+                  "datum.label === 'true' || datum.label === 'True'  ? 'True' : 'False'",
                 tickWidth: 0,
                 title: null,
                 labelColor: slate.slate9,
@@ -150,7 +194,7 @@ export class ColumnChartSpecModel<T> {
               scale: { type: "linear" },
             },
             tooltip: [
-              { field: column, type: "nominal", format: ",d", title: "Value" },
+              { field: column, type: "nominal", title: "Value" },
               {
                 aggregate: "count",
                 type: "quantitative",
@@ -161,7 +205,11 @@ export class ColumnChartSpecModel<T> {
           },
           layer: [
             {
-              mark: { type: "bar", color: mint.mint11 },
+              mark: {
+                type: "bar",
+                color: mint.mint11,
+                height: MAX_BAR_HEIGHT,
+              },
             },
             {
               mark: {

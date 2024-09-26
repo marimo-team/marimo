@@ -58,10 +58,10 @@ mo.ui.table(pd.DataFrame(wks.get_all_records()))
 
 ## Example
 
-Check out our full example using Google Sheets [here](https://github.com/marimo-team/marimo/blob/main/examples/integrations/google_sheets.py)
+Check out our full example using Google Sheets [here](https://github.com/marimo-team/marimo/blob/main/examples/cloud/gcp/google_sheets.py)
 
 Or run it yourself:
 
 ```bash
-marimo run https://raw.githubusercontent.com/marimo-team/marimo/main/examples/integrations/google_sheets.py
+marimo run https://raw.githubusercontent.com/marimo-team/marimo/main/examples/cloud/gcp/google_sheets.py
 ```

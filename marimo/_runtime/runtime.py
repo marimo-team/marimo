@@ -24,6 +24,7 @@ from marimo._ast.cell import CellConfig, CellId_t, CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._data.preview_column import get_column_preview
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel
@@ -51,6 +52,7 @@ from marimo._messaging.ops import (
     VariableValues,
 )
 from marimo._messaging.streams import (
+    QueuePipe,
     ThreadSafeStderr,
     ThreadSafeStdin,
     ThreadSafeStdout,
@@ -132,6 +134,7 @@ from marimo._utils.typed_connection import TypedConnection
 from marimo._utils.variables import is_local
 
 if TYPE_CHECKING:
+    import queue
     from collections.abc import Sequence
     from types import ModuleType
 
@@ -427,7 +430,7 @@ class Kernel:
         self, package_manager: str
     ) -> None:
         return self.enqueue_control_request(
-            InstallMissingPackagesRequest(manager=package_manager)
+            InstallMissingPackagesRequest(manager=package_manager, versions={})
         )
 
     def _update_runtime_from_user_config(self, config: MarimoConfig) -> None:
@@ -670,7 +673,7 @@ class Kernel:
             # packages used by a notebook; that would have the benefit of
             # discovering transitive dependencies, ie if a notebook used a
             # local module that in turn used packages available on PyPI.
-            if self._should_add_script_metadata():
+            if self._should_update_script_metadata():
                 cell = self.graph.cells.get(cell_id, None)
                 if cell:
                     prev_imports: set[Name] = (
@@ -679,10 +682,8 @@ class Kernel:
                         else set()
                     )
                     to_add = cell.imported_namespaces - prev_imports
-                    to_remove = prev_imports - cell.imported_namespaces
-                    self._add_script_metadata(
-                        import_namespaces_to_add=list(to_add),
-                        import_namespaces_to_remove=list(to_remove),
+                    self._update_script_metadata(
+                        import_namespaces_to_add=list(to_add)
                     )
 
         LOGGER.debug(
@@ -764,8 +765,12 @@ class Kernel:
         missing_modules_before_deletion = (
             self.module_registry.missing_modules()
         )
+
+        temporaries = {
+            name: [VariableData(kind="variable")] for name in cell.temporaries
+        }
         self._delete_variables(
-            cell.variable_data,
+            {**cell.variable_data, **temporaries},
             exclude_defs if exclude_defs is not None else set(),
         )
 
@@ -839,12 +844,9 @@ class Kernel:
         del self.cell_metadata[cell_id]
         cell = self.graph.cells[cell_id]
         cell.import_workspace.imported_defs = set()
-        if self._should_add_script_metadata():
-            self._add_script_metadata(
+        if self._should_update_script_metadata():
+            self._update_script_metadata(
                 import_namespaces_to_add=[],
-                import_namespaces_to_remove=[
-                    im.namespace for im in cell.imports
-                ],
             )
 
         return self._deactivate_cell(cell_id)
@@ -1698,7 +1700,8 @@ class Kernel:
                 continue
             package_statuses[pkg] = "installing"
             InstallingPackageAlert(packages=package_statuses).broadcast()
-            if await self.package_manager.install(pkg):
+            version = request.versions.get(pkg)
+            if await self.package_manager.install(pkg, version=version):
                 package_statuses[pkg] = "installed"
                 InstallingPackageAlert(packages=package_statuses).broadcast()
             else:
@@ -1714,8 +1717,8 @@ class Kernel:
 
         # If a package was not installed at cell registration time, it won't
         # yet be in the script metadata.
-        if self._should_add_script_metadata():
-            self._add_script_metadata(installed_modules, [])
+        if self._should_update_script_metadata():
+            self._update_script_metadata(installed_modules)
 
         cells_to_run = set(
             cid
@@ -1725,17 +1728,15 @@ class Kernel:
         if cells_to_run:
             await self._if_autorun_then_run_cells(cells_to_run)
 
-    def _should_add_script_metadata(self) -> bool:
+    def _should_update_script_metadata(self) -> bool:
         return (
-            self.user_config["package_management"]["add_script_metadata"]
+            GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA is True
             and self.app_metadata.filename is not None
             and self.package_manager is not None
         )
 
-    def _add_script_metadata(
-        self,
-        import_namespaces_to_add: List[str],
-        import_namespaces_to_remove: List[str],
+    def _update_script_metadata(
+        self, import_namespaces_to_add: List[str]
     ) -> None:
         filename = self.app_metadata.filename
 
@@ -1744,16 +1745,14 @@ class Kernel:
 
         try:
             LOGGER.debug(
-                "Updating script metadata: %s. Adding namespaces: %s."
-                " Removing namespaces: %s",
+                "Updating script metadata: %s. Adding namespaces: %s.",
                 filename,
                 import_namespaces_to_add,
-                import_namespaces_to_remove,
             )
             self.package_manager.update_notebook_script_metadata(
                 filepath=filename,
                 import_namespaces_to_add=import_namespaces_to_add,
-                import_namespaces_to_remove=import_namespaces_to_remove,
+                import_namespaces_to_remove=[],
             )
         except Exception as e:
             LOGGER.error("Failed to add script metadata to notebook: %s", e)
@@ -1855,7 +1854,8 @@ def launch_kernel(
     set_ui_element_queue: QueueType[SetUIElementValueRequest],
     completion_queue: QueueType[CodeCompletionRequest],
     input_queue: QueueType[str],
-    socket_addr: tuple[str, int],
+    stream_queue: queue.Queue[KernelMessage] | None,
+    socket_addr: tuple[str, int] | None,
     is_edit_mode: bool,
     configs: dict[CellId_t, CellConfig],
     app_metadata: AppMetadata,
@@ -1879,24 +1879,33 @@ def launch_kernel(
         profiler = cProfile.Profile()
         profiler.enable()
 
-    n_tries = 0
-    pipe: Optional[TypedConnection[KernelMessage]] = None
-    while n_tries < 100:
-        try:
-            pipe = TypedConnection[KernelMessage].of(
-                connection.Client(socket_addr)
-            )
-            break
-        except Exception:
-            n_tries += 1
-            time.sleep(0.01)
-
-    if n_tries == 100 or pipe is None:
-        LOGGER.debug("Failed to connect to socket.")
-        return
-
     # Create communication channels
-    stream = ThreadSafeStream(pipe=pipe, input_queue=input_queue)
+    if socket_addr is not None:
+        n_tries = 0
+        pipe: Optional[TypedConnection[KernelMessage]] = None
+        while n_tries < 100:
+            try:
+                pipe = TypedConnection[KernelMessage].of(
+                    connection.Client(socket_addr)
+                )
+                break
+            except Exception:
+                n_tries += 1
+                time.sleep(0.01)
+
+        if n_tries == 100 or pipe is None:
+            LOGGER.debug("Failed to connect to socket.")
+            return
+
+        stream = ThreadSafeStream(pipe=pipe, input_queue=input_queue)
+    elif stream_queue is not None:
+        stream = ThreadSafeStream(
+            pipe=QueuePipe(stream_queue), input_queue=input_queue
+        )
+    else:
+        raise RuntimeError(
+            "One of queue_pipe and socket_addr must be non None"
+        )
     # Console output is hidden in run mode, so no need to redirect
     # (redirection of console outputs is not thread-safe anyway)
     stdout = (

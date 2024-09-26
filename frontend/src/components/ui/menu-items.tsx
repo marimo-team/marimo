@@ -70,6 +70,7 @@ export const menuItemVariants = cva(
           "focus:bg-muted/70 focus:text-muted-foreground aria-selected:bg-muted/70 aria-selected:text-muted-foreground",
         success:
           "focus:bg-[var(--grass-3)] focus:text-[var(--grass-11)] aria-selected:bg-[var(--grass-3)] aria-selected:text-[var(--grass-11)]",
+        disabled: "text-muted-foreground",
       },
     },
     defaultVariants: {

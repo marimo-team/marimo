@@ -1,28 +1,26 @@
 # /// script
 # requires-python = ">=3.10"
 # dependencies = [
-#     "altair",
+#     "altair==5.4.1",
 #     "marimo",
-#     "numpy",
-#     "polars",
+#     "numpy==2.0.2",
+#     "polars==1.8.2",
 # ]
 # ///
 
 import marimo
 
-__generated_with = "0.8.11"
+__generated_with = "0.8.19"
 app = marimo.App(width="full")
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         f"""
     # Using `Polars` in `marimo`
 
     > Lightning-fast DataFrame library for Rust and Python
-
-    `pip install polars`
     """
     )
     return
@@ -42,7 +40,7 @@ def __(pl):
     df = pl.read_csv(
         "https://gist.githubusercontent.com/ritchie46/cac6b337ea52281aa23c049250a4ff03/raw/89a957ff3919d90e6ef2d34235e6bf22304f3366/pokemon.csv"
     )
-    return df,
+    return (df,)
 
 
 @app.cell
@@ -90,14 +88,14 @@ def __(df, pl, type_1_filter, type_2_filter):
         filtered = filtered.filter(pl.col("Type 1") == type_1_filter.value)
     if type_2_filter.value:
         filtered = filtered.filter(pl.col("Type 2") == type_2_filter.value)
-    return filtered,
+    return (filtered,)
 
 
 @app.cell
 def __(filtered, mo):
     table = mo.ui.table(filtered)
     table
-    return table,
+    return (table,)
 
 
 @app.cell

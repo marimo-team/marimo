@@ -58,7 +58,7 @@ def notebook_page_template(
         else app_config.app_title,
     )
     html = html.replace(
-        "{{ app_config }}", json.dumps(_del_none(app_config.asdict()))
+        "{{ app_config }}", json.dumps(_del_none_or_empty(app_config.asdict()))
     )
     html = html.replace("{{ filename }}", filename or "")
     html = html.replace(
@@ -83,6 +83,7 @@ def static_notebook_template(
     app_config: _AppConfig,
     filename: Optional[str],
     code: str,
+    code_hash: str,
     cell_ids: list[str],
     cell_names: list[str],
     cell_codes: list[str],
@@ -114,7 +115,7 @@ def static_notebook_template(
     )
     html = html.replace(
         "{{ app_config }}",
-        json.dumps(_del_none(app_config.asdict()), sort_keys=True),
+        json.dumps(_del_none_or_empty(app_config.asdict()), sort_keys=True),
     )
     html = html.replace("{{ filename }}", filename or "")
     html = html.replace("{{ mode }}", "read")
@@ -159,13 +160,18 @@ def static_notebook_template(
             </style>
             """)
 
-    code_block = f"""
+    code_block = dedent(f"""
     <marimo-code hidden="">
         {uri_encode_component(code)}
     </marimo-code>
-    """
+    """)
     if not code:
         code_block = '<marimo-code hidden=""></marimo-code>'
+
+    # Add a 256-bit hash of the code, for cache busting or CI checks
+    code_block += (
+        f'\n<marimo-code-hash hidden="">{code_hash}</marimo-code-hash>\n'
+    )
 
     # Replace all relative href and src with absolute URL
     html = (
@@ -195,9 +201,11 @@ def _serialize_list_to_base64(value: list[str]) -> list[str]:
     return [_serialize_to_base64(v) for v in value]
 
 
-def _del_none(d: Any) -> Any:
+def _del_none_or_empty(d: Any) -> Any:
     return {
-        key: _del_none(cast(Any, value)) if isinstance(value, dict) else value
+        key: _del_none_or_empty(cast(Any, value))
+        if isinstance(value, dict)
+        else value
         for key, value in d.items()
-        if value is not None
+        if value is not None and value != []
     }

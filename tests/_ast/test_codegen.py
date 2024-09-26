@@ -232,6 +232,37 @@ class TestGeneration:
             "test_generate_filecontents_shadowed_builtin"
         )
 
+    @staticmethod
+    def test_generate_app_constructor_with_auto_download() -> None:
+        config = _AppConfig(
+            width="full",
+            app_title="Test App",
+            css_file="custom.css",
+            auto_download=["html", "markdown"],
+        )
+        result = codegen.generate_app_constructor(config)
+        expected = (
+            "app = marimo.App(\n"
+            '    width="full",\n'
+            '    app_title="Test App",\n'
+            '    css_file="custom.css",\n'
+            '    auto_download=["html", "markdown"],\n'
+            ")"
+        )
+        assert result == expected
+
+    @staticmethod
+    def test_generate_app_constructor_with_empty_auto_download() -> None:
+        config = _AppConfig(auto_download=[])
+        result = codegen.generate_app_constructor(config)
+        assert result == "app = marimo.App()"
+
+    @staticmethod
+    def test_generate_app_constructor_with_single_auto_download() -> None:
+        config = _AppConfig(auto_download=["html"])
+        result = codegen.generate_app_constructor(config)
+        assert result == 'app = marimo.App(auto_download=["html"])'
+
 
 class TestGetCodes:
     @staticmethod
@@ -400,7 +431,7 @@ class TestToFunctionDef:
         cell = compile_cell(code)
         fndef = codegen.to_functiondef(cell, "foo")
         expected = "\n".join(
-            ["@app.cell", "def foo():", "    x = 0", "    return x,"]
+            ["@app.cell", "def foo():", "    x = 0", "    return (x,)"]
         )
         assert fndef == expected
 
@@ -460,7 +491,7 @@ class TestToFunctionDef:
         cell = cell.configure(CellConfig())
         fndef = codegen.to_functiondef(cell, "foo")
         expected = "\n".join(
-            ["@app.cell", "def foo():", "    x = 0", "    return x,"]
+            ["@app.cell", "def foo():", "    x = 0", "    return (x,)"]
         )
         assert fndef == expected
 
@@ -474,7 +505,7 @@ class TestToFunctionDef:
                 "@app.cell(disabled=True)",
                 "def foo():",
                 "    x = 0",
-                "    return x,",
+                "    return (x,)",
             ]
         )
         assert fndef == expected
@@ -489,7 +520,7 @@ class TestToFunctionDef:
                 "@app.cell(disabled=True, hide_code=True)",
                 "def foo():",
                 "    x = 0",
-                "    return x,",
+                "    return (x,)",
             ]
         )
         assert fndef == expected
@@ -504,7 +535,7 @@ class TestToFunctionDef:
                 "@app.cell",
                 "def foo():",
                 "    x = 0",
-                "    return x,",
+                "    return (x,)",
             ]
         )
         assert fndef == expected

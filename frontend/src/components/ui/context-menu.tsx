@@ -19,6 +19,7 @@ import {
 } from "./menu-items";
 import type { VariantProps } from "class-variance-authority";
 import { withFullScreenAsRoot } from "./fullscreen";
+import { StyleNamespace } from "@/theme/namespace";
 
 const ContextMenu = ContextMenuPrimitive.Root;
 const ContextMenuTrigger = ContextMenuPrimitive.Trigger;
@@ -68,11 +69,13 @@ const ContextMenuContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.Content>
 >(({ className, ...props }, ref) => (
   <ContextMenuPortal>
-    <ContextMenuPrimitive.Content
-      ref={ref}
-      className={cn(menuContentCommon(), contentCommon, className)}
-      {...props}
-    />
+    <StyleNamespace>
+      <ContextMenuPrimitive.Content
+        ref={ref}
+        className={cn(menuContentCommon(), contentCommon, className)}
+        {...props}
+      />
+    </StyleNamespace>
   </ContextMenuPortal>
 ));
 ContextMenuContent.displayName = ContextMenuPrimitive.Content.displayName;

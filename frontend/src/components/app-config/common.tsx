@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { PropsWithChildren } from "react";
+import { cn } from "@/utils/cn";
+import type { HTMLProps, PropsWithChildren } from "react";
 
 export const SettingTitle: React.FC<PropsWithChildren> = ({ children }) => {
   return (
@@ -9,9 +10,19 @@ export const SettingTitle: React.FC<PropsWithChildren> = ({ children }) => {
   );
 };
 
-export const SettingSubtitle: React.FC<PropsWithChildren> = ({ children }) => {
+export const SettingSubtitle: React.FC<HTMLProps<HTMLDivElement>> = ({
+  children,
+  className,
+  ...props
+}) => {
   return (
-    <div className="text-sm font-semibold underline-offset-2 text-accent-foreground uppercase tracking-wide">
+    <div
+      {...props}
+      className={cn(
+        "text-sm font-semibold underline-offset-2 text-accent-foreground uppercase tracking-wide",
+        className,
+      )}
+    >
       {children}
     </div>
   );

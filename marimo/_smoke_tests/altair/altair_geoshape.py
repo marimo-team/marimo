@@ -1,7 +1,16 @@
-# Copyright 2024 Marimo. All rights reserved.
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "marimo",
+#     "altair",
+#     "vega-datasets",
+#     "geopandas",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.7.20"
+__generated_with = "0.8.14"
 app = marimo.App(width="medium")
 
 
@@ -42,6 +51,12 @@ def __(alt, gdf_sel):
 @app.cell
 def __(chart):
     chart
+    return
+
+
+@app.cell
+def __(chart):
+    chart.mark.type
     return
 
 

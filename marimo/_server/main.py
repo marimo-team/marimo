@@ -58,6 +58,8 @@ async def handle_error(request: Request, response: Any) -> Any:
             {"detail": response.detail},
             status_code=response.status_code,
         )
+    if isinstance(response, NotImplementedError):
+        return JSONResponse({"detail": "Not supported"}, status_code=501)
     if isinstance(response, TypeError):
         return JSONResponse({"detail": str(response)}, status_code=500)
     if isinstance(response, Exception):

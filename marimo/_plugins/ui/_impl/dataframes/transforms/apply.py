@@ -65,18 +65,18 @@ def get_handler_for_dataframe(
 
     raises ValueError if the dataframe type is not supported.
     """
-    if DependencyManager.pandas.has():
+    if DependencyManager.pandas.imported():
         import pandas as pd
 
         if isinstance(df, pd.DataFrame):
             return PandasTransformHandler()
-    if DependencyManager.polars.has():
+    if DependencyManager.polars.imported():
         import polars as pl
 
         if isinstance(df, pl.DataFrame):
             return PolarsTransformHandler()
 
-    if DependencyManager.ibis.has():
+    if DependencyManager.ibis.imported():
         import ibis  # type: ignore
 
         if isinstance(df, ibis.Table):

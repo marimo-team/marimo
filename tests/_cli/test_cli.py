@@ -29,6 +29,8 @@ from marimo._utils.config.config import ROOT_DIR as CONFIG_ROOT_DIR
 
 HAS_UV = DependencyManager.which("uv")
 
+DIR_PATH = os.path.dirname(os.path.realpath(__file__))
+
 
 def _is_win32() -> bool:
     return sys.platform == "win32"
@@ -594,6 +596,7 @@ def test_cli_edit_shutdown() -> None:
     with _patch_signals_win32():
         _interrupt(p)
         assert p.poll() is None
+
         assert p.stdin is not None
         _confirm_shutdown(p)
         _check_shutdown(p)
@@ -617,3 +620,93 @@ def test_cli_run_shutdown() -> None:
         p.stdin.flush()
         time.sleep(3)
         assert p.poll() == 0
+
+
+def test_cli_edit_sandbox_prompt() -> None:
+    port = _get_port()
+    path = os.path.join(DIR_PATH, "cli_data", "sandbox.py")
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            path,
+            "--headless",
+            "--no-token",
+            "--skip-update-check",
+            "-p",
+            str(port),
+        ],
+        stdin=subprocess.PIPE,
+    )
+    assert p.poll() is None
+    assert p.stdin is not None
+    p.stdin.write(b"y\n")
+    p.stdin.flush()
+    _check_started(port)
+    p.kill()
+
+
+def test_cli_run_sandbox_prompt() -> None:
+    port = _get_port()
+    path = os.path.join(DIR_PATH, "cli_data", "sandbox.py")
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            path,
+            "--headless",
+            "--no-token",
+            "-p",
+            str(port),
+        ],
+        stdin=subprocess.PIPE,
+    )
+    assert p.poll() is None
+    assert p.stdin is not None
+    p.stdin.write(b"y\n")
+    p.stdin.flush()
+    _check_started(port)
+    p.kill()
+
+
+@pytest.mark.skip(reason="Need to release -y to PyPI")
+def test_cli_edit_sandbox_prompt_yes() -> None:
+    port = _get_port()
+    path = os.path.join(DIR_PATH, "cli_data", "sandbox.py")
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "-y",
+            "edit",
+            path,
+            "--headless",
+            "--no-token",
+            "--skip-update-check",
+            "-p",
+            str(port),
+        ],
+    )
+    assert p.poll() is None
+    _check_started(port)
+    p.kill()
+
+
+@pytest.mark.skip(reason="Need to release -y to PyPI")
+def test_cli_run_sandbox_prompt_yes() -> None:
+    port = _get_port()
+    path = os.path.join(DIR_PATH, "cli_data", "sandbox.py")
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "-y",
+            "run",
+            path,
+            "--headless",
+            "--no-token",
+            "-p",
+            str(port),
+        ],
+    )
+    assert p.poll() is None
+    _check_started(port)
+    p.kill()

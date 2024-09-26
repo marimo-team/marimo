@@ -1,16 +1,25 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "marimo",
+#     "matplotlib==3.9.2",
+#     "numpy==1.26.4",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.1.0"
+__generated_with = "0.8.19"
 app = marimo.App()
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
-    mo.md("# The Mandelbrot Set")
+    mo.md("""# The Mandelbrot Set""")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         r"""
@@ -36,7 +45,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo, n_max):
     mo.md(
         f"""
@@ -49,7 +58,7 @@ def __(mo, n_max):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo, reset_plot_scale, x_offset, y_offset, zoom):
     mo.md(
         f"""
@@ -77,13 +86,13 @@ def __(compute_mandelbrot, n_max, x_offset, y_offset, zoom):
 @app.cell
 def __(mo):
     n_max = mo.ui.slider(2, 256, step=1, value=30)
-    return n_max,
+    return (n_max,)
 
 
 @app.cell
 def __(mo):
     reset_plot_scale = mo.ui.button(label="Click to reset")
-    return reset_plot_scale,
+    return (reset_plot_scale,)
 
 
 @app.cell
@@ -139,7 +148,7 @@ def __():
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 if __name__ == "__main__":

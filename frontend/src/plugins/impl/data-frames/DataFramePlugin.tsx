@@ -23,6 +23,7 @@ import type { DataType } from "../vega/vega-loader";
 import type { FieldTypesWithExternalType } from "@/components/data-table/types";
 import { Spinner } from "@/components/icons/spinner";
 import { ReadonlyCode } from "@/components/editor/code/readonly-python-code";
+import { isEqual } from "lodash-es";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -193,7 +194,7 @@ export const DataFrameComponent = memo(
       if (value?.transforms.length !== prevValue.transforms.length) {
         setValue(prevValue);
       }
-    }, [data, value?.transforms, prevValueRef, setValue]);
+    }, [data, value?.transforms.length, prevValueRef, setValue]);
 
     return (
       <div>
@@ -228,6 +229,10 @@ export const DataFrameComponent = memo(
               initialValue={internalValue}
               columns={columns}
               onChange={(v) => {
+                // Ignore changes that are the same
+                if (isEqual(v, internalValue)) {
+                  return;
+                }
                 // Update the value valid changes
                 setValue(v);
                 setInternalValue(v);

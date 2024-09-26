@@ -45,6 +45,7 @@ import { initializeSidebarElement } from "./core/sidebar-element";
 import { RoutesPlugin } from "./layout/RoutesPlugin";
 import { DateTimePickerPlugin } from "./impl/DateTimePickerPlugin";
 import { DateRangePickerPlugin } from "./impl/DateRangePlugin";
+import { MimeRendererPlugin } from "./layout/MimeRenderPlugin";
 
 // List of UI plugins
 export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
@@ -86,6 +87,7 @@ const LAYOUT_PLUGINS: Array<IStatelessPlugin<unknown>> = [
   new CarouselPlugin(),
   new DownloadPlugin(),
   new JsonOutputPlugin(),
+  new MimeRendererPlugin(),
   new MermaidPlugin(),
   new NavigationMenuPlugin(),
   new ProgressPlugin(),

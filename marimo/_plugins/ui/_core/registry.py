@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import sys
 import weakref
-from typing import Any, Dict, Iterable, Mapping, TypeVar, Union
+from typing import Any, Dict, Iterable, Mapping, Optional, TypeVar, Union
 
 from marimo._runtime.context.types import ContextNotInitializedError
 
@@ -95,14 +95,34 @@ class UIElementRegistry:
                 bindings.add(name)
         return bindings
 
-    def _register_bindings(self, object_id: UIElementId) -> None:
+    def _register_bindings(
+        self, object_id: UIElementId, glbls: Optional[dict[str, Any]] = None
+    ) -> None:
         from marimo._runtime.context.kernel_context import KernelRuntimeContext
 
         ctx = get_context()
-        if isinstance(ctx, KernelRuntimeContext):
+        if isinstance(ctx, KernelRuntimeContext) or glbls is not None:
+            if glbls is None:
+                glbls = ctx.globals
             self._bindings[object_id] = self._find_bindings_in_namespace(
-                object_id, ctx.globals
+                object_id, glbls
             )
+
+    def register_scope(
+        self, glbls: dict[str, Any], defs: Optional[set[str]] = None
+    ) -> None:
+        if defs is None:
+            defs = set(glbls.keys())
+        for binding in defs:
+            lookup = glbls.get(binding, None)
+            if isinstance(lookup, UIElement):
+                self._register_bindings(lookup._id, glbls)
+
+    def lookup(self, name: str) -> Optional[UIElement[Any, Any]]:
+        for object_id, bindings in self._bindings.items():
+            if name in bindings:
+                return self.get_object(object_id)
+        return None
 
     def get_object(self, object_id: UIElementId) -> UIElement[Any, Any]:
         if object_id not in self._objects:

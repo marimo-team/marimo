@@ -160,12 +160,9 @@ class PackageManagementConfig(TypedDict):
     **Keys.**
 
     - `manager`: the package manager to use
-    - `add_script_metadata`: if true, add script metadata to the notebook
-        Currently only supports `uv`
     """
 
     manager: Literal["pip", "rye", "uv", "poetry", "pixi"]
-    add_script_metadata: bool
 
 
 @dataclass
@@ -249,7 +246,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "autosave_delay": 1000,
         "format_on_save": False,
     },
-    "package_management": {"manager": "pip", "add_script_metadata": False},
+    "package_management": {"manager": "pip"},
     "server": {
         "browser": "default",
         "follow_symlink": False,

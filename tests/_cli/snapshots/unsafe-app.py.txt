@@ -7,7 +7,7 @@ app = marimo.App(app_title="Test Notebook")
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell

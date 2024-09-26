@@ -11,13 +11,14 @@ from marimo import _loggers
 from marimo._server.api.deps import AppState
 from marimo._server.api.status import HTTPStatus
 from marimo._server.api.utils import parse_request
-from marimo._server.export.exporter import Exporter
+from marimo._server.export.exporter import AutoExporter, Exporter
 from marimo._server.model import SessionMode
 from marimo._server.models.export import (
     ExportAsHTMLRequest,
     ExportAsMarkdownRequest,
     ExportAsScriptRequest,
 )
+from marimo._server.models.models import SuccessResponse
 from marimo._server.router import APIRouter
 
 if TYPE_CHECKING:
@@ -78,6 +79,60 @@ async def export_as_html(
         content=html,
         headers=headers,
     )
+
+
+@router.post("/auto_export/html")
+@requires("edit")
+async def auto_export_as_html(
+    *,
+    request: Request,
+) -> SuccessResponse | PlainTextResponse:
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/ExportAsHTMLRequest"
+    responses:
+        200:
+            description: Export the notebook as HTML
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+        400:
+            description: File must be saved before downloading
+    """
+    app_state = AppState(request)
+    body = await parse_request(request, cls=ExportAsHTMLRequest)
+    session = app_state.require_current_session()
+    session_view = session.session_view
+
+    # If we have already exported to HTML, don't do it again
+    if session_view.has_auto_exported_html:
+        LOGGER.debug("Already auto-exported to HTML")
+        return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
+
+    # Reload the file manager to get the latest state
+    session.app_file_manager.reload()
+
+    html, _filename = Exporter().export_as_html(
+        file_manager=session.app_file_manager,
+        session_view=session_view,
+        display_config=app_state.session_manager.user_config_manager.get_config()[
+            "display"
+        ],
+        request=body,
+    )
+
+    # Save the HTML file to disk, at `.marimo/<filename>.html`
+    AutoExporter().save_html(
+        file_manager=session.app_file_manager,
+        html=html,
+    )
+    session_view.mark_auto_export_html()
+
+    return SuccessResponse()
 
 
 @router.post("/script")
@@ -170,3 +225,51 @@ async def export_as_markdown(
         content=markdown,
         headers=headers,
     )
+
+
+@router.post("/auto_export/markdown")
+@requires("edit")
+async def auto_export_as_markdown(
+    *,
+    request: Request,
+) -> SuccessResponse | PlainTextResponse:
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/ExportAsMarkdownRequest"
+    responses:
+        200:
+            description: Export the notebook as a markdown
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+        400:
+            description: File must be saved before downloading
+    """
+    app_state = AppState(request)
+    session = app_state.require_current_session()
+    session_view = session.session_view
+
+    # If we have already exported to Markdown, don't do it again
+    if session_view.has_auto_exported_md:
+        LOGGER.debug("Already auto-exported to Markdown")
+        return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
+
+    # Reload the file manager to get the latest state
+    session.app_file_manager.reload()
+
+    markdown, _filename = Exporter().export_as_md(
+        file_manager=session.app_file_manager,
+    )
+
+    # Save the Markdown file to disk, at `.marimo/<filename>.md`
+    AutoExporter().save_md(
+        file_manager=session.app_file_manager,
+        markdown=markdown,
+    )
+    session_view.mark_auto_export_md()
+
+    return SuccessResponse()

@@ -38,6 +38,7 @@ __all__ = [
     "hstack",
     "Html",
     "icon",
+    "iframe",
     "image",
     "lazy",
     "left",
@@ -56,6 +57,7 @@ __all__ = [
     "right",
     "running_in_notebook",
     "routes",
+    "show_code",
     "sidebar",
     "stat",
     "state",
@@ -69,16 +71,17 @@ __all__ = [
     "video",
     "vstack",
 ]
-__version__ = "0.8.13"
+__version__ = "0.8.20"
 
 from marimo._ast.app import App
 from marimo._ast.cell import Cell
 from marimo._islands.island_generator import MarimoIslandGenerator
 from marimo._output.doc import doc
-from marimo._output.formatting import as_html, plain
+from marimo._output.formatting import as_html, iframe, plain
 from marimo._output.hypertext import Html
 from marimo._output.justify import center, left, right
 from marimo._output.md import md
+from marimo._output.show_code import show_code
 from marimo._plugins import ui
 from marimo._plugins.stateless import mpl, status
 from marimo._plugins.stateless.accordion import accordion

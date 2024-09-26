@@ -7,8 +7,10 @@ from typing import Optional
 
 class HTTPStatus(IntEnum):
     OK = 200
+    NOT_MODIFIED = 304
     BAD_REQUEST = 400
     FORBIDDEN = 403
+    REQUEST_TIMEOUT = 408
     NOT_FOUND = 404
     METHOD_NOT_ALLOWED = 405
     UNSUPPORTED_MEDIA_TYPE = 415

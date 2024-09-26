@@ -51,7 +51,7 @@ export function isAiEnabled(config: UserConfig) {
 /**
  * Atom for storing the app config.
  */
-const appConfigAtom = atom<AppConfig>(parseAppConfig());
+export const appConfigAtom = atom<AppConfig>(parseAppConfig());
 
 /**
  * Returns the app config.

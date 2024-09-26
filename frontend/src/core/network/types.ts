@@ -42,6 +42,10 @@ export type FormatResponse = schemas["FormatResponse"];
 export type FunctionCallRequest = schemas["FunctionCallRequest"];
 export type InstallMissingPackagesRequest =
   schemas["InstallMissingPackagesRequest"];
+export type AddPackageRequest = schemas["AddPackageRequest"];
+export type RemovePackageRequest = schemas["RemovePackageRequest"];
+export type ListPackagesResponse = schemas["ListPackagesResponse"];
+export type PackageOperationResponse = schemas["PackageOperationResponse"];
 export type InstantiateRequest = schemas["InstantiateRequest"];
 export type MarimoConfig = schemas["MarimoConfig"];
 export type MarimoFile = schemas["MarimoFile"];
@@ -141,8 +145,17 @@ export interface EditRequests {
   shutdownSession: (
     request: ShutdownSessionRequest,
   ) => Promise<RunningNotebooksResponse>;
+  // Export requests
   exportAsHTML: (request: ExportAsHTMLRequest) => Promise<string>;
   exportAsMarkdown: (request: ExportAsMarkdownRequest) => Promise<string>;
+  autoExportAsHTML: (request: ExportAsHTMLRequest) => Promise<null>;
+  autoExportAsMarkdown: (request: ExportAsMarkdownRequest) => Promise<null>;
+  // Package requests
+  getPackageList: () => Promise<ListPackagesResponse>;
+  addPackage: (request: AddPackageRequest) => Promise<PackageOperationResponse>;
+  removePackage: (
+    request: RemovePackageRequest,
+  ) => Promise<PackageOperationResponse>;
 }
 
 export type RequestKey = keyof (EditRequests & RunRequests);

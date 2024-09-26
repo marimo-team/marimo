@@ -1,7 +1,16 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "pandas",
+#     "pygwalker",
+#     "marimo",
+# ]
+# ///
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.7.5"
+__generated_with = "0.8.14"
 app = marimo.App(width="medium")
 
 

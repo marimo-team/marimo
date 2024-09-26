@@ -1,9 +1,44 @@
 components:
   schemas:
+    AddPackageRequest:
+      properties:
+        package:
+          type: string
+      required:
+      - package
+      type: object
     AiCompletionRequest:
       properties:
         code:
           type: string
+        context:
+          nullable: true
+          properties:
+            schema:
+              items:
+                properties:
+                  columns:
+                    items:
+                      properties:
+                        name:
+                          type: string
+                        type:
+                          type: string
+                      required:
+                      - name
+                      - type
+                      type: object
+                    type: array
+                  name:
+                    type: string
+                required:
+                - name
+                - columns
+                type: object
+              type: array
+          required:
+          - schema
+          type: object
         includeOtherCode:
           type: string
         language:
@@ -274,6 +309,16 @@ components:
       - prefix_length
       - options
       - name
+      type: object
+    CopyNotebookRequest:
+      properties:
+        destination:
+          type: string
+        source:
+          type: string
+      required:
+      - source
+      - destination
       type: object
     CreationRequest:
       properties:
@@ -764,8 +809,13 @@ components:
       properties:
         manager:
           type: string
+        versions:
+          additionalProperties:
+            type: string
+          type: object
       required:
       - manager
+      - versions
       type: object
     InstallingPackageAlert:
       properties:
@@ -823,6 +873,13 @@ components:
             app_title:
               nullable: true
               type: string
+            auto_download:
+              items:
+                enum:
+                - html
+                - markdown
+                type: string
+              type: array
             css_file:
               nullable: true
               type: string
@@ -838,6 +895,7 @@ components:
               type: string
           required:
           - width
+          - auto_download
           type: object
         capabilities:
           properties:
@@ -922,6 +980,15 @@ components:
       - kiosk
       - capabilities
       - name
+      type: object
+    ListPackagesResponse:
+      properties:
+        packages:
+          items:
+            $ref: '#/components/schemas/PackageDescription'
+          type: array
+      required:
+      - packages
       type: object
     MIME:
       properties: {}
@@ -1066,8 +1133,6 @@ components:
           type: object
         package_management:
           properties:
-            add_script_metadata:
-              type: boolean
             manager:
               enum:
               - pip
@@ -1078,7 +1143,6 @@ components:
               type: string
           required:
           - manager
-          - add_script_metadata
           type: object
         runtime:
           properties:
@@ -1250,6 +1314,9 @@ components:
       - application/json
       - application/vnd.marimo+error
       - application/vnd.marimo+traceback
+      - application/vnd.marimo+mimebundle
+      - application/vnd.vega.v5+json
+      - application/vnd.vegalite.v5+json
       - image/png
       - image/svg+xml
       - image/tiff
@@ -1262,6 +1329,7 @@ components:
       - text/html
       - text/plain
       - text/markdown
+      - text/latex
       - text/csv
       type: string
     MissingPackageAlert:
@@ -1341,6 +1409,26 @@ components:
             type: string
       required:
       - tutorialId
+      type: object
+    PackageDescription:
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+      required:
+      - name
+      - version
+      type: object
+    PackageOperationResponse:
+      properties:
+        error:
+          nullable: true
+          type: string
+        success:
+          type: boolean
+      required:
+      - success
       type: object
     PreviewDatasetColumnRequest:
       properties:
@@ -1452,6 +1540,13 @@ components:
           type: string
       required:
       - name
+      type: object
+    RemovePackageRequest:
+      properties:
+        package:
+          type: string
+      required:
+      - package
       type: object
     RemoveUIElements:
       properties:
@@ -1816,7 +1911,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.8.4
+  version: 0.8.18
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -1877,6 +1972,38 @@ paths:
               schema:
                 $ref: '#/components/schemas/Snippets'
           description: Load the snippets for the documentation page
+  /api/export/auto_export/html:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportAsHTMLRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Export the notebook as HTML
+        400:
+          description: File must be saved before downloading
+  /api/export/auto_export/markdown:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportAsMarkdownRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Export the notebook as a markdown
+        400:
+          description: File must be saved before downloading
   /api/export/html:
     post:
       requestBody:
@@ -2083,6 +2210,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Complete a code fragment
+  /api/kernel/copy:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CopyNotebookRequest'
+      responses:
+        200:
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: Copy notebook
   /api/kernel/delete:
     post:
       requestBody:
@@ -2241,20 +2382,6 @@ paths:
               schema:
                 type: string
           description: Save the current app
-  /api/kernel/copy:
-    post:
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CopyNotebookRequest'
-      responses:
-        200:
-          content:
-            text/plain:
-              schema:
-                type: string
-          description: Copy notebook
   /api/kernel/save_app_config:
     post:
       requestBody:
@@ -2363,6 +2490,43 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Sync cell ids
+  /api/packages/add:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddPackageRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackageOperationResponse'
+          description: Install package
+  /api/packages/list:
+    get:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListPackagesResponse'
+          description: List installed packages
+  /api/packages/remove:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RemovePackageRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackageOperationResponse'
+          description: Uninstall package
   /api/status:
     get:
       responses:
