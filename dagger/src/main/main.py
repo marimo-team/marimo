@@ -1,35 +1,25 @@
 from typing import Annotated
 
 import dagger
-from dagger import DefaultPath, dag, function, object_type
+from dagger import dag, DefaultPath, Doc, function, Ignore, object_type
+
+from .env import Env
 
 @object_type
 class Marimo:
+    """A collection of tasks for the Marimo project."""
+
     @function
     def make(
         self,
-        src: Annotated[dagger.Directory, DefaultPath("/")],
-        task: str
+        src: Annotated[dagger.Directory, Doc("The marimo source tree to use"), DefaultPath("/"), Ignore(["/dagger", ".venv"])],
+        task: Annotated[str, Doc("The make task to run")],
     ) -> dagger.Container:
+        """A container that runs a make task."""
         return (
-            dev_env(dag).
+            Env().dev().
             with_directory("/src", src).
             with_workdir("/src").
             with_exec(["make", "install-all"]).
             with_exec(["make", task])
         )
-
-def dev_env(dag: dagger.Client) -> dagger.Container:
-    return (
-        # python base
-        dag.container().from_("python:3-bookworm").
-        # package deps
-        with_exec(["apt", "update"]).
-        with_exec(["apt", "install", "-y", "curl", "make"]).
-        # install node 20+
-        with_exec(["sh", "-c", "curl -fsSL https://deb.nodesource.com/setup_20.x | bash -"]).
-        with_exec(["apt", "install", "-y", "nodejs"]).
-        # install pnpm@8
-        with_exec(["npm", "install", "-g", "pnpm@8"]).
-        with_env_variable("NODE_OPTIONS", "--max-old-space-size=8192")
-    )
