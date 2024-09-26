@@ -1,55 +1,73 @@
 # Performance
 
+## Disable autorun
+
+For expensive notebooks, you can [disable automatic execution](/guides/reactivity.md#runtime-configuration).
+
 ## Cache computations with `@mo.cache`
 
-You may use `mo.cache` to cache expensive computations, in a "notebook aware" manner.
-That is, re-running the cell won't flush the cache if the function is the same.
-However, the cache will also automatically become invalidated if relevant
-state, ui, external references, or code changes occur.
+Use [`mo.cache`](#marimo.cache) to cache the return values of
+expensive functions, based on their arguments:
+
 ```python
 import mo
 
 @mo.cache
 def compute_predictions(problem_parameters):
- ...
+  # do some expensive computations and return a value
+  ...
 ```
 
-Whenever `compute_predictions` is called with a value of `problem_parameters`
-it has not seen, it will compute the predictions and store them in a cache. The
-next time it is called with the same parameters, instead of recomputing the
-predictions, it will return the previously computed value from the cache.
+When `compute_predictions` is called with a value of
+`problem_parameters` it hasn't seen, it will compute the predictions and store
+them in an in-memory cache. The next time it is called with the same
+parameters, instead of recomputing the predictions, it will return the
+previously computed value from the cache.
 
-Alternatively, you may use Python's builtin `functools` library to cache
-expensive computations. It is important to note that `mo.cache` is more
-expensive than `functools.cache`, and there are certain instances where
-`functools.cache` is more appropriate.
+:::{dropdown} Comparison to `functools.cache`
 
-### When should I use `mo.cache` over `functools.cache`?
+`mo.cache` is like `functools.cache` but smarter. `functools` will sometimes
+evict values from the cache when it doesn't need to.
 
+In particular, if a cell defining a `@mo.cache`-d function re-runs without
+having been stale (for example, if you manually re-run the cell, or it re-runs
+due to UI interactions), the cache won't be invalidated. In contrast, a
+`functools` cache would, forcing recomputation of values the notebook had
+already computed.
 
- 1. if you are looking to leverage memoization for dynamic programming, use
-    `functools.cache`.
- 2. if you are actively working on a notebook, and just want to speed up and
-    expensive function- use `mo.cache`.
- 3. if you are using State/ UI or any marimo specific objects, use `mo.cache`.
- 4. if your function has external references, consider refactoring your code to
-    use `functools.cache`, or use `mo.cache`.
+Additionally, `mo.cache` knows to invalidate the cache if the function closes
+over a UI element or state object whose value has changed.
 
-## Caching to disk for long-term storage
+`mo.cache` is slightly slower than `functools.cache`, but in most applications
+the overhead is negligible.
+:::
 
-If you would like to leverage caching on restart of the marimo notebook,
-consider using `mo.persistent_cache`. This will cache the results to disk, and
-will be available on restart. Reserve this for very expensive computations that
-you would like to persist across notebook restarts. Outputs are automatically
-saved to `.marimo/cache`.
+## Save/load from disk with `mo.persistent_cache`
+
+Use `mo.persistent_cache` to cache variables to disk. The next time your
+run your notebook, the cached variables will be loaded from disk instead of
+being recomputed, letting you pick up where you left off.
+
+Reserve this for expensive computations that you would like to persist across
+notebook restarts. Cached outputs are automatically saved to `.marimo/cache`.
+
+**Example.**
 
 ```python
 import marimo as mo
 
 with mo.persistent_cache(name="my_cache"):
-    # This block of code, and results will be cached to disk
+    # This block of code and its computed variables will be cached to disk
+    # the first time it's run. The next time it's run, `my_variable`
+    # will be loaded from disk.
+    my_variable = some_expensive_function()
     ...
 ```
+
+Roughly speaking, `mo.persistent_cache` registers a cache hit when the cell
+is not stale, meaning its code hasn't changed and neither have its ancestors.
+On cache hit the code block won't execute and instead variables will be loaded
+into memory.
 
 ## Disable expensive cells
 
@@ -57,10 +75,6 @@ marimo lets you temporarily disable cells from automatically running. This is
 helpful when you want to edit one part of a notebook without triggering
 execution of other parts. See the
 [reactivity guide](/guides/reactivity.md#disabling-cells) for more info.
-
-## Disable notebook autorun
-
-For expensive notebooks, you can [disable autorun](/guides/reactivity.md#runtime-configuration).
 
 ## Lazy-load expensive elements or computations
 
