@@ -3,7 +3,8 @@
 This folder contains example marimo notebooks.
 
 - 🖱️ [`ui/`](ui/): marimo's many UI elements or widgets
-- 🛢️ [`sql/`](sql/): SQL and Python inter-op
+- 🛢️ [`sql/`](sql/): using marimo's SQL cells
+- 📽️ [`layouts/`](layouts/): present notebooks as slides, add sidebars, and more
 - 🤖 [`ai/`](ai/): AI-related examples
 - 📦 [`third_party/`](third_party/): using popular third-party packages in marimo
 - ☁️  [`cloud/`](cloud/): using various cloud providers

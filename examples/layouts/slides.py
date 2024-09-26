@@ -3,12 +3,26 @@
 # dependencies = [
 #     "duckdb==1.1.1",
 #     "marimo",
+#     "numpy==2.0.2",
+#     "pandas==2.2.3",
 # ]
 # ///
+
 import marimo
 
 __generated_with = "0.8.20"
 app = marimo.App(width="medium", layout_file="layouts/slides.slides.json")
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        r"""
+        !!! tip "This notebook is best viewed as an app."
+            Hit `Cmd/Ctrl+.` or click the "app view" button in the bottom right.
+        """
+    )
+    return
 
 
 @app.cell
@@ -17,7 +31,7 @@ def __(mo):
         """
         # DuckDB Tricks 🦆
 
-        ## We use a simple example data set to present a few tricks that are useful when using DuckDB.
+        We use a simple example data set to present a few tricks that are useful when using DuckDB.
 
         >
         > Turned into slides from <https://duckdb.org/2024/08/19/duckdb-tricks-part-1.html>
@@ -203,7 +217,6 @@ def __(mo):
 @app.cell
 def __(duckdb, mo):
     # Utils
-
 
     def print_and_run(sql: str):
         result = duckdb.sql(sql)

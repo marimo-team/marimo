@@ -6,15 +6,26 @@
 #     "vega-datasets==0.9.0",
 # ]
 # ///
+
 import marimo
 
 __generated_with = "0.8.20"
 app = marimo.App(width="full")
 
 
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        r"""
+        !!! tip "This notebook is best viewed as an app."
+            Hit `Cmd/Ctrl+.` or click the "app view" button in the bottom right.
+        """
+    )
+    return
+
+
 @app.cell
 def __():
-    # Imports
     import marimo as mo
     import altair as alt
     from vega_datasets import data
@@ -23,7 +34,6 @@ def __():
 
 @app.cell
 def __(data):
-    # Data
     gapminder = data.gapminder()
     return (gapminder,)
 
@@ -105,7 +115,7 @@ def __(mo, population, year):
             mo.md(
                 f"""
             [{mo.icon("lucide:twitter")} Twitter](https://twitter.com/marimo_io)
-            
+
             [{mo.icon("lucide:github")} GitHub](https://github.com/marimo-team/marimo)    
             """
             )
