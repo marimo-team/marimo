@@ -29,6 +29,8 @@ from marimo._utils.config.config import ROOT_DIR as CONFIG_ROOT_DIR
 
 HAS_UV = DependencyManager.which("uv")
 
+DIR_PATH = os.path.dirname(os.path.realpath(__file__))
+
 
 def _is_win32() -> bool:
     return sys.platform == "win32"
@@ -622,11 +624,12 @@ def test_cli_run_shutdown() -> None:
 
 def test_cli_edit_sandbox_prompt() -> None:
     port = _get_port()
+    path = os.path.join(DIR_PATH, "cli_data", "sandbox.py")
     p = subprocess.Popen(
         [
             "marimo",
             "edit",
-            "cli_data/sandbox.py",
+            path,
             "--headless",
             "--no-token",
             "--skip-update-check",
@@ -645,11 +648,12 @@ def test_cli_edit_sandbox_prompt() -> None:
 
 def test_cli_run_sandbox_prompt() -> None:
     port = _get_port()
+    path = os.path.join(DIR_PATH, "cli_data", "sandbox.py")
     p = subprocess.Popen(
         [
             "marimo",
             "run",
-            "cli_data/sandbox.py",
+            path,
             "--headless",
             "--no-token",
             "-p",
@@ -668,12 +672,13 @@ def test_cli_run_sandbox_prompt() -> None:
 @pytest.mark.skip(reason="Need to release -y to PyPI")
 def test_cli_edit_sandbox_prompt_yes() -> None:
     port = _get_port()
+    path = os.path.join(DIR_PATH, "cli_data", "sandbox.py")
     p = subprocess.Popen(
         [
             "marimo",
             "-y",
             "edit",
-            "cli_data/sandbox.py",
+            path,
             "--headless",
             "--no-token",
             "--skip-update-check",
@@ -689,12 +694,13 @@ def test_cli_edit_sandbox_prompt_yes() -> None:
 @pytest.mark.skip(reason="Need to release -y to PyPI")
 def test_cli_run_sandbox_prompt_yes() -> None:
     port = _get_port()
+    path = os.path.join(DIR_PATH, "cli_data", "sandbox.py")
     p = subprocess.Popen(
         [
             "marimo",
             "-y",
             "run",
-            "cli_data/sandbox.py",
+            path,
             "--headless",
             "--no-token",
             "-p",
