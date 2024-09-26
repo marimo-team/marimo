@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Callable
 import click
 
 from marimo._cli.parse_args import parse_args
-from marimo._cli.print import green
+from marimo._cli.print import echo, green
 from marimo._server.export import (
     export_as_ipynb,
     export_as_md,
@@ -49,7 +49,7 @@ def watch_and_export(
                 f.write(data)
                 f.close()
         else:
-            click.echo(data)
+            echo(data)
         return
 
     # No watch, just run once
@@ -59,18 +59,14 @@ def watch_and_export(
         return
 
     async def on_file_changed(file_path: Path) -> None:
-        click.echo(
-            f"File {str(file_path)} changed. Re-exporting to {green(output)}"
-        )
+        echo(f"File {str(file_path)} changed. Re-exporting to {green(output)}")
         data = export_callback(MarimoPath(file_path))
         write_data(data)
 
     async def start() -> None:
         # Watch the file for changes
         watcher = FileWatcher.create(marimo_path.path, on_file_changed)
-        click.echo(
-            f"Watching {green(marimo_path.relative_name)} for changes..."
-        )
+        echo(f"Watching {green(marimo_path.relative_name)} for changes...")
         watcher.start()
         try:
             # Run forever

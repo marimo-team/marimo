@@ -156,6 +156,14 @@ token_password_message = """
     help="Suppress standard out.",
 )
 @click.option(
+    "-y",
+    "--yes",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    help="Automatic yes to prompts, running non-interactively.",
+)
+@click.option(
     "-d",
     "--development-mode",
     is_flag=True,
@@ -163,12 +171,15 @@ token_password_message = """
     show_default=True,
     help="Run in development mode; enables debug logs and server autoreload.",
 )
-def main(log_level: str, quiet: bool, development_mode: bool) -> None:
+def main(
+    log_level: str, quiet: bool, yes: bool, development_mode: bool
+) -> None:
     log_level = "DEBUG" if development_mode else log_level
     _loggers.set_level(log_level)
 
     GLOBAL_SETTINGS.DEVELOPMENT_MODE = development_mode
     GLOBAL_SETTINGS.QUIET = quiet
+    GLOBAL_SETTINGS.YES = yes
     GLOBAL_SETTINGS.LOG_LEVEL = _loggers.log_level_string_to_int(log_level)
 
 
@@ -284,7 +295,9 @@ def edit(
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
-    if sandbox:
+    from marimo._cli.sandbox import prompt_run_in_sandbox
+
+    if sandbox or prompt_run_in_sandbox(name):
         from marimo._cli.sandbox import run_in_sandbox
 
         run_in_sandbox(sys.argv[1:], name)
@@ -566,7 +579,9 @@ def run(
     name: str,
     args: tuple[str, ...],
 ) -> None:
-    if sandbox:
+    from marimo._cli.sandbox import prompt_run_in_sandbox
+
+    if sandbox or prompt_run_in_sandbox(name):
         from marimo._cli.sandbox import run_in_sandbox
 
         run_in_sandbox(sys.argv[1:], name)
