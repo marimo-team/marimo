@@ -640,6 +640,7 @@ def test_cli_edit_sandbox_prompt() -> None:
     p.stdin.write(b"y\n")
     p.stdin.flush()
     _check_started(port)
+    p.kill()
 
 
 def test_cli_run_sandbox_prompt() -> None:
@@ -661,3 +662,45 @@ def test_cli_run_sandbox_prompt() -> None:
     p.stdin.write(b"y\n")
     p.stdin.flush()
     _check_started(port)
+    p.kill()
+
+
+@pytest.mark.skip(reason="Need to release -y to PyPI")
+def test_cli_edit_sandbox_prompt_yes() -> None:
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "-y",
+            "edit",
+            "cli_data/sandbox.py",
+            "--headless",
+            "--no-token",
+            "--skip-update-check",
+            "-p",
+            str(port),
+        ],
+    )
+    assert p.poll() is None
+    _check_started(port)
+    p.kill()
+
+
+@pytest.mark.skip(reason="Need to release -y to PyPI")
+def test_cli_run_sandbox_prompt_yes() -> None:
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "-y",
+            "run",
+            "cli_data/sandbox.py",
+            "--headless",
+            "--no-token",
+            "-p",
+            str(port),
+        ],
+    )
+    assert p.poll() is None
+    _check_started(port)
+    p.kill()

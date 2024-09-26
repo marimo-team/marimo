@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional, cast
 import click
 
 from marimo import _loggers
-from marimo._cli.print import bold, green
+from marimo._cli.print import bold, echo, green
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
 
@@ -67,9 +67,6 @@ def _read_pyproject(script: str) -> Dict[str, Any] | None:
 
 
 def prompt_run_in_sandbox(name: str | None) -> bool:
-    if GLOBAL_SETTINGS.QUIET:
-        return False
-
     if name is None:
         return False
 
@@ -79,6 +76,9 @@ def prompt_run_in_sandbox(name: str | None) -> bool:
 
     # Notebook has inlined dependencies.
     if DependencyManager.which("uv"):
+        if GLOBAL_SETTINGS.YES:
+            return True
+
         return click.confirm(
             "This notebook has inlined package dependencies.\n"
             + green(
@@ -89,7 +89,7 @@ def prompt_run_in_sandbox(name: str | None) -> bool:
             default=True,
         )
     else:
-        click.echo(
+        echo(
             bold(
                 "This notebook has inlined package dependencies. \n"
                 + "Consider installing uv so that marimo can create a "
@@ -140,7 +140,7 @@ def run_in_sandbox(
         temp_file_path,
     ] + cmd
 
-    click.echo(f"Running in a sandbox: {' '.join(cmd)}")
+    echo(f"Running in a sandbox: {' '.join(cmd)}")
 
     env = os.environ.copy()
     env["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"

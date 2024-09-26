@@ -4,7 +4,7 @@ from __future__ import annotations
 import click
 
 from marimo._cli.config.utils import highlight_toml_headers
-from marimo._cli.print import green
+from marimo._cli.print import echo, green
 from marimo._config.manager import UserConfigManager
 
 
@@ -24,9 +24,9 @@ def show() -> None:
     import tomlkit
 
     config_manager = UserConfigManager()
-    click.echo(f"User config from {green(config_manager.get_config_path())}\n")
+    echo(f"User config from {green(config_manager.get_config_path())}\n")
     toml_string = tomlkit.dumps(config_manager.get_config())
-    click.echo(highlight_toml_headers(toml_string))
+    echo(highlight_toml_headers(toml_string))
 
 
 config.add_command(show)
