@@ -34,12 +34,10 @@ class MemoryLoader(Loader):
         # As such, default to normal dict if not LRU.
         self._cache = {}
         # ordered dict is protected by a lock
-        self._cache_lock: threading.Lock | None
+        self._cache_lock: threading.Lock | None = None
         if self.is_lru:
             self._cache = OrderedDict()
-            self._cache_lock = threading.Lock() if self.is_lru else None
-        else:
-            self._cache_lock = None
+            self._cache_lock = threading.Lock()
         self.max_size = max_size
         self.hits = 0
         if cache is not None:
