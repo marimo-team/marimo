@@ -36,7 +36,6 @@ due to UI interactions), the cache won't be invalidated. In contrast, a
 already computed.
 
 Additionally, `mo.cache` knows to invalidate the cache if the function closes
-over a UI element or state object whose value has changed.
 
 `mo.cache` is slightly slower than `functools.cache`, but in most applications
 the overhead is negligible.

@@ -614,3 +614,79 @@ class TestCacheDecorator:
             k.globals["impure"][1][0].hits,
             k.globals["impure"][2][0].hits,
         } == {0}
+
+    async def test_full_scope_utilized_lru_cache(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import lru_cache
+                    d = 0 # Check shadowing
+                    """
+                ),
+                exec_req.get("""impure = []"""),
+                exec_req.get(
+                    """
+                    _a = 0
+                    def _b():
+                        _c = 2
+                        @lru_cache
+                        def d():
+                            return _a + _c
+                        return d
+                    _e = _b()
+                    impure.append([_e, _e()])
+                    """
+                ),
+                exec_req.get(
+                    repeated := """
+                    _a = 0
+                    def _b():
+                        _c = 1
+                        @lru_cache
+                        def d():
+                            return _a + _c
+                        return d
+                    _e = _b()
+                    impure.append([_e, _e()])
+                    """
+                ),
+                exec_req.get(repeated),
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+        assert not k.stdout.messages, k.stdout
+
+        assert len(k.globals["impure"]) == 3
+        assert {
+            k.globals["impure"][0][1],
+            k.globals["impure"][1][1],
+            k.globals["impure"][2][1],
+        } == {2, 1}
+
+        # Same name, but should be under different entries
+        assert (
+            k.globals["impure"][0][0]._loader()
+            is not k.globals["impure"][1][0]._loader()
+        )
+
+        assert (
+            len(
+                {
+                    *k.globals["impure"][0][0]._loader()._cache.keys(),
+                    *k.globals["impure"][1][0]._loader()._cache.keys(),
+                    *k.globals["impure"][2][0]._loader()._cache.keys(),
+                }
+            )
+            == 2
+        )
+
+        # No cache hits
+        assert {
+            k.globals["impure"][0][0].hits,
+            k.globals["impure"][1][0].hits,
+            k.globals["impure"][2][0].hits,
+        } == {0}
