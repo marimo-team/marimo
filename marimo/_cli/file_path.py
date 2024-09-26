@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import abc
 import json
 import logging
 import os
@@ -8,16 +9,12 @@ import pathlib
 import urllib.parse
 import urllib.request
 from tempfile import TemporaryDirectory
-from typing import Optional
+from typing import Optional, Tuple
+from urllib.error import HTTPError
 
 from marimo._cli.print import green
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.url import is_url
-
-STATIC_HTML_CODE_PREFIX = '<marimo-code hidden="">'
-STATIC_HTML_CODE_SUFFIX = "</marimo-code>"
-STATIC_HTML_FILENAME_PREFIX = '<marimo-filename hidden="">'
-STATIC_HTML_FILENAME_SUFFIX = "</marimo-filename>"
 
 
 def is_github_src(url: str, ext: str) -> bool:
@@ -40,176 +37,278 @@ def get_github_src_url(url: str) -> str:
     return f"https://raw.githubusercontent.com{path}"
 
 
-def validate_name(
-    name: str, allow_new_file: bool, allow_directory: bool
-) -> tuple[str, Optional[TemporaryDirectory[str]]]:
-    """
-    Validate the name of the file to be edited/run.
+class FileReader(abc.ABC):
+    @abc.abstractmethod
+    def can_read(self, name: str) -> bool:
+        pass
 
-    If it's an existing path, check that it is a valid notebook file.
-    If it's a URL, we download it to a temporary file and return
-    the path to that file.
+    @abc.abstractmethod
+    def read(self, name: str) -> Tuple[str, str]:
+        """Read the file and return its content and filename."""
+        pass
 
-    Args:
-        name: The name of the file to be edited/run.
 
-    Returns:
-        The name of file to to be edited/run
-        Optional TemporaryDirectory, returned to prevent it from being
-          cleaned up
-    """
-    import click
+class LocalFileReader(FileReader):
+    def can_read(self, name: str) -> bool:
+        return not is_url(name)
 
-    if _is_github_issue_url(name):
-        temp_dir = TemporaryDirectory()
-        return _handle_github_issue(name, temp_dir), temp_dir
+    def read(self, name: str) -> Tuple[str, str]:
+        with open(name, "r") as f:
+            content = f.read()
+        return content, os.path.basename(name)
 
-    is_static_notebook, static_notebook_html = _is_static_marimo_notebook_url(
-        name
-    )
-    if is_static_notebook:
-        temp_dir = TemporaryDirectory()
-        return (
-            _create_tmp_file_from_static_notebook(
-                static_notebook_html, temp_dir
-            ),
-            temp_dir,
+
+class GitHubIssueReader(FileReader):
+    def can_read(self, name: str) -> bool:
+        return is_url(name) and name.startswith(
+            "https://github.com/marimo-team/marimo/issues/"
         )
 
-    if allow_directory:
-        if os.path.isdir(name):
-            return name, None
+    def read(self, name: str) -> Tuple[str, str]:
+        issue_number = name.split("/")[-1]
+        api_url = f"https://api.github.com/repos/marimo-team/marimo/issues/{issue_number}"
+        issue_response = urllib.request.urlopen(api_url).read().decode("utf-8")
+        issue_json = json.loads(issue_response)
+        body = issue_json["body"]
+        code = self._find_python_code_in_github_issue(body)
+        return code, f"issue_{issue_number}.py"
 
-    path = pathlib.Path(name)
-    if path.suffix == ".ipynb":
-        prefix = str(path)[: -len(".ipynb")]
-        raise click.UsageError(
-            f"Invalid NAME - {name} is not a Python file.\n\n"
-            f"  {green('Tip:')} Convert {name} to a marimo notebook with\n\n"
-            f"    marimo convert {name} > {prefix}.py\n\n"
-            f"  then open with marimo edit {prefix}.py"
-        )
-    elif not MarimoPath.is_valid_path(path):
-        raise click.UsageError(
-            "Invalid NAME - %s is not a Python or Markdown file" % name
-        )
-
-    for ext in (".py", ".md"):
-        if is_github_src(name, ext=ext):
-            temp_dir = TemporaryDirectory()
-            return _handle_github_src(name, temp_dir), temp_dir
-
-    if is_url(name):
-        temp_dir = TemporaryDirectory()
-        return _create_tmp_file_from_url(name, temp_dir), temp_dir
-
-    if not allow_new_file:
-        if not os.path.exists(name):
-            raise click.UsageError("Invalid NAME - %s does not exist" % name)
-        if not path.is_file():
-            raise click.UsageError("Invalid NAME - %s is not a file" % name)
-
-    return name, None
+    @staticmethod
+    def _find_python_code_in_github_issue(body: str) -> str:
+        return body.split("```python")[1].rsplit("```", 1)[0]
 
 
-def _is_github_issue_url(url: str) -> bool:
-    return is_url(url) and url.startswith(
-        "https://github.com/marimo-team/marimo/issues/"
-    )
+class StaticNotebookReader(FileReader):
+    CODE_PREFIX = '<marimo-code hidden="">'
+    CODE_SUFFIX = "</marimo-code>"
+    FILENAME_PREFIX = '<marimo-filename hidden="">'
+    FILENAME_SUFFIX = "</marimo-filename>"
 
+    def can_read(self, name: str) -> bool:
+        return self._is_static_marimo_notebook_url(name)[0]
 
-def _is_static_marimo_notebook_url(url: str) -> tuple[bool, str]:
-    def download(url: str) -> tuple[bool, str]:
-        logging.info("Downloading %s", url)
-        request = urllib.request.Request(
-            url,
-            # User agent to avoid 403 Forbidden some bot protection
-            headers={"User-Agent": "Mozilla/5.0"},
-        )
-        file_contents = urllib.request.urlopen(request).read().decode("utf-8")
-        return STATIC_HTML_CODE_PREFIX in file_contents, str(file_contents)
+    def read(self, name: str) -> Tuple[str, str]:
+        _, file_contents = self._is_static_marimo_notebook_url(name)
+        code = self._extract_code_from_static_notebook(file_contents)
+        filename = self._extract_filename_from_static_notebook(file_contents)
+        return code, filename
 
-    # Not a URL
-    if not is_url(url):
+    @staticmethod
+    def _is_static_marimo_notebook_url(url: str) -> tuple[bool, str]:
+        def download(url: str) -> tuple[bool, str]:
+            logging.info("Downloading %s", url)
+            request = urllib.request.Request(
+                url,
+                # User agent to avoid 403 Forbidden some bot protection
+                headers={"User-Agent": "Mozilla/5.0"},
+            )
+            file_contents = (
+                urllib.request.urlopen(request).read().decode("utf-8")
+            )
+            return StaticNotebookReader.CODE_PREFIX in file_contents, str(
+                file_contents
+            )
+
+        # Not a URL
+        if not is_url(url):
+            return False, ""
+
+        # Ends with .html, try to download it
+        if url.endswith(".html"):
+            return download(url)
+
+        # Starts with https://static.marimo.app/, append /download
+        if url.startswith("https://static.marimo.app/"):
+            return download(os.path.join(url, "download"))
+
+        # Otherwise, not a static marimo notebook
         return False, ""
 
-    # Ends with .html, try to download it
-    if url.endswith(".html"):
-        return download(url)
+    @staticmethod
+    def _extract_code_from_static_notebook(file_contents: str) -> str:
+        # normalize hidden attribute
+        file_contents = file_contents.replace("hidden=''", 'hidden=""')
+        return file_contents.split(StaticNotebookReader.CODE_PREFIX)[1].split(
+            StaticNotebookReader.CODE_SUFFIX
+        )[0]
 
-    # Starts with https://static.marimo.app/, append /download
-    if url.startswith("https://static.marimo.app/"):
-        return download(os.path.join(url, "download"))
-
-    # Otherwise, not a static marimo notebook
-    return False, ""
-
-
-def _handle_github_issue(url: str, temp_dir: TemporaryDirectory[str]) -> str:
-    import click
-
-    issue_number = url.split("/")[-1]
-    api_url = f"https://api.github.com/repos/marimo-team/marimo/issues/{issue_number}"
-    issue_response = urllib.request.urlopen(api_url).read().decode("utf-8")
-    issue_json = json.loads(issue_response)
-    body = issue_json["body"]
-
-    # Find the content between first ```python and last ```
-    try:
-        code = _find_python_code_in_github_issue(body)
-    except IndexError:
-        raise click.UsageError(
-            "Invalid Issue - %s does not include a marimo app" % url
-        ) from None
-
-    # Create a temporary file with the content
-    path_to_app = _create_tmp_file_from_content(
-        code, f"issue_{issue_number}.py", temp_dir
-    )
-    return path_to_app
+    @staticmethod
+    def _extract_filename_from_static_notebook(file_contents: str) -> str:
+        # normalize hidden attribute
+        file_contents = file_contents.replace("hidden=''", 'hidden=""')
+        return file_contents.split(StaticNotebookReader.FILENAME_PREFIX)[
+            1
+        ].split(StaticNotebookReader.FILENAME_SUFFIX)[0]
 
 
-def _find_python_code_in_github_issue(body: str) -> str:
-    # Find the content between first ```python and last ```
-    return body.split("```python")[1].rsplit("```", 1)[0]
+class GitHubSourceReader(FileReader):
+    def can_read(self, name: str) -> bool:
+        return is_github_src(name, ext=".py") or is_github_src(name, ext=".md")
+
+    def read(self, name: str) -> Tuple[str, str]:
+        url = get_github_src_url(name)
+        content = urllib.request.urlopen(url).read().decode("utf-8")
+        return content, os.path.basename(url)
 
 
-def _handle_github_src(url: str, temp_dir: TemporaryDirectory[str]) -> str:
-    url = get_github_src_url(url)
-    path_to_app = _create_tmp_file_from_url(url, temp_dir)
-    return path_to_app
+class GenericURLReader(FileReader):
+    def can_read(self, name: str) -> bool:
+        return is_url(name)
+
+    def read(self, name: str) -> Tuple[str, str]:
+        content = urllib.request.urlopen(name).read().decode("utf-8")
+        # Remove query parameters from the URL
+        url_without_query = name.split("?")[0]
+        return content, os.path.basename(url_without_query)
 
 
-def _create_tmp_file_from_static_notebook(
-    file_contents: str, temp_dir: TemporaryDirectory[str]
-) -> str:
-    def between(prefix: str, suffix: str) -> str:
-        return file_contents.split(prefix)[1].split(suffix)[0]
+class FileContentReader:
+    def __init__(self):
+        self.readers = [
+            LocalFileReader(),
+            GitHubIssueReader(),
+            StaticNotebookReader(),
+            GitHubSourceReader(),
+            GenericURLReader(),
+        ]
 
-    code = between(STATIC_HTML_CODE_PREFIX, STATIC_HTML_CODE_SUFFIX)
-    filename = between(
-        STATIC_HTML_FILENAME_PREFIX, STATIC_HTML_FILENAME_SUFFIX
-    )
-    decoded_code = urllib.parse.unquote(code).strip()
-    return _create_tmp_file_from_content(decoded_code, filename, temp_dir)
+    def read_file(self, name: str) -> Tuple[str, str]:
+        """
+        Read the file and return its content and filename
+
+        Args:
+            name (str): File path or URL
+
+        Raises:
+            ValueError: If the file cannot be read
+
+        Returns:
+            Tuple[str, str]: File content and filename
+        """
+        for reader in self.readers:
+            if reader.can_read(name):
+                return reader.read(name)
+        raise ValueError(f"Unable to read file contents of {name}")
 
 
-def _create_tmp_file_from_url(
-    url: str, temp_dir: TemporaryDirectory[str]
-) -> str:
-    logging.info("Downloading %s", url)
-    path_to_app = os.path.join(temp_dir.name, os.path.basename(url))
-    urllib.request.urlretrieve(url=url, filename=path_to_app)
-    logging.info("App saved to %s", path_to_app)
-    return path_to_app
+class FileHandler(abc.ABC):
+    @abc.abstractmethod
+    def can_handle(self, name: str) -> bool:
+        pass
+
+    @abc.abstractmethod
+    def handle(
+        self, name: str, temp_dir: TemporaryDirectory[str]
+    ) -> Tuple[str, Optional[TemporaryDirectory[str]]]:
+        pass
 
 
-def _create_tmp_file_from_content(
-    content: str, name: str, temp_dir: TemporaryDirectory[str]
-) -> str:
-    logging.info("Creating temporary file")
-    path_to_app = os.path.join(temp_dir.name, name)
-    with open(path_to_app, "w") as f:
-        f.write(content)
-    logging.info("App saved to %s", path_to_app)
-    return path_to_app
+class LocalFileHandler(FileHandler):
+    def __init__(self, allow_new_file: bool, allow_directory: bool):
+        self.allow_new_file = allow_new_file
+        self.allow_directory = allow_directory
+
+    def can_handle(self, name: str) -> bool:
+        return not is_url(name)
+
+    def handle(
+        self, name: str, temp_dir: TemporaryDirectory[str]
+    ) -> Tuple[str, Optional[TemporaryDirectory[str]]]:
+        del temp_dir
+        import click
+
+        path = pathlib.Path(name)
+
+        if self.allow_directory and os.path.isdir(name):
+            return name, None
+
+        if path.suffix == ".ipynb":
+            prefix = str(path)[: -len(".ipynb")]
+            raise click.ClickException(
+                f"Invalid NAME - {name} is not a Python file.\n\n"
+                f"  {green('Tip:')} Convert {name} to a marimo notebook with"
+                "\n\n"
+                f"    marimo convert {name} > {prefix}.py\n\n"
+                f"  then open with marimo edit {prefix}.py"
+            )
+
+        if not MarimoPath.is_valid_path(path):
+            raise click.ClickException(
+                f"Invalid NAME - {name} is not a Python or Markdown file"
+            )
+
+        if not self.allow_new_file:
+            if not os.path.exists(name):
+                raise click.ClickException(
+                    f"Invalid NAME - {name} does not exist"
+                )
+            if not path.is_file():
+                raise click.ClickException(
+                    f"Invalid NAME - {name} is not a file"
+                )
+
+        return name, None
+
+
+class RemoteFileHandler(FileHandler):
+    def __init__(self):
+        self.reader = FileContentReader()
+
+    def can_handle(self, name: str) -> bool:
+        return is_url(name)
+
+    def handle(
+        self, name: str, temp_dir: TemporaryDirectory[str]
+    ) -> Tuple[str, Optional[TemporaryDirectory[str]]]:
+        try:
+            content, filename = self.reader.read_file(name)
+        except HTTPError as e:
+            import click
+
+            raise click.ClickException(f"Failed to read URL: {e}")  # noqa: B904
+        path_to_app = self._create_tmp_file_from_content(
+            content, filename, temp_dir
+        )
+        return path_to_app, temp_dir
+
+    @staticmethod
+    def _create_tmp_file_from_content(
+        content: str, name: str, temp_dir: TemporaryDirectory[str]
+    ) -> str:
+        logging.info("Creating temporary file")
+        path_to_app = os.path.join(temp_dir.name, name)
+        with open(path_to_app, "w") as f:
+            f.write(content)
+        logging.info("App saved to %s", path_to_app)
+        return path_to_app
+
+
+def validate_name(
+    name: str, allow_new_file: bool, allow_directory: bool
+) -> Tuple[str, Optional[TemporaryDirectory[str]]]:
+    """
+    Validate the file name and return the path to the file.
+
+    Args:
+        name (str): Local file path, URL, or directory path
+        allow_new_file (bool): Whether to allow creating a new file
+        allow_directory (bool): Whether to allow a directory
+
+    Raises:
+        ValueError: If the file name is invalid
+
+    Returns:
+        Path to the file and temporary directory
+    """
+    handlers = [
+        LocalFileHandler(allow_new_file, allow_directory),
+        RemoteFileHandler(),
+    ]
+
+    temp_dir = TemporaryDirectory()
+
+    for handler in handlers:
+        if handler.can_handle(name):
+            return handler.handle(name, temp_dir)
+
+    raise ValueError(f"Unable to handle file {name}")

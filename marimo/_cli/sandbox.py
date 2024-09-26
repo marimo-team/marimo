@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional, cast
 import click
 
 from marimo import _loggers
+from marimo._cli.file_path import FileContentReader
 from marimo._cli.print import bold, echo, green
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
@@ -35,11 +36,12 @@ def _get_dependencies(script: str) -> List[str] | None:
 
 
 def get_dependencies_from_filename(name: str) -> List[str]:
-    if os.path.isfile(name):
-        with open(name) as f:
-            dependencies = _get_dependencies(f.read())
-            return dependencies if dependencies is not None else []
-    return []
+    try:
+        contents, _ = FileContentReader().read_file(name)
+        return _get_dependencies(contents) or []
+    except Exception:
+        LOGGER.warning(f"Failed to read dependencies from {name}")
+        return []
 
 
 def _read_pyproject(script: str) -> Dict[str, Any] | None:
