@@ -33,5 +33,5 @@ def dev_env(dag: dagger.Client) -> dagger.Container:
         with_exec(["apt", "install", "-y", "nodejs"]).
         # install pnpm@8
         with_exec(["npm", "install", "-g", "pnpm@8"]).
-        with_env_variable("NODE_OPTIONS", "--max-old-space-size=4096")
+        with_env_variable("NODE_OPTIONS", "--max-old-space-size=8192")
     )
