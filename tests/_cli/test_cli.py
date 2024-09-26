@@ -594,6 +594,7 @@ def test_cli_edit_shutdown() -> None:
     with _patch_signals_win32():
         _interrupt(p)
         assert p.poll() is None
+
         assert p.stdin is not None
         _confirm_shutdown(p)
         _check_shutdown(p)
@@ -617,3 +618,46 @@ def test_cli_run_shutdown() -> None:
         p.stdin.flush()
         time.sleep(3)
         assert p.poll() == 0
+
+
+def test_cli_edit_sandbox_prompt() -> None:
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            "cli_data/sandbox.py",
+            "--headless",
+            "--no-token",
+            "--skip-update-check",
+            "-p",
+            str(port),
+        ],
+        stdin=subprocess.PIPE,
+    )
+    assert p.poll() is None
+    assert p.stdin is not None
+    p.stdin.write(b"y\n")
+    p.stdin.flush()
+    _check_started(port)
+
+
+def test_cli_run_sandbox_prompt() -> None:
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            "cli_data/sandbox.py",
+            "--headless",
+            "--no-token",
+            "-p",
+            str(port),
+        ],
+        stdin=subprocess.PIPE,
+    )
+    assert p.poll() is None
+    assert p.stdin is not None
+    p.stdin.write(b"y\n")
+    p.stdin.flush()
+    _check_started(port)
