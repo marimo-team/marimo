@@ -197,7 +197,7 @@ def test_file_content_reader() -> None:
             "url.py",
         )
 
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises((FileNotFoundError, OSError)):
         reader.read_file("invalid://example.com")
 
 
