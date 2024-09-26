@@ -52,53 +52,8 @@ class SkipWithBlock(Exception):
     """Special exception to get around executing the with block body."""
 
 
-class cache(object):
-    """Decorator for caching the return value of a function.
-
-    Decorating a function with `@mo.cache` will "memoize" the return
-    value. Memoization helps optimize performance by storing the results of
-    expensive function calls and reusing them when the same inputs occur again.
-
-    This is analogous to `functools.cache`, but with the added benefit of
-    context-aware cache invalidations specific to marimo notebooks.
-
-    Since a dictionary is used to cache results, the positional and keyword
-    arguments to the function must be hashable. There are certain exceptions
-    for marimo specific variables, such as `mo.state` and `UIElement` objects.
-
-    **Basic Usage.**
-
-    ```python
-    import marimo as mo
-
-
-    @mo.cache
-    def fib(n):
-        if n <= 1:
-            return n
-        return fib(n - 1) + fib(n - 2)
-    ```
-
-    **LRU Cache.**
-
-    The cache has an unlimited maximum size. To limit the cache size, use
-    `@mo.lru_cache` (a default maxsize of 128), or specify the `maxsize`
-    parameter. Set this value to -1 to disable cache limits (default).
-
-    ```python
-    @mo.cache(maxsize=128)
-    def expensive_function():
-        pass
-    ```
-
-    **Args**:
-
-    - `maxsize`: the maximum number of entries in the cache; defaults to -1.
-      Setting to -1 disables cache limits.
-    - `pin_modules`: if True, the cache will be invalidated if module versions
-      differ.
-    - `hash_type`: the hashing algorithm to use, defaults to "sha256".
-    """
+class _cache_base(object):
+    """Like functools.cache but notebook-aware. See `cache` docstring`"""
 
     graph: DirectedGraph
     cell_id: str
@@ -107,21 +62,23 @@ class cache(object):
     _loader: Optional[State[MemoryLoader]] = None
     name: str
     fn: Optional[Callable[..., Any]]
-    DEFAULT_MAX_SIZE = -1
 
     def __init__(
         self,
         _fn: Optional[Callable[..., Any]] = None,
         *,
-        maxsize: Optional[int] = None,
+        # -1 means unbounded cache
+        maxsize: int = -1,
         pin_modules: bool = False,
         hash_type: str = "sha256",
+        # frame_offset is the number of frames the __init__ call is nested
+        # with respect to definition of _fn
+        frame_offset: int = 0,
     ) -> None:
-        self.max_size = (
-            maxsize if maxsize is not None else self.DEFAULT_MAX_SIZE
-        )
+        self.max_size = maxsize
         self.pin_modules = pin_modules
         self.hash_type = hash_type
+        self._frame_offset = frame_offset
         if _fn is None:
             self.fn = None
         else:
@@ -144,10 +101,16 @@ class cache(object):
 
         self.fn = fn
         self._args = list(self.fn.__code__.co_varnames)
-        # frame is _set_context -> __call__ (or init) -> fn wrap
+        # Retrieving frame from the stack: frame is
+        #
+        # 0  _set_context ->
+        # 1  __call__ (or init) -->
+        # ...
+        # 2 + self._frame_offset: fn
+        #
         # Note, that deeply nested frames may cause issues, however
         # checking a single frame- should be good enough.
-        f_locals = inspect.stack()[2][0].f_locals
+        f_locals = inspect.stack()[2 + self._frame_offset][0].f_locals
         self.scope = {**ctx.globals, **f_locals}
 
         # Scoped refs are references particular to this block, that may not be
@@ -233,7 +196,61 @@ class cache(object):
         return response
 
 
-class lru_cache(cache):
+def cache(
+    _fn: Optional[Callable[..., Any]] = None,
+    *,
+    pin_modules: bool = False,
+    hash_type: str = "sha256",
+) -> _cache_base:
+    """Decorator for caching the return value of a function
+
+    Decorating a function with `@mo.cache` will cache, or "memoize", the return
+    value based on the arguments to the function. The arguments of the
+    decorated function must be hashable.
+
+    `mo.cache` is a drop-in replacement for `functools.cache` that
+    incurs fewer false-positive cache evictions when used in marimo
+    notebooks. Like `functools.cache`, `mo.cache` is thread-safe.
+
+    **Usage.**
+
+    ```python
+    import marimo as mo
+
+
+    @mo.cache
+    def fib(n):
+        if n <= 1:
+            return n
+        return fib(n - 1) + fib(n - 2)
+    ```
+
+    The cache has an unlimited maximum size. To limit the cache size, use
+    `@mo.lru_cache`. `mo.cache` is slightly faster than `mo.lru_cache`,
+    but in most applications the difference is negligible.
+
+    **Args**:
+
+    - `pin_modules`: if True, the cache will be invalidated if module versions
+      differ.
+    - `hash_type`: the hashing algorithm to use, defaults to "sha256".
+    """
+    return _cache_base(
+        _fn,
+        maxsize=-1,
+        pin_modules=pin_modules,
+        hash_type=hash_type,
+        frame_offset=1,
+    )
+
+
+def lru_cache(
+    _fn: Optional[Callable[..., Any]] = None,
+    *,
+    maxsize: int = 128,
+    pin_modules: bool = False,
+    hash_type: str = "sha256",
+) -> _cache_base:
     """Decorator for LRU caching the return value of a function.
 
     This is analogous to `functools.lru_cache`, but with the added benefit of
@@ -241,13 +258,13 @@ class lru_cache(cache):
     notebooks. As an LRU (Least Recently Used) cache, only the last used
     `maxsize` values are retained, with the oldest values being discarded.
 
-    **Basic Usage.**
+    **Usage.**
 
     ```python
     import marimo as mo
 
 
-    @mo.lru_cache(maxsize=128)
+    @mo.lru_cache
     def factorial(n):
         return n * factorial(n - 1) if n else 1
     ```
@@ -263,24 +280,45 @@ class lru_cache(cache):
       differ.
     """
 
-    DEFAULT_MAX_SIZE = 128
+    return _cache_base(
+        _fn,
+        maxsize=maxsize,
+        pin_modules=pin_modules,
+        hash_type=hash_type,
+        frame_offset=1,
+    )
 
 
 class persistent_cache(object):
-    """Context block for cache lookup of a block of code.
+    """Save variables to, and restore them from, disk.
 
-    **Basic Usage.**
+    The `mo.persistent_cache` context manager lets you delimit a block of code
+    in which variables will be cached to disk when they are first computed. On
+    subsequent runs of the cell, if marimo determines that this block of code
+    isn't stale (based on the code in the block or its ancestors), it will
+    restore the variables from disk instead of re-computing them, skipping
+    execution of the block entirely.
+
+    Restoration happens even across notebook runs, meaning you can use
+    `mo.persistent_cache` to make notebooks start *instantly*, with variables
+    that would otherwise be expensive to compute already materialized in
+    memory.
+
+    **Usage.**
 
     ```python
     with persistent_cache(name="my_cache"):
-        variable = expensive_function()  # This will be cached.
+        variable = expensive_function()  # This will be cached to disk.
+        print("hello, cache")  # this will be skipped on cache hits
     ```
 
-    Here, `variable` will be cached and restored on subsequent runs of the
-    block. The contents of the `with` block will be skipped on execution, if
-    cache conditions are met. Note, this means that stdout and stderr will be
-    skipped on cache hits. For function level memoization, use `@mo.cache`
-    or `@mo.lru_cache`.
+    In this example, `variable` will be cached the first time the block
+    is executed, and restored on subsequent runs of the block. If cache
+    conditions are hit, the contents of `with` block will be skipped on
+    execution. This means that side-effects such as writing to stdout and
+    stderr will be skipped on cache hits.
+
+    For function-level memoization, use `@mo.cache` or `@mo.lru_cache`.
 
     Note that `mo.state` and `UIElement` changes will also trigger cache
     invalidation, and be accordingly updated.
