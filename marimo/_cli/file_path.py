@@ -163,7 +163,7 @@ class GenericURLReader(FileReader):
 
 
 class FileContentReader:
-    def __init__(self):
+    def __init__(self) -> None:
         self.readers = [
             LocalFileReader(),
             GitHubIssueReader(),
@@ -251,7 +251,7 @@ class LocalFileHandler(FileHandler):
 
 
 class RemoteFileHandler(FileHandler):
-    def __init__(self):
+    def __init__(self) -> None:
         self.reader = FileContentReader()
 
     def can_handle(self, name: str) -> bool:
