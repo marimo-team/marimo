@@ -91,6 +91,11 @@ class MemoryLoader(Loader):
         assert isinstance(self._cache, OrderedDict)
         assert self._cache_lock is not None
         with self._cache_lock:
+            self.is_lru = max_size > 0
+            if not self.is_lru:
+                self._cache = dict(self._cache.items())
+                self.max_size = max_size
+                return
             while len(self._cache) > max_size:
                 self._cache.popitem(last=False)
         self.max_size = max_size
