@@ -6,6 +6,7 @@ You may use `mo.cache` to cache expensive computations, in a "notebook aware" ma
 That is, re-running the cell won't flush the cache if the function is the same.
 However, the cache will also automatically become invalidated if relevant
 state, ui, external references, or code changes occur.
+
 ```python
 import mo
 
@@ -25,7 +26,6 @@ expensive than `functools.cache`, and there are certain instances where
 `functools.cache` is more appropriate.
 
 ### When should I use `mo.cache` over `functools.cache`?
-
 
  1. if you are looking to leverage memoization for dynamic programming, use
     `functools.cache`.
