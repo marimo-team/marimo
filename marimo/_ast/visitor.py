@@ -378,16 +378,21 @@ class ScopedVisitor(ast.NodeVisitor):
     def visit_Call(self, node: ast.Call) -> None:
         # If the call name is sql and has one argument, and the argument is
         # a string literal, then it's likely to be a SQL query.
-        # It must also come from the `mo` module.
+        # It must also come from the `mo` or `duckdb` module.
         #
         # This check is brittle, since we can't detect at parse time whether
         # 'mo'/'marimo' actually refer to the marimo library, but it gets
         # the job done.
+        valid_sql_calls = [
+            "marimo.sql",
+            "mo.sql",
+            "duckdb.execute",
+            "duckdb.sql",
+        ]
         if (
             isinstance(node.func, ast.Attribute)
             and isinstance(node.func.value, ast.Name)
-            and (node.func.value.id == "mo" or node.func.value.id == "marimo")
-            and node.func.attr == "sql"
+            and f"{node.func.value.id}.{node.func.attr}" in valid_sql_calls
             and len(node.args) == 1
         ):
             self.language = "sql"

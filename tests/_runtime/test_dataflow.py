@@ -229,18 +229,37 @@ def test_register_with_stale_ancestor() -> None:
 
 @pytest.mark.skipif(not HAS_DUCKDB, reason="duckdb is required")
 class TestSQL:
-    def test_sql_chain(self) -> None:
+    @pytest.mark.parametrize(
+        ("code1", "code2"),
+        [
+            (
+                'mo.sql("CREATE TABLE t1 (i INTEGER, j INTEGER)")',
+                'mo.sql("SELECT * from t1")',
+            ),
+            (
+                'duckdb.sql("CREATE TABLE t1 (i INTEGER, j INTEGER)")',
+                'duckdb.sql("SELECT * from t1")',
+            ),
+            (
+                'duckdb.sql("CREATE TABLE t1 (i INTEGER, j INTEGER)")',
+                'mo.sql("SELECT * from t1")',
+            ),
+            (
+                'duckdb.sql("CREATE TABLE t1 (i INTEGER, j INTEGER)")',
+                'duckdb.execute("SELECT * from t1")',
+            ),
+        ],
+    )
+    def test_sql_chain(self, code1: str, code2: str) -> None:
         graph = dataflow.DirectedGraph()
-        code = 'mo.sql("CREATE TABLE t1 (i INTEGER, j INTEGER)")'
-        first_cell = parse_cell(code)
+        first_cell = parse_cell(code1)
         graph.register_cell("0", first_cell)
 
         assert graph.cells == {"0": first_cell}
         assert graph.parents == {"0": set()}
         assert graph.children == {"0": set()}
 
-        code = 'mo.sql("SELECT * from t1")'
-        second_cell = parse_cell(code)
+        second_cell = parse_cell(code2)
         graph.register_cell("1", second_cell)
 
         assert graph.cells == {"0": first_cell, "1": second_cell}

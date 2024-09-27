@@ -927,6 +927,22 @@ def test_sql_statement_with_marimo_sql() -> None:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+@pytest.mark.parametrize(
+    "code",
+    [
+        "df = duckdb.sql('select * from cars')",
+        "df = duckdb.execute('select * from cars')",
+    ],
+)
+def test_sql_statement_with_duckdb_sql(code: str) -> None:
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["df"])
+    assert v.refs == set(["cars", "duckdb"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_statement_with_f_string() -> None:
     code = "\n".join(
         [
@@ -974,16 +990,22 @@ def test_print_f_string() -> None:
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_empty_statement() -> None:
-    code = "\n".join(
-        [
-            "mo.sql('')",
-        ]
-    )
+    code = "mo.sql('')"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
     assert v.defs == set([])
     assert v.refs == set(["mo"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_empty_statement_duckdb() -> None:
+    code = "duckdb.sql('')"
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set([])
+    assert v.refs == set(["duckdb"])
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
