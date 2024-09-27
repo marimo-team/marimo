@@ -9,7 +9,7 @@ from typing import Any, Callable, Dict, List
 
 from marimo._ast.compiler import compile_cell
 from marimo._ast.transformers import NameTransformer
-from marimo._ast.visitor import ScopedVisitor
+from marimo._ast.visitor import Block, NamedNode, ScopedVisitor
 from marimo._convert.utils import generate_from_sources, markdown_to_marimo
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._utils.variables import is_local
@@ -288,6 +288,67 @@ def transform_exclamation_mark(sources: List[str]) -> List[str]:
     return [transform(cell) for cell in sources]
 
 
+class Renamer:
+    def __init__(self, cell_remappings: dict[int, dict[str, str]]) -> None:
+        self.cell_remappings = cell_remappings
+        self.made_changes = False
+
+    def _maybe_rename(self, cell: int, name: str, is_reference: bool) -> str:
+        latest_mapping: dict[str, str] = {}
+        until = cell if is_reference else cell + 1
+        for idx in range(until):
+            if (
+                idx in self.cell_remappings
+                and name in self.cell_remappings[idx]
+            ):
+                latest_mapping = self.cell_remappings[idx]
+        if name in latest_mapping:
+            return latest_mapping[name]
+        else:
+            return name
+
+    def rename_named_node(
+        self, cell: int, node: NamedNode, is_reference: bool
+    ) -> None:
+        name: str | None = None
+        new_name: str | None = None
+
+        if isinstance(node, ast.Name):
+            name = node.id
+            new_name = self._maybe_rename(cell, name, is_reference)
+            node.id = new_name
+        elif isinstance(
+            node,
+            (
+                ast.ClassDef,
+                ast.FunctionDef,
+                ast.AsyncFunctionDef,
+            ),
+        ):
+            name = node.name
+            new_name = self._maybe_rename(cell, name, is_reference)
+            node.name = new_name
+        if sys.version_info >= (3, 10):
+            if isinstance(node, (ast.MatchAs, ast.MatchStar)):
+                name = node.name
+                new_name = self._maybe_rename(cell, name, is_reference)
+                node.name = new_name
+            elif isinstance(node, ast.MatchMapping):
+                name = node.rest
+                new_name = self._maybe_rename(cell, name, is_reference)
+                node.rest = new_name
+        if sys.version_info >= (3, 12):
+            if isinstance(
+                node, (ast.TypeVar, ast.ParamSpec, ast.TypeVarTuple)
+            ):
+                name = node.name
+                new_name = self._maybe_rename(cell, name, is_reference)
+                node.name = new_name
+
+        if not self.made_changes:
+            self.made_changes = name != new_name
+
+
 def transform_duplicate_definitions(sources: List[str]) -> List[str]:
     """
     Rename variables with duplicate definitions across multiple cells,
@@ -337,12 +398,6 @@ def transform_duplicate_definitions(sources: List[str]) -> List[str]:
         # ast.unparse not available in Python 3.8
         return sources
 
-    # Add parent references to AST nodes
-    def add_parents(root: ast.AST) -> None:
-        for node in ast.walk(root):
-            for child in ast.iter_child_nodes(node):
-                child.parent = node  # type: ignore
-
     # Find all definitions in the AST
     def find_definitions(node: ast.AST) -> List[str]:
         visitor = ScopedVisitor("", ignore_local=True)
@@ -350,12 +405,6 @@ def transform_duplicate_definitions(sources: List[str]) -> List[str]:
         # Remove local variables
         defs = list(visitor.defs)
         return [def_ for def_ in defs if not is_local(def_)]
-
-    # Find all references in the AST
-    def find_references(node: ast.AST) -> List[str]:
-        visitor = ScopedVisitor("", ignore_local=True)
-        visitor.visit(node)
-        return list(visitor.refs)
 
     # Collect all definitions for each cell
     def get_definitions(sources: List[str]) -> Dict[str, List[int]]:
@@ -386,89 +435,10 @@ def transform_duplicate_definitions(sources: List[str]) -> List[str]:
         name_mappings: Dict[int, Dict[str, str]] = defaultdict(dict)
         for name, cells in duplicates.items():
             for i, cell in enumerate(cells[1:], start=1):
+                # TODO fixme
                 new_name = f"{name}_{i}"
                 name_mappings[cell][name] = new_name
         return name_mappings
-
-    # Find the latest unique name for a duplicate
-    def find_previous_unique_name_for_duplicate(
-        name: str, cell: int, name_mappings: Dict[int, Dict[str, str]]
-    ) -> str | None:
-        latest_mapping: str | None = None
-        for prev_cell in range(cell + 1):
-            if prev_cell in name_mappings and name in name_mappings[prev_cell]:
-                latest_mapping = name_mappings[prev_cell][name]
-        return latest_mapping
-
-    # Helper class to rename definitions and references
-    # Definitions are renamed to the latest unique name
-    # References are renamed to the latest unique name up to the current cell
-    class Renamer(ast.NodeTransformer):
-        def __init__(
-            self,
-            cell: int,
-            name_mappings: Dict[int, Dict[str, str]],
-        ) -> None:
-            super().__init__()
-            self.made_changes = False
-            self.dependencies: dict[str, str] = {}
-            self.cell = cell
-            self.name_mappings = name_mappings
-
-        def visit_Name(self, node: ast.Name) -> ast.Name:
-            original_id = node.id
-            parent = getattr(node, "parent", None)
-            cell = self.cell
-
-            # Case: initial definition
-            if isinstance(node.ctx, ast.Store) and not isinstance(
-                parent,
-                (
-                    ast.ListComp,
-                    ast.DictComp,
-                    ast.SetComp,
-                    ast.GeneratorExp,
-                    ast.comprehension,
-                    ast.Lambda,
-                ),
-            ):
-                # For definitions, only rename if in the current cell's mappings # noqa: E501
-                if (
-                    cell in self.name_mappings
-                    and node.id in self.name_mappings[cell]
-                ):
-                    node.id = self.name_mappings[cell][node.id]
-                    # Traverse the other side of the assignment to see if it
-                    # contains a reference to the original name
-                    if isinstance(parent, ast.Assign):
-                        right_hand_side = parent.value
-                        for ref in find_references(right_hand_side):
-                            if ref == original_id:
-                                self.dependencies[node.id] = (
-                                    find_previous_unique_name_for_duplicate(
-                                        original_id,
-                                        self.cell - 1,
-                                        self.name_mappings,
-                                    )
-                                    or original_id
-                                )
-
-            # Case: reference
-            elif isinstance(node.ctx, ast.Load):
-                # TODO: we should only rename if this particular reference
-                # is not in the current scope
-
-                # For references, use the latest mapping up to the current cell
-                latest_mapping = find_previous_unique_name_for_duplicate(
-                    node.id, self.cell, self.name_mappings
-                )
-                if latest_mapping:
-                    node.id = latest_mapping
-
-            if node.id != original_id:
-                self.made_changes = True
-
-            return node
 
     definitions = get_definitions(sources)
     duplicates = get_duplicates(definitions)
@@ -480,22 +450,41 @@ def transform_duplicate_definitions(sources: List[str]) -> List[str]:
     name_mappings = create_name_mappings(duplicates)
 
     for cell_idx, source in enumerate(sources):
+        renamer = Renamer(name_mappings)
         tree = ast.parse(source)
-        add_parents(tree)
 
-        visitor = Renamer(cell_idx, name_mappings)
+        def on_def(
+            node: NamedNode, name: str, block_stack: list[Block]
+        ) -> None:
+            block_idx = 0 if name in block_stack[-1].global_names else -1
+            if block_idx == 0:
+                # all top-level definitions are renamed
+                renamer.rename_named_node(cell_idx, node, is_reference=False)
+            elif block_stack[0].is_defined(name) and not any(
+                block.is_defined(name) for block in block_stack[1:]
+            ):
+                # all loads of top-level definitions are defined
+                renamer.rename_named_node(cell_idx, node, is_reference=False)
+
+        def on_ref(node: NamedNode) -> None:
+            renamer.rename_named_node(cell_idx, node, is_reference=True)
+
+        visitor = ScopedVisitor(
+            ignore_local=True, on_def=on_def, on_ref=on_ref
+        )
         new_tree = visitor.visit(tree)
 
         # Don't unparse if no changes were made
-        if not visitor.made_changes:
+        if not renamer.made_changes:
             new_sources[cell_idx] = source
             continue
 
         new_source_lines: list[str] = []
 
+        # TODO
         # Add assignments for dependencies
-        for definition, dep in visitor.dependencies.items():
-            new_source_lines.append(f"{definition} = {dep}")
+        # for definition, dep in visitor.dependencies.items():
+        #    new_source_lines.append(f"{definition} = {dep}")
 
         # Add the modified source
         new_source_lines.append(ast.unparse(new_tree))

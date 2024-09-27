@@ -416,7 +416,7 @@ def test_transform_duplicate_definitions_with_reference_to_previous():
     result = transform_duplicate_definitions(sources)
     assert result == [
         "x = 1",
-        "x_1 = x\nx_1 = x_1 + 1\nprint(x_1)",
+        "x_1 = x + 1\nprint(x_1)",
         "print(x_1)",
     ]
 
@@ -491,15 +491,14 @@ def test_transform_duplicate_definitions_with_re_def():
     result = transform_duplicate_definitions(sources)
     assert result == [
         "x = 1",
-        "x_1 = x\nx_1 = x_1 + 1\nprint(x_1)",
-        "x_2 = x_1\nx_2 = x_2 + 2\nprint(x_2)",
-        "x_3 = x_2\nx_3 = x_3 + 3\nprint(x_3)",
+        "x_1 = x + 1\nprint(x_1)",
+        "x_2 = x_1 + 2\nprint(x_2)",
+        "x_3 = x_2 + 3\nprint(x_3)",
         "x_4 = 10\nprint(x_4)",
         "print(x_4)",
     ]
 
 
-@pytest.mark.skip(reason="tricky case not yet supported")
 @pytest.mark.skipif(
     sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
@@ -511,15 +510,14 @@ def test_transform_duplicate_definitions_with_multiple_variables():
         "x, y, z = y, z, x\nprint(x, y, z)",
     ]
     result = transform_duplicate_definitions(sources)
-    assert result == [
+    assert_sources_equal(result, dd([
         "x, y = 1, 2",
-        "x_1 = x\ny_1 = y\nx_1 = x_1 + y_1\ny_1 = y_1 + x_1\nprint(x_1, y_1)",
+        "x_1 = x + y\ny_1 = y + x_1\nprint(x_1, y_1)",
         "z = x_1 + y_1\nx_2 = z\nprint(x_2, y_1, z)",
         "x_3, y_2, z_1 = (y_1, z, x_2)\nprint(x_3, y_2, z_1)",
-    ]
+    ]))
 
 
-@pytest.mark.xfail(reason="tricky case not yet supported")
 @pytest.mark.skipif(
     sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
@@ -541,7 +539,6 @@ def test_transform_duplicate_definitions_with_function_and_global():
     ]
 
 
-@pytest.mark.xfail(reason="tricky case not yet supported")
 @pytest.mark.skipif(
     sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
@@ -553,15 +550,19 @@ def test_transform_duplicate_definitions_with_comprehensions_and_lambdas():
         "x = lambda x: x**4\nprint([x(i) for i in range(5)])",
     ]
     result = transform_duplicate_definitions(sources)
-    assert result == [
-        "x = [i for i in range(5)]",
-        "x_1 = x\nx_1 = list(map(lambda x: x**2, x_1))\nprint(x_1)",
-        "x_2 = x_1\nx_2 = {x: x**3 for x in x_2}\nprint(x_2)",
-        "x_3 = lambda x: x**4\nprint([x_3(i) for i in range(5)])",
-    ]
+    assert_sources_equal(
+        result,
+        dd(
+            [
+                "x = [i for i in range(5)]",
+                "x_1 = list(map(lambda x: x**2, x))\nprint(x_1)",
+                "x_2 = {x: x**3 for x in x_1}\nprint(x_2)",
+                "x_3 = lambda x: x**4\nprint([x_3(i) for i in range(5)])",
+            ]
+        ),
+    )
 
 
-@pytest.mark.xfail(reason="tricky case not yet supported")
 @pytest.mark.skipif(
     sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
@@ -571,10 +572,15 @@ def test_transform_duplicate_definitions_with_simple_lambda():
         "x = lambda x: x**2",
     ]
     result = transform_duplicate_definitions(sources)
-    assert result == [
-        "x = 0",
-        "x_1 = x\nx_1 = lambda x: x**2",
-    ]
+    assert_sources_equal(
+        result,
+        dd(
+            [
+                "x = 0",
+                "x_1 = lambda x: x**2",
+            ]
+        ),
+    )
 
 
 @pytest.mark.skipif(
@@ -587,7 +593,7 @@ def test_transform_simple_redefinition() -> None:
         "x = 1",
         "x",
     ]
-    result = _transform_sources(sources, [{} for _ in sources])
+    result = transform_duplicate_definitions(sources)
     assert result == [
         "x = 0",
         "x",
@@ -605,10 +611,10 @@ def test_transform_duplicate_definitions_with_simple_function():
         "x = 1",
         "def f(x): return x",
     ]
-    result = _transform_sources(sources, [{} for _ in sources])
+    result = transform_duplicate_definitions(sources)
     assert result == [
-        "_x = 0",
-        "_x = 1",
+        "x = 0",
+        "x_1 = 1",
         "def f(x): return x",
     ]
 
@@ -621,12 +627,14 @@ def test_transform_duplicate_definitions_attrs():
         "x = 0",
         "x",
         "x = x.apply()",
+        "x",
     ]
     result = transform_duplicate_definitions(sources)
     assert result == [
         "x = 0",
         "x",
-        "x_1 = x\nx_1 = x_1.apply()",
+        "x_1 = x.apply()",
+        "x_1",
     ]
 
 
@@ -734,5 +742,51 @@ def test_transform_duplicate_classes():
             "A()",
             "class A_1(): ...",
             "A_1()",
+        ],
+    )
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
+)
+def test_transform_duplicate_definitions_numbered_no_conflict():
+    sources = dd(
+        [
+            "df = 1",
+            "df_1 = 1",
+            "df",
+        ]
+    )
+    result = transform_duplicate_definitions(sources)
+    assert_sources_equal(
+        result,
+        [
+            "df = 1",
+            "df_1 = 1",
+            "df",
+        ],
+    )
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
+)
+def test_transform_duplicate_definitions_numbered():
+    sources = dd(
+        [
+            "df = 1",
+            "df_1 = 1",
+            "df = 2",
+            "df",
+        ]
+    )
+    result = transform_duplicate_definitions(sources)
+    assert_sources_equal(
+        result,
+        [
+            "df = 1",
+            "df_1 = 1",
+            "df_2 = 2",
+            "df_2",
         ],
     )
