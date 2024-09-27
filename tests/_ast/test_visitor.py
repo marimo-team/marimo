@@ -251,6 +251,49 @@ def test_nested_comprehensions() -> None:
     assert not v.variable_data
 
 
+def test_comprehension_generator() -> None:
+    code = "\n".join(
+        [
+            "[x for x in x]",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set()
+    assert v.refs == set(["x"])
+    assert not v.variable_data
+
+
+def test_nested_comprehension_generator() -> None:
+    code = "\n".join(
+        [
+            "[x for x in x for x in x]",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set()
+    assert v.refs == set(["x"])
+    assert not v.variable_data
+
+
+def test_nested_comprehension_generator_with_named_expr() -> None:
+    code = "\n".join(
+        [
+            "[(x := x) for x in x for x in x]",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    # named expr kicks x out, evicting the ref
+    assert v.defs == set(["x"])
+    assert v.refs == set()
+    assert v.variable_data == {"x": [VariableData(kind="variable")]}
+
+
 def test_walrus_leaks_to_global_in_comprehension() -> None:
     code = "\n".join(
         [
