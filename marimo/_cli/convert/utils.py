@@ -2,11 +2,7 @@
 from __future__ import annotations
 
 import urllib.request
-from typing import Optional
 
-from marimo._ast import codegen
-from marimo._ast.app import _AppConfig
-from marimo._ast.cell import CellConfig
 from marimo._cli.file_path import get_github_src_url, is_github_src
 
 
@@ -23,28 +19,3 @@ def load_external_file(file_path: str, ext: str) -> str:
             notebook = f.read()
 
     return notebook
-
-
-def markdown_to_marimo(source: str) -> str:
-    source = source.replace('"""', '\\"\\"\\"')
-    return "\n".join(
-        [
-            "mo.md(",
-            # r-string: a backslash is just a backslash!
-            codegen.indent_text('r"""'),
-            codegen.indent_text(source),
-            codegen.indent_text('"""'),
-            ")",
-        ]
-    )
-
-
-def generate_from_sources(
-    sources: list[str], config: Optional[_AppConfig] = None
-) -> str:
-    return codegen.generate_filecontents(
-        sources,
-        ["__" for _ in sources],
-        [CellConfig() for _ in range(len(sources))],
-        config=config,
-    )
