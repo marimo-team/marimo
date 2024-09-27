@@ -6,10 +6,10 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVerticalIcon } from "lucide-react";
 import type { CellId } from "@/core/cells/ids";
 import { cn } from "@/utils/cn";
-import { notebookHasColumns } from "@/core/cells/utils";
 
 interface Props extends React.HTMLAttributes<HTMLDivElement> {
   cellId: CellId;
+  canMoveX?: boolean;
 }
 
 /**
@@ -24,7 +24,7 @@ export const CellDragHandle: React.FC = memo(() => {
 CellDragHandle.displayName = "DragHandle";
 
 const SortableCellInternal = React.forwardRef(
-  ({ cellId, ...props }: Props, ref: React.Ref<HTMLDivElement>) => {
+  ({ cellId, canMoveX, ...props }: Props, ref: React.Ref<HTMLDivElement>) => {
     // Sort
     const {
       attributes,
@@ -38,7 +38,7 @@ const SortableCellInternal = React.forwardRef(
     const style: React.CSSProperties = {
       transform: transform
         ? CSS.Transform.toString({
-            x: notebookHasColumns() ? transform.x : 0,
+            x: canMoveX ? transform.x : 0,
             y: transform.y,
             scaleX: 1,
             scaleY: 1,

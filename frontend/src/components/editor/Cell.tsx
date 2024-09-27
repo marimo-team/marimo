@@ -110,7 +110,7 @@ export interface CellProps
    */
   allowFocus: boolean;
   userConfig: UserConfig;
-
+  canMoveX: boolean;
   isCollapsed: boolean;
   collapseCount: number;
 }
@@ -157,6 +157,7 @@ const CellComponent = (
     isCollapsed,
     collapseCount,
     config: cellConfig,
+    canMoveX,
     name,
   }: CellProps,
   ref: React.ForwardedRef<CellHandle>,
@@ -453,6 +454,7 @@ const CellComponent = (
         onBlur={closeCompletionHandler}
         onKeyDown={resumeCompletionHandler}
         cellId={cellId}
+        canMoveX={canMoveX}
         title={cellTitle()}
       >
         <div className={className} id={HTMLId}>

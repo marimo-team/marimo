@@ -42,7 +42,10 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { SortableCellsProvider } from "@/components/sort/SortableCellsProvider";
+import {
+  PlaceholderColumn,
+  SortableCellsProvider,
+} from "@/components/sort/SortableCellsProvider";
 
 interface CellArrayProps {
   notebook: NotebookState;
@@ -106,7 +109,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
       <PackageAlert />
       <NotebookBanner />
       <SortableCellsProvider>
-        <div className="grid grid-flow-col auto-cols-min gap-10">
+        <div className="grid grid-flow-col auto-cols-min gap-28">
           {columns.map((column, columnIndex) => (
             <SortableContext
               id={`column-${columnIndex}`}
@@ -115,7 +118,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
               disabled={!isEditing}
               strategy={verticalListSortingStrategy}
             >
-              <div className="flex flex-col gap-5 w-[600px] max-w-[600px] min-w-[600px]">
+              <div className="flex flex-col gap-5 w-[640px] max-w-[640px] min-w-[640px] min-h-[400px]">
                 {column.topLevelIds.map((cellId) => {
                   const cellData = notebook.cellData[cellId];
                   const cellRuntime = notebook.cellRuntime[cellId];
@@ -154,17 +157,24 @@ export const CellArray: React.FC<CellArrayProps> = ({
                       name={cellData.name}
                       isCollapsed={column.isCollapsed(cellId)}
                       collapseCount={column.getCount(cellId)}
+                      canMoveX={appConfig.width === "columns"}
                       {...actions}
                       deleteCell={onDeleteCell}
                     />
                   );
                 })}
+                <AddCellButtons />
               </div>
             </SortableContext>
           ))}
+          {appConfig.width === "columns" && (
+            <div className="flex flex-col gap-5 w-[640px] max-w-[640px] min-w-[640px]">
+              <PlaceholderColumn />
+              <AddCellButtons />
+            </div>
+          )}
         </div>
       </SortableCellsProvider>
-      <AddCellButtons />
       <FloatingOutline />
     </VerticalLayoutWrapper>
   );

@@ -43,7 +43,11 @@ import type {
 import { getUserConfig } from "@/core/config/config";
 import { syncCellIds } from "../network/requests";
 import { kioskModeAtom } from "../mode";
-import { MultiColumn } from "@/utils/id-tree";
+import {
+  type CellColumnIndex,
+  type CellIndex,
+  MultiColumn,
+} from "@/utils/id-tree";
 import { isEqual } from "lodash-es";
 
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
@@ -77,8 +81,8 @@ export interface NotebookState {
     name: string;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     serializedEditorState: any;
-    column: number;
-    index: number;
+    column: CellColumnIndex;
+    index: CellIndex;
   }>;
   /**
    * Key of cell to scroll to; typically set by actions that re-order the cell
@@ -320,6 +324,14 @@ const {
       scrollKey: null,
     };
   },
+  dropOverNewColumn: (state, action: { cellId: CellId }) => {
+    const { cellId } = action;
+    const [_column, colIndex] = state.cellIds.getColumnWithId(cellId);
+    return {
+      ...state,
+      cellIds: state.cellIds.moveToNewColumn(colIndex, cellId),
+    };
+  },
   focusCell: (state, action: { cellId: CellId; before: boolean }) => {
     const [column, _] = state.cellIds.getColumnWithId(action.cellId);
     if (column.length === 0) {
@@ -425,6 +437,12 @@ const {
       cellIds: state.cellIds.insertBreakpoint(colIndex, cellIndex),
     };
   },
+  compactColumns: (state) => {
+    return {
+      ...state,
+      cellIds: state.cellIds.compact(),
+    };
+  },
   deleteCell: (state, action: { cellId: CellId }) => {
     const cellId = action.cellId;
     const [column, colIndex] = state.cellIds.getColumnWithId(cellId);
@@ -449,7 +467,7 @@ const {
         {
           name: state.cellData[cellId].name,
           serializedEditorState: serializedEditorState,
-          column: state.cellIds.columns.indexOf(column),
+          column: state.cellIds.indexOf(column),
           index: cellIndex,
         },
       ],

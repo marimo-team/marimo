@@ -6,6 +6,15 @@ import { Memoize } from "typescript-memoize";
 import { Logger } from "./Logger";
 
 /**
+ * Branded number to help with type safety
+ */
+export type CellColumnIndex = number & { __brand: "CellColumnIndex" };
+/**
+ * Weakly-branded number, since removing `?` causes a lot of type errors
+ */
+export type CellIndex = number & { __brand?: "CellIndex" };
+
+/**
  * Tree data structure for handling ids with nested children
  */
 export class TreeNode<T> {
@@ -100,14 +109,14 @@ export class CollapsibleTree<T> {
   /**
    * Get the index of the given node, or throw
    */
-  indexOfOrThrow(id: T): number {
+  indexOfOrThrow(id: T): CellIndex {
     const index = this.nodes.findIndex((n) => n.value === id);
     if (index === -1) {
       throw new Error(
         `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`,
       );
     }
-    return index;
+    return index as CellIndex;
   }
 
   /**
@@ -355,11 +364,18 @@ export class MultiColumn<T> {
     return this.columns.length;
   }
 
+  indexOf(column: CollapsibleTree<T>): CellColumnIndex {
+    return this.columns.indexOf(column) as CellColumnIndex;
+  }
+
   addColumn(): MultiColumn<T> {
     return new MultiColumn([...this.columns, CollapsibleTree.from([])]);
   }
 
-  insertBreakpoint(columnIndex: number, cellIndex: number): MultiColumn<T> {
+  insertBreakpoint(
+    columnIndex: CellColumnIndex,
+    cellIndex: CellIndex,
+  ): MultiColumn<T> {
     const column = this.columns[columnIndex];
     const newColumn = new CollapsibleTree(column.nodes.splice(cellIndex));
     const columns = [...this.columns];
@@ -369,9 +385,9 @@ export class MultiColumn<T> {
   }
 
   moveWithinColumn(
-    col: number,
-    fromIdx: number,
-    toIdx: number,
+    col: CellColumnIndex,
+    fromIdx: CellIndex,
+    toIdx: CellIndex,
   ): MultiColumn<T> {
     const columns = [...this.columns];
     const id = columns[col].atOrThrow(fromIdx);
@@ -380,10 +396,10 @@ export class MultiColumn<T> {
   }
 
   moveAcrossColumns(
-    fromCol: number,
-    fromIdx: number,
-    toCol: number,
-    toIdx: number,
+    fromCol: CellColumnIndex,
+    fromIdx: CellIndex,
+    toCol: CellColumnIndex,
+    toIdx: CellIndex,
   ): MultiColumn<T> {
     const columns = [...this.columns];
     const id = columns[fromCol].atOrThrow(fromIdx);
@@ -392,7 +408,7 @@ export class MultiColumn<T> {
     return new MultiColumn(columns);
   }
 
-  moveColumn(fromCol: number, toCol: number): MultiColumn<T> {
+  moveColumn(fromCol: CellColumnIndex, toCol: CellColumnIndex): MultiColumn<T> {
     const id = this.columns[fromCol].first();
     const newFromTree = this.columns[fromCol].delete(0);
     const newToTree = newFromTree.insertAtStart(id);
@@ -402,30 +418,55 @@ export class MultiColumn<T> {
     return new MultiColumn(columns);
   }
 
-  getColumnWithId(id: T): [CollapsibleTree<T>, number] {
+  moveToNewColumn(fromCol: CellColumnIndex, cellId: T): MultiColumn<T> {
+    const columns = [...this.columns];
+    const fromIndex = columns[fromCol].indexOfOrThrow(cellId);
+    // Delete from existing column
+    columns[fromCol] = columns[fromCol].delete(fromIndex);
+    // Insert into new column
+    const newColumn = CollapsibleTree.from([cellId]);
+    return new MultiColumn([...columns, newColumn]);
+  }
+
+  getColumnWithId(id: T): [CollapsibleTree<T>, CellColumnIndex] {
     const index = this.columns.findIndex((c) => c.topLevelIds.includes(id));
     const column = this.columns[index];
     if (!column) {
       throw new Error(
-        `Column with id ${id} not found in tree. 
+        `Column with id ${id} not found in tree.
         Valid ids: ${this.topLevelIds}`,
       );
     }
-    return [column, index];
+    return [column, index as CellColumnIndex];
   }
 
-  insertId(id: T, col: number, index: number): MultiColumn<T> {
+  insertId(id: T, col: CellColumnIndex, index: CellIndex): MultiColumn<T> {
     const column = this.columns[col];
     const columns = [...this.columns];
     columns[col] = column.insert(id, index);
     return new MultiColumn([...columns]);
   }
 
-  deleteId(col: number, index: number): MultiColumn<T> {
+  deleteId(col: CellColumnIndex, index: CellIndex): MultiColumn<T> {
     const columns = [...this.columns];
     const column = columns[col];
     const newColumn = column.delete(index);
     columns[col] = newColumn;
     return new MultiColumn(columns);
+  }
+
+  compact(): MultiColumn<T> {
+    // Don't compact if there's only one column
+    if (this.columns.length === 1) {
+      return this;
+    }
+    // If no need to compact, return the same tree
+    // to avoid unnecessary re-renders
+    const someEmpty = this.columns.some((c) => c.nodes.length === 0);
+    if (!someEmpty) {
+      return this;
+    }
+
+    return new MultiColumn(this.columns.filter((c) => c.nodes.length > 0));
   }
 }

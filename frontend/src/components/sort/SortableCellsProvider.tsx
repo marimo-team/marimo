@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -8,22 +8,50 @@ import {
   useSensor,
   type DragEndEvent,
   useSensors,
+  type AutoScrollOptions,
+  type UniqueIdentifier,
+  type DragStartEvent,
+  useDroppable,
 } from "@dnd-kit/core";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { useCellActions } from "../../core/cells/cells";
+import { useCellActions, useNotebook } from "../../core/cells/cells";
 import { useEvent } from "../../hooks/useEvent";
 import type { CellId } from "@/core/cells/ids";
-import { notebookHasColumns } from "@/core/cells/utils";
+import { useAppConfig } from "@/core/config/config";
+import { Arrays } from "@/utils/arrays";
+import type { MultiColumn } from "@/utils/id-tree";
+import { SquarePlusIcon } from "lucide-react";
 
 interface SortableCellsProviderProps {
   children: React.ReactNode;
 }
 
+// autoScroll threshold x: 0 is required to disable horizontal scroll
+//            threshold y: 0.1 means scroll y when near bottom/top 10% of
+//            scrollable container
+const autoScroll: AutoScrollOptions = {
+  threshold: { x: 0, y: 0.1 },
+};
+
 const SortableCellsProviderInternal = ({
   children,
 }: SortableCellsProviderProps) => {
-  const { dropCellOver } = useCellActions();
+  const { cellIds } = useNotebook();
+  const { dropCellOver, dropOverNewColumn, compactColumns } = useCellActions();
+
+  const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
+  const [clonedItems, setClonedItems] = useState<MultiColumn<CellId> | null>(
+    null,
+  );
+
+  const [config] = useAppConfig();
+  const modifiers = useMemo(() => {
+    if (config.width === "columns") {
+      return Arrays.EMPTY;
+    }
+    return [restrictToVerticalAxis];
+  }, [config.width]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -37,30 +65,132 @@ const SortableCellsProviderInternal = ({
     }),
   );
 
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      recentlyMovedToNewContainer.current = false;
+    });
+  }, [cellIds]);
+  const recentlyMovedToNewContainer = useRef(false);
+
+  const findContainer = (cellId: CellId) => {
+    return cellIds.getColumnWithId(cellId);
+  };
+
   const handleDragEnd = useEvent((event: DragEndEvent) => {
     const { active, over } = event;
+    compactColumns();
     if (over === null) {
       return;
     }
     if (active.id === over.id) {
       return;
     }
-    dropCellOver({
-      cellId: active.id as CellId,
-      overCellId: over.id as CellId,
-    });
+
+    if (isCellId(active.id) && over.id === PLACEHOLDER_COLUMN_ID) {
+      dropOverNewColumn({
+        cellId: active.id,
+      });
+      return;
+    }
+
+    if (isCellId(active.id) && isCellId(over.id)) {
+      dropCellOver({
+        cellId: active.id,
+        overCellId: over.id,
+      });
+    }
   });
 
-  // autoScroll threshold x: 0 is required to disable horizontal scroll
-  //            threshold y: 0.1 means scroll y when near bottom/top 10% of
-  //            scrollable container
+  const handleDragStart = useEvent((event: DragStartEvent) => {
+    setActiveId(event.active.id);
+    setClonedItems(cellIds);
+  });
+
+  const handleDragCancel = useEvent(() => {
+    // TODO: restore cloned items
+    if (clonedItems) {
+      // Reset items to their original state in case items have been
+      // Dragged across containers
+      // setItems(clonedItems);
+    }
+
+    setActiveId(null);
+    setClonedItems(null);
+  });
+
+  // See example: https://github.com/clauderic/dnd-kit/blob/master/stories/2%20-%20Presets/Sortable/MultipleContainers.tsx#L315-L372
+  const handleDragOver = useEvent(({ active, over }) => {
+    const overId = over?.id;
+
+    if (overId == null || !isCellId(active.id) || !isCellId(overId)) {
+      return;
+    }
+
+    const overContainer = findContainer(overId);
+    const activeContainer = findContainer(active.id);
+
+    if (!overContainer || !activeContainer) {
+      return;
+    }
+
+    if (activeContainer !== overContainer) {
+      dropCellOver({
+        cellId: active.id,
+        overCellId: overId,
+      });
+      // setItems((items) => {
+      //   const activeItems = items[activeContainer];
+      //   const overItems = items[overContainer];
+      //   const overIndex = overItems.indexOf(overId);
+      //   const activeIndex = activeItems.indexOf(active.id);
+
+      //   let newIndex: number;
+
+      //   if (overId in items) {
+      //     newIndex = overItems.length + 1;
+      //   } else {
+      //     const isBelowOverItem =
+      //       over &&
+      //       active.rect.current.translated &&
+      //       active.rect.current.translated.top >
+      //         over.rect.top + over.rect.height;
+
+      //     const modifier = isBelowOverItem ? 1 : 0;
+
+      //     newIndex =
+      //       overIndex >= 0 ? overIndex + modifier : overItems.length + 1;
+      //   }
+
+      //   recentlyMovedToNewContainer.current = true;
+
+      //   return {
+      //     ...items,
+      //     [activeContainer]: items[activeContainer].filter(
+      //       (item) => item !== active.id,
+      //     ),
+      //     [overContainer]: [
+      //       ...items[overContainer].slice(0, newIndex),
+      //       items[activeContainer][activeIndex],
+      //       ...items[overContainer].slice(
+      //         newIndex,
+      //         items[overContainer].length,
+      //       ),
+      //     ],
+      //   };
+      // });
+    }
+  });
+
   return (
     <DndContext
-      autoScroll={{ threshold: { x: 0.1, y: 0.1 } }}
+      autoScroll={autoScroll}
       sensors={sensors}
       collisionDetection={closestCenter}
-      modifiers={notebookHasColumns() ? [] : [restrictToVerticalAxis]}
+      modifiers={modifiers}
       onDragEnd={handleDragEnd}
+      onDragStart={handleDragStart}
+      onDragCancel={handleDragCancel}
+      onDragOver={handleDragOver}
     >
       {children}
     </DndContext>
@@ -68,3 +198,29 @@ const SortableCellsProviderInternal = ({
 };
 
 export const SortableCellsProvider = React.memo(SortableCellsProviderInternal);
+
+function isCellId(id: UniqueIdentifier): id is CellId {
+  return typeof id === "string" && id !== PLACEHOLDER_COLUMN_ID;
+}
+
+const PLACEHOLDER_COLUMN_ID = "__placeholder-column__";
+
+export const PlaceholderColumn: React.FC = () => {
+  const { setNodeRef, isOver } = useDroppable({
+    id: PLACEHOLDER_COLUMN_ID,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`w-[600px] h-full border-2 border-dashed border-[var(--slate-3)] rounded-lg flex items-center justify-center z-10 ${
+        isOver ? "bg-[var(--slate-3)]" : "bg-[var(--slate-1)]"
+      }`}
+    >
+      <p className="text-muted-foreground flex items-center gap-2">
+        <SquarePlusIcon className="w-4 h-4" />
+        Add column
+      </p>
+    </div>
+  );
+};
