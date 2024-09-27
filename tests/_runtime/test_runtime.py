@@ -2157,6 +2157,43 @@ class TestSQL:
         # cell 1 should re-run but will fail to find t1
         assert "df" not in k.globals
 
+    async def test_sql_table_with_duckdb(self, k: Kernel) -> None:
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code="import marimo as mo",
+                ),
+                ExecutionRequest(
+                    cell_id="1", code="df = duckdb.sql('SELECT * from t1')"
+                ),
+            ]
+        )
+        assert "df" not in k.globals
+
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="2",
+                    code="import polars as pl; t1_df = pl.from_dict({'a': [42]})",  # noqa: E501
+                ),
+                # cell 1 should automatically execute due to the definition of
+                # t1
+                ExecutionRequest(
+                    cell_id="3",
+                    code="duckdb.sql('CREATE OR REPLACE TABLE t1 as SELECT * FROM t1_df')",  # noqa: E501
+                ),
+            ]
+        )
+
+        # make sure cell 1 executed, defining df
+        assert k.globals["t1_df"].to_dict(as_series=False) == {"a": [42]}
+
+        await k.delete_cell(DeleteCellRequest(cell_id="3"))
+        # t1 should be dropped since it's an in-memory table;
+        # cell 1 should re-run but will fail to find t1
+        assert "df" not in k.globals
+
     async def test_sql_view(self, k: Kernel) -> None:
         await k.run(
             [
