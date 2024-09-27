@@ -8,7 +8,6 @@ from marimo._convert.ipynb import (
     transform_duplicate_definitions,
     transform_exclamation_mark,
     transform_fixup_multiple_definitions,
-    transform_inline_plots,
     transform_magic_commands,
     transform_remove_duplicate_imports,
 )
@@ -54,12 +53,6 @@ def test_transform_magic_commands():
         "import os\nos.chdir('/path/to/dir')",
         "# '%matplotlib inline' command supported automatically in marimo",
     ]
-
-
-def test_transform_inline_plots():
-    sources = ["plt.plot([1, 2, 3])", "plt.show()"]
-    result = transform_inline_plots(sources)
-    assert result == ["plt.plot([1, 2, 3])", "plt.gcf()"]
 
 
 def test_transform_exclamation_mark():
@@ -182,20 +175,6 @@ def test_transform_magic_commands_complex():
     )
 
 
-def test_transform_inline_plots_complex():
-    sources = [
-        "fig, ax = plt.subplots()\nax.plot([1, 2, 3])\nplt.show()",
-        "plt.figure()\nplt.plot([4, 5, 6])\nplt.title('My Plot')\nplt.show()",
-        "sns.scatterplot(x='col1', y='col2', data=df)\nplt.show()",
-    ]
-    result = transform_inline_plots(sources)
-    assert result == [
-        "fig, ax = plt.subplots()\nax.plot([1, 2, 3])\nplt.gcf()",
-        "plt.figure()\nplt.plot([4, 5, 6])\nplt.title('My Plot')\nplt.gcf()",
-        "sns.scatterplot(x='col1', y='col2', data=df)\nplt.gcf()",
-    ]
-
-
 def test_transform_exclamation_mark_complex():
     sources = [
         "!pip install package1 package2",
@@ -280,20 +259,6 @@ def test_transform_magic_commands_unsupported():
     assert result == [
         "# magic command not supported in marimo; please file an issue to add support\n# %custom_magic # arg1 arg2",  # noqa: E501
         "# magic command not supported in marimo; please file an issue to add support\n# %%custom_cell_magic\n# some\n# content",  # noqa: E501
-    ]
-
-
-def test_transform_inline_plots_with_custom_plotting():
-    sources = [
-        "import seaborn as sns",
-        "sns.heatmap(data)\nplt.show()",
-        "fig = plt.figure()\nax = fig.add_subplot(111, projection='3d')\nax.scatter(xs, ys, zs)\nplt.show()",  # noqa: E501
-    ]
-    result = transform_inline_plots(sources)
-    assert result == [
-        "import seaborn as sns",
-        "sns.heatmap(data)\nplt.gcf()",
-        "fig = plt.figure()\nax = fig.add_subplot(111, projection='3d')\nax.scatter(xs, ys, zs)\nplt.gcf()",  # noqa: E501
     ]
 
 

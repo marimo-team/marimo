@@ -275,23 +275,6 @@ def transform_magic_commands(sources: List[str]) -> List[str]:
     return [transform(cell) for cell in sources]
 
 
-def transform_inline_plots(sources: List[str]) -> List[str]:
-    """
-    Adjust inline plot commands for marimo compatibility.
-    """
-
-    def transform(cell: str) -> str:
-        # matplotlib inline plots
-        if "plt.show()" in cell:
-            cell = cell.replace("plt.show()", "plt.gcf()")
-        # plotly inline plots
-        if "fig.show()" in cell:
-            cell = cell.replace("fig.show()", "fig")
-        return cell
-
-    return [transform(cell) for cell in sources]
-
-
 def transform_exclamation_mark(sources: List[str]) -> List[str]:
     """
     Handle exclamation mark commands.
@@ -597,7 +580,6 @@ def convert_from_ipynb(raw_notebook: str) -> str:
         transform_strip_whitespace,
         transform_magic_commands,
         transform_remove_duplicate_imports,
-        transform_inline_plots,
         transform_fixup_multiple_definitions,
         transform_duplicate_definitions,
         lambda s: transform_cell_metadata(s, metadata),
