@@ -275,30 +275,6 @@ def transform_magic_commands(sources: List[str]) -> List[str]:
     return [transform(cell) for cell in sources]
 
 
-def transform_display_functions(sources: List[str]) -> List[str]:
-    """
-    Transform Jupyter display functions to marimo equivalents.
-    """
-
-    # Check if display is imported
-    display_used = any(
-        "from IPython.display import display" in cell
-        or "import IPython.display" in cell
-        for cell in sources
-    )
-    if display_used:
-        return sources  # Return early if display is used
-
-    def transform(cell: str) -> str:
-        # Remove display(...), leaving only the content inside
-        import re
-
-        cell = re.sub(r"display\((.*?)\)", r"\1", cell)
-        return cell
-
-    return [transform(cell) for cell in sources]
-
-
 def transform_inline_plots(sources: List[str]) -> List[str]:
     """
     Adjust inline plot commands for marimo compatibility.
@@ -622,7 +598,6 @@ def convert_from_ipynb(raw_notebook: str) -> str:
         transform_magic_commands,
         transform_remove_duplicate_imports,
         transform_inline_plots,
-        transform_display_functions,
         transform_fixup_multiple_definitions,
         transform_duplicate_definitions,
         lambda s: transform_cell_metadata(s, metadata),

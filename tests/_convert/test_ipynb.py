@@ -5,7 +5,6 @@ import pytest
 from marimo._convert.ipynb import (
     transform_add_marimo_import,
     transform_cell_metadata,
-    transform_display_functions,
     transform_duplicate_definitions,
     transform_exclamation_mark,
     transform_fixup_multiple_definitions,
@@ -55,12 +54,6 @@ def test_transform_magic_commands():
         "import os\nos.chdir('/path/to/dir')",
         "# '%matplotlib inline' command supported automatically in marimo",
     ]
-
-
-def test_transform_display_functions():
-    sources = ["display(df)", "display(plt.gcf())"]
-    result = transform_display_functions(sources)
-    assert result == ["df", "plt.gcf()"]
 
 
 def test_transform_inline_plots():
@@ -189,21 +182,6 @@ def test_transform_magic_commands_complex():
     )
 
 
-@pytest.mark.skip(reason="tricky case not yet supported")
-def test_transform_display_functions_edge_cases():
-    sources = [
-        "display(df, title='My DataFrame')",
-        "display(plt.gcf(), plt.gcf())",
-        "my_display = lambda x: x\nmy_display(df)",
-    ]
-    result = transform_display_functions(sources)
-    assert result == [
-        "mo.ui.table(df, title='My DataFrame')",
-        "mo.ui.table([plt.gcf(), plt.gcf()])",
-        "my_display = lambda x: x\nmy_display(df)",
-    ]
-
-
 def test_transform_inline_plots_complex():
     sources = [
         "fig, ax = plt.subplots()\nax.plot([1, 2, 3])\nplt.show()",
@@ -302,21 +280,6 @@ def test_transform_magic_commands_unsupported():
     assert result == [
         "# magic command not supported in marimo; please file an issue to add support\n# %custom_magic # arg1 arg2",  # noqa: E501
         "# magic command not supported in marimo; please file an issue to add support\n# %%custom_cell_magic\n# some\n# content",  # noqa: E501
-    ]
-
-
-@pytest.mark.skip(reason="tricky case not yet supported")
-def test_transform_display_functions_with_custom_display():
-    sources = [
-        "from IPython.display import display, HTML",
-        "display(HTML('<h1>Hello</h1>'))",
-        "display(df, metadata=dict(foo='bar'))",
-    ]
-    result = transform_display_functions(sources)
-    assert result == [
-        "from IPython.display import display, HTML",
-        "mo.Html('<h1>Hello</h1>')",
-        "mo.as_html(df, metadata=dict(foo='bar'))",
     ]
 
 
