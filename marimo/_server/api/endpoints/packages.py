@@ -45,6 +45,13 @@ async def install_package(request: Request) -> PackageOperationResponse:
     body = await parse_request(request, cls=AddPackageRequest)
 
     package_manager = _get_package_manager(request)
+    if not package_manager.is_manager_installed():
+        package_manager.alert_not_installed()
+        return PackageOperationResponse.of_failure(
+            f"{package_manager.name} is not available. "
+            f"Check out the docs for installation instructions: {package_manager.docs_url}"  # noqa: E501
+        )
+
     success = await package_manager.install(body.package, version=None)
 
     # Update the script metadata
@@ -84,6 +91,13 @@ async def uninstall_package(request: Request) -> PackageOperationResponse:
     body = await parse_request(request, cls=RemovePackageRequest)
 
     package_manager = _get_package_manager(request)
+    if not package_manager.is_manager_installed():
+        package_manager.alert_not_installed()
+        return PackageOperationResponse.of_failure(
+            f"{package_manager.name} is not available. "
+            f"Check out the docs for installation instructions: {package_manager.docs_url}"  # noqa: E501
+        )
+
     success = await package_manager.uninstall(body.package)
 
     # Update the script metadata
@@ -116,6 +130,10 @@ async def list_packages(request: Request) -> ListPackagesResponse:
                         $ref: "#/components/schemas/ListPackagesResponse"
     """
     package_manager = _get_package_manager(request)
+    if not package_manager.is_manager_installed():
+        package_manager.alert_not_installed()
+        return ListPackagesResponse(packages=[])
+
     packages = package_manager.list_packages()
 
     return ListPackagesResponse(packages=packages)
