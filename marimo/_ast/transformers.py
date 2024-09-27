@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+from typing import Any
 
 
 class NameTransformer(ast.NodeTransformer):
@@ -41,7 +42,7 @@ class NameTransformer(ast.NodeTransformer):
         return node
 
     def visit_Assign(self, node: ast.Assign) -> ast.Assign:
-        new_targets = []
+        new_targets: list[Any] = []
         for target in node.targets:
             if (
                 isinstance(target, ast.Name)
