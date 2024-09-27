@@ -2,26 +2,42 @@
 
 import marimo
 
-__generated_with = "0.8.0"
+__generated_with = "0.8.20"
 app = marimo.App(app_title="1654 - Virtualize Multiselect")
 
 
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
 def __(mo):
     fuzzy_match_test = ["foo bar", "bar foo", "foob", "foobar", "barfoo"]
     mo.ui.multiselect(fuzzy_match_test, label="Fuzzy match test")
-    return fuzzy_match_test,
+    return (fuzzy_match_test,)
+
+
+@app.cell
+def __(mo):
+    (
+        mo.ui.multiselect([], label="Empty"),
+        mo.ui.multiselect(["1", "2"], label="2 items"),
+    )
+    return
 
 
 @app.cell
 def __(mo, xs_list):
-    mo.ui.multiselect(xs_list, label="Extra small list with 10 items")
+    v = mo.ui.multiselect(xs_list, label="Extra small list with 10 items")
+    v
+    return (v,)
+
+
+@app.cell
+def __(v):
+    print(v.value)
     return
 
 
