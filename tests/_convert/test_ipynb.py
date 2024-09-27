@@ -111,7 +111,7 @@ def test_transform_exclamation_mark():
     ]
     result = transform_exclamation_mark(sources)
     assert result == [
-        "# (already supported in marimo) !pip install package",
+        "# (use marimo's built-in package management features instead) !pip install package",  # noqa: E501
         "!ls -l",
     ]
 
@@ -279,7 +279,7 @@ def test_transform_exclamation_mark_complex():
     ]
     result = transform_exclamation_mark(sources)
     assert result == [
-        "# (already supported in marimo) !pip install package1 package2",
+        "# (use marimo's built-in package management features instead) !pip install package1 package2",  # noqa: E501
         # These are currently unhandled.
         "! ls -l | grep '.py'",
         "result = !echo 'Hello, World!'",
@@ -389,7 +389,7 @@ def test_transform_exclamation_mark_with_variables():
     ]
     result = transform_exclamation_mark(sources)
     assert result == [
-        "package = 'numpy'\n# (already supported in marimo) !pip install {package}",  # noqa: E501
+        "package = 'numpy'\n# (use marimo's built-in package management features instead) !pip install {package}",  # noqa: E501
         "command = 'echo \"Hello, World!\"'\n!{command}",
     ]
 

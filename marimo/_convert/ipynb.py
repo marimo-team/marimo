@@ -282,7 +282,10 @@ def transform_exclamation_mark(sources: List[str]) -> List[str]:
 
     def transform(cell: str) -> str:
         if "!pip" in cell:
-            cell = cell.replace("!pip", "# (already supported in marimo) !pip")
+            cell = cell.replace(
+                "!pip",
+                "# (use marimo's built-in package management features instead) !pip",  # noqa: E501
+            )
         return cell
 
     return [transform(cell) for cell in sources]
