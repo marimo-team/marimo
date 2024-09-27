@@ -12,6 +12,12 @@ def __():
 
 @app.cell
 def __(mo):
+    mo.md(r"""## Basic""")
+    return
+
+
+@app.cell
+def __(mo):
     mo.ui.number()
     return
 
@@ -19,6 +25,12 @@ def __(mo):
 @app.cell
 def __(mo):
     mo.ui.number(-10, 10)
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md(r"""## Edge cases""")
     return
 
 
@@ -37,6 +49,25 @@ def __(mo):
 def __(v):
     v.value
     return
+
+
+@app.cell
+def __(mo):
+    def on_change(new_value):
+        print(new_value)
+
+
+    mo.ui.number(start=-1e255, stop=1e255, value=5, on_change=on_change)
+    return (on_change,)
+
+
+@app.cell
+def __(mo, on_change):
+    import numpy as np
+
+    # Cannot set infinity as range
+    mo.ui.number(start=-np.inf, stop=np.inf, value=5, on_change=on_change)
+    return (np,)
 
 
 if __name__ == "__main__":
