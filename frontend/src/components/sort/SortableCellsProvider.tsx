@@ -10,26 +10,19 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  rectSortingStrategy,
-} from "@dnd-kit/sortable";
-import { useCellActions, useNotebook } from "../../core/cells/cells";
+import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { useCellActions } from "../../core/cells/cells";
 import { useEvent } from "../../hooks/useEvent";
 import type { CellId } from "@/core/cells/ids";
 import { notebookHasColumns } from "@/core/cells/utils";
 
 interface SortableCellsProviderProps {
   children: React.ReactNode;
-  disabled?: boolean;
 }
 
 const SortableCellsProviderInternal = ({
   children,
-  disabled,
 }: SortableCellsProviderProps) => {
-  const notebook = useNotebook();
   const { dropCellOver } = useCellActions();
 
   const sensors = useSensors(
@@ -43,8 +36,6 @@ const SortableCellsProviderInternal = ({
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
-
-  const ids = notebook.cellIds.topLevelIds.flat();
 
   const handleDragEnd = useEvent((event: DragEndEvent) => {
     const { active, over } = event;
@@ -71,13 +62,7 @@ const SortableCellsProviderInternal = ({
       modifiers={notebookHasColumns() ? [] : [restrictToVerticalAxis]}
       onDragEnd={handleDragEnd}
     >
-      <SortableContext
-        items={ids}
-        disabled={disabled}
-        strategy={rectSortingStrategy}
-      >
-        {children}
-      </SortableContext>
+      {children}
     </DndContext>
   );
 };

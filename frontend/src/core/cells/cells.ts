@@ -301,7 +301,7 @@ const {
     const [toColumn, toCol] = state.cellIds.getColumnWithId(overCellId);
     const toIndex = toColumn.indexOfOrThrow(overCellId);
 
-    if (fromIndex === toIndex) {
+    if (fromCol === toCol && fromIndex === toIndex) {
       return {
         ...state,
         cellIds: state.cellIds.moveWithinColumn(fromCol, fromIndex, toIndex),

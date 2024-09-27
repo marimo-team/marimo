@@ -43,7 +43,6 @@ import { Logger } from "../utils/Logger";
 import { useAutoSave } from "./saving/useAutoSave";
 import { useEventListener } from "../hooks/useEventListener";
 import { toast } from "../components/ui/use-toast";
-import { SortableCellsProvider } from "../components/sort/SortableCellsProvider";
 import { CellArray } from "../components/editor/renderers/CellArray";
 import { RuntimeState } from "./kernel/RuntimeState";
 import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
@@ -310,9 +309,7 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
         {/* Don't render until we have a single cell */}
         {cells.length > 0 && (
           <CellsRenderer appConfig={appConfig} mode={viewState.mode}>
-            <SortableCellsProvider disabled={!isEditing}>
-              {editableCellsArray}
-            </SortableCellsProvider>
+            {editableCellsArray}
           </CellsRenderer>
         )}
       </AppContainer>

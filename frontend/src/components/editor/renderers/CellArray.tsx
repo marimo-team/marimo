@@ -7,7 +7,7 @@ import {
 } from "../../../core/websocket/types";
 import { type NotebookState, useCellActions } from "../../../core/cells/cells";
 import type { AppConfig, UserConfig } from "../../../core/config/config-schema";
-import type { AppMode } from "../../../core/mode";
+import { viewStateAtom, type AppMode } from "../../../core/mode";
 import { useHotkey } from "../../../hooks/useHotkey";
 import { formatAll } from "../../../core/codemirror/format";
 import { useTheme } from "../../../theme/useTheme";
@@ -38,6 +38,11 @@ import { capabilitiesAtom } from "@/core/config/capabilities";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Kbd } from "@/components/ui/kbd";
 import { FloatingOutline } from "../chrome/panels/outline/floating-outline";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { SortableCellsProvider } from "@/components/sort/SortableCellsProvider";
 
 interface CellArrayProps {
   notebook: NotebookState;
@@ -57,6 +62,8 @@ export const CellArray: React.FC<CellArrayProps> = ({
   const actions = useCellActions();
   const { theme } = useTheme();
   const { toggleSidebarPanel } = useChromeActions();
+  const viewState = useAtomValue(viewStateAtom);
+  const isEditing = viewState.mode === "edit";
 
   const { invisible } = useDelayVisibility(
     notebook.cellIds.columns.length,
@@ -98,58 +105,65 @@ export const CellArray: React.FC<CellArrayProps> = ({
     >
       <PackageAlert />
       <NotebookBanner />
-      <div className="grid grid-flow-col auto-cols-min gap-10">
-        {columns.map((column, columnIndex) => (
-          <div
-            key={columnIndex}
-            className="flex flex-col gap-5 w-[600px] max-w-[600px] min-w-[600px]"
-          >
-            {column.topLevelIds.map((cellId) => {
-              const cellData = notebook.cellData[cellId];
-              const cellRuntime = notebook.cellRuntime[cellId];
-              return (
-                <Cell
-                  key={cellData.id.toString()}
-                  theme={theme}
-                  showPlaceholder={column.length === 1}
-                  allowFocus={!invisible && !notebook.scrollKey}
-                  id={cellData.id}
-                  code={cellData.code}
-                  outline={cellRuntime.outline}
-                  output={cellRuntime.output}
-                  consoleOutputs={cellRuntime.consoleOutputs}
-                  status={cellRuntime.status}
-                  edited={cellData.edited}
-                  interrupted={cellRuntime.interrupted}
-                  errored={cellRuntime.errored}
-                  stopped={cellRuntime.stopped}
-                  staleInputs={cellRuntime.staleInputs}
-                  runStartTimestamp={cellRuntime.runStartTimestamp}
-                  runElapsedTimeMs={
-                    cellRuntime.runElapsedTimeMs ??
-                    (cellData.lastExecutionTime as Milliseconds)
-                  }
-                  serializedEditorState={cellData.serializedEditorState}
-                  showDeleteButton={
-                    column.length > 1 && !cellData.config.hide_code
-                  }
-                  mode={mode}
-                  appClosed={connStatus.state !== WebSocketState.OPEN}
-                  ref={notebook.cellHandles[cellId]}
-                  userConfig={userConfig}
-                  debuggerActive={cellRuntime.debuggerActive}
-                  config={cellData.config}
-                  name={cellData.name}
-                  isCollapsed={column.isCollapsed(cellId)}
-                  collapseCount={column.getCount(cellId)}
-                  {...actions}
-                  deleteCell={onDeleteCell}
-                />
-              );
-            })}
-          </div>
-        ))}
-      </div>
+      <SortableCellsProvider>
+        <div className="grid grid-flow-col auto-cols-min gap-10">
+          {columns.map((column, columnIndex) => (
+            <SortableContext
+              id={`column-${columnIndex}`}
+              key={columnIndex}
+              items={column.topLevelIds}
+              disabled={!isEditing}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="flex flex-col gap-5 w-[600px] max-w-[600px] min-w-[600px]">
+                {column.topLevelIds.map((cellId) => {
+                  const cellData = notebook.cellData[cellId];
+                  const cellRuntime = notebook.cellRuntime[cellId];
+                  return (
+                    <Cell
+                      key={cellData.id.toString()}
+                      theme={theme}
+                      showPlaceholder={column.length === 1}
+                      allowFocus={!invisible && !notebook.scrollKey}
+                      id={cellData.id}
+                      code={cellData.code}
+                      outline={cellRuntime.outline}
+                      output={cellRuntime.output}
+                      consoleOutputs={cellRuntime.consoleOutputs}
+                      status={cellRuntime.status}
+                      edited={cellData.edited}
+                      interrupted={cellRuntime.interrupted}
+                      errored={cellRuntime.errored}
+                      stopped={cellRuntime.stopped}
+                      staleInputs={cellRuntime.staleInputs}
+                      runStartTimestamp={cellRuntime.runStartTimestamp}
+                      runElapsedTimeMs={
+                        cellRuntime.runElapsedTimeMs ??
+                        (cellData.lastExecutionTime as Milliseconds)
+                      }
+                      serializedEditorState={cellData.serializedEditorState}
+                      showDeleteButton={
+                        column.length > 1 && !cellData.config.hide_code
+                      }
+                      mode={mode}
+                      appClosed={connStatus.state !== WebSocketState.OPEN}
+                      ref={notebook.cellHandles[cellId]}
+                      userConfig={userConfig}
+                      debuggerActive={cellRuntime.debuggerActive}
+                      config={cellData.config}
+                      name={cellData.name}
+                      isCollapsed={column.isCollapsed(cellId)}
+                      collapseCount={column.getCount(cellId)}
+                      {...actions}
+                      deleteCell={onDeleteCell}
+                    />
+                  );
+                })}
+              </div>
+            </SortableContext>
+          ))}
+        </div>
+      </SortableCellsProvider>
       <AddCellButtons />
       <FloatingOutline />
     </VerticalLayoutWrapper>
