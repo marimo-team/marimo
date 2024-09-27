@@ -244,21 +244,18 @@ def test_transform_magic_commands_complex():
         "%env MY_VAR=value",
     ]
     result = transform_magic_commands(sources)
-    assert (
-        result
-        == [
-            '_df = mo.sql("""\nSELECT *\nFROM table\nWHERE condition\n""")',
-            (
-                "# magic command not supported in marimo; please file an issue to add support\n"  # noqa: E501
-                "# %%time\nfor i in range(1000000):\n"
-                "    pass"
-            ),
-            (
-                "# '%load_ext autoreload\\n%autoreload 2' command supported automatically in marimo"  # noqa: E501
-            ),
-            "import os\nos.environ['MY_VAR'] = 'value'",
-        ]
-    )
+    assert result == [
+        '_df = mo.sql("""\nSELECT *\nFROM table\nWHERE condition\n""")',
+        (
+            "# magic command not supported in marimo; please file an issue to add support\n"  # noqa: E501
+            "# %%time\nfor i in range(1000000):\n"
+            "    pass"
+        ),
+        (
+            "# '%load_ext autoreload\\n%autoreload 2' command supported automatically in marimo"  # noqa: E501
+        ),
+        "import os\nos.environ['MY_VAR'] = 'value'",
+    ]
 
 
 @pytest.mark.skipif(
@@ -689,5 +686,53 @@ def test_transform_duplicate_definition_kwarg():
             def f(x=x_1):
                 return x
             """,
+        ],
+    )
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
+)
+def test_transform_duplicate_function_definitions():
+    sources = dd(
+        [
+            "def f(): pass",
+            "f()",
+            "def f(): pass",
+            "f()",
+        ]
+    )
+    result = transform_duplicate_definitions(sources)
+    assert_sources_equal(
+        result,
+        [
+            "def f(): pass",
+            "f()",
+            "def f_1(): pass",
+            "f_1()",
+        ],
+    )
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
+)
+def test_transform_duplicate_classes():
+    sources = dd(
+        [
+            "class A(): ...",
+            "A()",
+            "class A(): ...",
+            "A()",
+        ]
+    )
+    result = transform_duplicate_definitions(sources)
+    assert_sources_equal(
+        result,
+        [
+            "class A(): ...",
+            "A()",
+            "class A_1(): ...",
+            "A_1()",
         ],
     )
