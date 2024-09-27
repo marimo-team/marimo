@@ -30,6 +30,7 @@ import {
   scrollToTop,
   scrollToBottom,
 } from "../scrollCellIntoView";
+import { CollapsibleTree } from "@/utils/id-tree";
 
 vi.mock("@/core/codemirror/editing/commands", () => ({
   foldAllBulk: vi.fn(),
@@ -112,7 +113,8 @@ describe("cell reducer", () => {
     i = 0;
 
     state = initialNotebookState();
-    actions.createNewCell({ cellId: undefined!, before: false });
+    state.cellIds.columns.push(CollapsibleTree.from([]));
+    actions.createNewCell({ cellId: "__end__", before: false });
     firstCellId = state.cellIds.columns[0].atOrThrow(0);
   });
 
@@ -1164,7 +1166,7 @@ describe("cell reducer", () => {
     const newCodes = ["code1", "code2", "code3"];
 
     actions.setCellIds({ cellIds: newIds });
-    expect(state.cellIds.topLevelIds).toEqual(newIds);
+    expect(state.cellIds.columns[0].topLevelIds).toEqual(newIds);
 
     actions.setCellCodes({ codes: newCodes, ids: newIds });
     newIds.forEach((id, index) => {
