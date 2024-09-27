@@ -16,7 +16,7 @@ from marimo._convert.ipynb import (
 
 
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_fixup_multiple_definitions():
     # Makes everything private to avoid conflicts.
@@ -27,7 +27,7 @@ def test_transform_fixup_multiple_definitions():
 
 
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_fixup_multiple_definitions_when_not_encapsulated():
     # Since the definitions are not encapsulated in a single cell, they should
@@ -38,7 +38,7 @@ def test_transform_fixup_multiple_definitions_when_not_encapsulated():
 
 
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_add_marimo_import():
     sources = [
@@ -51,7 +51,7 @@ def test_transform_add_marimo_import():
 
 
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_magic_commands():
     sources = [
@@ -70,7 +70,7 @@ def test_transform_magic_commands():
 
 
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_exclamation_mark():
     sources = ["!pip install package", "!ls -l"]
@@ -82,7 +82,7 @@ def test_transform_exclamation_mark():
 
 
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_duplicate_definitions():
     sources = ["a = 1", "print(a)", "a = 2", "print(a)", "print(a)", "a = 3"]
@@ -98,7 +98,7 @@ def test_transform_duplicate_definitions():
 
 
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_cell_metadata():
     sources = ["print('Hello')", "print('World')"]
@@ -111,7 +111,7 @@ def test_transform_cell_metadata():
 
 
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_remove_duplicate_imports():
     sources = [
@@ -128,7 +128,7 @@ def test_transform_remove_duplicate_imports():
 
 
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_remove_duplicate_imports_single_line():
     sources = [
@@ -140,7 +140,7 @@ def test_transform_remove_duplicate_imports_single_line():
 
 
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_fixup_multiple_definitions_complex():
     sources = [
@@ -157,7 +157,7 @@ def test_transform_fixup_multiple_definitions_complex():
 
 
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_fixup_multiple_definitions_with_functions():
     sources = [
@@ -176,7 +176,7 @@ def test_transform_fixup_multiple_definitions_with_functions():
 
 
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_add_marimo_import_edge_cases():
     sources = [
@@ -189,7 +189,7 @@ def test_transform_add_marimo_import_edge_cases():
 
 
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_magic_commands_complex():
     sources = [
@@ -217,7 +217,7 @@ def test_transform_magic_commands_complex():
 
 
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_exclamation_mark_complex():
     sources = [
@@ -237,7 +237,7 @@ def test_transform_exclamation_mark_complex():
 
 
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_duplicate_definitions_complex():
     sources = [
@@ -258,7 +258,7 @@ def test_transform_duplicate_definitions_complex():
 
 
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_cell_metadata_complex():
     sources = ["print('Cell 1')", "print('Cell 2')", "print('Cell 3')"]
@@ -276,7 +276,7 @@ def test_transform_cell_metadata_complex():
 
 
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_remove_duplicate_imports_complex():
     sources = [
@@ -293,7 +293,7 @@ def test_transform_remove_duplicate_imports_complex():
 
 
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_fixup_multiple_definitions_with_classes():
     sources = [
@@ -310,7 +310,7 @@ def test_transform_fixup_multiple_definitions_with_classes():
 
 
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_magic_commands_unsupported():
     sources = ["%custom_magic arg1 arg2", "%%custom_cell_magic\nsome\ncontent"]
@@ -322,7 +322,7 @@ def test_transform_magic_commands_unsupported():
 
 
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_exclamation_mark_with_variables():
     sources = [
@@ -337,7 +337,7 @@ def test_transform_exclamation_mark_with_variables():
 
 
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_duplicate_definitions_with_comprehensions():
     sources = [
@@ -356,7 +356,7 @@ def test_transform_duplicate_definitions_with_comprehensions():
 
 
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_duplicate_definitions_with_reference_to_previous():
     sources = [
@@ -373,7 +373,7 @@ def test_transform_duplicate_definitions_with_reference_to_previous():
 
 
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_cell_metadata_with_complex_metadata():
     sources = ["print('Complex metadata')"]
@@ -390,7 +390,7 @@ def test_transform_cell_metadata_with_complex_metadata():
 
 
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_remove_duplicate_imports_with_aliases():
     sources = [
@@ -407,7 +407,7 @@ def test_transform_remove_duplicate_imports_with_aliases():
 
 
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_remove_duplicate_imports_single():
     sources = [
@@ -424,7 +424,7 @@ def test_transform_remove_duplicate_imports_single():
 
 
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_duplicate_definitions_with_re_def():
     sources = [
@@ -448,7 +448,7 @@ def test_transform_duplicate_definitions_with_re_def():
 
 @pytest.mark.skip(reason="tricky case not yet supported")
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_duplicate_definitions_with_multiple_variables():
     sources = [
@@ -468,7 +468,7 @@ def test_transform_duplicate_definitions_with_multiple_variables():
 
 @pytest.mark.skip(reason="tricky case not yet supported")
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_duplicate_definitions_with_function_and_global():
     sources = [
@@ -490,7 +490,7 @@ def test_transform_duplicate_definitions_with_function_and_global():
 
 @pytest.mark.skip(reason="tricky case not yet supported")
 @pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_duplicate_definitions_with_comprehensions_and_lambdas():
     sources = [
