@@ -21,9 +21,9 @@ from marimo._cli.upgrade import (
     new_callable=mock_open,
 )
 @patch("marimo._cli.upgrade._update_with_latest_version")
-@patch("builtins.print")
+@patch("marimo._cli.upgrade.echo")
 def test_check_for_updates(
-    mock_print: Any,
+    mock_echo: Any,
     mock_update_with_latest_version: Any,
     mock_open_file: Any,
     mock_makedirs: Any,
@@ -42,13 +42,15 @@ def test_check_for_updates(
     # Assert that the makedirs function was not called
     mock_makedirs.assert_not_called()
 
+    mock_echo.assert_called()
+
     # Assert prints
     assert any(
-        "0.1.0 → 0.1.2" in call[0][0] for call in mock_print.call_args_list
+        "0.1.0 → 0.1.2" in call[0][0] for call in mock_echo.call_args_list
     )
     assert any(
         "pip install --upgrade marimo" in call[0][0]
-        for call in mock_print.call_args_list
+        for call in mock_echo.call_args_list
     )
 
 

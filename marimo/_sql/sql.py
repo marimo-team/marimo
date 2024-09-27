@@ -7,7 +7,11 @@ from typing import Any, Literal, Optional, cast
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._impl import table
-from marimo._runtime import output
+from marimo._runtime.context.types import (
+    ContextNotInitializedError,
+    get_context,
+)
+from marimo._runtime.output import replace
 
 
 def get_default_result_limit() -> Optional[int]:
@@ -18,6 +22,7 @@ def get_default_result_limit() -> Optional[int]:
 @mddoc
 def sql(
     query: str,
+    output: bool = True,
 ) -> Any:
     """
     Execute a SQL query.
@@ -25,10 +30,11 @@ def sql(
     This uses duckdb to execute the query. Any dataframes in the global
     namespace can be used inside the query.
 
-    The result of the query is displayed in the UI.
+    The result of the query is displayed in the UI if output is True.
 
     Args:
         query: The SQL query to execute.
+        output: Whether to display the result in the UI. Defaults to True.
 
     Returns:
         The result of the query.
@@ -37,7 +43,22 @@ def sql(
 
     import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
-    relation = duckdb.sql(query=query)
+    # In Python globals() are scoped to modules; since this function
+    # is in a different module than user code, globals() doesn't return
+    # the kernel globals, it just returns this module's global namespace.
+    #
+    # However, duckdb needs access to the kernel's globals. For this reason,
+    # we manually exec duckdb and provide it with the kernel's globals.
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        relation = duckdb.sql(query=query)
+    else:
+        relation = eval(
+            "duckdb.sql(query=query)",
+            ctx.globals,
+            {"query": query, "duckdb": duckdb},
+        )
 
     if not relation:
         return None
@@ -82,14 +103,15 @@ def sql(
             + "You can install them with 'pip install pandas polars'"
         )
 
-    t = table.table(
-        df,
-        selection=None,
-        page_size=5,
-        pagination=True,
-        _internal_total_rows=custom_total_count,
-    )
-    output.replace(t)
+    if output:
+        t = table.table(
+            df,
+            selection=None,
+            page_size=5,
+            pagination=True,
+            _internal_total_rows=custom_total_count,
+        )
+        replace(t)
     return df
 
 

@@ -1,11 +1,18 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import time
 from typing import Any
 from unittest.mock import patch
 
 import pytest
 
-from marimo._plugins.stateless.status._progress import _Progress
+from marimo._plugins.stateless.status._progress import (
+    _Progress,
+    progress_bar,
+    spinner,
+)
+from marimo._runtime.context.types import runtime_context_installed
 
 
 # Test initialization
@@ -98,3 +105,26 @@ def test_update_progress_closed(mock_flush: Any) -> None:
     with pytest.raises(RuntimeError):
         progress.update_progress()
     mock_flush.assert_called_once()
+
+
+def test_spinner_without_context():
+    assert runtime_context_installed() is False
+
+    with spinner("Test"):
+        assert True
+
+    with spinner(subtitle="Loading data ...") as _spinner:
+        assert spinner
+        _spinner.update(subtitle="Crunching numbers ...")
+
+
+def test_progress_without_context():
+    assert runtime_context_installed() is False
+
+    for i in progress_bar(range(10)):
+        assert i is not None
+
+    with progress_bar(total=10) as bar:
+        for _ in range(10):
+            assert bar
+            bar.update()

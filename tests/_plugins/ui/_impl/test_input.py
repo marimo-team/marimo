@@ -35,19 +35,41 @@ def test_number_out_of_bounds() -> None:
     with pytest.raises(ValueError) as e:
         ui.number(1, 10, value=11)
 
-    assert "out of bounds" in str(e.value)
+    assert "must be less than or equal" in str(e.value)
 
     with pytest.raises(ValueError) as e:
         ui.number(1, 10, value=0)
 
-    assert "out of bounds" in str(e.value)
+    assert "must be greater than or equal" in str(e.value)
 
 
 def test_number_invalid_bounds() -> None:
     with pytest.raises(ValueError) as e:
         ui.number(1, 0)
 
-    assert "Invalid bounds" in str(e.value)
+    assert "must be less than or equal to" in str(e.value)
+
+
+def test_number_default_value() -> None:
+    # Test default value when not specified
+    number = ui.number(1, 10)
+    assert number.value == 1
+
+    # Test default value when only stop is specified
+    number = ui.number(stop=10)
+    assert number.value == 10
+
+    # Test default value when neither start nor stop is specified
+    number = ui.number()
+    assert number.value is None
+
+    # Test default value with step
+    number = ui.number(1, 10, step=2)
+    assert number.value == 1
+
+    # Test that explicitly set value overrides default
+    number = ui.number(1, 10, value=5)
+    assert number.value == 5
 
 
 @pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")

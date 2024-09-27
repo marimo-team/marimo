@@ -17,5 +17,5 @@
         integrity="sha384-wcIxkf4k558AjM3Yz3BBFQUbk/zgIYC2R0QpeeYb+TwlBVMrlgLqwRjRtGZiK7ww"
         crossorigin="anonymous"
     />
-    <marimo-filename hidden></>
+    <marimo-filename hidden></marimo-filename>
 <marimo-mode data-mode='read' hidden></marimo-mode>

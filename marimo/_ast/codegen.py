@@ -85,7 +85,7 @@ def to_functiondef(
         defs = tuple(name for name in sorted(cell.defs))
         returns = INDENT + "return "
         if len(cell.defs) == 1:
-            returns += f"{defs[0]},"
+            returns += f"({defs[0]},)"
         else:
             returns += ", ".join(defs)
         fndef += (
@@ -125,6 +125,8 @@ def generate_app_constructor(config: Optional[_AppConfig]) -> str:
     def _format_arg(arg: Any) -> str:
         if isinstance(arg, str):
             return f'"{arg}"'.replace("\\", "\\\\")
+        elif isinstance(arg, list):
+            return "[" + ", ".join([_format_arg(item) for item in arg]) + "]"
         else:
             return str(arg)
 

@@ -17,6 +17,7 @@ import { MinimalShortcut } from "../../shortcuts/renderShortcut";
 import { useNotebookActions } from "../actions/useNotebookActions";
 import type { ActionButton } from "../actions/types";
 import { getMarimoVersion } from "@/core/dom/marimo-tag";
+import { Tooltip } from "@/components/ui/tooltip";
 
 export const NotebookMenuDropdown: React.FC = () => {
   const actions = useNotebookActions();
@@ -38,7 +39,7 @@ export const NotebookMenuDropdown: React.FC = () => {
     return (
       <>
         {action.icon && <span className="flex-0 mr-2">{action.icon}</span>}
-        <span className="flex-1">{action.label}</span>
+        <span className="flex-1">{action.labelElement || action.label}</span>
         {action.hotkey && (
           <MinimalShortcut shortcut={action.hotkey} className="ml-4" />
         )}
@@ -48,16 +49,32 @@ export const NotebookMenuDropdown: React.FC = () => {
   };
 
   const renderLeafAction = (action: ActionButton) => {
-    return (
+    const item = (
       <DropdownMenuItem
         key={action.label}
         variant={action.variant}
+        disabled={action.disabled}
         onSelect={(evt) => action.handle(evt)}
         data-testid={`notebook-menu-dropdown-${action.label}`}
       >
         {renderLabel(action)}
       </DropdownMenuItem>
     );
+
+    if (action.tooltip) {
+      return (
+        <Tooltip
+          content={action.tooltip}
+          key={action.label}
+          side="left"
+          delayDuration={100}
+        >
+          <span>{item}</span>
+        </Tooltip>
+      );
+    }
+
+    return item;
   };
 
   return (

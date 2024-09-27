@@ -30,6 +30,7 @@ export const VerticalLayoutWrapper: React.FC<PropsWithChildren<Props>> = ({
           appConfig.width === "medium" &&
             "max-w-contentWidthMedium min-w-[400px]",
           appConfig.width === "columns" && "w-full",
+          appConfig.width === "full" && "max-w-full pr-10 xl:pr-4",
           // Hide the cells for a fake loading effect, to avoid flickering
           invisible && "invisible",
         )}

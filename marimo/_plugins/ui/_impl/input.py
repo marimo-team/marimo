@@ -4,6 +4,8 @@ from __future__ import annotations
 import base64
 import dataclasses
 import os
+import pathlib
+import sys
 import traceback
 from dataclasses import dataclass
 from typing import (
@@ -30,6 +32,11 @@ from marimo._data.series import (
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import S as JSONTypeBound, UIElement
+from marimo._plugins.validators import (
+    validate_between_range,
+    validate_range,
+    warn_js_safe_number,
+)
 from marimo._runtime.functions import Function
 from marimo._server.files.os_file_system import OSFileSystem
 from marimo._server.models.files import FileInfo
@@ -65,8 +72,8 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
 
     **Initialization Args.**
 
-    - `start`: the minimum value of the interval
-    - `stop`: the maximum value of the interval
+    - `start`: optional, the minimum value of the interval
+    - `stop`: optional, the maximum value of the interval
     - `step`: the number increment
     - `value`: default value
     - `debounce`: whether to debounce (rate-limit) value
@@ -81,8 +88,8 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
 
     def __init__(
         self,
-        start: float,
-        stop: float,
+        start: Optional[float] = None,
+        stop: Optional[float] = None,
         step: Optional[float] = None,
         value: Optional[float] = None,
         debounce: bool = False,
@@ -91,17 +98,16 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
         on_change: Optional[Callable[[Optional[Numeric]], None]] = None,
         full_width: bool = False,
     ) -> None:
-        value = start if value is None else value
-        if stop < start:
-            raise ValueError(
-                f"Invalid bounds: stop value ({stop}) must be greater than "
-                f"start value ({start})"
-            )
-        elif value < start or value > stop:
-            raise ValueError(
-                f"Value out of bounds: The default value ({value}) must be "
-                f"greater than start ({start}) and less than stop ({stop})."
-            )
+        validate_range(min_value=start, max_value=stop)
+        validate_between_range(value, min_value=start, max_value=stop)
+        warn_js_safe_number(start, stop, value)
+
+        # Set value to min or max if None
+        if value is None:
+            if start is not None:
+                value = start
+            elif stop is not None:
+                value = stop
 
         # Lower bound
         self.start = start
@@ -203,6 +209,7 @@ class slider(UIElement[Numeric, Numeric]):
         self.stop: Numeric
         self.step: Optional[Numeric]
         self.steps: Optional[Sequence[Numeric]]
+        warn_js_safe_number(start, stop, value)
 
         # Guard against conflicting arguments
         if steps is not None and (
@@ -228,9 +235,9 @@ class slider(UIElement[Numeric, Numeric]):
                 value = steps[0] if value is None else value
                 value = steps.index(value)
             except ValueError:
-                print(
+                sys.stderr.write(
                     "Value out of bounds: default value should be in the steps"
-                    ", set to first value."
+                    ", set to first value.\n"
                 )
                 value = 0
             except AssertionError as e:
@@ -386,6 +393,7 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
         self.stop: Numeric
         self.step: Optional[Numeric]
         self.steps: Optional[Sequence[Numeric]]
+        warn_js_safe_number(start, stop, *(value or []))
 
         if steps is not None and (
             start is not None or stop is not None or step is not None
@@ -410,9 +418,9 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
                 value = [steps[0], steps[-1]] if value is None else value
                 value = [steps.index(num) for num in value]
             except ValueError:
-                print(
+                sys.stderr.write(
                     "Value out of bounds: default value should be in the"
-                    "steps, set to first and last values."
+                    "steps, set to first and last values.\n"
                 )
                 value = [0, len(steps) - 1]
             except AssertionError as e:
@@ -663,6 +671,9 @@ class text(UIElement[str, str]):
         defaults to `"text"`
     - `max_length`: maximum length of input
     - `disabled`: whether the input is disabled
+    - `debounce`: whether the input is debounced. If number, debounce by
+        that many milliseconds. If True, then value is only emitted on Enter
+        or when the input loses focus.
     - `label`: text label for the element
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
@@ -678,6 +689,7 @@ class text(UIElement[str, str]):
         kind: Literal["text", "password", "email", "url"] = "text",
         max_length: Optional[int] = None,
         disabled: bool = False,
+        debounce: bool | int = True,
         *,
         label: str = "",
         on_change: Optional[Callable[[str], None]] = None,
@@ -693,6 +705,7 @@ class text(UIElement[str, str]):
                 "max-length": max_length,
                 "full-width": full_width,
                 "disabled": disabled,
+                "debounce": debounce,
             },
             on_change=on_change,
         )
@@ -722,6 +735,9 @@ class text_area(UIElement[str, str]):
     - `placeholder`: placeholder text to display when the text area is empty
     - `max_length`: maximum length of input
     - `disabled`: whether the input is disabled
+    - `debounce`: whether the input is debounced. If number, debounce by that
+        many milliseconds. If True, then value is only emitted on Ctrl+Enter
+        or when the input loses focus.
     - `rows`: number of rows of text to display
     - `label`: text label for the element
     - `on_change`: optional callback to run when this element's value changes
@@ -737,6 +753,7 @@ class text_area(UIElement[str, str]):
         placeholder: str = "",
         max_length: Optional[int] = None,
         disabled: bool = False,
+        debounce: bool | int = True,
         rows: Optional[int] = None,
         *,
         label: str = "",
@@ -751,6 +768,7 @@ class text_area(UIElement[str, str]):
                 "placeholder": placeholder,
                 "max-length": max_length,
                 "disabled": disabled,
+                "debounce": debounce,
                 "full-width": full_width,
                 "rows": rows,
             },
@@ -1140,10 +1158,9 @@ class button(UIElement[Any, Any]):
         try:
             return self._on_click(self._value)
         except Exception:
-            LOGGER.error(
-                "on_click handler for button (%s) raised an Exception:\n %s ",
-                str(self),
-                traceback.format_exc(),
+            sys.stderr.write(
+                "on_click handler for button (%s) raised an Exception:\n %s\n"
+                % (str(self), traceback.format_exc())
             )
             return None
 
@@ -1360,6 +1377,16 @@ class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
         if not initial_path:
             initial_path = os.getcwd()
 
+        # frontend plugin can't handle relative paths
+        initial_path = os.path.realpath(os.path.expanduser(initial_path))
+        # initial path must be a directory
+        if not os.path.isdir(initial_path):
+            raise ValueError(
+                f"Initial path {initial_path} is not a directory."
+            )
+
+        self.restrict_navigation = restrict_navigation
+        self.initial_path = initial_path
         super().__init__(
             component_name=file_browser._name,
             initial_value=[],
@@ -1382,6 +1409,18 @@ class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
         )
 
     def list_directory(self, args: ListDirectoryArgs) -> ListDirectoryResponse:
+        # When navigation is restricted, the navigated-to path cannot be
+        # be a parent of the initial path
+        if (
+            self.restrict_navigation
+            and pathlib.Path(args.path)
+            in pathlib.Path(self.initial_path).parents
+        ):
+            raise RuntimeError(
+                "Navigation is restricted; navigating to a "
+                "parent of initial path is not allowed."
+            )
+
         files = []
         files_in_path = OSFileSystem().list_files(args.path)
 

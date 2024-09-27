@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import base64
 import tempfile
-from typing import TYPE_CHECKING, Any, Callable, cast
+from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
 from marimo._config.manager import UserConfigManager
 from marimo._server.file_router import AppFileRouter
@@ -90,7 +90,10 @@ def with_session(
     """Decorator to create a session and close it after the test"""
 
     def decorator(func: Callable[..., None]) -> Callable[..., None]:
-        def wrapper(client: TestClient) -> None:
+        def wrapper(
+            client: TestClient,
+            temp_marimo_file: Optional[str],
+        ) -> None:
             auth_token = get_session_manager(client).auth_token
             headers = token_header(auth_token)
 
@@ -99,7 +102,13 @@ def with_session(
             ) as websocket:
                 data = websocket.receive_text()
                 assert data
-                func(client)
+                if "temp_marimo_file" in func.__code__.co_varnames:
+                    func(
+                        client,
+                        temp_marimo_file=temp_marimo_file,
+                    )
+                else:
+                    func(client)
             # shutdown after websocket exits, otherwise
             # test fails on Windows (loop closed twice)
             if auto_shutdown:

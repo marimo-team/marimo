@@ -3,7 +3,7 @@
 import { z } from "zod";
 
 import type { IPluginProps } from "@/plugins/types";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { dequal } from "dequal";
 import { useOnMount } from "@/hooks/useLifecycle";
@@ -15,10 +15,12 @@ import type { AnyModel, AnyWidget, EventHandler, Experimental } from "./types";
 import { Logger } from "@/utils/Logger";
 import { useEventListener } from "@/hooks/useEventListener";
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
+import { updateBufferPaths } from "@/utils/date-views";
 
 interface Data {
   jsUrl: string;
   css?: string | null;
+  bufferPaths?: Array<Array<string | number>> | null;
 }
 
 type T = Record<string, any>;
@@ -33,6 +35,9 @@ export const AnyWidgetPlugin = createPlugin<T>("marimo-anywidget")
     z.object({
       jsUrl: z.string(),
       css: z.string().nullish(),
+      bufferPaths: z
+        .array(z.array(z.union([z.string(), z.number()])))
+        .nullish(),
     }),
   )
   .withFunctions<PluginFunctions>({
@@ -45,7 +50,7 @@ export const AnyWidgetPlugin = createPlugin<T>("marimo-anywidget")
 type Props = IPluginProps<T, Data, PluginFunctions>;
 
 const AnyWidgetSlot = (props: Props) => {
-  const { css, jsUrl } = props.data;
+  const { css, jsUrl, bufferPaths } = props.data;
   // JS is an ESM file with a render function on it
   // export function render({ model, el }) {
   //   ...
@@ -58,6 +63,10 @@ const AnyWidgetSlot = (props: Props) => {
     const url = new URL(jsUrl, baseUrl).toString();
     return await import(/* @vite-ignore */ url);
   }, []);
+
+  const valueWithBuffer = useMemo(() => {
+    return updateBufferPaths(props.value, bufferPaths);
+  }, [props.value, bufferPaths]);
 
   // Mount the CSS
   useEffect(() => {
@@ -87,7 +96,9 @@ const AnyWidgetSlot = (props: Props) => {
     return <ErrorBanner error={error} />;
   }
 
-  return <LoadedSlot {...props} widget={module.default} />;
+  return (
+    <LoadedSlot {...props} widget={module.default} value={valueWithBuffer} />
+  );
 };
 
 /**

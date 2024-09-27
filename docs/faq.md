@@ -18,6 +18,7 @@
   - [How do I prevent matplotlib plots from being cut off?](#faq-mpl-cutoff)
   - [How do I display interactive matplotlib plots?](#faq-interactive-plots)
   - [How do I display objects in rows and columns?](#faq-rows-columns)
+  - [How do I show cell code in the app view?](#faq-show-code)
   - [How do I create an output with a dynamic number of UI elements?](#faq-dynamic-ui-elements)
   - [Why aren't my `on_change` handlers being called?](#faq-on-change-called)
   - [Why are my `on_change` handlers in an array all referencing the last element?](#faq-on-change-last)
@@ -309,6 +310,12 @@ Use `marimo.hstack` and `marimo.vstack`. See the layout tutorial for details:
 ```bash
 marimo tutorial layout
 ```
+
+<a name="faq-show-code"></a>
+
+### How do I show cell code in the app view?(#faq-show-code)
+
+Use [`mo.show_code`](/api/outputs.md#marimo.show_code).
 
 <a name="faq-dynamic-ui-elements"></a>
 

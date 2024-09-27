@@ -9,6 +9,7 @@ import {
   type NumberFieldProps,
 } from "@/components/ui/number-field";
 import { SearchIcon, XIcon } from "lucide-react";
+import { useControllableState } from "@radix-ui/react-use-controllable-state";
 
 export type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   icon?: React.ReactNode;
@@ -59,12 +60,12 @@ export const DebouncedInput = React.forwardRef<
   InputProps & {
     value: string;
     onValueChange: (value: string) => void;
+    delay?: number;
   }
 >(({ className, onValueChange, ...props }, ref) => {
-  // Create a debounced value of 200
   const { value, onChange } = useDebounceControlledState<string>({
     initialValue: props.value,
-    delay: 200,
+    delay: props.delay,
     onChange: onValueChange,
   });
 
@@ -113,46 +114,93 @@ export const SearchInput = React.forwardRef<
     icon?: React.ReactNode | null;
     clearable?: boolean;
   }
->(({ className, rootClassName, icon, clearable = true, ...props }, ref) => {
-  const id = React.useId();
-  return (
-    <div className={cn("flex items-center border-b px-3", rootClassName)}>
-      {icon === null ? null : (
-        <SearchIcon className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-      )}
-      <input
-        id={id}
-        ref={ref}
-        className={cn(
-          "placeholder:text-foreground-muted flex h-7 m-1 w-full rounded-md bg-transparent py-3 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50",
-          className,
+>(
+  (
+    {
+      className,
+      rootClassName,
+      icon = <SearchIcon className="mr-2 h-4 w-4 shrink-0 opacity-50" />,
+      clearable = true,
+      ...props
+    },
+    ref,
+  ) => {
+    const id = React.useId();
+    return (
+      <div className={cn("flex items-center border-b px-3", rootClassName)}>
+        {icon}
+        <input
+          id={id}
+          ref={ref}
+          className={cn(
+            "placeholder:text-foreground-muted flex h-7 m-1 w-full rounded-md bg-transparent py-3 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50",
+            className,
+          )}
+          {...props}
+        />
+        {clearable && props.value && (
+          <span
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const input = document.getElementById(id);
+              if (input && input instanceof HTMLInputElement) {
+                input.focus();
+                input.value = "";
+                props.onChange?.({
+                  ...e,
+                  target: input,
+                  currentTarget: input,
+                  type: "change",
+                } as React.ChangeEvent<HTMLInputElement>);
+              }
+            }}
+          >
+            <XIcon className="h-4 w-4 opacity-50 hover:opacity-90" />
+          </span>
         )}
-        {...props}
-      />
-      {clearable && props.value && (
-        <span
-          onPointerDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const input = document.getElementById(id);
-            if (input && input instanceof HTMLInputElement) {
-              input.focus();
-              input.value = "";
-              props.onChange?.({
-                ...e,
-                target: input,
-                currentTarget: input,
-                type: "change",
-              } as React.ChangeEvent<HTMLInputElement>);
-            }
-          }}
-        >
-          <XIcon className="h-4 w-4 opacity-50 hover:opacity-90" />
-        </span>
-      )}
-    </div>
+      </div>
+    );
+  },
+);
+SearchInput.displayName = "SearchInput";
+
+export const OnBlurredInput = React.forwardRef<
+  HTMLInputElement,
+  InputProps & {
+    value: string;
+    onValueChange: (value: string) => void;
+  }
+>(({ className, onValueChange, ...props }, ref) => {
+  const [internalValue, setInternalValue] = React.useState(props.value);
+
+  const [value, setValue] = useControllableState<string>({
+    prop: props.value,
+    defaultProp: internalValue,
+    onChange: onValueChange,
+  });
+
+  React.useEffect(() => {
+    setInternalValue(value || "");
+  }, [value]);
+
+  return (
+    <Input
+      ref={ref}
+      className={className}
+      {...props}
+      value={internalValue}
+      onChange={(event) => setInternalValue(event.target.value)}
+      onBlur={() => setValue(internalValue || "")}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter") {
+          return;
+        }
+        setValue(internalValue || "");
+      }}
+    />
   );
 });
-SearchInput.displayName = "SearchInput";
+OnBlurredInput.displayName = "OnBlurredInput";
 
 export { Input };

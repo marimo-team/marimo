@@ -1,9 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import {
-  kioskModeAtom,
-  runDuringPresentMode,
-  viewStateAtom,
-} from "@/core/mode";
+import { kioskModeAtom, viewStateAtom } from "@/core/mode";
 import { downloadBlob, downloadHTMLAsImage } from "@/utils/download";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
@@ -30,6 +26,7 @@ import {
   EditIcon,
   LayoutTemplateIcon,
   Files,
+  SettingsIcon,
 } from "lucide-react";
 import { commandPaletteAtom } from "../controls/command-palette";
 import { useCellActions, useNotebook } from "@/core/cells/cells";
@@ -64,6 +61,8 @@ import { useLayoutState, useLayoutActions } from "@/core/layout/layout";
 import { useTogglePresenting } from "@/core/layout/useTogglePresenting";
 import { useCopyNotebook } from "./useCopyNotebook";
 import { isWasm } from "@/core/wasm/utils";
+import { settingDialogAtom } from "@/components/app-config/app-config-button";
+import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -83,6 +82,7 @@ export function useNotebookActions() {
   const restartKernel = useRestartKernel();
   const copyNotebook = useCopyNotebook(filename);
   const setCommandPaletteOpen = useSetAtom(commandPaletteAtom);
+  const setSettingsDialogOpen = useSetAtom(settingDialogAtom);
   const setKeyboardShortcutsOpen = useSetAtom(keyboardShortcutsAtom);
 
   const disabledCells = disabledCellIds(notebook);
@@ -90,6 +90,12 @@ export function useNotebookActions() {
   const { selectedLayout } = useLayoutState();
   const { setLayoutView } = useLayoutActions();
   const togglePresenting = useTogglePresenting();
+
+  const renderCheckboxElement = (checked: boolean) => (
+    <div className="w-8 flex justify-end">
+      {checked && <CheckIcon size={14} />}
+    </div>
+  );
 
   const actions: ActionButton[] = [
     {
@@ -140,55 +146,6 @@ export function useNotebookActions() {
           },
         },
         {
-          icon: <ImageIcon size={14} strokeWidth={1.5} />,
-          label: "Download as PNG",
-          handle: async () => {
-            const toasted = toast({
-              title: "Starting download",
-              description: "Downloading as PNG...",
-            });
-
-            await runDuringPresentMode(async () => {
-              const app = document.getElementById("App");
-              if (!app) {
-                return;
-              }
-
-              // Wait 3 seconds for the app to render
-              await new Promise((resolve) => setTimeout(resolve, 3000));
-
-              await downloadHTMLAsImage(app, document.title);
-            });
-
-            toasted.dismiss();
-          },
-        },
-        {
-          icon: <FileIcon size={14} strokeWidth={1.5} />,
-          label: "Print PDF",
-          handle: async () => {
-            const toasted = toast({
-              title: "Starting download",
-              description: "Downloading as PDF...",
-            });
-
-            await runDuringPresentMode(async () => {
-              // Wait 3 seconds for the app to render
-              await new Promise((resolve) => setTimeout(resolve, 3000));
-              toasted.dismiss();
-
-              const beforeprint = new Event("export-beforeprint");
-              const afterprint = new Event("export-afterprint");
-              function print() {
-                window.dispatchEvent(beforeprint);
-                setTimeout(() => window.print(), 0);
-                setTimeout(() => window.dispatchEvent(afterprint), 0);
-              }
-              print();
-            });
-          },
-        },
-        {
           icon: (
             <MarkdownIcon strokeWidth={1.5} style={{ width: 14, height: 14 }} />
           ),
@@ -212,6 +169,48 @@ export function useNotebookActions() {
             );
           },
         },
+        {
+          divider: true,
+          icon: <ImageIcon size={14} strokeWidth={1.5} />,
+          label: "Download as PNG",
+          disabled: viewState.mode !== "present",
+          tooltip:
+            viewState.mode === "present" ? undefined : (
+              <span>
+                Only available in app view. <br />
+                Toggle with: {renderShortcut("global.hideCode", false)}
+              </span>
+            ),
+          handle: async () => {
+            const app = document.getElementById("App");
+            if (!app) {
+              return;
+            }
+            await downloadHTMLAsImage(app, document.title);
+          },
+        },
+        {
+          icon: <FileIcon size={14} strokeWidth={1.5} />,
+          label: "Download as PDF",
+          disabled: viewState.mode !== "present",
+          tooltip:
+            viewState.mode === "present" ? undefined : (
+              <span>
+                Only available in app view. <br />
+                Toggle with: {renderShortcut("global.hideCode", false)}
+              </span>
+            ),
+          handle: async () => {
+            const beforeprint = new Event("export-beforeprint");
+            const afterprint = new Event("export-afterprint");
+            function print() {
+              window.dispatchEvent(beforeprint);
+              setTimeout(() => window.print(), 0);
+              setTimeout(() => window.dispatchEvent(afterprint), 0);
+            }
+            print();
+          },
+        },
       ],
     },
 
@@ -226,11 +225,7 @@ export function useNotebookActions() {
         }
         return {
           label: startCase(type),
-          rightElement: (
-            <div className="w-8 flex justify-end">
-              {selectedPanel === type && <CheckIcon size={14} />}
-            </div>
-          ),
+          rightElement: renderCheckboxElement(selectedPanel === type),
           icon: <Icon size={14} strokeWidth={1.5} />,
           handle: () => openApplication(type),
         };
@@ -346,6 +341,12 @@ export function useNotebookActions() {
       label: "Command palette",
       hotkey: "global.commandPalette",
       handle: () => setCommandPaletteOpen((open) => !open),
+    },
+
+    {
+      icon: <SettingsIcon size={14} strokeWidth={1.5} />,
+      label: "User settings",
+      handle: () => setSettingsDialogOpen((open) => !open),
     },
 
     {

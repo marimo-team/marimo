@@ -14,7 +14,7 @@ import type {
   OperationMessageData,
 } from "./messages";
 import type { LayoutType } from "@/components/editor/renderers/types";
-import type { AppConfig } from "../config/config-schema";
+import { AppConfigSchema, type AppConfig } from "../config/config-schema";
 import { type CellData, createCell } from "../cells/types";
 import { VirtualFileTracker } from "../static/virtual-file-tracker";
 import type { CellId, UIElementId } from "../cells/ids";
@@ -95,9 +95,10 @@ export function handleKernelReady(
     setLayoutData({ layoutView: layoutType, data: layoutData });
   }
   setCells(cells, layoutState);
-  setAppConfig({
-    ...app_config,
-  } as AppConfig);
+  const parsedAppConfig = AppConfigSchema.safeParse(app_config);
+  if (parsedAppConfig.success) {
+    setAppConfig(parsedAppConfig.data);
+  }
   setCapabilities({
     ...capabilities,
     // always enable sql if wasm

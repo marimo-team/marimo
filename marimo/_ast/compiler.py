@@ -117,6 +117,7 @@ def compile_cell(
             mod=module,
             defs=set(),
             refs=set(),
+            temporaries=set(),
             variable_data={},
             deleted_refs=set(),
             language="python",
@@ -167,6 +168,7 @@ def compile_cell(
     last_expr = compile(expr, filename, mode="eval", flags=flags)
 
     nonlocals = {name for name in v.defs if not is_local(name)}
+    temporaries = v.defs - nonlocals
     variable_data = {
         name: v.variable_data[name]
         for name in nonlocals
@@ -194,6 +196,7 @@ def compile_cell(
         mod=module,
         defs=nonlocals,
         refs=v.refs,
+        temporaries=temporaries,
         variable_data=variable_data,
         import_workspace=ImportWorkspace(
             is_import_block=is_import_block,

@@ -122,6 +122,8 @@ interface FileBrowserProps extends Data, PluginFunctions {
 
 /**
  * File browser component.
+ *
+ * Only works for absolute paths.
  */
 export const FileBrowser = ({
   value,
@@ -163,7 +165,7 @@ export const FileBrowser = ({
     files = [];
   }
 
-  const pathBuilder = PathBuilder.guessDeliminator(path);
+  const pathBuilder = PathBuilder.guessDeliminator(initialPath);
   const delimiter = pathBuilder.deliminator;
 
   const selectedPaths = new Set(value.map((x) => x.path));
@@ -356,15 +358,23 @@ export const FileBrowser = ({
     );
   }
 
-  // Get list of parent directories
+  // Get list of parent directories.
+  //
+  // Assumes that path contains at least one delimiter, which is true
+  // only if this is an absolute path.
   const directories = path.split(delimiter).filter((x) => x !== "");
   directories.push(path);
 
-  const parentDirectories = directories.map((dir, index) => {
+  let parentDirectories = directories.map((dir, index) => {
     const dirList = directories.slice(0, index);
     return `/${dirList.join(delimiter)}`;
   });
 
+  if (restrictNavigation) {
+    parentDirectories = parentDirectories.filter((x) =>
+      x.startsWith(initialPath),
+    );
+  }
   parentDirectories.reverse();
 
   const selectionKindLabel =

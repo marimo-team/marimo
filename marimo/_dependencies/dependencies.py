@@ -38,6 +38,9 @@ class Dependency:
             max_v=max_version,
         )
 
+    def imported(self) -> bool:
+        return self.pkg in sys.modules
+
     def require(self, why: str) -> None:
         """
         Raise an ModuleNotFoundError if the package is not installed.
@@ -134,6 +137,7 @@ def _version_check(
 class DependencyManager:
     """Utilities for checking the status of dependencies."""
 
+    sympy = Dependency("sympy")
     pandas = Dependency("pandas")
     polars = Dependency("polars")
     ibis = Dependency("ibis")
@@ -161,6 +165,14 @@ class DependencyManager:
     def has(pkg: str) -> bool:
         """Return True if any lib is installed."""
         return Dependency(pkg).has()
+
+    @staticmethod
+    def imported(pkg: str) -> bool:
+        """Return True if the lib has been imported.
+
+        Can be much faster than 'has'.
+        """
+        return Dependency(pkg).imported()
 
     @staticmethod
     def which(pkg: str) -> bool:

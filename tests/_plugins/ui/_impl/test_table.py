@@ -8,6 +8,7 @@ import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
+from marimo._plugins.ui._impl.dataframes.transforms.types import Condition
 from marimo._plugins.ui._impl.table import SearchTableArgs, SortArgs
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
 from marimo._plugins.ui._impl.utils.dataframe import TableData
@@ -16,7 +17,7 @@ from marimo._runtime.runtime import Kernel
 
 
 @pytest.fixture
-def dtm():
+def dtm() -> None:
     return DefaultTableManager([])
 
 
@@ -102,7 +103,7 @@ def test_normalize_data(executing_kernel: Kernel) -> None:
     )
 
 
-def test_sort_1d_list_of_strings(dtm: DefaultTableManager):
+def test_sort_1d_list_of_strings(dtm: DefaultTableManager) -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
     dtm.data = _normalize_data(data)
     sorted_data = dtm.sort_values(by="value", descending=False).data
@@ -116,7 +117,7 @@ def test_sort_1d_list_of_strings(dtm: DefaultTableManager):
     assert sorted_data == expected_data
 
 
-def test_sort_1d_list_of_integers(dtm: DefaultTableManager):
+def test_sort_1d_list_of_integers(dtm: DefaultTableManager) -> None:
     data = [42, 17, 23, 99, 8]
     dtm.data = _normalize_data(data)
     sorted_data = dtm.sort_values(by="value", descending=False).data
@@ -130,7 +131,7 @@ def test_sort_1d_list_of_integers(dtm: DefaultTableManager):
     assert sorted_data == expected_data
 
 
-def test_sort_list_of_dicts(dtm: DefaultTableManager):
+def test_sort_list_of_dicts(dtm: DefaultTableManager) -> None:
     data = [
         {"name": "Alice", "age": 30, "birth_year": date(1994, 5, 24)},
         {"name": "Bob", "age": 25, "birth_year": date(1999, 7, 14)},
@@ -154,7 +155,7 @@ def test_sort_list_of_dicts(dtm: DefaultTableManager):
     assert sorted_data == expected_data
 
 
-def test_sort_dict_of_lists(dtm: DefaultTableManager):
+def test_sort_dict_of_lists(dtm: DefaultTableManager) -> None:
     data = {
         "company": [
             "Company A",
@@ -186,7 +187,7 @@ def test_sort_dict_of_lists(dtm: DefaultTableManager):
     assert sorted_data == _normalize_data(expected_data)
 
 
-def test_sort_dict_of_tuples(dtm: DefaultTableManager):
+def test_sort_dict_of_tuples(dtm: DefaultTableManager) -> None:
     data = {
         "key1": (42, 17, 23),
         "key2": (99, 8, 4),
@@ -208,14 +209,14 @@ def test_sort_dict_of_tuples(dtm: DefaultTableManager):
     assert sorted_data == _normalize_data(expected_data)
 
 
-def test_value():
+def test_value() -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
     data = _normalize_data(data)
     table = ui.table(data)
     assert list(table.value) == []
 
 
-def test_value_with_selection():
+def test_value_with_selection() -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
     data = _normalize_data(data)
     table = ui.table(data)
@@ -225,7 +226,7 @@ def test_value_with_selection():
     ]
 
 
-def test_value_with_sorting_then_selection():
+def test_value_with_sorting_then_selection() -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
     data = _normalize_data(data)
     table = ui.table(data)
@@ -256,7 +257,7 @@ def test_value_with_sorting_then_selection():
     ]
 
 
-def test_value_with_search_then_selection():
+def test_value_with_search_then_selection() -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
     data = _normalize_data(data)
     table = ui.table(data)
@@ -293,7 +294,7 @@ def test_value_with_search_then_selection():
     assert list(table._convert_value(["2"])) == [{"value": "cherry"}]
 
 
-def test_table_with_too_many_columns_fails():
+def test_table_with_too_many_columns_fails() -> None:
     data = {str(i): [1] for i in range(101)}
     with pytest.raises(ValueError) as e:
         ui.table(data)
@@ -301,7 +302,7 @@ def test_table_with_too_many_columns_fails():
     assert "greater than the maximum allowed columns" in str(e)
 
 
-def test_table_with_too_many_rows_gets_clamped():
+def test_table_with_too_many_rows_gets_clamped() -> None:
     data = {"a": list(range(20_002))}
     table = ui.table(data)
     assert table._component_args["pagination"] is True
@@ -310,7 +311,7 @@ def test_table_with_too_many_rows_gets_clamped():
     assert len(table._component_args["data"]) == 10
 
 
-def test_can_get_second_page():
+def test_can_get_second_page() -> None:
     data = {"a": list(range(40))}
     table = ui.table(data)
     result = table.search(
@@ -324,7 +325,7 @@ def test_can_get_second_page():
     assert result.data[-1]["a"] == 19
 
 
-def test_can_get_second_page_with_search():
+def test_can_get_second_page_with_search() -> None:
     data = {"a": list(range(40))}
     table = ui.table(data)
     result = table.search(
@@ -339,7 +340,7 @@ def test_can_get_second_page_with_search():
     assert result.data[-1]["a"] == 27
 
 
-def test_with_no_pagination():
+def test_with_no_pagination() -> None:
     data = {"a": list(range(20))}
     table = ui.table(data, pagination=False)
     assert table._component_args["pagination"] is False
@@ -348,7 +349,7 @@ def test_with_no_pagination():
     assert len(table._component_args["data"]) == 20
 
 
-def test_table_with_too_many_rows_and_custom_total():
+def test_table_with_too_many_rows_and_custom_total() -> None:
     data = {"a": list(range(40))}
     table = ui.table(
         data, _internal_column_charts_row_limit=30, _internal_total_rows=300
@@ -359,7 +360,7 @@ def test_table_with_too_many_rows_and_custom_total():
     assert len(table._component_args["data"]) == 10
 
 
-def test_table_with_too_many_rows_unknown_total():
+def test_table_with_too_many_rows_unknown_total() -> None:
     data = {"a": list(range(40))}
     table = ui.table(
         data,
@@ -372,12 +373,12 @@ def test_table_with_too_many_rows_unknown_total():
     assert len(table._component_args["data"]) == 10
 
 
-def test_empty_table():
+def test_empty_table() -> None:
     table = ui.table([])
     assert table._component_args["total-rows"] == 0
 
 
-def test_table_with_too_many_rows_column_summaries_disabled():
+def test_table_with_too_many_rows_column_summaries_disabled() -> None:
     data = {"a": list(range(20))}
     table = ui.table(data, _internal_summary_row_limit=10)
 
@@ -396,7 +397,7 @@ def test_table_with_too_many_rows_column_summaries_disabled():
     assert summaries_enabled.is_disabled is False
 
 
-def test_with_too_many_rows_column_charts_disabled():
+def test_with_too_many_rows_column_charts_disabled() -> None:
     data = {"a": list(range(20))}
     table = ui.table(data, _internal_column_charts_row_limit=10)
 
@@ -416,7 +417,7 @@ def test_with_too_many_rows_column_charts_disabled():
     assert charts_enabled.is_disabled is False
 
 
-def test_get_column_summaries_after_search():
+def test_get_column_summaries_after_search() -> None:
     data = {"a": list(range(20))}
     table = ui.table(data)
 
@@ -439,7 +440,7 @@ def test_get_column_summaries_after_search():
 @pytest.mark.skipif(
     not DependencyManager.pandas.has(), reason="Pandas not installed"
 )
-def test_get_column_summaries_after_search_df():
+def test_get_column_summaries_after_search_df() -> None:
     import pandas as pd
 
     table = ui.table(pd.DataFrame({"a": list(range(20))}))
@@ -468,7 +469,7 @@ def test_get_column_summaries_after_search_df():
     assert summaries.summaries[0].nulls == 0
 
 
-def test_table_with_frozen_columns():
+def test_table_with_frozen_columns() -> None:
     data = {
         "a": list(range(20)),
         "b": list(range(20)),
@@ -481,3 +482,33 @@ def test_table_with_frozen_columns():
     )
     assert table._component_args["freeze-columns-left"] == ["a", "b"]
     assert table._component_args["freeze-columns-right"] == ["d", "e"]
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(), reason="Pandas not installed"
+)
+def test_table_with_filtered_columns() -> None:
+    import pandas as pd
+
+    table = ui.table(pd.DataFrame({"a": [1, 2, 3], "b": ["abc", "def", None]}))
+    result = table.search(
+        SearchTableArgs(
+            filters=[Condition(column_id="b", operator="contains", value="f")],
+            page_size=10,
+            page_number=0,
+        )
+    )
+    assert result.total_rows == 1
+
+    import polars as pl
+
+    table = ui.table(pl.DataFrame({"a": [1, 2, 3], "b": ["abc", "def", None]}))
+    result = table.search(
+        SearchTableArgs(
+            filters=[Condition(column_id="b", operator="contains", value="a")],
+            page_size=10,
+            page_number=0,
+        )
+    )
+
+    assert result.total_rows == 1

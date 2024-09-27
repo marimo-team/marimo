@@ -1,8 +1,17 @@
-# Copyright 2024 Marimo. All rights reserved.
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "marimo",
+#     "pandas",
+#     "numpy",
+#     "vega-datasets",
+#     "altair",
+# ]
+# ///
 
 import marimo
 
-__generated_with = "0.8.2"
+__generated_with = "0.8.14"
 app = marimo.App(width="full")
 
 
@@ -221,7 +230,7 @@ def __(mo):
 
 @app.cell
 def __(chart3, mo):
-    mo.hstack([chart3, chart3.value.head(10)])
+    mo.hstack([chart3, chart3.value.head(10)], widths="equal")
     return
 
 

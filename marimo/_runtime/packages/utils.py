@@ -1,6 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import os
 import sys
+from typing import List, Optional
 
 from marimo._utils.platform import is_pyodide
 
@@ -23,3 +26,18 @@ def in_conda_env() -> bool:
 def is_python_isolated() -> bool:
     """Returns True if not using system Python"""
     return in_virtual_environment() or in_conda_env() or is_pyodide()
+
+
+def append_version(pkg_name: str, version: Optional[str]) -> str:
+    """Qualify a version string with a leading '==' if it doesn't have one"""
+    if version is None:
+        return pkg_name
+    if version == "":
+        return pkg_name
+    if version == "latest":
+        return pkg_name
+    return f"{pkg_name}=={version}"
+
+
+def split_packages(package: str) -> List[str]:
+    return [pkg.strip() for pkg in package.split()]

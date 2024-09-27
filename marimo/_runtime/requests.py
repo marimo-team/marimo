@@ -149,8 +149,13 @@ class CodeCompletionRequest:
 
 @dataclass
 class InstallMissingPackagesRequest:
-    # TODO: package manager (pip/conda/...), index URL (index/channel/...)
+    # TODO: index URL (index/channel/...)
     manager: str
+
+    # Map from package name to desired version
+    # If the package name is not in the map, the latest version
+    # will be installed
+    versions: Dict[str, str]
 
 
 @dataclass

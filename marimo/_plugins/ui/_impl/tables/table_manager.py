@@ -135,6 +135,13 @@ class TableManager(abc.ABC, Generic[T]):
     def get_unique_column_values(self, column: str) -> list[str | int | float]:
         raise NotImplementedError
 
+    def __repr__(self) -> str:
+        rows = self.get_num_rows(force=False)
+        columns = self.get_num_columns()
+        if rows is None:
+            return f"{self.type}: {columns:,} columns"
+        return f"{self.type}: {rows:,} rows x {columns:,} columns"
+
 
 class TableManagerFactory(abc.ABC):
     @staticmethod

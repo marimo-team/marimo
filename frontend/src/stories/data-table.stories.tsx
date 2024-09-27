@@ -37,7 +37,6 @@ export const Default = {
         ],
         rowHeaders: [],
         selection: null,
-        showColumnSummaries: false,
       })}
     />
   ),
@@ -65,7 +64,6 @@ export const Empty1 = {
         ],
         rowHeaders: [],
         selection: null,
-        showColumnSummaries: false,
       })}
     />
   ),
@@ -115,7 +113,6 @@ export const Pagination = {
         ],
         rowHeaders: [],
         selection: null,
-        showColumnSummaries: false,
       })}
       pagination={true}
     />

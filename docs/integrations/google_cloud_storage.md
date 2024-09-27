@@ -64,10 +64,10 @@ file_table if items else mo.md("No files found").callout()
 
 ## Example
 
-Check out our full example using Google Cloud Storage [here](https://github.com/marimo-team/marimo/blob/main/examples/integrations/google_cloud_storage.py)
+Check out our full example using Google Cloud Storage [here](https://github.com/marimo-team/marimo/blob/main/examples/cloud/gcp/google_cloud_storage.py)
 
 Or run it yourself:
 
 ```bash
-marimo run https://raw.githubusercontent.com/marimo-team/marimo/main/examples/integrations/google_cloud_storage.py
+marimo run https://raw.githubusercontent.com/marimo-team/marimo/main/examples/cloud/gcp/google_cloud_storage.py
 ```

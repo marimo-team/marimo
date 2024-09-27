@@ -4,3 +4,16 @@ export function updateQueryParams(updater: (params: URLSearchParams) => void) {
   updater(url.searchParams);
   window.history.replaceState({}, "", url.toString());
 }
+
+export function hasQueryParam(key: string, value?: string): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  const urlParams = new URLSearchParams(window.location.search);
+
+  if (value === undefined) {
+    return urlParams.has(key);
+  }
+
+  return urlParams.get(key) === value;
+}

@@ -81,6 +81,7 @@ class SearchTableArgs:
     query: Optional[str] = None
     sort: Optional[SortArgs] = None
     filters: Optional[List[Condition]] = None
+    limit: Optional[int] = None
 
 
 @dataclass(frozen=True)
@@ -108,7 +109,9 @@ class table(
     1. a list of dicts, with one dict for each row, keyed by column names;
     2. a list of values, representing a table with a single column;
     3. a Pandas dataframe; or
-    4. a Polars dataframe.
+    4. a Polars dataframe; or
+    5. an Ibis dataframe; or
+    6. a PyArrow table.
 
     **Examples.**
 
@@ -296,7 +299,10 @@ class table(
             page_size = total_rows
         # pagination defaults to True if there are more than 10 rows
         if pagination is None:
-            pagination = total_rows == "too_many" or total_rows > 10
+            if total_rows == "too_many":
+                pagination = True
+            elif total_rows > 10:
+                pagination = True
 
         # Search first page
         search_result = self.search(

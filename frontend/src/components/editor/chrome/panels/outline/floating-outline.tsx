@@ -15,7 +15,10 @@ export const FloatingOutline: React.FC = () => {
   const { activeHeaderId } = useActiveOutline(findOutlineElements(items));
   const [isHovered, setIsHovered] = React.useState(false);
 
-  if (items.length === 0) {
+  // Hide if < 2 items
+  // It's kinda useless to have an outline with only one item
+  // and Notion does the same
+  if (items.length < 2) {
     return null;
   }
 

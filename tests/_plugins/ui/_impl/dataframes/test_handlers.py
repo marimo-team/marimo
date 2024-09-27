@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import Any, cast
 from unittest.mock import Mock
 
 import pytest
@@ -278,6 +279,24 @@ class TestTransformHandler:
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)
+
+    @staticmethod
+    def test_handle_filter_rows_string_na() -> None:
+        for operator in ["contains", "starts_with", "ends_with", "regex"]:
+            df = pd.DataFrame({"A": ["foo", "bar", None]})
+            transform = FilterRowsTransform(
+                type=TransformType.FILTER_ROWS,
+                operation="keep_rows",
+                where=[
+                    Condition(
+                        column_id="A",
+                        operator=cast(Any, operator),
+                        value="foo",
+                    )
+                ],
+            )
+            result = apply(df, transform)
+            assert_frame_equal(result, pd.DataFrame({"A": ["foo"]}))
 
     @staticmethod
     @pytest.mark.parametrize(

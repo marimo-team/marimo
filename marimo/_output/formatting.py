@@ -27,10 +27,14 @@ from typing import Any, Callable, Optional, Tuple, Type, TypeVar, cast
 
 from marimo import _loggers as loggers
 from marimo._messaging.mimetypes import KnownMimeType
+from marimo._output.builder import h
+from marimo._output.formatters.utils import src_or_src_doc
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._output.utils import flatten_string
+from marimo._plugins.core.media import io_to_data_url
 from marimo._plugins.stateless.json_output import json_output
+from marimo._plugins.stateless.mime import mime_renderer
 from marimo._plugins.stateless.plain_text import plain_text
 
 T = TypeVar("T")
@@ -130,26 +134,94 @@ def get_formatter(
         for t in FORMATTERS.keys():
             if isinstance(obj, t):
                 return FORMATTERS[t]
-    elif hasattr(obj, "_mime_"):
-        method = obj._mime_
-        if inspect.isclass(obj) and not isinstance(method, (types.MethodType)):
-            return None
-        if callable(method):
 
-            def f(obj: T) -> tuple[KnownMimeType, str]:
-                return obj._mime_()  # type: ignore
+    # Check for the MIME protocol
+    if _is_callable_method(obj, "_mime_"):
 
-            return f
-    elif hasattr(obj, "_repr_html_"):
-        method = obj._repr_html_
-        if inspect.isclass(obj) and not isinstance(method, (types.MethodType)):
-            return None
-        if callable(method):
+        def f_mime(obj: T) -> tuple[KnownMimeType, str]:
+            mime, data = obj._mime_()  # type: ignore
+            # Data should ideally a string, but in case it's bytes,
+            # we convert it to a data URL
+            if isinstance(data, bytes):
+                return (mime, io_to_data_url(data, mime) or "")  # type: ignore
 
-            def f(obj: T) -> tuple[KnownMimeType, str]:
-                return ("text/html", obj._repr_html_())  # type: ignore
+            return (mime, data)  # type: ignore
 
-            return f
+        return f_mime
+
+    md_mime_types: list[KnownMimeType] = [
+        "text/markdown",
+        "text/latex",
+    ]
+
+    # Check for the misc _repr_ methods
+    # Order dictates preference
+    reprs: list[Tuple[str, KnownMimeType]] = [
+        ("_repr_html_", "text/html"),  # text/html is preferred first
+        ("_repr_mimebundle_", "application/vnd.marimo+mimebundle"),
+        ("_repr_svg_", "image/svg+xml"),
+        ("_repr_json_", "application/json"),
+        ("_repr_png_", "image/png"),
+        ("_repr_jpeg_", "image/jpeg"),
+        ("_repr_markdown_", "text/markdown"),
+        ("_repr_latex_", "text/latex"),
+        ("_repr_text_", "text/plain"),  # last
+    ]
+    has_possible_repr = any(
+        _is_callable_method(obj, attr) for attr, _ in reprs
+    )
+    if has_possible_repr:
+        # If there is any match, we return a formatter that calls
+        # all the possible _repr_ methods, since some can be implemented
+        # but return None
+        def f_repr(obj: T) -> tuple[KnownMimeType, str]:
+            for attr, mime_type in reprs:
+                if not _is_callable_method(obj, attr):
+                    continue
+
+                method = getattr(obj, attr)
+                # Try to call _repr_mimebundle_ with include/exclude parameters
+                if attr == "_repr_mimebundle_":
+                    try:
+                        contents = method(include=[], exclude=[])
+                    except TypeError:
+                        # If that fails, call the method without parameters
+                        contents = method()
+                    # Remove text/plain from the mimebundle if it's present
+                    # since there are other representations available
+                    # N.B. We cannot pass this as an argument to the method
+                    # because this unfortunately could break some libraries
+                    # (e.g. ibis)
+                    if "text/plain" in contents and len(contents) > 1:
+                        contents.pop("text/plain")
+                else:
+                    contents = method()
+
+                # If the method returns None, continue to the next method
+                if contents is None:
+                    continue
+
+                # Handle the case where the contents are bytes
+                if isinstance(contents, bytes):
+                    # Data should ideally a string, but in case it's bytes,
+                    # we convert it to a data URL
+                    data_url = io_to_data_url(
+                        contents, fallback_mime_type=mime_type
+                    )
+                    return (mime_type, data_url or "")
+
+                # Handle markdown and latex
+                if mime_type in md_mime_types:
+                    from marimo._output.md import md
+
+                    return ("text/html", md(contents or "").text)
+
+                return (mime_type, contents)
+
+            return ("text/html", "")
+
+        return f_repr
+
     return None
 
 
@@ -256,6 +328,21 @@ def as_html(value: object) -> Html:
         return Html(f"<span>{escape(str(value))}</span>")
 
     mimetype, data = formatter(value)
+    return mime_to_html(mimetype, data)
+
+
+def as_dom_node(value: object) -> Html:
+    """
+    Similar to as_html, but allows for string, int, float, and bool values
+    to be passed through without being wrapped in an Html object.
+    """
+    if isinstance(value, (str, int, float, bool)):
+        return Html(escape(str(value)))
+
+    return as_html(value)
+
+
+def mime_to_html(mimetype: KnownMimeType, data: Any) -> Html:
     if mimetype == "text/html":
         # Using `as_html` to embed multiline HTML content
         # into a multiline markdown string can break Python markdown's
@@ -278,8 +365,8 @@ def as_html(value: object) -> Html:
         return Html(
             flatten_string(json_output(json_data=json.loads(data)).text)
         )
-    else:
-        raise ValueError(f"Unsupported mimetype {mimetype}")
+
+    return mime_renderer(mimetype, data)
 
 
 @mddoc
@@ -313,3 +400,49 @@ class Plain:
 
     def __init__(self, child: Any):
         self.child = child
+
+
+def _is_callable_method(obj: Any, attr: str) -> bool:
+    if not hasattr(obj, attr):
+        return False
+    method = getattr(obj, attr)
+    if inspect.isclass(obj) and not isinstance(method, (types.MethodType)):
+        return False
+    return callable(method)
+
+
+@mddoc
+def iframe(html: str, *, width: str = "100%", height: str = "400px") -> Html:
+    """
+    Embed an HTML string in an iframe.
+
+    Scripts by default are not executed using `mo.as_html` or `mo.Html`,
+    so if you have a <script/> tag, you can use `mo.iframe` for
+    scripts to be executed.
+
+    You may also want to use this function to display HTML content
+    that may contain styles that could interfere with the rest of the
+    page.
+
+    **Example.**
+
+    ```python
+    html = "<h1>Hello, world!</h1>"
+    mo.iframe(html)
+    ```
+
+    **Args.**
+
+    - `html`: An HTML string
+    """
+
+    return Html(
+        flatten_string(
+            h.iframe(
+                **src_or_src_doc(html),
+                onload="__resizeIframe(this)",
+                width=width,
+                height=height,
+            )
+        ),
+    )

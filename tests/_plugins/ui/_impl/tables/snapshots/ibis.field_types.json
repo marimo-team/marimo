@@ -1,0 +1,8 @@
+{
+  "strings": ["string", "string"],
+  "bool": ["boolean", "boolean"],
+  "int": ["integer", "int64"],
+  "float": ["number", "float64"],
+  "datetime": ["date", "timestamp"],
+  "nulls": ["string", "string"]
+}

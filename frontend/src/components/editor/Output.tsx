@@ -28,23 +28,38 @@ import { invariant } from "@/utils/invariant";
 import { CsvViewer } from "./file-tree/renderers";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 import { MarimoTracebackOutput } from "./output/MarimoTracebackOutput";
-import { useTheme } from "@emotion/react";
+import { useTheme } from "@/theme/useTheme";
+import { renderHTML } from "@/plugins/core/RenderHTML";
+import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { Objects } from "@/utils/objects";
+import { renderMimeIcon } from "./renderMimeIcon";
+
+const LazyVegaLite = React.lazy(() =>
+  import("react-vega").then((m) => ({ default: m.VegaLite })),
+);
+
+type MimeBundle = Record<OutputMessage["mimetype"], { [key: string]: unknown }>;
+type MimeBundleOrTuple = MimeBundle | [MimeBundle, { [key: string]: unknown }];
 
 /**
  * Renders an output based on an OutputMessage.
  */
 export const OutputRenderer: React.FC<{
-  message: OutputMessage;
+  message: Pick<OutputMessage, "channel" | "data" | "mimetype">;
   onRefactorWithAI?: (opts: { prompt: string }) => void;
 }> = memo((props) => {
   const { message, onRefactorWithAI } = props;
-  const theme = useTheme();
+  const { theme } = useTheme();
 
   // Memoize parsing the json data
   const parsedJsonData = useMemo(() => {
     const data = message.data;
     switch (message.mimetype) {
       case "application/json":
+      case "application/vnd.marimo+mimebundle":
+      case "application/vnd.vegalite.v5+json":
+      case "application/vnd.vega.v5+json":
         return typeof data === "string" ? JSON.parse(data) : data;
       default:
         return;
@@ -80,7 +95,6 @@ export const OutputRenderer: React.FC<{
         <JsonOutput className={channel} data={parsedJsonData} format="auto" />
       );
     case "image/png":
-    case "image/svg+xml":
     case "image/tiff":
     case "image/avif":
     case "image/bmp":
@@ -91,6 +105,12 @@ export const OutputRenderer: React.FC<{
         `Expected string data for mime=${mimetype}. Got ${typeof data}`,
       );
       return <ImageOutput className={channel} src={data} alt="" />;
+    case "image/svg+xml":
+      invariant(
+        typeof data === "string",
+        `Expected string data for mime=${mimetype}. Got ${typeof data}`,
+      );
+      return renderHTML({ html: data });
 
     case "video/mp4":
     case "video/mpeg":
@@ -122,6 +142,7 @@ export const OutputRenderer: React.FC<{
         `Expected string data for mime=${mimetype}. Got ${typeof data}`,
       );
       return <CsvViewer contents={data} />;
+    case "text/latex":
     case "text/markdown":
       invariant(
         typeof data === "string",
@@ -134,12 +155,96 @@ export const OutputRenderer: React.FC<{
           language="markdown"
         />
       );
+    case "application/vnd.vegalite.v5+json":
+    case "application/vnd.vega.v5+json":
+      return (
+        <LazyVegaLite
+          spec={parsedJsonData as TopLevelFacetedUnitSpec}
+          theme={theme === "dark" ? "dark" : undefined}
+        />
+      );
+    case "application/vnd.marimo+mimebundle":
+      return (
+        <MimeBundleOutputRenderer
+          channel={channel}
+          data={
+            parsedJsonData as Record<OutputMessage["mimetype"], OutputMessage>
+          }
+        />
+      );
     default:
       logNever(mimetype);
-      return null;
+      return (
+        <div className="text-destructive">Unsupported mimetype: {mimetype}</div>
+      );
   }
 });
 OutputRenderer.displayName = "OutputRenderer";
+
+/**
+ * Renders a mimebundle output.
+ */
+const MimeBundleOutputRenderer: React.FC<{
+  channel: OutputMessage["channel"];
+  data: MimeBundleOrTuple;
+}> = memo(({ data, channel }) => {
+  const mimebundle = Array.isArray(data) ? data[0] : data;
+
+  // If there is none, return null
+  const first = Objects.keys(mimebundle)[0];
+  if (!first) {
+    return null;
+  }
+
+  // If there is only one mime type, render it directly
+  if (Object.keys(mimebundle).length === 1) {
+    return (
+      <OutputRenderer
+        message={{
+          channel: channel,
+          data: mimebundle[first],
+          mimetype: first,
+        }}
+      />
+    );
+  }
+
+  return (
+    <Tabs defaultValue={first} orientation="vertical">
+      <div className="flex">
+        <TabsList className="self-start max-h-none flex flex-col gap-2 mr-4 flex-shrink-0">
+          {Object.keys(mimebundle).map((mime) => (
+            <TabsTrigger
+              key={mime}
+              value={mime}
+              className="flex items-center space-x-2"
+            >
+              <Tooltip delayDuration={200} content={mime} side="right">
+                <span>{renderMimeIcon(mime)}</span>
+              </Tooltip>
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        <div className="flex-1">
+          {Objects.entries(mimebundle).map(([mime, output]) => (
+            <TabsContent key={mime} value={mime}>
+              <ErrorBoundary>
+                <OutputRenderer
+                  message={{
+                    channel: channel,
+                    data: output,
+                    mimetype: mime,
+                  }}
+                />
+              </ErrorBoundary>
+            </TabsContent>
+          ))}
+        </div>
+      </div>
+    </Tabs>
+  );
+});
+MimeBundleOutputRenderer.displayName = "MimeBundleOutputRenderer";
 
 interface OutputAreaProps {
   output: OutputMessage | null;

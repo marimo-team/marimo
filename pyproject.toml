@@ -85,7 +85,7 @@ dev = [
     # For server testing
     "httpx~=0.27.0",
     # For SQL
-    "duckdb~=1.0.0",
+    "duckdb~=1.1.0",
     # For testing mo.ui.chart, dataframes, tables
     "pandas>=1.5.3",
     "pandas-stubs>=1.5.3.230321",
@@ -98,6 +98,7 @@ dev = [
     "pillow~=10.4.0",
     "types-Pillow~=10.2.0.20240520",
     "polars~=1.5.0",
+    "hypothesis~=6.102.1",
     "pytest~=8.3.2",
     "pytest-codecov~=0.5.1",
     "pytest-asyncio~=0.23.8",
@@ -145,10 +146,11 @@ testoptional = [
     "anywidget~=0.9.13",
     "ipython~=8.12.3",
     "openai~=1.41.1",
-    "ibis-framework[duckdb]~=9.3.0; python_version > \"3.9\"",
+    "ibis-framework[duckdb]~=9.5.0; python_version > \"3.9\"",
     "anthropic==0.34.1",
     # exporting as ipynb
     "nbformat >=5.10.4",
+    "sympy>=1.13.2",
 ]
 
 [project.urls]
@@ -175,6 +177,7 @@ exclude = [
     "tests/_ast/app_data",
     "tests/_ast/codegen_data",
     "tests/_ast/cell_data",
+    "tests/_cli/cli_data",
     "tests/_cli/ipynb_data",
     "tests/_runtime/runtime_data",
     "tests/_ast/test_app.py",
@@ -280,6 +283,7 @@ exclude = [
     'tests/_ast/app_data',
     'tests/_ast/codegen_data',
     'tests/_ast/cell_data',
+    'tests/_cli/cli_data',
     'tests/_cli/ipynb_data',
     'tests/_runtime/runtime_data',
     'marimo/_tutorials/',
@@ -309,6 +313,7 @@ omit = ["marimo/_tutorials/*"]
 wheres = "wheres"
 Ue = "Ue" # Used in one of the cell IDs
 Nd = "Nd" # Confused with And
+pn = "pn" # Panel
 
 [tool.typos.files]
 extend-exclude = [

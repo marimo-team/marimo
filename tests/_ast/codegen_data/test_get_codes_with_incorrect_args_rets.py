@@ -13,7 +13,7 @@ def one():
 def two():
     x = 0
     xx = 1
-    return x,
+    return (x,)
 
 
 @app.cell
@@ -25,7 +25,7 @@ def three():
 def four(y):
     # comment
     z = np.array(x + y)
-    return z,
+    return (z,)
 
 
 @app.cell

@@ -90,7 +90,6 @@ export const UserConfigSchema = z
     package_management: z
       .object({
         manager: z.enum(PackageManagerNames).default("pip"),
-        add_script_metadata: z.boolean().default(false),
       })
       .default({ manager: "pip" }),
     ai: z
@@ -152,8 +151,9 @@ export const AppConfigSchema = z
       }),
     app_title: AppTitleSchema.nullish(),
     css_file: z.string().nullish(),
+    auto_download: z.array(z.string()).default([]),
   })
-  .default({ width: "medium" });
+  .default({ width: "medium", auto_download: [] });
 export type AppConfig = z.infer<typeof AppConfigSchema>;
 
 export function parseAppConfig() {

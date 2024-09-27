@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.3"
+__generated_with = "0.8.14"
 app = marimo.App()
 
 
@@ -24,7 +25,7 @@ def __(mo):
 
 @app.cell
 def __(mo):
-    mo.md("# Horizontal Stack: `hstack`")
+    mo.md("""# Horizontal Stack: `hstack`""")
     return
 
 
@@ -42,7 +43,7 @@ def __(align, boxes, gap, justify, mo, wrap):
 
 @app.cell
 def __(mo):
-    mo.md("# Vertical Stack: `vstack`")
+    mo.md("""# Vertical Stack: `vstack`""")
     return
 
 

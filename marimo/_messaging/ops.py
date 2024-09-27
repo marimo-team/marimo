@@ -39,6 +39,7 @@ from marimo._output.hypertext import Html
 from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._plugins.ui._impl.tables.utils import get_table_manager_or_none
 from marimo._runtime.context import get_context
 from marimo._runtime.layout.layout import LayoutConfig
 from marimo._utils.platform import is_pyodide, is_windows
@@ -47,6 +48,9 @@ LOGGER = loggers.marimo_logger()
 
 
 def serialize(datacls: Any) -> Dict[str, JSONType]:
+    # TODO(akshayka): maybe serialize as bytes (JSON), not objects ...,
+    # then `send_bytes` over connection ... to try to avoid pickling
+    # issues
     try:
         # Try to serialize as a dataclass
         return cast(
@@ -57,7 +61,7 @@ def serialize(datacls: Any) -> Dict[str, JSONType]:
         # If that fails, try to serialize using the WebComponentEncoder
         return cast(
             Dict[str, JSONType],
-            json.loads(json.dumps(datacls, cls=WebComponentEncoder)),
+            json.loads(WebComponentEncoder.json_dumps(datacls)),
         )
 
 
@@ -281,6 +285,19 @@ class FunctionCallResult(Op):
     return_value: JSONType
     status: HumanReadableStatus
 
+    def __post_init__(self) -> None:
+        # We want to serialize the return_value using our custom JSON encoder
+        try:
+            self.return_value = json.loads(
+                WebComponentEncoder.json_dumps(self.return_value)
+            )
+        except Exception as e:
+            LOGGER.exception(
+                "Error serializing function call result %s: %s",
+                self.__class__.__name__,
+                e,
+            )
+
     def serialize(self) -> dict[str, Any]:
         try:
             return serialize(self)
@@ -468,6 +485,14 @@ class VariableValue:
 
     def _stringify(self, value: object) -> str:
         try:
+            # HACK: We pretty-print tables to avoid str(ibis_table)
+            # which can be very slow when `ibis.options.interactive = True`
+            table_manager = get_table_manager_or_none(value)
+            if table_manager is not None:
+                return str(table_manager)
+            else:
+                return str(value)[:50]
+
             return str(value)[:50]
         except BaseException:
             # Catch-all: some libraries like Polars have bugs and raise

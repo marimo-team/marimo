@@ -12,6 +12,7 @@ import { TableColumnSummary } from "./column-summary";
 import type { FilterType } from "./filters";
 import type { FieldTypesWithExternalType } from "./types";
 import { UrlDetector } from "./url-detector";
+import { Arrays } from "@/utils/arrays";
 
 interface ColumnInfo {
   key: string;
@@ -21,12 +22,12 @@ interface ColumnInfo {
 function getColumnInfo<T>(items: T[]): ColumnInfo[] {
   // No items
   if (items.length === 0) {
-    return [];
+    return Arrays.EMPTY;
   }
 
   // Not an object
   if (typeof items[0] !== "object") {
-    return [];
+    return Arrays.EMPTY;
   }
 
   const keys = new Map<string, ColumnInfo>();
@@ -65,17 +66,17 @@ function getColumnInfo<T>(items: T[]): ColumnInfo[] {
   return [...keys.values()];
 }
 
+export const NAMELESS_COLUMN_PREFIX = "__m_column__";
+
 export function generateColumns<T>({
   items,
   rowHeaders,
   selection,
-  showColumnSummaries,
   fieldTypes,
 }: {
   items: T[];
   rowHeaders: string[];
   selection: "single" | "multi" | null;
-  showColumnSummaries: boolean;
   fieldTypes?: FieldTypesWithExternalType;
 }): Array<ColumnDef<T>> {
   const columnInfo = getColumnInfo(items);
@@ -83,7 +84,7 @@ export function generateColumns<T>({
 
   const columns = columnInfo.map(
     (info, idx): ColumnDef<T> => ({
-      id: info.key || `__m_column__${idx}`,
+      id: info.key || `${NAMELESS_COLUMN_PREFIX}${idx}`,
       // Use an accessorFn instead of an accessorKey because column names
       // may have periods in them ...
       // https://github.com/TanStack/table/issues/1671
@@ -93,18 +94,26 @@ export function generateColumns<T>({
       },
 
       header: ({ column }) => {
+        const dtype = column.columnDef.meta?.dtype;
+        const headerWithType = (
+          <div className="flex flex-col">
+            <span className="font-bold">{info.key}</span>
+            {dtype && (
+              <span className="text-xs text-muted-foreground">{dtype}</span>
+            )}
+          </div>
+        );
+
         // Row headers have no summaries
         if (rowHeadersSet.has(info.key)) {
-          return <DataTableColumnHeader header={info.key} column={column} />;
-        }
-
-        if (!showColumnSummaries) {
-          return <DataTableColumnHeader header={info.key} column={column} />;
+          return (
+            <DataTableColumnHeader header={headerWithType} column={column} />
+          );
         }
 
         return (
           <DataTableColumnHeaderWithSummary
-            header={info.key}
+            header={headerWithType}
             column={column}
             summary={<TableColumnSummary columnId={info.key} />}
           />
@@ -153,6 +162,7 @@ export function generateColumns<T>({
   if (selection === "single" || selection === "multi") {
     columns.unshift({
       id: "__select__",
+      maxSize: 40,
       header: ({ table }) =>
         selection === "multi" ? (
           <Checkbox
@@ -162,7 +172,7 @@ export function generateColumns<T>({
               table.toggleAllPageRowsSelected(!!value)
             }
             aria-label="Select all"
-            className="mx-2"
+            className="mx-1.5 my-4"
           />
         ) : null,
       cell: ({ row }) => (

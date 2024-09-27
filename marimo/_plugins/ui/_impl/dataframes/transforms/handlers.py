@@ -104,16 +104,20 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
                 df_filter = df[condition.column_id].ne(value)
             elif condition.operator == "contains":
                 df_filter = df[condition.column_id].str.contains(
-                    value, regex=False
+                    value, regex=False, na=False
                 )
             elif condition.operator == "regex":
                 df_filter = df[condition.column_id].str.contains(
-                    value, regex=True
+                    value, regex=True, na=False
                 )
             elif condition.operator == "starts_with":
-                df_filter = df[condition.column_id].str.startswith(value)
+                df_filter = df[condition.column_id].str.startswith(
+                    value, na=False
+                )
             elif condition.operator == "ends_with":
-                df_filter = df[condition.column_id].str.endswith(value)
+                df_filter = df[condition.column_id].str.endswith(
+                    value, na=False
+                )
             elif condition.operator == "in":
                 df_filter = df[condition.column_id].isin(value)
             else:

@@ -50,6 +50,10 @@ class SessionView:
         # Map of cell id to the last cell execution time
         self.last_execution_time: dict[CellId_t, float] = {}
 
+        # Auto-saving
+        self.has_auto_exported_html = False
+        self.has_auto_exported_md = False
+
     def _add_ui_value(self, name: str, value: Any) -> None:
         self.ui_values[name] = value
 
@@ -57,6 +61,8 @@ class SessionView:
         self.last_executed_code[req.cell_id] = req.code
 
     def add_raw_operation(self, raw_operation: Any) -> None:
+        self._touch()
+
         # parse_raw only accepts a dataclass, so we wrap MessageOperation in a
         # dataclass.
         @dataclass
@@ -67,6 +73,8 @@ class SessionView:
         self.add_operation(operation.operation)
 
     def add_control_request(self, request: ControlRequest) -> None:
+        self._touch()
+
         if isinstance(request, SetUIElementValueRequest):
             for object_id, value in request.ids_and_values:
                 self._add_ui_value(object_id, value)
@@ -83,6 +91,8 @@ class SessionView:
                 self._add_last_run_code(execution_request)
 
     def add_stdin(self, stdin: str) -> None:
+        self._touch()
+
         """Add a stdin request to the session view."""
         # Find the first cell that is waiting for stdin.
         for cell_op in self.cell_operations.values():
@@ -94,6 +104,8 @@ class SessionView:
                     return
 
     def add_operation(self, operation: MessageOperation) -> None:
+        self._touch()
+
         """Add an operation to the session view."""
 
         if isinstance(operation, CellOp):
@@ -206,6 +218,16 @@ class SessionView:
             all_ops.append(self.datasets)
         all_ops.extend(self.cell_operations.values())
         return all_ops
+
+    def mark_auto_export_html(self) -> None:
+        self.has_auto_exported_html = True
+
+    def mark_auto_export_md(self) -> None:
+        self.has_auto_exported_md = True
+
+    def _touch(self) -> None:
+        self.has_auto_exported_html = False
+        self.has_auto_exported_md = False
 
 
 def merge_cell_operation(

@@ -1,13 +1,21 @@
-# Copyright 2024 Marimo. All rights reserved.
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "plotly==5.24.1",
+#     "pandas==2.2.3",
+#     "marimo",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.1.51"
+__generated_with = "0.8.18"
 app = marimo.App(width="full")
 
 
 @app.cell
 def __(mo):
-    mo.md("# Plotly Express Chart")
+    mo.md("""# Plotly Express Chart""")
     return
 
 
@@ -16,7 +24,7 @@ def __():
     import plotly.express as px
 
     px.scatter(x=[0, 1, 2, 3, 4], y=[0, 1, 4, 9, 16])
-    return px,
+    return (px,)
 
 
 @app.cell
@@ -30,7 +38,7 @@ def __(mo, px):
             plot,
         ]
     )
-    return plot,
+    return (plot,)
 
 
 @app.cell
@@ -59,7 +67,7 @@ def __(mo, plot):
 
 @app.cell
 def __(mo):
-    mo.md("# Plotly Graph Objects Chart")
+    mo.md("""# Plotly Graph Objects Chart""")
     return
 
 
@@ -121,7 +129,7 @@ def __(mo, plot2):
 
 @app.cell
 def __(mo):
-    mo.md("# Re-rendering Chart")
+    mo.md("""# Re-rendering Chart""")
     return
 
 
@@ -138,7 +146,7 @@ def __():
 def __(cars, mo):
     sample_size = mo.ui.slider(label="Sample", start=100, stop=len(cars), step=100)
     sample_size
-    return sample_size,
+    return (sample_size,)
 
 
 @app.cell
@@ -155,7 +163,7 @@ def __(cars, mo, px, sample_size):
     _fig
     plot3 = mo.ui.plotly(_fig)
     plot3
-    return plot3,
+    return (plot3,)
 
 
 @app.cell
@@ -166,7 +174,7 @@ def __(mo, plot3):
 
 @app.cell
 def __(mo):
-    mo.md("# 3D Chart")
+    mo.md("""# 3D Chart""")
     return
 
 

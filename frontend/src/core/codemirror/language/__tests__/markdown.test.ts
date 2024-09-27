@@ -277,5 +277,39 @@ describe("MarkdownLanguageAdapter", () => {
       const pythonCode = [once, once].join("\n");
       expect(adapter.isSupported(pythonCode)).toBe(false);
     });
+
+    it("should return false for multiple markdown blocks in a single string", () => {
+      const pythonCode = `mo.md("this is markdown"), mo.md("this is not markdown")`;
+      expect(adapter.isSupported(pythonCode)).toBe(false);
+    });
+
+    it("should return false for multiple mo statements blocks in a single string", () => {
+      const CASES = [
+        `mo.md("this is markdown"), mo.plain_text("this is not markdown")`,
+        `mo.plain_text("this is not markdown"), mo.md("this is markdown")`,
+        `mo.md("this is markdown"), mo.md("this is markdown")`,
+        `mo.plain_text("this is not markdown"), mo.plain_text("this is not markdown")`,
+      ];
+      for (const pythonCode of CASES) {
+        expect(adapter.isSupported(pythonCode)).toBe(false);
+      }
+    });
+
+    it("should return true when the mo calls are just strings inside the markdown", () => {
+      const CASES = [
+        `mo.md("this is markdown, mo.plain_text('this is not markdown')")`,
+        `mo.md("this is markdown, mo.md('this is markdown')")`,
+        `mo.md("this is markdown, mo.md('this is markdown'), mo.plain_text('this is not markdown')")`,
+        `mo.md("""this is markdown, mo.plain_text('this is not markdown')""")`,
+        `mo.md("""this is markdown, mo.md('this is markdown')""")`,
+        `mo.md("""this is markdown, mo.md('this is markdown'), mo.plain_text('this is not markdown')""")`,
+        `mo.md(r"""this is markdown, mo.plain_text('this is not markdown')""")`,
+        `mo.md(r"""this is markdown, mo.md('this is markdown')""")`,
+        `mo.md(r"""this is markdown, mo.md('this is markdown'), mo.plain_text('this is not markdown')""")`,
+      ];
+      for (const pythonCode of CASES) {
+        expect(adapter.isSupported(pythonCode)).toBe(true);
+      }
+    });
   });
 });

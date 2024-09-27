@@ -8,17 +8,20 @@ import { hotkeysAtom } from "@/core/config/config";
 import { useAtomValue } from "jotai";
 import { cn } from "@/utils/cn";
 
-export function renderShortcut(shortcut: HotkeyAction) {
-  return <Shortcut shortcut={shortcut} />;
+export function renderShortcut(shortcut: HotkeyAction, includeName = true) {
+  return <Shortcut shortcut={shortcut} includeName={includeName} />;
 }
 
-const Shortcut: React.FC<{ shortcut: HotkeyAction }> = ({ shortcut }) => {
+const Shortcut: React.FC<{ shortcut: HotkeyAction; includeName?: boolean }> = ({
+  shortcut,
+  includeName = true,
+}) => {
   const hotkeys = useAtomValue(hotkeysAtom);
   const hotkey = hotkeys.getHotkey(shortcut);
 
   return (
-    <span className="flex">
-      <span className="mr-2">{hotkey.name}</span>
+    <span className="inline-flex">
+      {includeName && <span className="mr-2">{hotkey.name}</span>}
       <KeyboardHotkeys shortcut={hotkey.key} />
     </span>
   );

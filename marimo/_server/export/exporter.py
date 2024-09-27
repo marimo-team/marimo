@@ -5,7 +5,7 @@ import base64
 import io
 import mimetypes
 import os
-from typing import cast
+from typing import Optional, cast
 
 from marimo import __version__
 from marimo._ast.cell import Cell, CellConfig, CellImpl
@@ -87,6 +87,9 @@ class Exporter:
             configs = [CellConfig() for _ in cell_ids]
             console_outputs = {}
 
+        # We include the code hash regardless of whether we include the code
+        code_hash = hash_code(file_manager.to_code())
+
         html = static_notebook_template(
             html=index_html,
             user_config=config,
@@ -94,6 +97,7 @@ class Exporter:
             app_config=file_manager.app.config,
             filename=file_manager.filename,
             code=code,
+            code_hash=code_hash,
             cell_ids=cell_ids,
             cell_names=list(file_manager.app.cell_manager.names()),
             cell_codes=list(codes),
@@ -177,25 +181,35 @@ class Exporter:
         # documents are executable.
 
         #  Put data from AppFileManager into the yaml header.
-        ignored_keys = {"app_title", "layout_file", "css_file"}
-        metadata = {
+        ignored_keys = {"app_title"}
+        metadata: dict[str, str | list[str]] = {
             "title": get_app_title(file_manager),
             "marimo-version": __version__,
-            "marimo-layout": file_manager.app.config.layout_file,
-            "marimo-css": file_manager.app.config.css_file,
         }
+
+        def _format_value(v: Optional[str | list[str]]) -> str | list[str]:
+            if isinstance(v, list):
+                return v
+            return str(v)
+
+        default_config = _AppConfig().asdict()
+
         # Get values defined in _AppConfig without explicitly extracting keys,
         # as long as it isn't the default.
         metadata.update(
             {
-                k: str(v)
+                k: _format_value(v)
                 for k, v in file_manager.app.config.asdict().items()
-                if k not in ignored_keys and v != _AppConfig.__dict__[k]
+                if k not in ignored_keys and v != default_config.get(k)
             }
         )
 
         header = yaml.dump(
-            {k: v for k, v in metadata.items() if v is not None},
+            {
+                k: v
+                for k, v in metadata.items()
+                if v is not None and v != "" and v != []
+            },
             sort_keys=False,
         )
         document = ["---", header.strip(), "---", ""]
@@ -248,3 +262,49 @@ class Exporter:
 
         download_filename = get_download_filename(file_manager, ".md")
         return "\n".join(document).strip(), download_filename
+
+
+class AutoExporter:
+    EXPORT_DIR = ".marimo"
+
+    def save_html(self, file_manager: AppFileManager, html: str) -> None:
+        # get filename
+        directory = os.path.dirname(get_filename(file_manager))
+        filename = get_download_filename(file_manager, "html")
+
+        # make directory if it doesn't exist
+        self._make_export_dir(directory)
+        filepath = os.path.join(directory, self.EXPORT_DIR, filename)
+
+        # save html to .marimo directory
+        with open(filepath, "w") as f:
+            f.write(html)
+
+    def save_md(self, file_manager: AppFileManager, markdown: str) -> None:
+        # get filename
+        directory = os.path.dirname(get_filename(file_manager))
+        filename = get_download_filename(file_manager, "md")
+
+        # make directory if it doesn't exist
+        self._make_export_dir(directory)
+        filepath = os.path.join(directory, self.EXPORT_DIR, filename)
+
+        # save md to .marimo directory
+        with open(filepath, "w") as f:
+            f.write(markdown)
+
+    def _make_export_dir(self, directory: str) -> None:
+        # make .marimo dir if it doesn't exist
+        # don't make the other directories
+        if not os.path.exists(directory):
+            raise FileNotFoundError(f"Directory {directory} does not exist")
+
+        export_dir = os.path.join(directory, self.EXPORT_DIR)
+        if not os.path.exists(export_dir):
+            os.mkdir(export_dir)
+
+
+def hash_code(code: str) -> str:
+    import hashlib
+
+    return hashlib.sha256(code.encode("utf-8")).hexdigest()

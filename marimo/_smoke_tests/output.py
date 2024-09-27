@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.6.0"
+__generated_with = "0.8.14"
 app = marimo.App()
 
 
@@ -34,7 +34,7 @@ def __(mo, time):
 
 @app.cell
 def __(mo):
-    mo.md("### Replace")
+    mo.md("""### Replace""")
     return
 
 
@@ -54,7 +54,7 @@ def __(loop_replace, mo):
 
 @app.cell
 def __(mo):
-    mo.md("### Append")
+    mo.md("""### Append""")
     return
 
 
@@ -74,7 +74,7 @@ def __(loop_append, mo):
 
 @app.cell
 def __(mo):
-    mo.md("### Clear")
+    mo.md("""### Clear""")
     return
 
 
@@ -96,7 +96,7 @@ def __(loop_append, mo):
 
 @app.cell
 def __(mo):
-    mo.md("### Sleep (stale)")
+    mo.md("""### Sleep (stale)""")
     return
 
 
@@ -111,6 +111,7 @@ def __(time):
 def __(mo):
     mo.output.append(mo.md("To be replaced."))
     mo.output.replace_at_index(mo.md("Replaced at index"), 0)
+    return
 
 
 if __name__ == "__main__":

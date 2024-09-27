@@ -1,3 +1,9 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "marimo",
+# ]
+# ///
 # Copyright 2024 Marimo. All rights reserved.
 import marimo
 

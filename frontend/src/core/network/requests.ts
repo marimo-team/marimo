@@ -64,4 +64,9 @@ export const {
   shutdownSession,
   exportAsHTML,
   exportAsMarkdown,
+  autoExportAsHTML,
+  autoExportAsMarkdown,
+  addPackage,
+  removePackage,
+  getPackageList,
 } = getRequest();

@@ -9,21 +9,21 @@ app = marimo.App()
 @app.cell
 def one() -> Tuple[Any]:
     x = 0
-    return x,
+    return (x,)
 
 
 @app.cell
 def two(x: Any) -> Tuple[Any, Any]:
     y = x + 1
     z = y + 1
-    'z'
+    "z"
     return y, z
 
 
 @app.cell
 def three(x: Any, y: Any) -> Tuple[Any]:
     a = x + y
-    return a,
+    return (a,)
 
 
 if __name__ == "__main__":

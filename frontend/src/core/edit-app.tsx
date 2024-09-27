@@ -61,6 +61,7 @@ import { useJotaiEffect } from "./state/jotai";
 import { Paths } from "@/utils/paths";
 import { KnownQueryParams } from "./constants";
 import { useTogglePresenting } from "./layout/useTogglePresenting";
+import { useAutoExport } from "./export/hooks";
 
 interface AppProps {
   userConfig: UserConfig;
@@ -224,6 +225,7 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
     config: userConfig,
     kioskMode: kioskMode,
   });
+  useAutoExport();
 
   useEventListener(window, "beforeunload", (e: BeforeUnloadEvent) => {
     if (isStaticNotebook()) {

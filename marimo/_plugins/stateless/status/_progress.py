@@ -6,12 +6,14 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Iterable,
+    Literal,
     Optional,
     TypeVar,
 )
 
 import marimo._runtime.output._output as output
 from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.ops import Alert
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import build_stateless_plugin
@@ -307,6 +309,7 @@ class progress_bar:
     - `show_rate`: if True, show the rate of progress (items per second)
     - `show_eta`: if True, show the estimated time of completion
     - `remove_on_exit`: if True, remove the progress bar from output on exit
+    - `disabled`: if True, disable the progress bar
     """
 
     def __init__(
@@ -379,3 +382,31 @@ class progress_bar:
         if self.remove_on_exit:
             self.progress.clear()
         self.progress.close()
+
+
+@mddoc
+def toast(
+    title: str,
+    description: str = "",
+    kind: Optional[Literal["danger"]] = None,
+) -> None:
+    """Show a toast notification
+
+    Use `mo.status.toast()` to display a brief notification.
+
+    **Example.**
+
+    ```python
+    mo.status.toast(
+        "Operation completed",
+        "Your task has finished successfully",
+    )
+    ```
+
+    **Args:**
+
+    - `title`: The main message of the toast
+    - `description`: Optional additional details (can include HTML)
+    - `kind`: Optional kind, use "danger" for error toasts
+    """
+    Alert(title=title, description=description, variant=kind).broadcast()

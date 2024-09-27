@@ -14,6 +14,7 @@ from marimo._plugins.ui._impl.altair_chart import (
     ChartDataType,
     ChartSelection,
     _filter_dataframe,
+    _has_geoshape,
     _parse_spec,
 )
 from marimo._runtime.runtime import Kernel
@@ -366,3 +367,51 @@ def test_parse_spec_geopandas() -> None:
     )
     spec = _parse_spec(chart)
     snapshot("parse_spec_geopandas.txt", json.dumps(spec, indent=2))
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_has_geoshape() -> None:
+    import altair as alt
+
+    chart_with_geoshape = alt.Chart().mark_geoshape()
+    assert _has_geoshape(chart_with_geoshape) is True
+
+    chart_with_geoshape = alt.Chart().mark_geoshape(stroke="black")
+    assert _has_geoshape(chart_with_geoshape) is True
+
+    chart_without_geoshape = alt.Chart().mark_bar()
+    assert _has_geoshape(chart_without_geoshape) is False
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_no_selection_pandas() -> None:
+    import altair as alt
+    import pandas as pd
+
+    data = pd.DataFrame({"values": [1, 2, 3]})
+    chart = altair_chart.altair_chart(
+        alt.Chart(data).mark_point().encode(x="values:Q")
+    )
+    assert isinstance(chart._value, pd.DataFrame)
+    assert len(chart._value) == 0
+    selected_value = chart._convert_value({})
+    assert isinstance(selected_value, pd.DataFrame)
+    selected_value = chart._convert_value(None)
+    assert isinstance(selected_value, pd.DataFrame)
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_no_selection_polars() -> None:
+    import altair as alt
+    import polars as pl
+
+    data = pl.DataFrame({"values": [1, 2, 3]})
+    chart = altair_chart.altair_chart(
+        alt.Chart(data).mark_point().encode(x="values:Q")
+    )
+    assert isinstance(chart._value, pl.DataFrame)
+    assert len(chart._value) == 0
+    selected_value = chart._convert_value({})
+    assert isinstance(selected_value, pl.DataFrame)
+    selected_value = chart._convert_value(None)
+    assert isinstance(selected_value, pl.DataFrame)

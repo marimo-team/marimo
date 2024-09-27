@@ -20,10 +20,11 @@ export function useCopyNotebook(source: string | null) {
       defaultValue: `_${filename}`,
       confirmText: "Copy notebook",
       spellCheck: false,
-      onConfirm: (destination: string) => {
+      onConfirm: (filename: string) => {
+        const destination = pathBuilder.join(Paths.dirname(source), filename);
         sendCopy({
           source: source,
-          destination: pathBuilder.join(Paths.dirname(source), destination),
+          destination: destination,
         }).then(() => {
           closeModal();
           toast({

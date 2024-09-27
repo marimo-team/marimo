@@ -7,7 +7,11 @@ import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
  */
 export interface ActionButton {
   label: string;
-  variant?: "danger";
+  labelElement?: React.ReactNode;
+  description?: string;
+  disabled?: boolean;
+  tooltip?: React.ReactNode;
+  variant?: "danger" | "muted" | "disabled";
   disableClick?: boolean;
   icon?: React.ReactElement;
   hidden?: boolean;
@@ -37,6 +41,10 @@ export function flattenActions(
   prevLabel = "",
 ): ActionButton[] {
   return actions.flatMap((action) => {
+    // If label is empty, hide
+    if (!action.label) {
+      return [];
+    }
     if (isParentAction(action)) {
       return flattenActions(action.dropdown, `${prevLabel + action.label} > `);
     }

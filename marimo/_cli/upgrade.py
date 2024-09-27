@@ -11,7 +11,7 @@ from typing import Any, Callable, Dict, Optional
 from packaging import version
 
 from marimo import __version__ as current_version
-from marimo._cli.print import green, orange
+from marimo._cli.print import echo, green, orange
 from marimo._server.api.status import HTTPException
 from marimo._tracer import server_tracer
 from marimo._utils.config.config import ConfigReader
@@ -27,9 +27,9 @@ class MarimoCLIState:
 
 def print_latest_version(current_version: str, latest_version: str) -> None:
     message = f"Update available {current_version} → {latest_version}"
-    print(orange(message))
-    print(f"Run {green('pip install --upgrade marimo')} to upgrade.")
-    print()
+    echo(orange(message))
+    echo(f"Run {green('pip install --upgrade marimo')} to upgrade.")
+    echo()
 
 
 @server_tracer.start_as_current_span("check_for_updates")

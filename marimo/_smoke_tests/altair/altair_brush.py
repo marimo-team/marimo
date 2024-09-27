@@ -1,3 +1,12 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "pandas",
+#     "altair",
+#     "marimo",
+#     "numpy",
+# ]
+# ///
 # Copyright 2024 Marimo. All rights reserved.
 
 import marimo

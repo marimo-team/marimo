@@ -112,12 +112,6 @@ pip install marimo  # or conda install -c conda-forge marimo
 marimo tutorial intro
 ```
 
-**Or run in Gitpod.**
-
-Click this link to open the repo in a Gitpod Workspace:
-
-[https://gitpod.io/#https://github.com/marimo-team/marimo](https://gitpod.io/#https://github.com/marimo-team/marimo)
-
 **Create notebooks.**
 
 Create or edit notebooks with

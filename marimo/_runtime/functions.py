@@ -7,7 +7,7 @@ import dataclasses
 from typing import Any, Callable, Coroutine, Generic, Type, TypeVar
 
 from marimo._ast.cell import CellId_t
-from marimo._utils.parse_dataclass import build_dataclass
+from marimo._utils.parse_dataclass import parse_raw
 
 S = TypeVar("S")
 T = TypeVar("T")
@@ -53,7 +53,7 @@ class Function(Generic[S, T]):
             self.cell_id = None
 
     def __call__(self, args: dict[Any, Any]) -> T | Coroutine[Any, Any, T]:
-        return self.function(build_dataclass(args, self.arg_cls))
+        return self.function(parse_raw(args, self.arg_cls))
 
 
 @dataclasses.dataclass

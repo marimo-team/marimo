@@ -46,7 +46,10 @@ async def save_user_config(
                         $ref: "#/components/schemas/SuccessResponse"
     """  # noqa: E501
     app_state = AppState(request)
-    body = await parse_request(request, cls=SaveUserConfigurationRequest)
+    # Allow unknown keys to handle backward/forward compatibility
+    body = await parse_request(
+        request, cls=SaveUserConfigurationRequest, allow_unknown_keys=True
+    )
     config = app_state.config_manager.save_config(body.config)
 
     # Update the server's view of the config

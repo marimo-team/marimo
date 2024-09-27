@@ -5,9 +5,10 @@ import { AppConfigSchema, UserConfigSchema } from "../config-schema";
 test("default AppConfig", () => {
   const defaultConfig = AppConfigSchema.parse({});
   expect(defaultConfig).toMatchInlineSnapshot(`
-  {
-    "width": "medium",
-  }
+    {
+      "auto_download": [],
+      "width": "medium",
+    }
   `);
 });
 
@@ -19,6 +20,7 @@ test("another AppConfig", () => {
   expect(config).toMatchInlineSnapshot(`
     {
       "app_title": null,
+      "auto_download": [],
       "width": "medium",
     }
   `);
@@ -49,7 +51,6 @@ test("default UserConfig - empty", () => {
         "preset": "default",
       },
       "package_management": {
-        "add_script_metadata": false,
         "manager": "pip",
       },
       "runtime": {
@@ -100,7 +101,6 @@ test("default UserConfig - one level", () => {
         "preset": "default",
       },
       "package_management": {
-        "add_script_metadata": false,
         "manager": "pip",
       },
       "runtime": {

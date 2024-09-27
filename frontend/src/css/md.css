@@ -78,7 +78,6 @@ a .markdown iconify-icon:first-child {
 
 /* align icons with buttons better */
 button .markdown .paragraph {
-  display: inline-flex;
   align-items: baseline;
   gap: 0.4em;
 

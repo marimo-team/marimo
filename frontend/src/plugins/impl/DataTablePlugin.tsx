@@ -4,19 +4,16 @@ import { z } from "zod";
 import { DataTable } from "../../components/data-table/data-table";
 import { generateColumns } from "../../components/data-table/columns";
 import { Labeled } from "./common/labeled";
-import { useAsyncData } from "@/hooks/useAsyncData";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { rpc } from "../core/rpc";
 import { createPlugin } from "../core/builder";
 import { vegaLoadData } from "./vega/loader";
 import { getVegaFieldTypes } from "./vega/utils";
-import { Arrays } from "@/utils/arrays";
 import { Banner } from "./common/error-banner";
 import { ColumnChartSpecModel } from "@/components/data-table/chart-spec-model";
 import { ColumnChartContext } from "@/components/data-table/column-summary";
 import { Logger } from "@/utils/Logger";
-import { LoadingTable } from "@/components/data-table/loading-table";
-import { DelayMount } from "@/components/utils/delay-mount";
+
 import type {
   ColumnHeaderSummary,
   FieldTypesWithExternalType,
@@ -28,7 +25,6 @@ import type {
   RowSelectionState,
   SortingState,
 } from "@tanstack/react-table";
-import { TooltipProvider } from "@radix-ui/react-tooltip";
 import useEvent from "react-use-event-hook";
 import { Functions } from "@/utils/functions";
 import { ConditionSchema, type ConditionType } from "./data-frames/schema";
@@ -38,7 +34,12 @@ import {
 } from "@/components/data-table/filters";
 import { Objects } from "@/utils/objects";
 import React from "react";
-
+import { TooltipProvider } from "@radix-ui/react-tooltip";
+import { Arrays } from "@/utils/arrays";
+import { LoadingTable } from "@/components/data-table/loading-table";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
+import { DelayMount } from "@/components/utils/delay-mount";
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
 interface ColumnSummaries<T = unknown> {
@@ -253,7 +254,7 @@ export const LoadingDataTableComponent = memo(
     }>(async () => {
       // If there is no data, return an empty array
       if (props.totalRows === 0) {
-        return { rows: [], totalRows: 0 };
+        return { rows: Arrays.EMPTY, totalRows: 0 };
       }
 
       // Table data is a url string or an array of objects
@@ -384,7 +385,7 @@ export const LoadingDataTableComponent = memo(
         {errorComponent}
         <DataTableComponent
           {...props}
-          data={data?.rows || Arrays.EMPTY}
+          data={data?.rows ?? Arrays.EMPTY}
           columnSummaries={columnSummaries}
           sorting={sorting}
           setSorting={setSorting}
@@ -413,7 +414,6 @@ const DataTableComponent = ({
   showFilters,
   showDownload,
   rowHeaders,
-  showColumnSummaries,
   fieldTypes,
   paginationState,
   setPaginationState,
@@ -463,13 +463,16 @@ const DataTableComponent = ({
         items: data,
         rowHeaders: rowHeaders,
         selection,
-        showColumnSummaries: showColumnSummaries,
         fieldTypes: fieldTypes ?? {},
       }),
-    [data, selection, fieldTypes, rowHeaders, showColumnSummaries],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data, useDeepCompareMemoize([selection, fieldTypes, rowHeaders])],
   );
 
-  const rowSelection = Object.fromEntries((value || []).map((v) => [v, true]));
+  const rowSelection = useMemo(
+    () => Object.fromEntries((value || []).map((v) => [v, true])),
+    [value],
+  );
 
   const handleRowSelectionChange: OnChangeFn<RowSelectionState> = useEvent(
     (updater) => {
@@ -514,6 +517,7 @@ const DataTableComponent = ({
             setSorting={setSorting}
             pagination={pagination}
             manualPagination={true}
+            selection={selection}
             paginationState={paginationState}
             setPaginationState={setPaginationState}
             rowSelection={rowSelection}
