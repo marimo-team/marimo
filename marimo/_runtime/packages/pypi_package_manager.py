@@ -22,6 +22,8 @@ class PypiPackageManager(CanonicalizingPackageManager):
     def _list_packages_from_cmd(
         self, cmd: List[str]
     ) -> List[PackageDescription]:
+        if not self.is_manager_installed():
+            return []
         proc = subprocess.run(cmd, capture_output=True, text=True)
         if proc.returncode != 0:
             return []
@@ -37,6 +39,7 @@ class PypiPackageManager(CanonicalizingPackageManager):
 
 class PipPackageManager(PypiPackageManager):
     name = "pip"
+    docs_url = "https://pip.pypa.io/"
 
     async def _install(self, package: str) -> bool:
         return self.run(["pip", "install", package])
@@ -51,6 +54,7 @@ class PipPackageManager(PypiPackageManager):
 
 class MicropipPackageManager(PypiPackageManager):
     name = "micropip"
+    docs_url = "https://micropip.pyodide.org/"
 
     def should_auto_install(self) -> bool:
         return True
@@ -89,9 +93,13 @@ class MicropipPackageManager(PypiPackageManager):
         # micropip doesn't sort the packages
         return sorted(packages, key=lambda pkg: pkg.name)
 
+    def check_available(self) -> bool:
+        return is_pyodide()
+
 
 class UvPackageManager(PypiPackageManager):
     name = "uv"
+    docs_url = "https://docs.astral.sh/uv/"
 
     async def _install(self, package: str) -> bool:
         return self.run(["uv", "pip", "install", package])
@@ -159,6 +167,7 @@ class UvPackageManager(PypiPackageManager):
 
 class RyePackageManager(PypiPackageManager):
     name = "rye"
+    docs_url = "https://rye.astral.sh/"
 
     async def _install(self, package: str) -> bool:
         return self.run(["rye", "add", package])
@@ -173,6 +182,7 @@ class RyePackageManager(PypiPackageManager):
 
 class PoetryPackageManager(PypiPackageManager):
     name = "poetry"
+    docs_url = "https://python-poetry.org/docs/"
 
     async def _install(self, package: str) -> bool:
         return self.run(["poetry", "add", "--no-interaction", package])
