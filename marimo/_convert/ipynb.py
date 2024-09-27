@@ -355,6 +355,10 @@ class Renamer:
 
 
 def _transform_aug_assign(sources: List[str]) -> List[str]:
+    if sys.version_info < (3, 9):
+        # ast.unparse unavailable
+        return sources
+
     new_sources = sources.copy()
     for i, source in enumerate(sources):
         try:
