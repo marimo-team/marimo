@@ -4,8 +4,6 @@
 #     "ell-ai==0.0.12",
 #     "marimo",
 #     "openai==1.50.1",
-#     "pydantic==2.9.2",
-#     "vega-datasets==0.9.0",
 # ]
 # ///
 

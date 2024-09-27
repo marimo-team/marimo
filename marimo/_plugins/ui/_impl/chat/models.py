@@ -76,8 +76,8 @@ class openai(ChatModel):
         DependencyManager.openai.require(
             "chat model requires openai. `pip install openai`"
         )
-        from openai import OpenAI
-        from openai.types.chat import ChatCompletionMessageParam
+        from openai import OpenAI  # ignore
+        from openai.types.chat import ChatCompletionMessageParam  # ignore
 
         client = OpenAI(
             api_key=self.require_api_key,
@@ -144,8 +144,8 @@ class anthropic(ChatModel):
         DependencyManager.anthropic.require(
             "chat model requires anthropic. `pip install anthropic`"
         )
-        from anthropic import NOT_GIVEN, Anthropic
-        from anthropic.types.message_param import MessageParam
+        from anthropic import NOT_GIVEN, Anthropic  # ignore
+        from anthropic.types.message_param import MessageParam  # ignore
 
         client = Anthropic(
             api_key=self.require_api_key(),
