@@ -1,11 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-export interface ChatClientMessage {
+export interface ChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
 }
 
 export interface SendMessageRequest {
-  messages: ChatClientMessage[];
+  messages: ChatMessage[];
   config: {
     max_tokens?: number;
     temperature?: number;

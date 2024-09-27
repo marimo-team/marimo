@@ -1,7 +1,70 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "ell-ai==0.0.12",
+#     "marimo",
+#     "openai==1.50.1",
+#     "pydantic==2.9.2",
+#     "vega-datasets==0.9.0",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.8.20"
 app = marimo.App(width="medium")
+
+
+@app.cell
+def __(mo):
+    mo.md(r"""# Built-in chatbots""")
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md(r"""## OpenAI""")
+    return
+
+
+@app.cell
+def __(mo):
+    mo.ui.chat(
+        model=mo.ai.models.openai("gpt-4-turbo"),
+        show_configuration_controls=True,
+        prompts=[
+            "Tell me a joke",
+            "What is the meaning of life?",
+            "What is 2 + {{number}}",
+        ],
+    )
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md(r"""## Anthropic""")
+    return
+
+
+@app.cell
+def __(mo):
+    mo.ui.chat(
+        model=mo.ai.models.anthropic("claude-3-5-sonnet-20240620"),
+        show_configuration_controls=True,
+        prompts=[
+            "Tell me a joke",
+            "What is the meaning of life?",
+            "What is 2 + {{number}}",
+        ],
+    )
+    return
+
+
+@app.cell
+def __():
+    import marimo as mo
+    return (mo,)
 
 
 @app.cell
@@ -10,27 +73,65 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
-    # Initialize a client
     import os
 
+    os_key = os.environ.get("OPENAI_API_KEY")
+    input_key = mo.ui.text(label="OpenAI API key", kind="password")
+    input_key if not os_key else None
+    return input_key, os, os_key
+
+
+@app.cell
+def __(input_key, os_key):
+    openai_key = os_key or input_key.value
+    return (openai_key,)
+
+
+@app.cell(hide_code=True)
+def __(mo, openai_key):
+    # Initialize a client
     mo.stop(
-        "OPENAI_API_KEY" not in os.environ,
-        "Please set the OPENAI_API_KEY environment variable",
+        not openai_key,
+        "Please set the OPENAI_API_KEY environment variable or provide it in the input field",
     )
 
     import ell
     import openai
 
     # Create an openai client
-    client = openai.Client(api_key=os.environ["OPENAI_API_KEY"])
-    return client, ell, openai, os
+    client = openai.Client(api_key=openai_key)
+    return client, ell, openai
+
+
+@app.cell
+def __(mo):
+    mo.md(r"""## Simple""")
+    return
+
+
+@app.cell
+def __(client, ell, mo):
+    @ell.simple("gpt-4o-mini-2024-07-18", client=client)
+    def _my_model(prompt):
+        """You are an annoying little brother, whatever I say, be sassy with your response"""
+        return prompt
+
+
+    mo.ui.chat(model=mo.ai.models.simple(_my_model))
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md(r"""## Complex""")
+    return
 
 
 @app.cell
 def __():
-    # Grab a dataset, we will use the cars dataset
+    # Grab a dataset for the chatbot conversation, we will use the cars dataset
 
     from vega_datasets import data
 
@@ -60,7 +161,7 @@ def __(cars, client, ell):
         )
 
 
-    def my_model(messages, config):
+    def my_complex_model(messages, config):
         schema = cars.dtypes
 
         # This doesn't need to be ell or any model provider
@@ -103,52 +204,23 @@ def __(cars, client, ell):
                 del as_dict["datasets"]
             return alt.Chart.from_dict(as_dict)
         return response
-    return BaseModel, Field, PromptsResponse, get_sample_prompts, my_model
+    return (
+        BaseModel,
+        Field,
+        PromptsResponse,
+        get_sample_prompts,
+        my_complex_model,
+    )
 
 
 @app.cell
-def __(cars, get_sample_prompts, mo, my_model):
+def __(cars, get_sample_prompts, mo, my_complex_model):
     prompts = get_sample_prompts(cars).parsed.prompts
-    mo.ai.chat(
-        model=my_model,
+    mo.ui.chat(
+        model=my_complex_model,
         prompts=prompts,
     )
     return (prompts,)
-
-
-@app.cell
-def __(mo):
-    mo.md(r"""# Built-in chatbots""")
-    return
-
-
-@app.cell
-def __(mo):
-    a = mo.ai.chat(
-        model=mo.ai.models.openai("gpt-4-turbo"),
-        show_configuration_controls=True,
-    )
-    return (a,)
-
-
-@app.cell
-def __(mo):
-    mo.ai.chat(
-        model=mo.ai.models.openai("gpt-4-turbo"),
-        show_configuration_controls=True,
-        prompts=[
-            "Tell me a joke",
-            "What is the meaning of life?",
-            "What is 2 + {{number}}",
-        ],
-    )
-    return
-
-
-@app.cell
-def __():
-    import marimo as mo
-    return (mo,)
 
 
 if __name__ == "__main__":

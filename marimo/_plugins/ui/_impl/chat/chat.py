@@ -6,18 +6,25 @@ from typing import Any, Callable, Dict, Final, List, Optional
 from marimo._output.formatting import as_html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
-from marimo._plugins.ui._impl.chat.models import model_from_callable
+from marimo._plugins.ui._impl.chat.convert import model_from_callable
 from marimo._plugins.ui._impl.chat.types import (
-    ChatClientMessage,
+    ChatMessage,
     ChatModel,
-    SendMessageRequest,
+    ChatModelConfig,
+    from_chat_message_dict,
 )
 from marimo._runtime.functions import EmptyArgs, Function
 
 
 @dataclass
+class SendMessageRequest:
+    messages: List[ChatMessage]
+    config: ChatModelConfig
+
+
+@dataclass
 class GetChatHistoryResponse:
-    messages: List[ChatClientMessage]
+    messages: List[ChatMessage]
 
 
 DEFAULT_SYSTEM_MESSAGE = (
@@ -26,7 +33,7 @@ DEFAULT_SYSTEM_MESSAGE = (
 
 
 @mddoc
-class chat(UIElement[Dict[str, Any], List[ChatClientMessage]]):
+class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
     """
     A chatbot UI element for interactive conversations.
 
@@ -87,7 +94,7 @@ class chat(UIElement[Dict[str, Any], List[ChatClientMessage]]):
         *,
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         prompts: Optional[List[str]] = None,
-        on_message: Optional[Callable[[List[ChatClientMessage]], None]] = None,
+        on_message: Optional[Callable[[List[ChatMessage]], None]] = None,
         show_configuration_controls: bool = False,
         max_tokens: int = 100,
         temperature: float = 0.5,
@@ -103,8 +110,8 @@ class chat(UIElement[Dict[str, Any], List[ChatClientMessage]]):
         self._system_message = system_message
         self._max_tokens = max_tokens
         self._temperature = temperature
-        self._chat_history: List[ChatClientMessage] = [
-            ChatClientMessage(role="system", content=system_message)
+        self._chat_history: List[ChatMessage] = [
+            ChatMessage(role="system", content=system_message)
         ]
 
         super().__init__(
@@ -145,20 +152,24 @@ class chat(UIElement[Dict[str, Any], List[ChatClientMessage]]):
         messages = args.messages
 
         response = self._model.generate_text(messages, args.config)
-        html = as_html(response)
+        content = (
+            as_html(response).text  # convert to html if not a string
+            if not isinstance(response, str)
+            else response
+        )
         self._chat_history = messages + [
-            ChatClientMessage(role="assistant", content=html.text)
+            ChatMessage(role="assistant", content=content)
         ]
 
         self._value = self._chat_history
         if self._on_change:
             self._on_change(self._value)
 
-        return html.text
+        return content
 
-    def _convert_value(self, value: Dict[str, Any]) -> List[ChatClientMessage]:
+    def _convert_value(self, value: Dict[str, Any]) -> List[ChatMessage]:
         if not isinstance(value, dict) or "messages" not in value:
             raise ValueError("Invalid chat history format")
 
         messages = value["messages"]
-        return [ChatClientMessage.from_dict(msg) for msg in messages]
+        return [from_chat_message_dict(msg) for msg in messages]

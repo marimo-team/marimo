@@ -3,11 +3,7 @@ import { Spinner } from "@/components/icons/spinner";
 import { Logger } from "@/utils/Logger";
 import { type Message, useChat } from "ai/react";
 import React from "react";
-import type {
-  ChatClientMessage,
-  ChatConfig,
-  SendMessageRequest,
-} from "./types";
+import type { ChatMessage, ChatConfig, SendMessageRequest } from "./types";
 import { ErrorBanner } from "../common/error-banner";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,6 +40,8 @@ interface Props extends ChatConfig {
   prompts: string[];
   showConfigurationControls: boolean;
   sendPrompt(req: SendMessageRequest): Promise<string>;
+  value: ChatMessage[];
+  setValue: (messages: ChatMessage[]) => void;
 }
 
 export const Chatbot: React.FC<Props> = (props) => {
@@ -73,7 +71,7 @@ export const Chatbot: React.FC<Props> = (props) => {
     streamProtocol: "text",
     fetch: async (_url, request) => {
       const body = JSON.parse(request?.body as string) as {
-        messages: ChatClientMessage[];
+        messages: ChatMessage[];
       };
       try {
         const response = await props.sendPrompt({
@@ -122,6 +120,11 @@ export const Chatbot: React.FC<Props> = (props) => {
 
   return (
     <div className="flex flex-col h-full bg-[var(--slate-1)] rounded-lg shadow border border-[var(--slate-6)]">
+      <div className="flex justify-end p-1">
+        <Button variant="text" size="icon" onClick={() => setMessages([])}>
+          <Trash2Icon className="h-3 w-3" />
+        </Button>
+      </div>
       <div className="flex-grow overflow-y-auto gap-4 py-4 px-2 flex flex-col">
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-center p-4">
@@ -189,14 +192,9 @@ export const Chatbot: React.FC<Props> = (props) => {
       )}
 
       {error && (
-        <div className="mb-4">
+        <div className="flex items-center justify-center space-x-2 mb-4">
           <ErrorBanner error={error} />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => reload()}
-            className="mt-2"
-          >
+          <Button variant="outline" size="sm" onClick={() => reload()}>
             Retry
           </Button>
         </div>

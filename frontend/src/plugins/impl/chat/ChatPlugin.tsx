@@ -4,16 +4,16 @@ import { createPlugin } from "@/plugins/core/builder";
 import { rpc } from "@/plugins/core/rpc";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Chatbot } from "./chat-ui";
-import type { ChatClientMessage, SendMessageRequest } from "./types";
+import type { ChatMessage, SendMessageRequest } from "./types";
 import { Arrays } from "@/utils/arrays";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type PluginFunctions = {
-  get_chat_history: () => Promise<{ messages: ChatClientMessage[] }>;
+  get_chat_history: () => Promise<{ messages: ChatMessage[] }>;
   send_prompt: (req: SendMessageRequest) => Promise<string>;
 };
 
-export const ChatPlugin = createPlugin<ChatClientMessage[]>("marimo-chatbot")
+export const ChatPlugin = createPlugin<ChatMessage[]>("marimo-chatbot")
   .withData(
     z.object({
       systemMessage: z.string(),
@@ -58,17 +58,7 @@ export const ChatPlugin = createPlugin<ChatClientMessage[]>("marimo-chatbot")
           }),
         }),
       )
-      .output(
-        z.string(),
-        // z.object({
-        //   messages: z.array(
-        //     z.object({
-        //       role: z.enum(["system", "user", "assistant"]),
-        //       content: z.string(),
-        //     }),
-        //   ),
-        // }),
-      ),
+      .output(z.string()),
   })
   .renderer((props) => (
     <TooltipProvider>
@@ -81,10 +71,9 @@ export const ChatPlugin = createPlugin<ChatClientMessage[]>("marimo-chatbot")
         topK={props.data.topK}
         frequencyPenalty={props.data.frequencyPenalty}
         presencePenalty={props.data.presencePenalty}
-        // getChatHistory={props.functions.get_chat_history}
         sendPrompt={props.functions.send_prompt}
-        // value={props.value}
-        // setValue={props.setValue}
+        value={props.value || Arrays.EMPTY}
+        setValue={props.setValue}
       />
     </TooltipProvider>
   ));

@@ -2,11 +2,27 @@ from __future__ import annotations
 
 import abc
 from dataclasses import dataclass
-from typing import Dict, List, Literal, Optional, Union
+from typing import List, Literal, Optional, TypedDict
+
+
+class ChatAttachmentDict(TypedDict):
+    name: str
+    content_type: str
+    url: str
+
+
+class ChatMessageDict(TypedDict):
+    role: Literal["user", "assistant", "system"]
+    content: str
+    attachments: Optional[List[ChatAttachmentDict]]
 
 
 @dataclass
-class ClientAttachment:
+class ChatAttachment:
+    """
+    @public
+    """
+
     # The name of the attachment, usually the file name.
     name: str
 
@@ -20,51 +36,28 @@ class ClientAttachment:
 
 
 @dataclass
-class ChatClientMessage:
+class ChatMessage:
+    """
+    @public
+    """
+
     role: Literal["user", "assistant", "system"]
     content: str
-    attachments: Optional[List[ClientAttachment]] = None
-
-    @staticmethod
-    def from_dict(
-        d: Dict[str, Union[str, list[Dict[str, str]]]],
-    ) -> ChatClientMessage:
-        if isinstance(d, ChatClientMessage):
-            return d
-
-        if "attachments" in d:
-            attachments = [
-                ClientAttachment(
-                    name=attachment["name"],
-                    content_type=attachment["content_type"],
-                    url=attachment["url"],
-                )
-                for attachment in d["attachments"]
-            ]
-        else:
-            attachments = None
-
-        return ChatClientMessage(
-            role=d["role"],
-            content=d["content"],
-            attachments=attachments,
-        )
+    attachments: Optional[List[ChatAttachment]] = None
 
 
 @dataclass
 class ChatModelConfig:
+    """
+    @public
+    """
+
     max_tokens: Optional[int] = None
     temperature: Optional[float] = None
     top_p: Optional[float] = None
     top_k: Optional[int] = None
     frequency_penalty: Optional[float] = None
     presence_penalty: Optional[float] = None
-
-
-@dataclass
-class SendMessageRequest:
-    messages: List[ChatClientMessage]
-    config: ChatModelConfig
 
 
 # class ModelRegistry(abc.ABC):
@@ -78,8 +71,37 @@ class SendMessageRequest:
 
 
 class ChatModel(abc.ABC):
+    """
+    @public
+    """
+
     @abc.abstractmethod
     def generate_text(
-        self, message: List[ChatClientMessage], config: ChatModelConfig
+        self, message: List[ChatMessage], config: ChatModelConfig
     ) -> object:
         pass
+
+
+def from_chat_message_dict(d: ChatMessageDict) -> ChatMessage:
+    if isinstance(d, ChatMessage):
+        return d
+
+    attachments_dict = d.get("attachments", None)
+    attachments: Optional[List[ChatAttachment]] = None
+    if attachments_dict is not None:
+        attachments = [
+            ChatAttachment(
+                name=attachment["name"],
+                content_type=attachment["content_type"],
+                url=attachment["url"],
+            )
+            for attachment in attachments_dict
+        ]
+    else:
+        attachments = None
+
+    return ChatMessage(
+        role=d["role"],
+        content=d["content"],
+        attachments=attachments,
+    )
