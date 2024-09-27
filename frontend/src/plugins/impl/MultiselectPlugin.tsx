@@ -7,6 +7,7 @@ import { Combobox, ComboboxItem } from "../../components/ui/combobox";
 import { Labeled } from "./common/labeled";
 import { cn } from "@/utils/cn";
 import { Virtuoso } from "react-virtuoso";
+import { CommandSeparator } from "../../components/ui/command";
 
 interface Data {
   label: string | null;
@@ -52,60 +53,139 @@ interface MultiselectProps extends Data {
   setValue: Setter<T>;
 }
 
-const Multiselect = (props: MultiselectProps): JSX.Element => {
+const SELECT_ALL_KEY = "__select_all__";
+const DESELECT_ALL_KEY = "__deselect_all__";
+
+const Multiselect = ({
+  options,
+  label,
+  value,
+  setValue,
+  fullWidth,
+  maxSelections,
+}: MultiselectProps): JSX.Element => {
   const id = useId();
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   const filteredOptions = useMemo(() => {
     if (!searchQuery) {
-      return props.options;
+      return options;
     }
-    return props.options.filter(
+    return options.filter(
       (option) => multiselectFilterFn(option, searchQuery) === 1,
     );
-  }, [props.options, searchQuery]);
+  }, [options, searchQuery]);
 
-  function setValue(newValues: T) {
-    if (props.maxSelections != null && newValues.length > props.maxSelections) {
+  const handleValueChange = (newValues: string[] | null) => {
+    if (!newValues) {
+      setValue([]);
       return;
     }
-    props.setValue(newValues);
-  }
+    if (maxSelections != null && newValues.length > maxSelections) {
+      return;
+    }
+    // Remove select all and deselect all from the new values
+    newValues = newValues.filter(
+      (value) => value !== SELECT_ALL_KEY && value !== DESELECT_ALL_KEY,
+    );
+    setValue(newValues);
+  };
+
+  const handleSelectAll = () => {
+    setValue(options);
+  };
+
+  const handleDeselectAll = () => {
+    setValue([]);
+  };
+
+  const shouldShowSelectAll =
+    options.length > 0 && value.length < options.length;
+  const shouldShowDeselectAll = options.length > 0 && value.length > 0;
+
+  // Only show when more than 2 options
+  const extraOptions = options.length > 2 && (
+    <>
+      <ComboboxItem
+        key={SELECT_ALL_KEY}
+        value={SELECT_ALL_KEY}
+        onSelect={handleSelectAll}
+        disabled={!shouldShowSelectAll}
+      >
+        Select all
+      </ComboboxItem>
+      <ComboboxItem
+        key={DESELECT_ALL_KEY}
+        value={DESELECT_ALL_KEY}
+        onSelect={handleDeselectAll}
+        disabled={!shouldShowDeselectAll}
+      >
+        Deselect all
+      </ComboboxItem>
+      <CommandSeparator />
+    </>
+  );
+
+  const renderList = () => {
+    // List virtualization
+    if (filteredOptions.length > 200) {
+      return (
+        <Virtuoso
+          style={{ height: "200px" }}
+          totalCount={filteredOptions.length}
+          overscan={50}
+          itemContent={(i: number) => {
+            const comboboxItem = (
+              <ComboboxItem key={filteredOptions[i]} value={filteredOptions[i]}>
+                {filteredOptions[i]}
+              </ComboboxItem>
+            );
+
+            if (i === 0) {
+              return (
+                <>
+                  {extraOptions}
+                  {comboboxItem}
+                </>
+              );
+            }
+
+            return comboboxItem;
+          }}
+        />
+      );
+    }
+
+    const list = filteredOptions.map((option) => (
+      <ComboboxItem key={option} value={option}>
+        {option}
+      </ComboboxItem>
+    ));
+
+    return (
+      <>
+        {extraOptions}
+        {list}
+      </>
+    );
+  };
 
   return (
-    <Labeled label={props.label} id={id} fullWidth={props.fullWidth}>
+    <Labeled label={label} id={id} fullWidth={fullWidth}>
       <Combobox<string>
         displayValue={(option) => option}
         placeholder="Select..."
         multiple={true}
         className={cn({
-          "w-full": props.fullWidth,
+          "w-full": fullWidth,
         })}
-        value={props.value}
-        onValueChange={(newValues) => setValue(newValues || [])}
+        value={value}
+        onValueChange={handleValueChange}
         shouldFilter={false}
         search={searchQuery}
         onSearchChange={setSearchQuery}
       >
-        {filteredOptions.length > 200 ? (
-          // List virtualization
-          <Virtuoso
-            style={{ height: "200px" }}
-            totalCount={filteredOptions.length}
-            overscan={50}
-            itemContent={(i: number) => (
-              <ComboboxItem key={filteredOptions[i]} value={filteredOptions[i]}>
-                {filteredOptions[i]}
-              </ComboboxItem>
-            )}
-          />
-        ) : (
-          filteredOptions.map((option) => (
-            <ComboboxItem key={option} value={option}>
-              {option}
-            </ComboboxItem>
-          ))
-        )}
+        {renderList()}
       </Combobox>
     </Labeled>
   );
