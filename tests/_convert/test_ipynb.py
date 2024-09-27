@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import ast
 import sys
+from textwrap import dedent
 
 import pytest
 
 from marimo._convert.ipynb import (
+    _transform_sources,
     transform_add_marimo_import,
     transform_cell_metadata,
     transform_duplicate_definitions,
@@ -15,15 +18,33 @@ from marimo._convert.ipynb import (
 )
 
 
+def dd(sources: list[str]) -> list[str]:
+    return [dedent(s) for s in sources]
+
+
+def assert_sources_equal(transformed: list[str], expected: list[str]) -> None:
+    expected = dd(expected)
+    assert len(transformed) == len(expected)
+    transformed = [ast.unparse(ast.parse(t)) for t in transformed]
+    expected = [ast.unparse(ast.parse(e)) for e in expected]
+    assert transformed == expected
+
+
 @pytest.mark.skipif(
     sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_fixup_multiple_definitions():
     # Makes everything private to avoid conflicts.
     # Comments are removed, unfortunately.
-    sources = ["x = 1\nprint(x) # print", "x = 2\nprint(x) # print"]
+    sources = [
+        "x = 1\nprint(x) # print",
+        "x = 2\nprint(x) # print",
+    ]
     result = transform_fixup_multiple_definitions(sources)
-    assert result == ["_x = 1\nprint(_x)", "_x = 2\nprint(_x)"]
+    assert result == [
+        "_x = 1\nprint(_x)",
+        "_x = 2\nprint(_x)",
+    ]
 
 
 @pytest.mark.skipif(
@@ -32,7 +53,12 @@ def test_transform_fixup_multiple_definitions():
 def test_transform_fixup_multiple_definitions_when_not_encapsulated():
     # Since the definitions are not encapsulated in a single cell, they should
     # not be transformed.
-    sources = ["x = 1", "print(x) # print", "x = 2", "print(x) # print"]
+    sources = [
+        "x = 1",
+        "print(x) # print",
+        "x = 2",
+        "print(x) # print",
+    ]
     result = transform_fixup_multiple_definitions(sources)
     assert result == sources
 
@@ -73,7 +99,10 @@ def test_transform_magic_commands():
     sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_exclamation_mark():
-    sources = ["!pip install package", "!ls -l"]
+    sources = [
+        "!pip install package",
+        "!ls -l",
+    ]
     result = transform_exclamation_mark(sources)
     assert result == [
         "# (already supported in marimo) !pip install package",
@@ -85,7 +114,14 @@ def test_transform_exclamation_mark():
     sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_duplicate_definitions():
-    sources = ["a = 1", "print(a)", "a = 2", "print(a)", "print(a)", "a = 3"]
+    sources = [
+        "a = 1",
+        "print(a)",
+        "a = 2",
+        "print(a)",
+        "print(a)",
+        "a = 3",
+    ]
     result = transform_duplicate_definitions(sources)
     assert result == [
         "a = 1",
@@ -101,8 +137,14 @@ def test_transform_duplicate_definitions():
     sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_cell_metadata():
-    sources = ["print('Hello')", "print('World')"]
-    metadata = [{"tags": ["tag1", "tag2"]}, {}]
+    sources = [
+        "print('Hello')",
+        "print('World')",
+    ]
+    metadata = [
+        {"tags": ["tag1", "tag2"]},
+        {},
+    ]
     result = transform_cell_metadata(sources, metadata)
     assert result == [
         "# Cell tags: tag1, tag2\nprint('Hello')",
@@ -136,7 +178,10 @@ def test_transform_remove_duplicate_imports_single_line():
         "import polars as pl",
     ]
     result = transform_remove_duplicate_imports(sources)
-    assert result == ["import polars as pl", ""]
+    assert result == [
+        "import polars as pl",
+        "",
+    ]
 
 
 @pytest.mark.skipif(
@@ -261,7 +306,11 @@ def test_transform_duplicate_definitions_complex():
     sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_cell_metadata_complex():
-    sources = ["print('Cell 1')", "print('Cell 2')", "print('Cell 3')"]
+    sources = [
+        "print('Cell 1')",
+        "print('Cell 2')",
+        "print('Cell 3')",
+    ]
     metadata = [
         {"tags": ["important", "data-processing"]},
         {"tags": []},
@@ -313,7 +362,10 @@ def test_transform_fixup_multiple_definitions_with_classes():
     sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_magic_commands_unsupported():
-    sources = ["%custom_magic arg1 arg2", "%%custom_cell_magic\nsome\ncontent"]
+    sources = [
+        "%custom_magic arg1 arg2",
+        "%%custom_cell_magic\nsome\ncontent",
+    ]
     result = transform_magic_commands(sources)
     assert result == [
         "# magic command not supported in marimo; please file an issue to add support\n# %custom_magic # arg1 arg2",  # noqa: E501
@@ -376,7 +428,9 @@ def test_transform_duplicate_definitions_with_reference_to_previous():
     sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_cell_metadata_with_complex_metadata():
-    sources = ["print('Complex metadata')"]
+    sources = [
+        "print('Complex metadata')",
+    ]
     metadata = [
         {
             "tags": ["tag1", "tag2"],
@@ -386,7 +440,9 @@ def test_transform_cell_metadata_with_complex_metadata():
         }
     ]
     result = transform_cell_metadata(sources, metadata)
-    assert result == ["# Cell tags: tag1, tag2\nprint('Complex metadata')"]
+    assert result == [
+        "# Cell tags: tag1, tag2\nprint('Complex metadata')",
+    ]
 
 
 @pytest.mark.skipif(
@@ -466,7 +522,7 @@ def test_transform_duplicate_definitions_with_multiple_variables():
     ]
 
 
-@pytest.mark.skip(reason="tricky case not yet supported")
+@pytest.mark.xfail(reason="tricky case not yet supported")
 @pytest.mark.skipif(
     sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
@@ -488,7 +544,7 @@ def test_transform_duplicate_definitions_with_function_and_global():
     ]
 
 
-@pytest.mark.skip(reason="tricky case not yet supported")
+@pytest.mark.xfail(reason="tricky case not yet supported")
 @pytest.mark.skipif(
     sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
@@ -506,3 +562,132 @@ def test_transform_duplicate_definitions_with_comprehensions_and_lambdas():
         "x_2 = x_1\nx_2 = {x: x**3 for x in x_2}\nprint(x_2)",
         "x_3 = lambda x: x**4\nprint([x_3(i) for i in range(5)])",
     ]
+
+
+@pytest.mark.xfail(reason="tricky case not yet supported")
+@pytest.mark.skipif(
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
+)
+def test_transform_duplicate_definitions_with_simple_lambda():
+    sources = [
+        "x = 0",
+        "x = lambda x: x**2",
+    ]
+    result = transform_duplicate_definitions(sources)
+    assert result == [
+        "x = 0",
+        "x_1 = x\nx_1 = lambda x: x**2",
+    ]
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
+)
+def test_transform_simple_redefinition() -> None:
+    sources = [
+        "x = 0",
+        "x",
+        "x = 1",
+        "x",
+    ]
+    result = _transform_sources(sources, [{} for _ in sources])
+    assert result == [
+        "x = 0",
+        "x",
+        "x_1 = 1",
+        "x_1",
+    ]
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
+)
+def test_transform_duplicate_definitions_with_simple_function():
+    sources = [
+        "x = 0",
+        "x = 1",
+        "def f(x): return x",
+    ]
+    result = _transform_sources(sources, [{} for _ in sources])
+    assert result == [
+        "_x = 0",
+        "_x = 1",
+        "def f(x): return x",
+    ]
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
+)
+def test_transform_duplicate_definitions_attrs():
+    sources = [
+        "x = 0",
+        "x",
+        "x = x.apply()",
+    ]
+    result = transform_duplicate_definitions(sources)
+    assert result == [
+        "x = 0",
+        "x",
+        "x_1 = x\nx_1 = x_1.apply()",
+    ]
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
+)
+def test_transform_duplicate_definition_shadowed_definition():
+    sources = dd(
+        [
+            "x = 0",
+            "x",
+            """
+            x = 1
+            def f():
+                x = 1;
+            """,
+        ]
+    )
+    result = transform_duplicate_definitions(sources)
+    assert_sources_equal(
+        result,
+        [
+            "x = 0",
+            "x",
+            """
+            x_1 = 1
+            def f():
+                x = 1;
+            """,
+        ],
+    )
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
+)
+def test_transform_duplicate_definition_kwarg():
+    sources = dd(
+        [
+            "x = 0",
+            "x",
+            """
+            x = 1
+            def f(x=x):
+                return x
+            """,
+        ]
+    )
+    result = transform_duplicate_definitions(sources)
+    assert_sources_equal(
+        result,
+        [
+            "x = 0",
+            "x",
+            """
+            x_1 = 1
+            def f(x=x_1):
+                return x
+            """,
+        ],
+    )

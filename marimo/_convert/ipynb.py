@@ -290,7 +290,9 @@ def transform_exclamation_mark(sources: List[str]) -> List[str]:
 
 def transform_duplicate_definitions(sources: List[str]) -> List[str]:
     """
-    Rename cells with duplicate definitions of the same name.
+    Rename variables with duplicate definitions across multiple cells,
+    even when the variables are declared in one cell and used in another.
+
     We assume the notebook was meant to be run top-to-bottom,
     so references to the name will be renamed to the last definition.
 
@@ -563,6 +565,26 @@ def transform_strip_whitespace(sources: List[str]) -> List[str]:
     return [source.strip() for source in sources]
 
 
+def _transform_sources(
+    sources: list[str], metadata: list[dict[str, Any]]
+) -> list[str]:
+    transforms: List[Transform] = [
+        transform_strip_whitespace,
+        transform_magic_commands,
+        transform_remove_duplicate_imports,
+        transform_fixup_multiple_definitions,
+        transform_duplicate_definitions,
+        lambda s: transform_cell_metadata(s, metadata),
+        transform_add_marimo_import,  # may change cell count
+        transform_remove_empty_cells,  # may change cell count
+    ]
+
+    # Run all the transforms
+    for transform in transforms:
+        sources = transform(sources)
+    return sources
+
+
 def convert_from_ipynb(raw_notebook: str) -> str:
     notebook = json.loads(raw_notebook)
     sources: List[str] = []
@@ -579,19 +601,4 @@ def convert_from_ipynb(raw_notebook: str) -> str:
         sources.append(source)
         metadata.append(cell.get("metadata", {}))
 
-    transforms: List[Transform] = [
-        transform_strip_whitespace,
-        transform_magic_commands,
-        transform_remove_duplicate_imports,
-        transform_fixup_multiple_definitions,
-        transform_duplicate_definitions,
-        lambda s: transform_cell_metadata(s, metadata),
-        transform_add_marimo_import,  # may change cell count
-        transform_remove_empty_cells,  # may change cell count
-    ]
-
-    # Run all the transforms
-    for transform in transforms:
-        sources = transform(sources)
-
-    return generate_from_sources(sources)
+    return generate_from_sources(_transform_sources(sources, metadata))
