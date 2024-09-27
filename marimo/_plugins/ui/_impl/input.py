@@ -102,6 +102,13 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
         validate_between_range(value, min_value=start, max_value=stop)
         warn_js_safe_number(start, stop, value)
 
+        # Set value to min or max if None
+        if value is None:
+            if start is not None:
+                value = start
+            elif stop is not None:
+                value = stop
+
         # Lower bound
         self.start = start
         # Upper bound
