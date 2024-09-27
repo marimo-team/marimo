@@ -10,6 +10,7 @@ from marimo._runtime.packages.package_manager import (
     CanonicalizingPackageManager,
     PackageDescription,
 )
+from marimo._runtime.packages.utils import split_packages
 
 
 class CondaPackageManager(CanonicalizingPackageManager):
@@ -24,10 +25,10 @@ class PixiPackageManager(CondaPackageManager):
     name = "pixi"
 
     async def _install(self, package: str) -> bool:
-        return self.run(["pixi", "add", package])
+        return self.run(["pixi", "add", *split_packages(package)])
 
     async def uninstall(self, package: str) -> bool:
-        return self.run(["pixi", "remove", package])
+        return self.run(["pixi", "remove", *split_packages(package)])
 
     def list_packages(self) -> List[PackageDescription]:
         import json

@@ -106,7 +106,7 @@ const InstallPackageForm: React.FC<{
         rootClassName="flex-1 border-none"
         value={input}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+          if (e.key === "Enter") {
             e.preventDefault();
             handleAddPackage();
           }

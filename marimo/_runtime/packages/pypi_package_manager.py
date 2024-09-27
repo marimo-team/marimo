@@ -12,6 +12,7 @@ from marimo._runtime.packages.package_manager import (
     CanonicalizingPackageManager,
     PackageDescription,
 )
+from marimo._runtime.packages.utils import split_packages
 from marimo._utils.platform import is_pyodide
 
 
@@ -42,10 +43,10 @@ class PipPackageManager(PypiPackageManager):
     docs_url = "https://pip.pypa.io/"
 
     async def _install(self, package: str) -> bool:
-        return self.run(["pip", "install", package])
+        return self.run(["pip", "install", *split_packages(package)])
 
     async def uninstall(self, package: str) -> bool:
-        return self.run(["pip", "uninstall", "-y", package])
+        return self.run(["pip", "uninstall", "-y", *split_packages(package)])
 
     def list_packages(self) -> List[PackageDescription]:
         cmd = ["pip", "list", "--format=json"]
@@ -67,7 +68,7 @@ class MicropipPackageManager(PypiPackageManager):
         import micropip  # type: ignore
 
         try:
-            await micropip.install(package)
+            await micropip.install(split_packages(package))
             return True
         except ValueError:
             return False
@@ -102,7 +103,7 @@ class UvPackageManager(PypiPackageManager):
     docs_url = "https://docs.astral.sh/uv/"
 
     async def _install(self, package: str) -> bool:
-        return self.run(["uv", "pip", "install", package])
+        return self.run(["uv", "pip", "install", *split_packages(package)])
 
     def update_notebook_script_metadata(
         self,
@@ -158,7 +159,7 @@ class UvPackageManager(PypiPackageManager):
         return {pkg.name: pkg.version for pkg in packages}
 
     async def uninstall(self, package: str) -> bool:
-        return self.run(["uv", "pip", "uninstall", package])
+        return self.run(["uv", "pip", "uninstall", *split_packages(package)])
 
     def list_packages(self) -> List[PackageDescription]:
         cmd = ["uv", "pip", "list", "--format=json"]
@@ -170,10 +171,10 @@ class RyePackageManager(PypiPackageManager):
     docs_url = "https://rye.astral.sh/"
 
     async def _install(self, package: str) -> bool:
-        return self.run(["rye", "add", package])
+        return self.run(["rye", "add", *split_packages(package)])
 
     async def uninstall(self, package: str) -> bool:
-        return self.run(["rye", "remove", package])
+        return self.run(["rye", "remove", *split_packages(package)])
 
     def list_packages(self) -> List[PackageDescription]:
         cmd = ["rye", "list", "--format=json"]
@@ -185,10 +186,14 @@ class PoetryPackageManager(PypiPackageManager):
     docs_url = "https://python-poetry.org/docs/"
 
     async def _install(self, package: str) -> bool:
-        return self.run(["poetry", "add", "--no-interaction", package])
+        return self.run(
+            ["poetry", "add", "--no-interaction", *split_packages(package)]
+        )
 
     async def uninstall(self, package: str) -> bool:
-        return self.run(["poetry", "remove", "--no-interaction", package])
+        return self.run(
+            ["poetry", "remove", "--no-interaction", *split_packages(package)]
+        )
 
     def list_packages(self) -> List[PackageDescription]:
         cmd = ["poetry", "show", "--no-dev", "--format=json"]
