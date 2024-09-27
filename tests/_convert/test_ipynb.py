@@ -25,8 +25,14 @@ def dd(sources: list[str]) -> list[str]:
 def assert_sources_equal(transformed: list[str], expected: list[str]) -> None:
     expected = dd(expected)
     assert len(transformed) == len(expected)
-    transformed = [ast.unparse(ast.parse(t)) for t in transformed]
-    expected = [ast.unparse(ast.parse(e)) for e in expected]
+    try:
+        transformed = [ast.unparse(ast.parse(t)) for t in transformed]
+    except SyntaxError:
+        transformed = [t for t in transformed]
+    try:
+        expected = [ast.unparse(ast.parse(e)) for e in expected]
+    except SyntaxError:
+        expected = [e for e in expected]
     assert transformed == expected
 
 
@@ -244,18 +250,21 @@ def test_transform_magic_commands_complex():
         "%env MY_VAR=value",
     ]
     result = transform_magic_commands(sources)
-    assert result == [
-        '_df = mo.sql("""\nSELECT *\nFROM table\nWHERE condition\n""")',
-        (
-            "# magic command not supported in marimo; please file an issue to add support\n"  # noqa: E501
-            "# %%time\nfor i in range(1000000):\n"
-            "    pass"
-        ),
-        (
-            "# '%load_ext autoreload\\n%autoreload 2' command supported automatically in marimo"  # noqa: E501
-        ),
-        "import os\nos.environ['MY_VAR'] = 'value'",
-    ]
+    assert (
+        result
+        == [
+            '_df = mo.sql("""\nSELECT *\nFROM table\nWHERE condition\n""")',
+            (
+                "# magic command not supported in marimo; please file an issue to add support\n"  # noqa: E501
+                "# %%time\nfor i in range(1000000):\n"
+                "    pass"
+            ),
+            (
+                "# '%load_ext autoreload\\n%autoreload 2' command supported automatically in marimo"  # noqa: E501
+            ),
+            "import os\nos.environ['MY_VAR'] = 'value'",
+        ]
+    )
 
 
 @pytest.mark.skipif(
@@ -742,6 +751,42 @@ def test_transform_duplicate_definition_kwarg():
 @pytest.mark.skipif(
     sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
+def test_transform_duplicate_definition_nested():
+    sources = dd(
+        [
+            "x = 0",
+            "x",
+            """
+            x = 1
+            def f(x=x):
+                x = 2
+                def g(x=x):
+                    return x
+                return g()
+            """,
+        ]
+    )
+    result = transform_duplicate_definitions(sources)
+    assert_sources_equal(
+        result,
+        [
+            "x = 0",
+            "x",
+            """
+            x_1 = 1
+            def f(x=x_1):
+                x = 2
+                def g(x=x):
+                    return x
+                return g()
+            """,
+        ],
+    )
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
+)
 def test_transform_duplicate_function_definitions():
     sources = dd(
         [
@@ -858,5 +903,49 @@ def test_transform_duplicate_definitions_and_aug_assign() -> None:
             "x",
             "x_1 = x + 1",
             "x_1",
+        ],
+    )
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
+)
+def test_transform_duplicate_definitions_read_before_write() -> None:
+    sources = dd(
+        [
+            "x = 1",
+            "x",
+            "x; x = 2; x",
+            "x",
+        ]
+    )
+    result = _transform_sources(sources, [{} for _ in sources])
+    assert_sources_equal(
+        result,
+        [
+            "x = 1",
+            "x",
+            "x; x_1 = 2; x_1",
+            "x_1",
+        ],
+    )
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
+)
+def test_transform_duplicate_definitions_syntax_error() -> None:
+    sources = dd(
+        [
+            "x ( b 2 d & !",
+            "x",
+        ]
+    )
+    result = _transform_sources(sources, [{} for _ in sources])
+    assert_sources_equal(
+        result,
+        [
+            "x ( b 2 d & !",
+            "x",
         ],
     )

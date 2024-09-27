@@ -331,12 +331,14 @@ class Renamer:
         if sys.version_info >= (3, 10):
             if isinstance(node, (ast.MatchAs, ast.MatchStar)):
                 name = node.name
-                new_name = self._maybe_rename(cell, name, is_reference)
-                node.name = new_name
+                if name is not None:
+                    new_name = self._maybe_rename(cell, name, is_reference)
+                    node.name = new_name
             elif isinstance(node, ast.MatchMapping):
                 name = node.rest
-                new_name = self._maybe_rename(cell, name, is_reference)
-                node.rest = new_name
+                if name is not None:
+                    new_name = self._maybe_rename(cell, name, is_reference)
+                    node.rest = new_name
         if sys.version_info >= (3, 12):
             if isinstance(
                 node, (ast.TypeVar, ast.ParamSpec, ast.TypeVarTuple)
@@ -497,7 +499,11 @@ def transform_duplicate_definitions(sources: List[str]) -> List[str]:
             continue
 
         def on_def(
-            node: NamedNode, name: str, block_stack: list[Block]
+            node: NamedNode,
+            name: str,
+            block_stack: list[Block],
+            cell_idx: int = cell_idx,
+            renamer: Renamer = renamer,
         ) -> None:
             block_idx = 0 if name in block_stack[-1].global_names else -1
             if block_idx == 0:
@@ -506,10 +512,14 @@ def transform_duplicate_definitions(sources: List[str]) -> List[str]:
             elif block_stack[0].is_defined(name) and not any(
                 block.is_defined(name) for block in block_stack[1:]
             ):
-                # all loads of top-level definitions are defined
+                # all ast.LOADs of top-level definitions are defined
                 renamer.rename_named_node(cell_idx, node, is_reference=False)
 
-        def on_ref(node: NamedNode) -> None:
+        def on_ref(
+            node: NamedNode,
+            cell_idx: int = cell_idx,
+            renamer: Renamer = renamer,
+        ) -> None:
             renamer.rename_named_node(cell_idx, node, is_reference=True)
 
         visitor = ScopedVisitor(
