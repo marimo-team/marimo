@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sys
+
 import pytest
 
 from marimo._convert.ipynb import (
@@ -13,6 +15,9 @@ from marimo._convert.ipynb import (
 )
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_fixup_multiple_definitions():
     # Makes everything private to avoid conflicts.
     # Comments are removed, unfortunately.
@@ -21,6 +26,9 @@ def test_transform_fixup_multiple_definitions():
     assert result == ["_x = 1\nprint(_x)", "_x = 2\nprint(_x)"]
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_fixup_multiple_definitions_when_not_encapsulated():
     # Since the definitions are not encapsulated in a single cell, they should
     # not be transformed.
@@ -29,6 +37,9 @@ def test_transform_fixup_multiple_definitions_when_not_encapsulated():
     assert result == sources
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_add_marimo_import():
     sources = [
         "mo.md('# Hello')",
@@ -39,6 +50,9 @@ def test_transform_add_marimo_import():
     assert "import marimo as mo" in result
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_magic_commands():
     sources = [
         "%%sql\nSELECT * FROM table",
@@ -55,6 +69,9 @@ def test_transform_magic_commands():
     ]
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_exclamation_mark():
     sources = ["!pip install package", "!ls -l"]
     result = transform_exclamation_mark(sources)
@@ -64,6 +81,9 @@ def test_transform_exclamation_mark():
     ]
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_duplicate_definitions():
     sources = ["a = 1", "print(a)", "a = 2", "print(a)", "print(a)", "a = 3"]
     result = transform_duplicate_definitions(sources)
@@ -77,6 +97,9 @@ def test_transform_duplicate_definitions():
     ]
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_cell_metadata():
     sources = ["print('Hello')", "print('World')"]
     metadata = [{"tags": ["tag1", "tag2"]}, {}]
@@ -87,6 +110,9 @@ def test_transform_cell_metadata():
     ]
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_remove_duplicate_imports():
     sources = [
         "import numpy as np\nimport pandas as pd\nimport numpy as np",
@@ -101,6 +127,9 @@ def test_transform_remove_duplicate_imports():
     ]
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_remove_duplicate_imports_single_line():
     sources = [
         "import polars as pl",
@@ -110,6 +139,9 @@ def test_transform_remove_duplicate_imports_single_line():
     assert result == ["import polars as pl", ""]
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_fixup_multiple_definitions_complex():
     sources = [
         "x = 1\ny = 2\nprint(x, y)",
@@ -124,6 +156,9 @@ def test_transform_fixup_multiple_definitions_complex():
     ]
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_fixup_multiple_definitions_with_functions():
     sources = [
         "def func():\n    x = 1\n    return x\nfunc()",
@@ -140,6 +175,9 @@ def test_transform_fixup_multiple_definitions_with_functions():
     ]
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_add_marimo_import_edge_cases():
     sources = [
         "# mo.md('# Hello')",
@@ -150,6 +188,9 @@ def test_transform_add_marimo_import_edge_cases():
     assert "import marimo as mo" not in result
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_magic_commands_complex():
     sources = [
         "%%sql\nSELECT *\nFROM table\nWHERE condition",
@@ -175,6 +216,9 @@ def test_transform_magic_commands_complex():
     )
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_exclamation_mark_complex():
     sources = [
         "!pip install package1 package2",
@@ -192,6 +236,9 @@ def test_transform_exclamation_mark_complex():
     ]
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_duplicate_definitions_complex():
     sources = [
         "x = 1 # comment unaffected",
@@ -210,6 +257,9 @@ def test_transform_duplicate_definitions_complex():
     ]
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_cell_metadata_complex():
     sources = ["print('Cell 1')", "print('Cell 2')", "print('Cell 3')"]
     metadata = [
@@ -225,6 +275,9 @@ def test_transform_cell_metadata_complex():
     ]
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_remove_duplicate_imports_complex():
     sources = [
         "import numpy as np\nfrom pandas import DataFrame\nimport matplotlib.pyplot as plt",  # noqa: E501
@@ -239,6 +292,9 @@ def test_transform_remove_duplicate_imports_complex():
     ]
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_fixup_multiple_definitions_with_classes():
     sources = [
         "class MyClass:\n    x = 1\n    def method(self):\n        return self.x",  # noqa: E501
@@ -253,6 +309,9 @@ def test_transform_fixup_multiple_definitions_with_classes():
     ]
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_magic_commands_unsupported():
     sources = ["%custom_magic arg1 arg2", "%%custom_cell_magic\nsome\ncontent"]
     result = transform_magic_commands(sources)
@@ -262,6 +321,9 @@ def test_transform_magic_commands_unsupported():
     ]
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_exclamation_mark_with_variables():
     sources = [
         "package = 'numpy'\n!pip install {package}",
@@ -274,6 +336,9 @@ def test_transform_exclamation_mark_with_variables():
     ]
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_duplicate_definitions_with_comprehensions():
     sources = [
         "[x for x in range(10)]",
@@ -290,6 +355,9 @@ def test_transform_duplicate_definitions_with_comprehensions():
     ]
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_duplicate_definitions_with_reference_to_previous():
     sources = [
         "x = 1",
@@ -304,6 +372,9 @@ def test_transform_duplicate_definitions_with_reference_to_previous():
     ]
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_cell_metadata_with_complex_metadata():
     sources = ["print('Complex metadata')"]
     metadata = [
@@ -318,6 +389,9 @@ def test_transform_cell_metadata_with_complex_metadata():
     assert result == ["# Cell tags: tag1, tag2\nprint('Complex metadata')"]
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_remove_duplicate_imports_with_aliases():
     sources = [
         "import numpy as np\nimport pandas as pd",
@@ -332,6 +406,9 @@ def test_transform_remove_duplicate_imports_with_aliases():
     ]
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_remove_duplicate_imports_single():
     sources = [
         "import polars as pl",
@@ -346,6 +423,9 @@ def test_transform_remove_duplicate_imports_single():
     ]
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_duplicate_definitions_with_re_def():
     sources = [
         "x = 1",
@@ -367,6 +447,9 @@ def test_transform_duplicate_definitions_with_re_def():
 
 
 @pytest.mark.skip(reason="tricky case not yet supported")
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_duplicate_definitions_with_multiple_variables():
     sources = [
         "x, y = 1, 2",
@@ -384,6 +467,9 @@ def test_transform_duplicate_definitions_with_multiple_variables():
 
 
 @pytest.mark.skip(reason="tricky case not yet supported")
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_duplicate_definitions_with_function_and_global():
     sources = [
         "x = 10",
@@ -403,6 +489,9 @@ def test_transform_duplicate_definitions_with_function_and_global():
 
 
 @pytest.mark.skip(reason="tricky case not yet supported")
+@pytest.mark.skipif(
+    sys.version_info >= (3, 9), reason="Requires Python 3.9 or higher"
+)
 def test_transform_duplicate_definitions_with_comprehensions_and_lambdas():
     sources = [
         "x = [i for i in range(5)]",

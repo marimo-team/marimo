@@ -331,6 +331,9 @@ def transform_duplicate_definitions(sources: List[str]) -> List[str]:
     print(a_2)
     ```
     """
+    if sys.version_info < (3, 9):
+        # ast.unparse not available in Python 3.8
+        return sources
 
     # Add parent references to AST nodes
     def add_parents(root: ast.AST) -> None:
