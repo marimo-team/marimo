@@ -9,6 +9,7 @@ from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._output.hypertext import Html
 from marimo._plugins.core.web_component import build_stateless_plugin
+from marimo._runtime import output
 
 
 class PlotlyFormatter(FormatterFactory):
@@ -21,6 +22,15 @@ class PlotlyFormatter(FormatterFactory):
         import plotly.io as pio  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
         from marimo._output import formatting
+
+        # Patch Figure.show to add to the output instead of opening a browser.
+        def patched_show(
+            self: plotly.graph_objects.Figure, *args: Any, **kwargs: Any
+        ) -> None:
+            del args, kwargs
+            output.append(self)
+
+        plotly.graph_objects.Figure.show = patched_show
 
         @formatting.formatter(plotly.graph_objects.Figure)
         def _show_plotly_figure(
