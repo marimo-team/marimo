@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Optional
+from typing import List, Optional
 
 from marimo._utils.platform import is_pyodide
 
@@ -37,3 +37,7 @@ def append_version(pkg_name: str, version: Optional[str]) -> str:
     if version == "latest":
         return pkg_name
     return f"{pkg_name}=={version}"
+
+
+def split_packages(package: str) -> List[str]:
+    return [pkg.strip() for pkg in package.split()]
