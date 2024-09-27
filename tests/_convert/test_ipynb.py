@@ -510,33 +510,74 @@ def test_transform_duplicate_definitions_with_multiple_variables():
         "x, y, z = y, z, x\nprint(x, y, z)",
     ]
     result = transform_duplicate_definitions(sources)
-    assert_sources_equal(result, dd([
-        "x, y = 1, 2",
-        "x_1 = x + y\ny_1 = y + x_1\nprint(x_1, y_1)",
-        "z = x_1 + y_1\nx_2 = z\nprint(x_2, y_1, z)",
-        "x_3, y_2, z_1 = (y_1, z, x_2)\nprint(x_3, y_2, z_1)",
-    ]))
+    assert_sources_equal(
+        result,
+        dd(
+            [
+                "x, y = 1, 2",
+                "x_1 = x + y\ny_1 = y + x_1\nprint(x_1, y_1)",
+                "z = x_1 + y_1\nx_2 = z\nprint(x_2, y_1, z)",
+                "x_3, y_2, z_1 = (y_1, z, x_2)\nprint(x_3, y_2, z_1)",
+            ]
+        ),
+    )
 
 
 @pytest.mark.skipif(
     sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_duplicate_definitions_with_function_and_global():
-    sources = [
-        "x = 10",
-        "def func():\n    global x\n    x += 1\n    return x",
-        "x = func()\nprint(x)",
-        "def another_func():\n    x = 20\n    return x",
-        "x = another_func()\nprint(x)",
-    ]
+    sources = dd(
+        [
+            "x = 10",
+            """
+        def func():
+            global x
+            x_1 = x + 1
+            return x
+        """,
+            """
+        x = func()
+        print(x)
+        """,
+            """
+        def another_func():
+           x = 20
+           return x
+        """,
+            """
+        x = another_func()
+        print(x)
+        """,
+        ]
+    )
+    expected = dd(
+        [
+            "x = 10",
+            """
+        def func():
+            global x
+            x_1 = x + 1
+            return x
+        """,
+            """
+        x_1 = func()
+        print(x_1)
+        """,
+            """
+        def another_func():
+           x = 20
+           return x
+        """,
+            """
+        x_2 = another_func()
+        print(x_2)
+        """,
+        ]
+    )
+
     result = transform_duplicate_definitions(sources)
-    assert result == [
-        "x = 10",
-        "def func():\n    global x\n    x += 1\n    return x",
-        "x_1 = func()\nprint(x_1)",
-        "def another_func():\n    x = 20\n    return x",
-        "x_2 = another_func()\nprint(x_2)",
-    ]
+    assert_sources_equal(result, expected)
 
 
 @pytest.mark.skipif(
@@ -788,5 +829,29 @@ def test_transform_duplicate_definitions_numbered():
             "df_1 = 1",
             "df_2 = 2",
             "df_2",
+        ],
+    )
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
+)
+def test_transform_duplicate_definitions_and_aug_assign() -> None:
+    sources = dd(
+        [
+            "x = 1",
+            "x",
+            "x += 1",
+            "x",
+        ]
+    )
+    result = _transform_sources(sources, [{} for _ in sources])
+    assert_sources_equal(
+        result,
+        [
+            "x = 1",
+            "x",
+            "x_1 = x + 1",
+            "x_1",
         ],
     )

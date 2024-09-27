@@ -349,6 +349,36 @@ class Renamer:
             self.made_changes = name != new_name
 
 
+def _transform_aug_assign(sources: List[str]) -> List[str]:
+    new_sources = sources.copy()
+    for i, source in enumerate(sources):
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:
+            continue
+
+        made_changes = False
+
+        class AugAssignTransformer(ast.NodeTransformer):
+            def visit_AugAssign(self, node: ast.AugAssign) -> ast.Assign:
+                nonlocal made_changes
+                made_changes = True
+                return ast.Assign(
+                    targets=[node.target],
+                    value=ast.BinOp(
+                        left=node.target, op=node.op, right=node.value
+                    ),
+                )
+
+        transformed = ast.fix_missing_locations(
+            AugAssignTransformer().visit(tree)
+        )
+        if made_changes:
+            new_sources[i] = ast.unparse(transformed)
+
+    return new_sources
+
+
 def transform_duplicate_definitions(sources: List[str]) -> List[str]:
     """
     Rename variables with duplicate definitions across multiple cells,
@@ -446,12 +476,17 @@ def transform_duplicate_definitions(sources: List[str]) -> List[str]:
     if not duplicates:
         return sources
 
+    sources = _transform_aug_assign(sources)
+
     new_sources: List[str] = sources.copy()
     name_mappings = create_name_mappings(duplicates)
 
     for cell_idx, source in enumerate(sources):
         renamer = Renamer(name_mappings)
-        tree = ast.parse(source)
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:
+            continue
 
         def on_def(
             node: NamedNode, name: str, block_stack: list[Block]
