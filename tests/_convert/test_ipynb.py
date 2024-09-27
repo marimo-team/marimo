@@ -813,11 +813,14 @@ def test_transform_duplicate_definitions_numbered_no_conflict():
     sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_transform_duplicate_definitions_numbered():
+    # handle the user defining variables like df_1
     sources = dd(
         [
             "df = 1",
             "df_1 = 1",
             "df = 2",
+            "df",
+            "df = 3",
             "df",
         ]
     )
@@ -829,6 +832,8 @@ def test_transform_duplicate_definitions_numbered():
             "df_1 = 1",
             "df_2 = 2",
             "df_2",
+            "df_3 = 3",
+            "df_3",
         ],
     )
 

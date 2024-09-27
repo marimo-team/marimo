@@ -460,14 +460,22 @@ def transform_duplicate_definitions(sources: List[str]) -> List[str]:
 
     # Create mappings for renaming duplicates
     def create_name_mappings(
-        duplicates: Dict[str, List[int]],
+        duplicates: Dict[str, List[int]], definitions: set[str]
     ) -> Dict[int, Dict[str, str]]:
+        new_definitions: set[str] = set()
         name_mappings: Dict[int, Dict[str, str]] = defaultdict(dict)
         for name, cells in duplicates.items():
             for i, cell in enumerate(cells[1:], start=1):
-                # TODO fixme
-                new_name = f"{name}_{i}"
+                counter = i
+                new_name = f"{name}_{counter}"
+                while new_name in definitions or new_name in new_definitions:
+                    # handles the user defining variables like df_1 in their
+                    # original notebook
+                    counter += 1
+                    new_name = f"{name}_{counter}"
+                counter += 1
                 name_mappings[cell][name] = new_name
+                new_definitions.add(new_name)
         return name_mappings
 
     definitions = get_definitions(sources)
@@ -479,7 +487,7 @@ def transform_duplicate_definitions(sources: List[str]) -> List[str]:
     sources = _transform_aug_assign(sources)
 
     new_sources: List[str] = sources.copy()
-    name_mappings = create_name_mappings(duplicates)
+    name_mappings = create_name_mappings(duplicates, set(definitions.keys()))
 
     for cell_idx, source in enumerate(sources):
         renamer = Renamer(name_mappings)
