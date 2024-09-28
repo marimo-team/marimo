@@ -168,6 +168,11 @@ def start(
             # close the websocket if we don't receive a pong after 60 seconds
             ws_ping_timeout=60,
             timeout_graceful_shutdown=1,
+            # Under uvloop, reading the socket we monitor under add_reader()
+            # occassionally throws BlockingIOError (errno 11, or errno 35,
+            # ...). RUN mode no longer uses a socket (it has no IPC) but EDIT
+            # does, so force asyncio.
+            loop="asyncio" if mode == SessionMode.EDIT else "auto",
         )
     )
     app.state.server = server
