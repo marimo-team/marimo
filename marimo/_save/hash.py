@@ -246,7 +246,7 @@ class BlockHasher:
         context: Optional[ast.Module] = None,
         pin_modules: bool = False,
         hash_type: str = DEFAULT_HASH,
-        content_hash: bool = True,
+        apply_content_hash: bool = True,
         scoped_refs: Optional[set[Name]] = None,
     ) -> None:
         """Hash the context of the module, and return a cache object.
@@ -291,8 +291,8 @@ class BlockHasher:
             invocation, but still in the same cell.
           - pin_modules: If True, then the module will be pinned to the version
           - hash_type: The type of hash to use.
-          - content_hash: If True, then the content hash will be attempted,
-            otherwise only use execution path hash.
+          - apply_content_hash: If True, then the content hash will be
+            attempted, otherwise only use execution path hash.
           - scoped_refs: A set of references that cannot be traced via
             execution path, and must be accounted for via content hashing.
         """
@@ -303,6 +303,10 @@ class BlockHasher:
 
         if not scoped_refs:
             scoped_refs = set()
+        else:
+            assert (
+                not apply_content_hash
+            ), "scoped_refs should only be used with deferred hashing."
 
         self._hash: Optional[str] = None
         self.graph = graph
@@ -316,6 +320,12 @@ class BlockHasher:
         # Determine immediate references
         refs = set(self.visitor.refs)
         self.defs = self.visitor.defs
+
+        # Deferred hashing (i.e. instantiation without applying content hash),
+        # may yield missing references.
+        self.missing: set[Name] = set()
+        if not apply_content_hash:
+            refs, self.missing = self.extract_missing_ref(refs, scope)
 
         ctx = get_and_update_context_from_scope(scope)
         refs, _, stateful_refs = self.extract_ref_state_and_normalize_scope(
@@ -340,7 +350,7 @@ class BlockHasher:
 
         # Collect references that will be utilized for a content hash.
         content_serialization: dict[Name, bytes] = {}
-        if refs and content_hash:
+        if refs:
             cache_type = "ContentAddressed"
             refs, content_serialization, stateful_refs = (
                 self.collect_for_content_hash(
@@ -348,7 +358,6 @@ class BlockHasher:
                 )
             )
             self.stateful_refs |= stateful_refs
-        refs -= scoped_refs
         self.content_refs -= refs
 
         # If there are still unaccounted for references, then fallback on
@@ -358,6 +367,9 @@ class BlockHasher:
             refs = self.hash_and_dequeue_execution_refs(refs)
         self.execution_refs -= refs | self.content_refs
 
+        # Remove values that should be provided by external scope.
+        refs -= scoped_refs
+
         # If there are remaining references, they should be part of the
         # provided context.
         if refs:
@@ -366,8 +378,10 @@ class BlockHasher:
         self.context_refs -= refs | self.content_refs | self.execution_refs
 
         # Now run the content hash on the content refs.
-        if content_hash:
+        if apply_content_hash:
             self._apply_content_hash(content_serialization)
+        elif self.missing:
+            cache_type = "Deferred"
 
         # Finally, utilize the unrun block itself, and clean up.
         self.cache_type = cache_type
@@ -427,15 +441,47 @@ class BlockHasher:
         apply_hash: bool = True,
     ) -> SerialRefs:
         self._hash = None
-
         refs, content_serialization, _ = (
             self.serialize_and_dequeue_content_refs(refs, scope)
         )
         # If scoped refs are present, then they are unhashable
-        # and we should fail here.
-        if unhashable := refs & scoped_refs:
-            ref_list = ", ".join([f"{ref}: {type(ref)}" for ref in unhashable])
-            raise TypeError("unhashable arguments: " + ref_list)
+        # and we should fallback to normal hash or fail.
+        if unhashable := (refs & scoped_refs) - self.execution_refs:
+            # pickle is a python default
+            import pickle
+
+            failed = []
+            exceptions = []
+            # By rights, could just fail here - but this final attempt should
+            # provide better user experience.
+            for ref in unhashable:
+                try:
+                    _hashed = pickle.dumps(scope[ref])
+                    content_serialization[ref] = type_sign(_hashed, "pickle")
+                    refs.remove(ref)
+                except TypeError as e:
+                    exceptions.append(e)
+                    failed.append(ref)
+            if failed:
+                # Ruff didn't like a lambda here
+                def get_type(ref: Name) -> str:
+                    return (
+                        str(type(item)) if (item := scope[ref]) else "missing"
+                    )
+
+                ref_list = ", ".join(
+                    [
+                        f"{ref}: {get_type(ref)} ({str(e)})"
+                        for ref, e in zip(failed, exceptions)
+                    ]
+                )
+                # Note ExceptionGroup nicest here, but only available in 3.11
+                # ExceptionGroup(msg, exceptions)
+                raise TypeError(
+                    "Content addressed hash could not be utilized. "
+                    "Try defining the dependent sections in a separate cell. "
+                    "The unhashable arguments/ references are: " + ref_list
+                )
 
         # Given an active thread, extract state based variables that
         # influence the graph, and hash them accordingly.
@@ -454,6 +500,23 @@ class BlockHasher:
         if apply_hash:
             self._apply_content_hash(content_serialization)
         return SerialRefs(refs, content_serialization, stateful_refs)
+
+    def extract_missing_ref(
+        self,
+        refs: set[Name],
+        scope: dict[str, Any],
+    ) -> tuple[set[Name], set[Name]]:
+        _refs = set(refs)
+        missing = set()
+        for ref in refs:
+            # The block will likely throw a NameError, so remove and defer to
+            # execution.
+            if ref in scope.get("__builtins__", ()):
+                continue
+            if ref not in scope:
+                _refs.remove(ref)
+                missing.add(ref)
+        return _refs, missing
 
     def extract_ref_state_and_normalize_scope(
         self,
@@ -497,11 +560,8 @@ class BlockHasher:
                 refs.remove(ref)
                 continue
 
-            # The block will likely throw a NameError, so remove and defer to
-            # execution.
-            if ref not in scope:
-                refs.remove(ref)
-                continue
+            # Clean up the scope, and extract missing references.
+            refs, _ = self.extract_missing_ref(refs, scope)
 
             # State relevant to the context, should be dependent on it's value-
             # not the object.
@@ -603,8 +663,6 @@ class BlockHasher:
                 - A dictionary of the content serialization.
                 - additional stateful references.
         """
-        self._hash = None
-
         refs = set(refs)
         # Determine _all_ additional relevant references
         transitive_state_refs = self.graph.get_transitive_references(
@@ -769,7 +827,23 @@ def content_cache_attempt_from_base(
     scoped_refs: Optional[set[Name]] = None,
     *,
     as_fn: bool = False,
+    sensitive: bool = False,
 ) -> Cache:
+    """Hash a code block with context from the same cell, and attempt a cache
+    lookup.
+
+    Args:
+      - previous_block: The block to base the new block on.
+      - scope: The scope of the new block.
+      - loader: The loader to use for cache operations.
+      - scoped_refs: A set of references that cannot be traced via
+        execution path, and must be accounted for via content hashing.
+      - as_fn: If True, then the block is treated as a function, and will not
+        cache definitions in scope.
+      - sensitive: If True, then the cache hash will to rehash references
+        resolved with path execution. This will invalidate the cache more
+        frequently.
+    """
     if scoped_refs is None:
         scoped_refs = set()
 
@@ -778,18 +852,31 @@ def content_cache_attempt_from_base(
         for k, v in scope.items()
     }
 
+    # Manually add back missing refs, which should now be in scope.
+    scoped_refs |= previous_block.missing
+    refs |= previous_block.missing
+
+    # refine to values present
+    refs = scoped_refs & previous_block.visitor.refs
     # Assume all execution refs could be content refs
-    refs = previous_block.execution_refs | scoped_refs
-    refs &= previous_block.visitor.refs
+    # but only if sensitive is set.
+    if sensitive:
+        refs |= previous_block.execution_refs
+    refs |= previous_block.content_refs
+    refs |= previous_block.context_refs
 
     hasher = BlockHasher.from_parent(previous_block)
     ctx = get_and_update_context_from_scope(scope)
     refs, _, stateful_refs = hasher.extract_ref_state_and_normalize_scope(
         refs, scope, ctx
     )
-    refs, _, tmp_stateful_refs = hasher.collect_for_content_hash(
+
+    refs, content, tmp_stateful_refs = hasher.collect_for_content_hash(
         refs, scope, ctx, scoped_refs, apply_hash=True
     )
+    # If the execution block covers this variable, then that's OK
+    refs -= previous_block.execution_refs
+
     stateful_refs |= tmp_stateful_refs
 
     assert not refs, (

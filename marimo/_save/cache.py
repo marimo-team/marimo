@@ -18,6 +18,7 @@ CacheType = Literal[
     "ContentAddressed",
     "ExecutionPath",
     "Pure",
+    "Deferred",
     "Unknown",
 ]
 # Easy visual identification of cache type.
@@ -26,6 +27,7 @@ CACHE_PREFIX: dict[CacheType, str] = {
     "ContentAddressed": "C_",
     "ExecutionPath": "E_",
     "Pure": "P_",
+    "Deferred": "D_",
     "Unknown": "U_",
 }
 

@@ -119,7 +119,7 @@ class _cache_base(object):
         # block.
         cell_id = ctx.cell_id or ctx.execution_context.cell_id or ""
         self.scoped_refs = set(self._args)
-        # As are the "locals" not in globals
+        # # As are the "locals" not in globals
         self.scoped_refs |= set(f_locals.keys()) - set(ctx.globals.keys())
         # Defined in the cell, and currently available in scope
         self.scoped_refs |= ctx.graph.cells[cell_id].defs & set(
@@ -144,7 +144,7 @@ class _cache_base(object):
             pin_modules=self.pin_modules,
             hash_type=self.hash_type,
             scoped_refs=self.scoped_refs,
-            content_hash=False,
+            apply_content_hash=False,
         )
 
         # Load global cache from state
@@ -175,7 +175,7 @@ class _cache_base(object):
 
         # Capture the call case
         arg_dict = {k: v for (k, v) in zip(self._args, args)}
-        scope = {**self.scope, **arg_dict, **kwargs}
+        scope = {**self.scope, **get_context().globals, **arg_dict, **kwargs}
         assert self._loader is not None, UNEXPECTED_FAILURE_BOILERPLATE
         attempt = content_cache_attempt_from_base(
             self.base_block,

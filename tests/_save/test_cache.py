@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import textwrap
 
+import pytest
+
 from marimo._ast.app import App
 from marimo._runtime.requests import ExecutionRequest
 from marimo._runtime.runtime import Kernel
@@ -477,6 +479,7 @@ class TestCacheDecorator:
             ]
         )
 
+        assert not k.stdout.messages
         assert not k.stderr.messages
 
         assert k.globals["a"] == 5
@@ -690,3 +693,211 @@ class TestCacheDecorator:
             k.globals["impure"][1][0].hits,
             k.globals["impure"][2][0].hits,
         } == {0}
+
+    @staticmethod
+    def test_object_content_hash() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def __():
+            import marimo as mo
+
+            return (mo,)
+
+        @app.cell
+        def __():
+            class Namespace: ...
+
+            ns = Namespace()
+            ns.x = 0
+            return Namespace, ns
+
+        @app.cell
+        def __(mo, ns):
+            @mo.cache
+            def f():
+                return ns
+
+            return (f,)
+
+        @app.cell
+        def __(f):
+            f()
+            assert f.hits == 0
+            assert f.base_block.execution_refs == {"ns"}
+            return
+
+        app.run()
+
+    @staticmethod
+    def test_execution_hash_same_block() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def __():
+            import marimo as mo
+
+            return (mo,)
+
+        @app.cell
+        def __(mo):
+            class Namespace: ...
+
+            ns = Namespace()
+            ns.x = 0
+
+            @mo.cache
+            def f():
+                return ns.x
+
+            return (
+                ns,
+                f,
+            )
+
+        @app.cell
+        def __(f, ns):
+            assert f() == 0
+            ns.x = 1
+            assert f() == 1
+            assert f.hits == 0
+            assert f() == 1
+            assert f.hits == 1
+            assert f.base_block.context_refs == {"ns"}, (
+                f.base_block.context_refs,
+                f.base_block.execution_refs,
+                f.base_block.content_refs,
+            )
+            assert f.base_block.context_refs == {
+                "ns"
+            }, f.base_block.context_refs
+            return
+
+        app.run()
+
+    @staticmethod
+    def test_execution_hash_diff_block() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def __():
+            import marimo as mo
+
+            return (mo,)
+
+        @app.cell
+        def __():
+            import weakref
+
+            class Namespace: ...
+
+            ns = Namespace()
+            ns.x = weakref.ref(ns)
+            z = ns.x
+
+            return (weakref, ns, z)
+
+        @app.cell
+        def __(mo, ns, z):
+            @mo.cache
+            def f():
+                return ns.x, z
+
+            return (f,)
+
+        @app.cell
+        def __(f):
+            f()
+            assert f.base_block.execution_refs == {"ns", "z"}
+            return
+
+        app.run()
+
+    @staticmethod
+    def test_content_hash_define_after() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def __():
+            import marimo as mo
+
+            return (mo,)
+
+        @app.cell
+        def __(mo):
+            @mo.cache
+            def f():
+                return ns.x
+
+            class Namespace: ...
+
+            ns = Namespace()
+            ns.x = 0
+
+            return (
+                ns,
+                f,
+            )
+
+        @app.cell
+        def __(f, ns):
+            assert f() == 0
+            ns.x = 1
+            assert f() == 1
+            assert f.hits == 0
+            assert f() == 1
+            assert f.hits == 1
+            assert (
+                f.base_block.execution_refs == set()
+            ), f.base_block.execution_refs
+            assert f.base_block.missing == {"ns"}, f.base_block.missing
+            return
+
+        app.run()
+
+    @staticmethod
+    def test_execution_hash_same_block_fails() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def __():
+            import marimo as mo
+
+            return (mo,)
+
+        @app.cell
+        def __():
+            import weakref
+
+            return (weakref,)
+
+        @app.cell
+        def __(mo, weakref):
+            class Namespace: ...
+
+            ns = Namespace()
+            ns.x = weakref.ref(ns)
+            z = ns.x
+
+            @mo.cache
+            def f():
+                return ns.x, z
+
+            return (
+                ns,
+                f,
+            )
+
+        @app.cell
+        def __(f):
+            f()
+            return
+
+        # Cannot hash the cell of the unhashable content, so it should fail
+        with pytest.raises(TypeError):
+            app.run()
