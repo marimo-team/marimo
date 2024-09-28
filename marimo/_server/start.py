@@ -88,7 +88,11 @@ def start(
 
     # Find a free port if none is specified
     # if the user specifies a port, we don't try to find a free one
-    port = port or find_free_port(DEFAULT_PORT)
+    port = port if port is not None else find_free_port(DEFAULT_PORT)
+    # Get a free port in a range that's far away from the user's port, so
+    # future edit sessions don't conflict with the lsp port. Note 65535 is
+    # typically the max allowable port
+    lsp_port = find_free_port(min(64535, port + 1000))
     user_config_mgr = UserConfigManager()
 
     session_manager = SessionManager(
@@ -97,7 +101,7 @@ def start(
         development_mode=development_mode,
         quiet=quiet,
         include_code=include_code,
-        lsp_server=LspServer(port * 10),
+        lsp_server=LspServer(lsp_port),
         user_config_manager=user_config_mgr,
         cli_args=cli_args,
         auth_token=auth_token,
