@@ -8,6 +8,7 @@
   array
   batch
   button
+  chat
   checkbox
   code_editor
   dataframe
@@ -44,6 +45,7 @@ powerful notebooks and apps. These elements are available in `marimo.ui`.
   marimo.ui.array
   marimo.ui.batch
   marimo.ui.button
+  marimo.ui.chat
   marimo.ui.checkbox
   marimo.ui.code_editor
   marimo.ui.dataframe

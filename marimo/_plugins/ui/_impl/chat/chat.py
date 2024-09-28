@@ -138,14 +138,15 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
 
         # If the model is a callable that takes a single argument,
         # call it with just the messages.
+        response: object
         if (
             callable(self._model)
             and not isinstance(self._model, type)
             and len(inspect.signature(self._model).parameters) == 1
         ):
-            response: object = self._model(messages)  # type: ignore
+            response = self._model(messages)  # type: ignore
         else:
-            response: object = self._model(messages, args.config)
+            response = self._model(messages, args.config)
 
         content = (
             as_html(response).text  # convert to html if not a string
