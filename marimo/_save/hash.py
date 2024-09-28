@@ -854,7 +854,6 @@ def content_cache_attempt_from_base(
 
     # Manually add back missing refs, which should now be in scope.
     scoped_refs |= previous_block.missing
-    refs |= previous_block.missing
 
     # refine to values present
     refs = scoped_refs & previous_block.visitor.refs
