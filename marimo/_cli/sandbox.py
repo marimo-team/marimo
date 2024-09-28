@@ -39,6 +39,8 @@ def get_dependencies_from_filename(name: str) -> List[str]:
     try:
         contents, _ = FileContentReader().read_file(name)
         return _get_dependencies(contents) or []
+    except FileNotFoundError:
+        return []
     except Exception:
         LOGGER.warning(f"Failed to read dependencies from {name}")
         return []
