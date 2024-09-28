@@ -69,6 +69,9 @@ def _read_pyproject(script: str) -> Dict[str, Any] | None:
 
 
 def prompt_run_in_sandbox(name: str | None) -> bool:
+    if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
+        return False
+
     if name is None:
         return False
 
@@ -131,13 +134,7 @@ def run_in_sandbox(
     # Clean up the temporary file after the subprocess has run
     atexit.register(lambda: os.unlink(temp_file_path))
 
-    # We need to force marimo to skip the sandbox prompt, for versions >=
-    # 0.8.21. From the version strings alone we can't tell what version of
-    # marimo will be installed, since uv will solve an environment to figure
-    # out what version to use (other packages may have a dependency on
-    # marimo or its dependents). So instead we create an isolated environment
-    # with all our requirements.
-    uv_run = [
+    cmd = [
         "uv",
         "run",
         "--isolated",
@@ -146,14 +143,7 @@ def run_in_sandbox(
         "--no-project",
         "--with-requirements",
         temp_file_path,
-    ]
-
-    marimo_help_cmd = uv_run + ["marimo", "edit", "--help"]
-    p = subprocess.run(marimo_help_cmd, capture_output=True)
-    if "--skip-sandbox-prompt" in p.stdout.decode():
-        cmd += ["--skip-sandbox-prompt"]
-
-    cmd = uv_run + cmd
+    ] + cmd
 
     echo(f"Running in a sandbox: {' '.join(cmd)}")
 

@@ -267,14 +267,6 @@ edit_help_msg = "\n".join(
     help="Don't check if a new version of marimo is available for download.",
 )
 @click.option(
-    "--skip-sandbox-prompt",
-    is_flag=True,
-    default=False,
-    show_default=True,
-    type=bool,
-    help="Don't prompt to run in a uv sandbox",
-)
-@click.option(
     "--sandbox",
     is_flag=True,
     default=False,
@@ -298,7 +290,6 @@ def edit(
     base_url: str,
     allow_origins: Optional[tuple[str, ...]],
     skip_update_check: bool,
-    skip_sandbox_prompt: bool,
     sandbox: bool,
     profile_dir: Optional[str],
     name: Optional[str],
@@ -306,7 +297,7 @@ def edit(
 ) -> None:
     from marimo._cli.sandbox import prompt_run_in_sandbox
 
-    if sandbox or (not skip_sandbox_prompt and prompt_run_in_sandbox(name)):
+    if sandbox or prompt_run_in_sandbox(name):
         from marimo._cli.sandbox import run_in_sandbox
 
         run_in_sandbox(sys.argv[1:], name)
@@ -560,14 +551,6 @@ Example:
     help="Redirect console logs to the browser console.",
 )
 @click.option(
-    "--skip-sandbox-prompt",
-    is_flag=True,
-    default=False,
-    show_default=True,
-    type=bool,
-    help="Don't prompt to run in a uv sandbox",
-)
-@click.option(
     "--sandbox",
     is_flag=True,
     default=False,
@@ -592,14 +575,13 @@ def run(
     base_url: str,
     allow_origins: tuple[str, ...],
     redirect_console_to_browser: bool,
-    skip_sandbox_prompt: bool,
     sandbox: bool,
     name: str,
     args: tuple[str, ...],
 ) -> None:
     from marimo._cli.sandbox import prompt_run_in_sandbox
 
-    if sandbox or (not skip_sandbox_prompt and prompt_run_in_sandbox(name)):
+    if sandbox or prompt_run_in_sandbox(name):
         from marimo._cli.sandbox import run_in_sandbox
 
         run_in_sandbox(sys.argv[1:], name)
