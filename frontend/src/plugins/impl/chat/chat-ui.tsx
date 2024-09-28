@@ -36,8 +36,9 @@ import { startCase } from "lodash-es";
 import { ChatBubbleIcon } from "@radix-ui/react-icons";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 
-interface Props extends ChatConfig {
+interface Props {
   prompts: string[];
+  config: ChatConfig;
   showConfigurationControls: boolean;
   sendPrompt(req: SendMessageRequest): Promise<string>;
   value: ChatMessage[];
@@ -46,14 +47,7 @@ interface Props extends ChatConfig {
 
 export const Chatbot: React.FC<Props> = (props) => {
   const inputRef = React.useRef<HTMLInputElement>(null);
-  const [config, setConfig] = useState<ChatConfig>({
-    maxTokens: props.maxTokens,
-    temperature: props.temperature,
-    topP: props.topP,
-    topK: props.topK,
-    frequencyPenalty: props.frequencyPenalty,
-    presencePenalty: props.presencePenalty,
-  });
+  const [config, setConfig] = useState<ChatConfig>(props.config);
 
   const {
     messages,

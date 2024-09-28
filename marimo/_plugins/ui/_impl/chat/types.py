@@ -17,6 +17,15 @@ class ChatMessageDict(TypedDict):
     attachments: Optional[List[ChatAttachmentDict]]
 
 
+class ChatModelConfigDict(TypedDict, total=False):
+    max_tokens: Optional[int]
+    temperature: Optional[float]
+    top_p: Optional[float]
+    top_k: Optional[int]
+    frequency_penalty: Optional[float]
+    presence_penalty: Optional[float]
+
+
 # NOTE: The following classes are public API.
 # Any changes must be backwards compatible.
 

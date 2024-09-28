@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Final, List, Optional
+from typing import Any, Callable, Dict, Final, List, Optional, cast
 
 from marimo._output.formatting import as_html
 from marimo._output.rich_help import mddoc
+from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.chat.types import (
     ChatMessage,
     ChatModelConfig,
+    ChatModelConfigDict,
 )
 from marimo._plugins.ui._impl.chat.utils import from_chat_message_dict
 from marimo._runtime.functions import EmptyArgs, Function
@@ -75,8 +77,15 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
         callable that takes in the chat history and returns a response
     - `prompts`: optional list of prompts to start the conversation
     - `on_message`: optional callback function to handle new messages
-    - `max_tokens`: maximum number of tokens in the response
-    - `temperature`: sampling temperature for response generation
+    - `show_configuration_controls`: whether to show the configuration controls
+    - `config`: optional ChatModelConfigDict to override the default
+        configuration keys include:
+        - `max_tokens`
+        - `temperature`
+        - `top_p`
+        - `top_k`
+        - `frequency_penalty`
+        - `presence_penalty`
     """
 
     _name: Final[str] = "marimo-chatbot"
@@ -88,16 +97,9 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
         prompts: Optional[List[str]] = None,
         on_message: Optional[Callable[[List[ChatMessage]], None]] = None,
         show_configuration_controls: bool = False,
-        max_tokens: int = 100,
-        temperature: float = 0.5,
-        top_p: float = 1,
-        top_k: int = 40,
-        frequency_penalty: float = 0,
-        presence_penalty: float = 0,
+        config: Optional[ChatModelConfigDict] = None,
     ) -> None:
         self._model = model
-        self._max_tokens = max_tokens
-        self._temperature = temperature
         self._chat_history: List[ChatMessage] = []
 
         super().__init__(
@@ -108,13 +110,7 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
             args={
                 "prompts": prompts,
                 "show-configuration-controls": show_configuration_controls,
-                # Config
-                "max-tokens": max_tokens,
-                "temperature": temperature,
-                "top-p": top_p,
-                "top-k": top_k,
-                "frequency-penalty": frequency_penalty,
-                "presence-penalty": presence_penalty,
+                "config": cast(JSONType, config or {}),
             },
             functions=(
                 Function(

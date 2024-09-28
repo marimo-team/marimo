@@ -18,13 +18,14 @@ export const ChatPlugin = createPlugin<ChatMessage[]>("marimo-chatbot")
     z.object({
       prompts: z.array(z.string()).default(Arrays.EMPTY),
       showConfigurationControls: z.boolean(),
-      // Config
-      maxTokens: z.number(),
-      temperature: z.number(),
-      topP: z.number(),
-      topK: z.number(),
-      frequencyPenalty: z.number(),
-      presencePenalty: z.number(),
+      config: z.object({
+        maxTokens: z.number().default(100),
+        temperature: z.number().default(0.5),
+        topP: z.number().default(1),
+        topK: z.number().default(40),
+        frequencyPenalty: z.number().default(0),
+        presencePenalty: z.number().default(0),
+      }),
     }),
   )
   .withFunctions<PluginFunctions>({
@@ -64,12 +65,7 @@ export const ChatPlugin = createPlugin<ChatMessage[]>("marimo-chatbot")
       <Chatbot
         prompts={props.data.prompts}
         showConfigurationControls={props.data.showConfigurationControls}
-        maxTokens={props.data.maxTokens}
-        temperature={props.data.temperature}
-        topP={props.data.topP}
-        topK={props.data.topK}
-        frequencyPenalty={props.data.frequencyPenalty}
-        presencePenalty={props.data.presencePenalty}
+        config={props.data.config}
         sendPrompt={props.functions.send_prompt}
         value={props.value || Arrays.EMPTY}
         setValue={props.setValue}
