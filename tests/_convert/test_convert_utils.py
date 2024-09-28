@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from textwrap import dedent
 
 from marimo._convert import utils
@@ -25,12 +26,13 @@ def test_generate_from_sources():
     # Test with basic sources
     sources = ["print('Hello')", "x = 5"]
     result = utils.generate_from_sources(sources)
+    result = re.sub(r"__generated_with = .*", "", result)
 
     assert result == dedent(
         """
 import marimo
 
-__generated_with = "0.8.20"
+
 app = marimo.App()
 
 
