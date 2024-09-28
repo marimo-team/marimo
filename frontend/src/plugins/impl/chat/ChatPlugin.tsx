@@ -16,7 +16,6 @@ type PluginFunctions = {
 export const ChatPlugin = createPlugin<ChatMessage[]>("marimo-chatbot")
   .withData(
     z.object({
-      systemMessage: z.string(),
       prompts: z.array(z.string()).default(Arrays.EMPTY),
       showConfigurationControls: z.boolean(),
       // Config

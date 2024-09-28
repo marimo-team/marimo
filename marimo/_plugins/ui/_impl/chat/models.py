@@ -14,33 +14,60 @@ from marimo._plugins.ui._impl.chat.types import (
     ChatModelConfig,
 )
 
+DEFAULT_SYSTEM_MESSAGE = (
+    "You are a helpful assistant specializing in data science."
+)
+
 
 class simple(ChatModel):
     """
     Convenience class for wrapping a ChatModel or callable to
     take a single prompt
+
+    Args:
+        ChatModel (Callable[[str], str]):
+            A callable that takes a
+            single prompt and returns a response
     """
 
-    def __init__(self, delegate: Callable[[str], str]):
+    def __init__(self, delegate: Callable[[str], object]):
         self.delegate = delegate
 
-    def generate_text(
-        self, message: List[ChatMessage], config: ChatModelConfig
+    def __call__(
+        self, messages: List[ChatMessage], config: ChatModelConfig
     ) -> object:
         del config
-        prompt = message[-1].content
+        prompt = messages[-1].content
         return self.delegate(prompt)
 
 
 class openai(ChatModel):
+    """
+    OpenAI ChatModel
+
+    Args:
+        model (str):
+            The model to use.
+            Can be found on the [OpenAI models page](https://platform.openai.com/docs/models)
+        system_message (str):
+            The system message to use
+        api_key (Optional[str]):
+            The API key to use.
+            If not provided, the API key will be retrieved
+            from the OPENAI_API_KEY environment variable or the user's config.
+        base_url (Optional[str]): The base URL to use
+    """
+
     def __init__(
         self,
         model: str,
         *,
+        system_message: str = DEFAULT_SYSTEM_MESSAGE,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
     ):
         self.model = model
+        self.system_message = system_message
         self.api_key = api_key
         self.base_url = base_url
 
@@ -70,8 +97,8 @@ class openai(ChatModel):
             "set OPENAI_API_KEY as an environment variable"
         )
 
-    def generate_text(
-        self, message: List[ChatMessage], config: ChatModelConfig
+    def __call__(
+        self, messages: List[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.openai.require(
             "chat model requires openai. `pip install openai`"
@@ -86,10 +113,13 @@ class openai(ChatModel):
             base_url=self.base_url,
         )
 
-        messages = convert_to_openai_messages(message)
+        openai_messages = convert_to_openai_messages(
+            [ChatMessage(role="system", content=self.system_message)]
+            + messages
+        )
         response = client.chat.completions.create(
             model=self.model,
-            messages=cast(List[ChatCompletionMessageParam], messages),
+            messages=cast(List[ChatCompletionMessageParam], openai_messages),
             max_tokens=config.max_tokens,
             temperature=config.temperature,
             top_p=config.top_p,
@@ -104,16 +134,33 @@ class openai(ChatModel):
 
 
 class anthropic(ChatModel):
+    """
+    Anthropic ChatModel
+
+    Args:
+        model (str): The model to use.
+        system_message (str): The system message to use
+        api_key (Optional[str]):
+            The API key to use.
+            If not provided, the API key will be retrieved
+            from the ANTHROPIC_API_KEY environment variable
+            or the user's config.
+        base_url (Optional[str]): The base URL to use
+    """
+
     def __init__(
         self,
         model: str,
         *,
+        system_message: str = DEFAULT_SYSTEM_MESSAGE,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
     ):
         self.model = model
+        self.system_message = system_message
         self.api_key = api_key
         self.base_url = base_url
+        self.system_message = system_message
 
     def require_api_key(self) -> str:
         # If the api key is provided, use it
@@ -140,8 +187,8 @@ class anthropic(ChatModel):
             "set ANTHROPIC_API_KEY as an environment variable"
         )
 
-    def generate_text(
-        self, message: List[ChatMessage], config: ChatModelConfig
+    def __call__(
+        self, messages: List[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.anthropic.require(
             "chat model requires anthropic. `pip install anthropic`"
@@ -159,11 +206,12 @@ class anthropic(ChatModel):
             base_url=self.base_url,
         )
 
-        messages = convert_to_anthropic_messages(message)
+        anthropic_messages = convert_to_anthropic_messages(messages)
         response = client.messages.create(
             model=self.model,
+            system=self.system_message,
             max_tokens=config.max_tokens or 1000,
-            messages=cast(List[MessageParam], messages),
+            messages=cast(List[MessageParam], anthropic_messages),
             top_p=config.top_p if config.top_p is not None else NOT_GIVEN,
             top_k=config.top_k if config.top_k is not None else NOT_GIVEN,
             stream=False,

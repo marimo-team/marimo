@@ -17,12 +17,12 @@ class ChatMessageDict(TypedDict):
     attachments: Optional[List[ChatAttachmentDict]]
 
 
+# NOTE: The following classes are public API.
+# Any changes must be backwards compatible.
+
+
 @dataclass
 class ChatAttachment:
-    """
-    @public
-    """
-
     # The name of the attachment, usually the file name.
     name: str
 
@@ -37,10 +37,6 @@ class ChatAttachment:
 
 @dataclass
 class ChatMessage:
-    """
-    @public
-    """
-
     role: Literal["user", "assistant", "system"]
     content: str
     attachments: Optional[List[ChatAttachment]] = None
@@ -48,10 +44,6 @@ class ChatMessage:
 
 @dataclass
 class ChatModelConfig:
-    """
-    @public
-    """
-
     max_tokens: Optional[int] = None
     temperature: Optional[float] = None
     top_p: Optional[float] = None
@@ -60,48 +52,9 @@ class ChatModelConfig:
     presence_penalty: Optional[float] = None
 
 
-# class ModelRegistry(abc.ABC):
-#     @abc.abstractmethod
-#     def get_model(self, model_name: str):
-#         pass
-
-#     @abc.abstractmethod
-#     def has_model(self):
-#         pass
-
-
 class ChatModel(abc.ABC):
-    """
-    @public
-    """
-
     @abc.abstractmethod
-    def generate_text(
-        self, message: List[ChatMessage], config: ChatModelConfig
+    def __call__(
+        self, messages: List[ChatMessage], config: ChatModelConfig
     ) -> object:
         pass
-
-
-def from_chat_message_dict(d: ChatMessageDict) -> ChatMessage:
-    if isinstance(d, ChatMessage):
-        return d
-
-    attachments_dict = d.get("attachments", None)
-    attachments: Optional[List[ChatAttachment]] = None
-    if attachments_dict is not None:
-        attachments = [
-            ChatAttachment(
-                name=attachment["name"],
-                content_type=attachment["content_type"],
-                url=attachment["url"],
-            )
-            for attachment in attachments_dict
-        ]
-    else:
-        attachments = None
-
-    return ChatMessage(
-        role=d["role"],
-        content=d["content"],
-        attachments=attachments,
-    )

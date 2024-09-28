@@ -30,7 +30,9 @@ def __(mo):
 @app.cell
 def __(mo):
     mo.ui.chat(
-        model=mo.ai.models.openai("gpt-4-turbo"),
+        mo.ai.models.openai(
+            "gpt-4-turbo", system_message="You are a helpful data scientist"
+        ),
         show_configuration_controls=True,
         prompts=[
             "Tell me a joke",
@@ -50,7 +52,7 @@ def __(mo):
 @app.cell
 def __(mo):
     mo.ui.chat(
-        model=mo.ai.models.anthropic("claude-3-5-sonnet-20240620"),
+        mo.ai.models.anthropic("claude-3-5-sonnet-20240620"),
         show_configuration_controls=True,
         prompts=[
             "Tell me a joke",
@@ -119,7 +121,7 @@ def __(client, ell, mo):
         return prompt
 
 
-    mo.ui.chat(model=mo.ai.models.simple(_my_model))
+    mo.ui.chat(mo.ai.models.simple(_my_model))
     return
 
 
@@ -217,7 +219,7 @@ def __(cars, client, ell):
 def __(cars, get_sample_prompts, mo, my_complex_model):
     prompts = get_sample_prompts(cars).parsed.prompts
     mo.ui.chat(
-        model=my_complex_model,
+        my_complex_model,
         prompts=prompts,
     )
     return (prompts,)

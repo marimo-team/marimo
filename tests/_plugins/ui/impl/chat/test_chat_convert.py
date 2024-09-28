@@ -11,8 +11,8 @@ from marimo._plugins.ui._impl.chat.convert import (
 from marimo._plugins.ui._impl.chat.types import (
     ChatAttachment,
     ChatMessage,
-    from_chat_message_dict,
 )
+from marimo._plugins.ui._impl.chat.utils import from_chat_message_dict
 
 
 @pytest.fixture

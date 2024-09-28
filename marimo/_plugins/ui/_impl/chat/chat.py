@@ -1,18 +1,17 @@
 from __future__ import annotations
 
+import inspect
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Final, List, Optional
 
 from marimo._output.formatting import as_html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
-from marimo._plugins.ui._impl.chat.convert import model_from_callable
 from marimo._plugins.ui._impl.chat.types import (
     ChatMessage,
-    ChatModel,
     ChatModelConfig,
-    from_chat_message_dict,
 )
+from marimo._plugins.ui._impl.chat.utils import from_chat_message_dict
 from marimo._runtime.functions import EmptyArgs, Function
 
 
@@ -27,11 +26,6 @@ class GetChatHistoryResponse:
     messages: List[ChatMessage]
 
 
-DEFAULT_SYSTEM_MESSAGE = (
-    "You are a helpful assistant specializing in data science."
-)
-
-
 @mddoc
 class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
     """
@@ -39,26 +33,23 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
 
     **Example - Using a custom model.**
 
-    You can define a custom chat model that takes a
-    prompt, previous messages, and optional attachments as input
-    and returns a response.
+    You can define a custom chat model Callable that takes in
+    the history of messages and configuration.
 
-    The response can be an object, a marimo UI element, or a string.
+    The response can be an object, a marimo UI element, or plain text.
 
     ```python
-    def my_rag_model(prompt, messages, attachments):
-        docs = find_docs(prompt)
-        prompt = template(prompt, docs, messages)
+    def my_rag_model(messages, config):
+        question = messages[-1].content
+        docs = find_docs(question)
+        prompt = template(question, docs, messages)
         response = query(prompt)
         if is_dataset(response):
             return dataset_to_chart(response)
         return response
 
 
-    chat = mo.ai.chatbot(
-        my_rag_model,
-        system_message="You are a helpful assistant.",
-    )
+    chat = mo.ui.chat(my_rag_model)
     ```
 
     **Example - Using a built-in model.**
@@ -66,9 +57,11 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
     You can use a built-in model from the `mo.ai` module.
 
     ```python
-    chat = mo.ai.chatbot(
-        mo.ai.openai("gpt-4o"),
-        system_message="You are a helpful assistant.",
+    chat = mo.ui.chat(
+        mo.ai.openai(
+            "gpt-4o",
+            system_message="You are a helpful assistant.",
+        ),
     )
     ```
 
@@ -78,8 +71,8 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
 
     **Initialization Args.**
 
-    - `model`: the chatbot model
-    - `system_message`: the initial system message for the chatbot
+    - `model`: (Callable[[List[ChatMessage], ChatModelConfig], object]) a
+        callable that takes in the chat history and returns a response
     - `prompts`: optional list of prompts to start the conversation
     - `on_message`: optional callback function to handle new messages
     - `max_tokens`: maximum number of tokens in the response
@@ -90,9 +83,8 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
 
     def __init__(
         self,
-        model: ChatModel,
+        model: Callable[[List[ChatMessage], ChatModelConfig], object],
         *,
-        system_message: str = DEFAULT_SYSTEM_MESSAGE,
         prompts: Optional[List[str]] = None,
         on_message: Optional[Callable[[List[ChatMessage]], None]] = None,
         show_configuration_controls: bool = False,
@@ -103,16 +95,10 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
         frequency_penalty: float = 0,
         presence_penalty: float = 0,
     ) -> None:
-        if callable(model):
-            self._model = model_from_callable(model)
-        else:
-            self._model = model
-        self._system_message = system_message
+        self._model = model
         self._max_tokens = max_tokens
         self._temperature = temperature
-        self._chat_history: List[ChatMessage] = [
-            ChatMessage(role="system", content=system_message)
-        ]
+        self._chat_history: List[ChatMessage] = []
 
         super().__init__(
             component_name=chat._name,
@@ -121,7 +107,6 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
             label="",
             args={
                 "prompts": prompts,
-                "system-message": system_message,
                 "show-configuration-controls": show_configuration_controls,
                 # Config
                 "max-tokens": max_tokens,
@@ -133,25 +118,35 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
             },
             functions=(
                 Function(
-                    name=self.get_chat_history.__name__,
+                    name="get_chat_history",
                     arg_cls=EmptyArgs,
-                    function=self.get_chat_history,
+                    function=self._get_chat_history,
                 ),
                 Function(
-                    name=self.send_prompt.__name__,
+                    name="send_prompt",
                     arg_cls=SendMessageRequest,
-                    function=self.send_prompt,
+                    function=self._send_prompt,
                 ),
             ),
         )
 
-    def get_chat_history(self, _args: EmptyArgs) -> GetChatHistoryResponse:
+    def _get_chat_history(self, _args: EmptyArgs) -> GetChatHistoryResponse:
         return GetChatHistoryResponse(messages=self._chat_history)
 
-    def send_prompt(self, args: SendMessageRequest) -> str:
+    def _send_prompt(self, args: SendMessageRequest) -> str:
         messages = args.messages
 
-        response = self._model.generate_text(messages, args.config)
+        # If the model is a callable that takes a single argument,
+        # call it with just the messages.
+        if (
+            callable(self._model)
+            and not isinstance(self._model, type)
+            and len(inspect.signature(self._model).parameters) == 1
+        ):
+            response: object = self._model(messages)  # type: ignore
+        else:
+            response: object = self._model(messages, args.config)
+
         content = (
             as_html(response).text  # convert to html if not a string
             if not isinstance(response, str)
