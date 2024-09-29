@@ -72,68 +72,36 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'pip'
-      - name: 🐍 Setup uv
-        uses: yezz123/setup-uv@v4
+      - name: 🥚 Install Hatch
+        uses: pypa/hatch@install
+
       # This step is needed since some of our tests rely on the index.html file
       - name: Create assets directory, copy over index.html
         run: |
           mkdir -p marimo/_static/assets
           cp frontend/index.html marimo/_static/index.html
           cp frontend/public/favicon.ico marimo/_static/favicon.ico
-      # Lint, typecheck
-      # Each run command runs in a separate shell, so we need to
-      # reactivate the virtual environment every time
+
       - name: Install marimo with dev dependencies
-        run: |
-          uv venv marimo-dev-env
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            source marimo-dev-env\\Scripts\\activate
-          else
-            source marimo-dev-env/bin/activate
-          fi
-          uv pip install --upgrade pip
-          uv pip install .[dev]
+        run: hatch env create
+
       - name: Lint
-        run: |
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            source marimo-dev-env\\Scripts\\activate
-          else
-            source marimo-dev-env/bin/activate
-          fi
-          ruff check marimo/
+        run: hatch run lint
+
       - name: Typecheck
         if: ${{ matrix.python-version == '3.11' || matrix.python-version == '3.12' }}
-        run: |
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            source marimo-dev-env\\Scripts\\activate
-          else
-            source marimo-dev-env/bin/activate
-          fi
-          mypy --config-file pyproject.toml marimo/
+        run: hatch run typecheck
+
       # Test with minimal dependencies
       - name: Test with minimal dependencies
         if: ${{ matrix.dependencies == 'core' }}
         run: |
-          uv venv marimo-test-env
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            source marimo-test-env\\Scripts\\activate
-          else
-            source marimo-test-env/bin/activate
-          fi
-          uv pip install --upgrade pip
-          uv pip install .[testcore]
-          pytest -v tests/ -k "not test_cli"
+          hatch env create test
+          hatch run +py=${{ matrix.python-version }} test:pytest -v tests/ -k "not test_cli"
+
       # Test with optional dependencies
       - name: Test with optional dependencies
         if: ${{ matrix.dependencies == 'core,optional' }}
         run: |
-          uv venv marimo-test-optional-env
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            source marimo-test-optional-env\\Scripts\\activate
-          else
-            source marimo-test-optional-env/bin/activate
-          fi
-          uv pip install --upgrade pip
-          uv pip install .[testcore,testoptional]
-          pytest -v tests/ -k "not test_cli"
+          hatch env create test-optional
+          hatch run +py=${{ matrix.python-version }} test-optional:pytest -v tests/ -k "not test_cli"

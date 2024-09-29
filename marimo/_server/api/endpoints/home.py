@@ -75,6 +75,7 @@ async def workspace_files(
                     schema:
                         $ref: "#/components/schemas/WorkspaceFilesResponse"
     """
+    return WorkspaceFilesResponse(files=[], root="")
     body = await parse_request(request, cls=WorkspaceFilesRequest)
     session_manager = AppState(request).session_manager
 

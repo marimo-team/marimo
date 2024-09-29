@@ -63,22 +63,11 @@ jobs:
         env:
           NODE_OPTIONS: '--max_old_space_size=8192'
 
-      - name: 🐍 Setup Python 3.10
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-          cache: 'pip'
-
-      - name: 🐍 Setup uv
-        uses: yezz123/setup-uv@v4
-        with:
-          uv-venv: marimo-venv
+      - name: 🥚 Install Hatch
+        uses: pypa/hatch@install
 
       - name: 📦 Build marimo wheel
-        run: |
-          uv pip install build
-          uv pip install .
-          python -m build
+        run: hatch build -t wheel
 
       - name: Upload wheel
         uses: actions/upload-artifact@v3

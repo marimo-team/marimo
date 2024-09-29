@@ -1,12 +1,12 @@
 #!/bin/sh
 
 echo "[fix: typos]"
-cd marimo && typos -w && cd -
+cd marimo && hatch run typos -w && cd -
 echo "[fix: copyright]"
 ./scripts/pycopyright.sh
 echo "[fix: ruff]"
-ruff check marimo/ --fix
-ruff check tests/ --fix
-ruff format marimo/
-ruff format tests/
+hatch run ruff check marimo/ --fix
+hatch run ruff check tests/ --fix
+hatch run ruff format marimo/
+hatch run ruff format tests/
 ./scripts/pycheck.sh

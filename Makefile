@@ -69,13 +69,14 @@ py-check:
 .PHONY: py-test
 # test python
 py-test:
-	cd marimo && typos && cd - && pytest;
+	cd marimo && typos && cd - && hatch run +py=3.12 test-optional:run
 
 .PHONY: py-snapshots
 # update html snapshots
 py-snapshots:
-	pytest tests/_server/templates/test_templates.py
-	pytest tests/_server/api/endpoints/test_export.py
+	hatch run +py=3.12 test:run \
+		tests/_server/templates/test_templates.py \
+		tests/_server/api/endpoints/test_export.py
 
 .PHONY: install-all
 # install everything; takes a long time due to editable install
@@ -84,7 +85,7 @@ install-all: fe py
 .PHONY: wheel
 # build wheel
 wheel:
-	python -m build
+	hatch build
 
 .PHONY: storybook
 storybook:
@@ -95,14 +96,14 @@ storybook:
 # use make ARGS="-a" docs to force docs to rebuild, useful when
 # modifying static files / assets
 docs:
-	sphinx-build $(ARGS) docs/ docs/_build
+	hatch run docs:build $(ARGS)
 
 .PHONY: docs-auto
 # autobuild docs
 docs-auto:
-	sphinx-autobuild $(ARGS) docs/ docs/_build
+	hatch run docs:autobuild $(ARGS)
 
 .PHONY: docs-clean
 # remove built docs
 docs-clean:
-	cd docs && make clean
+	hatch run docs:clean

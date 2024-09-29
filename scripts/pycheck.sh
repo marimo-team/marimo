@@ -1,6 +1,6 @@
 #!/bin/sh
 
 echo "[check: lint]"
-ruff check marimo/
+hatch run ruff check marimo/
 echo "[check: typecheck]"
-mypy marimo/
+hatch run mypy marimo/

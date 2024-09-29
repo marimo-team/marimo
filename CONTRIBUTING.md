@@ -20,8 +20,7 @@ or [on Discord](https://discord.gg/JE7nhX6mD8).
 
 ## Prerequisites
 
-To build marimo from source, you'll need to have Node.js, pnpm, GNU make, and
-Python (>=3.8) installed.
+To build marimo from source, you'll need to have Node.js, pnpm, GNU make, Python (>=3.8), and Hatch installed.
 
 - Install [Node.js](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm#using-a-node-version-manager-to-install-nodejs-and-npm) >= 18
   - We use Node.js version 20
@@ -29,6 +28,9 @@ Python (>=3.8) installed.
   - `npm install -g pnpm@8`
 - Install [GNU Make](https://www.gnu.org/software/make/) (you may already have it installed)
 - Install [Python](https://www.python.org/) >= 3.8. (You may already it installed. To see your version, use `python -V` at the command line.)
+- Install [Hatch](https://hatch.pypa.io/latest/install/). Some options:
+  - `brew install hatch
+  - `pipx install hatch`
 
 And you'll need [pre-commit](https://pre-commit.com/) to run some validation checks:
 
@@ -50,22 +52,28 @@ pre-commit install
 > Note that developing in Gitpod is not officially supported by the marimo
 > team.
 
-
 ## Building from source
 
 Be sure to install the dependencies above before building from source.
 
 ### Build from source
 
-After installing the dependencies, run the following in a fresh Python virtual
-environment (such as [venv](https://docs.python.org/3/library/venv.html) or
-[virtualenv](https://virtualenv.pypa.io/en/latest/)):
+After installing the dependencies, you can use either the traditional method (installing an editable wheel in your current venv) or use Hatch:
+
+Traditional method:
 
 ```bash
 make fe && make py
 ```
 
-`make fe` builds the frontend. `make py` does an [editable install](https://setuptools.pypa.io/en/latest/userguide/development_mode.html) of marimo.
+Using Hatch:
+
+```bash
+make fe
+hatch shell
+```
+
+`make fe` builds the frontend. `make py` does an [editable install](https://setuptools.pypa.io/en/latest/userguide/development_mode.html) of marimo, while `hatch shell` creates a Hatch environment with an editable install of marimo.
 
 (All `make` commands should be run in the project's root directory.)
 
@@ -101,6 +109,7 @@ NODE_OPTIONS=--max_old_space_size=8192 NODE_ENV=development make fe -B
 | `docs`         | Docs      | Build docs. Use `make ARGS="-a" docs` to force docs to rebuild |
 | `docs-auto`    | Docs      | Autobuild docs                                                 |
 | `docs-clean`   | Docs      | Remove built docs                                              |
+| `hatch-shell`  | Setup     | Enter a Hatch shell with an editable install of marimo         |
 
 ## Lint, Typecheck, Format
 
@@ -118,8 +127,17 @@ make fe-check
 
 **Python.**
 
+Using Make:
+
 ```bash
 make py-check
+```
+
+Using Hatch:
+
+```bash
+hatch run lint
+hatch run typecheck
 ```
 
 ## Tests
@@ -147,10 +165,40 @@ make fe-test
 
 ### Python
 
-In the root directory, run
+Using Make:
 
 ```bash
 make py-test
+```
+
+#### Using Hatch
+
+**Run a specific tests.**
+
+```bash
+hatch run test:run tests/_ast/
+```
+
+**Run a specific tests with optional dependencies.**
+
+```bash
+hatch run test-optional:run tests/_ast/
+```
+
+**Run tests with a specific Python version.**
+
+```bash
+hatch run +py=3.10 test:run tests/_ast/
+# or
+hatch run +py=3.10 test-optional:run tests/_ast/
+```
+
+**Run all tests across all Python versions.**
+
+Not recommended since it takes a long time.
+
+```bash
+hatch run test:run
 ```
 
 ### End-to-end
