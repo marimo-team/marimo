@@ -24,10 +24,10 @@ class simple(ChatModel):
     Convenience class for wrapping a ChatModel or callable to
     take a single prompt
 
-    Args:
-        ChatModel (Callable[[str], str]):
-            A callable that takes a
-            single prompt and returns a response
+    **Args:**
+
+    - delegate (Callable[[str], str]): A callable that takes a
+        single prompt and returns a response
     """
 
     def __init__(self, delegate: Callable[[str], object]):
@@ -45,17 +45,15 @@ class openai(ChatModel):
     """
     OpenAI ChatModel
 
-    Args:
-        model (str):
-            The model to use.
-            Can be found on the [OpenAI models page](https://platform.openai.com/docs/models)
-        system_message (str):
-            The system message to use
-        api_key (Optional[str]):
-            The API key to use.
-            If not provided, the API key will be retrieved
-            from the OPENAI_API_KEY environment variable or the user's config.
-        base_url (Optional[str]): The base URL to use
+    **Args:**
+
+    - model (str): The model to use.
+        Can be found on the [OpenAI models page](https://platform.openai.com/docs/models)
+    - system_message (str): The system message to use
+    - api_key (Optional[str]): The API key to use.
+        If not provided, the API key will be retrieved
+        from the OPENAI_API_KEY environment variable or the user's config.
+    - base_url (Optional[str]): The base URL to use
     """
 
     def __init__(
@@ -72,7 +70,7 @@ class openai(ChatModel):
         self.base_url = base_url
 
     @property
-    def require_api_key(self) -> str:
+    def _require_api_key(self) -> str:
         # If the api key is provided, use it
         if self.api_key is not None:
             return self.api_key
@@ -109,7 +107,7 @@ class openai(ChatModel):
         )
 
         client = OpenAI(
-            api_key=self.require_api_key,
+            api_key=self._require_api_key,
             base_url=self.base_url,
         )
 
@@ -137,15 +135,15 @@ class anthropic(ChatModel):
     """
     Anthropic ChatModel
 
-    Args:
-        model (str): The model to use.
-        system_message (str): The system message to use
-        api_key (Optional[str]):
-            The API key to use.
-            If not provided, the API key will be retrieved
-            from the ANTHROPIC_API_KEY environment variable
-            or the user's config.
-        base_url (Optional[str]): The base URL to use
+    **Args:**
+
+    - model (str): The model to use.
+    - system_message (str): The system message to use
+    - api_key (Optional[str]): The API key to use.
+        If not provided, the API key will be retrieved
+        from the ANTHROPIC_API_KEY environment variable
+        or the user's config.
+    - base_url (Optional[str]): The base URL to use
     """
 
     def __init__(
@@ -162,7 +160,8 @@ class anthropic(ChatModel):
         self.base_url = base_url
         self.system_message = system_message
 
-    def require_api_key(self) -> str:
+    @property
+    def _require_api_key(self) -> str:
         # If the api key is provided, use it
         if self.api_key is not None:
             return self.api_key
@@ -202,7 +201,7 @@ class anthropic(ChatModel):
         )
 
         client = Anthropic(
-            api_key=self.require_api_key(),
+            api_key=self._require_api_key,
             base_url=self.base_url,
         )
 
