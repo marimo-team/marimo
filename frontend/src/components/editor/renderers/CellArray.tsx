@@ -39,6 +39,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { Kbd } from "@/components/ui/kbd";
 import { FloatingOutline } from "../chrome/panels/outline/floating-outline";
 import {
+  rectSortingStrategy,
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
@@ -46,6 +47,8 @@ import {
   PlaceholderColumn,
   SortableCellsProvider,
 } from "@/components/sort/SortableCellsProvider";
+import { CellColumnIndex } from "@/utils/id-tree";
+import Column from "../Column";
 
 interface CellArrayProps {
   notebook: NotebookState;
@@ -70,7 +73,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
 
   const { invisible } = useDelayVisibility(
     notebook.cellIds.columns.length,
-    mode,
+    mode
   );
 
   // HOTKEYS
@@ -109,71 +112,82 @@ export const CellArray: React.FC<CellArrayProps> = ({
       <PackageAlert />
       <NotebookBanner />
       <SortableCellsProvider>
-        <div className="grid grid-flow-col auto-cols-min gap-28">
-          {columns.map((column, columnIndex) => (
-            <SortableContext
-              id={`column-${columnIndex}`}
-              key={columnIndex}
-              items={column.topLevelIds}
-              disabled={!isEditing}
-              strategy={verticalListSortingStrategy}
-            >
-              <div className="flex flex-col gap-5 w-[640px] max-w-[640px] min-w-[640px] min-h-[400px]">
-                {column.topLevelIds.map((cellId) => {
-                  const cellData = notebook.cellData[cellId];
-                  const cellRuntime = notebook.cellRuntime[cellId];
-                  return (
-                    <Cell
-                      key={cellData.id.toString()}
-                      theme={theme}
-                      showPlaceholder={column.length === 1}
-                      allowFocus={!invisible && !notebook.scrollKey}
-                      id={cellData.id}
-                      code={cellData.code}
-                      outline={cellRuntime.outline}
-                      output={cellRuntime.output}
-                      consoleOutputs={cellRuntime.consoleOutputs}
-                      status={cellRuntime.status}
-                      edited={cellData.edited}
-                      interrupted={cellRuntime.interrupted}
-                      errored={cellRuntime.errored}
-                      stopped={cellRuntime.stopped}
-                      staleInputs={cellRuntime.staleInputs}
-                      runStartTimestamp={cellRuntime.runStartTimestamp}
-                      runElapsedTimeMs={
-                        cellRuntime.runElapsedTimeMs ??
-                        (cellData.lastExecutionTime as Milliseconds)
-                      }
-                      serializedEditorState={cellData.serializedEditorState}
-                      showDeleteButton={
-                        column.length > 1 && !cellData.config.hide_code
-                      }
-                      mode={mode}
-                      appClosed={connStatus.state !== WebSocketState.OPEN}
-                      ref={notebook.cellHandles[cellId]}
-                      userConfig={userConfig}
-                      debuggerActive={cellRuntime.debuggerActive}
-                      config={cellData.config}
-                      name={cellData.name}
-                      isCollapsed={column.isCollapsed(cellId)}
-                      collapseCount={column.getCount(cellId)}
-                      canMoveX={appConfig.width === "columns"}
-                      {...actions}
-                      deleteCell={onDeleteCell}
-                    />
-                  );
-                })}
+        <SortableContext
+          id="column-container"
+          items={columns.map((_, index) => index as CellColumnIndex)}
+          disabled={!isEditing}
+          strategy={rectSortingStrategy}
+        >
+          <div className="grid grid-flow-col auto-cols-min gap-28">
+            {columns.map((column, index) => {
+              return (
+                <Column
+                  key={index as CellColumnIndex}
+                  columnIndex={index as CellColumnIndex}
+                >
+                  <SortableContext
+                    id={`column-${index}`}
+                    items={column.topLevelIds}
+                    disabled={!isEditing}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {column.topLevelIds.map((cellId) => {
+                      const cellData = notebook.cellData[cellId];
+                      const cellRuntime = notebook.cellRuntime[cellId];
+                      return (
+                        <Cell
+                          key={cellData.id.toString()}
+                          theme={theme}
+                          showPlaceholder={column.length === 1}
+                          allowFocus={!invisible && !notebook.scrollKey}
+                          id={cellData.id}
+                          code={cellData.code}
+                          outline={cellRuntime.outline}
+                          output={cellRuntime.output}
+                          consoleOutputs={cellRuntime.consoleOutputs}
+                          status={cellRuntime.status}
+                          edited={cellData.edited}
+                          interrupted={cellRuntime.interrupted}
+                          errored={cellRuntime.errored}
+                          stopped={cellRuntime.stopped}
+                          staleInputs={cellRuntime.staleInputs}
+                          runStartTimestamp={cellRuntime.runStartTimestamp}
+                          runElapsedTimeMs={
+                            cellRuntime.runElapsedTimeMs ??
+                            (cellData.lastExecutionTime as Milliseconds)
+                          }
+                          serializedEditorState={cellData.serializedEditorState}
+                          showDeleteButton={
+                            column.length > 1 && !cellData.config.hide_code
+                          }
+                          mode={mode}
+                          appClosed={connStatus.state !== WebSocketState.OPEN}
+                          ref={notebook.cellHandles[cellId]}
+                          userConfig={userConfig}
+                          debuggerActive={cellRuntime.debuggerActive}
+                          config={cellData.config}
+                          name={cellData.name}
+                          isCollapsed={column.isCollapsed(cellId)}
+                          collapseCount={column.getCount(cellId)}
+                          canMoveX={appConfig.width === "columns"}
+                          {...actions}
+                          deleteCell={onDeleteCell}
+                        />
+                      );
+                    })}
+                    <AddCellButtons />
+                  </SortableContext>
+                </Column>
+              );
+            })}
+            {appConfig.width === "columns" && (
+              <div className="flex flex-col gap-5 w-[640px] max-w-[640px] min-w-[640px]">
+                <PlaceholderColumn />
                 <AddCellButtons />
               </div>
-            </SortableContext>
-          ))}
-          {appConfig.width === "columns" && (
-            <div className="flex flex-col gap-5 w-[640px] max-w-[640px] min-w-[640px]">
-              <PlaceholderColumn />
-              <AddCellButtons />
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        </SortableContext>
       </SortableCellsProvider>
       <FloatingOutline />
     </VerticalLayoutWrapper>
@@ -189,7 +203,7 @@ const AddCellButtons: React.FC = () => {
 
   const buttonClass = cn(
     "mb-0 rounded-none sm:px-4 md:px-5 lg:px-8 tracking-wide no-wrap whitespace-nowrap",
-    "hover:bg-accent hover:text-accent-foreground font-semibold uppercase text-xs",
+    "hover:bg-accent hover:text-accent-foreground font-semibold uppercase text-xs"
   );
 
   const renderBody = () => {
@@ -290,7 +304,7 @@ const AddCellButtons: React.FC = () => {
           "shadow-sm border border-border rounded transition-all duration-200 overflow-hidden divide-x divide-border flex",
           !isAiButtonOpen && "w-fit",
           isAiButtonOpen &&
-            "opacity-100 w-full max-w-4xl shadow-lg shadow-[var(--blue-3)]",
+            "opacity-100 w-full max-w-4xl shadow-lg shadow-[var(--blue-3)]"
         )}
       >
         {renderBody()}

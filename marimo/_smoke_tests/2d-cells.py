@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.8.13"
+__generated_with = "0.8.20"
 app = marimo.App(width="columns")
 
 
@@ -22,7 +22,7 @@ def __(dataset, mo, plot, x, y):
 def __(selected_dataset):
     df = selected_dataset()
     df
-    return df,
+    return (df,)
 
 
 @app.cell
@@ -37,9 +37,9 @@ def __(plot_type, x, y):
 @app.cell
 def __(data, mo):
     dataset = mo.ui.dropdown(
-        label="Choose dataset", options=data.list_datasets(), value="jobs"
+        label="Choose dataset", options=data.list_datasets(), value="iris"
     )
-    return dataset,
+    return (dataset,)
 
 
 @app.cell
@@ -61,13 +61,13 @@ def __(df, mo):
 @app.cell
 def __(data, dataset):
     selected_dataset = getattr(data, dataset.value)
-    return selected_dataset,
+    return (selected_dataset,)
 
 
 @app.cell
 def __(alt, df, plot):
     plot_type = getattr(alt.Chart(df), plot.value)
-    return plot_type,
+    return (plot_type,)
 
 
 if __name__ == "__main__":
