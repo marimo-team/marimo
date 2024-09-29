@@ -23,10 +23,14 @@ or [on Discord](https://discord.gg/JE7nhX6mD8).
 To build marimo from source, you'll need to have Node.js, pnpm, GNU make, and
 Python (>=3.8) installed.
 
+- Install dev dependencies
+  - `pip install -e '.[dev]'`
 - Install [Node.js](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm#using-a-node-version-manager-to-install-nodejs-and-npm) >= 18
   - We use Node.js version 20
 - Install [pnpm](https://github.com/pnpm/pnpm) == 8.x
   - `npm install -g pnpm@8`
+- Install [typos](https://github.com/crate-ci/typos?tab=readme-ov-file#install)
+  - `brew install typos-cli` or `cargo install typos-cli`
 - Install [GNU Make](https://www.gnu.org/software/make/) (you may already have it installed)
 - Install [Python](https://www.python.org/) >= 3.8. (You may already it installed. To see your version, use `python -V` at the command line.)
 

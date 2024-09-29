@@ -5,9 +5,24 @@ help:
 	@# https://stackoverflow.com/a/35730928
 	@awk '/^#/{c=substr($$0,3);next}c&&/^[[:alpha:]][[:alnum:]_-]+:/{print substr($$1,1,index($$1,":")),c}1{c=0}' Makefile | column -s: -t
 
+.PHONY: required-build-tools
+expect-tools:
+	@if ! /usr/bin/which -s pnpm typos pytest2; then \
+		echo "📦 pnpm, pytest, typos-cli required to build and test."; \
+		if ! /usr/bin/which -s pnpm; then \
+		    echo "💡 Please perform 'npm install -g pnpm@8' or use your preferred package manager."; \
+        fi; \
+		if ! /usr/bin/which -s pytest; then \
+		    echo "💡 Please perform 'pip install -e .[dev]' to add pytest and other dev requirements."; \
+        fi; \
+		if ! /usr/bin/which -s typos; then \
+		  echo "💡 Please perform 'brew install typos-cli', 'cargo install typos-cli' or use your preferred package manager."; \
+	    fi; \
+	fi
+
 # package frontend into marimo/
 .PHONY: fe
-fe: marimo/_static marimo/_lsp
+fe: expect-tools marimo/_static marimo/_lsp
 
 # install/build frontend if anything under frontend/src or (top-level)
 # frontend/ has changed
@@ -68,7 +83,7 @@ py-check:
 
 .PHONY: py-test
 # test python
-py-test:
+py-test: expect-tools
 	cd marimo && typos && cd - && pytest;
 
 .PHONY: py-snapshots

@@ -29,7 +29,10 @@ def _get_dependencies(script: str) -> List[str] | None:
     """Get dependencies from string representation of script"""
     try:
         pyproject = _read_pyproject(script) or {}
-        return cast(List[str], pyproject.get("dependencies", []))
+        return [
+            _.strip()
+            for _ in cast(List[str], pyproject.get("dependencies", []))
+        ]
     except Exception as e:
         LOGGER.warning(f"Failed to parse dependencies: {e}")
         return None
@@ -44,6 +47,14 @@ def get_dependencies_from_filename(name: str) -> List[str]:
     except Exception:
         LOGGER.warning(f"Failed to read dependencies from {name}")
         return []
+
+
+def expand_user_home(match) -> str:
+    """
+    Replaces dependencies that contain ~ that represents the home dir
+    returns a replacement depending on the dep prefix
+    """
+    return f"{match.group(1)} {os.path.expanduser(match.group(2))}"
 
 
 def _read_pyproject(script: str) -> Dict[str, Any] | None:
@@ -63,6 +74,9 @@ def _read_pyproject(script: str) -> Dict[str, Any] | None:
             line[2:] if line.startswith("# ") else line[1:]
             for line in matches[0].group("content").splitlines(keepends=True)
         )
+        # gracefully handle paths with '@ $path' to abspaths
+        # to meet pyproject expectation
+        content = re.sub(r"(@|--editable|-e)\s+(~)", expand_user_home, content)
         import tomlkit
 
         return tomlkit.parse(content)
@@ -114,27 +128,51 @@ def run_in_sandbox(
     if not DependencyManager.which("uv"):
         raise click.UsageError("uv must be installed to use --sandbox")
 
-    cmd = ["marimo"] + args
-    if "--sandbox" in cmd:
-        cmd.remove("--sandbox")
+    uv_run_sub_cmd = ["marimo"] + args
+    if "--sandbox" in uv_run_sub_cmd:
+        uv_run_sub_cmd.remove("--sandbox")
 
-    # If name if a filepath, parse the dependencies from the file
-    dependencies = (
+    # If name is a filepath, parse the dependencies from the file
+    all_dependencies = (
         get_dependencies_from_filename(name) if name is not None else []
     )
 
+    local_editable_packages = []
+    non_editable_dependencies = []
+    for dep in all_dependencies:
+        # dep is whitespace stripped in _get_dependencies
+        if dep.startswith("-e") or dep.startswith("--editable"):
+            try:
+                local_project_path = os.path.expanduser(
+                    re.split(r"\s+", dep.strip())[1]
+                )
+            except ValueError as regex_err:
+                # editable dependency does not have a required path arg
+                raise ValueError(
+                    "An editable requirement must provide a valid local path."
+                ) from regex_err
+            if not os.path.exists(local_project_path):
+                raise ValueError(
+                    f"The path {local_project_path} does not exist "
+                    "and cannot be installed as an editable dependency"
+                )
+            local_editable_packages.append(local_project_path)
+        else:
+            non_editable_dependencies.append(dep)
+
     # The sandbox needs to manage marimo, too, to make sure
     # that the outer environment doesn't leak into the sandbox.
-    if "marimo" not in dependencies:
-        dependencies.append("marimo")
+    if "marimo" not in non_editable_dependencies:
+        non_editable_dependencies.append("marimo")
 
     with tempfile.NamedTemporaryFile(
         mode="w", delete=False, suffix=".txt"
-    ) as temp_file:
-        temp_file.write("\n".join(dependencies))
-        temp_file_path = temp_file.name
+    ) as dep_temp_file:
+        dep_temp_file.write("\n".join(non_editable_dependencies))
+        dep_temp_file_path = dep_temp_file.name
+
     # Clean up the temporary file after the subprocess has run
-    atexit.register(lambda: os.unlink(temp_file_path))
+    atexit.register(lambda: os.unlink(dep_temp_file_path))
 
     cmd = [
         "uv",
@@ -144,8 +182,14 @@ def run_in_sandbox(
         # which may conflict with the sandbox requirements
         "--no-project",
         "--with-requirements",
-        temp_file_path,
-    ] + cmd
+        dep_temp_file_path,
+    ]
+
+    if local_editable_packages:
+        cmd.append("--with-editable")
+        cmd.extend(local_editable_packages)
+
+    cmd += uv_run_sub_cmd
 
     echo(f"Running in a sandbox: {' '.join(cmd)}")
 
