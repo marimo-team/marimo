@@ -46,8 +46,17 @@ class ChatAttachment:
 
 @dataclass
 class ChatMessage:
+    """
+    A message in a chat.
+    """
+
+    # The role of the message.
     role: Literal["user", "assistant", "system"]
+
+    # The content of the message.
     content: str
+
+    # Optional attachments to the message.
     attachments: Optional[List[ChatAttachment]] = None
 
 

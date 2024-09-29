@@ -98,16 +98,37 @@ This example demonstrates how you can implement a Retrieval-Augmented Generation
 
 marimo provides several built-in AI models that you can use with the chat UI element.
 
+```python
+import marimo as mo
+
+mo.ui.chat(
+    mo.ai.openai(
+        "gpt-4",
+        system_message="You are a helpful assistant.",
+        api_key="sk-...",
+    ),
+    show_configuration_controls=True
+)
+
+mo.ui.chat(
+    mo.ai.anthropic(
+        "claude-3-5-sonnet-20240602",
+        system_message="You are a helpful assistant.",
+        api_key="sk-...",
+    ),
+    show_configuration_controls=True
+)
+```
+
 ```{eval-rst}
-.. autoclass:: marimo.ai.openai
+.. autoclass:: marimo.ai.models.openai
   :members:
 
   .. autoclasstoc:: marimo._plugins.ui._impl.chat.models.openai
 ```
 
 ```{eval-rst}
-
-.. autoclass:: marimo.ai.anthropic
+.. autoclass:: marimo.ai.models.anthropic
   :members:
 
   .. autoclasstoc:: marimo._plugins.ui._impl.chat.models.anthropic
