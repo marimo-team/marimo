@@ -40,4 +40,51 @@ def append_version(pkg_name: str, version: Optional[str]) -> str:
 
 
 def split_packages(package: str) -> List[str]:
-    return [pkg.strip() for pkg in package.split()]
+    """
+    Splits a package string into a list of packages.
+
+    This can handle editable packages (i.e. local directories)
+
+    e.g.
+    "package1 package2" -> ["package1", "package2"]
+    "package1==1.0.0 package2==2.0.0" -> ["package1==1.0.0", "package2==2.0.0"]
+    "package1 -e /path/to/package1" -> ["package1 -e /path/to/package1"]
+    "package1 --editable /path/to/package1" -> ["package1 --editable /path/to/package1"]
+    "package1 -e /path/to/package1 package2" -> ["package1 -e /path/to/package1", "package2"]
+    "package1 @ /path/to/package1" -> ["package1 @ /path/to/package1"]
+    "foo==1.0; python_version>'3.6' bar==2.0; sys_platform=='win32'" -> ["foo==1.0; python_version>'3.6'", "bar==2.0; sys_platform=='win32'"]
+    """  # noqa: E501
+    packages: List[str] = []
+    current_package: List[str] = []
+    in_environment_marker = False
+
+    for part in package.split():
+        if part in ["-e", "--editable", "@"]:
+            current_package.append(part)
+        elif current_package and current_package[-1] in [
+            "-e",
+            "--editable",
+            "@",
+        ]:
+            current_package.append(part)
+        elif part.endswith(";"):
+            if current_package:
+                packages.append(" ".join(current_package))
+                current_package = []
+            in_environment_marker = True
+            current_package.append(part)
+        elif in_environment_marker:
+            current_package.append(part)
+            if part.endswith("'") or part.endswith('"'):
+                in_environment_marker = False
+                packages.append(" ".join(current_package))
+                current_package = []
+        else:
+            if current_package:
+                packages.append(" ".join(current_package))
+            current_package = [part]
+
+    if current_package:
+        packages.append(" ".join(current_package))
+
+    return [pkg.strip() for pkg in packages]
