@@ -67,11 +67,9 @@ jobs:
     steps:
       - name: 🛑 Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.12.1
+
       - uses: actions/checkout@v4
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
+
       - name: 🥚 Install Hatch
         uses: pypa/hatch@install
 
