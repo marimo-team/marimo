@@ -71,6 +71,9 @@ def _read_pyproject(script: str) -> Dict[str, Any] | None:
 
 
 def prompt_run_in_sandbox(name: str | None) -> bool:
+    if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
+        return False
+
     if name is None:
         return False
 
