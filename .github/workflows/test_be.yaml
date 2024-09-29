@@ -82,26 +82,22 @@ jobs:
           cp frontend/index.html marimo/_static/index.html
           cp frontend/public/favicon.ico marimo/_static/favicon.ico
 
-      - name: Install marimo with dev dependencies
-        run: hatch env create
-
       - name: Lint
+        if: ${{ matrix.python-version == '3.12' }}
         run: hatch run lint
 
       - name: Typecheck
-        if: ${{ matrix.python-version == '3.11' || matrix.python-version == '3.12' }}
+        if: ${{ matrix.python-version == '3.12' }}
         run: hatch run typecheck
 
       # Test with minimal dependencies
       - name: Test with minimal dependencies
         if: ${{ matrix.dependencies == 'core' }}
         run: |
-          hatch env create test
           hatch run +py=${{ matrix.python-version }} test:pytest -v tests/ -k "not test_cli"
 
       # Test with optional dependencies
       - name: Test with optional dependencies
         if: ${{ matrix.dependencies == 'core,optional' }}
         run: |
-          hatch env create test-optional
           hatch run +py=${{ matrix.python-version }} test-optional:pytest -v tests/ -k "not test_cli"
