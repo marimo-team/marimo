@@ -23,7 +23,7 @@ The chat UI element provides an interactive chatbot interface for conversations.
 .. autoclass:: marimo.ui.chat
   :members:
 
-  .. autoclasstoc:: marimo._plugins.ui._impl.chat.chat
+  .. autoclasstoc:: marimo._plugins.ui._impl.chat.chat.chat
 ```
 
 ## Basic Usage
