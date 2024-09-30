@@ -459,7 +459,7 @@ class BlockHasher:
                     _hashed = pickle.dumps(scope[ref])
                     content_serialization[ref] = type_sign(_hashed, "pickle")
                     refs.remove(ref)
-                except (pickle.picklingError, TypeError) as e:
+                except (pickle.PicklingError, TypeError) as e:
                     exceptions.append(e)
                     failed.append(ref)
             if failed:
