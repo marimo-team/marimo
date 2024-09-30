@@ -1,16 +1,26 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "cvxpy==1.5.3",
+#     "marimo",
+#     "matplotlib==3.9.2",
+#     "numpy==1.26.4",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.1.4"
+__generated_with = "0.8.19"
 app = marimo.App()
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
-    mo.md("# Regularization and Sparsity")
+    mo.md("""# Regularization and Sparsity""")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         r"""
@@ -82,23 +92,23 @@ def __(functools, l1_solver, l2_solver, np, sparsity_parameter):
     return solve, x_l1, x_l2, x_min_max
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
-    mo.md("## Parameter selection")
+    mo.md("""## Parameter selection""")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     sparsity_parameter = mo.ui.slider(0, 10, step=0.1)
     mo.md(
         f"""
         Choose the regularization strength $\lambda$: {sparsity_parameter}
         """)
-    return sparsity_parameter,
+    return (sparsity_parameter,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo, n, number_of_zeros, sparsity_parameter, x_l1, x_l2):
     (
         mo.md(
@@ -159,7 +169,7 @@ def __(mo):
 def __(np):
     def number_of_zeros(x):
         return np.isclose(x, 0).sum()
-    return number_of_zeros,
+    return (number_of_zeros,)
 
 
 @app.cell
@@ -176,7 +186,7 @@ def __(np, x_min_max):
         ax.set_xlabel('$x_i$')
         ax.set_ylabel('fraction of components')
         return ax
-    return cdf,
+    return (cdf,)
 
 
 @app.cell
@@ -194,7 +204,7 @@ def __(cp):
             problem.solve()
             return x.value
         return solve
-    return sparse_solver,
+    return (sparse_solver,)
 
 
 @app.cell
@@ -208,13 +218,13 @@ def __():
 @app.cell
 def __():
     import functools
-    return functools,
+    return (functools,)
 
 
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 if __name__ == "__main__":

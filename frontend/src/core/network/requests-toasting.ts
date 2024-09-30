@@ -49,6 +49,9 @@ export function createErrorToastingRequests(
     exportAsMarkdown: "Failed to export Markdown",
     autoExportAsHTML: "", // No toast
     autoExportAsMarkdown: "", // No toast
+    addPackage: "Failed to add package",
+    removePackage: "Failed to remove package",
+    getPackageList: "Failed to get package list",
   };
 
   const handlers = {} as EditRequests & RunRequests;

@@ -273,6 +273,40 @@ class TestParseSQLCell:
         assert cell.language == "sql"
         assert not cell.variable_data
 
+    @staticmethod
+    @pytest.mark.parametrize(
+        "code",
+        [
+            'duckdb.sql("CREATE TABLE t1 (i INTEGER, j INTEGER)")',
+            'duckdb.execute("CREATE TABLE t1 (i INTEGER, j INTEGER)")',
+        ],
+    )
+    def test_table_definition_duckdb(code: str) -> None:
+        cell = compile_cell(code)
+        assert cell.key == hash(code)
+        assert cell.code == code
+        assert cell.defs == set(["t1"])
+        assert cell.refs == set(["duckdb"])
+        assert cell.language == "sql"
+        assert cell.variable_data == {"t1": [VariableData("table")]}
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        "code",
+        [
+            'duckdb.sql("SELECT * from t1")',
+            'duckdb.execute("SELECT * from t1")',
+        ],
+    )
+    def test_table_reference_duckdb(code: str) -> None:
+        cell = compile_cell(code)
+        assert cell.key == hash(code)
+        assert cell.code == code
+        assert not cell.defs
+        assert cell.refs == set(["duckdb", "t1"])
+        assert cell.language == "sql"
+        assert not cell.variable_data
+
 
 class TestCellFactory:
     @staticmethod

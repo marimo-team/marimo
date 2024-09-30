@@ -1,19 +1,28 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "marimo",
+#     "matplotlib==3.9.2",
+#     "numpy==1.26.4",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.1.0"
+__generated_with = "0.8.19"
 app = marimo.App()
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
-    mo.md("# Surfaces")
+    mo.md("""# Surfaces""")
     return
 
 
 @app.cell
 def __(plot_3d_surface, selected_function):
     ax = plot_3d_surface(selected_function)
-    return ax,
+    return (ax,)
 
 
 @app.cell
@@ -25,7 +34,7 @@ def __(ax, xlim, ylim, zlim):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(
     a,
     b,
@@ -96,7 +105,7 @@ def __(
 @app.cell
 def __(function, function_options):
     selected_function = function_options[function.value]
-    return selected_function,
+    return (selected_function,)
 
 
 @app.cell
@@ -107,7 +116,7 @@ def __(paraboloid, saddle, sphere, torus):
         "sphere": sphere,
         "torus": torus,
     }
-    return function_options,
+    return (function_options,)
 
 
 @app.cell
@@ -120,7 +129,7 @@ def __(mo):
             "torus"
         ], value='paraboloid'
     )
-    return function,
+    return (function,)
 
 
 @app.cell
@@ -139,12 +148,12 @@ def __(plt):
         fig.set_size_inches(7, 7)
 
         return ax
-    return plot_3d_surface,
+    return (plot_3d_surface,)
 
 
 @app.cell
 def __(mo):
-    mo.md("### Controls")
+    mo.md("""### Controls""")
     return
 
 
@@ -233,7 +242,7 @@ def __(grid, saddle_param_a, saddle_param_b):
     def saddle():
         x, y = grid(xlim=(-1, 1), ylim=(-1, 1))
         return x, y, saddle_param_a.value*x**2 - saddle_param_b.value*y**4
-    return saddle,
+    return (saddle,)
 
 
 @app.cell
@@ -241,7 +250,7 @@ def __(a, b, grid):
     def paraboloid():
         x, y = grid(xlim=(-1, 1), ylim=(-1, 1))
         return x, y, a.value*x**2 / 2 + b.value*y**2/ 2
-    return paraboloid,
+    return (paraboloid,)
 
 
 @app.cell
@@ -252,7 +261,7 @@ def __(grid, np, sphere_param_r):
         y = np.sin(theta)*np.sin(phi)
         z = np.cos(phi)
         return sphere_param_r.value*x, sphere_param_r.value*y, sphere_param_r.value*z
-    return sphere,
+    return (sphere,)
 
 
 @app.cell
@@ -266,7 +275,7 @@ def __(grid, np, torus_param_a, torus_param_c):
         y = (center_radius + tube_radius*np.cos(theta)) * np.sin(phi)
         z = tube_radius*np.sin(theta)
         return x, y, z
-    return torus,
+    return (torus,)
 
 
 @app.cell
@@ -277,7 +286,7 @@ def __(np):
         x = np.linspace(xmin, xmax, 100)
         y = np.linspace(ymin, ymax, 100)
         return np.meshgrid(x, y)
-    return grid,
+    return (grid,)
 
 
 @app.cell
@@ -291,7 +300,7 @@ def __():
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 if __name__ == "__main__":

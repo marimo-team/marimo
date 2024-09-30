@@ -23,6 +23,7 @@
   wasm
   exporting
   configuration
+  troubleshooting
   deploying/index
 ```
 

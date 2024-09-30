@@ -27,6 +27,8 @@ from typing import Any, Callable, Optional, Tuple, Type, TypeVar, cast
 
 from marimo import _loggers as loggers
 from marimo._messaging.mimetypes import KnownMimeType
+from marimo._output.builder import h
+from marimo._output.formatters.utils import src_or_src_doc
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._output.utils import flatten_string
@@ -329,6 +331,17 @@ def as_html(value: object) -> Html:
     return mime_to_html(mimetype, data)
 
 
+def as_dom_node(value: object) -> Html:
+    """
+    Similar to as_html, but allows for string, int, float, and bool values
+    to be passed through without being wrapped in an Html object.
+    """
+    if isinstance(value, (str, int, float, bool)):
+        return Html(escape(str(value)))
+
+    return as_html(value)
+
+
 def mime_to_html(mimetype: KnownMimeType, data: Any) -> Html:
     if mimetype == "text/html":
         # Using `as_html` to embed multiline HTML content
@@ -396,3 +409,40 @@ def _is_callable_method(obj: Any, attr: str) -> bool:
     if inspect.isclass(obj) and not isinstance(method, (types.MethodType)):
         return False
     return callable(method)
+
+
+@mddoc
+def iframe(html: str, *, width: str = "100%", height: str = "400px") -> Html:
+    """
+    Embed an HTML string in an iframe.
+
+    Scripts by default are not executed using `mo.as_html` or `mo.Html`,
+    so if you have a <script/> tag, you can use `mo.iframe` for
+    scripts to be executed.
+
+    You may also want to use this function to display HTML content
+    that may contain styles that could interfere with the rest of the
+    page.
+
+    **Example.**
+
+    ```python
+    html = "<h1>Hello, world!</h1>"
+    mo.iframe(html)
+    ```
+
+    **Args.**
+
+    - `html`: An HTML string
+    """
+
+    return Html(
+        flatten_string(
+            h.iframe(
+                **src_or_src_doc(html),
+                onload="__resizeIframe(this)",
+                width=width,
+                height=height,
+            )
+        ),
+    )

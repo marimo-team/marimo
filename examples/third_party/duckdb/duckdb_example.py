@@ -1,6 +1,16 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "duckdb==1.1.1",
+#     "marimo",
+#     "pandas==2.2.3",
+#     "requests==2.32.3",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.8.0"
+__generated_with = "0.8.19"
 app = marimo.App(width="full")
 
 
@@ -26,7 +36,7 @@ def __(fetch_hugging_face_datasets, mo, pd):
         datasets = fetch_hugging_face_datasets()
         # Fix lastModified column to be a date from a str
         datasets["lastModified"] = pd.to_datetime(datasets["lastModified"])
-    return datasets,
+    return (datasets,)
 
 
 @app.cell(hide_code=True)
@@ -66,7 +76,7 @@ def __(all_tags, dataset_date_range, dataset_length, mo):
             ),
         ]
     )
-    return stats,
+    return (stats,)
 
 
 @app.cell
@@ -119,7 +129,7 @@ def __(datasets, duckdb, mo, search_filter, tag_filter):
         pagination=True,
     )
     table
-    return table,
+    return (table,)
 
 
 @app.cell
@@ -129,7 +139,7 @@ def __(table):
         if table.value is not None and len(table.value)
         else None
     )
-    return selected_dataset,
+    return (selected_dataset,)
 
 
 @app.cell
@@ -169,7 +179,7 @@ def __(load_hugging_face_dataset, mo, selected_dataset):
         pagination=True,
     )
     selected_parquet
-    return selected_parquet,
+    return (selected_parquet,)
 
 
 @app.cell
@@ -218,7 +228,7 @@ def __(duckdb, mo, url):
         ],
         widths=[1, 1, 2],
     )
-    return con,
+    return (con,)
 
 
 @app.cell
@@ -242,7 +252,7 @@ def __(has_selected_file, mo, render_sql_editor):
             sql_editor,
         ]
     )
-    return sql_editor,
+    return (sql_editor,)
 
 
 @app.cell
@@ -271,7 +281,7 @@ def __(datasets, mo, render_dataframe_editor):
             df_editor,
         ]
     )
-    return df_editor,
+    return (df_editor,)
 
 
 @app.cell
@@ -313,7 +323,7 @@ def __():
 
     def print_month_year(date):
         return date.strftime("%b %Y")
-    return print_month_year,
+    return (print_month_year,)
 
 
 @app.cell

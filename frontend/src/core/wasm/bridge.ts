@@ -448,6 +448,17 @@ export class PyodideBridge implements RunRequests, EditRequests {
   autoExportAsHTML = throwNotImplemented;
   autoExportAsMarkdown = throwNotImplemented;
 
+  addPackage: EditRequests["addPackage"] = async (request) => {
+    return this.rpc.proxy.request.addPackage(request);
+  };
+  removePackage: EditRequests["removePackage"] = async (request) => {
+    return this.rpc.proxy.request.removePackage(request);
+  };
+  getPackageList = async () => {
+    const response = await this.rpc.proxy.request.listPackages();
+    return response;
+  };
+
   private async putControlRequest(operation: object) {
     await this.rpc.proxy.request.bridge({
       functionName: "put_control_request",

@@ -12,6 +12,7 @@ import { SearchIcon, XIcon } from "lucide-react";
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
 
 export type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
+  rootClassName?: string;
   icon?: React.ReactNode;
   endAdornment?: React.ReactNode;
 };
@@ -25,7 +26,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     }
 
     return (
-      <div className="relative">
+      <div className={cn("relative", props.rootClassName)}>
         {icon && (
           <div className="absolute inset-y-0 left-0 flex items-center pl-[6px] pointer-events-none text-muted-foreground h-6">
             {icon}
@@ -114,46 +115,55 @@ export const SearchInput = React.forwardRef<
     icon?: React.ReactNode | null;
     clearable?: boolean;
   }
->(({ className, rootClassName, icon, clearable = true, ...props }, ref) => {
-  const id = React.useId();
-  return (
-    <div className={cn("flex items-center border-b px-3", rootClassName)}>
-      {icon === null ? null : (
-        <SearchIcon className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-      )}
-      <input
-        id={id}
-        ref={ref}
-        className={cn(
-          "placeholder:text-foreground-muted flex h-7 m-1 w-full rounded-md bg-transparent py-3 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50",
-          className,
+>(
+  (
+    {
+      className,
+      rootClassName,
+      icon = <SearchIcon className="mr-2 h-4 w-4 shrink-0 opacity-50" />,
+      clearable = true,
+      ...props
+    },
+    ref,
+  ) => {
+    const id = React.useId();
+    return (
+      <div className={cn("flex items-center border-b px-3", rootClassName)}>
+        {icon}
+        <input
+          id={id}
+          ref={ref}
+          className={cn(
+            "placeholder:text-foreground-muted flex h-7 m-1 w-full rounded-md bg-transparent py-3 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50",
+            className,
+          )}
+          {...props}
+        />
+        {clearable && props.value && (
+          <span
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const input = document.getElementById(id);
+              if (input && input instanceof HTMLInputElement) {
+                input.focus();
+                input.value = "";
+                props.onChange?.({
+                  ...e,
+                  target: input,
+                  currentTarget: input,
+                  type: "change",
+                } as React.ChangeEvent<HTMLInputElement>);
+              }
+            }}
+          >
+            <XIcon className="h-4 w-4 opacity-50 hover:opacity-90" />
+          </span>
         )}
-        {...props}
-      />
-      {clearable && props.value && (
-        <span
-          onPointerDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const input = document.getElementById(id);
-            if (input && input instanceof HTMLInputElement) {
-              input.focus();
-              input.value = "";
-              props.onChange?.({
-                ...e,
-                target: input,
-                currentTarget: input,
-                type: "change",
-              } as React.ChangeEvent<HTMLInputElement>);
-            }
-          }}
-        >
-          <XIcon className="h-4 w-4 opacity-50 hover:opacity-90" />
-        </span>
-      )}
-    </div>
-  );
-});
+      </div>
+    );
+  },
+);
 SearchInput.displayName = "SearchInput";
 
 export const OnBlurredInput = React.forwardRef<

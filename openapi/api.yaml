@@ -1,5 +1,12 @@
 components:
   schemas:
+    AddPackageRequest:
+      properties:
+        package:
+          type: string
+      required:
+      - package
+      type: object
     AiCompletionRequest:
       properties:
         code:
@@ -802,8 +809,13 @@ components:
       properties:
         manager:
           type: string
+        versions:
+          additionalProperties:
+            type: string
+          type: object
       required:
       - manager
+      - versions
       type: object
     InstallingPackageAlert:
       properties:
@@ -968,6 +980,15 @@ components:
       - kiosk
       - capabilities
       - name
+      type: object
+    ListPackagesResponse:
+      properties:
+        packages:
+          items:
+            $ref: '#/components/schemas/PackageDescription'
+          type: array
+      required:
+      - packages
       type: object
     MIME:
       properties: {}
@@ -1389,6 +1410,26 @@ components:
       required:
       - tutorialId
       type: object
+    PackageDescription:
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+      required:
+      - name
+      - version
+      type: object
+    PackageOperationResponse:
+      properties:
+        error:
+          nullable: true
+          type: string
+        success:
+          type: boolean
+      required:
+      - success
+      type: object
     PreviewDatasetColumnRequest:
       properties:
         columnName:
@@ -1499,6 +1540,13 @@ components:
           type: string
       required:
       - name
+      type: object
+    RemovePackageRequest:
+      properties:
+        package:
+          type: string
+      required:
+      - package
       type: object
     RemoveUIElements:
       properties:
@@ -1863,7 +1911,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.8.15
+  version: 0.8.18
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -2442,6 +2490,43 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Sync cell ids
+  /api/packages/add:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddPackageRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackageOperationResponse'
+          description: Install package
+  /api/packages/list:
+    get:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListPackagesResponse'
+          description: List installed packages
+  /api/packages/remove:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RemovePackageRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackageOperationResponse'
+          description: Uninstall package
   /api/status:
     get:
       responses:

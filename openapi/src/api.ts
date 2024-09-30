@@ -1672,6 +1672,119 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/packages/add": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["AddPackageRequest"];
+        };
+      };
+      responses: {
+        /** @description Install package */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["PackageOperationResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/packages/list": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description List installed packages */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["ListPackagesResponse"];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/packages/remove": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["RemovePackageRequest"];
+        };
+      };
+      responses: {
+        /** @description Uninstall package */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["PackageOperationResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/status": {
     parameters: {
       query?: never;
@@ -1858,6 +1971,9 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    AddPackageRequest: {
+      package: string;
+    };
     AiCompletionRequest: {
       code: string;
       context?: {
@@ -2177,6 +2293,9 @@ export interface components {
     };
     InstallMissingPackagesRequest: {
       manager: string;
+      versions: {
+        [key: string]: string;
+      };
     };
     InstallingPackageAlert: {
       /** @enum {string} */
@@ -2247,6 +2366,9 @@ export interface components {
             )
           | null;
       } | null;
+    };
+    ListPackagesResponse: {
+      packages: components["schemas"]["PackageDescription"][];
     };
     MIME: Record<string, never>;
     MarimoAncestorPreventedError: {
@@ -2433,6 +2555,14 @@ export interface components {
           )
         | "markdown-format";
     };
+    PackageDescription: {
+      name: string;
+      version: string;
+    };
+    PackageOperationResponse: {
+      error?: string | null;
+      success: boolean;
+    };
     PreviewDatasetColumnRequest: {
       columnName: string;
       source: string;
@@ -2475,6 +2605,9 @@ export interface components {
     Reload: {
       /** @enum {string} */
       name: "reload";
+    };
+    RemovePackageRequest: {
+      package: string;
     };
     RemoveUIElements: {
       cell_id: string;

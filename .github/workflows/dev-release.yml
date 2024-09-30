@@ -30,15 +30,15 @@ jobs:
 
       - uses: pnpm/action-setup@v2
         with:
-          version: 8
+          version: 9
 
       - name: ⎔ Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: "pnpm"
-          cache-dependency-path: "**/pnpm-lock.yaml"
-          registry-url: "https://registry.npmjs.org"
+          cache: 'pnpm'
+          cache-dependency-path: '**/pnpm-lock.yaml'
+          registry-url: 'https://registry.npmjs.org'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -48,8 +48,8 @@ jobs:
       - name: 🐍 Setup Python 3.10
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
-          cache: "pip"
+          python-version: '3.10'
+          cache: 'pip'
 
       - name: 🐍 Setup uv
         uses: yezz123/setup-uv@v4
@@ -106,7 +106,7 @@ jobs:
         working-directory: frontend
         env:
           NODE_ENV: production
-          VITE_MARIMO_ISLANDS: "true"
+          VITE_MARIMO_ISLANDS: 'true'
           VITE_MARIMO_VERSION: ${{ env.MARIMO_VERSION }}
         run: |
           pnpm turbo build:islands

@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import os
 from typing import Optional
 
 from marimo import _loggers
@@ -12,7 +11,10 @@ from marimo._config.config import (
     merge_default_config,
     remove_secret_placeholders,
 )
-from marimo._config.utils import CONFIG_FILENAME, get_config_path, load_config
+from marimo._config.utils import (
+    get_or_create_config_path,
+    load_config,
+)
 
 LOGGER = _loggers.marimo_logger()
 
@@ -44,8 +46,4 @@ class UserConfigManager:
         return self.config
 
     def get_config_path(self) -> str:
-        return get_config_path() or self._default_config_path()
-
-    def _default_config_path(self) -> str:
-        home = os.path.expanduser("~")
-        return os.path.join(home, CONFIG_FILENAME)
+        return get_or_create_config_path()

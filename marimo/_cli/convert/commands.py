@@ -5,9 +5,10 @@ from pathlib import Path
 
 import click
 
-from marimo._cli.convert.ipynb import convert_from_ipynb
 from marimo._cli.convert.markdown import convert_from_md
 from marimo._cli.convert.utils import load_external_file
+from marimo._cli.print import echo
+from marimo._convert.ipynb import convert_from_ipynb
 
 
 @click.argument("filename", required=True)
@@ -47,4 +48,4 @@ def convert(
     else:
         assert ext in (".md", ".qmd")
         notebook = convert_from_md(text)
-    click.echo(notebook)
+    echo(notebook)

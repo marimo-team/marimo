@@ -1,12 +1,20 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "marimo",
+#     "pymde==0.1.18",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.1.0"
+__generated_with = "0.8.19"
 app = marimo.App()
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
-    mo.md("# Visualizing Complete Graphs")
+    mo.md("""# Visualizing Complete Graphs""")
     return
 
 
@@ -18,7 +26,7 @@ def __(mo):
         Choose a number of items $n$: {n_items}
         """
     )
-    return n_items,
+    return (n_items,)
 
 
 @app.cell
@@ -36,7 +44,7 @@ def __(mo, pymde):
         Choose a penalty function: {penalty_function}
         """
     )
-    return penalty_function,
+    return (penalty_function,)
 
 
 @app.cell
@@ -58,7 +66,7 @@ def __(complete_graph, mo, n_items, penalty_function):
         {mo.as_html(plot)}
         """
     )
-    return plot,
+    return (plot,)
 
 
 @app.cell
@@ -83,13 +91,13 @@ def __(pymde):
 @app.cell
 def __():
     import pymde
-    return pymde,
+    return (pymde,)
 
 
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 if __name__ == "__main__":

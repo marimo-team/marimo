@@ -116,8 +116,8 @@ def test_multiple_defs() -> None:
     assert codes[0] == "_x = 0\n_x"
     assert codes[1] == "_x = 1\n_x"
     assert codes[2] == "y = 0"
-    assert codes[3] == "y = 1"
-    assert codes[4] == "y"
+    assert codes[3] == "y_1 = 1"
+    assert codes[4] == "y_1"
     assert (
         codes[5]
         == textwrap.dedent(

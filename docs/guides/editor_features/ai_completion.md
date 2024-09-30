@@ -27,7 +27,7 @@ marimo using `pip` if you need Copilot.
 4. Right-click on the extension window and select "Inspect" to open the developer tools for the extension. Then click on "Network"
 5. Copy the token and paste it into the input area, and then press "Enter Token"
 6. This action will log a new API request in the **Network** tab. Click on "Preview" to get the API key.
-7. Paste the API key in the marimo settings in the UI, or add it to your `~/.marimo.toml` file as follows:
+7. Paste the API key in the marimo settings in the UI, or add it to your `marimo.toml` file as follows:
 
 ```toml
 [completion]
@@ -57,7 +57,7 @@ the bottom of your notebook. You can also refactor existing cells by inputting
 
 1. Install openai: `pip install openai`
 
-2. Add the following to your `~/.marimo.toml`:
+2. Add the following to your `marimo.toml`:
 
 ```toml
 [ai.open_ai]
@@ -74,7 +74,7 @@ base_url = "https://api.openai.com/v1"
 To use Anthropic with marimo:
 
 1. Sign up for an account at [Anthropic](https://console.anthropic.com/) and grab your [Anthropic Key](https://console.anthropic.com/settings/keys).
-2. Add the following to your `~/.marimo.toml`:
+2. Add the following to your `marimo.toml`:
 
 ```toml
 [ai.open_ai]
@@ -102,7 +102,7 @@ Gemma 2) on your local machine. To integrate Ollama with marimo:
    2. We also recommend `codellama` (code specific) or `llama3.1` (more advanced, but larger).
 3. Start the Ollama server: `ollama run llama2`
 4. Visit <http://localhost:11434> to confirm that the server is running.
-5. Add the following to your `~/.marimo.toml`:
+5. Add the following to your `marimo.toml`:
 
 ```toml
 [ai.open_ai]

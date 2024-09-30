@@ -37,6 +37,7 @@ const Tooltip: React.FC<
     asChild?: boolean;
     side?: TooltipPrimitive.TooltipContentProps["side"];
     tabIndex?: number;
+    align?: TooltipPrimitive.TooltipContentProps["align"];
   } & React.ComponentPropsWithoutRef<typeof TooltipRoot>
 > = ({
   content,
@@ -45,6 +46,7 @@ const Tooltip: React.FC<
   asChild = true,
   tabIndex,
   side,
+  align,
   ...rootProps
 }) => {
   if (content == null || content === "") {
@@ -58,10 +60,14 @@ const Tooltip: React.FC<
       </TooltipTrigger>
       {usePortal ? (
         <TooltipPrimitive.TooltipPortal>
-          <TooltipContent side={side}>{content}</TooltipContent>
+          <TooltipContent side={side} align={align}>
+            {content}
+          </TooltipContent>
         </TooltipPrimitive.TooltipPortal>
       ) : (
-        <TooltipContent side={side}>{content}</TooltipContent>
+        <TooltipContent side={side} align={align}>
+          {content}
+        </TooltipContent>
       )}
     </TooltipRoot>
   );

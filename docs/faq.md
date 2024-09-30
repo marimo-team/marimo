@@ -192,8 +192,8 @@ kick off expensive cells before you're ready to run them.
 
 _Here are some tips to avoid accidental execution of expensive cells:_
 
-- [Disable expensive cells](guides/reactivity.md#disabling-cells).
-When a cell is disabled, it and its descendants are blocked from running.
+- [Disable expensive cells](guides/reactivity.md#disabling-cells). When a cell
+  is disabled, it and its descendants are blocked from running.
 - Wrap UI elements in a [form](api/inputs/form.md#marimo.ui.form).
 - Use [`mo.stop`](api/control_flow.md#marimo.stop) to conditionally stop
   execution of a cell and its descendants.

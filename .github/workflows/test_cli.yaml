@@ -47,7 +47,7 @@ jobs:
 
       - uses: pnpm/action-setup@v2
         with:
-          version: 8
+          version: 9
 
       - name: ⎔ Setup Node.js
         uses: actions/setup-node@v4
@@ -158,7 +158,6 @@ jobs:
         run: |
           uv pip install pytest pytest-asyncio
           uv pip install ./marimo*whl
-          uv pip install -r examples/requirements.txt
 
       - name: Test examples
         shell: bash

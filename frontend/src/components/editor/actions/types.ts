@@ -9,6 +9,8 @@ export interface ActionButton {
   label: string;
   labelElement?: React.ReactNode;
   description?: string;
+  disabled?: boolean;
+  tooltip?: React.ReactNode;
   variant?: "danger" | "muted" | "disabled";
   disableClick?: boolean;
   icon?: React.ReactElement;

@@ -5,6 +5,7 @@ import base64
 import dataclasses
 import os
 import pathlib
+import sys
 import traceback
 from dataclasses import dataclass
 from typing import (
@@ -31,6 +32,11 @@ from marimo._data.series import (
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import S as JSONTypeBound, UIElement
+from marimo._plugins.validators import (
+    validate_between_range,
+    validate_range,
+    warn_js_safe_number,
+)
 from marimo._runtime.functions import Function
 from marimo._server.files.os_file_system import OSFileSystem
 from marimo._server.models.files import FileInfo
@@ -66,8 +72,8 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
 
     **Initialization Args.**
 
-    - `start`: the minimum value of the interval
-    - `stop`: the maximum value of the interval
+    - `start`: optional, the minimum value of the interval
+    - `stop`: optional, the maximum value of the interval
     - `step`: the number increment
     - `value`: default value
     - `debounce`: whether to debounce (rate-limit) value
@@ -82,8 +88,8 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
 
     def __init__(
         self,
-        start: float,
-        stop: float,
+        start: Optional[float] = None,
+        stop: Optional[float] = None,
         step: Optional[float] = None,
         value: Optional[float] = None,
         debounce: bool = False,
@@ -92,17 +98,16 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
         on_change: Optional[Callable[[Optional[Numeric]], None]] = None,
         full_width: bool = False,
     ) -> None:
-        value = start if value is None else value
-        if stop < start:
-            raise ValueError(
-                f"Invalid bounds: stop value ({stop}) must be greater than "
-                f"start value ({start})"
-            )
-        elif value < start or value > stop:
-            raise ValueError(
-                f"Value out of bounds: The default value ({value}) must be "
-                f"greater than start ({start}) and less than stop ({stop})."
-            )
+        validate_range(min_value=start, max_value=stop)
+        validate_between_range(value, min_value=start, max_value=stop)
+        warn_js_safe_number(start, stop, value)
+
+        # Set value to min or max if None
+        if value is None:
+            if start is not None:
+                value = start
+            elif stop is not None:
+                value = stop
 
         # Lower bound
         self.start = start
@@ -204,6 +209,7 @@ class slider(UIElement[Numeric, Numeric]):
         self.stop: Numeric
         self.step: Optional[Numeric]
         self.steps: Optional[Sequence[Numeric]]
+        warn_js_safe_number(start, stop, value)
 
         # Guard against conflicting arguments
         if steps is not None and (
@@ -229,9 +235,9 @@ class slider(UIElement[Numeric, Numeric]):
                 value = steps[0] if value is None else value
                 value = steps.index(value)
             except ValueError:
-                print(
+                sys.stderr.write(
                     "Value out of bounds: default value should be in the steps"
-                    ", set to first value."
+                    ", set to first value.\n"
                 )
                 value = 0
             except AssertionError as e:
@@ -387,6 +393,7 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
         self.stop: Numeric
         self.step: Optional[Numeric]
         self.steps: Optional[Sequence[Numeric]]
+        warn_js_safe_number(start, stop, *(value or []))
 
         if steps is not None and (
             start is not None or stop is not None or step is not None
@@ -411,9 +418,9 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
                 value = [steps[0], steps[-1]] if value is None else value
                 value = [steps.index(num) for num in value]
             except ValueError:
-                print(
+                sys.stderr.write(
                     "Value out of bounds: default value should be in the"
-                    "steps, set to first and last values."
+                    "steps, set to first and last values.\n"
                 )
                 value = [0, len(steps) - 1]
             except AssertionError as e:
@@ -1151,10 +1158,9 @@ class button(UIElement[Any, Any]):
         try:
             return self._on_click(self._value)
         except Exception:
-            LOGGER.error(
-                "on_click handler for button (%s) raised an Exception:\n %s ",
-                str(self),
-                traceback.format_exc(),
+            sys.stderr.write(
+                "on_click handler for button (%s) raised an Exception:\n %s\n"
+                % (str(self), traceback.format_exc())
             )
             return None
 

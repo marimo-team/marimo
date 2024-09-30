@@ -25,8 +25,8 @@ Python (>=3.8) installed.
 
 - Install [Node.js](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm#using-a-node-version-manager-to-install-nodejs-and-npm) >= 18
   - We use Node.js version 20
-- Install [pnpm](https://github.com/pnpm/pnpm) == 8.x
-  - `npm install -g pnpm@8`
+- Install [pnpm](https://github.com/pnpm/pnpm) == 9.x
+  - `npm install -g pnpm@9`
 - Install [GNU Make](https://www.gnu.org/software/make/) (you may already have it installed)
 - Install [Python](https://www.python.org/) >= 3.8. (You may already it installed. To see your version, use `python -V` at the command line.)
 
@@ -42,6 +42,13 @@ when making a commit:
 ```bash
 pre-commit install
 ```
+
+> [!NOTE]
+>
+> As an alternative to building from source, you can try developing
+> [in Gitpod](https://gitpod.io/#https://github.com/marimo-team/marimo).
+> Note that developing in Gitpod is not officially supported by the marimo
+> team.
 
 ## Building from source
 

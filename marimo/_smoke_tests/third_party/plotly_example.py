@@ -1,14 +1,15 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#     "plotly",
-#     "pandas",
+#     "plotly==5.24.1",
+#     "pandas==2.2.3",
+#     "marimo",
 # ]
 # ///
 
 import marimo
 
-__generated_with = "0.8.14"
+__generated_with = "0.8.18"
 app = marimo.App(width="full")
 
 
@@ -23,7 +24,7 @@ def __():
     import plotly.express as px
 
     px.scatter(x=[0, 1, 2, 3, 4], y=[0, 1, 4, 9, 16])
-    return px,
+    return (px,)
 
 
 @app.cell
@@ -37,7 +38,7 @@ def __(mo, px):
             plot,
         ]
     )
-    return plot,
+    return (plot,)
 
 
 @app.cell
@@ -145,7 +146,7 @@ def __():
 def __(cars, mo):
     sample_size = mo.ui.slider(label="Sample", start=100, stop=len(cars), step=100)
     sample_size
-    return sample_size,
+    return (sample_size,)
 
 
 @app.cell
@@ -162,7 +163,7 @@ def __(cars, mo, px, sample_size):
     _fig
     plot3 = mo.ui.plotly(_fig)
     plot3
-    return plot3,
+    return (plot3,)
 
 
 @app.cell

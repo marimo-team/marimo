@@ -23,6 +23,10 @@ import { getPyodideVersion, importPyodide } from "./getPyodideVersion";
 import { t } from "./tracer";
 import { once } from "@/utils/once";
 import { getController } from "./getController";
+import type {
+  ListPackagesResponse,
+  PackageOperationResponse,
+} from "@/core/network/types";
 
 /**
  * Web worker responsible for running the notebook.
@@ -163,6 +167,67 @@ const requestHandler = createRPCRequestHandler({
     await pyodideReadyPromise; // Make sure loading is done
 
     self.pyodide.setInterruptBuffer(payload);
+  },
+
+  addPackage: async (opts: {
+    package: string;
+  }): Promise<PackageOperationResponse> => {
+    await pyodideReadyPromise; // Make sure loading is done
+
+    const { package: packageName } = opts;
+    const response = await self.pyodide.runPythonAsync(`
+      import micropip
+      import json
+      response = None
+      try:
+        await micropip.install("${packageName}")
+        response = {"success": True}
+      except Exception as e:
+        response = {"success": False, "error": str(e)}
+      json.dumps(response)
+    `);
+    return JSON.parse(response) as PackageOperationResponse;
+  },
+
+  removePackage: async (opts: {
+    package: string;
+  }): Promise<PackageOperationResponse> => {
+    await pyodideReadyPromise; // Make sure loading is done
+
+    const { package: packageName } = opts;
+    const response = await self.pyodide.runPythonAsync(`
+        import micropip
+        import json
+        response = None
+        try:
+          micropip.uninstall("${packageName}")
+          response = {"success": True}
+        except Exception as e:
+          response = {"success": False, "error": str(e)}
+        json.dumps(response)
+      `);
+    return JSON.parse(response) as PackageOperationResponse;
+  },
+
+  listPackages: async (): Promise<ListPackagesResponse> => {
+    const span = t.startSpan("listPackages");
+    await pyodideReadyPromise; // Make sure loading is done
+
+    const packages = await self.pyodide.runPythonAsync(`
+      import json
+      import micropip
+
+      packages = micropip.list()
+      packages = [
+        {"name": p.name, "version": p.version}
+        for p in packages.values()
+      ]
+      json.dumps(sorted(packages, key=lambda pkg: pkg["name"]))
+    `);
+    span.end();
+    return {
+      packages: JSON.parse(packages) as ListPackagesResponse["packages"],
+    };
   },
 
   /**

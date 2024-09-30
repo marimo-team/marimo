@@ -1,3 +1,10 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "leafmap==0.38.0",
+#     "marimo",
+# ]
+# ///
 import marimo
 
 __generated_with = "0.1.59"

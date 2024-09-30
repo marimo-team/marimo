@@ -36,7 +36,6 @@ from marimo._messaging.errors import (
     UnknownError,
 )
 from marimo._messaging.ops import (
-    Alert,
     CellOp,
     CompletedRun,
     DataColumnPreview,
@@ -52,6 +51,7 @@ from marimo._messaging.ops import (
     VariableValues,
 )
 from marimo._messaging.streams import (
+    QueuePipe,
     ThreadSafeStderr,
     ThreadSafeStdin,
     ThreadSafeStdout,
@@ -133,6 +133,7 @@ from marimo._utils.typed_connection import TypedConnection
 from marimo._utils.variables import is_local
 
 if TYPE_CHECKING:
+    import queue
     from collections.abc import Sequence
     from types import ModuleType
 
@@ -428,7 +429,7 @@ class Kernel:
         self, package_manager: str
     ) -> None:
         return self.enqueue_control_request(
-            InstallMissingPackagesRequest(manager=package_manager)
+            InstallMissingPackagesRequest(manager=package_manager, versions={})
         )
 
     def _update_runtime_from_user_config(self, config: MarimoConfig) -> None:
@@ -680,10 +681,8 @@ class Kernel:
                         else set()
                     )
                     to_add = cell.imported_namespaces - prev_imports
-                    to_remove = prev_imports - cell.imported_namespaces
                     self._update_script_metadata(
-                        import_namespaces_to_add=list(to_add),
-                        import_namespaces_to_remove=list(to_remove),
+                        import_namespaces_to_add=list(to_add)
                     )
 
         LOGGER.debug(
@@ -847,9 +846,6 @@ class Kernel:
         if self._should_update_script_metadata():
             self._update_script_metadata(
                 import_namespaces_to_add=[],
-                import_namespaces_to_remove=[
-                    im.namespace for im in cell.imports
-                ],
             )
 
         return self._deactivate_cell(cell_id)
@@ -1676,13 +1672,7 @@ class Kernel:
             self.package_manager = create_package_manager(request.manager)
 
         if not self.package_manager.is_manager_installed():
-            Alert(
-                title="Package manager not installed",
-                description=(
-                    f"{request.manager} is not available on your machine."
-                ),
-                variant="danger",
-            ).broadcast()
+            self.package_manager.alert_not_installed()
             return
 
         # Package manager operates on module names
@@ -1703,7 +1693,8 @@ class Kernel:
                 continue
             package_statuses[pkg] = "installing"
             InstallingPackageAlert(packages=package_statuses).broadcast()
-            if await self.package_manager.install(pkg):
+            version = request.versions.get(pkg)
+            if await self.package_manager.install(pkg, version=version):
                 package_statuses[pkg] = "installed"
                 InstallingPackageAlert(packages=package_statuses).broadcast()
             else:
@@ -1720,7 +1711,7 @@ class Kernel:
         # If a package was not installed at cell registration time, it won't
         # yet be in the script metadata.
         if self._should_update_script_metadata():
-            self._update_script_metadata(installed_modules, [])
+            self._update_script_metadata(installed_modules)
 
         cells_to_run = set(
             cid
@@ -1738,9 +1729,7 @@ class Kernel:
         )
 
     def _update_script_metadata(
-        self,
-        import_namespaces_to_add: List[str],
-        import_namespaces_to_remove: List[str],
+        self, import_namespaces_to_add: List[str]
     ) -> None:
         filename = self.app_metadata.filename
 
@@ -1749,16 +1738,14 @@ class Kernel:
 
         try:
             LOGGER.debug(
-                "Updating script metadata: %s. Adding namespaces: %s."
-                " Removing namespaces: %s",
+                "Updating script metadata: %s. Adding namespaces: %s.",
                 filename,
                 import_namespaces_to_add,
-                import_namespaces_to_remove,
             )
             self.package_manager.update_notebook_script_metadata(
                 filepath=filename,
                 import_namespaces_to_add=import_namespaces_to_add,
-                import_namespaces_to_remove=import_namespaces_to_remove,
+                import_namespaces_to_remove=[],
             )
         except Exception as e:
             LOGGER.error("Failed to add script metadata to notebook: %s", e)
@@ -1860,7 +1847,8 @@ def launch_kernel(
     set_ui_element_queue: QueueType[SetUIElementValueRequest],
     completion_queue: QueueType[CodeCompletionRequest],
     input_queue: QueueType[str],
-    socket_addr: tuple[str, int],
+    stream_queue: queue.Queue[KernelMessage] | None,
+    socket_addr: tuple[str, int] | None,
     is_edit_mode: bool,
     configs: dict[CellId_t, CellConfig],
     app_metadata: AppMetadata,
@@ -1884,24 +1872,33 @@ def launch_kernel(
         profiler = cProfile.Profile()
         profiler.enable()
 
-    n_tries = 0
-    pipe: Optional[TypedConnection[KernelMessage]] = None
-    while n_tries < 100:
-        try:
-            pipe = TypedConnection[KernelMessage].of(
-                connection.Client(socket_addr)
-            )
-            break
-        except Exception:
-            n_tries += 1
-            time.sleep(0.01)
-
-    if n_tries == 100 or pipe is None:
-        LOGGER.debug("Failed to connect to socket.")
-        return
-
     # Create communication channels
-    stream = ThreadSafeStream(pipe=pipe, input_queue=input_queue)
+    if socket_addr is not None:
+        n_tries = 0
+        pipe: Optional[TypedConnection[KernelMessage]] = None
+        while n_tries < 100:
+            try:
+                pipe = TypedConnection[KernelMessage].of(
+                    connection.Client(socket_addr)
+                )
+                break
+            except Exception:
+                n_tries += 1
+                time.sleep(0.01)
+
+        if n_tries == 100 or pipe is None:
+            LOGGER.debug("Failed to connect to socket.")
+            return
+
+        stream = ThreadSafeStream(pipe=pipe, input_queue=input_queue)
+    elif stream_queue is not None:
+        stream = ThreadSafeStream(
+            pipe=QueuePipe(stream_queue), input_queue=input_queue
+        )
+    else:
+        raise RuntimeError(
+            "One of queue_pipe and socket_addr must be non None"
+        )
     # Console output is hidden in run mode, so no need to redirect
     # (redirection of console outputs is not thread-safe anyway)
     stdout = (

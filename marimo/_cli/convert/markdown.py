@@ -26,7 +26,7 @@ from marimo._ast import codegen
 from marimo._ast.app import App, InternalApp, _AppConfig
 from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import compile_cell
-from marimo._cli.convert.utils import markdown_to_marimo
+from marimo._convert.utils import markdown_to_marimo
 
 MARIMO_MD = "marimo-md"
 MARIMO_CODE = "marimo-code"

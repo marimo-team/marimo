@@ -280,5 +280,22 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    addPackage: (request) => {
+      return marimoClient
+        .POST("/api/packages/add", {
+          body: request,
+        })
+        .then(handleResponse);
+    },
+    removePackage: (request) => {
+      return marimoClient
+        .POST("/api/packages/remove", {
+          body: request,
+        })
+        .then(handleResponse);
+    },
+    getPackageList: () => {
+      return marimoClient.GET("/api/packages/list").then(handleResponse);
+    },
   };
 }

@@ -251,6 +251,49 @@ def test_nested_comprehensions() -> None:
     assert not v.variable_data
 
 
+def test_comprehension_generator() -> None:
+    code = "\n".join(
+        [
+            "[x for x in x]",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set()
+    assert v.refs == set(["x"])
+    assert not v.variable_data
+
+
+def test_nested_comprehension_generator() -> None:
+    code = "\n".join(
+        [
+            "[x for x in x for x in x]",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set()
+    assert v.refs == set(["x"])
+    assert not v.variable_data
+
+
+def test_nested_comprehension_generator_with_named_expr() -> None:
+    code = "\n".join(
+        [
+            "[(x := x) for x in x for x in x]",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    # named expr kicks x out, evicting the ref
+    assert v.defs == set(["x"])
+    assert v.refs == set()
+    assert v.variable_data == {"x": [VariableData(kind="variable")]}
+
+
 def test_walrus_leaks_to_global_in_comprehension() -> None:
     code = "\n".join(
         [
@@ -927,6 +970,22 @@ def test_sql_statement_with_marimo_sql() -> None:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+@pytest.mark.parametrize(
+    "code",
+    [
+        "df = duckdb.sql('select * from cars')",
+        "df = duckdb.execute('select * from cars')",
+    ],
+)
+def test_sql_statement_with_duckdb_sql(code: str) -> None:
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["df"])
+    assert v.refs == set(["cars", "duckdb"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_statement_with_f_string() -> None:
     code = "\n".join(
         [
@@ -974,16 +1033,22 @@ def test_print_f_string() -> None:
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_empty_statement() -> None:
-    code = "\n".join(
-        [
-            "mo.sql('')",
-        ]
-    )
+    code = "mo.sql('')"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
     assert v.defs == set([])
     assert v.refs == set(["mo"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_empty_statement_duckdb() -> None:
+    code = "duckdb.sql('')"
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set([])
+    assert v.refs == set(["duckdb"])
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")

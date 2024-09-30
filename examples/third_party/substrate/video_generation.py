@@ -1,13 +1,21 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "marimo",
+#     "substrate==220240617.1.8",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.7.18"
+__generated_with = "0.8.19"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
@@ -17,7 +25,7 @@ def __(mo):
         kind="password",
     ).form(bordered=False)
     API_KEY
-    return API_KEY,
+    return (API_KEY,)
 
 
 @app.cell
@@ -55,7 +63,7 @@ def __(substrate):
 def __(mo, res, video_node):
     video = res.get(video_node)
     mo.image(video.video_uri)
-    return video,
+    return (video,)
 
 
 @app.cell

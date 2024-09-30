@@ -60,6 +60,13 @@ class MatplotlibFormatter(FormatterFactory):
     def apply_theme(self, theme: Theme) -> None:
         import matplotlib.style  # type: ignore
 
-        matplotlib.style.use(
-            "dark_background" if theme == "dark" else "default"
-        )
+        # Note: we don't set to "default", because that overwrites all
+        # rcParams.
+        #
+        # We also don't try to restore from an rcParams file, because that
+        # may overwrite other rcParams that the user set.
+        #
+        # This means that the style can't be switched from dark to light
+        # without restarting the kernel.
+        if theme == "dark":
+            matplotlib.style.use("dark_background")

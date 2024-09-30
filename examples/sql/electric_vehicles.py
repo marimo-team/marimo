@@ -1,10 +1,18 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "altair==5.4.1",
+#     "marimo",
+# ]
+# ///
+
 import marimo
 
-__generated_with = "0.7.0"
+__generated_with = "0.8.19"
 app = marimo.App(width="medium")
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         r"""
@@ -17,7 +25,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def __(evs, mo):
     evs = mo.sql(
         f"""
         create or replace table evs as
@@ -25,7 +33,7 @@ def __(mo):
         select * from evs
         """
     )
-    return evs,
+    return (evs,)
 
 
 @app.cell
@@ -68,7 +76,7 @@ def __(alt, grouped_by_city, mo):
         .properties(title="Top 10 City", width="container")
     )
     chart1 = mo.ui.altair_chart(_chart, chart_selection=False)
-    return chart1,
+    return (chart1,)
 
 
 @app.cell
@@ -84,7 +92,7 @@ def __(alt, grouped_by_make, mo):
         .properties(title="Top 10 Make", width="container")
     )
     chart2 = mo.ui.altair_chart(_chart, chart_selection=False)
-    return chart2,
+    return (chart2,)
 
 
 @app.cell
@@ -95,7 +103,7 @@ def __(chart1, chart2, mo):
 
 @app.cell
 def __(mo):
-    mo.md(r"## Appendix")
+    mo.md(r"""## Appendix""")
     return
 
 
@@ -106,7 +114,7 @@ def __(evs, mo):
         SELECT DISTINCT CAST(evs."Model Year" AS VARCHAR) AS "Model Year" FROM evs;
         """
     )
-    return years,
+    return (years,)
 
 
 @app.cell
@@ -116,7 +124,7 @@ def __(evs, mo):
         SELECT DISTINCT CAST(evs."City" AS VARCHAR) AS "City" FROM evs WHERE "City" != 'null';
         """
     )
-    return cities,
+    return (cities,)
 
 
 @app.cell
@@ -126,7 +134,7 @@ def __(evs, mo):
         SELECT DISTINCT CAST(evs."Make" AS VARCHAR) AS "Make" FROM evs;
         """
     )
-    return makes,
+    return (makes,)
 
 
 @app.cell
@@ -154,7 +162,7 @@ def __(
         ORDER BY "count" DESC
         """
     )
-    return grouped_by_city,
+    return (grouped_by_city,)
 
 
 @app.cell
@@ -182,7 +190,7 @@ def __(
         ORDER BY "count" DESC
         """
     )
-    return grouped_by_make,
+    return (grouped_by_make,)
 
 
 @app.cell
