@@ -2,7 +2,7 @@
 import { Spinner } from "@/components/icons/spinner";
 import { Logger } from "@/utils/Logger";
 import { type Message, useChat } from "ai/react";
-import React from "react";
+import React, { useEffect } from "react";
 import type { ChatMessage, ChatConfig, SendMessageRequest } from "./types";
 import { ErrorBanner } from "../common/error-banner";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,8 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { startCase } from "lodash-es";
 import { ChatBubbleIcon } from "@radix-ui/react-icons";
 import { renderHTML } from "@/plugins/core/RenderHTML";
+import { Input } from "@/components/ui/input";
+import { PopoverAnchor } from "@radix-ui/react-popover";
 
 interface Props {
   prompts: string[];
@@ -360,34 +362,123 @@ const PromptsPopover: React.FC<{
   prompts: string[];
   onSelect: (prompt: string) => void;
 }> = ({ prompts, onSelect }) => {
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const [selectedPrompt, setSelectedPrompt] = useState("");
+
+  const handleSelection = (prompt: string) => {
+    const variableRegex = /{{(\w+)}}/g;
+    const matches = [...prompt.matchAll(variableRegex)];
+
+    if (matches.length > 0) {
+      setSelectedPrompt(prompt);
+      setIsPopoverOpen(true);
+    } else {
+      onSelect(prompt);
+    }
+  };
+
   return (
-    <DropdownMenu>
-      <Tooltip content="Select a prompt">
-        <DropdownMenuTrigger asChild={true}>
-          <Button
-            variant="outline"
-            size="sm"
-            className="border-none shadow-initial"
-          >
-            <ChatBubbleIcon className="h-3 w-3" />
-          </Button>
-        </DropdownMenuTrigger>
-      </Tooltip>
-      <DropdownMenuContent
-        // To prevent focus back on button
-        onCloseAutoFocus={(e) => e.preventDefault()}
-        className="w-64 max-h-96 overflow-y-auto"
-      >
-        {prompts.map((prompt, index) => (
-          <DropdownMenuItem
-            key={index}
-            onSelect={() => onSelect(prompt)}
-            className="whitespace-normal text-left"
-          >
-            {prompt}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+      <PopoverAnchor >
+      <DropdownMenu>
+        <Tooltip content="Select a prompt">
+          <DropdownMenuTrigger asChild={true}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-none shadow-initial"
+            >
+              <ChatBubbleIcon className="h-3 w-3" />
+            </Button>
+          </DropdownMenuTrigger>
+        </Tooltip>
+        <DropdownMenuContent
+          side="right"
+          align="end"
+          // To prevent focus back on button
+          onCloseAutoFocus={(e) => e.preventDefault()}
+          className="w-64 max-h-96 overflow-y-auto"
+        >
+          {prompts.map((prompt, index) => (
+            <DropdownMenuItem
+              key={index}
+              onSelect={() => handleSelection(prompt)}
+              className="whitespace-normal text-left"
+            >
+              {prompt}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      </PopoverAnchor>
+
+      <PopoverContent side="right" align="end" className="min-w-80 px-2">
+          <PromptVariablesForm
+            prompt={selectedPrompt}
+            onClose={() => setIsPopoverOpen(false)}
+            onSelect={onSelect}
+          />
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+const PromptVariablesForm: React.FC<{
+  prompt: string;
+  onClose: () => void;
+  onSelect: (prompt: string) => void;
+}> = ({ prompt, onClose, onSelect }) => {
+  const [variables, setVariables] = useState<{ [key: string]: string }>({});
+
+  useEffect(() => {
+    const variableRegex = /{{(\w+)}}/g;
+    const matches = [...prompt.matchAll(variableRegex)];
+    const initialVariables = matches.reduce<{ [key: string]: string }>((acc, match) => {
+      acc[match[1]] = "";
+      return acc;
+    }, {});
+    setVariables(initialVariables);
+  }, [prompt]);
+
+  const handleVariableChange = (variable: string, value: string) => {
+    setVariables(prev => ({ ...prev, [variable]: value }));
+  };
+
+  const replacedPrompt = prompt.replaceAll(/{{(\w+)}}/g, (_, key) => variables[key] || `{{${key}}}`);
+  const isSubmitDisabled = Object.values(variables).some(value => value == null || value.trim() === "");
+
+  const handleSubmit = () => {
+    onSelect(replacedPrompt);
+    onClose();
+  };
+
+  return (
+    <div className="grid gap-4">
+      {Object.entries(variables).map(([key, value], index) => (
+        <div key={key} className="grid grid-cols-4 items-center gap-2">
+          <Label htmlFor={key} className='font-semibold text-base'>
+            {key}
+          </Label>
+          <Input
+            id={key}
+            value={value}
+            onChange={(e) => handleVariableChange(key, e.target.value)}
+            rootClassName="col-span-3 w-full"
+            className="m-0"
+            placeholder={`Enter value for ${key}`}
+            autoFocus={index === 0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !isSubmitDisabled) {
+                handleSubmit();
+              }
+            }}
+          />
+        </div>
+      ))}
+      <div className="grid gap-2 prose dark:prose-invert">
+        <blockquote className="text-sm">{replacedPrompt}</blockquote>
+      </div>
+      <Button onClick={handleSubmit} size='xs' disabled={isSubmitDisabled}>Submit</Button>
+    </div>
   );
 };
