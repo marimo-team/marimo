@@ -379,45 +379,45 @@ const PromptsPopover: React.FC<{
 
   return (
     <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
-      <PopoverAnchor >
-      <DropdownMenu>
-        <Tooltip content="Select a prompt">
-          <DropdownMenuTrigger asChild={true}>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-none shadow-initial"
-            >
-              <ChatBubbleIcon className="h-3 w-3" />
-            </Button>
-          </DropdownMenuTrigger>
-        </Tooltip>
-        <DropdownMenuContent
-          side="right"
-          align="end"
-          // To prevent focus back on button
-          onCloseAutoFocus={(e) => e.preventDefault()}
-          className="w-64 max-h-96 overflow-y-auto"
-        >
-          {prompts.map((prompt, index) => (
-            <DropdownMenuItem
-              key={index}
-              onSelect={() => handleSelection(prompt)}
-              className="whitespace-normal text-left"
-            >
-              {prompt}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <PopoverAnchor>
+        <DropdownMenu>
+          <Tooltip content="Select a prompt">
+            <DropdownMenuTrigger asChild={true}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-none shadow-initial"
+              >
+                <ChatBubbleIcon className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+          </Tooltip>
+          <DropdownMenuContent
+            side="right"
+            align="end"
+            // To prevent focus back on button
+            onCloseAutoFocus={(e) => e.preventDefault()}
+            className="w-64 max-h-96 overflow-y-auto"
+          >
+            {prompts.map((prompt, index) => (
+              <DropdownMenuItem
+                key={index}
+                onSelect={() => handleSelection(prompt)}
+                className="whitespace-normal text-left"
+              >
+                {prompt}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </PopoverAnchor>
 
       <PopoverContent side="right" align="end" className="min-w-80 px-2">
-          <PromptVariablesForm
-            prompt={selectedPrompt}
-            onClose={() => setIsPopoverOpen(false)}
-            onSelect={onSelect}
-          />
+        <PromptVariablesForm
+          prompt={selectedPrompt}
+          onClose={() => setIsPopoverOpen(false)}
+          onSelect={onSelect}
+        />
       </PopoverContent>
     </Popover>
   );
@@ -433,19 +433,27 @@ const PromptVariablesForm: React.FC<{
   useEffect(() => {
     const variableRegex = /{{(\w+)}}/g;
     const matches = [...prompt.matchAll(variableRegex)];
-    const initialVariables = matches.reduce<{ [key: string]: string }>((acc, match) => {
-      acc[match[1]] = "";
-      return acc;
-    }, {});
+    const initialVariables = matches.reduce<{ [key: string]: string }>(
+      (acc, match) => {
+        acc[match[1]] = "";
+        return acc;
+      },
+      {},
+    );
     setVariables(initialVariables);
   }, [prompt]);
 
   const handleVariableChange = (variable: string, value: string) => {
-    setVariables(prev => ({ ...prev, [variable]: value }));
+    setVariables((prev) => ({ ...prev, [variable]: value }));
   };
 
-  const replacedPrompt = prompt.replaceAll(/{{(\w+)}}/g, (_, key) => variables[key] || `{{${key}}}`);
-  const isSubmitDisabled = Object.values(variables).some(value => value == null || value.trim() === "");
+  const replacedPrompt = prompt.replaceAll(
+    /{{(\w+)}}/g,
+    (_, key) => variables[key] || `{{${key}}}`,
+  );
+  const isSubmitDisabled = Object.values(variables).some(
+    (value) => value == null || value.trim() === "",
+  );
 
   const handleSubmit = () => {
     onSelect(replacedPrompt);
@@ -456,7 +464,7 @@ const PromptVariablesForm: React.FC<{
     <div className="grid gap-4">
       {Object.entries(variables).map(([key, value], index) => (
         <div key={key} className="grid grid-cols-4 items-center gap-2">
-          <Label htmlFor={key} className='font-semibold text-base'>
+          <Label htmlFor={key} className="font-semibold text-base">
             {key}
           </Label>
           <Input
@@ -468,7 +476,7 @@ const PromptVariablesForm: React.FC<{
             placeholder={`Enter value for ${key}`}
             autoFocus={index === 0}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !isSubmitDisabled) {
+              if (e.key === "Enter" && !isSubmitDisabled) {
                 handleSubmit();
               }
             }}
@@ -478,7 +486,9 @@ const PromptVariablesForm: React.FC<{
       <div className="grid gap-2 prose dark:prose-invert">
         <blockquote className="text-sm">{replacedPrompt}</blockquote>
       </div>
-      <Button onClick={handleSubmit} size='xs' disabled={isSubmitDisabled}>Submit</Button>
+      <Button onClick={handleSubmit} size="xs" disabled={isSubmitDisabled}>
+        Submit
+      </Button>
     </div>
   );
 };
