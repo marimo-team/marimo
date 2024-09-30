@@ -541,6 +541,23 @@ class TestExecution:
         assert k.globals["z"] == 2
         assert not k.errors
 
+    async def test_import_module_as_local_var(
+        self, any_kernel: Kernel
+    ) -> None:
+        # Tests that imported names are mangled but still usable
+        k = any_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code="import sys as _sys; msize = _sys.maxsize",
+                ),
+            ]
+        )
+        # _sys mangled, should not be in globals
+        assert "_sys" not in k.globals
+        assert k.globals["msize"] == sys.maxsize
+
     async def test_defs_with_no_definers_are_removed_from_cell(
         self, any_kernel: Kernel
     ) -> None:

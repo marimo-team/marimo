@@ -189,7 +189,9 @@ class ScopedVisitor(ast.NodeVisitor):
             return name
 
     def _get_alias_name(self, node: ast.alias) -> str:
-        """Get the string name of an imported alias
+        """Get the string name of an imported alias.
+
+        Mangles the "as" name if it's a local variable.
 
         NB: We disallow `import *` because Python only allows
         star imports at module-level, but we store cells as functions.
@@ -214,7 +216,8 @@ class ScopedVisitor(ast.NodeVisitor):
                 )
             return basename
         else:
-            return self._if_local_then_mangle(node.asname)
+            node.asname = self._if_local_then_mangle(node.asname)
+            return node.asname
 
     def _is_defined(self, identifier: str) -> bool:
         """Check if `identifier` is defined in any block."""
