@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, cast
 
 import click
 
-from marimo import _loggers
+from marimo import __version__, _loggers
 from marimo._cli.file_path import FileContentReader
 from marimo._cli.print import bold, echo, green
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -164,6 +164,16 @@ def run_in_sandbox(
     # that the outer environment doesn't leak into the sandbox.
     if "marimo" not in non_editable_dependencies:
         non_editable_dependencies.append("marimo")
+
+    # Rename marimo to marimo=={__version__}
+    index_of_marimo = dependencies.index("marimo")
+    if index_of_marimo != -1:
+        dependencies[index_of_marimo] = f"marimo=={__version__}"
+
+        # During development, you can comment this out to install an
+        # editable version of marimo assuming you are in the marimo directory
+        # DO NOT COMMIT THIS WHEN SUBMITTING PRs
+        # dependencies[index_of_marimo] = "-e .[dev]"
 
     with tempfile.NamedTemporaryFile(
         mode="w", delete=False, suffix=".txt"
