@@ -17,19 +17,24 @@ marimo is designed to be:
 from __future__ import annotations
 
 __all__ = [
+    # Core API
     "App",
     "Cell",
-    "MarimoStopError",
     "create_asgi_app",
     "MarimoIslandGenerator",
+    "MarimoStopError",
+    # Other namespaces
+    "ai",
+    "ui",
+    # Application elements
     "accordion",
-    "carousel",
     "app_meta",
     "as_html",
     "audio",
     "callout",
-    "capture_stdout",
     "capture_stderr",
+    "capture_stdout",
+    "carousel",
     "center",
     "cli_args",
     "defs",
@@ -47,27 +52,26 @@ __all__ = [
     "mpl",
     "nav_menu",
     "output",
-    "plain",
-    "plain_text",
     "pdf",
+    "plain_text",
+    "plain",
     "query_params",
     "redirect_stderr",
     "redirect_stdout",
     "refs",
     "right",
-    "running_in_notebook",
     "routes",
+    "running_in_notebook",
     "show_code",
     "sidebar",
+    "sql",
     "stat",
     "state",
     "status",
     "stop",
-    "sql",
     "style",
     "tabs",
     "tree",
-    "ui",
     "video",
     "vstack",
 ]
@@ -82,7 +86,7 @@ from marimo._output.hypertext import Html
 from marimo._output.justify import center, left, right
 from marimo._output.md import md
 from marimo._output.show_code import show_code
-from marimo._plugins import ui
+from marimo._plugins import ai, ui
 from marimo._plugins.stateless import mpl, status
 from marimo._plugins.stateless.accordion import accordion
 from marimo._plugins.stateless.audio import audio

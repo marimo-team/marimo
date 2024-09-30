@@ -160,6 +160,7 @@ class DependencyManager:
     black = Dependency("black")
     geopandas = Dependency("geopandas")
     opentelemetry = Dependency("opentelemetry")
+    anthropic = Dependency("anthropic")
 
     @staticmethod
     def has(pkg: str) -> bool:
