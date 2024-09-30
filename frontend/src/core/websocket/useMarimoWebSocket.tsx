@@ -46,7 +46,11 @@ import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 export function useMarimoWebSocket(opts: {
   sessionId: SessionId;
   autoInstantiate: boolean;
-  setCells: (cells: CellData[], layout: LayoutState) => void;
+  setCells: (
+    cells: CellData[],
+    breakpoints: number[],
+    layout: LayoutState,
+  ) => void;
 }) {
   // Track whether we want to try reconnecting.
   const shouldTryReconnecting = useRef<boolean>(true);

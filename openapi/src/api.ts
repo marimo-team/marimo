@@ -2333,6 +2333,7 @@ export interface components {
         terminal: boolean;
       };
       cell_ids: string[];
+      breakpoints: number[];
       codes: string[];
       configs: components["schemas"]["CellConfig"][];
       kiosk: boolean;

@@ -100,8 +100,8 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
 
   const { connection } = useMarimoWebSocket({
     autoInstantiate: userConfig.runtime.auto_instantiate,
-    setCells: (cells, layout) => {
-      setCells(cells);
+    setCells: (cells, breakpoints, layout) => {
+      setCells({ cells, breakpoints });
       const names = cells.map((cell) => cell.name);
       const codes = cells.map((cell) => cell.code);
       const configs = cells.map((cell) => cell.config);
@@ -148,7 +148,6 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   }, [appConfig.app_title, filename]);
 
   const cells = notebookCells(notebook);
-  const breakpoints = notebook.cellIds.getBreakpoints();
   const cellIds = cells.map((cell) => cell.id);
   const codes = cells.map((cell) => cell.code);
   const cellNames = cells.map((cell) => cell.name);
@@ -172,6 +171,7 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       return;
     }
 
+    const breakpoints = notebook.cellIds.getBreakpoints();
     Logger.log("saving to ", filename);
     sendSave({
       cellIds: cellIds,
@@ -275,7 +275,7 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       // no replacer
       null,
       // whitespace for indentation
-      2,
+      2
     );
   });
 

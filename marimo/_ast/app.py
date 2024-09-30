@@ -170,6 +170,7 @@ class App:
         self._graph = dataflow.DirectedGraph()
         self._execution_context: ExecutionContext | None = None
         self._runner = dataflow.Runner(self._graph)
+        self._breakpoints: List[int] = []
 
         self._unparsable = False
         self._initialized = False
@@ -614,6 +615,10 @@ class InternalApp:
     def runner(self) -> dataflow.Runner:
         self._app._maybe_initialize()
         return self._app._runner
+
+    @property
+    def breakpoints(self) -> List[int]:
+        return self._app._breakpoints
 
     def update_config(self, updates: dict[str, Any]) -> _AppConfig:
         return self.config.update(updates)

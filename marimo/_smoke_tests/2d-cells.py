@@ -26,6 +26,12 @@ def __(selected_dataset):
     return (df,)
 
 
+@app.cell
+def __(dataset, mo, plot, x, y):
+    mo.vstack([dataset, x, y, plot])
+    return
+
+
 #region Column 1
 @app.cell
 def __(plot_type, x, y):

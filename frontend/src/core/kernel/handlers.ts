@@ -24,7 +24,11 @@ export function handleKernelReady(
   data: OperationMessageData<"kernel-ready">,
   opts: {
     autoInstantiate: boolean;
-    setCells: (cells: CellData[], layout: LayoutState) => void;
+    setCells: (
+      cells: CellData[],
+      breakpoints: number[],
+      layout: LayoutState,
+    ) => void;
     setLayoutData: (payload: {
       layoutView: LayoutType;
       data: LayoutData;
@@ -45,6 +49,7 @@ export function handleKernelReady(
 
   const {
     codes,
+    breakpoints,
     names,
     layout,
     configs,
@@ -94,7 +99,7 @@ export function handleKernelReady(
     layoutState.layoutData[layoutType] = layoutData;
     setLayoutData({ layoutView: layoutType, data: layoutData });
   }
-  setCells(cells, layoutState);
+  setCells(cells, breakpoints, layoutState);
   const parsedAppConfig = AppConfigSchema.safeParse(app_config);
   if (parsedAppConfig.success) {
     setAppConfig(parsedAppConfig.data);

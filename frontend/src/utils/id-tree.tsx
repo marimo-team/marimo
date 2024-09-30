@@ -21,7 +21,7 @@ export class TreeNode<T> {
   constructor(
     public value: T,
     public isCollapsed: boolean,
-    public children: Array<TreeNode<T>>,
+    public children: Array<TreeNode<T>>
   ) {}
 
   /**
@@ -30,7 +30,7 @@ export class TreeNode<T> {
   geDescendantCount(): number {
     return this.children.reduce(
       (acc, child) => acc + 1 + child.geDescendantCount(),
-      0,
+      0
     );
   }
 
@@ -83,7 +83,7 @@ export class CollapsibleTree<T> {
     const node = this.nodes.find((n) => n.value === id);
     if (!node) {
       Logger.warn(
-        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`,
+        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`
       );
       return [];
     }
@@ -99,7 +99,7 @@ export class CollapsibleTree<T> {
     const node = this.nodes.find((n) => n.value === id);
     if (!node) {
       Logger.warn(
-        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`,
+        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`
       );
       return false;
     }
@@ -113,7 +113,7 @@ export class CollapsibleTree<T> {
     const index = this.nodes.findIndex((n) => n.value === id);
     if (index === -1) {
       throw new Error(
-        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`,
+        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`
       );
     }
     return index as CellIndex;
@@ -133,7 +133,7 @@ export class CollapsibleTree<T> {
   moveToBack(id: T): CollapsibleTree<T> {
     const index = this.indexOfOrThrow(id);
     return new CollapsibleTree(
-      arrayMove(this.nodes, index, this.nodes.length - 1),
+      arrayMove(this.nodes, index, this.nodes.length - 1)
     );
   }
 
@@ -145,7 +145,7 @@ export class CollapsibleTree<T> {
     const nodeIndex = this.nodes.findIndex((n) => n.value === id);
     if (nodeIndex === -1) {
       throw new Error(
-        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`,
+        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`
       );
     }
 
@@ -181,7 +181,7 @@ export class CollapsibleTree<T> {
     const nodeIndex = this.nodes.findIndex((n) => n.value === id);
     if (nodeIndex === -1) {
       throw new Error(
-        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`,
+        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`
       );
     }
 
@@ -374,7 +374,7 @@ export class MultiColumn<T> {
 
   insertBreakpoint(
     columnIndex: CellColumnIndex,
-    cellIndex: CellIndex,
+    cellIndex: CellIndex
   ): MultiColumn<T> {
     const column = this.columns[columnIndex];
     const newColumn = new CollapsibleTree(column.nodes.splice(cellIndex));
@@ -387,7 +387,7 @@ export class MultiColumn<T> {
   moveWithinColumn(
     col: CellColumnIndex,
     fromIdx: CellIndex,
-    toIdx: CellIndex,
+    toIdx: CellIndex
   ): MultiColumn<T> {
     const columns = [...this.columns];
     const id = columns[col].atOrThrow(fromIdx);
@@ -399,7 +399,7 @@ export class MultiColumn<T> {
     fromCol: CellColumnIndex,
     fromIdx: CellIndex,
     toCol: CellColumnIndex,
-    toIdx: CellIndex,
+    toIdx: CellIndex
   ): MultiColumn<T> {
     const columns = [...this.columns];
     const id = columns[fromCol].atOrThrow(fromIdx);
@@ -466,7 +466,7 @@ export class MultiColumn<T> {
     this.columns = [new CollapsibleTree(cells)];
   }
 
-  getBreakpoints(): number[] {
+  getBreakpoints(): CellColumnIndex[] {
     let breakpoint = 0;
     const breakpoints = [0];
     for (const column of this.columns) {
@@ -474,6 +474,22 @@ export class MultiColumn<T> {
       breakpoints.push(breakpoint);
     }
     breakpoints.splice(-1);
-    return breakpoints;
+    return breakpoints as CellColumnIndex[];
+  }
+
+  insertBreakpoints(ids: T[], breakpoints: CellColumnIndex[]): MultiColumn<T> {
+    let index = 0;
+    const columns = [];
+
+    for (const breakpoint of breakpoints) {
+      if (breakpoint === 0) {
+        continue;
+      }
+      columns.push(ids.slice(index, breakpoint));
+      index = breakpoint;
+    }
+
+    columns.push(ids.slice(index));
+    return MultiColumn.from(columns);
   }
 }

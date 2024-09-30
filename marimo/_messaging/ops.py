@@ -369,6 +369,7 @@ class KernelReady(Op):
 
     name: ClassVar[str] = "kernel-ready"
     cell_ids: Tuple[CellId_t, ...]
+    breakpoints: Tuple[int, ...]
     codes: Tuple[str, ...]
     names: Tuple[str, ...]
     layout: Optional[LayoutConfig]

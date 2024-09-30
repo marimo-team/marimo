@@ -182,6 +182,7 @@ class AppFileManager:
             self._save_file(
                 self.filename,
                 list(self.app.cell_manager.codes()),
+                self.app.breakpoints,
                 list(self.app.cell_manager.names()),
                 list(self.app.cell_manager.configs()),
                 self.app.config,
@@ -223,6 +224,7 @@ class AppFileManager:
             return self._save_file(
                 self.filename,
                 list(self.app.cell_manager.codes()),
+                self.app.breakpoints,
                 list(self.app.cell_manager.names()),
                 list(self.app.cell_manager.configs()),
                 new_config,

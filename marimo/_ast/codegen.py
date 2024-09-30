@@ -238,6 +238,7 @@ def get_app(filename: Optional[str]) -> Optional[App]:
         raise MarimoFileError("`app` attribute must be of type `marimo.App`.")
 
     app = marimo_app.app
+    app._breakpoints = get_breakpoints(filename)
     return app
 
 
@@ -304,3 +305,16 @@ def get_header_comments(filename: str) -> Optional[str]:
         return None
 
     return header
+
+
+def get_breakpoints(filename: str) -> List[int]:
+    with open(filename) as f:
+        columns = f.read().split("#region Column")
+
+    breakpoints = [0]
+    for index in range(1, len(columns)):
+        cells = columns[index].split("@app.cell")
+        breakpoints.append(len(cells) - 1)
+
+    breakpoints.pop()
+    return breakpoints
