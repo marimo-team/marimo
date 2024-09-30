@@ -29,13 +29,17 @@ previously computed value from the cache.
 `mo.cache` is like `functools.cache` but smarter. `functools` will sometimes
 evict values from the cache when it doesn't need to.
 
-In particular, if a cell defining a `@mo.cache`-d function re-runs without
-having been stale (for example, if you manually re-run the cell, or it re-runs
-due to UI interactions), the cache won't be invalidated. In contrast, a
-`functools` cache would, forcing recomputation of values the notebook had
-already computed.
+In particular, consider the case when a cell defining a `@mo.cache`-d function
+re-runs due to an ancestor of it running, or a UI element value changing.
+`mo.cache` will use sophisticated analysis of the dataflow graph to determine
+whether or not the decorated function has changed, and if it hasn't, it's
+cache won't be invalidated. In contrast, on re-run a `functools` cache is
+always invalidated, because `functools` has no knowledge about the structure
+of marimo's dataflow graph.
 
-Additionally, `mo.cache` knows to invalidate the cache if the function closes
+Conversely, `mo.cache` knows to invalidate the cache if the function closes
+over UI elements or state objects, whereas `functools.cache` doesn't, yielding
+incorrect cache hits.
 
 `mo.cache` is slightly slower than `functools.cache`, but in most applications
 the overhead is negligible.

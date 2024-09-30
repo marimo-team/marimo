@@ -290,14 +290,14 @@ def lru_cache(
 
 
 class persistent_cache(object):
-    """Save variables to, and restore them from, disk.
+    """Save variables to disk and restore them thereafter.
 
     The `mo.persistent_cache` context manager lets you delimit a block of code
     in which variables will be cached to disk when they are first computed. On
     subsequent runs of the cell, if marimo determines that this block of code
-    isn't stale (based on the code in the block or its ancestors), it will
-    restore the variables from disk instead of re-computing them, skipping
-    execution of the block entirely.
+    hasn't changed and neither has its ancestors, it will restore the variables
+    from disk instead of re-computing them, skipping execution of the block
+    entirely.
 
     Restoration happens even across notebook runs, meaning you can use
     `mo.persistent_cache` to make notebooks start *instantly*, with variables

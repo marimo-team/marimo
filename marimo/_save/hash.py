@@ -251,8 +251,8 @@ class BlockHasher:
     ) -> None:
         """Hash the context of the module, and return a cache object.
 
-        Hashing occurs 3 combined methods, content addressed, and execution
-        path:
+        Hashing uses 3 combined methods: pure hashing, content addressed, and
+        execution path:
 
         1) "Pure" hashing is used when a block has no references. The hash is
         computed from the code itself.
