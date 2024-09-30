@@ -49,12 +49,15 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { MarkdownIcon, PythonIcon } from "../cell/code/icons";
-import { aiEnabledAtom, autoInstantiateAtom } from "@/core/config/config";
+import {
+  aiEnabledAtom,
+  autoInstantiateAtom,
+  getAppConfig,
+} from "@/core/config/config";
 import { useDeleteCellCallback } from "../cell/useDeleteCell";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import type { CellConfig, RuntimeState } from "@/core/network/types";
 import { kioskModeAtom } from "@/core/mode";
-import { notebookHasColumns } from "@/core/cells/utils";
 
 export interface CellActionButtonProps
   extends Pick<CellData, "name" | "config"> {
@@ -119,6 +122,8 @@ export function useCellActionButtons({ cell }: Props) {
       }
     }
   };
+
+  const appConfig = getAppConfig();
 
   // Actions
   const actions: ActionButton[][] = [
@@ -329,7 +334,7 @@ export function useCellActionButtons({ cell }: Props) {
         icon: <Columns2Icon size={13} strokeWidth={1.5} />,
         label: "Add column breakpoint",
         hotkey: "cell.addColumnBreakpoint",
-        hidden: !notebookHasColumns(),
+        hidden: appConfig.width !== "columns",
         handle: () => addColumnBreakpoint({ cellId }),
       },
     ],

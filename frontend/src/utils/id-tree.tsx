@@ -460,4 +460,9 @@ export class MultiColumn<T> {
 
     return new MultiColumn(this.columns.filter((c) => c.nodes.length > 0));
   }
+
+  flatten(): void {
+    const cells = this.columns.flatMap((column) => column.nodes);
+    this.columns = [new CollapsibleTree(cells)];
+  }
 }

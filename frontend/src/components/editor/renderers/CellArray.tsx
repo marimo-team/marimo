@@ -39,7 +39,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { Kbd } from "@/components/ui/kbd";
 import { FloatingOutline } from "../chrome/panels/outline/floating-outline";
 import {
-  rectSortingStrategy,
+  horizontalListSortingStrategy,
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
@@ -114,19 +114,21 @@ export const CellArray: React.FC<CellArrayProps> = ({
       <SortableCellsProvider>
         <SortableContext
           id="column-container"
-          items={columns.map((_, index) => index as CellColumnIndex)}
+          // First element of SortableContext cannot have id 0
+          // https://stackoverflow.com/questions/73936273/
+          items={columns.map((_, index) => (index + 1) as CellColumnIndex)}
           disabled={!isEditing}
-          strategy={rectSortingStrategy}
+          strategy={horizontalListSortingStrategy}
         >
           <div className="grid grid-flow-col auto-cols-min gap-28">
             {columns.map((column, index) => {
               return (
                 <Column
-                  key={index as CellColumnIndex}
-                  columnIndex={index as CellColumnIndex}
+                  key={(index + 1) as CellColumnIndex}
+                  columnIndex={(index + 1) as CellColumnIndex}
                 >
                   <SortableContext
-                    id={`column-${index}`}
+                    id={`column-${index + 1}`}
                     items={column.topLevelIds}
                     disabled={!isEditing}
                     strategy={verticalListSortingStrategy}

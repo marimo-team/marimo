@@ -41,7 +41,7 @@ const SortableCellsProviderInternal = ({
   const { dropCellOver, dropOverNewColumn, dropColumnOver, compactColumns } =
     useCellActions();
 
-  const [_, setActiveId] = useState<UniqueIdentifier | null>(null);
+  const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   const [clonedItems, setClonedItems] = useState<MultiColumn<CellId> | null>(
     null,
   );
@@ -96,16 +96,11 @@ const SortableCellsProviderInternal = ({
     const isCellDrag = isCellId(active.id) && isCellId(overId);
     const isColumnDrag = isColumnId(active.id) && isColumnId(overId);
 
-    if (overId == null || (!isCellDrag && !isColumnDrag)) {
-      return;
-    }
-
-    const activeColIndex = isCellDrag
-      ? cellIds.getColumnWithId(active.id)
-      : active.id;
-    const overColIndex = isCellDrag ? cellIds.getColumnWithId(overId) : overId;
-
-    if (!activeColIndex || !overColIndex || activeColIndex === overColIndex) {
+    if (
+      overId == null ||
+      active.id === overId ||
+      (!isCellDrag && !isColumnDrag)
+    ) {
       return;
     }
 
@@ -114,10 +109,10 @@ const SortableCellsProviderInternal = ({
         cellId: active.id,
         overCellId: overId,
       });
-    } else {
+    } else if (isColumnDrag) {
       dropColumnOver({
-        column: active.id,
-        overColumn: overId,
+        column: active.id - 1,
+        overColumn: overId - 1,
       });
     }
 
