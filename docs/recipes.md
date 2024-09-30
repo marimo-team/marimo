@@ -589,4 +589,4 @@ it has not seen, it will compute the predictions and store them in a cache. The
 next time it is called with the same parameters, instead of recomputing the
 predictions, it will return the previously computed value from the cache.
 
-See our [best practices guide](guides/best_practices/index.md) to learn more.
+See our [best practices guide](guides/best_practices/performance.md) to learn more.
