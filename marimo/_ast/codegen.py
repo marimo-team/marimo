@@ -149,6 +149,7 @@ def generate_app_constructor(config: Optional[_AppConfig]) -> str:
 
 def generate_filecontents(
     codes: list[str],
+    breakpoints: list[int],
     names: list[str],
     cell_configs: list[CellConfig],
     config: Optional[_AppConfig] = None,
@@ -181,6 +182,9 @@ def generate_filecontents(
                     code=data[0], config=data[1], name=name
                 )
             )
+
+    for index, bp in enumerate(breakpoints):
+        fndefs[bp] = f"#region Column {index}\n" + fndefs[bp]
 
     filecontents = (
         "import marimo"
@@ -259,6 +263,7 @@ def recover(filename: str) -> str:
     )
     return generate_filecontents(
         cast(List[str], codes),
+        [],
         cast(List[str], names),
         cast(List[CellConfig], configs),
     )

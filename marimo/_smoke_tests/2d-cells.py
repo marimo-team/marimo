@@ -4,6 +4,7 @@ __generated_with = "0.8.20"
 app = marimo.App(width="columns")
 
 
+#region Column 0
 @app.cell
 def __():
     import marimo as mo
@@ -25,6 +26,7 @@ def __(selected_dataset):
     return (df,)
 
 
+#region Column 1
 @app.cell
 def __(plot_type, x, y):
     plot_type().encode(

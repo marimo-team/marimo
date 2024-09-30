@@ -2639,6 +2639,7 @@ export interface components {
     };
     SaveNotebookRequest: {
       cellIds: string[];
+      breakpoints: number[];
       codes: string[];
       configs: components["schemas"]["CellConfig"][];
       filename: string;

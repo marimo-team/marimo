@@ -148,6 +148,7 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   }, [appConfig.app_title, filename]);
 
   const cells = notebookCells(notebook);
+  const breakpoints = notebook.cellIds.getBreakpoints();
   const cellIds = cells.map((cell) => cell.id);
   const codes = cells.map((cell) => cell.code);
   const cellNames = cells.map((cell) => cell.name);
@@ -174,6 +175,7 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
     Logger.log("saving to ", filename);
     sendSave({
       cellIds: cellIds,
+      breakpoints,
       codes,
       names: cellNames,
       filename,

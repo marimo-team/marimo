@@ -465,4 +465,15 @@ export class MultiColumn<T> {
     const cells = this.columns.flatMap((column) => column.nodes);
     this.columns = [new CollapsibleTree(cells)];
   }
+
+  getBreakpoints(): number[] {
+    let breakpoint = 0;
+    const breakpoints = [0];
+    for (const column of this.columns) {
+      breakpoint += column.nodes.length;
+      breakpoints.push(breakpoint);
+    }
+    breakpoints.splice(-1);
+    return breakpoints;
+  }
 }

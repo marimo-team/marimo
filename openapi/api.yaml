@@ -892,7 +892,6 @@ components:
               - compact
               - medium
               - full
-              - columns
               type: string
           required:
           - width
@@ -1622,6 +1621,10 @@ components:
       type: object
     SaveNotebookRequest:
       properties:
+        breakpoints:
+          items:
+            type: integer
+          type: array
         cellIds:
           items:
             type: string
@@ -1648,6 +1651,7 @@ components:
           type: boolean
       required:
       - cellIds
+      - breakpoints
       - codes
       - names
       - configs
@@ -1912,7 +1916,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.8.18
+  version: 0.8.20
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
