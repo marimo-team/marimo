@@ -20,7 +20,7 @@ import { useEvent } from "../../hooks/useEvent";
 import type { CellId } from "@/core/cells/ids";
 import { useAppConfig } from "@/core/config/config";
 import { Arrays } from "@/utils/arrays";
-import type { MultiColumn } from "@/utils/id-tree";
+import type { CellColumnIndex, MultiColumn } from "@/utils/id-tree";
 import { SquarePlusIcon } from "lucide-react";
 
 interface SortableCellsProviderProps {
@@ -38,9 +38,10 @@ const SortableCellsProviderInternal = ({
   children,
 }: SortableCellsProviderProps) => {
   const { cellIds } = useNotebook();
-  const { dropCellOver, dropOverNewColumn, compactColumns } = useCellActions();
+  const { dropCellOver, dropOverNewColumn, dropColumnOver, compactColumns } =
+    useCellActions();
 
-  const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
+  const [_, setActiveId] = useState<UniqueIdentifier | null>(null);
   const [clonedItems, setClonedItems] = useState<MultiColumn<CellId> | null>(
     null,
   );
@@ -72,35 +73,6 @@ const SortableCellsProviderInternal = ({
   }, [cellIds]);
   const recentlyMovedToNewContainer = useRef(false);
 
-  const findContainer = (cellId: CellId) => {
-    return cellIds.getColumnWithId(cellId);
-  };
-
-  const handleDragEnd = useEvent((event: DragEndEvent) => {
-    const { active, over } = event;
-    compactColumns();
-    if (over === null) {
-      return;
-    }
-    if (active.id === over.id) {
-      return;
-    }
-
-    if (isCellId(active.id) && over.id === PLACEHOLDER_COLUMN_ID) {
-      dropOverNewColumn({
-        cellId: active.id,
-      });
-      return;
-    }
-
-    if (isCellId(active.id) && isCellId(over.id)) {
-      dropCellOver({
-        cellId: active.id,
-        overCellId: over.id,
-      });
-    }
-  });
-
   const handleDragStart = useEvent((event: DragStartEvent) => {
     setActiveId(event.active.id);
     setClonedItems(cellIds);
@@ -121,63 +93,106 @@ const SortableCellsProviderInternal = ({
   // See example: https://github.com/clauderic/dnd-kit/blob/master/stories/2%20-%20Presets/Sortable/MultipleContainers.tsx#L315-L372
   const handleDragOver = useEvent(({ active, over }) => {
     const overId = over?.id;
+    const isCellDrag = isCellId(active.id) && isCellId(overId);
+    const isColumnDrag = isColumnId(active.id) && isColumnId(overId);
 
-    if (overId == null || !isCellId(active.id) || !isCellId(overId)) {
+    if (overId == null || (!isCellDrag && !isColumnDrag)) {
       return;
     }
 
-    const overContainer = findContainer(overId);
-    const activeContainer = findContainer(active.id);
+    const activeColIndex = isCellDrag
+      ? cellIds.getColumnWithId(active.id)
+      : active.id;
+    const overColIndex = isCellDrag ? cellIds.getColumnWithId(overId) : overId;
 
-    if (!overContainer || !activeContainer) {
+    if (!activeColIndex || !overColIndex || activeColIndex === overColIndex) {
       return;
     }
 
-    if (activeContainer !== overContainer) {
+    if (isCellDrag) {
       dropCellOver({
         cellId: active.id,
         overCellId: overId,
       });
-      // setItems((items) => {
-      //   const activeItems = items[activeContainer];
-      //   const overItems = items[overContainer];
-      //   const overIndex = overItems.indexOf(overId);
-      //   const activeIndex = activeItems.indexOf(active.id);
+    } else {
+      dropColumnOver({
+        column: active.id,
+        overColumn: overId,
+      });
+    }
 
-      //   let newIndex: number;
+    // setItems((items) => {
+    //   const activeItems = items[activeContainer];
+    //   const overItems = items[overContainer];
+    //   const overIndex = overItems.indexOf(overId);
+    //   const activeIndex = activeItems.indexOf(active.id);
 
-      //   if (overId in items) {
-      //     newIndex = overItems.length + 1;
-      //   } else {
-      //     const isBelowOverItem =
-      //       over &&
-      //       active.rect.current.translated &&
-      //       active.rect.current.translated.top >
-      //         over.rect.top + over.rect.height;
+    //   let newIndex: number;
 
-      //     const modifier = isBelowOverItem ? 1 : 0;
+    //   if (overId in items) {
+    //     newIndex = overItems.length + 1;
+    //   } else {
+    //     const isBelowOverItem =
+    //       over &&
+    //       active.rect.current.translated &&
+    //       active.rect.current.translated.top >
+    //         over.rect.top + over.rect.height;
 
-      //     newIndex =
-      //       overIndex >= 0 ? overIndex + modifier : overItems.length + 1;
-      //   }
+    //     const modifier = isBelowOverItem ? 1 : 0;
 
-      //   recentlyMovedToNewContainer.current = true;
+    //     newIndex =
+    //       overIndex >= 0 ? overIndex + modifier : overItems.length + 1;
+    //   }
 
-      //   return {
-      //     ...items,
-      //     [activeContainer]: items[activeContainer].filter(
-      //       (item) => item !== active.id,
-      //     ),
-      //     [overContainer]: [
-      //       ...items[overContainer].slice(0, newIndex),
-      //       items[activeContainer][activeIndex],
-      //       ...items[overContainer].slice(
-      //         newIndex,
-      //         items[overContainer].length,
-      //       ),
-      //     ],
-      //   };
-      // });
+    //   recentlyMovedToNewContainer.current = true;
+
+    //   return {
+    //     ...items,
+    //     [activeContainer]: items[activeContainer].filter(
+    //       (item) => item !== active.id,
+    //     ),
+    //     [overContainer]: [
+    //       ...items[overContainer].slice(0, newIndex),
+    //       items[activeContainer][activeIndex],
+    //       ...items[overContainer].slice(
+    //         newIndex,
+    //         items[overContainer].length,
+    //       ),
+    //     ],
+    //   };
+    // });
+  });
+
+  const handleDragEnd = useEvent((event: DragEndEvent) => {
+    const { active, over } = event;
+    compactColumns();
+
+    if (over === null || active.id === over.id) {
+      return;
+    }
+
+    const isCellDrag = isCellId(active.id) && isCellId(over.id);
+    const isColumnDrag = isColumnId(active.id) && isColumnId(over.id);
+
+    if (isCellId(active.id) && over.id === PLACEHOLDER_COLUMN_ID) {
+      dropOverNewColumn({
+        cellId: active.id,
+      });
+      return;
+    }
+
+    if (isCellDrag) {
+      dropCellOver({
+        cellId: active.id,
+        overCellId: over.id,
+      });
+    }
+
+    if (isColumnDrag) {
+      dropColumnOver({
+        column: active.id,
+        overColumn: over.id,
+      });
     }
   });
 
@@ -201,6 +216,10 @@ export const SortableCellsProvider = React.memo(SortableCellsProviderInternal);
 
 function isCellId(id: UniqueIdentifier): id is CellId {
   return typeof id === "string" && id !== PLACEHOLDER_COLUMN_ID;
+}
+
+function isColumnId(id: UniqueIdentifier): id is CellColumnIndex {
+  return typeof id === "number";
 }
 
 const PLACEHOLDER_COLUMN_ID = "__placeholder-column__";

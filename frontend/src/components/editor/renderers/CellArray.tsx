@@ -47,8 +47,8 @@ import {
   PlaceholderColumn,
   SortableCellsProvider,
 } from "@/components/sort/SortableCellsProvider";
-import { CellColumnIndex } from "@/utils/id-tree";
-import Column from "../Column";
+import type { CellColumnIndex } from "@/utils/id-tree";
+import { Column } from "../Column";
 
 interface CellArrayProps {
   notebook: NotebookState;
@@ -73,7 +73,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
 
   const { invisible } = useDelayVisibility(
     notebook.cellIds.columns.length,
-    mode
+    mode,
   );
 
   // HOTKEYS
@@ -203,7 +203,7 @@ const AddCellButtons: React.FC = () => {
 
   const buttonClass = cn(
     "mb-0 rounded-none sm:px-4 md:px-5 lg:px-8 tracking-wide no-wrap whitespace-nowrap",
-    "hover:bg-accent hover:text-accent-foreground font-semibold uppercase text-xs"
+    "hover:bg-accent hover:text-accent-foreground font-semibold uppercase text-xs",
   );
 
   const renderBody = () => {
@@ -304,7 +304,7 @@ const AddCellButtons: React.FC = () => {
           "shadow-sm border border-border rounded transition-all duration-200 overflow-hidden divide-x divide-border flex",
           !isAiButtonOpen && "w-fit",
           isAiButtonOpen &&
-            "opacity-100 w-full max-w-4xl shadow-lg shadow-[var(--blue-3)]"
+            "opacity-100 w-full max-w-4xl shadow-lg shadow-[var(--blue-3)]",
         )}
       >
         {renderBody()}

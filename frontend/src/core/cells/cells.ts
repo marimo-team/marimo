@@ -332,6 +332,18 @@ const {
       cellIds: state.cellIds.moveToNewColumn(colIndex, cellId),
     };
   },
+  dropColumnOver: (
+    state,
+    action: { column: CellColumnIndex; overColumn: CellColumnIndex },
+  ) => {
+    if (action.column === action.overColumn) {
+      return state;
+    }
+    return {
+      ...state,
+      cellIds: state.cellIds.moveColumn(action.column, action.overColumn),
+    };
+  },
   focusCell: (state, action: { cellId: CellId; before: boolean }) => {
     const [column, _] = state.cellIds.getColumnWithId(action.cellId);
     if (column.length === 0) {

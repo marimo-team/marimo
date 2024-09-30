@@ -55,6 +55,7 @@ const props: CellProps = {
   updateCellConfig: Logger.log,
   setStdinResponse: Logger.log,
   clearSerializedEditorState: Logger.log,
+  canMoveX: false,
   config: {
     hide_code: false,
     disabled: false,

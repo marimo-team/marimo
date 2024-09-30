@@ -1,13 +1,14 @@
+/* Copyright 2024 Marimo. All rights reserved. */
 import { useRef } from "react";
 import { ColumnDragHandle, SortableColumn } from "./SortableColumn";
-import { CellColumnIndex } from "@/utils/id-tree";
+import type { CellColumnIndex } from "@/utils/id-tree";
 
 interface Props {
   columnIndex: CellColumnIndex;
   children: React.ReactNode;
 }
 
-export default function Column(props: Props) {
+export const Column = (props: Props) => {
   const columnRef = useRef<HTMLDivElement>(null);
   return (
     <SortableColumn
@@ -21,4 +22,4 @@ export default function Column(props: Props) {
       </div>
     </SortableColumn>
   );
-}
+};

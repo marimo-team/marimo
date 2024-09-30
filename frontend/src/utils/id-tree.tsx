@@ -409,12 +409,9 @@ export class MultiColumn<T> {
   }
 
   moveColumn(fromCol: CellColumnIndex, toCol: CellColumnIndex): MultiColumn<T> {
-    const id = this.columns[fromCol].first();
-    const newFromTree = this.columns[fromCol].delete(0);
-    const newToTree = newFromTree.insertAtStart(id);
     const columns = [...this.columns];
-    columns[fromCol] = newFromTree;
-    columns[toCol] = newToTree;
+    columns[toCol] = this.columns[fromCol];
+    columns[fromCol] = this.columns[toCol];
     return new MultiColumn(columns);
   }
 
@@ -431,12 +428,6 @@ export class MultiColumn<T> {
   getColumnWithId(id: T): [CollapsibleTree<T>, CellColumnIndex] {
     const index = this.columns.findIndex((c) => c.topLevelIds.includes(id));
     const column = this.columns[index];
-    if (!column) {
-      throw new Error(
-        `Column with id ${id} not found in tree.
-        Valid ids: ${this.topLevelIds}`,
-      );
-    }
     return [column, index as CellColumnIndex];
   }
 

@@ -5,7 +5,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVerticalIcon } from "lucide-react";
 import { cn } from "@/utils/cn";
-import { CellColumnIndex } from "@/utils/id-tree";
+import type { CellColumnIndex } from "@/utils/id-tree";
 
 interface Props extends React.HTMLAttributes<HTMLDivElement> {
   columnIndex: CellColumnIndex;
@@ -80,7 +80,7 @@ const SortableColumnInternal = React.forwardRef(
         </DragHandleSlot.Provider>
       </div>
     );
-  }
+  },
 );
 SortableColumnInternal.displayName = "SortableColumn";
 
