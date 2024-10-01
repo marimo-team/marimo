@@ -46,7 +46,6 @@ codeium_api_key = ""
 <figure>
 <img src="/docs/_static/docs-ai-completion-codeium-vscode.png">
 </figure>
-<figcaption>Select the "Settings" icon in the Codeium pane.</figcaption>
 </div>
 
 6. Click the **Download** link under the **Extension Diagnostics** section
@@ -56,7 +55,6 @@ codeium_api_key = ""
 <figure>
 <img src="/docs/_static/docs-ai-completion-codeium-vscode-download-diagnostics.png">
 </figure>
-<figcaption>Download diagnostics and copy the `apiKey` value</figcaption>
 </div>
 
 8. Copy the value of the `apiKey` to `.marimo.toml` in your home directory
