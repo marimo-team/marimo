@@ -165,17 +165,15 @@ def test_generic_url_reader() -> None:
 def test_file_content_reader() -> None:
     reader = FileContentReader()
 
-    with patch.object(
-        LocalFileReader, "read"
-    ) as mock_local_read, patch.object(
-        GitHubIssueReader, "read"
-    ) as mock_github_issue_read, patch.object(
-        StaticNotebookReader, "read"
-    ) as mock_static_notebook_read, patch.object(
-        GitHubSourceReader, "read"
-    ) as mock_github_source_read, patch.object(
-        GenericURLReader, "read"
-    ) as mock_generic_url_read:
+    with (
+        patch.object(LocalFileReader, "read") as mock_local_read,
+        patch.object(GitHubIssueReader, "read") as mock_github_issue_read,
+        patch.object(
+            StaticNotebookReader, "read"
+        ) as mock_static_notebook_read,
+        patch.object(GitHubSourceReader, "read") as mock_github_source_read,
+        patch.object(GenericURLReader, "read") as mock_generic_url_read,
+    ):
         mock_local_read.return_value = ("local content", "local.py")
         mock_github_issue_read.return_value = ("issue content", "issue.py")
         mock_static_notebook_read.return_value = (
@@ -337,8 +335,9 @@ def test_validate_name_with_relative_and_absolute_paths():
     relative_path = "relative/path/file.py"
     absolute_path = "/absolute/path/file.py"
 
-    with patch("os.path.exists", return_value=True), patch(
-        "pathlib.Path.is_file", return_value=True
+    with (
+        patch("os.path.exists", return_value=True),
+        patch("pathlib.Path.is_file", return_value=True),
     ):
         assert (
             validate_name(

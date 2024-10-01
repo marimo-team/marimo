@@ -522,12 +522,15 @@ class Kernel:
         self.execution_context = ExecutionContext(
             cell_id, setting_element_value
         )
-        with get_context().provide_ui_ids(str(cell_id)), redirect_streams(
-            cell_id,
-            stream=self.stream,
-            stdout=self.stdout,
-            stderr=self.stderr,
-            stdin=self.stdin,
+        with (
+            get_context().provide_ui_ids(str(cell_id)),
+            redirect_streams(
+                cell_id,
+                stream=self.stream,
+                stdout=self.stdout,
+                stderr=self.stderr,
+                stdin=self.stdin,
+            ),
         ):
             modules = None
             try:
@@ -1590,9 +1593,10 @@ class Kernel:
         else:
             found = True
             LOGGER.debug("Executing RPC %s", request)
-            with self._install_execution_context(
-                cell_id=function.cell_id
-            ), ctx.provide_ui_ids(str(uuid4())):
+            with (
+                self._install_execution_context(cell_id=function.cell_id),
+                ctx.provide_ui_ids(str(uuid4())),
+            ):
                 # Usually UI element IDs are deterministic, based on
                 # cell id, so that element values can be matched up
                 # with objects on notebook/app re-connection.
