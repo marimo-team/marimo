@@ -180,7 +180,11 @@ class App:
         self._anonymous_file = False
 
         # Filename is derived from the callsite of the app
-        self._filename = inspect.getfile(inspect.stack()[1].frame)
+        self._filename: str | None = None
+        try:
+            self._filename = inspect.getfile(inspect.stack()[1].frame)
+        except Exception:
+            ...
         self._app_kernel_runner: AppKernelRunner | None = None
 
     def cell(
