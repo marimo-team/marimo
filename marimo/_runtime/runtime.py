@@ -277,6 +277,37 @@ def cli_args() -> CLIArgs:
     return get_context().cli_args
 
 
+@mddoc
+def notebook_dir() -> pathlib.Path | None:
+    """Get the directory of the currently executing notebook.
+
+    **Returns**:
+
+    - A `pathlib.Path` object representing the directory of the current
+      notebook, or `None` if the notebook's directory cannot be determined.
+
+    **Examples**:
+
+    ```python
+    data_file = mo.notebook_dir() / "data" / "example.csv"
+    # Use the directory to read a file
+    if data_file.exists():
+        print(f"Found data file: {data_file}")
+    else:
+        print("No data file found")
+    ```
+    """
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        return None
+
+    filename = ctx.filename
+    if filename is not None:
+        return pathlib.Path(filename).parent.absolute()
+    return None
+
+
 @dataclasses.dataclass
 class CellMetadata:
     """CellMetadata

@@ -31,8 +31,9 @@ if TYPE_CHECKING:
 class AppScriptRunner:
     """Runs an app in a script context."""
 
-    def __init__(self, app: InternalApp) -> None:
+    def __init__(self, app: InternalApp, filename: str | None) -> None:
         self.app = app
+        self.filename = filename
 
     def run(self) -> RunOutput:
         from marimo._runtime.context.script_context import (
@@ -58,7 +59,9 @@ class AppScriptRunner:
             if not runtime_context_installed():
                 # script context is ephemeral, only installed while the app is
                 # running
-                initialize_script_context(app=app, stream=NoopStream())
+                initialize_script_context(
+                    app=app, stream=NoopStream(), filename=self.filename
+                )
                 installed_script_context = True
 
             # formatters aren't automatically registered when running as a
@@ -128,7 +131,7 @@ class AppScriptRunner:
         post_execute_hooks: list[Callable[[], Any]],
     ) -> RunOutput:
         with patch_main_module_context(
-            create_main_module(file=None, input_override=None)
+            create_main_module(file=self.filename, input_override=None)
         ) as module:
             glbls = module.__dict__
             outputs: dict[CellId_t, Any] = {}
@@ -145,7 +148,7 @@ class AppScriptRunner:
         post_execute_hooks: list[Callable[[], Any]],
     ) -> RunOutput:
         with patch_main_module_context(
-            create_main_module(file=None, input_override=None)
+            create_main_module(file=self.filename, input_override=None)
         ) as module:
             glbls = module.__dict__
             outputs: dict[CellId_t, Any] = {}
