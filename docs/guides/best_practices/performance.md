@@ -37,12 +37,12 @@ cache won't be invalidated. In contrast, on re-run a `functools` cache is
 always invalidated, because `functools` has no knowledge about the structure
 of marimo's dataflow graph.
 
-Conversely, `mo.cache` knows to invalidate the cache if the function closes
-over UI elements or state objects, whereas `functools.cache` doesn't, yielding
-incorrect cache hits.
+Conversely, `mo.cache` knows to invalidate the cache if closed over variables
+change, whereas `functools.cache` doesn't, yielding incorrect cache hits.
 
 `mo.cache` is slightly slower than `functools.cache`, but in most applications
-the overhead is negligible.
+the overhead is negligible. For performance critical code, where the decorated
+function will be called in a tight loop, prefer `functools.cache`.
 :::
 
 ## Save/load from disk with `mo.persistent_cache`

@@ -7,16 +7,15 @@ and caching the values of variables to disk.
 ## Caching expensive functions
 
 Use [`mo.cache`](#marimo.cache) to cache the return values of functions in
-memory, based on function arguments, closed-over values, and the notebook code
-defining the function. The resulting cache is similar to `functools.cache`, but
-with several benefits:
+memory, based on the function arguments, closed-over values, and the notebook
+code defining the function.
 
-1. `mo.cache` persists its cache across cell re-runs, as long as (roughly
-   speaking) the code defining the function and its references haven't changed;
-2. `mo.cache` is invalidated when closed-over values change, while
-   `functools.cache` returns stale values;
-3. `mo.cache` does not require its arguments to be hashable;
-4. `mo.cache` is not invalidated by comments and code formatting.
+The resulting cache is similar to `functools.cache`, but with the benefit that
+[`mo.cache`](#marimo.cache) won't return stale values (because it keys on
+closed-over values) and isn't invalidated when the cell defining the decorated
+function is simply re-run (because it keys on notebook code). This means that
+like marimo notebooks, [`mo.cache`](#marimo.cache) has no hidden state
+associated with and make you more more productive while developing iteratively.
 
 For a cache with bounded size, use [`mo.lru_cache`](#marimo.lru_cache).
 
@@ -30,6 +29,11 @@ For a cache with bounded size, use [`mo.lru_cache`](#marimo.lru_cache).
 ```
 
 ## Caching variables to disk
+
+Use `mo.persistent_cache` to cache variables computed in an expensive block of
+code to disk. If marimo detects a cache on disk, the block of code will be
+skipped and your variables will be loaded into memory, letting you pick up
+where you left off.
 
 ```{eval-rst}
 .. autofunction:: marimo.persistent_cache

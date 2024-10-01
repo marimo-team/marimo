@@ -197,8 +197,8 @@ _Here are some tips to avoid accidental execution of expensive cells:_
 - Wrap UI elements in a [form](api/inputs/form.md#marimo.ui.form).
 - Use [`mo.stop`](api/control_flow.md#marimo.stop) to conditionally stop
   execution of a cell and its descendants.
-- Decorate functions with marimo's [`mo.cache`](#marimo.cache) to cache expensive
-  intermediate computations.
+- Decorate functions with marimo's [`mo.cache`](#marimo.cache) to cache
+  expensive intermediate computations.
 - Use [`mo.persistent_cache`](#marimo.persistent_cache) to cache variables to
   disk; on re-run, marimo will read values from disk instead of recalculating
   them as long as the cell is not stale.
@@ -210,6 +210,9 @@ _Here are some tips to avoid accidental execution of expensive cells:_
 
 You can disable automatic execution through the notebook runtime settings;
 see the [guide on runtime configuration](/guides/runtime_configuration.md).
+
+When automatic execution is disabled, marimo still gives you guarantees on
+your notebook state and automatically marks cells as stale when appropriate.
 
 <a name="faq-interactivity"></a>
 

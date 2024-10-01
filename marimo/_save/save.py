@@ -202,17 +202,10 @@ def cache(
     *,
     pin_modules: bool = False,
 ) -> _cache_base:
-    """Decorator for caching the return value of a function
+    """Cache the value of a function based on args and closed-over variables.
 
-    Decorating a function with `@mo.cache` will cache, or "memoize", the return
-    value based on the arguments to the function and the global context of the
-    notebook.
-
-    `mo.cache` is a drop-in replacement for `functools.cache` that
-    incurs fewer false-positive cache evictions when used in marimo
-    notebooks. Additionally, unlike `functools.cache`, `mo.cache` does not
-    require its arguments to be hashable. Like `functools.cache`, `mo.cache` is
-    thread-safe.
+    Decorating a function with `@mo.cache` will cache its value based on
+    the function's arguments, closed-over values, and the notebook code.
 
     **Usage.**
 
@@ -227,9 +220,27 @@ def cache(
         return fib(n - 1) + fib(n - 2)
     ```
 
+    `mo.cache` is similar to `functools.cache`, but with three key benefits:
+
+    1. `mo.cache` persists its cache even if the cell defining the
+        cached function is re-run, as long as the code defining the function
+        (excluding comments and formatting) has not changed.
+    2. `mo.cache` keys on closed-over values in addition to function arguments,
+        preventing accumulation of hidden state associated with
+        `functools.cache`.
+    3. `mo.cache` does not require its arguments to be
+        hashable (only pickleable), meaning it can work with lists, sets, NumPy
+        arrays, PyTorch tensors, and more.
+
+    `mo.cache` obtains these benefits at the cost of slightly higher overhead
+    than `functools.cache`, so it is best used for expensive functions.
+
+    Like `functools.cache`, `mo.cache` is thread-safe.
+    
+
     The cache has an unlimited maximum size. To limit the cache size, use
-    [`@mo.lru_cache`](#marimo.lru_cache). `mo.cache` is slightly faster than
-    `mo.lru_cache`, but in most applications the difference is negligible.
+    `@mo.lru_cache`. `mo.cache` is slightly faster than `mo.lru_cache`, but in
+    most applications the difference is negligible.
 
     **Args**:
 
@@ -252,10 +263,10 @@ def lru_cache(
 ) -> _cache_base:
     """Decorator for LRU caching the return value of a function.
 
-    This is analogous to `functools.lru_cache`, but with the added benefit of
-    being context aware, with cache invalidations particular to marimo
-    notebooks. As an LRU (Least Recently Used) cache, only the last used
-    `maxsize` values are retained, with the oldest values being discarded.
+    `mo.lru_cache` is a version of `mo.cache` with a bounded cache size. As an
+    LRU (Least Recently Used) cache, only the last used `maxsize` values are
+    retained, with the oldest values being discarded. For more information,
+    see the documentation of `mo.cache`.
 
     **Usage.**
 
@@ -267,9 +278,6 @@ def lru_cache(
     def factorial(n):
         return n * factorial(n - 1) if n else 1
     ```
-
-    For more details, or a cache without a limit by default, refer to
-    `mo.cache`.
 
     **Args**:
 
