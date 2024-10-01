@@ -61,7 +61,7 @@ codeium_api_key = ""
 
 ```toml
 [completion]
-codeium_api_key = "a1e8e24d-16a2-4f99-875e-70167612ef9f"  # <-- paste your API key here
+codeium_api_key = "a1e8..."  # <-- paste your API key here
 copilot = "codeium"
 activate_on_typing = true
 ```
