@@ -15,7 +15,7 @@ The resulting cache is similar to `functools.cache`, but with the benefit that
 closed-over values) and isn't invalidated when the cell defining the decorated
 function is simply re-run (because it keys on notebook code). This means that
 like marimo notebooks, [`mo.cache`](#marimo.cache) has no hidden state
-associated with and make you more more productive while developing iteratively.
+associated with the memorized function, which makes you more productive while developing iteratively.
 
 For a cache with bounded size, use [`mo.lru_cache`](#marimo.lru_cache).
 
