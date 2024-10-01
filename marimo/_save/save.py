@@ -205,12 +205,14 @@ def cache(
     """Decorator for caching the return value of a function
 
     Decorating a function with `@mo.cache` will cache, or "memoize", the return
-    value based on the arguments to the function. The arguments of the
-    decorated function must be hashable.
+    value based on the arguments to the function and the global context of the
+    notebook.
 
     `mo.cache` is a drop-in replacement for `functools.cache` that
     incurs fewer false-positive cache evictions when used in marimo
-    notebooks. Like `functools.cache`, `mo.cache` is thread-safe.
+    notebooks. Additionally, unlike `functools.cache`, `mo.cache` does not
+    require its arguments to be hashable. Like `functools.cache`, `mo.cache` is
+    thread-safe.
 
     **Usage.**
 
@@ -226,8 +228,8 @@ def cache(
     ```
 
     The cache has an unlimited maximum size. To limit the cache size, use
-    `@mo.lru_cache`. `mo.cache` is slightly faster than `mo.lru_cache`,
-    but in most applications the difference is negligible.
+    [`@mo.lru_cache`](#marimo.lru_cache). `mo.cache` is slightly faster than
+    `mo.lru_cache`, but in most applications the difference is negligible.
 
     **Args**:
 
