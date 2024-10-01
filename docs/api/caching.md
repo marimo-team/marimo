@@ -31,9 +31,9 @@ For a cache with bounded size, use [`mo.lru_cache`](#marimo.lru_cache).
 ## Caching variables to disk
 
 Use `mo.persistent_cache` to cache variables computed in an expensive block of
-code to disk. If marimo detects a cache on disk, the block of code will be
-skipped and your variables will be loaded into memory, letting you pick up
-where you left off.
+code to disk. The next time this block of code is run, if marimo detects a
+cache hit, the code will be skipped and your variables will be loaded into
+memory, letting you pick up where you left off.
 
 ```{eval-rst}
 .. autofunction:: marimo.persistent_cache
