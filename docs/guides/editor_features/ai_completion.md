@@ -35,6 +35,39 @@ copilot = "codeium"
 codeium_api_key = ""
 ```
 
+### Alternative: Obtain Codeium API key using VS Code
+1. Go to the Codeium website and sign up for an account: <https://codeium.com/>
+2. Install the [Codeium Visual Studio Code extension](vscode:extension/codeium.codeium) (see [here](https://codeium.com/vscode_tutorial) for complete guide)
+3. Sign in to your Codeium account in the VS Code extension
+4. Select the Codeium icon on the Activity bar (left side), which opens the Codeium pane
+5. Select the **Settings** button (gear icon) in the top-right corner of the Codeium pane
+
+<div align="center">
+<figure>
+<img src="/docs/_static/docs-ai-completion-codeium-vscode.png">
+</figure>
+<figcaption>Select the "Settings" icon in the Codeium pane.</figcaption>
+</div>
+
+6. Click the **Download** link under the **Extension Diagnostics** section
+7. Open the diagnostic file and search for `apiKey` (it will look similar to the value shown in the image below, which was randomly generated and not an actual API key)
+
+<div align="center">
+<figure>
+<img src="/docs/_static/docs-ai-completion-codeium-vscode-download-diagnostics.png">
+</figure>
+<figcaption>Download diagnostics and copy the `apiKey` value</figcaption>
+</div>
+
+8. Copy the value of the `apiKey` to `.marimo.toml` in your home directory
+
+```toml
+[completion]
+codeium_api_key = "a1e8e24d-16a2-4f99-875e-70167612ef9f"  # <-- paste your API key here
+copilot = "codeium"
+activate_on_typing = true
+```
+
 ## Generate code with our AI assistant
 
 marimo has built-in support for generating and refactoring code with AI, with a
