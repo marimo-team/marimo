@@ -1,0 +1,20 @@
+import marimo
+
+__generated_with = "0.8.22"
+app = marimo.App()
+
+
+@app.cell
+def __(mo):
+    mo.md(
+        r"""
+        # Test Markdown
+
+        print('Hello from Markdown!')
+        """
+    )
+    return
+
+
+if __name__ == "__main__":
+    app.run()
