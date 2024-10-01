@@ -22,6 +22,7 @@ from marimo._runtime.state import State
 from marimo._save.ast import ExtractWithBlock, strip_function
 from marimo._save.cache import Cache, CacheException
 from marimo._save.hash import (
+    DEFAULT_HASH,
     BlockHasher,
     cache_attempt_from_hash,
     content_cache_attempt_from_base,
@@ -37,7 +38,6 @@ UNEXPECTED_FAILURE_BOILERPLATE = (
     "Please file an issue at "
     "https://github.com/marimo-team/marimo/issues"
 )
-
 
 if TYPE_CHECKING:
     from types import FrameType, TracebackType
@@ -70,7 +70,7 @@ class _cache_base(object):
         # -1 means unbounded cache
         maxsize: int = -1,
         pin_modules: bool = False,
-        hash_type: str = "sha256",
+        hash_type: str = DEFAULT_HASH,
         # frame_offset is the number of frames the __init__ call is nested
         # with respect to definition of _fn
         frame_offset: int = 0,
@@ -182,6 +182,7 @@ class _cache_base(object):
             scope,
             self._loader(),
             scoped_refs=self.scoped_refs,
+            required_refs=set(self._args),
             as_fn=True,
         )
 
@@ -200,7 +201,6 @@ def cache(
     _fn: Optional[Callable[..., Any]] = None,
     *,
     pin_modules: bool = False,
-    hash_type: str = "sha256",
 ) -> _cache_base:
     """Decorator for caching the return value of a function
 
@@ -235,13 +235,11 @@ def cache(
 
     - `pin_modules`: if True, the cache will be invalidated if module versions
       differ.
-    - `hash_type`: the hashing algorithm to use, defaults to "sha256".
     """
     return _cache_base(
         _fn,
         maxsize=-1,
         pin_modules=pin_modules,
-        hash_type=hash_type,
         frame_offset=1,
     )
 
@@ -251,7 +249,6 @@ def lru_cache(
     *,
     maxsize: int = 128,
     pin_modules: bool = False,
-    hash_type: str = "sha256",
 ) -> _cache_base:
     """Decorator for LRU caching the return value of a function.
 
@@ -286,7 +283,6 @@ def lru_cache(
         _fn,
         maxsize=maxsize,
         pin_modules=pin_modules,
-        hash_type=hash_type,
         frame_offset=1,
     )
 

@@ -41,6 +41,10 @@ if TYPE_CHECKING:
     Tensor = Any
 
 
+# Default hash type is generally inconsequential, there may be implications of
+# malicious hash collision or performance. Malicious hash collision can be
+# mitigated with a signed cache, and performance is neligible compared to the
+# rest of the hashing mechanism.
 DEFAULT_HASH = "sha256"
 
 
@@ -825,6 +829,7 @@ def content_cache_attempt_from_base(
     scope: dict[str, Any],
     loader: Loader,
     scoped_refs: Optional[set[Name]] = None,
+    required_refs: Optional[set[Name]] = None,
     *,
     as_fn: bool = False,
     sensitive: bool = False,
@@ -847,6 +852,9 @@ def content_cache_attempt_from_base(
     if scoped_refs is None:
         scoped_refs = set()
 
+    if required_refs is None:
+        required_refs = set()
+
     scope = {
         unmangle_local(k, previous_block.cell_id).name: v
         for k, v in scope.items()
@@ -854,9 +862,17 @@ def content_cache_attempt_from_base(
 
     # Manually add back missing refs, which should now be in scope.
     scoped_refs |= previous_block.missing
+    scoped_refs |= required_refs
 
     # refine to values present
     refs = scoped_refs & previous_block.visitor.refs
+    # Required refs are made explicit incase the examined block does not
+    # specify them e.g.
+    # @cache
+    # def foo(x):
+    #    return random.random()
+    # assert foo(0) != foo(1)
+    refs |= required_refs
     # Assume all execution refs could be content refs
     # but only if sensitive is set.
     if sensitive:

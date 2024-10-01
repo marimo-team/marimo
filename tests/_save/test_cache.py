@@ -901,3 +901,36 @@ class TestCacheDecorator:
         # Cannot hash the cell of the unhashable content, so it should fail
         with pytest.raises(TypeError):
             app.run()
+
+    @staticmethod
+    def test_unused_args() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def __():
+            import random
+
+            import marimo as mo
+
+            return (mo, random)
+
+        @app.cell
+        def __(mo, random):
+            @mo.cache
+            def g(_x):
+                return random.randint(0, 1000)
+
+            return (g,)
+
+        @app.cell
+        def __(g, random):
+            random.seed(0)
+            a = g("hello")
+            assert g("hello") == g("hello")
+            random.seed(1)
+            assert a == g("hello")
+            assert a != g("world")
+            return
+
+        app.run()
