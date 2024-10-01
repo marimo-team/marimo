@@ -236,7 +236,6 @@ def cache(
     than `functools.cache`, so it is best used for expensive functions.
 
     Like `functools.cache`, `mo.cache` is thread-safe.
-    
 
     The cache has an unlimited maximum size. To limit the cache size, use
     `@mo.lru_cache`. `mo.cache` is slightly faster than `mo.lru_cache`, but in
@@ -337,7 +336,7 @@ class persistent_cache(object):
     - `name`: the name of the cache, used to set saving path- to manually
       invalidate the cache, change the name.
     - `save_path`: the folder in which to save the cache, defaults to
-      ".marimo/cache"
+      "__marimo__/cache"
     - `pin_modules`: if True, the cache will be invalidated if module versions
       differ between runs, defaults to False.
     """
@@ -346,7 +345,7 @@ class persistent_cache(object):
         self,
         name: str,
         *,
-        save_path: str = ".marimo/cache",
+        save_path: str = "__marimo__/cache",
         pin_modules: bool = False,
         _loader: Optional[Loader] = None,
     ) -> None:
