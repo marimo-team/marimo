@@ -51,7 +51,7 @@ dependencies = [
 ]
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 classifiers = [
     "Operating System :: OS Independent",
     "License :: OSI Approved :: Apache Software License",
