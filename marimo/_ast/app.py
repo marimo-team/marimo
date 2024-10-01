@@ -4,7 +4,6 @@ from __future__ import annotations
 import inspect
 import random
 import string
-import sys
 from dataclasses import asdict, dataclass, field
 from typing import (
     TYPE_CHECKING,
@@ -180,8 +179,12 @@ class App:
         # Set as a private attribute as not to pollute AppConfig or kwargs.
         self._anonymous_file = False
 
-        # Filename is the callsite of the app
-        self._filename = inspect.getfile(sys._getframe(1))
+        # Filename is derived from the callsite of the app
+        frame_stack = inspect.stack()
+        if len(frame_stack) > 1:
+            self._filename = inspect.getfile(frame_stack[1].frame)
+        else:
+            self._filename = None
 
         self._app_kernel_runner: AppKernelRunner | None = None
 
