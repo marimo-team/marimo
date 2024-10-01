@@ -26,10 +26,6 @@ def transform_fixup_multiple_definitions(sources: List[str]) -> List[str]:
     This only takes effect if the declaration and reference are in
     the same cell.
     """
-    if sys.version_info < (3, 9):
-        # ast.unparse not available in Python 3.8
-        return sources
-
     try:
         cells = [
             compile_cell(source, cell_id=str(i))
@@ -355,10 +351,6 @@ class Renamer:
 
 
 def _transform_aug_assign(sources: List[str]) -> List[str]:
-    if sys.version_info < (3, 9):
-        # ast.unparse unavailable
-        return sources
-
     new_sources = sources.copy()
     for i, source in enumerate(sources):
         try:
@@ -433,9 +425,6 @@ def transform_duplicate_definitions(sources: List[str]) -> List[str]:
     print(a_2)
     ```
     """
-    if sys.version_info < (3, 9):
-        # ast.unparse not available in Python 3.8
-        return sources
 
     # Find all definitions in the AST
     def find_definitions(node: ast.AST) -> List[str]:
