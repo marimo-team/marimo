@@ -13,8 +13,8 @@ importers:
         version: 0.9.7
     devDependencies:
       openapi-typescript:
-        specifier: ^7.3.0
-        version: 7.3.0(typescript@5.5.4)
+        specifier: ^7.4.1
+        version: 7.4.1(typescript@5.5.4)
       typescript:
         specifier: ^5.5.4
         version: 5.5.4
@@ -33,14 +33,14 @@ packages:
     resolution: {integrity: sha512-EStJpq4OuY8xYfhGVXngigBJRWxftKX9ksiGDnmlY3o7B/V7KIAc9X4oiK87uPJSc/vs5L869bem5fhZa8caZw==}
     engines: {node: '>=6.9.0'}
 
-  '@redocly/ajv@8.11.0':
-    resolution: {integrity: sha512-9GWx27t7xWhDIR02PA18nzBdLcKQRgc46xNQvjFkrYk4UOmvKhJ/dawwiX0cCOeetN5LcaaiqQbVOWYK62SGHw==}
+  '@redocly/ajv@8.11.2':
+    resolution: {integrity: sha512-io1JpnwtIcvojV7QKDUSIuMN/ikdOUd1ReEnUnMKGfDVridQZ31J0MmIuqwuRjWDZfmvr+Q0MqCcfHM2gTivOg==}
 
-  '@redocly/config@0.7.0':
-    resolution: {integrity: sha512-6GKxTo/9df0654Mtivvr4lQnMOp+pRj9neVywmI5+BwfZLTtkJnj2qB3D6d8FHTr4apsNOf6zTa5FojX0Evh4g==}
+  '@redocly/config@0.12.1':
+    resolution: {integrity: sha512-RW3rSirfsPdr0uvATijRDU3f55SuZV3m7/ppdTDvGw4IB0cmeZRkFmqTrchxMqWP50Gfg1tpHnjdxUCNo0E2qg==}
 
-  '@redocly/openapi-core@1.19.0':
-    resolution: {integrity: sha512-ezK6qr80sXvjDgHNrk/zmRs9vwpIAeHa0T/qmo96S+ib4ThQ5a8f3qjwEqxMeVxkxCTbkaY9sYSJKOxv4ejg5w==}
+  '@redocly/openapi-core@1.25.4':
+    resolution: {integrity: sha512-qnpr4Z1rzfXdtxQxt/lfGD0wW3UVrm3qhrTpzLG5R/Ze+z+1u8sSRiQHp9N+RT3IuMjh00wq59nop9x9PPa1jQ==}
     engines: {node: '>=14.19.0', npm: '>=7.0.0'}
 
   agent-base@7.1.1:
@@ -67,6 +67,9 @@ packages:
   chalk@2.4.2:
     resolution: {integrity: sha512-Mti+f9lpJNcwF4tWV8/OrTTtF1gZi+f8FqlyAdouralcFWFQWF2+NgCHShjkCb+IFBLq9buZwE1xckQU4peSuQ==}
     engines: {node: '>=4'}
+
+  change-case@5.4.4:
+    resolution: {integrity: sha512-HRQyTk2/YPEkt9TnUPbOpr64Uw3KOicFWPVBb+xiHvd6eBx/qPr9xqfBFDT8P2vWsvvz4jbEkfDe71W3VyNu2w==}
 
   color-convert@1.9.3:
     resolution: {integrity: sha512-QfAUtd+vFdAtFQcC8CCyYt1fYWxSqAiK2cSD6zDB8N3cpsEBAvRxp9zOGg6G/SHHJYAT88/az/IuDGALsNVbGg==}
@@ -144,8 +147,8 @@ packages:
   openapi-typescript-helpers@0.0.8:
     resolution: {integrity: sha512-1eNjQtbfNi5Z/kFhagDIaIRj6qqDzhjNJKz8cmMW0CVdGwT6e1GLbAfgI0d28VTJa1A8jz82jm/4dG8qNoNS8g==}
 
-  openapi-typescript@7.3.0:
-    resolution: {integrity: sha512-EkljRjYWOPwGXiK++uI9MkGv2Y7uhbkZbi9V1z3r3EpmWVO6aFTHXSLNvxIWo6UT6LCTYgEYkUB3BWQjwwXthg==}
+  openapi-typescript@7.4.1:
+    resolution: {integrity: sha512-HrRoWveViADezHCNgQqZmPKmQ74q7nuH/yg9ursFucZaYQNUqsX38fE/V2sKBHVM+pws4tAHpuh/ext2UJ/AoQ==}
     hasBin: true
     peerDependencies:
       typescript: ^5.x
@@ -160,10 +163,6 @@ packages:
   pluralize@8.0.0:
     resolution: {integrity: sha512-Nc3IT5yHzflTfbjgqWcCPpo7DaKy4FnpB0l/zCAW0Tc7jxAiuqSxHasntB3D7887LSrA93kDJ9IXovxJYxyLCA==}
     engines: {node: '>=4'}
-
-  punycode@2.3.1:
-    resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
-    engines: {node: '>=6'}
 
   require-from-string@2.0.2:
     resolution: {integrity: sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==}
@@ -189,8 +188,8 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
-  uri-js@4.4.1:
-    resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
+  uri-js-replace@1.0.1:
+    resolution: {integrity: sha512-W+C9NWNLFOoBI2QWDp4UT9pv65r2w5Cx+3sTYFvtMdDBxkKt1syCqsUdSFAChbEe1uK5TfS04wt/nGwmaeIQ0g==}
 
   webidl-conversions@3.0.1:
     resolution: {integrity: sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==}
@@ -221,19 +220,19 @@ snapshots:
       js-tokens: 4.0.0
       picocolors: 1.0.1
 
-  '@redocly/ajv@8.11.0':
+  '@redocly/ajv@8.11.2':
     dependencies:
       fast-deep-equal: 3.1.3
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
-      uri-js: 4.4.1
+      uri-js-replace: 1.0.1
 
-  '@redocly/config@0.7.0': {}
+  '@redocly/config@0.12.1': {}
 
-  '@redocly/openapi-core@1.19.0(supports-color@9.4.0)':
+  '@redocly/openapi-core@1.25.4(supports-color@9.4.0)':
     dependencies:
-      '@redocly/ajv': 8.11.0
-      '@redocly/config': 0.7.0
+      '@redocly/ajv': 8.11.2
+      '@redocly/config': 0.12.1
       colorette: 1.4.0
       https-proxy-agent: 7.0.5(supports-color@9.4.0)
       js-levenshtein: 1.1.6
@@ -273,6 +272,8 @@ snapshots:
       escape-string-regexp: 1.0.5
       supports-color: 5.5.0
 
+  change-case@5.4.4: {}
+
   color-convert@1.9.3:
     dependencies:
       color-name: 1.1.3
@@ -284,6 +285,7 @@ snapshots:
   debug@4.3.6(supports-color@9.4.0):
     dependencies:
       ms: 2.1.2
+    optionalDependencies:
       supports-color: 9.4.0
 
   escape-string-regexp@1.0.5: {}
@@ -329,10 +331,11 @@ snapshots:
 
   openapi-typescript-helpers@0.0.8: {}
 
-  openapi-typescript@7.3.0(typescript@5.5.4):
+  openapi-typescript@7.4.1(typescript@5.5.4):
     dependencies:
-      '@redocly/openapi-core': 1.19.0(supports-color@9.4.0)
+      '@redocly/openapi-core': 1.25.4(supports-color@9.4.0)
       ansi-colors: 4.1.3
+      change-case: 5.4.4
       parse-json: 8.1.0
       supports-color: 9.4.0
       typescript: 5.5.4
@@ -350,8 +353,6 @@ snapshots:
 
   pluralize@8.0.0: {}
 
-  punycode@2.3.1: {}
-
   require-from-string@2.0.2: {}
 
   supports-color@5.5.0:
@@ -366,9 +367,7 @@ snapshots:
 
   typescript@5.5.4: {}
 
-  uri-js@4.4.1:
-    dependencies:
-      punycode: 2.3.1
+  uri-js-replace@1.0.1: {}
 
   webidl-conversions@3.0.1: {}
 
