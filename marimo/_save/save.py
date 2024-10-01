@@ -379,7 +379,7 @@ class persistent_cache(object):
 
     def _trace(
         self, with_frame: FrameType, _event: str, _arg: Any
-    ) -> Union[TraceFunction | None]:
+    ) -> Union[TraceFunction, None]:
         # General flow is as follows:
         #   1) Follow the stack trace backwards to the first instance of a
         # "<module>" function call, which corresponds to a cell level block.
