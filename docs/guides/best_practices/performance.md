@@ -52,7 +52,7 @@ run your notebook, the cached variables will be loaded from disk instead of
 being recomputed, letting you pick up where you left off.
 
 Reserve this for expensive computations that you would like to persist across
-notebook restarts. Cached outputs are automatically saved to `.marimo/cache`.
+notebook restarts. Cached outputs are automatically saved to `__marimo__/cache`.
 
 **Example.**
 
