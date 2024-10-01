@@ -11,3 +11,7 @@
 ```{eval-rst}
 .. autofunction:: marimo.refs
 ```
+
+```{eval-rst}
+.. autofunction:: marimo.notebook_dir
+```

@@ -51,6 +51,7 @@ __all__ = [
     "mermaid",
     "mpl",
     "nav_menu",
+    "notebook_dir",
     "output",
     "pdf",
     "plain_text",
@@ -121,6 +122,7 @@ from marimo._runtime.runtime import (
     app_meta,
     cli_args,
     defs,
+    notebook_dir,
     query_params,
     refs,
 )

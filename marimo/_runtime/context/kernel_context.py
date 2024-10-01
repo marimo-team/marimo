@@ -141,6 +141,7 @@ def create_kernel_context(
         stderr=stderr,
         children=[],
         parent=parent,
+        filename=kernel.app_metadata.filename,
     )
 
 

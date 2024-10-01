@@ -110,7 +110,9 @@ class ScriptRuntimeContext(RuntimeContext):
         return self._app
 
 
-def initialize_script_context(app: InternalApp, stream: Stream) -> None:
+def initialize_script_context(
+    app: InternalApp, stream: Stream, filename: str | None
+) -> None:
     """Initializes thread-local/session-specific context.
 
     Must be called exactly once for each client thread.
@@ -130,5 +132,6 @@ def initialize_script_context(app: InternalApp, stream: Stream) -> None:
         stderr=None,
         children=[],
         parent=None,
+        filename=filename,
     )
     initialize_context(runtime_context=runtime_context)

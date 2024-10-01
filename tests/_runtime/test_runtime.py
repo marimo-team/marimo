@@ -21,6 +21,10 @@ from marimo._messaging.ops import CellOp
 from marimo._messaging.types import NoopStream
 from marimo._plugins.ui._core.ids import IDProvider
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._runtime.context.kernel_context import (
+    initialize_kernel_context,
+)
+from marimo._runtime.context.types import teardown_context
 from marimo._runtime.dataflow import EdgeWithVar
 from marimo._runtime.patches import create_main_module
 from marimo._runtime.requests import (
@@ -879,6 +883,56 @@ class TestExecution:
         )
 
         assert "pytest" in k.globals["x"]
+
+    async def test_notebook_dir(
+        self, any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                exec_req.get("import marimo as mo"),
+                exec_req.get("x = mo.notebook_dir()"),
+            ]
+        )
+        assert "x" in k.globals
+        assert k.globals["x"] is None
+
+    async def test_notebook_dir_for_unnamed_notebook(
+        self, tmp_path: pathlib.Path, exec_req: ExecReqProvider
+    ) -> None:
+        try:
+            filename = str(tmp_path / "notebook.py")
+            k = Kernel(
+                stream=NoopStream(),
+                stdout=None,
+                stderr=None,
+                stdin=None,
+                cell_configs={},
+                user_config=DEFAULT_CONFIG,
+                app_metadata=AppMetadata(
+                    query_params={}, filename=filename, cli_args={}
+                ),
+                enqueue_control_request=lambda _: None,
+                module=create_main_module(None, None),
+            )
+            initialize_kernel_context(
+                kernel=k,
+                stream=k.stream,
+                stdout=k.stdout,
+                stderr=k.stderr,
+            )
+
+            await k.run(
+                [
+                    exec_req.get("import marimo as mo"),
+                    exec_req.get("x = mo.notebook_dir() / 'foo.csv'"),
+                ]
+            )
+            assert str(k.globals["x"]).endswith("foo.csv")
+        finally:
+            teardown_context()
+            if str(tmp_path) in sys.path:
+                sys.path.remove(str(tmp_path))
 
     async def test_pickle(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
