@@ -22,10 +22,7 @@ class TestScriptTrace:
 
         result = p.stderr.decode()
         assert "NameError: name 'y' is not defined" in result
-        assert (
-            'tests/_runtime/script_data/script_exception.py", line 10'
-            in result
-        )
+        assert 'script_exception.py", line 10' in result
         assert "y = y / x" in result
         # Test col_offset
         # Expected output:
@@ -50,10 +47,7 @@ class TestScriptTrace:
 
         result = p.stderr.decode()
         assert "ZeroDivisionError: division by zero" in result
-        assert (
-            'tests/_runtime/script_data/script_exception_with_output.py"'
-            ", line 11"
-        ) in result
+        assert ('script_exception_with_output.py"' ", line 11") in result
         assert "y / x" in result
 
     @staticmethod
