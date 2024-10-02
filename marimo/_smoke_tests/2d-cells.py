@@ -5,6 +5,14 @@ app = marimo.App(width="columns")
 
 
 @app.cell(column=0)
+def __():
+    import marimo as mo
+    import altair as alt
+    from vega_datasets import data
+    return alt, data, mo
+
+
+@app.cell
 def __(dataset, mo, plot, x, y):
     mo.vstack([dataset, x, y, plot])
     return
@@ -15,14 +23,6 @@ def __(selected_dataset):
     df = selected_dataset()
     df
     return (df,)
-
-
-@app.cell
-def __():
-    import marimo as mo
-    import altair as alt
-    from vega_datasets import data
-    return alt, data, mo
 
 
 @app.cell(column=1)

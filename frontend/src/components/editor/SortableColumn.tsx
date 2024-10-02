@@ -3,9 +3,10 @@ import React, { memo, useContext } from "react";
 import { mergeRefs } from "../../utils/mergeRefs";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVerticalIcon } from "lucide-react";
+import { GripVerticalIcon, X } from "lucide-react";
 import { cn } from "@/utils/cn";
 import type { CellColumnIndex } from "@/utils/id-tree";
+import { useCellActions } from "@/core/cells/cells";
 
 interface Props extends React.HTMLAttributes<HTMLDivElement> {
   columnIndex: CellColumnIndex;
@@ -24,7 +25,8 @@ ColumnDragHandle.displayName = "ColumnDragHandle";
 
 const SortableColumnInternal = React.forwardRef(
   ({ columnIndex, ...props }: Props, ref: React.Ref<HTMLDivElement>) => {
-    // Sort
+    // The keys for columns have a 1-based index, because
+    // the first column is not draggable if its id is 0
     const {
       attributes,
       listeners,
@@ -50,13 +52,24 @@ const SortableColumnInternal = React.forwardRef(
 
     const mergedRef = mergeRefs<HTMLDivElement>(ref, setNodeRef);
 
+    columnIndex = (columnIndex - 1) as CellColumnIndex;
+    const { deleteColumnBreakpoint } = useCellActions();
+
     const dragHandle = (
       <div
         {...attributes}
         {...listeners}
         data-testid="column-drag-button"
-        className="p-3 flex flex-row justify-end cursor-grab rounded-t-lg border-2 border-b-0 hover:border-border active:bg-accent border-[var(--slate-3)]"
+        className="group p-3 flex flex-row justify-end cursor-grab rounded-t-lg border-2 border-b-0 hover:border-border active:bg-accent border-[var(--slate-3)]"
       >
+        {columnIndex > 0 && (
+          <X
+            className="opacity-0 group-hover:opacity-100 me-2 cursor-pointer"
+            strokeWidth={1}
+            size={20}
+            onClick={() => deleteColumnBreakpoint({ columnIndex })}
+          />
+        )}
         <GripVerticalIcon
           className="opacity-50 hover:opacity-100"
           strokeWidth={1}

@@ -384,6 +384,18 @@ export class MultiColumn<T> {
     return new MultiColumn(columns);
   }
 
+  deleteBreakpoint(columnIndex: CellColumnIndex): MultiColumn<T> {
+    const columns = [...this.columns];
+    const column = columns[columnIndex];
+    // Move cells to preceding column
+    columns[columnIndex - 1] = new CollapsibleTree([
+      ...columns[columnIndex - 1].nodes,
+      ...column.nodes,
+    ]);
+    columns.splice(columnIndex, 1);
+    return new MultiColumn(columns);
+  }
+
   moveWithinColumn(
     col: CellColumnIndex,
     fromIdx: CellIndex,

@@ -451,6 +451,13 @@ const {
       cellIds: state.cellIds.insertBreakpoint(colIndex, cellIndex),
     };
   },
+  deleteColumnBreakpoint: (state, action: { columnIndex: CellColumnIndex }) => {
+    const { columnIndex } = action;
+    return {
+      ...state,
+      cellIds: state.cellIds.deleteBreakpoint(columnIndex),
+    };
+  },
   compactColumns: (state) => {
     return {
       ...state,
