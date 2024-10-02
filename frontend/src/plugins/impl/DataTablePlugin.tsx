@@ -336,12 +336,13 @@ export const LoadingDataTableComponent = memo(
     const { data: columnSummaries, error: columnSummariesError } = useAsyncData<
       ColumnSummaries<T>
     >(() => {
-      if (props.totalRows === 0) {
+      if (props.totalRows === 0 || !props.showColumnSummaries) {
         return Promise.resolve({ data: null, summaries: [] });
       }
       return props.get_column_summaries({});
     }, [
       props.get_column_summaries,
+      props.showColumnSummaries,
       filters,
       searchQuery,
       props.totalRows,
