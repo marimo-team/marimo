@@ -40,7 +40,7 @@ memory, letting you pick up where you left off.
 
 By default, caches are stored in `__marimo__/cache/`, in the directory of the
 current notebook. For projects versioned with `git`, consider adding
-`__marimo__/cache/` to your `.gitignore`.
+`**/__marimo__/cache/` to your `.gitignore`.
 ```
 
 ```{eval-rst}
