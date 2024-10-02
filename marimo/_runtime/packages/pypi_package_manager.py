@@ -47,14 +47,15 @@ class PipPackageManager(PypiPackageManager):
 
     async def _install(self, package: str) -> bool:
         return self.run(
-            ["pip", f"--python {PY_EXE}", "install", *split_packages(package)]
+            ["pip", "--python", PY_EXE, "install", *split_packages(package)]
         )
 
     async def uninstall(self, package: str) -> bool:
         return self.run(
             [
                 "pip",
-                f"--python {PY_EXE}",
+                "--python",
+                PY_EXE,
                 "uninstall",
                 "-y",
                 *split_packages(package),
@@ -62,7 +63,7 @@ class PipPackageManager(PypiPackageManager):
         )
 
     def list_packages(self) -> List[PackageDescription]:
-        cmd = ["pip", f"--python {PY_EXE}", "list", "--format=json"]
+        cmd = ["pip", "--python", PY_EXE, "list", "--format=json"]
         return self._list_packages_from_cmd(cmd)
 
 
@@ -117,7 +118,7 @@ class UvPackageManager(PypiPackageManager):
 
     async def _install(self, package: str) -> bool:
         return self.run(
-            ["uv", "pip", "install", *split_packages(package), f"-p {PY_EXE}"]
+            ["uv", "pip", "install", *split_packages(package), "-p", PY_EXE]
         )
 
     def update_notebook_script_metadata(
@@ -175,17 +176,11 @@ class UvPackageManager(PypiPackageManager):
 
     async def uninstall(self, package: str) -> bool:
         return self.run(
-            [
-                "uv",
-                "pip",
-                "uninstall",
-                *split_packages(package),
-                f"-p {PY_EXE}",
-            ]
+            ["uv", "pip", "uninstall", *split_packages(package), "-p", PY_EXE]
         )
 
     def list_packages(self) -> List[PackageDescription]:
-        cmd = ["uv", "pip", "list", "--format=json", f"-p {PY_EXE}"]
+        cmd = ["uv", "pip", "list", "--format=json", "-p", PY_EXE]
         return self._list_packages_from_cmd(cmd)
 
 
