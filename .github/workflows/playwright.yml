@@ -61,15 +61,26 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: '**/pnpm-lock.yaml'
 
-      - name: 🥚 Install Hatch
-        uses: pypa/hatch@install
-
       - name: 📦 Build frontend
         run: make fe
 
+      - name: 🐍 Setup Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      # We tried to add uv, but marimo is unable to
+      # start when installed.
+      # - name: 🐍 Setup uv
+      #   uses: yezz123/setup-uv@v4
+      #   with:
+      #     uv-venv: marimo-venv
+
       - name: 🐍 Install marimo
         run: |
-          hatch shell
+          python -m pip install --upgrade pip
+          pip install .
           echo "MARIMO_VERSION=$(marimo --version)" >> $GITHUB_ENV
 
       - name: 🎭 Get installed Playwright version

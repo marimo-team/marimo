@@ -96,20 +96,19 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
 
-      - name: 🐍 Setup uv
-        uses: yezz123/setup-uv@v4
-        with:
-          uv-venv: marimo-venv
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio
 
       - name: Download wheel
         uses: actions/download-artifact@v3
         with:
           name: testwheel
 
-      - name: Install Python deps
-        run: |
-          uv pip install pytest pytest-asyncio
-          uv pip install ./marimo*whl
+      - name: Install marimo
+        shell: bash
+        run: pip install marimo*whl
 
       - name: Test CLI
         shell: bash
