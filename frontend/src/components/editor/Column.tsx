@@ -23,7 +23,7 @@ export const Column = (props: Props) => {
         className={cn(
           "flex flex-col gap-5",
           props.width === "columns" &&
-            "w-[640px] max-w-[640px] min-w-[640px] min-h-[400px] border-2 border-[var(--slate-3)] rounded-b-lg p-6 bg-slate-50"
+            "w-[640px] max-w-[640px] min-w-[640px] min-h-[400px] border-2 border-[var(--slate-3)] rounded-b-lg p-6 bg-slate-50",
         )}
       >
         {props.children}

@@ -447,7 +447,7 @@ export class MultiColumn<T> {
     const column = this.columns[col];
     const columns = [...this.columns];
     columns[col] = column.insert(id, index);
-    return new MultiColumn([...columns]);
+    return new MultiColumn(columns);
   }
 
   deleteId(col: CellColumnIndex, index: CellIndex): MultiColumn<T> {
