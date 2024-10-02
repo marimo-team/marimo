@@ -87,6 +87,10 @@ include = ["/marimo"]
 [tool.hatch.build.targets.wheel]
 packages = ["marimo"]
 
+# Override the default uv version to use the latest version
+[tool.hatch.envs.hatch-uv]
+dependencies = ["uv>=0.4.17"]
+
 [tool.hatch.envs.default]
 python = "3.12"
 dependencies = [
@@ -119,8 +123,9 @@ dependencies = [
 ]
 
 [tool.hatch.envs.default.scripts]
-lint = "ruff check marimo/"
-typecheck = "mypy --config-file pyproject.toml marimo/"
+lint = "ruff check --fix"
+typecheck = "mypy marimo/"
+format = "ruff format"
 
 [tool.hatch.envs.test]
 extra-dependencies = [
