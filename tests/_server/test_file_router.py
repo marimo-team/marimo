@@ -42,11 +42,22 @@ class TestAppFileRouter(unittest.TestCase):
         self.test_file_3.write("marimo-version: 0.0.0".encode())
         self.test_file_3.close()
 
+        # Create a nested directory and file
+        self.nested_dir = os.path.join(self.test_dir, "nested")
+        os.mkdir(self.nested_dir)
+        self.nested_file = tempfile.NamedTemporaryFile(
+            delete=False, dir=self.nested_dir, suffix=".py"
+        )
+        self.nested_file.write(file_contents.encode())
+        self.nested_file.close()
+
     def tearDown(self):
         # Clean up temporary files and directory
         os.unlink(self.test_file1.name)
         os.unlink(self.test_file2.name)
         os.unlink(self.test_file_3.name)
+        os.unlink(self.nested_file.name)
+        shutil.rmtree(self.nested_dir)
         shutil.rmtree(self.test_dir)
 
     def test_infer_file(self):
@@ -84,7 +95,7 @@ class TestAppFileRouter(unittest.TestCase):
         )
         files = router.files
         assert (
-            len(files) == 2
+            len(files) == 3
         )  # Assuming the directory only contains the two created files
 
     def test_lazy_list_with_broken_symlinks(self):
@@ -96,7 +107,7 @@ class TestAppFileRouter(unittest.TestCase):
             self.test_dir, include_markdown=False
         )
         files = router.files
-        assert len(files) == 2
+        assert len(files) == 3
 
         # Remove the broken symlink
         os.unlink(broken_symlink)
@@ -108,22 +119,35 @@ class TestAppFileRouter(unittest.TestCase):
         )
         # Create markdown files
         files = router.files
-        assert len(files) == 3
+        assert len(files) == 4
 
         # Toggling markdown
         router = router.toggle_markdown(False)
         files = router.files
-        assert len(files) == 2
+        assert len(files) == 3
 
         # Toggle markdown back
         router = router.toggle_markdown(True)
         files = router.files
-        assert len(files) == 3
+        assert len(files) == 4
 
     def test_lazy_list_of_get_app_file_manager(self):
         router = LazyListOfFilesAppFileRouter(
             self.test_dir, include_markdown=False
         )
-        basename = os.path.basename(self.test_file1.name)
-        file_manager = router.get_file_manager(key=basename)
-        assert file_manager.filename == os.path.join(self.test_dir, basename)
+        filename = self.test_file1.name
+        assert os.path.exists(filename), f"File {filename} does not exist"
+        file_manager = router.get_file_manager(key=filename)
+        assert file_manager.filename == os.path.join(self.test_dir, filename)
+
+    def test_lazy_list_of_get_app_file_manager_nested(self):
+        router = LazyListOfFilesAppFileRouter(
+            self.test_dir, include_markdown=False
+        )
+        nested_filename = self.nested_file.name
+        file_manager = router.get_file_manager(key=nested_filename)
+        assert file_manager.filename == self.nested_file.name
+        assert file_manager.filename is not None
+        assert os.path.exists(file_manager.filename)
+        assert file_manager.filename.startswith(self.test_dir)
+        assert "nested" in file_manager.filename
