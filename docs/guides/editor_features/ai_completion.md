@@ -149,7 +149,7 @@ base_url = "http://localhost:11434/v1"
 
 To use Google AI with marimo:
 
-1. Sign up for an account at [Google AI Studio](https://makersuite.google.com/) and obtain your API key.
+1. Sign up for an account at [Google AI Studio](https://aistudio.google.com/app/apikey) and obtain your API key.
 2. Install the Google AI Python client: `pip install google-generativeai`
 3. Add the following to your `marimo.toml`:
 
