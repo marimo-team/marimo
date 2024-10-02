@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 from collections import namedtuple
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, Optional, get_args
 
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import ContextNotInitializedError, get_context
@@ -18,6 +18,7 @@ CacheType = Literal[
     "ContentAddressed",
     "ExecutionPath",
     "Pure",
+    "Deferred",
     "Unknown",
 ]
 # Easy visual identification of cache type.
@@ -26,11 +27,12 @@ CACHE_PREFIX: dict[CacheType, str] = {
     "ContentAddressed": "C_",
     "ExecutionPath": "E_",
     "Pure": "P_",
+    "Deferred": "D_",
     "Unknown": "U_",
 }
 
 ValidCacheSha = namedtuple("ValidCacheSha", ("sha", "cache_type"))
-MetaKey = str  # e.g. Literal["code", "output"]
+MetaKey = Literal["return"]
 
 
 # BaseException because "raise _ as e" is utilized.
@@ -68,19 +70,30 @@ class Cache:
             value = defs[ref]
             if isinstance(value, SetFunctor):
                 value(self.defs[ref])
-            elif isinstance(value, UIElement):
-                value._update(self.defs[ref])
-            else:
+            # UI Values cannot be easily programmatically set, so only update
+            # state values.
+            elif not isinstance(value, UIElement):
                 raise CacheException(
                     "Failure while restoring cached values. "
                     "Unexpected stateful reference type "
                     f"({type(ref)}:{ref})."
                 )
 
-    def update(self, scope: dict[str, Any]) -> None:
+    def update(
+        self,
+        scope: dict[str, Any],
+        meta: Optional[dict[MetaKey, Any]] = None,
+    ) -> None:
         """Loads values from scope, updating the cache."""
         for var, lookup in self.contextual_defs():
             self.defs[var] = scope[lookup]
+
+        self.meta = {}
+        if meta is not None:
+            for key, value in meta.items():
+                if key not in get_args(MetaKey):
+                    raise CacheException(f"Unexpected meta key: {key}")
+                self.meta[key] = value
 
         defs = {**globals(), **scope}
         for ref in self.stateful_refs:

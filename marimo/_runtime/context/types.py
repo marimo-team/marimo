@@ -74,6 +74,7 @@ class RuntimeContext(abc.ABC):
     stderr: Stderr | None
     children: list[RuntimeContext]
     parent: RuntimeContext | None
+    filename: str | None
 
     @property
     @abc.abstractmethod

@@ -18,5 +18,6 @@
   },
   "dependencies": {
     "openapi-fetch": "0.9.7"
-  }
+  },
+  "packageManager": "pnpm@9.8.0"
 }

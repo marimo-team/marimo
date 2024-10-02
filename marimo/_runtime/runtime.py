@@ -277,6 +277,37 @@ def cli_args() -> CLIArgs:
     return get_context().cli_args
 
 
+@mddoc
+def notebook_dir() -> pathlib.Path | None:
+    """Get the directory of the currently executing notebook.
+
+    **Returns**:
+
+    - A `pathlib.Path` object representing the directory of the current
+      notebook, or `None` if the notebook's directory cannot be determined.
+
+    **Examples**:
+
+    ```python
+    data_file = mo.notebook_dir() / "data" / "example.csv"
+    # Use the directory to read a file
+    if data_file.exists():
+        print(f"Found data file: {data_file}")
+    else:
+        print("No data file found")
+    ```
+    """
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        return None
+
+    filename = ctx.filename
+    if filename is not None:
+        return pathlib.Path(filename).parent.absolute()
+    return None
+
+
 @dataclasses.dataclass
 class CellMetadata:
     """CellMetadata
@@ -522,12 +553,15 @@ class Kernel:
         self.execution_context = ExecutionContext(
             cell_id, setting_element_value
         )
-        with get_context().provide_ui_ids(str(cell_id)), redirect_streams(
-            cell_id,
-            stream=self.stream,
-            stdout=self.stdout,
-            stderr=self.stderr,
-            stdin=self.stdin,
+        with (
+            get_context().provide_ui_ids(str(cell_id)),
+            redirect_streams(
+                cell_id,
+                stream=self.stream,
+                stdout=self.stdout,
+                stderr=self.stderr,
+                stdin=self.stdin,
+            ),
         ):
             modules = None
             try:
@@ -1590,9 +1624,10 @@ class Kernel:
         else:
             found = True
             LOGGER.debug("Executing RPC %s", request)
-            with self._install_execution_context(
-                cell_id=function.cell_id
-            ), ctx.provide_ui_ids(str(uuid4())):
+            with (
+                self._install_execution_context(cell_id=function.cell_id),
+                ctx.provide_ui_ids(str(uuid4())),
+            ):
                 # Usually UI element IDs are deterministic, based on
                 # cell id, so that element values can be matched up
                 # with objects on notebook/app re-connection.

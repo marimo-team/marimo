@@ -563,7 +563,7 @@ mo.md("#" + "🍃" * button.value) if button.value > 0 else None
 
 ## Caching
 
-### Cache expensive computations
+### Cache function outputs in memory
 
 **Use case.** Because marimo runs cells automatically as code and
 UI elements change, it can be helpful to cache expensive intermediate
@@ -573,12 +573,12 @@ for different configurations of the elements would greatly speed up your noteboo
 
 **Recipe.**
 
-1. Use `functools` to cache function outputs given inputs.
+1. Use [`mo.cache`](#marimo.cache) to cache function outputs given inputs.
 
 ```python
-import functools
+import marimo as mo
 
-@functools.cache
+@mo.cache
 def compute_predictions(problem_parameters):
    # replace with your own function/parameters
    ...
@@ -589,4 +589,26 @@ it has not seen, it will compute the predictions and store them in a cache. The
 next time it is called with the same parameters, instead of recomputing the
 predictions, it will return the previously computed value from the cache.
 
-See our [best practices guide](guides/best_practices) to learn more.
+### Persistent caching for very expensive computations
+
+**Use case.** If you are using marimo to capture very compute intensive
+results, you may want to save the state of your computations to disk. Ideally,
+if you update your code, then this save should be invalidated. It may also be
+advantageous to add UI elements to explore your results, without having to
+recompute expensive computations. You can achieve this with
+[`mo.persistent_cache`](#marimo.persistent_cache).
+
+**Recipe.**
+
+1. Use `mo.persistent_cache` to cache blocks of code to disk.
+
+```python
+import marimo as mo
+
+with mo.persistent_cache("my_cache"):
+    # This block of code, and results will be cached to disk
+    ...
+```
+
+If the execution conditions are the same, then cache will load results from
+disk, and populate variable definitions.

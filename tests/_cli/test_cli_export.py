@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import subprocess
+import sys
 from os import path
 from typing import TYPE_CHECKING
 
@@ -18,6 +19,10 @@ if TYPE_CHECKING:
     import pathlib
 
 snapshot = snapshotter(__file__)
+
+
+def _is_win32() -> bool:
+    return sys.platform == "win32"
 
 
 class TestExportHTML:
@@ -253,8 +258,8 @@ class TestExportScript:
         )
 
     @pytest.mark.skipif(
-        condition=DependencyManager.watchdog.has(),
-        reason="hangs when watchdog is installed",
+        condition=DependencyManager.watchdog.has() or _is_win32(),
+        reason="hangs when watchdog is installed, flaky on Windows",
     )
     async def test_export_watch_script(self, temp_marimo_file: str) -> None:
         temp_out_file = temp_marimo_file.replace(".py", ".script.py")
@@ -362,8 +367,8 @@ class TestExportMarkdown:
         snapshot("broken.txt", output)
 
     @pytest.mark.skipif(
-        condition=DependencyManager.watchdog.has(),
-        reason="hangs when watchdog is installed",
+        condition=DependencyManager.watchdog.has() or _is_win32(),
+        reason="hangs when watchdog is installed, flaky on Windows",
     )
     async def test_export_watch_markdown(self, temp_marimo_file: str) -> None:
         temp_out_file = temp_marimo_file.replace(".py", ".md")

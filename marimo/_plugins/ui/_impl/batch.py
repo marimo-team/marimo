@@ -1,13 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import sys
-
-if sys.version_info < (3, 9):
-    from typing import ItemsView, ValuesView
-else:
-    pass
-
 from typing import (
     TYPE_CHECKING,
     Any,

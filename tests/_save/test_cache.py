@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import textwrap
 
+import pytest
+
 from marimo._ast.app import App
 from marimo._runtime.requests import ExecutionRequest
 from marimo._runtime.runtime import Kernel
@@ -18,7 +20,8 @@ class TestScriptCache:
 
         @app.cell
         def one() -> tuple[int]:
-            from marimo._save.save import persistent_cache
+            # Check top level import
+            from marimo import persistent_cache
             from tests._save.mocks import MockLoader
 
             with persistent_cache(name="one", _loader=MockLoader()) as cache:
@@ -86,7 +89,8 @@ class TestAppCache:
             [
                 ExecutionRequest(
                     cell_id="0",
-                    code=textwrap.dedent("""
+                    code=textwrap.dedent(
+                        """
                 from marimo._save.save import persistent_cache
                 from tests._save.mocks import MockLoader
 
@@ -96,7 +100,8 @@ class TestAppCache:
                     Y = 9
                     X = 10
                 Z = 3
-                """),
+                """
+                    ),
                 ),
             ]
         )
@@ -110,7 +115,8 @@ class TestAppCache:
             [
                 ExecutionRequest(
                     cell_id="0",
-                    code=textwrap.dedent("""
+                    code=textwrap.dedent(
+                        """
                 from marimo._save.save import persistent_cache
                 from tests._save.mocks import MockLoader
 
@@ -120,7 +126,8 @@ class TestAppCache:
                     Y = 9
                     X = 10
                 Z = 3
-                """),
+                """
+                    ),
                 ),
             ]
         )
@@ -134,14 +141,16 @@ class TestAppCache:
             [
                 ExecutionRequest(
                     cell_id="0",
-                    code=textwrap.dedent("""
+                    code=textwrap.dedent(
+                        """
         from marimo._save.save import persistent_cache
         from tests._save.mocks import MockLoader
 
         with persistent_cache(name="one", _loader=MockLoader(data={"X": 1})):
             X = 1
         Y = 2
-                """),
+                """
+                    ),
                 ),
             ]
         )
@@ -156,7 +165,8 @@ class TestAppCache:
             [
                 ExecutionRequest(
                     cell_id="0",
-                    code=textwrap.dedent("""
+                    code=textwrap.dedent(
+                        """
                 from marimo._save.save import persistent_cache
                 from tests._save.mocks import MockLoader
 
@@ -166,7 +176,8 @@ class TestAppCache:
                     # whitespace
                     X = 1 # Comment
                     Y = 2
-                """),
+                """
+                    ),
                 ),
             ]
         )
@@ -242,7 +253,8 @@ class TestStateCache:
             ]
         )
 
-        # Should be hit because of rerun
+        # Should be hit on rerun, because set_state does not have a state
+        # itself.
         assert len(k.globals["impure"]) == 2
         assert k.globals["impure"][0] == k.globals["impure"][1]
         assert k.globals["state"]() == 9
@@ -318,36 +330,607 @@ class TestStateCache:
         assert k.globals["state"]() == 7
 
 
-class TestUICache:
-    async def test_ui_loads(
+class TestCacheDecorator:
+    async def test_basic_cache(
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:
         await k.run(
             [
-                exec_req.get("import marimo as mo"),
-                exec_req.get("slider = mo.ui.slider(1, 10)"),
                 exec_req.get(
                     """
-                    from marimo._save.save import persistent_cache
-                    from tests._save.mocks import MockLoader
+                    from marimo._save.save import cache
 
-                    a = 0
-                    with persistent_cache(
-                        name="cache",
-                        _loader=MockLoader(
-                            data={"slider": 7, "a": 9},
-                            stateful_refs={"slider"})
-                    ) as cache:
-                        raise Exception()
-                        a = slider.value + 1
-                        slider._update(3)
+                    @cache
+                    def fib(n):
+                        if n <= 1:
+                            return n
+                        return fib(n - 1) + fib(n - 2)
 
+                    a = fib(5)
+                    b = fib(10)
                 """
                 ),
             ]
         )
 
         assert not k.stderr.messages
+        assert k.globals["fib"].hits == 9
 
-        assert k.globals["slider"].value == 7
-        assert k.globals["a"] == 9
+        assert k.globals["a"] == 5
+        assert k.globals["b"] == 55
+
+    async def test_lru_cache(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import lru_cache
+
+                    @lru_cache(maxsize=2)
+                    def fib(n):
+                        if n <= 1:
+                            return n
+                        return fib(n - 1) + fib(n - 2)
+
+                    a = fib(5)
+                    b = fib(10)
+                """
+                ),
+            ]
+        )
+
+        assert not len(k.stderr.messages)
+        # More hits with a smaller cache, because it needs to check the cache
+        # more.
+        assert k.globals["fib"].hits == 14
+
+        assert k.globals["a"] == 5
+        assert k.globals["b"] == 55
+
+    async def test_cross_cell_cache(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get("""from marimo._save.save import cache"""),
+                exec_req.get(
+                    """
+                    @cache
+                    def fib(n):
+                        if n <= 1:
+                            return n
+                        return fib(n - 1) + fib(n - 2)
+                """
+                ),
+                exec_req.get("""a=fib(5)"""),
+                exec_req.get("""b=fib(10); a"""),
+            ]
+        )
+
+        assert not k.stderr.messages
+        assert k.globals["fib"].hits == 9
+
+        assert k.globals["a"] == 5
+        assert k.globals["b"] == 55
+
+    async def test_cross_cell_cache_with_external(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get("""from marimo._save.save import cache"""),
+                exec_req.get("""external = 0"""),
+                exec_req.get(
+                    """
+                    @cache
+                    def fib(n):
+                        if n <= 1:
+                            return n + external
+                        return fib(n - 1) + fib(n - 2)
+                """
+                ),
+                exec_req.get("""a = fib(5)"""),
+                exec_req.get("""b = fib(10); a"""),
+            ]
+        )
+
+        assert not k.stderr.messages
+
+        assert k.globals["a"] == 5
+        assert k.globals["b"] == 55
+        assert k.globals["fib"].hits == 9
+
+    async def test_cross_cell_cache_with_external_state(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                             from marimo._save.save import cache
+                             from marimo._runtime.state import state
+                             """
+                ),
+                exec_req.get("""external, setter = state(0)"""),
+                exec_req.get(
+                    """
+                    @cache
+                    def fib(n):
+                        if n <= 1:
+                            return n + external()
+                        return fib(n - 1) + fib(n - 2)
+                    """
+                ),
+                exec_req.get("""impure = []"""),
+                exec_req.get("""a = fib(5)"""),
+                exec_req.get("""b = fib(10); a"""),
+                exec_req.get(
+                    """
+                    c = a + b
+                    if len(impure) == 0:
+                       setter(1)
+                    elif len(impure) == 1:
+                       setter(0)
+                    impure.append(c)
+                    """
+                ),
+            ]
+        )
+
+        assert not k.stdout.messages
+        assert not k.stderr.messages
+
+        assert k.globals["a"] == 5
+        assert k.globals["b"] == 55
+        assert k.globals["impure"] == [60, 157, 60]
+        # Cache hit value may be flaky depending on when state is evicted from
+        # the registry. The actual cache hit is less important than caching
+        # occurring in the first place.
+        # 2 * 9 + 2
+        assert k.globals["fib"].hits in (9, 18, 20)
+
+    async def test_cross_cell_cache_with_external_ui(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                             from marimo._save.save import cache
+                             from marimo._runtime.state import state
+                             import marimo as mo
+                             """
+                ),
+                exec_req.get("slider = mo.ui.slider(0, 1)"),
+                exec_req.get("""external, setter = state("a")"""),
+                exec_req.get(
+                    """
+                    external # To force rerun
+
+                    @cache
+                    def fib(n):
+                        if n <= 1:
+                            return n + slider.value
+                        return fib(n - 1) + fib(n - 2)
+                    """
+                ),
+                exec_req.get("""impure = []"""),
+                exec_req.get("""a = fib(5)"""),
+                exec_req.get("""b = fib(10); a"""),
+                exec_req.get(
+                    """
+                    c = a + b
+                    if len(impure) == 0:
+                       setter("b")
+                       slider._update(1)
+                    elif len(impure) == 1:
+                       setter("c")
+                       slider._update(0)
+                    impure.append(c)
+                    """
+                ),
+            ]
+        )
+
+        assert not k.stderr.messages
+
+        assert k.globals["a"] == 5
+        assert k.globals["b"] == 55
+        assert k.globals["impure"] == [60, 157, 60]
+        # 2 * 9 + 2
+        assert k.globals["fib"].hits in (9, 18, 20)
+
+    async def test_full_scope_utilized(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import cache
+                    d = 0 # Check shadowing
+                    """
+                ),
+                exec_req.get("""impure = []"""),
+                exec_req.get(
+                    """
+                    _a = 0
+                    def _b():
+                        _c = 2
+                        @cache
+                        def d():
+                            return _a + _c
+                        return d
+                    _e = _b()
+                    impure.append([_e, _e()])
+                    """
+                ),
+                exec_req.get(
+                    repeated := """
+                    _a = 0
+                    def _b():
+                        _c = 1
+                        @cache
+                        def d():
+                            return _a + _c
+                        return d
+                    _e = _b()
+                    impure.append([_e, _e()])
+                    """
+                ),
+                exec_req.get(repeated),
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+        assert not k.stdout.messages, k.stdout
+
+        assert len(k.globals["impure"]) == 3
+        assert {
+            k.globals["impure"][0][1],
+            k.globals["impure"][1][1],
+            k.globals["impure"][2][1],
+        } == {2, 1}
+
+        # Same name, but should be under different entries
+        assert (
+            k.globals["impure"][0][0]._loader()
+            is not k.globals["impure"][1][0]._loader()
+        )
+
+        assert (
+            len(
+                {
+                    *k.globals["impure"][0][0]._loader()._cache.keys(),
+                    *k.globals["impure"][1][0]._loader()._cache.keys(),
+                    *k.globals["impure"][2][0]._loader()._cache.keys(),
+                }
+            )
+            == 2
+        )
+
+        # No cache hits
+        assert {
+            k.globals["impure"][0][0].hits,
+            k.globals["impure"][1][0].hits,
+            k.globals["impure"][2][0].hits,
+        } == {0}
+
+    async def test_full_scope_utilized_lru_cache(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import lru_cache
+                    d = 0 # Check shadowing
+                    """
+                ),
+                exec_req.get("""impure = []"""),
+                exec_req.get(
+                    """
+                    _a = 0
+                    def _b():
+                        _c = 2
+                        @lru_cache
+                        def d():
+                            return _a + _c
+                        return d
+                    _e = _b()
+                    impure.append([_e, _e()])
+                    """
+                ),
+                exec_req.get(
+                    repeated := """
+                    _a = 0
+                    def _b():
+                        _c = 1
+                        @lru_cache
+                        def d():
+                            return _a + _c
+                        return d
+                    _e = _b()
+                    impure.append([_e, _e()])
+                    """
+                ),
+                exec_req.get(repeated),
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+        assert not k.stdout.messages, k.stdout
+
+        assert len(k.globals["impure"]) == 3
+        assert {
+            k.globals["impure"][0][1],
+            k.globals["impure"][1][1],
+            k.globals["impure"][2][1],
+        } == {2, 1}
+
+        # Same name, but should be under different entries
+        assert (
+            k.globals["impure"][0][0]._loader()
+            is not k.globals["impure"][1][0]._loader()
+        )
+
+        assert (
+            len(
+                {
+                    *k.globals["impure"][0][0]._loader()._cache.keys(),
+                    *k.globals["impure"][1][0]._loader()._cache.keys(),
+                    *k.globals["impure"][2][0]._loader()._cache.keys(),
+                }
+            )
+            == 2
+        )
+
+        # No cache hits
+        assert {
+            k.globals["impure"][0][0].hits,
+            k.globals["impure"][1][0].hits,
+            k.globals["impure"][2][0].hits,
+        } == {0}
+
+    @staticmethod
+    def test_object_content_hash() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def __():
+            import marimo as mo
+
+            return (mo,)
+
+        @app.cell
+        def __():
+            class Namespace: ...
+
+            ns = Namespace()
+            ns.x = 0
+            return Namespace, ns
+
+        @app.cell
+        def __(mo, ns):
+            @mo.cache
+            def f():
+                return ns
+
+            return (f,)
+
+        @app.cell
+        def __(f):
+            f()
+            assert f.hits == 0
+            assert f.base_block.execution_refs == {"ns"}
+            return
+
+        app.run()
+
+    @staticmethod
+    def test_execution_hash_same_block() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def __():
+            import marimo as mo
+
+            return (mo,)
+
+        @app.cell
+        def __(mo):
+            class Namespace: ...
+
+            ns = Namespace()
+            ns.x = 0
+
+            @mo.cache
+            def f():
+                return ns.x
+
+            return (
+                ns,
+                f,
+            )
+
+        @app.cell
+        def __(f, ns):
+            assert f() == 0
+            ns.x = 1
+            assert f() == 1
+            assert f.hits == 0
+            assert f() == 1
+            assert f.hits == 1
+            assert f.base_block.context_refs == {"ns"}, (
+                f.base_block.context_refs,
+                f.base_block.execution_refs,
+                f.base_block.content_refs,
+            )
+            assert f.base_block.context_refs == {
+                "ns"
+            }, f.base_block.context_refs
+            return
+
+        app.run()
+
+    @staticmethod
+    def test_execution_hash_diff_block() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def __():
+            import marimo as mo
+
+            return (mo,)
+
+        @app.cell
+        def __():
+            import weakref
+
+            class Namespace: ...
+
+            ns = Namespace()
+            ns.x = weakref.ref(ns)
+            z = ns.x
+
+            return (weakref, ns, z)
+
+        @app.cell
+        def __(mo, ns, z):
+            @mo.cache
+            def f():
+                return ns.x, z
+
+            return (f,)
+
+        @app.cell
+        def __(f):
+            f()
+            assert f.base_block.execution_refs == {"ns", "z"}
+            return
+
+        app.run()
+
+    @staticmethod
+    def test_content_hash_define_after() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def __():
+            import marimo as mo
+
+            return (mo,)
+
+        @app.cell
+        def __(mo):
+            @mo.cache
+            def f():
+                return ns.x
+
+            class Namespace: ...
+
+            ns = Namespace()
+            ns.x = 0
+
+            return (
+                ns,
+                f,
+            )
+
+        @app.cell
+        def __(f, ns):
+            assert f() == 0
+            ns.x = 1
+            assert f() == 1
+            assert f.hits == 0
+            assert f() == 1
+            assert f.hits == 1
+            assert (
+                f.base_block.execution_refs == set()
+            ), f.base_block.execution_refs
+            assert f.base_block.missing == {"ns"}, f.base_block.missing
+            return
+
+        app.run()
+
+    @staticmethod
+    def test_execution_hash_same_block_fails() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def __():
+            import marimo as mo
+
+            return (mo,)
+
+        @app.cell
+        def __():
+            import weakref
+
+            return (weakref,)
+
+        @app.cell
+        def __(mo, weakref):
+            class Namespace: ...
+
+            ns = Namespace()
+            ns.x = weakref.ref(ns)
+            z = ns.x
+
+            @mo.cache
+            def f():
+                return ns.x, z
+
+            return (
+                ns,
+                f,
+            )
+
+        @app.cell
+        def __(f):
+            f()
+            return
+
+        # Cannot hash the cell of the unhashable content, so it should fail
+        with pytest.raises(TypeError):
+            app.run()
+
+    @staticmethod
+    def test_unused_args() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def __():
+            import random
+
+            import marimo as mo
+
+            return (mo, random)
+
+        @app.cell
+        def __(mo, random):
+            @mo.cache
+            def g(_x):
+                return random.randint(0, 1000)
+
+            return (g,)
+
+        @app.cell
+        def __(g, random):
+            random.seed(0)
+            a = g("hello")
+            assert g("hello") == g("hello")
+            random.seed(1)
+            assert a == g("hello")
+            assert a != g("world")
+            return
+
+        app.run()
