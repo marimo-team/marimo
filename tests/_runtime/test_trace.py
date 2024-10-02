@@ -69,7 +69,9 @@ class TestScriptTrace:
         assert f'{file_path}", line 3' in result
 
         assert (
-            'tests/_runtime/script_data/script_exception_with_imported_function.py"'
+            os.path.normpath(
+                "tests/_runtime/script_data/script_exception_with_imported_function.py"  # noqa: E501
+            )
             + ", line 11"
             in result
         )
