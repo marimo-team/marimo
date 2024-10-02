@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.8.20"
-app = marimo.App(width="columns")
+app = marimo.App()
 
 
 @app.cell(column=0)
@@ -25,7 +25,7 @@ def __(selected_dataset):
     return (df,)
 
 
-@app.cell(column=1)
+@app.cell
 def __(plot_type, x, y):
     plot_type().encode(
         x=x.value,

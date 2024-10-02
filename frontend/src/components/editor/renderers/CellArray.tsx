@@ -120,12 +120,18 @@ export const CellArray: React.FC<CellArrayProps> = ({
           disabled={!isEditing}
           strategy={horizontalListSortingStrategy}
         >
-          <div className="grid grid-flow-col auto-cols-min gap-28">
+          <div
+            className={cn(
+              appConfig.width === "columns" &&
+                "grid grid-flow-col auto-cols-min gap-28",
+            )}
+          >
             {columns.map((column, index) => {
               return (
                 <Column
                   key={(index + 1) as CellColumnIndex}
                   columnIndex={(index + 1) as CellColumnIndex}
+                  width={appConfig.width}
                 >
                   <SortableContext
                     id={`column-${index + 1}`}

@@ -63,6 +63,7 @@ import { Paths } from "@/utils/paths";
 import { KnownQueryParams } from "./constants";
 import { useTogglePresenting } from "./layout/useTogglePresenting";
 import { useAutoExport } from "./export/hooks";
+import { usePrevious } from "@dnd-kit/utilities";
 
 interface AppProps {
   userConfig: UserConfig;
@@ -74,7 +75,7 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
 
   useJotaiEffect(cellIdsAtom, CellEffects.onCellIdsChange);
 
-  const { setCells, updateCellCode } = useCellActions();
+  const { setCells, updateCellCode, deleteColumnBreakpoint } = useCellActions();
   const viewState = useAtomValue(viewStateAtom);
   const [filename, setFilename] = useFilename();
   const [lastSavedNotebook, setLastSavedNotebook] =
@@ -147,6 +148,17 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       Paths.basename(filename ?? "") ||
       "Untitled Notebook";
   }, [appConfig.app_title, filename]);
+
+  // Delete column breakpoints if app width changes from "columns"
+  const numColumns = notebook.cellIds.columns.length;
+  const previousWidth = usePrevious(appConfig.width);
+  useEffect(() => {
+    if (previousWidth === "columns" && appConfig.width !== "columns") {
+      for (let i = 1; i < numColumns; i++) {
+        deleteColumnBreakpoint({ columnIndex: 1 });
+      }
+    }
+  }, [appConfig.width, previousWidth, deleteColumnBreakpoint, numColumns]);
 
   const cells = notebookCells(notebook);
   const cellIds = cells.map((cell) => cell.id);
