@@ -60,7 +60,7 @@ export const RunButton = (props: {
         variant={variant}
         data-testid="run-button"
       >
-        <PlayIcon />
+        <PlayIcon strokeWidth={1.2} />
       </ToolbarItem>
     );
   }
@@ -84,7 +84,7 @@ export const RunButton = (props: {
       variant={variant}
       data-testid="run-button"
     >
-      <PlayIcon />
+      <PlayIcon strokeWidth={1.2} />
     </ToolbarItem>
   );
 };

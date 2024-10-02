@@ -1,7 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { Trash2Icon } from "lucide-react";
 import type { RuntimeState } from "@/core/network/types";
-import { ToolbarItem } from "./toolbar";
+import { Tooltip } from "../../ui/tooltip";
+import { Button } from "../../ui/button";
+import { cn } from "@/utils/cn";
 
 export const DeleteButton = (props: {
   status: RuntimeState;
@@ -24,14 +26,26 @@ export const DeleteButton = (props: {
   }
 
   return (
-    <ToolbarItem
-      tooltip={tooltipMsg}
-      onClick={onClick}
-      data-testid="delete-button"
-      disabled={appClosed || loading}
-      variant="danger"
-    >
-      <Trash2Icon size={14} />
-    </ToolbarItem>
+    <Tooltip content={tooltipMsg} usePortal={false}>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onClick}
+        data-testid="delete-button"
+        className={cn(
+          "hover:bg-transparent text-destructive/60 hover:text-destructive",
+          {
+            DeleteButton: true,
+            "inactive-button": appClosed || loading,
+            running: loading,
+          },
+        )}
+        style={{
+          boxShadow: "none",
+        }}
+      >
+        <Trash2Icon size={14} />
+      </Button>
+    </Tooltip>
   );
 };

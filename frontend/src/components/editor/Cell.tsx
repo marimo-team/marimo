@@ -475,9 +475,6 @@ const CellComponent = (
                 name={name}
                 getEditorView={getEditorView}
                 onRun={handleRun}
-                loading={loading}
-                showDeleteButton={showDeleteButton}
-                deleteCell={deleteCell}
               />
             </div>
             <div className="absolute flex flex-col gap-[2px] justify-center h-full left-[-34px] z-20">
@@ -530,7 +527,19 @@ const CellComponent = (
                 <CellDragHandle />
               </div>
             </div>
-            <div className="shoulder-bottom hover-action" />
+            <div className="shoulder-bottom hover-action">
+              {showDeleteButton ? (
+                <DeleteButton
+                  appClosed={appClosed}
+                  status={status}
+                  onClick={() => {
+                    if (!loading && !appClosed) {
+                      deleteCell({ cellId });
+                    }
+                  }}
+                />
+              ) : null}
+            </div>
           </div>
           {userConfig.display.cell_output === "below" && outputArea}
           <ConsoleOutput
@@ -569,9 +578,6 @@ interface CellToolbarProps {
   cellId: CellId;
   name: string;
   getEditorView: () => EditorView | null;
-  loading: boolean;
-  showDeleteButton: boolean;
-  deleteCell: (opts: { cellId: CellId }) => void;
   onRun: () => void;
 }
 
@@ -587,9 +593,6 @@ const CellToolbar = ({
   cellId,
   getEditorView,
   name,
-  showDeleteButton,
-  deleteCell,
-  loading,
 }: CellToolbarProps) => {
   return (
     <Toolbar
@@ -607,17 +610,6 @@ const CellToolbar = ({
         needsRun={needsRun}
       />
       <StopButton status={status} appClosed={appClosed} />
-      {showDeleteButton ? (
-        <DeleteButton
-          appClosed={appClosed}
-          status={status}
-          onClick={() => {
-            if (!loading && !appClosed) {
-              deleteCell({ cellId });
-            }
-          }}
-        />
-      ) : null}
       <CellActionsDropdown
         ref={cellActionDropdownRef}
         cellId={cellId}
@@ -627,8 +619,8 @@ const CellToolbar = ({
         config={cellConfig}
         hasOutput={hasOutput}
       >
-        <ToolbarItem tooltip={null}>
-          <MoreHorizontalIcon />
+        <ToolbarItem variant={"green"} tooltip={null}>
+          <MoreHorizontalIcon strokeWidth={1.5} />
         </ToolbarItem>
       </CellActionsDropdown>
     </Toolbar>

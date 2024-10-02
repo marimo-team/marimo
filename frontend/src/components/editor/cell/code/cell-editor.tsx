@@ -376,12 +376,14 @@ const CellEditorInternal = ({
           ref={editorViewParentRef}
         />
         {!hidden && (
-          <LanguageToggles
-            code={code}
-            editorView={editorViewRef.current}
-            currentLanguageAdapter={languageAdapter}
-            onAfterToggle={afterToggleMarkdown}
-          />
+          <div className="absolute top-1 right-5">
+            <LanguageToggles
+              code={code}
+              editorView={editorViewRef.current}
+              currentLanguageAdapter={languageAdapter}
+              onAfterToggle={afterToggleMarkdown}
+            />
+          </div>
         )}
       </div>
     </AiCompletionEditor>
