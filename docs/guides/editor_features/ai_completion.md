@@ -43,18 +43,20 @@ codeium_api_key = ""
 5. Select the **Settings** button (gear icon) in the top-right corner of the Codeium pane
 
 <div align="center">
-<figure>
-<img src="/docs/_static/docs-ai-completion-codeium-vscode.png">
+  <figure>
+    <img src="/_static/docs-ai-completion-codeium-vscode.png"/>
+    <figcaption>Open Codeium settings</figcaption>
 </figure>
 </div>
 
 6. Click the **Download** link under the **Extension Diagnostics** section
-7. Open the diagnostic file and search for `apiKey` (it will look similar to the value shown in the image below, which was randomly generated and not an actual API key)
+7. Open the diagnostic file and search for `apiKey`
 
 <div align="center">
-<figure>
-<img src="/docs/_static/docs-ai-completion-codeium-vscode-download-diagnostics.png">
-</figure>
+  <figure>
+    <img src="/_static/docs-ai-completion-codeium-vscode-download-diagnostics.png"/>
+    <figcaption>Download diagnostics file with API key</figcaption>
+  </figure>
 </div>
 
 8. Copy the value of the `apiKey` to `.marimo.toml` in your home directory
