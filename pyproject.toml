@@ -93,7 +93,9 @@ dependencies = ["uv>=0.4.17"]
 
 [tool.hatch.envs.default]
 python = "3.12"
+installer = "uv"
 dependencies = [
+    "uv>=0.4.17",
     "click <8.1.4",  # https://github.com/pallets/click/issues/2558
     "black~=23.12.1",
     "build~=0.10.0",
