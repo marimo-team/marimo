@@ -20,6 +20,7 @@ import {
   useNotebook,
   CellEffects,
   cellIdsAtom,
+  getCellConfigs,
 } from "./cells/cells";
 import {
   canUndoDeletes,
@@ -100,8 +101,8 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
 
   const { connection } = useMarimoWebSocket({
     autoInstantiate: userConfig.runtime.auto_instantiate,
-    setCells: (cells, breakpoints, layout) => {
-      setCells({ cells, breakpoints });
+    setCells: (cells, layout) => {
+      setCells(cells);
       const names = cells.map((cell) => cell.name);
       const codes = cells.map((cell) => cell.code);
       const configs = cells.map((cell) => cell.config);
@@ -151,7 +152,7 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   const cellIds = cells.map((cell) => cell.id);
   const codes = cells.map((cell) => cell.code);
   const cellNames = cells.map((cell) => cell.name);
-  const configs = cells.map((cell) => cell.config);
+  const configs = getCellConfigs(notebook);
   const needsSave = notebookNeedsSave(notebook, layout, lastSavedNotebook);
 
   // Save the notebook with the given filename
@@ -171,11 +172,9 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       return;
     }
 
-    const breakpoints = notebook.cellIds.getBreakpoints();
     Logger.log("saving to ", filename);
     sendSave({
       cellIds: cellIds,
-      breakpoints,
       codes,
       names: cellNames,
       filename,
@@ -275,7 +274,7 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       // no replacer
       null,
       // whitespace for indentation
-      2
+      2,
     );
   });
 

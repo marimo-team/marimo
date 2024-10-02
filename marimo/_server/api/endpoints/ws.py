@@ -191,7 +191,6 @@ class WebsocketHandler(SessionConsumer):
                 serialize(
                     KernelReady(
                         codes=codes,
-                        breakpoints=tuple(app.breakpoints),
                         names=names,
                         configs=configs,
                         layout=file_manager.read_layout_config(),

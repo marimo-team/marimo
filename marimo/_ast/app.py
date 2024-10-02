@@ -170,7 +170,6 @@ class App:
         self._graph = dataflow.DirectedGraph()
         self._execution_context: ExecutionContext | None = None
         self._runner = dataflow.Runner(self._graph)
-        self._breakpoints: List[int] = []
 
         self._unparsable = False
         self._initialized = False
@@ -185,6 +184,7 @@ class App:
         self,
         func: Callable[..., Any] | None = None,
         *,
+        column: Optional[int] = None,
         disabled: bool = False,
         hide_code: bool = False,
         **kwargs: Any,
@@ -216,7 +216,7 @@ class App:
         del kwargs
 
         return self._cell_manager.cell_decorator(
-            func, disabled, hide_code, app=InternalApp(self)
+            func, column, disabled, hide_code, app=InternalApp(self)
         )
 
     def _unparsable_cell(
@@ -432,11 +432,14 @@ class CellManager:
     def cell_decorator(
         self,
         func: Callable[..., Any] | None,
+        column: Optional[int],
         disabled: bool,
         hide_code: bool,
         app: InternalApp | None = None,
     ) -> Cell | Callable[..., Cell]:
-        cell_config = CellConfig(disabled=disabled, hide_code=hide_code)
+        cell_config = CellConfig(
+            column=column, disabled=disabled, hide_code=hide_code
+        )
 
         def _register(func: Callable[..., Any]) -> Cell:
             cell = cell_factory(
@@ -615,10 +618,6 @@ class InternalApp:
     def runner(self) -> dataflow.Runner:
         self._app._maybe_initialize()
         return self._app._runner
-
-    @property
-    def breakpoints(self) -> List[int]:
-        return self._app._breakpoints
 
     def update_config(self, updates: dict[str, Any]) -> _AppConfig:
         return self.config.update(updates)

@@ -151,6 +151,9 @@ components:
       type: string
     CellConfig:
       properties:
+        column:
+          nullable: true
+          type: integer
         disabled:
           type: boolean
         hide_code:
@@ -1621,10 +1624,6 @@ components:
       type: object
     SaveNotebookRequest:
       properties:
-        breakpoints:
-          items:
-            type: integer
-          type: array
         cellIds:
           items:
             type: string
@@ -1651,7 +1650,6 @@ components:
           type: boolean
       required:
       - cellIds
-      - breakpoints
       - codes
       - names
       - configs

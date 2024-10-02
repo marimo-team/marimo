@@ -104,10 +104,11 @@ export interface LastSavedNotebook {
 }
 
 function withScratchCell(notebookState: NotebookState): NotebookState {
+  const config = { column: 0, hide_code: false, disabled: false };
   return {
     ...notebookState,
     cellData: {
-      [SCRATCH_CELL_ID]: createCell({ id: SCRATCH_CELL_ID }),
+      [SCRATCH_CELL_ID]: createCell({ id: SCRATCH_CELL_ID, config: config }),
       ...notebookState.cellData,
     },
     cellRuntime: {
@@ -160,7 +161,7 @@ function initialNotebookState(): NotebookState {
         output: outputMessage,
         outline: parseOutline(outputMessage),
         consoleOutputs: outputs.map((output) =>
-          deserializeJson(deserializeBase64(output))
+          deserializeJson(deserializeBase64(output)),
         ),
       };
     }
@@ -206,7 +207,7 @@ const {
       lastExecutionTime?: number;
       newCellId?: CellId;
       autoFocus?: boolean;
-    }
+    },
   ) => {
     const {
       cellId,
@@ -271,7 +272,7 @@ const {
         cellIds: state.cellIds.moveWithinColumn(
           colIndex,
           cellIndex,
-          column.length - 1
+          column.length - 1,
         ),
         scrollKey: cellId,
       };
@@ -283,7 +284,7 @@ const {
           cellIds: state.cellIds.moveWithinColumn(
             colIndex,
             cellIndex,
-            cellIndex - 1
+            cellIndex - 1,
           ),
           scrollKey: cellId,
         }
@@ -292,7 +293,7 @@ const {
           cellIds: state.cellIds.moveWithinColumn(
             colIndex,
             cellIndex,
-            cellIndex + 1
+            cellIndex + 1,
           ),
           scrollKey: cellId,
         };
@@ -319,7 +320,7 @@ const {
         fromCol,
         fromIndex,
         toCol,
-        toIndex
+        toIndex,
       ),
       scrollKey: null,
     };
@@ -334,7 +335,7 @@ const {
   },
   dropColumnOver: (
     state,
-    action: { column: CellColumnIndex; overColumn: CellColumnIndex }
+    action: { column: CellColumnIndex; overColumn: CellColumnIndex },
   ) => {
     if (action.column === action.overColumn) {
       return state;
@@ -436,11 +437,12 @@ const {
     };
   },
   addColumnBreakpoint: (state, action: { cellId: CellId }) => {
-    const [column, colIndex] = state.cellIds.getColumnWithId(action.cellId);
+    const { cellId } = action;
+    const [column, colIndex] = state.cellIds.getColumnWithId(cellId);
     if (!column) {
       return state;
     }
-    const cellIndex = column.indexOfOrThrow(action.cellId);
+    const cellIndex = column.indexOfOrThrow(cellId);
     if (cellIndex === 0) {
       return state;
     }
@@ -545,7 +547,7 @@ const {
        * if so, the 'edited' state will be handled differently.
        */
       formattingChange: boolean;
-    }
+    },
   ) => {
     const { cellId, code, formattingChange } = action;
     if (!state.cellData[cellId]) {
@@ -579,7 +581,7 @@ const {
   },
   updateCellConfig: (
     state,
-    action: { cellId: CellId; config: Partial<CellConfig> }
+    action: { cellId: CellId; config: Partial<CellConfig> },
   ) => {
     const { cellId, config } = action;
     return updateCellData(state, cellId, (cell) => {
@@ -641,7 +643,7 @@ const {
   setCellCodes: (state, action: { codes: string[]; ids: CellId[] }) => {
     invariant(
       action.codes.length === action.ids.length,
-      "Expected codes and ids to have the same length"
+      "Expected codes and ids to have the same length",
     );
 
     for (let i = 0; i < action.codes.length; i++) {
@@ -662,7 +664,7 @@ const {
   },
   setStdinResponse: (
     state,
-    action: { cellId: CellId; response: string; outputIndex: number }
+    action: { cellId: CellId; response: string; outputIndex: number },
   ) => {
     const { cellId, response, outputIndex } = action;
     return updateCellRuntimeState(state, cellId, (cell) => {
@@ -688,26 +690,31 @@ const {
       };
     });
   },
-  setCells: (state, action: { cells: CellData[]; breakpoints: number[] }) => {
-    const { cells, breakpoints } = action;
+  setCells: (state, cells: CellData[]) => {
     const cellData = Object.fromEntries(cells.map((cell) => [cell.id, cell]));
 
     const cellRuntime = Object.fromEntries(
-      cells.map((cell) => [cell.id, createCellRuntimeState()])
+      cells.map((cell) => [cell.id, createCellRuntimeState()]),
     );
 
-    const cellIds = cells.map((cell) => cell.id);
+    let index = 0;
+    const columns: CellId[][] = [];
+
+    for (const cell of cells) {
+      if (cell.config.column != null) {
+        index = cell.config.column;
+        columns.push([]);
+      }
+      columns[index].push(cell.id);
+    }
 
     return withScratchCell({
       ...state,
-      cellIds: state.cellIds.insertBreakpoints(
-        cellIds,
-        breakpoints as CellColumnIndex[]
-      ),
+      cellIds: MultiColumn.from(columns),
       cellData: cellData,
       cellRuntime: cellRuntime,
       cellHandles: Object.fromEntries(
-        cells.map((cell) => [cell.id, createRef()])
+        cells.map((cell) => [cell.id, createRef()]),
       ),
     });
   },
@@ -722,7 +729,7 @@ const {
    */
   moveToNextCell: (
     state,
-    action: { cellId: CellId; before: boolean; noCreate?: boolean }
+    action: { cellId: CellId; before: boolean; noCreate?: boolean },
   ) => {
     const { cellId, before, noCreate = false } = action;
     const [column, colIndex] = state.cellIds.getColumnWithId(cellId);
@@ -816,14 +823,14 @@ const {
   },
   foldAll: (state) => {
     const targets = Object.values(state.cellHandles).map(
-      (handle) => handle.current?.editorView
+      (handle) => handle.current?.editorView,
     );
     foldAllBulk(targets);
     return state;
   },
   unfoldAll: (state) => {
     const targets = Object.values(state.cellHandles).map(
-      (handle) => handle.current?.editorView
+      (handle) => handle.current?.editorView,
     );
     unfoldAllBulk(targets);
     return state;
@@ -894,7 +901,7 @@ const {
     }
 
     const { beforeCursorCode, afterCursorCode } = splitEditor(
-      cellHandle.editorView
+      cellHandle.editorView,
     );
 
     updateEditorCodeFromPython(cellHandle.editorView, beforeCursorCode);
@@ -980,7 +987,7 @@ const {
 function updateCellRuntimeState(
   state: NotebookState,
   cellId: CellId,
-  cellReducer: ReducerWithoutAction<CellRuntimeState>
+  cellReducer: ReducerWithoutAction<CellRuntimeState>,
 ) {
   if (!(cellId in state.cellRuntime)) {
     Logger.warn(`Cell ${cellId} not found in state`);
@@ -995,10 +1002,11 @@ function updateCellRuntimeState(
     },
   };
 }
+
 function updateCellData(
   state: NotebookState,
   cellId: CellId,
-  cellReducer: ReducerWithoutAction<CellData>
+  cellReducer: ReducerWithoutAction<CellData>,
 ) {
   if (!(cellId in state.cellData)) {
     Logger.warn(`Cell ${cellId} not found in state`);
@@ -1014,6 +1022,23 @@ function updateCellData(
   };
 }
 
+export function getCellConfigs(state: NotebookState) {
+  const cells = state.cellData;
+  state.cellIds.columns.forEach((column, columnIndex) => {
+    column.inOrderIds.forEach((cellId, cellIndex) => {
+      const config: Partial<CellConfig> = { column: undefined };
+      if (cellIndex === 0) {
+        config.column = columnIndex;
+      }
+      cells[cellId].config = {
+        ...cells[cellId].config,
+        ...config,
+      };
+    });
+  });
+  return state.cellIds.inOrderIds.map((id) => cells[id].config);
+}
+
 export {
   createActions as createNotebookActions,
   reducer as notebookReducer,
@@ -1027,7 +1052,7 @@ export const cellIdsAtom = atom((get) => get(notebookAtom).cellIds);
 export const hasOnlyOneCellAtom = atom(
   (get) =>
     get(cellIdsAtom).columns.length === 1 &&
-    get(cellIdsAtom).columns[0].length === 1
+    get(cellIdsAtom).columns[0].length === 1,
 );
 
 const cellErrorsAtom = atom((get) => {
@@ -1042,7 +1067,7 @@ const cellErrorsAtom = atom((get) => {
         // but nothing the user can take action on.
         invariant(Array.isArray(cell.output.data), "Expected array data");
         const nonAncestorErrors = cell.output.data.filter(
-          (error) => !error.type.includes("ancestor")
+          (error) => !error.type.includes("ancestor"),
         );
 
         if (nonAncestorErrors.length > 0) {
@@ -1063,13 +1088,13 @@ const cellErrorsAtom = atom((get) => {
 export const notebookHasCellsAtom = atom(
   (get) =>
     get(cellIdsAtom).columns.length > 0 &&
-    get(cellIdsAtom).columns[0].length > 0
+    get(cellIdsAtom).columns[0].length > 0,
 );
 
 export const notebookOutline = atom((get) => {
   const { cellIds, cellRuntime } = get(notebookAtom);
   const outlines = cellIds.inOrderIds.map(
-    (cellId) => cellRuntime[cellId].outline
+    (cellId) => cellRuntime[cellId].outline,
   );
   return mergeOutlines(outlines);
 });
@@ -1079,7 +1104,7 @@ export const cellErrorCount = atom((get) => get(cellErrorsAtom).length);
 export const cellIdToNamesMap = atom((get) => {
   const { cellIds, cellData } = get(notebookAtom);
   const names: Record<CellId, string | undefined> = Objects.fromEntries(
-    cellIds.inOrderIds.map((cellId) => [cellId, cellData[cellId]?.name])
+    cellIds.inOrderIds.map((cellId) => [cellId, cellData[cellId]?.name]),
   );
   return names;
 });
@@ -1133,16 +1158,16 @@ export const getCellNames = () => {
 
 const cellDataAtoms = splitAtom(
   selectAtom(notebookAtom, (cells) =>
-    cells.cellIds.inOrderIds.map((id) => cells.cellData[id])
-  )
+    cells.cellIds.inOrderIds.map((id) => cells.cellData[id]),
+  ),
 );
 export const useCellDataAtoms = () => useAtom(cellDataAtoms);
 
 export const notebookIsRunningAtom = atom((get) =>
-  notebookIsRunning(get(notebookAtom))
+  notebookIsRunning(get(notebookAtom)),
 );
 export const notebookQueuedOrRunningCountAtom = atom((get) =>
-  notebookQueueOrRunningCount(get(notebookAtom))
+  notebookQueueOrRunningCount(get(notebookAtom)),
 );
 
 /**
@@ -1166,7 +1191,7 @@ export function isUninstantiated(
   status: RuntimeState,
   errored: boolean,
   interrupted: boolean,
-  stopped: boolean
+  stopped: boolean,
 ) {
   return (
     // autorun on startup is off ...
@@ -1199,7 +1224,7 @@ export function staleCellIds(state: NotebookState) {
         cellRuntime[cellId].status,
         cellRuntime[cellId].errored,
         cellRuntime[cellId].interrupted,
-        cellRuntime[cellId].stopped
+        cellRuntime[cellId].stopped,
       ) ||
       cellData[cellId].edited ||
       cellRuntime[cellId].interrupted ||
@@ -1208,19 +1233,19 @@ export function staleCellIds(state: NotebookState) {
         !(
           cellRuntime[cellId].status === "disabled-transitively" ||
           cellData[cellId].config.disabled
-        ))
+        )),
   );
 }
 
 export function flattenTopLevelNotebookCells(
-  state: NotebookState
+  state: NotebookState,
 ): Array<CellData & CellRuntimeState> {
   const { cellIds, cellData, cellRuntime } = state;
   return cellIds.columns.flatMap((column) =>
     column.topLevelIds.map((cellId) => ({
       ...cellData[cellId],
       ...cellRuntime[cellId],
-    }))
+    })),
   );
 }
 
@@ -1240,7 +1265,7 @@ export type CellActions = ReturnType<typeof createActions>;
 export const CellEffects = {
   onCellIdsChange: (
     cellIds: MultiColumn<CellId>,
-    prevCellIds: MultiColumn<CellId>
+    prevCellIds: MultiColumn<CellId>,
   ) => {
     const kioskMode = store.get(kioskModeAtom);
     if (kioskMode) {

@@ -42,10 +42,8 @@ def markdown_to_marimo(source: str) -> str:
 def generate_from_sources(
     sources: list[str], config: Optional[_AppConfig] = None
 ) -> str:
-    # TODO(wasimsandhu): Handle column breakpoints
     return codegen.generate_filecontents(
         sources,
-        [],
         ["__" for _ in sources],
         [CellConfig() for _ in range(len(sources))],
         config=config,

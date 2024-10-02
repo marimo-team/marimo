@@ -92,7 +92,6 @@ def create_session(
             serialize(
                 KernelReady(
                     codes=tuple(app.cell_manager.codes()),
-                    breakpoints=tuple(app.breakpoints),
                     names=tuple(app.cell_manager.names()),
                     configs=tuple(app.cell_manager.configs()),
                     cell_ids=tuple(app.cell_manager.cell_ids()),

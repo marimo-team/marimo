@@ -101,7 +101,6 @@ class AppFileManager:
         self,
         filename: str,
         codes: list[str],
-        breakpoints: list[int],
         names: list[str],
         configs: list[CellConfig],
         app_config: _AppConfig,
@@ -123,7 +122,6 @@ class AppFileManager:
             # try to save the app under the name `filename`
             contents = codegen.generate_filecontents(
                 codes,
-                breakpoints,
                 names,
                 cell_configs=configs,
                 config=app_config,
@@ -182,7 +180,6 @@ class AppFileManager:
             self._save_file(
                 self.filename,
                 list(self.app.cell_manager.codes()),
-                self.app.breakpoints,
                 list(self.app.cell_manager.names()),
                 list(self.app.cell_manager.configs()),
                 self.app.config,
@@ -224,7 +221,6 @@ class AppFileManager:
             return self._save_file(
                 self.filename,
                 list(self.app.cell_manager.codes()),
-                self.app.breakpoints,
                 list(self.app.cell_manager.names()),
                 list(self.app.cell_manager.configs()),
                 new_config,
@@ -234,9 +230,8 @@ class AppFileManager:
 
     def save(self, request: SaveNotebookRequest) -> str:
         """Save the current app."""
-        cell_ids, breakpoints, codes, configs, names, filename, layout = (
+        cell_ids, codes, configs, names, filename, layout = (
             request.cell_ids,
-            request.breakpoints,
             request.codes,
             request.configs,
             request.names,
@@ -273,7 +268,6 @@ class AppFileManager:
         return self._save_file(
             filename,
             codes,
-            breakpoints,
             names,
             configs,
             self.app.config,
@@ -289,7 +283,6 @@ class AppFileManager:
         """Read the contents of the unsaved file."""
         contents = codegen.generate_filecontents(
             codes=list(self.app.cell_manager.codes()),
-            breakpoints=[],
             names=list(self.app.cell_manager.names()),
             cell_configs=list(self.app.cell_manager.configs()),
             config=self.app.config,

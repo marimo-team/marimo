@@ -4,16 +4,7 @@ __generated_with = "0.8.20"
 app = marimo.App(width="columns")
 
 
-#region Column 0
-@app.cell
-def __():
-    import marimo as mo
-    import altair as alt
-    from vega_datasets import data
-    return alt, data, mo
-
-
-@app.cell
+@app.cell(column=0)
 def __(dataset, mo, plot, x, y):
     mo.vstack([dataset, x, y, plot])
     return
@@ -27,13 +18,14 @@ def __(selected_dataset):
 
 
 @app.cell
-def __(dataset, mo, plot, x, y):
-    mo.vstack([dataset, x, y, plot])
-    return
+def __():
+    import marimo as mo
+    import altair as alt
+    from vega_datasets import data
+    return alt, data, mo
 
 
-#region Column 1
-@app.cell
+@app.cell(column=1)
 def __(plot_type, x, y):
     plot_type().encode(
         x=x.value,

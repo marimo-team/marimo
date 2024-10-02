@@ -152,10 +152,8 @@ def _tree_to_app(root: Element) -> str:
         cell_config.append(get_cell_config_from_tag(child))
         sources.append(get_source_from_tag(child))
 
-    # TODO(wasimsandhu): Handle column breakpoints
     return codegen.generate_filecontents(
         sources,
-        [],
         names,
         cell_config,
         config=app_config,

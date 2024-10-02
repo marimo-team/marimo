@@ -106,8 +106,6 @@ class RunScratchpadRequest:
 class SaveNotebookRequest:
     # id of each cell
     cell_ids: List[CellId_t]
-    # column breakpoints
-    breakpoints: List[int]
     # code for each cell
     codes: List[str]
     # name of each cell

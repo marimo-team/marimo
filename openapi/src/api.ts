@@ -2034,6 +2034,7 @@ export interface components {
       | "marimo-error"
       | "media";
     CellConfig: {
+      column?: number;
       disabled: boolean;
       hide_code: boolean;
     };
@@ -2333,7 +2334,6 @@ export interface components {
         terminal: boolean;
       };
       cell_ids: string[];
-      breakpoints: number[];
       codes: string[];
       configs: components["schemas"]["CellConfig"][];
       kiosk: boolean;
@@ -2640,7 +2640,6 @@ export interface components {
     };
     SaveNotebookRequest: {
       cellIds: string[];
-      breakpoints: number[];
       codes: string[];
       configs: components["schemas"]["CellConfig"][];
       filename: string;

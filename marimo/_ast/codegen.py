@@ -44,6 +44,8 @@ def _to_decorator(config: Optional[CellConfig]) -> str:
         del config.disabled
     if not config.hide_code:
         del config.hide_code
+    if not isinstance(config.column, int):
+        del config.column
 
     if config == CellConfig():
         return "@app.cell"
@@ -149,7 +151,6 @@ def generate_app_constructor(config: Optional[_AppConfig]) -> str:
 
 def generate_filecontents(
     codes: list[str],
-    breakpoints: list[int],
     names: list[str],
     cell_configs: list[CellConfig],
     config: Optional[_AppConfig] = None,
@@ -182,9 +183,6 @@ def generate_filecontents(
                     code=data[0], config=data[1], name=name
                 )
             )
-
-    for index, bp in enumerate(breakpoints):
-        fndefs[bp] = f"#region Column {index}\n" + fndefs[bp]
 
     filecontents = (
         "import marimo"
@@ -238,7 +236,6 @@ def get_app(filename: Optional[str]) -> Optional[App]:
         raise MarimoFileError("`app` attribute must be of type `marimo.App`.")
 
     app = marimo_app.app
-    app._breakpoints = get_breakpoints(filename)
     return app
 
 
@@ -264,7 +261,6 @@ def recover(filename: str) -> str:
     )
     return generate_filecontents(
         cast(List[str], codes),
-        [],
         cast(List[str], names),
         cast(List[CellConfig], configs),
     )
@@ -305,16 +301,3 @@ def get_header_comments(filename: str) -> Optional[str]:
         return None
 
     return header
-
-
-def get_breakpoints(filename: str) -> List[int]:
-    with open(filename) as f:
-        columns = f.read().split("#region Column")
-
-    breakpoints = [0]
-    for index in range(1, len(columns)):
-        cells = columns[index].split("@app.cell")
-        breakpoints.append(len(cells) - 1)
-
-    breakpoints.pop()
-    return breakpoints
