@@ -35,6 +35,14 @@ code to disk. The next time this block of code is run, if marimo detects a
 cache hit, the code will be skipped and your variables will be loaded into
 memory, letting you pick up where you left off.
 
+```{admonition} Cache location
+:class: tip
+
+By default, caches are stored in `__marimo__/cache/`, in the directory of the
+current notebook. For projects versioned with `git`, consider adding
+`__marimo__/cache/` to your `.gitignore`.
+```
+
 ```{eval-rst}
 .. autofunction:: marimo.persistent_cache
 ```

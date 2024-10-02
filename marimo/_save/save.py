@@ -4,6 +4,7 @@ from __future__ import annotations
 import ast
 import inspect
 import io
+import os
 import sys
 import traceback
 from sys import maxsize as MAXINT
@@ -18,6 +19,7 @@ from typing import (
 
 from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime.context import get_context
+from marimo._runtime.runtime import notebook_dir
 from marimo._runtime.state import State
 from marimo._save.ast import ExtractWithBlock, strip_function
 from marimo._save.cache import Cache, CacheException
@@ -336,7 +338,7 @@ class persistent_cache(object):
     - `name`: the name of the cache, used to set saving path- to manually
       invalidate the cache, change the name.
     - `save_path`: the folder in which to save the cache, defaults to
-      "__marimo__/cache"
+      "__marimo__/cache" in the directory of the notebook file
     - `pin_modules`: if True, the cache will be invalidated if module versions
       differ between runs, defaults to False.
     """
@@ -345,14 +347,19 @@ class persistent_cache(object):
         self,
         name: str,
         *,
-        save_path: str = "__marimo__/cache",
+        save_path: str | None = None,
         pin_modules: bool = False,
         _loader: Optional[Loader] = None,
     ) -> None:
         # For an implementation sibling regarding the block skipping, see
         # `withhacks` in pypi.
         self.name = name
-        save_path = save_path
+        if save_path is None and (root := notebook_dir()) is not None:
+            save_path = str(root / "__marimo__" / "cache")
+        elif save_path is None:
+            # This can happen if the notebook file is unnamed.
+            save_path = os.path.join("__marimo__", "cache")
+
         if _loader:
             self._loader = _loader
         else:
