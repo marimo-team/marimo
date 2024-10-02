@@ -96,7 +96,7 @@ the bottom of your notebook. You can also refactor existing cells by inputting
 ```toml
 [ai.open_ai]
 # Get your API key from https://platform.openai.com/account/api-keys
-api_key = "sk-..."
+api_key = "sk-proj-..."
 # Choose a model, we recommend "gpt-4-turbo"
 model = "gpt-4-turbo"
 # Change the base_url if you are using a different OpenAI-compatible API
@@ -116,7 +116,7 @@ model = "claude-3-5-sonnet-20240620"
 # or any model from https://docs.anthropic.com/en/docs/about-claude/models
 
 [ai.anthropic]
-api_key = "sk-..."
+api_key = "sk-ant-..."
 ```
 
 ### Using other AI providers
@@ -154,9 +154,12 @@ To use Google AI with marimo:
 3. Add the following to your `marimo.toml`:
 
 ```toml
+[ai.open_ai]
+model = "gemini-1.5-flash"
+# or any model from https://ai.google.dev/gemini-api/docs/models/gemini
+
 [ai.google]
-api_key = "your-api-key-here"
-model = "gemini-1.5-pro"
+api_key = "AI..."
 ```
 
 You can now use Google AI for code generation and refactoring in marimo.
