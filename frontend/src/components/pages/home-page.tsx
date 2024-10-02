@@ -144,12 +144,10 @@ const HomePage: React.FC = () => {
           <NotebookList
             header={<Header Icon={PlayCircleIcon}>Running notebooks</Header>}
             files={[...running.values()]}
-            openNewTab={false}
           />
           <NotebookList
             header={<Header Icon={ClockIcon}>Recent notebooks</Header>}
             files={recents.files}
-            openNewTab={true}
           />
           <ErrorBoundary>
             <WorkspaceNotebooks />
@@ -381,8 +379,7 @@ const FolderArrow = ({ node }: { node: NodeApi<FileInfo> }) => {
 const NotebookList: React.FC<{
   header: React.ReactNode;
   files: MarimoFile[];
-  openNewTab: boolean;
-}> = ({ header, files, openNewTab }) => {
+}> = ({ header, files }) => {
   if (files.length === 0) {
     return null;
   }
@@ -392,13 +389,7 @@ const NotebookList: React.FC<{
       {header}
       <div className="flex flex-col divide-y divide-[var(--slate-3)] border rounded overflow-hidden max-h-[48rem] overflow-y-auto shadow-sm bg-background">
         {files.map((file) => {
-          return (
-            <MarimoFileComponent
-              key={file.path}
-              file={file}
-              openNewTab={openNewTab}
-            />
-          );
+          return <MarimoFileComponent key={file.path} file={file} />;
         })}
       </div>
     </div>
@@ -423,10 +414,8 @@ const Header: React.FC<{
 
 const MarimoFileComponent = ({
   file,
-  openNewTab,
 }: {
   file: MarimoFile;
-  openNewTab: boolean;
 }) => {
   // If path is a sessionId, then it has not been saved yet
   // We want to keep the sessionId in this case
@@ -442,7 +431,7 @@ const MarimoFileComponent = ({
       className="py-1.5 px-4 hover:bg-[var(--blue-2)] hover:text-primary transition-all duration-300 cursor-pointer group relative flex gap-4 items-center"
       key={file.path}
       href={href.toString()}
-      target={openNewTab ? tabTarget(file.initializationId || file.path) : ""}
+      target={tabTarget(file.initializationId || file.path)}
     >
       <div className="flex flex-col justify-between flex-1">
         <span className="flex items-center gap-2">
@@ -465,12 +454,10 @@ const MarimoFileComponent = ({
           <div>
             <SessionShutdownButton filePath={file.path} />
           </div>
-          {openNewTab && (
-            <ExternalLinkIcon
-              size={20}
-              className="group-hover:opacity-100 opacity-0 transition-all duration-300 text-primary"
-            />
-          )}
+          <ExternalLinkIcon
+            size={20}
+            className="group-hover:opacity-100 opacity-0 transition-all duration-300 text-primary"
+          />
         </div>
         {!!file.lastModified && (
           <div className="text-xs text-muted-foreground opacity-80">
