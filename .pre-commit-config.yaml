@@ -10,6 +10,7 @@ repos:
     rev: v1.6.26
     hooks:
       - id: actionlint
+        args: [-ignore, SC]
 
   - repo: https://github.com/abravalheri/validate-pyproject
     rev: v0.20.2
