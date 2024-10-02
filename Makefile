@@ -47,7 +47,7 @@ fe-test:
 .PHONY: e2e
 # test end-to-end
 e2e:
-	cd frontend; npx playwright install; npx playwright test
+	cd frontend; pnpm playwright install; pnpm playwright test
 
 .PHONY: fe-lint
 fe-lint:
@@ -62,9 +62,9 @@ fe-codegen:
 	cd openapi; pnpm install; pnpm codegen
 
 .PHONY: py-check
-# check python
+# typecheck, lint, format python
 py-check:
-	./scripts/pyfix.sh
+	./scripts/pycheck.sh
 
 .PHONY: py-test
 # test python

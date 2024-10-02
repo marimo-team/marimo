@@ -104,11 +104,11 @@ jobs:
       - name: 📥 Install Playwright Browsers
         working-directory: ./frontend
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install chromium webkit --with-deps
+        run: pnpm playwright install chromium webkit --with-deps
 
       - name: 🎭 Run Playwright tests
         working-directory: ./frontend
-        run: npx playwright test
+        run: pnpm playwright test
         # TODO(msconick) remove continue-on-error when all tests pass
         continue-on-error: true
         env:
