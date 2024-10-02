@@ -122,6 +122,20 @@ def get_formatter(
 
             return plain_formatter
 
+    # Display protocol has the highest precedence
+    if is_callable_method(obj, "_display_"):
+
+        def f_mime(obj: T) -> tuple[KnownMimeType, str]:
+            displayable_object = obj._display_()  # type: ignore
+            _f = get_formatter(displayable_object)
+            if _f is not None:
+                return _f(displayable_object)
+            else:
+                return as_html(displayable_object)._mime_()
+
+        return f_mime
+
+    # Formatters dict gets precedence
     if include_opinionated:
         if type(obj) in OPINIONATED_FORMATTERS:
             return OPINIONATED_FORMATTERS[type(obj)]
