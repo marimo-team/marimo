@@ -104,7 +104,7 @@ marimo provides several built-in AI models that you can use with the chat UI ele
 import marimo as mo
 
 mo.ui.chat(
-    mo.ai.models.openai(
+    mo.ai.llm.openai(
         "gpt-4o",
         system_message="You are a helpful assistant.",
         api_key="sk-proj-...",
@@ -114,10 +114,10 @@ mo.ui.chat(
 ```
 
 ```{eval-rst}
-.. autoclass:: marimo.ai.models.openai
+.. autoclass:: marimo.ai.llm.openai
   :members:
 
-  .. autoclasstoc:: marimo._plugins.ui._impl.chat.models.openai
+  .. autoclasstoc:: marimo._plugins.ui._impl.chat.llm.openai
 ```
 
 ### Anthropic
@@ -126,7 +126,7 @@ mo.ui.chat(
 import marimo as mo
 
 mo.ui.chat(
-    mo.ai.models.anthropic(
+    mo.ai.llm.anthropic(
         "claude-3-5-sonnet-20240602",
         system_message="You are a helpful assistant.",
         api_key="sk-ant-...",
@@ -136,10 +136,10 @@ mo.ui.chat(
 ```
 
 ```{eval-rst}
-.. autoclass:: marimo.ai.models.anthropic
+.. autoclass:: marimo.ai.llm.anthropic
   :members:
 
-  .. autoclasstoc:: marimo._plugins.ui._impl.chat.models.anthropic
+  .. autoclasstoc:: marimo._plugins.ui._impl.chat.llm.anthropic
 ```
 
 ### Google AI
@@ -148,7 +148,7 @@ mo.ui.chat(
 import marimo as mo
 
 mo.ui.chat(
-    mo.ai.models.google(
+    mo.ai.llm.google(
         "gemini-1.5-pro-latest",
         system_message="You are a helpful assistant.",
         api_key="AI..",
@@ -158,8 +158,8 @@ mo.ui.chat(
 ```
 
 ```{eval-rst}
-.. autoclass:: marimo.ai.models.google
+.. autoclass:: marimo.ai.llm.google
   :members:
 
-  .. autoclasstoc:: marimo._plugins.ui._impl.chat.models.google
+  .. autoclasstoc:: marimo._plugins.ui._impl.chat.llm.google
 ```
