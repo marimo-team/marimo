@@ -36,6 +36,7 @@ codeium_api_key = ""
 ```
 
 ### Alternative: Obtain Codeium API key using VS Code
+
 1. Go to the Codeium website and sign up for an account: <https://codeium.com/>
 2. Install the [Codeium Visual Studio Code extension](vscode:extension/codeium.codeium) (see [here](https://codeium.com/vscode_tutorial) for complete guide)
 3. Sign in to your Codeium account in the VS Code extension
@@ -143,3 +144,19 @@ api_key = "ollama" # This is not used, but required
 model = "llama2" # or the model you downloaded from above
 base_url = "http://localhost:11434/v1"
 ```
+
+### Using Google AI
+
+To use Google AI with marimo:
+
+1. Sign up for an account at [Google AI Studio](https://makersuite.google.com/) and obtain your API key.
+2. Install the Google AI Python client: `pip install google-generativeai`
+3. Add the following to your `marimo.toml`:
+
+```toml
+[ai.google]
+api_key = "your-api-key-here"
+model = "gemini-1.5-pro"
+```
+
+You can now use Google AI for code generation and refactoring in marimo.

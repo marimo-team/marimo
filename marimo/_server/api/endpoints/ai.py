@@ -26,6 +26,12 @@ if TYPE_CHECKING:
     from anthropic.types import (  # type: ignore[import-not-found]
         RawMessageStreamEvent,
     )
+    from google.generativeai import (  # type: ignore[import-not-found]
+        GenerativeModel,
+    )
+    from google.generativeai.types import (  # type: ignore[import-not-found]
+        GenerateContentResponse,
+    )
     from openai import (  # type: ignore[import-not-found]
         OpenAI,
         Stream as OpenAiStream,
@@ -125,10 +131,15 @@ def get_model(config: MarimoConfig) -> str:
 
 
 def get_content(
-    response: RawMessageStreamEvent | ChatCompletionChunk,
+    response: RawMessageStreamEvent
+    | ChatCompletionChunk
+    | GenerateContentResponse,
 ) -> str | None:
     if hasattr(response, "choices"):
         return response.choices[0].delta.content  # type: ignore
+
+    if hasattr(response, "text"):
+        return response.text
 
     from anthropic.types import (
         RawContentBlockDeltaEvent,
@@ -144,7 +155,8 @@ def get_content(
 
 def make_stream_response(
     response: OpenAiStream[ChatCompletionChunk]
-    | AnthropicStream[RawMessageStreamEvent],
+    | AnthropicStream[RawMessageStreamEvent]
+    | GenerateContentResponse,
 ) -> Generator[str, None, None]:
     original_content = ""
     buffer = ""
@@ -195,6 +207,47 @@ def make_stream_response(
         buffer = ""
 
     LOGGER.debug(f"Completion content: {original_content}")
+
+
+def get_google_client(config: MarimoConfig, model: str) -> "GenerativeModel":
+    try:
+        import google.generativeai as genai
+    except ImportError:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=(
+                "Google AI not installed. "
+                "Run `pip install google-generativeai`"
+            ),
+        ) from None
+
+    if "ai" not in config or "google" not in config["ai"]:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="Google AI not configured",
+        )
+    if "api_key" not in config["ai"]["google"]:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="Google AI API key not configured",
+        )
+
+    key: str = config["ai"]["google"]["api_key"]
+
+    if not key:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="Google AI API key not configured",
+        )
+
+    genai.configure(api_key=key)
+    return genai.GenerativeModel(
+        model_name=model,
+        generation_config=genai.GenerationConfig(
+            max_output_tokens=1000,
+            temperature=0,
+        ),
+    )
 
 
 @router.post("/completion")
@@ -250,6 +303,19 @@ async def ai_completion(
 
         return StreamingResponse(
             content=make_stream_response(anthropic_response),
+            media_type="application/json",
+        )
+
+    # If the model starts with google/gemini, use Google AI
+    if model.startswith("google") or model.startswith("gemini"):
+        google_client = get_google_client(config, model)
+        google_response = google_client.generate_content(
+            contents=prompt,
+            stream=True,
+        )
+
+        return StreamingResponse(
+            content=make_stream_response(google_response),
             media_type="application/json",
         )
 

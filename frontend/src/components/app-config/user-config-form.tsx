@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { SettingSubtitle } from "./common";
 
-import React, { useRef, useState } from "react";
+import React, { useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useSetAtom } from "jotai";
+import { atom, useAtom, useSetAtom } from "jotai";
 import {
   Form,
   FormControl,
@@ -42,6 +42,7 @@ import {
   BrainIcon,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
+import { KNOWN_AI_MODELS } from "./constants";
 
 const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
 
@@ -80,12 +81,14 @@ const categories = [
 
 type CategoryId = (typeof categories)[number]["id"];
 
+export const activeUserConfigCategoryAtom = atom<CategoryId>(categories[0].id);
+
 export const UserConfigForm: React.FC = () => {
   const [config, setConfig] = useUserConfig();
   const formElement = useRef<HTMLFormElement>(null);
   const setKeyboardShortcutsOpen = useSetAtom(keyboardShortcutsAtom);
-  const [activeCategory, setActiveCategory] = useState<CategoryId>(
-    categories[0].id,
+  const [activeCategory, setActiveCategory] = useAtom(
+    activeUserConfigCategoryAtom,
   );
 
   // Create form
@@ -736,6 +739,7 @@ export const UserConfigForm: React.FC = () => {
                       <FormLabel>Model</FormLabel>
                       <FormControl>
                         <Input
+                          list="ai-model-datalist"
                           data-testid="ai-model-input"
                           className="m-0 inline-flex"
                           placeholder="gpt-4-turbo"
@@ -744,14 +748,143 @@ export const UserConfigForm: React.FC = () => {
                       </FormControl>
                       <FormMessage />
                     </FormItem>
+                    <datalist id="ai-model-datalist">
+                      {KNOWN_AI_MODELS.map((model) => (
+                        <option value={model} key={model}>
+                          {model}
+                        </option>
+                      ))}
+                    </datalist>
                     <FormDescription>
                       If the model starts with "claude-", we will use your
-                      Anthropic API key. Otherwise, we will use your OpenAI API
-                      key.
+                      Anthropic API key. If the model starts with "gemini-", we
+                      will use your Google AI API key. Otherwise, we will use
+                      your OpenAI API key.
                     </FormDescription>
                   </div>
                 )}
               />
+              <SettingGroup title="AI Keys">
+                <FormField
+                  control={form.control}
+                  name="ai.open_ai.api_key"
+                  render={({ field }) => (
+                    <div className="flex flex-col space-y-1">
+                      <FormItem className={formItemClasses}>
+                        <FormLabel>OpenAI API Key</FormLabel>
+                        <FormControl>
+                          <Input
+                            data-testid="ai-openai-api-key-input"
+                            className="m-0 inline-flex"
+                            placeholder="sk-proj..."
+                            {...field}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              // Don't allow *
+                              if (!value.includes("*")) {
+                                field.onChange(value);
+                              }
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                      <FormDescription>
+                        Your OpenAI API key from{" "}
+                        <a
+                          className="text-link hover:underline"
+                          href="https://platform.openai.com/account/api-keys"
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          platform.openai.com
+                        </a>
+                        .
+                      </FormDescription>
+                    </div>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="ai.anthropic.api_key"
+                  render={({ field }) => (
+                    <div className="flex flex-col space-y-1">
+                      <FormItem className={formItemClasses}>
+                        <FormLabel>Anthropic API Key</FormLabel>
+                        <FormControl>
+                          <Input
+                            data-testid="ai-anthropic-api-key-input"
+                            className="m-0 inline-flex"
+                            placeholder="sk-ant..."
+                            {...field}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              // Don't allow *
+                              if (!value.includes("*")) {
+                                field.onChange(value);
+                              }
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                      <FormDescription>
+                        Your Anthropic API key from{" "}
+                        <a
+                          className="text-link hover:underline"
+                          href="https://console.anthropic.com/settings/keys"
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          console.anthropic.com
+                        </a>
+                        .
+                      </FormDescription>
+                    </div>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="ai.google.api_key"
+                  render={({ field }) => (
+                    <div className="flex flex-col space-y-1">
+                      <FormItem className={formItemClasses}>
+                        <FormLabel>Google AI API Key</FormLabel>
+                        <FormControl>
+                          <Input
+                            data-testid="ai-google-api-key-input"
+                            className="m-0 inline-flex"
+                            placeholder="AI..."
+                            {...field}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              // Don't allow *
+                              if (!value.includes("*")) {
+                                field.onChange(value);
+                              }
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                      <FormDescription>
+                        Your Google AI API key from{" "}
+                        <a
+                          className="text-link hover:underline"
+                          href="https://aistudio.google.com/app/apikey"
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          aistudio.google.com
+                        </a>
+                        .
+                      </FormDescription>
+                    </div>
+                  )}
+                />
+              </SettingGroup>
             </SettingGroup>
             <SettingGroup title="AI Code Completion">
               <p className="text-sm text-muted-secondary">
