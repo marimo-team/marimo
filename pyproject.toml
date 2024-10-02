@@ -146,6 +146,7 @@ testoptional = [
     "openai~=1.41.1",
     "ibis-framework[duckdb]~=9.5.0; python_version > \"3.9\"",
     "anthropic==0.34.1",
+    "google-generativeai==0.8.2",
     # exporting as ipynb
     "nbformat >=5.10.4",
     "sympy>=1.13.2",
