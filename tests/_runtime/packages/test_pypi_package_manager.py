@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from functools import partial
 from unittest.mock import MagicMock, patch
 
@@ -11,6 +12,8 @@ from marimo._runtime.packages.pypi_package_manager import (
 )
 
 parse_cell = partial(compiler.compile_cell, cell_id="0")
+
+PY_EXE = sys.executable
 
 
 def test_module_to_package() -> None:
@@ -43,7 +46,7 @@ async def test_install(mock_run: MagicMock):
     result = await manager._install("package1 package2")
 
     mock_run.assert_called_once_with(
-        ["pip", "install", "package1", "package2"],
+        ["pip", f"--python {PY_EXE}", "install", "package1", "package2"],
     )
     assert result is True
 
@@ -64,7 +67,14 @@ async def test_uninstall(mock_run: MagicMock):
     result = await manager.uninstall("package1 package2")
 
     mock_run.assert_called_once_with(
-        ["pip", "uninstall", "-y", "package1", "package2"],
+        [
+            "pip",
+            f"--python {PY_EXE}",
+            "uninstall",
+            "-y",
+            "package1",
+            "package2",
+        ],
     )
     assert result is True
 
@@ -82,7 +92,9 @@ def test_list_packages(mock_run: MagicMock):
     packages = manager.list_packages()
 
     mock_run.assert_called_once_with(
-        ["pip", "list", "--format=json"], capture_output=True, text=True
+        ["pip", f"--python {PY_EXE}", "list", "--format=json"],
+        capture_output=True,
+        text=True,
     )
     assert len(packages) == 2
     assert packages[0] == PackageDescription(name="package1", version="1.0.0")
