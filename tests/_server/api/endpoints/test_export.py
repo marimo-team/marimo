@@ -170,7 +170,6 @@ def test_other_exports_dont_work_in_read(client: TestClient) -> None:
 def test_auto_export_html(client: TestClient, temp_marimo_file: str) -> None:
     session = get_session_manager(client).get_session(SESSION_ID)
     assert session
-    print(temp_marimo_file)
     assert temp_marimo_file is not None
     session.app_file_manager.filename = temp_marimo_file
 
@@ -198,9 +197,9 @@ def test_auto_export_html(client: TestClient, temp_marimo_file: str) -> None:
     # Not modified response
     assert response.status_code == 304
 
-    # Assert .marimo file is created
+    # Assert __marimo__ directory is created
     assert os.path.exists(
-        os.path.join(os.path.dirname(temp_marimo_file), ".marimo")
+        os.path.join(os.path.dirname(temp_marimo_file), "__marimo__")
     )
 
 
@@ -236,9 +235,9 @@ def test_auto_export_html_no_code(
     # Not modified response
     assert response.status_code == 304
 
-    # Assert .marimo file is created
+    # Assert __marimo__ file is created
     assert os.path.exists(
-        os.path.join(os.path.dirname(temp_marimo_file), ".marimo")
+        os.path.join(os.path.dirname(temp_marimo_file), "__marimo__")
     )
 
 
@@ -270,7 +269,7 @@ def test_auto_export_markdown(
     # Not modified response
     assert response.status_code == 304
 
-    # Assert .marimo file is created
+    # Assert __marimo__ file is created
     assert os.path.exists(
-        os.path.join(os.path.dirname(temp_marimo_file), ".marimo")
+        os.path.join(os.path.dirname(temp_marimo_file), "__marimo__")
     )

@@ -265,7 +265,7 @@ class Exporter:
 
 
 class AutoExporter:
-    EXPORT_DIR = ".marimo"
+    EXPORT_DIR = "__marimo__"
 
     def save_html(self, file_manager: AppFileManager, html: str) -> None:
         # get filename
