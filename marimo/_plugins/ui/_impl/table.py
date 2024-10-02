@@ -71,6 +71,8 @@ class ColumnSummary:
 class ColumnSummaries:
     data: Union[JSONType, str]
     summaries: List[ColumnSummary]
+    # Disabled because of too many columns/rows
+    # This will show a banner in the frontend
     is_disabled: Optional[bool] = None
 
 
@@ -252,6 +254,7 @@ class table(
         self._data = data
         # Holds the original data
         self._manager = get_table_manager(data)
+        self._show_column_summaries = show_column_summaries
 
         if (
             total_cols := self._manager.get_num_columns()
@@ -415,6 +418,14 @@ class table(
 
     def get_column_summaries(self, args: EmptyArgs) -> ColumnSummaries:
         del args
+        if not self._show_column_summaries:
+            return ColumnSummaries(
+                data=None,
+                summaries=[],
+                # This is not 'disabled' because of too many rows
+                # so we don't want to display the banner
+                is_disabled=False,
+            )
 
         total_rows = self._searched_manager.get_num_rows(force=True) or 0
 
@@ -449,6 +460,8 @@ class table(
             return ColumnSummaries(
                 data=None,
                 summaries=summaries,
+                # We are still showing summaries,
+                # so we don't want to display the banner
                 is_disabled=False,
             )
 
