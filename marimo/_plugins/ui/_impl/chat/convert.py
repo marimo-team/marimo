@@ -60,3 +60,27 @@ def convert_to_anthropic_messages(
         anthropic_messages.append({"role": message.role, "content": parts})
 
     return anthropic_messages
+
+
+def convert_to_google_messages(
+    messages: List[ChatMessage],
+) -> List[Dict[Any, Any]]:
+    google_messages: List[Dict[Any, Any]] = []
+
+    for message in messages:
+        content = message.content
+        if message.attachments:
+            for attachment in message.attachments:
+                if attachment.content_type.startswith("image"):
+                    content += f"\n[Image: {attachment.url}]"
+                elif attachment.content_type.startswith("text"):
+                    content += f"\n[Text: {attachment.url}]"
+
+        google_messages.append(
+            {
+                "role": "user" if message.role == "user" else "model",
+                "parts": [content],
+            }
+        )
+
+    return google_messages

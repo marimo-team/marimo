@@ -1037,6 +1037,13 @@ components:
               required:
               - api_key
               type: object
+            google:
+              properties:
+                api_key:
+                  type: string
+              required:
+              - api_key
+              type: object
             open_ai:
               properties:
                 api_key:
@@ -1053,6 +1060,7 @@ components:
           required:
           - open_ai
           - anthropic
+          - google
           type: object
         completion:
           properties:
@@ -1911,7 +1919,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.8.18
+  version: 0.8.22
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

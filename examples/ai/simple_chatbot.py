@@ -56,7 +56,7 @@ def __(client, ell, mo):
 
 
     mo.ui.chat(
-        mo.ai.models.simple(_my_model),
+        mo.ai.llm.simple(_my_model),
         prompts=[
             "Hello",
             "How are you?",

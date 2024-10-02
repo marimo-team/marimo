@@ -7,6 +7,7 @@ from typing import Callable, List, Optional, cast
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.chat.convert import (
     convert_to_anthropic_messages,
+    convert_to_google_messages,
     convert_to_openai_messages,
 )
 from marimo._plugins.ui._impl.chat.types import (
@@ -227,3 +228,82 @@ class anthropic(ChatModel):
             elif content[0].type == "tool_use":
                 return content
         return ""
+
+
+class google(ChatModel):
+    """
+    Google AI ChatModel
+
+    **Args:**
+
+    - model (str): The model to use.
+    - system_message (str): The system message to use
+    - api_key (Optional[str]): The API key to use.
+        If not provided, the API key will be retrieved
+        from the GOOGLE_AI_API_KEY environment variable
+        or the user's config.
+    """
+
+    def __init__(
+        self,
+        model: str,
+        *,
+        system_message: str = DEFAULT_SYSTEM_MESSAGE,
+        api_key: Optional[str] = None,
+    ):
+        self.model = model
+        self.system_message = system_message
+        self.api_key = api_key
+
+    @property
+    def _require_api_key(self) -> str:
+        # If the api key is provided, use it
+        if self.api_key is not None:
+            return self.api_key
+
+        # Then check the user's config
+        try:
+            from marimo._runtime.context.types import get_context
+
+            api_key = get_context().user_config["ai"]["google"]["api_key"]
+            if api_key:
+                return api_key
+        except Exception:
+            pass
+
+        # Then check the environment variable
+        env_key = os.environ.get("GOOGLE_AI_API_KEY")
+        if env_key is not None:
+            return env_key
+
+        raise ValueError(
+            "Google AI api key not provided. Pass it as an argument or "
+            "set GOOGLE_AI_API_KEY as an environment variable"
+        )
+
+    def __call__(
+        self, messages: List[ChatMessage], config: ChatModelConfig
+    ) -> object:
+        DependencyManager.google_ai.require(
+            "chat model requires google. `pip install google-generativeai`"
+        )
+        import google.generativeai as genai  # type: ignore[import-not-found]
+
+        genai.configure(api_key=self._require_api_key)
+        client = genai.GenerativeModel(
+            model_name=self.model,
+            generation_config=genai.GenerationConfig(
+                max_output_tokens=config.max_tokens,
+                temperature=config.temperature,
+                top_p=config.top_p,
+                top_k=config.top_k,
+                frequency_penalty=config.frequency_penalty,
+                presence_penalty=config.presence_penalty,
+            ),
+        )
+
+        google_messages = convert_to_google_messages(messages)
+        response = client.generate_content(google_messages)
+
+        content = response.text
+        return content or ""

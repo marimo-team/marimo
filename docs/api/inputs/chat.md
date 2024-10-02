@@ -98,38 +98,68 @@ This example demonstrates how you can implement a Retrieval-Augmented Generation
 
 marimo provides several built-in AI models that you can use with the chat UI element.
 
+### OpenAI
+
 ```python
 import marimo as mo
 
 mo.ui.chat(
-    mo.ai.openai(
-        "gpt-4",
+    mo.ai.llm.openai(
+        "gpt-4o",
         system_message="You are a helpful assistant.",
-        api_key="sk-...",
+        api_key="sk-proj-...",
     ),
     show_configuration_controls=True
 )
+```
+
+```{eval-rst}
+.. autoclass:: marimo.ai.llm.openai
+  :members:
+
+  .. autoclasstoc:: marimo._plugins.ui._impl.chat.llm.openai
+```
+
+### Anthropic
+
+```python
+import marimo as mo
 
 mo.ui.chat(
-    mo.ai.anthropic(
+    mo.ai.llm.anthropic(
         "claude-3-5-sonnet-20240602",
         system_message="You are a helpful assistant.",
-        api_key="sk-...",
+        api_key="sk-ant-...",
     ),
     show_configuration_controls=True
 )
 ```
 
 ```{eval-rst}
-.. autoclass:: marimo.ai.models.openai
+.. autoclass:: marimo.ai.llm.anthropic
   :members:
 
-  .. autoclasstoc:: marimo._plugins.ui._impl.chat.models.openai
+  .. autoclasstoc:: marimo._plugins.ui._impl.chat.llm.anthropic
+```
+
+### Google AI
+
+```python
+import marimo as mo
+
+mo.ui.chat(
+    mo.ai.llm.google(
+        "gemini-1.5-pro-latest",
+        system_message="You are a helpful assistant.",
+        api_key="AI..",
+    ),
+    show_configuration_controls=True
+)
 ```
 
 ```{eval-rst}
-.. autoclass:: marimo.ai.models.anthropic
+.. autoclass:: marimo.ai.llm.google
   :members:
 
-  .. autoclasstoc:: marimo._plugins.ui._impl.chat.models.anthropic
+  .. autoclasstoc:: marimo._plugins.ui._impl.chat.llm.google
 ```

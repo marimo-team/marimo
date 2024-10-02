@@ -18,9 +18,9 @@ class Dependency:
 
     def has(self) -> bool:
         """Return True if the dependency is installed."""
-        has_dep = importlib.util.find_spec(self.pkg) is not None
-        if not has_dep:
-            return False
+        for pkg in self.pkg.split("."):
+            if importlib.util.find_spec(pkg) is None:
+                return False
 
         if self.min_version or self.max_version:
             self.warn_if_mismatch_version(self.min_version, self.max_version)
@@ -161,6 +161,7 @@ class DependencyManager:
     geopandas = Dependency("geopandas")
     opentelemetry = Dependency("opentelemetry")
     anthropic = Dependency("anthropic")
+    google_ai = Dependency("google.generativeai")
 
     @staticmethod
     def has(pkg: str) -> bool:

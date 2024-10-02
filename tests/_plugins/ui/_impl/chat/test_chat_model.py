@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from marimo._plugins.ui._impl.chat.models import simple
+from marimo._plugins.ui._impl.chat.llm import simple
 from marimo._plugins.ui._impl.chat.types import ChatMessage, ChatModelConfig
 
 
