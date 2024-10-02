@@ -44,16 +44,16 @@ codeium_api_key = ""
 
 <div align="center">
 <figure>
-<img src="/docs/_static/docs-ai-completion-codeium-vscode.png">
+<img src="/_static/docs-ai-completion-codeium-vscode.png">
 </figure>
 </div>
 
 6. Click the **Download** link under the **Extension Diagnostics** section
-7. Open the diagnostic file and search for `apiKey` (it will look similar to the value shown in the image below, which was randomly generated and not an actual API key)
+7. Open the diagnostic file and search for `apiKey`
 
 <div align="center">
 <figure>
-<img src="/docs/_static/docs-ai-completion-codeium-vscode-download-diagnostics.png">
+<img src="/_static/docs-ai-completion-codeium-vscode-download-diagnostics.png">
 </figure>
 </div>
 
