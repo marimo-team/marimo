@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from typing import List
 
 from marimo._runtime.packages.module_name_to_pypi_name import (
@@ -14,6 +15,8 @@ from marimo._runtime.packages.package_manager import (
 )
 from marimo._runtime.packages.utils import split_packages
 from marimo._utils.platform import is_pyodide
+
+PY_EXE = sys.executable
 
 
 class PypiPackageManager(CanonicalizingPackageManager):
@@ -43,13 +46,23 @@ class PipPackageManager(PypiPackageManager):
     docs_url = "https://pip.pypa.io/"
 
     async def _install(self, package: str) -> bool:
-        return self.run(["pip", "install", *split_packages(package)])
+        return self.run(
+            ["pip", f"--python {PY_EXE}", "install", *split_packages(package)]
+        )
 
     async def uninstall(self, package: str) -> bool:
-        return self.run(["pip", "uninstall", "-y", *split_packages(package)])
+        return self.run(
+            [
+                "pip",
+                f"--python {PY_EXE}",
+                "uninstall",
+                "-y",
+                *split_packages(package),
+            ]
+        )
 
     def list_packages(self) -> List[PackageDescription]:
-        cmd = ["pip", "list", "--format=json"]
+        cmd = ["pip", f"--python {PY_EXE}", "list", "--format=json"]
         return self._list_packages_from_cmd(cmd)
 
 
@@ -103,7 +116,9 @@ class UvPackageManager(PypiPackageManager):
     docs_url = "https://docs.astral.sh/uv/"
 
     async def _install(self, package: str) -> bool:
-        return self.run(["uv", "pip", "install", *split_packages(package)])
+        return self.run(
+            ["uv", "pip", "install", *split_packages(package), f"-p {PY_EXE}"]
+        )
 
     def update_notebook_script_metadata(
         self,
@@ -159,10 +174,18 @@ class UvPackageManager(PypiPackageManager):
         return {pkg.name: pkg.version for pkg in packages}
 
     async def uninstall(self, package: str) -> bool:
-        return self.run(["uv", "pip", "uninstall", *split_packages(package)])
+        return self.run(
+            [
+                "uv",
+                "pip",
+                "uninstall",
+                *split_packages(package),
+                f"-p {PY_EXE}",
+            ]
+        )
 
     def list_packages(self) -> List[PackageDescription]:
-        cmd = ["uv", "pip", "list", "--format=json"]
+        cmd = ["uv", "pip", "list", "--format=json", f"-p {PY_EXE}"]
         return self._list_packages_from_cmd(cmd)
 
 
