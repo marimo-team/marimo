@@ -139,9 +139,9 @@ def get_content(
         return response.choices[0].delta.content  # type: ignore
 
     if hasattr(response, "text"):
-        return response.text
+        return response.text  # type: ignore
 
-    from anthropic.types import (
+    from anthropic.types import (  # type: ignore[import-not-found]
         RawContentBlockDeltaEvent,
         TextDelta,
     )
@@ -211,7 +211,7 @@ def make_stream_response(
 
 def get_google_client(config: MarimoConfig, model: str) -> "GenerativeModel":
     try:
-        import google.generativeai as genai
+        import google.generativeai as genai  # type: ignore[import-not-found]
     except ImportError:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,

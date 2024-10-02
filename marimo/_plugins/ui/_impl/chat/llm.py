@@ -287,7 +287,7 @@ class google(ChatModel):
         DependencyManager.google_ai.require(
             "chat model requires google. `pip install google-generativeai`"
         )
-        import google.generativeai as genai
+        import google.generativeai as genai  # type: ignore[import-not-found]
 
         genai.configure(api_key=self._require_api_key)
         client = genai.GenerativeModel(
