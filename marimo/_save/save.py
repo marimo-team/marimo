@@ -114,6 +114,9 @@ class _cache_base(object):
         # checking a single frame- should be good enough.
         f_locals = inspect.stack()[2 + self._frame_offset][0].f_locals
         self.scope = {**ctx.globals, **f_locals}
+        # In case scope shadoes variables
+        for arg in self._args:
+            self.scope.pop(arg, None)
 
         # Scoped refs are references particular to this block, that may not be
         # defined out of the context of the block, or the cell.

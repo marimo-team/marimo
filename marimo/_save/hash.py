@@ -902,6 +902,9 @@ def content_cache_attempt_from_base(
 
     if as_fn:
         hasher.defs.clear()
+        # Functions will perform state restoration on call, so base hashes need
+        # not remember these are stateful.
+        hasher.stateful_refs.clear()
 
     return loader.cache_attempt(
         hasher.defs,
