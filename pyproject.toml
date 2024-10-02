@@ -140,7 +140,7 @@ extra-dependencies = [
 python = ["3.9","3.10", "3.11", "3.12"]
 
 [tool.hatch.envs.test.scripts]
-run = "pytest{env:HATCH_TEST_ARGS:} {args:tests}"
+test = "pytest{env:HATCH_TEST_ARGS:} {args:tests}"
 default = "pytest{env:HATCH_TEST_ARGS:} {args:tests}"
 
 [tool.hatch.envs.test-optional]

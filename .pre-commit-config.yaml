@@ -5,7 +5,6 @@ repos:
     rev: v4.5.0
     hooks:
       - id: check-yaml
-      - id: trailing-whitespace
 
   - repo: https://github.com/rhysd/actionlint
     rev: v1.6.26

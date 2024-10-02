@@ -69,12 +69,12 @@ py-check:
 .PHONY: py-test
 # test python
 py-test:
-	cd marimo && typos && cd - && hatch run +py=3.12 test-optional:run
+	cd marimo && typos && cd - && hatch run +py=3.12 test-optional:test
 
 .PHONY: py-snapshots
 # update html snapshots
 py-snapshots:
-	hatch run +py=3.12 test:run \
+	hatch run +py=3.12 test:test \
 		tests/_server/templates/test_templates.py \
 		tests/_server/api/endpoints/test_export.py
 

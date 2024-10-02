@@ -177,21 +177,21 @@ make py-test
 **Run a specific tests.**
 
 ```bash
-hatch run test:run tests/_ast/
+hatch run test:test tests/_ast/
 ```
 
 **Run a specific tests with optional dependencies.**
 
 ```bash
-hatch run test-optional:run tests/_ast/
+hatch run test-optional:test tests/_ast/
 ```
 
 **Run tests with a specific Python version.**
 
 ```bash
-hatch run +py=3.10 test:run tests/_ast/
+hatch run +py=3.10 test:test tests/_ast/
 # or
-hatch run +py=3.10 test-optional:run tests/_ast/
+hatch run +py=3.10 test-optional:test tests/_ast/
 ```
 
 **Run all tests across all Python versions.**
@@ -199,7 +199,7 @@ hatch run +py=3.10 test-optional:run tests/_ast/
 Not recommended since it takes a long time.
 
 ```bash
-hatch run test:run
+hatch run test:test
 ```
 
 ### End-to-end
