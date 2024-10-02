@@ -5,15 +5,27 @@ from pathlib import Path
 
 import click
 
-from marimo._cli.convert.ipynb import convert_from_ipynb
 from marimo._cli.convert.markdown import convert_from_md
 from marimo._cli.convert.utils import load_external_file
 from marimo._cli.print import echo
+from marimo._convert.ipynb import convert_from_ipynb
+from marimo._utils.paths import maybe_make_dirs
 
 
 @click.argument("filename", required=True)
+@click.option(
+    "-o",
+    "--output",
+    type=str,
+    default=None,
+    help="""
+    Output file to save the converted notebook to.
+    If not provided, the converted notebook will be printed to stdout.
+    """,
+)
 def convert(
     filename: str,
+    output: str,
 ) -> None:
     r"""Convert a Jupyter notebook or Markdown file to a marimo notebook.
 
@@ -48,4 +60,12 @@ def convert(
     else:
         assert ext in (".md", ".qmd")
         notebook = convert_from_md(text)
-    echo(notebook)
+
+    if output:
+        # Make dirs if needed
+        maybe_make_dirs(output)
+        with open(output, "w") as f:
+            f.write(notebook)
+        echo(f"Converted notebook saved to {output}")
+    else:
+        echo(notebook)

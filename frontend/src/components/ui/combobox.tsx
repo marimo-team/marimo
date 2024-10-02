@@ -240,7 +240,13 @@ export interface ComboboxItemProps<TValue>
 
 export const ComboboxItem = React.forwardRef(
   <TValue extends string | number | { value: string }>(
-    { children, className, value, onSelect }: ComboboxItemProps<TValue>,
+    {
+      children,
+      className,
+      value,
+      onSelect,
+      disabled,
+    }: ComboboxItemProps<TValue>,
     ref: React.Ref<HTMLDivElement>,
   ) => {
     const valueAsString =
@@ -255,6 +261,7 @@ export const ComboboxItem = React.forwardRef(
         className={cn("pl-6 m-1 py-1", className)}
         role="option"
         value={valueAsString}
+        disabled={disabled}
         onSelect={() => {
           context.onSelect(value);
           onSelect?.(value);

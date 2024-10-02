@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import inspect
 import random
 import string
 from dataclasses import asdict, dataclass, field
@@ -178,6 +179,12 @@ class App:
         # Set as a private attribute as not to pollute AppConfig or kwargs.
         self._anonymous_file = False
 
+        # Filename is derived from the callsite of the app
+        self._filename: str | None = None
+        try:
+            self._filename = inspect.getfile(inspect.stack()[1].frame)
+        except Exception:
+            ...
         self._app_kernel_runner: AppKernelRunner | None = None
 
     def cell(
@@ -296,7 +303,9 @@ class App:
         self,
     ) -> tuple[Sequence[Any], Mapping[str, Any]]:
         self._maybe_initialize()
-        outputs, glbls = AppScriptRunner(InternalApp(self)).run()
+        outputs, glbls = AppScriptRunner(
+            InternalApp(self), filename=self._filename
+        ).run()
         return (self._flatten_outputs(outputs), self._globals_to_defs(glbls))
 
     async def _run_cell_async(

@@ -5,24 +5,15 @@ import asyncio
 import contextlib
 import socket
 import sys
+from collections.abc import AsyncIterator, Callable, Sequence
+from contextlib import AbstractAsyncContextManager
+
+from starlette.applications import Starlette
 
 from marimo._server.api.deps import AppState, AppStateBase
 from marimo._server.file_router import AppFileRouter
 from marimo._server.sessions import SessionManager
 from marimo._server.tokens import AuthToken
-
-if sys.version_info < (3, 9):
-    from typing import (
-        AsyncContextManager as AbstractAsyncContextManager,
-        AsyncIterator,
-        Callable,
-        Sequence,
-    )
-else:
-    from collections.abc import AsyncIterator, Callable, Sequence
-    from contextlib import AbstractAsyncContextManager
-
-from starlette.applications import Starlette
 
 if sys.version_info < (3, 10):
     from typing_extensions import TypeAlias

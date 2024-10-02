@@ -8,6 +8,9 @@ marimo export
 
 ## Export to static HTML
 
+
+### Export from a running notebook
+
 Export the current view your notebook to static HTML via the notebook
 menu:
 
@@ -18,7 +21,13 @@ menu:
 </figure>
 </div>
 
-You can also export to HTML at the command-line:
+Additionally, you can configure individual notebooks to automatically
+save as HTML through the notebook menu. These automatic snapshots are
+saved to a folder called `__marimo__` in the notebook directory.
+
+### Export from the command line
+
+Export to HTML at the command line:
 
 ```bash
 marimo export html notebook.py -o notebook.html
@@ -29,6 +38,9 @@ or watch the notebook for changes and automatically export to HTML:
 ```bash
 marimo export html notebook.py -o notebook.html --watch
 ```
+
+When you export from the command line, marimo runs your notebook to produce
+its visual outputs before saving as HTML.
 
 ## Export to a Python script
 

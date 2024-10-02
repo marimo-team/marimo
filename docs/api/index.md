@@ -17,6 +17,7 @@
   html
   query_params
   cli_args
+  caching
   state
   app
   cell
@@ -45,6 +46,7 @@ Use the marimo library in marimo notebooks (`import marimo as mo`) to
 | {doc}`html`          | Manipulate HTML objects                                   |
 | {doc}`query_params`  | Access and set query parameters with `mo.query_params`    |
 | {doc}`cli_args`      | Access command-line arguments with `mo.cli_args`          |
+| {doc}`caching`       | Cache expensive computations in memory or on disk         |
 | {doc}`state`         | Synchronize multiple UI elements with `mo.state`          |
 | {doc}`app`           | Embed notebooks in other notebooks                        |
 | {doc}`cell`          | Run cells defined in another notebook                     |

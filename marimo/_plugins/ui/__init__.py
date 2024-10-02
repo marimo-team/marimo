@@ -8,22 +8,23 @@ from __future__ import annotations
 
 __all__ = [
     "altair_chart",
+    "anywidget",
     "array",
     "batch",
     "button",
+    "chat",
     "checkbox",
     "code_editor",
     "data_explorer",
-    "date",
-    "date_range",
-    "datetime",
     "dataframe",
+    "date_range",
+    "date",
+    "datetime",
     "dictionary",
     "dropdown",
-    "file",
     "file_browser",
+    "file",
     "form",
-    "anywidget",
     "microphone",
     "multiselect",
     "number",
@@ -43,6 +44,7 @@ __all__ = [
 from marimo._plugins.ui._impl.altair_chart import altair_chart
 from marimo._plugins.ui._impl.array import array
 from marimo._plugins.ui._impl.batch import batch
+from marimo._plugins.ui._impl.chat.chat import chat
 from marimo._plugins.ui._impl.data_explorer import data_explorer
 from marimo._plugins.ui._impl.dataframes.dataframe import dataframe
 from marimo._plugins.ui._impl.dates import (

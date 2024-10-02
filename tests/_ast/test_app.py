@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import pathlib
 import subprocess
 import textwrap
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pytest
-from marimo._ast.app import App, _AppConfig, InternalApp
+from marimo._ast.app import App, _AppConfig
 from marimo._ast.errors import (
     CycleError,
     DeleteNonlocalError,
@@ -15,14 +16,10 @@ from marimo._ast.errors import (
     UnparsableError,
 )
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._output.formatting import as_html
 from marimo._plugins.stateless.flex import vstack
 from marimo._runtime.requests import SetUIElementValueRequest
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
-
-if TYPE_CHECKING:
-    import pathlib
 
 
 # don't complain for useless expressions (cell outputs)
@@ -379,8 +376,7 @@ class TestApp:
 
         @app.cell
         def __() -> tuple[Any]:
-            def foo() -> None:
-                ...
+            def foo() -> None: ...
 
             return (foo,)
 
@@ -481,7 +477,9 @@ class TestApp:
         assert config.auto_download == []
 
         # Test from_untrusted_dict
-        config = _AppConfig.from_untrusted_dict({"auto_download": ["markdown"]})
+        config = _AppConfig.from_untrusted_dict(
+            {"auto_download": ["markdown"]}
+        )
         assert config.auto_download == ["markdown"]
 
         # Test asdict
@@ -491,6 +489,23 @@ class TestApp:
         # Test invalid values are allowed for forward compatibility
         config = _AppConfig(auto_download=["invalid"])
         assert config.auto_download == ["invalid"]
+
+    def test_has_file_and_dirname(self) -> None:
+        app = App()
+
+        @app.cell
+        def f():
+            file = __file__
+
+        @app.cell
+        def g():
+            import marimo as mo
+
+            dirpath = mo.notebook_dir()
+
+        _, glbls = app.run()
+        assert glbls["file"] == __file__
+        assert glbls["dirpath"] == pathlib.Path(glbls["file"]).parent
 
 
 def test_app_config() -> None:

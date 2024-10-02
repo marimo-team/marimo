@@ -1,0 +1,15 @@
+diff --git a/factory.js b/factory.js
+index 40f3edccbebc45b491dd3488ed619ec9208be8d9..f88f451588d656805d1ae76ce4184a486a179eb1 100644
+--- a/factory.js
++++ b/factory.js
+@@ -40,8 +40,8 @@ function _getPrototypeOf(o) { _getPrototypeOf = Object.setPrototypeOf ? Object.g
+ // The naming convention is:
+ //   - events are attached as `'plotly_' + eventName.toLowerCase()`
+ //   - react props are `'on' + eventName`
+-var eventNames = ['AfterExport', 'AfterPlot', 'Animated', 'AnimatingFrame', 'AnimationInterrupted', 'AutoSize', 'BeforeExport', 'BeforeHover', 'ButtonClicked', 'Click', 'ClickAnnotation', 'Deselect', 'DoubleClick', 'Framework', 'Hover', 'LegendClick', 'LegendDoubleClick', 'Relayout', 'Relayouting', 'Restyle', 'Redraw', 'Selected', 'Selecting', 'SliderChange', 'SliderEnd', 'SliderStart', 'SunburstClick', 'Transitioning', 'TransitionInterrupted', 'Unhover', 'WebGlContextLost'];
+-var updateEvents = ['plotly_restyle', 'plotly_redraw', 'plotly_relayout', 'plotly_relayouting', 'plotly_doubleclick', 'plotly_animated', 'plotly_sunburstclick']; // Check if a window is available since SSR (server-side rendering)
++var eventNames = ['AfterExport', 'AfterPlot', 'Animated', 'AnimatingFrame', 'AnimationInterrupted', 'AutoSize', 'BeforeExport', 'BeforeHover', 'ButtonClicked', 'Click', 'ClickAnnotation', 'Deselect', 'DoubleClick', 'Framework', 'Hover', 'LegendClick', 'LegendDoubleClick', 'Relayout', 'Relayouting', 'Restyle', 'Redraw', 'Selected', 'Selecting', 'SliderChange', 'SliderEnd', 'SliderStart', 'SunburstClick', 'TreemapClick', 'Transitioning', 'TransitionInterrupted', 'Unhover', 'WebGlContextLost'];
++var updateEvents = ['plotly_restyle', 'plotly_redraw', 'plotly_relayout', 'plotly_relayouting', 'plotly_doubleclick', 'plotly_animated', 'plotly_sunburstclick', 'plotly_treemapclick']; // Check if a window is available since SSR (server-side rendering)
+ // breaks unnecessarily if you try to use it server-side.
+ 
+ var isBrowser = typeof window !== 'undefined';

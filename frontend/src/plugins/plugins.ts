@@ -46,6 +46,7 @@ import { RoutesPlugin } from "./layout/RoutesPlugin";
 import { DateTimePickerPlugin } from "./impl/DateTimePickerPlugin";
 import { DateRangePickerPlugin } from "./impl/DateRangePlugin";
 import { MimeRendererPlugin } from "./layout/MimeRenderPlugin";
+import { ChatPlugin } from "./impl/chat/ChatPlugin";
 
 // List of UI plugins
 export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
@@ -74,6 +75,7 @@ export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
   new TextInputPlugin(),
   new VegaPlugin(),
   new PlotlyPlugin(),
+  ChatPlugin,
   DataExplorerPlugin,
   DataFramePlugin,
   LazyPlugin,

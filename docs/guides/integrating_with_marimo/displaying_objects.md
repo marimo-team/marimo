@@ -9,11 +9,40 @@ displayed for the last expression of a cell, or when using
 
 You can register rich displays with marimo for your own objects.
 
-### Option 1: Implement a `_mime_` method
+### Option 1: Implement an IPython `_repr_*_()` method
+
+marimo can render objects that implement
+[IPython's `_repr_*_()` protocol](https://ipython.readthedocs.io/en/stable/config/integrating.html#custom-methods)
+for rich display. Here is an example of implementing `_repr_html_`, borrowed
+from IPython's documentation:
+
+```python
+class Shout:
+    def __init__(self, text):
+        self.text = text
+
+    def _repr_html_(self):
+        return "<h1>" + self.text + "</h1>"
+```
+
+We support the following methods:
+
+
+- `_repr_html_`
+- `_repr_mimebundle_`
+- `_repr_svg_`
+- `_repr_json_`
+- `_repr_png_`
+- `_repr_jpeg_`
+- `_repr_markdown_`
+- `_repr_latex_`
+- `_repr_text_`
+
+### Option 2: Implement a `_mime_` method
 
 When displaying an object, marimo's media viewer checks for the presence of a
 method called `_mime_`. This method should take no arguments and return
-a tuple of two strings, the [mime type](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types) and data to be displayed.
+a tuple of two strings, the [mime type](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types) and data to be displayed as a string.
 
 **Examples.**
 
@@ -73,14 +102,16 @@ a tuple of two strings, the [mime type](https://developer.mozilla.org/en-US/docs
     Image("https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/marimo-logotype-thick.svg")
 ```
 
-### Option 2: Add a formatter to the marimo repo
+### Option 3: Add a formatter to the marimo repo
 
-When you don't have the ability to implement a `_mime_` method on the type
-you want displayed, you can register custom formatters with marimo.
+The recommended way to render rich displays of objects in marimo is to
+implement either the IPython `_repr_*_()_` protocol or marimo's `_mime_()`
+protocol. If you are a a user of a library that does not render properly in
+marimo, consider asking the library maintainers to implement one of these
+protocols.
 
-We welcome contributors to add formatters to the marimo codebase. [Look at our
-codebase for
+If it is not possible to implement a renderer protocol on the type
+you want displayed, we will consider contributions to add formatters to the
+marimo codebase. [Look at our codebase for
 examples](https://github.com/marimo-team/marimo/tree/main/marimo/_output/formatters),
 then open a pull request.
-
-[anywidget](/api/inputs/anywidget.md)

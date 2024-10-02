@@ -12,6 +12,7 @@ import { SearchIcon, XIcon } from "lucide-react";
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
 
 export type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
+  rootClassName?: string;
   icon?: React.ReactNode;
   endAdornment?: React.ReactNode;
 };
@@ -25,7 +26,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     }
 
     return (
-      <div className="relative">
+      <div className={cn("relative", props.rootClassName)}>
         {icon && (
           <div className="absolute inset-y-0 left-0 flex items-center pl-[6px] pointer-events-none text-muted-foreground h-6">
             {icon}
