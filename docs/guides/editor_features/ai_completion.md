@@ -43,8 +43,9 @@ codeium_api_key = ""
 5. Select the **Settings** button (gear icon) in the top-right corner of the Codeium pane
 
 <div align="center">
-<figure>
-<img src="/_static/docs-ai-completion-codeium-vscode.png">
+  <figure>
+    <img src="/_static/docs-ai-completion-codeium-vscode.png"/>
+    <figcaption>Open Codeium settings</figcaption>
 </figure>
 </div>
 
@@ -52,9 +53,10 @@ codeium_api_key = ""
 7. Open the diagnostic file and search for `apiKey`
 
 <div align="center">
-<figure>
-<img src="/_static/docs-ai-completion-codeium-vscode-download-diagnostics.png">
-</figure>
+  <figure>
+    <img src="/_static/docs-ai-completion-codeium-vscode-download-diagnostics.png"/>
+    <figcaption>Download diagnostics file with API key</figcaption>
+  </figure>
 </div>
 
 8. Copy the value of the `apiKey` to `.marimo.toml` in your home directory
