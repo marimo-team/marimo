@@ -369,22 +369,20 @@ const CellEditorInternal = ({
         className="relative w-full"
         onFocus={() => setLastFocusedCellId(cellId)}
       >
-        {!hidden && (
-          <div className="absolute top-1 right-5">
-            <LanguageToggles
-              code={code}
-              editorView={editorViewRef.current}
-              currentLanguageAdapter={languageAdapter}
-              onAfterToggle={afterToggleMarkdown}
-            />
-          </div>
-        )}
         {hidden && <HideCodeButton onClick={showCode} />}
         <CellCodeMirrorEditor
           className={cn(hidden && "opacity-20 h-8 overflow-hidden")}
           editorView={editorViewRef.current}
           ref={editorViewParentRef}
         />
+        {!hidden && (
+          <LanguageToggles
+            code={code}
+            editorView={editorViewRef.current}
+            currentLanguageAdapter={languageAdapter}
+            onAfterToggle={afterToggleMarkdown}
+          />
+        )}
       </div>
     </AiCompletionEditor>
   );

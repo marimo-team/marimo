@@ -29,7 +29,7 @@ import { useCellRenderCount } from "../../hooks/useCellRenderCount";
 import { Functions } from "../../utils/functions";
 import { Logger } from "../../utils/Logger";
 import { CellDragHandle, SortableCell } from "./SortableCell";
-import { HTMLCellId } from "../../core/cells/ids";
+import { type CellId, HTMLCellId } from "../../core/cells/ids";
 import type { Theme } from "../../theme/useTheme";
 import {
   CellActionsDropdown,
@@ -48,6 +48,10 @@ import { aiCompletionCellAtom } from "@/core/ai/state";
 import { CollapsedCellBanner, CollapseToggle } from "./cell/collapse";
 import { canCollapseOutline } from "@/core/dom/outline";
 import { StopButton } from "@/components/editor/cell/StopButton";
+import type { CellConfig, RuntimeState } from "@/core/network/types";
+import { MoreHorizontalIcon } from "lucide-react";
+import { Toolbar, ToolbarItem } from "@/components/editor/cell/toolbar";
+import { cn } from "@/utils/cn";
 
 /**
  * Imperative interface of the cell.
@@ -458,7 +462,25 @@ const CellComponent = (
         <div className={className} id={HTMLId}>
           {userConfig.display.cell_output === "above" && outputArea}
           <div className="tray">
-            <div className="absolute flex flex-col gap-[2px] justify-center h-full left-[-34px] z-2">
+            <div className="absolute right-2 -top-4 z-10">
+              <CellToolbar
+                edited={edited}
+                appClosed={appClosed}
+                status={status}
+                cellConfig={cellConfig}
+                needsRun={needsRun}
+                hasOutput={hasOutput}
+                cellActionDropdownRef={cellActionDropdownRef}
+                cellId={cellId}
+                name={name}
+                getEditorView={getEditorView}
+                onRun={handleRun}
+                loading={loading}
+                showDeleteButton={showDeleteButton}
+                deleteCell={deleteCell}
+              />
+            </div>
+            <div className="absolute flex flex-col gap-[2px] justify-center h-full left-[-34px] z-20">
               <CreateCellButton
                 tooltipContent={renderShortcut("cell.createAbove")}
                 appClosed={appClosed}
@@ -492,7 +514,7 @@ const CellComponent = (
               editorViewRef={editorView}
               hidden={cellConfig.hide_code}
             />
-            <div className="shoulder-right">
+            <div className="shoulder-right z-20">
               <CellStatusComponent
                 status={status}
                 staleInputs={staleInputs}
@@ -504,42 +526,11 @@ const CellComponent = (
                 runStartTimestamp={runStartTimestamp}
                 uninstantiated={uninstantiated}
               />
-              <div className="flex gap-2 align-bottom">
-                <RunButton
-                  edited={edited}
-                  onClick={appClosed ? Functions.NOOP : handleRun}
-                  appClosed={appClosed}
-                  status={status}
-                  config={cellConfig}
-                  needsRun={needsRun}
-                />
-                <StopButton status={status} appClosed={appClosed} />
-                <CellActionsDropdown
-                  ref={cellActionDropdownRef}
-                  cellId={cellId}
-                  status={status}
-                  getEditorView={getEditorView}
-                  name={name}
-                  config={cellConfig}
-                  hasOutput={hasOutput}
-                >
-                  <CellDragHandle />
-                </CellActionsDropdown>
+              <div className="flex gap-2 items-end">
+                <CellDragHandle />
               </div>
             </div>
-            <div className="shoulder-bottom hover-action">
-              {showDeleteButton ? (
-                <DeleteButton
-                  appClosed={appClosed}
-                  status={status}
-                  onClick={() => {
-                    if (!loading && !appClosed) {
-                      deleteCell({ cellId });
-                    }
-                  }}
-                />
-              ) : null}
-            </div>
+            <div className="shoulder-bottom hover-action" />
           </div>
           {userConfig.display.cell_output === "below" && outputArea}
           <ConsoleOutput
@@ -564,6 +555,83 @@ const CellComponent = (
         )}
       </SortableCell>
     </CellActionsContextMenu>
+  );
+};
+
+interface CellToolbarProps {
+  edited: boolean;
+  appClosed: boolean;
+  status: RuntimeState;
+  cellConfig: CellConfig;
+  needsRun: boolean;
+  hasOutput: boolean;
+  cellActionDropdownRef: React.RefObject<CellActionsDropdownHandle>;
+  cellId: CellId;
+  name: string;
+  getEditorView: () => EditorView | null;
+  loading: boolean;
+  showDeleteButton: boolean;
+  deleteCell: (opts: { cellId: CellId }) => void;
+  onRun: () => void;
+}
+
+const CellToolbar = ({
+  edited,
+  appClosed,
+  status,
+  cellConfig,
+  needsRun,
+  hasOutput,
+  onRun,
+  cellActionDropdownRef,
+  cellId,
+  getEditorView,
+  name,
+  showDeleteButton,
+  deleteCell,
+  loading,
+}: CellToolbarProps) => {
+  return (
+    <Toolbar
+      className={cn(
+        // Show the toolbar on hover, or when the cell needs to be run
+        !needsRun && "hover-action",
+      )}
+    >
+      <RunButton
+        edited={edited}
+        onClick={appClosed ? Functions.NOOP : onRun}
+        appClosed={appClosed}
+        status={status}
+        config={cellConfig}
+        needsRun={needsRun}
+      />
+      <StopButton status={status} appClosed={appClosed} />
+      {showDeleteButton ? (
+        <DeleteButton
+          appClosed={appClosed}
+          status={status}
+          onClick={() => {
+            if (!loading && !appClosed) {
+              deleteCell({ cellId });
+            }
+          }}
+        />
+      ) : null}
+      <CellActionsDropdown
+        ref={cellActionDropdownRef}
+        cellId={cellId}
+        status={status}
+        getEditorView={getEditorView}
+        name={name}
+        config={cellConfig}
+        hasOutput={hasOutput}
+      >
+        <ToolbarItem tooltip={null}>
+          <MoreHorizontalIcon />
+        </ToolbarItem>
+      </CellActionsDropdown>
+    </Toolbar>
   );
 };
 
