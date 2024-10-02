@@ -31,6 +31,7 @@ __all__ = [
     "app_meta",
     "as_html",
     "audio",
+    "cache",
     "callout",
     "capture_stderr",
     "capture_stdout",
@@ -47,6 +48,7 @@ __all__ = [
     "image",
     "lazy",
     "left",
+    "lru_cache",
     "md",
     "mermaid",
     "mpl",
@@ -54,8 +56,9 @@ __all__ = [
     "notebook_dir",
     "output",
     "pdf",
-    "plain_text",
+    "persistent_cache",
     "plain",
+    "plain_text",
     "query_params",
     "redirect_stderr",
     "redirect_stdout",
@@ -127,5 +130,6 @@ from marimo._runtime.runtime import (
     refs,
 )
 from marimo._runtime.state import state
+from marimo._save.save import cache, lru_cache, persistent_cache
 from marimo._server.asgi import create_asgi_app
 from marimo._sql.sql import sql
