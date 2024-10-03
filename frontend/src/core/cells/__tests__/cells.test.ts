@@ -29,7 +29,7 @@ import {
   scrollToTop,
   scrollToBottom,
 } from "../scrollCellIntoView";
-import {  CellColumnIndex, CollapsibleTree, MultiColumn } from "@/utils/id-tree";
+import {  CollapsibleTree, MultiColumn } from "@/utils/id-tree";
 import { CellData } from "../types";
 
 vi.mock("@/core/codemirror/editing/commands", () => ({
@@ -47,7 +47,7 @@ vi.mock("../scrollCellIntoView", async (importOriginal) => {
   };
 });
 
-const FIRST_COLUMN = 0 as CellColumnIndex;
+const FIRST_COLUMN = 0;
 
 const { initialNotebookState, reducer, createActions } = exportedForTesting;
 
@@ -288,7 +288,7 @@ describe("cell reducer", () => {
     `);
 
     // drag first cell to the end
-    actions.dropCellOver({
+    actions.dropCellOverCell({
       cellId: firstCellId,
       overCellId: "2" as CellId,
     });
@@ -303,7 +303,7 @@ describe("cell reducer", () => {
     `);
 
     // drag it back to the middle
-    actions.dropCellOver({
+    actions.dropCellOverCell({
       cellId: firstCellId,
       overCellId: "2" as CellId,
     });
@@ -1359,7 +1359,8 @@ describe("cell reducer", () => {
       "
     `);
 
-    actions.deleteColumn({ columnIndex: 0 as CellColumnIndex });
+    const columnId = state.cellIds.atOrThrow(0).id;
+    actions.deleteColumn({ columnId: columnId });
 
     expect(state.cellIds.getColumns().length).toBe(1);
     expect(formatCells(state)).toMatchInlineSnapshot(`
@@ -1384,7 +1385,7 @@ describe("cell reducer", () => {
 
     const initialState = { ...state };
 
-    actions.deleteColumn({ columnIndex: 0 as CellColumnIndex });
+    actions.deleteColumn({ columnId: initialState.cellIds.atOrThrow(0).id });
 
     // State should not change
     expect(state).toEqual(initialState);
@@ -1407,7 +1408,7 @@ describe("cell reducer", () => {
       "
     `);
 
-    actions.dropCellOver({ cellId: "0" as CellId, overCellId: "3" as CellId });
+    actions.dropCellOverCell({ cellId: "0" as CellId, overCellId: "3" as CellId });
 
     expect(formatCells(state)).toMatchInlineSnapshot(`
       "
@@ -1478,7 +1479,10 @@ describe("cell reducer", () => {
       "
     `);
 
-    actions.moveColumn({ column: 1 as CellColumnIndex, overColumn: 0 as CellColumnIndex });
+    const columnId0 = state.cellIds.atOrThrow(0).id;
+    const columnId1 = state.cellIds.atOrThrow(1).id;
+    expect(columnId0).not.toBe(columnId1);
+    actions.moveColumn({ column: columnId1, overColumn: columnId0 });
 
     expect(state.cellIds.getColumns().length).toBe(2);
     expect(formatCells(state)).toMatchInlineSnapshot(`

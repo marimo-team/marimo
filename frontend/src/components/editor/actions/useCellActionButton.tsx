@@ -53,7 +53,6 @@ import {
   aiEnabledAtom,
   appWidthAtom,
   autoInstantiateAtom,
-  getAppConfig,
 } from "@/core/config/config";
 import { useDeleteCellCallback } from "../cell/useDeleteCell";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";

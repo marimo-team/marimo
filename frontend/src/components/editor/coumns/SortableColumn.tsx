@@ -1,23 +1,26 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { memo, useContext } from "react";
+import React, { memo } from "react";
 import { mergeRefs } from "../../../utils/mergeRefs";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import {  ChevronLeftIcon, ChevronRightIcon, X } from "lucide-react";
-import type { CellColumnIndex } from "@/utils/id-tree";
+import { ChevronLeftIcon, ChevronRightIcon, X } from "lucide-react";
+import type { CellColumnId } from "@/utils/id-tree";
 import { useCellActions } from "@/core/cells/cells";
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/ui/button";
 
 interface Props extends React.HTMLAttributes<HTMLDivElement> {
-  columnIndex: CellColumnIndex;
+  columnId: CellColumnId;
   canDelete: boolean;
-  numColumns: number;
+  canMoveLeft: boolean;
+  canMoveRight: boolean;
 }
 
-
 const SortableColumnInternal = React.forwardRef(
-  ({ columnIndex, canDelete, numColumns, ...props }: Props, ref: React.Ref<HTMLDivElement>) => {
+  (
+    { columnId, canDelete, canMoveLeft, canMoveRight, ...props }: Props,
+    ref: React.Ref<HTMLDivElement>,
+  ) => {
     // The keys for columns have a 1-based index, because
     // the first column is not draggable if its id is 0
     const {
@@ -27,7 +30,7 @@ const SortableColumnInternal = React.forwardRef(
       transform,
       transition,
       isDragging,
-    } = useSortable({ id: columnIndex });
+    } = useSortable({ id: columnId });
 
     const style: React.CSSProperties = {
       transform: transform
@@ -45,22 +48,18 @@ const SortableColumnInternal = React.forwardRef(
 
     const mergedRef = mergeRefs<HTMLDivElement>(ref, setNodeRef);
 
-    columnIndex = (columnIndex - 1) as CellColumnIndex;
     const { deleteColumn, moveColumn } = useCellActions();
 
-    const canMoveLeft = columnIndex > 0;
-    const canMoveRight = columnIndex < numColumns - 1;
-
     const dragHandle = (
-      <div
-        className="h-6 group flex items-center cursor-grab rounded-t-lg border hover:border-border border-[var(--slate-3)] overflow-hidden"
-      >
+      <div className="h-6 group flex items-center rounded-t-lg border hover:border-border border-[var(--slate-3)] overflow-hidden">
         <div className="flex gap-2 cursor-default">
           <Button
             variant="text"
             size="sm"
             className="h-full"
-            onClick={() => moveColumn({ column: columnIndex, overColumn: (columnIndex - 1) as CellColumnIndex })}
+            onClick={() =>
+              moveColumn({ column: columnId, overColumn: "_left_" })
+            }
             disabled={!canMoveLeft}
           >
             <ChevronLeftIcon className="size-4" />
@@ -69,27 +68,29 @@ const SortableColumnInternal = React.forwardRef(
             variant="text"
             size="sm"
             className="h-full"
-            onClick={() => moveColumn({ column: columnIndex, overColumn: (columnIndex + 1) as CellColumnIndex })}
+            onClick={() =>
+              moveColumn({ column: columnId, overColumn: "_right_" })
+            }
             disabled={!canMoveRight}
           >
             <ChevronRightIcon className="size-4" />
           </Button>
         </div>
-        <div className="flex gap-2 h-full flex-grow bg-red-500 active:bg-accent"
-                {...attributes}
-                {...listeners}
-                data-testid="column-drag-button"
+        <div
+          className="flex gap-2 h-full flex-grow active:bg-accent cursor-grab"
+          {...attributes}
+          {...listeners}
+          data-testid="column-drag-button"
         />
-          {canDelete && (
-            <Button
+        {canDelete && (
+          <Button
             variant="text"
             size="sm"
             className="opacity-0 group-hover:opacity-70 group-hover:hover:opacity-100 text-destructive h-full"
-            onClick={() => deleteColumn({ columnIndex })}
+            onClick={() => deleteColumn({ columnId })}
           >
             <X className="size-4" />
           </Button>
-
         )}
       </div>
     );
@@ -104,7 +105,7 @@ const SortableColumnInternal = React.forwardRef(
         className={cn(
           isDragging ? "" : props.className,
           // Set z-index: dragging should be above everything else
-          isDragging ? "z-20" : "hover:z-10"
+          isDragging ? "z-20" : "hover:z-10",
         )}
       >
         {dragHandle}

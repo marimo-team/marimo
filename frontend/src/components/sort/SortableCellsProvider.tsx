@@ -20,7 +20,7 @@ import { useEvent } from "../../hooks/useEvent";
 import type { CellId } from "@/core/cells/ids";
 import { useAppConfig } from "@/core/config/config";
 import { Arrays } from "@/utils/arrays";
-import type { CellColumnIndex, MultiColumn } from "@/utils/id-tree";
+import type { CellColumnId, MultiColumn } from "@/utils/id-tree";
 import { SquarePlusIcon } from "lucide-react";
 
 interface SortableCellsProviderProps {
@@ -38,13 +38,14 @@ const SortableCellsProviderInternal = ({
   children,
 }: SortableCellsProviderProps) => {
   const { cellIds } = useNotebook();
-  const { dropCellOver, dropOverNewColumn, moveColumn, compactColumns } =
+  const { dropCellOverCell, dropCellOverColumn, dropOverNewColumn, moveColumn, compactColumns } =
     useCellActions();
 
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   const [clonedItems, setClonedItems] = useState<MultiColumn<CellId> | null>(
     null,
   );
+  const alreadyCreatedNewColumn = useRef(false);
 
   const [config] = useAppConfig();
   const modifiers = useMemo(() => {
@@ -98,23 +99,50 @@ const SortableCellsProviderInternal = ({
 
     if (
       overId == null ||
-      active.id === overId ||
-      (!isCellDrag && !isColumnDrag)
+      active.id === overId
     ) {
       return;
     }
 
     if (isCellDrag) {
-      dropCellOver({
+      console.log("+++ isCellDrag", active.id, overId);
+      dropCellOverCell({
         cellId: active.id,
         overCellId: overId,
       });
-    } else if (isColumnDrag) {
-      moveColumn({
-        column: active.id - 1,
-        overColumn: overId - 1,
-      });
+      return;
     }
+
+    if (isColumnDrag) {
+      console.log("+++ isColumnDrag", active.id, overId);
+      moveColumn({
+        column: active.id as CellColumnId,
+        overColumn: overId,
+      });
+      return;
+    }
+
+    if (isCellId(active.id) && overId === PLACEHOLDER_COLUMN_ID) {
+      if (alreadyCreatedNewColumn.current) {
+        return;
+      }
+      console.log("+++ dropOverNewColumn", active.id, overId);
+      dropOverNewColumn({
+        cellId: active.id,
+      });
+      alreadyCreatedNewColumn.current = true;
+      return;
+    }
+
+    if (isCellId(active.id) && isColumnId(overId)) {
+      console.log("+++ dropCellOverColumn", active.id, overId);
+      dropCellOverColumn({
+        cellId: active.id,
+        columnId: overId,
+      });
+      return;
+    }
+
 
     // setItems((items) => {
     //   const activeItems = items[activeContainer];
@@ -160,7 +188,8 @@ const SortableCellsProviderInternal = ({
 
   const handleDragEnd = useEvent((event: DragEndEvent) => {
     const { active, over } = event;
-    compactColumns();
+    // compactColumns();
+    alreadyCreatedNewColumn.current = false;
 
     if (over === null || active.id === over.id) {
       return;
@@ -169,26 +198,29 @@ const SortableCellsProviderInternal = ({
     const isCellDrag = isCellId(active.id) && isCellId(over.id);
     const isColumnDrag = isColumnId(active.id) && isColumnId(over.id);
 
-    if (isCellId(active.id) && over.id === PLACEHOLDER_COLUMN_ID) {
-      dropOverNewColumn({
-        cellId: active.id,
-      });
-      return;
-    }
+    // if (isCellId(active.id) && over.id === PLACEHOLDER_COLUMN_ID) {
+    //   if (alreadyCreatedNewColumn.current) {
+    //     return;
+    //   }
+    //   dropOverNewColumn({
+    //     cellId: active.id,
+    //   });
+    //   return;
+    // }
 
-    if (isCellDrag) {
-      dropCellOver({
-        cellId: active.id,
-        overCellId: over.id,
-      });
-    }
+    // if (isCellDrag) {
+    //   dropCellOverCell({
+    //     cellId: active.id as CellId,
+    //     overCellId: over.id as CellId,
+    //   });
+    // }
 
-    if (isColumnDrag) {
-      moveColumn({
-        column: active.id,
-        overColumn: over.id,
-      });
-    }
+    // if (isColumnDrag) {
+    //   moveColumn({
+    //     column: active.id as CellColumnId,
+    //     overColumn: over.id as CellColumnId,
+    //   });
+    // }
   });
 
   return (
@@ -210,11 +242,15 @@ const SortableCellsProviderInternal = ({
 export const SortableCellsProvider = React.memo(SortableCellsProviderInternal);
 
 function isCellId(id: UniqueIdentifier): id is CellId {
-  return typeof id === "string" && id !== PLACEHOLDER_COLUMN_ID;
+  return (
+    typeof id === "string" &&
+    id !== PLACEHOLDER_COLUMN_ID &&
+    !id.startsWith("tree_")
+  );
 }
 
-function isColumnId(id: UniqueIdentifier): id is CellColumnIndex {
-  return typeof id === "number";
+function isColumnId(id: UniqueIdentifier): id is CellColumnId {
+  return typeof id === "string" && id.startsWith("tree_");
 }
 
 const PLACEHOLDER_COLUMN_ID = "__placeholder-column__";

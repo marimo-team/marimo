@@ -2,43 +2,49 @@
 import { cn } from "@/utils/cn";
 import { useRef } from "react";
 import { SortableColumn } from "./SortableColumn";
-import type { CellColumnIndex } from "@/utils/id-tree";
+import type { CellColumnId } from "@/utils/id-tree";
 
 interface Props {
   className?: string;
-  columnIndex: CellColumnIndex;
+  columnId: CellColumnId;
   children: React.ReactNode;
   width: string;
-  canDelete: boolean;
   footer?: React.ReactNode;
-  numColumns: number;
+  canDelete: boolean;
+  canMoveLeft: boolean;
+  canMoveRight: boolean;
 }
 
 export const Column = (props: Props) => {
   const columnRef = useRef<HTMLDivElement>(null);
 
-  const column = <div
-  className={cn(
-    "flex flex-col gap-5",
-    props.width === "columns" &&
-      "w-contentWidth min-h-[400px] border border-t-0 border-[var(--slate-3)] rounded-b-lg p-6 bg-background",
-  )}
->
-    {props.children}
-  </div>
+  const column = (
+    <div
+      className={cn(
+        "flex flex-col gap-5",
+        props.width === "columns" &&
+          "w-contentWidth min-h-[400px] border border-t-0 border-[var(--slate-3)] rounded-b-lg p-6 bg-background",
+      )}
+    >
+      {props.children}
+    </div>
+  );
 
   if (props.width === "columns") {
-    return <SortableColumn
-      tabIndex={-1}
-      ref={columnRef}
-      canDelete={props.canDelete}
-      columnIndex={props.columnIndex}
-      numColumns={props.numColumns}
-      className="group/column"
-    >
-      {column}
-      {props.footer}
-    </SortableColumn>
+    return (
+      <SortableColumn
+        tabIndex={-1}
+        ref={columnRef}
+        canDelete={props.canDelete}
+        columnId={props.columnId}
+        canMoveLeft={props.canMoveLeft}
+        canMoveRight={props.canMoveRight}
+        className="group/column"
+      >
+        {column}
+        {props.footer}
+      </SortableColumn>
+    );
   }
 
   return column;

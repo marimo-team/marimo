@@ -76,7 +76,7 @@ const buttonVariants = cva(
         icon: "h-6 w-6 mb-0",
       },
       disabled: {
-        true: "opacity-50 pointer-events-none"
+        true: "opacity-50 pointer-events-none",
       },
     },
     defaultVariants: {

@@ -47,8 +47,8 @@ import {
   PlaceholderColumn,
   SortableCellsProvider,
 } from "@/components/sort/SortableCellsProvider";
-import type { CellColumnIndex } from "@/utils/id-tree";
 import { Column } from "../coumns/Column";
+import { CellColumnId } from "@/utils/id-tree";
 
 interface CellArrayProps {
   notebook: NotebookState;
@@ -69,10 +69,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
   const { theme } = useTheme();
   const { toggleSidebarPanel } = useChromeActions();
 
-  const { invisible } = useDelayVisibility(
-    notebook.cellIds.idLength,
-    mode,
-  );
+  const { invisible } = useDelayVisibility(notebook.cellIds.idLength, mode);
 
   // HOTKEYS
   useHotkey("global.focusTop", actions.focusTopCell);
@@ -113,9 +110,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
       <SortableCellsProvider>
         <SortableContext
           id="column-container"
-          // First element of SortableContext cannot have id 0
-          // https://stackoverflow.com/questions/73936273/
-          items={columns.map((_, index) => (index + 1) as CellColumnIndex)}
+          items={columns.map((column) => column.id)}
           strategy={horizontalListSortingStrategy}
         >
           <div
@@ -127,12 +122,13 @@ export const CellArray: React.FC<CellArrayProps> = ({
             {columns.map((column, index) => {
               return (
                 <Column
-                  key={(index + 1) as CellColumnIndex}
-                  columnIndex={(index + 1) as CellColumnIndex}
+                  key={column.id}
+                  columnId={column.id}
+                  canMoveLeft={index > 0}
+                  canMoveRight={index < columns.length - 1}
                   width={appConfig.width}
                   canDelete={columns.length > 1}
-                  numColumns={columns.length}
-                  footer={<AddCellButtons />}
+                  footer={<AddCellButtons columnId={column.id}   />}
                 >
                   <SortableContext
                     id={`column-${index + 1}`}
@@ -190,7 +186,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
             {appConfig.width === "columns" && (
               <div className="flex flex-col w-[600px] group/column z-0">
                 <PlaceholderColumn />
-                <AddCellButtons />
+                <AddCellButtons columnId={""} />
               </div>
             )}
           </div>
@@ -201,7 +197,9 @@ export const CellArray: React.FC<CellArrayProps> = ({
   );
 };
 
-const AddCellButtons: React.FC = () => {
+const AddCellButtons: React.FC<{columnId: CellColumnId}> = ({
+  columnId,
+})  => {
   const { createNewCell } = useCellActions();
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const [isAiButtonOpen, isAiButtonOpenActions] = useBoolean(false);
@@ -224,7 +222,7 @@ const AddCellButtons: React.FC = () => {
           className={buttonClass}
           variant="text"
           size="sm"
-          onClick={() => createNewCell({ cellId: "__end__", before: false })}
+          onClick={() => createNewCell({ cellId: { type: "__end__", columnId }, before: false })}
         >
           <SquareCodeIcon className="mr-2 size-4 flex-shrink-0" />
           Python
@@ -237,7 +235,7 @@ const AddCellButtons: React.FC = () => {
             maybeAddMarimoImport(autoInstantiate, createNewCell);
 
             createNewCell({
-              cellId: "__end__",
+              cellId: { type: "__end__", columnId },
               before: false,
               code: new MarkdownLanguageAdapter().defaultCode,
             });
@@ -272,7 +270,7 @@ const AddCellButtons: React.FC = () => {
               maybeAddMarimoImport(autoInstantiate, createNewCell);
 
               createNewCell({
-                cellId: "__end__",
+                cellId: { type: "__end__", columnId },
                 before: false,
                 code: new SQLLanguageAdapter().defaultCode,
               });

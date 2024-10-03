@@ -4,7 +4,11 @@ import { Logger } from "./Logger";
 export async function reportVitals() {
   const { onLCP, onINP, onCLS } = await import("web-vitals");
   Logger.log("Reporting vitals");
-  const logMetric = (metric: { name: string; value: number; rating: string }) => {
+  const logMetric = (metric: {
+    name: string;
+    value: number;
+    rating: string;
+  }) => {
     const color =
       metric.rating === "good"
         ? "green"
