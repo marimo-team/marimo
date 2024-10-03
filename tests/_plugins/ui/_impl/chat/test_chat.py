@@ -13,6 +13,9 @@ from marimo._plugins.ui._impl.chat.types import (
     ChatModelConfigDict,
 )
 from marimo._runtime.functions import EmptyArgs
+from marimo._runtime.requests import SetUIElementValueRequest
+from marimo._runtime.runtime import Kernel
+from tests.conftest import ExecReqProvider
 
 
 def test_chat_init():
@@ -164,3 +167,37 @@ def test_chat_with_show_configuration_controls():
 
     chat = ui.chat(mock_model, show_configuration_controls=True)
     assert chat._component_args["show-configuration-controls"] is True
+
+
+async def test_chat_send_message_enqueues_ui_element_request(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    # assert that the RPC which updates the chatbot history triggers
+    # a SetUIElementValueRequest
+
+    control_requests = []
+    # the RPC uses enqueue_control_request() to trigger the UI Element update
+    k.enqueue_control_request = lambda r: control_requests.append(r)
+    await k.run(
+        [
+            exec_req.get(
+                """
+                import marimo as mo
+                def f(messages, config):
+                    return "response"
+
+                chatbot = mo.ui.chat(f)
+                """
+            ),
+        ]
+    )
+
+    assert not control_requests
+    chatbot = k.globals["chatbot"]
+    request = SendMessageRequest(
+        messages=[ChatMessage(role="user", content="Hello")],
+        config=ChatModelConfig(),
+    )
+    chatbot._send_prompt(request)
+    assert len(control_requests) == 1
+    assert isinstance(control_requests[0], SetUIElementValueRequest)

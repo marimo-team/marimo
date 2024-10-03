@@ -328,6 +328,11 @@ def _launch_pyodide_kernel(
     stdin = PyodideStdin(stream) if is_edit_mode else None
     debugger = MarimoPdb(stdout=stdout, stdin=stdin) if is_edit_mode else None
 
+    def _enqueue_control_request(req: ControlRequest) -> None:
+        control_queue.put_nowait(req)
+        if isinstance(req, SetUIElementValueRequest):
+            set_ui_element_queue.put_nowait(req)
+
     kernel = Kernel(
         cell_configs=configs,
         app_metadata=app_metadata,
@@ -338,7 +343,7 @@ def _launch_pyodide_kernel(
         module=patches.patch_main_module(
             file=app_metadata.filename, input_override=input_override
         ),
-        enqueue_control_request=lambda req: control_queue.put_nowait(req),
+        enqueue_control_request=_enqueue_control_request,
         debugger_override=debugger,
         user_config=user_config,
     )
