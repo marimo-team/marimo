@@ -10,5 +10,4 @@ __all__ = [
 ]
 
 from marimo._plugins.ui._impl.chat import llm
-from marimo._plugins.ui._impl.chat.types import ChatMessage
-from marimo._plugins.ui._impl.chat.types import ChatModelConfig
+from marimo._plugins.ui._impl.chat.types import ChatMessage, ChatModelConfig
