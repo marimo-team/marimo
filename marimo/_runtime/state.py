@@ -51,9 +51,11 @@ class StateRegistry:
         if id(state) in self._inv_states:
             ref = next(iter(self._inv_states[id(state)]))
             # Check for duplicate state ids and clean up accordingly
-            if id(self._states[ref].ref()) != id(state):
+            if ref not in self._states or id(self._states[ref].ref()) != id(
+                state
+            ):
                 for ref in self._inv_states[id(state)]:
-                    del self._states[ref]
+                    self._states.pop(ref, None)
                 self._inv_states[id(state)].clear()
         state_item = StateItem(id(state), weakref.ref(state))
         self._states[name] = state_item

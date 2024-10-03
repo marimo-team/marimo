@@ -104,6 +104,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
       className="pb-[40vh]"
       invisible={invisible}
       appConfig={appConfig}
+      innerClassName="pr-4" // For the floating actions
     >
       <PackageAlert />
       <NotebookBanner />

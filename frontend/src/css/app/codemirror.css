@@ -133,6 +133,9 @@
   color: var(--sky-11);
   font-weight: 700;
 
+  /* room for buttons */
+  margin-right: 30px;
+
   @apply text-xs;
 }
 
