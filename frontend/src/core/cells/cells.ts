@@ -220,6 +220,7 @@ const {
     const cellEditorView = getCellEditorView(cellId as CellId);
     if (cellEditorView) {
       cellContents = extractHighlightedCode(cellEditorView);
+      state.cellData[cellId as CellId].edited = true;
     }
 
     return {
@@ -232,7 +233,7 @@ const {
           code: cellContents,
           lastCodeRun,
           lastExecutionTime,
-          edited: Boolean(code) && code !== lastCodeRun,
+          edited: true,
         }),
       },
       cellRuntime: {
