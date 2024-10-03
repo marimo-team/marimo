@@ -31,7 +31,7 @@ def __(mo):
         # messages is a list of chatbot messages
         message = messages[-1]
         # Each message has two fields:
-        #   message.role, which may be "user" or "assistant"
+        #   message.role, which may be "user", "assistant", or "system"
         #   message.content: the content of the message
         return f"You said: {messages[-1].content}!"
 

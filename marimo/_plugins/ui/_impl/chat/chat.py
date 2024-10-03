@@ -37,15 +37,17 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
     """
     A chatbot UI element for interactive conversations.
 
-    **Example - Using a custom model.**
+    **Example: Using a custom model.**
 
-    You can define a custom chat model Callable that takes in
-    the history of messages and configuration.
-
-    The response can be an object, a marimo UI element, or plain text.
+    Define a chatbot by implementing a function that takes a list of
+    `ChatMessage`s and a config object as input, and returns the chat response.
+    The response can be any object, including text, plots, or marimo UI
+    elements.
 
     ```python
     def my_rag_model(messages, config):
+        # Each message has a `content` attribute, as well as a `role`
+        # attribute ("user", "system", "assistant");
         question = messages[-1].content
         docs = find_docs(question)
         prompt = template(question, docs, messages)
@@ -58,13 +60,14 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
     chat = mo.ui.chat(my_rag_model)
     ```
 
-    **Example - Using a built-in model.**
+    **Example: Using a built-in model.**
 
-    You can use a built-in model from the `mo.ai` module.
+    Instead of defining a chatbot function, you can use a built-in model from
+    the `mo.ai.llm` module.
 
     ```python
     chat = mo.ui.chat(
-        mo.ai.openai(
+        mo.ai.llm.openai(
             "gpt-4o",
             system_message="You are a helpful assistant.",
         ),
@@ -73,17 +76,17 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
 
     **Attributes.**
 
-    - `value`: the current chat history
+    - `value`: the current chat history, a list of `ChatMessage` objects.
 
     **Initialization Args.**
 
-    - `model`: (Callable[[List[ChatMessage], ChatModelConfig], object]) a
+    - `model`: `(Callable[[List[ChatMessage], ChatModelConfig], object])` a
         callable that takes in the chat history and returns a response
-    - `prompts`: optional list of prompts to start the conversation
+    - `prompts`: optional list of initial prompts to present to the user
     - `on_message`: optional callback function to handle new messages
     - `show_configuration_controls`: whether to show the configuration controls
-    - `config`: optional ChatModelConfigDict to override the default
-        configuration keys include:
+    - `config`: optional `ChatModelConfigDict` to override the default
+        configuration. Keys include:
         - `max_tokens`
         - `temperature`
         - `top_p`
