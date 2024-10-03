@@ -35,7 +35,7 @@ export const LanguageToggles: React.FC<LanguageTogglesProps> = ({
   );
 
   return (
-    <div className="absolute right-2 top-0 z-20 flex hover-action">
+    <div className="absolute right-2 top-2 z-20 flex hover-action">
       <LanguageToggle
         editorView={editorView}
         currentLanguageAdapter={currentLanguageAdapter}

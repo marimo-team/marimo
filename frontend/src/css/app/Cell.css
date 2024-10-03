@@ -202,14 +202,12 @@
     right: -94px;
     width: 80px;
     gap: 4px;
-    z-index: 2;
   }
 
   .shoulder-bottom {
     position: absolute;
     bottom: -2px;
     right: 2px;
-    z-index: 2; /* lie above editor */
   }
 
   @apply bg-background;
@@ -304,9 +302,7 @@
 .Cell .cm-editor {
   border: 1px solid transparent;
   padding: 3px;
-
-  /* leave some room for UI elements inside the code editor */
-  padding-right: 24px;
+  padding-right:24px;
 
   &.cm-focused {
     .cm-activeLineGutter {
