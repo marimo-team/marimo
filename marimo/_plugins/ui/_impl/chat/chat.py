@@ -168,13 +168,14 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
             self._value = self._chat_history
             if self._on_change is not None:
                 self._on_change(self._value)
-        if isinstance(ctx, KernelRuntimeContext):
-            ctx._kernel.enqueue_control_request(
-                SetUIElementValueRequest(
-                    object_ids=[self._id],
-                    values=[{"messages": self._chat_history}],
+        else:
+            if isinstance(ctx, KernelRuntimeContext):
+                ctx._kernel.enqueue_control_request(
+                    SetUIElementValueRequest(
+                        object_ids=[self._id],
+                        values=[{"messages": self._chat_history}],
+                    )
                 )
-            )
 
         return content
 
