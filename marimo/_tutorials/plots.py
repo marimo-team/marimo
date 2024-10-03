@@ -177,13 +177,16 @@ def __(mo):
 
 
 @app.cell
-def __(exponent, mo, plt, x):
+def __(mo, plt, x):
     @mo.cache
-    def _plot(exponent):
+    def plot_power(exponent):
         plt.plot(x, x**exponent)
         return plt.gca()
+    return (plot_power,)
 
 
+@app.cell
+def __(exponent, mo, plot_power):
     _tex = (
         f"$$f(x) = x^{exponent.value}$$" if exponent.value > 1 else "$$f(x) = x$$"
     )
@@ -193,7 +196,7 @@ def __(exponent, mo, plt, x):
 
         {_tex}
 
-        {mo.as_html(_plot(exponent.value))}
+        {mo.as_html(plot_power(exponent.value))}
         """
     )
     return

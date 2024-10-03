@@ -116,6 +116,11 @@ class _cache_base(object):
         f_locals = inspect.stack()[2 + self._frame_offset][0].f_locals
         self.scope = {**ctx.globals, **f_locals}
         # In case scope shadows variables
+        #
+        # TODO(akshayka, dmadisetti): rewrite function args with an AST pass
+        # to make them unique, deterministically based on function body; this
+        # will allow for lifting the error when a ShadowedRef is also used
+        # as a regular ref.
         for arg in self._args:
             self.scope[arg] = ShadowedRef()
 

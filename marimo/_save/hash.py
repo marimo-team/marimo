@@ -714,12 +714,19 @@ class BlockHasher:
 
         for ref in transitive_state_refs:
             if ref in scope and isinstance(scope[ref], ShadowedRef):
-                raise NameError(
+                # TODO(akshayka, dmadisetti): Lift this restriction once
+                # function args are rewritten.
+                #
+                # This makes more sense as a NameError, but the marimo's
+                # explainer text for NameError's doesn't make sense in this
+                # context. ("Definition expected in ...")
+                raise RuntimeError(
                     (
-                        "A dependent reference utilizes the "
-                        f"variable '{ref}' in a broader scope. Please rename "
-                        "the local argument, or restructure the scoped use "
-                        f"of the variable."
+                        f"The cached function declares an argument '{ref}'",
+                        "but a captured function or class uses the "
+                        f"global variable '{ref}'. Please rename "
+                        "the argument, or restructure the use "
+                        f"of the global variable.",
                     )
                 )
 
