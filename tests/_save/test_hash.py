@@ -315,17 +315,19 @@ class TestHash:
             return persistent_cache, MockLoader, shared, state, set_state
 
         @app.cell
-        def one(persistent_cache, MockLoader, shared, set_state) -> tuple[Any]:
+        def one(persistent_cache, MockLoader, shared, set_state, state) -> tuple[Any]:
             with persistent_cache(name="one", _loader=MockLoader()) as cache:
                 _Y = len(shared())
+            assert _Y == state()
             set_state(1)
             assert cache._cache.cache_type == "ExecutionPath"
             return (cache,)
 
         @app.cell
-        def two(persistent_cache, MockLoader, shared, cache) -> tuple[Any]:
+        def two(persistent_cache, MockLoader, shared, cache, state) -> tuple[Any]:
             with persistent_cache(name="two", _loader=MockLoader()) as cache2:
                 _Y = len(shared())
+            assert _Y == state()
             assert cache2._cache.cache_type == "ExecutionPath"
             assert cache2._cache.hash != cache._cache.hash
             return (cache2,)

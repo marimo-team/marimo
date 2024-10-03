@@ -112,7 +112,7 @@ class Cache:
                 raise CacheException(
                     "Failure while saving cached values. "
                     "Unexpected stateful reference type "
-                    f"({type(ref)}:{ref})."
+                    f"({type(value)}:{ref})."
                 )
 
     def contextual_defs(self) -> dict[tuple[Name, Name], Any]:
