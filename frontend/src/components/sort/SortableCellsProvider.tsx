@@ -22,6 +22,8 @@ import { useAppConfig } from "@/core/config/config";
 import { Arrays } from "@/utils/arrays";
 import type { CellColumnId, MultiColumn } from "@/utils/id-tree";
 import { SquarePlusIcon } from "lucide-react";
+import { Tooltip } from "../ui/tooltip";
+import { Button } from "../ui/button";
 
 interface SortableCellsProviderProps {
   children: React.ReactNode;
@@ -38,8 +40,13 @@ const SortableCellsProviderInternal = ({
   children,
 }: SortableCellsProviderProps) => {
   const { cellIds } = useNotebook();
-  const { dropCellOverCell, dropCellOverColumn, dropOverNewColumn, moveColumn, compactColumns } =
-    useCellActions();
+  const {
+    dropCellOverCell,
+    dropCellOverColumn,
+    dropOverNewColumn,
+    moveColumn,
+    compactColumns,
+  } = useCellActions();
 
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   const [clonedItems, setClonedItems] = useState<MultiColumn<CellId> | null>(
@@ -97,15 +104,11 @@ const SortableCellsProviderInternal = ({
     const isCellDrag = isCellId(active.id) && isCellId(overId);
     const isColumnDrag = isColumnId(active.id) && isColumnId(overId);
 
-    if (
-      overId == null ||
-      active.id === overId
-    ) {
+    if (overId == null || active.id === overId) {
       return;
     }
 
     if (isCellDrag) {
-      console.log("+++ isCellDrag", active.id, overId);
       dropCellOverCell({
         cellId: active.id,
         overCellId: overId,
@@ -114,7 +117,6 @@ const SortableCellsProviderInternal = ({
     }
 
     if (isColumnDrag) {
-      console.log("+++ isColumnDrag", active.id, overId);
       moveColumn({
         column: active.id as CellColumnId,
         overColumn: overId,
@@ -126,7 +128,6 @@ const SortableCellsProviderInternal = ({
       if (alreadyCreatedNewColumn.current) {
         return;
       }
-      console.log("+++ dropOverNewColumn", active.id, overId);
       dropOverNewColumn({
         cellId: active.id,
       });
@@ -135,14 +136,12 @@ const SortableCellsProviderInternal = ({
     }
 
     if (isCellId(active.id) && isColumnId(overId)) {
-      console.log("+++ dropCellOverColumn", active.id, overId);
       dropCellOverColumn({
         cellId: active.id,
         columnId: overId,
       });
       return;
     }
-
 
     // setItems((items) => {
     //   const activeItems = items[activeContainer];
@@ -271,6 +270,40 @@ export const PlaceholderColumn: React.FC = () => {
         <SquarePlusIcon className="w-4 h-4" />
         Drag cell to add new column
       </p>
+    </div>
+  );
+};
+
+export const AddColumnButton: React.FC = () => {
+  const { addColumn } = useCellActions();
+
+  const handleScrollAppRight = () => {
+    const app = document.getElementById("App");
+    if (app) {
+      app.scrollTo({
+        left: app.scrollLeft + 1000,
+        behavior: "smooth",
+      });
+    }
+  };
+
+  return (
+    <div className="h-full px-10">
+      <button
+        className="h-[calc(100%-310px)] w-16 flex items-center justify-center
+    bg-[var(--slate-1)] hover:bg-[var(--slate-2)] border-2 border-dashed border-[var(--slate-5)] rounded-lg
+    "
+        onClick={() => {
+          addColumn();
+          requestAnimationFrame(handleScrollAppRight);
+        }}
+      >
+        <Tooltip content="Add column">
+          <Button variant="text" size="xs">
+            <SquarePlusIcon className="w-5 h-5" />
+          </Button>
+        </Tooltip>
+      </button>
     </div>
   );
 };

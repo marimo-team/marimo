@@ -575,9 +575,7 @@ export class MultiColumn<T> {
         }
         if (c.id === toCol) {
           if (!toId) {
-            return c.withNodes(
-              arrayInsert(c.nodes,0, node),
-            );
+            return c.withNodes(arrayInsert(c.nodes, 0, node));
           }
           return c.withNodes(
             arrayInsert(c.nodes, c.indexOfOrThrow(toId), node),

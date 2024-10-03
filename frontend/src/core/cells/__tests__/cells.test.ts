@@ -29,8 +29,8 @@ import {
   scrollToTop,
   scrollToBottom,
 } from "../scrollCellIntoView";
-import {  CollapsibleTree, MultiColumn } from "@/utils/id-tree";
-import { CellData } from "../types";
+import { type CollapsibleTree, MultiColumn } from "@/utils/id-tree";
+import type { CellData } from "../types";
 
 vi.mock("@/core/codemirror/editing/commands", () => ({
   foldAllBulk: vi.fn(),
@@ -1229,7 +1229,9 @@ describe("cell reducer", () => {
     actions.collapseCell({ cellId: firstCellId });
 
     actions.showCellIfHidden({ cellId: "1" as CellId });
-    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(firstCellId)).toBe(false);
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(firstCellId)).toBe(
+      false,
+    );
   });
 
   it("can split and undo split cells", () => {
@@ -1248,14 +1250,18 @@ describe("cell reducer", () => {
     }
     editor.dispatch({ selection: { anchor: 5, head: 5 } });
     actions.splitCell({ cellId: nextCellId });
-    expect(state.cellIds.atOrThrow(FIRST_COLUMN).length).toBe(originalCellCount + 1);
-    expect(state.cellData[nextCellId].code).toBe("line1");
-    expect(state.cellData[state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(2)].code).toBe(
-      "line2",
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).length).toBe(
+      originalCellCount + 1,
     );
+    expect(state.cellData[nextCellId].code).toBe("line1");
+    expect(
+      state.cellData[state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(2)].code,
+    ).toBe("line2");
 
     actions.undoSplitCell({ cellId: nextCellId, snapshot: "line1\nline2" });
-    expect(state.cellIds.atOrThrow(FIRST_COLUMN).length).toBe(originalCellCount);
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).length).toBe(
+      originalCellCount,
+    );
     expect(state.cellData[nextCellId].code).toBe("line1\nline2");
   });
 
@@ -1376,7 +1382,12 @@ describe("cell reducer", () => {
     `);
 
     // Check that all cells are now in the remaining column
-    expect(state.cellIds.getColumns()[0].topLevelIds).toEqual(["2", "3", "0", "1"]);
+    expect(state.cellIds.getColumns()[0].topLevelIds).toEqual([
+      "2",
+      "3",
+      "0",
+      "1",
+    ]);
   });
 
   it("deleting the last column does nothing", () => {
@@ -1408,7 +1419,10 @@ describe("cell reducer", () => {
       "
     `);
 
-    actions.dropCellOverCell({ cellId: "0" as CellId, overCellId: "3" as CellId });
+    actions.dropCellOverCell({
+      cellId: "0" as CellId,
+      overCellId: "3" as CellId,
+    });
 
     expect(formatCells(state)).toMatchInlineSnapshot(`
       "

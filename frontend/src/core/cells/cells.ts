@@ -200,7 +200,7 @@ const {
   createNewCell: (
     state,
     action: {
-      cellId: CellId | "__end__" | { type: "__end__" , columnId: CellColumnId}
+      cellId: CellId | "__end__" | { type: "__end__"; columnId: CellColumnId };
       before: boolean;
       code?: string;
       lastCodeRun?: string;
@@ -230,7 +230,8 @@ const {
       columnId = column.id;
       cellIndex = column.topLevelIds.indexOf(cellId);
     } else if (cellId.type === "__end__") {
-      const column = state.cellIds.get(cellId.columnId) || state.cellIds.atOrThrow(0);
+      const column =
+        state.cellIds.get(cellId.columnId) || state.cellIds.atOrThrow(0);
       columnId = column.id;
       cellIndex = column.length;
     } else {
@@ -329,7 +330,11 @@ const {
       }
       return {
         ...state,
-        cellIds: state.cellIds.moveWithinColumn(fromColumn.id, fromIndex, toIndex),
+        cellIds: state.cellIds.moveWithinColumn(
+          fromColumn.id,
+          fromIndex,
+          toIndex,
+        ),
         scrollKey: null,
       };
     }
@@ -345,7 +350,10 @@ const {
       scrollKey: null,
     };
   },
-  dropCellOverColumn: (state, action: { cellId: CellId; columnId: CellColumnId }) => {
+  dropCellOverColumn: (
+    state,
+    action: { cellId: CellId; columnId: CellColumnId },
+  ) => {
     const { cellId, columnId } = action;
     const fromColumn = state.cellIds.findWithId(cellId);
 
@@ -368,7 +376,10 @@ const {
   },
   moveColumn: (
     state,
-    action: { column: CellColumnId; overColumn: CellColumnId | "_left_" | "_right_" },
+    action: {
+      column: CellColumnId;
+      overColumn: CellColumnId | "_left_" | "_right_";
+    },
   ) => {
     if (action.column === action.overColumn) {
       return state;
@@ -747,7 +758,9 @@ const {
 
     return withScratchCell({
       ...state,
-      cellIds: MultiColumn.fromIdsAndColumns(cells.map((cell) => [cell.id, cell.config.column])),
+      cellIds: MultiColumn.fromIdsAndColumns(
+        cells.map((cell) => [cell.id, cell.config.column]),
+      ),
       cellData: cellData,
       cellRuntime: cellRuntime,
       cellHandles: Object.fromEntries(
@@ -800,7 +813,7 @@ const {
       const newCellId = CellId.create();
       return {
         ...state,
-        cellIds: state.cellIds.insertId(newCellId, colIndex, 0),
+        cellIds: state.cellIds.insertId(newCellId, column.id, 0),
         cellData: {
           ...state.cellData,
           [newCellId]: createCell({ id: newCellId }),
@@ -896,12 +909,12 @@ const {
     }
     const endCellId = column.atOrThrow(range[1]);
 
-
-
     return {
       ...state,
       // Collapse the range
-      cellIds: state.cellIds.transformWithCellId(cellId, (column) => column.collapse(cellId, endCellId)),
+      cellIds: state.cellIds.transformWithCellId(cellId, (column) =>
+        column.collapse(cellId, endCellId),
+      ),
       scrollKey: cellId,
     };
   },
@@ -909,7 +922,9 @@ const {
     const { cellId } = action;
     return {
       ...state,
-      cellIds: state.cellIds.transformWithCellId(cellId, (column) => column.expand(cellId)),
+      cellIds: state.cellIds.transformWithCellId(cellId, (column) =>
+        column.expand(cellId),
+      ),
       scrollKey: cellId,
     };
   },
@@ -923,8 +938,9 @@ const {
       return state;
     }
 
-    return { ...state ,
-      cellIds: state.cellIds.transformWithCellId(cellId, () => result)
+    return {
+      ...state,
+      cellIds: state.cellIds.transformWithCellId(cellId, () => result),
     };
   },
   splitCell: (state, action: { cellId: CellId }) => {
@@ -994,7 +1010,7 @@ const {
 
     return {
       ...state,
-      cellIds: state.cellIds.transformWithCellId(cellId, column => {
+      cellIds: state.cellIds.transformWithCellId(cellId, (column) => {
         const newCellIndex = column.indexOfOrThrow(cellId) + 1;
         return column.deleteAtIndex(newCellIndex);
       }),
@@ -1088,8 +1104,8 @@ export {
 
 export const cellIdsAtom = atom((get) => get(notebookAtom).cellIds);
 
-export const hasOnlyOneCellAtom = atom(
-  (get) => get(cellIdsAtom).hasOnlyOneId()
+export const hasOnlyOneCellAtom = atom((get) =>
+  get(cellIdsAtom).hasOnlyOneId(),
 );
 
 const cellErrorsAtom = atom((get) => {

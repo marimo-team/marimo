@@ -7,7 +7,7 @@ import {
 } from "../../../core/websocket/types";
 import { type NotebookState, useCellActions } from "../../../core/cells/cells";
 import type { AppConfig, UserConfig } from "../../../core/config/config-schema";
-import { type AppMode } from "../../../core/mode";
+import type { AppMode } from "../../../core/mode";
 import { useHotkey } from "../../../hooks/useHotkey";
 import { formatAll } from "../../../core/codemirror/format";
 import { useTheme } from "../../../theme/useTheme";
@@ -44,11 +44,11 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import {
-  PlaceholderColumn,
+  AddColumnButton,
   SortableCellsProvider,
 } from "@/components/sort/SortableCellsProvider";
 import { Column } from "../coumns/Column";
-import { CellColumnId } from "@/utils/id-tree";
+import type { CellColumnId } from "@/utils/id-tree";
 
 interface CellArrayProps {
   notebook: NotebookState;
@@ -128,7 +128,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
                   canMoveRight={index < columns.length - 1}
                   width={appConfig.width}
                   canDelete={columns.length > 1}
-                  footer={<AddCellButtons columnId={column.id}   />}
+                  footer={<AddCellButtons columnId={column.id} />}
                 >
                   <SortableContext
                     id={`column-${index + 1}`}
@@ -184,10 +184,11 @@ export const CellArray: React.FC<CellArrayProps> = ({
               );
             })}
             {appConfig.width === "columns" && (
-              <div className="flex flex-col w-[600px] group/column z-0">
-                <PlaceholderColumn />
-                <AddCellButtons columnId={""} />
-              </div>
+              <AddColumnButton />
+              // <div className="flex flex-col w-[600px] group/column z-0">
+              //   <PlaceholderColumn />
+              //   <AddCellButtons columnId={""} />
+              // </div>
             )}
           </div>
         </SortableContext>
@@ -197,9 +198,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
   );
 };
 
-const AddCellButtons: React.FC<{columnId: CellColumnId}> = ({
-  columnId,
-})  => {
+const AddCellButtons: React.FC<{ columnId: CellColumnId }> = ({ columnId }) => {
   const { createNewCell } = useCellActions();
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const [isAiButtonOpen, isAiButtonOpenActions] = useBoolean(false);
@@ -222,7 +221,12 @@ const AddCellButtons: React.FC<{columnId: CellColumnId}> = ({
           className={buttonClass}
           variant="text"
           size="sm"
-          onClick={() => createNewCell({ cellId: { type: "__end__", columnId }, before: false })}
+          onClick={() =>
+            createNewCell({
+              cellId: { type: "__end__", columnId },
+              before: false,
+            })
+          }
         >
           <SquareCodeIcon className="mr-2 size-4 flex-shrink-0" />
           Python
