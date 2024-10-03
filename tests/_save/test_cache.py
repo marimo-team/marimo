@@ -1031,8 +1031,10 @@ class TestCacheDecorator:
             raise RuntimeError("Should not reach here")
 
         # Cannot resolved shadowed ref.
-        with pytest.raises(NameError):
+        with pytest.raises(RuntimeError) as e:
             app.run()
+
+        assert "rename the argument" in str(e)
 
     @staticmethod
     def test_shadowed_state_mismatch() -> None:
