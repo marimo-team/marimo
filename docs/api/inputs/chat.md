@@ -1,5 +1,12 @@
 # Chat
 
+```{admonition} Looking for example notebooks?
+:class: tip
+
+For example notebooks, check out [`examples/ai/chat` on our
+GitHub](https://github.com/marimo-team/marimo/tree/main/examples/ai/chat).
+```
+
 ```{eval-rst}
 .. marimo-embed::
     :size: large
