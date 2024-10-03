@@ -178,8 +178,11 @@ def _store_state_reference(
     # Associate state variables with variable names
     ctx = get_context()
     ctx.state_registry.register_scope(runner.glbls, defs=cell.defs)
+    privates = set().union(
+        *[cell.temporaries for cell in ctx.graph.cells.values()]
+    )
     ctx.state_registry.retain_active_states(
-        set(runner.graph.definitions.keys())
+        set(runner.graph.definitions.keys()) | privates
     )
 
 
