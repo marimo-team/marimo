@@ -69,6 +69,7 @@ const SortableCellInternal = React.forwardRef(
         tabIndex={-1}
         ref={mergedRef}
         {...props}
+        data-is-dragging={isDragging}
         className={cn(props.className, isMoving && "is-moving")}
         style={style}
       >

@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { onLCP, onFID, onCLS, type Metric } from "web-vitals";
 import { Logger } from "./Logger";
 
-export function reportVitals() {
+export async function reportVitals() {
+  const { onLCP, onINP, onCLS } = await import("web-vitals");
   Logger.log("Reporting vitals");
-  const logMetric = (metric: Metric) => {
+  const logMetric = (metric: { name: string; value: number; rating: string }) => {
     const color =
       metric.rating === "good"
         ? "green"
@@ -17,6 +17,6 @@ export function reportVitals() {
     );
   };
   onCLS(logMetric);
-  onFID(logMetric);
+  onINP(logMetric);
   onLCP(logMetric);
 }

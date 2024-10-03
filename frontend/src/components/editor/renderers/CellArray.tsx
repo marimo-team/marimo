@@ -7,7 +7,7 @@ import {
 } from "../../../core/websocket/types";
 import { type NotebookState, useCellActions } from "../../../core/cells/cells";
 import type { AppConfig, UserConfig } from "../../../core/config/config-schema";
-import { viewStateAtom, type AppMode } from "../../../core/mode";
+import { type AppMode } from "../../../core/mode";
 import { useHotkey } from "../../../hooks/useHotkey";
 import { formatAll } from "../../../core/codemirror/format";
 import { useTheme } from "../../../theme/useTheme";
@@ -48,7 +48,7 @@ import {
   SortableCellsProvider,
 } from "@/components/sort/SortableCellsProvider";
 import type { CellColumnIndex } from "@/utils/id-tree";
-import { Column } from "../Column";
+import { Column } from "../coumns/Column";
 
 interface CellArrayProps {
   notebook: NotebookState;
@@ -68,11 +68,9 @@ export const CellArray: React.FC<CellArrayProps> = ({
   const actions = useCellActions();
   const { theme } = useTheme();
   const { toggleSidebarPanel } = useChromeActions();
-  const viewState = useAtomValue(viewStateAtom);
-  const isEditing = viewState.mode === "edit";
 
   const { invisible } = useDelayVisibility(
-    notebook.cellIds.columns.length,
+    notebook.cellIds.idLength,
     mode,
   );
 
@@ -100,7 +98,8 @@ export const CellArray: React.FC<CellArrayProps> = ({
     }
   }, [notebook.cellIds, notebook.scrollKey, scrollToTarget]);
 
-  const columns = notebook.cellIds.columns;
+  const columns = notebook.cellIds.getColumns();
+  const hasOnlyOneCell = notebook.cellIds.hasOnlyOneId();
 
   return (
     <VerticalLayoutWrapper
@@ -117,13 +116,12 @@ export const CellArray: React.FC<CellArrayProps> = ({
           // First element of SortableContext cannot have id 0
           // https://stackoverflow.com/questions/73936273/
           items={columns.map((_, index) => (index + 1) as CellColumnIndex)}
-          disabled={!isEditing}
           strategy={horizontalListSortingStrategy}
         >
           <div
             className={cn(
               appConfig.width === "columns" &&
-                "grid grid-flow-col auto-cols-min gap-28",
+                "grid grid-flow-col auto-cols-min gap-10",
             )}
           >
             {columns.map((column, index) => {
@@ -132,11 +130,13 @@ export const CellArray: React.FC<CellArrayProps> = ({
                   key={(index + 1) as CellColumnIndex}
                   columnIndex={(index + 1) as CellColumnIndex}
                   width={appConfig.width}
+                  canDelete={columns.length > 1}
+                  numColumns={columns.length}
+                  footer={<AddCellButtons />}
                 >
                   <SortableContext
                     id={`column-${index + 1}`}
                     items={column.topLevelIds}
-                    disabled={!isEditing}
                     strategy={verticalListSortingStrategy}
                   >
                     {column.topLevelIds.map((cellId) => {
@@ -166,7 +166,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
                           }
                           serializedEditorState={cellData.serializedEditorState}
                           showDeleteButton={
-                            column.length > 1 && !cellData.config.hide_code
+                            !hasOnlyOneCell && !cellData.config.hide_code
                           }
                           mode={mode}
                           appClosed={connStatus.state !== WebSocketState.OPEN}
@@ -183,13 +183,12 @@ export const CellArray: React.FC<CellArrayProps> = ({
                         />
                       );
                     })}
-                    <AddCellButtons />
                   </SortableContext>
                 </Column>
               );
             })}
             {appConfig.width === "columns" && (
-              <div className="flex flex-col gap-5 w-[640px] max-w-[640px] min-w-[640px]">
+              <div className="flex flex-col w-[600px] group/column z-0">
                 <PlaceholderColumn />
                 <AddCellButtons />
               </div>
@@ -309,6 +308,7 @@ const AddCellButtons: React.FC = () => {
     <div className="flex justify-center mt-4 pt-6 pb-32 group gap-4 w-full print:hidden">
       <div
         className={cn(
+          "opacity-0 group-hover/column:opacity-100",
           "shadow-sm border border-border rounded transition-all duration-200 overflow-hidden divide-x divide-border flex",
           !isAiButtonOpen && "w-fit",
           isAiButtonOpen &&

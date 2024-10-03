@@ -38,7 +38,7 @@ const SortableCellsProviderInternal = ({
   children,
 }: SortableCellsProviderProps) => {
   const { cellIds } = useNotebook();
-  const { dropCellOver, dropOverNewColumn, dropColumnOver, compactColumns } =
+  const { dropCellOver, dropOverNewColumn, moveColumn, compactColumns } =
     useCellActions();
 
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
@@ -110,7 +110,7 @@ const SortableCellsProviderInternal = ({
         overCellId: overId,
       });
     } else if (isColumnDrag) {
-      dropColumnOver({
+      moveColumn({
         column: active.id - 1,
         overColumn: overId - 1,
       });
@@ -184,7 +184,7 @@ const SortableCellsProviderInternal = ({
     }
 
     if (isColumnDrag) {
-      dropColumnOver({
+      moveColumn({
         column: active.id,
         overColumn: over.id,
       });
@@ -227,13 +227,13 @@ export const PlaceholderColumn: React.FC = () => {
   return (
     <div
       ref={setNodeRef}
-      className={`w-[600px] h-full border-2 border-dashed border-[var(--slate-3)] rounded-lg flex items-center justify-center z-10 ${
+      className={`w-[600px] h-full border-2 border-dashed border-[var(--slate-5)] rounded-lg flex justify-center z-10 ${
         isOver ? "bg-[var(--slate-3)]" : "bg-[var(--slate-1)]"
       }`}
     >
-      <p className="text-muted-foreground flex items-center gap-2">
+      <p className="text-muted-foreground max-h-[50vh] flex items-center gap-2">
         <SquarePlusIcon className="w-4 h-4" />
-        Add column
+        Drag cell to add new column
       </p>
     </div>
   );

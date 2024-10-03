@@ -13,7 +13,6 @@ import {
   exportedForTesting,
   flattenTopLevelNotebookCells,
 } from "../cells";
-import { notebookCells } from "../utils";
 import { CellId } from "@/core/cells/ids";
 import type { OutputMessage } from "@/core/kernel/messages";
 import type { Seconds } from "@/utils/time";
@@ -30,7 +29,8 @@ import {
   scrollToTop,
   scrollToBottom,
 } from "../scrollCellIntoView";
-import { CollapsibleTree } from "@/utils/id-tree";
+import {  CellColumnIndex, CollapsibleTree, MultiColumn } from "@/utils/id-tree";
+import { CellData } from "../types";
 
 vi.mock("@/core/codemirror/editing/commands", () => ({
   foldAllBulk: vi.fn(),
@@ -47,11 +47,31 @@ vi.mock("../scrollCellIntoView", async (importOriginal) => {
   };
 });
 
+const FIRST_COLUMN = 0 as CellColumnIndex;
+
 const { initialNotebookState, reducer, createActions } = exportedForTesting;
 
 function formatCells(notebook: NotebookState) {
-  const cells = notebookCells(notebook);
-  return `\n${cells.map((cell) => [`key: ${cell.id}`, `code: '${cell.code}'`].join("\n")).join("\n\n")}`;
+  const { cellIds, cellData } = notebook;
+  const wrap = (text: string) => {
+    return `\n${text}\n`;
+  };
+
+  const printCell = (cell: CellData) => {
+    return `[${cell.id}] '${cell.code}'`;
+  };
+  const printCells = (cellsId: CellId[]) => {
+    const cells = cellsId.map((cellId) => cellData[cellId]);
+    return cells.map((cell) => printCell(cell)).join("\n\n");
+  };
+  const printColumn = (column: CollapsibleTree<CellId>, columnIdx: number) => {
+    return `> col ${columnIdx}\n${printCells(column.inOrderIds)}`;
+  };
+  const columns = cellIds.getColumns();
+  if (columns.length > 1) {
+    return wrap(columns.map(printColumn).join("\n\n"));
+  }
+  return wrap(printCells(cellIds.inOrderIds));
 }
 
 function createEditor(content: string) {
@@ -113,9 +133,9 @@ describe("cell reducer", () => {
     i = 0;
 
     state = initialNotebookState();
-    state.cellIds.columns.push(CollapsibleTree.from([]));
+    state.cellIds = MultiColumn.from([]);
     actions.createNewCell({ cellId: "__end__", before: false });
-    firstCellId = state.cellIds.columns[0].atOrThrow(0);
+    firstCellId = state.cellIds.inOrderIds[0];
   });
 
   afterAll(() => {
@@ -129,11 +149,10 @@ describe("cell reducer", () => {
     });
     expect(formatCells(state)).toMatchInlineSnapshot(`
       "
-      key: 0
-      code: ''
+      [0] ''
 
-      key: 1
-      code: ''"
+      [1] ''
+      "
     `);
   });
 
@@ -145,11 +164,10 @@ describe("cell reducer", () => {
     });
     expect(formatCells(state)).toMatchInlineSnapshot(`
       "
-      key: 0
-      code: ''
+      [0] ''
 
-      key: 1
-      code: 'import numpy as np'"
+      [1] 'import numpy as np'
+      "
     `);
 
     // Cell should be added to the end and edited
@@ -165,11 +183,10 @@ describe("cell reducer", () => {
     });
     expect(formatCells(state)).toMatchInlineSnapshot(`
       "
-      key: 1
-      code: ''
+      [1] ''
 
-      key: 0
-      code: ''"
+      [0] ''
+      "
     `);
   });
 
@@ -183,19 +200,18 @@ describe("cell reducer", () => {
     });
     expect(formatCells(state)).toMatchInlineSnapshot(`
       "
-      key: 1
-      code: ''"
+      [1] ''
+      "
     `);
 
     // undo
     actions.undoDeleteCell();
     expect(formatCells(state)).toMatchInlineSnapshot(`
       "
-      key: 2
-      code: ''
+      [2] ''
 
-      key: 1
-      code: ''"
+      [1] ''
+      "
     `);
   });
 
@@ -207,8 +223,8 @@ describe("cell reducer", () => {
     });
     expect(formatCells(state)).toMatchInlineSnapshot(`
       "
-      key: 0
-      code: 'import numpy as np'"
+      [0] 'import numpy as np'
+      "
     `);
   });
 
@@ -219,11 +235,10 @@ describe("cell reducer", () => {
     });
     expect(formatCells(state)).toMatchInlineSnapshot(`
       "
-      key: 0
-      code: ''
+      [0] ''
 
-      key: 1
-      code: ''"
+      [1] ''
+      "
     `);
 
     // move first cell to the end
@@ -233,11 +248,10 @@ describe("cell reducer", () => {
     });
     expect(formatCells(state)).toMatchInlineSnapshot(`
       "
-      key: 1
-      code: ''
+      [1] ''
 
-      key: 0
-      code: ''"
+      [0] ''
+      "
     `);
 
     // move it back
@@ -247,11 +261,10 @@ describe("cell reducer", () => {
     });
     expect(formatCells(state)).toMatchInlineSnapshot(`
       "
-      key: 0
-      code: ''
+      [0] ''
 
-      key: 1
-      code: ''"
+      [1] ''
+      "
     `);
   });
 
@@ -266,14 +279,12 @@ describe("cell reducer", () => {
     });
     expect(formatCells(state)).toMatchInlineSnapshot(`
       "
-      key: 0
-      code: ''
+      [0] ''
 
-      key: 1
-      code: ''
+      [1] ''
 
-      key: 2
-      code: ''"
+      [2] ''
+      "
     `);
 
     // drag first cell to the end
@@ -283,14 +294,12 @@ describe("cell reducer", () => {
     });
     expect(formatCells(state)).toMatchInlineSnapshot(`
       "
-      key: 1
-      code: ''
+      [1] ''
 
-      key: 2
-      code: ''
+      [2] ''
 
-      key: 0
-      code: ''"
+      [0] ''
+      "
     `);
 
     // drag it back to the middle
@@ -300,14 +309,12 @@ describe("cell reducer", () => {
     });
     expect(formatCells(state)).toMatchInlineSnapshot(`
       "
-      key: 1
-      code: ''
+      [1] ''
 
-      key: 0
-      code: ''
+      [0] ''
 
-      key: 2
-      code: ''"
+      [2] ''
+      "
     `);
   });
 
@@ -750,6 +757,7 @@ describe("cell reducer", () => {
     expect(cell.config).toEqual({
       disabled: false,
       hide_code: false,
+      column: 0,
     });
 
     actions.updateCellConfig({
@@ -1110,14 +1118,12 @@ describe("cell reducer", () => {
     actions.sendToTop({ cellId: "2" as CellId });
     expect(formatCells(state)).toMatchInlineSnapshot(`
       "
-      key: 2
-      code: ''
+      [2] ''
 
-      key: 0
-      code: ''
+      [0] ''
 
-      key: 1
-      code: ''"
+      [1] ''
+      "
     `);
   });
 
@@ -1127,14 +1133,12 @@ describe("cell reducer", () => {
     actions.sendToBottom({ cellId: firstCellId });
     expect(formatCells(state)).toMatchInlineSnapshot(`
       "
-      key: 1
-      code: ''
+      [1] ''
 
-      key: 2
-      code: ''
+      [2] ''
 
-      key: 0
-      code: ''"
+      [0] ''
+      "
     `);
   });
 
@@ -1166,7 +1170,7 @@ describe("cell reducer", () => {
     const newCodes = ["code1", "code2", "code3"];
 
     actions.setCellIds({ cellIds: newIds });
-    expect(state.cellIds.columns[0].topLevelIds).toEqual(newIds);
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).topLevelIds).toEqual(newIds);
 
     actions.setCellCodes({ codes: newCodes, ids: newIds });
     newIds.forEach((id, index) => {
@@ -1204,18 +1208,19 @@ describe("cell reducer", () => {
       code: "## Subheader",
     });
 
-    const id = state.cellIds.columns[0].atOrThrow(1);
+    const id = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(1);
     state.cellRuntime[id] = {
       ...state.cellRuntime[id],
       outline: {
         items: [{ name: "Header", level: 1, by: { id: "header" } }],
       },
     };
+
     actions.collapseCell({ cellId: id });
-    expect(state.cellIds.columns[0].isCollapsed(id)).toBe(true);
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(id)).toBe(true);
 
     actions.expandCell({ cellId: id });
-    expect(state.cellIds.columns[0].isCollapsed(id)).toBe(false);
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(id)).toBe(false);
   });
 
   it("can show hidden cells", () => {
@@ -1224,7 +1229,7 @@ describe("cell reducer", () => {
     actions.collapseCell({ cellId: firstCellId });
 
     actions.showCellIfHidden({ cellId: "1" as CellId });
-    expect(state.cellIds.columns[0].isCollapsed(firstCellId)).toBe(false);
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(firstCellId)).toBe(false);
   });
 
   it("can split and undo split cells", () => {
@@ -1233,9 +1238,9 @@ describe("cell reducer", () => {
       before: false,
       code: "line1\nline2",
     });
-    const nextCellId = state.cellIds.columns[0].atOrThrow(1);
+    const nextCellId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(1);
 
-    const originalCellCount = state.cellIds.columns[0].length;
+    const originalCellCount = state.cellIds.atOrThrow(FIRST_COLUMN).length;
     // Move cursor to the second line
     const editor = state.cellHandles[nextCellId].current?.editorView;
     if (!editor) {
@@ -1243,14 +1248,14 @@ describe("cell reducer", () => {
     }
     editor.dispatch({ selection: { anchor: 5, head: 5 } });
     actions.splitCell({ cellId: nextCellId });
-    expect(state.cellIds.columns[0].length).toBe(originalCellCount + 1);
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).length).toBe(originalCellCount + 1);
     expect(state.cellData[nextCellId].code).toBe("line1");
-    expect(state.cellData[state.cellIds.columns[0].atOrThrow(2)].code).toBe(
+    expect(state.cellData[state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(2)].code).toBe(
       "line2",
     );
 
     actions.undoSplitCell({ cellId: nextCellId, snapshot: "line1\nline2" });
-    expect(state.cellIds.columns[0].length).toBe(originalCellCount);
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).length).toBe(originalCellCount);
     expect(state.cellData[nextCellId].code).toBe("line1\nline2");
   });
 
@@ -1279,5 +1284,273 @@ describe("cell reducer", () => {
 
     const cell = cells[0];
     expect(cell.consoleOutputs).toEqual([STDOUT1, STDOUT2]);
+  });
+
+  it("can add a column breakpoint", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({ cellId: "1" as CellId, before: false });
+    actions.createNewCell({ cellId: "2" as CellId, before: false });
+
+    expect(state.cellIds.getColumns().length).toBe(1);
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [0] ''
+
+      [1] ''
+
+      [2] ''
+
+      [3] ''
+      "
+    `);
+
+    actions.addColumnBreakpoint({ cellId: "2" as CellId });
+
+    expect(state.cellIds.getColumns().length).toBe(2);
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      > col 0
+      [0] ''
+
+      [1] ''
+
+      > col 1
+      [2] ''
+
+      [3] ''
+      "
+    `);
+
+    // Check that the cells are in the correct columns
+    expect(state.cellIds.getColumns()[0].topLevelIds).toEqual(["0", "1"]);
+    expect(state.cellIds.getColumns()[1].topLevelIds).toEqual(["2", "3"]);
+  });
+
+  it("cannot add a column breakpoint before the first cell", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({ cellId: "1" as CellId, before: false });
+
+    const initialState = { ...state };
+
+    actions.addColumnBreakpoint({ cellId: firstCellId });
+
+    // State should not change
+    expect(state).toEqual(initialState);
+  });
+
+  it("can delete a column", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({ cellId: "1" as CellId, before: false });
+    actions.createNewCell({ cellId: "2" as CellId, before: false });
+    actions.addColumnBreakpoint({ cellId: "2" as CellId });
+
+    expect(state.cellIds.getColumns().length).toBe(2);
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      > col 0
+      [0] ''
+
+      [1] ''
+
+      > col 1
+      [2] ''
+
+      [3] ''
+      "
+    `);
+
+    actions.deleteColumn({ columnIndex: 0 as CellColumnIndex });
+
+    expect(state.cellIds.getColumns().length).toBe(1);
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [2] ''
+
+      [3] ''
+
+      [0] ''
+
+      [1] ''
+      "
+    `);
+
+    // Check that all cells are now in the remaining column
+    expect(state.cellIds.getColumns()[0].topLevelIds).toEqual(["2", "3", "0", "1"]);
+  });
+
+  it("deleting the last column does nothing", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({ cellId: "1" as CellId, before: false });
+
+    const initialState = { ...state };
+
+    actions.deleteColumn({ columnIndex: 0 as CellColumnIndex });
+
+    // State should not change
+    expect(state).toEqual(initialState);
+  });
+
+  it("can drop a cell over another cell", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({ cellId: "1" as CellId, before: false });
+    actions.createNewCell({ cellId: "2" as CellId, before: false });
+
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [0] ''
+
+      [1] ''
+
+      [2] ''
+
+      [3] ''
+      "
+    `);
+
+    actions.dropCellOver({ cellId: "0" as CellId, overCellId: "3" as CellId });
+
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [1] ''
+
+      [2] ''
+
+      [3] ''
+
+      [0] ''
+      "
+    `);
+  });
+
+  it("can drop a cell over a new column", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({ cellId: "1" as CellId, before: false });
+
+    expect(state.cellIds.getColumns().length).toBe(1);
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [0] ''
+
+      [1] ''
+
+      [2] ''
+      "
+    `);
+
+    actions.dropOverNewColumn({ cellId: "1" as CellId });
+
+    expect(state.cellIds.getColumns().length).toBe(2);
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      > col 0
+      [0] ''
+
+      [2] ''
+
+      > col 1
+      [1] ''
+      "
+    `);
+
+    // Check that the cells are in the correct columns
+    expect(state.cellIds.getColumns()[0].topLevelIds).toEqual(["0", "2"]);
+    expect(state.cellIds.getColumns()[1].topLevelIds).toEqual(["1"]);
+  });
+
+  it("can drop a column over another column", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({ cellId: "1" as CellId, before: false });
+    actions.createNewCell({ cellId: "2" as CellId, before: false });
+    actions.addColumnBreakpoint({ cellId: "2" as CellId });
+
+    expect(state.cellIds.getColumns().length).toBe(2);
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      > col 0
+      [0] ''
+
+      [1] ''
+
+      > col 1
+      [2] ''
+
+      [3] ''
+      "
+    `);
+
+    actions.moveColumn({ column: 1 as CellColumnIndex, overColumn: 0 as CellColumnIndex });
+
+    expect(state.cellIds.getColumns().length).toBe(2);
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      > col 0
+      [2] ''
+
+      [3] ''
+
+      > col 1
+      [0] ''
+
+      [1] ''
+      "
+    `);
+
+    // Check that the columns have swapped positions
+    expect(state.cellIds.getColumns()[0].topLevelIds).toEqual(["2", "3"]);
+    expect(state.cellIds.getColumns()[1].topLevelIds).toEqual(["0", "1"]);
+  });
+
+  it("can compact columns", () => {
+    // Create initial state with 3 columns, including an empty one
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({ cellId: "1" as CellId, before: false });
+    actions.addColumnBreakpoint({ cellId: "1" as CellId });
+    actions.addColumnBreakpoint({ cellId: "2" as CellId });
+    actions.dropOverNewColumn({ cellId: "2" as CellId });
+
+    expect(state.cellIds.getColumns().length).toBe(4);
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      > col 0
+      [0] ''
+
+      > col 1
+      [1] ''
+
+      > col 2
+
+
+      > col 3
+      [2] ''
+      "
+    `);
+
+    // Check initial column structure
+    expect(state.cellIds.getColumns()[0].topLevelIds).toEqual(["0"]);
+    expect(state.cellIds.getColumns()[1].topLevelIds).toEqual(["1"]);
+    expect(state.cellIds.getColumns()[2].topLevelIds).toEqual([]);
+    expect(state.cellIds.getColumns()[3].topLevelIds).toEqual(["2"]);
+
+    // Compact columns
+    actions.compactColumns();
+
+    expect(state.cellIds.getColumns().length).toBe(3);
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      > col 0
+      [0] ''
+
+      > col 1
+      [1] ''
+
+      > col 2
+      [2] ''
+      "
+    `);
+
+    // Check compacted column structure
+    expect(state.cellIds.getColumns()[0].topLevelIds).toEqual(["0"]);
+    expect(state.cellIds.getColumns()[1].topLevelIds).toEqual(["1"]);
+    expect(state.cellIds.getColumns()[2].topLevelIds).toEqual(["2"]);
   });
 });

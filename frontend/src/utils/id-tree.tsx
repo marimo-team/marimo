@@ -10,7 +10,7 @@ import { Logger } from "./Logger";
  */
 export type CellColumnIndex = number & { __brand: "CellColumnIndex" };
 /**
- * Weakly-branded number, since removing `?` causes a lot of type errors
+ * Weakly-branded number, since making `__brand` required causes type errors
  */
 export type CellIndex = number & { __brand?: "CellIndex" };
 
@@ -346,14 +346,60 @@ export class CollapsibleTree<T> {
 }
 
 export class MultiColumn<T> {
-  constructor(public columns: Array<CollapsibleTree<T>>) {}
+  constructor(private columns: ReadonlyArray<CollapsibleTree<T>>) {
+    // Ensure there is always at least one column
+    if (columns.length === 0) {
+      this.columns = [CollapsibleTree.from([])];
+    }
+  }
 
-  static from<T>(ids: T[][]): MultiColumn<T> {
-    return new MultiColumn(ids.map((id) => CollapsibleTree.from(id)));
+  static from<T>(idsList: T[][]): MultiColumn<T> {
+    return new MultiColumn(idsList.map((ids) => CollapsibleTree.from(ids)));
+  }
+
+  isEmpty(): boolean {
+    if (this.columns.length === 0)  {
+      return true;
+    }
+    return this.columns.every((c) => c.nodes.length === 0);
+  }
+
+  static fromIdsAndColumns<T>(idAndColumns: Array<[T, CellColumnIndex | number | undefined | null]>): MultiColumn<T> {
+    // If column is undefined, use the previous column
+    // Ensure there is always at least one column
+    const numColumns = Math.max(1, ...idAndColumns.map(([_, column]) => (column ?? 0) + 1));
+    const idsList: T[][] = Array.from({ length: numColumns }, () => []);
+
+    let prevColumn = 0;
+    for (const [id, column] of idAndColumns) {
+      // Avoid negative column indices
+      if (column === undefined || column === null || column < 0) {
+        idsList[prevColumn].push(id);
+      } else {
+        idsList[column].push(id);
+        prevColumn = column;
+      }
+    }
+
+    return MultiColumn.from(idsList)
   }
 
   get topLevelIds(): T[][] {
     return this.columns.map((c) => c.topLevelIds);
+  }
+
+  get iterateTopLevelIds(): Iterable<T> {
+    const columns = this.columns;
+
+    function* iter() {
+      for (const column of columns) {
+        for (const id of column.topLevelIds) {
+          yield id;
+        }
+      }
+    }
+
+    return iter();
   }
 
   get inOrderIds(): T[] {
@@ -364,6 +410,34 @@ export class MultiColumn<T> {
     return this.columns.length;
   }
 
+  get idLength(): number {
+    return this.columns.reduce((acc, c) => acc + c.nodes.length, 0);
+  }
+
+  at(idx: CellColumnIndex): CollapsibleTree<T> | undefined {
+    return this.columns[idx];
+  }
+
+  atOrThrow(idx: CellColumnIndex): CollapsibleTree<T> {
+    const column = this.columns[idx];
+    if (!column) {
+      throw new Error(`Column ${idx} not found`);
+    }
+    return column;
+  }
+
+  hasOnlyOneColumn(): boolean {
+    return this.columns.length === 1;
+  }
+
+  getColumns(): ReadonlyArray<CollapsibleTree<T>> {
+    return this.columns;
+  }
+
+  hasOnlyOneId(): boolean {
+    return this.columns.every((c) => c.nodes.length === 1);
+  }
+
   indexOf(column: CollapsibleTree<T>): CellColumnIndex {
     return this.columns.indexOf(column) as CellColumnIndex;
   }
@@ -371,6 +445,7 @@ export class MultiColumn<T> {
   addColumn(): MultiColumn<T> {
     return new MultiColumn([...this.columns, CollapsibleTree.from([])]);
   }
+
 
   insertBreakpoint(
     columnIndex: CellColumnIndex,
@@ -384,16 +459,39 @@ export class MultiColumn<T> {
     return new MultiColumn(columns);
   }
 
-  deleteBreakpoint(columnIndex: CellColumnIndex): MultiColumn<T> {
+  delete(columnIndex: CellColumnIndex): MultiColumn<T> {
+    // Move cells to preceding column
+    // If its the first column, move the cells to the next column
+
+    // Noop if there is only one column
+    if (this.columns.length <= 1) {
+      return this;
+    }
+
+    // Throw if out of bounds
+    if (columnIndex >= this.columns.length) {
+      throw new Error(`Column ${columnIndex} not found`);
+    }
+
+    const targetColumnIndex = columnIndex === 0 ? 1 : columnIndex - 1;
+
     const columns = [...this.columns];
     const column = columns[columnIndex];
-    // Move cells to preceding column
-    columns[columnIndex - 1] = new CollapsibleTree([
-      ...columns[columnIndex - 1].nodes,
+    columns[targetColumnIndex] = new CollapsibleTree([
+      ...columns[targetColumnIndex].nodes,
       ...column.nodes,
     ]);
     columns.splice(columnIndex, 1);
     return new MultiColumn(columns);
+  }
+
+  mergeAllColumns(): MultiColumn<T> {
+    if (this.columns.length <= 1) {
+      return this;
+    }
+
+    const nodes = this.columns.flatMap((c) => c.nodes);
+    return new MultiColumn([new CollapsibleTree(nodes)]);
   }
 
   moveWithinColumn(
@@ -421,17 +519,15 @@ export class MultiColumn<T> {
   }
 
   moveColumn(fromCol: CellColumnIndex, toCol: CellColumnIndex): MultiColumn<T> {
-    const columns = [...this.columns];
-    columns[toCol] = this.columns[fromCol];
-    columns[fromCol] = this.columns[toCol];
-    return new MultiColumn(columns);
+    return new MultiColumn(arrayMove([...this.columns], fromCol, toCol));
   }
 
-  moveToNewColumn(fromCol: CellColumnIndex, cellId: T): MultiColumn<T> {
+  moveToNewColumn(cellId: T): MultiColumn<T> {
+    const [fromColumn, fromColIdx] = this.getColumnWithId(cellId);
     const columns = [...this.columns];
-    const fromIndex = columns[fromCol].indexOfOrThrow(cellId);
+    const fromIndex = fromColumn.indexOfOrThrow(cellId);
     // Delete from existing column
-    columns[fromCol] = columns[fromCol].delete(fromIndex);
+    columns[fromColIdx] = fromColumn.delete(fromIndex);
     // Insert into new column
     const newColumn = CollapsibleTree.from([cellId]);
     return new MultiColumn([...columns, newColumn]);
@@ -439,8 +535,40 @@ export class MultiColumn<T> {
 
   getColumnWithId(id: T): [CollapsibleTree<T>, CellColumnIndex] {
     const index = this.columns.findIndex((c) => c.topLevelIds.includes(id));
+    if (index === -1) {
+      throw new Error(`Cell ${id} not found in any column`);
+    }
     const column = this.columns[index];
     return [column, index as CellColumnIndex];
+  }
+
+  /**
+   * Transform the column containing the given id
+   * @param id the id of the cell to transform
+   * @param fn the function to transform the column
+   * @returns new MultiColumn with the transformed column
+   * If the column was not updated, we return the object.
+   */
+  transformById(id: T, fn: (tree: CollapsibleTree<T>) => CollapsibleTree<T>): MultiColumn<T> {
+    let didChange = false;
+
+    const columns = this.columns.map((c) => {
+      if (c.inOrderIds.includes(id)) {
+        const newColumn = fn(c);
+        if (c !== newColumn) {
+          didChange = true;
+        }
+        return newColumn;
+      }
+      return c;
+    });
+
+    // Avoid unnecessary re-renders
+    if (!didChange) {
+      return this;
+    }
+
+    return new MultiColumn(columns);
   }
 
   insertId(id: T, col: CellColumnIndex, index: CellIndex): MultiColumn<T> {
@@ -450,11 +578,12 @@ export class MultiColumn<T> {
     return new MultiColumn(columns);
   }
 
-  deleteId(col: CellColumnIndex, index: CellIndex): MultiColumn<T> {
+
+  deleteById(cellId: T): MultiColumn<T> {
+    const [column, colIdx] = this.getColumnWithId(cellId);
+    const newColumn = column.delete(column.indexOfOrThrow(cellId));
     const columns = [...this.columns];
-    const column = columns[col];
-    const newColumn = column.delete(index);
-    columns[col] = newColumn;
+    columns[colIdx] = newColumn;
     return new MultiColumn(columns);
   }
 

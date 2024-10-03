@@ -75,7 +75,7 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
 
   useJotaiEffect(cellIdsAtom, CellEffects.onCellIdsChange);
 
-  const { setCells, updateCellCode, deleteColumnBreakpoint } = useCellActions();
+  const { setCells, updateCellCode, mergeAllColumns } = useCellActions();
   const viewState = useAtomValue(viewStateAtom);
   const [filename, setFilename] = useFilename();
   const [lastSavedNotebook, setLastSavedNotebook] =
@@ -150,15 +150,13 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   }, [appConfig.app_title, filename]);
 
   // Delete column breakpoints if app width changes from "columns"
-  const numColumns = notebook.cellIds.columns.length;
+  const numColumns = notebook.cellIds.colLength;
   const previousWidth = usePrevious(appConfig.width);
   useEffect(() => {
     if (previousWidth === "columns" && appConfig.width !== "columns") {
-      for (let i = 1; i < numColumns; i++) {
-        deleteColumnBreakpoint({ columnIndex: 1 });
-      }
+      mergeAllColumns();
     }
-  }, [appConfig.width, previousWidth, deleteColumnBreakpoint, numColumns]);
+  }, [appConfig.width, previousWidth, mergeAllColumns, numColumns]);
 
   const cells = notebookCells(notebook);
   const cellIds = cells.map((cell) => cell.id);

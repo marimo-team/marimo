@@ -51,6 +51,7 @@ import { Label } from "@/components/ui/label";
 import { MarkdownIcon, PythonIcon } from "../cell/code/icons";
 import {
   aiEnabledAtom,
+  appWidthAtom,
   autoInstantiateAtom,
   getAppConfig,
 } from "@/core/config/config";
@@ -92,6 +93,7 @@ export function useCellActionButtons({ cell }: Props) {
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const cellIds = useCellIds();
   const kioskMode = useAtomValue(kioskModeAtom);
+  const appWidth = useAtomValue(appWidthAtom);
 
   if (!cell || kioskMode) {
     return [];
@@ -122,8 +124,6 @@ export function useCellActionButtons({ cell }: Props) {
       }
     }
   };
-
-  const appConfig = getAppConfig();
 
   // Actions
   const actions: ActionButton[][] = [
@@ -334,7 +334,7 @@ export function useCellActionButtons({ cell }: Props) {
         icon: <Columns2Icon size={13} strokeWidth={1.5} />,
         label: "Add column breakpoint",
         hotkey: "cell.addColumnBreakpoint",
-        hidden: appConfig.width !== "columns",
+        hidden: appWidth !== "columns",
         handle: () => addColumnBreakpoint({ cellId }),
       },
     ],
