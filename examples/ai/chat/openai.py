@@ -43,15 +43,18 @@ def __(mo):
 
 @app.cell
 def __(input_key, mo, os_key):
-    # Initialize a client
     openai_key = os_key or input_key.value
 
     mo.stop(
         not openai_key,
         mo.md("Please set the OPENAI_API_KEY environment variable or provide it in the input field"),
     )
+    return (openai_key,)
 
-    mo.ui.chat(
+
+@app.cell
+def __(mo, openai_key):
+    chatbot = mo.ui.chat(
        mo.ai.llm.openai(
             "gpt-4o",
             system_message="You are a helpful assistant.",
@@ -63,7 +66,21 @@ def __(input_key, mo, os_key):
             "I'm doing great, how about you?",
         ],
     )
-    return (openai_key,)
+    chatbot
+    return (chatbot,)
+
+
+@app.cell
+def __(mo):
+    mo.md("""Access the chatbot's historical messages with `chatbot.value`.""")
+    return
+
+
+@app.cell
+def __(chatbot):
+    # chatbot.value is the list of chat messages
+    chatbot.value
+    return
 
 
 if __name__ == "__main__":

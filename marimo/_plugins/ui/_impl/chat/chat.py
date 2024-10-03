@@ -15,7 +15,9 @@ from marimo._plugins.ui._impl.chat.types import (
     ChatModelConfigDict,
 )
 from marimo._plugins.ui._impl.chat.utils import from_chat_message_dict
+from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.functions import EmptyArgs, Function
+from marimo._runtime.requests import SetUIElementValueRequest
 
 
 @dataclass
@@ -154,9 +156,18 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
             ChatMessage(role="assistant", content=content)
         ]
 
-        self._value = self._chat_history
-        if self._on_change:
-            self._on_change(self._value)
+        from marimo._runtime.context import get_context
+
+        # The frontend doesn't manage state, so we have to manually enqueue
+        # a control request.
+        ctx = get_context()
+        if isinstance(ctx, KernelRuntimeContext):
+            ctx._kernel.enqueue_control_request(
+                SetUIElementValueRequest(
+                    object_ids=[self._id],
+                    values=[{"messages": self._chat_history}],
+                )
+            )
 
         return content
 

@@ -41,27 +41,44 @@ def __(mo):
 
 @app.cell
 def __(input_key, mo, os_key):
-    # Initialize a client
     key = os_key or input_key.value
 
     mo.stop(
         not key,
         mo.md("Please provide your Anthropic API key in the input field."),
     )
+    return (key,)
 
-    mo.ui.chat(
-       mo.ai.llm.anthropic(
+
+@app.cell
+def __(key, mo):
+    chatbot = mo.ui.chat(
+        mo.ai.llm.anthropic(
             "claude-3-5-sonnet-20240602",
             system_message="You are a helpful assistant.",
             api_key=key,
-       ),
+        ),
         prompts=[
             "Hello",
             "How are you?",
             "I'm doing great, how about you?",
         ],
     )
-    return (key,)
+    chatbot
+    return (chatbot,)
+
+
+@app.cell
+def __(mo):
+    mo.md("""Access the chatbot's historical messages with `chatbot.value`.""")
+    return
+
+
+@app.cell
+def __(chatbot):
+    # chatbot.value is the list of chat messages
+    chatbot.value
+    return
 
 
 if __name__ == "__main__":

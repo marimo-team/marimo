@@ -41,7 +41,6 @@ def __(mo):
 
 @app.cell
 def __(input_key, mo, os_key):
-    # Initialize a client
     key = os_key or input_key.value
 
     mo.stop(
@@ -49,7 +48,12 @@ def __(input_key, mo, os_key):
         mo.md("Please provide your Google AI API key in the input field."),
     )
 
-    mo.ui.chat(
+    return (key,)
+
+
+@app.cell
+def __(key, mo):
+    chatbot = mo.ui.chat(
        mo.ai.llm.google(
             "gemini-1.5-pro-latest",
             system_message="You are a helpful assistant.",
@@ -61,7 +65,21 @@ def __(input_key, mo, os_key):
             "I'm doing great, how about you?",
         ],
     )
-    return (key,)
+    chatbot
+    return (chatbot,)
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md("""Access the chatbot's historical messages with `chatbot.value`.""")
+    return
+
+
+@app.cell
+def __(chatbot):
+    # chatbot.value is the list of chat messages
+    chatbot.value
+    return
 
 
 if __name__ == "__main__":
