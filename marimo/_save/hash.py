@@ -721,11 +721,11 @@ class BlockHasher:
                 # explainer text for NameError's doesn't make sense in this
                 # context. ("Definition expected in ...")
                 raise RuntimeError(
-                    f"The cached function declares an argument '{ref}'",
+                    f"The cached function declares an argument '{ref}'"
                     "but a captured function or class uses the "
                     f"global variable '{ref}'. Please rename "
                     "the argument, or restructure the use "
-                    f"of the global variable.",
+                    f"of the global variable."
                 )
 
         # Filter for relevant stateful cases.
