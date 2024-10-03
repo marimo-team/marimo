@@ -69,3 +69,17 @@ export function splitEditor(editor: EditorView) {
     afterCursorCode,
   };
 }
+
+export function extractHighlightedCode(editor: EditorView) {
+  const code = editor.state.doc;
+  let { from, to } = editor.state.selection.main;
+  const highlighted = code.sliceString(from, to);
+
+  from = code.toString()[from - 1] === "\n" ? from - 1 : from;
+  to = code.toString()[to + 1] === "\n" ? to + 1 : to;
+  editor.dispatch({
+    changes: { from, to, insert: "" },
+  });
+
+  return highlighted;
+}

@@ -31,6 +31,7 @@ import { clamp } from "@/utils/math";
 import type { LayoutState } from "../layout/layout";
 import { notebookIsRunning, notebookQueueOrRunningCount } from "./utils";
 import {
+  extractHighlightedCode,
   splitEditor,
   updateEditorCodeFromPython,
 } from "../codemirror/language/utils";
@@ -45,6 +46,7 @@ import { syncCellIds } from "../network/requests";
 import { kioskModeAtom } from "../mode";
 import { CollapsibleTree } from "@/utils/id-tree";
 import { isEqual } from "lodash-es";
+import type { EditorView } from "@codemirror/view";
 
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
 
@@ -214,6 +216,12 @@ const {
         : state.cellIds.topLevelIds.indexOf(cellId);
     const insertionIndex = before ? index : index + 1;
 
+    let cellContents = code;
+    const cellEditorView = getCellEditorView(cellId as CellId);
+    if (cellEditorView) {
+      cellContents = extractHighlightedCode(cellEditorView);
+    }
+
     return {
       ...state,
       cellIds: state.cellIds.insert(newCellId, insertionIndex),
@@ -221,7 +229,7 @@ const {
         ...state.cellData,
         [newCellId]: createCell({
           id: newCellId,
-          code,
+          code: cellContents,
           lastCodeRun,
           lastExecutionTime,
           edited: Boolean(code) && code !== lastCodeRun,
@@ -1029,7 +1037,7 @@ export const getAllEditorViews = () => {
     .filter(Boolean);
 };
 
-export const getCellEditorView = (cellId: CellId) => {
+export const getCellEditorView = (cellId: CellId): EditorView | undefined => {
   const { cellHandles } = store.get(notebookAtom);
   return cellHandles[cellId].current?.editorView;
 };
