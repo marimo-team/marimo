@@ -106,6 +106,11 @@ export const UserConfigSchema = z
             api_key: z.string().optional(),
           })
           .optional(),
+        google: z
+          .object({
+            api_key: z.string().optional(),
+          })
+          .optional(),
       })
       .default({}),
     experimental: z

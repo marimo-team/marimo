@@ -30,7 +30,7 @@ def __(mo):
 @app.cell
 def __(mo):
     mo.ui.chat(
-        mo.ai.models.openai(
+        mo.ai.llm.openai(
             "gpt-4-turbo", system_message="You are a helpful data scientist"
         ),
         show_configuration_controls=True,
@@ -52,7 +52,7 @@ def __(mo):
 @app.cell
 def __(mo):
     mo.ui.chat(
-        mo.ai.models.anthropic("claude-3-5-sonnet-20240620"),
+        mo.ai.llm.anthropic("claude-3-5-sonnet-20240620"),
         show_configuration_controls=True,
         prompts=[
             "Tell me a joke",
@@ -121,7 +121,7 @@ def __(client, ell, mo):
         return prompt
 
 
-    mo.ui.chat(mo.ai.models.simple(_my_model))
+    mo.ui.chat(mo.ai.llm.simple(_my_model))
     return
 
 

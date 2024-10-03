@@ -2390,6 +2390,9 @@ export interface components {
         anthropic: {
           api_key: string;
         };
+        google: {
+          api_key: string;
+        };
         open_ai: {
           api_key: string;
           base_url: string;

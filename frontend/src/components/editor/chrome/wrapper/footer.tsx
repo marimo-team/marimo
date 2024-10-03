@@ -1,6 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type React from "react";
-import type { PropsWithChildren } from "react";
 import { cn } from "@/utils/cn";
 import { useChromeActions, useChromeState } from "../state";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -27,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDownIcon } from "lucide-react";
+import { FooterItem } from "./footer-item";
 
 export const Footer: React.FC = () => {
   const { selectedPanel, isTerminalOpen } = useChromeState();
@@ -198,37 +198,4 @@ export const Footer: React.FC = () => {
       <MachineStats />
     </footer>
   );
-};
-
-const FooterItem: React.FC<
-  PropsWithChildren<
-    {
-      selected: boolean;
-      tooltip: React.ReactNode;
-    } & React.HTMLAttributes<HTMLDivElement>
-  >
-> = ({ children, tooltip, selected, className, ...rest }) => {
-  const content = (
-    <div
-      className={cn(
-        "h-full flex items-center p-2 text-sm mx-[1px] shadow-inset font-mono cursor-pointer rounded",
-        !selected && "hover:bg-[var(--sage-3)]",
-        selected && "bg-[var(--sage-4)]",
-        className,
-      )}
-      {...rest}
-    >
-      {children}
-    </div>
-  );
-
-  if (tooltip) {
-    return (
-      <Tooltip content={tooltip} side="top" delayDuration={200}>
-        {content}
-      </Tooltip>
-    );
-  }
-
-  return content;
 };

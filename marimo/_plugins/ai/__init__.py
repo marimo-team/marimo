@@ -4,7 +4,10 @@
 from __future__ import annotations
 
 __all__ = [
-    "models",
+    "ChatMessage",
+    "ChatModelConfig",
+    "llm",
 ]
 
-from marimo._plugins.ui._impl.chat import models
+from marimo._plugins.ui._impl.chat import llm
+from marimo._plugins.ui._impl.chat.types import ChatMessage, ChatModelConfig
