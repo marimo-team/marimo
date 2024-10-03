@@ -1,9 +1,7 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#     "ell-ai==0.0.12",
 #     "marimo",
-#     "openai==1.50.1",
 # ]
 # ///
 
