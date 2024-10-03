@@ -175,10 +175,9 @@ async def test_chat_send_message_enqueues_ui_element_request(
     # assert that the RPC which updates the chatbot history triggers
     # a SetUIElementValueRequest
 
-    # l holds enqueued control requests
-    l = []
+    control_requests = []
     # the RPC uses enqueue_control_request() to trigger the UI Element update
-    k.enqueue_control_request = lambda r: l.append(r)
+    k.enqueue_control_request = lambda r: control_requests.append(r)
     await k.run(
         [
             exec_req.get(
@@ -193,12 +192,12 @@ async def test_chat_send_message_enqueues_ui_element_request(
         ]
     )
 
-    assert not l
+    assert not control_requests
     chatbot = k.globals["chatbot"]
     request = SendMessageRequest(
         messages=[ChatMessage(role="user", content="Hello")],
         config=ChatModelConfig(),
     )
     chatbot._send_prompt(request)
-    assert len(l) == 1
-    assert isinstance(l[0], SetUIElementValueRequest)
+    assert len(control_requests) == 1
+    assert isinstance(control_requests[0], SetUIElementValueRequest)
