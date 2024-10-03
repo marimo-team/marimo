@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, Iterable, NamedTuple, Optional
 
 from marimo._ast.visitor import Name, ScopedVisitor
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import ContextNotInitializedError, get_context
 from marimo._runtime.primitives import (
     FN_CACHE_TYPE,
@@ -224,8 +225,18 @@ def attempt_signed_bytes(value: bytes, label: str) -> bytes:
 
 def get_and_update_context_from_scope(
     scope: dict[str, Any],
+    scope_refs: Optional[set[Name]] = None,
 ) -> Optional[RuntimeContext]:
     """Get stateful registers"""
+
+    # Remove non-global references
+    ctx_scope = set(scope)
+    if scope_refs is None:
+        scope_refs = set()
+    for ref in scope_refs:
+        if ref in ctx_scope:
+            ctx_scope.remove(ref)
+
     # This is typically done in post execution hook, but it will not be
     # called in script mode.
     # TODO: Strip this out to allow for hash based look up. Name based
@@ -490,12 +501,17 @@ class BlockHasher:
         # Given an active thread, extract state based variables that
         # influence the graph, and hash them accordingly.
         if ctx:
+            ctx_scope = {
+                k: v
+                for k, v in scope.items()
+                if k not in content_serialization
+            }
             (
                 refs,
                 content_serialization_tmp,
                 stateful_refs,
             ) = self.serialize_and_dequeue_stateful_content_refs(
-                refs, scope, ctx
+                refs, ctx_scope, ctx
             )
             content_serialization.update(content_serialization_tmp)
         else:
@@ -551,14 +567,6 @@ class BlockHasher:
         refs = set(refs)
         stateful_refs = set()
 
-        # State Setters that are not directly consumed, are not needed.
-        for ref in self.visitor.refs:
-            # If the setter is consumed, let the hash be tied to the state
-            # value.
-            if ref in scope and isinstance(scope[ref], SetFunctor):
-                stateful_refs.add(ref)
-                scope[ref] = scope[ref]._state
-
         for ref in set(refs):
             if ref in scope.get("__builtins__", ()):
                 refs.remove(ref)
@@ -570,17 +578,46 @@ class BlockHasher:
             # State relevant to the context, should be dependent on it's value-
             # not the object.
             value: Optional[State[Any]]
-            if ctx and (value := ctx.state_registry.lookup(ref)):
-                for state_name in ctx.state_registry.bound_names(value):
-                    scope[state_name] = attempt_signed_bytes(value(), "state")
+            # Prefer actual object over reference.
+            # Skip if the reference has already been subbed in, or if it is
+            # a shadowed reference.
+            if ref in scope and isinstance(scope[ref], State):
+                value = scope[ref]
+            elif ctx:
+                value = ctx.state_registry.lookup(ref)
+
+            if value is not None and (
+                ref not in scope or isinstance(scope[ref], State)
+            ):
+                scope[ref] = attempt_signed_bytes(value(), "state")
+                if ctx:
+                    for state_name in ctx.state_registry.bound_names(value):
+                        scope[state_name] = scope[ref]
 
             # Likewise, UI objects should be dependent on their value.
-            if ctx and (ui := ctx.ui_element_registry.lookup(ref)) is not None:
-                for ui_name in ctx.ui_element_registry.bound_names(ui._id):
-                    scope[ui_name] = attempt_signed_bytes(ui.value, "ui")
-                # If the UI is directly consumed, then hold on to the reference
-                # for proper cache update.
+            if ref in scope and isinstance(scope[ref], UIElement):
+                ui = scope[ref]
+            elif ctx:
+                ui = ctx.ui_element_registry.lookup(ref)
+            if ui is not None and (
+                ref not in scope or isinstance(scope[ref], UIElement)
+            ):
+                scope[ref] = attempt_signed_bytes(ui.value, "ui")
+                if ctx:
+                    for ui_name in ctx.ui_element_registry.bound_names(ui._id):
+                        scope[ui_name] = scope[ref]
+                # If the UI is directly consumed, then hold on to the
+                # reference for proper cache update.
                 stateful_refs.add(ref)
+
+        # State Setters that are not directly consumed, are not needed.
+        for ref in self.visitor.refs:
+            # If the setter is consumed, let the hash be tied to the state
+            # value.
+            if ref in scope and isinstance(scope[ref], SetFunctor):
+                stateful_refs.add(ref)
+                scope[ref] = scope[ref]._state
+
         return SerialRefs(refs, {}, stateful_refs)
 
     def serialize_and_dequeue_content_refs(
@@ -881,7 +918,7 @@ def content_cache_attempt_from_base(
     refs |= previous_block.context_refs
 
     hasher = BlockHasher.from_parent(previous_block)
-    ctx = get_and_update_context_from_scope(scope)
+    ctx = get_and_update_context_from_scope(scope, required_refs)
     refs, _, stateful_refs = hasher.extract_ref_state_and_normalize_scope(
         refs, scope, ctx
     )
@@ -902,9 +939,6 @@ def content_cache_attempt_from_base(
 
     if as_fn:
         hasher.defs.clear()
-        # Functions will perform state restoration on call, so base hashes need
-        # not remember these are stateful.
-        hasher.stateful_refs.clear()
 
     return loader.cache_attempt(
         hasher.defs,
