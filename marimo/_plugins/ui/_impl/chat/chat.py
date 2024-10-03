@@ -16,6 +16,7 @@ from marimo._plugins.ui._impl.chat.types import (
 )
 from marimo._plugins.ui._impl.chat.utils import from_chat_message_dict
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
+from marimo._runtime.context.types import ContextNotInitializedError
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._runtime.requests import SetUIElementValueRequest
 
@@ -160,7 +161,13 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
 
         # The frontend doesn't manage state, so we have to manually enqueue
         # a control request.
-        ctx = get_context()
+        try:
+            ctx = get_context()
+        except ContextNotInitializedError:
+            # For testing ... this should never happen in real usage.
+            self._value = self._chat_history
+            if self._on_change is not None:
+                self._on_change(self._value)
         if isinstance(ctx, KernelRuntimeContext):
             ctx._kernel.enqueue_control_request(
                 SetUIElementValueRequest(
