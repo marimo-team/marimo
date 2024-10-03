@@ -233,7 +233,7 @@ const {
           code: cellContents,
           lastCodeRun,
           lastExecutionTime,
-          edited: true,
+          edited: Boolean(cellContents) && cellContents !== lastCodeRun,
         }),
       },
       cellRuntime: {
