@@ -1028,7 +1028,7 @@ class TestCacheDecorator:
             def g(state):
                 return state() + f()
 
-            raise RuntimeError("Should not reach here")
+            raise Exception("Should not reach here")
 
         # Cannot resolved shadowed ref.
         with pytest.raises(RuntimeError) as e:
