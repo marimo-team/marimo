@@ -56,6 +56,10 @@ class SerialRefs(NamedTuple):
     stateful_refs: set[Name]
 
 
+class ShadowedRef:
+    """Stub for scoped variables that may shadow global references"""
+
+
 def hash_module(
     code: Optional[CodeType], hash_type: str = DEFAULT_HASH
 ) -> bytes:
@@ -501,17 +505,12 @@ class BlockHasher:
         # Given an active thread, extract state based variables that
         # influence the graph, and hash them accordingly.
         if ctx:
-            ctx_scope = {
-                k: v
-                for k, v in scope.items()
-                if k not in content_serialization
-            }
             (
                 refs,
                 content_serialization_tmp,
                 stateful_refs,
             ) = self.serialize_and_dequeue_stateful_content_refs(
-                refs, ctx_scope, ctx
+                refs, scope, ctx
             )
             content_serialization.update(content_serialization_tmp)
         else:
@@ -689,7 +688,10 @@ class BlockHasher:
         return SerialRefs(refs, content_serialization, set())
 
     def serialize_and_dequeue_stateful_content_refs(
-        self, refs: set[Name], scope: dict[str, Any], ctx: RuntimeContext
+        self,
+        refs: set[Name],
+        scope: dict[str, Any],
+        ctx: RuntimeContext,
     ) -> SerialRefs:
         """Determines and uses stateful references that impact the code block.
 
@@ -709,6 +711,18 @@ class BlockHasher:
         transitive_state_refs = self.graph.get_transitive_references(
             refs, inclusive=False
         )
+
+        for ref in transitive_state_refs:
+            if ref in scope and isinstance(scope[ref], ShadowedRef):
+                raise NameError(
+                    (
+                        "A dependent reference utilizes the "
+                        f"variable '{ref}' in a broader scope. Please rename "
+                        "the local argument, or restructure the scoped use "
+                        f"of the variable."
+                    )
+                )
+
         # Filter for relevant stateful cases.
         refs |= set(
             filter(
@@ -719,6 +733,7 @@ class BlockHasher:
                 transitive_state_refs,
             )
         )
+
         # Need to run extract again for the expanded ref set.
         refs, _, stateful_refs = self.extract_ref_state_and_normalize_scope(
             refs, scope, ctx

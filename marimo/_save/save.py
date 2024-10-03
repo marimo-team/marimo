@@ -26,6 +26,7 @@ from marimo._save.cache import Cache, CacheException
 from marimo._save.hash import (
     DEFAULT_HASH,
     BlockHasher,
+    ShadowedRef,
     cache_attempt_from_hash,
     content_cache_attempt_from_base,
 )
@@ -114,9 +115,9 @@ class _cache_base(object):
         # checking a single frame- should be good enough.
         f_locals = inspect.stack()[2 + self._frame_offset][0].f_locals
         self.scope = {**ctx.globals, **f_locals}
-        # In case scope shadoes variables
+        # In case scope shadows variables
         for arg in self._args:
-            self.scope.pop(arg, None)
+            self.scope[arg] = ShadowedRef()
 
         # Scoped refs are references particular to this block, that may not be
         # defined out of the context of the block, or the cell.
