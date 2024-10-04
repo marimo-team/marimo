@@ -1333,20 +1333,11 @@ describe("cell reducer", () => {
   });
 
   it("cannot add a column breakpoint before the first cell", () => {
+    expect(state.cellIds.getColumns().length).toBe(1);
     actions.createNewCell({ cellId: firstCellId, before: false });
     actions.createNewCell({ cellId: "1" as CellId, before: false });
-
     actions.addColumnBreakpoint({ cellId: firstCellId });
-
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      > col 0
-
-
-      > col 1
-
-      "
-    `);
+    expect(state.cellIds.getColumns().length).toBe(1);
   });
 
   it("can delete a column", () => {
