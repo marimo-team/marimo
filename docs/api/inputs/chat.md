@@ -223,3 +223,9 @@ Chatbots can be implemented with a function that receives a list of
 
 [`mo.ui.chat`](#marimo.ui.chat) can be instantiated with an initial
 configuration with a dictionary conforming to the config.
+
+`ChatMessage`s can also include attachments.
+
+```{eval-rst}
+.. autoclass:: marimo.ai.ChatAttachment
+```
