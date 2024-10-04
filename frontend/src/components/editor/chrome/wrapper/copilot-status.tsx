@@ -17,7 +17,7 @@ import { settingDialogAtom } from "@/components/app-config/app-config-button";
 export const AIStatusIcon: React.FC = () => {
   const ai = useAtomValue(aiAtom);
   const aiEnabled = useAtomValue(aiEnabledAtom);
-  const model = ai.open_ai.model || "gpt-4-turbo";
+  const model = ai?.open_ai?.model || "gpt-4-turbo";
   const { handleClick } = useOpenAISettings();
 
   if (!aiEnabled) {
