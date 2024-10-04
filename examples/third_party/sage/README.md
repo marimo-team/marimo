@@ -2,7 +2,7 @@
 
 This example shows how to create a notebook that lets you
 _chat with any codebase_, using [Sage](https://github.com/storia-ai/sage)
-from Storia AI. It uses `mo.ui.chat` with a custom chat function that
+from Storia AI. It uses [`mo.ui.chat`](https://docs.marimo.io/api/inputs/chat.html) with a custom chat function that
 implements a RAG-powered search over any GitHub repository of your choosing.
 The result is a chatbot that you can use to incrementally explore a codebase
 and even its associated GitHub issues.
