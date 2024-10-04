@@ -145,7 +145,7 @@ import marimo as mo
 
 mo.ui.chat(
     mo.ai.llm.anthropic(
-        "claude-3-5-sonnet-20240602",
+        "claude-3-5-sonnet-20240620",
         system_message="You are a helpful assistant.",
         api_key="sk-ant-...",
     ),
@@ -179,7 +179,7 @@ mo.ui.chat(
 
 Chatbots can be implemented with a function that receives a list of
 [`ChatMessage`](#marimo.ai.ChatMessage) objects and a
-[`ChatModelConfig`](#marimo.ai.ChatModelConfig). 
+[`ChatModelConfig`](#marimo.ai.ChatModelConfig).
 
 ```{eval-rst}
 .. autoclass:: marimo.ai.ChatMessage
