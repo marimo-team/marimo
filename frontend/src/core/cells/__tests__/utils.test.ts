@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, it, expect } from "vitest";
-import { getCellConfigs, NotebookState } from "@/core/cells/cells";
+import { getCellConfigs, type NotebookState } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
 import { MultiColumn } from "@/utils/id-tree";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";

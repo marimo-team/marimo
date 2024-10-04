@@ -44,11 +44,12 @@ const SortableCellsProviderInternal = ({
   children,
 }: SortableCellsProviderProps) => {
   const { cellIds } = useNotebook();
-  const { dropCellOverCell, dropCellOverColumn, moveColumn } = useCellActions();
+  const { dropCellOverCell, dropCellOverColumn, moveColumn, compactColumns } =
+    useCellActions();
 
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   const [clonedItems, setClonedItems] = useState<MultiColumn<CellId> | null>(
-    null,
+    null
   );
 
   const [config] = useAppConfig();
@@ -68,7 +69,7 @@ const SortableCellsProviderInternal = ({
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    }),
+    })
   );
 
   const handleDragStart = useEvent((event: DragStartEvent) => {
@@ -102,7 +103,7 @@ const SortableCellsProviderInternal = ({
   const collisionDetectionStrategy = useCallback(
     (args: Parameters<CollisionDetection>[0]) => {
       const columnContainers = args.droppableContainers.filter((container) =>
-        isColumnId(container.id),
+        isColumnId(container.id)
       );
 
       // 1. Handle column dragging
@@ -147,7 +148,7 @@ const SortableCellsProviderInternal = ({
         ...args,
         droppableContainers: args.droppableContainers.filter(
           (container) =>
-            container.id !== overId && cellIdSet.has(container.id as CellId),
+            container.id !== overId && cellIdSet.has(container.id as CellId)
         ),
       });
 
@@ -160,7 +161,7 @@ const SortableCellsProviderInternal = ({
 
       return [];
     },
-    [activeId, cellIds],
+    [activeId, cellIds]
   );
 
   const handleDragOver = useEvent(({ active, over }) => {
@@ -202,11 +203,12 @@ const SortableCellsProviderInternal = ({
 
   const handleDragEnd = useEvent((event: DragEndEvent) => {
     const { active, over } = event;
-    // compactColumns();
 
     if (over === null || active.id === over.id) {
       return;
     }
+
+    compactColumns();
   });
 
   return (
