@@ -28,7 +28,7 @@ class simple(ChatModel):
 
     **Args:**
 
-    - delegate (Callable[[str], str]): A callable that takes a
+    - delegate: A callable that takes a
         single prompt and returns a response
     """
 
@@ -49,13 +49,13 @@ class openai(ChatModel):
 
     **Args:**
 
-    - model (str): The model to use.
+    - model: The model to use.
         Can be found on the [OpenAI models page](https://platform.openai.com/docs/models)
-    - system_message (str): The system message to use
-    - api_key (Optional[str]): The API key to use.
+    - system_message: The system message to use
+    - api_key: The API key to use.
         If not provided, the API key will be retrieved
         from the OPENAI_API_KEY environment variable or the user's config.
-    - base_url (Optional[str]): The base URL to use
+    - base_url: The base URL to use
     """
 
     def __init__(
@@ -139,13 +139,13 @@ class anthropic(ChatModel):
 
     **Args:**
 
-    - model (str): The model to use.
-    - system_message (str): The system message to use
-    - api_key (Optional[str]): The API key to use.
+    - model: The model to use.
+    - system_message: The system message to use
+    - api_key: The API key to use.
         If not provided, the API key will be retrieved
         from the ANTHROPIC_API_KEY environment variable
         or the user's config.
-    - base_url (Optional[str]): The base URL to use
+    - base_url: The base URL to use
     """
 
     def __init__(
@@ -236,9 +236,9 @@ class google(ChatModel):
 
     **Args:**
 
-    - model (str): The model to use.
-    - system_message (str): The system message to use
-    - api_key (Optional[str]): The API key to use.
+    - model: The model to use.
+    - system_message: The system message to use
+    - api_key: The API key to use.
         If not provided, the API key will be retrieved
         from the GOOGLE_AI_API_KEY environment variable
         or the user's config.
