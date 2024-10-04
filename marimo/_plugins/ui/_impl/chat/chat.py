@@ -40,9 +40,9 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
     **Example: Using a custom model.**
 
     Define a chatbot by implementing a function that takes a list of
-    `ChatMessage`s and a config object as input, and returns the chat response.
-    The response can be any object, including text, plots, or marimo UI
-    elements.
+    `ChatMessage`s and optionally a config object as input, and returns the
+    chat response. The response can be any object, including text, plots, or
+    marimo UI elements.
 
     ```python
     def my_rag_model(messages, config):
@@ -59,6 +59,25 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
 
     chat = mo.ui.chat(my_rag_model)
     ```
+
+    Async functions and async generators are also supported, meaning these
+    are both valid chat functions:
+
+    ```python
+    async def my_rag_model(messages):
+        return await my_async_function(messages)
+    ```
+
+    ```python
+    async def my_rag_model(messages):
+        for response in my_async_iterator(messages):
+            yield response
+    ```
+
+    The last value yielded by the async generator is treated as the model
+    response. ui.chat does not yet support streaming responses to the frontend.
+    Please file a GitHub issue if this is important to you:
+    https://github.com/marimo-team/marimo/issues
 
     **Example: Using a built-in model.**
 
@@ -136,7 +155,7 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
     def _get_chat_history(self, _args: EmptyArgs) -> GetChatHistoryResponse:
         return GetChatHistoryResponse(messages=self._chat_history)
 
-    def _send_prompt(self, args: SendMessageRequest) -> str:
+    async def _send_prompt(self, args: SendMessageRequest) -> str:
         messages = args.messages
 
         # If the model is a callable that takes a single argument,
@@ -150,6 +169,23 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
             response = self._model(messages)  # type: ignore
         else:
             response = self._model(messages, args.config)
+
+        if inspect.isawaitable(response):
+            response = await response
+        elif inspect.isasyncgen(response):
+            # We support functions that stream the response with an async
+            # generator; each yielded value is the latest representation of the
+            # response, and the last value is the full value
+            latest_response = None
+            async for latest_response in response:  # noqa: B007
+                # TODO(akshayka, mscolnick): Stream response to frontend
+                # once bidirectional communication is implemented.
+                #
+                # RPCs don't yet support bidirectional communication, so we
+                # just ignore all the initial responses; ideally we'd stream
+                # the response back to the frontend.
+                pass
+            response = latest_response
 
         content = (
             as_html(response).text  # convert to html if not a string

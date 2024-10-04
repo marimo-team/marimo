@@ -13,6 +13,12 @@ stale, with the chatbot's response stored in the object's `value` attribute.
 You can use this to make notebooks that respond to the chatbot's response
 in arbitrary ways. For example, you can make agentic notebooks!
 
+Once you understand the basics, for a more interesting example, check out
+[our notebook that lets you talk to any GitHub repo](../../third_party/sage/),
+powered by Storia-AI/sage. This example demonstrates advanced usage
+of `ui.chat`, using `langchain` to construct a RAG-powered chatbot, served by
+an async generator callback function.
+
 ## Running examples
 
 The requirements of each notebook are serialized in them as a top-level
