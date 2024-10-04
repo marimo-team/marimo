@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useState, useCallback, memo } from "react";
 import {
   DndContext,
   closestCenter,
@@ -11,7 +11,10 @@ import {
   type AutoScrollOptions,
   type UniqueIdentifier,
   type DragStartEvent,
-  useDroppable,
+  pointerWithin,
+  rectIntersection,
+  getFirstCollision,
+  type CollisionDetection,
 } from "@dnd-kit/core";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
@@ -24,6 +27,7 @@ import type { CellColumnId, MultiColumn } from "@/utils/id-tree";
 import { SquarePlusIcon } from "lucide-react";
 import { Tooltip } from "../ui/tooltip";
 import { Button } from "../ui/button";
+import { invariant } from "@/utils/invariant";
 
 interface SortableCellsProviderProps {
   children: React.ReactNode;
@@ -40,19 +44,12 @@ const SortableCellsProviderInternal = ({
   children,
 }: SortableCellsProviderProps) => {
   const { cellIds } = useNotebook();
-  const {
-    dropCellOverCell,
-    dropCellOverColumn,
-    dropOverNewColumn,
-    moveColumn,
-    compactColumns,
-  } = useCellActions();
+  const { dropCellOverCell, dropCellOverColumn, moveColumn } = useCellActions();
 
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   const [clonedItems, setClonedItems] = useState<MultiColumn<CellId> | null>(
     null,
   );
-  const alreadyCreatedNewColumn = useRef(false);
 
   const [config] = useAppConfig();
   const modifiers = useMemo(() => {
@@ -74,13 +71,6 @@ const SortableCellsProviderInternal = ({
     }),
   );
 
-  useEffect(() => {
-    requestAnimationFrame(() => {
-      recentlyMovedToNewContainer.current = false;
-    });
-  }, [cellIds]);
-  const recentlyMovedToNewContainer = useRef(false);
-
   const handleDragStart = useEvent((event: DragStartEvent) => {
     setActiveId(event.active.id);
     setClonedItems(cellIds);
@@ -98,135 +88,132 @@ const SortableCellsProviderInternal = ({
     setClonedItems(null);
   });
 
-  // See example: https://github.com/clauderic/dnd-kit/blob/master/stories/2%20-%20Presets/Sortable/MultipleContainers.tsx#L315-L372
+  /**
+   * Custom collision detection:
+   * 1. If dragging a column, we can only drop on other columns
+   *  - We just use closestCenter
+   *  - We filter the droppableContainers to only consider other columns
+   * 2. If dragging a cell, we want to find the best column to drop on
+   *  - We get the first intersection
+   *  - Find the closest column to the cell
+   *  - If the column is empty, we consider it a valid drop target
+   *  - Otherwise, we only consider the cells in the same column
+   */
+  const collisionDetectionStrategy = useCallback(
+    (args: Parameters<CollisionDetection>[0]) => {
+      const columnContainers = args.droppableContainers.filter((container) =>
+        isColumnId(container.id),
+      );
+
+      // 1. Handle column dragging
+      if (activeId && isColumnId(activeId)) {
+        return closestCenter({
+          ...args,
+          droppableContainers: columnContainers,
+        });
+      }
+
+      // 2. Handle cell dragging
+
+      // Get the first column intersection
+      const pointerIntersections = pointerWithin({
+        ...args,
+        droppableContainers: columnContainers,
+      });
+      const intersections =
+        pointerIntersections.length > 0
+          ? pointerIntersections
+          : rectIntersection({
+              ...args,
+              droppableContainers: columnContainers,
+            });
+      const overId = getFirstCollision(intersections, "id");
+      if (!overId) {
+        return [];
+      }
+      invariant(isColumnId(overId), `Expected column id. Got: ${overId}`);
+
+      // If column is empty, we can drop on it
+      const column = cellIds.get(overId);
+      invariant(column, `Expected column. Got: ${overId}`);
+      if (column && column.topLevelIds.length === 0) {
+        // Return the column
+        return [{ id: overId }];
+      }
+
+      // If the column is not empty, we only consider the cells in the same column
+      const cellIdSet = new Set(column.topLevelIds);
+      const collisions = closestCenter({
+        ...args,
+        droppableContainers: args.droppableContainers.filter(
+          (container) =>
+            container.id !== overId && cellIdSet.has(container.id as CellId),
+        ),
+      });
+
+      if (collisions.length > 0) {
+        const overId = collisions[0].id;
+        invariant(isCellId(overId), `Expected cell id. Got: ${overId}`);
+        // Return the cell
+        return [{ id: overId }];
+      }
+
+      return [];
+    },
+    [activeId, cellIds],
+  );
+
   const handleDragOver = useEvent(({ active, over }) => {
     const overId = over?.id;
-    const isCellDrag = isCellId(active.id) && isCellId(overId);
-    const isColumnDrag = isColumnId(active.id) && isColumnId(overId);
 
     if (overId == null || active.id === overId) {
       return;
     }
 
-    if (isCellDrag) {
-      dropCellOverCell({
-        cellId: active.id,
-        overCellId: overId,
-      });
-      return;
-    }
-
-    if (isColumnDrag) {
-      moveColumn({
-        column: active.id as CellColumnId,
-        overColumn: overId,
-      });
-      return;
-    }
-
-    if (isCellId(active.id) && overId === PLACEHOLDER_COLUMN_ID) {
-      if (alreadyCreatedNewColumn.current) {
+    // Handle moving cells
+    if (isCellId(active.id)) {
+      // Moving a cell to a column
+      if (isColumnId(overId)) {
+        dropCellOverColumn({
+          cellId: active.id,
+          columnId: overId,
+        });
         return;
       }
-      dropOverNewColumn({
-        cellId: active.id,
-      });
-      alreadyCreatedNewColumn.current = true;
-      return;
+
+      // Moving a cell above another cell
+      if (isCellId(overId)) {
+        dropCellOverCell({
+          cellId: active.id,
+          overCellId: overId,
+        });
+        return;
+      }
     }
 
-    if (isCellId(active.id) && isColumnId(overId)) {
-      dropCellOverColumn({
-        cellId: active.id,
-        columnId: overId,
+    // Moving a column to another column
+    if (isColumnId(active.id) && isColumnId(overId)) {
+      moveColumn({
+        column: active.id,
+        overColumn: overId,
       });
-      return;
     }
-
-    // setItems((items) => {
-    //   const activeItems = items[activeContainer];
-    //   const overItems = items[overContainer];
-    //   const overIndex = overItems.indexOf(overId);
-    //   const activeIndex = activeItems.indexOf(active.id);
-
-    //   let newIndex: number;
-
-    //   if (overId in items) {
-    //     newIndex = overItems.length + 1;
-    //   } else {
-    //     const isBelowOverItem =
-    //       over &&
-    //       active.rect.current.translated &&
-    //       active.rect.current.translated.top >
-    //         over.rect.top + over.rect.height;
-
-    //     const modifier = isBelowOverItem ? 1 : 0;
-
-    //     newIndex =
-    //       overIndex >= 0 ? overIndex + modifier : overItems.length + 1;
-    //   }
-
-    //   recentlyMovedToNewContainer.current = true;
-
-    //   return {
-    //     ...items,
-    //     [activeContainer]: items[activeContainer].filter(
-    //       (item) => item !== active.id,
-    //     ),
-    //     [overContainer]: [
-    //       ...items[overContainer].slice(0, newIndex),
-    //       items[activeContainer][activeIndex],
-    //       ...items[overContainer].slice(
-    //         newIndex,
-    //         items[overContainer].length,
-    //       ),
-    //     ],
-    //   };
-    // });
   });
 
   const handleDragEnd = useEvent((event: DragEndEvent) => {
     const { active, over } = event;
     // compactColumns();
-    alreadyCreatedNewColumn.current = false;
 
     if (over === null || active.id === over.id) {
       return;
     }
-
-    const isCellDrag = isCellId(active.id) && isCellId(over.id);
-    const isColumnDrag = isColumnId(active.id) && isColumnId(over.id);
-
-    // if (isCellId(active.id) && over.id === PLACEHOLDER_COLUMN_ID) {
-    //   if (alreadyCreatedNewColumn.current) {
-    //     return;
-    //   }
-    //   dropOverNewColumn({
-    //     cellId: active.id,
-    //   });
-    //   return;
-    // }
-
-    // if (isCellDrag) {
-    //   dropCellOverCell({
-    //     cellId: active.id as CellId,
-    //     overCellId: over.id as CellId,
-    //   });
-    // }
-
-    // if (isColumnDrag) {
-    //   moveColumn({
-    //     column: active.id as CellColumnId,
-    //     overColumn: over.id as CellColumnId,
-    //   });
-    // }
   });
 
   return (
     <DndContext
       autoScroll={autoScroll}
       sensors={sensors}
-      collisionDetection={closestCenter}
+      collisionDetection={collisionDetectionStrategy}
       modifiers={modifiers}
       onDragEnd={handleDragEnd}
       onDragStart={handleDragStart}
@@ -241,40 +228,14 @@ const SortableCellsProviderInternal = ({
 export const SortableCellsProvider = React.memo(SortableCellsProviderInternal);
 
 function isCellId(id: UniqueIdentifier): id is CellId {
-  return (
-    typeof id === "string" &&
-    id !== PLACEHOLDER_COLUMN_ID &&
-    !id.startsWith("tree_")
-  );
+  return typeof id === "string" && !id.startsWith("tree_");
 }
 
 function isColumnId(id: UniqueIdentifier): id is CellColumnId {
   return typeof id === "string" && id.startsWith("tree_");
 }
 
-const PLACEHOLDER_COLUMN_ID = "__placeholder-column__";
-
-export const PlaceholderColumn: React.FC = () => {
-  const { setNodeRef, isOver } = useDroppable({
-    id: PLACEHOLDER_COLUMN_ID,
-  });
-
-  return (
-    <div
-      ref={setNodeRef}
-      className={`w-[600px] h-full border-2 border-dashed border-[var(--slate-5)] rounded-lg flex justify-center z-10 ${
-        isOver ? "bg-[var(--slate-3)]" : "bg-[var(--slate-1)]"
-      }`}
-    >
-      <p className="text-muted-foreground max-h-[50vh] flex items-center gap-2">
-        <SquarePlusIcon className="w-4 h-4" />
-        Drag cell to add new column
-      </p>
-    </div>
-  );
-};
-
-export const AddColumnButton: React.FC = () => {
+export const AddColumnButton: React.FC = memo(() => {
   const { addColumn } = useCellActions();
 
   const handleScrollAppRight = () => {
@@ -290,20 +251,22 @@ export const AddColumnButton: React.FC = () => {
   return (
     <div className="h-full px-10">
       <button
-        className="h-[calc(100%-310px)] w-16 flex items-center justify-center
-    bg-[var(--slate-1)] hover:bg-[var(--slate-2)] border-2 border-dashed border-[var(--slate-5)] rounded-lg
-    "
+        className="h-[calc(100%-210px)] min-h-[425px] w-16 flex justify-center bg-[var(--slate-1)] hover:bg-[var(--slate-2)] border-2 border-dashed border-[var(--slate-5)] rounded-lg"
         onClick={() => {
           addColumn();
           requestAnimationFrame(handleScrollAppRight);
         }}
       >
-        <Tooltip content="Add column">
-          <Button variant="text" size="xs">
-            <SquarePlusIcon className="w-5 h-5" />
-          </Button>
-        </Tooltip>
+        <div className="h-full max-h-[60vh] flex items-center justify-center">
+          <Tooltip content="Add column">
+            <Button variant="text" size="xs">
+              <SquarePlusIcon className="w-5 h-5" />
+            </Button>
+          </Tooltip>
+        </div>
       </button>
     </div>
   );
-};
+});
+
+AddColumnButton.displayName = "AddColumnButton";

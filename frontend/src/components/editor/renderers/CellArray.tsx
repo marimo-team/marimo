@@ -107,7 +107,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
       innerClassName="pr-4" // For the floating actions
     >
       <PackageAlert />
-      <NotebookBanner />
+      <NotebookBanner width={appConfig.width} />
       <SortableCellsProvider>
         <SortableContext
           id="column-container"

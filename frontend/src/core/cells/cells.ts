@@ -518,7 +518,7 @@ const {
   deleteCell: (state, action: { cellId: CellId }) => {
     const cellId = action.cellId;
 
-    // Can't delete the last cell
+    // Can't delete the last cell, across all columns
     if (state.cellIds.hasOnlyOneId()) {
       return state;
     }
@@ -526,7 +526,10 @@ const {
     const column = state.cellIds.findWithId(cellId);
     const cellIndex = column.indexOfOrThrow(cellId);
     const focusIndex = cellIndex === 0 ? 1 : cellIndex - 1;
-    const scrollKey = column.atOrThrow(focusIndex);
+    let scrollKey: CellId | null = null;
+    if (column.length > 1) {
+      scrollKey = column.atOrThrow(focusIndex);
+    }
 
     const serializedEditorState = state.cellHandles[
       cellId

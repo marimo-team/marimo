@@ -1,21 +1,22 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { cn } from "@/utils/cn";
-import { useRef } from "react";
+import { memo, useRef } from "react";
 import { SortableColumn } from "./SortableColumn";
 import type { CellColumnId } from "@/utils/id-tree";
+import type { AppConfig } from "@/core/config/config-schema";
 
 interface Props {
   className?: string;
   columnId: CellColumnId;
   children: React.ReactNode;
-  width: string;
+  width: AppConfig["width"];
   footer?: React.ReactNode;
   canDelete: boolean;
   canMoveLeft: boolean;
   canMoveRight: boolean;
 }
 
-export const Column = (props: Props) => {
+export const Column = memo((props: Props) => {
   const columnRef = useRef<HTMLDivElement>(null);
 
   const column = (
@@ -48,4 +49,6 @@ export const Column = (props: Props) => {
   }
 
   return column;
-};
+});
+
+Column.displayName = "Column";

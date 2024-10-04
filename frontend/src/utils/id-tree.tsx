@@ -484,7 +484,7 @@ export class MultiColumn<T> {
   }
 
   hasOnlyOneId(): boolean {
-    return this.columns.every((c) => c.nodes.length === 1);
+    return this.idLength === 1;
   }
 
   indexOf(column: CollapsibleTree<T>): number {
@@ -589,7 +589,9 @@ export class MultiColumn<T> {
   indexOfOrThrow(id: CellColumnId): number {
     const index = this.columns.findIndex((c) => c.id === id);
     if (index === -1) {
-      throw new Error(`Cell ${id} not found in any column`);
+      throw new Error(
+        `Column ${id} not found. Possible values: ${this.columns.map((c) => c.id).join(", ")}`,
+      );
     }
     return index;
   }
@@ -637,6 +639,9 @@ export class MultiColumn<T> {
       return c.inOrderIds.includes(id);
     });
     if (!found) {
+      Logger.log(
+        `Possible values: ${this.columns.map((c) => c.inOrderIds).join(", ")}`,
+      );
       throw new Error(`Cell ${id} not found in any column`);
     }
     return found;

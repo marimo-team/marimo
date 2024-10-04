@@ -331,7 +331,7 @@ export function useCellActionButtons({ cell }: Props) {
       },
       {
         icon: <Columns2Icon size={13} strokeWidth={1.5} />,
-        label: "Add column breakpoint",
+        label: "Break into new column",
         hotkey: "cell.addColumnBreakpoint",
         hidden: appWidth !== "columns",
         handle: () => addColumnBreakpoint({ cellId }),

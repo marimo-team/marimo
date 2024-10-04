@@ -307,7 +307,11 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       >
         <AppHeader
           connection={connection}
-          className={cn("pt-4 sm:pt-12 pb-2 mb-4 print:hidden")}
+          className={cn(
+            "pt-4 sm:pt-12 pb-2 mb-4 print:hidden",
+            // Keep the header sticky when scrolling horizontally, for column mode
+            "sticky left-0",
+          )}
         >
           {isEditing && (
             <div className="flex items-center justify-center container">

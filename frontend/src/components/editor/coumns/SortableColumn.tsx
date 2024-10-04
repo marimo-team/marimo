@@ -30,6 +30,7 @@ const SortableColumnInternal = React.forwardRef(
       transform,
       transition,
       isDragging,
+      isOver,
     } = useSortable({ id: columnId });
 
     const style: React.CSSProperties = {
@@ -44,6 +45,8 @@ const SortableColumnInternal = React.forwardRef(
       transition,
       zIndex: isDragging ? 2 : undefined,
       position: "relative",
+      // @ts-expect-error  doesn't allow css variables
+      "--gutter-width": "50px",
     };
 
     const mergedRef = mergeRefs<HTMLDivElement>(ref, setNodeRef);
@@ -105,7 +108,8 @@ const SortableColumnInternal = React.forwardRef(
         className={cn(
           isDragging ? "" : props.className,
           // Set z-index: dragging should be above everything else
-          isDragging ? "z-20" : "hover:z-10",
+          isDragging ? "z-20" : "z-1 hover:z-10 focus-within:z-10",
+          isOver && "bg-accent/20", // Add a background color when dragging over
         )}
       >
         {dragHandle}
