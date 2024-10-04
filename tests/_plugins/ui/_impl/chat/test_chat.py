@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Dict, List
+import asyncio
+from typing import AsyncIterator, Dict, List
 
 import pytest
 
@@ -55,7 +56,7 @@ def test_chat_with_config():
     assert chat._component_args["config"] == config
 
 
-def test_chat_send_prompt():
+async def test_chat_send_prompt():
     def mock_model(
         messages: List[ChatMessage], config: ChatModelConfig
     ) -> str:
@@ -67,7 +68,7 @@ def test_chat_send_prompt():
         messages=[ChatMessage(role="user", content="Hello")],
         config=ChatModelConfig(),
     )
-    response: str = chat._send_prompt(request)
+    response: str = await chat._send_prompt(request)
 
     assert response == "Response to: Hello"
     assert len(chat._chat_history) == 2
@@ -75,6 +76,55 @@ def test_chat_send_prompt():
     assert chat._chat_history[0].content == "Hello"
     assert chat._chat_history[1].role == "assistant"
     assert chat._chat_history[1].content == "Response to: Hello"
+
+
+async def test_chat_send_prompt_async_function():
+    async def mock_model(
+        messages: List[ChatMessage], config: ChatModelConfig
+    ) -> str:
+        del config
+        await asyncio.sleep(0.01)
+        return f"Response to: {messages[-1].content}"
+
+    chat = ui.chat(mock_model)
+    request = SendMessageRequest(
+        messages=[ChatMessage(role="user", content="Hello")],
+        config=ChatModelConfig(),
+    )
+    response: str = await chat._send_prompt(request)
+
+    assert response == "Response to: Hello"
+    assert len(chat._chat_history) == 2
+    assert chat._chat_history[0].role == "user"
+    assert chat._chat_history[0].content == "Hello"
+    assert chat._chat_history[1].role == "assistant"
+    assert chat._chat_history[1].content == "Response to: Hello"
+
+
+async def test_chat_send_prompt_async_generator():
+    async def mock_model(
+        messages: List[ChatMessage], config: ChatModelConfig
+    ) -> AsyncIterator[str]:
+        del config
+        del messages
+        for i in range(3):
+            await asyncio.sleep(0.01)
+            yield str(i)
+
+    chat = ui.chat(mock_model)
+    request = SendMessageRequest(
+        messages=[ChatMessage(role="user", content="Hello")],
+        config=ChatModelConfig(),
+    )
+    response: str = await chat._send_prompt(request)
+
+    # the last yielded value is the response
+    assert response == "2"
+    assert len(chat._chat_history) == 2
+    assert chat._chat_history[0].role == "user"
+    assert chat._chat_history[0].content == "Hello"
+    assert chat._chat_history[1].role == "assistant"
+    assert chat._chat_history[1].content == "2"
 
 
 def test_chat_get_history():
@@ -134,7 +184,7 @@ def test_chat_convert_value_invalid():
         chat._convert_value({"invalid": "format"})
 
 
-def test_chat_with_on_message():
+async def test_chat_with_on_message():
     def mock_model(
         messages: List[ChatMessage], config: ChatModelConfig
     ) -> str:
@@ -153,7 +203,7 @@ def test_chat_with_on_message():
         messages=[ChatMessage(role="user", content="Hello")],
         config=ChatModelConfig(),
     )
-    chat._send_prompt(request)
+    await chat._send_prompt(request)
 
     assert on_message_called
 
@@ -198,6 +248,6 @@ async def test_chat_send_message_enqueues_ui_element_request(
         messages=[ChatMessage(role="user", content="Hello")],
         config=ChatModelConfig(),
     )
-    chatbot._send_prompt(request)
+    await chatbot._send_prompt(request)
     assert len(control_requests) == 1
     assert isinstance(control_requests[0], SetUIElementValueRequest)

@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.8.22"
+__generated_with = "0.9.0"
 app = marimo.App(width="medium")
 
 
@@ -17,7 +17,7 @@ def __():
     return (mo,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         r"""

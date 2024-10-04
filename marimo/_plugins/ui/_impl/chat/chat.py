@@ -136,7 +136,7 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
     def _get_chat_history(self, _args: EmptyArgs) -> GetChatHistoryResponse:
         return GetChatHistoryResponse(messages=self._chat_history)
 
-    def _send_prompt(self, args: SendMessageRequest) -> str:
+    async def _send_prompt(self, args: SendMessageRequest) -> str:
         messages = args.messages
 
         # If the model is a callable that takes a single argument,
@@ -150,6 +150,23 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
             response = self._model(messages)  # type: ignore
         else:
             response = self._model(messages, args.config)
+
+        if inspect.isawaitable(response):
+            response = await response
+        elif inspect.isasyncgen(response):
+            # We support functions that stream the response with an async
+            # generator; each yielded value is the latest representation of the
+            # response, and the last value is the full value
+            latest_response = None
+            async for latest_response in response:  # noqa: B007
+                # TODO(akshayka, mscolnick): Stream response to frontend
+                # once bidirectional communication is implemented.
+                #
+                # RPCs don't yet support bidirectional communication, so we
+                # just ignore all the initial responses; ideally we'd stream
+                # the response back to the frontend.
+                pass
+            response = latest_response
 
         content = (
             as_html(response).text  # convert to html if not a string
