@@ -2,14 +2,15 @@
 from __future__ import annotations
 
 import abc
+import mimetypes
 from dataclasses import dataclass
 from typing import List, Literal, Optional, TypedDict
 
 
 class ChatAttachmentDict(TypedDict):
-    name: str
-    content_type: str
     url: str
+    content_type: Optional[str]
+    name: Optional[str]
 
 
 class ChatMessageDict(TypedDict):
@@ -33,16 +34,20 @@ class ChatModelConfigDict(TypedDict, total=False):
 
 @dataclass
 class ChatAttachment:
-    # The name of the attachment, usually the file name.
-    name: str
-
-    # A string indicating the [media type](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type).
-    # By default, it's extracted from the pathname's extension.
-    content_type: str
-
     # The URL of the attachment. It can either be a URL to a hosted file or a
     # [Data URL](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URLs).
     url: str
+
+    # The name of the attachment, usually the file name.
+    name: str = "attachment"
+
+    # A string indicating the [media type](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type).
+    # By default, it's extracted from the pathname's extension.
+    content_type: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if self.content_type is None:
+            self.content_type = mimetypes.guess_type(self.url)[0]
 
 
 @dataclass

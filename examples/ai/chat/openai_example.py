@@ -57,6 +57,10 @@ def __(mo, openai_key):
             "gpt-4o",
             system_message="You are a helpful assistant.",
             api_key=openai_key,
+            allow_attachments=[
+            "image/png",
+            "image/jpeg"
+        ],
        ),
         prompts=[
             "Hello",
