@@ -58,6 +58,10 @@ def __(key, mo):
             system_message="You are a helpful assistant.",
             api_key=key,
         ),
+        allow_attachments=[
+            "image/png",
+            "image/jpeg"
+        ],
         prompts=[
             "Hello",
             "How are you?",
