@@ -27,7 +27,7 @@ def sample_messages() -> List[ChatMessage]:
                 ChatAttachment(
                     name="image.png",
                     content_type="image/png",
-                    url=f"data:image/png;base64,{base64.b64encode("hello".encode())}",
+                    url=f"data:image/png;base64,{base64.b64encode('hello'.encode())}",
                 ),
                 ChatAttachment(
                     name="text.txt",
