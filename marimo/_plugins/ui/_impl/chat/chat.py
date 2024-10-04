@@ -40,9 +40,9 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
     **Example: Using a custom model.**
 
     Define a chatbot by implementing a function that takes a list of
-    `ChatMessage`s and a config object as input, and returns the chat response.
-    The response can be any object, including text, plots, or marimo UI
-    elements.
+    `ChatMessage`s and optionally a config object as input, and returns the
+    chat response. The response can be any object, including text, plots, or
+    marimo UI elements.
 
     ```python
     def my_rag_model(messages, config):
@@ -59,6 +59,25 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
 
     chat = mo.ui.chat(my_rag_model)
     ```
+
+    Async functions and async generators are also supported, meaning these
+    are both valid chat functions:
+
+    ```python
+    async def my_rag_model(messages):
+        await my_async_function(messages)
+    ```
+
+    ```python
+    async def my_rag_model(messages):
+        for response in my_async_iterator(messages):
+            yield response
+    ```
+
+    The last value yielded by the async generator is treated as the model
+    response. ui.chat does not yet support streaming responses to the frontend.
+    Please file a GitHub issue if this is important to you:
+    https://github.com/marimo-team/marimo/issues
 
     **Example: Using a built-in model.**
 
