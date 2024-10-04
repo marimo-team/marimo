@@ -81,5 +81,6 @@ export function extractHighlightedCode(editor: EditorView) {
     changes: { from, to, insert: "" },
   });
 
-  return highlighted;
+  const leftover = editor.state.doc.toString();
+  return [highlighted, leftover];
 }

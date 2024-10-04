@@ -199,6 +199,7 @@ const {
       lastExecutionTime?: number;
       newCellId?: CellId;
       autoFocus?: boolean;
+      includeSelectionAsInitialCode?: boolean;
     },
   ) => {
     const {
@@ -208,6 +209,7 @@ const {
       lastCodeRun = null,
       lastExecutionTime = null,
       autoFocus = true,
+      includeSelectionAsInitialCode,
     } = action;
     const newCellId = action.newCellId || CellId.create();
     const index =
@@ -217,10 +219,16 @@ const {
     const insertionIndex = before ? index : index + 1;
 
     let cellContents = code;
-    const cellEditorView = getCellEditorView(cellId as CellId);
-    if (cellEditorView) {
-      cellContents = extractHighlightedCode(cellEditorView);
-      state.cellData[cellId as CellId].edited = true;
+
+    if (includeSelectionAsInitialCode) {
+      const id = cellId as CellId;
+      const cellEditorView = getCellEditorView(id);
+      if (cellEditorView) {
+        const [highlighted, leftover] = extractHighlightedCode(cellEditorView);
+        cellContents = highlighted;
+        state.cellData[id].code = leftover;
+        state.cellData[id].edited = true;
+      }
     }
 
     return {
