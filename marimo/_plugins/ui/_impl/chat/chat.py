@@ -93,6 +93,17 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
     )
     ```
 
+    You can also allow the user to include attachments in their messages.
+
+    ```python
+    chat = mo.ui.chat(
+        mo.ai.llm.openai(
+            "gpt-4o",
+        ),
+        allow_attachments=["image/png", "image/jpeg"],
+    )
+    ```
+
     **Attributes.**
 
     - `value`: the current chat history, a list of `ChatMessage` objects.

@@ -81,7 +81,7 @@ chat.value
 ```
 
 This returns a list of [`ChatMessage`](#marimo.ai.ChatMessage) objects, each
-containing `role` and `content` attributes.
+containing `role`, `content`, and optional `attachments` attributes.
 
 ```{eval-rst}
 .. autoclass:: ChatMessage
@@ -110,6 +110,20 @@ mo.ui.chat(rag_model)
 
 This example demonstrates how you can implement a Retrieval-Augmented
 Generation (RAG) model within the chat interface.
+
+## Including Attachments
+
+You can allow users to upload attachments to their messages by passing an
+`allow_attachments` parameter to `mo.ui.chat`.
+
+```python
+mo.ui.chat(
+    rag_model,
+    allow_attachments=["image/png", "image/jpeg"],
+    # or True for any attachment type
+    # allow_attachments=True,
+)
+```
 
 ## Built-in Models
 
