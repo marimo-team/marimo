@@ -497,6 +497,9 @@ export class MultiColumn<T> {
 
   insertBreakpoint(cellId: T): MultiColumn<T> {
     const column = this.findWithId(cellId);
+    if (column.inOrderIds[0] === cellId) {
+      return this;
+    }
     const [left, right] = column.split(cellId);
     const newColumns = this.columns.flatMap((c) => {
       if (c === column) {
@@ -587,7 +590,9 @@ export class MultiColumn<T> {
     const index = this.columns.findIndex((c) => c.id === id);
     if (index === -1) {
       throw new Error(
-        `Column ${id} not found. Possible values: ${this.columns.map((c) => c.id).join(", ")}`,
+        `Column ${id} not found. Possible values: ${this.columns
+          .map((c) => c.id)
+          .join(", ")}`,
       );
     }
     return index;

@@ -1084,13 +1084,17 @@ export function getCellConfigs(state: NotebookState): CellConfig[] {
   const cells = state.cellData;
   return state.cellIds.getColumns().flatMap((column, columnIndex) => {
     return column.inOrderIds.map((cellId, cellIndex) => {
+      const config: Partial<CellConfig> = { column: undefined };
+
       // Only set the column index for the first cell in the column
       if (cellIndex === 0) {
-        cells[cellId].config = {
-          ...cells[cellId].config,
-          column: columnIndex,
-        };
+        config.column = columnIndex;
       }
+
+      cells[cellId].config = {
+        ...cells[cellId].config,
+        ...config,
+      };
 
       return cells[cellId].config;
     });
