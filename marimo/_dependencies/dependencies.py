@@ -18,8 +18,12 @@ class Dependency:
 
     def has(self) -> bool:
         """Return True if the dependency is installed."""
-        has_dep = importlib.util.find_spec(self.pkg) is not None
-        if not has_dep:
+        try:
+            has_dep = importlib.util.find_spec(self.pkg) is not None
+            if not has_dep:
+                return False
+        except ModuleNotFoundError:
+            # Could happen for nested imports (e.g. foo.bar)
             return False
 
         if self.min_version or self.max_version:
