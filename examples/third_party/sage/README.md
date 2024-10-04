@@ -1,6 +1,6 @@
 # Sage: chat with any codebase 🤖💬
 
-This example shows how to create a notebook that let's you
+This example shows how to create a notebook that lets you
 _chat with any codebase_, using [Sage](https://github.com/storia-ai/sage)
 from Storia AI. It uses `mo.ui.chat` with a custom chat function that
 implements a RAG-powered search over any GitHub repository of your choosing.
