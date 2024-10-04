@@ -1336,12 +1336,17 @@ describe("cell reducer", () => {
     actions.createNewCell({ cellId: firstCellId, before: false });
     actions.createNewCell({ cellId: "1" as CellId, before: false });
 
-    const initialState = { ...state };
-
     actions.addColumnBreakpoint({ cellId: firstCellId });
 
-    // State should not change
-    expect(state).toEqual(initialState);
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      > col 0
+
+
+      > col 1
+
+      "
+    `);
   });
 
   it("can delete a column", () => {

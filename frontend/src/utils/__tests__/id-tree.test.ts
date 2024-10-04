@@ -3,8 +3,8 @@ import { describe, it, expect } from "vitest";
 import {
   CollapsibleTree,
   MultiColumn,
-  CellColumnId,
-  CellIndex,
+  type CellColumnId,
+  type CellIndex,
 } from "../id-tree";
 import { beforeEach } from "vitest";
 
@@ -401,6 +401,52 @@ describe("CollapsibleTree", () => {
     // We only get descendants of the top level
     expect(tree.getDescendants("three")).toMatchInlineSnapshot("[]");
   });
+
+  it("handles split correctly", () => {
+    const [left, right] = tree.split("two");
+    expect(left.toString()).toMatchInlineSnapshot(`
+      "one
+      "
+    `);
+    expect(right?.toString()).toMatchInlineSnapshot(`
+      "two
+      three
+      four
+      "
+    `);
+  });
+
+  it("handles split at the beginning", () => {
+    const [left, right] = tree.split("one");
+    expect(left.toString()).toMatchInlineSnapshot(`
+      ""
+    `);
+    expect(right?.toString()).toMatchInlineSnapshot(`
+      "one
+      two
+      three
+      four
+      "
+    `);
+  });
+
+  it("handles split at the end", () => {
+    const [left, right] = tree.split("four");
+    expect(left.toString()).toMatchInlineSnapshot(`
+      "one
+      two
+      three
+      "
+    `);
+    expect(right?.toString()).toMatchInlineSnapshot(`
+      "four
+      "
+    `);
+  });
+
+  it("throws when splitting on non-existent node", () => {
+    expect(() => tree.split("five")).toThrow("Node five not found in tree");
+  });
 });
 
 describe("CollapsibleTree edge cases", () => {
@@ -558,7 +604,9 @@ describe("MultiColumn", () => {
   it("checks if it has only one id", () => {
     expect(multiColumn.hasOnlyOneId()).toBe(false);
     const singleId = MultiColumn.from([["A1"], ["B1"], ["C1"]]);
-    expect(singleId.hasOnlyOneId()).toBe(true);
+    expect(singleId.hasOnlyOneId()).toBe(false);
+    const singleIdSingleColumn = MultiColumn.from([["A1"]]);
+    expect(singleIdSingleColumn.hasOnlyOneId()).toBe(true);
   });
 
   it("adds a column", () => {
@@ -895,5 +943,103 @@ describe("MultiColumn", () => {
       ["C1", "D1", "C2"],
       ["A1"],
     ]);
+  });
+
+  it("handles get method", () => {
+    const column = multiColumn.get(columnIds[1]);
+    expect(column?.topLevelIds).toEqual(["B1", "B2"]);
+  });
+
+  it("handles get method with non-existent column id", () => {
+    const column = multiColumn.get("non-existent-id" as CellColumnId);
+    expect(column).toBeUndefined();
+  });
+
+  it("handles indexOfOrThrow method", () => {
+    expect(multiColumn.indexOfOrThrow(columnIds[1])).toBe(1);
+  });
+
+  it("handles indexOfOrThrow method with non-existent column id", () => {
+    expect(() =>
+      multiColumn.indexOfOrThrow("non-existent-id" as CellColumnId),
+    ).toThrow("Column non-existent-id not found. Possible values: ");
+  });
+
+  it("handles transform method", () => {
+    const transformed = multiColumn.transform(columnIds[1], (tree) =>
+      tree.moveToFront("B2"),
+    );
+    expect(transformed.topLevelIds[1]).toEqual(["B2", "B1"]);
+  });
+
+  it("handles transform method with non-existent column id", () => {
+    const transformed = multiColumn.transform(
+      "non-existent-id" as CellColumnId,
+      (tree) => tree.moveToFront("B2"),
+    );
+    const columns1 = multiColumn.getColumns();
+    const columns2 = transformed.getColumns();
+    const allEqual = columns1.every((c, i) => c.equals(columns2[i]));
+    expect(allEqual).toBe(true);
+  });
+
+  it("handles moving across columns with undefined toId", () => {
+    const moved = multiColumn.moveAcrossColumns(
+      columnIds[0],
+      "A1",
+      columnIds[1],
+      undefined,
+    );
+    expect(moved.topLevelIds).toEqual([
+      ["A2", "A3"],
+      ["A1", "B1", "B2"],
+      ["C1", "C2", "C3", "C4"],
+    ]);
+  });
+
+  it("handles moving across columns to an empty column", () => {
+    const emptyColumnMultiColumn = multiColumn
+      .deleteById("B1")
+      .deleteById("B2");
+    const moved = emptyColumnMultiColumn.moveAcrossColumns(
+      columnIds[0],
+      "A1",
+      columnIds[1],
+      undefined,
+    );
+    expect(moved.topLevelIds).toEqual([
+      ["A2", "A3"],
+      ["A1"],
+      ["C1", "C2", "C3", "C4"],
+    ]);
+  });
+
+  it("handles inserting a breakpoint at the start of a column", () => {
+    const withBreakpoint = multiColumn.insertBreakpoint("A1");
+    expect(withBreakpoint.colLength).toBe(4);
+    expect(withBreakpoint.topLevelIds).toEqual([
+      [],
+      ["A1", "A2", "A3"],
+      ["B1", "B2"],
+      ["C1", "C2", "C3", "C4"],
+    ]);
+  });
+
+  it("handles inserting a breakpoint at the end of a column", () => {
+    const withBreakpoint = multiColumn.insertBreakpoint("A3");
+    expect(withBreakpoint.colLength).toBe(4);
+    expect(withBreakpoint.topLevelIds).toEqual([
+      ["A1", "A2"],
+      ["A3"],
+      ["B1", "B2"],
+      ["C1", "C2", "C3", "C4"],
+    ]);
+  });
+
+  it("handles inserting a breakpoint in a single-item column", () => {
+    const singleItemColumn = MultiColumn.from([["A1"], ["B1"], ["C1"]]);
+    const withBreakpoint = singleItemColumn.insertBreakpoint("B1");
+    expect(withBreakpoint.colLength).toBe(4);
+    expect(withBreakpoint.topLevelIds).toEqual([["A1"], [], ["B1"], ["C1"]]);
   });
 });

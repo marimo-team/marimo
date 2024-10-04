@@ -354,8 +354,8 @@ export class CollapsibleTree<T> {
     }
     const leftNodes = this.nodes.slice(0, index);
     const rightNodes = this.nodes.slice(index);
-    if (leftNodes.length === 0 || rightNodes.length === 0) {
-      return [this, undefined];
+    if (leftNodes.length === 0) {
+      return [CollapsibleTree.from<T>([]), this.withNodes(rightNodes)];
     }
     const left = this.withNodes(leftNodes);
     const right = CollapsibleTree.from<T>([]).withNodes(rightNodes);
@@ -498,9 +498,6 @@ export class MultiColumn<T> {
   insertBreakpoint(cellId: T): MultiColumn<T> {
     const column = this.findWithId(cellId);
     const [left, right] = column.split(cellId);
-    if (left.nodes.length === 0) {
-      return this;
-    }
     const newColumns = this.columns.flatMap((c) => {
       if (c === column) {
         return [left, right].filter(Boolean);
@@ -705,7 +702,7 @@ export class MultiColumn<T> {
   /**
    * Transform the column with the given column id
    */
-  private transform(
+  transform(
     columnId: CellColumnId,
     fn: (tree: CollapsibleTree<T>) => CollapsibleTree<T>,
   ): MultiColumn<T> {
