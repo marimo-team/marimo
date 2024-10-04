@@ -3,9 +3,9 @@
 These examples show how to make chatbots with marimo, using [`mo.ui.chat`](https://docs.marimo.io/api/inputs/chat.html#marimo.ui.chat).
 
 - `custom.py` shows how to make a custom chatbot
-- `openai.py` shows how to make a chatbot powered by OpenAI models
-- `anthropic.py` shows how to make a chatbot powered by Anthropic models
-- `google.py` shows how to make a chatbot powered by Google models like Gemini
+- `openai_example.py` shows how to make a chatbot powered by OpenAI models
+- `anthropic_example.py` shows how to make a chatbot powered by Anthropic models
+- `gemini.py` shows how to make a chatbot powered by Google models like Gemini
 
 Chatbot's in marimo are _reactive_: when the chatbot responds with a message,
 all other cells referencing the chatbot are automatically run or marked
