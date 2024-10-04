@@ -497,9 +497,6 @@ export class MultiColumn<T> {
 
   insertBreakpoint(cellId: T): MultiColumn<T> {
     const column = this.findWithId(cellId);
-    if (column.inOrderIds[0] === cellId) {
-      return this;
-    }
     const [left, right] = column.split(cellId);
     const newColumns = this.columns.flatMap((c) => {
       if (c === column) {

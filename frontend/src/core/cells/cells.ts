@@ -490,6 +490,9 @@ const {
   },
   addColumnBreakpoint: (state, action: { cellId: CellId }) => {
     const { cellId } = action;
+    if (state.cellIds.getColumns()[0].inOrderIds[0] === cellId) {
+      return state;
+    }
     return {
       ...state,
       cellIds: state.cellIds.insertBreakpoint(cellId),

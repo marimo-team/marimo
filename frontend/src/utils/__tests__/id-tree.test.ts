@@ -1016,8 +1016,9 @@ describe("MultiColumn", () => {
 
   it("handles inserting a breakpoint at the start of a column", () => {
     const withBreakpoint = multiColumn.insertBreakpoint("A1");
-    expect(withBreakpoint.colLength).toBe(3);
+    expect(withBreakpoint.colLength).toBe(4);
     expect(withBreakpoint.topLevelIds).toEqual([
+      [],
       ["A1", "A2", "A3"],
       ["B1", "B2"],
       ["C1", "C2", "C3", "C4"],
@@ -1038,7 +1039,7 @@ describe("MultiColumn", () => {
   it("handles inserting a breakpoint in a single-item column", () => {
     const singleItemColumn = MultiColumn.from([["A1"], ["B1"], ["C1"]]);
     const withBreakpoint = singleItemColumn.insertBreakpoint("B1");
-    expect(withBreakpoint.colLength).toBe(3);
-    expect(withBreakpoint.topLevelIds).toEqual([["A1"], ["B1"], ["C1"]]);
+    expect(withBreakpoint.colLength).toBe(4);
+    expect(withBreakpoint.topLevelIds).toEqual([["A1"], [], ["B1"], ["C1"]]);
   });
 });
