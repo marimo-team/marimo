@@ -111,6 +111,24 @@ mo.ui.chat(rag_model)
 This example demonstrates how you can implement a Retrieval-Augmented
 Generation (RAG) model within the chat interface.
 
+## Templated Prompts
+
+You can pass sample prompts to `mo.ui.chat` to allow users to select from a
+list of predefined prompts. By including a `{{var}}` in the prompt, you can
+dynamically insert values into the prompt; a form will be generated to allow
+users to fill in the variables.
+
+```python
+mo.ui.chat(
+    mo.ai.llm.openai("gpt-4o"),
+    prompts=[
+        "What is the capital of France?",
+        "What is the capital of Germany?",
+        "What is the capital of {{country}}?",
+    ],
+)
+```
+
 ## Including Attachments
 
 You can allow users to upload attachments to their messages by passing an
