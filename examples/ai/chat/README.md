@@ -15,7 +15,7 @@ in arbitrary ways. For example, you can make agentic notebooks!
 
 Once you understand the basics, for a more interesting example, check out
 [our notebook that lets you talk to any GitHub repo](../../third_party/sage/),
-powered by Storia-AI/sage. This example demonstrates advanced usage
+powered by [storia-ai/sage](https://github.com/storia-ai/sage). This example demonstrates advanced usage
 of `ui.chat`, using `langchain` to construct a RAG-powered chatbot, served by
 an async generator callback function.
 
