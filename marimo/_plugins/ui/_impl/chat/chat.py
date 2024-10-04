@@ -65,7 +65,7 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
 
     ```python
     async def my_rag_model(messages):
-        await my_async_function(messages)
+        return await my_async_function(messages)
     ```
 
     ```python
