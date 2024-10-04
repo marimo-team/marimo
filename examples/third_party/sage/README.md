@@ -42,7 +42,7 @@ pipx install git+https://github.com/Storia-AI/sage.git@main
 and choose a GitHub repo to index with (eg)
 
 ```bash
-export GITHUB_REPO=huggingface/transformers
+export GITHUB_REPO=marimo-team/marimo
 ```
 
 Finally run
@@ -53,13 +53,19 @@ sage-index $GITHUB_REPO
 
 ### Run the marimo notebook!
 
-Run the marimo notebook with
+Open the marimo notebook with
 
 ```bash
 marimo edit --sandbox chat_with_github.py -- $GITHUB_REPO
 ```
 
-to start chatting with your repo!
+and start chatting with your repo!
+
+You can also deploy this notebook as a web app, with
+
+```bash
+marimo run --sandbox chat_with_github.py -- $GITHUB_REPO
+```
 
 
 > [!TIP]
