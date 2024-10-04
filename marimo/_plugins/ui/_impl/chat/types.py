@@ -45,7 +45,7 @@ class ChatAttachment:
     # By default, it's extracted from the pathname's extension.
     content_type: Optional[str] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.content_type is None:
             self.content_type = mimetypes.guess_type(self.url)[0]
 
