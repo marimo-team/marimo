@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.8.22"
+__generated_with = "0.9.0"
 app = marimo.App(width="medium")
 
 
@@ -54,7 +54,7 @@ def __(input_key, mo, os_key):
 def __(key, mo):
     chatbot = mo.ui.chat(
         mo.ai.llm.anthropic(
-            "claude-3-5-sonnet-20240602",
+            "claude-3-5-sonnet-20240620",
             system_message="You are a helpful assistant.",
             api_key=key,
         ),
