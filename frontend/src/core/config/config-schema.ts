@@ -134,6 +134,9 @@ export const UserConfigSchema = z
     display: {},
     experimental: {},
     server: {},
+    ai: {
+      open_ai: {},
+    },
   });
 export type UserConfig = MarimoConfig;
 export type SaveConfig = UserConfig["save"];
