@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Final, List, Optional, cast
+from typing import Any, Callable, Dict, Final, List, Optional, Union, cast
 
 from marimo._output.formatting import as_html
 from marimo._output.rich_help import mddoc
@@ -112,6 +112,8 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
         - `top_k`
         - `frequency_penalty`
         - `presence_penalty`
+    - `allow_attachments`: (bool | List[str]) allow attachments. True for any
+        attachments types, or pass a list of mime types
     """
 
     _name: Final[str] = "marimo-chatbot"
@@ -124,6 +126,7 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
         on_message: Optional[Callable[[List[ChatMessage]], None]] = None,
         show_configuration_controls: bool = False,
         config: Optional[ChatModelConfigDict] = None,
+        allow_attachments: Union[bool, List[str]] = False,
     ) -> None:
         self._model = model
         self._chat_history: List[ChatMessage] = []
@@ -137,6 +140,7 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
                 "prompts": prompts,
                 "show-configuration-controls": show_configuration_controls,
                 "config": cast(JSONType, config or {}),
+                "allow-attachments": allow_attachments,
             },
             functions=(
                 Function(

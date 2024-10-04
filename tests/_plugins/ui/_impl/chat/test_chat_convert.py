@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 from typing import List
 
 import pytest
@@ -26,12 +27,12 @@ def sample_messages() -> List[ChatMessage]:
                 ChatAttachment(
                     name="image.png",
                     content_type="image/png",
-                    url="http://example.com/image.png",
+                    url=f"data:image/png;base64,{base64.b64encode("hello".encode())}",
                 ),
                 ChatAttachment(
                     name="text.txt",
                     content_type="text/plain",
-                    url="http://example.com/text.txt",
+                    url="data:text/csv;base64,QQoxCjIKMwo=",
                 ),
             ],
         ),
@@ -57,11 +58,11 @@ def test_convert_to_openai_messages(sample_messages: List[ChatMessage]):
     }
     assert result[0]["content"][1] == {
         "type": "image_url",
-        "image_url": {"url": "http://example.com/image.png"},
+        "image_url": {"url": "data:image/png;base64,b'aGVsbG8='"},
     }
     assert result[0]["content"][2] == {
         "type": "text",
-        "text": "http://example.com/text.txt",
+        "text": "A\n1\n2\n3\n",
     }
 
     # Check assistant message
@@ -86,12 +87,16 @@ def test_convert_to_anthropic_messages(sample_messages: List[ChatMessage]):
         "text": "Hello, I have a question.",
     }
     assert result[0]["content"][1] == {
-        "type": "image_url",
-        "image_url": {"url": "http://example.com/image.png"},
+        "type": "image",
+        "source": {
+            "data": "b'aGVsbG8='",
+            "media_type": "image/png",
+            "type": "base64",
+        },
     }
     assert result[0]["content"][2] == {
         "type": "text",
-        "text": "http://example.com/text.txt",
+        "text": "A\n1\n2\n3\n",
     }
 
     # Check assistant message
@@ -111,9 +116,15 @@ def test_convert_to_google_messages(sample_messages: List[ChatMessage]):
     # Check user message
     assert result[0]["role"] == "user"
     assert result[0]["parts"] == [
-        "Hello, I have a question.\n"
-        "[Image: http://example.com/image.png]\n"
-        "[Text: http://example.com/text.txt]"
+        "Hello, I have a question.",
+        {
+            "data": b"m\xa1\x95\xb1\xb1\xbc",
+            "mime_type": "image/png",
+        },
+        {
+            "data": b"A\n1\n2\n3\n",
+            "mime_type": "text/plain",
+        },
     ]
 
     # Check assistant message

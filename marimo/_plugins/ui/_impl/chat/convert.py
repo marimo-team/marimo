@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Dict, List
+import base64
+from typing import Any, Dict, List, TypedDict
 
 from marimo._plugins.ui._impl.chat.types import ChatMessage
 
@@ -18,16 +19,23 @@ def convert_to_openai_messages(
 
         if message.attachments:
             for attachment in message.attachments:
-                if attachment.content_type.startswith("image"):
+                content_type = attachment.content_type or "text/plain"
+
+                if content_type.startswith("image"):
                     parts.append(
                         {
                             "type": "image_url",
                             "image_url": {"url": attachment.url},
                         }
                     )
-
-                elif attachment.content_type.startswith("text"):
-                    parts.append({"type": "text", "text": attachment.url})
+                elif content_type.startswith("text"):
+                    parts.append(
+                        {"type": "text", "text": _extract_text(attachment.url)}
+                    )
+                else:
+                    raise ValueError(
+                        f"Unsupported content type {content_type}"
+                    )
 
         openai_messages.append({"role": message.role, "content": parts})
 
@@ -46,20 +54,38 @@ def convert_to_anthropic_messages(
 
         if message.attachments:
             for attachment in message.attachments:
-                if attachment.content_type.startswith("image"):
+                content_type = attachment.content_type or "text/plain"
+                if content_type.startswith("image"):
                     parts.append(
                         {
-                            "type": "image_url",
-                            "image_url": {"url": attachment.url},
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": content_type,
+                                "data": _extract_data(attachment.url),
+                            },
                         }
                     )
 
-                elif attachment.content_type.startswith("text"):
-                    parts.append({"type": "text", "text": attachment.url})
+                elif content_type.startswith("text"):
+                    parts.append(
+                        {"type": "text", "text": _extract_text(attachment.url)}
+                    )
+
+                else:
+                    raise ValueError(
+                        f"Unsupported content type {content_type}"
+                    )
 
         anthropic_messages.append({"role": message.role, "content": parts})
 
     return anthropic_messages
+
+
+# Matches from google.generativeai.types import content_types
+class BlobDict(TypedDict):
+    mime_type: str
+    data: bytes
 
 
 def convert_to_google_messages(
@@ -68,19 +94,41 @@ def convert_to_google_messages(
     google_messages: List[Dict[Any, Any]] = []
 
     for message in messages:
-        content = message.content
+        parts: List[str | BlobDict] = [message.content]
         if message.attachments:
             for attachment in message.attachments:
-                if attachment.content_type.startswith("image"):
-                    content += f"\n[Image: {attachment.url}]"
-                elif attachment.content_type.startswith("text"):
-                    content += f"\n[Text: {attachment.url}]"
+                content_type = attachment.content_type or "text/plain"
+
+                parts.append(
+                    {
+                        "mime_type": content_type,
+                        "data": base64.b64decode(
+                            _extract_data(attachment.url)
+                        ),
+                    }
+                )
 
         google_messages.append(
             {
                 "role": "user" if message.role == "user" else "model",
-                "parts": [content],
+                "parts": parts,
             }
         )
 
     return google_messages
+
+
+def _extract_text(url: str) -> str:
+    if url.startswith("data:"):
+        # extract base64 encoding from url
+        data = url.split(",")[1]
+        return base64.b64decode(data).decode("utf-8")
+    else:
+        return url
+
+
+def _extract_data(url: str) -> str:
+    if url.startswith("data:"):
+        return url.split(",")[1]
+    else:
+        return url
