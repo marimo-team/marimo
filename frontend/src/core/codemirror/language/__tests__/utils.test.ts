@@ -3,6 +3,7 @@ import {
   getEditorCodeAsPython,
   updateEditorCodeFromPython,
   splitEditor,
+  extractHighlightedCode,
 } from "../utils";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
@@ -145,5 +146,56 @@ describe("splitEditor", () => {
     const result = splitEditor(mockEditor);
     expect(result.beforeCursorCode).toEqual('mo.md(f"""{a}""")');
     expect(result.afterCursorCode).toEqual('mo.md(f"""{b}!""")');
+  });
+});
+
+describe("extractHighlightedCode", () => {
+  const firstLine = "import marimo as mo";
+  const secondLine = "import pandas as pd";
+  const thirdLine = "import numpy as np";
+
+  it("extracts highlighted code at start", () => {
+    const mockEditor = createEditor(
+      `${firstLine}\n${secondLine}\n${thirdLine}`,
+    );
+    mockEditor.dispatch({
+      selection: {
+        anchor: mockEditor.state.doc.line(1).from,
+        head: mockEditor.state.doc.line(2).to,
+      },
+    });
+    const [highlighted, leftover] = extractHighlightedCode(mockEditor);
+    expect(highlighted).toEqual(`${firstLine}\n${secondLine}`);
+    expect(leftover).toEqual(`\n${thirdLine}`);
+  });
+
+  it("extracts highlighted code in middle", () => {
+    const mockEditor = createEditor(
+      `${firstLine}\n${secondLine}\n${thirdLine}`,
+    );
+    mockEditor.dispatch({
+      selection: {
+        anchor: mockEditor.state.doc.line(2).from,
+        head: mockEditor.state.doc.line(2).to,
+      },
+    });
+    const [highlighted, leftover] = extractHighlightedCode(mockEditor);
+    expect(highlighted).toEqual(secondLine);
+    expect(leftover).toEqual(`${firstLine}\n${thirdLine}`);
+  });
+
+  it("extracts highlighted code at end", () => {
+    const mockEditor = createEditor(
+      `${firstLine}\n${secondLine}\n${thirdLine}`,
+    );
+    mockEditor.dispatch({
+      selection: {
+        anchor: mockEditor.state.doc.line(3).from,
+        head: mockEditor.state.doc.line(3).to,
+      },
+    });
+    const [highlighted, leftover] = extractHighlightedCode(mockEditor);
+    expect(highlighted).toEqual(thirdLine);
+    expect(leftover).toEqual(`${firstLine}\n${secondLine}`);
   });
 });
