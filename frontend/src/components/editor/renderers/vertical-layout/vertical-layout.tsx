@@ -144,7 +144,7 @@ const ActionButtons: React.FC<{
     if (!app) {
       return;
     }
-    await downloadAsHTML({ filename: document.title });
+    await downloadAsHTML({ filename: document.title, includeCode: true });
   };
 
   return (
