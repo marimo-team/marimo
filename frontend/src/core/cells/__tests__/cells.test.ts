@@ -50,7 +50,9 @@ const { initialNotebookState, reducer, createActions } = exportedForTesting;
 
 function formatCells(notebook: NotebookState) {
   const cells = notebookCells(notebook);
-  return `\n${cells.map((cell) => [`key: ${cell.id}`, `code: '${cell.code}'`].join("\n")).join("\n\n")}`;
+  return `\n${cells
+    .map((cell) => [`key: ${cell.id}`, `code: '${cell.code}'`].join("\n"))
+    .join("\n\n")}`;
 }
 
 function createEditor(content: string) {
@@ -1275,5 +1277,131 @@ describe("cell reducer", () => {
 
     const cell = cells[0];
     expect(cell.consoleOutputs).toEqual([STDOUT1, STDOUT2]);
+  });
+
+  it("can create a cell using selected code", () => {
+    const firstLine = "import marimo as mo";
+    const secondLine = "import pandas as pd";
+    const thirdLine = "import numpy as np";
+
+    actions.createNewCell({
+      cellId: firstCellId,
+      before: false,
+      code: `${firstLine}\n${secondLine}\n${thirdLine}`,
+    });
+    const secondCellId = state.cellIds.atOrThrow(1);
+
+    const editor = state.cellHandles[secondCellId].current?.editorView;
+    if (!editor) {
+      throw new Error("Editor not found");
+    }
+    editor.dispatch({
+      selection: {
+        anchor: editor.state.doc.line(2).from,
+        head: editor.state.doc.line(2).to,
+      },
+    });
+
+    const { from, to } = editor.state.selection.main;
+    const highlighted = editor.state.doc.toString().slice(from, to);
+    expect(highlighted).toBe(secondLine);
+
+    // includeSelectionAsInitialCode is true and there is selection
+    actions.createNewCell({
+      cellId: secondCellId,
+      before: false,
+      includeSelectionAsInitialCode: true,
+    });
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      key: 0
+      code: ''
+
+      key: 1
+      code: '${firstLine}\n${thirdLine}'
+
+      key: 2
+      code: '${secondLine}'"
+    `);
+
+    // includeSelectionAsInitialCode is false and there is selection
+    editor.dispatch({
+      selection: {
+        anchor: editor.state.doc.line(2).from,
+        head: editor.state.doc.line(2).to,
+      },
+    });
+    actions.createNewCell({
+      cellId: secondCellId,
+      before: false,
+      includeSelectionAsInitialCode: false,
+    });
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      key: 0
+      code: ''
+
+      key: 1
+      code: '${firstLine}\n${thirdLine}'
+
+      key: 3
+      code: ''
+
+      key: 2
+      code: '${secondLine}'"
+    `);
+
+    // 3. includeSelectionAsInitialCode is true and there is no selection
+    editor.dispatch({ selection: { anchor: 0, head: 0 } });
+    actions.createNewCell({
+      cellId: secondCellId,
+      before: false,
+      includeSelectionAsInitialCode: true,
+    });
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      key: 0
+      code: ''
+
+      key: 1
+      code: '${firstLine}\n${thirdLine}'
+
+      key: 4
+      code: ''
+      
+      key: 3
+      code: ''
+
+      key: 2
+      code: '${secondLine}'"
+    `);
+
+    // 3. includeSelectionAsInitialCode is false and there is no selection
+    editor.dispatch({ selection: { anchor: 0, head: 0 } });
+    actions.createNewCell({
+      cellId: secondCellId,
+      before: false,
+      includeSelectionAsInitialCode: false,
+    });
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      key: 0
+      code: ''
+
+      key: 1
+      code: '${firstLine}\n${thirdLine}'
+
+      key: 5
+      code: ''
+
+      key: 4
+      code: ''
+      
+      key: 3
+      code: ''
+
+      key: 2
+      code: '${secondLine}'"
+    `);
   });
 });

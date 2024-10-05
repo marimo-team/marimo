@@ -222,7 +222,7 @@ const {
 
     if (includeSelectionAsInitialCode) {
       const id = cellId as CellId;
-      const editorView = getCellEditorView(id);
+      const editorView = state.cellHandles[id].current?.editorView;
       if (editorView) {
         const [highlighted, leftover] = extractHighlightedCode(editorView);
         if (highlighted.length > 0) {

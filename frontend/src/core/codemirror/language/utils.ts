@@ -71,12 +71,12 @@ export function splitEditor(editor: EditorView) {
 }
 
 export function extractHighlightedCode(editor: EditorView) {
-  const code = editor.state.doc;
+  const code = editor.state.doc.toString();
   let { from, to } = editor.state.selection.main;
   const highlighted = getEditorCodeAsPython(editor, from, to);
 
-  from = code.toString()[from - 1] === "\n" ? from - 1 : from;
-  to = code.toString()[to + 1] === "\n" ? to + 1 : to;
+  from = code[from - 1] === "\n" ? from - 1 : from;
+  to = code[to + 1] === "\n" ? to + 1 : to;
   editor.dispatch({
     changes: { from, to, insert: "" },
   });
