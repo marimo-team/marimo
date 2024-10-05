@@ -114,7 +114,10 @@ dependencies = [
     # Typo checking
     "typos~=1.23.6",
     "mypy~=1.10.1",
+    "pyarrow-hotfix",
     # Types for mypy
+    "polars~=1.5.0",
+    "pandas-stubs>=1.5.3.230321",
     "types-Pygments~=2.18.0.20240506",
     "types-psutil~=5.9.5.20240516",
     "types-Markdown~=3.6.0.20240316",
@@ -156,11 +159,9 @@ extra-dependencies = [
     "pandas>=1.5.3",
     "pandas-stubs>=1.5.3.230321",
     "geopandas~=0.14.4; python_version > '3.9'",
-    "pyarrow-hotfix",
     # For testing mo.image
     "pillow~=10.4.0",
     "types-Pillow~=10.2.0.20240520",
-    "polars~=1.5.0",
     "anywidget~=0.9.13",
     "ipython~=8.12.3",
     "openai~=1.41.1",
