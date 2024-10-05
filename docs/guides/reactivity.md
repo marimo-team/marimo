@@ -164,53 +164,9 @@ makes marimo easy to understand and encourages well-organized notebook code.
 ## Runtime configuration
 
 Through the notebook settings menu, you can configure how and when marimo runs
-cells.
-
-### On cell change: disabling automatic execution
-
-You can disable automatic execution of cells by configuring the runtime to be
-**lazy**: the lazy runtime only runs cells when you ask for them to be run,
-marking downstream cells as stale instead of running them.
-
-When your notebook has expensive cells or dangerous side-effects, choosing lazy
-execution can be key to having a good experience in marimo.
-
-### On startup: disabling autorun
-
-By default, marimo notebooks run automatically on startup; just how the command
-
-```
-python main.py
-```
-
-executes a script,
-
-```
-marimo edit notebook.py
-```
-
-executes the notebook. You can disable autorun on startup in the notebook
-settings.
-
-<a href="module-change"></a>
-
-### On module change: autoreloading
-
-When module autoreloading is enabled,
-marimo tracks when Python modules used by your notebook are changed and reloads
-them so you can use the latest version of your code.
-This works recursively, meaning that marimo tracks modifications for modules
-imported by your notebook's imported modules too.
-
-Autoreloading comes in two types:
-
-- "lazy": automatically marks cells affected by module
-  modifications as stale, letting you know which cells need to be re-run.
-- "autorun": automatically re-runs cells affected by module modification.
-
-**Why autoreload?** Autoreloading enables a workflow that many developers find
-productive: develop complex logic in Python modules, and use the marimo
-notebook as a DAG or main script that orchestrates your logic.
+cells. In particular, you can disable autorun on startup, disable autorun
+on cell execution, and enable a powerful module autoreloader. Read our
+[runtime configuration guide](/guides/runtime_configuration.md) to learn more.
 
 ## Disabling cells
 

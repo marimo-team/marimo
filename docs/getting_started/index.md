@@ -86,7 +86,7 @@ Having installation issues? Reach out to us [at GitHub](https://github.com/marim
 marimo tutorial --help
 ```
 
-## Notebooks
+## Edit notebooks
 
 Create and edit notebooks with `marimo edit`.
 
@@ -106,7 +106,7 @@ marimo edit your_notebook.py
 (If `your_notebook.py` doesn't exist, marimo will create a blank notebook
 named `your_notebook.py`.)
 
-## Apps
+## Deploy as apps
 
 Use `marimo run` to serve your notebook as an app, with Python code hidden and
 uneditable.
@@ -115,19 +115,35 @@ uneditable.
 marimo run your_notebook.py
 ```
 
-## Convert Jupyter notebooks
+## Convert from Jupyter to marimo
 
-Automatically translate Jupyter notebooks to marimo notebooks with `marimo convert`:
+Automatically convert Jupyter notebooks to marimo notebooks with `marimo convert`:
 
 ```bash
-marimo convert your_notebook.ipynb > your_notebook.py
+marimo convert your_notebook.ipynb -o your_notebook.py
 ```
 
-Because marimo is different from traditional notebooks, your converted notebook
-will likely have errors that you'll need to fix. marimo will guide you through
-fixing them when you open it with `marimo edit`.
+Then open the notebook with `marimo edit your_notebook.py`
 
-## GitHub Copilot
+:::{admonition} Disable autorun on startup
+:class: tip
+
+
+marimo automatically runs notebooks when they are opened. If this
+is a problem for you (not all Jupyter notebooks are designed to be run on
+startup), you can disable autorun on startup via [user configuration](https://docs.marimo.io/guides/configuration.html#user-configuration).
+
+1. Type `marimo config show` to get the location of your config file.
+2. If no config file exists, create it at `~/.marimo.toml` or `$XDG_CONFIG_HOME/marimo/marimo.toml`.
+3. Update your config to include the following:
+
+```toml
+[runtime]
+auto_instantiate = false
+```
+:::
+
+## GitHub Copilot and AI Assistant
 
 The marimo editor natively supports [GitHub Copilot](https://copilot.github.com/),
 an AI pair programmer, similar to VS Code.
@@ -138,7 +154,10 @@ _Get started with Copilot_:
 2. Enable Copilot via the settings menu in the marimo editor.
 
 _Note_: Copilot is not yet available in our conda distribution; please install
-marimo using `pip` if you need Copilot.
+marimo from `PyPI` if you need Copilot.
+
+marimo also comes with support for [other copilots](https://docs.marimo.io/guides/editor_features/ai_completion.html#codeium-copilot),
+and a built-in [AI assistant](https://docs.marimo.io/guides/editor_features/ai_completion.html#generate-code-with-our-ai-assistant) that helps you write code.
 
 ## VS Code extension
 
