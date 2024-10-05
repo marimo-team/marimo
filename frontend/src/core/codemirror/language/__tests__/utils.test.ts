@@ -7,10 +7,12 @@ import {
 } from "../utils";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import { adaptiveLanguageConfiguration, switchLanguage } from "../extension";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import type { MovementCallbacks } from "../../cells/extensions";
+import { store } from "@/core/state/jotai";
+import { capabilitiesAtom } from "@/core/config/capabilities";
 
 function createEditor(doc: string) {
   return new EditorView({
@@ -156,9 +158,9 @@ describe("extractHighlightedCode", () => {
   const pythonCode = `${pyLineOne}\n${pyLineTwo}\n${pyLineThree}`;
 
   const sqlLineOne = "SELECT * FROM table";
-  const sqlLineTwo = "WHERE column = 'value'";
+  const sqlLineTwo = "WHERE column = value";
   const sqlLineThree = "ORDER BY column";
-  const sqlCode = `df = mo.sql('${sqlLineOne}\n${sqlLineTwo}\n${sqlLineThree}')`;
+  const sqlCode = `df = mo.sql("""${sqlLineOne}\n${sqlLineTwo}\n${sqlLineThree}""")`;
 
   const mdLineOne = "Hello, World!";
   const mdLineTwo = "Goodbye, World!";
@@ -172,6 +174,13 @@ describe("extractHighlightedCode", () => {
     }
     return result;
   }
+
+  beforeAll(() => {
+    store.set(capabilitiesAtom, {
+      sql: true,
+      terminal: true,
+    });
+  });
 
   it("extracts highlighted Python code at start", () => {
     const mockEditor = createEditor(pythonCode);
@@ -215,9 +224,8 @@ describe("extractHighlightedCode", () => {
   it("extracts no highlighted Python code if none", () => {
     const mockEditor = createEditor(pythonCode);
     mockEditor.dispatch({ selection: { anchor: 0, head: 0 } });
-    const [highlighted, leftover] = getExtraction(mockEditor);
-    expect(highlighted).toEqual("");
-    expect(leftover).toEqual(pythonCode);
+    const result = extractHighlightedCode(mockEditor);
+    expect(result).toEqual(null);
   });
 
   it("extracts highlighted SQL code at start", () => {
@@ -230,8 +238,16 @@ describe("extractHighlightedCode", () => {
       },
     });
     const [highlighted, leftover] = getExtraction(mockEditor);
-    expect(highlighted).toEqual(`${sqlLineOne}\n${sqlLineTwo}`);
-    expect(leftover).toEqual(`\n${sqlLineThree}`);
+    expect(leftover).toEqual(`df = mo.sql(
+    """
+
+    ${sqlLineThree}
+    """\n)`);
+    expect(highlighted).toEqual(`df = mo.sql(
+    """
+    ${sqlLineOne}
+    ${sqlLineTwo}
+    """\n)`);
   });
 
   it("extracts highlighted SQL code in middle", () => {
@@ -244,8 +260,15 @@ describe("extractHighlightedCode", () => {
       },
     });
     const [highlighted, leftover] = getExtraction(mockEditor);
-    expect(highlighted).toEqual(sqlLineTwo);
-    expect(leftover).toEqual(`${sqlLineOne}\n${sqlLineThree}`);
+    expect(highlighted).toEqual(`df = mo.sql(
+    """
+    ${sqlLineTwo}
+    """\n)`);
+    expect(leftover).toEqual(`df = mo.sql(
+    """
+    ${sqlLineOne}
+    ${sqlLineThree}
+    """\n)`);
   });
 
   it("extracts highlighted SQL code at end", () => {
@@ -258,17 +281,23 @@ describe("extractHighlightedCode", () => {
       },
     });
     const [highlighted, leftover] = getExtraction(mockEditor);
-    expect(highlighted).toEqual(sqlLineThree);
-    expect(leftover).toEqual(`${sqlLineOne}\n${sqlLineTwo}`);
+    expect(highlighted).toEqual(`df = mo.sql(
+    """
+    ${sqlLineThree}
+    """\n)`);
+    expect(leftover).toEqual(`df = mo.sql(
+    """
+    ${sqlLineOne}
+    ${sqlLineTwo}
+    """\n)`);
   });
 
   it("extracts no highlighted SQL code if none", () => {
     const mockEditor = createEditor(sqlCode);
     switchLanguage(mockEditor, "sql");
     mockEditor.dispatch({ selection: { anchor: 0, head: 0 } });
-    const [highlighted, leftover] = getExtraction(mockEditor);
-    expect(highlighted).toEqual("");
-    expect(leftover).toEqual(sqlCode);
+    const result = extractHighlightedCode(mockEditor);
+    expect(result).toEqual(null);
   });
 
   it("extracts highlighted Markdown code at start", () => {
@@ -333,13 +362,7 @@ describe("extractHighlightedCode", () => {
     const mockEditor = createEditor(markdownCode);
     switchLanguage(mockEditor, "markdown");
     mockEditor.dispatch({ selection: { anchor: 0, head: 0 } });
-    const [highlighted, leftover] = getExtraction(mockEditor);
-    expect(highlighted).toEqual('mo.md(""" """)');
-    expect(leftover).toEqual(`mo.md(
-    """
-    Hello, World!
-    Goodbye, World!
-    Hello, Goodbye!
-    """\n)`);
+    const result = extractHighlightedCode(mockEditor);
+    expect(result).toEqual(null);
   });
 });
