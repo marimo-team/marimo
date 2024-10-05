@@ -131,7 +131,7 @@ Then open the notebook with `marimo edit your_notebook.py`
 
 marimo automatically runs notebooks when they are opened. If this
 is a problem for you (not all Jupyter notebooks are designed to be run on
-startup), you can disable autorun on startup via [user configuration](https://docs.marimo.io/guides/configuration.html#user-configuration).
+startup), you can disable autorun on startup via [user configuration](/guides/configuration/runtime_configuration.md).
 
 1. Type `marimo config show` to get the location of your config file.
 2. If no config file exists, create it at `~/.marimo.toml` or `$XDG_CONFIG_HOME/marimo/marimo.toml`.
@@ -156,8 +156,8 @@ _Get started with Copilot_:
 _Note_: Copilot is not yet available in our conda distribution; please install
 marimo from `PyPI` if you need Copilot.
 
-marimo also comes with support for [other copilots](https://docs.marimo.io/guides/editor_features/ai_completion.html#codeium-copilot),
-and a built-in [AI assistant](https://docs.marimo.io/guides/editor_features/ai_completion.html#generate-code-with-our-ai-assistant) that helps you write code.
+marimo also comes with support for [other copilots](/guides/editor_features/ai_completion.html#codeium-copilot),
+and a built-in [AI assistant](/guides/editor_features/ai_completion.html#generate-code-with-our-ai-assistant) that helps you write code.
 
 ## VS Code extension
 
