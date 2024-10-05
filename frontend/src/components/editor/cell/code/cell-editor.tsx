@@ -108,27 +108,27 @@ const CellEditorInternal = ({
 
   const createBelow = useCallback(
     () => createNewCell({ cellId, before: false }),
-    [cellId, createNewCell]
+    [cellId, createNewCell],
   );
   const createAbove = useCallback(
     () => createNewCell({ cellId, before: true }),
-    [cellId, createNewCell]
+    [cellId, createNewCell],
   );
   const moveDown = useCallback(
     () => moveCell({ cellId, before: false }),
-    [cellId, moveCell]
+    [cellId, moveCell],
   );
   const moveUp = useCallback(
     () => moveCell({ cellId, before: true }),
-    [cellId, moveCell]
+    [cellId, moveCell],
   );
   const focusDown = useCallback(
     () => focusCell({ cellId, before: false }),
-    [cellId, focusCell]
+    [cellId, focusCell],
   );
   const focusUp = useCallback(
     () => focusCell({ cellId, before: true }),
-    [cellId, focusCell]
+    [cellId, focusCell],
   );
 
   const toggleHideCode = useEvent(() => {
@@ -202,7 +202,7 @@ const CellEditorInternal = ({
             setLanguageAdapter(languageAdapter.type);
           },
         };
-      })
+      }),
     );
 
     return extensions;
@@ -249,7 +249,7 @@ const CellEditorInternal = ({
         // Initialize the language adapter
         switchLanguage(
           editorViewRef.current,
-          getInitialLanguageAdapter(editorViewRef.current.state).type
+          getInitialLanguageAdapter(editorViewRef.current.state).type,
         );
       } else {
         editorViewRef.current.dispatch({
@@ -258,7 +258,7 @@ const CellEditorInternal = ({
             reconfigureLanguageEffect(
               editorViewRef.current,
               userConfig.completion,
-              new OverridingHotkeyProvider(userConfig.keymap.overrides)
+              new OverridingHotkeyProvider(userConfig.keymap.overrides),
             ),
           ],
         });
@@ -272,13 +272,13 @@ const CellEditorInternal = ({
             doc: code,
             extensions: extensions,
           },
-          { history: historyField }
+          { history: historyField },
         ),
       });
       // Initialize the language adapter
       switchLanguage(
         editorViewRef.current,
-        getInitialLanguageAdapter(editorViewRef.current.state).type
+        getInitialLanguageAdapter(editorViewRef.current.state).type,
       );
       shouldFocus = true;
       // Clear the serialized state so that we don't re-create the editor next time
@@ -332,7 +332,7 @@ const CellEditorInternal = ({
       editorViewRef.current?.contentDOM.addEventListener(
         "blur",
         () => updateCellConfig({ cellId, config: { hide_code: true } }),
-        { once: true }
+        { once: true },
       );
     }
   };
@@ -399,7 +399,7 @@ const CellCodeMirrorEditor = React.forwardRef(
       className?: string;
       editorView: EditorView | null;
     },
-    ref: React.Ref<HTMLDivElement>
+    ref: React.Ref<HTMLDivElement>,
   ) => {
     const { className, editorView } = props;
     const internalRef = useRef<HTMLDivElement>(null);
@@ -425,7 +425,7 @@ const CellCodeMirrorEditor = React.forwardRef(
         data-testid="cell-editor"
       />
     );
-  }
+  },
 );
 CellCodeMirrorEditor.displayName = "CellCodeMirrorEditor";
 
