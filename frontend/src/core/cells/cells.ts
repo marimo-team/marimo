@@ -218,16 +218,25 @@ const {
         : state.cellIds.topLevelIds.indexOf(cellId);
     const insertionIndex = before ? index : index + 1;
 
-    let cellContents = code;
+    let newCellCode = code;
 
     if (includeSelectionAsInitialCode) {
       const id = cellId as CellId;
-      const cellEditorView = getCellEditorView(id);
-      if (cellEditorView) {
-        const [highlighted, leftover] = extractHighlightedCode(cellEditorView);
-        cellContents = highlighted;
-        state.cellData[id].code = leftover;
-        state.cellData[id].edited = true;
+      const editorView = getCellEditorView(id);
+      if (editorView) {
+        const [highlighted, leftover] = extractHighlightedCode(editorView);
+        if (highlighted.length > 0) {
+          newCellCode = highlighted === "" ? code : highlighted;
+          updateEditorCodeFromPython(editorView, leftover);
+          state.cellData = {
+            ...state.cellData,
+            [id]: {
+              ...state.cellData[id],
+              code: leftover,
+              edited: true,
+            },
+          };
+        }
       }
     }
 
@@ -238,10 +247,10 @@ const {
         ...state.cellData,
         [newCellId]: createCell({
           id: newCellId,
-          code: cellContents,
+          code: newCellCode,
           lastCodeRun,
           lastExecutionTime,
-          edited: Boolean(cellContents) && cellContents !== lastCodeRun,
+          edited: Boolean(newCellCode) && newCellCode !== lastCodeRun,
         }),
       },
       cellRuntime: {

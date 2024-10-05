@@ -73,7 +73,7 @@ export function splitEditor(editor: EditorView) {
 export function extractHighlightedCode(editor: EditorView) {
   const code = editor.state.doc;
   let { from, to } = editor.state.selection.main;
-  const highlighted = code.sliceString(from, to);
+  const highlighted = getEditorCodeAsPython(editor, from, to);
 
   from = code.toString()[from - 1] === "\n" ? from - 1 : from;
   to = code.toString()[to + 1] === "\n" ? to + 1 : to;
@@ -81,6 +81,6 @@ export function extractHighlightedCode(editor: EditorView) {
     changes: { from, to, insert: "" },
   });
 
-  const leftover = editor.state.doc.toString();
+  const leftover = getEditorCodeAsPython(editor);
   return [highlighted, leftover];
 }
