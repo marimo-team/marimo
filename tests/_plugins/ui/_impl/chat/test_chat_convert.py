@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import base64
 from typing import List
 
 import pytest
 
 from marimo._plugins.ui._impl.chat.convert import (
     convert_to_anthropic_messages,
+    convert_to_google_messages,
     convert_to_openai_messages,
 )
 from marimo._plugins.ui._impl.chat.types import (
@@ -25,12 +27,12 @@ def sample_messages() -> List[ChatMessage]:
                 ChatAttachment(
                     name="image.png",
                     content_type="image/png",
-                    url="http://example.com/image.png",
+                    url=f"data:image/png;base64,{base64.b64encode('hello'.encode())}",
                 ),
                 ChatAttachment(
                     name="text.txt",
                     content_type="text/plain",
-                    url="http://example.com/text.txt",
+                    url="data:text/csv;base64,QQoxCjIKMwo=",
                 ),
             ],
         ),
@@ -56,11 +58,11 @@ def test_convert_to_openai_messages(sample_messages: List[ChatMessage]):
     }
     assert result[0]["content"][1] == {
         "type": "image_url",
-        "image_url": {"url": "http://example.com/image.png"},
+        "image_url": {"url": "data:image/png;base64,b'aGVsbG8='"},
     }
     assert result[0]["content"][2] == {
         "type": "text",
-        "text": "http://example.com/text.txt",
+        "text": "A\n1\n2\n3\n",
     }
 
     # Check assistant message
@@ -85,12 +87,16 @@ def test_convert_to_anthropic_messages(sample_messages: List[ChatMessage]):
         "text": "Hello, I have a question.",
     }
     assert result[0]["content"][1] == {
-        "type": "image_url",
-        "image_url": {"url": "http://example.com/image.png"},
+        "type": "image",
+        "source": {
+            "data": "b'aGVsbG8='",
+            "media_type": "image/png",
+            "type": "base64",
+        },
     }
     assert result[0]["content"][2] == {
         "type": "text",
-        "text": "http://example.com/text.txt",
+        "text": "A\n1\n2\n3\n",
     }
 
     # Check assistant message
@@ -102,10 +108,37 @@ def test_convert_to_anthropic_messages(sample_messages: List[ChatMessage]):
     }
 
 
+def test_convert_to_google_messages(sample_messages: List[ChatMessage]):
+    result = convert_to_google_messages(sample_messages)
+
+    assert len(result) == 2
+
+    # Check user message
+    assert result[0]["role"] == "user"
+    assert result[0]["parts"] == [
+        "Hello, I have a question.",
+        {
+            "data": b"m\xa1\x95\xb1\xb1\xbc",
+            "mime_type": "image/png",
+        },
+        {
+            "data": b"A\n1\n2\n3\n",
+            "mime_type": "text/plain",
+        },
+    ]
+
+    # Check assistant message
+    assert result[1]["role"] == "model"
+    assert result[1]["parts"] == [
+        "Sure, I'd be happy to help. What's your question?"
+    ]
+
+
 def test_empty_messages():
     empty_messages = []
     assert convert_to_openai_messages(empty_messages) == []
     assert convert_to_anthropic_messages(empty_messages) == []
+    assert convert_to_google_messages(empty_messages) == []
 
 
 def test_message_without_attachments():
@@ -132,6 +165,11 @@ def test_message_without_attachments():
         "type": "text",
         "text": "Just a simple message",
     }
+
+    google_result = convert_to_google_messages(messages)
+    assert len(google_result) == 1
+    assert google_result[0]["role"] == "user"
+    assert google_result[0]["parts"] == ["Just a simple message"]
 
 
 def test_from_chat_message_dict():

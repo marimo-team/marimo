@@ -26,6 +26,7 @@ export const ChatPlugin = createPlugin<ChatMessage[]>("marimo-chatbot")
         frequencyPenalty: z.number().default(0),
         presencePenalty: z.number().default(0),
       }),
+      allowAttachments: z.union([z.boolean(), z.string().array()]),
     }),
   )
   .withFunctions<PluginFunctions>({
@@ -46,6 +47,15 @@ export const ChatPlugin = createPlugin<ChatMessage[]>("marimo-chatbot")
             z.object({
               role: z.enum(["system", "user", "assistant"]),
               content: z.string(),
+              attachments: z
+                .array(
+                  z.object({
+                    name: z.string().optional(),
+                    contentType: z.string().optional(),
+                    url: z.string(),
+                  }),
+                )
+                .optional(),
             }),
           ),
           config: z.object({
@@ -65,6 +75,7 @@ export const ChatPlugin = createPlugin<ChatMessage[]>("marimo-chatbot")
       <Chatbot
         prompts={props.data.prompts}
         showConfigurationControls={props.data.showConfigurationControls}
+        allowAttachments={props.data.allowAttachments}
         config={props.data.config}
         sendPrompt={props.functions.send_prompt}
         value={props.value || Arrays.EMPTY}

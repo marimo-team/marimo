@@ -91,23 +91,8 @@ class AppFileRouter(abc.ABC):
         if key.startswith(AppFileRouter.NEW_FILE):
             return AppFileManager(None, default_width)
 
-        for file in self.files:
-            if file.path == key:
-                return AppFileManager(file.path, default_width)
-
-        path = (
-            os.path.join(self.directory, key)
-            if self.directory is not None
-            else key
-        )
-
-        # Absolute path
-        if os.path.isabs(path):
-            return AppFileManager(path, default_width)
-
-        # Relative path
-        if os.path.exists(path):
-            return AppFileManager(path, default_width)
+        if os.path.exists(key):
+            return AppFileManager(key, default_width)
 
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,

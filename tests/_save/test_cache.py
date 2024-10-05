@@ -934,3 +934,171 @@ class TestCacheDecorator:
             return
 
         app.run()
+
+    @staticmethod
+    def test_shadowed_state() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def __():
+            import marimo as mo
+
+            return (mo,)
+
+        @app.cell
+        def __(mo):
+            state, set_state = mo.state(None)
+
+            @mo.cache
+            def g(state):
+                return len(state)
+
+            v = g("123")
+            return (g, v)
+
+        @app.cell
+        def __(v):
+            assert v == 3
+            return
+
+        app.run()
+
+    @staticmethod
+    def test_shadowed_state_redefined() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def __():
+            import marimo as mo
+
+            return (mo,)
+
+        @app.cell
+        def __(mo):
+            state, set_state = mo.state(None)
+
+            @mo.cache
+            def g():
+                return len(state)
+
+            state = "123"
+
+            v = g()
+            return (g, v)
+
+        @app.cell
+        def __(v):
+            assert v == 3
+            return
+
+        app.run()
+
+    @staticmethod
+    def test_transitive_shadowed_state_fails() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        # Add a unit test to denote a known failure case
+
+        @app.cell
+        def __():
+            import marimo as mo
+
+            return (mo,)
+
+        @app.cell
+        def __(mo):
+            state1, set_state1 = mo.state(1)
+            state2, set_state2 = mo.state(2)
+
+            state, set_state = mo.state(3)
+
+            # Example of a case where things start to get very tricky. There
+            # comes a point where you might also have to capture frame levels
+            # as well if you mix scope.
+            #
+            # This is solved by throwing an exception when state
+            # shadowing occurs.
+            def f():
+                return state()
+
+            @mo.cache
+            def g(state):
+                return state() + f()
+
+        # Cannot resolved shadowed ref.
+        with pytest.raises(RuntimeError) as e:
+            app.run()
+
+        assert "rename the argument" in str(e)
+
+    @staticmethod
+    def test_shadowed_state_mismatch() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def __():
+            import marimo as mo
+
+            return (mo,)
+
+        @app.cell
+        def __(mo):
+            state1, set_state1 = mo.state(1)
+            state2, set_state2 = mo.state(2)
+
+            state, set_state = mo.state(3)
+
+            @mo.cache
+            def g(state):
+                return state()
+
+            a = g(state1)
+            b = g(state2)
+
+            A = g(state1)
+            B = g(state2)
+            assert g.hits == 2
+            return (a, b, A, B)
+
+        @app.cell
+        def __(a, b, A, B, state, state1, state2):
+            assert state1() != state2()
+            assert state1() == a == A
+            assert state2() == b == B
+            assert state() == 3
+            return
+
+        app.run()
+
+    @staticmethod
+    def test_shadowed_ui() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def __():
+            import marimo as mo
+
+            return (mo,)
+
+        @app.cell
+        def __(mo):
+            slider = mo.ui.slider(0, 1)
+
+            @mo.cache
+            def g(slider):
+                return len(slider)
+
+            v = g("123")
+            return (g, v, slider)
+
+        @app.cell
+        def __(v):
+            assert v == 3
+            return
+
+        app.run()

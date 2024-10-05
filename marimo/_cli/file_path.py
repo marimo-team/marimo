@@ -53,6 +53,9 @@ class LocalFileReader(FileReader):
         return not is_url(name)
 
     def read(self, name: str) -> Tuple[str, str]:
+        # Is directory
+        if os.path.isdir(name):
+            return "", os.path.basename(name)
         with open(name, "r") as f:
             content = f.read()
         return content, os.path.basename(name)

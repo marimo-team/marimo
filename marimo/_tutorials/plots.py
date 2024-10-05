@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.8.0"
+__generated_with = "0.8.22"
 app = marimo.App()
 
 
@@ -106,7 +106,7 @@ def __(mo):
 @app.cell
 def __(np):
     x = np.linspace(start=-4, stop=4, num=100, dtype=float)
-    return x,
+    return (x,)
 
 
 @app.cell
@@ -140,7 +140,7 @@ def __(plt, x):
     axis.plot(x, x)
     axis.plot(x, x**2)
     axis
-    return axis,
+    return (axis,)
 
 
 @app.cell
@@ -173,20 +173,20 @@ def __(mo):
         {exponent}
         """
     )
-    return exponent,
+    return (exponent,)
 
 
 @app.cell
-def __(exponent, mo, plt, x):
-    import functools
-
-
-    @functools.cache
-    def _plot(exponent):
+def __(mo, plt, x):
+    @mo.cache
+    def plot_power(exponent):
         plt.plot(x, x**exponent)
         return plt.gca()
+    return (plot_power,)
 
 
+@app.cell
+def __(exponent, mo, plot_power):
     _tex = (
         f"$$f(x) = x^{exponent.value}$$" if exponent.value > 1 else "$$f(x) = x$$"
     )
@@ -196,10 +196,10 @@ def __(exponent, mo, plt, x):
 
         {_tex}
 
-        {mo.as_html(_plot(exponent.value))}
+        {mo.as_html(plot_power(exponent.value))}
         """
     )
-    return functools,
+    return
 
 
 @app.cell(hide_code=True)
@@ -265,7 +265,7 @@ def __():
         outputs are not shown in the app view.
         """
     }
-    return plt_show_explainer,
+    return (plt_show_explainer,)
 
 
 @app.cell
@@ -286,7 +286,7 @@ def __():
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 if __name__ == "__main__":

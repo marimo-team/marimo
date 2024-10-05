@@ -10,14 +10,14 @@ This folder contains example marimo notebooks.
 - ☁️  [`cloud/`](cloud/): using various cloud providers
 - ✨ [`misc/`](misc/): miscellenous topical examples
 
+> [!TIP]
+> New to marimo? Run `marimo tutorial ui` at the command line first!
+
 > [!NOTE]
 > Submit a
 > [pull request](https://github.com/marimo-team/marimo/pulls) to add an example!
 > We especially welcome library developers to add examples to `third_party/`.
 
-> [!Tip]
-> marimo ships with tutorials to help you get started: start with
-> `marimo tutorial intro` at the command line.
 
 ## Running examples
 

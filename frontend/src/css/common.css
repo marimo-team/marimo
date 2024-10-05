@@ -18,7 +18,6 @@
 }
 
 /* If parent has any children that have an open pop, show hover actions */
-.hover-actions-parent:has([data-state="open"])
-  .hover-action {
+.hover-actions-parent:has([data-state='open']) .hover-action {
   display: inline-flex !important;
 }

@@ -1,13 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { SquareIcon } from "lucide-react";
-import { Button } from "@/components/editor/inputs/Inputs";
-import { Tooltip } from "../../ui/tooltip";
 import { renderShortcut } from "../../shortcuts/renderShortcut";
-import { cn } from "../../../utils/cn";
 import { sendInterrupt } from "@/core/network/requests";
 import { useShouldShowInterrupt } from "./useShouldShowInterrupt";
 import type { RuntimeState } from "@/core/network/types";
 import { Functions } from "@/utils/functions";
+import { ToolbarItem } from "./toolbar";
 
 export const StopButton = (props: {
   status: RuntimeState;
@@ -21,21 +19,14 @@ export const StopButton = (props: {
   const showInterrupt = useShouldShowInterrupt(running);
 
   return (
-    <Tooltip content={renderShortcut("global.interrupt")} usePortal={false}>
-      <Button
-        className={cn(
-          !showInterrupt && "hover-action",
-          (appClosed || !showInterrupt) &&
-            "inactive-button active:shadow-xsSolid",
-        )}
-        onClick={showInterrupt ? sendInterrupt : Functions.NOOP}
-        color={showInterrupt ? "yellow" : "disabled"}
-        shape="circle"
-        size="small"
-        data-testid="run-button"
-      >
-        <SquareIcon strokeWidth={1.5} />
-      </Button>
-    </Tooltip>
+    <ToolbarItem
+      tooltip={renderShortcut("global.interrupt")}
+      disabled={appClosed || !showInterrupt}
+      onClick={showInterrupt ? sendInterrupt : Functions.NOOP}
+      variant={showInterrupt ? "stale" : "disabled"}
+      data-testid="run-button"
+    >
+      <SquareIcon strokeWidth={1.5} />
+    </ToolbarItem>
   );
 };

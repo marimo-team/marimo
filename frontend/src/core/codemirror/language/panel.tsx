@@ -68,7 +68,7 @@ export const LanguagePanelComponent: React.FC<{
   }
 
   return (
-    <div className="flex justify-between items-center gap-4 px-2 pt-2">
+    <div className="flex justify-between items-center gap-4 pl-2 pt-2">
       {actions}
       {showDivider && <div className="h-4 border-r border-border" />}
       {languageAdapter.type}

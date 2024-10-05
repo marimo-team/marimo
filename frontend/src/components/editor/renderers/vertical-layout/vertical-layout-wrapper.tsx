@@ -5,6 +5,7 @@ import type { AppConfig } from "@/core/config/config-schema";
 
 interface Props {
   className?: string;
+  innerClassName?: string;
   appConfig: AppConfig;
   invisible?: boolean;
 }
@@ -14,6 +15,7 @@ export const VerticalLayoutWrapper: React.FC<PropsWithChildren<Props>> = ({
   appConfig,
   className,
   children,
+  innerClassName,
 }) => {
   return (
     <div
@@ -29,9 +31,10 @@ export const VerticalLayoutWrapper: React.FC<PropsWithChildren<Props>> = ({
           appConfig.width === "compact" && "max-w-contentWidth min-w-[400px]",
           appConfig.width === "medium" &&
             "max-w-contentWidthMedium min-w-[400px]",
-          appConfig.width === "full" && "max-w-full pr-10 xl:pr-4",
+          appConfig.width === "full" && "max-w-full",
           // Hide the cells for a fake loading effect, to avoid flickering
           invisible && "invisible",
+          innerClassName,
         )}
       >
         {children}
