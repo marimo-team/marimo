@@ -34,11 +34,11 @@ def convert(
 
     Example usage:
 
-        marimo convert your_nb.ipynb > your_nb.py
+        marimo convert your_nb.ipynb -o your_nb.py
 
     or
 
-        marimo convert your_nb.md > your_nb.py
+        marimo convert your_nb.md -o your_nb.py
 
     Jupyter notebook conversion will strip out all outputs. Markdown cell
     conversion with occur on the presence of `\`\`\`{python}` code blocks.

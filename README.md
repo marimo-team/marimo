@@ -62,10 +62,12 @@ memory, eliminating hidden state.
 
 <a name="expensive-notebooks"></a>
 
-**Compatible with expensive notebooks.** marimo lets you configure the runtime
-to be lazy, marking affected cells as stale instead of automatically running
-them. This gives you guarantees on program state while preventing accidental
-execution of expensive cells.
+**Compatible with expensive notebooks.** marimo lets you [configure the runtime
+to be
+lazy](https://docs.marimo.io/guides/configuration/runtime_configuration.html),
+marking affected cells as stale instead of automatically running them. This
+gives you guarantees on program state while preventing accidental execution of
+expensive cells.
 
 **Synchronized UI elements.** Interact with [UI
 elements](https://docs.marimo.io/guides/interactivity.html) like [sliders](https://docs.marimo.io/api/inputs/slider.html#slider),
