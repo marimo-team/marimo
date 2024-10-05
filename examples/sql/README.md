@@ -4,8 +4,8 @@ These examples show how to use marimo's built-in support for SQL, which
 is powered by [duckdb](https://duckdb.org).
 
 > [!TIP]
-> Submit a
-> [pull request](https://github.com/marimo-team/marimo/pulls) to add an example!
+> For an overview of using SQL in marimo, run `marimo tutorial sql` at the
+> command-line.
 
 
 ## Running examples
