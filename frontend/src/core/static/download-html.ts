@@ -8,11 +8,14 @@ import { Filenames } from "@/utils/filenames";
 /**
  * Downloads the current notebook as an HTML file.
  */
-export async function downloadAsHTML(opts: { filename: string }) {
-  const { filename } = opts;
+export async function downloadAsHTML(opts: {
+  filename: string;
+  includeCode: boolean;
+}) {
+  const { filename, includeCode } = opts;
   const html = await exportAsHTML({
     download: true,
-    includeCode: true,
+    includeCode: includeCode,
     files: VirtualFileTracker.INSTANCE.filenames(),
   });
   const filenameWithoutPath = Paths.basename(filename) ?? "notebook.py";
