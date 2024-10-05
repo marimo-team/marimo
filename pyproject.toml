@@ -85,6 +85,8 @@ dev = [
     "duckdb>=1.0.0",
     # For linting
     "ruff~=0.6.1",
+    # For AI
+    "openai~=1.41.1",
 ]
 
 [tool.hatch]
@@ -104,10 +106,10 @@ packages = ["marimo"]
 dependencies = ["uv>=0.4.17"]
 
 [tool.hatch.envs.default]
+features = ["dev"]
 python = "3.12"
 installer = "uv"
 dependencies = [
-    "dev", # dev dependencies
     "uv>=0.4.17", # so we can bump the version used by hatch
     # Typo checking
     "typos~=1.23.6",
@@ -123,7 +125,6 @@ dependencies = [
 lint = "ruff check --fix"
 typecheck = "mypy marimo/"
 format = "ruff format"
-typos = "typos"
 
 [tool.hatch.envs.test]
 extra-dependencies = [
