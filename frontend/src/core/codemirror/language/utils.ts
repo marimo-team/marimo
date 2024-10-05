@@ -73,6 +73,9 @@ export function splitEditor(editor: EditorView) {
 export function extractHighlightedCode(editor: EditorView) {
   const code = editor.state.doc.toString();
   let { from, to } = editor.state.selection.main;
+  if (from === to) {
+    return null;
+  }
   const highlighted = getEditorCodeAsPython(editor, from, to);
 
   from = code[from - 1] === "\n" ? from - 1 : from;

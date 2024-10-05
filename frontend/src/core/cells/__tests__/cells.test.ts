@@ -1279,129 +1279,129 @@ describe("cell reducer", () => {
     expect(cell.consoleOutputs).toEqual([STDOUT1, STDOUT2]);
   });
 
-  it("can create a cell using selected code", () => {
+  describe("can create a cell using selected code", () => {
     const firstLine = "import marimo as mo";
     const secondLine = "import pandas as pd";
     const thirdLine = "import numpy as np";
 
-    actions.createNewCell({
-      cellId: firstCellId,
-      before: false,
-      code: `${firstLine}\n${secondLine}\n${thirdLine}`,
-    });
-    const secondCellId = state.cellIds.atOrThrow(1);
+    let editor: EditorView | undefined;
+    let secondCellId: CellId;
 
-    const editor = state.cellHandles[secondCellId].current?.editorView;
-    if (!editor) {
-      throw new Error("Editor not found");
-    }
-    editor.dispatch({
-      selection: {
-        anchor: editor.state.doc.line(2).from,
-        head: editor.state.doc.line(2).to,
-      },
+    beforeEach(() => {
+      actions.createNewCell({
+        cellId: firstCellId,
+        before: false,
+        code: `${firstLine}\n${secondLine}\n${thirdLine}`,
+      });
+      secondCellId = state.cellIds.atOrThrow(1);
+      editor = state.cellHandles[secondCellId].current?.editorView;
     });
 
-    const { from, to } = editor.state.selection.main;
-    const highlighted = editor.state.doc.toString().slice(from, to);
-    expect(highlighted).toBe(secondLine);
+    it("includeSelectionAsInitialCode is true and there is selection", () => {
+      if (!editor) {
+        throw new Error("Editor not found");
+      }
+      editor.dispatch({
+        selection: {
+          anchor: editor.state.doc.line(2).from,
+          head: editor.state.doc.line(2).to,
+        },
+      });
 
-    // includeSelectionAsInitialCode is true and there is selection
-    actions.createNewCell({
-      cellId: secondCellId,
-      before: false,
-      includeSelectionAsInitialCode: true,
+      const { from, to } = editor.state.selection.main;
+      const highlighted = editor.state.doc.toString().slice(from, to);
+      expect(highlighted).toBe(secondLine);
+
+      actions.createNewCell({
+        cellId: secondCellId,
+        before: false,
+        includeSelectionAsInitialCode: true,
+      });
+      expect(formatCells(state)).toMatchInlineSnapshot(`
+        "
+        key: 0
+        code: ''
+
+        key: 1
+        code: '${firstLine}\n${thirdLine}'
+
+        key: 2
+        code: '${secondLine}'"
+      `);
     });
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      key: 0
-      code: ''
 
-      key: 1
-      code: '${firstLine}\n${thirdLine}'
+    it("includeSelectionAsInitialCode is false and there is selection", () => {
+      if (!editor) {
+        throw new Error("Editor not found");
+      }
+      editor.dispatch({
+        selection: {
+          anchor: editor.state.doc.line(2).from,
+          head: editor.state.doc.line(2).to,
+        },
+      });
+      actions.createNewCell({
+        cellId: secondCellId,
+        before: false,
+        includeSelectionAsInitialCode: false,
+      });
+      expect(formatCells(state)).toMatchInlineSnapshot(`
+        "
+        key: 0
+        code: ''
 
-      key: 2
-      code: '${secondLine}'"
-    `);
+        key: 1
+        code: '${firstLine}\n${secondLine}\n${thirdLine}'
 
-    // includeSelectionAsInitialCode is false and there is selection
-    editor.dispatch({
-      selection: {
-        anchor: editor.state.doc.line(2).from,
-        head: editor.state.doc.line(2).to,
-      },
+        key: 2
+        code: ''"
+      `);
     });
-    actions.createNewCell({
-      cellId: secondCellId,
-      before: false,
-      includeSelectionAsInitialCode: false,
+
+    it("includeSelectionAsInitialCode is true and there is no selection", () => {
+      if (!editor) {
+        throw new Error("Editor not found");
+      }
+      editor.dispatch({ selection: { anchor: 0, head: 0 } });
+      actions.createNewCell({
+        cellId: secondCellId,
+        before: false,
+        includeSelectionAsInitialCode: true,
+      });
+      expect(formatCells(state)).toMatchInlineSnapshot(`
+        "
+        key: 0
+        code: ''
+
+        key: 1
+        code: '${firstLine}\n${secondLine}\n${thirdLine}'
+
+        key: 2
+        code: ''"
+      `);
     });
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      key: 0
-      code: ''
 
-      key: 1
-      code: '${firstLine}\n${thirdLine}'
+    it("includeSelectionAsInitialCode is false and there is no selection", () => {
+      if (!editor) {
+        throw new Error("Editor not found");
+      }
+      editor.dispatch({ selection: { anchor: 0, head: 0 } });
+      actions.createNewCell({
+        cellId: secondCellId,
+        before: false,
+        includeSelectionAsInitialCode: false,
+      });
+      expect(formatCells(state)).toMatchInlineSnapshot(`
+        "
+        key: 0
+        code: ''
 
-      key: 3
-      code: ''
+        key: 1
+        code: '${firstLine}\n${secondLine}\n${thirdLine}'
 
-      key: 2
-      code: '${secondLine}'"
-    `);
-
-    // 3. includeSelectionAsInitialCode is true and there is no selection
-    editor.dispatch({ selection: { anchor: 0, head: 0 } });
-    actions.createNewCell({
-      cellId: secondCellId,
-      before: false,
-      includeSelectionAsInitialCode: true,
+        key: 2
+        code: ''"
+      `);
     });
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      key: 0
-      code: ''
-
-      key: 1
-      code: '${firstLine}\n${thirdLine}'
-
-      key: 4
-      code: ''
-      
-      key: 3
-      code: ''
-
-      key: 2
-      code: '${secondLine}'"
-    `);
-
-    // 3. includeSelectionAsInitialCode is false and there is no selection
-    editor.dispatch({ selection: { anchor: 0, head: 0 } });
-    actions.createNewCell({
-      cellId: secondCellId,
-      before: false,
-      includeSelectionAsInitialCode: false,
-    });
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      key: 0
-      code: ''
-
-      key: 1
-      code: '${firstLine}\n${thirdLine}'
-
-      key: 5
-      code: ''
-
-      key: 4
-      code: ''
-      
-      key: 3
-      code: ''
-
-      key: 2
-      code: '${secondLine}'"
-    `);
   });
 });

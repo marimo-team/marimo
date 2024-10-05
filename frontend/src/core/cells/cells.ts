@@ -224,8 +224,9 @@ const {
       const id = cellId as CellId;
       const editorView = state.cellHandles[id].current?.editorView;
       if (editorView) {
-        const [highlighted, leftover] = extractHighlightedCode(editorView);
-        if (highlighted.length > 0) {
+        const result = extractHighlightedCode(editorView);
+        if (result != null) {
+          const [highlighted, leftover] = result;
           newCellCode = highlighted === "" ? code : highlighted;
           updateEditorCodeFromPython(editorView, leftover);
           state.cellData = {
