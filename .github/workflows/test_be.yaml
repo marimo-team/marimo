@@ -83,7 +83,7 @@ jobs:
 
       - name: Typecheck
         if: ${{ matrix.python-version == '3.12' }}
-        run: hatch run typecheck
+        run: hatch run typecheck:check
 
       # Test with minimal dependencies
       - name: Test with minimal dependencies

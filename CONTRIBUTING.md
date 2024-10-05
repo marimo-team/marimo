@@ -138,7 +138,7 @@ Using Hatch:
 
 ```bash
 hatch run lint
-hatch run typecheck
+hatch run typecheck:check
 ```
 
 ## Tests

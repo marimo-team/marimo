@@ -113,21 +113,30 @@ dependencies = [
     "uv>=0.4.17", # so we can bump the version used by hatch
     # Typo checking
     "typos~=1.23.6",
+]
+
+[tool.hatch.envs.default.scripts]
+lint = "ruff check --fix"
+format = "ruff format"
+
+[tool.hatch.envs.typecheck]
+python = "3.12"
+installer = "uv"
+dependencies = [
     "mypy~=1.10.1",
-    "pyarrow-hotfix",
     # Types for mypy
     "polars~=1.5.0",
+    "pyarrow-stubs>=17.0",
     "pandas-stubs>=1.5.3.230321",
+    "types-Pillow~=10.2.0.20240520",
     "types-Pygments~=2.18.0.20240506",
     "types-psutil~=5.9.5.20240516",
     "types-Markdown~=3.6.0.20240316",
     "types-PyYAML~=6.0.12.20240808",
 ]
 
-[tool.hatch.envs.default.scripts]
-lint = "ruff check --fix"
-typecheck = "mypy marimo/"
-format = "ruff format"
+[tool.hatch.envs.typecheck.scripts]
+check = "mypy marimo/"
 
 [tool.hatch.envs.test]
 extra-dependencies = [
@@ -157,11 +166,9 @@ extra-dependencies = [
     # For testing mo.ui.chart, table, ...
     "altair>=5.4.0",
     "pandas>=1.5.3",
-    "pandas-stubs>=1.5.3.230321",
     "geopandas~=0.14.4; python_version > '3.9'",
     # For testing mo.image
     "pillow~=10.4.0",
-    "types-Pillow~=10.2.0.20240520",
     "anywidget~=0.9.13",
     "ipython~=8.12.3",
     "openai~=1.41.1",
