@@ -325,12 +325,15 @@ const CellEditorInternal = ({
     };
   }, [editorViewRef]);
 
-  const showCode = async () => {
+  const temporarilyShowCode = async () => {
     if (hidden) {
-      await saveCellConfig({ configs: { [cellId]: { hide_code: false } } });
       updateCellConfig({ cellId, config: { hide_code: false } });
-      // Focus on the editor view
       editorViewRef.current?.focus();
+      editorViewRef.current?.contentDOM.addEventListener(
+        "blur",
+        () => updateCellConfig({ cellId, config: { hide_code: true } }),
+        { once: true },
+      );
     }
   };
 
@@ -369,7 +372,7 @@ const CellEditorInternal = ({
         className="relative w-full"
         onFocus={() => setLastFocusedCellId(cellId)}
       >
-        {hidden && <HideCodeButton onClick={showCode} />}
+        {hidden && <HideCodeButton onClick={temporarilyShowCode} />}
         <CellCodeMirrorEditor
           className={cn(hidden && "opacity-20 h-8 overflow-hidden")}
           editorView={editorViewRef.current}
