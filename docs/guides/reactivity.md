@@ -22,7 +22,7 @@ When a cell is run, marimo automatically runs all other cells that
 The runtime can be configured to be lazy, only running cells when you ask for
 them to be run and marking affected cells as stale, instead of automatically
 running them. Learn more in the
-[runtime configuration guide](/guides/runtime_configuration.md)
+[runtime configuration guide](/guides/configuration/runtime_configuration.md)
 ```
 
 ## References and definitions
@@ -166,7 +166,7 @@ makes marimo easy to understand and encourages well-organized notebook code.
 Through the notebook settings menu, you can configure how and when marimo runs
 cells. In particular, you can disable autorun on startup, disable autorun
 on cell execution, and enable a powerful module autoreloader. Read our
-[runtime configuration guide](/guides/runtime_configuration.md) to learn more.
+[runtime configuration guide](/guides/configuration/runtime_configuration.md) to learn more.
 
 ## Disabling cells
 

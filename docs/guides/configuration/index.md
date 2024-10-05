@@ -1,5 +1,13 @@
 # Configuration
 
+```{eval-rst}
+.. toctree::
+  :maxdepth: 2
+  :hidden:
+
+  runtime_configuration
+```
+
 marimo offers two types of configuration: User Configuration and App Configuration. Both can be easily managed through the Settings menu in the marimo editor.
 
 <img align="right" src="/_static/docs-app-config.png" width="300px"/>
@@ -29,7 +37,7 @@ marimo UI for a more user-friendly experience.
 
 You can customize the following:
 
-- [Runtime](/guides/runtime_configuration.md), including whether notebooks autorun
+- [Runtime](/guides/configuration/runtime_configuration.md), including whether notebooks autorun
 - [Hotkeys](/guides/editor_features/hotkeys.md)
 - Completion (auto-completion, AI copilot, etc.)
 - Display (theme, font size, output placement, etc.)
