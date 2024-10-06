@@ -487,7 +487,7 @@ def test_table_with_frozen_columns() -> None:
 @pytest.mark.skipif(
     not DependencyManager.pandas.has(), reason="Pandas not installed"
 )
-def test_table_with_filtered_columns() -> None:
+def test_table_with_filtered_columns_pandas() -> None:
     import pandas as pd
 
     table = ui.table(pd.DataFrame({"a": [1, 2, 3], "b": ["abc", "def", None]}))
@@ -500,6 +500,11 @@ def test_table_with_filtered_columns() -> None:
     )
     assert result.total_rows == 1
 
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
+def test_table_with_filtered_columns_polars() -> None:
     import polars as pl
 
     table = ui.table(pl.DataFrame({"a": [1, 2, 3], "b": ["abc", "def", None]}))
