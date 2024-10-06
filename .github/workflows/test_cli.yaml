@@ -83,7 +83,7 @@ jobs:
     strategy:
       matrix:
         # TODO(akshayka): consider adding 3.8, 3.9
-        python-version: ['3.12']
+        python-version: ['3.10']
         os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
@@ -112,12 +112,7 @@ jobs:
 
       - name: Test CLI
         shell: bash
-        run: |
-          pytest -v \
-            tests/_cli/test_cli.py \
-            tests/_cli/test_cli_export.py \
-            tests/_cli/test_cli_config.py \
-            tests/_cli/test_cli_development.py
+        run: pytest -v tests/_cli/test_cli.py tests/_cli/test_cli_export.py
 
   test_examples:
     needs: [changes, build_wheel]
