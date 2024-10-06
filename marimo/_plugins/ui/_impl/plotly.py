@@ -43,8 +43,10 @@ PlotlySelection = Dict[str, JSONType]
 class plotly(UIElement[PlotlySelection, List[Dict[str, Any]]]):
     """Make reactive plots with Plotly.
 
-    Use `mo.ui.plotly` to make plotly plots reactive: select data
-    with your cursor on the frontend, get them as a list of dicts in Python!
+    Use `mo.ui.plotly` to make plotly plots reactive: select data with your
+    cursor on the frontend, get them as a list of dicts in Python!
+
+    This function currently only supports scatter plots.
 
     **Example.**
 
