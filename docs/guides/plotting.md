@@ -23,8 +23,10 @@ available in Python as a Pandas dataframe_!
 
 ```{admonition} Requirements
 :class: warning
-Reactive plots currently require Altair or Plotly. Install with `pip install altair`
-or `pip install plotly`, depending on which library you are using.
+Reactive plots currently require Altair or Plotly. Install with `pip install
+altair` or `pip install plotly`, depending on which library you are using.
+Selections in plotly are limited to scatter plots, while Altair supports
+a larger class of plots for selections.
 ```
 
 ### Altair
@@ -211,6 +213,15 @@ conda install -c conda-forge "vegafusion-python-embed>=1.4.0" "vegafusion>=1.4.0
 ```
 
 ### Plotly
+
+```{admonition} mo.ui.plotly only supports scatter plots
+:class: warning
+
+marimo can render any Plotly plot, but [`mo.ui.plotly`](#marimo.ui.plotly) only
+supports reactive selections for scatter plots. If you require other kinds of
+selection, consider using [`mo.ui.altair_chart`](#marimo.ui.altair_chart).
+```
+
 
 ```{eval-rst}
 .. marimo-embed::
