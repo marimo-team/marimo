@@ -68,6 +68,7 @@ interface Data<T> {
   fieldTypes?: FieldTypesWithExternalType | null;
   freezeColumnsLeft?: string[];
   freezeColumnsRight?: string[];
+  heatmap: boolean | string[];
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -122,6 +123,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
           ]),
         )
         .nullish(),
+      heatmap: z.union([z.boolean(), z.array(z.string())]).default(false),
     }),
   )
   .withFunctions<Functions>({
@@ -432,6 +434,7 @@ const DataTableComponent = ({
   reloading,
   freezeColumnsLeft,
   freezeColumnsRight,
+  heatmap,
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
@@ -533,6 +536,7 @@ const DataTableComponent = ({
             onRowSelectionChange={handleRowSelectionChange}
             freezeColumnsLeft={freezeColumnsLeft}
             freezeColumnsRight={freezeColumnsRight}
+            initialHeatmap={heatmap}
           />
         </Labeled>
       </ColumnChartContext.Provider>

@@ -2,10 +2,16 @@
 import React from "react";
 import { Tooltip } from "../ui/tooltip";
 import { Button } from "../ui/button";
-import { SearchIcon } from "lucide-react";
+import { PaletteIcon, SearchIcon, Settings } from "lucide-react";
 import { DataTablePagination } from "./pagination";
 import { DownloadAs, type DownloadActionProps } from "./download-actions";
 import type { Table, RowSelectionState } from "@tanstack/react-table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 
 interface TableActionsProps<TData> {
   enableSearch: boolean;
@@ -44,7 +50,7 @@ export const TableActions = <TData,>({
           </Button>
         </Tooltip>
       )}
-      {pagination ? (
+      {pagination && (
         <DataTablePagination
           selection={selection}
           onSelectAllRowsChange={
@@ -64,10 +70,25 @@ export const TableActions = <TData,>({
           }
           table={table}
         />
-      ) : (
-        <div />
       )}
-      {downloadAs && <DownloadAs downloadAs={downloadAs} />}
+      <div className="flex items-center">
+        {downloadAs && <DownloadAs downloadAs={downloadAs} />}
+        {table.toggleGlobalHeatmap && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild={true}>
+              <Button variant="text" size="xs" className="mb-0">
+                <Settings className="w-4 h-4 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => table.toggleGlobalHeatmap?.()}>
+                <PaletteIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+                {table.getGlobalHeatmap?.() ? "Disable" : "Enable"} heatmap
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
     </div>
   );
 };

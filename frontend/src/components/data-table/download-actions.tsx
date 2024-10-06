@@ -9,15 +9,19 @@ import {
 } from "../ui/dropdown-menu";
 import { toast } from "../ui/use-toast";
 import { downloadByURL } from "@/utils/download";
-import { ChevronDownIcon } from "lucide-react";
+import {
+  ChevronDownIcon,
+  FileJsonIcon,
+  FileSpreadsheetIcon,
+} from "lucide-react";
 
 export interface DownloadActionProps {
   downloadAs: (req: { format: "csv" | "json" }) => Promise<string>;
 }
 
 const options = [
-  { label: "CSV", format: "csv" },
-  { label: "JSON", format: "json" },
+  { label: "CSV", format: "csv", Icon: FileSpreadsheetIcon },
+  { label: "JSON", format: "json", Icon: FileJsonIcon },
 ] as const;
 
 export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
@@ -52,6 +56,7 @@ export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
               downloadByURL(downloadUrl, "download");
             }}
           >
+            <option.Icon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
             {option.label}
           </DropdownMenuItem>
         ))}

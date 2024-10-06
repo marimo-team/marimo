@@ -203,6 +203,7 @@ class table(
     or functions
     - `freeze_columns_left`: list of column names to freeze on the left
     - `freeze_columns_right`: list of column names to freeze on the right
+    - `heatmap`: whether to enable global heatmap for numeric columns
     - `label`: text label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
@@ -228,6 +229,7 @@ class table(
         ] = None,
         freeze_columns_left: Optional[Sequence[str]] = None,
         freeze_columns_right: Optional[Sequence[str]] = None,
+        heatmap: Union[bool, List[str]] = False,
         *,
         label: str = "",
         on_change: Optional[
@@ -363,6 +365,7 @@ class table(
                 "row-headers": self._manager.get_row_headers(),
                 "freeze-columns-left": freeze_columns_left,
                 "freeze-columns-right": freeze_columns_right,
+                "heatmap": heatmap,
             },
             on_change=on_change,
             functions=(
