@@ -92,11 +92,11 @@ alt.data_transformers.enable('marimo_csv')
 
 ## Reactive plots with Plotly
 
-```{admonition} mo.ui.plotly only supports scatter plots
+```{admonition} mo.ui.plotly only supports scatter plots, treemaps charts, and sunbursts charts.
 :class: warning
 
 marimo can render any Plotly plot, but [`mo.ui.plotly`](#marimo.ui.plotly) only
-supports reactive selections for scatter plots. If you require other kinds of
+supports reactive selections for scatter plots, treemaps charts, and sunbursts charts. If you require other kinds of
 selection, consider using [`mo.ui.altair_chart`](#marimo.ui.altair_chart).
 ```
 
