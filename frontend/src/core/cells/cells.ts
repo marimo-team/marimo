@@ -47,6 +47,7 @@ import { kioskModeAtom } from "../mode";
 import { CollapsibleTree } from "@/utils/id-tree";
 import { isEqual } from "lodash-es";
 import type { EditorView } from "@codemirror/view";
+import { LanguageAdapters } from "../codemirror/language/LanguageAdapters";
 
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
 
@@ -241,6 +242,10 @@ const {
       }
     }
 
+    const isMarkdown = newCellCode
+      ? LanguageAdapters.markdown().isSupported(newCellCode)
+      : false;
+
     return {
       ...state,
       cellIds: state.cellIds.insert(newCellId, insertionIndex),
@@ -252,6 +257,10 @@ const {
           lastCodeRun,
           lastExecutionTime,
           edited: Boolean(newCellCode) && newCellCode !== lastCodeRun,
+          config: {
+            disabled: false,
+            hide_code: isMarkdown,
+          },
         }),
       },
       cellRuntime: {
