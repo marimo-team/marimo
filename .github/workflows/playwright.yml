@@ -24,6 +24,7 @@ jobs:
             playwright:
               - '**'
               - '!docs/**'
+              - '!examples/**'
               - '!README.md'
 
   test:

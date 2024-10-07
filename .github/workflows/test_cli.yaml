@@ -24,6 +24,7 @@ jobs:
             cli:
               - '**'
               - '!docs/**'
+              - '!examples/**'
               - '!README.md'
 
   build_wheel:
