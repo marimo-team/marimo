@@ -47,6 +47,9 @@ import { kioskModeAtom } from "../mode";
 import { CollapsibleTree } from "@/utils/id-tree";
 import { isEqual } from "lodash-es";
 import type { EditorView } from "@codemirror/view";
+import { LanguageAdapters } from "../codemirror/language/LanguageAdapters";
+import { languageAdapterState } from "../codemirror/language/extension";
+import type { LanguageAdapterType } from "../codemirror/language/types";
 
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
 
@@ -75,8 +78,13 @@ export interface NotebookState {
    *
    * (CodeMirror types the serialized config as any.)
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  history: Array<{ name: string; serializedEditorState: any; index: number }>;
+  history: Array<{
+    name: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    serializedEditorState: any;
+    index: number;
+    language: LanguageAdapterType;
+  }>;
   /**
    * Key of cell to scroll to; typically set by actions that re-order the cell
    * array. Call the SCROLL_TO_TARGET action to scroll to the specified cell
@@ -392,9 +400,12 @@ const {
     const focusIndex = index === 0 ? 1 : index - 1;
     const scrollKey = state.cellIds.atOrThrow(focusIndex);
 
-    const serializedEditorState = state.cellHandles[
-      cellId
-    ].current?.editorView.state.toJSON({ history: historyField });
+    const editorView = state.cellHandles[cellId].current?.editorView;
+    const serializedEditorState = editorView?.state.toJSON({
+      history: historyField,
+    });
+    const language = editorView?.state.field(languageAdapterState).type;
+
     return {
       ...state,
       cellIds: state.cellIds.delete(index),
@@ -404,6 +415,7 @@ const {
           name: state.cellData[cellId].name,
           serializedEditorState: serializedEditorState,
           index: index,
+          language: language ?? "python",
         },
       ],
       scrollKey: scrollKey,
@@ -420,7 +432,13 @@ const {
       name,
       serializedEditorState = { doc: "" },
       index,
+      language,
     } = mostRecentlyDeleted;
+
+    const languageAdapter = LanguageAdapters[language]();
+    const [code] = languageAdapter.transformOut(serializedEditorState.doc);
+    serializedEditorState.doc = code;
+
     const cellId = CellId.create();
     const undoCell = createCell({
       id: cellId,
@@ -429,6 +447,7 @@ const {
       edited: serializedEditorState.doc.trim().length > 0,
       serializedEditorState,
     });
+
     return {
       ...state,
       cellIds: state.cellIds.insert(cellId, index),
