@@ -39,7 +39,7 @@ def __(mo):
         """
         # Using tools with ell
 
-        This example shows how to use [`ell`](https://docs.ell.so/) with tools to summarize a website.
+        This example shows how to use [`ell`](https://docs.ell.so/) with tools to analyze a dataset and return rich responses like charts and tables.
         """
     )
     return
@@ -111,10 +111,10 @@ def __(alt, cars, client, ell, schema):
     @ell.complex(
         model="gpt-4-turbo", tools=[get_chart, get_filtered_table], client=client
     )
-    def get_website_content(prompt: str) -> str:
+    def analyze_dataset(prompt: str) -> str:
         """You are an agent that can analayze the a dataset"""
         return f"I have a dataset with schema: {schema}. \n{prompt}"
-    return get_chart, get_filtered_table, get_website_content
+    return analyze_dataset, get_chart, get_filtered_table
 
 
 @app.cell
@@ -141,11 +141,11 @@ def __(input_key, mo, schema):
 
 
 @app.cell
-def __(get_website_content, mo, text):
+def __(analyze_dataset, mo, text):
     mo.stop(not text.value)
 
     with mo.status.spinner(title=f"Thinking...", subtitle=text.value):
-        response = get_website_content(text.value)
+        response = analyze_dataset(text.value)
         summary = "Nothing found"
         if response.tool_calls:
             try:
