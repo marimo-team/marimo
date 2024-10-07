@@ -78,7 +78,7 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
     - `value`: default value
     - `debounce`: whether to debounce (rate-limit) value
         updates from the frontend
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
@@ -181,7 +181,7 @@ class slider(UIElement[Numeric, Numeric]):
     - `show_value`: whether to display the current value of the slider
     - `steps`: list of steps to customize the slider, mutually exclusive
         with `start`, `stop`, and `step`
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
@@ -365,7 +365,7 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
     - `show_value`: whether to display the current value of the slider
     - `steps`: list of steps to customize the slider, mutually exclusive
         with `start`, `stop`, and `step`
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
@@ -543,7 +543,7 @@ class checkbox(UIElement[bool, bool]):
     **Initialization Args.**
 
     - `value`: default value, True or False
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
 
@@ -605,7 +605,7 @@ class radio(UIElement[Optional[str], Any]):
     - `options`: sequence of text options, or dict mapping option name
                  to option value
     - `value`: default option name, if None, starts with nothing checked
-    - `label`: optional text label for the element
+    - `label`: optional markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
 
@@ -674,7 +674,7 @@ class text(UIElement[str, str]):
     - `debounce`: whether the input is debounced. If number, debounce by
         that many milliseconds. If True, then value is only emitted on Enter
         or when the input loses focus.
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
@@ -739,7 +739,7 @@ class text_area(UIElement[str, str]):
         many milliseconds. If True, then value is only emitted on Ctrl+Enter
         or when the input loses focus.
     - `rows`: number of rows of text to display
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
@@ -805,7 +805,7 @@ class code_editor(UIElement[str, str]):
     - `disabled`: whether the input is disabled
     - `min_height`: minimum height of the code editor in pixels
     - `max_height`: maximum height of the code editor in pixels
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
 
@@ -893,7 +893,7 @@ class dropdown(UIElement[List[str], Any]):
     - `allow_select_none`: whether to include special option (`"--"`) for a
                            `None` value; when `None`, defaults to `True` when
                            `value` is `None`
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
@@ -1007,7 +1007,7 @@ class multiselect(UIElement[List[str], List[object]]):
     - `options`: sequence of text options, or dict mapping option name
                  to option value
     - `value`: a list of initially selected options
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
@@ -1113,7 +1113,7 @@ class button(UIElement[Any, Any]):
     - `value`: an initial value for the button
     - `kind`: 'neutral', 'success', 'warn', or 'danger'
     - `disabled`: whether the button is disabled
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
@@ -1247,7 +1247,7 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
        or `"image/*"` to accept any audio, video, or image file.
     - `multiple`: if True, allow the user to upload multiple files
     - `kind`: `"button"` or `"area"`
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
 
@@ -1343,7 +1343,7 @@ class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
     - `multiple`: if True, allow the user to select multiple files.
     - `restrict_navigation`: if True, prevent the user from navigating
        any level above the given path.
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
 
@@ -1537,7 +1537,7 @@ class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
     - `clear_button_tooltip`: the tooltip of the clear button
     - `validate`: a function that takes the form's value and returns an error
         message if the value is invalid, or `None` if the value is valid
-    - `label`: text label for the form
+    - `label`: markdown label for the form
     - `on_change`: optional callback to run when this element's value changes
     """
 

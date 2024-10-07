@@ -203,7 +203,7 @@ class table(
     or functions
     - `freeze_columns_left`: list of column names to freeze on the left
     - `freeze_columns_right`: list of column names to freeze on the right
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
 
