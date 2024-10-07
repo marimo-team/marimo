@@ -19,7 +19,7 @@ export const autoInstantiateAtom = atom((get) => {
 });
 
 export const hotkeyOverridesAtom = atom((get) => {
-  return get(userConfigAtom).keymap.overrides;
+  return get(userConfigAtom).keymap.overrides ?? {};
 });
 
 export const hotkeysAtom = atom((get) => {

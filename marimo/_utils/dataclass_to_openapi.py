@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import dataclasses
 import datetime
+import sys
 from collections.abc import Mapping, Sequence
 from decimal import Decimal
 from enum import Enum
@@ -22,7 +23,11 @@ from typing import (
 )
 
 from marimo._server.models.base import to_camel_case
-from marimo._utils.typing import NotRequired
+
+if sys.version_info < (3, 11):
+    from typing_extensions import NotRequired
+else:
+    from typing import NotRequired
 
 
 class PythonTypeToOpenAPI:
@@ -134,6 +139,40 @@ class PythonTypeToOpenAPI:
                         self.convert(arg, processed_classes) for arg in args
                     ],
                 }
+        elif is_typeddict_subclass(py_type):
+            if py_type in processed_classes:
+                ref = processed_classes[py_type]
+                return {"$ref": f"#/components/schemas/{ref}"}
+
+            properties: dict[str, Any] = {}
+            required: list[str] = []
+            annotations = py_type.__annotations__
+            for key, value in get_type_hints(py_type).items():
+                properties[to_camel_case(key) if self.camel_case else key] = (
+                    self.convert(value, processed_classes)
+                )
+                annotation = annotations[key]
+                if "NotRequired[" not in str(annotation):
+                    required.append(
+                        to_camel_case(key) if self.camel_case else key
+                    )
+
+            # Optional keys come from TypedDict(total=False)
+            optional_keys = py_type.__optional_keys__
+            # Remove any keys that are optional
+            required = [key for key in required if key not in optional_keys]
+
+            schema: Dict[str, Any] = {
+                "type": "object",
+                "properties": properties,
+            }
+            if required:
+                schema["required"] = required
+
+            schema_name = self.name_overrides.get(py_type, py_type.__name__)
+            processed_classes[py_type] = schema_name
+
+            return schema
         elif dataclasses.is_dataclass(py_type):
             return self.convert_dataclass(py_type, processed_classes)
         elif py_type is Any:
@@ -257,4 +296,16 @@ def _is_optional(field: dataclasses.Field[Any]) -> bool:
     """
     Check if a field is Optional
     """
-    return get_origin(field) is Union and type(None) in get_args(field)
+    return (get_origin(field) is Union and type(None) in get_args(field)) or (
+        get_origin(field) is NotRequired
+    )
+
+
+def is_typeddict_subclass(cls: Any) -> bool:
+    return (
+        isinstance(cls, type)
+        and issubclass(cls, dict)
+        and hasattr(cls, "__annotations__")
+        and hasattr(cls, "__total__")
+        and isinstance(cls.__total__, bool)  # ignore
+    )

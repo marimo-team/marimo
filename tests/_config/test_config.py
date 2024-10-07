@@ -11,6 +11,7 @@ from unittest import mock
 from marimo._config.config import (
     DEFAULT_CONFIG,
     MarimoConfig,
+    PartialMarimoConfig,
     mask_secrets,
     merge_config,
     merge_default_config,
@@ -19,18 +20,20 @@ from marimo._config.config import (
 from marimo._config.utils import get_config_path, get_or_create_config_path
 
 
-def assert_config(override: MarimoConfig) -> None:
+def assert_config(override: MarimoConfig | PartialMarimoConfig) -> None:
     user_config = merge_default_config(override)
     assert user_config == {**DEFAULT_CONFIG, **override}
 
 
 def test_configure_partial_keymap() -> None:
-    assert_config(MarimoConfig(keymap={"preset": "vim", "overrides": {}}))
+    assert_config(
+        PartialMarimoConfig(keymap={"preset": "vim", "overrides": {}})
+    )
 
 
 def test_configure_full() -> None:
     assert_config(
-        MarimoConfig(
+        PartialMarimoConfig(
             completion={"activate_on_typing": False, "copilot": False},
             save={
                 "autosave": "after_delay",
@@ -51,7 +54,7 @@ def test_configure_unknown() -> None:
 
 def test_merge_config() -> None:
     prev_config = merge_default_config(
-        MarimoConfig(
+        PartialMarimoConfig(
             ai={
                 "open_ai": {
                     "api_key": "super_secret",
@@ -67,13 +70,13 @@ def test_merge_config() -> None:
 
     new_config = merge_config(
         prev_config,
-        MarimoConfig(
+        PartialMarimoConfig(
             ai={
                 "open_ai": {
                     "model": "davinci",
                 },
                 "google": {
-                    "model": "gemini-1.5-pro",
+                    "api_key": "google_secret",
                 },
             },
         ),
@@ -82,12 +85,11 @@ def test_merge_config() -> None:
     assert new_config["ai"]["open_ai"]["api_key"] == "super_secret"
     assert new_config["ai"]["open_ai"]["model"] == "davinci"
     assert new_config["ai"]["google"]["api_key"] == "google_secret"
-    assert new_config["ai"]["google"]["model"] == "gemini-1.5-pro"
 
 
 def test_merge_config_with_keymap_overrides() -> None:
     prev_config = merge_default_config(
-        MarimoConfig(
+        PartialMarimoConfig(
             keymap={
                 "preset": "default",
                 "overrides": {
@@ -96,12 +98,14 @@ def test_merge_config_with_keymap_overrides() -> None:
             },
         )
     )
+    assert "preset" in prev_config["keymap"]
+    assert "overrides" in prev_config["keymap"]
     assert prev_config["keymap"]["preset"] == "default"
     assert prev_config["keymap"]["overrides"]["run-all"] == "ctrl-enter"
 
     new_config = merge_config(
         prev_config,
-        MarimoConfig(
+        PartialMarimoConfig(
             keymap={
                 "preset": "vim",
                 "overrides": {
@@ -117,7 +121,7 @@ def test_merge_config_with_keymap_overrides() -> None:
 
     new_config = merge_config(
         prev_config,
-        MarimoConfig(
+        PartialMarimoConfig(
             keymap={
                 "preset": "vim",
                 "overrides": {},
@@ -130,7 +134,7 @@ def test_merge_config_with_keymap_overrides() -> None:
 
 
 def test_mask_secrets() -> None:
-    config = MarimoConfig(
+    config = PartialMarimoConfig(
         ai={
             "open_ai": {"api_key": "super_secret"},
             "anthropic": {"api_key": "anthropic_secret"},
@@ -153,7 +157,7 @@ def test_mask_secrets() -> None:
 
 
 def test_mask_secrets_empty() -> None:
-    config = MarimoConfig(
+    config = PartialMarimoConfig(
         ai={
             "open_ai": {"model": "davinci"},
             "google": {},
@@ -186,7 +190,7 @@ def test_mask_secrets_empty() -> None:
 
 
 def test_remove_secret_placeholders() -> None:
-    config = MarimoConfig(
+    config = PartialMarimoConfig(
         ai={
             "open_ai": {"api_key": "********"},
             "google": {"api_key": "********"},

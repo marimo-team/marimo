@@ -33,6 +33,7 @@ function setFeatureFlag(
   value: boolean,
 ) {
   const userConfig = getUserConfig();
+  userConfig.experimental = userConfig.experimental ?? {};
   userConfig.experimental[feature] = value;
   saveUserConfig({ config: userConfig });
 }
