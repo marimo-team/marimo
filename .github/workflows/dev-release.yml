@@ -71,7 +71,7 @@ jobs:
         env:
           HATCH_INDEX_USER: ${{ secrets.TEST_PYPI_USER }}
           HATCH_INDEX_AUTH: ${{ secrets.TEST_PYPI_PASSWORD }}
-        run: hatch publish --repo test || true
+        run: hatch publish --repo test
 
       - name: 📦 Update package.json version from CLI
         working-directory: frontend
