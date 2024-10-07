@@ -89,6 +89,19 @@ dev = [
     "openai~=1.41.1",
 ]
 
+docs = [
+    "pypandoc~=1.13",
+    "autoclasstoc~=1.6.0",
+    # furo raises an error during docs build when sphinx is upgraded
+    "sphinx~=7.0.1",
+    "sphinx-copybutton~=0.5.2",
+    "sphinx-new-tab-link~=0.5.3",
+    "sphinx-sitemap~=2.6.0",
+    "sphinx-design~=0.5.0",
+    "myst_parser~=3.0.1",
+    "furo==2024.8.6"
+]
+
 [tool.hatch]
 installer = "uv"
 
@@ -188,18 +201,7 @@ extra-dependencies = [
 python = ["3.9","3.10", "3.11", "3.12"]
 
 [tool.hatch.envs.docs]
-dependencies = [
-    "pypandoc~=1.13",
-    "autoclasstoc~=1.6.0",
-    # furo raises an error during docs build when sphinx is upgraded
-    "sphinx~=7.0.1",
-    "sphinx-copybutton~=0.5.2",
-    "sphinx-new-tab-link~=0.5.3",
-    "sphinx-sitemap~=2.6.0",
-    "sphinx-design~=0.5.0",
-    "myst_parser~=3.0.1",
-    "furo==2024.8.6"
-]
+features = ["docs"]
 
 [tool.hatch.envs.docs.scripts]
 build = "sphinx-build {args:docs/ docs/_build}"
