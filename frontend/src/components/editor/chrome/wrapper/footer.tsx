@@ -1,6 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type React from "react";
-import type { PropsWithChildren } from "react";
 import { cn } from "@/utils/cn";
 import { useChromeActions, useChromeState } from "../state";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -9,12 +8,25 @@ import { cellErrorCount } from "@/core/cells/cells";
 import { type PanelDescriptor, PANELS } from "../types";
 import { MachineStats } from "./machine-stats";
 import { useUserConfig } from "@/core/config/config";
-import { TerminalSquareIcon, ZapIcon, ZapOffIcon } from "lucide-react";
+import {
+  PowerOffIcon,
+  TerminalSquareIcon,
+  ZapIcon,
+  ZapOffIcon,
+} from "lucide-react";
 import { saveUserConfig } from "@/core/network/requests";
 import type { UserConfig } from "@/core/config/config-schema";
 import { ShowInKioskMode } from "../../kiosk-mode";
 import { invariant } from "@/utils/invariant";
 import { IfCapability } from "@/core/config/if-capability";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDownIcon } from "lucide-react";
+import { FooterItem } from "./footer-item";
 
 export const Footer: React.FC = () => {
   const { selectedPanel, isTerminalOpen } = useChromeState();
@@ -75,7 +87,7 @@ export const Footer: React.FC = () => {
           {config.runtime.auto_instantiate ? (
             <ZapIcon size={14} />
           ) : (
-            <ZapOffIcon size={16} />
+            <ZapOffIcon size={14} />
           )}
           <span>{config.runtime.auto_instantiate ? "autorun" : "lazy"}</span>
         </div>
@@ -111,10 +123,61 @@ export const Footer: React.FC = () => {
           {config.runtime.on_cell_change === "autorun" ? (
             <ZapIcon size={14} />
           ) : (
-            <ZapOffIcon size={16} />
+            <ZapOffIcon size={14} />
           )}
           <span>{config.runtime.on_cell_change}</span>
         </div>
+      </FooterItem>
+
+      <div className="border-r border-border h-6 mx-1" />
+
+      <FooterItem tooltip={null} selected={false}>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="font-prose text-sm flex items-center gap-1">
+            <span>on module change: </span>
+            {config.runtime.auto_reload === "off" && <PowerOffIcon size={14} />}
+            {config.runtime.auto_reload === "lazy" && <ZapOffIcon size={14} />}
+            {config.runtime.auto_reload === "autorun" && <ZapIcon size={14} />}
+            <span>{config.runtime.auto_reload}</span>
+            <ChevronDownIcon size={14} />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            {["off", "lazy", "autorun"].map((option) => (
+              <DropdownMenuItem
+                key={option}
+                onClick={async () => {
+                  const newConfig: UserConfig = {
+                    ...config,
+                    runtime: {
+                      ...config.runtime,
+                      auto_reload: option as "off" | "lazy" | "autorun",
+                    },
+                  };
+                  await saveUserConfig({ config: newConfig }).then(() =>
+                    setConfig(newConfig),
+                  );
+                }}
+              >
+                {option === "off" && (
+                  <PowerOffIcon
+                    size={14}
+                    className="mr-2 text-muted-foreground"
+                  />
+                )}
+                {option === "lazy" && (
+                  <ZapOffIcon
+                    size={14}
+                    className="mr-2 text-muted-foreground"
+                  />
+                )}
+                {option === "autorun" && (
+                  <ZapIcon size={14} className="mr-2 text-muted-foreground" />
+                )}
+                {option}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </FooterItem>
 
       <div className="mx-auto" />
@@ -134,30 +197,5 @@ export const Footer: React.FC = () => {
 
       <MachineStats />
     </footer>
-  );
-};
-
-const FooterItem: React.FC<
-  PropsWithChildren<
-    {
-      selected: boolean;
-      tooltip: React.ReactNode;
-    } & React.HTMLAttributes<HTMLDivElement>
-  >
-> = ({ children, tooltip, selected, className, ...rest }) => {
-  return (
-    <Tooltip content={tooltip} side="top" delayDuration={200}>
-      <div
-        className={cn(
-          "h-full flex items-center p-2 text-sm mx-[1px] shadow-inset font-mono cursor-pointer rounded",
-          !selected && "hover:bg-[var(--sage-3)]",
-          selected && "bg-[var(--sage-4)]",
-          className,
-        )}
-        {...rest}
-      >
-        {children}
-      </div>
-    </Tooltip>
   );
 };

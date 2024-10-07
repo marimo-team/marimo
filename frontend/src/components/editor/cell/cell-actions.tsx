@@ -25,7 +25,10 @@ import {
   TooltipRoot,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { renderMinimalShortcut } from "@/components/shortcuts/renderShortcut";
+import {
+  renderMinimalShortcut,
+  renderShortcut,
+} from "@/components/shortcuts/renderShortcut";
 import React from "react";
 import {
   type CellActionButtonProps,
@@ -115,23 +118,14 @@ const CellActionsDropdownInternal = (
   }
 
   const tooltipContent = (
-    <TooltipContent className="w-full bg-card" tabIndex={-1}>
-      <div className="text-foreground-muted flex flex-col text-center">
-        <span>
-          <span className="text-foreground font-semibold">Drag </span>to move
-          cell
-        </span>
-        <span>
-          <span className="text-foreground font-semibold">Click </span>to open
-          menu
-        </span>
-      </div>
+    <TooltipContent tabIndex={-1}>
+      {renderShortcut("cell.cellActions")}
     </TooltipContent>
   );
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <TooltipRoot delayDuration={400} disableHoverableContent={true}>
+      <TooltipRoot delayDuration={200} disableHoverableContent={true}>
         {!open && tooltipContent}
         {/* This creates a warning in React due to nested <button> elements.
         Adding asChild could fix this, but it also changes the styling (is hidden) of the button when

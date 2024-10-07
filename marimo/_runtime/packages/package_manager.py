@@ -2,12 +2,16 @@
 from __future__ import annotations
 
 import abc
-import shutil
 import subprocess
 from dataclasses import dataclass
 from typing import List, Optional
 
+from marimo import _loggers
+from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.ops import Alert
 from marimo._runtime.packages.utils import append_version
+
+LOGGER = _loggers.marimo_logger()
 
 
 @dataclass
@@ -20,6 +24,7 @@ class PackageManager(abc.ABC):
     """Interface for a package manager that can install packages."""
 
     name: str
+    docs_url: str
 
     def __init__(self) -> None:
         self._attempted_packages: set[str] = set()
@@ -36,7 +41,13 @@ class PackageManager(abc.ABC):
 
     def is_manager_installed(self) -> bool:
         """Is the package manager is installed on the user machine?"""
-        return shutil.which(self.name) is not None
+        if DependencyManager.which(self.name):
+            return True
+        LOGGER.error(
+            f"{self.name} is not available. "
+            f"Check out the docs for installation instructions: {self.docs_url}"  # noqa: E501
+        )
+        return False
 
     @abc.abstractmethod
     async def _install(self, package: str) -> bool:
@@ -68,6 +79,8 @@ class PackageManager(abc.ABC):
         return False
 
     def run(self, command: list[str]) -> bool:
+        if not self.is_manager_installed():
+            return False
         proc = subprocess.run(command)  # noqa: ASYNC101
         return proc.returncode == 0
 
@@ -90,6 +103,14 @@ class PackageManager(abc.ABC):
     def list_packages(self) -> List[PackageDescription]:
         """List installed packages."""
         ...
+
+    def alert_not_installed(self) -> None:
+        """Alert the user that the package manager is not installed."""
+        Alert(
+            title="Package manager not installed",
+            description=(f"{self.name} is not available on your machine."),
+            variant="danger",
+        ).broadcast()
 
 
 class CanonicalizingPackageManager(PackageManager):

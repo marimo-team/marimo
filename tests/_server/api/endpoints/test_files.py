@@ -13,7 +13,7 @@ from tests._server.mocks import (
 )
 
 if TYPE_CHECKING:
-    from fastapi.testclient import TestClient, WebSocketTestSession
+    from starlette.testclient import TestClient, WebSocketTestSession
 
 SESSION_ID = "session-123"
 HEADERS = {

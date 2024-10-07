@@ -338,7 +338,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
     - `legend_selection`: optional list of legend fields (columns) for which to
         enable selection, `True` to enable selection for all fields, or
         `False` to disable selection entirely
-    - `label`: optional text label for the element
+    - `label`: optional markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
 

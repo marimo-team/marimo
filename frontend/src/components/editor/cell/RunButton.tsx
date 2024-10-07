@@ -1,10 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { HardDriveDownloadIcon, PlayIcon } from "lucide-react";
-import { Button } from "@/components/editor/inputs/Inputs";
-import { Tooltip } from "../../ui/tooltip";
 import { renderShortcut } from "../../shortcuts/renderShortcut";
-import { cn } from "../../../utils/cn";
 import type { RuntimeState, CellConfig } from "@/core/network/types";
+import { ToolbarItem } from "./toolbar";
 
 function computeColor(
   appClosed: boolean,
@@ -16,12 +14,12 @@ function computeColor(
     return "disabled";
   }
   if (needsRun && !loading) {
-    return "yellow";
+    return "stale";
   }
   if (loading || inactive) {
     return "disabled";
   }
-  return "hint-green";
+  return "green";
 }
 
 export const RunButton = (props: {
@@ -38,47 +36,32 @@ export const RunButton = (props: {
   const loading = status === "running" || status === "queued";
   const inactive =
     appClosed || loading || (!config.disabled && blockedStatus && !edited);
-  const color = computeColor(appClosed, needsRun, loading, inactive);
+  const variant = computeColor(appClosed, needsRun, loading, inactive);
 
   if (config.disabled) {
     return (
-      <Tooltip content="Add code to notebook" usePortal={false}>
-        <Button
-          className={cn(
-            !needsRun && "hover-action",
-            inactive && "inactive-button",
-          )}
-          onClick={onClick}
-          color={color}
-          shape="circle"
-          size="small"
-          data-testid="run-button"
-        >
-          <HardDriveDownloadIcon strokeWidth={1.8} />
-        </Button>
-      </Tooltip>
+      <ToolbarItem
+        tooltip="Add code to notebook"
+        disabled={inactive}
+        onClick={onClick}
+        variant={variant}
+        data-testid="run-button"
+      >
+        <HardDriveDownloadIcon />
+      </ToolbarItem>
     );
   }
   if (!config.disabled && blockedStatus && !edited) {
     return (
-      <Tooltip
-        content="This cell can't be run because it has a disabled ancestor"
-        usePortal={false}
+      <ToolbarItem
+        disabled={inactive}
+        tooltip="This cell can't be run because it has a disabled ancestor"
+        onClick={onClick}
+        variant={variant}
+        data-testid="run-button"
       >
-        <Button
-          className={cn(
-            !needsRun && "hover-action",
-            inactive && "inactive-button",
-          )}
-          onClick={onClick}
-          color={color}
-          shape="circle"
-          size="small"
-          data-testid="run-button"
-        >
-          <PlayIcon strokeWidth={1.8} />
-        </Button>
-      </Tooltip>
+        <PlayIcon strokeWidth={1.2} />
+      </ToolbarItem>
     );
   }
 
@@ -94,20 +77,14 @@ export const RunButton = (props: {
   }
 
   return (
-    <Tooltip content={tooltipMsg} usePortal={false}>
-      <Button
-        className={cn(
-          !needsRun && status !== "running" && "hover-action",
-          inactive && "inactive-button",
-        )}
-        onClick={onClick}
-        color={color}
-        shape="circle"
-        size="small"
-        data-testid="run-button"
-      >
-        <PlayIcon strokeWidth={1.8} />
-      </Button>
-    </Tooltip>
+    <ToolbarItem
+      tooltip={tooltipMsg}
+      disabled={inactive}
+      onClick={onClick}
+      variant={variant}
+      data-testid="run-button"
+    >
+      <PlayIcon strokeWidth={1.2} />
+    </ToolbarItem>
   );
 };

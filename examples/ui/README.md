@@ -6,6 +6,9 @@ These examples showcase how to use marimo's built-in UI elements.
 > New to marimo? Run `marimo tutorial intro` and `marimo tutorial ui`
 > at the command line first!
 
+_Looking for examples on making chatbots? Check out the [`ai/chat`](../ai/chat)
+examples folder_.
+
 ## Running examples
 
 The requirements of each notebook are serialized in them as a top-level

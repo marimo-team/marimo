@@ -24,7 +24,9 @@ HEADERS = {
     **token_header("fake-token"),
 }
 
-HAS_DEPS = DependencyManager.openai.has()
+HAS_OPEN_AI_DEPS = DependencyManager.openai.has()
+HAS_ANTHROPIC_DEPS = DependencyManager.anthropic.has()
+HAS_GOOGLE_AI_DEPS = DependencyManager.google_ai.has()
 
 
 # Anthropic
@@ -57,8 +59,10 @@ class FakeChoices:
     choices: List[Choice]
 
 
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-class TestAiEndpoints:
+@pytest.mark.skipif(
+    not HAS_OPEN_AI_DEPS, reason="optional dependencies not installed"
+)
+class TestOpenAiEndpoints:
     @staticmethod
     @with_session(SESSION_ID)
     @patch("openai.OpenAI")
@@ -83,33 +87,6 @@ class TestAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("anthropic.Client")
-    def test_anthropic_completion_without_token(
-        client: TestClient, anthropic_mock: Any
-    ) -> None:
-        del anthropic_mock
-        user_config_manager = get_user_config_manager(client)
-
-        with no_anthropic_config(user_config_manager):
-            response = client.post(
-                "/api/ai/completion",
-                headers=HEADERS,
-                json={
-                    "prompt": "Help me create a dataframe",
-                    "include_other_code": "",
-                    "code": "",
-                },
-            )
-        assert response.status_code == 400, response.text
-        assert response.json() == {
-            "detail": "Anthropic API key not configured"
-        }
-
-    @staticmethod
-    @with_session(SESSION_ID)
-    @pytest.mark.skipif(
-        not HAS_DEPS, reason="optional dependencies not installed"
-    )
     @patch("openai.OpenAI")
     def test_completion_without_code(
         client: TestClient, openai_mock: Any
@@ -144,9 +121,6 @@ class TestAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @pytest.mark.skipif(
-        not HAS_DEPS, reason="optional dependencies not installed"
-    )
     @patch("openai.OpenAI")
     def test_completion_with_code(
         client: TestClient, openai_mock: Any
@@ -183,46 +157,6 @@ class TestAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @pytest.mark.skipif(
-        not HAS_DEPS, reason="optional dependencies not installed"
-    )
-    @patch("anthropic.Client")
-    def test_anthropic_completion_with_code(
-        client: TestClient, anthropic_mock: Any
-    ) -> None:
-        user_config_manager = get_user_config_manager(client)
-
-        anthropic_client = MagicMock()
-        anthropic_mock.return_value = anthropic_client
-
-        anthropic_client.messages.create.return_value = [
-            RawContentBlockDeltaEvent(TextDelta("import pandas as pd"))
-        ]
-
-        with anthropic_config(user_config_manager):
-            response = client.post(
-                "/api/ai/completion",
-                headers=HEADERS,
-                json={
-                    "prompt": "Help me create a dataframe",
-                    "code": "import pandas as pd",
-                    "include_other_code": "",
-                },
-            )
-            assert response.status_code == 200, response.text
-            # Assert the prompt it was called with
-            prompt: str = anthropic_client.messages.create.call_args.kwargs[
-                "messages"
-            ][0]["content"]
-            assert prompt == (
-                "Help me create a dataframe\n\nCurrent code:\nimport pandas as pd"  # noqa: E501
-            )
-
-    @staticmethod
-    @with_session(SESSION_ID)
-    @pytest.mark.skipif(
-        not HAS_DEPS, reason="optional dependencies not installed"
-    )
     @patch("openai.OpenAI")
     def test_completion_with_custom_model(
         client: TestClient, openai_mock: Any
@@ -255,9 +189,6 @@ class TestAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @pytest.mark.skipif(
-        not HAS_DEPS, reason="optional dependencies not installed"
-    )
     @patch("openai.OpenAI")
     def test_completion_with_custom_base_url(
         client: TestClient, openai_mock: Any
@@ -287,6 +218,132 @@ class TestAiEndpoints:
             # Assert the base_url it was called with
             base_url = openai_mock.call_args.kwargs["base_url"]
             assert base_url == "https://my-openai-instance.com"
+
+
+@pytest.mark.skipif(
+    not HAS_ANTHROPIC_DEPS, reason="optional dependencies not installed"
+)
+class TestAnthropicAiEndpoints:
+    @staticmethod
+    @with_session(SESSION_ID)
+    @patch("anthropic.Client")
+    def test_anthropic_completion_without_token(
+        client: TestClient, anthropic_mock: Any
+    ) -> None:
+        del anthropic_mock
+        user_config_manager = get_user_config_manager(client)
+
+        with no_anthropic_config(user_config_manager):
+            response = client.post(
+                "/api/ai/completion",
+                headers=HEADERS,
+                json={
+                    "prompt": "Help me create a dataframe",
+                    "include_other_code": "",
+                    "code": "",
+                },
+            )
+        assert response.status_code == 400, response.text
+        assert response.json() == {
+            "detail": "Anthropic API key not configured"
+        }
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    @patch("anthropic.Client")
+    def test_anthropic_completion_with_code(
+        client: TestClient, anthropic_mock: Any
+    ) -> None:
+        user_config_manager = get_user_config_manager(client)
+
+        anthropic_client = MagicMock()
+        anthropic_mock.return_value = anthropic_client
+
+        anthropic_client.messages.create.return_value = [
+            RawContentBlockDeltaEvent(TextDelta("import pandas as pd"))
+        ]
+
+        with anthropic_config(user_config_manager):
+            response = client.post(
+                "/api/ai/completion",
+                headers=HEADERS,
+                json={
+                    "prompt": "Help me create a dataframe",
+                    "code": "import pandas as pd",
+                    "include_other_code": "",
+                },
+            )
+            assert response.status_code == 200, response.text
+            # Assert the prompt it was called with
+            prompt: str = anthropic_client.messages.create.call_args.kwargs[
+                "messages"
+            ][0]["content"]
+            assert prompt == (
+                "Help me create a dataframe\n\nCurrent code:\nimport pandas as pd"  # noqa: E501
+            )
+
+
+@pytest.mark.skipif(
+    not HAS_GOOGLE_AI_DEPS, reason="optional dependencies not installed"
+)
+class TestGoogleAiEndpoints:
+    @staticmethod
+    @with_session(SESSION_ID)
+    @patch("google.generativeai.GenerativeModel")
+    def test_google_ai_completion_with_code(
+        client: TestClient, google_ai_mock: Any
+    ) -> None:
+        user_config_manager = get_user_config_manager(client)
+
+        google_client = MagicMock()
+        google_ai_mock.return_value = google_client
+
+        google_client.predict.return_value = MagicMock(
+            text="import pandas as pd"
+        )
+
+        with google_ai_config(user_config_manager):
+            response = client.post(
+                "/api/ai/completion",
+                headers=HEADERS,
+                json={
+                    "prompt": "Help me create a dataframe",
+                    "code": "import pandas as pd",
+                    "include_other_code": "",
+                },
+            )
+            assert response.status_code == 200, response.text
+            # Assert the prompt it was called with
+            prompt = google_client.generate_content.call_args.kwargs[
+                "contents"
+            ]
+            assert prompt == (
+                "Help me create a dataframe\n\nCurrent code:\nimport pandas as pd"  # noqa: E501
+            )
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    @patch("google.generativeai.GenerativeModel")
+    def test_google_ai_completion_without_token(
+        client: TestClient, google_ai_mock: Any
+    ) -> None:
+        del google_ai_mock
+        user_config_manager = get_user_config_manager(client)
+
+        with no_google_ai_config(user_config_manager):
+            response = client.post(
+                "/api/ai/completion",
+                headers=HEADERS,
+                json={
+                    "prompt": "Help me create a dataframe",
+                    "include_other_code": "",
+                    "code": "",
+                },
+            )
+        assert response.status_code == 400, response.text
+        assert response.json() == {
+            "detail": "Google AI API key not configured"
+        }
 
 
 @contextmanager
@@ -376,6 +433,40 @@ def anthropic_config(config: UserConfigManager):
                 "ai": {
                     "open_ai": {"model": "claude-3.5"},
                     "anthropic": {"api_key": "fake-key"},
+                }
+            }
+        )
+        yield
+    finally:
+        config.save_config(prev_config)
+
+
+@contextmanager
+def google_ai_config(config: UserConfigManager):
+    prev_config = config.get_config()
+    try:
+        config.save_config(
+            {
+                "ai": {
+                    "open_ai": {"model": "gemini-1.5-pro"},
+                    "google": {"api_key": "fake-key"},
+                }
+            }
+        )
+        yield
+    finally:
+        config.save_config(prev_config)
+
+
+@contextmanager
+def no_google_ai_config(config: UserConfigManager):
+    prev_config = config.get_config()
+    try:
+        config.save_config(
+            {
+                "ai": {
+                    "open_ai": {"model": "gemini-1.5-pro"},
+                    "google": {"api_key": ""},
                 }
             }
         )

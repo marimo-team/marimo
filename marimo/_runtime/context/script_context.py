@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import sys
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Iterator, Optional
@@ -18,6 +19,10 @@ from marimo._runtime.context.types import (
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._runtime.functions import FunctionRegistry
 from marimo._runtime.params import CLIArgs, QueryParams
+from marimo._runtime.patches import (
+    create_main_module,
+    patch_main_module_context,
+)
 from marimo._runtime.state import State, StateRegistry
 
 if TYPE_CHECKING:
@@ -42,7 +47,12 @@ class ScriptRuntimeContext(RuntimeContext):
 
     @property
     def globals(self) -> dict[str, Any]:
-        return {}
+        with patch_main_module_context(
+            create_main_module(file=None, input_override=None)
+        ) as module:
+            glbls = module.__dict__
+        glbls.update(sys.modules["__main__"].__dict__)
+        return glbls
 
     @property
     def execution_context(self) -> ExecutionContext | None:
@@ -110,7 +120,9 @@ class ScriptRuntimeContext(RuntimeContext):
         return self._app
 
 
-def initialize_script_context(app: InternalApp, stream: Stream) -> None:
+def initialize_script_context(
+    app: InternalApp, stream: Stream, filename: str | None
+) -> None:
     """Initializes thread-local/session-specific context.
 
     Must be called exactly once for each client thread.
@@ -130,5 +142,6 @@ def initialize_script_context(app: InternalApp, stream: Stream) -> None:
         stderr=None,
         children=[],
         parent=None,
+        filename=filename,
     )
     initialize_context(runtime_context=runtime_context)

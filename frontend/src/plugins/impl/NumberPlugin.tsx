@@ -11,28 +11,28 @@ import { NumberField } from "@/components/ui/number-field";
 type T = number;
 
 interface Data {
-  start: T;
-  stop: T;
+  start?: T | null;
+  stop?: T | null;
   step?: T;
   label: string | null;
   debounce: boolean;
   fullWidth: boolean;
 }
 
-export class NumberPlugin implements IPlugin<T, Data> {
+export class NumberPlugin implements IPlugin<T | null, Data> {
   tagName = "marimo-number";
 
   validator = z.object({
-    initialValue: z.number(),
+    initialValue: z.number().nullish(),
     label: z.string().nullable(),
-    start: z.number(),
-    stop: z.number(),
+    start: z.number().nullish(),
+    stop: z.number().nullish(),
     step: z.number().optional(),
     debounce: z.boolean().default(false),
     fullWidth: z.boolean().default(false),
   });
 
-  render(props: IPluginProps<T, Data>): JSX.Element {
+  render(props: IPluginProps<T | null, Data>): JSX.Element {
     return (
       <NumberComponent
         {...props.data}
@@ -44,8 +44,8 @@ export class NumberPlugin implements IPlugin<T, Data> {
 }
 
 interface NumberComponentProps extends Data {
-  value: T;
-  setValue: Setter<T>;
+  value: T | null;
+  setValue: Setter<T | null>;
 }
 
 const NumberComponent = (props: NumberComponentProps): JSX.Element => {
@@ -64,9 +64,9 @@ const NumberComponent = (props: NumberComponentProps): JSX.Element => {
       <NumberField
         data-testid="marimo-plugin-number-input"
         className={cn("min-w-[3em]", props.fullWidth && "w-full")}
-        minValue={props.start}
-        maxValue={props.stop}
-        value={value}
+        minValue={props.start ?? undefined}
+        maxValue={props.stop ?? undefined}
+        value={value ?? undefined}
         step={props.step}
         onChange={onChange}
         id={id}

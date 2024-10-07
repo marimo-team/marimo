@@ -36,7 +36,6 @@ from marimo._messaging.errors import (
     UnknownError,
 )
 from marimo._messaging.ops import (
-    Alert,
     CellOp,
     CompletedRun,
     DataColumnPreview,
@@ -276,6 +275,37 @@ def cli_args() -> CLIArgs:
           This dictionary is read-only and cannot be mutated.
     """
     return get_context().cli_args
+
+
+@mddoc
+def notebook_dir() -> pathlib.Path | None:
+    """Get the directory of the currently executing notebook.
+
+    **Returns**:
+
+    - A `pathlib.Path` object representing the directory of the current
+      notebook, or `None` if the notebook's directory cannot be determined.
+
+    **Examples**:
+
+    ```python
+    data_file = mo.notebook_dir() / "data" / "example.csv"
+    # Use the directory to read a file
+    if data_file.exists():
+        print(f"Found data file: {data_file}")
+    else:
+        print("No data file found")
+    ```
+    """
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        return None
+
+    filename = ctx.filename
+    if filename is not None:
+        return pathlib.Path(filename).parent.absolute()
+    return None
 
 
 @dataclasses.dataclass
@@ -523,12 +553,15 @@ class Kernel:
         self.execution_context = ExecutionContext(
             cell_id, setting_element_value
         )
-        with get_context().provide_ui_ids(str(cell_id)), redirect_streams(
-            cell_id,
-            stream=self.stream,
-            stdout=self.stdout,
-            stderr=self.stderr,
-            stdin=self.stdin,
+        with (
+            get_context().provide_ui_ids(str(cell_id)),
+            redirect_streams(
+                cell_id,
+                stream=self.stream,
+                stdout=self.stdout,
+                stderr=self.stderr,
+                stdin=self.stdin,
+            ),
         ):
             modules = None
             try:
@@ -1591,9 +1624,10 @@ class Kernel:
         else:
             found = True
             LOGGER.debug("Executing RPC %s", request)
-            with self._install_execution_context(
-                cell_id=function.cell_id
-            ), ctx.provide_ui_ids(str(uuid4())):
+            with (
+                self._install_execution_context(cell_id=function.cell_id),
+                ctx.provide_ui_ids(str(uuid4())),
+            ):
                 # Usually UI element IDs are deterministic, based on
                 # cell id, so that element values can be matched up
                 # with objects on notebook/app re-connection.
@@ -1673,13 +1707,7 @@ class Kernel:
             self.package_manager = create_package_manager(request.manager)
 
         if not self.package_manager.is_manager_installed():
-            Alert(
-                title="Package manager not installed",
-                description=(
-                    f"{request.manager} is not available on your machine."
-                ),
-                variant="danger",
-            ).broadcast()
+            self.package_manager.alert_not_installed()
             return
 
         # Package manager operates on module names
@@ -1932,6 +1960,11 @@ def launch_kernel(
         user_config = user_config.copy()
         user_config["runtime"]["on_cell_change"] = "autorun"
 
+    def _enqueue_control_request(req: ControlRequest) -> None:
+        control_queue.put_nowait(req)
+        if isinstance(req, SetUIElementValueRequest):
+            set_ui_element_queue.put_nowait(req)
+
     kernel = Kernel(
         cell_configs=configs,
         app_metadata=app_metadata,
@@ -1944,7 +1977,7 @@ def launch_kernel(
         ),
         debugger_override=debugger,
         user_config=user_config,
-        enqueue_control_request=lambda req: control_queue.put_nowait(req),
+        enqueue_control_request=_enqueue_control_request,
     )
     initialize_kernel_context(
         kernel=kernel,

@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, cast
 
 import click
 
-from marimo import _loggers
+from marimo import __version__, _loggers
 from marimo._cli.file_path import FileContentReader
 from marimo._cli.print import bold, echo, green
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -39,6 +39,8 @@ def get_dependencies_from_filename(name: str) -> List[str]:
     try:
         contents, _ = FileContentReader().read_file(name)
         return _get_dependencies(contents) or []
+    except FileNotFoundError:
+        return []
     except Exception:
         LOGGER.warning(f"Failed to read dependencies from {name}")
         return []
@@ -69,6 +71,9 @@ def _read_pyproject(script: str) -> Dict[str, Any] | None:
 
 
 def prompt_run_in_sandbox(name: str | None) -> bool:
+    if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
+        return False
+
     if name is None:
         return False
 
@@ -122,6 +127,16 @@ def run_in_sandbox(
     # that the outer environment doesn't leak into the sandbox.
     if "marimo" not in dependencies:
         dependencies.append("marimo")
+
+    # Rename marimo to marimo=={__version__}
+    index_of_marimo = dependencies.index("marimo")
+    if index_of_marimo != -1:
+        dependencies[index_of_marimo] = f"marimo=={__version__}"
+
+        # During development, you can comment this out to install an
+        # editable version of marimo assuming you are in the marimo directory
+        # DO NOT COMMIT THIS WHEN SUBMITTING PRs
+        # dependencies[index_of_marimo] = "-e ."
 
     with tempfile.NamedTemporaryFile(
         mode="w", delete=False, suffix=".txt"

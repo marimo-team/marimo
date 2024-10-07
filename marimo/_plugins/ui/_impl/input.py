@@ -32,6 +32,11 @@ from marimo._data.series import (
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import S as JSONTypeBound, UIElement
+from marimo._plugins.validators import (
+    validate_between_range,
+    validate_range,
+    warn_js_safe_number,
+)
 from marimo._runtime.functions import Function
 from marimo._server.files.os_file_system import OSFileSystem
 from marimo._server.models.files import FileInfo
@@ -67,13 +72,13 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
 
     **Initialization Args.**
 
-    - `start`: the minimum value of the interval
-    - `stop`: the maximum value of the interval
+    - `start`: optional, the minimum value of the interval
+    - `stop`: optional, the maximum value of the interval
     - `step`: the number increment
     - `value`: default value
     - `debounce`: whether to debounce (rate-limit) value
         updates from the frontend
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
@@ -83,8 +88,8 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
 
     def __init__(
         self,
-        start: float,
-        stop: float,
+        start: Optional[float] = None,
+        stop: Optional[float] = None,
         step: Optional[float] = None,
         value: Optional[float] = None,
         debounce: bool = False,
@@ -93,17 +98,16 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
         on_change: Optional[Callable[[Optional[Numeric]], None]] = None,
         full_width: bool = False,
     ) -> None:
-        value = start if value is None else value
-        if stop < start:
-            raise ValueError(
-                f"Invalid bounds: stop value ({stop}) must be greater than "
-                f"start value ({start})"
-            )
-        elif value < start or value > stop:
-            raise ValueError(
-                f"Value out of bounds: The default value ({value}) must be "
-                f"greater than start ({start}) and less than stop ({stop})."
-            )
+        validate_range(min_value=start, max_value=stop)
+        validate_between_range(value, min_value=start, max_value=stop)
+        warn_js_safe_number(start, stop, value)
+
+        # Set value to min or max if None
+        if value is None:
+            if start is not None:
+                value = start
+            elif stop is not None:
+                value = stop
 
         # Lower bound
         self.start = start
@@ -177,7 +181,7 @@ class slider(UIElement[Numeric, Numeric]):
     - `show_value`: whether to display the current value of the slider
     - `steps`: list of steps to customize the slider, mutually exclusive
         with `start`, `stop`, and `step`
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
@@ -205,6 +209,7 @@ class slider(UIElement[Numeric, Numeric]):
         self.stop: Numeric
         self.step: Optional[Numeric]
         self.steps: Optional[Sequence[Numeric]]
+        warn_js_safe_number(start, stop, value)
 
         # Guard against conflicting arguments
         if steps is not None and (
@@ -360,7 +365,7 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
     - `show_value`: whether to display the current value of the slider
     - `steps`: list of steps to customize the slider, mutually exclusive
         with `start`, `stop`, and `step`
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
@@ -388,6 +393,7 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
         self.stop: Numeric
         self.step: Optional[Numeric]
         self.steps: Optional[Sequence[Numeric]]
+        warn_js_safe_number(start, stop, *(value or []))
 
         if steps is not None and (
             start is not None or stop is not None or step is not None
@@ -537,7 +543,7 @@ class checkbox(UIElement[bool, bool]):
     **Initialization Args.**
 
     - `value`: default value, True or False
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
 
@@ -599,7 +605,7 @@ class radio(UIElement[Optional[str], Any]):
     - `options`: sequence of text options, or dict mapping option name
                  to option value
     - `value`: default option name, if None, starts with nothing checked
-    - `label`: optional text label for the element
+    - `label`: optional markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
 
@@ -668,7 +674,7 @@ class text(UIElement[str, str]):
     - `debounce`: whether the input is debounced. If number, debounce by
         that many milliseconds. If True, then value is only emitted on Enter
         or when the input loses focus.
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
@@ -733,7 +739,7 @@ class text_area(UIElement[str, str]):
         many milliseconds. If True, then value is only emitted on Ctrl+Enter
         or when the input loses focus.
     - `rows`: number of rows of text to display
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
@@ -799,7 +805,7 @@ class code_editor(UIElement[str, str]):
     - `disabled`: whether the input is disabled
     - `min_height`: minimum height of the code editor in pixels
     - `max_height`: maximum height of the code editor in pixels
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
 
@@ -887,7 +893,7 @@ class dropdown(UIElement[List[str], Any]):
     - `allow_select_none`: whether to include special option (`"--"`) for a
                            `None` value; when `None`, defaults to `True` when
                            `value` is `None`
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
@@ -1001,7 +1007,7 @@ class multiselect(UIElement[List[str], List[object]]):
     - `options`: sequence of text options, or dict mapping option name
                  to option value
     - `value`: a list of initially selected options
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
@@ -1107,7 +1113,7 @@ class button(UIElement[Any, Any]):
     - `value`: an initial value for the button
     - `kind`: 'neutral', 'success', 'warn', or 'danger'
     - `disabled`: whether the button is disabled
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
@@ -1241,7 +1247,7 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
        or `"image/*"` to accept any audio, video, or image file.
     - `multiple`: if True, allow the user to upload multiple files
     - `kind`: `"button"` or `"area"`
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
 
@@ -1337,7 +1343,7 @@ class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
     - `multiple`: if True, allow the user to select multiple files.
     - `restrict_navigation`: if True, prevent the user from navigating
        any level above the given path.
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
 
@@ -1531,7 +1537,7 @@ class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
     - `clear_button_tooltip`: the tooltip of the clear button
     - `validate`: a function that takes the form's value and returns an error
         message if the value is invalid, or `None` if the value is valid
-    - `label`: text label for the form
+    - `label`: markdown label for the form
     - `on_change`: optional callback to run when this element's value changes
     """
 

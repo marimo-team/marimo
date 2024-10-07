@@ -35,6 +35,40 @@ copilot = "codeium"
 codeium_api_key = ""
 ```
 
+### Alternative: Obtain Codeium API key using VS Code
+
+1. Go to the Codeium website and sign up for an account: <https://codeium.com/>
+2. Install the [Codeium Visual Studio Code extension](vscode:extension/codeium.codeium) (see [here](https://codeium.com/vscode_tutorial) for complete guide)
+3. Sign in to your Codeium account in the VS Code extension
+4. Select the Codeium icon on the Activity bar (left side), which opens the Codeium pane
+5. Select the **Settings** button (gear icon) in the top-right corner of the Codeium pane
+
+<div align="center">
+  <figure>
+    <img src="/_static/docs-ai-completion-codeium-vscode.png"/>
+    <figcaption>Open Codeium settings</figcaption>
+</figure>
+</div>
+
+6. Click the **Download** link under the **Extension Diagnostics** section
+7. Open the diagnostic file and search for `apiKey`
+
+<div align="center">
+  <figure>
+    <img src="/_static/docs-ai-completion-codeium-vscode-download-diagnostics.png"/>
+    <figcaption>Download diagnostics file with API key</figcaption>
+  </figure>
+</div>
+
+8. Copy the value of the `apiKey` to `.marimo.toml` in your home directory
+
+```toml
+[completion]
+codeium_api_key = "a1e8..."  # <-- paste your API key here
+copilot = "codeium"
+activate_on_typing = true
+```
+
 ## Generate code with our AI assistant
 
 marimo has built-in support for generating and refactoring code with AI, with a
@@ -62,7 +96,7 @@ the bottom of your notebook. You can also refactor existing cells by inputting
 ```toml
 [ai.open_ai]
 # Get your API key from https://platform.openai.com/account/api-keys
-api_key = "sk-..."
+api_key = "sk-proj-..."
 # Choose a model, we recommend "gpt-4-turbo"
 model = "gpt-4-turbo"
 # Change the base_url if you are using a different OpenAI-compatible API
@@ -82,7 +116,7 @@ model = "claude-3-5-sonnet-20240620"
 # or any model from https://docs.anthropic.com/en/docs/about-claude/models
 
 [ai.anthropic]
-api_key = "sk-..."
+api_key = "sk-ant-..."
 ```
 
 ### Using other AI providers
@@ -110,3 +144,22 @@ api_key = "ollama" # This is not used, but required
 model = "llama2" # or the model you downloaded from above
 base_url = "http://localhost:11434/v1"
 ```
+
+### Using Google AI
+
+To use Google AI with marimo:
+
+1. Sign up for an account at [Google AI Studio](https://aistudio.google.com/app/apikey) and obtain your API key.
+2. Install the Google AI Python client: `pip install google-generativeai`
+3. Add the following to your `marimo.toml`:
+
+```toml
+[ai.open_ai]
+model = "gemini-1.5-flash"
+# or any model from https://ai.google.dev/gemini-api/docs/models/gemini
+
+[ai.google]
+api_key = "AI..."
+```
+
+You can now use Google AI for code generation and refactoring in marimo.

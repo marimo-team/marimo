@@ -48,7 +48,7 @@ jobs:
 
       - uses: pnpm/action-setup@v2
         with:
-          version: 8
+          version: 9
 
       - name: ⎔ Setup Node.js
         uses: actions/setup-node@v4
@@ -56,8 +56,6 @@ jobs:
           node-version: 20
           cache: 'pnpm'
           cache-dependency-path: '**/pnpm-lock.yaml'
-
-      - uses: turbocache-build/turbocache-action@v1
 
       - name: 📥 Install dependencies
         run: pnpm install

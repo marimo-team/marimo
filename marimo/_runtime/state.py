@@ -20,21 +20,42 @@ class StateItem(Generic[T]):
     ref: weakref.ref[State[T]]
 
 
-class StateRegistry:
-    _states: dict[str, StateItem[Any]] = {}
-    # id -> variable name for state
-    # NB. python reuses IDs, but an active pruning of the registry should help
-    # protect against this.
-    _inv_states: dict[Id, set[str]] = {}
+def extract_name(key: str) -> str:
+    # Some variables may use a state internally, as such the lookup needs a
+    # context qualifier. We delimit the context and name with a colon, which is
+    # not a valid python variable name character.
+    return key.split(":")[-1]
 
-    def register(self, state: State[T], name: Optional[str] = None) -> None:
+
+class StateRegistry:
+    def __init__(self) -> None:
+        # variable name -> state
+        # State registry is pruned based on the variable definitions in scope.
+        self._states: dict[str, StateItem[Any]] = {}
+        # id -> variable name for state
+        # NB. python reuses IDs, but an active pruning of the registry should
+        # help protect against this.
+        self._inv_states: dict[Id, set[str]] = {}
+
+    def register(
+        self,
+        state: State[T],
+        name: Optional[str] = None,
+        context: Optional[str] = None,
+    ) -> None:
         if name is None:
             name = str(uuid4())
+        if context is not None:
+            name = f"{context}:{name}"
+
         if id(state) in self._inv_states:
             ref = next(iter(self._inv_states[id(state)]))
-            if self._states[ref].id != id(state):
+            # Check for duplicate state ids and clean up accordingly
+            if ref not in self._states or id(self._states[ref].ref()) != id(
+                state
+            ):
                 for ref in self._inv_states[id(state)]:
-                    del self._states[ref]
+                    self._states.pop(ref, None)
                 self._inv_states[id(state)].clear()
         state_item = StateItem(id(state), weakref.ref(state))
         self._states[name] = state_item
@@ -65,19 +86,29 @@ class StateRegistry:
         """Retains only the active states in the registry."""
         # Remove all non-active states by name
         active_state_ids = set()
-        for state_name in list(self._states.keys()):
-            if state_name not in active_variables:
-                self._inv_states.pop(id(self._states[state_name]), None)
-                del self._states[state_name]
+        for state_key in list(self._states.keys()):
+            if extract_name(state_key) not in active_variables:
+                id_key = id(self._states[state_key])
+                lookup = self._inv_states.get(id_key, None)
+                if lookup is not None:
+                    if state_key in lookup:
+                        lookup.remove(state_key)
+                    if not lookup:
+                        del self._inv_states[id_key]
+                del self._states[state_key]
             else:
-                active_state_ids.add(id(self._states[state_name]))
+                active_state_ids.add(id(self._states[state_key]))
 
         # Remove all non-active states by id
         for state_id in list(self._inv_states.keys()):
             if state_id not in active_state_ids:
                 del self._inv_states[state_id]
 
-    def lookup(self, name: str) -> Optional[State[T]]:
+    def lookup(
+        self, name: str, context: Optional[str] = None
+    ) -> Optional[State[T]]:
+        if context is not None:
+            name = f"{context}:{name}"
         if name in self._states:
             return self._states[name].ref()
         return None
@@ -96,6 +127,8 @@ class State(Generic[T]):
         value: T,
         allow_self_loops: bool = False,
         _registry: Optional[StateRegistry] = None,
+        _name: Optional[str] = None,
+        _context: Optional[str] = None,
     ) -> None:
         self._value = value
         self.allow_self_loops = allow_self_loops
@@ -104,7 +137,7 @@ class State(Generic[T]):
         try:
             if _registry is None:
                 _registry = get_context().state_registry
-            _registry.register(self)
+            _registry.register(self, _name, _context)
         except ContextNotInitializedError:
             # Registration may be picked up later, but there is nothing to do
             # at this point.

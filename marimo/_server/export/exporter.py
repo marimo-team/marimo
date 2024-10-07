@@ -95,7 +95,7 @@ class Exporter:
             user_config=config,
             server_token=SkewProtectionToken("static"),
             app_config=file_manager.app.config,
-            filename=file_manager.filename,
+            filepath=file_manager.filename,
             code=code,
             code_hash=code_hash,
             cell_ids=cell_ids,
@@ -265,7 +265,7 @@ class Exporter:
 
 
 class AutoExporter:
-    EXPORT_DIR = ".marimo"
+    EXPORT_DIR = "__marimo__"
 
     def save_html(self, file_manager: AppFileManager, html: str) -> None:
         # get filename

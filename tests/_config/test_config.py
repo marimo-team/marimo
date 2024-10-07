@@ -11,6 +11,7 @@ from unittest import mock
 from marimo._config.config import (
     DEFAULT_CONFIG,
     MarimoConfig,
+    PartialMarimoConfig,
     mask_secrets,
     merge_config,
     merge_default_config,
@@ -19,18 +20,20 @@ from marimo._config.config import (
 from marimo._config.utils import get_config_path, get_or_create_config_path
 
 
-def assert_config(override: MarimoConfig) -> None:
+def assert_config(override: MarimoConfig | PartialMarimoConfig) -> None:
     user_config = merge_default_config(override)
     assert user_config == {**DEFAULT_CONFIG, **override}
 
 
 def test_configure_partial_keymap() -> None:
-    assert_config(MarimoConfig(keymap={"preset": "vim", "overrides": {}}))
+    assert_config(
+        PartialMarimoConfig(keymap={"preset": "vim", "overrides": {}})
+    )
 
 
 def test_configure_full() -> None:
     assert_config(
-        MarimoConfig(
+        PartialMarimoConfig(
             completion={"activate_on_typing": False, "copilot": False},
             save={
                 "autosave": "after_delay",
@@ -51,34 +54,42 @@ def test_configure_unknown() -> None:
 
 def test_merge_config() -> None:
     prev_config = merge_default_config(
-        MarimoConfig(
+        PartialMarimoConfig(
             ai={
                 "open_ai": {
                     "api_key": "super_secret",
-                }
+                },
+                "google": {
+                    "api_key": "google_secret",
+                },
             },
         )
     )
     assert prev_config["ai"]["open_ai"]["api_key"] == "super_secret"
+    assert prev_config["ai"]["google"]["api_key"] == "google_secret"
 
     new_config = merge_config(
         prev_config,
-        MarimoConfig(
+        PartialMarimoConfig(
             ai={
                 "open_ai": {
                     "model": "davinci",
-                }
+                },
+                "google": {
+                    "api_key": "google_secret",
+                },
             },
         ),
     )
 
     assert new_config["ai"]["open_ai"]["api_key"] == "super_secret"
     assert new_config["ai"]["open_ai"]["model"] == "davinci"
+    assert new_config["ai"]["google"]["api_key"] == "google_secret"
 
 
 def test_merge_config_with_keymap_overrides() -> None:
     prev_config = merge_default_config(
-        MarimoConfig(
+        PartialMarimoConfig(
             keymap={
                 "preset": "default",
                 "overrides": {
@@ -87,12 +98,14 @@ def test_merge_config_with_keymap_overrides() -> None:
             },
         )
     )
+    assert "preset" in prev_config["keymap"]
+    assert "overrides" in prev_config["keymap"]
     assert prev_config["keymap"]["preset"] == "default"
     assert prev_config["keymap"]["overrides"]["run-all"] == "ctrl-enter"
 
     new_config = merge_config(
         prev_config,
-        MarimoConfig(
+        PartialMarimoConfig(
             keymap={
                 "preset": "vim",
                 "overrides": {
@@ -108,7 +121,7 @@ def test_merge_config_with_keymap_overrides() -> None:
 
     new_config = merge_config(
         prev_config,
-        MarimoConfig(
+        PartialMarimoConfig(
             keymap={
                 "preset": "vim",
                 "overrides": {},
@@ -121,44 +134,80 @@ def test_merge_config_with_keymap_overrides() -> None:
 
 
 def test_mask_secrets() -> None:
-    config = MarimoConfig(ai={"open_ai": {"api_key": "super_secret"}})
+    config = PartialMarimoConfig(
+        ai={
+            "open_ai": {"api_key": "super_secret"},
+            "anthropic": {"api_key": "anthropic_secret"},
+            "google": {"api_key": "google_secret"},
+        }
+    )
     assert config["ai"]["open_ai"]["api_key"] == "super_secret"
+    assert config["ai"]["anthropic"]["api_key"] == "anthropic_secret"
+    assert config["ai"]["google"]["api_key"] == "google_secret"
 
     new_config = mask_secrets(config)
     assert new_config["ai"]["open_ai"]["api_key"] == "********"
+    assert new_config["ai"]["anthropic"]["api_key"] == "********"
+    assert new_config["ai"]["google"]["api_key"] == "********"
 
     # Ensure the original config is not modified
     assert config["ai"]["open_ai"]["api_key"] == "super_secret"
+    assert config["ai"]["anthropic"]["api_key"] == "anthropic_secret"
+    assert config["ai"]["google"]["api_key"] == "google_secret"
 
 
 def test_mask_secrets_empty() -> None:
-    config = MarimoConfig(ai={"open_ai": {"model": "davinci"}})
+    config = PartialMarimoConfig(
+        ai={
+            "open_ai": {"model": "davinci"},
+            "google": {},
+            "anthropic": {},
+        }
+    )
     assert config["ai"]["open_ai"]["model"] == "davinci"
 
     new_config = mask_secrets(config)
     assert new_config["ai"]["open_ai"]["model"] == "davinci"
     # Not added until the key is present
     assert "api_key" not in new_config["ai"]["open_ai"]
-
+    assert "api_key" not in new_config["ai"]["google"]
+    assert "api_key" not in new_config["ai"]["anthropic"]
     # Ensure the original config is not modified
     assert config["ai"]["open_ai"]["model"] == "davinci"
 
     # Not added when key is ""
     config["ai"]["open_ai"]["api_key"] = ""
+    config["ai"]["google"]["api_key"] = ""
+    config["ai"]["anthropic"]["api_key"] = ""
     new_config = mask_secrets(config)
     assert new_config["ai"]["open_ai"]["api_key"] == ""
+    assert new_config["ai"]["google"]["api_key"] == ""
+    assert new_config["ai"]["anthropic"]["api_key"] == ""
+    # Ensure the original config is not modified
     assert config["ai"]["open_ai"]["api_key"] == ""
+    assert config["ai"]["google"]["api_key"] == ""
+    assert config["ai"]["anthropic"]["api_key"] == ""
 
 
 def test_remove_secret_placeholders() -> None:
-    config = MarimoConfig(ai={"open_ai": {"api_key": "********"}})
+    config = PartialMarimoConfig(
+        ai={
+            "open_ai": {"api_key": "********"},
+            "google": {"api_key": "********"},
+            "anthropic": {"api_key": "********"},
+        }
+    )
     assert config["ai"]["open_ai"]["api_key"] == "********"
-
+    assert config["ai"]["google"]["api_key"] == "********"
+    assert config["ai"]["anthropic"]["api_key"] == "********"
     new_config = remove_secret_placeholders(config)
     assert "api_key" not in new_config["ai"]["open_ai"]
-
+    assert "api_key" not in new_config["ai"]["google"]
+    assert "api_key" not in new_config["ai"]["anthropic"]
     # Ensure the original config is not modified
     assert config["ai"]["open_ai"]["api_key"] == "********"
+    assert config["ai"]["google"]["api_key"] == "********"
+    assert config["ai"]["anthropic"]["api_key"] == "********"
 
 
 @contextmanager

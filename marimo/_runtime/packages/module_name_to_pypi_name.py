@@ -413,6 +413,7 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "elasticluster": "azure-elasticluster-current",
         "elftools": "pyelftools",
         "elixir": "Elixir",
+        "ell": "ell-ai",
         "emlib": "empy",
         "enchant": "pyenchant",
         "encutils": "cssutils",

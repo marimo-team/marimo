@@ -142,7 +142,22 @@ export function useNotebookActions() {
               });
               return;
             }
-            await downloadAsHTML({ filename });
+            await downloadAsHTML({ filename, includeCode: true });
+          },
+        },
+        {
+          icon: <FolderDownIcon size={14} strokeWidth={1.5} />,
+          label: "Download as HTML (exclude code)",
+          handle: async () => {
+            if (!filename) {
+              toast({
+                variant: "danger",
+                title: "Error",
+                description: "Notebooks must be named to be exported.",
+              });
+              return;
+            }
+            await downloadAsHTML({ filename, includeCode: false });
           },
         },
         {

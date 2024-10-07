@@ -33,7 +33,7 @@ class microphone(UIElement[str, io.BytesIO]):
 
     **Initialization Args.**
 
-    - `label`: optional text label for the element
+    - `label`: optional markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
 

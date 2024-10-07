@@ -330,18 +330,18 @@ const ExpandableOutput = React.memo(
       <>
         <div>
           <div className="relative print:hidden">
-            <div className="absolute top-1 -right-11 z-[1] flex flex-col gap-1">
+            <div className="absolute -right-10 top-1 z-[1] flex flex-col gap-1">
               <Tooltip content="Fullscreen" side="left">
                 <Button
                   data-testid="fullscreen-output-button"
-                  className="hover-action hover:bg-muted"
+                  className="hover-action hover:bg-muted p-1 hover:border-border border border-transparent"
                   onClick={async () => {
                     await containerRef.current?.requestFullscreen();
                   }}
                   size="xs"
                   variant="text"
                 >
-                  <ExpandIcon className="h-4 w-4" strokeWidth={1.25} />
+                  <ExpandIcon className="size-4" strokeWidth={1.25} />
                 </Button>
               </Tooltip>
               {(isOverflowing || isExpanded) && (

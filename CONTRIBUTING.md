@@ -20,20 +20,24 @@ or [on Discord](https://discord.gg/JE7nhX6mD8).
 
 ## Prerequisites
 
-To build marimo from source, you'll need to have Node.js, pnpm, GNU make, and
-Python (>=3.8) installed.
+To build marimo from source, you'll need to have Node.js, pnpm, GNU make, Python (>=3.9), and Hatch installed.
 
 - Install [Node.js](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm#using-a-node-version-manager-to-install-nodejs-and-npm) >= 18
   - We use Node.js version 20
-- Install [pnpm](https://github.com/pnpm/pnpm) == 8.x
-  - `npm install -g pnpm@8`
+- Install [pnpm](https://github.com/pnpm/pnpm) == 9.x
+  - `npm install -g pnpm@9`
 - Install [GNU Make](https://www.gnu.org/software/make/) (you may already have it installed)
-- Install [Python](https://www.python.org/) >= 3.8. (You may already it installed. To see your version, use `python -V` at the command line.)
+- Install [Python](https://www.python.org/) >= 3.9. (You may already it installed. To see your version, use `python -V` at the command line.)
+- Install [Hatch](https://hatch.pypa.io/latest/install/). Some installation options:
+  - `brew install hatch`
+  - `pipx install hatch`
 
 And you'll need [pre-commit](https://pre-commit.com/) to run some validation checks:
 
 ```bash
-pipx install pre-commit  # or `pip install pre-commit` if you have a virtualenv
+pipx install pre-commit
+# or `pip install pre-commit` if you have a virtualenv
+# or `brew install pre-commit`
 ```
 
 You can optionally install pre-commit hooks to automatically run the validation checks
@@ -50,22 +54,28 @@ pre-commit install
 > Note that developing in Gitpod is not officially supported by the marimo
 > team.
 
-
 ## Building from source
 
 Be sure to install the dependencies above before building from source.
 
 ### Build from source
 
-After installing the dependencies, run the following in a fresh Python virtual
-environment (such as [venv](https://docs.python.org/3/library/venv.html) or
-[virtualenv](https://virtualenv.pypa.io/en/latest/)):
+After installing the dependencies, you can use either the traditional method (installing an editable wheel in your current venv) or use Hatch:
+
+Traditional method:
 
 ```bash
 make fe && make py
 ```
 
-`make fe` builds the frontend. `make py` does an [editable install](https://setuptools.pypa.io/en/latest/userguide/development_mode.html) of marimo.
+Using Hatch:
+
+```bash
+make fe
+hatch shell
+```
+
+`make fe` builds the frontend. `make py` does an [editable install](https://setuptools.pypa.io/en/latest/userguide/development_mode.html) of marimo, while `hatch shell` creates a Hatch environment with an editable install of marimo.
 
 (All `make` commands should be run in the project's root directory.)
 
@@ -118,8 +128,17 @@ make fe-check
 
 **Python.**
 
+Using Make:
+
 ```bash
 make py-check
+```
+
+Using Hatch:
+
+```bash
+hatch run lint
+hatch run typecheck:check
 ```
 
 ## Tests
@@ -147,10 +166,40 @@ make fe-test
 
 ### Python
 
-In the root directory, run
+Using Make:
 
 ```bash
 make py-test
+```
+
+#### Using Hatch
+
+**Run a specific tests.**
+
+```bash
+hatch run test:test tests/_ast/
+```
+
+**Run a specific tests with optional dependencies.**
+
+```bash
+hatch run test-optional:test tests/_ast/
+```
+
+**Run tests with a specific Python version.**
+
+```bash
+hatch run +py=3.10 test:test tests/_ast/
+# or
+hatch run +py=3.10 test-optional:test tests/_ast/
+```
+
+**Run all tests across all Python versions.**
+
+Not recommended since it takes a long time.
+
+```bash
+hatch run test:test
 ```
 
 ### End-to-end
@@ -177,7 +226,7 @@ make e2e
 In `frontend/`:
 
 ```bash
-npx playwright test --ui
+pnpm playwright test --ui
 ```
 
 **Run a specific test.**
@@ -185,15 +234,15 @@ npx playwright test --ui
 In `frontend/`:
 
 ```bash
-npx playwright test <filename> --ui
+pnpm playwright test <filename> --ui
 # e.g.
-npx playwright test cells.test.ts --ui
+pnpm playwright test cells.test.ts --ui
 ```
 
 or
 
 ```bash
-npx playwright test --debug <filename>
+pnpm playwright test --debug <filename>
 ```
 
 ## Storybook

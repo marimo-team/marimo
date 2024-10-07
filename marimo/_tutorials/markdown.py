@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.7.17"
+__generated_with = "0.8.22"
 app = marimo.App()
 
 
@@ -174,7 +174,7 @@ def __(mo):
         {leaves}
         """
     )
-    return leaves,
+    return (leaves,)
 
 
 @app.cell
@@ -230,7 +230,7 @@ def __(missing_numpy_msg, mo, np, numpy_installed):
         {mo.as_html(make_dataframe())}
         """
     )
-    return make_dataframe,
+    return (make_dataframe,)
 
 
 @app.cell(hide_code=True)
@@ -279,14 +279,12 @@ def __(
     matplotlib_installed,
     missing_matplotlib_msg,
     missing_numpy_msg,
+    mo,
     np,
     numpy_installed,
     plt,
 ):
-    import functools
-
-
-    @functools.cache
+    @mo.cache
     def plotsin(amplitude, period):
         if not numpy_installed:
             return missing_numpy_msg
@@ -296,7 +294,7 @@ def __(
         plt.plot(x, amplitude * np.sin(2 * np.pi / period * x))
         plt.ylim(-2.2, 2.2)
         return plt.gca()
-    return functools, plotsin
+    return (plotsin,)
 
 
 @app.cell

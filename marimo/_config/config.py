@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass
+from typing import TypeVar
 
 if sys.version_info < (3, 11):
     from typing_extensions import NotRequired
@@ -54,7 +55,7 @@ class SaveConfig(TypedDict):
 
 @mddoc
 @dataclass
-class KeymapConfig(TypedDict, total=False):
+class KeymapConfig(TypedDict):
     """Configuration for keymaps.
 
     **Keys.**
@@ -64,7 +65,7 @@ class KeymapConfig(TypedDict, total=False):
     """
 
     preset: Literal["default", "vim"]
-    overrides: Dict[str, str]
+    overrides: NotRequired[Dict[str, str]]
 
 
 OnCellChangeType = Literal["lazy", "autorun"]
@@ -166,21 +167,23 @@ class PackageManagementConfig(TypedDict):
 
 
 @dataclass
-class AiConfig(TypedDict):
+class AiConfig(TypedDict, total=False):
     """Configuration options for AI.
 
     **Keys.**
 
     - `open_ai`: the OpenAI config
     - `anthropic`: the Anthropic config
+    - `google`: the Google AI config
     """
 
     open_ai: OpenAiConfig
     anthropic: AnthropicConfig
+    google: GoogleAiConfig
 
 
 @dataclass
-class OpenAiConfig(TypedDict):
+class OpenAiConfig(TypedDict, total=False):
     """Configuration options for OpenAI or OpenAI-compatible services.
 
     **Keys.**
@@ -197,7 +200,7 @@ class OpenAiConfig(TypedDict):
 
 
 @dataclass
-class AnthropicConfig(TypedDict):
+class AnthropicConfig(TypedDict, total=False):
     """Configuration options for Anthropic.
 
     **Keys.**
@@ -208,10 +211,39 @@ class AnthropicConfig(TypedDict):
     api_key: str
 
 
+@dataclass
+class GoogleAiConfig(TypedDict, total=False):
+    """Configuration options for Google AI.
+
+    **Keys.**
+
+    - `api_key`: the Google AI API key
+    """
+
+    api_key: str
+
+
 @mddoc
 @dataclass
 class MarimoConfig(TypedDict):
     """Configuration for the marimo editor"""
+
+    completion: CompletionConfig
+    display: DisplayConfig
+    formatting: FormattingConfig
+    keymap: KeymapConfig
+    runtime: RuntimeConfig
+    save: SaveConfig
+    server: ServerConfig
+    package_management: PackageManagementConfig
+    ai: NotRequired[AiConfig]
+    experimental: NotRequired[Dict[str, Any]]
+
+
+@mddoc
+@dataclass
+class PartialMarimoConfig(TypedDict, total=False):
+    """Partial configuration for the marimo editor"""
 
     completion: CompletionConfig
     display: DisplayConfig
@@ -254,13 +286,15 @@ DEFAULT_CONFIG: MarimoConfig = {
 }
 
 
-def merge_default_config(config: MarimoConfig) -> MarimoConfig:
+def merge_default_config(
+    config: PartialMarimoConfig | MarimoConfig,
+) -> MarimoConfig:
     """Merge a user configuration with the default configuration."""
     return merge_config(DEFAULT_CONFIG, config)
 
 
 def merge_config(
-    config: MarimoConfig, new_config: MarimoConfig
+    config: MarimoConfig, new_config: PartialMarimoConfig | MarimoConfig
 ) -> MarimoConfig:
     """Merge a user configuration with a new configuration."""
     # Remove the keymap overrides from the incoming config,
@@ -305,7 +339,7 @@ def _deep_copy(obj: Any) -> Any:
 SECRET_PLACEHOLDER = "********"
 
 
-def mask_secrets(config: MarimoConfig) -> MarimoConfig:
+def mask_secrets(config: MarimoConfig | PartialMarimoConfig) -> MarimoConfig:
     def deep_remove_from_path(path: list[str], obj: Dict[str, Any]) -> None:
         key = path[0]
         if key not in obj:
@@ -316,7 +350,11 @@ def mask_secrets(config: MarimoConfig) -> MarimoConfig:
         else:
             deep_remove_from_path(path[1:], cast(Dict[str, Any], obj[key]))
 
-    secrets = [["ai", "open_ai", "api_key"], ["ai", "anthropic", "api_key"]]
+    secrets = [
+        ["ai", "open_ai", "api_key"],
+        ["ai", "anthropic", "api_key"],
+        ["ai", "google", "api_key"],
+    ]
 
     new_config = _deep_copy(config)
     for secret in secrets:
@@ -325,7 +363,10 @@ def mask_secrets(config: MarimoConfig) -> MarimoConfig:
     return new_config  # type: ignore
 
 
-def remove_secret_placeholders(config: MarimoConfig) -> MarimoConfig:
+T = TypeVar("T")
+
+
+def remove_secret_placeholders(config: T) -> T:
     def deep_remove(obj: Any) -> Any:
         if isinstance(obj, dict):
             # Filter all keys with value SECRET_PLACEHOLDER

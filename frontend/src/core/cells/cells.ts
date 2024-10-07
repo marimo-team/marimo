@@ -31,6 +31,7 @@ import { clamp } from "@/utils/math";
 import type { LayoutState } from "../layout/layout";
 import { notebookIsRunning, notebookQueueOrRunningCount } from "./utils";
 import {
+  extractHighlightedCode,
   splitEditor,
   updateEditorCodeFromPython,
 } from "../codemirror/language/utils";
@@ -45,6 +46,7 @@ import { syncCellIds } from "../network/requests";
 import { kioskModeAtom } from "../mode";
 import { CollapsibleTree } from "@/utils/id-tree";
 import { isEqual } from "lodash-es";
+import type { EditorView } from "@codemirror/view";
 
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
 
@@ -197,6 +199,7 @@ const {
       lastExecutionTime?: number;
       newCellId?: CellId;
       autoFocus?: boolean;
+      includeSelectionAsInitialCode?: boolean;
     },
   ) => {
     const {
@@ -206,6 +209,7 @@ const {
       lastCodeRun = null,
       lastExecutionTime = null,
       autoFocus = true,
+      includeSelectionAsInitialCode,
     } = action;
     const newCellId = action.newCellId || CellId.create();
     const index =
@@ -214,6 +218,29 @@ const {
         : state.cellIds.topLevelIds.indexOf(cellId);
     const insertionIndex = before ? index : index + 1;
 
+    let newCellCode = code;
+
+    if (includeSelectionAsInitialCode) {
+      const id = cellId as CellId;
+      const editorView = state.cellHandles[id].current?.editorView;
+      if (editorView) {
+        const result = extractHighlightedCode(editorView);
+        if (result != null) {
+          const [highlighted, leftover] = result;
+          newCellCode = highlighted === "" ? code : highlighted;
+          updateEditorCodeFromPython(editorView, leftover);
+          state.cellData = {
+            ...state.cellData,
+            [id]: {
+              ...state.cellData[id],
+              code: leftover,
+              edited: true,
+            },
+          };
+        }
+      }
+    }
+
     return {
       ...state,
       cellIds: state.cellIds.insert(newCellId, insertionIndex),
@@ -221,10 +248,10 @@ const {
         ...state.cellData,
         [newCellId]: createCell({
           id: newCellId,
-          code,
+          code: newCellCode,
           lastCodeRun,
           lastExecutionTime,
-          edited: Boolean(code) && code !== lastCodeRun,
+          edited: Boolean(newCellCode) && newCellCode !== lastCodeRun,
         }),
       },
       cellRuntime: {
@@ -1029,9 +1056,13 @@ export const getAllEditorViews = () => {
     .filter(Boolean);
 };
 
-export const getCellEditorView = (cellId: CellId) => {
+export const getCellEditorView = (cellId: CellId): EditorView | undefined => {
   const { cellHandles } = store.get(notebookAtom);
-  return cellHandles[cellId].current?.editorView;
+  const cellHandle = cellHandles[cellId];
+  if (!cellHandle) {
+    return;
+  }
+  return cellHandle.current?.editorView;
 };
 
 export function isUninstantiated(

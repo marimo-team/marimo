@@ -19,7 +19,7 @@ export const autoInstantiateAtom = atom((get) => {
 });
 
 export const hotkeyOverridesAtom = atom((get) => {
-  return get(userConfigAtom).keymap.overrides;
+  return get(userConfigAtom).keymap.overrides ?? {};
 });
 
 export const hotkeysAtom = atom((get) => {
@@ -44,7 +44,9 @@ export const aiEnabledAtom = atom<boolean>((get) => {
 
 export function isAiEnabled(config: UserConfig) {
   return (
-    Boolean(config.ai.open_ai?.api_key) || Boolean(config.ai.anthropic?.api_key)
+    Boolean(config.ai?.open_ai?.api_key) ||
+    Boolean(config.ai?.anthropic?.api_key) ||
+    Boolean(config.ai?.google?.api_key)
   );
 }
 
