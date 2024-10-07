@@ -491,8 +491,15 @@ export class MultiColumn<T> {
     return this.columns.indexOf(column);
   }
 
-  addColumn(): MultiColumn<T> {
-    return new MultiColumn([...this.columns, CollapsibleTree.from([])]);
+  addColumn(columnId: CellColumnId): MultiColumn<T> {
+    return new MultiColumn(
+      this.columns.flatMap((c) => {
+        if (c.id === columnId) {
+          return [c, CollapsibleTree.from([])];
+        }
+        return [c];
+      }),
+    );
   }
 
   insertBreakpoint(cellId: T): MultiColumn<T> {

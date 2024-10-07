@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { cn } from "@/utils/cn";
 import { memo, useRef } from "react";
-import { SortableColumn } from "./SortableColumn";
+import { SortableColumn } from "./sortable-column";
 import type { CellColumnId } from "@/utils/id-tree";
 import type { AppConfig } from "@/core/config/config-schema";
 
@@ -24,7 +24,7 @@ export const Column = memo((props: Props) => {
       className={cn(
         "flex flex-col gap-5",
         props.width === "columns" &&
-          "w-contentWidth min-h-[400px] border border-t-0 border-[var(--slate-3)] rounded-b-lg p-6 bg-background",
+          "w-contentWidth min-h-[400px] border border-t-0 border-[var(--slate-3)] rounded-b-lg px-9 py-6 bg-[var(--slate-1)]",
       )}
     >
       {props.children}

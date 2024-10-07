@@ -509,10 +509,10 @@ const {
       scrollKey: cellId,
     };
   },
-  addColumn: (state) => {
+  addColumn: (state, action: { columnId: CellColumnId }) => {
     return {
       ...state,
-      cellIds: state.cellIds.addColumn(),
+      cellIds: state.cellIds.addColumn(action.columnId),
     };
   },
   addColumnBreakpoint: (state, action: { cellId: CellId }) => {

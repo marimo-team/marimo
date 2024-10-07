@@ -15,7 +15,7 @@ const toolbarItemVariants = cva(
           "bg-[var(--yellow-3)] hover:bg-[var(--yellow-4)] text-[var(--yellow-11)]",
         green:
           "hover:bg-[var(--grass-2)] hover:text-[var(--grass-11)] hover:border-[var(--grass-7)]",
-        disabled: "opacity-50 cursor-not-allowed",
+        disabled: "cursor-not-allowed border-border/40 [&>*]:opacity-60",
         danger: "hover:bg-[var(--red-3)] hover:text-[var(--red-11)]",
       },
     },
@@ -55,8 +55,8 @@ export const ToolbarItem: React.FC<ToolbarItemProps> = ({
       }}
       className={cn(
         toolbarItemVariants({ variant }),
-        disabled && "opacity-50 cursor-not-allowed",
         rest.className,
+        "bg-background",
       )}
     >
       {children}
@@ -86,7 +86,7 @@ interface ToolbarProps {
 export const Toolbar: React.FC<ToolbarProps> = ({ children, className }) => (
   <ReactAriaToolbar
     className={cn(
-      "flex items-center gap-1 bg-background p-[2px] rounded-md",
+      "flex items-center gap-1 bg-transparent p-[2px] rounded-md",
       className,
     )}
   >

@@ -43,11 +43,8 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import {
-  AddColumnButton,
-  SortableCellsProvider,
-} from "@/components/sort/SortableCellsProvider";
-import { Column } from "../coumns/Column";
+import { SortableCellsProvider } from "@/components/sort/SortableCellsProvider";
+import { Column } from "../coumns/cell-column";
 import type { CellColumnId } from "@/utils/id-tree";
 
 interface CellArrayProps {
@@ -108,7 +105,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
     >
       <PackageAlert />
       <NotebookBanner width={appConfig.width} />
-      <SortableCellsProvider>
+      <SortableCellsProvider multiColumn={appConfig.width === "columns"}>
         <SortableContext
           id="column-container"
           items={columns.map((column) => column.id)}
@@ -184,13 +181,6 @@ export const CellArray: React.FC<CellArrayProps> = ({
                 </Column>
               );
             })}
-            {appConfig.width === "columns" && (
-              <AddColumnButton />
-              // <div className="flex flex-col w-[600px] group/column z-0">
-              //   <PlaceholderColumn />
-              //   <AddCellButtons columnId={""} />
-              // </div>
-            )}
           </div>
         </SortableContext>
       </SortableCellsProvider>

@@ -610,9 +610,10 @@ describe("MultiColumn", () => {
   });
 
   it("adds a column", () => {
-    const newMultiColumn = multiColumn.addColumn();
+    const columnId = multiColumn.getColumns()[0].id;
+    const newMultiColumn = multiColumn.addColumn(columnId);
     expect(newMultiColumn.colLength).toBe(4);
-    expect(newMultiColumn.topLevelIds[3]).toEqual([]);
+    expect(newMultiColumn.topLevelIds[1]).toEqual([]);
   });
 
   it("inserts a breakpoint", () => {

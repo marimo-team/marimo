@@ -3,7 +3,7 @@ import React, { memo } from "react";
 import { mergeRefs } from "../../../utils/mergeRefs";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronLeftIcon, ChevronRightIcon, X } from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, X } from "lucide-react";
 import type { CellColumnId } from "@/utils/id-tree";
 import { useCellActions } from "@/core/cells/cells";
 import { cn } from "@/utils/cn";
@@ -51,34 +51,42 @@ const SortableColumnInternal = React.forwardRef(
 
     const mergedRef = mergeRefs<HTMLDivElement>(ref, setNodeRef);
 
-    const { deleteColumn, moveColumn } = useCellActions();
+    const { deleteColumn, moveColumn, addColumn } = useCellActions();
+
+    const buttonClasses = cn("h-full hover:bg-muted rounded-none");
+
+    const handleScrollAppRight = () => {
+      const app = document.getElementById("App");
+      if (app) {
+        app.scrollTo({
+          left: app.scrollLeft + 1000,
+          behavior: "smooth",
+        });
+      }
+    };
 
     const dragHandle = (
       <div className="h-6 group flex items-center rounded-t-lg border hover:border-border border-[var(--slate-3)] overflow-hidden">
-        <div className="flex gap-2 cursor-default">
-          <Button
-            variant="text"
-            size="sm"
-            className="h-full"
-            onClick={() =>
-              moveColumn({ column: columnId, overColumn: "_left_" })
-            }
-            disabled={!canMoveLeft}
-          >
-            <ChevronLeftIcon className="size-4" />
-          </Button>
-          <Button
-            variant="text"
-            size="sm"
-            className="h-full"
-            onClick={() =>
-              moveColumn({ column: columnId, overColumn: "_right_" })
-            }
-            disabled={!canMoveRight}
-          >
-            <ChevronRightIcon className="size-4" />
-          </Button>
-        </div>
+        <Button
+          variant="text"
+          size="sm"
+          className={buttonClasses}
+          onClick={() => moveColumn({ column: columnId, overColumn: "_left_" })}
+          disabled={!canMoveLeft}
+        >
+          <ChevronLeftIcon className="size-4" />
+        </Button>
+        <Button
+          variant="text"
+          size="sm"
+          className={buttonClasses}
+          onClick={() =>
+            moveColumn({ column: columnId, overColumn: "_right_" })
+          }
+          disabled={!canMoveRight}
+        >
+          <ChevronRightIcon className="size-4" />
+        </Button>
         <div
           className="flex gap-2 h-full flex-grow active:bg-accent cursor-grab"
           {...attributes}
@@ -89,12 +97,23 @@ const SortableColumnInternal = React.forwardRef(
           <Button
             variant="text"
             size="sm"
-            className="opacity-0 group-hover:opacity-70 group-hover:hover:opacity-100 text-destructive h-full"
+            className="opacity-0 group-hover:opacity-70 group-hover:hover:opacity-100 text-destructive h-full hover:bg-destructive/20 rounded-none"
             onClick={() => deleteColumn({ columnId })}
           >
             <X className="size-4" />
           </Button>
         )}
+        <Button
+          variant="text"
+          size="sm"
+          className={buttonClasses}
+          onClick={() => {
+            addColumn({ columnId });
+            requestAnimationFrame(handleScrollAppRight);
+          }}
+        >
+          <PlusIcon className="size-4" />
+        </Button>
       </div>
     );
 

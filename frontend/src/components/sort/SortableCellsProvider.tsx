@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { useMemo, useState, useCallback, memo } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import {
   DndContext,
   closestCenter,
@@ -24,12 +24,10 @@ import type { CellId } from "@/core/cells/ids";
 import { useAppConfig } from "@/core/config/config";
 import { Arrays } from "@/utils/arrays";
 import type { CellColumnId, MultiColumn } from "@/utils/id-tree";
-import { SquarePlusIcon } from "lucide-react";
-import { Tooltip } from "../ui/tooltip";
-import { Button } from "../ui/button";
 import { invariant } from "@/utils/invariant";
 
 interface SortableCellsProviderProps {
+  multiColumn: boolean;
   children: React.ReactNode;
 }
 
@@ -42,6 +40,7 @@ const autoScroll: AutoScrollOptions = {
 
 const SortableCellsProviderInternal = ({
   children,
+  multiColumn,
 }: SortableCellsProviderProps) => {
   const { cellIds } = useNotebook();
   const { dropCellOverCell, dropCellOverColumn, moveColumn, compactColumns } =
@@ -215,7 +214,10 @@ const SortableCellsProviderInternal = ({
     <DndContext
       autoScroll={autoScroll}
       sensors={sensors}
-      collisionDetection={collisionDetectionStrategy}
+      // For single-column, we just do closestCenter
+      collisionDetection={
+        multiColumn ? collisionDetectionStrategy : closestCenter
+      }
       modifiers={modifiers}
       onDragEnd={handleDragEnd}
       onDragStart={handleDragStart}
@@ -237,38 +239,38 @@ function isColumnId(id: UniqueIdentifier): id is CellColumnId {
   return typeof id === "string" && id.startsWith("tree_");
 }
 
-export const AddColumnButton: React.FC = memo(() => {
-  const { addColumn } = useCellActions();
+// export const AddColumnButton: React.FC = memo(() => {
+//   const { addColumn } = useCellActions();
 
-  const handleScrollAppRight = () => {
-    const app = document.getElementById("App");
-    if (app) {
-      app.scrollTo({
-        left: app.scrollLeft + 1000,
-        behavior: "smooth",
-      });
-    }
-  };
+//   const handleScrollAppRight = () => {
+//     const app = document.getElementById("App");
+//     if (app) {
+//       app.scrollTo({
+//         left: app.scrollLeft + 1000,
+//         behavior: "smooth",
+//       });
+//     }
+//   };
 
-  return (
-    <div className="h-full px-10">
-      <button
-        className="h-[calc(100%-210px)] min-h-[425px] w-16 flex justify-center bg-[var(--slate-1)] hover:bg-[var(--slate-2)] border-2 border-dashed border-[var(--slate-5)] rounded-lg"
-        onClick={() => {
-          addColumn();
-          requestAnimationFrame(handleScrollAppRight);
-        }}
-      >
-        <div className="h-full max-h-[60vh] flex items-center justify-center">
-          <Tooltip content="Add column">
-            <Button variant="text" size="xs">
-              <SquarePlusIcon className="w-5 h-5" />
-            </Button>
-          </Tooltip>
-        </div>
-      </button>
-    </div>
-  );
-});
+//   return (
+//     <div className="h-full px-10">
+//       <button
+//         className="h-[calc(100%-210px)] min-h-[425px] w-16 flex justify-center bg-[var(--slate-1)] hover:bg-[var(--slate-2)] border-2 border-dashed border-[var(--slate-5)] rounded-lg"
+//         onClick={() => {
+//           addColumn();
+//           requestAnimationFrame(handleScrollAppRight);
+//         }}
+//       >
+//         <div className="h-full max-h-[60vh] flex items-center justify-center">
+//           <Tooltip content="Add column">
+//             <Button variant="text" size="xs">
+//               <SquarePlusIcon className="w-5 h-5" />
+//             </Button>
+//           </Tooltip>
+//         </div>
+//       </button>
+//     </div>
+//   );
+// });
 
-AddColumnButton.displayName = "AddColumnButton";
+// AddColumnButton.displayName = "AddColumnButton";
