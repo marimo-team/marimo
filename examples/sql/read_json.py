@@ -77,6 +77,7 @@ def __(data, mo):
     result = mo.sql(
         f"""
         -- Tip: you can also specify the data files using a glob, such as '/path/to/*.json'
+        -- or '/path/**/to/*.json'
         SELECT * FROM 'data.json'
         """, output=False
     )

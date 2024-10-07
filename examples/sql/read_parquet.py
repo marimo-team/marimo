@@ -67,6 +67,7 @@ def __(data, mo):
     result = mo.sql(
         f"""
         -- Tip: you can also specify the data files using a glob, such as '/path/to/*.parquet'
+        -- or '/path/**/to/*.parquet'
         SELECT * FROM 'data.parquet'
         """, output=False
     )

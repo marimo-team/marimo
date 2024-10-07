@@ -65,6 +65,8 @@ def __(mo):
 def __(data, mo):
     result = mo.sql(
         f"""
+        -- Tip: you can also specify the data files using a glob, such as '/path/to/*.csv'
+        -- or '/path/**/to/*.csv'
         SELECT * FROM "data.csv"
         """, output=False
     )
