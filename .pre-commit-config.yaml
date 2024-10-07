@@ -1,6 +1,17 @@
 fail_fast: true
 
 repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-yaml
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.6.26
+    hooks:
+      - id: actionlint
+        args: [-ignore, SC]
+
   - repo: https://github.com/abravalheri/validate-pyproject
     rev: v0.20.2
     hooks:

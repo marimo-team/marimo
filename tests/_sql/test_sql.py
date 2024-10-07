@@ -86,7 +86,9 @@ def test_applies_limit(mock_replace: MagicMock) -> None:
         del os.environ["MARIMO_SQL_DEFAULT_LIMIT"]
 
 
-@pytest.mark.skipif(HAS_DEPS, reason="must be missing deps")
+@pytest.mark.skipif(
+    DependencyManager.duckdb.has(), reason="must be missing duckdb"
+)
 def test_sql_raises_error_without_duckdb():
     with pytest.raises(ModuleNotFoundError):
         sql("SELECT * FROM t")

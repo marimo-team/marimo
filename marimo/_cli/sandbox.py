@@ -136,7 +136,7 @@ def run_in_sandbox(
         # During development, you can comment this out to install an
         # editable version of marimo assuming you are in the marimo directory
         # DO NOT COMMIT THIS WHEN SUBMITTING PRs
-        # dependencies[index_of_marimo] = "-e .[dev]"
+        # dependencies[index_of_marimo] = "-e ."
 
     with tempfile.NamedTemporaryFile(
         mode="w", delete=False, suffix=".txt"
