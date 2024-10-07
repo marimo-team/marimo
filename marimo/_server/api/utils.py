@@ -39,16 +39,16 @@ async def parse_request(
     )
 
 
-def parse_title(filename: Optional[str]) -> str:
+def parse_title(filepath: Optional[str]) -> str:
     """
-    Parse a filename into a (name, extension) tuple.
+    Create a title from a filename.
     """
-    if filename is None:
+    if filepath is None:
         return "marimo"
 
     # filename is used as title, except basename and suffix are
     # stripped and underscores are replaced with spaces
-    return os.path.splitext(os.path.basename(filename))[0].replace("_", " ")
+    return os.path.splitext(os.path.basename(filepath))[0].replace("_", " ")
 
 
 def open_url_in_browser(browser: str, url: str) -> None:
