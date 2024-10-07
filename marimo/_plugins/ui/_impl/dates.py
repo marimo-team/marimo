@@ -73,7 +73,7 @@ class date(UIElement[str, dt.date]):
           current day;
         - else if `None` and `start` is not `None`, defaults to `start`;
         - else if `None` and `stop` is not `None`, defaults to `stop`
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
@@ -193,7 +193,7 @@ class datetime(UIElement[Optional[str], Optional[dt.datetime]]):
     - `start`: the minimum selectable datetime (default: minimum datetime)
     - `stop`: the maximum selectable datetime (default: maximum datetime)
     - `value`: default value
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of
       its container
@@ -322,7 +322,7 @@ class date_range(UIElement[Tuple[str, str], Tuple[dt.date, dt.date]]):
     - `start`: the minimum selectable date (default: minimum date)
     - `stop`: the maximum selectable date (default: maximum date)
     - `value`: default value (tuple of two dates)
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
       container

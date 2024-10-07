@@ -47,7 +47,7 @@ class refresh(UIElement[int, int]):
     If no options are provided and default_interval is not provided,
     the refresh button will not be displayed with a dropdown for auto-refresh.
     - `default_interval`: The default value of the refresh interval.
-    - `label`: optional text label for the element
+    - `label`: optional markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
 
