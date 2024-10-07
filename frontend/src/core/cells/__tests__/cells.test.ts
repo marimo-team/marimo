@@ -1279,6 +1279,16 @@ describe("cell reducer", () => {
     expect(cell.consoleOutputs).toEqual([STDOUT1, STDOUT2]);
   });
 
+  it("can create markdown cell with code hidden by default", () => {
+    actions.createNewCell({
+      cellId: firstCellId,
+      before: false,
+      code: `mo.md(r"""Hello world!""")`,
+    });
+    const cellId = state.cellIds.atOrThrow(1);
+    expect(state.cellData[cellId].config.hide_code).toBe(true);
+  });
+
   describe("can create a cell using selected code", () => {
     const firstLine = "import marimo as mo";
     const secondLine = "import pandas as pd";
