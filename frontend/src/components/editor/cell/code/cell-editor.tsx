@@ -37,6 +37,7 @@ import { autoInstantiateAtom, isAiEnabled } from "@/core/config/config";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { useSplitCellCallback } from "../useSplitCell";
+import { isMarkdown } from "@/core/cells/utils";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -335,7 +336,7 @@ const CellEditorInternal = ({
     };
   }, [editorViewRef]);
 
-  const temporarilyShowCode = async () => {
+  const temporarilyShowCode = useCallback(async () => {
     if (hidden) {
       updateCellConfig({ cellId, config: { hide_code: false } });
       editorViewRef.current?.focus();
@@ -345,7 +346,16 @@ const CellEditorInternal = ({
         { once: true },
       );
     }
-  };
+  }, [hidden, cellId, updateCellConfig, editorViewRef]);
+
+  // For a newly created Markdown cell, which defaults to
+  // hidden code, we temporarily show the code editor
+  useEffect(() => {
+    if (!(isMarkdown(code) && code === `mo.md(r"""\n""")`)) {
+      return;
+    }
+    temporarilyShowCode();
+  }, [code, temporarilyShowCode]);
 
   return (
     <AiCompletionEditor

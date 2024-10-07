@@ -29,7 +29,11 @@ import { deserializeBase64, deserializeJson } from "@/utils/json/base64";
 import { historyField } from "@codemirror/commands";
 import { clamp } from "@/utils/math";
 import type { LayoutState } from "../layout/layout";
-import { notebookIsRunning, notebookQueueOrRunningCount } from "./utils";
+import {
+  isMarkdown,
+  notebookIsRunning,
+  notebookQueueOrRunningCount,
+} from "./utils";
 import {
   extractHighlightedCode,
   splitEditor,
@@ -47,7 +51,6 @@ import { kioskModeAtom } from "../mode";
 import { CollapsibleTree } from "@/utils/id-tree";
 import { isEqual } from "lodash-es";
 import type { EditorView } from "@codemirror/view";
-import { LanguageAdapters } from "../codemirror/language/LanguageAdapters";
 
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
 
@@ -242,10 +245,6 @@ const {
       }
     }
 
-    const isMarkdown = newCellCode
-      ? LanguageAdapters.markdown().isSupported(newCellCode)
-      : false;
-
     return {
       ...state,
       cellIds: state.cellIds.insert(newCellId, insertionIndex),
@@ -259,7 +258,7 @@ const {
           edited: Boolean(newCellCode) && newCellCode !== lastCodeRun,
           config: {
             disabled: false,
-            hide_code: isMarkdown,
+            hide_code: isMarkdown(newCellCode),
           },
         }),
       },
