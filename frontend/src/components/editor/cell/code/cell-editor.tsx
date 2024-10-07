@@ -194,7 +194,7 @@ const CellEditorInternal = ({
       completionConfig: userConfig.completion,
       keymapConfig: userConfig.keymap,
       theme,
-      hotkeys: new OverridingHotkeyProvider(userConfig.keymap.overrides),
+      hotkeys: new OverridingHotkeyProvider(userConfig.keymap.overrides ?? {}),
     });
 
     extensions.push(
@@ -268,7 +268,7 @@ const CellEditorInternal = ({
             reconfigureLanguageEffect(
               editorViewRef.current,
               userConfig.completion,
-              new OverridingHotkeyProvider(userConfig.keymap.overrides),
+              new OverridingHotkeyProvider(userConfig.keymap.overrides ?? {}),
             ),
           ],
         });

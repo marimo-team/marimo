@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, ClassVar, List, Literal, Optional, Union
+import sys
+from typing import Any, ClassVar, List, Literal, Optional, TypedDict, Union
+
+import pytest
 
 from marimo._utils.dataclass_to_openapi import (
     PythonTypeToOpenAPI,
@@ -141,4 +144,110 @@ def test_class_var() -> None:
         "type": "object",
         "properties": {"name": {"type": "string", "enum": ["dog"]}},
         "required": ["name"],
+    }
+
+
+def test_optional() -> None:
+    openapi_spec = PythonTypeToOpenAPI(
+        name_overrides={}, camel_case=False
+    ).convert(Optional[str], {})
+    assert openapi_spec == {
+        "type": "string",
+        "nullable": True,
+    }
+
+
+if sys.version_info >= (3, 11):
+    from typing import NotRequired
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 11), reason="Not supported in Python < 3.11"
+)
+def test_not_required() -> None:
+    class NotRequiredDict(TypedDict):
+        not_required_item: NotRequired[str]
+        optional_item: Optional[str]
+
+    openapi_spec = PythonTypeToOpenAPI(
+        name_overrides={}, camel_case=False
+    ).convert(NotRequiredDict, {})
+    assert openapi_spec == {
+        "type": "object",
+        "properties": {
+            "optional_item": {"type": "string", "nullable": True},
+            "not_required_item": {"type": "string"},
+        },
+        "required": ["optional_item"],
+    }
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 11), reason="Not supported in Python < 3.11"
+)
+def test_not_required_total_false() -> None:
+    class NotRequiredDictTotalFalse(TypedDict, total=False):
+        not_required_item: NotRequired[str]
+        optional_item: Optional[str]
+
+    openapi_spec = PythonTypeToOpenAPI(
+        name_overrides={}, camel_case=False
+    ).convert(NotRequiredDictTotalFalse, {})
+    assert openapi_spec == {
+        "type": "object",
+        "properties": {
+            "optional_item": {"type": "string", "nullable": True},
+            "not_required_item": {"type": "string"},
+        },
+    }
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 11), reason="Not supported in Python < 3.11"
+)
+def test_not_required_as_dataclass() -> None:
+    @dataclasses.dataclass
+    class NotRequiredDictAsDataclass(TypedDict):
+        not_required_item: NotRequired[str]
+        optional_item: Optional[str]
+
+    openapi_spec = PythonTypeToOpenAPI(
+        name_overrides={}, camel_case=False
+    ).convert(NotRequiredDictAsDataclass, {})
+
+    assert NotRequiredDictAsDataclass(optional_item="hello") is not None
+
+    assert openapi_spec == {
+        "type": "object",
+        "properties": {
+            "optional_item": {"type": "string", "nullable": True},
+            "not_required_item": {"type": "string"},
+        },
+        "required": ["optional_item"],
+    }
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 11), reason="Not supported in Python < 3.11"
+)
+def test_not_required_as_dataclass_total_false() -> None:
+    @dataclasses.dataclass
+    class NotRequiredDictAsDataclassTotalFalse(TypedDict, total=False):
+        not_required_item: NotRequired[str]
+        optional_item: Optional[str]
+
+    openapi_spec = PythonTypeToOpenAPI(
+        name_overrides={}, camel_case=False
+    ).convert(NotRequiredDictAsDataclassTotalFalse, {})
+
+    assert (
+        NotRequiredDictAsDataclassTotalFalse(optional_item="hello") is not None
+    )
+
+    assert openapi_spec == {
+        "type": "object",
+        "properties": {
+            "optional_item": {"type": "string", "nullable": True},
+            "not_required_item": {"type": "string"},
+        },
     }

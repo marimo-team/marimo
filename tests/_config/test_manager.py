@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import unittest
 from functools import wraps
 from typing import Any, Callable, TypeVar
 from unittest.mock import patch
 
-from marimo._config.config import merge_default_config
-from marimo._config.manager import MarimoConfig, UserConfigManager
+from marimo._config.config import PartialMarimoConfig, merge_default_config
+from marimo._config.manager import UserConfigManager
 from marimo._config.utils import load_config
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -28,7 +30,7 @@ class TestUserConfigManager(unittest.TestCase):
     @patch("tomlkit.dump")
     @patch("marimo._config.manager.load_config")
     def test_save_config(self, mock_load: Any, mock_dump: Any) -> None:
-        mock_config = merge_default_config(MarimoConfig())
+        mock_config = merge_default_config(PartialMarimoConfig())
         mock_load.return_value = mock_config
         manager = UserConfigManager()
 
@@ -43,13 +45,15 @@ class TestUserConfigManager(unittest.TestCase):
     @patch("tomlkit.dump")
     @patch("marimo._config.manager.load_config")
     def test_can_save_secrets(self, mock_load: Any, mock_dump: Any) -> None:
-        mock_config = merge_default_config(MarimoConfig())
+        mock_config = merge_default_config(PartialMarimoConfig())
         mock_load.return_value = mock_config
         manager = UserConfigManager()
 
         manager.save_config(
             merge_default_config(
-                MarimoConfig(ai={"open_ai": {"api_key": "super_secret"}})
+                PartialMarimoConfig(
+                    ai={"open_ai": {"api_key": "super_secret"}}
+                )
             )
         )
 
@@ -61,7 +65,7 @@ class TestUserConfigManager(unittest.TestCase):
         # Do not overwrite secrets
         manager.save_config(
             merge_default_config(
-                MarimoConfig(ai={"open_ai": {"api_key": "********"}})
+                PartialMarimoConfig(ai={"open_ai": {"api_key": "********"}})
             )
         )
         assert (
@@ -73,7 +77,7 @@ class TestUserConfigManager(unittest.TestCase):
     @patch("marimo._config.manager.load_config")
     def test_can_read_secrets(self, mock_load: Any) -> None:
         mock_config = merge_default_config(
-            MarimoConfig(ai={"open_ai": {"api_key": "super_secret"}})
+            PartialMarimoConfig(ai={"open_ai": {"api_key": "super_secret"}})
         )
         mock_load.return_value = mock_config
         manager = UserConfigManager()
@@ -87,7 +91,7 @@ class TestUserConfigManager(unittest.TestCase):
     @restore_config
     @patch("marimo._config.manager.load_config")
     def test_get_config(self, mock_load: Any) -> None:
-        mock_config = merge_default_config(MarimoConfig())
+        mock_config = merge_default_config(PartialMarimoConfig())
         mock_load.return_value = mock_config
         manager = UserConfigManager()
 

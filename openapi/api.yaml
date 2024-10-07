@@ -1034,15 +1034,11 @@ components:
               properties:
                 api_key:
                   type: string
-              required:
-              - api_key
               type: object
             google:
               properties:
                 api_key:
                   type: string
-              required:
-              - api_key
               type: object
             open_ai:
               properties:
@@ -1052,15 +1048,7 @@ components:
                   type: string
                 model:
                   type: string
-              required:
-              - api_key
-              - model
-              - base_url
               type: object
-          required:
-          - open_ai
-          - anthropic
-          - google
           type: object
         completion:
           properties:
@@ -1137,7 +1125,6 @@ components:
               type: string
           required:
           - preset
-          - overrides
           type: object
         package_management:
           properties:
@@ -1211,8 +1198,6 @@ components:
       - save
       - server
       - package_management
-      - ai
-      - experimental
       type: object
     MarimoExceptionRaisedError:
       properties:
@@ -1919,7 +1904,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.8.22
+  version: 0.9.1
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
