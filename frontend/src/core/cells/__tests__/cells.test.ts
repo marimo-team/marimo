@@ -1582,7 +1582,7 @@ describe("cell reducer", () => {
         before: false,
         code: `${firstLine}\n${secondLine}\n${thirdLine}`,
       });
-      secondCellId = state.cellIds.atOrThrow(1);
+      secondCellId = state.cellIds.getColumns()[0].atOrThrow(1);
       editor = state.cellHandles[secondCellId].current?.editorView;
     });
 
@@ -1608,14 +1608,13 @@ describe("cell reducer", () => {
       });
       expect(formatCells(state)).toMatchInlineSnapshot(`
         "
-        key: 0
-        code: ''
+        [0] ''
 
-        key: 1
-        code: '${firstLine}\n${thirdLine}'
+        [1] 'import marimo as mo
+        import numpy as np'
 
-        key: 2
-        code: '${secondLine}'"
+        [2] 'import pandas as pd'
+        "
       `);
     });
 
@@ -1636,14 +1635,14 @@ describe("cell reducer", () => {
       });
       expect(formatCells(state)).toMatchInlineSnapshot(`
         "
-        key: 0
-        code: ''
+        [0] ''
 
-        key: 1
-        code: '${firstLine}\n${secondLine}\n${thirdLine}'
+        [1] 'import marimo as mo
+        import pandas as pd
+        import numpy as np'
 
-        key: 2
-        code: ''"
+        [2] ''
+        "
       `);
     });
 
@@ -1659,14 +1658,14 @@ describe("cell reducer", () => {
       });
       expect(formatCells(state)).toMatchInlineSnapshot(`
         "
-        key: 0
-        code: ''
+        [0] ''
 
-        key: 1
-        code: '${firstLine}\n${secondLine}\n${thirdLine}'
+        [1] 'import marimo as mo
+        import pandas as pd
+        import numpy as np'
 
-        key: 2
-        code: ''"
+        [2] ''
+        "
       `);
     });
 
@@ -1682,14 +1681,14 @@ describe("cell reducer", () => {
       });
       expect(formatCells(state)).toMatchInlineSnapshot(`
         "
-        key: 0
-        code: ''
+        [0] ''
 
-        key: 1
-        code: '${firstLine}\n${secondLine}\n${thirdLine}'
+        [1] 'import marimo as mo
+        import pandas as pd
+        import numpy as np'
 
-        key: 2
-        code: ''"
+        [2] ''
+        "
       `);
     });
   });

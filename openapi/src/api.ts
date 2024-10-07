@@ -2034,7 +2034,7 @@ export interface components {
       | "marimo-error"
       | "media";
     CellConfig: {
-      column?: number;
+      column?: number | null;
       disabled: boolean;
       hide_code: boolean;
     };
@@ -2327,7 +2327,7 @@ export interface components {
         css_file?: string | null;
         layout_file?: string | null;
         /** @enum {string} */
-        width: "normal" | "compact" | "medium" | "full" | "columns";
+        width: "normal" | "compact" | "medium" | "full";
       };
       capabilities: {
         sql: boolean;
@@ -2411,7 +2411,7 @@ export interface components {
         /** @enum {string} */
         dataframes: "rich" | "plain";
         /** @enum {string} */
-        default_width: "normal" | "compact" | "medium" | "full" | "columns";
+        default_width: "normal" | "compact" | "medium" | "full";
         /** @enum {string} */
         theme: "light" | "dark" | "system";
       };
