@@ -18,13 +18,13 @@ app = marimo.App(width="medium")
 def __(mo):
     mo.md(
         r"""
-        # Connect to SQLite
+        # Connect to Postgres
 
-        You can use marimo's SQL cells to read from and write to SQLite databases.
+        You can use marimo's SQL cells to read from and write to Postgres databases.
 
-        The first step is to attach a SQLite database. We attach to a sample database in a read-only mode below.
+        The first step is to attach a Postgres database, which we do below.
 
-        For advanced usage, see [duckdb's documentation](https://duckdb.org/docs/extensions/sqlite).
+        _For advanced usage, see [duckdb's documentation](https://duckdb.org/docs/extensions/postgres)._
         """
     )
     return
@@ -73,33 +73,46 @@ def __(mo):
 
 
 @app.cell
-def __(INFORMATION_SCHEMA, mo):
+def __():
+    import os
+
+    PASSWORD = os.getenv("PGPASSWORD", "mysecretpassword")
+    return PASSWORD, os
+
+
+@app.cell
+def __(PASSWORD, mo):
     _df = mo.sql(
         f"""
         -- Boilerplate: detach the database so this cell works when you re-run it
-        DETACH DATABASE IF EXISTS chinook;
+        DETACH DATABASE IF EXISTS db;
 
         -- Attach the database; omit READ_ONLY if you want to write to the database.
-        ATTACH 'Chinook_Sqlite.sqlite' as chinook (TYPE SQLITE, READ_ONLY);
+        -- The ATTACH command accepts either a libpq connection string (as below) or a PostgreSQL URI.
+        -- You can filter to specific schemas, as we do below.
+        ATTACH 'dbname=postgres user=postgres host=127.0.0.1 password={PASSWORD}' as db (
+            TYPE POSTGRES, READ_ONLY, SCHEMA 'public'
+        );
 
-        -- This query lists all the tables in the Chinook database
-        SELECT table_name FROM INFORMATION_SCHEMA.TABLES where table_catalog == 'chinook';
+        -- View tables in the public schema
+        SELECT table_name FROM INFORMATION_SCHEMA.TABLES;
         """
     )
-    return (chinook,)
+    return
 
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md(r"""Once the database is attached, you can query it with SQL. For example, the next cell computes the average track length of each composer in the chinook database.""")
+    mo.md(r"""Once the database is attached, you can query it with SQL.""")
     return
 
 
 @app.cell
-def __(chinook, mo, track):
+def __(db, mo, test_table):
     _df = mo.sql(
         f"""
-        SELECT composer, MEAN(Milliseconds) as avg_track_ms from chinook.track GROUP BY composer ORDER BY avg_track_ms DESC;
+        -- Query your tables! This assumes a database with schema public and a sample table called test_table.
+        SELECT * FROM db.public.test_table;
         """
     )
     return

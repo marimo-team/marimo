@@ -1,12 +1,16 @@
 # SQL 🛢️
 
 These examples show how to use marimo's built-in support for SQL, which
-is powered by [duckdb](https://duckdb.org).
+is powered by [duckdb](https://duckdb.org/), a fast in-process
+analytical database.
 
 > [!TIP]
-> For an overview of using SQL in marimo, run `marimo tutorial sql` at the
+> For a broad overview of using SQL in marimo, run `marimo tutorial sql` at the
 > command-line.
 
+SQL queries in marimo are executed through `duckdb`; consult the
+[duckdb documentation](https://duckdb.org/docs/index) for a comprehensive
+guide.
 
 ## Running examples
 
