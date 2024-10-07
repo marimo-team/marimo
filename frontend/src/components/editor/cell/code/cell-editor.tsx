@@ -340,7 +340,7 @@ const CellEditorInternal = ({
     if (hidden) {
       updateCellConfig({ cellId, config: { hide_code: false } });
       editorViewRef.current?.focus();
-      editorViewRef.current?.contentDOM.addEventListener(
+      editorViewParentRef.current?.addEventListener(
         "blur",
         () => updateCellConfig({ cellId, config: { hide_code: true } }),
         { once: true },

@@ -13,7 +13,7 @@ from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._utils.marimo_path import MarimoPath
 
 if TYPE_CHECKING:
-    from fastapi.testclient import TestClient
+    from starlette.testclient import TestClient
 
 
 def get_session_manager(client: TestClient) -> SessionManager:
