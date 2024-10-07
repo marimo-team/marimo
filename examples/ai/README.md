@@ -4,7 +4,7 @@ These examples showcase a few simple applications of AI.
 
 - 💬 [`chat/`](chat/): creating chatbots with marimo, using [`mo.ui.chat`](https://docs.marimo.io/api/inputs/chat.html#marimo.ui.chat)
 - 🛢️ [`data/`](data/): making data labeling and model comparison tools
-- 🛠 [`tools/`](tools/): interacting with external functions and services
+- 🛠 [`tools/`](tools/): interacting with external functions and services with function calling
 - 🍿 [`misc/`](misc/): miscellaneous AI examples
 
 > [!TIP]
