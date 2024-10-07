@@ -2,16 +2,25 @@
 import { Spinner } from "@/components/icons/spinner";
 import { Logger } from "@/utils/Logger";
 import { type Message, useChat } from "ai/react";
-import React, { useEffect } from "react";
-import type { ChatMessage, ChatConfig, SendMessageRequest } from "./types";
+import React, { useEffect, useRef } from "react";
+import type {
+  ChatMessage,
+  ChatConfig,
+  SendMessageRequest,
+  ChatAttachment,
+  ChatRole,
+} from "./types";
 import { ErrorBanner } from "../common/error-banner";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   BotMessageSquareIcon,
   ClipboardIcon,
   HelpCircleIcon,
   SendIcon,
   Trash2Icon,
+  DownloadIcon,
+  PaperclipIcon,
+  X,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { toast } from "@/components/ui/use-toast";
@@ -42,6 +51,7 @@ interface Props {
   prompts: string[];
   config: ChatConfig;
   showConfigurationControls: boolean;
+  allowAttachments: boolean | string[];
   sendPrompt(req: SendMessageRequest): Promise<string>;
   value: ChatMessage[];
   setValue: (messages: ChatMessage[]) => void;
@@ -50,6 +60,8 @@ interface Props {
 export const Chatbot: React.FC<Props> = (props) => {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [config, setConfig] = useState<ChatConfig>(props.config);
+  const [files, setFiles] = useState<FileList | undefined>(undefined);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
     messages,
@@ -67,11 +79,15 @@ export const Chatbot: React.FC<Props> = (props) => {
     streamProtocol: "text",
     fetch: async (_url, request) => {
       const body = JSON.parse(request?.body as string) as {
-        messages: ChatMessage[];
+        messages: Message[];
       };
       try {
         const response = await props.sendPrompt({
-          ...body,
+          messages: body.messages.map((m) => ({
+            role: m.role as ChatRole,
+            content: m.content,
+            attachments: m.experimental_attachments,
+          })),
           config: {
             max_tokens: config.maxTokens,
             temperature: config.temperature,
@@ -92,6 +108,11 @@ export const Chatbot: React.FC<Props> = (props) => {
       }
     },
     onFinish: (message, { usage, finishReason }) => {
+      setFiles(undefined);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
       Logger.debug("Finished streaming message:", message);
       Logger.debug("Token usage:", usage);
       Logger.debug("Finish reason:", finishReason);
@@ -108,11 +129,69 @@ export const Chatbot: React.FC<Props> = (props) => {
     setMessages(messages.filter((message) => message.id !== id));
   };
 
-  const renderMessage = (message: Message) => {
-    return message.role === "assistant"
-      ? renderHTML({ html: message.content })
-      : message.content;
+  const renderAttachment = (attachment: ChatAttachment) => {
+    if (attachment.contentType?.startsWith("image")) {
+      return (
+        <img
+          src={attachment.url}
+          alt={attachment.name || "Attachment"}
+          className="object-contain rounded-sm"
+          width={100}
+          height={100}
+        />
+      );
+    }
+
+    return (
+      <a
+        href={attachment.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-link hover:underline"
+      >
+        {attachment.name || "Attachment"}
+      </a>
+    );
   };
+
+  const renderMessage = (message: Message) => {
+    const content =
+      message.role === "assistant"
+        ? renderHTML({ html: message.content })
+        : message.content;
+
+    const attachments = message.experimental_attachments;
+
+    return (
+      <>
+        {content}
+        {attachments && attachments.length > 0 && (
+          <div className="mt-2">
+            {attachments.map((attachment, index) => (
+              <div key={index} className="flex items-baseline gap-2 ">
+                {renderAttachment(attachment)}
+                <a
+                  className={buttonVariants({
+                    variant: "text",
+                    size: "icon",
+                  })}
+                  href={attachment.url}
+                  download={attachment.name}
+                >
+                  <DownloadIcon className="size-3" />
+                </a>
+              </div>
+            ))}
+          </div>
+        )}
+      </>
+    );
+  };
+
+  const shouldShowAttachments =
+    (Array.isArray(props.allowAttachments) &&
+      props.allowAttachments.length > 0) ||
+    props.allowAttachments === true;
 
   return (
     <div className="flex flex-col h-full bg-[var(--slate-1)] rounded-lg shadow border border-[var(--slate-6)]">
@@ -197,8 +276,12 @@ export const Chatbot: React.FC<Props> = (props) => {
       )}
 
       <form
-        onSubmit={handleSubmit}
-        className="flex w-full border-t border-[var(--slate-6)] px-2 py-1"
+        onSubmit={(evt) => {
+          handleSubmit(evt, {
+            experimental_attachments: files,
+          });
+        }}
+        className="flex w-full border-t border-[var(--slate-6)] px-2 py-1 items-center"
       >
         {props.showConfigurationControls && (
           <ConfigPopup config={config} onChange={setConfig} />
@@ -223,9 +306,69 @@ export const Chatbot: React.FC<Props> = (props) => {
           ref={inputRef}
           value={input}
           onChange={handleInputChange}
-          className="flex w-full outline-none bg-transparent ml-2 text-[var(--slate-12)]"
+          className="flex w-full outline-none bg-transparent ml-2 text-[var(--slate-12)] mr-2"
           placeholder="Type your message..."
         />
+        {files && files.length === 1 && (
+          <span
+            title={files[0].name}
+            className="text-sm text-[var(--slate-11)] truncate flex-shrink-0 w-24"
+          >
+            {files[0].name}
+          </span>
+        )}
+        {files && files.length > 1 && (
+          <span
+            title={[...files].map((f) => f.name).join("\n")}
+            className="text-sm text-[var(--slate-11)] truncate flex-shrink-0"
+          >
+            {files.length} files
+          </span>
+        )}
+        {files && files.length > 0 && (
+          <Button
+            type="button"
+            variant="text"
+            size="sm"
+            onClick={() => {
+              setFiles(undefined);
+
+              if (fileInputRef.current) {
+                fileInputRef.current.value = "";
+              }
+            }}
+          >
+            <X className="size-3" />
+          </Button>
+        )}
+        {shouldShowAttachments && (
+          <>
+            <Button
+              type="button"
+              variant="text"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <PaperclipIcon className="h-4" />
+            </Button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              multiple={true}
+              accept={
+                Array.isArray(props.allowAttachments)
+                  ? props.allowAttachments.join(",")
+                  : undefined
+              }
+              onChange={(event) => {
+                if (event.target.files) {
+                  setFiles(event.target.files);
+                }
+              }}
+            />
+          </>
+        )}
         <Button
           type="submit"
           disabled={isLoading || !input}

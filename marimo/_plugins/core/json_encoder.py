@@ -30,7 +30,11 @@ class WebComponentEncoder(JSONEncoder):
 
         # Handle bytes objects
         if isinstance(o, bytes):
-            return o.decode("utf-8")
+            try:
+                return o.decode("utf-8")
+            except UnicodeDecodeError:
+                # Fallback to latin1
+                return o.decode("latin1")
 
         # Handle datetime objects
         if isinstance(o, (datetime.datetime, datetime.date, datetime.time)):

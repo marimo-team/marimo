@@ -51,7 +51,7 @@ class run_button(UIElement[Any, Any]):
     - `kind`: 'neutral', 'success', 'warn', or 'danger'
     - `disabled`: whether the button is disabled
     - `tooltip`: a tooltip to display for the button
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container

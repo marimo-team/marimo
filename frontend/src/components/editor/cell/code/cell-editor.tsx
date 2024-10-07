@@ -107,11 +107,21 @@ const CellEditorInternal = ({
   });
 
   const createBelow = useCallback(
-    () => createNewCell({ cellId, before: false }),
+    () =>
+      createNewCell({
+        cellId,
+        before: false,
+        includeSelectionAsInitialCode: true,
+      }),
     [cellId, createNewCell],
   );
   const createAbove = useCallback(
-    () => createNewCell({ cellId, before: true }),
+    () =>
+      createNewCell({
+        cellId,
+        before: true,
+        includeSelectionAsInitialCode: true,
+      }),
     [cellId, createNewCell],
   );
   const moveDown = useCallback(
@@ -184,7 +194,7 @@ const CellEditorInternal = ({
       completionConfig: userConfig.completion,
       keymapConfig: userConfig.keymap,
       theme,
-      hotkeys: new OverridingHotkeyProvider(userConfig.keymap.overrides),
+      hotkeys: new OverridingHotkeyProvider(userConfig.keymap.overrides ?? {}),
     });
 
     extensions.push(
@@ -258,7 +268,7 @@ const CellEditorInternal = ({
             reconfigureLanguageEffect(
               editorViewRef.current,
               userConfig.completion,
-              new OverridingHotkeyProvider(userConfig.keymap.overrides),
+              new OverridingHotkeyProvider(userConfig.keymap.overrides ?? {}),
             ),
           ],
         });
@@ -325,12 +335,15 @@ const CellEditorInternal = ({
     };
   }, [editorViewRef]);
 
-  const showCode = async () => {
+  const temporarilyShowCode = async () => {
     if (hidden) {
-      await saveCellConfig({ configs: { [cellId]: { hide_code: false } } });
       updateCellConfig({ cellId, config: { hide_code: false } });
-      // Focus on the editor view
       editorViewRef.current?.focus();
+      editorViewParentRef.current?.addEventListener(
+        "focusout",
+        () => updateCellConfig({ cellId, config: { hide_code: true } }),
+        { once: true },
+      );
     }
   };
 
@@ -369,7 +382,7 @@ const CellEditorInternal = ({
         className="relative w-full"
         onFocus={() => setLastFocusedCellId(cellId)}
       >
-        {hidden && <HideCodeButton onClick={showCode} />}
+        {hidden && <HideCodeButton onClick={temporarilyShowCode} />}
         <CellCodeMirrorEditor
           className={cn(hidden && "opacity-20 h-8 overflow-hidden")}
           editorView={editorViewRef.current}

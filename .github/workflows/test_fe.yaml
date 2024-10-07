@@ -57,8 +57,6 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: '**/pnpm-lock.yaml'
 
-      - uses: turbocache-build/turbocache-action@v1
-
       - name: 📥 Install dependencies
         run: pnpm install
 

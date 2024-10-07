@@ -81,7 +81,7 @@ chat.value
 ```
 
 This returns a list of [`ChatMessage`](#marimo.ai.ChatMessage) objects, each
-containing `role` and `content` attributes.
+containing `role`, `content`, and optional `attachments` attributes.
 
 ```{eval-rst}
 .. autoclass:: ChatMessage
@@ -110,6 +110,38 @@ mo.ui.chat(rag_model)
 
 This example demonstrates how you can implement a Retrieval-Augmented
 Generation (RAG) model within the chat interface.
+
+## Templated Prompts
+
+You can pass sample prompts to `mo.ui.chat` to allow users to select from a
+list of predefined prompts. By including a `{{var}}` in the prompt, you can
+dynamically insert values into the prompt; a form will be generated to allow
+users to fill in the variables.
+
+```python
+mo.ui.chat(
+    mo.ai.llm.openai("gpt-4o"),
+    prompts=[
+        "What is the capital of France?",
+        "What is the capital of Germany?",
+        "What is the capital of {{country}}?",
+    ],
+)
+```
+
+## Including Attachments
+
+You can allow users to upload attachments to their messages by passing an
+`allow_attachments` parameter to `mo.ui.chat`.
+
+```python
+mo.ui.chat(
+    rag_model,
+    allow_attachments=["image/png", "image/jpeg"],
+    # or True for any attachment type
+    # allow_attachments=True,
+)
+```
 
 ## Built-in Models
 
@@ -145,7 +177,7 @@ import marimo as mo
 
 mo.ui.chat(
     mo.ai.llm.anthropic(
-        "claude-3-5-sonnet-20240602",
+        "claude-3-5-sonnet-20240620",
         system_message="You are a helpful assistant.",
         api_key="sk-ant-...",
     ),
@@ -179,7 +211,7 @@ mo.ui.chat(
 
 Chatbots can be implemented with a function that receives a list of
 [`ChatMessage`](#marimo.ai.ChatMessage) objects and a
-[`ChatModelConfig`](#marimo.ai.ChatModelConfig). 
+[`ChatModelConfig`](#marimo.ai.ChatModelConfig).
 
 ```{eval-rst}
 .. autoclass:: marimo.ai.ChatMessage
@@ -191,3 +223,9 @@ Chatbots can be implemented with a function that receives a list of
 
 [`mo.ui.chat`](#marimo.ui.chat) can be instantiated with an initial
 configuration with a dictionary conforming to the config.
+
+`ChatMessage`s can also include attachments.
+
+```{eval-rst}
+.. autoclass:: marimo.ai.ChatAttachment
+```

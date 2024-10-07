@@ -1567,4 +1567,130 @@ describe("cell reducer", () => {
     expect(state.cellIds.getColumns()[1].topLevelIds).toEqual(["1"]);
     expect(state.cellIds.getColumns()[2].topLevelIds).toEqual(["2"]);
   });
+
+  describe("can create a cell using selected code", () => {
+    const firstLine = "import marimo as mo";
+    const secondLine = "import pandas as pd";
+    const thirdLine = "import numpy as np";
+
+    let editor: EditorView | undefined;
+    let secondCellId: CellId;
+
+    beforeEach(() => {
+      actions.createNewCell({
+        cellId: firstCellId,
+        before: false,
+        code: `${firstLine}\n${secondLine}\n${thirdLine}`,
+      });
+      secondCellId = state.cellIds.atOrThrow(1);
+      editor = state.cellHandles[secondCellId].current?.editorView;
+    });
+
+    it("includeSelectionAsInitialCode is true and there is selection", () => {
+      if (!editor) {
+        throw new Error("Editor not found");
+      }
+      editor.dispatch({
+        selection: {
+          anchor: editor.state.doc.line(2).from,
+          head: editor.state.doc.line(2).to,
+        },
+      });
+
+      const { from, to } = editor.state.selection.main;
+      const highlighted = editor.state.doc.toString().slice(from, to);
+      expect(highlighted).toBe(secondLine);
+
+      actions.createNewCell({
+        cellId: secondCellId,
+        before: false,
+        includeSelectionAsInitialCode: true,
+      });
+      expect(formatCells(state)).toMatchInlineSnapshot(`
+        "
+        key: 0
+        code: ''
+
+        key: 1
+        code: '${firstLine}\n${thirdLine}'
+
+        key: 2
+        code: '${secondLine}'"
+      `);
+    });
+
+    it("includeSelectionAsInitialCode is false and there is selection", () => {
+      if (!editor) {
+        throw new Error("Editor not found");
+      }
+      editor.dispatch({
+        selection: {
+          anchor: editor.state.doc.line(2).from,
+          head: editor.state.doc.line(2).to,
+        },
+      });
+      actions.createNewCell({
+        cellId: secondCellId,
+        before: false,
+        includeSelectionAsInitialCode: false,
+      });
+      expect(formatCells(state)).toMatchInlineSnapshot(`
+        "
+        key: 0
+        code: ''
+
+        key: 1
+        code: '${firstLine}\n${secondLine}\n${thirdLine}'
+
+        key: 2
+        code: ''"
+      `);
+    });
+
+    it("includeSelectionAsInitialCode is true and there is no selection", () => {
+      if (!editor) {
+        throw new Error("Editor not found");
+      }
+      editor.dispatch({ selection: { anchor: 0, head: 0 } });
+      actions.createNewCell({
+        cellId: secondCellId,
+        before: false,
+        includeSelectionAsInitialCode: true,
+      });
+      expect(formatCells(state)).toMatchInlineSnapshot(`
+        "
+        key: 0
+        code: ''
+
+        key: 1
+        code: '${firstLine}\n${secondLine}\n${thirdLine}'
+
+        key: 2
+        code: ''"
+      `);
+    });
+
+    it("includeSelectionAsInitialCode is false and there is no selection", () => {
+      if (!editor) {
+        throw new Error("Editor not found");
+      }
+      editor.dispatch({ selection: { anchor: 0, head: 0 } });
+      actions.createNewCell({
+        cellId: secondCellId,
+        before: false,
+        includeSelectionAsInitialCode: false,
+      });
+      expect(formatCells(state)).toMatchInlineSnapshot(`
+        "
+        key: 0
+        code: ''
+
+        key: 1
+        code: '${firstLine}\n${secondLine}\n${thirdLine}'
+
+        key: 2
+        code: ''"
+      `);
+    });
+  });
 });

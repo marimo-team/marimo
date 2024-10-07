@@ -6,6 +6,7 @@ from typing import Optional
 from marimo import _loggers
 from marimo._config.config import (
     MarimoConfig,
+    PartialMarimoConfig,
     mask_secrets,
     merge_config,
     merge_default_config,
@@ -24,7 +25,9 @@ class UserConfigManager:
         self._config_path = config_path
         self.config = load_config()
 
-    def save_config(self, config: MarimoConfig) -> MarimoConfig:
+    def save_config(
+        self, config: MarimoConfig | PartialMarimoConfig
+    ) -> MarimoConfig:
         import tomlkit
 
         config_path = self.get_config_path()

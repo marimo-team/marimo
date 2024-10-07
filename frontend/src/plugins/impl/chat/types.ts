@@ -1,7 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+export type ChatRole = "system" | "user" | "assistant";
+
 export interface ChatMessage {
-  role: "system" | "user" | "assistant";
+  role: ChatRole;
   content: string;
+  attachments?: ChatAttachment[];
+}
+
+export interface ChatAttachment {
+  name?: string;
+  contentType?: string;
+  url: string;
 }
 
 export interface SendMessageRequest {

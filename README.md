@@ -62,14 +62,19 @@ memory, eliminating hidden state.
 
 <a name="expensive-notebooks"></a>
 
-**Compatible with expensive notebooks.** marimo lets you configure the runtime
-to be lazy, marking affected cells as stale instead of automatically running
-them. This gives you guarantees on program state while preventing accidental
-execution of expensive cells.
+**Compatible with expensive notebooks.** marimo lets you [configure the runtime
+to be
+lazy](https://docs.marimo.io/guides/configuration/runtime_configuration.html),
+marking affected cells as stale instead of automatically running them. This
+gives you guarantees on program state while preventing accidental execution of
+expensive cells.
 
-**Synchronized UI elements.** Interact with UI elements like sliders,
-dropdowns, and dataframe transformers, and the cells that use them are
-automatically re-run with their latest values.
+**Synchronized UI elements.** Interact with [UI
+elements](https://docs.marimo.io/guides/interactivity.html) like [sliders](https://docs.marimo.io/api/inputs/slider.html#slider),
+[dropdowns](https://docs.marimo.io/api/inputs/dropdown.html), [dataframe
+transformers](https://docs.marimo.io/api/inputs/dataframe.html), and [chat
+interfaces](https://docs.marimo.io/api/inputs/chat.html), and the cells that
+use them are automatically re-run with their latest values.
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-ui.gif" width="700px" />
 
@@ -165,7 +170,7 @@ For example, here's an embedding visualizer made in marimo
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/embedding.gif" width="700px" />
 
 Check out our [docs](https://docs.marimo.io),
-the `examples/` folder, and our [gallery](https://marimo.io/@public) to learn more.
+the [`examples/`](examples/) folder, and our [gallery](https://marimo.io/@public) to learn more.
 
 <table border="0">
   <tr>

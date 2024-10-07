@@ -7,6 +7,11 @@ body .page {
   --api-font-size: var(--font-size--normal) !important;
 }
 
+/* Slightly wider than default for our WASM examples. */
+.content {
+  width: 48em;
+}
+
 .sidebar-brand-text {
   font-family: "CalSans";
   color: #1c7362;
@@ -51,6 +56,10 @@ iframe.demo.large {
 }
 
 iframe.demo.xlarge {
+  height: 900px;
+}
+
+iframe.demo.xxlarge {
   height: 1200px;
 }
 

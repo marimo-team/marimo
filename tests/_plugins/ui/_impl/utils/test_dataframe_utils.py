@@ -10,6 +10,8 @@ from marimo._plugins.ui._impl.tables.utils import get_table_manager
 
 HAS_PANDAS = DependencyManager.pandas.has()
 HAS_NARWHALS = DependencyManager.narwhals.has()
+HAS_POLARS = DependencyManager.polars.has()
+HAS_PYARROW = DependencyManager.pyarrow.has()
 
 
 def _get_row_headers(
@@ -59,7 +61,7 @@ def test_get_row_headers_list() -> None:
 
 
 @pytest.mark.skipif(
-    not HAS_PANDAS or not HAS_NARWHALS,
+    not HAS_PANDAS or not HAS_NARWHALS or not HAS_POLARS or not HAS_PYARROW,
     reason="optional dependencies not installed",
 )
 def test_get_table_manager() -> None:

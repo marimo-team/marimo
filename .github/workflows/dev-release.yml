@@ -45,16 +45,8 @@ jobs:
       - name: 📦 Build frontend
         run: make fe
 
-      - name: 🐍 Setup Python 3.10
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-          cache: 'pip'
-
-      - name: 🐍 Setup uv
-        uses: yezz123/setup-uv@v4
-        with:
-          uv-venv: marimo-venv
+      - name: 🥚 Install Hatch
+        uses: pypa/hatch@install
 
       # patch __init__.py version to be of the form
       # X.Y.<Z+1>-dev{n-commits-since-last-tag}
@@ -73,16 +65,13 @@ jobs:
           sed -i "s/__version__ = \".*\"/__version__ = \"$MARIMO_VERSION\"/" marimo/__init__.py
 
       - name: 📦 Build marimo
-        run: |
-          uv pip install build twine
-          uv pip install .
-          python -m build
+        run: hatch build
 
       - name: 📤 Upload to TestPyPI
         env:
-          TWINE_USERNAME: ${{ secrets.TEST_PYPI_USER }}
-          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_PASSWORD }}
-        run: twine upload --repository testpypi --skip-existing dist/*
+          HATCH_INDEX_USER: ${{ secrets.TEST_PYPI_USER }}
+          HATCH_INDEX_AUTH: ${{ secrets.TEST_PYPI_PASSWORD }}
+        run: hatch publish --repo test
 
       - name: 📦 Update package.json version from CLI
         working-directory: frontend

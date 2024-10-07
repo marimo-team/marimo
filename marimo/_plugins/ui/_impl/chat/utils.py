@@ -19,7 +19,7 @@ def from_chat_message_dict(d: ChatMessageDict) -> ChatMessage:
     if attachments_dict is not None:
         attachments = [
             ChatAttachment(
-                name=attachment["name"],
+                name=attachment["name"] or "attachment",
                 content_type=attachment["content_type"],
                 url=attachment["url"],
             )

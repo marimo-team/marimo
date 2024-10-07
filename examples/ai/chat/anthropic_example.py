@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.8.22"
+__generated_with = "0.9.0"
 app = marimo.App(width="medium")
 
 
@@ -21,9 +21,9 @@ def __():
 def __(mo):
     mo.md(
         r"""
-        # Using OpenAI
+        # Using Anthropic
 
-        This example shows how to use [`mo.ui.chat`](https://docs.marimo.io/api/inputs/chat.html#marimo.ui.chat) to make a chatbot backed by OpenAI.
+        This example shows how to use [`mo.ui.chat`](https://docs.marimo.io/api/inputs/chat.html#marimo.ui.chat) to make a chatbot backed by Anthropic.
         """
     )
     return
@@ -33,31 +33,35 @@ def __(mo):
 def __(mo):
     import os
 
-    os_key = os.environ.get("OPENAI_API_KEY")
-    input_key = mo.ui.text(label="OpenAI API key", kind="password")
+    os_key = os.environ.get("ANTHROPIC_API_KEY")
+    input_key = mo.ui.text(label="Anthropic API key", kind="password")
     input_key if not os_key else None
     return input_key, os, os_key
 
 
 @app.cell
 def __(input_key, mo, os_key):
-    openai_key = os_key or input_key.value
+    key = os_key or input_key.value
 
     mo.stop(
-        not openai_key,
-        mo.md("Please set the OPENAI_API_KEY environment variable or provide it in the input field"),
+        not key,
+        mo.md("Please provide your Anthropic API key in the input field."),
     )
-    return (openai_key,)
+    return (key,)
 
 
 @app.cell
-def __(mo, openai_key):
+def __(key, mo):
     chatbot = mo.ui.chat(
-       mo.ai.llm.openai(
-            "gpt-4o",
+        mo.ai.llm.anthropic(
+            "claude-3-5-sonnet-20240620",
             system_message="You are a helpful assistant.",
-            api_key=openai_key,
-       ),
+            api_key=key,
+        ),
+        allow_attachments=[
+            "image/png",
+            "image/jpeg"
+        ],
         prompts=[
             "Hello",
             "How are you?",
