@@ -99,7 +99,7 @@ jobs:
       - name: Install Python deps
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-asyncio
+          pip install pytest pytest-asyncio nbformat
 
       - name: Download wheel
         uses: actions/download-artifact@v3
@@ -112,7 +112,12 @@ jobs:
 
       - name: Test CLI
         shell: bash
-        run: pytest -v tests/_cli/test_cli.py tests/_cli/test_cli_export.py
+        run: |
+          pytest -v \
+            tests/_cli/test_cli.py \
+            tests/_cli/test_cli_export.py \
+            tests/_cli/test_cli_config.py \
+            tests/_cli/test_cli_development.py
 
   test_examples:
     needs: [changes, build_wheel]
