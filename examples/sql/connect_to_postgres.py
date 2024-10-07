@@ -14,7 +14,7 @@ __generated_with = "0.9.1"
 app = marimo.App(width="medium")
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __(mo):
     mo.md(
         r"""
@@ -24,7 +24,7 @@ def __(mo):
 
         The first step is to attach a Postgres database, which we do below.
 
-        _For advanced usage, see [duckdb's documentation](https://duckdb.org/docs/extensions/postgres)._
+        For advanced usage, see [duckdb's documentation](https://duckdb.org/docs/extensions/postgres).
         """
     )
     return
@@ -95,7 +95,7 @@ def __(PASSWORD, mo):
         );
 
         -- View tables in the public schema
-        SELECT table_name FROM INFORMATION_SCHEMA.TABLES;
+        SHOW ALL TABLES;
         """
     )
     return
@@ -103,7 +103,12 @@ def __(PASSWORD, mo):
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md(r"""Once the database is attached, you can query it with SQL.""")
+    mo.md(
+        r"""
+        Once the database is attached, you can query it with SQL. Note that this involves copying data from Postgres SQL and
+        executing it in duckdb. See later sections of this example on how to execute queries directly in Postgres.
+        """
+    )
     return
 
 
@@ -124,6 +129,52 @@ def __(mo):
         f"""
         You can explore the schemas of all your tables at a glance in the **data sources panel**: click
         the {mo.icon("lucide:database")} icon in the left sidebar to open it.
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        r"""
+        ## Copy data from Postgres to duckdb
+
+        To prevent duckdb from continuously re-reading tables from PostgresSQL, you can copy the PostgresSQL databases into DuckDB. Note that this will consume your system's RAM.
+        """
+    )
+    return
+
+
+@app.cell
+def __(db, duckdb_table, mo, test_table):
+    _df = mo.sql(
+        f"""
+        CREATE OR REPlACE TABLE duckdb_table AS FROM db.public.test_table;
+
+        SELECT * FROM duckdb_table;
+        """
+    )
+    return (duckdb_table,)
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        r"""
+        ## Execute queries directly in PostgresSQL
+
+        Run queries directly in PostgresSQL using duckdb's `postgres_query` function. In some cases this may be faster than executing queries in duckdb.
+        """
+    )
+    return
+
+
+@app.cell
+def __(mo):
+    _df = mo.sql(
+        f"""
+        SELECT * FROM postgres_query('db', 'SELECT * FROM test_table');
         """
     )
     return
