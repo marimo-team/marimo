@@ -4,6 +4,7 @@
 #     "duckdb==1.1.1",
 #     "marimo",
 #     "pandas==2.2.3",
+#     "pyarrow==17.0.0",
 #     "vega-datasets==0.9.0",
 # ]
 # ///
@@ -18,9 +19,9 @@ app = marimo.App(width="medium")
 def __(mo):
     mo.md(
         """
-        # Read CSV
+        # Read Parquet
 
-        This notebook shows how to read a CSV file from a local file or a URL into an in-memory table.
+        This notebook shows how to read a Parquet file from a local file or a URL into an in-memory table.
         """
     )
     return
@@ -31,13 +32,13 @@ def __():
     import marimo as mo
     import pandas as pd
 
-    pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]}).to_csv("data.csv")
+    pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]}).to_parquet("data.parquet")
     return mo, pd
 
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md("""Reading from a local CSV is as easy as `SELECT * from "data.csv"`, where `data.csv` is the path to your local file (or a URL to a CSV file).""")
+    mo.md("""Reading from a Parquet file is as easy as `SELECT * from "data.parquet"`, where `data.parquet` is the path or URL to your parquet file.""")
     return
 
 
@@ -65,7 +66,8 @@ def __(mo):
 def __(data, mo):
     result = mo.sql(
         f"""
-        SELECT * FROM "data.csv"
+        -- Tip: you can also specify the data files using a glob, such as '/path/to/*.parquet'
+        SELECT * FROM 'data.parquet'
         """, output=False
     )
     return (result,)
@@ -99,9 +101,9 @@ def __(result):
 def __(mo):
     mo.md(
         r"""
-        ## Create an in-memory table from a CSV file
+        ## Create an in-memory table from a Parquet file
 
-        You can also create a table from a CSV file, so you can easily query it in subsequent cells. This table will appear in marimo's data sources panel.
+        You can also create a table from a Parquet file, so you can easily query it in subsequent cells. This table will appear in marimo's data sources panel.
         """
     )
     return
@@ -111,7 +113,7 @@ def __(mo):
 def __(data, mo):
     _df = mo.sql(
         f"""
-        CREATE TABLE myTable AS SELECT * FROM "data.csv"
+        CREATE OR REPLACE TABLE myTable AS SELECT * FROM 'data.parquet'
         """
     )
     return (myTable,)
@@ -135,7 +137,7 @@ def __(mo):
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md(r"""To customize how your CSV is read, including specifying the delimiter type, use [duckdb's `read_csv` function](https://duckdb.org/docs/data/csv/overview.html).""")
+    mo.md(r"""To customize how your parquet file is read, use [duckdb's `read_parquet` function](https://duckdb.org/docs/data/parquet/overview.html).""")
     return
 
 
