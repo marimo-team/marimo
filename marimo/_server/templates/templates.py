@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 from textwrap import dedent
 from typing import Any, List, Optional, cast
 
@@ -81,7 +82,7 @@ def static_notebook_template(
     user_config: MarimoConfig,
     server_token: SkewProtectionToken,
     app_config: _AppConfig,
-    filename: Optional[str],
+    filepath: Optional[str],
     code: str,
     code_hash: str,
     cell_ids: list[str],
@@ -109,7 +110,7 @@ def static_notebook_template(
 
     html = html.replace(
         "{{ title }}",
-        parse_title(filename)
+        parse_title(filepath)
         if app_config.app_title is None
         else app_config.app_title,
     )
@@ -117,7 +118,7 @@ def static_notebook_template(
         "{{ app_config }}",
         json.dumps(_del_none_or_empty(app_config.asdict()), sort_keys=True),
     )
-    html = html.replace("{{ filename }}", filename or "")
+    html = html.replace("{{ filename }}", os.path.basename(filepath or ""))
     html = html.replace("{{ mode }}", "read")
 
     serialized_cell_outputs = {
@@ -152,7 +153,7 @@ def static_notebook_template(
 
     # If has custom css, inline the css and add to the head
     if app_config.css_file:
-        css_contents = read_css_file(app_config.css_file, filename=filename)
+        css_contents = read_css_file(app_config.css_file, filename=filepath)
         if css_contents:
             static_block += dedent(f"""
             <style>
