@@ -47,9 +47,6 @@ import { kioskModeAtom } from "../mode";
 import { CollapsibleTree } from "@/utils/id-tree";
 import { isEqual } from "lodash-es";
 import type { EditorView } from "@codemirror/view";
-import { LanguageAdapters } from "../codemirror/language/LanguageAdapters";
-import { languageAdapterState } from "../codemirror/language/extension";
-import type { LanguageAdapterType } from "../codemirror/language/types";
 
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
 
@@ -78,13 +75,8 @@ export interface NotebookState {
    *
    * (CodeMirror types the serialized config as any.)
    */
-  history: Array<{
-    name: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    serializedEditorState: any;
-    index: number;
-    language: LanguageAdapterType;
-  }>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  history: Array<{ name: string; serializedEditorState: any; index: number }>;
   /**
    * Key of cell to scroll to; typically set by actions that re-order the cell
    * array. Call the SCROLL_TO_TARGET action to scroll to the specified cell
@@ -404,7 +396,7 @@ const {
     const serializedEditorState = editorView?.state.toJSON({
       history: historyField,
     });
-    const language = editorView?.state.field(languageAdapterState).type;
+    serializedEditorState.doc = state.cellData[cellId].code;
 
     return {
       ...state,
@@ -415,7 +407,6 @@ const {
           name: state.cellData[cellId].name,
           serializedEditorState: serializedEditorState,
           index: index,
-          language: language ?? "python",
         },
       ],
       scrollKey: scrollKey,
@@ -432,12 +423,7 @@ const {
       name,
       serializedEditorState = { doc: "" },
       index,
-      language,
     } = mostRecentlyDeleted;
-
-    const languageAdapter = LanguageAdapters[language]();
-    const [code] = languageAdapter.transformOut(serializedEditorState.doc);
-    serializedEditorState.doc = code;
 
     const cellId = CellId.create();
     const undoCell = createCell({

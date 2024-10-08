@@ -173,7 +173,7 @@ describe("cell reducer", () => {
     `);
   });
 
-  it("can delete a cell", () => {
+  it("can delete a Python cell and undo delete", () => {
     actions.createNewCell({
       cellId: firstCellId,
       before: false,
@@ -196,6 +196,63 @@ describe("cell reducer", () => {
 
       key: 1
       code: ''"
+    `);
+  });
+
+  it("can delete a SQL cell and undo delete", () => {
+    actions.createNewCell({
+      cellId: firstCellId,
+      before: false,
+      code: `df = mo.sql("""SELECT * FROM table""")`,
+    });
+    const newCellId = state.cellIds.atOrThrow(1);
+    actions.deleteCell({
+      cellId: newCellId,
+    });
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      key: 0
+      code: ''"
+    `);
+
+    // undo
+    actions.undoDeleteCell();
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      key: 0
+      code: ''
+
+      key: 2
+      code: 'df = mo.sql("""SELECT * FROM table""")'"
+    `);
+  });
+
+  it("can delete a Markdown cell and undo delete", () => {
+    const text = "The quick brown fox jumps over the lazy dog.";
+    actions.createNewCell({
+      cellId: firstCellId,
+      before: false,
+      code: `mo.md(r"""${text}""")`,
+    });
+    const newCellId = state.cellIds.atOrThrow(1);
+    actions.deleteCell({
+      cellId: newCellId,
+    });
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      key: 0
+      code: ''"
+    `);
+
+    // undo
+    actions.undoDeleteCell();
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      key: 0
+      code: ''
+
+      key: 2
+      code: 'mo.md(r"""${text}""")'"
     `);
   });
 
