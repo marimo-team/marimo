@@ -17,27 +17,14 @@ from marimo._runtime.copy import (
 from marimo._runtime.primitives import (
     CLONE_PRIMITIVES,
     build_ref_predicate_for_primitives,
+    from_unclonable_module,
+    is_unclonable_type,
 )
 from marimo._utils.variables import is_mangled_local, unmangle_local
 
 if TYPE_CHECKING:
     from marimo._runtime.dataflow import DirectedGraph
 
-
-UNCLONABLE_TYPES = [
-    "marimo._runtime.state.State",
-    "marimo._runtime.state.SetFunctor",
-]
-
-UNCLONABLE_MODULES = set(
-    [
-        "_asyncio",
-        "_io",
-        "marimo._ast",
-        "marimo._plugins.ui",
-        "numpy.lib.npyio",
-    ]
-)
 
 EXECUTION_TYPES: dict[str, Type[Executor]] = {}
 
@@ -313,21 +300,3 @@ class StrictExecutor(Executor):
         for df in lcls:
             if is_mangled_local(df, cell.cell_id):
                 glbls[df] = lcls[df]
-
-
-def is_instance_by_name(obj: object, name: str) -> bool:
-    if not (hasattr(obj, "__module__") and hasattr(obj, "__class__")):
-        return False
-    obj_name = f"{obj.__module__}.{obj.__class__.__name__}"
-    return obj_name == name
-
-
-def is_unclonable_type(obj: object) -> bool:
-    return any([is_instance_by_name(obj, name) for name in UNCLONABLE_TYPES])
-
-
-def from_unclonable_module(obj: object) -> bool:
-    obj = obj if hasattr(obj, "__module__") else obj.__class__
-    return hasattr(obj, "__module__") and any(
-        [obj.__module__.startswith(name) for name in UNCLONABLE_MODULES]
-    )

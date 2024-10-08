@@ -4,6 +4,7 @@ from __future__ import annotations
 import ast
 import base64
 import hashlib
+import inspect
 import struct
 import sys
 import types
@@ -123,7 +124,7 @@ def standardize_tensor(tensor: Tensor) -> Optional[Tensor]:
         return numpy.asarray(tensor)
     raise ValueError(
         f"Expected a data primitive object, but got {type(tensor)} instead."
-        "This maybe an in internal marimo issue. Please report to "
+        "This maybe is an internal marimo issue. Please report to "
         "https://github.com/marimo-team/marimo/issues."
     )
 
@@ -682,6 +683,14 @@ class BlockHasher:
             # An external module variable is assumed to be pure, with module
             # pinning being the mechanism for invalidation.
             elif getattr(value, "__module__", "__main__") == "__main__":
+                continue
+            # External module that is not a class or function, may be some
+            # container we don't know how to hash.
+            # Note, function cases care caught by is_pure_function
+            # And we assume all marimo cases are caught
+            elif not inspect.isclass(
+                value
+            ) and not value.__module__.startswith("marimo"):
                 continue
 
             if serial_value is not None:
