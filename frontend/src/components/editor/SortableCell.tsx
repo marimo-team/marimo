@@ -9,6 +9,7 @@ import { cn } from "@/utils/cn";
 
 interface Props extends React.HTMLAttributes<HTMLDivElement> {
   cellId: CellId;
+  canMoveX?: boolean;
 }
 
 /**
@@ -23,7 +24,7 @@ export const CellDragHandle: React.FC = memo(() => {
 CellDragHandle.displayName = "DragHandle";
 
 const SortableCellInternal = React.forwardRef(
-  ({ cellId, ...props }: Props, ref: React.Ref<HTMLDivElement>) => {
+  ({ cellId, canMoveX, ...props }: Props, ref: React.Ref<HTMLDivElement>) => {
     // Sort
     const {
       attributes,
@@ -37,8 +38,7 @@ const SortableCellInternal = React.forwardRef(
     const style: React.CSSProperties = {
       transform: transform
         ? CSS.Transform.toString({
-            // No x-transform since only sorting in the y-axis
-            x: 0,
+            x: canMoveX ? transform.x : 0,
             y: transform.y,
             scaleX: 1,
             scaleY: 1,
@@ -69,6 +69,7 @@ const SortableCellInternal = React.forwardRef(
         tabIndex={-1}
         ref={mergedRef}
         {...props}
+        data-is-dragging={isDragging}
         className={cn(props.className, isMoving && "is-moving")}
         style={style}
       >

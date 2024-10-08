@@ -69,3 +69,5 @@ export function useSetAppConfig() {
 export function getAppConfig() {
   return store.get(appConfigAtom);
 }
+
+export const appWidthAtom = atom((get) => get(appConfigAtom).width);

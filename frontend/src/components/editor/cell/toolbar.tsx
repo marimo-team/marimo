@@ -6,7 +6,7 @@ import { Toolbar as ReactAriaToolbar } from "react-aria-components";
 import { cva, type VariantProps } from "class-variance-authority";
 
 const toolbarItemVariants = cva(
-  "rounded-full shadow-xsSolid border p-[5px] transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 [&>svg]:size-3 active:shadow-none",
+  "rounded-full shadow-xsSolid border p-[5px] transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 [&>svg]:size-3 active:shadow-none bg-background",
   {
     variants: {
       variant: {
@@ -14,7 +14,7 @@ const toolbarItemVariants = cva(
         stale:
           "bg-[var(--yellow-3)] hover:bg-[var(--yellow-4)] text-[var(--yellow-11)]",
         green:
-          "hover:bg-[var(--grass-2)] hover:text-[var(--grass-11)] hover:border-[var(--grass-7)]",
+          "hover:bg-[var(--grass-2)] hover:text-[var(--grass-11)] hover:border-[var(--grass-7)],",
         disabled: "opacity-50 cursor-not-allowed",
         danger: "hover:bg-[var(--red-3)] hover:text-[var(--red-11)]",
       },
@@ -53,11 +53,7 @@ export const ToolbarItem: React.FC<ToolbarItemProps> = ({
         // Prevent focus on the toolbar after clicking
         evt.preventDefault();
       }}
-      className={cn(
-        toolbarItemVariants({ variant }),
-        disabled && "opacity-50 cursor-not-allowed",
-        rest.className,
-      )}
+      className={cn(toolbarItemVariants({ variant }), rest.className)}
     >
       {children}
     </button>
@@ -86,7 +82,7 @@ interface ToolbarProps {
 export const Toolbar: React.FC<ToolbarProps> = ({ children, className }) => (
   <ReactAriaToolbar
     className={cn(
-      "flex items-center gap-1 bg-background p-[2px] rounded-md",
+      "flex items-center gap-1 bg-background m-[2px] rounded-full",
       className,
     )}
   >

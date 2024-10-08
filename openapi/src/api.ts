@@ -2034,6 +2034,7 @@ export interface components {
       | "marimo-error"
       | "media";
     CellConfig: {
+      column?: number | null;
       disabled: boolean;
       hide_code: boolean;
     };

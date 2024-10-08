@@ -25,10 +25,10 @@ import { KEYMAP_PRESETS } from "@/core/codemirror/keymaps/keymaps";
 import { useUserConfig } from "@/core/config/config";
 import {
   UserConfigSchema,
-  APP_WIDTHS,
   PackageManagerNames,
   type UserConfig,
 } from "@/core/config/config-schema";
+import { getAppWidths } from "@/core/config/widths";
 import { saveUserConfig } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
 import { THEMES } from "@/theme/useTheme";
@@ -373,7 +373,7 @@ export const UserConfigForm: React.FC = () => {
                           disabled={field.disabled}
                           className="inline-flex mr-2"
                         >
-                          {APP_WIDTHS.map((option) => (
+                          {getAppWidths().map((option) => (
                             <option value={option} key={option}>
                               {option}
                             </option>

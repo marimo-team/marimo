@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import {
   DndContext,
   closestCenter,
@@ -8,28 +8,56 @@ import {
   useSensor,
   type DragEndEvent,
   useSensors,
+  type AutoScrollOptions,
+  type UniqueIdentifier,
+  type DragStartEvent,
+  pointerWithin,
+  rectIntersection,
+  getFirstCollision,
+  type CollisionDetection,
 } from "@dnd-kit/core";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { useCellActions, useNotebook } from "../../core/cells/cells";
 import { useEvent } from "../../hooks/useEvent";
 import type { CellId } from "@/core/cells/ids";
+import { useAppConfig } from "@/core/config/config";
+import { Arrays } from "@/utils/arrays";
+import type { CellColumnId, MultiColumn } from "@/utils/id-tree";
+import { invariant } from "@/utils/invariant";
 
 interface SortableCellsProviderProps {
+  multiColumn: boolean;
   children: React.ReactNode;
-  disabled?: boolean;
 }
+
+// autoScroll threshold x: 0 is required to disable horizontal scroll
+//            threshold y: 0.1 means scroll y when near bottom/top 10% of
+//            scrollable container
+const autoScroll: AutoScrollOptions = {
+  threshold: { x: 0, y: 0.1 },
+};
 
 const SortableCellsProviderInternal = ({
   children,
-  disabled,
+  multiColumn,
 }: SortableCellsProviderProps) => {
-  const notebook = useNotebook();
-  const { dropCellOver } = useCellActions();
+  const { cellIds } = useNotebook();
+  const { dropCellOverCell, dropCellOverColumn, moveColumn, compactColumns } =
+    useCellActions();
+
+  const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
+  const [clonedItems, setClonedItems] = useState<MultiColumn<CellId> | null>(
+    null,
+  );
+
+  const [config] = useAppConfig();
+  const modifiers = useMemo(() => {
+    if (config.width === "columns") {
+      return Arrays.EMPTY;
+    }
+    return [restrictToVerticalAxis];
+  }, [config.width]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -43,42 +71,170 @@ const SortableCellsProviderInternal = ({
     }),
   );
 
-  const ids = notebook.cellIds.topLevelIds;
+  const handleDragStart = useEvent((event: DragStartEvent) => {
+    setActiveId(event.active.id);
+    setClonedItems(cellIds);
+  });
+
+  const handleDragCancel = useEvent(() => {
+    // TODO: restore cloned items
+    if (clonedItems) {
+      // Reset items to their original state in case items have been
+      // Dragged across containers
+      // setItems(clonedItems);
+    }
+
+    setActiveId(null);
+    setClonedItems(null);
+  });
+
+  /**
+   * Custom collision detection:
+   * 1. If dragging a column, we can only drop on other columns
+   *  - We just use closestCenter
+   *  - We filter the droppableContainers to only consider other columns
+   * 2. If dragging a cell, we want to find the best column to drop on
+   *  - We get the first intersection
+   *  - Find the closest column to the cell
+   *  - If the column is empty, we consider it a valid drop target
+   *  - Otherwise, we only consider the cells in the same column
+   */
+  const collisionDetectionStrategy = useCallback(
+    (args: Parameters<CollisionDetection>[0]) => {
+      const columnContainers = args.droppableContainers.filter((container) =>
+        isColumnId(container.id),
+      );
+
+      // 1. Handle column dragging
+      if (activeId && isColumnId(activeId)) {
+        return closestCenter({
+          ...args,
+          droppableContainers: columnContainers,
+        });
+      }
+
+      // 2. Handle cell dragging
+
+      // Get the first column intersection
+      const pointerIntersections = pointerWithin({
+        ...args,
+        droppableContainers: columnContainers,
+      });
+      const intersections =
+        pointerIntersections.length > 0
+          ? pointerIntersections
+          : rectIntersection({
+              ...args,
+              droppableContainers: columnContainers,
+            });
+      const overId = getFirstCollision(intersections, "id");
+      if (!overId) {
+        return [];
+      }
+      invariant(isColumnId(overId), `Expected column id. Got: ${overId}`);
+
+      // If column is empty, we can drop on it
+      const column = cellIds.get(overId);
+      invariant(column, `Expected column. Got: ${overId}`);
+      if (column && column.topLevelIds.length === 0) {
+        // Return the column
+        return [{ id: overId }];
+      }
+
+      // If the column is not empty, we only consider the cells in the same column
+      const cellIdSet = new Set(column.topLevelIds);
+      const collisions = closestCenter({
+        ...args,
+        droppableContainers: args.droppableContainers.filter(
+          (container) =>
+            container.id !== overId && cellIdSet.has(container.id as CellId),
+        ),
+      });
+
+      if (collisions.length > 0) {
+        const overId = collisions[0].id;
+        invariant(isCellId(overId), `Expected cell id. Got: ${overId}`);
+        // Return the cell
+        return [{ id: overId }];
+      }
+
+      return [];
+    },
+    [activeId, cellIds],
+  );
+
+  const handleDragOver = useEvent(({ active, over }) => {
+    const overId = over?.id;
+
+    if (overId == null || active.id === overId) {
+      return;
+    }
+
+    // Handle moving cells
+    if (isCellId(active.id)) {
+      // Moving a cell to a column
+      if (isColumnId(overId)) {
+        dropCellOverColumn({
+          cellId: active.id,
+          columnId: overId,
+        });
+        return;
+      }
+
+      // Moving a cell above another cell
+      if (isCellId(overId)) {
+        dropCellOverCell({
+          cellId: active.id,
+          overCellId: overId,
+        });
+        return;
+      }
+    }
+
+    // Moving a column to another column
+    if (isColumnId(active.id) && isColumnId(overId)) {
+      moveColumn({
+        column: active.id,
+        overColumn: overId,
+      });
+    }
+  });
 
   const handleDragEnd = useEvent((event: DragEndEvent) => {
     const { active, over } = event;
-    if (over === null) {
+
+    if (over === null || active.id === over.id) {
       return;
     }
-    if (active.id === over.id) {
-      return;
-    }
-    dropCellOver({
-      cellId: active.id as CellId,
-      overCellId: over.id as CellId,
-    });
+
+    compactColumns();
   });
 
-  // autoScroll threshold x: 0 is required to disable horizontal scroll
-  //            threshold y: 0.1 means scroll y when near bottom/top 10% of
-  //            scrollable container
   return (
     <DndContext
-      autoScroll={{ threshold: { x: 0, y: 0.1 } }}
+      autoScroll={autoScroll}
       sensors={sensors}
-      collisionDetection={closestCenter}
-      modifiers={[restrictToVerticalAxis]}
+      // For single-column, we just do closestCenter
+      collisionDetection={
+        multiColumn ? collisionDetectionStrategy : closestCenter
+      }
+      modifiers={modifiers}
       onDragEnd={handleDragEnd}
+      onDragStart={handleDragStart}
+      onDragCancel={handleDragCancel}
+      onDragOver={handleDragOver}
     >
-      <SortableContext
-        items={ids}
-        disabled={disabled}
-        strategy={verticalListSortingStrategy}
-      >
-        {children}
-      </SortableContext>
+      {children}
     </DndContext>
   );
 };
 
 export const SortableCellsProvider = React.memo(SortableCellsProviderInternal);
+
+function isCellId(id: UniqueIdentifier): id is CellId {
+  return typeof id === "string" && !id.startsWith("tree_");
+}
+
+function isColumnId(id: UniqueIdentifier): id is CellColumnId {
+  return typeof id === "string" && id.startsWith("tree_");
+}

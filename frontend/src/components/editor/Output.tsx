@@ -330,7 +330,7 @@ const ExpandableOutput = React.memo(
       <>
         <div>
           <div className="relative print:hidden">
-            <div className="absolute -right-10 top-1 z-[1] flex flex-col gap-1">
+            <div className="absolute -right-9 top-1 z-[1] flex flex-col gap-1">
               <Tooltip content="Fullscreen" side="left">
                 <Button
                   data-testid="fullscreen-output-button"

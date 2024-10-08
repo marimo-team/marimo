@@ -151,6 +151,9 @@ components:
       type: string
     CellConfig:
       properties:
+        column:
+          nullable: true
+          type: integer
         disabled:
           type: boolean
         hide_code:
