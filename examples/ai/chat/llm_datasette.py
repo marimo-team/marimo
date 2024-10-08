@@ -36,8 +36,15 @@ def __(llm, mo):
     model = llm.get_model("gpt-4o-mini")
     conversation = model.conversation()
 
-    mo.ui.chat(lambda messages: conversation.prompt(messages[-1].content))
-    return conversation, model
+    chat = mo.ui.chat(lambda messages: conversation.prompt(messages[-1].content))
+    chat
+    return chat, conversation, model
+
+
+@app.cell
+def __(chat):
+    chat.value
+    return
 
 
 if __name__ == "__main__":
