@@ -160,7 +160,6 @@ def test_repr_markdown():
     )
 
 
-@pytest.mark.skip
 def test_repr_latex():
     class ReprLatex:
         def _repr_latex_(self):
