@@ -1109,3 +1109,43 @@ def test_unparsable_sql_doesnt_fail() -> None:
     v.visit(mod)
     assert v.defs == set(["df"])
     assert v.refs == set(["mo"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_attach() -> None:
+    code = "\n".join(
+        [
+            "mo.sql(f\"ATTACH 'dbname=postgres user=postgres host=127.0.0.1 password=password' as db\")"  # noqa:E501
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["db"])
+    assert v.refs == set(["mo"])
+
+
+@pytest.mark.xfail(reason="f-string interpolation breaks SQL parsing")
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_attach_f_string() -> None:
+    code = "\n".join(
+        [
+            "mo.sql(f\"ATTACH 'dbname=postgres user=postgres host=127.0.0.1 password={PASSWORD}' as db\")"  # noqa:E501
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["db"])
+    assert v.refs == set(["mo"])
+
+
+@pytest.mark.xfail(reason="f-string interpolation breaks SQL parsing")
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_ref_f_string() -> None:
+    code = "\n".join(["mo.sql(f'SELECT * FROM df LIMIT {lim}')"])
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert not v.defs
+    assert v.refs == set(["mo", "df", "lim"])
