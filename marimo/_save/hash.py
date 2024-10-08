@@ -107,21 +107,24 @@ def hash_cell_impl(cell: CellImpl, hash_type: str = DEFAULT_HASH) -> bytes:
 
 
 def standardize_tensor(tensor: Tensor) -> Optional[Tensor]:
-    # TODO: Consider moving to a more general utility module.
-    if hasattr(tensor, "__array__") or hasattr(tensor, "toarray"):
-        if not hasattr(tensor, "__array_interface__"):
-            DependencyManager.numpy.require(
-                "to access data buffer for hashing."
-            )
-            import numpy
+    if (
+        hasattr(tensor, "__array__")
+        or hasattr(tensor, "toarray")
+        or hasattr(tensor, "__array_interface__")
+    ):
+        DependencyManager.numpy.require("to access data buffer for hashing.")
+        import numpy
 
+        if not hasattr(tensor, "__array_interface__"):
             # Capture those sparse cases
             if hasattr(tensor, "toarray"):
                 tensor = tensor.toarray()
-            tensor = numpy.array(tensor)
-        return tensor
+        # As array should not perform copy
+        return numpy.asarray(tensor)
     raise ValueError(
-        f"Expected an image object, but got {type(tensor)} instead."
+        f"Expected a data primitive object, but got {type(tensor)} instead."
+        "This maybe an in internal marimo issue. Please report to "
+        "https://github.com/marimo-team/marimo/issues."
     )
 
 
