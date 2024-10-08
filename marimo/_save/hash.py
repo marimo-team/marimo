@@ -123,7 +123,7 @@ def standardize_tensor(tensor: Tensor) -> Optional[Tensor]:
         return numpy.asarray(tensor)
     raise ValueError(
         f"Expected a data primitive object, but got {type(tensor)} instead."
-        "This maybe an in internal marimo issue. Please report to "
+        "This maybe is an internal marimo issue. Please report to "
         "https://github.com/marimo-team/marimo/issues."
     )
 
