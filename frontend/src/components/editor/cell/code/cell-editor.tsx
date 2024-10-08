@@ -107,21 +107,11 @@ const CellEditorInternal = ({
   });
 
   const createBelow = useCallback(
-    () =>
-      createNewCell({
-        cellId,
-        before: false,
-        includeSelectionAsInitialCode: true,
-      }),
+    () => createNewCell({ cellId, before: false }),
     [cellId, createNewCell],
   );
   const createAbove = useCallback(
-    () =>
-      createNewCell({
-        cellId,
-        before: true,
-        includeSelectionAsInitialCode: true,
-      }),
+    () => createNewCell({ cellId, before: true }),
     [cellId, createNewCell],
   );
   const moveDown = useCallback(
