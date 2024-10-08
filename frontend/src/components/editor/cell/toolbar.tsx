@@ -6,7 +6,7 @@ import { Toolbar as ReactAriaToolbar } from "react-aria-components";
 import { cva, type VariantProps } from "class-variance-authority";
 
 const toolbarItemVariants = cva(
-  "rounded-full shadow-xsSolid border p-[6px] transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 [&>svg]:size-3 active:shadow-none",
+  "rounded-full shadow-xsSolid border p-[5px] transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 [&>svg]:size-3 active:shadow-none",
   {
     variants: {
       variant: {
