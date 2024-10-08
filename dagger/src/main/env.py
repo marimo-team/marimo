@@ -1,6 +1,7 @@
 import dagger
 from dagger import DefaultPath, dag, function, object_type
 
+
 @object_type
 class Env:
     @function
@@ -35,7 +36,7 @@ class Env:
 
     @function
     def pnpm(self) -> dagger.Container:
-        """pnpm container with dependencies for the frontend"""
+        """Pnpm container with dependencies for the frontend"""
         return (
             dag.container().from_("node:20-slim")
             .with_env_variable("CI", "true")

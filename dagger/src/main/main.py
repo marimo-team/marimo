@@ -1,12 +1,13 @@
 from typing import Annotated
 
 import dagger
-from dagger import dag, DefaultPath, Doc, field, function, Ignore, object_type
+from dagger import DefaultPath, Doc, Ignore, dag, field, function, object_type
 
-from .env import Env
 from .backend import Backend
-from .frontend import Frontend
 from .cli import Cli
+from .env import Env
+from .frontend import Frontend
+
 
 @object_type
 class Marimo:
