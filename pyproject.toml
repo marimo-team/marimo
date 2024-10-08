@@ -261,8 +261,6 @@ extend-select = [
     "ANN202", # missing-return-type-private-function
     "ANN205", # missing-return-type-static-method
     "ANN206", # missing-return-type-class-method
-    # future annotations
-    "FA102",
     # isort
     "I001",
     # Enable entire ruff rule section
@@ -300,6 +298,7 @@ unfixable = ["F401"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/{tests}/*" = ["ANN201", "ANN202"]
+"dagger/*" = ["TID252"]
 
 [tool.ruff.lint.isort]
 required-imports = ["from __future__ import annotations"]

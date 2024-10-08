@@ -1,7 +1,7 @@
 from typing import Annotated
 
 import dagger
-from dagger import DefaultPath, Doc, Ignore, dag, field, function, object_type
+from dagger import DefaultPath, Doc, Ignore, field, function, object_type
 
 from .backend import Backend
 from .cli import Cli
@@ -12,7 +12,10 @@ from .frontend import Frontend
 @object_type
 class Marimo:
     """A collection of tasks for the Marimo project."""
-    src: Annotated[dagger.Directory, Doc("The marimo source tree to use")] = field()
+
+    src: Annotated[dagger.Directory, Doc("The marimo source tree to use")] = (
+        field()
+    )
     frontend: Annotated[Frontend, Doc("Frontend components")] = field()
     backend: Annotated[Backend, Doc("Backend components")] = field()
     cli: Annotated[Cli, Doc("CLI components")] = field()
@@ -21,14 +24,19 @@ class Marimo:
     @classmethod
     def create(
         cls,
-        src: Annotated[dagger.Directory, Doc("The marimo source tree to use"), DefaultPath("/"), Ignore(["**/dagger", "**/.venv"])],
-    ):
+        src: Annotated[
+            dagger.Directory,
+            Doc("The marimo source tree to use"),
+            DefaultPath("/"),
+            Ignore(["**/dagger", "**/.venv"]),
+        ],
+    ) -> "Marimo":
         return cls(
             src=src,
             frontend=Frontend(src=src),
             backend=Backend(src=src),
             cli=Cli(src=src),
-            env=Env()
+            env=Env(),
         )
 
     @function
@@ -38,9 +46,9 @@ class Marimo:
     ) -> dagger.Container:
         """A container that runs a make task."""
         return (
-            self.env.dev().
-            with_directory("/src", self.src).
-            with_workdir("/src").
-            with_exec(["make", "install-all"]).
-            with_exec(["make", task])
+            self.env.dev()
+            .with_directory("/src", self.src)
+            .with_workdir("/src")
+            .with_exec(["make", "install-all"])
+            .with_exec(["make", task])
         )

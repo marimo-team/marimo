@@ -1,24 +1,30 @@
 from typing import Annotated
 
 import dagger
-from dagger import DefaultPath, Doc, Ignore, dag, field, function, object_type
+from dagger import Doc, dag, field, function, object_type
 
 from .env import Env
 
 
 @object_type
 class Frontend:
-    src: Annotated[dagger.Directory, Doc("The marimo source tree to use")] = field()
+    src: Annotated[dagger.Directory, Doc("The marimo source tree to use")] = (
+        field()
+    )
 
     @function
-    def test(self, turbo_token: dagger.Secret = dag.set_secret("DEFAULT", "")) -> dagger.Container:
+    def test(
+        self,
+        turbo_token: dagger.Secret = dag.set_secret("DEFAULT", ""),  # noqa: B008
+    ) -> dagger.Container:
         """
         Replace .github/workflows/test_fe.yaml
         """
         return (
-            Env().pnpm()
+            Env()
+            .pnpm()
             .with_env_variable("MARIMO_SKIP_UPDATE_CHECK", "true")
-            .with_secret_variable("TURBO_TOKEN" , turbo_token)
+            .with_secret_variable("TURBO_TOKEN", turbo_token)
             .with_env_variable("TURBO_TEAM", "marimo")
             .with_workdir("/src/frontend")
             .with_directory("/src", self.src)
