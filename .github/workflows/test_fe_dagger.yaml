@@ -23,6 +23,7 @@ jobs:
               - 'frontend/**'
               - 'lsp/**'
               - 'openapi/**'
+              - 'dagger/**'
 
   test_frontend:
     needs: changes
