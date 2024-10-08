@@ -3,7 +3,6 @@ import { z } from "zod";
 import { Logger } from "@/utils/Logger";
 import { getMarimoAppConfig, getMarimoUserConfig } from "../dom/marimo-tag";
 import type { MarimoConfig } from "../network/types";
-import { getFeatureFlag } from "./feature-flag";
 
 // This has to be defined in the same file as the zod schema to satisfy zod
 export const PackageManagerNames = [
@@ -14,12 +13,6 @@ export const PackageManagerNames = [
   "pixi",
 ] as const;
 export type PackageManagerName = (typeof PackageManagerNames)[number];
-
-export function getAppWidths() {
-  return getFeatureFlag("multi_column")
-    ? (["compact", "medium", "full", "columns"] as const)
-    : (["compact", "medium", "full"] as const);
-}
 
 /**
  * normal == compact, but normal is deprecated

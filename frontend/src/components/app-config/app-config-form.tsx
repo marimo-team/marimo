@@ -13,9 +13,9 @@ import {
 import {
   type AppConfig,
   AppConfigSchema,
-  getAppWidths,
   AppTitleSchema,
 } from "../../core/config/config-schema";
+import { getAppWidths } from "@/core/config/widths";
 import { Input } from "../ui/input";
 import { NativeSelect } from "../ui/native-select";
 import { useAppConfig } from "@/core/config/config";

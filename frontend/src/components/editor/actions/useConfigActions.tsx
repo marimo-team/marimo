@@ -1,11 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { saveAppConfig, saveUserConfig } from "@/core/network/requests";
 import type { ActionButton } from "./types";
-import {
-  getAppWidths,
-  type AppConfig,
-  type UserConfig,
-} from "@/core/config/config-schema";
+import type { AppConfig, UserConfig } from "@/core/config/config-schema";
+import { getAppWidths } from "@/core/config/widths";
 import { useAppConfig, useUserConfig } from "@/core/config/config";
 import { useTheme } from "@/theme/useTheme";
 

@@ -25,10 +25,10 @@ import { KEYMAP_PRESETS } from "@/core/codemirror/keymaps/keymaps";
 import { useUserConfig } from "@/core/config/config";
 import {
   UserConfigSchema,
-  getAppWidths,
   PackageManagerNames,
   type UserConfig,
 } from "@/core/config/config-schema";
+import { getAppWidths } from "@/core/config/widths";
 import { saveUserConfig } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
 import { THEMES } from "@/theme/useTheme";
