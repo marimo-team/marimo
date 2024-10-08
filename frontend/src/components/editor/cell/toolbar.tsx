@@ -15,7 +15,7 @@ const toolbarItemVariants = cva(
           "bg-[var(--yellow-3)] hover:bg-[var(--yellow-4)] text-[var(--yellow-11)]",
         green:
           "hover:bg-[var(--grass-2)] hover:text-[var(--grass-11)] hover:border-[var(--grass-7)],",
-        disabled: "cursor-not-allowed border-border/40 [&>*]:opacity-60,",
+        disabled: "opacity-50 cursor-not-allowed",
         danger: "hover:bg-[var(--red-3)] hover:text-[var(--red-11)]",
       },
     },
