@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <em>这是一款反应式的Python笔记本，具有优秀的可复现性，原生支持Git，并可作为脚本或应用程序部署。</em>
+  <em>这是一款响应式的Python笔记本，具有优秀的可复现性，原生支持Git，并可作为脚本或应用程序部署。</em>
 
 <p align="center">
   <a href="https://docs.marimo.io" target="_blank"><strong>用户手册</strong></a> ·
@@ -22,7 +22,7 @@
 <a href="https://github.com/marimo-team/marimo/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/marimo" /></a>
 </p>
 
-**Marimo** 是一款反应式 Python 笔记本：运行单元格或与 UI 元素交互，marimo 就会自动运行依赖于它们的单元格（或将其<a href="#expensive-notebooks">标记为过时单元格</a>），从而保持代码和输出的一致性。**marimo** 笔记本以纯 Python 格式存储，可作为脚本执行，也可作为应用程序部署。
+**Marimo** 是一款响应式 Python 笔记本：运行单元格可与 UI 元素交互，marimo 会自动更新依赖于它的单元格（或将其<a href="#expensive-notebooks">标记为过时单元格</a>），从而保持代码和输出的一致性。**marimo** 笔记本以纯 Python 格式存储，可作为脚本执行，也可作为应用程序部署。
 
 **为什么选择 marimo**
 
@@ -40,15 +40,15 @@
 pip install marimo && marimo tutorial intro
 ```
 
-_从我们的[在线体验平台](https://marimo.app/l/c7h6pz)开始， 它完全在浏览器中运行！_
+_在浏览器中运行[在线体验平台](https://marimo.app/l/c7h6pz)！_
 
-_跳转到[快速起步](#快速起步)，了解我们的命令行工具。_
+_跳转到[快速起步](#快速起步)，了解命令行工具。_
 
-## 反应式编程环境
+## 响应式编程环境
 
-Marimo 确保了您的代码、输出和程序的状态始的一致性。这解决了与 Jupyter 等传统笔记本相关的许多[问题](https://docs.marimo.io/faq.html#faq-problems)。
+Marimo 确保了您的代码、输出和程序的状态始的一致性，解决了与 Jupyter 等传统笔记本相关的许多[问题](https://docs.marimo.io/faq.html#faq-problems)。
 
-**独有的反应式设计**
+**独有的响应式设计**
 运行一个单元格，marimo 就会自动运行引用其变量的单元格，从而避免了手动重新运行单元格这一容易出错的工作。删除单元格，marimo 会从程序内存中删除其变量，消除隐藏状态。
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/reactive.gif" width="700px" />
@@ -63,13 +63,13 @@ Marimo 确保了您的代码、输出和程序的状态始的一致性。这解�
 
 **高效运行** 通过静态分析代码，marimo 只运行需要运行的单元。
 
-**动态的 Markdown 与 SQL** 使用 Markdown 编写可以被 Python 代码的输出动态进行更新的文档。同时，使用我们的内置 [SQL](https://docs.marimo.io/guides/sql.html) 引擎，创建依赖于 Python 值的 SQL 查询，并针对数据框、数据库、CSV、Google Sheets 或其他任何内容执行查询，SQL 引擎会将结果返回为 Python 数据框。
+**动态的 Markdown 与 SQL** 使用 Markdown 编写 Python 代码的输出动态进行更新的文档。同时，使用内置 [SQL](https://docs.marimo.io/guides/sql.html) 引擎，可创建依赖于 Python 值的 SQL 查询，并针对数据框、数据库、CSV、Google Sheets 或其他任何内容执行查询，SQL 引擎会将结果返回为 Python 数据框。
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-sql-cell.png" width="700px" />
 
-即使您的笔记本使用了 markdown 或 SQL，它们仍然是纯 Python 的
+即使笔记本（notebook）使用了 markdown 或 SQL，它仍然是纯 Python 程序。
 
-**确定性的执行顺序** 笔记本的执行顺序是确定的，基于变量引用，而不是单元格在页面上的位置。根据你想讲述的故事来组织你的笔记本。
+**确定性的执行顺序** 笔记本的执行顺序是确定的，基于变量引用，而不是单元格在页面上的位置。根据你顺序逻辑来组织笔记本。
 
 **易用且强大** Marimo 集成了包括 GitHub Copilot、Ruff 代码格式化、HTML 导出、快速代码补全、[VSCode 扩展](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo)、交互式数据框查看器等非常有用的功能。
 
@@ -229,12 +229,12 @@ marimo 是对 Python 笔记本的**重塑**，它是一个可复制、可交互�
 [Pluto.jl](https://github.com/fonsp/Pluto.jl)，
 [ObservableHQ](https://observablehq.com/tutorials)，和
 [Bret Victor's essays](http://worrydream.com/)。
-marimo 是向反应式数据流编程迈进的一大步。从
+marimo 是向响应式数据流编程迈进的一大步。从
 [IPyflow](https://github.com/ipyflow/ipyflow)，[streamlit](https://github.com/streamlit/streamlit)，
 [TensorFlow](https://github.com/tensorflow/tensorflow)，
 [PyTorch](https://github.com/pytorch/pytorch/tree/main)，
 [JAX](https://github.com/google/jax)，到
-[React](https://github.com/facebook/react)，函数式、声明式和反应式编程的理念正在改善一系列工具。
+[React](https://github.com/facebook/react)，函数式、声明式和响应式编程的理念正在改善一系列工具。
 
 <p align="right">
   <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/marimo-logotype-horizontal.png" height="200px">

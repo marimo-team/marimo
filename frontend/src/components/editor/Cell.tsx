@@ -244,22 +244,12 @@ const CellComponent = (
 
   const createBelow = useCallback(
     (opts: { code?: string } = {}) =>
-      createNewCell({
-        cellId,
-        before: false,
-        ...opts,
-        includeSelectionAsInitialCode: true,
-      }),
+      createNewCell({ cellId, before: false, ...opts }),
     [cellId, createNewCell],
   );
   const createAbove = useCallback(
     (opts: { code?: string } = {}) =>
-      createNewCell({
-        cellId,
-        before: true,
-        ...opts,
-        includeSelectionAsInitialCode: true,
-      }),
+      createNewCell({ cellId, before: true, ...opts }),
     [cellId, createNewCell],
   );
 

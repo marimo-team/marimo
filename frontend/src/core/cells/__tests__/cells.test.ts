@@ -190,7 +190,7 @@ describe("cell reducer", () => {
     `);
   });
 
-  it("can delete a cell", () => {
+  it("can delete a Python cell and undo delete", () => {
     actions.createNewCell({
       cellId: firstCellId,
       before: false,
@@ -211,6 +211,61 @@ describe("cell reducer", () => {
       [2] ''
 
       [1] ''
+      "
+    `);
+  });
+
+  it("can delete a SQL cell and undo delete", () => {
+    actions.createNewCell({
+      cellId: firstCellId,
+      before: false,
+      code: `df = mo.sql("""SELECT * FROM table""")`,
+    });
+    const newCellId = state.cellIds.getColumns()[0].atOrThrow(1);
+    actions.deleteCell({
+      cellId: newCellId,
+    });
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [0] ''
+      "
+    `);
+
+    // undo
+    actions.undoDeleteCell();
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [0] ''
+
+      [2] 'df = mo.sql("""SELECT * FROM table""")'
+      "
+    `);
+  });
+
+  it("can delete a Markdown cell and undo delete", () => {
+    const text = "The quick brown fox jumps over the lazy dog.";
+    actions.createNewCell({
+      cellId: firstCellId,
+      before: false,
+      code: `mo.md(r"""${text}""")`,
+    });
+    const newCellId = state.cellIds.getColumns()[0].atOrThrow(1);
+    actions.deleteCell({
+      cellId: newCellId,
+    });
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [0] ''
+      "
+    `);
+
+    // undo
+    actions.undoDeleteCell();
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [0] ''
+
+      [2] 'mo.md(r"""The quick brown fox jumps over the lazy dog.""")'
       "
     `);
   });
@@ -757,7 +812,6 @@ describe("cell reducer", () => {
     expect(cell.config).toEqual({
       disabled: false,
       hide_code: false,
-      column: 0,
     });
 
     actions.updateCellConfig({
@@ -1566,130 +1620,5 @@ describe("cell reducer", () => {
     expect(state.cellIds.getColumns()[0].topLevelIds).toEqual(["0"]);
     expect(state.cellIds.getColumns()[1].topLevelIds).toEqual(["1"]);
     expect(state.cellIds.getColumns()[2].topLevelIds).toEqual(["2"]);
-  });
-
-  describe("can create a cell using selected code", () => {
-    const firstLine = "import marimo as mo";
-    const secondLine = "import pandas as pd";
-    const thirdLine = "import numpy as np";
-
-    let editor: EditorView | undefined;
-    let secondCellId: CellId;
-
-    beforeEach(() => {
-      actions.createNewCell({
-        cellId: firstCellId,
-        before: false,
-        code: `${firstLine}\n${secondLine}\n${thirdLine}`,
-      });
-      secondCellId = state.cellIds.getColumns()[0].atOrThrow(1);
-      editor = state.cellHandles[secondCellId].current?.editorView;
-    });
-
-    it("includeSelectionAsInitialCode is true and there is selection", () => {
-      if (!editor) {
-        throw new Error("Editor not found");
-      }
-      editor.dispatch({
-        selection: {
-          anchor: editor.state.doc.line(2).from,
-          head: editor.state.doc.line(2).to,
-        },
-      });
-
-      const { from, to } = editor.state.selection.main;
-      const highlighted = editor.state.doc.toString().slice(from, to);
-      expect(highlighted).toBe(secondLine);
-
-      actions.createNewCell({
-        cellId: secondCellId,
-        before: false,
-        includeSelectionAsInitialCode: true,
-      });
-      expect(formatCells(state)).toMatchInlineSnapshot(`
-        "
-        [0] ''
-
-        [1] 'import marimo as mo
-        import numpy as np'
-
-        [2] 'import pandas as pd'
-        "
-      `);
-    });
-
-    it("includeSelectionAsInitialCode is false and there is selection", () => {
-      if (!editor) {
-        throw new Error("Editor not found");
-      }
-      editor.dispatch({
-        selection: {
-          anchor: editor.state.doc.line(2).from,
-          head: editor.state.doc.line(2).to,
-        },
-      });
-      actions.createNewCell({
-        cellId: secondCellId,
-        before: false,
-        includeSelectionAsInitialCode: false,
-      });
-      expect(formatCells(state)).toMatchInlineSnapshot(`
-        "
-        [0] ''
-
-        [1] 'import marimo as mo
-        import pandas as pd
-        import numpy as np'
-
-        [2] ''
-        "
-      `);
-    });
-
-    it("includeSelectionAsInitialCode is true and there is no selection", () => {
-      if (!editor) {
-        throw new Error("Editor not found");
-      }
-      editor.dispatch({ selection: { anchor: 0, head: 0 } });
-      actions.createNewCell({
-        cellId: secondCellId,
-        before: false,
-        includeSelectionAsInitialCode: true,
-      });
-      expect(formatCells(state)).toMatchInlineSnapshot(`
-        "
-        [0] ''
-
-        [1] 'import marimo as mo
-        import pandas as pd
-        import numpy as np'
-
-        [2] ''
-        "
-      `);
-    });
-
-    it("includeSelectionAsInitialCode is false and there is no selection", () => {
-      if (!editor) {
-        throw new Error("Editor not found");
-      }
-      editor.dispatch({ selection: { anchor: 0, head: 0 } });
-      actions.createNewCell({
-        cellId: secondCellId,
-        before: false,
-        includeSelectionAsInitialCode: false,
-      });
-      expect(formatCells(state)).toMatchInlineSnapshot(`
-        "
-        [0] ''
-
-        [1] 'import marimo as mo
-        import pandas as pd
-        import numpy as np'
-
-        [2] ''
-        "
-      `);
-    });
   });
 });

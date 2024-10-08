@@ -238,39 +238,3 @@ function isCellId(id: UniqueIdentifier): id is CellId {
 function isColumnId(id: UniqueIdentifier): id is CellColumnId {
   return typeof id === "string" && id.startsWith("tree_");
 }
-
-// export const AddColumnButton: React.FC = memo(() => {
-//   const { addColumn } = useCellActions();
-
-//   const handleScrollAppRight = () => {
-//     const app = document.getElementById("App");
-//     if (app) {
-//       app.scrollTo({
-//         left: app.scrollLeft + 1000,
-//         behavior: "smooth",
-//       });
-//     }
-//   };
-
-//   return (
-//     <div className="h-full px-10">
-//       <button
-//         className="h-[calc(100%-210px)] min-h-[425px] w-16 flex justify-center bg-[var(--slate-1)] hover:bg-[var(--slate-2)] border-2 border-dashed border-[var(--slate-5)] rounded-lg"
-//         onClick={() => {
-//           addColumn();
-//           requestAnimationFrame(handleScrollAppRight);
-//         }}
-//       >
-//         <div className="h-full max-h-[60vh] flex items-center justify-center">
-//           <Tooltip content="Add column">
-//             <Button variant="text" size="xs">
-//               <SquarePlusIcon className="w-5 h-5" />
-//             </Button>
-//           </Tooltip>
-//         </div>
-//       </button>
-//     </div>
-//   );
-// });
-
-// AddColumnButton.displayName = "AddColumnButton";

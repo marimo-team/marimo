@@ -4,6 +4,7 @@ This guide introduces some of marimo editor's features, including
 a variables panel, dependency graph viewer, table of contents, HTML export,
 GitHub copilot, code formatting, a feedback form, and more.
 
+
 ## Configuration
 
 The editor exposes of a number of settings for the current notebook,
@@ -11,13 +12,10 @@ as well as user-wide configuration that will apply to all your notebooks.
 These settings include the option to display the current notebook in
 full width, to use vim keybindings, to enable GitHub copilot, and more.
 
-To access these settings, click the gear icon in the top-right of the editor.
+To access these settings, click the gear icon in the top-right of the editor:
 
-<div align="left">
-<figure>
-<img src="/_static/docs-user-config.png"/ style="height:80px">
-<figcaption>Configure settings.</figcaption>
-</figure>
+<div align="center">
+<img src="/_static/docs-user-config.png"  />
 </div>
 
 A non-exhaustive list of settings:
@@ -44,56 +42,32 @@ marimo supports vim keybindings.
 - `gd` - go to definition
 - `dd` - when a cell is empty, delete it
 
-<div align="center">
-<figure>
-<img src="/_static/docs-settings.png"/>
-<figcaption>Click the gear icon to access notebook and editor settings.</figcaption>
-</figure>
-</div>
-
 ## Overview panels
 
-marimo ships with the IDE panels that provide an overview of your notebook:
+marimo ships with the IDE panels that provide an overview of your notebook
 
-::::{grid} 1 1 2 2
 
-:::{card}
-
-<figure>
-<img src="/_static/docs-panel-icons.png" style="height: 400px"/>
-</figure>
-:::
-
-:::{card}
-
-1. **file explorer**: view the file tree, open other notebooks
-2. **variables**: explore variable values, see where they are defined and used, with go-to-definition
-3. **data explorer**: see dataframe and table schemas at a glance
-4. **dependency graph**: view dependencies between cells, drill-down on nodes and edges
-5. **table of contents**: corresponding to your markdown
-6. **documentation** - move your text cursor over a symbol to see its documentation
-7. **logs**: a continuous stream of stdout and stderr
-8. **scratchpad**: a scratchpad cell where you can execute throwaway code
-9. **snippets** - searchable snippets to copy directly into your notebook
-10. **feedback** - share feedback!
-:::
-
-::::
+- **file explorer**: view the file tree, open other notebooks
+- **variables**: explore variable values, see where they are defined and used, with go-to-definition
+- **data explorer**: see dataframe and table schemas at a glance
+- **dependency graph**: view dependencies between cells, drill-down on nodes and edges
+- **package manager**: add and remove packages, and view your current environment
+- **table of contents**: corresponding to your markdown
+- **documentation** - move your text cursor over a symbol to see its documentation
+- **logs**: a continuous stream of stdout and stderr
+- **scratchpad**: a scratchpad cell where you can execute throwaway code
+- **snippets** - searchable snippets to copy directly into your notebook
+- **feedback** - share feedback!
 
 These panels can be toggled via the buttons in the left of the editor.
 
 ## Cell actions
 
-Click the dot array to the right of a cell to pull up a context menu, or hold
-and drag to move the cell:
+Click the three dots in the top right of a cell to pull up a context menu,
+letting you format code, hide code, send a cell to the top or bottom of the
+notebook, give the cell a name, and more.
 
-<div align="center">
-<figure>
-<img src="/_static/docs-cell-actions.png"/>
-<figcaption>Access cell actions like code formatting, hiding code, and more
-through the cell context menu.</figcaption>
-</figure>
-</div>
+Drag a cell using the vertical dots to the right of the cell.
 
 ## Right-click menus
 

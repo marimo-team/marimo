@@ -21,8 +21,6 @@ const SortableColumnInternal = React.forwardRef(
     { columnId, canDelete, canMoveLeft, canMoveRight, ...props }: Props,
     ref: React.Ref<HTMLDivElement>,
   ) => {
-    // The keys for columns have a 1-based index, because
-    // the first column is not draggable if its id is 0
     const {
       attributes,
       listeners,

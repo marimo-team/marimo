@@ -1,15 +1,10 @@
-# AI 🤖
+# Misc. SQL examples 🛢️
 
-These examples showcase a few simple applications of AI.
-
-- 💬 [`chat/`](chat/): creating chatbots with marimo, using [`mo.ui.chat`](https://docs.marimo.io/api/inputs/chat.html#marimo.ui.chat)
-- 🛢️ [`data/`](data/): making data labeling and model comparison tools
-- 🛠 [`tools/`](tools/): interacting with external functions and services with function calling, returning rich responses
-- 🍿 [`misc/`](misc/): miscellaneous AI examples
+This folder contains illustrative examples of using SQL in marimo.
 
 > [!TIP]
-> Submit a
-> [pull request](https://github.com/marimo-team/marimo/pulls) to add an example!
+> For a broad overview of using SQL in marimo, run `marimo tutorial sql` at the
+> command-line.
 
 ## Running examples
 
