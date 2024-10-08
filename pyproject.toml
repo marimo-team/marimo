@@ -142,7 +142,7 @@ installer = "uv"
 dependencies = [
     "mypy~=1.10.1",
     # Types for mypy
-    "polars~=1.5.0",
+    "polars~=1.9.0",
     "pyarrow-stubs>=17.0",
     "pandas-stubs>=1.5.3.230321",
     "types-Pillow~=10.2.0.20240520",
@@ -181,7 +181,10 @@ extra-dependencies = [
     "pytest-codecov~=0.5.1",
     "pytest-asyncio~=0.23.8",
     # For testing mo.ui.chart, table, ...
+    "pyarrow",
+    "pyarrow_hotfix",
     "altair>=5.4.0",
+    "polars~=1.9.0",
     "pandas>=1.5.3",
     "geopandas~=0.14.4; python_version > '3.9'",
     # For testing mo.image
@@ -315,7 +318,7 @@ docstring-code-format = true
 ban-relative-imports = "all"
 # Ban certain modules from being imported at module level, instead requiring
 # that they're imported lazily (e.g., within a function definition).
-banned-module-level-imports = ["numpy", "pandas", "tomlkit", "polars"]
+banned-module-level-imports = ["numpy", "pandas", "tomlkit", "polars", "altair", "ipython", "anywidget"]
 
 [tool.ruff.lint.flake8-pytest-style]
 mark-parentheses = false

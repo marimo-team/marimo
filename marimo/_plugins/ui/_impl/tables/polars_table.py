@@ -142,10 +142,27 @@ class PolarsTableManagerFactory(TableManagerFactory):
             def search(self, query: str) -> TableManager[Any]:
                 query = query.lower()
 
-                expressions = [
-                    pl.col(column).str.contains(f"(?i){query}")
-                    for column in self.data.columns
-                ]
+                expressions = []
+                for column in self.data.columns:
+                    dtype = self.data[column].dtype
+                    if dtype == pl.String:
+                        expressions.append(pl.col(column).str.contains(query))
+                    elif dtype == pl.List(pl.Utf8):
+                        expressions.append(pl.col(column).list.contains(query))
+                    elif (
+                        dtype.is_numeric()
+                        or dtype.is_temporal()
+                        or dtype == pl.Boolean
+                    ):
+                        expressions.append(
+                            pl.col(column)
+                            .cast(pl.String)
+                            .str.contains(f"(?i){query}")
+                        )
+
+                if not expressions:
+                    return PolarsTableManager(self.data.filter(pl.lit(False)))
+
                 or_expr = expressions[0]
                 for expr in expressions[1:]:
                     or_expr = or_expr | expr
@@ -195,6 +212,11 @@ class PolarsTableManagerFactory(TableManagerFactory):
                         p95=col.quantile(0.95),
                     )
                 if col.dtype.is_(pl.Null):
+                    return ColumnSummary(
+                        total=total,
+                        nulls=col.null_count(),
+                    )
+                if col.dtype == pl.List:
                     return ColumnSummary(
                         total=total,
                         nulls=col.null_count(),

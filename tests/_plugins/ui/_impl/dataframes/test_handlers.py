@@ -860,6 +860,7 @@ class TestTransformHandler:
                     "B": [1, 1, 1, 1],
                     "C": [["a", "b", "c"], [np.nan], [], ["d", "e"]],
                 },
+                strict=False,
             ),
             ibis.memtable(
                 {

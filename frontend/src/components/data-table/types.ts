@@ -6,7 +6,7 @@ export interface ColumnHeaderSummary {
   column: string | number;
   min?: number | string | undefined | null;
   max?: number | string | undefined | null;
-  unique?: number | null;
+  unique?: number | unknown[] | undefined | null;
   nulls?: number | null;
   true?: number | null;
   false?: number | null;
