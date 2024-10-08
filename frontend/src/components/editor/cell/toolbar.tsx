@@ -82,7 +82,7 @@ interface ToolbarProps {
 export const Toolbar: React.FC<ToolbarProps> = ({ children, className }) => (
   <ReactAriaToolbar
     className={cn(
-      "flex items-center gap-1 bg-transparent p-[2px] rounded-md",
+      "flex items-center gap-1 bg-background m-[2px] rounded-full",
       className,
     )}
   >
