@@ -6,6 +6,7 @@ These examples show how to make chatbots with marimo, using [`mo.ui.chat`](https
 - `openai_example.py` shows how to make a chatbot powered by OpenAI models
 - `anthropic_example.py` shows how to make a chatbot powered by Anthropic models
 - `gemini.py` shows how to make a chatbot powered by Google models like Gemini
+- `llm_datasette.py` shows how to make a chatbot powered by Simon W's LLM library
 
 Chatbot's in marimo are _reactive_: when the chatbot responds with a message,
 all other cells referencing the chatbot are automatically run or marked
