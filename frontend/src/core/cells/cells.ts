@@ -392,9 +392,12 @@ const {
     const focusIndex = index === 0 ? 1 : index - 1;
     const scrollKey = state.cellIds.atOrThrow(focusIndex);
 
-    const serializedEditorState = state.cellHandles[
-      cellId
-    ].current?.editorView.state.toJSON({ history: historyField });
+    const editorView = state.cellHandles[cellId].current?.editorView;
+    const serializedEditorState = editorView?.state.toJSON({
+      history: historyField,
+    });
+    serializedEditorState.doc = state.cellData[cellId].code;
+
     return {
       ...state,
       cellIds: state.cellIds.delete(index),
@@ -421,6 +424,7 @@ const {
       serializedEditorState = { doc: "" },
       index,
     } = mostRecentlyDeleted;
+
     const cellId = CellId.create();
     const undoCell = createCell({
       id: cellId,
@@ -429,6 +433,7 @@ const {
       edited: serializedEditorState.doc.trim().length > 0,
       serializedEditorState,
     });
+
     return {
       ...state,
       cellIds: state.cellIds.insert(cellId, index),
