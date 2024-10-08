@@ -26,13 +26,83 @@ REGEX = (
 
 
 def _get_dependencies(script: str) -> List[str] | None:
-    """Get dependencies from string representation of script"""
+    """Get dependencies from string representation of script."""
     try:
         pyproject = _read_pyproject(script) or {}
-        return cast(List[str], pyproject.get("dependencies", []))
+        return _pyproject_toml_to_requirements_txt(pyproject)
     except Exception as e:
         LOGGER.warning(f"Failed to parse dependencies: {e}")
         return None
+
+
+def _pyproject_toml_to_requirements_txt(
+    pyproject: Dict[str, Any],
+) -> List[str]:
+    """
+    Convert a pyproject.toml file to a requirements.txt file.
+
+    If there is a `[tool.uv.sources]` section, we resolve the dependencies
+    to their corresponding source.
+
+    # dependencies = [
+    #     "python-gcode",
+    # ]
+    #
+    # [tool.uv.sources]
+    # python-gcode = { git = "https://github.com/fetlab/python_gcode", rev = "new" }
+    """  # noqa: E501
+    dependencies = cast(List[str], pyproject.get("dependencies", []))
+    if not dependencies:
+        return []
+
+    uv_sources = pyproject.get("tool", {}).get("uv", {}).get("sources", {})
+
+    for dependency, source in uv_sources.items():
+        # Find the index of the dependency. This may have a version
+        # attached, so we cannot do .index()
+        dep_index: int | None = None
+        for i, dep in enumerate(dependencies):
+            if (
+                dep == dependency
+                or dep.startswith(f"{dependency}==")
+                or dep.startswith(f"{dependency}<")
+                or dep.startswith(f"{dependency}>")
+                or dep.startswith(f"{dependency}~")
+            ):
+                dep_index = i
+                break
+
+        if dep_index is None:
+            continue
+
+        new_dependency = None
+
+        # Handle git dependencies
+        if "git" in source:
+            git_url = f"git+{source['git']}"
+            ref = (
+                source.get("rev") or source.get("branch") or source.get("tag")
+            )
+            new_dependency = (
+                f"{dependency} @ {git_url}@{ref}"
+                if ref
+                else f"{dependency} @ {git_url}"
+            )
+        # Handle local paths
+        elif "path" in source:
+            new_dependency = f"{dependency} @ {source['path']}"
+
+        # Handle URLs
+        elif "url" in source:
+            new_dependency = f"{dependency} @ {source['url']}"
+
+        if new_dependency:
+            if source.get("marker"):
+                new_dependency += f"; {source['marker']}"
+
+            dependencies[dep_index] = new_dependency
+
+    return dependencies
 
 
 def get_dependencies_from_filename(name: str) -> List[str]:
