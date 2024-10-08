@@ -100,7 +100,7 @@ def test_polars_encoding() -> None:
 
     df = pl.DataFrame({"a": [1, 2], "b": [3, 4]})
     encoded = json.dumps(df, cls=WebComponentEncoder)
-    assert encoded == '[{"a": 1, "b": 3}, {"a": 2, "b": 4}]'
+    assert encoded == '{"a": [1, 2], "b": [3, 4]}'
 
     series = pl.Series([1, 2, 3])
     encoded_series = json.dumps(series, cls=WebComponentEncoder)

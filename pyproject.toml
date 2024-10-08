@@ -181,6 +181,7 @@ extra-dependencies = [
     "pytest-codecov~=0.5.1",
     "pytest-asyncio~=0.23.8",
     # For testing mo.ui.chart, table, ...
+    "pyarrow_hotfix",
     "altair>=5.4.0",
     "polars~=1.9.0",
     "pandas>=1.5.3",
