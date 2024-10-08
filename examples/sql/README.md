@@ -4,13 +4,22 @@ These examples show how to use marimo's built-in support for SQL, which
 is powered by [duckdb](https://duckdb.org/), a fast in-process
 analytical database.
 
+- `querying_dataframes.py` shows hows to query Pandas or Polars dataframes
+- `paremetrizing_queries.py` shows hows to parametrize queries with Python values
+- `read_csv.py` shows hows to read CSV data into duckdb
+- `read_json.py` shows hows to read JSON data into duckdb
+- `read_parquet.py` shows hows to read parquet data into duckdb
+- `connect_to_sqlite.py` shows hows to connect to a SQLite database
+- `connect_to_postgres.py` shows hows to connect to a PostgreSQL database
+- `connect_to_motherduck.py` shows hows to connect to [motherduck](https://motherduck.com)
+- [`misc/`](misc/) contains illustrative examples
+
 > [!TIP]
 > For a broad overview of using SQL in marimo, run `marimo tutorial sql` at the
 > command-line.
 
-SQL queries in marimo are executed through `duckdb`; consult the
-[duckdb documentation](https://duckdb.org/docs/index) for a comprehensive
-guide.
+Consult the [duckdb documentation](https://duckdb.org/docs/index) for a
+comprehensive guide on duckdb.
 
 ## Running examples
 
