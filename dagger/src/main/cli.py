@@ -6,7 +6,12 @@ from dagger import DefaultPath, Doc, Ignore, dag, field, function, object_type
 
 @object_type
 class Cli:
-    src: Annotated[dagger.Directory, Doc("The marimo source tree to use"), DefaultPath("/"), Ignore(["/dagger", ".venv"])] = field()
+    src: Annotated[
+        dagger.Directory,
+        Doc("The marimo source tree to use"),
+        DefaultPath("/"),
+        Ignore(["/dagger", ".venv"]),
+    ] = field()
 
     @function
     def test(self) -> dagger.Container:
