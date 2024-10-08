@@ -3,25 +3,34 @@
 # dependencies = [
 #     "duckdb==1.1.1",
 #     "marimo",
+#     "pandas==2.2.3",
 # ]
 # ///
 
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.9.1"
 app = marimo.App(width="full")
 
 
 @app.cell
 def __():
-    import marimo as mo
     import os
-    return mo, os
+
+    import duckdb
+    import marimo as mo
+    return duckdb, mo, os
 
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md(r"""## Create a connection""")
+    mo.md(
+        r"""
+        # Database explorer
+
+        This notebook lets you explore the contents of a database. Start by providing a database URL.
+        """
+    )
     return
 
 
@@ -36,7 +45,7 @@ def __(mo, os):
     return (database_url,)
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __(database_url):
     import duckdb
 
@@ -50,7 +59,7 @@ def __(database_url):
                 ATTACH DATABASE '{database_url.value}' AS my_db  (TYPE postgres, READ_ONLY);
             """
         )
-    return (duckdb,)
+    return duckdb, my_db
 
 
 @app.cell
@@ -59,7 +68,7 @@ def __(duckdb):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(r"""## Tables""")
     return
@@ -75,19 +84,7 @@ def __(mo):
     return
 
 
-@app.cell
-def __(duckdb):
-    # Create another table, if wanted
-    if False:
-        duckdb.execute(
-            """
-        CREATE TABLE IF NOT EXISTS penguins AS SELECT * FROM read_csv('https://raw.githubusercontent.com/mwaskom/seaborn-data/master/penguins.csv', AUTO_DETECT=TRUE);
-        """
-        )
-    return
-
-
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(r"""## Other meta table functions""")
     return
@@ -137,14 +134,14 @@ def __(_, function, mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(r"""## Interact with your tables""")
     return
 
 
 @app.cell
-def __(duckdb, mo):
+def __(duckdb, duckdb_tables, mo):
     tables = duckdb.execute(
         """
     SELECT table_name FROM duckdb_tables() WHERE internal = False;
