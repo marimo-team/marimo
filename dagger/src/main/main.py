@@ -20,7 +20,7 @@ class Marimo:
     @classmethod
     def create(
         cls,
-        src: Annotated[dagger.Directory, Doc("The marimo source tree to use"), DefaultPath("/"), Ignore(["/dagger", ".venv"])],
+        src: Annotated[dagger.Directory, Doc("The marimo source tree to use"), DefaultPath("/"), Ignore(["**/dagger", "**/.venv"])],
     ):
         return cls(
             src=src,

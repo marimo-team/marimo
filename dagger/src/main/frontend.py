@@ -7,7 +7,7 @@ from .env import Env
 
 @object_type
 class Frontend:
-    src: Annotated[dagger.Directory, Doc("The marimo source tree to use"), DefaultPath("/"), Ignore(["/dagger", ".venv"])] = field()
+    src: Annotated[dagger.Directory, Doc("The marimo source tree to use")] = field()
 
     @function
     def test(self, turbo_token: dagger.Secret = dag.set_secret("DEFAULT", "")) -> dagger.Container:
