@@ -13,7 +13,11 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.mime import MIME
 from marimo._plugins.core.json_encoder import WebComponentEncoder
 
-HAS_DEPS = DependencyManager.pandas.has() and DependencyManager.altair.has()
+HAS_DEPS = (
+    DependencyManager.pandas.has()
+    and DependencyManager.altair.has()
+    and DependencyManager.polars.has()
+)
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -88,6 +92,19 @@ def test_pandas_encoding() -> None:
     other = pd.Series(["a", "b", "c"])
     encoded_other = json.dumps(other, cls=WebComponentEncoder)
     assert encoded_other == '["a", "b", "c"]'
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_polars_encoding() -> None:
+    import polars as pl
+
+    df = pl.DataFrame({"a": [1, 2], "b": [3, 4]})
+    encoded = json.dumps(df, cls=WebComponentEncoder)
+    assert encoded == '[{"a": 1, "b": 3}, {"a": 2, "b": 4}]'
+
+    series = pl.Series([1, 2, 3])
+    encoded_series = json.dumps(series, cls=WebComponentEncoder)
+    assert encoded_series == "[1, 2, 3]"
 
 
 @dataclass

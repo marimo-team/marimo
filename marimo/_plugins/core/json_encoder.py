@@ -120,6 +120,16 @@ class WebComponentEncoder(JSONEncoder):
             except AttributeError:
                 pass
 
+        # Handle polars objects
+        if DependencyManager.polars.imported():
+            import polars as pl
+
+            if isinstance(o, pl.DataFrame):
+                return o.to_dict()
+
+            if isinstance(o, pl.Series):
+                return o.to_list()
+
         # Handle named tuples
         if isinstance(o, tuple) and hasattr(o, "_fields"):
             return {

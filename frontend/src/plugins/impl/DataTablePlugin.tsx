@@ -138,7 +138,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             column: z.union([z.number(), z.string()]),
             min: z.union([z.number(), z.string()]).nullish(),
             max: z.union([z.number(), z.string()]).nullish(),
-            unique: z.number().nullish(),
+            unique: z.union([z.number(), z.array(z.any())]).nullish(),
             nulls: z.number().nullish(),
             true: z.number().nullish(),
             false: z.number().nullish(),

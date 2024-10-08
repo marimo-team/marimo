@@ -326,13 +326,26 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                 "A": [1, 2, 3],
                 "B": ["foo", "bar", "baz"],
                 "C": [True, False, True],
+                "D": [["zz", "yyy"], [], []],
+                "E": [1.1, 2.2, 3.3],
             }
         )
         manager = self.factory.create()(df)
+        # Exact match
         assert manager.search("foo").get_num_rows() == 1
+        # Contains
         assert manager.search("a").get_num_rows() == 2
+        # Case insensitive / boolean
         assert manager.search("true").get_num_rows() == 2
+        # Overmatch
         assert manager.search("food").get_num_rows() == 0
+        # Int (exact match)
+        assert manager.search("1").get_num_rows() == 1
+        # Float (exact match)
+        assert manager.search("1.1").get_num_rows() == 1
+        # List (exact match)
+        assert manager.search("yyy").get_num_rows() == 1
+        assert manager.search("y").get_num_rows() == 0
 
     def test_apply_formatting_does_not_modify_original_data(self) -> None:
         from polars.testing import assert_frame_equal
