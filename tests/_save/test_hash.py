@@ -50,7 +50,7 @@ class TestHash:
     # Note: Hash may change based on byte code, so pin to particular version
     @staticmethod
     @pytest.mark.skipif(
-        "sys.version_info < (3, 11) or sys.version_info >= (3, 12)"
+        "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
     )
     def test_content_reproducibility() -> None:
         app = App()
@@ -61,7 +61,7 @@ class TestHash:
             from marimo._save.save import persistent_cache
             from tests._save.mocks import MockLoader
 
-            expected_hash = "rzWe8aalExwCRLmrdG0NkCp0QbSupaZdiimloFs9SKw"
+            expected_hash = "haIqC9yzlTaNo-ClmY11Kvtiv08oQPz3-SlnOLfhJYM"
 
             return expected_hash, persistent_cache, MockLoader
 
@@ -117,7 +117,7 @@ class TestHash:
 
     @staticmethod
     @pytest.mark.skipif(
-        "sys.version_info < (3, 11) or sys.version_info >= (3, 12)"
+        "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
     )
     def test_execution_reproducibility() -> None:
         app = App()
@@ -142,7 +142,7 @@ class TestHash:
             # Cannot be reused/ shared, because it will change the hash.
             assert (
                 _cache._cache.hash
-                == "ZOoW-62h9ubJQ92u9h1UWydCsuwtXafS2tmDUcH8dLc"
+                == "V_BAVE7PI97W7iec44GYXD69pebyztj7R3jgGFAnnEM"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             return
@@ -163,7 +163,7 @@ class TestHash:
             assert _X == 7
             assert (
                 _cache._cache.hash
-                == "ZOoW-62h9ubJQ92u9h1UWydCsuwtXafS2tmDUcH8dLc"
+                == "V_BAVE7PI97W7iec44GYXD69pebyztj7R3jgGFAnnEM"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             # and a post block difference
@@ -386,7 +386,7 @@ class TestDataHash:
     # Pin to a particular python version for differences in underlying library
     # implementations / memory layout.
     @pytest.mark.skipif(
-        "sys.version_info < (3, 11) or sys.version_info >= (3, 12)"
+        "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
     )
     def test_numpy_hash() -> None:
         app = App()
@@ -399,7 +399,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.mocks import MockLoader
 
-            expected_hash = "aInOwuFXPXqX3XHlU4KGi3w7rzr30OwBIPYTUBrpSKM"
+            expected_hash = "w_Bjhpz2xMVQC6Y61GgqB8O80u_UyoJ-1xQmJU3j0Gg"
             return MockLoader, persistent_cache, expected_hash, np
 
         @app.cell
@@ -433,5 +433,214 @@ class TestDataHash:
         def three(one, two) -> None:
             assert one == two
             assert one == 512
+
+        app.run()
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not DependencyManager.has("jax"),
+        reason="optional dependencies not installed",
+    )
+    # Pin to a particular python version for differences in underlying library
+    # implementations / memory layout.
+    @pytest.mark.skipif(
+        "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
+    )
+    def test_jax_hash() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def load() -> tuple[Any]:
+            from jax import numpy as np
+
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            expected_hash = "aAL9QNoQIQ1zOJgm_xDbHG63Bc4Atnpn58pGW9x9A_A"
+            return MockLoader, persistent_cache, expected_hash, np
+
+        @app.cell
+        def one(MockLoader, persistent_cache, expected_hash, np) -> tuple[int]:
+            _a = np.ones((16, 16)) * 2
+            with persistent_cache(name="one", _loader=MockLoader()) as _cache:
+                _A = np.sum(_a)
+            one = _A
+
+            assert _cache._cache.cache_type == "ContentAddressed"
+            assert (
+                _cache._cache.hash == expected_hash
+            ), f"expected_hash != {_cache._cache.hash}"
+            return (one,)
+
+        @app.cell
+        def two(MockLoader, persistent_cache, expected_hash, np) -> tuple[int]:
+            _a = np.ones((16, 16)) + np.ones((16, 16))
+
+            with persistent_cache(name="two", _loader=MockLoader()) as _cache:
+                _A = np.sum(_a)
+            two = _A
+
+            assert _cache._cache.cache_type == "ContentAddressed"
+            assert (
+                _cache._cache.hash == expected_hash
+            ), f"expected_hash != {_cache._cache.hash}"
+            return (two,)
+
+        @app.cell
+        def three(one, two) -> None:
+            assert one == two
+            assert one == 512
+
+        app.run()
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not DependencyManager.has("torch"),
+        reason="optional dependencies not installed",
+    )
+    # Pin to a particular python version for differences in underlying library
+    # implementations / memory layout.
+    @pytest.mark.skipif(
+        "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
+    )
+    def test_torch_hash() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def load() -> tuple[Any]:
+            import torch
+
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            expected_hash = "stIOtiKIn4yscvKd-uK6mbmZpWzzfGm8Ccz7mvnRrnI"
+            return MockLoader, persistent_cache, expected_hash, torch
+
+        @app.cell
+        def one(
+            MockLoader, persistent_cache, expected_hash, torch
+        ) -> tuple[int]:
+            _a = torch.ones((16, 16)) * 2
+            with persistent_cache(name="one", _loader=MockLoader()) as _cache:
+                _A = torch.sum(_a)
+            one = _A
+
+            assert _cache._cache.cache_type == "ContentAddressed"
+            assert (
+                _cache._cache.hash == expected_hash
+            ), f"expected_hash != {_cache._cache.hash}"
+            return (one,)
+
+        @app.cell
+        def two(
+            MockLoader, persistent_cache, expected_hash, torch
+        ) -> tuple[int]:
+            _a = torch.ones((16, 16)) + torch.ones((16, 16))
+
+            with persistent_cache(name="two", _loader=MockLoader()) as _cache:
+                _A = torch.sum(_a)
+            two = _A
+
+            assert _cache._cache.cache_type == "ContentAddressed"
+            assert (
+                _cache._cache.hash == expected_hash
+            ), f"expected_hash != {_cache._cache.hash}"
+            return (two,)
+
+        @app.cell
+        def three(one, two) -> None:
+            assert one == two
+            assert one == 512
+
+        app.run()
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not DependencyManager.has("torch"),
+        reason="optional dependencies not installed",
+    )
+    # Pin to a particular python version for differences in underlying library
+    # implementations / memory layout.
+    @pytest.mark.skipif(
+        "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
+    )
+    def test_torch_device_hash() -> None:
+        # Utilizing the "meta" device should give similar cross device behavior
+        # as gpu.
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def load() -> tuple[Any]:
+            import torch
+
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            expected_hash = "rTAh8yNbBbq9qkF1nGNUw4DXhZSxRqGe4ptbDh2AwBI"
+            return MockLoader, persistent_cache, expected_hash, torch
+
+        @app.cell
+        def one(
+            MockLoader, persistent_cache, expected_hash, torch
+        ) -> tuple[int]:
+            _a = torch.ones((16, 16), device="meta") * 2
+            with persistent_cache(name="one", _loader=MockLoader()) as _cache:
+                _A = torch.sum(_a)
+            one = _A
+
+            assert (
+                _cache._cache.cache_type == "ContextExecutionPath"
+            ), _cache._cache.cache_type
+            assert (
+                _cache._cache.hash == expected_hash
+            ), f"expected_hash != {_cache._cache.hash}"
+            return (one,)
+
+        app.run()
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not DependencyManager.has("skbio"),
+        reason="optional dependencies not installed",
+    )
+    # Pin to a particular python version for differences in underlying library
+    # implementations / memory layout.
+    @pytest.mark.skipif(
+        "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
+    )
+    def test_skibio_hash() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def load() -> tuple[Any]:
+            from copy import copy
+
+            from skbio import DNA
+
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            expected_hash = "ggxwHLzWcyDQltN_Zq0_zYVP_w86a9AAQLQwleAMuH8"
+            return MockLoader, persistent_cache, expected_hash, DNA, copy
+
+        @app.cell
+        def one(
+            MockLoader, persistent_cache, expected_hash, copy, DNA
+        ) -> tuple[int]:
+            strand = DNA("GATTACA")
+            # Siblings not bound to be in-valid
+            sibling = copy(strand)
+            with persistent_cache(name="one", _loader=MockLoader()) as _cache:
+                assert strand == sibling
+
+            assert _cache._cache.cache_type == "ContentAddressed"
+            assert (
+                _cache._cache.hash == expected_hash
+            ), f"expected_hash != {_cache._cache.hash}"
+            return (one,)
 
         app.run()

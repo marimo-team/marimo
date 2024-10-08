@@ -19,6 +19,21 @@ CLONE_PRIMITIVES = (weakref.ref,) + PRIMITIVES
 
 FN_CACHE_TYPE = Optional[dict[Union[Callable[..., Any], type], bool]]
 
+UNCLONABLE_TYPES = [
+    "marimo._runtime.state.State",
+    "marimo._runtime.state.SetFunctor",
+]
+
+UNCLONABLE_MODULES = set(
+    [
+        "_asyncio",
+        "_io",
+        "marimo._ast",
+        "marimo._plugins.ui",
+        "numpy.lib.npyio",
+    ]
+)
+
 
 def is_external(value: Any) -> bool:
     return "_marimo__cell_" not in inspect.getfile(value)
@@ -43,17 +58,27 @@ def is_data_primitive(value: Any) -> bool:
     if is_primitive(value):
         return True
 
-    # If a numpy array, ensure that it's not an object array.
-    if hasattr(value, "__array_interface__"):
-        dtype = getattr(value, "dtype", None)
-        return not (
-            dtype is not None
-            and hasattr(dtype, "hasobject")
-            and dtype.hasobject
-        )
+    if not (
+        hasattr(value, "__array__")
+        or hasattr(value, "toarray")
+        or hasattr(value, "__array_interface__")
+    ):
+        return False
 
+    # If a numpy like array, ensure that it's not an object array.
+    if hasattr(value, "dtype"):
+        # Handle cross device tensors particular to torch
+        # Transfer may be expensive, so non-cpu tensors are considered
+        # unhashable.
+        if is_instance_by_name(value, "torch.Tensor"):
+            return str(value.device) == "cpu"
+
+        return not (
+            value.dtype is None
+            or (hasattr(value.dtype, "hasobject") and value.dtype.hasobject)
+        )
     # Otherwise may be a closely related array object like a pandas DataFrame.
-    return hasattr(value, "__array__") or hasattr(value, "toarray")
+    return True
 
 
 def _is_primitive_container(
@@ -87,6 +112,24 @@ def is_data_primitive_container(value: Any) -> bool:
 
 def is_primitive_container(value: Any) -> bool:
     return _is_primitive_container(value, is_primitive)
+
+
+def is_instance_by_name(obj: object, name: str) -> bool:
+    if not (hasattr(obj, "__module__") and hasattr(obj, "__class__")):
+        return False
+    obj_name = f"{obj.__module__}.{obj.__class__.__name__}"
+    return obj_name == name
+
+
+def is_unclonable_type(obj: object) -> bool:
+    return any([is_instance_by_name(obj, name) for name in UNCLONABLE_TYPES])
+
+
+def from_unclonable_module(obj: object) -> bool:
+    obj = obj if hasattr(obj, "__module__") else obj.__class__
+    return hasattr(obj, "__module__") and any(
+        [obj.__module__.startswith(name) for name in UNCLONABLE_MODULES]
+    )
 
 
 def is_pure_scope(
