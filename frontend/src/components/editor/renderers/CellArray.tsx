@@ -44,7 +44,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { SortableCellsProvider } from "@/components/sort/SortableCellsProvider";
-import { Column } from "../coumns/cell-column";
+import { Column } from "../columns/cell-column";
 import type { CellColumnId } from "@/utils/id-tree";
 
 interface CellArrayProps {
