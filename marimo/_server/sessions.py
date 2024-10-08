@@ -940,6 +940,13 @@ class LspServer:
                 str(import_files("marimo").joinpath("_lsp")),
                 "index.js",
             )
+
+            # Check if the LSP binary exists
+            if not os.path.exists(lsp_bin):
+                # Only debug since this may not exist in conda environments
+                LOGGER.debug("LSP binary not found at %s", lsp_bin)
+                return None
+
             cmd = f"node {lsp_bin} --port {self.port}"
             LOGGER.debug("... running command: %s", cmd)
             self.process = subprocess.Popen(

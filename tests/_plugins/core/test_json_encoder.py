@@ -377,3 +377,9 @@ def test_complex_nested_structure():
     assert decoded["dict"] == {"b": [5, 6], "c": {"d": 7}}
     assert set(decoded["set"]) == {8, 9, 10}
     assert decoded["tuple"] == [11, [12, 13], {"e": 14}]
+
+
+def test_png_encoding() -> None:
+    purple_square = "b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x14\x00\x00\x00\x14\x08\x02\x00\x00\x00\x02\xeb\x8aZ\x00\x00\x00\tpHYs\x00\x00.#\x00\x00.#\x01x\xa5?v\x00\x00\x00\x1dIDAT8\xcbc\xac\x11\xa9g \x1701P\x00F5\x8fj\x1e\xd5<\xaa\x99r\xcd\x00m\xba\x017\xd3\x00\xdf\xcb\x00\x00\x00\x00IEND\xaeB`\x82'"  # noqa: E501
+    encoded = json.dumps(purple_square, cls=WebComponentEncoder)
+    assert isinstance(encoded, str)

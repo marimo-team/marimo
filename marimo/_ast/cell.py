@@ -23,6 +23,8 @@ if TYPE_CHECKING:
 
 @dataclasses.dataclass
 class CellConfig:
+    column: Optional[int] = None
+
     # If True, the cell and its descendants cannot be executed,
     # but they can still be added to the graph.
     disabled: bool = False

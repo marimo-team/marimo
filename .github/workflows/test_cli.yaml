@@ -24,6 +24,7 @@ jobs:
             cli:
               - '**'
               - '!docs/**'
+              - '!examples/**'
               - '!README.md'
 
   build_wheel:
@@ -67,6 +68,24 @@ jobs:
       - name: 📦 Build marimo wheel
         run: hatch build -t wheel
 
+      - name: Check for _static/_lsp directory in wheel
+        run: |
+          wheel_file=$(ls dist/*.whl)
+          directories_to_check=(
+            "marimo/_static/"
+            "marimo/_lsp/"
+            "marimo/_tutorials/"
+          )
+
+          for dir in "${directories_to_check[@]}"; do
+            if ! unzip -l "$wheel_file" | grep -q "$dir"; then
+              echo "Error: $dir directory not found in the wheel"
+              exit 1
+            else
+              echo "Found $dir in the wheel"
+            fi
+          done
+
       - name: Upload wheel
         uses: actions/upload-artifact@v3
         with:
@@ -99,7 +118,7 @@ jobs:
       - name: Install Python deps
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-asyncio
+          pip install pytest pytest-asyncio nbformat
 
       - name: Download wheel
         uses: actions/download-artifact@v3
@@ -112,7 +131,12 @@ jobs:
 
       - name: Test CLI
         shell: bash
-        run: pytest -v tests/_cli/test_cli.py tests/_cli/test_cli_export.py
+        run: |
+          pytest -v \
+            tests/_cli/test_cli.py \
+            tests/_cli/test_cli_export.py \
+            tests/_cli/test_cli_config.py \
+            tests/_cli/test_cli_development.py
 
   test_examples:
     needs: [changes, build_wheel]

@@ -114,7 +114,7 @@ export interface CellProps
    */
   allowFocus: boolean;
   userConfig: UserConfig;
-
+  canMoveX: boolean;
   isCollapsed: boolean;
   collapseCount: number;
 }
@@ -161,6 +161,7 @@ const CellComponent = (
     isCollapsed,
     collapseCount,
     config: cellConfig,
+    canMoveX,
     name,
   }: CellProps,
   ref: React.ForwardedRef<CellHandle>,
@@ -243,22 +244,12 @@ const CellComponent = (
 
   const createBelow = useCallback(
     (opts: { code?: string } = {}) =>
-      createNewCell({
-        cellId,
-        before: false,
-        ...opts,
-        includeSelectionAsInitialCode: true,
-      }),
+      createNewCell({ cellId, before: false, ...opts }),
     [cellId, createNewCell],
   );
   const createAbove = useCallback(
     (opts: { code?: string } = {}) =>
-      createNewCell({
-        cellId,
-        before: true,
-        ...opts,
-        includeSelectionAsInitialCode: true,
-      }),
+      createNewCell({ cellId, before: true, ...opts }),
     [cellId, createNewCell],
   );
 
@@ -467,6 +458,7 @@ const CellComponent = (
         onBlur={closeCompletionHandler}
         onKeyDown={resumeCompletionHandler}
         cellId={cellId}
+        canMoveX={canMoveX}
         title={cellTitle()}
       >
         <div className={className} id={HTMLId}>

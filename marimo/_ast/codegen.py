@@ -44,6 +44,8 @@ def _to_decorator(config: Optional[CellConfig]) -> str:
         del config.disabled
     if not config.hide_code:
         del config.hide_code
+    if not isinstance(config.column, int):
+        del config.column
 
     if config == CellConfig():
         return "@app.cell"

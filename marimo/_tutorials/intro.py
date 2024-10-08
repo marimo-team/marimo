@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.7.19"
+__generated_with = "0.9.2"
 app = marimo.App()
 
 
@@ -11,13 +11,13 @@ def __():
     import marimo as mo
 
     mo.md("# Welcome to marimo! 🌊🍃")
-    return mo,
+    return (mo,)
 
 
 @app.cell
 def __(mo):
     slider = mo.ui.slider(1, 22)
-    return slider,
+    return (slider,)
 
 
 @app.cell
@@ -120,7 +120,7 @@ def __(changed, mo):
 @app.cell
 def __():
     changed = False
-    return changed,
+    return (changed,)
 
 
 @app.cell(hide_code=True)
@@ -210,13 +210,13 @@ def __(mo):
 @app.cell
 def __(mo):
     icon = mo.ui.dropdown(["🍃", "🌊", "✨"], value="🍃")
-    return icon,
+    return (icon,)
 
 
 @app.cell
 def __(icon, mo):
     repetitions = mo.ui.slider(1, 16, label=f"number of {icon.value}: ")
-    return repetitions,
+    return (repetitions,)
 
 
 @app.cell
@@ -384,10 +384,10 @@ def __():
         ),
         "Running": (
             """
-            1. _Run a cell_ by clicking the play ( ▷ ) button on the bottom
+            1. _Run a cell_ by clicking the play ( ▷ ) button on the top
             right of a cell, or by inputting `Ctrl/Cmd+Enter`.
 
-            2. _Run a stale cell_  by clicking the yellow run button to the
+            2. _Run a stale cell_  by clicking the yellow run button on the
             right of the cell, or by inputting `Ctrl/Cmd+Enter`. A cell is
             stale when its code has been modified but not run.
 
@@ -425,10 +425,9 @@ def __():
         ),
         "Disabling Cells": (
             """
-            You can disable a cell via the cell context menu (open it
-            by clicking the icon to the right of a cell). marimo will
-            never run a disabled cell or any cells that depend on it. This
-            can help prevent accidental execution of expensive computations
+            You can disable a cell via the cell context menu.
+            marimo will never run a disabled cell or any cells that depend on it.
+            This can help prevent accidental execution of expensive computations
             when editing a notebook.
             """
         ),
@@ -466,7 +465,7 @@ def __():
            """
         ),
     }
-    return tips,
+    return (tips,)
 
 
 if __name__ == "__main__":

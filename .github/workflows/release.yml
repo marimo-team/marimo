@@ -48,34 +48,22 @@ jobs:
       - name: 📦 Build frontend
         run: make fe
 
-      - name: 🐍 Setup Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-
-      # This does not work when running `marimo --version`
-      # - name: 🐍 Setup uv
-      #   uses: yezz123/setup-uv@v4
-      #   with:
-      #     uv-venv: marimo-venv
+      - name: 🥚 Install Hatch
+        uses: pypa/hatch@install
 
       - name: 📦 Build marimo
-        run: |
-          pip install build twine
-          pip install .
-          python -m build
+        run: hatch build
 
       - name: 📤 Upload to PyPI
         env:
-          TWINE_USERNAME: ${{ secrets.PYPI_USER }}
-          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-        run: twine upload --skip-existing dist/*
+          HATCH_INDEX_USER: ${{ secrets.PYPI_USER }}
+          HATCH_INDEX_AUTH: ${{ secrets.PYPI_PASSWORD }}
+        run: hatch publish
 
       - name: 🔨 Get version
         id: get_version
         run: |
-          echo "marimo_version=$(python -m marimo --version)" >> $GITHUB_OUTPUT
+          echo "marimo_version=$(hatch version)" >> $GITHUB_OUTPUT
 
       - name: 📦 Update package.json version from CLI
         working-directory: frontend

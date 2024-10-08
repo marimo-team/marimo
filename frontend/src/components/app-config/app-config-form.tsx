@@ -13,9 +13,9 @@ import {
 import {
   type AppConfig,
   AppConfigSchema,
-  APP_WIDTHS,
   AppTitleSchema,
 } from "../../core/config/config-schema";
+import { getAppWidths } from "@/core/config/widths";
 import { Input } from "../ui/input";
 import { NativeSelect } from "../ui/native-select";
 import { useAppConfig } from "@/core/config/config";
@@ -78,7 +78,7 @@ export const AppConfigForm: React.FC = () => {
                   disabled={field.disabled}
                   className="inline-flex mr-2"
                 >
-                  {APP_WIDTHS.map((option) => (
+                  {getAppWidths().map((option) => (
                     <option value={option} key={option}>
                       {option}
                     </option>

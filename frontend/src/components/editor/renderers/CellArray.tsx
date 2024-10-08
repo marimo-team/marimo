@@ -5,11 +5,7 @@ import {
   type ConnectionStatus,
   WebSocketState,
 } from "../../../core/websocket/types";
-import {
-  type NotebookState,
-  flattenTopLevelNotebookCells,
-  useCellActions,
-} from "../../../core/cells/cells";
+import { type NotebookState, useCellActions } from "../../../core/cells/cells";
 import type { AppConfig, UserConfig } from "../../../core/config/config-schema";
 import type { AppMode } from "../../../core/mode";
 import { useHotkey } from "../../../hooks/useHotkey";
@@ -42,6 +38,14 @@ import { capabilitiesAtom } from "@/core/config/capabilities";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Kbd } from "@/components/ui/kbd";
 import { FloatingOutline } from "../chrome/panels/outline/floating-outline";
+import {
+  horizontalListSortingStrategy,
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { SortableCellsProvider } from "@/components/sort/SortableCellsProvider";
+import { Column } from "../columns/cell-column";
+import type { CellColumnId } from "@/utils/id-tree";
 
 interface CellArrayProps {
   notebook: NotebookState;
@@ -62,7 +66,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
   const { theme } = useTheme();
   const { toggleSidebarPanel } = useChromeActions();
 
-  const { invisible } = useDelayVisibility(notebook.cellIds.length, mode);
+  const { invisible } = useDelayVisibility(notebook.cellIds.idLength, mode);
 
   // HOTKEYS
   useHotkey("global.focusTop", actions.focusTopCell);
@@ -88,7 +92,8 @@ export const CellArray: React.FC<CellArrayProps> = ({
     }
   }, [notebook.cellIds, notebook.scrollKey, scrollToTarget]);
 
-  const cells = flattenTopLevelNotebookCells(notebook);
+  const columns = notebook.cellIds.getColumns();
+  const hasOnlyOneCell = notebook.cellIds.hasOnlyOneId();
 
   return (
     <VerticalLayoutWrapper
@@ -99,52 +104,92 @@ export const CellArray: React.FC<CellArrayProps> = ({
       innerClassName="pr-4" // For the floating actions
     >
       <PackageAlert />
-      <NotebookBanner />
-      <div className="flex flex-col gap-5">
-        {cells.map((cell) => (
-          <Cell
-            key={cell.id.toString()}
-            theme={theme}
-            showPlaceholder={cells.length === 1}
-            allowFocus={!invisible && !notebook.scrollKey}
-            id={cell.id}
-            code={cell.code}
-            outline={cell.outline}
-            output={cell.output}
-            consoleOutputs={cell.consoleOutputs}
-            status={cell.status}
-            edited={cell.edited}
-            interrupted={cell.interrupted}
-            errored={cell.errored}
-            stopped={cell.stopped}
-            staleInputs={cell.staleInputs}
-            runStartTimestamp={cell.runStartTimestamp}
-            runElapsedTimeMs={
-              cell.runElapsedTimeMs ?? (cell.lastExecutionTime as Milliseconds)
-            }
-            serializedEditorState={cell.serializedEditorState}
-            showDeleteButton={cells.length > 1 && !cell.config.hide_code}
-            mode={mode}
-            appClosed={connStatus.state !== WebSocketState.OPEN}
-            ref={notebook.cellHandles[cell.id]}
-            userConfig={userConfig}
-            debuggerActive={cell.debuggerActive}
-            config={cell.config}
-            name={cell.name}
-            isCollapsed={notebook.cellIds.isCollapsed(cell.id)}
-            collapseCount={notebook.cellIds.getCount(cell.id)}
-            {...actions}
-            deleteCell={onDeleteCell}
-          />
-        ))}
-      </div>
-      <AddCellButtons />
+      <NotebookBanner width={appConfig.width} />
+      <SortableCellsProvider multiColumn={appConfig.width === "columns"}>
+        <SortableContext
+          id="column-container"
+          items={columns.map((column) => column.id)}
+          strategy={horizontalListSortingStrategy}
+        >
+          <div
+            className={cn(
+              appConfig.width === "columns" &&
+                "grid grid-flow-col auto-cols-min gap-6",
+            )}
+          >
+            {columns.map((column, index) => {
+              return (
+                <Column
+                  key={column.id}
+                  columnId={column.id}
+                  canMoveLeft={index > 0}
+                  canMoveRight={index < columns.length - 1}
+                  width={appConfig.width}
+                  canDelete={columns.length > 1}
+                  footer={<AddCellButtons columnId={column.id} />}
+                >
+                  <SortableContext
+                    id={`column-${index + 1}`}
+                    items={column.topLevelIds}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {column.topLevelIds.map((cellId) => {
+                      const cellData = notebook.cellData[cellId];
+                      const cellRuntime = notebook.cellRuntime[cellId];
+                      return (
+                        <Cell
+                          key={cellData.id.toString()}
+                          theme={theme}
+                          showPlaceholder={hasOnlyOneCell}
+                          allowFocus={!invisible && !notebook.scrollKey}
+                          id={cellData.id}
+                          code={cellData.code}
+                          outline={cellRuntime.outline}
+                          output={cellRuntime.output}
+                          consoleOutputs={cellRuntime.consoleOutputs}
+                          status={cellRuntime.status}
+                          edited={cellData.edited}
+                          interrupted={cellRuntime.interrupted}
+                          errored={cellRuntime.errored}
+                          stopped={cellRuntime.stopped}
+                          staleInputs={cellRuntime.staleInputs}
+                          runStartTimestamp={cellRuntime.runStartTimestamp}
+                          runElapsedTimeMs={
+                            cellRuntime.runElapsedTimeMs ??
+                            (cellData.lastExecutionTime as Milliseconds)
+                          }
+                          serializedEditorState={cellData.serializedEditorState}
+                          showDeleteButton={
+                            !hasOnlyOneCell && !cellData.config.hide_code
+                          }
+                          mode={mode}
+                          appClosed={connStatus.state !== WebSocketState.OPEN}
+                          ref={notebook.cellHandles[cellId]}
+                          userConfig={userConfig}
+                          debuggerActive={cellRuntime.debuggerActive}
+                          config={cellData.config}
+                          name={cellData.name}
+                          isCollapsed={column.isCollapsed(cellId)}
+                          collapseCount={column.getCount(cellId)}
+                          canMoveX={appConfig.width === "columns"}
+                          {...actions}
+                          deleteCell={onDeleteCell}
+                        />
+                      );
+                    })}
+                  </SortableContext>
+                </Column>
+              );
+            })}
+          </div>
+        </SortableContext>
+      </SortableCellsProvider>
       <FloatingOutline />
     </VerticalLayoutWrapper>
   );
 };
 
-const AddCellButtons: React.FC = () => {
+const AddCellButtons: React.FC<{ columnId: CellColumnId }> = ({ columnId }) => {
   const { createNewCell } = useCellActions();
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const [isAiButtonOpen, isAiButtonOpenActions] = useBoolean(false);
@@ -167,7 +212,12 @@ const AddCellButtons: React.FC = () => {
           className={buttonClass}
           variant="text"
           size="sm"
-          onClick={() => createNewCell({ cellId: "__end__", before: false })}
+          onClick={() =>
+            createNewCell({
+              cellId: { type: "__end__", columnId },
+              before: false,
+            })
+          }
         >
           <SquareCodeIcon className="mr-2 size-4 flex-shrink-0" />
           Python
@@ -180,7 +230,7 @@ const AddCellButtons: React.FC = () => {
             maybeAddMarimoImport(autoInstantiate, createNewCell);
 
             createNewCell({
-              cellId: "__end__",
+              cellId: { type: "__end__", columnId },
               before: false,
               code: new MarkdownLanguageAdapter().defaultCode,
             });
@@ -215,7 +265,7 @@ const AddCellButtons: React.FC = () => {
               maybeAddMarimoImport(autoInstantiate, createNewCell);
 
               createNewCell({
-                cellId: "__end__",
+                cellId: { type: "__end__", columnId },
                 before: false,
                 code: new SQLLanguageAdapter().defaultCode,
               });
@@ -251,6 +301,7 @@ const AddCellButtons: React.FC = () => {
     <div className="flex justify-center mt-4 pt-6 pb-32 group gap-4 w-full print:hidden">
       <div
         className={cn(
+          "opacity-0 group-hover/column:opacity-100",
           "shadow-sm border border-border rounded transition-all duration-200 overflow-hidden divide-x divide-border flex",
           !isAiButtonOpen && "w-fit",
           isAiButtonOpen &&

@@ -199,7 +199,7 @@
     justify-content: flex-end;
     height: 100%;
     position: absolute;
-    right: -94px;
+    right: -90px;
     width: 80px;
     gap: 4px;
   }
@@ -286,7 +286,7 @@
 :root {
   /* Set a fixed gutter width to ensure the hover area is always wide enough */
   /* And make the gutter bigger when the window is super wide */
-  --gutter-width: max(calc(50vw - (var(--content-width) / 2)), 50px);
+  --gutter-width: 100px;
 }
 
 /* ------------------------ CodeMirror Editor ----------------------------- */
@@ -302,7 +302,7 @@
 .Cell .cm-editor {
   border: 1px solid transparent;
   padding: 3px;
-  padding-right:24px;
+  padding-right: 24px;
 
   &.cm-focused {
     .cm-activeLineGutter {

@@ -11,6 +11,14 @@ including [duckdb](https://duckdb.org/):
 pip install marimo[sql]
 ```
 
+```{admonition} Examples
+:class: tip
+
+For example notebooks, check out
+[`examples/sql/` on GitHub](https://github.com/marimo-team/marimo/tree/main/examples/sql/).
+```
+
+
 ## Example
 
 In this example notebook, we have a Pandas dataframe and a SQL cell

@@ -25,7 +25,7 @@ class switch(UIElement[bool, bool]):
     **Initialization Args.**
 
     - `value`: default value, True or False
-    - `label`: text label for the element
+    - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
 

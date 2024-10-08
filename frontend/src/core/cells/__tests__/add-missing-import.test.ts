@@ -7,9 +7,9 @@ import type { Variables } from "@/core/variables/types";
 import { type NotebookState, notebookAtom } from "../cells";
 import type { CellId } from "../ids";
 import type { CellData } from "../types";
-import { CollapsibleTree } from "@/utils/id-tree";
+import { CollapsibleTree, MultiColumn } from "@/utils/id-tree";
 
-const CELL_IDS = CollapsibleTree.from(["1" as CellId]);
+const CELL_IDS = new MultiColumn([CollapsibleTree.from(["1" as CellId])]);
 
 describe("maybeAddMissingImport", () => {
   it("should not add an import if the variable is already in the variables state", () => {

@@ -669,7 +669,6 @@ def test_cli_run_sandbox_prompt() -> None:
     p.kill()
 
 
-@pytest.mark.skip(reason="Need to release -y to PyPI")
 def test_cli_edit_sandbox_prompt_yes() -> None:
     port = _get_port()
     path = os.path.join(DIR_PATH, "cli_data", "sandbox.py")
@@ -691,7 +690,6 @@ def test_cli_edit_sandbox_prompt_yes() -> None:
     p.kill()
 
 
-@pytest.mark.skip(reason="Need to release -y to PyPI")
 def test_cli_run_sandbox_prompt_yes() -> None:
     port = _get_port()
     path = os.path.join(DIR_PATH, "cli_data", "sandbox.py")

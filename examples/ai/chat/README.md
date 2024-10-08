@@ -7,6 +7,7 @@ These examples show how to make chatbots with marimo, using [`mo.ui.chat`](https
 - `anthropic_example.py` shows how to make a chatbot powered by Anthropic models
 - `gemini.py` shows how to make a chatbot powered by Google models like Gemini
 - `mlx_chat.py` shows a simple chatbot using local on-device models with Apple's [MLX](https://github.com/ml-explore/mlx), a machine learning framework from Apple that is similar to JAX and PyTorch. This specific example uses the [mlx-lm](https://github.com/ml-explore/mlx-examples/tree/main/llms) library. Note that Apple Silicon chips are required for using MLX. 
+- `llm_datasette.py` shows how to make a chatbot powered by Simon W's LLM library
 
 Chatbot's in marimo are _reactive_: when the chatbot responds with a message,
 all other cells referencing the chatbot are automatically run or marked

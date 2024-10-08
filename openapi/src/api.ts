@@ -2034,6 +2034,7 @@ export interface components {
       | "marimo-error"
       | "media";
     CellConfig: {
+      column?: number | null;
       disabled: boolean;
       hide_code: boolean;
     };
@@ -2385,17 +2386,17 @@ export interface components {
       type: "ancestor-stopped";
     };
     MarimoConfig: {
-      ai: {
-        anthropic: {
-          api_key: string;
+      ai?: {
+        anthropic?: {
+          api_key?: string;
         };
-        google: {
-          api_key: string;
+        google?: {
+          api_key?: string;
         };
-        open_ai: {
-          api_key: string;
-          base_url: string;
-          model: string;
+        open_ai?: {
+          api_key?: string;
+          base_url?: string;
+          model?: string;
         };
       };
       completion: {
@@ -2414,14 +2415,14 @@ export interface components {
         /** @enum {string} */
         theme: "light" | "dark" | "system";
       };
-      experimental: {
+      experimental?: {
         [key: string]: unknown;
       };
       formatting: {
         line_length: number;
       };
       keymap: {
-        overrides: {
+        overrides?: {
           [key: string]: string;
         };
         /** @enum {string} */

@@ -6,8 +6,14 @@ import { AlertCircleIcon, RotateCcwIcon, XIcon } from "lucide-react";
 import type React from "react";
 import { Button } from "../ui/button";
 import { useRestartKernel } from "./actions/useRestartKernel";
+import type { AppConfig } from "@/core/config/config-schema";
+import { cn } from "@/utils/cn";
 
-export const NotebookBanner: React.FC = (props) => {
+interface Props {
+  width: AppConfig["width"];
+}
+
+export const NotebookBanner: React.FC<Props> = ({ width }) => {
   const { banners } = useBanners();
   const { removeBanner } = useBannersActions();
 
@@ -16,7 +22,12 @@ export const NotebookBanner: React.FC = (props) => {
   }
 
   return (
-    <div className="flex flex-col gap-4 mb-5 print:hidden">
+    <div
+      className={cn(
+        "flex flex-col gap-4 mb-5 print:hidden",
+        width === "columns" && "sticky left-12 w-full max-w-[80vw]",
+      )}
+    >
       {banners.map((banner) => (
         <Banner
           kind={banner.variant || "info"}

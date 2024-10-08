@@ -5,6 +5,12 @@
   .hover-action {
     display: none !important;
   }
+
+  [data-is-dragging='true'] {
+    .hover-actions-parent.hover-actions-parent .hover-action:not(:hover) {
+      display: none !important;
+    }
+  }
 }
 
 .hover-action:hover,

@@ -1,11 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { saveAppConfig, saveUserConfig } from "@/core/network/requests";
 import type { ActionButton } from "./types";
-import {
-  APP_WIDTHS,
-  type AppConfig,
-  type UserConfig,
-} from "@/core/config/config-schema";
+import type { AppConfig, UserConfig } from "@/core/config/config-schema";
+import { getAppWidths } from "@/core/config/widths";
 import { useAppConfig, useUserConfig } from "@/core/config/config";
 import { useTheme } from "@/theme/useTheme";
 
@@ -27,15 +24,17 @@ export function useConfigActions() {
   };
 
   const actions: ActionButton[] = [
-    ...APP_WIDTHS.filter((width) => width !== appConfig.width).map((width) => ({
-      label: `App config > Set width=${width}`,
-      handle: () => {
-        handleAppConfig({
-          ...appConfig,
-          width: width,
-        });
-      },
-    })),
+    ...getAppWidths()
+      .filter((width) => width !== appConfig.width)
+      .map((width) => ({
+        label: `App config > Set width=${width}`,
+        handle: () => {
+          handleAppConfig({
+            ...appConfig,
+            width: width,
+          });
+        },
+      })),
     {
       label: "Config > Toggle dark mode",
       handle: () => {

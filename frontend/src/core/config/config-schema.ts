@@ -14,11 +14,16 @@ export const PackageManagerNames = [
 ] as const;
 export type PackageManagerName = (typeof PackageManagerNames)[number];
 
-export const APP_WIDTHS = ["compact", "medium", "full"] as const;
 /**
  * normal == compact, but normal is deprecated
  */
-const VALID_APP_WIDTHS = ["normal", ...APP_WIDTHS] as const;
+const VALID_APP_WIDTHS = [
+  "normal",
+  "compact",
+  "medium",
+  "full",
+  "columns",
+] as const;
 export const UserConfigSchema = z
   .object({
     completion: z
@@ -116,6 +121,7 @@ export const UserConfigSchema = z
     experimental: z
       .object({
         markdown: z.boolean().optional(),
+        multi_column: z.boolean().optional(),
         // Add new experimental features here
       })
       // Pass through so that we don't remove any extra keys that the user has added.
