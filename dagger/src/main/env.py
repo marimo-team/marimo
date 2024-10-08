@@ -9,6 +9,7 @@ class Env:
         return (
             # python base
             dag.container().from_("python:3-bookworm")
+            .with_mounted_cache("/root/.local/share/pnpm", dag.cache_volume("pnpm"))
             # package deps
             .with_exec(["apt", "update"])
             .with_exec(["apt", "install", "-y", "curl", "make"])
@@ -27,5 +28,6 @@ class Env:
             dag.container().from_("node:20-slim")
             .with_env_variable("CI", "true")
             .with_env_variable("NODE_OPTIONS", "--max-old-space-size=8192")
+            .with_mounted_cache("/root/.local/share/pnpm", dag.cache_volume("pnpm"))
             .with_exec(["corepack", "enable"]) # this enables pnpm
         )

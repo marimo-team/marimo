@@ -10,18 +10,21 @@ class Frontend:
     src: Annotated[dagger.Directory, Doc("The marimo source tree to use"), DefaultPath("/"), Ignore(["/dagger", ".venv"])] = field()
 
     @function
-    def test(self) -> dagger.Container:
+    def test(self, turbo_token: dagger.Secret = dag.set_secret("DEFAULT", "")) -> dagger.Container:
         """
         Replace .github/workflows/test_fe.yaml
         """
         return (
             Env().pnpm()
+            .with_env_variable("MARIMO_SKIP_UPDATE_CHECK", "true")
+            .with_secret_variable("TURBO_TOKEN" , turbo_token)
+            .with_env_variable("TURBO_TEAM", "marimo")
             .with_workdir("/src/frontend")
             .with_directory("/src", self.src)
             .with_exec(["pnpm", "install"])
             .with_exec(["pnpm", "dedupe", "--check"])
             .with_exec(["pnpm", "turbo", "lint"])
-            # .with_exec(["pnpm", "turbo", "typecheck"])
+            .with_exec(["pnpm", "turbo", "typecheck"])
             .with_exec(["pnpm", "test"])
             .with_env_variable("NODE_ENV", "production")
             .with_exec(["pnpm", "turbo", "build"])
