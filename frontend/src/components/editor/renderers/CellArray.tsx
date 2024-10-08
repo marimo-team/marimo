@@ -114,7 +114,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
           <div
             className={cn(
               appConfig.width === "columns" &&
-                "grid grid-flow-col auto-cols-min gap-10",
+                "grid grid-flow-col auto-cols-min gap-6",
             )}
           >
             {columns.map((column, index) => {
@@ -140,7 +140,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
                         <Cell
                           key={cellData.id.toString()}
                           theme={theme}
-                          showPlaceholder={column.length === 1}
+                          showPlaceholder={hasOnlyOneCell}
                           allowFocus={!invisible && !notebook.scrollKey}
                           id={cellData.id}
                           code={cellData.code}

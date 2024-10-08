@@ -491,11 +491,11 @@ export class MultiColumn<T> {
     return this.columns.indexOf(column);
   }
 
-  addColumn(columnId: CellColumnId): MultiColumn<T> {
+  addColumn(columnId: CellColumnId, initialIds: T[] = []): MultiColumn<T> {
     return new MultiColumn(
       this.columns.flatMap((c) => {
         if (c.id === columnId) {
-          return [c, CollapsibleTree.from([])];
+          return [c, CollapsibleTree.from(initialIds)];
         }
         return [c];
       }),

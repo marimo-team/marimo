@@ -24,7 +24,7 @@ export const Column = memo((props: Props) => {
       className={cn(
         "flex flex-col gap-5",
         props.width === "columns" &&
-          "w-contentWidth min-h-[400px] border border-t-0 border-[var(--slate-3)] rounded-b-lg px-9 py-6 bg-[var(--slate-1)]",
+          "w-contentWidthMedium min-h-[100px] border border-t-0 border-[var(--slate-3)] rounded-b-lg px-11 py-6 bg-[var(--slate-2)]",
       )}
     >
       {props.children}

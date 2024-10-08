@@ -13,7 +13,7 @@ import {
 import {
   type AppConfig,
   AppConfigSchema,
-  APP_WIDTHS,
+  getAppWidths,
   AppTitleSchema,
 } from "../../core/config/config-schema";
 import { Input } from "../ui/input";
@@ -78,7 +78,7 @@ export const AppConfigForm: React.FC = () => {
                   disabled={field.disabled}
                   className="inline-flex mr-2"
                 >
-                  {APP_WIDTHS.map((option) => (
+                  {getAppWidths().map((option) => (
                     <option value={option} key={option}>
                       {option}
                     </option>

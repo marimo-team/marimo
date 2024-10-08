@@ -8,6 +8,7 @@ import type { CellColumnId } from "@/utils/id-tree";
 import { useCellActions } from "@/core/cells/cells";
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/ui/button";
+import { Tooltip } from "@/components/ui/tooltip";
 
 interface Props extends React.HTMLAttributes<HTMLDivElement> {
   columnId: CellColumnId;
@@ -64,27 +65,33 @@ const SortableColumnInternal = React.forwardRef(
     };
 
     const dragHandle = (
-      <div className="h-6 group flex items-center rounded-t-lg border hover:border-border border-[var(--slate-3)] overflow-hidden">
-        <Button
-          variant="text"
-          size="sm"
-          className={buttonClasses}
-          onClick={() => moveColumn({ column: columnId, overColumn: "_left_" })}
-          disabled={!canMoveLeft}
-        >
-          <ChevronLeftIcon className="size-4" />
-        </Button>
-        <Button
-          variant="text"
-          size="sm"
-          className={buttonClasses}
-          onClick={() =>
-            moveColumn({ column: columnId, overColumn: "_right_" })
-          }
-          disabled={!canMoveRight}
-        >
-          <ChevronRightIcon className="size-4" />
-        </Button>
+      <div className="h-6 group flex items-center rounded-t-lg border hover:border-border border-[var(--slate-3)] overflow-hidden bg-[var(--slate-1)]">
+        <Tooltip content="Move column left" side="top" delayDuration={300}>
+          <Button
+            variant="text"
+            size="sm"
+            className={buttonClasses}
+            onClick={() =>
+              moveColumn({ column: columnId, overColumn: "_left_" })
+            }
+            disabled={!canMoveLeft}
+          >
+            <ChevronLeftIcon className="size-4" />
+          </Button>
+        </Tooltip>
+        <Tooltip content="Move column right" side="top" delayDuration={300}>
+          <Button
+            variant="text"
+            size="sm"
+            className={buttonClasses}
+            onClick={() =>
+              moveColumn({ column: columnId, overColumn: "_right_" })
+            }
+            disabled={!canMoveRight}
+          >
+            <ChevronRightIcon className="size-4" />
+          </Button>
+        </Tooltip>
         <div
           className="flex gap-2 h-full flex-grow active:bg-accent cursor-grab"
           {...attributes}
@@ -92,26 +99,30 @@ const SortableColumnInternal = React.forwardRef(
           data-testid="column-drag-button"
         />
         {canDelete && (
+          <Tooltip content="Delete column" side="top" delayDuration={300}>
+            <Button
+              variant="text"
+              size="sm"
+              className="opacity-0 group-hover:opacity-70 group-hover:hover:opacity-100 text-destructive h-full hover:bg-destructive/20 rounded-none"
+              onClick={() => deleteColumn({ columnId })}
+            >
+              <X className="size-4" />
+            </Button>
+          </Tooltip>
+        )}
+        <Tooltip content="Add column" side="top" delayDuration={300}>
           <Button
             variant="text"
             size="sm"
-            className="opacity-0 group-hover:opacity-70 group-hover:hover:opacity-100 text-destructive h-full hover:bg-destructive/20 rounded-none"
-            onClick={() => deleteColumn({ columnId })}
+            className={buttonClasses}
+            onClick={() => {
+              addColumn({ columnId });
+              requestAnimationFrame(handleScrollAppRight);
+            }}
           >
-            <X className="size-4" />
+            <PlusIcon className="size-4" />
           </Button>
-        )}
-        <Button
-          variant="text"
-          size="sm"
-          className={buttonClasses}
-          onClick={() => {
-            addColumn({ columnId });
-            requestAnimationFrame(handleScrollAppRight);
-          }}
-        >
-          <PlusIcon className="size-4" />
-        </Button>
+        </Tooltip>
       </div>
     );
 

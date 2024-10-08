@@ -241,11 +241,6 @@ const {
     const newCellId = action.newCellId || CellId.create();
     const insertionIndex = before ? cellIndex : cellIndex + 1;
 
-    let config = undefined;
-    if (state.cellIds.inOrderIds.length === 0) {
-      config = { hide_code: false, disabled: false, column: 0 };
-    }
-
     return {
       ...state,
       cellIds: state.cellIds.insertId(newCellId, columnId, insertionIndex),
@@ -482,9 +477,26 @@ const {
     };
   },
   addColumn: (state, action: { columnId: CellColumnId }) => {
+    // Add column and new cell
+    const newCellId = CellId.create();
     return {
       ...state,
-      cellIds: state.cellIds.addColumn(action.columnId),
+      cellIds: state.cellIds.addColumn(action.columnId, [newCellId]),
+      cellData: {
+        ...state.cellData,
+        [newCellId]: createCell({
+          id: newCellId,
+        }),
+      },
+      cellRuntime: {
+        ...state.cellRuntime,
+        [newCellId]: createCellRuntimeState(),
+      },
+      cellHandles: {
+        ...state.cellHandles,
+        [newCellId]: createRef(),
+      },
+      scrollKey: newCellId,
     };
   },
   addColumnBreakpoint: (state, action: { cellId: CellId }) => {
