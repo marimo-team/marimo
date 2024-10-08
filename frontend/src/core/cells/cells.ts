@@ -1099,6 +1099,21 @@ function updateCellData(
 
 export function getCellConfigs(state: NotebookState): CellConfig[] {
   const cells = state.cellData;
+
+  // Handle the case where there's only one column
+  // We don't want to set the column config
+  const hasMultipleColumns = state.cellIds.getColumns().length > 1;
+  if (!hasMultipleColumns) {
+    return state.cellIds.getColumns().flatMap((column) => {
+      return column.inOrderIds.map((cellId) => {
+        return {
+          ...cells[cellId].config,
+          column: undefined,
+        };
+      });
+    });
+  }
+
   return state.cellIds.getColumns().flatMap((column, columnIndex) => {
     return column.inOrderIds.map((cellId, cellIndex) => {
       const config: Partial<CellConfig> = { column: undefined };

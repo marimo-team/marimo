@@ -76,6 +76,27 @@ describe("getCellConfigs", () => {
     });
   });
 
+  it("should handle single column", () => {
+    const cellId1 = CellId.create();
+    const mockState: NotebookState = {
+      cellIds: MultiColumn.from([[cellId1]]),
+      cellData: {
+        [cellId1]: {
+          id: cellId1,
+          config: { hide_code: false, disabled: false },
+        } as CellData,
+      },
+      cellRuntime: {},
+      cellHandles: {},
+      history: [],
+      scrollKey: null,
+      cellLogs: [],
+    };
+
+    const result = getCellConfigs(mockState);
+    expect(result).toEqual([{ hide_code: false, disabled: false }]);
+  });
+
   it("should handle empty notebook state", () => {
     const mockState: NotebookState = {
       cellIds: MultiColumn.from([]),
