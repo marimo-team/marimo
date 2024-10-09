@@ -132,11 +132,7 @@ jobs:
       - name: Test CLI
         shell: bash
         run: |
-          pytest -v \
-            tests/_cli/test_cli.py \
-            tests/_cli/test_cli_export.py \
-            tests/_cli/test_cli_config.py \
-            tests/_cli/test_cli_development.py
+          pytest -v tests/_cli/test_cli*
 
   test_examples:
     needs: [changes, build_wheel]
