@@ -35,7 +35,6 @@ import {
   notebookQueueOrRunningCount,
 } from "./utils";
 import {
-  extractHighlightedCode,
   splitEditor,
   updateEditorCodeFromPython,
 } from "../codemirror/language/utils";
