@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import re
 import subprocess
 from typing import TYPE_CHECKING
 
@@ -43,6 +44,7 @@ class TestConvert:
         )
         assert p.returncode == 0, p.stderr
         output = p.stdout
+        output = re.sub(r"__generated_with = .*", "", output)
         snapshot("ipynb_to_marimo.txt", output)
 
     @staticmethod
@@ -62,6 +64,7 @@ print('Hello from Markdown!')
         )
         assert p.returncode == 0, p.stderr
         output = p.stdout
+        output = re.sub(r"__generated_with = .*", "", output)
         snapshot("markdown_to_marimo.txt", output)
 
     @staticmethod
@@ -96,6 +99,7 @@ print('Hello from Markdown!')
         assert p.returncode == 0, p.stderr
         assert output_path.exists()
         output_content = output_path.read_text()
+        output_content = re.sub(r"__generated_with = .*", "", output_content)
         snapshot("ipynb_to_marimo_with_output.txt", output_content)
 
     @staticmethod
