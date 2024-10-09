@@ -1,10 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 export function prettyNumber(
-  value: number | string | undefined | null | boolean,
+  value: number | string | undefined | null | boolean | unknown[],
 ): string {
   if (value === undefined || value === null) {
     return "";
+  }
+
+  if (Array.isArray(value)) {
+    return String(value);
   }
 
   if (typeof value === "string") {

@@ -4,6 +4,7 @@ from __future__ import annotations
 import ast
 import base64
 import hashlib
+import inspect
 import struct
 import sys
 import types
@@ -107,21 +108,24 @@ def hash_cell_impl(cell: CellImpl, hash_type: str = DEFAULT_HASH) -> bytes:
 
 
 def standardize_tensor(tensor: Tensor) -> Optional[Tensor]:
-    # TODO: Consider moving to a more general utility module.
-    if hasattr(tensor, "__array__") or hasattr(tensor, "toarray"):
-        if not hasattr(tensor, "__array_interface__"):
-            DependencyManager.numpy.require(
-                "to access data buffer for hashing."
-            )
-            import numpy
+    if (
+        hasattr(tensor, "__array__")
+        or hasattr(tensor, "toarray")
+        or hasattr(tensor, "__array_interface__")
+    ):
+        DependencyManager.numpy.require("to access data buffer for hashing.")
+        import numpy
 
+        if not hasattr(tensor, "__array_interface__"):
             # Capture those sparse cases
             if hasattr(tensor, "toarray"):
                 tensor = tensor.toarray()
-            tensor = numpy.array(tensor)
-        return tensor
+        # As array should not perform copy
+        return numpy.asarray(tensor)
     raise ValueError(
-        f"Expected an image object, but got {type(tensor)} instead."
+        f"Expected a data primitive object, but got {type(tensor)} instead."
+        "This maybe is an internal marimo issue. Please report to "
+        "https://github.com/marimo-team/marimo/issues."
     )
 
 
@@ -679,6 +683,14 @@ class BlockHasher:
             # An external module variable is assumed to be pure, with module
             # pinning being the mechanism for invalidation.
             elif getattr(value, "__module__", "__main__") == "__main__":
+                continue
+            # External module that is not a class or function, may be some
+            # container we don't know how to hash.
+            # Note, function cases care caught by is_pure_function
+            # And we assume all marimo cases are caught
+            elif not inspect.isclass(
+                value
+            ) and not value.__module__.startswith("marimo"):
                 continue
 
             if serial_value is not None:

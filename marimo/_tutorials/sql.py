@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.7.13"
+__generated_with = "0.9.2"
 app = marimo.App()
 
 
@@ -122,11 +122,11 @@ def __(mo):
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md("## Querying dataframes with SQL")
+    mo.md("""## Querying dataframes with SQL""")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(r"""Let's take a look at a SQL cell. The next cell generates a dataframe called `df`.""")
     return
@@ -213,7 +213,7 @@ def __(mo, string):
         list(string.ascii_lowercase), label="token prefix", value="a"
     )
     token_prefix
-    return token_prefix,
+    return (token_prefix,)
 
 
 @app.cell
@@ -228,7 +228,7 @@ def __(df, mo, token_prefix):
         -- Notice that we named the output variable `result`
         """
     )
-    return result,
+    return (result,)
 
 
 @app.cell(hide_code=True)
@@ -253,7 +253,7 @@ def __(mo):
         {charting_library}
         """
     )
-    return charting_library,
+    return (charting_library,)
 
 
 @app.cell(hide_code=True)
@@ -324,7 +324,7 @@ def __(mo, result, token_prefix):
     )
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(r"""## CSVs, Parquet, Postgres, and more ...""")
     return
@@ -365,7 +365,7 @@ def __(cars, mo):
         SELECT * from cars;
         """
     )
-    return cars,
+    return (cars,)
 
 
 @app.cell(hide_code=True)
@@ -403,7 +403,7 @@ def __(cars, cylinders_dropdown, mo, origin_dropdown):
             ORIGIN = '{origin_dropdown.value}'
         """
     )
-    return filtered_cars,
+    return (filtered_cars,)
 
 
 @app.cell(hide_code=True)
@@ -434,7 +434,7 @@ def __():
 @app.cell(hide_code=True)
 def __():
     import string
-    return string,
+    return (string,)
 
 
 if __name__ == "__main__":

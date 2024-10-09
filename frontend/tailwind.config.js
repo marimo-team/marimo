@@ -41,6 +41,14 @@ module.exports = {
         "2xlSolid":
           "10px 12px 0px 0px var(--base-shadow-darker), 0 0px 8px 0px hsl(0deg 0% 90% / 50%)",
       },
+      width: {
+        contentWidth: "var(--content-width)",
+        contentWidthMedium: "var(--content-width-medium)",
+      },
+      minWidth: {
+        contentWidth: "var(--content-width)",
+        contentWidthMedium: "var(--content-width-medium)",
+      },
       maxWidth: {
         contentWidth: "var(--content-width)",
         contentWidthMedium: "var(--content-width-medium)",

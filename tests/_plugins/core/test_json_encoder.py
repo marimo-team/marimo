@@ -13,7 +13,11 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.mime import MIME
 from marimo._plugins.core.json_encoder import WebComponentEncoder
 
-HAS_DEPS = DependencyManager.pandas.has() and DependencyManager.altair.has()
+HAS_DEPS = (
+    DependencyManager.pandas.has()
+    and DependencyManager.altair.has()
+    and DependencyManager.polars.has()
+)
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -88,6 +92,19 @@ def test_pandas_encoding() -> None:
     other = pd.Series(["a", "b", "c"])
     encoded_other = json.dumps(other, cls=WebComponentEncoder)
     assert encoded_other == '["a", "b", "c"]'
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_polars_encoding() -> None:
+    import polars as pl
+
+    df = pl.DataFrame({"a": [1, 2], "b": [3, 4]})
+    encoded = json.dumps(df, cls=WebComponentEncoder)
+    assert encoded == '{"a": [1, 2], "b": [3, 4]}'
+
+    series = pl.Series([1, 2, 3])
+    encoded_series = json.dumps(series, cls=WebComponentEncoder)
+    assert encoded_series == "[1, 2, 3]"
 
 
 @dataclass
@@ -377,3 +394,9 @@ def test_complex_nested_structure():
     assert decoded["dict"] == {"b": [5, 6], "c": {"d": 7}}
     assert set(decoded["set"]) == {8, 9, 10}
     assert decoded["tuple"] == [11, [12, 13], {"e": 14}]
+
+
+def test_png_encoding() -> None:
+    purple_square = "b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x14\x00\x00\x00\x14\x08\x02\x00\x00\x00\x02\xeb\x8aZ\x00\x00\x00\tpHYs\x00\x00.#\x00\x00.#\x01x\xa5?v\x00\x00\x00\x1dIDAT8\xcbc\xac\x11\xa9g \x1701P\x00F5\x8fj\x1e\xd5<\xaa\x99r\xcd\x00m\xba\x017\xd3\x00\xdf\xcb\x00\x00\x00\x00IEND\xaeB`\x82'"  # noqa: E501
+    encoded = json.dumps(purple_square, cls=WebComponentEncoder)
+    assert isinstance(encoded, str)

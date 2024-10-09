@@ -30,7 +30,11 @@ class WebComponentEncoder(JSONEncoder):
 
         # Handle bytes objects
         if isinstance(o, bytes):
-            return o.decode("utf-8")
+            try:
+                return o.decode("utf-8")
+            except UnicodeDecodeError:
+                # Fallback to latin1
+                return o.decode("latin1")
 
         # Handle datetime objects
         if isinstance(o, (datetime.datetime, datetime.date, datetime.time)):
@@ -115,6 +119,16 @@ class WebComponentEncoder(JSONEncoder):
                     return json.loads(o.to_json(date_format="iso"))
             except AttributeError:
                 pass
+
+        # Handle polars objects
+        if DependencyManager.polars.imported():
+            import polars as pl
+
+            if isinstance(o, pl.DataFrame):
+                return o.to_dict()
+
+            if isinstance(o, pl.Series):
+                return o.to_list()
 
         # Handle named tuples
         if isinstance(o, tuple) and hasattr(o, "_fields"):

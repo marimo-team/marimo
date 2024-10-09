@@ -1,12 +1,19 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { invariant } from "./invariant";
+import { clamp } from "./math";
 
 export function arrayDelete<T>(array: T[], index: number): T[] {
   return [...array.slice(0, index), ...array.slice(index + 1)];
 }
 
 export function arrayInsert<T>(array: T[], index: number, value: T): T[] {
+  index = clamp(index, 0, array.length);
   return arrayInsertMany(array, index, [value]);
+}
+
+export function arrayMove<T>(array: T[], from: number, to: number): T[] {
+  const value = array[from];
+  return arrayInsertMany(arrayDelete(array, from), to, [value]);
 }
 
 export function arrayInsertMany<T>(
@@ -17,6 +24,8 @@ export function arrayInsertMany<T>(
   if (array.length === 0) {
     return values;
   }
+  // Clamp index to the end of the array
+  index = clamp(index, 0, array.length);
   return [...array.slice(0, index), ...values, ...array.slice(index)];
 }
 

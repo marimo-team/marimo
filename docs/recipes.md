@@ -59,6 +59,15 @@ refresh
 mo.md("#" + "🍃" * random.randint(1, 10))
 ```
 
+```{admonition} Requires "on cell change" autorun
+:class: note
+
+For this to work, the [runtime configuration's](/guides/configuration/runtime_configuration.md) `on cell change` should be
+set to `autorun`
+```
+
+
+
 ### Require form submission before sending UI value
 
 **Use cases.** UI elements automatically send their values to the Python when

@@ -109,6 +109,16 @@ export const PlotlyComponent = memo(
       return structuredClone(originalFigure);
     });
 
+    useEffect(() => {
+      const nextFigure = structuredClone(originalFigure);
+      setFigure(nextFigure);
+      setLayout({
+        ...initialLayout(nextFigure),
+        ...value,
+      });
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [originalFigure]);
+
     const [layout, setLayout] = useState<Partial<Plotly.Layout>>(() => {
       return {
         ...initialLayout(figure),

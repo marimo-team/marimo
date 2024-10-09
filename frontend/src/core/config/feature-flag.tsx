@@ -10,6 +10,7 @@ export interface ExperimentalFeatures {
   markdown: boolean;
   wasm_layouts: boolean;
   scratchpad: boolean;
+  multi_column: boolean;
   // Add new feature flags here
 }
 
@@ -17,6 +18,7 @@ const defaultValues: ExperimentalFeatures = {
   markdown: true,
   wasm_layouts: false,
   scratchpad: true,
+  multi_column: import.meta.env.DEV,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(
@@ -33,6 +35,7 @@ function setFeatureFlag(
   value: boolean,
 ) {
   const userConfig = getUserConfig();
+  userConfig.experimental = userConfig.experimental ?? {};
   userConfig.experimental[feature] = value;
   saveUserConfig({ config: userConfig });
 }

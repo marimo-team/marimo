@@ -9,4 +9,4 @@ hatch run ruff check --fix
 echo "[check: format]"
 hatch run ruff format
 echo "[check: typecheck]"
-hatch run mypy marimo/
+hatch run typecheck:check

@@ -89,6 +89,19 @@ dev = [
     "openai~=1.41.1",
 ]
 
+docs = [
+    "pypandoc~=1.13",
+    "autoclasstoc~=1.6.0",
+    # furo raises an error during docs build when sphinx is upgraded
+    "sphinx~=7.0.1",
+    "sphinx-copybutton~=0.5.2",
+    "sphinx-new-tab-link~=0.5.3",
+    "sphinx-sitemap~=2.6.0",
+    "sphinx-design~=0.5.0",
+    "myst_parser~=3.0.1",
+    "furo==2024.8.6"
+]
+
 [tool.hatch]
 installer = "uv"
 
@@ -97,12 +110,12 @@ path = "marimo/__init__.py"
 
 [tool.hatch.build.targets.sdist]
 include = ["/marimo"]
-artifacts = ["marimo/_static/"]
+artifacts = ["marimo/_static/", "marimo/_lsp/"]
 exclude = ["marimo/_smoke_tests"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["marimo"]
-artifacts = ["marimo/_static/"]
+artifacts = ["marimo/_static/", "marimo/_lsp/"]
 exclude = ["marimo/_smoke_tests"]
 
 # Override the default uv version to use the latest version
@@ -129,7 +142,7 @@ installer = "uv"
 dependencies = [
     "mypy~=1.10.1",
     # Types for mypy
-    "polars~=1.5.0",
+    "polars~=1.9.0",
     "pyarrow-stubs>=17.0",
     "pandas-stubs>=1.5.3.230321",
     "types-Pillow~=10.2.0.20240520",
@@ -168,38 +181,38 @@ extra-dependencies = [
     "pytest-codecov~=0.5.1",
     "pytest-asyncio~=0.23.8",
     # For testing mo.ui.chart, table, ...
+    "matplotlib",
+    "vl-convert-python",
+    "pyarrow",
+    "pyarrow_hotfix",
     "altair>=5.4.0",
+    "polars~=1.9.0",
     "pandas>=1.5.3",
     "geopandas~=0.14.4; python_version > '3.9'",
+    # FOr testing sql
+    "ibis-framework[duckdb]~=9.5.0; python_version > '3.9'",
     # For testing mo.image
     "pillow~=10.4.0",
     "anywidget~=0.9.13",
     "ipython~=8.12.3",
+    # testing gen ai 
     "openai~=1.41.1",
-    "ibis-framework[duckdb]~=9.5.0; python_version > '3.9'",
     "anthropic==0.34.1",
     "google-generativeai==0.8.2",
     # exporting as ipynb
     "nbformat >=5.10.4",
     "sympy>=1.13.2",
+    # For standard scientific computing/ ML
+    "jax>=0.4.0; python_version == '3.12'",
+    "torch>=2.4.0; python_version == '3.12'",
+    "scikit-bio>=0.6.0; python_version == '3.12'",
 ]
 
 [[tool.hatch.envs.test-optional.matrix]]
 python = ["3.9","3.10", "3.11", "3.12"]
 
 [tool.hatch.envs.docs]
-dependencies = [
-    "pypandoc~=1.13",
-    "autoclasstoc~=1.6.0",
-    # furo raises an error during docs build when sphinx is upgraded
-    "sphinx~=7.0.1",
-    "sphinx-copybutton~=0.5.2",
-    "sphinx-new-tab-link~=0.5.3",
-    "sphinx-sitemap~=2.6.0",
-    "sphinx-design~=0.5.0",
-    "myst_parser~=3.0.1",
-    "furo==2024.8.6"
-]
+features = ["docs"]
 
 [tool.hatch.envs.docs.scripts]
 build = "sphinx-build {args:docs/ docs/_build}"
@@ -259,8 +272,6 @@ extend-select = [
     "ANN202", # missing-return-type-private-function
     "ANN205", # missing-return-type-static-method
     "ANN206", # missing-return-type-class-method
-    # future annotations
-    "FA102",
     # isort
     "I001",
     # Enable entire ruff rule section
@@ -298,6 +309,7 @@ unfixable = ["F401"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/{tests}/*" = ["ANN201", "ANN202"]
+"dagger/*" = ["TID252"]
 
 [tool.ruff.lint.isort]
 required-imports = ["from __future__ import annotations"]
@@ -314,7 +326,7 @@ docstring-code-format = true
 ban-relative-imports = "all"
 # Ban certain modules from being imported at module level, instead requiring
 # that they're imported lazily (e.g., within a function definition).
-banned-module-level-imports = ["numpy", "pandas", "tomlkit", "polars"]
+banned-module-level-imports = ["numpy", "pandas", "tomlkit", "polars", "altair", "ipython", "anywidget"]
 
 [tool.ruff.lint.flake8-pytest-style]
 mark-parentheses = false

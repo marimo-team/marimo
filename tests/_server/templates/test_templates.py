@@ -149,6 +149,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         self.server_token = SkewProtectionToken("token")
         self.app_config = _AppConfig()
         self.filename = "notebook.py"
+        self.filepath = "path/to/notebook.py"
         self.code = "print('Hello, World!')"
         self.cell_ids = ["cell1", "cell2"]
         self.cell_names = ["Cell 1", "Cell 2"]
@@ -187,7 +188,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             self.user_config,
             self.server_token,
             self.app_config,
-            self.filename,
+            self.filepath,
             self.code,
             hash_code(self.code),
             self.cell_ids,
@@ -227,7 +228,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             self.user_config,
             self.server_token,
             self.app_config,
-            self.filename,
+            self.filepath,
             "",
             hash_code(self.code),
             [],

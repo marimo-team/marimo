@@ -108,21 +108,11 @@ const CellEditorInternal = ({
   });
 
   const createBelow = useCallback(
-    () =>
-      createNewCell({
-        cellId,
-        before: false,
-        includeSelectionAsInitialCode: true,
-      }),
+    () => createNewCell({ cellId, before: false }),
     [cellId, createNewCell],
   );
   const createAbove = useCallback(
-    () =>
-      createNewCell({
-        cellId,
-        before: true,
-        includeSelectionAsInitialCode: true,
-      }),
+    () => createNewCell({ cellId, before: true }),
     [cellId, createNewCell],
   );
   const moveDown = useCallback(
@@ -195,7 +185,7 @@ const CellEditorInternal = ({
       completionConfig: userConfig.completion,
       keymapConfig: userConfig.keymap,
       theme,
-      hotkeys: new OverridingHotkeyProvider(userConfig.keymap.overrides),
+      hotkeys: new OverridingHotkeyProvider(userConfig.keymap.overrides ?? {}),
     });
 
     extensions.push(
@@ -269,7 +259,7 @@ const CellEditorInternal = ({
             reconfigureLanguageEffect(
               editorViewRef.current,
               userConfig.completion,
-              new OverridingHotkeyProvider(userConfig.keymap.overrides),
+              new OverridingHotkeyProvider(userConfig.keymap.overrides ?? {}),
             ),
           ],
         });

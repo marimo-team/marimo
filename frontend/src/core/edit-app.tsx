@@ -20,6 +20,7 @@ import {
   useNotebook,
   CellEffects,
   cellIdsAtom,
+  getCellConfigs,
 } from "./cells/cells";
 import {
   canUndoDeletes,
@@ -43,7 +44,6 @@ import { Logger } from "../utils/Logger";
 import { useAutoSave } from "./saving/useAutoSave";
 import { useEventListener } from "../hooks/useEventListener";
 import { toast } from "../components/ui/use-toast";
-import { SortableCellsProvider } from "../components/sort/SortableCellsProvider";
 import { CellArray } from "../components/editor/renderers/CellArray";
 import { RuntimeState } from "./kernel/RuntimeState";
 import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
@@ -63,6 +63,7 @@ import { Paths } from "@/utils/paths";
 import { KnownQueryParams } from "./constants";
 import { useTogglePresenting } from "./layout/useTogglePresenting";
 import { useAutoExport } from "./export/hooks";
+import { usePrevious } from "@dnd-kit/utilities";
 
 interface AppProps {
   userConfig: UserConfig;
@@ -74,7 +75,7 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
 
   useJotaiEffect(cellIdsAtom, CellEffects.onCellIdsChange);
 
-  const { setCells, updateCellCode } = useCellActions();
+  const { setCells, updateCellCode, mergeAllColumns } = useCellActions();
   const viewState = useAtomValue(viewStateAtom);
   const [filename, setFilename] = useFilename();
   const [lastSavedNotebook, setLastSavedNotebook] =
@@ -148,11 +149,20 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       "Untitled Notebook";
   }, [appConfig.app_title, filename]);
 
+  // Delete column breakpoints if app width changes from "columns"
+  const numColumns = notebook.cellIds.colLength;
+  const previousWidth = usePrevious(appConfig.width);
+  useEffect(() => {
+    if (previousWidth === "columns" && appConfig.width !== "columns") {
+      mergeAllColumns();
+    }
+  }, [appConfig.width, previousWidth, mergeAllColumns, numColumns]);
+
   const cells = notebookCells(notebook);
   const cellIds = cells.map((cell) => cell.id);
   const codes = cells.map((cell) => cell.code);
   const cellNames = cells.map((cell) => cell.name);
-  const configs = cells.map((cell) => cell.config);
+  const configs = getCellConfigs(notebook);
   const needsSave = notebookNeedsSave(notebook, layout, lastSavedNotebook);
 
   // Save the notebook with the given filename
@@ -297,7 +307,11 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       >
         <AppHeader
           connection={connection}
-          className={cn("pt-4 sm:pt-12 pb-2 mb-4 print:hidden")}
+          className={cn(
+            "pt-4 sm:pt-12 pb-2 mb-4 print:hidden",
+            // Keep the header sticky when scrolling horizontally, for column mode
+            "sticky left-0",
+          )}
         >
           {isEditing && (
             <div className="flex items-center justify-center container">
@@ -312,9 +326,7 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
         {/* Don't render until we have a single cell */}
         {cells.length > 0 && (
           <CellsRenderer appConfig={appConfig} mode={viewState.mode}>
-            <SortableCellsProvider disabled={!isEditing}>
-              {editableCellsArray}
-            </SortableCellsProvider>
+            {editableCellsArray}
           </CellsRenderer>
         )}
       </AppContainer>

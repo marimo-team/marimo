@@ -316,7 +316,7 @@ class TestApp:
     def test_cell_config() -> None:
         app = App()
 
-        @app.cell(disabled=True)
+        @app.cell(column=0, disabled=True)
         def _() -> tuple[int]:
             __x__ = 0
             return (__x__,)
@@ -329,6 +329,7 @@ class TestApp:
         cell_manager = app._cell_manager
         configs = tuple(cell_manager.configs())
         assert configs[0].disabled
+        assert configs[0].column is not None
         assert configs[1].hide_code
 
     @staticmethod

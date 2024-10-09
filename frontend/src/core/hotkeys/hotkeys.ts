@@ -81,6 +81,11 @@ const DEFAULT_HOT_KEY = {
     group: "Creation and Ordering",
     key: "Mod-Shift-2",
   },
+  "cell.addColumnBreakpoint": {
+    name: "Add column breakpoint",
+    group: "Creation and Ordering",
+    key: "Mod-Shift-3",
+  },
 
   // Running Cells
   "cell.run": {

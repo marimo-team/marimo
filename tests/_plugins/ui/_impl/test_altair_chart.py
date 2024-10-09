@@ -27,7 +27,6 @@ HAS_DEPS = (
     DependencyManager.pandas.has()
     and DependencyManager.polars.has()
     and DependencyManager.altair.has()
-    and DependencyManager.geopandas.has()
     # altair produces different output on windows
     and sys.platform != "win32"
 )
@@ -352,7 +351,10 @@ def test_parse_spec_narwhal() -> None:
     snapshot("parse_spec_narwhal.txt", json.dumps(spec, indent=2))
 
 
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.skipif(
+    not HAS_DEPS or not DependencyManager.geopandas.has(),
+    reason="optional dependencies not installed",
+)
 def test_parse_spec_geopandas() -> None:
     import altair as alt
     import geopandas as gpd
