@@ -20,6 +20,7 @@ __all__ = [
     "date_range",
     "date",
     "datetime",
+    "data_editor",
     "dictionary",
     "dropdown",
     "file_browser",
@@ -45,6 +46,7 @@ from marimo._plugins.ui._impl.altair_chart import altair_chart
 from marimo._plugins.ui._impl.array import array
 from marimo._plugins.ui._impl.batch import batch
 from marimo._plugins.ui._impl.chat.chat import chat
+from marimo._plugins.ui._impl.data_editor import data_editor
 from marimo._plugins.ui._impl.data_explorer import data_explorer
 from marimo._plugins.ui._impl.dataframes.dataframe import dataframe
 from marimo._plugins.ui._impl.dates import (

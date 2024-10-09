@@ -34,6 +34,7 @@ JSONType: TypeAlias = Union[
     int,
     float,
     bool,
+    object,
     MIME,  # MIME is a JSONType since we have a custom JSONEncoder for it
     None,
 ]
