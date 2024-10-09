@@ -42,7 +42,7 @@ dependencies = [
     # required dependency in Starlette for SessionMiddleware support
     "itsdangerous>=2.0.0",
     # for dataframe support
-    "narwhals~=1.0.0",
+    "narwhals>=1.0.0",
     # for cell formatting; if user version is not compatible, no-op
     # so no lower bound needed
     "ruff",
