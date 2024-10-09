@@ -98,6 +98,7 @@ docs = [
     "sphinx-new-tab-link~=0.5.3",
     "sphinx-sitemap~=2.6.0",
     "sphinx-design~=0.5.0",
+    "sphinx-autobuild~=2024.10.3",
     "myst_parser~=3.0.1",
     "furo==2024.8.6"
 ]

@@ -417,7 +417,7 @@ def iframe(html: str, *, width: str = "100%", height: str = "400px") -> Html:
     Embed an HTML string in an iframe.
 
     Scripts by default are not executed using `mo.as_html` or `mo.Html`,
-    so if you have a script tag (written as "<script></script>"),
+    so if you have a script tag (written as `<script></script>`),
     you can use `mo.iframe` for scripts to be executed.
 
     You may also want to use this function to display HTML content
