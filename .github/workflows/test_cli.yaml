@@ -109,16 +109,16 @@ jobs:
       - name: 🛑 Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.12.1
       - uses: actions/checkout@v4
-
-      - name: 🐍 Setup uv
-        uses: astral-sh/setup-uv@v3
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
         with:
-          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
 
       - name: Install Python deps
         run: |
-          uv python install ${{ matrix.python-version }}
-          uv pip install pytest pytest-asyncio nbformat
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio nbformat
 
       - name: Download wheel
         uses: actions/download-artifact@v3
@@ -127,12 +127,12 @@ jobs:
 
       - name: Install marimo
         shell: bash
-        run: uv pip install "./marimo*whl"
+        run: pip install marimo*whl
 
       - name: Test CLI
         shell: bash
         run: |
-          uv run pytest -v tests/_cli/test_cli*
+          pytest -v tests/_cli/test_cli*
 
   test_examples:
     needs: [changes, build_wheel]
