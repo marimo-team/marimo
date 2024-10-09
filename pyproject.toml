@@ -195,7 +195,7 @@ extra-dependencies = [
     "pillow~=10.4.0",
     "anywidget~=0.9.13",
     "ipython~=8.12.3",
-    # testing gen ai 
+    # testing gen ai
     "openai~=1.41.1",
     "anthropic==0.34.1",
     "google-generativeai==0.8.2",
@@ -364,6 +364,9 @@ asyncio_mode = "auto"
 
 [tool.coverage.run]
 omit = ["marimo/_tutorials/*"]
+
+[tool.typos.default]
+extend-ignore-re = ["[0-9a-zA-Z]{43}"]
 
 [tool.typos.default.extend-words]
 wheres = "wheres"

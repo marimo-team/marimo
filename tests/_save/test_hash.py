@@ -644,3 +644,183 @@ class TestDataHash:
             return (one,)
 
         app.run()
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not DependencyManager.has("pandas"),
+        reason="optional dependencies not installed",
+    )
+    # Pin to a particular python version for differences in underlying library
+    # implementations / memory layout.
+    @pytest.mark.skipif(
+        "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
+    )
+    def test_process_dataframe() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def load() -> tuple[Any]:
+            import numpy as np
+            import pandas as pd
+
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            expected_hash = "wtrS6NoH2AOH3DnWm7wooK4Bgw8TmMotgMbiY0bu5as"
+            return MockLoader, persistent_cache, expected_hash, np, pd
+
+        @app.cell
+        def one(
+            MockLoader, persistent_cache, expected_hash, np, pd
+        ) -> tuple[int]:
+            _a = {
+                "A": [1, 2, 3],
+                "column names don't contribute to hash": [4, 5, 6],
+                "the dict order does though": [7, 8, 9],
+            }
+            _a = pd.DataFrame(_a) ** 2
+            with persistent_cache(name="one", _loader=MockLoader()) as _cache:
+                _A = np.sum(_a["A"])
+            one = _A
+
+            assert _cache._cache.cache_type == "ContentAddressed"
+            assert (
+                _cache._cache.hash == expected_hash
+            ), f"expected_hash != {_cache._cache.hash}"
+            return (one,)
+
+        @app.cell
+        def two(
+            MockLoader, persistent_cache, expected_hash, np, pd
+        ) -> tuple[int]:
+            _a = {"A": [1, 4, 9], "B": [16, 25, 36], "C": [49, 64, 81]}
+            _a = pd.DataFrame(_a)
+
+            with persistent_cache(name="two", _loader=MockLoader()) as _cache:
+                _A = np.sum(_a["A"])
+            two = _A
+
+            assert _cache._cache.cache_type == "ContentAddressed"
+            assert (
+                _cache._cache.hash == expected_hash
+            ), f"expected_hash != {_cache._cache.hash}"
+            return (two,)
+
+        @app.cell
+        def three(one, two) -> None:
+            assert one == two
+            assert one == 14
+
+        app.run()
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not DependencyManager.has("pandas"),
+        reason="optional dependencies not installed",
+    )
+    # Pin to a particular python version for differences in underlying library
+    # implementations / memory layout.
+    @pytest.mark.skipif(
+        "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
+    )
+    def test_process_dataframe_object() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def load() -> tuple[Any]:
+            import numpy as np
+            import pandas as pd
+
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            expected_hash = "n4KGJ3wrRHd6pDCyekTWZXShmtT_ZkDY4Wo3C6BXzh4"
+            return MockLoader, persistent_cache, expected_hash, np, pd
+
+        @app.cell
+        def one(
+            MockLoader, persistent_cache, expected_hash, np, pd
+        ) -> tuple[int]:
+            _a = {
+                "A": [2, 8, 18],
+                "B": ["a", "a", "a"],
+                "C": [14, 16, 18],
+            }
+            _a = pd.DataFrame(_a)
+            with persistent_cache(name="one", _loader=MockLoader()) as _cache:
+                _A = np.sum(_a["A"])
+            one = _A
+
+            assert _cache._cache.cache_type == "ContextExecutionPath"
+            assert (
+                _cache._cache.hash == expected_hash
+            ), f"expected_hash != {_cache._cache.hash}"
+            return (one,)
+
+        app.run()
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not DependencyManager.has("polars"),
+        reason="optional dependencies not installed",
+    )
+    # Pin to a particular python version for differences in underlying library
+    # implementations / memory layout.
+    @pytest.mark.skipif(
+        "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
+    )
+    def test_process_polars_dataframe() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def load() -> tuple[Any]:
+            import polars as pl
+
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            expected_hash = "rC6YiNsuaZKQ1JqMgSRa0iyEDwi7ZTl6InABjuM0RDY"
+            return MockLoader, persistent_cache, expected_hash, pl
+
+        @app.cell
+        def one(MockLoader, persistent_cache, expected_hash, pl) -> tuple[int]:
+            _a = {
+                "A": [1, 2, 3],
+                "column names don't contribute to hash": [4, 5, 6],
+                "the dict order does though": [7, 8, 9],
+            }
+            _a = pl.DataFrame(_a).select(pl.all() ** 2)
+            with persistent_cache(name="one", _loader=MockLoader()) as _cache:
+                _A = _a.select(pl.col("A").sum()).item()
+            one = _A
+
+            assert _cache._cache.cache_type == "ContentAddressed"
+            assert (
+                _cache._cache.hash == expected_hash
+            ), f"expected_hash != {_cache._cache.hash}"
+            return (one,)
+
+        @app.cell
+        def two(MockLoader, persistent_cache, expected_hash, pl) -> tuple[int]:
+            _a = {"A": [1, 4, 9], "B": [16, 25, 36], "C": [49, 64, 81]}
+            _a = pl.DataFrame(_a)
+
+            with persistent_cache(name="two", _loader=MockLoader()) as _cache:
+                _A = _a.select(pl.col("A").sum()).item()
+            two = _A
+
+            assert _cache._cache.cache_type == "ContentAddressed"
+            assert (
+                _cache._cache.hash == expected_hash
+            ), f"expected_hash != {_cache._cache.hash}"
+            return (two,)
+
+        @app.cell
+        def three(one, two) -> None:
+            assert one == two
+            assert one == 14
+
+        app.run()
