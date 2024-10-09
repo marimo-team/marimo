@@ -256,10 +256,10 @@ const {
           code,
           lastCodeRun,
           lastExecutionTime,
-          edited: Boolean(newCellCode) && newCellCode !== lastCodeRun,
+          edited: Boolean(code) && code !== lastCodeRun,
           config: {
             disabled: false,
-            hide_code: isMarkdown(newCellCode),
+            hide_code: isMarkdown(code),
           },
         }),
       },
