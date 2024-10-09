@@ -258,7 +258,8 @@ class Model<T extends Record<string, any>> implements AnyModel<T> {
           break;
       }
     } else {
-      Logger.error("Failed to parse message", message, response.error);
+      Logger.error("Failed to parse message", response.error);
+      Logger.error("Message", message);
     }
   }
 
@@ -285,5 +286,10 @@ const WidgetMessageSchema = z.union([
   z.object({
     method: z.literal("custom"),
     content: z.any(),
+  }),
+  z.object({
+    method: z.literal("echo_update"),
+    buffer_paths: z.array(z.array(z.union([z.string(), z.number()]))),
+    state: z.record(z.any()),
   }),
 ]);

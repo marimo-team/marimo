@@ -1,13 +1,13 @@
 import marimo
 
-__generated_with = "0.9.1"
+__generated_with = "0.9.4"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def __():
     # binary data is a png image of a small purple square
-    CONTENT = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x14\x00\x00\x00\x14\x08\x02\x00\x00\x00\x02\xeb\x8aZ\x00\x00\x00\tpHYs\x00\x00.#\x00\x00.#\x01x\xa5?v\x00\x00\x00\x1dIDAT8\xcbc\xac\x11\xa9g \x1701P\x00F5\x8fj\x1e\xd5<\xaa\x99r\xcd\x00m\xba\x017\xd3\x00\xdf\xcb\x00\x00\x00\x00IEND\xaeB`\x82'
+    CONTENT = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x14\x00\x00\x00\x14\x08\x02\x00\x00\x00\x02\xeb\x8aZ\x00\x00\x00\tpHYs\x00\x00.#\x00\x00.#\x01x\xa5?v\x00\x00\x00\x1dIDAT8\xcbc\xac\x11\xa9g \x1701P\x00F5\x8fj\x1e\xd5<\xaa\x99r\xcd\x00m\xba\x017\xd3\x00\xdf\xcb\x00\x00\x00\x00IEND\xaeB`\x82"
     return (CONTENT,)
 
 
@@ -15,6 +15,7 @@ def __():
 def __(CONTENT):
     import anywidget
     import traitlets
+
 
     class BytesWidget(anywidget.AnyWidget):
         _esm = """
@@ -31,6 +32,7 @@ def __(CONTENT):
         export default { render };
         """
         value = traitlets.Bytes().tag(sync=True)
+
 
     # binary data is a png image of a small purple square
     BytesWidget(value=CONTENT)
@@ -49,6 +51,33 @@ def __(CONTENT, mo):
     # Is lossy
     mo.image(CONTENT.decode("utf-8", errors="replace").encode("utf-8"))
     return
+
+
+@app.cell
+def __(CONTENT, anywidget, traitlets):
+    import numpy as np
+    from pathlib import Path
+
+
+    class BytesWritesWidget(anywidget.AnyWidget):
+        _esm = """
+        function render({ model, el }) {
+          model.set("other_value", 42)
+          model.save_changes()
+          const isDataView = document.createElement("div");
+          const value = model.get("value")
+          isDataView.innerText = `Is  DataView: ${value instanceof DataView}`;
+          el.appendChild(isDataView);
+        }
+        export default { render };
+        """
+        value = traitlets.Bytes().tag(sync=True)
+        other_value = traitlets.Integer(0).tag(sync=True)
+
+
+    # raises a TraitError
+    BytesWritesWidget(value=CONTENT)
+    return BytesWritesWidget, Path, np
 
 
 @app.cell

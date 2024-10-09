@@ -122,16 +122,17 @@ class anywidget(UIElement[T, T]):
                 # Handle circular dependencies
                 pass
 
-        def on_change(change: T) -> None:
-            for key, value in change.items():
-                widget.set_trait(key, value)
-
         js: str = widget._esm if hasattr(widget, "_esm") else ""  # type: ignore [unused-ignore]  # noqa: E501
         css: str = widget._css if hasattr(widget, "_css") else ""  # type: ignore [unused-ignore]  # noqa: E501
         import ipywidgets  # type: ignore
 
         _remove_buffers = ipywidgets.widgets.widget._remove_buffers  # type: ignore
-        _state, buffer_paths, _buffers = _remove_buffers(widget.get_state())  # type: ignore
+        _state, buffer_paths, buffers = _remove_buffers(widget.get_state())  # type: ignore
+
+        def on_change(change: T) -> None:
+            _put_buffers = ipywidgets.widgets.widget._put_buffers  # type: ignore
+            _put_buffers(change, buffer_paths, buffers)
+            widget.set_state(change)
 
         super().__init__(
             component_name="marimo-anywidget",
