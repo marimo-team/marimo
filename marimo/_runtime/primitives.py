@@ -65,19 +65,27 @@ def is_data_primitive(value: Any) -> bool:
     ):
         return False
 
+    # Handle cross device tensors particular to torch
+    # Transfer may be expensive, so non-cpu tensors are considered
+    # unhashable.
+    if is_instance_by_name(value, "torch.Tensor"):
+        return str(value.device) == "cpu"
+
     # If a numpy like array, ensure that it's not an object array.
     if hasattr(value, "dtype"):
-        # Handle cross device tensors particular to torch
-        # Transfer may be expensive, so non-cpu tensors are considered
-        # unhashable.
-        if is_instance_by_name(value, "torch.Tensor"):
-            return str(value.device) == "cpu"
-
         return not (
             value.dtype is None
             or (hasattr(value.dtype, "hasobject") and value.dtype.hasobject)
         )
-    # Otherwise may be a closely related array object like a pandas DataFrame.
+    elif hasattr(value, "dtypes"):
+        for dtype in value.dtypes:
+            # Capture pandas cases
+            if getattr(dtype, "hasobject", None):
+                return False
+            # Capture polars cases
+            if hasattr(dtype, "is_numeric") and not dtype.is_numeric:
+                return False
+    # Otherwise may be a closely related array object
     return True
 
 
