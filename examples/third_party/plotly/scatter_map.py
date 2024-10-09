@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.9.4"
-app = marimo.App(width="full", layout_file="layouts/scatter_map.slides.json")
+app = marimo.App(width="full")
 
 
 @app.cell
