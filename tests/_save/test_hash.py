@@ -782,7 +782,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.mocks import MockLoader
 
-            expected_hash = "rC6YiNsuaZKQ1JqMgSRa0itEDwi7ZTl6InABjuM0RDY"
+            expected_hash = "rC6YiNsuaZKQ1JqMgSRa0iyEDwi7ZTl6InABjuM0RDY"
             return MockLoader, persistent_cache, expected_hash, pl
 
         @app.cell
