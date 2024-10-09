@@ -126,7 +126,15 @@ export const CellArray: React.FC<CellArrayProps> = ({
                   canMoveRight={index < columns.length - 1}
                   width={appConfig.width}
                   canDelete={columns.length > 1}
-                  footer={<AddCellButtons columnId={column.id} />}
+                  footer={
+                    <AddCellButtons
+                      columnId={column.id}
+                      className={cn(
+                        appConfig.width === "columns" &&
+                          "opacity-0 group-hover/column:opacity-100",
+                      )}
+                    />
+                  }
                 >
                   <SortableContext
                     id={`column-${index + 1}`}
@@ -189,7 +197,10 @@ export const CellArray: React.FC<CellArrayProps> = ({
   );
 };
 
-const AddCellButtons: React.FC<{ columnId: CellColumnId }> = ({ columnId }) => {
+const AddCellButtons: React.FC<{
+  columnId: CellColumnId;
+  className?: string;
+}> = ({ columnId, className }) => {
   const { createNewCell } = useCellActions();
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const [isAiButtonOpen, isAiButtonOpenActions] = useBoolean(false);
@@ -301,11 +312,11 @@ const AddCellButtons: React.FC<{ columnId: CellColumnId }> = ({ columnId }) => {
     <div className="flex justify-center mt-4 pt-6 pb-32 group gap-4 w-full print:hidden">
       <div
         className={cn(
-          "opacity-0 group-hover/column:opacity-100",
           "shadow-sm border border-border rounded transition-all duration-200 overflow-hidden divide-x divide-border flex",
           !isAiButtonOpen && "w-fit",
           isAiButtonOpen &&
             "opacity-100 w-full max-w-4xl shadow-lg shadow-[var(--blue-3)]",
+          className,
         )}
       >
         {renderBody()}
