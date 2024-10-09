@@ -15,7 +15,7 @@ from typing import (
     Union,
 )
 
-import narwhals as nw
+from narwhals.typing import IntoDataFrame
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
@@ -94,7 +94,7 @@ class SortArgs:
 
 
 @mddoc
-class table(UIElement[List[str], Union[List[JSONType], nw.DataFrame[Any]]]):
+class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
     """
     A table component with selectable rows. Get the selected rows with
     `table.value`.
@@ -208,7 +208,7 @@ class table(UIElement[List[str], Union[List[JSONType], nw.DataFrame[Any]]]):
             ListOrTuple[Union[str, int, float, bool, MIME, None]],
             ListOrTuple[Dict[str, JSONType]],
             Dict[str, ListOrTuple[JSONType]],
-            "nw.DataFrame[Any]",
+            "IntoDataFrame",
         ],
         pagination: Optional[bool] = None,
         selection: Optional[Literal["single", "multi"]] = "multi",
@@ -227,7 +227,7 @@ class table(UIElement[List[str], Union[List[JSONType], nw.DataFrame[Any]]]):
                     Union[
                         List[JSONType],
                         Dict[str, ListOrTuple[JSONType]],
-                        "nw.DataFrame[Any]",
+                        "IntoDataFrame",
                     ]
                 ],
                 None,
@@ -381,7 +381,7 @@ class table(UIElement[List[str], Union[List[JSONType], nw.DataFrame[Any]]]):
 
     def _convert_value(
         self, value: list[str]
-    ) -> Union[List[JSONType], "nw.DataFrame[Any]"]:
+    ) -> Union[List[JSONType], "IntoDataFrame"]:
         indices = [int(v) for v in value]
         self._selected_manager = self._searched_manager.select_rows(indices)
         self._has_any_selection = len(indices) > 0

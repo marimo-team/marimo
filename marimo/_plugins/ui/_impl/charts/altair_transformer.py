@@ -13,7 +13,7 @@ from marimo._plugins.ui._impl.tables.utils import (
 )
 
 if TYPE_CHECKING:
-    import narwhals as nw  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+    import narwhals as nw
     import pandas as pd
     import polars as pl
 
@@ -100,7 +100,7 @@ def _data_to_json_string(data: _DataType) -> str:
         return as_str
 
     if DependencyManager.narwhals.has():
-        import narwhals  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+        import narwhals
 
         if isinstance(data, narwhals.DataFrame):
             return _data_to_json_string(narwhals.to_native(data))

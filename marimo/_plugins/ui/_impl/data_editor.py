@@ -129,7 +129,7 @@ class data_editor(
             )
 
         self._data = data
-        self._edits = None
+        self._edits: DataEdits | None = None
         field_types = table_manager.get_field_types()
 
         super().__init__(
@@ -176,7 +176,7 @@ def apply_edits(
 
     # narwhalify
     try:
-        return _apply_edits_dataframe(data, edits)
+        return _apply_edits_dataframe(data, edits)  # type: ignore[no-any-return]
     except Exception as e:
         raise ValueError(
             f"Data editor does not support this type of data: {type(data)}"
@@ -213,8 +213,7 @@ def _apply_edits_row_oriented(
 
 @nw.narwhalify
 def _apply_edits_dataframe(
-    df: nw.DataFrame[Any],
-    edits: DataEdits,
+    df: nw.DataFrame[Any], edits: DataEdits
 ) -> nw.DataFrame[Any]:
     column_oriented = df.to_dict(as_series=False)
     new_data = _apply_edits_column_oriented(column_oriented, edits)
