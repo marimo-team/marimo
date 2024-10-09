@@ -1,0 +1,52 @@
+import marimo
+
+__generated_with = "0.9.4"
+app = marimo.App(width="full", layout_file="layouts/scatter_map.slides.json")
+
+
+@app.cell
+def __():
+    import marimo as mo
+    return (mo,)
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        r"""
+        # Selectable scatter map
+
+        This example shows how to overlay a scatter plot on a map using `Plotly`, and make the plot reactive using [`mo.ui.plotly`](https://docs.marimo.io/guides/plotting.html#plotly) — select plots in the scatter
+        plot and get them back in Python!
+        """
+    )
+    return
+
+
+@app.cell
+def __(mo):
+    import plotly.express as px
+
+    df = px.data.carshare()
+    fig = mo.ui.plotly(px.scatter_mapbox(
+        df,
+        lat="centroid_lat",
+        lon="centroid_lon",
+        color="peak_hour",
+        size="car_hours",
+        color_continuous_scale=px.colors.cyclical.IceFire,
+        size_max=10,
+        zoom=10,
+        mapbox_style="carto-positron",
+    ))
+    return df, fig, px
+
+
+@app.cell
+def __(fig, mo):
+    mo.hstack([fig, fig.value], justify="start")
+    return
+
+
+if __name__ == "__main__":
+    app.run()
