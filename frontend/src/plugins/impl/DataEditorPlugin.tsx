@@ -69,7 +69,7 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor")
           pagination={props.data.pagination}
           pageSize={props.data.pageSize}
           fieldTypes={props.data.fieldTypes}
-          edits={props.value}
+          edits={props.value.edits}
           onEdits={props.setValue}
         />
       </TooltipProvider>
@@ -79,7 +79,7 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor")
 interface Props
   extends Omit<DataEditorProps<object>, "data" | "onAddEdits" | "onAddRows"> {
   data: TableData<object>;
-  edits: Edits;
+  edits: Edits["edits"];
   onEdits: Setter<Edits>;
 }
 
@@ -129,7 +129,7 @@ const LoadingDataEditor = (props: Props) => {
       pagination={props.pagination}
       pageSize={props.pageSize}
       fieldTypes={props.fieldTypes}
-      edits={props.edits.edits}
+      edits={props.edits}
       onAddEdits={(edits) => {
         props.onEdits((v) => ({ ...v, edits: [...v.edits, ...edits] }));
       }}
