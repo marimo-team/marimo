@@ -365,6 +365,9 @@ asyncio_mode = "auto"
 [tool.coverage.run]
 omit = ["marimo/_tutorials/*"]
 
+[tool.typos.default]
+extend-ignore-re = ["[0-9a-zA-Z]{43}"]
+
 [tool.typos.default.extend-words]
 wheres = "wheres"
 Ue = "Ue" # Used in one of the cell IDs
