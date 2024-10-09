@@ -2363,6 +2363,9 @@ export interface components {
               | string
               | number
               | boolean
+              | {
+                  [key: string]: unknown;
+                }
               | components["schemas"]["MIME"]
             )
           | null;

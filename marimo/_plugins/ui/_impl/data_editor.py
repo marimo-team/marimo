@@ -9,7 +9,6 @@ from typing import (
     Final,
     List,
     Optional,
-    TypeAlias,
     TypedDict,
     Union,
 )
@@ -39,8 +38,8 @@ class DataEdits(TypedDict):
     edits: List[PositionalEdit]
 
 
-RowOrientedData: TypeAlias = List[Dict[str, Any]]
-ColumnOrientedData: TypeAlias = Dict[str, List[Any]]
+RowOrientedData = List[Dict[str, Any]]
+ColumnOrientedData = Dict[str, List[Any]]
 
 
 @mddoc

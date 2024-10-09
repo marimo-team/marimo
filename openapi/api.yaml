@@ -970,6 +970,8 @@ components:
             - type: integer
             - type: number
             - type: boolean
+            - additionalProperties: true
+              type: object
             - $ref: '#/components/schemas/MIME'
           nullable: true
           type: object
@@ -1907,7 +1909,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.9.1
+  version: 0.9.4
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
