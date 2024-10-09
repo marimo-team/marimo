@@ -422,22 +422,6 @@ const DatasetColumnPreview: React.FC<{
 }> = ({ table, column, preview, onAddColumnChart }) => {
   const { theme } = useTheme();
 
-  if (table.source_type === "duckdb") {
-    return (
-      <Button
-        variant="text"
-        className="z-10"
-        size="xs"
-        onClick={Events.stopPropagation(() => {
-          const code = `_df = mo.sql(f"SELECT '${column.name}' FROM ${table.name} LIMIT 100")`;
-          onAddColumnChart(code);
-        })}
-      >
-        <PlusSquareIcon className="h-4 w-4 mr-2" /> Add cell
-      </Button>
-    );
-  }
-
   if (!preview) {
     return <span className="text-xs text-muted-foreground">Loading...</span>;
   }
@@ -487,15 +471,32 @@ const DatasetColumnPreview: React.FC<{
     />
   );
 
-  const addChart = preview.chart_code && (
-    <Tooltip content="Add chart to notebook" delayDuration={400}>
+  const addDataframeChart = preview.chart_code &&
+    table.source_type === "local" && (
+      <Tooltip content="Add chart to notebook" delayDuration={400}>
+        <Button
+          variant="outline"
+          size="icon"
+          className="z-10 bg-background absolute right-1 top-0"
+          onClick={Events.stopPropagation(() =>
+            onAddColumnChart(preview.chart_code || ""),
+          )}
+        >
+          <PlusSquareIcon className="h-3 w-3" />
+        </Button>
+      </Tooltip>
+    );
+
+  const addSQLChart = table.source_type === "duckdb" && (
+    <Tooltip content="Add SQL cell" delayDuration={400}>
       <Button
         variant="outline"
         size="icon"
         className="z-10 bg-background absolute right-1 top-0"
-        onClick={Events.stopPropagation(() =>
-          onAddColumnChart(preview.chart_code || ""),
-        )}
+        onClick={Events.stopPropagation(() => {
+          const code = `_df = mo.sql(f"SELECT '${column.name}' FROM ${table.name} LIMIT 100")`;
+          onAddColumnChart(code);
+        })}
       >
         <PlusSquareIcon className="h-3 w-3" />
       </Button>
@@ -515,7 +516,8 @@ const DatasetColumnPreview: React.FC<{
   return (
     <div className="flex flex-col gap-2 relative">
       {error}
-      {addChart}
+      {addDataframeChart}
+      {addSQLChart}
       {chartMaxRowsWarning}
       {chart}
       {summary}

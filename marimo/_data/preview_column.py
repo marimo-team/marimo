@@ -6,6 +6,11 @@ from typing import Any, Optional
 from marimo import _loggers
 from marimo._data.charts import get_chart_builder
 from marimo._data.models import ColumnSummary
+from marimo._data.sql_summaries import (
+    get_column_type,
+    get_histogram_data,
+    get_sql_summary,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import DataColumnPreview
 from marimo._plugins.ui._impl.tables.table_manager import TableManager
@@ -15,7 +20,7 @@ from marimo._runtime.requests import PreviewDatasetColumnRequest
 LOGGER = _loggers.marimo_logger()
 
 
-def get_column_preview(
+def get_column_preview_dataframe(
     item: object,
     request: PreviewDatasetColumnRequest,
 ) -> DataColumnPreview | None:
@@ -107,6 +112,44 @@ def get_column_preview(
             column_name=column_name,
             error=str(e),
         )
+
+
+def get_column_preview_for_sql(
+    table_name: str,
+    column_name: str,
+) -> Optional[DataColumnPreview]:
+    # Drop memory.main
+    if table_name.startswith("memory.main."):
+        query_table_name = table_name.replace("memory.main.", "")
+    else:
+        query_table_name = table_name
+
+    column_type = get_column_type(query_table_name, column_name)
+    summary = get_sql_summary(query_table_name, column_name, column_type)
+    histogram_data = get_histogram_data(query_table_name, column_name)
+
+    # Generate Altair chart
+    chart_spec = None
+    chart_code = None
+    chart_max_rows_errors = False
+
+    if histogram_data and DependencyManager.altair.has():
+        chart_builder = get_chart_builder(column_type, False)
+        try:
+            chart_spec = chart_builder.altair_json(histogram_data, column_name)
+            chart_code = chart_builder.altair_code(table_name, column_name)
+        except Exception as e:
+            LOGGER.warning(f"Failed to generate Altair chart: {str(e)}")
+
+    return DataColumnPreview(
+        table_name=table_name,
+        column_name=column_name,
+        chart_max_rows_errors=chart_max_rows_errors,
+        chart_spec=chart_spec,
+        chart_code=chart_code,
+        summary=summary,
+        error=None,
+    )
 
 
 def _get_altair_chart(

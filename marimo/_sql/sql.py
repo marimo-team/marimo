@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Literal, Optional, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
@@ -12,6 +12,9 @@ from marimo._runtime.context.types import (
     get_context,
 )
 from marimo._runtime.output import replace
+
+if TYPE_CHECKING:
+    import duckdb
 
 
 def get_default_result_limit() -> Optional[int]:
@@ -41,24 +44,7 @@ def sql(
     """
     DependencyManager.duckdb.require("to execute sql")
 
-    import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
-
-    # In Python globals() are scoped to modules; since this function
-    # is in a different module than user code, globals() doesn't return
-    # the kernel globals, it just returns this module's global namespace.
-    #
-    # However, duckdb needs access to the kernel's globals. For this reason,
-    # we manually exec duckdb and provide it with the kernel's globals.
-    try:
-        ctx = get_context()
-    except ContextNotInitializedError:
-        relation = duckdb.sql(query=query)
-    else:
-        relation = eval(
-            "duckdb.sql(query=query)",
-            ctx.globals,
-            {"query": query, "duckdb": duckdb},
-        )
+    relation = _wrapped_sql(query)
 
     if not relation:
         return None
@@ -116,7 +102,7 @@ def sql(
 
 
 def _query_includes_limit(query: str) -> bool:
-    import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+    import duckdb
 
     try:
         statements = duckdb.extract_statements(query.strip())
@@ -133,3 +119,25 @@ def _query_includes_limit(query: str) -> bool:
         "LIMIT " in last_statement.query.upper()
         or "LIMIT\n" in last_statement.query.upper()
     )
+
+
+def _wrapped_sql(query: str) -> "duckdb.DuckDBPyRelation":
+    import duckdb
+
+    # In Python globals() are scoped to modules; since this function
+    # is in a different module than user code, globals() doesn't return
+    # the kernel globals, it just returns this module's global namespace.
+    #
+    # However, duckdb needs access to the kernel's globals. For this reason,
+    # we manually exec duckdb and provide it with the kernel's globals.
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        relation = duckdb.sql(query=query)
+    else:
+        relation = eval(
+            "duckdb.sql(query=query)",
+            ctx.globals,
+            {"query": query, "duckdb": duckdb},
+        )
+    return relation

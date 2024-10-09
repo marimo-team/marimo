@@ -25,7 +25,10 @@ from marimo._ast.compiler import compile_cell
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
 from marimo._config.settings import GLOBAL_SETTINGS
-from marimo._data.preview_column import get_column_preview
+from marimo._data.preview_column import (
+    get_column_preview_dataframe,
+    get_column_preview_for_sql,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
@@ -1793,33 +1796,44 @@ class Kernel:
 
         The dataset is loaded, and the column is displayed in the frontend.
         """
+        table_name = request.table_name
+        column_name = request.column_name
+        source_type = request.source_type
 
-        if request.source_type == "duckdb":
-            DataColumnPreview(
-                column_name=request.column_name,
-                table_name=request.table_name,
-            ).broadcast()
-            return
+        try:
+            if source_type == "duckdb":
+                column_preview = get_column_preview_for_sql(
+                    table_name=table_name,
+                    column_name=column_name,
+                )
+            elif source_type == "local":
+                dataset = self.globals[table_name]
+                column_preview = get_column_preview_dataframe(dataset, request)
+            else:
+                assert_never(source_type)
 
-        if request.source_type == "local":
-            try:
-                dataset = self.globals[request.table_name]
-                column_preview = get_column_preview(dataset, request)
-                if column_preview is None:
-                    DataColumnPreview(
-                        error=f"Column {request.column_name} not found",
-                        column_name=request.column_name,
-                        table_name=request.table_name,
-                    ).broadcast()
-                else:
-                    column_preview.broadcast()
-            except Exception as e:
+            if column_preview is None:
                 DataColumnPreview(
-                    error=str(e),
-                    column_name=request.column_name,
-                    table_name=request.table_name,
+                    error=f"Column {column_name} not found",
+                    column_name=column_name,
+                    table_name=table_name,
                 ).broadcast()
-            return
+            else:
+                print(column_preview)
+                column_preview.broadcast()
+        except Exception as e:
+            LOGGER.warning(
+                "Failed to get preview for column %s in table %s",
+                column_name,
+                table_name,
+                exc_info=e,
+            )
+            DataColumnPreview(
+                error=str(e),
+                column_name=column_name,
+                table_name=table_name,
+            ).broadcast()
+        return
 
         assert_never(request.source_type)
 

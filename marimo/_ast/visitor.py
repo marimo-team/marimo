@@ -466,7 +466,7 @@ class ScopedVisitor(ast.NodeVisitor):
                     #
                     # This breaks dependency parsing.
                     statements = duckdb.extract_statements(sql)
-                except duckdb.ProgrammingError:
+                except (duckdb.ProgrammingError, duckdb.IOException):
                     # The user's sql query may have a syntax error,
                     # or duckdb failed for an unknown reason; don't
                     # break marimo.
@@ -488,7 +488,7 @@ class ScopedVisitor(ast.NodeVisitor):
                         # of the statement -- schemas can show up in
                         # joins, queries, ...
                         from_targets = find_from_targets(statement.query)
-                    except duckdb.ProgrammingError:
+                    except (duckdb.ProgrammingError, duckdb.IOException):
                         self.generic_visit(node)
                         continue
                     except BaseException as e:

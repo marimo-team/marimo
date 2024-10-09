@@ -138,20 +138,61 @@ def _get_datasets_from_duckdb_internal() -> List[DataTable]:
 
 
 def _db_type_to_data_type(db_type: str) -> DataType:
-    if db_type == "INTEGER":
+    db_type = db_type.lower()
+    # Numeric types
+    if db_type in [
+        "tinyint",
+        "smallint",
+        "integer",
+        "bigint",
+        "hugeint",
+        "utinyint",
+        "usmallint",
+        "uinteger",
+        "ubigint",
+        "uhugeint",
+    ]:
         return "integer"
-    if db_type == "FLOAT":
+    if db_type in [
+        "float",
+        "real",
+        "double",
+        "decimal",
+        "numeric",
+    ] or db_type.startswith("decimal"):
         return "number"
-    if db_type == "BOOLEAN":
+    # Boolean type
+    if db_type == "boolean":
         return "boolean"
-    if db_type == "VARCHAR":
+    # String types
+    if db_type in [
+        "varchar",
+        "char",
+        "bpchar",
+        "text",
+        "string",
+        "blob",
+        "uuid",
+    ]:
         return "string"
-    if db_type == "DATE":
+    # Date and Time types
+    if db_type in [
+        "date",
+        "time",
+        "timestamp",
+        "timestamp with time zone",
+        "timestamptz",
+        "datetime",
+        "interval",
+    ]:
         return "date"
-    if db_type == "DATETIME":
-        return "date"
-    if db_type == "TIMESTAMP":
-        return "date"
-    if db_type == "TIME":
-        return "date"
+    # Nested types
+    if db_type in ["array", "list", "struct", "map", "union"]:
+        return "unknown"
+    # Special types
+    if db_type == "bit":
+        return "string"  # Representing bit as string
+    if db_type == "enum":
+        return "string"  # Representing enum as string
+    # Unknown type
     return "unknown"
