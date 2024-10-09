@@ -206,7 +206,6 @@ extra-dependencies = [
     "jax>=0.4.0; python_version == '3.12'",
     "torch>=2.4.0; python_version == '3.12'",
     "scikit-bio>=0.6.0; python_version == '3.12'",
-    "polars~=1.5.0; python_version == '3.12'",
 ]
 
 [[tool.hatch.envs.test-optional.matrix]]
