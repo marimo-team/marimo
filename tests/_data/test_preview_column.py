@@ -95,7 +95,7 @@ def test_get_column_preview_for_duckdb() -> None:
 
     # Create a table with a deterministic pattern
     duckdb.execute("""
-        CREATE TABLE OR REPLACE tbl AS
+        CREATE OR REPLACE TABLE tbl AS
         SELECT
             range AS id,
             CAST(range % 2 AS INTEGER) AS outcome
@@ -142,7 +142,7 @@ def test_get_column_preview_for_duckdb_categorical() -> None:
 
     # Test preview for a categorical column
     duckdb.execute("""
-        CREATE TABLE OR REPLACE tbl AS
+        CREATE OR REPLACE TABLE tbl AS
         SELECT
             CASE
                 WHEN range % 4 = 0 THEN 'A'
@@ -185,7 +185,7 @@ def test_get_column_preview_for_duckdb_date() -> None:
 
     # Test preview for a date column
     duckdb.execute("""
-        CREATE TABLE OR REPLACE date_tbl AS
+        CREATE OR REPLACE TABLE date_tbl AS
         SELECT DATE '2023-01-01' + INTERVAL (range % 365) DAY AS date_col
         FROM range(100)
     """)
@@ -202,8 +202,8 @@ def test_get_column_preview_for_duckdb_date() -> None:
     assert result_date.summary.total == 100
     assert result_date.summary.unique == 100
     assert result_date.summary.nulls == 0
-    assert result_date.summary.min == datetime.date(2023, 1, 1)
-    assert result_date.summary.max == datetime.date(2023, 12, 31)
+    assert result_date.summary.min == datetime.datetime(2023, 1, 1, 0, 0)
+    assert result_date.summary.max == datetime.datetime(2023, 4, 10, 0, 0)
 
     # Not implemented yet
     assert result_date.chart_code is None
@@ -222,7 +222,7 @@ def test_get_column_preview_for_duckdb_bool() -> None:
 
     # Test preview for a boolean column
     duckdb.execute("""
-        CREATE TABLE OR REPLACE bool_tbl AS
+        CREATE OR REPLACE TABLE bool_tbl AS
         SELECT range % 2 = 0 AS bool_col
         FROM range(100)
     """)

@@ -141,7 +141,6 @@ def get_column_type(table_name: str, column_name: str) -> DataType:
         )
 
     db_column_type = column_info_result[0].lower()
-    print(db_column_type)
     return _db_type_to_data_type(db_column_type)
 
 

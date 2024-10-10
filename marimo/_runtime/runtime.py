@@ -1819,7 +1819,6 @@ class Kernel:
                     table_name=table_name,
                 ).broadcast()
             else:
-                print(column_preview)
                 column_preview.broadcast()
         except Exception as e:
             LOGGER.warning(
@@ -1834,8 +1833,6 @@ class Kernel:
                 table_name=table_name,
             ).broadcast()
         return
-
-        assert_never(request.source_type)
 
     async def handle_message(self, request: ControlRequest) -> None:
         """Handle a message from the client.
