@@ -7,6 +7,7 @@ from textwrap import dedent
 from typing import Any, cast
 
 from marimo._data.models import DataType
+from marimo._utils import assert_never
 
 
 @abc.abstractmethod
@@ -284,6 +285,8 @@ def get_chart_builder(
         return WrapperChartBuilder(IntegerChartBuilder())
     if column_type == "unknown":
         return WrapperChartBuilder(UnknownChartBuilder())
+
+    assert_never(column_type)
 
 
 def _escape_special_path_characters(column: str | int) -> str:

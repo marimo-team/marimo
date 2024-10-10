@@ -38,7 +38,7 @@ def test_applies_limit(mock_replace: MagicMock) -> None:
 
     try:
         os.environ["MARIMO_SQL_DEFAULT_LIMIT"] = "300"
-        duckdb.sql("CREATE TABLE t AS SELECT * FROM range(1000)")
+        duckdb.sql("CREATE OR REPLACE TABLE t AS SELECT * FROM range(1000)")
         mock_replace.assert_not_called()
 
         table: ui.table
@@ -74,7 +74,9 @@ def test_applies_limit(mock_replace: MagicMock) -> None:
 
         # Limit above 20_0000 (which is the mo.ui.table cutoff)
         mock_replace.reset_mock()
-        duckdb.sql("CREATE TABLE big_table AS SELECT * FROM range(30_000)")
+        duckdb.sql(
+            "CREATE OR REPLACE TABLE big_table AS SELECT * FROM range(30_000)"
+        )
         assert len(sql("SELECT * FROM big_table LIMIT 25_000")) == 25_000
         mock_replace.assert_called_once()
         table = mock_replace.call_args[0][0]
@@ -103,25 +105,27 @@ def test_sql_output_flag(mock_replace: MagicMock) -> None:
     from marimo._sql.sql import sql
 
     # Create a test table
-    duckdb.sql("CREATE TABLE test_table AS SELECT * FROM range(10)")
+    duckdb.sql(
+        "CREATE OR REPLACE TABLE test_table_2 AS SELECT * FROM range(10)"
+    )
 
     # Test when output is None (default, True)
-    result = sql("SELECT * FROM test_table")
+    result = sql("SELECT * FROM test_table_2")
     assert isinstance(result, pl.DataFrame)
     mock_replace.assert_called_once()
     mock_replace.reset_mock()
 
     # Test when output is False
-    result = sql("SELECT * FROM test_table", output=False)
+    result = sql("SELECT * FROM test_table_2", output=False)
     assert isinstance(result, pl.DataFrame)
     mock_replace.assert_not_called()
     mock_replace.reset_mock()
 
     # Test when output is True
-    result = sql("SELECT * FROM test_table", output=True)
+    result = sql("SELECT * FROM test_table_2", output=True)
     assert isinstance(result, pl.DataFrame)
     mock_replace.assert_called_once()
     mock_replace.reset_mock()
 
     # Clean up
-    duckdb.sql("DROP TABLE test_table")
+    duckdb.sql("DROP TABLE test_table_2")
