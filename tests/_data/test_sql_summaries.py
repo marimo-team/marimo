@@ -21,7 +21,7 @@ def setup_test_db():
 
     # Create a test database and table
     duckdb.execute("""
-        CREATE OR REPLACE TABLE test_table (
+        CREATE OR REPLACE TABLE test_table_3 (
             id INTEGER,
             name VARCHAR,
             age INTEGER,
@@ -33,7 +33,7 @@ def setup_test_db():
 
     # Insert some test data
     duckdb.execute("""
-        INSERT INTO test_table VALUES
+        INSERT INTO test_table_3 VALUES
         (1, 'Alice', 30, 50000.00, true, '1993-01-15'),
         (2, 'Bob', 35, 60000.00, false, '1988-05-20'),
         (3, 'Charlie', 28, 45000.00, true, '1995-11-30'),
@@ -41,25 +41,27 @@ def setup_test_db():
         (5, 'Eve', 32, NULL, false, '1991-03-25')
     """)
 
-    return duckdb
+    yield duckdb
+
+    duckdb.execute("DROP TABLE test_table_3")
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_get_column_type(setup_test_db: Any):
     del setup_test_db
 
-    assert get_column_type("test_table", "id") == "integer"
-    assert get_column_type("test_table", "name") == "string"
-    assert get_column_type("test_table", "salary") == "number"
-    assert get_column_type("test_table", "is_active") == "boolean"
-    assert get_column_type("test_table", "birth_date") == "date"
+    assert get_column_type("test_table_3", "id") == "integer"
+    assert get_column_type("test_table_3", "name") == "string"
+    assert get_column_type("test_table_3", "salary") == "number"
+    assert get_column_type("test_table_3", "is_active") == "boolean"
+    assert get_column_type("test_table_3", "birth_date") == "date"
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_get_sql_summary_integer(setup_test_db: Any):
     del setup_test_db
 
-    summary = get_sql_summary("test_table", "age", "integer")
+    summary = get_sql_summary("test_table_3", "age", "integer")
     assert isinstance(summary, ColumnSummary)
     assert summary.total == 5
     assert summary.unique == 4
@@ -73,7 +75,7 @@ def test_get_sql_summary_integer(setup_test_db: Any):
 def test_get_sql_summary_string(setup_test_db: Any):
     del setup_test_db
 
-    summary = get_sql_summary("test_table", "name", "string")
+    summary = get_sql_summary("test_table_3", "name", "string")
     assert isinstance(summary, ColumnSummary)
     assert summary.total == 5
     assert summary.unique == 5
@@ -84,7 +86,7 @@ def test_get_sql_summary_string(setup_test_db: Any):
 def test_get_sql_summary_boolean(setup_test_db: Any):
     del setup_test_db
 
-    summary = get_sql_summary("test_table", "is_active", "boolean")
+    summary = get_sql_summary("test_table_3", "is_active", "boolean")
     assert isinstance(summary, ColumnSummary)
     assert summary.total == 5
     assert summary.unique == 2
@@ -97,7 +99,7 @@ def test_get_sql_summary_boolean(setup_test_db: Any):
 def test_get_sql_summary_date(setup_test_db: Any):
     del setup_test_db
 
-    summary = get_sql_summary("test_table", "birth_date", "date")
+    summary = get_sql_summary("test_table_3", "birth_date", "date")
     assert isinstance(summary, ColumnSummary)
     assert summary.total == 5
     assert summary.unique == 5
