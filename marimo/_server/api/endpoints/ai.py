@@ -334,6 +334,7 @@ async def ai_completion(
         ],
         temperature=0,
         stream=True,
+        timeout=15,
     )
 
     return StreamingResponse(

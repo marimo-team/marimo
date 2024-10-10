@@ -27,7 +27,7 @@ import { LanguageToggles } from "./language-toggle";
 import { cn } from "@/utils/cn";
 import { saveCellConfig } from "@/core/network/requests";
 import { HideCodeButton } from "../../code/readonly-python-code";
-import { AiCompletionEditor } from "./ai-completion-editor";
+import { AiCompletionEditor } from "../../ai/ai-completion-editor";
 import { useAtom, useAtomValue } from "jotai";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { mergeRefs } from "@/utils/mergeRefs";

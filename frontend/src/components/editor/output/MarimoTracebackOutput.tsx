@@ -45,7 +45,7 @@ export const MarimoTracebackOutput = ({
 
   const handleRefactorWithAI = () => {
     onRefactorWithAI?.({
-      prompt: `My code gives the following error: ${lastTracebackLine}`,
+      prompt: `My code gives the following error:\n\n${lastTracebackLine}`,
     });
   };
 
