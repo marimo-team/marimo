@@ -29,11 +29,7 @@ import { deserializeBase64, deserializeJson } from "@/utils/json/base64";
 import { historyField } from "@codemirror/commands";
 import { clamp } from "@/utils/math";
 import type { LayoutState } from "../layout/layout";
-import {
-  isMarkdown,
-  notebookIsRunning,
-  notebookQueueOrRunningCount,
-} from "./utils";
+import { notebookIsRunning, notebookQueueOrRunningCount } from "./utils";
 import {
   splitEditor,
   updateEditorCodeFromPython,
@@ -256,10 +252,6 @@ const {
           lastCodeRun,
           lastExecutionTime,
           edited: Boolean(code) && code !== lastCodeRun,
-          config: {
-            disabled: false,
-            hide_code: isMarkdown(code),
-          },
         }),
       },
       cellRuntime: {
