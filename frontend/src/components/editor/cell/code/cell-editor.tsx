@@ -344,6 +344,7 @@ const CellEditorInternal = ({
             }
             // Hide the code editor
             updateCellConfig({ cellId, config: { hide_code: true } });
+            editorViewRef.current?.dom.blur();
             abortController.abort();
           });
         },
