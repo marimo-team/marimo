@@ -142,7 +142,6 @@ def get_column_preview_for_sql(
         chart_builder = get_chart_builder(column_type, False)
         try:
             chart_spec = chart_builder.altair_json(histogram_data, column_name)
-            chart_code = chart_builder.altair_code(table_name, column_name)
         except Exception as e:
             LOGGER.warning(f"Failed to generate Altair chart: {str(e)}")
 
