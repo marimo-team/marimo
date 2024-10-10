@@ -147,7 +147,7 @@ export const Chatbot: React.FC<Props> = (props) => {
         href={attachment.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-link hover:underline"
+        className="text-background hover:underline"
       >
         {attachment.name || "Attachment"}
       </a>

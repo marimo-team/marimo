@@ -16,7 +16,7 @@
 
 import marimo
 
-__generated_with = "0.9.1"
+__generated_with = "0.9.4"
 app = marimo.App()
 
 
@@ -33,7 +33,7 @@ def __():
     return Field, alt, data, ell, mo, pl, pyarrow, requests
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __(mo):
     mo.md(
         """
@@ -87,7 +87,7 @@ def __(alt, cars, client, ell, schema):
         y_encoding: str,
         color: str,
     ):
-        """Generate an altair chart. For each encoding, please include the type after the colon. For example,"""
+        """Generate an altair chart."""
         return (
             alt.Chart(cars)
             .mark_circle()
@@ -96,13 +96,13 @@ def __(alt, cars, client, ell, schema):
                 y=y_encoding,
                 color=color,
             )
-            .properties(width="container")
+            .properties(width=400)
         )
 
 
     @ell.tool()
     def get_filtered_table(sql_query: str):
-        """Filter a pandas dataframe using SQL. Please only use fields from the schema. When referring to the dataframe, call it 'data'."""
+        """Filter a polars dataframe using SQL. Please only use fields from the schema. When referring to the dataframe, call it 'data'."""
         print(sql_query)
         filtered = cars.sql(sql_query, table_name="data")
         return filtered
