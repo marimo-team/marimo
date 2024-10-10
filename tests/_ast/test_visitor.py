@@ -1017,17 +1017,19 @@ def test_print_f_string() -> None:
     import ast
 
     joined_str = ast.parse("f'select * from cars where name = {name}'")
+    assert isinstance(joined_str.body[0].value, ast.JoinedStr)  # type: ignore
     assert (
         normalize_sql_f_string(joined_str.body[0].value)  # type: ignore
-        == "select * from cars where name = '_'"
+        == "select * from cars where name = null"
     )
 
     joined_str = ast.parse(
         "f'select * from \\'{table}\\' where name = {name}'"
     )
+    assert isinstance(joined_str.body[0].value, ast.JoinedStr)  # type: ignore
     assert (
         normalize_sql_f_string(joined_str.body[0].value)  # type: ignore
-        == "select * from '_' where name = '_'"
+        == "select * from 'null' where name = null"
     )
 
 
@@ -1125,7 +1127,6 @@ def test_sql_attach() -> None:
     assert v.refs == set(["mo"])
 
 
-@pytest.mark.xfail(reason="f-string interpolation breaks SQL parsing")
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_attach_f_string() -> None:
     code = "\n".join(
@@ -1137,15 +1138,44 @@ def test_sql_attach_f_string() -> None:
     mod = ast.parse(code)
     v.visit(mod)
     assert v.defs == set(["db"])
-    assert v.refs == set(["mo"])
+    assert v.refs == set(["mo", "PASSWORD"])
 
 
-@pytest.mark.xfail(reason="f-string interpolation breaks SQL parsing")
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
-def test_sql_ref_f_string() -> None:
+def test_sql_int_f_string() -> None:
     code = "\n".join(["mo.sql(f'SELECT * FROM df LIMIT {lim}')"])
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
     assert not v.defs
     assert v.refs == set(["mo", "df", "lim"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_column_f_string() -> None:
+    code = "\n".join(["mo.sql(f'SELECT {col} FROM df LIMIT {lim}')"])
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert not v.defs
+    assert v.refs == set(["mo", "df", "lim", "col"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_value_f_string() -> None:
+    code = "\n".join(["mo.sql(f'SELECT * FROM df WHERE {col} = {val}')"])
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert not v.defs
+    assert v.refs == set(["mo", "df", "col", "val"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_table_f_string() -> None:
+    code = "\n".join(["mo.sql(f'SELECT * FROM {my_table} LIMIT {lim}')"])
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert not v.defs
+    assert v.refs == set(["mo", "my_table", "lim"])

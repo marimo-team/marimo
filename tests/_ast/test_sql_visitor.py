@@ -38,7 +38,7 @@ def test_execute_with_f_string() -> None:
     tree = ast.parse(source_code)
     visitor = SQLVisitor()
     visitor.visit(tree)
-    assert visitor.get_sqls() == ["SELECT * FROM users WHERE name = '_'"]
+    assert visitor.get_sqls() == ["SELECT * FROM users WHERE name = null"]
 
 
 def test_no_sql_calls() -> None:

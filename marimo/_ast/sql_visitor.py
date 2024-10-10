@@ -63,8 +63,8 @@ def normalize_sql_f_string(node: ast.JoinedStr) -> str:
         elif isinstance(part, ast.Constant):
             return str(part.s)
         else:
-            # Just add '_' as a placeholder for {...} expressions
-            return "'_'"
+            # Just add null as a placeholder for {...} expressions
+            return "null"
 
     result = "".join(print_part(part) for part in node.values)
     # remove any double '' created by the f-string
