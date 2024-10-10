@@ -12,6 +12,7 @@ analytical database.
 - `connect_to_sqlite.py` shows hows to connect to a SQLite database
 - `connect_to_postgres.py` shows hows to connect to a PostgreSQL database
 - `connect_to_motherduck.py` shows hows to connect to [motherduck](https://motherduck.com)
+- `histograms.py` shows hows to plot histograms of a column's values
 - [`misc/`](misc/) contains illustrative examples
 
 > [!TIP]
