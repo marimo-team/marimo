@@ -330,10 +330,24 @@ const CellEditorInternal = ({
     if (hidden) {
       updateCellConfig({ cellId, config: { hide_code: false } });
       editorViewRef.current?.focus();
-      editorViewParentRef.current?.addEventListener(
+      // Reach one parent up
+      const parent = editorViewParentRef.current?.parentElement;
+      const abortController = new AbortController();
+      parent?.addEventListener(
         "focusout",
-        () => updateCellConfig({ cellId, config: { hide_code: true } }),
-        { once: true },
+        () => {
+          requestAnimationFrame(() => {
+            // Skip closing if the focus is still in the parent element
+            const focusedElement = document.activeElement;
+            if (parent?.contains(focusedElement)) {
+              return;
+            }
+            // Hide the code editor
+            updateCellConfig({ cellId, config: { hide_code: true } });
+            abortController.abort();
+          });
+        },
+        { signal: abortController.signal },
       );
     }
   }, [hidden, cellId, updateCellConfig, editorViewRef]);
