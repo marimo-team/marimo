@@ -54,7 +54,7 @@ def show_code(output: object = None) -> Html:
     **Args:**
 
     - output: the output to display above the cell's code; omit the output
-      to just show the cel's code, without an output.
+      to just show the cell's code, without an output.
 
     **Returns:**
 
@@ -75,8 +75,8 @@ def show_code(output: object = None) -> Html:
     if output is not None:
         return vstack(
             [
-                code_editor(value=code, disabled=True, min_height=1),
                 as_html(output),
+                code_editor(value=code, disabled=True, min_height=1),
             ]
         )
     else:
