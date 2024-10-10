@@ -8,7 +8,7 @@ import type { CellConfig, RuntimeState } from "../network/types";
 /**
  * Holds state for the last focused cell.
  */
-const lastFocusedCellIdAtom = atom<CellId | null>(null);
+export const lastFocusedCellIdAtom = atom<CellId | null>(null);
 
 export function useLastFocusedCellId() {
   return useAtomValue(lastFocusedCellIdAtom);
