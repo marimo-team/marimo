@@ -12,7 +12,7 @@ import { LoadingTable } from "@/components/data-table/loading-table";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { DelayMount } from "@/components/utils/delay-mount";
 import React from "react";
-import "./grid.css";
+import "./data-editor/grid.css";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-quartz.css";
 
