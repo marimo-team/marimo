@@ -13,7 +13,7 @@ from marimo._plugins.ui._impl.tables.utils import (
 )
 
 if TYPE_CHECKING:
-    import narwhals as nw
+    import narwhals.stable.v1 as nw
     import pandas as pd
     import polars as pl
 

@@ -12,29 +12,46 @@ from marimo._plugins.ui._impl.data_editor import (
     apply_edits,
 )
 
+data_editor = ui.experimental_data_editor
 
+HAS_PANDAS = DependencyManager.pandas.has()
+HAS_POLARS = DependencyManager.polars.has()
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
 def test_data_editor_initialization():
     data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
-    editor = ui.data_editor(data=data, label="Test Editor")
+    editor = data_editor(data=data, label="Test Editor")
     assert editor._data == data
     assert editor._edits == {"edits": []}
     assert editor._component_args["pagination"] is True
     assert editor._component_args["page-size"] == 50
 
 
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
 def test_data_editor_with_column_oriented_data():
     data = {"A": [1, 2, 3], "B": ["a", "b", "c"]}
-    editor = ui.data_editor(data=data)
+    editor = data_editor(data=data)
     assert editor._data == data
 
 
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
 def test_data_editor_with_too_many_rows():
     data = [{"A": i} for i in range(1001)]
     with pytest.raises(ValueError) as excinfo:
-        ui.data_editor(data=data)
+        data_editor(data=data)
     assert "Data editor supports a maximum of 1000 rows" in str(excinfo.value)
 
 
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
 def test_apply_edits_row_oriented():
     data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
     edits = {"edits": [{"rowIdx": 1, "columnId": "B", "value": "x"}]}
@@ -46,6 +63,9 @@ def test_apply_edits_row_oriented():
     ]
 
 
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
 def test_apply_edits_column_oriented():
     data = {"A": [1, 2, 3], "B": ["a", "b", "c"]}
     edits = {"edits": [{"rowIdx": 1, "columnId": "B", "value": "x"}]}
@@ -53,6 +73,9 @@ def test_apply_edits_column_oriented():
     assert result == {"A": [1, 2, 3], "B": ["a", "x", "c"]}
 
 
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
 def test_apply_edits_new_row():
     data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}]
     edits = {"edits": [{"rowIdx": 2, "columnId": "A", "value": 3}]}
@@ -78,15 +101,21 @@ def test_apply_edits_dataframe():
     assert pd.DataFrame({"A": [1, 2, 3], "B": ["a", "x", "c"]}).equals(result)
 
 
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
 def test_data_editor_value_property():
     data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
-    editor = ui.data_editor(data=data)
+    editor = data_editor(data=data)
     assert editor.data == data
 
 
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
 def test_data_editor_convert_value():
     data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
-    editor = ui.data_editor(data=data)
+    editor = data_editor(data=data)
     edits: DataEdits = {
         "edits": [{"rowIdx": 1, "columnId": "B", "value": "x"}]
     }
@@ -98,10 +127,13 @@ def test_data_editor_convert_value():
     ]
 
 
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
 def test_data_editor_hash():
     data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
-    editor1 = ui.data_editor(data=data)
-    editor2 = ui.data_editor(data=data)
+    editor1 = data_editor(data=data)
+    editor2 = data_editor(data=data)
     assert hash(editor1) != hash(editor2)
 
 
@@ -112,7 +144,7 @@ def test_data_editor_with_pandas_dataframe():
     import pandas as pd
 
     df = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
-    editor = ui.data_editor(data=df)
+    editor = data_editor(data=df)
     assert isinstance(editor.data, pd.DataFrame)
     assert df.equals(editor.data)
 
@@ -124,18 +156,24 @@ def test_data_editor_with_polars_dataframe():
     import polars as pl
 
     df = pl.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
-    editor = ui.data_editor(data=df)
+    editor = data_editor(data=df)
     assert isinstance(editor.data, pl.DataFrame)
     assert df.equals(editor.data)
 
 
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
 def test_data_editor_with_custom_pagination():
     data = [{"A": i} for i in range(100)]
-    editor = ui.data_editor(data=data, pagination=False, page_size=25)
+    editor = data_editor(data=data, pagination=False, page_size=25)
     assert editor._component_args["pagination"] is False
     assert editor._component_args["page-size"] == 25
 
 
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
 def test_data_editor_on_change_callback():
     data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
     callback_called = False
@@ -149,6 +187,6 @@ def test_data_editor_on_change_callback():
             {"A": 3, "B": "c"},
         ]
 
-    editor = ui.data_editor(data=data, on_change=on_change)
+    editor = data_editor(data=data, on_change=on_change)
     editor._update({"edits": [{"rowIdx": 1, "columnId": "B", "value": "x"}]})
     assert callback_called

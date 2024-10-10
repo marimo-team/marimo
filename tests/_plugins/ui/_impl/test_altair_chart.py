@@ -343,7 +343,7 @@ def test_parse_spec_pandas() -> None:
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_parse_spec_narwhal() -> None:
     import altair as alt
-    import narwhals as nw
+    import narwhals.stable.v1 as nw
 
     data = nw.from_native(pd.DataFrame({"values": [1, 2, 3]}))
     chart = alt.Chart(data).mark_point().encode(x="values:Q")

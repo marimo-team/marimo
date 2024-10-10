@@ -57,7 +57,7 @@ def __(column_oriented, mo, pandas_df, polars_df, row_oriented):
 
 @app.cell
 def __(df, mo):
-    edited = mo.ui.data_editor(df.value)
+    edited = mo.ui.experimental_data_editor(df.value)
     edited
     return (edited,)
 
@@ -106,7 +106,7 @@ def __(pd):
 
 @app.cell
 def __(mo, pl, varying_data):
-    edited_df = mo.ui.data_editor(pl.DataFrame(varying_data))
+    edited_df = mo.ui.experimental_data_editor(pl.DataFrame(varying_data))
     edited_df
     return (edited_df,)
 

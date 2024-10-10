@@ -13,7 +13,7 @@ from typing import (
     Union,
 )
 
-import narwhals as nw
+import narwhals.stable.v1 as nw
 from narwhals.typing import IntoDataFrame
 
 import marimo._output.data.data as mo_data
@@ -71,21 +71,21 @@ class data_editor(
     import pandas as pd
 
     df = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
-    editor = mo.ui.data_editor(data=df, label="Edit Data")
+    editor = mo.ui.experimental_data_editor(data=df, label="Edit Data")
     ```
 
     Create a data editor from a list of dicts:
 
     ```python
     data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
-    editor = mo.ui.data_editor(data=data, label="Edit Data")
+    editor = mo.ui.experimental_data_editor(data=data, label="Edit Data")
     ```
 
     Create a data editor from a dict of lists:
 
     ```python
     data = {"A": [1, 2, 3], "B": ["a", "b", "c"]}
-    editor = mo.ui.data_editor(data=data, label="Edit Data")
+    editor = mo.ui.experimental_data_editor(data=data, label="Edit Data")
     ```
 
     **Attributes.**
