@@ -48,7 +48,12 @@ export const Column = memo((props: Props) => {
     );
   }
 
-  return column;
+  return (
+    <>
+      {column}
+      {props.footer}
+    </>
+  );
 });
 
 Column.displayName = "Column";
