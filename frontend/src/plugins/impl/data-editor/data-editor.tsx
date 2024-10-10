@@ -7,9 +7,6 @@ import type {
   CellEditingStoppedEvent,
   RowDataTransaction,
 } from "ag-grid-community";
-import "ag-grid-community/styles/ag-grid.css";
-import "ag-grid-community/styles/ag-theme-quartz.css";
-import "./grid.css";
 import type { FieldTypesWithExternalType } from "@/components/data-table/types";
 import { cn } from "@/utils/cn";
 import { useTheme } from "@/theme/useTheme";
