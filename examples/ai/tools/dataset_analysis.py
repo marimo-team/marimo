@@ -16,7 +16,7 @@
 
 import marimo
 
-__generated_with = "0.9.1"
+__generated_with = "0.9.4"
 app = marimo.App()
 
 
@@ -33,7 +33,7 @@ def __():
     return Field, alt, data, ell, mo, pl, pyarrow, requests
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __(mo):
     mo.md(
         """
