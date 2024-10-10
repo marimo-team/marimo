@@ -17,7 +17,7 @@
 import marimo
 
 __generated_with = "0.9.4"
-app = marimo.App(width="full")
+app = marimo.App(width="medium")
 
 
 @app.cell
@@ -37,7 +37,7 @@ def __():
 def __(mo):
     mo.md(
         """
-        # Using tools with ell
+        # Creating rich tools with ell
 
         This example shows how to use [`ell`](https://docs.ell.so/) with tools to analyze a dataset and return rich responses like charts and tables.
         """
@@ -56,8 +56,12 @@ def __(mo):
     import os
 
     os_key = os.environ.get("OPENAI_API_KEY")
-    input_key = mo.ui.text(label="OpenAI API key", kind="password")
-    input_key if not os_key else None
+    input_key = mo.ui.text(
+        label="OpenAI API key",
+        kind="password",
+        value=os.environ.get("OPENAI_API_KEY"),
+    )
+    input_key
     return input_key, os, os_key
 
 
@@ -92,12 +96,7 @@ def __():
 
 @app.cell
 def __(get_dataset, mo, set_dataset):
-    options = [
-        "cars",
-        "barley",
-        "countries",
-        "disasters",
-    ]
+    options = ["cars", "barley", "countries", "disasters"]
     dataset_dropdown = mo.ui.dropdown(
         options, label="Datasets", value=get_dataset(), on_change=set_dataset
     )
@@ -163,7 +162,6 @@ def __(
     dataset_dropdown,
     df,
     ell,
-    get_dataset,
     mo,
     requests,
 ):
@@ -174,7 +172,7 @@ def __(
 
 
     @ell.tool()
-    def get_chart(
+    def chart_data(
         x_encoding: str,
         y_encoding: str,
         color: str,
@@ -183,28 +181,25 @@ def __(
         return (
             alt.Chart(df)
             .mark_circle()
-            .encode(
-                x=x_encoding,
-                y=y_encoding,
-                color=color,
-            )
-            .properties(width="container")
+            .encode(x=x_encoding, y=y_encoding, color=color)
+            .properties(width=500)
         )
 
 
     @ell.tool()
-    def get_filtered_table(sql_query: str):
-        """Filter a polars dataframe using SQL. Please only use fields from the schema. When referring to the dataframe, call it 'data'."""
-        print(sql_query)
+    def filter_dataset_with_sql(sql_query: str):
+        """
+        Filter a polars dataframe using SQL. Please only use fields from the schema.
+        When referring to the dataframe, call it 'data'."""
         filtered = df.sql(sql_query, table_name="data")
-        return filtered
+        return mo.ui.table(filtered, selection=None, label=sql_query)
 
 
     @ell.tool()
     def execute_code(code: str):
         """
-        Execute python. Please make sure it is safe before executing. Otherwise do not choose this tool.
-        The python must be executable on one line
+        Execute python. Please make sure it is safe before executing.
+        Otherwise do not choose this tool.
         """
         try:
             return mo.md(f"""
@@ -241,15 +236,37 @@ def __(
         return rag(soup.get_text(), question)
 
 
+    TOOLS = [
+        chart_data,
+        filter_dataset_with_sql,
+        execute_code,
+        search_the_web,
+        show_dataset_selector,
+    ]
+
+    tool_docs = {}
+    for tool in TOOLS:
+        tool_docs[tool.__name__] = tool.__doc__
+
+    mo.accordion(tool_docs)
+    return (
+        TOOLS,
+        chart_data,
+        execute_code,
+        filter_dataset_with_sql,
+        rag,
+        search_the_web,
+        show_dataset_selector,
+        tool,
+        tool_docs,
+    )
+
+
+@app.cell
+def __(TOOLS, client, df, ell, get_dataset, mo):
     @ell.complex(
         model="gpt-4-turbo",
-        tools=[
-            get_chart,
-            get_filtered_table,
-            execute_code,
-            search_the_web,
-            show_dataset_selector,
-        ],
+        tools=TOOLS,
         client=client,
     )
     def custom_chatbot(messages, config) -> str:
@@ -263,36 +280,36 @@ def __(
         return [
             ell.system(
                 f"""
-                You are a chatbot with many tools. Choose a tool or response with markdown-compatible text.
-
-                If you are talking about a dataset, the current dataset is {get_dataset()}, with schema: {df.schema}
+                You are a chatbot with many tools. Choose a tool or respond with markdown-compatible text.
+                If you are talking about a dataset, the current dataset is {get_dataset()}, with schema:{df.schema}
                 """
             ),
         ] + message_history
-    return (
-        custom_chatbot,
-        execute_code,
-        get_chart,
-        get_filtered_table,
-        rag,
-        search_the_web,
-        show_dataset_selector,
-    )
 
 
-@app.cell
-def __(custom_chatbot, mo):
-    def handle_messages(messages):
+    def model(messages):
         response = custom_chatbot(messages, {})
         if response.tool_calls:
             tool = response.tool_calls[0]
             tool_response = tool()
-            return mo.vstack([f"Tool used: {str(tool.tool)}", tool_response])
+            return mo.vstack(
+                [mo.md(f"Tool used: **{str(tool.tool.__name__)}**"), tool_response]
+            )
         return mo.md(response.text)
+    return custom_chatbot, model
 
 
-    mo.ui.chat(handle_messages)
-    return (handle_messages,)
+@app.cell
+def __(mo, model):
+    mo.ui.chat(
+        model,
+        prompts=[
+            "I'd like to analyze a dataset can you give me some options",
+            "Can you describe this dataset",
+            "Let's plot {{x}} vs {{y}}",
+        ],
+    )
+    return
 
 
 if __name__ == "__main__":
