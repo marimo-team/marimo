@@ -160,6 +160,7 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
                       duration: 600,
                       nodes: [node],
                     });
+                    setSelection({ type: "node", id: lastFocusedCell });
                   }
                 }
               }}
