@@ -22,7 +22,7 @@ def __(mo):
         r"""
         # SQL Histograms
 
-        This notebook shows how histogram a column's values using built-in duckdb aggregate functions.
+        This notebook shows how to create a histogram of a column using built-in duckdb aggregate functions.
         """
     )
     return
