@@ -118,11 +118,16 @@ def get_column_preview_for_sql(
     table_name: str,
     column_name: str,
 ) -> Optional[DataColumnPreview]:
-    # Drop memory.main
-    if table_name.startswith("memory.main."):
-        query_table_name = table_name.replace("memory.main.", "")
-    else:
-        query_table_name = table_name
+    # Only show column previews for in-memory tables
+    # otherwise we could be making requests to postgres/mysql/etc
+    # that the user may not intend to do so.
+    if not table_name.startswith("memory.main."):
+        return DataColumnPreview(
+            table_name=table_name,
+            column_name=column_name,
+            error="Previews only supported for in-memory tables",
+        )
+    query_table_name = table_name.replace("memory.main.", "")
 
     column_type = get_column_type(query_table_name, column_name)
     summary = get_sql_summary(query_table_name, column_name, column_type)
@@ -137,7 +142,6 @@ def get_column_preview_for_sql(
         chart_builder = get_chart_builder(column_type, False)
         try:
             chart_spec = chart_builder.altair_json(histogram_data, column_name)
-            chart_code = chart_builder.altair_code(table_name, column_name)
         except Exception as e:
             LOGGER.warning(f"Failed to generate Altair chart: {str(e)}")
 

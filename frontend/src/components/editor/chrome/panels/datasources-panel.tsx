@@ -477,7 +477,7 @@ const DatasetColumnPreview: React.FC<{
         <Button
           variant="outline"
           size="icon"
-          className="z-10 bg-background absolute right-1 top-0"
+          className="z-10 bg-background absolute right-1 -top-1"
           onClick={Events.stopPropagation(() =>
             onAddColumnChart(preview.chart_code || ""),
           )}
@@ -492,7 +492,7 @@ const DatasetColumnPreview: React.FC<{
       <Button
         variant="outline"
         size="icon"
-        className="z-10 bg-background absolute right-1 top-0"
+        className="z-10 bg-background absolute right-1 -top-1"
         onClick={Events.stopPropagation(() => {
           const code = `_df = mo.sql(f"SELECT '${column.name}' FROM ${table.name} LIMIT 100")`;
           onAddColumnChart(code);
