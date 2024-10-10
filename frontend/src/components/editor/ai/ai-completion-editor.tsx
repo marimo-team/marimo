@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import CodeMirrorMerge from "react-codemirror-merge";
 import { useCompletion } from "ai/react";
 import { API } from "@/core/network/api";
@@ -21,6 +21,10 @@ import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import { useTheme } from "@/theme/useTheme";
 import { asURL } from "@/utils/url";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
+import { PromptInput } from "./add-cell-with-ai";
+import { getAICompletionBody } from "./completion-utils";
+import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
+import { selectAllText } from "@/core/codemirror/utils";
 
 const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
@@ -41,6 +45,11 @@ interface Props {
 
 const baseExtensions = [customPythonLanguageSupport(), EditorView.lineWrapping];
 
+/**
+ * Editor for AI completions that goes above a cell to modify it.
+ *
+ * This shows a left/right split with the original and modified code.
+ */
 export const AiCompletionEditor: React.FC<Props> = ({
   onChange,
   initialPrompt,
@@ -51,6 +60,8 @@ export const AiCompletionEditor: React.FC<Props> = ({
   enabled,
   children,
 }) => {
+  const [completionBody, setCompletionBody] = useState<object>({});
+
   const [includeOtherCells, setIncludeOtherCells] = useAtom(
     includeOtherCellsAtom,
   );
@@ -62,7 +73,6 @@ export const AiCompletionEditor: React.FC<Props> = ({
     isLoading,
     setCompletion,
     setInput,
-    handleInputChange,
     handleSubmit,
   } = useCompletion({
     api: asURL("api/ai/completion").toString(),
@@ -70,6 +80,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
     initialInput: initialPrompt,
     streamMode: "text",
     body: {
+      ...completionBody,
       includeOtherCode: includeOtherCells ? getCodes(currentCode) : "",
       code: currentCode,
       language: currentLanguageAdapter,
@@ -82,13 +93,13 @@ export const AiCompletionEditor: React.FC<Props> = ({
     },
   });
 
-  const inputRef = React.useRef<HTMLInputElement>(null);
+  const inputRef = React.useRef<ReactCodeMirrorRef>(null);
 
   // Focus the input
   useEffect(() => {
     if (enabled && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
+      inputRef.current.view?.focus();
+      selectAllText(inputRef.current.view);
     }
   }, [enabled]);
 
@@ -106,7 +117,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
       <div
         className={cn(
           "flex items-center gap-2 border-b px-3 transition-[height] rounded-[inherit] rounded-b-none duration-300 overflow-hidden",
-          enabled && "h-10 visible",
+          enabled && "min-h-10 visible",
           !enabled && "h-0 invisible",
         )}
       >
@@ -116,23 +127,21 @@ export const AiCompletionEditor: React.FC<Props> = ({
               className="text-[var(--blue-10)] flex-shrink-0"
               size={16}
             />
-            <input
-              className="h-8 outline-none px-2 focus-visible:shadow-none flex-1 rounded-none border-none focus:border-none"
+            <PromptInput
+              inputRef={inputRef}
+              theme={theme}
+              onClose={() => {
+                declineChange();
+                setCompletion("");
+              }}
               value={input}
-              ref={inputRef}
-              onChange={handleInputChange}
-              placeholder="Type for completion"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleSubmit(
-                    e as unknown as React.FormEvent<HTMLFormElement>,
-                  );
-                }
-                if (e.key === "Escape") {
-                  e.preventDefault();
-                  declineChange();
-                  setCompletion("");
+              onChange={(newValue) => {
+                setInput(newValue);
+                setCompletionBody(getAICompletionBody(newValue));
+              }}
+              onSubmit={() => {
+                if (!isLoading) {
+                  handleSubmit();
                 }
               }}
             />

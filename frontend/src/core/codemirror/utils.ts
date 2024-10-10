@@ -36,3 +36,15 @@ export function isInVimNormalMode(ev: EditorView): boolean {
   }
   return vimState.mode === "normal";
 }
+
+export function selectAllText(ev: EditorView | undefined) {
+  if (!ev) {
+    return;
+  }
+  ev.dispatch({
+    selection: {
+      anchor: 0,
+      head: ev.state.doc.length,
+    },
+  });
+}

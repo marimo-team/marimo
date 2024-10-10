@@ -4,7 +4,6 @@ import { cn } from "@/utils/cn";
 import { Button } from "@/components/ui/button";
 import { ChevronsUpDown, Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
-import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import { API } from "@/core/network/api";
 import { prettyError } from "@/utils/errors";
 import { useCompletion } from "ai/react";
@@ -12,17 +11,14 @@ import ReactCodeMirror, {
   EditorView,
   keymap,
   minimalSetup,
+  type ReactCodeMirrorRef,
 } from "@uiw/react-codemirror";
 import { Prec } from "@codemirror/state";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/python";
 import { asURL } from "@/utils/url";
 import { mentions } from "@uiw/codemirror-extensions-mentions";
 import { useMemo, useState } from "react";
-import { store } from "@/core/state/jotai";
 import { datasetTablesAtom } from "@/core/datasets/state";
-import { Logger } from "@/utils/Logger";
-import { Maps } from "@/utils/maps";
-import type { DataTable } from "@/core/kernel/messages";
 import { useAtom, useAtomValue } from "jotai";
 import type { Completion } from "@codemirror/autocomplete";
 import {
@@ -35,45 +31,13 @@ import { sql } from "@codemirror/lang-sql";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
 import { atomWithStorage } from "jotai/utils";
 import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
+import { getAICompletionBody } from "./completion-utils";
 
 const pythonExtensions = [
   customPythonLanguageSupport(),
   EditorView.lineWrapping,
 ];
 const sqlExtensions = [sql(), EditorView.lineWrapping];
-
-function getCompletionBody(input: string): object {
-  const datasets = extractDatasets(input);
-  Logger.debug("Included datasets", datasets);
-
-  return {
-    includeOtherCode: getCodes(""),
-    context: {
-      schema: datasets.map((dataset) => ({
-        name: dataset.name,
-        columns: dataset.columns.map((column) => ({
-          name: column.name,
-          type: column.type,
-        })),
-      })),
-    },
-    code: "",
-  };
-}
-
-function extractDatasets(input: string): DataTable[] {
-  const datasets = store.get(datasetTablesAtom);
-  const existingDatasets = Maps.keyBy(datasets, (dataset) => dataset.name);
-
-  // Extract dataset mentions from the input
-  const mentionedDatasets = input.match(/@(\w+)/g) || [];
-
-  // Filter to only include datasets that exist
-  return mentionedDatasets
-    .map((mention) => mention.slice(1))
-    .map((name) => existingDatasets.get(name))
-    .filter(Boolean);
-}
 
 // Persist across sessions
 const languageAtom = atomWithStorage<"python" | "sql">(
@@ -149,9 +113,13 @@ export const AddCellWithAI: React.FC<{
         value={input}
         onChange={(newValue) => {
           setInput(newValue);
-          setCompletionBody(getCompletionBody(newValue));
+          setCompletionBody(getAICompletionBody(newValue));
         }}
-        onSubmit={handleSubmit}
+        onSubmit={() => {
+          if (!isLoading) {
+            handleSubmit();
+          }
+        }}
       />
       {isLoading && (
         <Button
@@ -198,11 +166,14 @@ export const AddCellWithAI: React.FC<{
     <div className={cn("flex flex-col w-full gap-2 py-2")}>
       {inputComponent}
       {!completion && (
-        <span className="text-xs text-muted-foreground px-3">
-          You can mention{" "}
-          <span className="text-[var(--cyan-11)]">@dataframe</span> or{" "}
-          <span className="text-[var(--cyan-11)]">@sql_table</span> to pull
-          additional context such as column names.
+        <span className="text-xs text-muted-foreground px-3 flex flex-col gap-1">
+          <span>
+            You can mention{" "}
+            <span className="text-[var(--cyan-11)]">@dataframe</span> or{" "}
+            <span className="text-[var(--cyan-11)]">@sql_table</span> to pull
+            additional context such as column names.
+          </span>
+          <span>Code from other cells is automatically included.</span>
         </span>
       )}
       {completion && (
@@ -219,6 +190,7 @@ export const AddCellWithAI: React.FC<{
 };
 
 interface PromptInputProps {
+  inputRef?: React.RefObject<ReactCodeMirrorRef>;
   value: string;
   onClose: () => void;
   onChange: (value: string) => void;
@@ -226,8 +198,15 @@ interface PromptInputProps {
   theme: ResolvedTheme;
 }
 
-const PromptInput = ({
+/**
+ * CodeMirror-based input for the AI prompt.
+ *
+ * This is just text (no language support), but we use codemirror to get autocomplete
+ * for @dataframe and @sql_table.
+ */
+export const PromptInput = ({
   value,
+  inputRef,
   onChange,
   onSubmit,
   onClose,
@@ -300,12 +279,40 @@ const PromptInput = ({
       Prec.highest(
         keymap.of([
           {
-            key: "Enter",
             preventDefault: true,
             stopPropagation: true,
-            run: () => {
-              handleSubmit();
-              return true;
+            any: (view, event) => {
+              const pressedModOrShift =
+                event.metaKey || event.ctrlKey || event.shiftKey;
+              // If no mod key is pressed, submit
+              if (event.key === "Enter" && !pressedModOrShift) {
+                handleSubmit();
+                event.preventDefault();
+                event.stopPropagation();
+                return true;
+              }
+              // Mod+Enter does add a new line already by codemirror
+              // But Shift+Enter does not, so we need to handle it manually
+              if (event.key === "Enter" && event.shiftKey) {
+                const cursorPosition = view.state.selection.main.from;
+                // Insert a new line
+                view.dispatch({
+                  changes: {
+                    from: cursorPosition,
+                    to: cursorPosition,
+                    insert: "\n",
+                  },
+                  selection: {
+                    anchor: cursorPosition + 1,
+                    head: cursorPosition + 1,
+                  },
+                });
+                event.preventDefault();
+                event.stopPropagation();
+                return true;
+              }
+
+              return false;
             },
           },
         ]),
@@ -326,6 +333,7 @@ const PromptInput = ({
 
   return (
     <ReactCodeMirror
+      ref={inputRef}
       className="flex-1 font-sans"
       autoFocus={true}
       width="100%"
