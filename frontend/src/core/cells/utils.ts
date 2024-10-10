@@ -10,6 +10,7 @@ import {
   type LastSavedNotebook,
   staleCellIds,
 } from "./cells";
+import { LanguageAdapters } from "../codemirror/language/LanguageAdapters";
 
 export function notebookIsRunning(state: NotebookState) {
   return Object.values(state.cellRuntime).some(
@@ -102,4 +103,10 @@ export function getDescendantsStatus(state: NotebookState, cellId: CellId) {
     errored,
     runningOrQueued,
   };
+}
+
+export function isMarkdown(code: string | undefined) {
+  return code && code !== ""
+    ? LanguageAdapters.markdown().isSupported(code)
+    : false;
 }
