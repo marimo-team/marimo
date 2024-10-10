@@ -228,6 +228,12 @@ importers:
       '@xterm/xterm':
         specifier: ^5.5.0
         version: 5.5.0
+      ag-grid-community:
+        specifier: ^32.2.2
+        version: 32.2.2
+      ag-grid-react:
+        specifier: ^32.2.2
+        version: 32.2.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       ai:
         specifier: ^3.3.12
         version: 3.3.12(react@18.3.1)(sswr@2.1.0)(zod@3.23.8)
@@ -4535,6 +4541,18 @@ packages:
   adjust-sourcemap-loader@4.0.0:
     resolution: {integrity: sha512-OXwN5b9pCUXNQHJpwwD2qP40byEmSgzj8B4ydSN0uMNYWiFmJ6x6KwUllMmfk8Rwu/HJDFR7U8ubsWBoN0Xp0A==}
     engines: {node: '>=8.9'}
+
+  ag-charts-types@10.2.0:
+    resolution: {integrity: sha512-PUqH1QtugpYLnlbMdeSZVf5PpT1XZVsP69qN1JXhetLtQpVC28zaj7ikwu9CMA9N9b+dBboA9QcjUQUJZVUokQ==}
+
+  ag-grid-community@32.2.2:
+    resolution: {integrity: sha512-RQluoEXbTCkYHHwmOUzG4wGBX3yQffFH+52aWJUAFqFKNNHYKYGhjvH2iuAa2xw3CWva1hupUaDpP+Rol32Arg==}
+
+  ag-grid-react@32.2.2:
+    resolution: {integrity: sha512-YNj6ssjcaE5R2xnxH21YvseKatsTN59Tb8EoafjT/zWQvOAvSWofdbKwYVz8YfPOwNzw+FB+qiQfP1j8rJtVdA==}
+    peerDependencies:
+      react: ^16.3.0 || ^17.0.0 || ^18.0.0
+      react-dom: ^16.3.0 || ^17.0.0 || ^18.0.0
 
   agent-base@6.0.2:
     resolution: {integrity: sha512-RZNwNclF7+MS/8bDg70amg32dyeZGZxiDuQmZxKLAlQjr3jGyLx+4Kkk58UO7D2QdgFIQCovuSuZESne6RG6XQ==}
@@ -15152,6 +15170,19 @@ snapshots:
     dependencies:
       loader-utils: 2.0.4
       regex-parser: 2.2.11
+
+  ag-charts-types@10.2.0: {}
+
+  ag-grid-community@32.2.2:
+    dependencies:
+      ag-charts-types: 10.2.0
+
+  ag-grid-react@32.2.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+    dependencies:
+      ag-grid-community: 32.2.2
+      prop-types: 15.8.1
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
 
   agent-base@6.0.2:
     dependencies:

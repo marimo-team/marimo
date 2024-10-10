@@ -54,7 +54,7 @@ def get_table_manager_or_none(data: Any) -> TableManager[Any] | None:
 
     # Unpack narwhal dataframe wrapper
     if DependencyManager.narwhals.imported():
-        import narwhals  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+        import narwhals
 
         if isinstance(data, narwhals.DataFrame):
             return get_table_manager_or_none(narwhals.to_native(data))

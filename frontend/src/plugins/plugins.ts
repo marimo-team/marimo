@@ -47,6 +47,7 @@ import { DateTimePickerPlugin } from "./impl/DateTimePickerPlugin";
 import { DateRangePickerPlugin } from "./impl/DateRangePlugin";
 import { MimeRendererPlugin } from "./layout/MimeRenderPlugin";
 import { ChatPlugin } from "./impl/chat/ChatPlugin";
+import { DataEditorPlugin } from "./impl/DataEditorPlugin";
 
 // List of UI plugins
 export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
@@ -80,6 +81,7 @@ export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
   DataFramePlugin,
   LazyPlugin,
   AnyWidgetPlugin,
+  DataEditorPlugin,
 ];
 
 // List of output / layout plugins

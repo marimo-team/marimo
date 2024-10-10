@@ -4,7 +4,6 @@ from __future__ import annotations
 import functools
 from dataclasses import dataclass
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -15,6 +14,8 @@ from typing import (
     Sequence,
     Union,
 )
+
+from narwhals.typing import IntoDataFrame
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
@@ -40,12 +41,6 @@ from marimo._plugins.ui._impl.utils.dataframe import ListOrTuple, TableData
 from marimo._runtime.functions import EmptyArgs, Function
 
 LOGGER = _loggers.marimo_logger()
-
-
-if TYPE_CHECKING:
-    import pandas as pd
-    import polars as pl
-    import pyarrow as pa  # ignore
 
 
 @dataclass
@@ -99,9 +94,7 @@ class SortArgs:
 
 
 @mddoc
-class table(
-    UIElement[List[str], Union[List[JSONType], "pd.DataFrame", "pl.DataFrame"]]
-):
+class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
     """
     A table component with selectable rows. Get the selected rows with
     `table.value`.
@@ -215,9 +208,7 @@ class table(
             ListOrTuple[Union[str, int, float, bool, MIME, None]],
             ListOrTuple[Dict[str, JSONType]],
             Dict[str, ListOrTuple[JSONType]],
-            "pd.DataFrame",
-            "pl.DataFrame",
-            "pa.Table",
+            "IntoDataFrame",
         ],
         pagination: Optional[bool] = None,
         selection: Optional[Literal["single", "multi"]] = "multi",
@@ -236,9 +227,7 @@ class table(
                     Union[
                         List[JSONType],
                         Dict[str, ListOrTuple[JSONType]],
-                        "pd.DataFrame",
-                        "pl.DataFrame",
-                        "pa.Table",
+                        "IntoDataFrame",
                     ]
                 ],
                 None,
@@ -392,7 +381,7 @@ class table(
 
     def _convert_value(
         self, value: list[str]
-    ) -> Union[List[JSONType], "pd.DataFrame", "pl.DataFrame"]:
+    ) -> Union[List[JSONType], "IntoDataFrame"]:
         indices = [int(v) for v in value]
         self._selected_manager = self._searched_manager.select_rows(indices)
         self._has_any_selection = len(indices) > 0
