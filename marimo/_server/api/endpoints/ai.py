@@ -277,9 +277,12 @@ async def ai_completion(
     app_state.require_current_session()
     config = app_state.config_manager.get_config(hide_secrets=False)
     body = await parse_request(request, cls=AiCompletionRequest)
+    custom_rules = config.get("ai", {}).get("rules", None)
 
     prompter = Prompter(body.code, body.include_other_code, body.context)
-    system_prompt = Prompter.get_system_prompt(body.language)
+    system_prompt = Prompter.get_system_prompt(
+        body.language, custom_rules=custom_rules
+    )
     prompt = prompter.get_prompt(body.prompt)
 
     model = get_model(config)

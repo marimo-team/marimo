@@ -172,11 +172,13 @@ class AiConfig(TypedDict, total=False):
 
     **Keys.**
 
+    - `rules`: custom rules to include in all AI completion prompts
     - `open_ai`: the OpenAI config
     - `anthropic`: the Anthropic config
     - `google`: the Google AI config
     """
 
+    rules: NotRequired[str]
     open_ai: OpenAiConfig
     anthropic: AnthropicConfig
     google: GoogleAiConfig

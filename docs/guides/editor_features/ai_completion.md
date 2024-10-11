@@ -132,16 +132,16 @@ Gemma 2) on your local machine. To integrate Ollama with marimo:
 
 1. Download and install [Ollama](https://ollama.com/).
 2. Download the model you want to use:
-   1. `ollama pull llama2`
-   2. We also recommend `codellama` (code specific) or `llama3.1` (more advanced, but larger).
-3. Start the Ollama server: `ollama run llama2`
+   1. `ollama pull llama3.1`
+   2. We also recommend `codellama` (code specific).
+3. Start the Ollama server: `ollama run llama3.1`
 4. Visit <http://localhost:11434> to confirm that the server is running.
 5. Add the following to your `marimo.toml`:
 
 ```toml
 [ai.open_ai]
 api_key = "ollama" # This is not used, but required
-model = "llama2" # or the model you downloaded from above
+model = "llama3.1" # or the model you downloaded from above
 base_url = "http://localhost:11434/v1"
 ```
 

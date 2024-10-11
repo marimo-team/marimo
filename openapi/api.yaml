@@ -1054,6 +1054,8 @@ components:
                 model:
                   type: string
               type: object
+            rules:
+              type: string
           type: object
         completion:
           properties:
@@ -1909,7 +1911,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.9.4
+  version: 0.9.6
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

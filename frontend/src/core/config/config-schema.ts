@@ -99,6 +99,7 @@ export const UserConfigSchema = z
       .default({ manager: "pip" }),
     ai: z
       .object({
+        rules: z.string().default(""),
         open_ai: z
           .object({
             api_key: z.string().optional(),
@@ -141,6 +142,7 @@ export const UserConfigSchema = z
     experimental: {},
     server: {},
     ai: {
+      rules: "",
       open_ai: {},
     },
   });
