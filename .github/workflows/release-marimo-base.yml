@@ -56,8 +56,3 @@ jobs:
           HATCH_INDEX_USER: ${{ secrets.PYPI_USER }}
           HATCH_INDEX_AUTH: ${{ secrets.PYPI_MARIMO_BASE_PASSWORD }}
         run: hatch publish
-
-      - name: 🔨 Get version
-        id: get_version
-        run: |
-          echo "marimo_version=$(hatch version)" >> $GITHUB_OUTPUT
