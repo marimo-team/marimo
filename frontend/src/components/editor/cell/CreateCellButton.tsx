@@ -12,6 +12,7 @@ import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
 import { MarkdownIcon, PythonIcon } from "./code/icons";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
 import { cn } from "@/utils/cn";
+import { Events } from "@/utils/events";
 
 export const CreateCellButton = ({
   appClosed,
@@ -31,6 +32,7 @@ export const CreateCellButton = ({
             "shoulder-button hover-action",
             appClosed && " inactive-button",
           )}
+          onMouseDown={Events.preventFocus}
           shape="circle"
           size="small"
           color="hint-green"

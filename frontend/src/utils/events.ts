@@ -21,4 +21,15 @@ export const Events = {
       }
     };
   },
+  /**
+   * This is used when we are focused in a code-editor,
+   * but don't want pressing a button to move focus to that
+   * button and instead stay in the code editor.
+   *
+   * This should only be placed on the onMouseDown callback
+   */
+  preventFocus: (e: React.MouseEvent) => {
+    // Prevent focus moving to the button on click
+    e.preventDefault();
+  },
 };

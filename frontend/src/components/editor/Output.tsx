@@ -34,6 +34,7 @@ import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queri
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Objects } from "@/utils/objects";
 import { renderMimeIcon } from "./renderMimeIcon";
+import { Events } from "@/utils/events";
 
 const LazyVegaLite = React.lazy(() =>
   import("react-vega").then((m) => ({ default: m.VegaLite })),
@@ -338,6 +339,7 @@ const ExpandableOutput = React.memo(
                   onClick={async () => {
                     await containerRef.current?.requestFullscreen();
                   }}
+                  onMouseDown={Events.preventFocus}
                   size="xs"
                   variant="text"
                 >
