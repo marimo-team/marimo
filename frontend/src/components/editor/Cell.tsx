@@ -52,6 +52,7 @@ import type { CellConfig, RuntimeState } from "@/core/network/types";
 import { MoreHorizontalIcon } from "lucide-react";
 import { Toolbar, ToolbarItem } from "@/components/editor/cell/toolbar";
 import { cn } from "@/utils/cn";
+import { isErrorMime } from "@/core/mime";
 
 /**
  * Imperative interface of the cell.
@@ -417,8 +418,12 @@ const CellComponent = (
   });
 
   if (!editing) {
-    const hidden = errored || interrupted || stopped;
-    return hidden ? null : (
+    const outputIsError = isErrorMime(output?.mimetype);
+    const hidden = errored || interrupted || stopped || outputIsError;
+    if (hidden) {
+      return null;
+    }
+    return (
       <div tabIndex={-1} id={HTMLId} ref={cellRef} className={className}>
         {outputArea}
       </div>

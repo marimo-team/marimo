@@ -38,6 +38,7 @@ import { FloatingOutline } from "../../chrome/panels/outline/floating-outline";
 import { KnownQueryParams } from "@/core/constants";
 import { useUserConfig } from "@/core/config/config";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
+import { isErrorMime } from "@/core/mime";
 
 type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;
@@ -294,9 +295,13 @@ const VerticalCell = memo(
       );
     }
 
-    const hidden = errored || interrupted || stopped;
+    const outputIsError = isErrorMime(output?.mimetype);
+    const hidden = errored || interrupted || stopped || outputIsError;
+    if (hidden) {
+      return null;
+    }
 
-    return hidden ? null : (
+    return (
       <div tabIndex={-1} id={HTMLId} ref={cellRef} className={className}>
         <OutputArea
           allowExpand={mode === "edit"}
