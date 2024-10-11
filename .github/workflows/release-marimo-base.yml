@@ -21,9 +21,6 @@ jobs:
       run:
         shell: bash
 
-    outputs:
-      marimo_version: ${{ steps.get_version.outputs.marimo_version }}
-
     steps:
       - name: 🛑 Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.12.1
