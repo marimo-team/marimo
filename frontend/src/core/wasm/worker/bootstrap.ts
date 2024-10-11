@@ -217,7 +217,6 @@ export class DefaultWasmController implements WasmController {
       code = `import duckdb\n${code}`;
     }
 
-
     const imports = [...foundImports];
 
     // Load from pyodide
