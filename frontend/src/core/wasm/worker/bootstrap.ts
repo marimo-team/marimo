@@ -19,7 +19,7 @@ declare let loadPyodide: (opts: {
 // We would like this initialization to be parallelizable
 // however, there is some waterfall in the initialization process
 // 1. Load Pyodide
-// 2. Install marimo and it's required dependencies
+// 2. Install marimo and its required dependencies
 // 3. Install the dependencies from the notebook
 //   3.a Install from pyodide supported wheels
 //   3.b Install from micropip
@@ -96,6 +96,7 @@ export class DefaultWasmController implements WasmController {
         [
           "Markdown==3.6",
           "pymdown-extensions==10.8.1",
+          "narwhals==1.9.2",
         ],
         deps=False,
         );
@@ -116,6 +117,7 @@ export class DefaultWasmController implements WasmController {
           "${getMarimoWheel(version)}",
           "Markdown==3.6",
           "pymdown-extensions==10.8.1",
+          "narwhals==1.9.2",
         ],
         deps=False,
       );
