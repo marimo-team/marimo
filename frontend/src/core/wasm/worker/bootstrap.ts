@@ -219,10 +219,10 @@ export class DefaultWasmController implements WasmController {
     // These packages are included with Pyodide, which is why we don't add them
     // to `foundImports`:
     // https://pyodide.org/en/stable/usage/packages-in-pyodide.html
-    code = `import docutils\n${code}`
-    code = `import Pygments\n${code}`
-    code = `import jedi\n${code}`
-    code = `import pyodide-http\n${code}`
+    code = `import docutils\n${code}`;
+    code = `import Pygments\n${code}`;
+    code = `import jedi\n${code}`;
+    code = `import pyodide-http\n${code}`;
 
     const imports = [...foundImports];
 
