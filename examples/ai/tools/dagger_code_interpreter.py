@@ -1,6 +1,7 @@
 # /// script
 # requires-python = ">=3.12"
 # dependencies = [
+#     "dagger-io==0.13.5",
 #     "ell-ai==0.0.13",
 #     "marimo",
 #     "openai==1.51.0",
@@ -9,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.9.4"
+__generated_with = "0.9.7"
 app = marimo.App(width="medium")
 
 
@@ -25,9 +26,9 @@ def __():
 def __(mo):
     mo.md(
         """
-        # Creating a code interpreter
+        # Chatbot code-interpreter with [Dagger](https://dagger.io/)
 
-        This example shows how to create a code-interpreter in a few lines of code.
+        This example shows how to create a code-interpreter that executes code using [Dagger](https://dagger.io/) so the code is run in an isolated container.
         """
     )
     return
@@ -35,40 +36,30 @@ def __(mo):
 
 @app.cell(hide_code=True)
 def __(mo):
-    backend = mo.ui.dropdown(["ollama", "openai"], label="Backend", value="ollama")
+    backend = mo.ui.dropdown(["ollama", "openai"], label="Backend", value="openai")
     backend
     return (backend,)
 
 
 @app.cell(hide_code=True)
-def __(backend, mo):
+def __(mo):
     # OpenAI config
     import os
     import openai
 
-    os_key = os.environ.get("OPENAI_API_KEY")
     input_key = mo.ui.text(
         label="OpenAI API key",
         kind="password",
         value=os.environ.get("OPENAI_API_KEY", ""),
     )
-    input_key if backend.value == "openai" else None
-    return input_key, openai, os, os_key
-
-
-@app.cell
-def __(openai):
-    client = openai.Client(
-        api_key="ollama",
-        base_url="http://localhost:11434/v1",
-    )
-    return (client,)
+    input_key
+    return input_key, openai, os
 
 
 @app.cell(hide_code=True)
-def __(backend, input_key, mo, os_key):
+def __(backend, input_key, mo):
     def _get_open_ai_client():
-        openai_key = os_key or input_key.value
+        openai_key = input_key.value
 
         import openai
 
@@ -91,74 +82,50 @@ def __(backend, input_key, mo, os_key):
         )
 
 
-    _client = (
+    client = (
         _get_ollama_client()
         if backend.value == "ollama"
         else _get_open_ai_client()
     )
     model = "llama3.1" if backend.value == "ollama" else "gpt-4-turbo"
-    return (model,)
-
-
-@app.cell(hide_code=True)
-def __():
-    # https://stackoverflow.com/questions/33908794/get-value-of-last-expression-in-exec-call
-    def exec_with_result(script, globals=None, locals=None):
-        """Execute a script and return the value of the last expression"""
-        import ast
-
-        stmts = list(ast.iter_child_nodes(ast.parse(script)))
-        if not stmts:
-            return None
-        if isinstance(stmts[-1], ast.Expr):
-            # the last one is an expression and we will try to return the results
-            # so we first execute the previous statements
-            if len(stmts) > 1:
-                exec(
-                    compile(
-                        ast.Module(body=stmts[:-1]), filename="<ast>", mode="exec"
-                    ),
-                    globals,
-                    locals,
-                )
-            # then we eval the last one
-            return eval(
-                compile(
-                    ast.Expression(body=stmts[-1].value),
-                    filename="<ast>",
-                    mode="eval",
-                ),
-                globals,
-                locals,
-            )
-        else:
-            # otherwise we just execute the entire code
-            return exec(script, globals, locals)
-    return (exec_with_result,)
+    return client, model
 
 
 @app.cell
-def __(ell, exec_with_result, mo):
+def __():
+    import dagger
+    return (dagger,)
+
+
+@app.cell
+def __(dagger, ell, mo):
     def code_fence(code):
         return f"```python\n\n{code}\n\n```"
 
 
     @ell.tool()
-    def execute_code(code: str):
+    async def execute_code(code: str):
         """
-        Execute python. The last line should be the result, don't use print().
-        Please make sure it is safe before executing.
+        Execute python using Dagger. You MUST have print() in the last expression.
         """
-        with mo.capture_stdout() as out:
-            result = exec_with_result(code)
-            output = out.getvalue()
-            results = [
-                "**Work**",
-                code_fence(code),
-                "**Result**",
-                code_fence(result if result is not None else output),
-            ]
-            return mo.md("\n\n".join(results))
+        async with dagger.Connection() as _dag:
+            container = (
+                _dag.container()
+                .from_("python:3.12-slim")
+                .with_new_file("/app/script.py", contents=code)
+            )
+
+            result = await container.with_exec(
+                ["python", "/app/script.py"]
+            ).stdout()
+
+        results = [
+            "**Work**",
+            code_fence(code),
+            "**Result**",
+            code_fence(result),
+        ]
+        return mo.md("\n\n".join(results))
     return code_fence, execute_code
 
 
