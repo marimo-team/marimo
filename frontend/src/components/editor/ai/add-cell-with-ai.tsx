@@ -334,7 +334,7 @@ export const PromptInput = ({
   return (
     <ReactCodeMirror
       ref={inputRef}
-      className="flex-1 font-sans"
+      className="flex-1 font-sans overflow-auto my-1"
       autoFocus={true}
       width="100%"
       value={value}

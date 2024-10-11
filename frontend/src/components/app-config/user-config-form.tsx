@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { KNOWN_AI_MODELS } from "./constants";
+import { Textarea } from "../ui/textarea";
 
 const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
 
@@ -691,6 +692,175 @@ export const UserConfigForm: React.FC = () => {
       case "ai":
         return (
           <>
+            <SettingGroup title="AI Code Completion">
+              <p className="text-sm text-muted-secondary">
+                You may use GitHub Copilot or Codeium for AI code completion.
+              </p>
+
+              <FormField
+                control={form.control}
+                name="completion.copilot"
+                render={({ field }) => (
+                  <div className="flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>Provider</FormLabel>
+                      <FormControl>
+                        <NativeSelect
+                          data-testid="copilot-select"
+                          onChange={(e) => {
+                            if (e.target.value === "none") {
+                              field.onChange(false);
+                            } else {
+                              field.onChange(e.target.value);
+                            }
+                          }}
+                          value={
+                            field.value === true
+                              ? "github"
+                              : field.value === false
+                                ? "none"
+                                : field.value
+                          }
+                          disabled={field.disabled}
+                          className="inline-flex mr-2"
+                        >
+                          {["none", "github", "codeium"].map((option) => (
+                            <option value={option} key={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </NativeSelect>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  </div>
+                )}
+              />
+
+              {renderCopilotProvider()}
+            </SettingGroup>
+            <SettingGroup title="AI Keys">
+              <FormField
+                control={form.control}
+                name="ai.open_ai.api_key"
+                render={({ field }) => (
+                  <div className="flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>OpenAI API Key</FormLabel>
+                      <FormControl>
+                        <Input
+                          data-testid="ai-openai-api-key-input"
+                          className="m-0 inline-flex"
+                          placeholder="sk-proj..."
+                          {...field}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            // Don't allow *
+                            if (!value.includes("*")) {
+                              field.onChange(value);
+                            }
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                    <FormDescription>
+                      Your OpenAI API key from{" "}
+                      <a
+                        className="text-link hover:underline"
+                        href="https://platform.openai.com/account/api-keys"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        platform.openai.com
+                      </a>
+                      .
+                    </FormDescription>
+                  </div>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="ai.anthropic.api_key"
+                render={({ field }) => (
+                  <div className="flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>Anthropic API Key</FormLabel>
+                      <FormControl>
+                        <Input
+                          data-testid="ai-anthropic-api-key-input"
+                          className="m-0 inline-flex"
+                          placeholder="sk-ant..."
+                          {...field}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            // Don't allow *
+                            if (!value.includes("*")) {
+                              field.onChange(value);
+                            }
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                    <FormDescription>
+                      Your Anthropic API key from{" "}
+                      <a
+                        className="text-link hover:underline"
+                        href="https://console.anthropic.com/settings/keys"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        console.anthropic.com
+                      </a>
+                      .
+                    </FormDescription>
+                  </div>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="ai.google.api_key"
+                render={({ field }) => (
+                  <div className="flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>Google AI API Key</FormLabel>
+                      <FormControl>
+                        <Input
+                          data-testid="ai-google-api-key-input"
+                          className="m-0 inline-flex"
+                          placeholder="AI..."
+                          {...field}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            // Don't allow *
+                            if (!value.includes("*")) {
+                              field.onChange(value);
+                            }
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                    <FormDescription>
+                      Your Google AI API key from{" "}
+                      <a
+                        className="text-link hover:underline"
+                        href="https://aistudio.google.com/app/apikey"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        aistudio.google.com
+                      </a>
+                      .
+                    </FormDescription>
+                  </div>
+                )}
+              />
+            </SettingGroup>
+
             <SettingGroup title="AI Assist">
               <p className="text-sm text-muted-secondary">
                 Add an API key to <Kbd className="inline">marimo.toml</Kbd> to
@@ -764,174 +934,31 @@ export const UserConfigForm: React.FC = () => {
                   </div>
                 )}
               />
-              <SettingGroup title="AI Keys">
-                <FormField
-                  control={form.control}
-                  name="ai.open_ai.api_key"
-                  render={({ field }) => (
-                    <div className="flex flex-col space-y-1">
-                      <FormItem className={formItemClasses}>
-                        <FormLabel>OpenAI API Key</FormLabel>
-                        <FormControl>
-                          <Input
-                            data-testid="ai-openai-api-key-input"
-                            className="m-0 inline-flex"
-                            placeholder="sk-proj..."
-                            {...field}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              // Don't allow *
-                              if (!value.includes("*")) {
-                                field.onChange(value);
-                              }
-                            }}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                      <FormDescription>
-                        Your OpenAI API key from{" "}
-                        <a
-                          className="text-link hover:underline"
-                          href="https://platform.openai.com/account/api-keys"
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          platform.openai.com
-                        </a>
-                        .
-                      </FormDescription>
-                    </div>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="ai.anthropic.api_key"
-                  render={({ field }) => (
-                    <div className="flex flex-col space-y-1">
-                      <FormItem className={formItemClasses}>
-                        <FormLabel>Anthropic API Key</FormLabel>
-                        <FormControl>
-                          <Input
-                            data-testid="ai-anthropic-api-key-input"
-                            className="m-0 inline-flex"
-                            placeholder="sk-ant..."
-                            {...field}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              // Don't allow *
-                              if (!value.includes("*")) {
-                                field.onChange(value);
-                              }
-                            }}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                      <FormDescription>
-                        Your Anthropic API key from{" "}
-                        <a
-                          className="text-link hover:underline"
-                          href="https://console.anthropic.com/settings/keys"
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          console.anthropic.com
-                        </a>
-                        .
-                      </FormDescription>
-                    </div>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="ai.google.api_key"
-                  render={({ field }) => (
-                    <div className="flex flex-col space-y-1">
-                      <FormItem className={formItemClasses}>
-                        <FormLabel>Google AI API Key</FormLabel>
-                        <FormControl>
-                          <Input
-                            data-testid="ai-google-api-key-input"
-                            className="m-0 inline-flex"
-                            placeholder="AI..."
-                            {...field}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              // Don't allow *
-                              if (!value.includes("*")) {
-                                field.onChange(value);
-                              }
-                            }}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                      <FormDescription>
-                        Your Google AI API key from{" "}
-                        <a
-                          className="text-link hover:underline"
-                          href="https://aistudio.google.com/app/apikey"
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          aistudio.google.com
-                        </a>
-                        .
-                      </FormDescription>
-                    </div>
-                  )}
-                />
-              </SettingGroup>
-            </SettingGroup>
-            <SettingGroup title="AI Code Completion">
-              <p className="text-sm text-muted-secondary">
-                You may use GitHub Copilot or Codeium for AI code completion.
-              </p>
 
               <FormField
                 control={form.control}
-                name="completion.copilot"
+                name="ai.rules"
                 render={({ field }) => (
-                  <div className="flex flex-col space-y-1">
-                    <FormItem className={formItemClasses}>
-                      <FormLabel>Provider</FormLabel>
+                  <div className="flex flex-col">
+                    <FormItem>
+                      <FormLabel>Custom Rules</FormLabel>
                       <FormControl>
-                        <NativeSelect
-                          data-testid="copilot-select"
-                          onChange={(e) => {
-                            if (e.target.value === "none") {
-                              field.onChange(false);
-                            } else {
-                              field.onChange(e.target.value);
-                            }
-                          }}
-                          value={
-                            field.value === true
-                              ? "github"
-                              : field.value === false
-                                ? "none"
-                                : field.value
-                          }
-                          disabled={field.disabled}
-                          className="inline-flex mr-2"
-                        >
-                          {["none", "github", "codeium"].map((option) => (
-                            <option value={option} key={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </NativeSelect>
+                        <Textarea
+                          data-testid="ai-rules-input"
+                          className="m-0 inline-flex w-full h-32 p-2 text-sm"
+                          placeholder="e.g. Always use type hints; prefer polars over pandas"
+                          {...field}
+                          value={field.value}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
+                    <FormDescription>
+                      Custom rules to include in all AI completion prompts.
+                    </FormDescription>
                   </div>
                 )}
               />
-
-              {renderCopilotProvider()}
             </SettingGroup>
           </>
         );

@@ -25,7 +25,19 @@ def test_system_prompts():
         result += _header(language)
         result += Prompter.get_system_prompt(cast(Language, language))
 
+    result += _header("with custom rules")
+    result += Prompter.get_system_prompt(
+        "python", custom_rules="Always use type hints."
+    )
+
     snapshot("system_prompts.txt", result)
+
+
+def test_empty_rules():
+    assert Prompter.get_system_prompt("python") == Prompter.get_system_prompt(
+        "python",
+        custom_rules="  ",
+    )
 
 
 def test_user_prompts():

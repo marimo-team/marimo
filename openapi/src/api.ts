@@ -2401,6 +2401,7 @@ export interface components {
           base_url?: string;
           model?: string;
         };
+        rules?: string;
       };
       completion: {
         activate_on_typing: boolean;

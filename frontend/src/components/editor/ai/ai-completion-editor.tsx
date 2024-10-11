@@ -116,9 +116,9 @@ export const AiCompletionEditor: React.FC<Props> = ({
     <div className="flex flex-col w-full rounded-[inherit] overflow-hidden">
       <div
         className={cn(
-          "flex items-center gap-2 border-b px-3 transition-[height] rounded-[inherit] rounded-b-none duration-300 overflow-hidden",
-          enabled && "min-h-10 visible",
-          !enabled && "h-0 invisible",
+          "flex items-center gap-2 border-b px-3 transition-all rounded-[inherit] rounded-b-none duration-300 overflow-hidden",
+          enabled && "max-h-[400px] min-h-11 visible",
+          !enabled && "max-h-0 min-h-0 invisible",
         )}
       >
         {enabled && (

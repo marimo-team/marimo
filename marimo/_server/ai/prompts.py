@@ -18,7 +18,9 @@ class Prompter:
         self.context = context
 
     @staticmethod
-    def get_system_prompt(language: Language) -> str:
+    def get_system_prompt(
+        language: Language, custom_rules: Optional[str] = None
+    ) -> str:
         language_rules = {
             "python": [
                 "You can only output python code.",
@@ -40,10 +42,15 @@ class Prompter:
                 f"{i+1}. {rule}"
                 for i, rule in enumerate(language_rules[language])
             )
-            return (
+            system_prompt = (
                 f"You are a helpful assistant that can answer questions about {language}."  # noqa: E501
                 f" Here are your rules: \n{rules}"
             )
+
+            if custom_rules and custom_rules.strip():
+                system_prompt += f"\n\nAdditional rules:\n{custom_rules}"
+
+            return system_prompt
         else:
             return "You are a helpful assistant that can answer questions."
 
