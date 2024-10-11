@@ -37,6 +37,7 @@ import { MapPinIcon } from "lucide-react";
 import { store } from "@/core/state/jotai";
 import { lastFocusedCellIdAtom } from "@/core/cells/focus";
 import { Tooltip } from "../ui/tooltip";
+import { Events } from "@/utils/events";
 
 interface Props {
   cellIds: CellId[];
@@ -143,10 +144,7 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
             asChild={false}
           >
             <ControlButton
-              onMouseDown={(e) => {
-                // Prevent focus moving to the control button
-                e.preventDefault();
-              }}
+              onMouseDown={Events.preventFocus}
               onClick={() => {
                 const lastFocusedCell = store.get(lastFocusedCellIdAtom);
                 // Zoom the graph to the last focused cell

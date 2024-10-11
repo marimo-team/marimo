@@ -6,6 +6,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVerticalIcon } from "lucide-react";
 import type { CellId } from "@/core/cells/ids";
 import { cn } from "@/utils/cn";
+import { Events } from "@/utils/events";
 
 interface Props extends React.HTMLAttributes<HTMLDivElement> {
   cellId: CellId;
@@ -72,6 +73,7 @@ const SortableCellInternal = React.forwardRef(
         data-is-dragging={isDragging}
         className={cn(props.className, isMoving && "is-moving")}
         style={style}
+        onMouseDown={Events.preventFocus}
       >
         <DragHandleSlot.Provider value={dragHandle}>
           {props.children}

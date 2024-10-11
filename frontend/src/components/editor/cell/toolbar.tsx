@@ -4,6 +4,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/utils/cn";
 import { Toolbar as ReactAriaToolbar } from "react-aria-components";
 import { cva, type VariantProps } from "class-variance-authority";
+import { Events } from "@/utils/events";
 
 const toolbarItemVariants = cva(
   "rounded-full shadow-xsSolid border p-[5px] transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 [&>svg]:size-3 active:shadow-none bg-background",
@@ -45,14 +46,11 @@ export const ToolbarItem: React.FC<ToolbarItemProps> = ({
       {...rest}
       onClick={(evt) => {
         if (!disabled) {
-          // evt.preventDefault();
           rest.onClick?.(evt);
         }
       }}
-      onMouseDown={(evt) => {
-        // Prevent focus on the toolbar after clicking
-        evt.preventDefault();
-      }}
+      // Prevent focus on the toolbar after clicking
+      onMouseDown={Events.preventFocus}
       className={cn(toolbarItemVariants({ variant }), rest.className)}
     >
       {children}
