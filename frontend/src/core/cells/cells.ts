@@ -49,6 +49,7 @@ import {
   MultiColumn,
 } from "@/utils/id-tree";
 import { isEqual } from "lodash-es";
+import { isErrorMime } from "../mime";
 
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
 
@@ -1153,7 +1154,7 @@ const cellErrorsAtom = atom((get) => {
     .map((cellId) => {
       const cell = cellRuntime[cellId];
       const { name } = cellData[cellId];
-      if (cell.output?.mimetype === "application/vnd.marimo+error") {
+      if (isErrorMime(cell.output?.mimetype)) {
         // Filter out ancestor-stopped errors
         // These are errors that are caused by a cell that was stopped,
         // but nothing the user can take action on.
