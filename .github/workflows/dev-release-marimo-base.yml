@@ -1,4 +1,4 @@
-name: Publish dev release
+name: Publish marimo-base dev release
 
 # Publish development release to test pypi on pushes to main
 on:
