@@ -96,7 +96,7 @@ export class DefaultWasmController implements WasmController {
         [
           "Markdown==3.6",
           "pymdown-extensions==10.8.1",
-          "narwhals>=1.0.0",
+          "narwhals==1.9.2",
         ],
         deps=False,
         );
@@ -117,7 +117,7 @@ export class DefaultWasmController implements WasmController {
           "${getMarimoWheel(version)}",
           "Markdown==3.6",
           "pymdown-extensions==10.8.1",
-          "narwhals>=1.0.0",
+          "narwhals==1.9.2",
         ],
         deps=False,
       );
