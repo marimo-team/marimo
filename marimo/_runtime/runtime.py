@@ -73,7 +73,6 @@ from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import MarimoConvertValueException
 from marimo._runtime import dataflow, handlers, marimo_pdb, patches
 from marimo._runtime.app_meta import AppMeta
-from marimo._runtime.complete import complete, completion_worker
 from marimo._runtime.context import (
     ContextNotInitializedError,
     ExecutionContext,
@@ -523,6 +522,8 @@ class Kernel:
         self, completion_queue: QueueType[CodeCompletionRequest]
     ) -> None:
         """Must be called after context is initialized"""
+        from marimo._runtime.complete import completion_worker
+
         threading.Thread(
             target=completion_worker,
             args=(
@@ -540,6 +541,8 @@ class Kernel:
     def code_completion(
         self, request: CodeCompletionRequest, docstrings_limit: int
     ) -> None:
+        from marimo._runtime.complete import complete
+
         complete(
             request,
             self.graph,

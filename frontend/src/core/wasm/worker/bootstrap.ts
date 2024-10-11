@@ -63,7 +63,7 @@ export class DefaultWasmController implements WasmController {
     const pyodide = await loadPyodide({
       // Perf: These get loaded while pyodide is being bootstrapped
       // The packages can be found here: https://pyodide.org/en/stable/usage/packages-in-pyodide.html
-      packages: ["micropip", "docutils", "Pygments", "jedi", "pyodide-http"],
+      packages: ["micropip"],
       // Without this, this fails in Firefox with
       // `Could not extract indexURL path from pyodide module`
       // This fixes for Firefox and does not break Chrome/others
@@ -206,12 +206,17 @@ export class DefaultWasmController implements WasmController {
 
   private async loadNotebookDeps(code: string, foundImports: Set<string>) {
     const pyodide = this.requirePyodide;
+    // Additional dependencies of marimo that are lazily loaded.
+    //
+    // pyodide-http is a patch to make basic http requests work in pyodide
+    await pyodide.loadPackage(["docutils", "Pygments", "jedi", "pyodide-http"]);
 
     if (code.includes("mo.sql")) {
       // We need pandas and duckdb for mo.sql
       code = `import pandas\n${code}`;
       code = `import duckdb\n${code}`;
     }
+
 
     const imports = [...foundImports];
 
