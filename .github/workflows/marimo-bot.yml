@@ -62,19 +62,8 @@ jobs:
       - name: 🥚 Install Hatch
         uses: pypa/hatch@install
 
-      # Python build tools generally only allow building one project
-      # per Python project. This modifies the pyproject.toml
-      # to build marimo-base, a slimmed down marimo distribution with
-      # no static artifacts.
-      #
-      # Adapted from https://github.com/cvxpy/cvxpy/blob/297278e2a88db3c0084750052a16e60672074da3/.github/workflows/build.yml#L169C1-L180C1
       - name: Adapt pyproject.toml to build marimo-base
-        run: |
-          # Mac has a different syntax for sed -i, this works across oses
-          sed -i.bak -e 's/name = "marimo"/name = "marimo-base"/g' pyproject.toml
-          # Remove static artifacts
-          sed -i.bak '/artifacts = /d' pyproject.toml
-          rm -rf pyproject.toml.bak
+        run: ./scripts/modify_pyproject_for_marimo_base.sh
 
       # patch __init__.py version to be of the form
       # X.Y.Z-dev9{4random digits}
