@@ -65,6 +65,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3 :: Only",
 ]
 
@@ -127,10 +128,10 @@ dependencies = ["uv>=0.4.17"]
 
 [tool.hatch.envs.default]
 features = ["dev"]
-python = "3.12"
+python = "3.13"
 installer = "uv"
 dependencies = [
-    "uv>=0.4.17", # so we can bump the version used by hatch
+    "uv>=0.4.20", # so we can bump the version used by hatch
     # Typo checking
     "typos~=1.23.6",
 ]
@@ -140,7 +141,7 @@ lint = "ruff check --fix"
 format = "ruff format"
 
 [tool.hatch.envs.typecheck]
-python = "3.12"
+python = "3.13"
 installer = "uv"
 dependencies = [
     "mypy~=1.10.1",
@@ -169,7 +170,7 @@ extra-dependencies = [
 ]
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.9","3.10", "3.11", "3.12"]
+python = ["3.9","3.10", "3.11", "3.12", "3.13"]
 
 [tool.hatch.envs.test.scripts]
 test = "pytest{env:HATCH_TEST_ARGS:} {args:tests}"
@@ -206,13 +207,13 @@ extra-dependencies = [
     "nbformat >=5.10.4",
     "sympy>=1.13.2",
     # For standard scientific computing/ ML
-    "jax>=0.4.0; python_version == '3.12'",
-    "torch>=2.4.0; python_version == '3.12'",
-    "scikit-bio>=0.6.0; python_version == '3.12'",
+    "jax>=0.4.0; python_version >= '3.12'",
+    "torch>=2.4.0; python_version >= '3.12'",
+    "scikit-bio>=0.6.0; python_version >= '3.12'",
 ]
 
 [[tool.hatch.envs.test-optional.matrix]]
-python = ["3.9","3.10", "3.11", "3.12"]
+python = ["3.9","3.10", "3.11", "3.12", "3.13"]
 
 [tool.hatch.envs.docs]
 features = ["docs"]
