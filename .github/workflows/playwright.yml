@@ -37,7 +37,7 @@ jobs:
         shell: bash
     env:
       NODE_ENV: test
-      DEBUG: 'pw:webserver'
+      DEBUG: "pw:webserver"
 
     steps:
       - name: 🛑 Cancel Previous Runs
@@ -59,17 +59,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
-          cache-dependency-path: '**/pnpm-lock.yaml'
+          cache: "pnpm"
+          cache-dependency-path: "**/pnpm-lock.yaml"
 
       - name: 📦 Build frontend
         run: make fe
 
-      - name: 🐍 Setup Python 3.12
+      - name: 🐍 Setup Python 3.13
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-          cache: 'pip'
+          python-version: "3.13"
+          cache: "pip"
 
       # We tried to add uv, but marimo is unable to
       # start when installed.
