@@ -33,23 +33,12 @@ export function notebookNeedsSave(
   const { cellIds, cellData } = state;
   const data = cellIds.inOrderIds.map((cellId) => cellData[cellId]);
   const codes = data.map((d) => d.code);
+  const configs = data.map((d) => d.config);
   const names = data.map((d) => d.name);
-
-  // Hack: we ignore hide_code because the cell editor temporarily
-  // changes its value when viewing a hidden cell.
-  const configs = data.map((d) => {
-    const { hide_code, ...rest } = d.config;
-    return rest;
-  });
-  const lastSavedConfigs = lastSavedNotebook.configs.map((config) => {
-    const { hide_code, ...rest } = config;
-    return rest;
-  });
-
   return (
     !arrayShallowEquals(codes, lastSavedNotebook.codes) ||
+    !arrayShallowEquals(configs, lastSavedNotebook.configs) ||
     !arrayShallowEquals(names, lastSavedNotebook.names) ||
-    !isEqual(configs, lastSavedConfigs) ||
     !isEqual(layout.selectedLayout, lastSavedNotebook.layout.selectedLayout) ||
     !isEqual(layout.layoutData, lastSavedNotebook.layout.layoutData)
   );
