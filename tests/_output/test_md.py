@@ -57,3 +57,25 @@ def test_md_footnotes() -> None:
     assert _md(footnote_input, apply_markdown_class=False).text == (
         expected_output
     )
+
+
+def test_md_iconify() -> None:
+    # Test iconify conversion
+    iconify_input = "This is an icon: ::lucide:user::"
+    expected_output = '<span class="paragraph">This is an icon: <iconify-icon icon="lucide:user" inline=""></iconify-icon></span>'  # noqa: E501
+    assert (
+        _md(iconify_input, apply_markdown_class=False).text == expected_output
+    )
+
+    # Test multiple icons
+    multiple_icons_input = "Icons: ::mdi:home:: ::fa:car:: ::lucide:settings::"
+    expected_output = '<span class="paragraph">Icons: <iconify-icon icon="mdi:home" inline=""></iconify-icon> <iconify-icon icon="fa:car" inline=""></iconify-icon> <iconify-icon icon="lucide:settings" inline=""></iconify-icon></span>'  ## noqa: E501
+    assert (
+        _md(multiple_icons_input, apply_markdown_class=False).text
+        == expected_output
+    )
+
+    # Test icon within other markdown elements
+    mixed_input = "# Header with ::lucide:star:: icon\n\n**Bold text with ::mdi:alert:: icon**"  # noqa: E501
+    expected_output = '<h1 id="header-with-icon">Header with <iconify-icon icon="lucide:star" inline=""></iconify-icon> icon</h1>\n<span class="paragraph"><strong>Bold text with <iconify-icon icon="mdi:alert" inline=""></iconify-icon> icon</strong></span>'  # noqa: E501
+    assert _md(mixed_input, apply_markdown_class=False).text == expected_output

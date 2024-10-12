@@ -193,7 +193,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
       enhancedMarkdownExtension(hotkeys),
       autocompletion({
         activateOnTyping: true,
-        override: [emojiCompletionSource],
+        override: [emojiCompletionSource, lucideIconCompletionSource],
       }),
       // Markdown autorun
       markdownAutoRunExtension(movementCallbacks),
@@ -244,4 +244,59 @@ const getEmojiList = once(async (): Promise<Completion[]> => {
     apply: emoji,
     type: "emoji",
   }));
+});
+
+const lucideIconCompletionSource: CompletionSource = async (context) => {
+  // Check if the cursor is at a position where a Lucide icon can be inserted
+  if (!context.explicit && !context.matchBefore(/::[\w-]*$/)) {
+    return null;
+  }
+
+  const iconList = await getLucideIconList();
+  const filter = context.matchBefore(/::[\w-]*$/)?.text.slice(2) ?? "";
+
+  return {
+    from: context.pos - filter.length - 2,
+    options: iconList,
+    validFor: /^[\w-:]*$/,
+  };
+};
+
+// This loads Lucide icons from a CDN
+const getLucideIconList = once(async (): Promise<Completion[]> => {
+  const iconList = await fetch(
+    "https://unpkg.com/lucide-static@0.452.0/tags.json",
+  )
+    .then((res) => {
+      if (!res.ok) {
+        throw new Error("Failed to fetch Lucide icon list");
+      }
+      return res.json() as unknown as Record<string, string[]>;
+    })
+    .catch(() => {
+      // If we can't fetch the icon list, just return an empty list
+      return {};
+    });
+
+  const asSvg = (iconName: string) => {
+    return `https://cdn.jsdelivr.net/npm/lucide-static@0.452.0/icons/${iconName}.svg`;
+  };
+
+  return Object.entries(iconList).map(
+    ([iconName, aliases]): Completion => ({
+      label: `::${iconName}`,
+      displayLabel: iconName,
+      type: "lucide-icon",
+      boost: 10,
+      apply: `::lucide:${iconName}::`,
+      detail: aliases.join(", "),
+      info: () => {
+        const img = document.createElement("img");
+        img.src = asSvg(iconName);
+        img.style.width = "24px";
+        img.style.height = "24px";
+        return img;
+      },
+    }),
+  );
 });

@@ -8,6 +8,7 @@ import markdown  # type: ignore
 
 from marimo._output.hypertext import Html
 from marimo._output.md_extensions.external_links import ExternalLinksExtension
+from marimo._output.md_extensions.iconify import IconifyExtension
 from marimo._output.rich_help import mddoc
 
 extension_configs = {
@@ -66,6 +67,8 @@ def _md(
             "admonition",
             # Links
             ExternalLinksExtension(),
+            # Iconify
+            IconifyExtension(),
         ],
         extension_configs=extension_configs,  # type: ignore[arg-type]
     ).strip()

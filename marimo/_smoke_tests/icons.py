@@ -5,33 +5,26 @@
 # ]
 # ///
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.79"
+__generated_with = "0.9.7"
 app = marimo.App()
 
 
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
 def __(mo):
-    mo.hstack(
-        [
-            mo.md("Icon sets"),
-            mo.icon("lucide:leaf", size=20),
-            mo.icon("material-symbols:rocket-launch", size=20),
-            mo.icon("ic:twotone-rocket-launch", size=20),
-        ],
-        justify="start",
-    )
+    mo.md(r"""::lucide:alarm-clock::""")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.hstack(
         [
@@ -85,12 +78,11 @@ def __(mo):
             mo.ui.button(
                 label=f"{mo.icon('material-symbols:rocket-launch')} Launch"
             ),
-            mo.ui.button(
-                label=f"Clear {mo.icon('material-symbols:close-rounded')}"
-            ),
+            mo.ui.button(label=f"::material-symbols:rocket-launch:: Launch"),
+            mo.ui.button(label=f"Clear ::material-symbols:close-rounded::"),
             # Left and right
             mo.ui.button(
-                label=f"{mo.icon('material-symbols:download')} Download {mo.icon('material-symbols:csv')}"
+                label=f"::material-symbols:download:: Download ::material-symbols:csv::"
             ),
         ],
         justify="start",
