@@ -53,6 +53,7 @@ import { MoreHorizontalIcon } from "lucide-react";
 import { Toolbar, ToolbarItem } from "@/components/editor/cell/toolbar";
 import { cn } from "@/utils/cn";
 import { isErrorMime } from "@/core/mime";
+import { getCurrentLanguageAdapter } from "@/core/codemirror/language/commands";
 
 /**
  * Imperative interface of the cell.
@@ -210,8 +211,13 @@ const CellComponent = (
   //
   // Returns the code to run.
   const prepareToRunEffects = useCallback(() => {
-    const code = getEditorCodeAsPython(derefNotNull(editorView));
-    closeCompletion(derefNotNull(editorView));
+    const ev = derefNotNull(editorView);
+    const code = getEditorCodeAsPython(ev);
+    // Skip close on markdown, since we autorun, otherwise we'll close the
+    // completion each time.
+    if (getCurrentLanguageAdapter(ev) !== "markdown") {
+      closeCompletion(ev);
+    }
     prepareForRun({ cellId });
     return code;
   }, [cellId, editorView, prepareForRun]);
