@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from xml.etree.ElementTree import Element
 
-from markdown import Extension, Markdown, inlinepatterns  # type: ignore
+from markdown import Extension, Markdown, inlinepatterns
 
 if TYPE_CHECKING:
     import re
@@ -18,7 +18,7 @@ class IconifyPattern(inlinepatterns.InlineProcessor):
     def __init__(self, pattern: str, md: Markdown) -> None:
         super().__init__(pattern, md)
 
-    def handleMatch(
+    def handleMatch(  # type: ignore
         self, m: re.Match[str], data: str
     ) -> tuple[Element, int, int]:
         del data
