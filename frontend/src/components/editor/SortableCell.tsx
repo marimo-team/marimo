@@ -56,6 +56,7 @@ const SortableCellInternal = React.forwardRef(
       <div
         {...attributes}
         {...listeners}
+        onMouseDown={Events.preventFocus}
         data-testid="drag-button"
         className="py-[1px] cursor-grab opacity-50 hover:opacity-100 hover-action hover:bg-muted rounded border border-transparent hover:border-border active:bg-accent"
       >
@@ -73,7 +74,6 @@ const SortableCellInternal = React.forwardRef(
         data-is-dragging={isDragging}
         className={cn(props.className, isMoving && "is-moving")}
         style={style}
-        onMouseDown={Events.preventFocus}
       >
         <DragHandleSlot.Provider value={dragHandle}>
           {props.children}
