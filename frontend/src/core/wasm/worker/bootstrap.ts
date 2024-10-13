@@ -222,7 +222,7 @@ export class DefaultWasmController implements WasmController {
     code = `import docutils\n${code}`;
     code = `import Pygments\n${code}`;
     code = `import jedi\n${code}`;
-    code = `import pyodide-http\n${code}`;
+    code = `import pyodide_http\n${code}`;
 
     const imports = [...foundImports];
 
@@ -246,7 +246,7 @@ export class DefaultWasmController implements WasmController {
         import sys
         # Filter out builtins
         missing = [p for p in ${JSON.stringify(missingPackages)} if p not in sys.modules]
-        print("[py] Loading packages from micropip:", missing)
+        print("Loaded from micropip:", missing)
         await micropip.install(missing)
       `)
         .catch((error) => {

@@ -2,11 +2,11 @@
 import contextlib
 import io
 
-from docutils.core import publish_parts  # type: ignore[import-untyped]
-
 
 def convert_rst_to_html(rst_content: str) -> str:
     """Convert RST content to HTML."""
+
+    from docutils.core import publish_parts  # type: ignore[import-untyped]
 
     # redirect stderr and ignore it to silence error messages
     with contextlib.redirect_stderr(io.StringIO()) as _:
