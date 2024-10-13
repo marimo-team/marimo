@@ -9,6 +9,7 @@ import {
   useCallback,
   useImperativeHandle,
   useRef,
+  useState,
 } from "react";
 
 import { saveCellConfig, sendRun, sendStdin } from "@/core/network/requests";
@@ -175,6 +176,7 @@ const CellComponent = (
   const cellActionDropdownRef = useRef<CellActionsDropdownHandle>(null);
   const editorView = useRef<EditorView | null>(null);
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
+  const [temporarilyVisible, setTemporarilyVisible] = useState(false);
 
   const disabledOrAncestorDisabled =
     cellConfig.disabled || status === "disabled-transitively";
@@ -522,7 +524,8 @@ const CellComponent = (
               clearSerializedEditorState={clearSerializedEditorState}
               userConfig={userConfig}
               editorViewRef={editorView}
-              hidden={cellConfig.hide_code}
+              hidden={cellConfig.hide_code && !temporarilyVisible}
+              setTemporarilyVisible={setTemporarilyVisible}
             />
             <div className="shoulder-right z-20">
               <CellStatusComponent

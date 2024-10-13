@@ -63,6 +63,10 @@ export interface CellEditorProps
   allowFocus: boolean;
   userConfig: UserConfig;
   hidden?: boolean;
+  /**
+   * Not used by scratchpad.
+   */
+  setTemporarilyVisible?: (value: boolean) => void;
 }
 
 const CellEditorInternal = ({
@@ -85,6 +89,7 @@ const CellEditorInternal = ({
   userConfig,
   editorViewRef,
   hidden,
+  setTemporarilyVisible,
 }: CellEditorProps) => {
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
   const [languageAdapter, setLanguageAdapter] = useState<LanguageAdapterType>();
@@ -325,9 +330,9 @@ const CellEditorInternal = ({
     };
   }, [editorViewRef]);
 
-  const temporarilyShowCode = async () => {
-    if (hidden) {
-      updateCellConfig({ cellId, config: { hide_code: false } });
+  const temporarilyShowCode = useCallback(async () => {
+    if (hidden && setTemporarilyVisible !== undefined) {
+      setTemporarilyVisible(true);
       editorViewRef.current?.focus();
       // Reach one parent up
       const parent = editorViewParentRef.current?.parentElement;
@@ -342,7 +347,7 @@ const CellEditorInternal = ({
               return;
             }
             // Hide the code editor
-            updateCellConfig({ cellId, config: { hide_code: true } });
+            setTemporarilyVisible(false);
             editorViewRef.current?.dom.blur();
             abortController.abort();
           });
@@ -350,7 +355,7 @@ const CellEditorInternal = ({
         { signal: abortController.signal },
       );
     }
-  };
+  }, [hidden, setTemporarilyVisible, editorViewRef, editorViewParentRef]);
 
   return (
     <AiCompletionEditor
