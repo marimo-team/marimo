@@ -174,7 +174,9 @@ def test_apply_edits_lists():
     assert result == [{"list": [1, 2, 3, 4]}, {"list": [7, 8]}]
 
     # With dtypes
-    result = apply_edits(data, edits, schema=nw.Schema({"list": nw.List()}))
+    result = apply_edits(
+        data, edits, schema=nw.Schema({"list": nw.List(nw.Int64())})
+    )
     assert result == [{"list": [1, 2, 3, 4]}, {"list": [7, 8]}]
 
 
@@ -266,7 +268,7 @@ def test_apply_edits_various_datatypes():
             "datetime": nw.Datetime(),
             "date": nw.Date(),
             "duration": nw.Duration(),
-            "list": nw.List(),
+            "list": nw.List(nw.Int64()),
         }
     )
     result_with_dtypes = apply_edits(data, edits, schema=dtypes)
