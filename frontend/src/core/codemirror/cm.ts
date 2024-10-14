@@ -1,23 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import {
-  acceptCompletion,
-  closeBrackets,
-  closeBracketsKeymap,
-  startCompletion,
-} from "@codemirror/autocomplete";
-import {
-  history,
-  historyKeymap,
-  indentWithTab,
-  indentMore,
-} from "@codemirror/commands";
+import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
+import { history, historyKeymap } from "@codemirror/commands";
 import {
   bracketMatching,
   defaultHighlightStyle,
   foldGutter,
   foldKeymap,
   indentOnInput,
-  indentUnit,
   syntaxHighlighting,
 } from "@codemirror/language";
 import {
@@ -56,6 +45,7 @@ import { historyCompartment } from "./editing/extensions";
 import { goToDefinitionBundle } from "./go-to-definition/extension";
 import type { HotkeyProvider } from "../hotkeys/hotkeys";
 import { lightTheme } from "./theme/light";
+import { tabHandling } from "./tabs";
 
 export interface CodeMirrorSetupOpts {
   cellId: CellId;
@@ -94,20 +84,6 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
   ];
 };
 
-const startCompletionAtEndOfLine = (cm: EditorView): boolean => {
-  const { from, to } = cm.state.selection.main;
-  if (from !== to) {
-    // this is a selection
-    return false;
-  }
-
-  const line = cm.state.doc.lineAt(to);
-  return line.text.slice(0, to - line.from).trim() === ""
-    ? // in the whitespace prefix of a line
-      false
-    : startCompletion(cm);
-};
-
 // Based on codemirror's basicSetup extension
 export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
   const { theme, hotkeys, completionConfig } = opts;
@@ -141,7 +117,6 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
     Prec.high(keymap.of(closeBracketsKeymap)),
     bracketMatching(),
     indentOnInput(),
-    indentUnit.of("    "),
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
     keymap.of(foldKeymap),
 
@@ -152,20 +127,8 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
     historyCompartment.of(history()),
     EditorState.allowMultipleSelections.of(true),
     findReplaceBundle(hotkeys),
-    keymap.of([
-      {
-        key: "Tab",
-        run: (cm) => {
-          return (
-            acceptCompletion(cm) ||
-            startCompletionAtEndOfLine(cm) ||
-            indentMore(cm)
-          );
-        },
-        preventDefault: true,
-      },
-    ]),
-    keymap.of([...historyKeymap, indentWithTab]),
+    tabHandling(),
+    keymap.of(historyKeymap),
   ];
 };
 
