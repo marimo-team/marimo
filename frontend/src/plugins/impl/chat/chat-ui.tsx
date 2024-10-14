@@ -195,17 +195,13 @@ export const Chatbot: React.FC<Props> = (props) => {
       props.allowAttachments.length > 0) ||
     props.allowAttachments === true;
 
-  const scrollToBottom = () => {
+  useEffect(() => {
+    // When the message length changes, scroll to the bottom
     scrollContainerRef.current?.scrollTo({
       top: scrollContainerRef.current.scrollHeight,
       behavior: "smooth",
     });
-  };
-
-  // When the message length changes, scroll to the bottom
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages.length]);
+  }, [messages.length, scrollContainerRef]);
 
   return (
     <div
