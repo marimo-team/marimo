@@ -60,7 +60,7 @@ class ChatMessage:
     role: Literal["user", "assistant", "system"]
 
     # The content of the message.
-    content: str
+    content: object
 
     # Optional attachments to the message.
     attachments: Optional[List[ChatAttachment]] = None
