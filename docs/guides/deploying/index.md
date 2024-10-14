@@ -3,8 +3,7 @@
 You can deploy marimo in three ways:
 
 1. via an **edit server**, which allows you to create and edit notebooks. On
-   the CLI, this is launched with `marimo edit`, and is similar to `jupyter
-   notebook`.
+   the CLI, this is launched with `marimo edit`, and is similar to `jupyter notebook`.
 2. via a **run server**, which allows you serve marimo notebooks as read-only
    web apps. On the CLI, this is launched with `marimo run notebook.py`
 3. programmatically, which allows you serve **read-only** marimo apps
@@ -44,6 +43,7 @@ These guides help you deploy marimo notebooks as read-only apps.
 | {doc}`authentication`           | Authentication and security                              |
 | {doc}`deploying_public_gallery` | Deploy to our public gallery                             |
 | {doc}`deploying_marimo_cloud`   | Deploy to Marimo Cloud                                   |
+| {doc}`deploying_hugging_face`   | Deploy to Hugging Face                                   |
 | {doc}`deploying_ploomber`       | Deploy to Ploomber Cloud                                 |
 
 ### Health and status endpoints

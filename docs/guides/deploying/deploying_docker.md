@@ -13,19 +13,24 @@
 # syntax=docker/dockerfile:1.4
 
 # Choose a python version that you know works with your application
-FROM python:3.9-slim
+FROM python:3.11-slim
+
+# Install uv for fast package management
+COPY --from=ghcr.io/astral-sh/uv:0.4.20 /uv /bin/uv
+ENV UV_SYSTEM_PYTHON=1
 
 WORKDIR /app
 
+# Copy requirements file
 COPY --link requirements.txt .
-# Install the requirements
-RUN pip install -r requirements.txt
 
-# You may copy more files like csv, images, data
+# Install the requirements using uv
+RUN uv pip install -r requirements.txt
+
+# Copy application files
 COPY --link app.py .
-# COPY . .
-
-
+# Uncomment the following line if you need to copy additional files
+# COPY --link . .
 
 EXPOSE 8080
 
@@ -38,7 +43,7 @@ CMD [ "marimo", "run", "app.py", "--host", "0.0.0.0", "-p", "8080" ]
 
 ## Breaking it down
 
-`FROM` instructs what base image to choose. In our case, we chose Python 3.9 with the “slim” variant. This removes a lot of extra dependencies. You can always add them back as needed.
+`FROM` instructs what base image to choose. In our case, we chose Python 3.11 with the “slim” variant. This removes a lot of extra dependencies. You can always add them back as needed.
 
 A slimmer Dockerfile (by bytes) means quick to build, deploy, and start up.
 
@@ -56,19 +61,19 @@ The final step `CMD` instructions what command to run when we run our docker con
 
 ## Running your application locally
 
-Once you have your Dockerfile and your application files. You can test it out locally.
+Once you have your Dockerfile and your application files, you can test it out locally:
 
 ```bash
 # Build your image, and tag it as my_app
 docker build -t my_app .
 
-# Start your container, and map our port 8080 to our containers 8080
+# Start your container, mapping port 8080
 docker run -p 8080:8080 -it my_app
 
 # Visit http://localhost:8080
 ```
 
-After you have verified your application runs without errors. You can use these files to deploy your application on your favorite cloud provider that supports deploying dockererized applications.
+After verifying that your application runs without errors, you can use these files to deploy your application on your preferred cloud provider that supports dockerized applications.
 
 ## Health checks
 
@@ -81,6 +86,5 @@ HEALTHCHECK --interval=30s --timeout=3s \
 
 The following endpoints may be useful when deploying your application:
 
-- `/health` - A health check endpoint that returns a 200 status code if the application is running as expected
-- `/healthz` - Same as above, just a different name for easier integration with cloud providers
+- `/health` or `/healthz` - A health check endpoint that returns a 200 status code if the application is running as expected
 - `/api/status` - A status endpoint that returns a JSON object with the status of the server
