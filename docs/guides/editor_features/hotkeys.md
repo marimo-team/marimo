@@ -45,6 +45,7 @@ You can find a list of available hotkeys below:
 | `global.save`               |
 | `global.showHelp`           |
 | `global.toggleLanguage`     |
+| `global.toggleTerminal`     |
 | `global.toggleSidebar`      |
 | `global.unfoldCode`         |
 | `markdown.blockquote`       |

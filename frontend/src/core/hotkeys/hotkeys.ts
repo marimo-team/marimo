@@ -289,6 +289,11 @@ const DEFAULT_HOT_KEY = {
     group: "Editing",
     key: "F4",
   },
+  "global.toggleTerminal": {
+    name: "Toggle terminal",
+    group: "Other",
+    key: "Ctrl-`",
+  },
 
   // Global Navigation
   "global.focusTop": {
