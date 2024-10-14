@@ -1,6 +1,8 @@
-name: "🐞 Bug report"
+# yaml-language-server: $schema=https://raw.githubusercontent.com/SchemaStore/schemastore/refs/heads/master/src/schemas/json/github-issue-forms.json
+name: '🐞 Bug report'
 description: Report an issue with marimo
-labels: [pending triage, bug]
+labels: [bug]
+type: Bug
 body:
   - type: markdown
     attributes:

@@ -1,6 +1,8 @@
-name: "🚀 New feature proposal"
+# yaml-language-server: $schema=https://raw.githubusercontent.com/SchemaStore/schemastore/refs/heads/master/src/schemas/json/github-issue-forms.json
+name: '🚀 New feature proposal'
 description: Propose a new feature to be added to marimo
-labels: ["enhancement: pending triage"]
+labels: [enhancement]
+type: Feature
 body:
   - type: markdown
     attributes:
@@ -10,7 +12,7 @@ body:
     id: feature-description
     attributes:
       label: Description
-      description: "Clear and concise description of the problem. Please make the reason and usecases as detailed as possible. If you intend to submit a PR for this issue, tell us in the description. Thanks!"
+      description: 'Clear and concise description of the problem. Please make the reason and usecases as detailed as possible. If you intend to submit a PR for this issue, tell us in the description. Thanks!'
       placeholder: I am hoping to be able to...
     validations:
       required: true
