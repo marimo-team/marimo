@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.9.7"
+__generated_with = "0.9.9"
 app = marimo.App(width="medium")
 
 
@@ -29,6 +29,8 @@ def __(mo):
         # Chatbot code-interpreter with [Dagger](https://dagger.io/)
 
         This example shows how to create a code-interpreter that executes code using [Dagger](https://dagger.io/) so the code is run in an isolated container.
+
+        This example requires Docker running on your computer.
         """
     )
     return
@@ -99,10 +101,6 @@ def __():
 
 @app.cell
 def __(dagger, ell, mo):
-    def code_fence(code):
-        return f"```python\n\n{code}\n\n```"
-
-
     @ell.tool()
     async def execute_code(code: str):
         """
@@ -119,14 +117,13 @@ def __(dagger, ell, mo):
                 ["python", "/app/script.py"]
             ).stdout()
 
-        results = [
-            "**Work**",
-            code_fence(code),
-            "**Result**",
-            code_fence(result),
-        ]
-        return mo.md("\n\n".join(results))
-    return code_fence, execute_code
+        return mo.vstack(
+            [
+                mo.ui.code_editor(code, language="python", disabled=True),
+                mo.md(result),
+            ]
+        )
+    return (execute_code,)
 
 
 @app.cell
@@ -152,16 +149,14 @@ def __(client, ell, execute_code, mo, model):
 
 @app.cell
 def __(mo, my_model):
-    numbers = [x for x in range(1, 10)]
-
     mo.ui.chat(
         my_model,
         prompts=[
             "What is the square root of {{number}}?",
-            f"Can you sum this list using python: {numbers}",
+            f"Can you sum this list using python: {list(range(1, 10))}",
         ],
     )
-    return (numbers,)
+    return
 
 
 if __name__ == "__main__":
