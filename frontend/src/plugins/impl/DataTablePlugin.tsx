@@ -20,6 +20,7 @@ import type {
 } from "@/components/data-table/types";
 import type {
   ColumnFiltersState,
+  ColumnPinningState,
   OnChangeFn,
   PaginationState,
   RowSelectionState,
@@ -206,6 +207,9 @@ interface DataTableSearchProps {
   // Filters
   filters?: ColumnFiltersState;
   setFilters?: OnChangeFn<ColumnFiltersState>;
+  // Frozen columns
+  columnPinningState: ColumnPinningState;
+  setColumnPinningState: OnChangeFn<ColumnPinningState>;
 }
 
 export const LoadingDataTableComponent = memo(
@@ -222,6 +226,13 @@ export const LoadingDataTableComponent = memo(
       });
     const [searchQuery, setSearchQuery] = useState<string>("");
     const [filters, setFilters] = useState<ColumnFiltersState>([]);
+
+    // Frozen columns state
+    const [columnPinningState, setColumnPinningState] =
+      useState<ColumnPinningState>({
+        left: props.freezeColumnsLeft,
+        right: props.freezeColumnsRight,
+      });
 
     // We need to clear the selection when sort, query, or filters change
     // Currently, our selection is index-based,
@@ -246,6 +257,14 @@ export const LoadingDataTableComponent = memo(
     useEffect(() => {
       setPaginationState((state) => ({ ...state, pageIndex: 0 }));
     }, [props.totalRows]);
+
+    // If frozen columns change, update frozen columns
+    useEffect(() => {
+      setColumnPinningState({
+        left: props.freezeColumnsLeft,
+        right: props.freezeColumnsRight,
+      });
+    }, [props.freezeColumnsLeft, props.freezeColumnsRight]);
 
     // Data loading
     const { data, loading, error } = useAsyncData<{
@@ -398,6 +417,8 @@ export const LoadingDataTableComponent = memo(
           totalRows={data?.totalRows ?? props.totalRows}
           paginationState={paginationState}
           setPaginationState={setPaginationState}
+          columnPinningState={columnPinningState}
+          setColumnPinningState={setColumnPinningState}
         />
       </>
     );
@@ -430,8 +451,8 @@ const DataTableComponent = ({
   filters,
   setFilters,
   reloading,
-  freezeColumnsLeft,
-  freezeColumnsRight,
+  columnPinningState,
+  setColumnPinningState,
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
@@ -531,8 +552,8 @@ const DataTableComponent = ({
             onFiltersChange={setFilters}
             reloading={reloading}
             onRowSelectionChange={handleRowSelectionChange}
-            freezeColumnsLeft={freezeColumnsLeft}
-            freezeColumnsRight={freezeColumnsRight}
+            columnPinningState={columnPinningState}
+            setColumnPinningState={setColumnPinningState}
           />
         </Labeled>
       </ColumnChartContext.Provider>

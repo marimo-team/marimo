@@ -4,6 +4,7 @@ import {
   type ColumnDef,
   type ColumnFiltersState,
   ColumnPinning,
+  type ColumnPinningState,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
@@ -19,7 +20,6 @@ import { Table } from "@/components/ui/table";
 import type { DownloadActionProps } from "./download-actions";
 import { cn } from "@/utils/cn";
 import { FilterPills } from "./filter-pills";
-import { useColumnPinning } from "./hooks/useColumnPinning";
 import { renderTableHeader, renderTableBody } from "./renderers";
 import { SearchBar } from "./SearchBar";
 import { TableActions } from "./TableActions";
@@ -54,8 +54,8 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   onFiltersChange?: OnChangeFn<ColumnFiltersState>;
   reloading?: boolean;
   // Columns
-  freezeColumnsLeft?: string[];
-  freezeColumnsRight?: string[];
+  columnPinningState?: ColumnPinningState;
+  setColumnPinningState?: OnChangeFn<ColumnPinningState>;
 }
 
 const DataTableInternal = <TData,>({
@@ -82,15 +82,10 @@ const DataTableInternal = <TData,>({
   filters,
   onFiltersChange,
   reloading,
-  freezeColumnsLeft,
-  freezeColumnsRight,
+  columnPinningState,
+  setColumnPinningState,
 }: DataTableProps<TData>) => {
   const [isSearchEnabled, setIsSearchEnabled] = React.useState<boolean>(false);
-
-  const { columnPinning, setColumnPinning } = useColumnPinning(
-    freezeColumnsLeft,
-    freezeColumnsRight,
-  );
 
   const table = useReactTable<TData>({
     _features: [ColumnPinning, ColumnWrappingFeature, ColumnFormattingFeature],
@@ -139,9 +134,9 @@ const DataTableInternal = <TData,>({
           : // No pagination, show all rows
             { pagination: { pageIndex: 0, pageSize: data.length } }),
       rowSelection,
-      columnPinning: columnPinning,
+      columnPinning: columnPinningState,
     },
-    onColumnPinningChange: setColumnPinning,
+    onColumnPinningChange: setColumnPinningState,
   });
 
   return (
