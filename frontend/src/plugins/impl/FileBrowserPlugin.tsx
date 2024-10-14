@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { Table, TableCell, TableRow } from "@/components/ui/table";
 import { createPlugin } from "../core/builder";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { rpc } from "../core/rpc";
 import { toast } from "@/components/ui/use-toast";
@@ -138,6 +138,25 @@ export const FileBrowser = ({
   const [path, setPath] = useState(initialPath);
   const [selectAllLabel, setSelectAllLabel] = useState("Select all");
   const [isUpdatingPath, setIsUpdatingPath] = useState(false);
+  const [isRestricted, setIsRestricted] = useState(restrictNavigation);
+  const [allowMultiSelect, setAllowMultiSelect] = useState(multiple);
+  const [selectMode, setSelectMode] = useState(selectionMode);
+
+  useEffect(() => {
+    setPath(initialPath);
+  }, [initialPath]);
+
+  useEffect(() => {
+    setIsRestricted(restrictNavigation);
+  }, [restrictNavigation]);
+
+  useEffect(() => {
+    setAllowMultiSelect(multiple);
+  }, [multiple]);
+
+  useEffect(() => {
+    setSelectMode(selectionMode);
+  }, [selectionMode]);
 
   const { data, loading, error } = useAsyncData(
     () =>
@@ -172,8 +191,8 @@ export const FileBrowser = ({
   const selectedFiles = value.map((x) => <li key={x.id}>{x.path}</li>);
 
   const canSelectDirectories =
-    selectionMode === "directory" || selectionMode === "all";
-  const canSelectFiles = selectionMode === "file" || selectionMode === "all";
+    selectMode === "directory" || selectMode === "all";
+  const canSelectFiles = selectMode === "file" || selectMode === "all";
 
   function setNewPath(newPath: string) {
     // Prevent updating path while updating
@@ -200,7 +219,7 @@ export const FileBrowser = ({
     // If restricting navigation, check if path is outside bounds
     const outsideInitialPath = newPath.length < initialPath.length;
 
-    if (restrictNavigation && outsideInitialPath) {
+    if (isRestricted && outsideInitialPath) {
       toast({
         title: "Access denied",
         description:
@@ -234,7 +253,7 @@ export const FileBrowser = ({
   function handleSelection(path: string, name: string, isDirectory: boolean) {
     const fileInfo = createFileInfo(path, name, isDirectory);
 
-    if (multiple) {
+    if (allowMultiSelect) {
       if (selectedPaths.has(path)) {
         setValue(value.filter((x) => x.path !== path));
         setSelectAllLabel("Select all");
@@ -370,7 +389,7 @@ export const FileBrowser = ({
     return `/${dirList.join(delimiter)}`;
   });
 
-  if (restrictNavigation) {
+  if (isRestricted) {
     parentDirectories = parentDirectories.filter((x) =>
       x.startsWith(initialPath),
     );
@@ -378,16 +397,16 @@ export const FileBrowser = ({
   parentDirectories.reverse();
 
   const selectionKindLabel =
-    selectionMode === "all"
+    selectMode === "all"
       ? PluralWords.of("file", "folder")
-      : selectionMode === "directory"
+      : selectMode === "directory"
         ? PluralWords.of("folder")
         : PluralWords.of("file");
   const renderHeader = () => {
     label = label ?? `Select ${selectionKindLabel.join(" and ", 2)}...`;
     const labelText = <Label>{renderHTML({ html: label })}</Label>;
 
-    if (multiple) {
+    if (allowMultiSelect) {
       return (
         <div className="grid grid-cols-2 items-center border-1">
           <div className="justify-self-start mb-1">{labelText}</div>
