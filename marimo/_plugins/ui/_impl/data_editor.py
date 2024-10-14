@@ -1,8 +1,11 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import ast
+import datetime
 from dataclasses import dataclass
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -11,15 +14,22 @@ from typing import (
     Optional,
     TypedDict,
     Union,
+    cast,
 )
 
 import narwhals.stable.v1 as nw
 from narwhals.typing import IntoDataFrame
 
 import marimo._output.data.data as mo_data
+from marimo import _loggers
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
+
+LOGGER = _loggers.marimo_logger()
+
+if TYPE_CHECKING:
+    from narwhals.dtypes import DType
 
 
 @dataclass
@@ -163,19 +173,20 @@ class data_editor(
 def apply_edits(
     data: Union[RowOrientedData, ColumnOrientedData, IntoDataFrame],
     edits: DataEdits,
+    schema: Optional[nw.Schema] = None,
 ) -> Union[RowOrientedData, ColumnOrientedData, IntoDataFrame]:
     if len(edits["edits"]) == 0:
         return data
     # If row-oriented, apply edits to the data
     if isinstance(data, list):
-        return _apply_edits_row_oriented(data, edits)
+        return _apply_edits_row_oriented(data, edits, schema)
     # If column-oriented, apply edits to the data
     elif isinstance(data, dict):
-        return _apply_edits_column_oriented(data, edits)
+        return _apply_edits_column_oriented(data, edits, schema)
 
     # narwhalify
     try:
-        return _apply_edits_dataframe(data, edits)  # type: ignore[no-any-return]
+        return _apply_edits_dataframe(data, edits, schema)  # type: ignore[no-any-return]
     except Exception as e:
         raise ValueError(
             f"Data editor does not support this type of data: {type(data)}"
@@ -185,13 +196,17 @@ def apply_edits(
 def _apply_edits_column_oriented(
     data: ColumnOrientedData,
     edits: DataEdits,
+    schema: Optional[nw.Schema] = None,
 ) -> ColumnOrientedData:
     for edit in edits["edits"]:
         column = data[edit["columnId"]]
         if edit["rowIdx"] >= len(column):
             # Extend the column with None values up to the new row index
             column.extend([None] * (edit["rowIdx"] - len(column) + 1))
-        column[edit["rowIdx"]] = edit["value"]
+        dtype = schema.get(edit["columnId"]) if schema else None
+        column[edit["rowIdx"]] = _convert_value(
+            edit["value"], column[0] if column else None, dtype
+        )
 
     return data
 
@@ -199,22 +214,121 @@ def _apply_edits_column_oriented(
 def _apply_edits_row_oriented(
     data: RowOrientedData,
     edits: DataEdits,
+    schema: Optional[nw.Schema] = None,
 ) -> RowOrientedData:
     for edit in edits["edits"]:
         if edit["rowIdx"] >= len(data):
             # Create a new row with None values for all columns
             new_row = {col: None for col in data[0].keys()}
             data.append(new_row)
-        data[edit["rowIdx"]][edit["columnId"]] = edit["value"]
+        original_value = data[0][edit["columnId"]] if data else None
+        dtype = schema.get(edit["columnId"]) if schema else None
+        data[edit["rowIdx"]][edit["columnId"]] = _convert_value(
+            edit["value"], original_value, dtype
+        )
 
     return data
 
 
 @nw.narwhalify
 def _apply_edits_dataframe(
-    df: nw.DataFrame[Any], edits: DataEdits
+    df: nw.DataFrame[Any], edits: DataEdits, schema: Optional[nw.Schema]
 ) -> nw.DataFrame[Any]:
     column_oriented = df.to_dict(as_series=False)
-    new_data = _apply_edits_column_oriented(column_oriented, edits)
+    schema = schema or cast(nw.Schema, df.schema)
+    new_data = _apply_edits_column_oriented(column_oriented, edits, schema)
     native_namespace = nw.get_native_namespace(df)
     return nw.from_dict(new_data, native_namespace=native_namespace)
+
+
+def _convert_value(
+    value: Any,
+    original_value: Any,
+    dtype: Optional[DType] = None,
+) -> Any:
+    try:
+        if dtype is not None:
+            if dtype == nw.Datetime:
+                return datetime.datetime.fromisoformat(value)
+            elif dtype == nw.Date:
+                return datetime.date.fromisoformat(value)
+            elif dtype == nw.Duration:
+                return datetime.timedelta(microseconds=float(value))
+            elif dtype == nw.Float32:
+                return float(value)
+            elif dtype == nw.Float64:
+                return float(value)
+            elif dtype == nw.Int16:
+                return int(value)
+            elif dtype == nw.Int32:
+                return int(value)
+            elif dtype == nw.Int64:
+                return int(value)
+            elif dtype == nw.UInt16:
+                return int(value)
+            elif dtype == nw.UInt32:
+                return int(value)
+            elif dtype == nw.UInt64:
+                return int(value)
+            elif dtype == nw.String:
+                return str(value)
+            elif dtype == nw.Enum:
+                return str(value)
+            elif dtype == nw.Categorical:
+                return str(value)
+            elif dtype == nw.Boolean:
+                return bool(value)
+            elif dtype == nw.List:
+                # Handle list conversion
+                if isinstance(value, str):
+                    # Attempt to parse string as a list
+                    try:
+                        return list(ast.literal_eval(value))
+                    except (ValueError, SyntaxError):
+                        # If parsing fails, split the string
+                        return value.split(",")
+                elif isinstance(value, list):
+                    return value  # type: ignore
+                else:
+                    # If it's not a string or list, wrap it in a list
+                    return [value]
+            else:
+                LOGGER.warning(f"Unsupported dtype: {dtype}")
+                return str(value)
+
+        if original_value is None:
+            return value
+
+        # Try to convert the value to the original type
+        original_type: Any = type(original_value)
+
+        if isinstance(original_value, (int, float)):
+            return original_type(value)
+        elif isinstance(original_value, str):
+            return str(value)
+        elif isinstance(original_value, (datetime.date)):
+            return datetime.date.fromisoformat(value)
+        elif isinstance(original_value, (datetime.datetime)):
+            return datetime.datetime.fromisoformat(value)
+        elif isinstance(original_value, (datetime.timedelta)):
+            return datetime.timedelta(microseconds=float(value))
+        elif isinstance(original_value, list):
+            # Handle list conversion
+            if isinstance(value, str):
+                # Attempt to parse string as a list
+                try:
+                    return list(ast.literal_eval(value))
+                except (ValueError, SyntaxError):
+                    # If parsing fails, split the string
+                    return list(value.split(","))
+            elif isinstance(value, list):
+                return value  # type: ignore[return-value]
+            else:
+                # If it's not a string or list, wrap it in a list
+                return [value]
+        else:
+            return value
+    except ValueError as e:
+        LOGGER.error(str(e))
+        # If conversion fails, return the original value
+        return original_value  # type: ignore[return-value]
