@@ -9,7 +9,7 @@ export function getMarimoWheel(version: string) {
     }-py3-none-any.whl`;
   }
   if (version === "latest") {
-    return "marimo";
+    return "marimo-base";
   }
-  return `marimo==${version}`;
+  return `marimo-base==${version}`;
 }
