@@ -94,7 +94,7 @@ def convert_to_google_messages(
     google_messages: List[Dict[Any, Any]] = []
 
     for message in messages:
-        parts: List[str | BlobDict] = [message.content]
+        parts: List[str | BlobDict] = [str(message.content)]
         if message.attachments:
             for attachment in message.attachments:
                 content_type = attachment.content_type or "text/plain"

@@ -39,7 +39,7 @@ class simple(ChatModel):
         self, messages: List[ChatMessage], config: ChatModelConfig
     ) -> object:
         del config
-        prompt = messages[-1].content
+        prompt = str(messages[-1].content)
         return self.delegate(prompt)
 
 
