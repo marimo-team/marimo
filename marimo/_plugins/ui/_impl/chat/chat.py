@@ -125,6 +125,7 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
         - `presence_penalty`
     - `allow_attachments`: (bool | List[str]) allow attachments. True for any
         attachments types, or pass a list of mime types
+    - `max_height`: optional maximum height for the chat element
     """
 
     _name: Final[str] = "marimo-chatbot"
@@ -138,6 +139,7 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
         show_configuration_controls: bool = False,
         config: Optional[ChatModelConfigDict] = None,
         allow_attachments: Union[bool, List[str]] = False,
+        max_height: Optional[int] = None,
     ) -> None:
         self._model = model
         self._chat_history: List[ChatMessage] = []
@@ -152,6 +154,7 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
                 "show-configuration-controls": show_configuration_controls,
                 "config": cast(JSONType, config or {}),
                 "allow-attachments": allow_attachments,
+                "max-height": max_height,
             },
             functions=(
                 Function(

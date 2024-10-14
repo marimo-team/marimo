@@ -18,6 +18,7 @@ export const ChatPlugin = createPlugin<ChatMessage[]>("marimo-chatbot")
     z.object({
       prompts: z.array(z.string()).default(Arrays.EMPTY),
       showConfigurationControls: z.boolean(),
+      maxHeight: z.number().optional(),
       config: z.object({
         maxTokens: z.number().default(100),
         temperature: z.number().default(0.5),
@@ -75,6 +76,7 @@ export const ChatPlugin = createPlugin<ChatMessage[]>("marimo-chatbot")
       <Chatbot
         prompts={props.data.prompts}
         showConfigurationControls={props.data.showConfigurationControls}
+        maxHeight={props.data.maxHeight}
         allowAttachments={props.data.allowAttachments}
         config={props.data.config}
         sendPrompt={props.functions.send_prompt}
