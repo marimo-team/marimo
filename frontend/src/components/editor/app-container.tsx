@@ -34,8 +34,9 @@ export const AppContainer: React.FC<PropsWithChildren<Props>> = ({
             className={cn(
               connectionState === WebSocketState.CLOSED && "disconnected",
               "bg-background w-full h-full text-textColor",
-              "flex flex-col overflow-y-auto overflow-x-auto",
+              "flex flex-col overflow-y-auto",
               width === "full" && "config-width-full",
+              width === "columns" ? "overflow-x-auto" : "overflow-x-hidden",
               "print:height-fit",
             )}
           >
