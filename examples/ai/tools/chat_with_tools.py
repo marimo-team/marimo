@@ -59,7 +59,7 @@ def __(mo):
     input_key = mo.ui.text(
         label="OpenAI API key",
         kind="password",
-        value=os.environ.get("OPENAI_API_KEY"),
+        value=os.environ.get("OPENAI_API_KEY", ""),
     )
     input_key
     return input_key, os, os_key

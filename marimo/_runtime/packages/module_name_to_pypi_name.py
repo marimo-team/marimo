@@ -375,6 +375,7 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "curator": "elasticsearch-curator",
         "curl": "pycurl",
         "daemon": "python-daemon",
+        "dagger": "dagger-io",
         "dare": "DARE",
         "dateutil": "python-dateutil",
         "dawg": "DAWG",

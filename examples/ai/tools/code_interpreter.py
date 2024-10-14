@@ -50,7 +50,7 @@ def __(backend, mo):
     input_key = mo.ui.text(
         label="OpenAI API key",
         kind="password",
-        value=os.environ.get("OPENAI_API_KEY"),
+        value=os.environ.get("OPENAI_API_KEY", ""),
     )
     input_key if backend.value == "openai" else None
     return input_key, openai, os, os_key
