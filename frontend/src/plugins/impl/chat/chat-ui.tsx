@@ -51,6 +51,7 @@ interface Props {
   prompts: string[];
   config: ChatConfig;
   showConfigurationControls: boolean;
+  maxHeight: number | undefined;
   allowAttachments: boolean | string[];
   sendPrompt(req: SendMessageRequest): Promise<string>;
   value: ChatMessage[];
@@ -62,6 +63,7 @@ export const Chatbot: React.FC<Props> = (props) => {
   const [config, setConfig] = useState<ChatConfig>(props.config);
   const [files, setFiles] = useState<FileList | undefined>(undefined);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const {
     messages,
@@ -193,14 +195,28 @@ export const Chatbot: React.FC<Props> = (props) => {
       props.allowAttachments.length > 0) ||
     props.allowAttachments === true;
 
+  useEffect(() => {
+    // When the message length changes, scroll to the bottom
+    scrollContainerRef.current?.scrollTo({
+      top: scrollContainerRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages.length, scrollContainerRef]);
+
   return (
-    <div className="flex flex-col h-full bg-[var(--slate-1)] rounded-lg shadow border border-[var(--slate-6)]">
-      <div className="flex justify-end p-1">
+    <div
+      className="flex flex-col h-full bg-[var(--slate-1)] rounded-lg shadow border border-[var(--slate-6)] overflow-hidden"
+      style={{ maxHeight: props.maxHeight }}
+    >
+      <div className="absolute top-0 right-0 flex justify-end z-10 border border-[var(--slate-6)] bg-inherit rounded-bl-lg">
         <Button variant="text" size="icon" onClick={() => setMessages([])}>
           <Trash2Icon className="h-3 w-3" />
         </Button>
       </div>
-      <div className="flex-grow overflow-y-auto gap-4 py-4 px-2 flex flex-col">
+      <div
+        className="flex-grow overflow-y-auto gap-4 pt-8 pb-4 px-2 flex flex-col"
+        ref={scrollContainerRef}
+      >
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-center p-4">
             <BotMessageSquareIcon className="h-12 w-12 mb-4" />
@@ -250,30 +266,30 @@ export const Chatbot: React.FC<Props> = (props) => {
             </div>
           </div>
         ))}
+
+        {isLoading && (
+          <div className="flex items-center justify-center space-x-2 mb-4">
+            <Spinner size="small" />
+            <Button
+              variant="link"
+              size="sm"
+              onClick={() => stop()}
+              className="text-[var(--red-9)] hover:text-[var(--red-11)]"
+            >
+              Stop
+            </Button>
+          </div>
+        )}
+
+        {error && (
+          <div className="flex items-center justify-center space-x-2 mb-4">
+            <ErrorBanner error={error} />
+            <Button variant="outline" size="sm" onClick={() => reload()}>
+              Retry
+            </Button>
+          </div>
+        )}
       </div>
-
-      {isLoading && (
-        <div className="flex items-center justify-center space-x-2 mb-4">
-          <Spinner size="small" />
-          <Button
-            variant="link"
-            size="sm"
-            onClick={() => stop()}
-            className="text-[var(--red-9)] hover:text-[var(--red-11)]"
-          >
-            Stop
-          </Button>
-        </div>
-      )}
-
-      {error && (
-        <div className="flex items-center justify-center space-x-2 mb-4">
-          <ErrorBanner error={error} />
-          <Button variant="outline" size="sm" onClick={() => reload()}>
-            Retry
-          </Button>
-        </div>
-      )}
 
       <form
         onSubmit={(evt) => {
@@ -531,7 +547,7 @@ const PromptsPopover: React.FC<{
                 size="sm"
                 className="border-none shadow-initial"
               >
-                <ChatBubbleIcon className="h-3 w-3" />
+                <ChatBubbleIcon className="h-3 w-3 mx-1" />
               </Button>
             </DropdownMenuTrigger>
           </Tooltip>

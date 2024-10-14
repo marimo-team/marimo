@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.9.0"
+__generated_with = "0.9.9"
 app = marimo.App(width="medium")
 
 
@@ -60,13 +60,14 @@ def __(key, mo):
         ),
         allow_attachments=[
             "image/png",
-            "image/jpeg"
+            "image/jpeg",
         ],
         prompts=[
             "Hello",
             "How are you?",
             "I'm doing great, how about you?",
         ],
+        max_height=400,
     )
     chatbot
     return (chatbot,)
