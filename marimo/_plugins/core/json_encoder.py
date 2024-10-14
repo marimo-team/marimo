@@ -40,6 +40,10 @@ class WebComponentEncoder(JSONEncoder):
         if isinstance(o, (datetime.datetime, datetime.date, datetime.time)):
             return o.isoformat()
 
+        # Handle timedelta
+        if isinstance(o, datetime.timedelta):
+            return str(o)
+
         # Handle UUID
         if isinstance(o, UUID):
             return str(o)

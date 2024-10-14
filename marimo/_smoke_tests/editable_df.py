@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.9.4"
+__generated_with = "0.9.9"
 app = marimo.App(width="medium")
 
 
@@ -91,17 +91,28 @@ def __(mo):
 
 @app.cell
 def __(pd):
+    import datetime
+
     large_text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."
 
     varying_data = {
         "strings": ["a", "b", "c", large_text],
         "numbers": [1, 2, 3, 4],
         "bools": [True, False, True, False],
-        "dates": [pd.Timestamp("2021-01-01") for _ in range(4)],
+        "timestamps": [pd.Timestamp("2021-01-01") for _ in range(4)],
+        "dates": [datetime.date(2021, 1, 1) for _ in range(4)],
+        "datetimes": [datetime.datetime(2021, 1, 1, 1, 1, 1) for _ in range(4)],
+        "duration": [datetime.timedelta(days=2, seconds=13500) for _ in range(4)],
         "none": [None for _ in range(4)],
         "lists": [[1, 2], [3, 4], [5, 6], [7, 8]],
     }
-    return large_text, varying_data
+    return datetime, large_text, varying_data
+
+
+@app.cell
+def __(pl, varying_data):
+    pl.DataFrame(varying_data).schema
+    return
 
 
 @app.cell

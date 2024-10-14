@@ -324,6 +324,14 @@ def test_date_time_encoding() -> None:
     assert encoded_datetime == '"2023-01-01T12:30:45"'
 
 
+def test_timedelta_encoding() -> None:
+    import datetime
+
+    timedelta_obj = datetime.timedelta(days=1, seconds=2, microseconds=3)
+    encoded = json.dumps(timedelta_obj, cls=WebComponentEncoder)
+    assert encoded == '"1 day, 0:00:02.000003"'
+
+
 def test_enum_encoding() -> None:
     from enum import Enum
 
