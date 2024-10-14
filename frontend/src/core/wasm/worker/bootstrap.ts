@@ -62,8 +62,7 @@ export class DefaultWasmController implements WasmController {
     const span = t.startSpan("loadPyodide");
     const pyodide = await loadPyodide({
       // Perf: These get loaded while pyodide is being bootstrapped
-      // The packages can be found here: https://pyodide.org/en/stable/usage/packages-in-pyodide.html
-      packages: ["micropip", "docutils", "Pygments", "jedi", "pyodide-http"],
+      packages: ["micropip"],
       // Without this, this fails in Firefox with
       // `Could not extract indexURL path from pyodide module`
       // This fixes for Firefox and does not break Chrome/others
@@ -213,6 +212,18 @@ export class DefaultWasmController implements WasmController {
       code = `import duckdb\n${code}`;
     }
 
+    // Add:
+    // 1. additional dependencies of marimo that are lazily loaded.
+    // 2. pyodide-http, a patch to make basic http requests work in pyodide
+    //
+    // These packages are included with Pyodide, which is why we don't add them
+    // to `foundImports`:
+    // https://pyodide.org/en/stable/usage/packages-in-pyodide.html
+    code = `import docutils\n${code}`;
+    code = `import Pygments\n${code}`;
+    code = `import jedi\n${code}`;
+    code = `import pyodide_http\n${code}`;
+
     const imports = [...foundImports];
 
     // Load from pyodide
@@ -235,7 +246,7 @@ export class DefaultWasmController implements WasmController {
         import sys
         # Filter out builtins
         missing = [p for p in ${JSON.stringify(missingPackages)} if p not in sys.modules]
-        print("[py] Loading packages from micropip:", missing)
+        print("Loaded from micropip:", missing)
         await micropip.install(missing)
       `)
         .catch((error) => {

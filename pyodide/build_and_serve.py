@@ -1,3 +1,11 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "watchdog",
+# ]
+# ///
+from __future__ import annotations
+
 import http.server
 import os
 import socketserver
@@ -29,7 +37,7 @@ class WheelBuilderHandler(PatternMatchingEventHandler):
     def on_any_event(self, event) -> None:
         print(f"Change detected: {event.src_path}")
         print("Building wheel...")
-        subprocess.run(["python3", "-m", "build"])
+        subprocess.run(["hatch", "build"])
         print("Wheel built successfully.")
 
 
