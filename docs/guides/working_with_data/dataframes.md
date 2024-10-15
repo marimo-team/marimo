@@ -167,14 +167,112 @@ mo.ui.table(filtered_df)
 
 ## Polars support
 
-marimo also supports [Polars](https://pola.rs/), a
-modern, faster alternative to Pandas.
+marimo provides first-class support for [Polars](https://pola.rs/), a modern, high-performance alternative to Pandas. You can use Polars dataframes seamlessly with marimo's interactive features, just like you would with Pandas.
 
-**Example.**
+### Displaying Polars dataframes
 
-Check out a full example [here](https://github.com/marimo-team/marimo/blob/main/examples/third_party/polars_example.py),
-or run it yourself:
+Polars dataframes can be displayed directly in marimo cells:
+
+```python
+import polars as pl
+
+df = pl.DataFrame({
+    "A": [1, 2, 3, 4, 5],
+    "B": ["a", "b", "c", "d", "e"],
+    "C": [1.1, 2.2, 3.3, 4.4, 5.5]
+})
+df
+```
+
+This will render an interactive rich table view of the Polars dataframe.
+
+### Rich visualizations
+
+You can use `mo.ui.table` or `mo.ui.altair_chart` for displaying Polars dataframes getting
+the row selections or points on a chart back as a Polars dataframe.
+
+```python
+import marimo as mo
+import polars as pl
+import altair as alt
+
+df = pl.DataFrame({
+    "category": ["A", "B", "C", "D"],
+    "value": [10, 20, 15, 25]
+})
+
+
+chart = mo.ui.altair_chart(
+    alt.Chart(df).mark_bar().encode(
+        x="category",
+        y="value"
+    )
+)
+chart
+```
+
+```python
+# Cell 2
+# chart.value holds the selected data as a Polars dataframe
+chart.value
+```
+
+### Interactive transformations
+
+Use `mo.ui.dataframe` to interactively transform Polars dataframes:
+
+```python
+import marimo as mo
+import polars as pl
+
+df = pl.DataFrame({
+    "name": ["Alice", "Bob", "Charlie", "David"],
+    "age": [25, 30, 35, 40],
+    "city": ["New York", "London", "Paris", "Tokyo"]
+})
+
+transformed_df = mo.ui.dataframe(df)
+transformed_df
+```
+
+```python
+# Cell 2
+# transformed_df.value holds the transformed dataframe
+transformed_df.value
+```
+
+### Filters for Polars dataframes
+
+Create custom filters for Polars dataframes using marimo UI elements:
+
+```python
+import marimo as mo
+import polars as pl
+
+df = pl.DataFrame({
+    "name": ["Alice", "Bob", "Charlie", "David"],
+    "age": [25, 30, 35, 40],
+    "city": ["New York", "London", "Paris", "Tokyo"]
+})
+
+age_filter = mo.ui.slider.from_series(df["age"], label="Max age")
+city_filter = mo.ui.dropdown.from_series(df["city"], label="City")
+
+mo.hstack([age_filter, city_filter])
+```
+
+```python
+# Cell 2
+filtered_df = df.filter((pl.col("age") <= age_filter.value) & (pl.col("city") == city_filter.value))
+mo.ui.table(filtered_df)
+```
+
+### Example notebook
+
+For a comprehensive example of using Polars with marimo, check out our [Polars example notebook](https://github.com/marimo-team/marimo/blob/main/examples/third_party/polars/polars_example.py).
+
+You can run it yourself with:
 
 ```bash
-marimo edit https://raw.githubusercontent.com/marimo-team/marimo/main/examples/third_party/polars_example.py
+marimo edit https://raw.githubusercontent.com/marimo-team/marimo/main/examples/third_party/polars/polars_example.py
 ```
