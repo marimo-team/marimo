@@ -54,7 +54,7 @@ for working with data.
 
 - marimo's notebook environment allows for iterative and interactive
   development and exploration, letting it serve as your daily driver for
-  working with data. marimo even has native support for [SQL](/guides/sql.md).
+  working with data. marimo even has native support for [SQL](/guides/working_with_data/sql.md).
 - Streamlit is exclusively used for building standalone data apps.
 
 ## Common Streamlit Features in marimo
