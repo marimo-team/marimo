@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 import base64
-from typing import TYPE_CHECKING, Any, Dict, Literal, TypedDict, Union
+from typing import Any, Dict, Literal, TypedDict, Union
+
+import narwhals.stable.v1 as nw
+from narwhals.typing import IntoDataFrame
 
 import marimo._output.data.data as mo_data
 from marimo._dependencies.dependencies import DependencyManager
@@ -12,17 +15,8 @@ from marimo._plugins.ui._impl.tables.utils import (
     get_table_manager_or_none,
 )
 
-if TYPE_CHECKING:
-    import narwhals.stable.v1 as nw
-    import pandas as pd
-    import polars as pl
-
-Data = Union[
-    Dict[Any, Any], "pd.DataFrame", "pl.DataFrame", "nw.DataFrame[Any]"
-]
-_DataType = Union[
-    Dict[Any, Any], "pd.DataFrame", "pl.DataFrame", "nw.DataFrame[Any]"
-]
+Data = Union[Dict[Any, Any], IntoDataFrame, nw.DataFrame[Any]]
+_DataType = Union[Dict[Any, Any], IntoDataFrame, nw.DataFrame[Any]]
 
 
 class _JsonFormatDict(TypedDict):
@@ -141,7 +135,4 @@ def register_transformers() -> None:
     alt.data_transformers.register("marimo", _to_marimo_csv)
     alt.data_transformers.register("marimo_inline_csv", _to_marimo_inline_csv)
     alt.data_transformers.register("marimo_json", _to_marimo_json)
-    alt.data_transformers.register(
-        "marimo_csv",
-        _to_marimo_csv,
-    )
+    alt.data_transformers.register("marimo_csv", _to_marimo_csv)

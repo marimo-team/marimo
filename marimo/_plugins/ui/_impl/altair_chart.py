@@ -12,7 +12,11 @@ from typing import (
     Literal,
     Optional,
     Union,
+    cast,
 )
+
+import narwhals.stable.v1 as nw
+from narwhals.typing import IntoDataFrame
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -22,13 +26,12 @@ from marimo._plugins.ui._impl.charts.altair_transformer import (
     register_transformers,
 )
 from marimo._utils import flatten
+from marimo._utils.narhwals_utils import empty_df
 
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
     import altair  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
-    import pandas as pd
-    import polars as pl
 
 # Selection is a dictionary of the form:
 # {
@@ -36,10 +39,13 @@ if TYPE_CHECKING:
 #     "field": ["value1", "value2", ...]
 #   }
 # }
-ChartSelection = Dict[str, Dict[str, Union[List[int], List[float], List[str]]]]
+ChartSelectionField = Dict[str, Union[List[int], List[float], List[str]]]
+ChartSelection = Dict[str, ChartSelectionField]
 VegaSpec = Dict[str, Any]
+RowOrientedData = List[Dict[str, Any]]
+ColumnOrientedData = Dict[str, List[Any]]
 
-ChartDataType = Union["pd.DataFrame", "pl.DataFrame"]
+ChartDataType = Union[IntoDataFrame, RowOrientedData, ColumnOrientedData]
 
 
 def _has_binning(spec: VegaSpec) -> bool:
@@ -63,30 +69,13 @@ def _has_geoshape(spec: altair.TopLevelMixin) -> bool:
         return False
 
 
+@nw.narwhalify
 def _filter_dataframe(
-    df: ChartDataType, selection: Dict[str, Any]
-) -> ChartDataType:
+    df: nw.DataFrame[Any], selection: ChartSelection
+) -> nw.DataFrame[Any]:
     if not isinstance(selection, dict):
         raise TypeError("Input 'selection' must be a dictionary")
 
-    if DependencyManager.pandas.imported():
-        import pandas as pd
-
-        if isinstance(df, pd.DataFrame):
-            return _filter_pandas_dataframe(df, selection)
-
-    if DependencyManager.polars.imported():
-        import polars as pl
-
-        if isinstance(df, pl.DataFrame):
-            return _filter_polars_dataframe(df, selection)
-
-    raise TypeError("Input 'df' must be a pandas or polars DataFrame")
-
-
-def _filter_pandas_dataframe(
-    df: pd.DataFrame, selection: Dict[str, Any]
-) -> pd.DataFrame:
     for channel, fields in selection.items():
         if not isinstance(channel, str) or not isinstance(fields, dict):
             raise ValueError(
@@ -103,7 +92,7 @@ def _filter_pandas_dataframe(
             # Vega is 1-indexed, so subtract 1
             try:
                 indexes = [int(i) - 1 for i in fields["_vgsid_"]]
-                df = df.iloc[indexes]
+                df = df[indexes]
             except (ValueError, IndexError) as e:
                 raise ValueError(
                     f"Invalid index in selection: {fields['_vgsid_']}"
@@ -124,89 +113,24 @@ def _filter_pandas_dataframe(
                 raise ValueError(f"Field '{field}' not found in DataFrame")
 
             dtype = df[field].dtype
-            resolved_values = _resolve_values_pandas(values, dtype)
+            resolved_values = _resolve_values(values, dtype)
 
             if is_point_selection:
-                df = df[df[field].isin(resolved_values)]
+                df = df.filter(nw.col(field).is_in(resolved_values))
             elif len(resolved_values) == 1:
-                df = df[df[field] == resolved_values[0]]
-            # Range selection
-            elif len(resolved_values) == 2 and _is_numeric(values[0]):
-                left_value, right_value = resolved_values
-                df = df[(df[field] >= left_value) & (df[field] <= right_value)]
-            # Multi-selection via range
-            # This can happen when you use an interval selection
-            # on categorical data
-            elif len(resolved_values) > 1:
-                df = df[df[field].isin(resolved_values)]
-            else:
-                raise ValueError(
-                    f"Invalid selection: {field}={resolved_values}"
-                )
-
-    return df
-
-
-def _filter_polars_dataframe(
-    df: pl.DataFrame, selection: Dict[str, Any]
-) -> pl.DataFrame:
-    import polars as pl
-
-    for channel, fields in selection.items():
-        if not isinstance(channel, str) or not isinstance(fields, dict):
-            raise ValueError(
-                f"Invalid selection format for channel: {channel}"
-            )
-
-        # Don't filter on pan_zoom
-        if channel.startswith("pan_zoom"):
-            continue
-
-        # This is a case when altair does not pass back the fields to filter on
-        # and instead passes an individual selected point.
-        if len(fields) == 2 and "vlPoint" in fields and "_vgsid_" in fields:
-            # Vega is 1-indexed, so subtract 1
-            try:
-                indexes = [int(i) - 1 for i in fields["_vgsid_"]]
-                df = df.filter(pl.arange(0, df.height).is_in(indexes))
-            except (ValueError, IndexError) as e:
-                raise ValueError(
-                    f"Invalid index in selection: {fields['_vgsid_']}"
-                ) from e
-            continue
-
-        # If vlPoint is in the selection,
-        # then the selection is a point selection
-        # otherwise, it is an interval selection
-        is_point_selection = "vlPoint" in fields
-        for field, values in fields.items():
-            # values may come back as strings if using the CSV transformer;
-            # convert back to original datatype
-            if field in ("vlPoint", "_vgsid_"):
-                continue
-
-            if field not in df.columns:
-                raise ValueError(f"Field '{field}' not found in DataFrame")
-
-            dtype = df[field].dtype
-            resolved_values = _resolve_values_polars(values, dtype)
-
-            if is_point_selection:
-                df = df.filter(pl.col(field).is_in(resolved_values))
-            elif len(resolved_values) == 1:
-                df = df.filter(pl.col(field) == resolved_values[0])
+                df = df.filter(nw.col(field) == resolved_values[0])
             # Range selection
             elif len(resolved_values) == 2 and _is_numeric(values[0]):
                 left_value, right_value = resolved_values
                 df = df.filter(
-                    (pl.col(field) >= left_value)
-                    & (pl.col(field) <= right_value)
+                    (nw.col(field) >= left_value)
+                    & (nw.col(field) <= right_value)
                 )
             # Multi-selection via range
             # This can happen when you use an interval selection
             # on categorical data
             elif len(resolved_values) > 1:
-                df = df.filter(pl.col(field).is_in(resolved_values))
+                df = df.filter(nw.col(field).is_in(resolved_values))
             else:
                 raise ValueError(
                     f"Invalid selection: {field}={resolved_values}"
@@ -215,35 +139,17 @@ def _filter_polars_dataframe(
     return df
 
 
-def _resolve_values_polars(values: Any, dtype: Any) -> List[Any]:
-    import polars as pl
-
+def _resolve_values(values: Any, dtype: Any) -> List[Any]:
     def _coerce_value(value: Any, dtype: Any) -> Any:
-        if pl.datatypes.Date == dtype or pl.datatypes.Datetime == dtype:
+        import datetime
+
+        if nw.Date == dtype:
             # Value is milliseconds since epoch
-            import datetime
-
-            return datetime.datetime.fromtimestamp(value / 1000).date()
+            return datetime.date.fromtimestamp(value / 1000)
+        if nw.Datetime == dtype:
+            # Value is milliseconds since epoch
+            return datetime.datetime.fromtimestamp(value / 1000)
         return value
-
-    if isinstance(values, list):
-        return [_coerce_value(v, dtype) for v in values]
-    return [_coerce_value(values, dtype)]
-
-
-def _resolve_values_pandas(values: Any, dtype: Any) -> List[Any]:
-    import numpy as np
-    import pandas as pd
-
-    def _coerce_value(value: Any, dtype: Any) -> Any:
-        if dtype == "datetime64[ns]":
-            return pd.to_datetime(value, unit="ms")
-        if pd.api.types.is_datetime64_any_dtype(dtype):
-            return pd.to_datetime(value, unit="ms")
-        if dtype == "object":
-            return str(value)
-
-        return np.array([value]).astype(dtype)[0]
 
     if isinstance(values, list):
         return [_coerce_value(v, dtype) for v in values]
@@ -293,9 +199,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
     Use `mo.ui.altair_chart` to make Altair charts reactive: select chart data
     with your cursor on the frontend, get them as a dataframe in Python!
 
-    For Polars DataFrames, you can convert to a DataFrame.
-    However the returned DataFrame will still be a DataFrame,
-    so you will need to convert back to a Polars DataFrame if you want.
+    Supports polars, pandas, and arrow DataFrames.
 
     **Example.**
 
@@ -414,7 +318,9 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
             )
             chart_selection = False
 
-        self.dataframe = self._get_dataframe_from_chart(chart)
+        self.dataframe: Optional[ChartDataType] = (
+            self._get_dataframe_from_chart(chart)
+        )
 
         self._spec = vega_spec
 
@@ -437,68 +343,64 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
     @staticmethod
     def _get_dataframe_from_chart(
         chart: altair.Chart,
-    ) -> Union[ChartDataType, altair.UndefinedType]:
+    ) -> Optional[ChartDataType]:
         if not isinstance(chart.data, str):
             return chart.data
 
-        if DependencyManager.pandas.imported():
-            import pandas as pd
-
-            if chart.data.endswith(".csv"):
-                return pd.read_csv(chart.data)
-            if chart.data.endswith(".json"):
-                return pd.read_json(chart.data)
+        url = chart.data
 
         if DependencyManager.polars.imported():
             import polars as pl
 
-            if chart.data.startswith("http"):
+            if url.endswith(".csv"):
+                return pl.read_csv(url)
+            if url.endswith(".json"):
                 import urllib.request
 
+                # polars read_json does not support urls
                 with urllib.request.urlopen(chart.data) as response:
-                    if chart.data.endswith(".csv"):
-                        return pl.read_csv(response)
-                    if chart.data.endswith(".json"):
-                        return pl.read_json(response)
+                    return pl.read_json(response)
 
-            if chart.data.endswith(".csv"):
-                return pl.read_csv(chart.data)
-            if chart.data.endswith(".json"):
-                return pl.read_json(chart.data)
+        if DependencyManager.pandas.imported():
+            import pandas as pd
 
-        return chart.data
+            if url.endswith(".csv"):
+                return pd.read_csv(url)
+            if url.endswith(".json"):
+                return pd.read_json(url)
 
-    def _convert_value(self, value: ChartSelection) -> Any:
+        import altair
+
+        if chart.data is altair.Undefined:
+            return None
+
+        return cast(ChartDataType, chart.data)
+
+    def _convert_value(self, value: ChartSelection) -> ChartDataType:
         from altair import Undefined
 
         self._chart_selection = value
         flat, _ = flatten.flatten(value)
         if not value or not flat:
-            if DependencyManager.pandas.imported():
-                import pandas as pd
-
-                if isinstance(self.dataframe, pd.DataFrame):
-                    return pd.DataFrame()
-
-            if DependencyManager.polars.imported():
-                import polars as pl
-
-                if isinstance(self.dataframe, pl.DataFrame):
-                    return pl.DataFrame()
-
-            return []
+            if self.dataframe is None:
+                return []
+            if isinstance(self.dataframe, list):
+                return []
+            if isinstance(self.dataframe, dict):
+                return {}
+            return empty_df(self.dataframe)
 
         # When using layered charts, you can no longer access the
         # chart data directly
         # Instead, we should push user to call .apply_selection(df)
-        if self.dataframe is Undefined:
-            return self.dataframe
+        if self.dataframe is Undefined or self.dataframe is None:
+            return self.dataframe  # type: ignore
 
         # If we have transforms, we need to filter the dataframe
         # with those transforms, before applying the selection
         if _has_transforms(self._spec):
             try:
-                df: pd.DataFrame = self._chart.transformed_data()
+                df: Any = self._chart.transformed_data()
                 return _filter_dataframe(df, value)
             except ImportError as e:
                 sys.stderr.write(

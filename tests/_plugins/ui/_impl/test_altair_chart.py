@@ -6,6 +6,7 @@ import json
 import sys
 from unittest.mock import Mock
 
+import narwhals.stable.v1 as nw
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
@@ -18,6 +19,7 @@ from marimo._plugins.ui._impl.altair_chart import (
     _parse_spec,
 )
 from marimo._runtime.runtime import Kernel
+from tests._data.mocks import create_dataframes
 from tests.conftest import ExecReqProvider
 from tests.mocks import snapshotter
 
@@ -33,10 +35,8 @@ HAS_DEPS = (
 
 if HAS_DEPS:
     import pandas as pd
-    import polars as pl
 else:
     pd = Mock()
-    pl = Mock()
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -44,24 +44,15 @@ class TestAltairChart:
     @staticmethod
     @pytest.mark.parametrize(
         "df",
-        [
-            pd.DataFrame(
-                {
-                    "field": ["value1", "value2", "value3", "value4"],
-                    "color": ["red", "red", "blue", "blue"],
-                    "field_2": [1, 2, 3, 4],
-                    "field_3": [10, 20, 30, 40],
-                }
-            ),
-            pl.DataFrame(
-                {
-                    "field": ["value1", "value2", "value3", "value4"],
-                    "color": ["red", "red", "blue", "blue"],
-                    "field_2": [1, 2, 3, 4],
-                    "field_3": [10, 20, 30, 40],
-                }
-            ),
-        ],
+        create_dataframes(
+            {
+                "field": ["value1", "value2", "value3", "value4"],
+                "color": ["red", "red", "blue", "blue"],
+                "field_2": [1, 2, 3, 4],
+                "field_3": [10, 20, 30, 40],
+            },
+            exclude=["ibis"],
+        ),
     )
     def test_filter_dataframe(df: ChartDataType) -> None:
         # Define a point selection
@@ -109,45 +100,53 @@ class TestAltairChart:
     @staticmethod
     @pytest.mark.parametrize(
         "df",
-        [
-            pd.DataFrame(
-                {
-                    "field": ["value1", "value2", "value3", "value4"],
-                    "date_column": pd.to_datetime(
-                        [
-                            "2019-12-29",
-                            "2020-01-01",
-                            "2020-01-08",
-                            "2020-01-10",
-                        ]
-                    ),
-                }
-            ),
-            pl.DataFrame(
-                {
-                    "field": ["value1", "value2", "value3", "value4"],
-                    "date_column": [
-                        datetime.date(2019, 12, 29),
-                        datetime.date(2020, 1, 1),
-                        datetime.date(2020, 1, 8),
-                        datetime.date(2020, 1, 10),
-                    ],
-                }
-            ),
-        ],
+        create_dataframes(
+            {
+                "field": ["value1", "value2", "value3", "value4"],
+                "date_column": [
+                    datetime.date(2019, 12, 29),
+                    datetime.date(2020, 1, 1),
+                    datetime.date(2020, 1, 8),
+                    datetime.date(2020, 1, 10),
+                ],
+                "datetime_column": [
+                    datetime.datetime(2019, 12, 29),
+                    datetime.datetime(2020, 1, 1),
+                    datetime.datetime(2020, 1, 8),
+                    datetime.datetime(2020, 1, 10),
+                ],
+            },
+            exclude=["ibis"],
+        ),
     )
     def test_filter_dataframe_with_dates(
         df: ChartDataType,
-    ) -> None:  # Check that the date column is a datetime64[ns] column
+    ) -> None:
         assert (
-            df["date_column"].dtype == "datetime64[ns]"
-            or str(df["date_column"].dtype) == "Date"
+            nw.Datetime
+            == nw.from_native(df, strict=True).schema["datetime_column"]
         )
 
         # Define an interval selection
         interval_selection: ChartSelection = {
             "signal_channel_2": {
                 "date_column": [
+                    # Vega passes back milliseconds since epoch
+                    1577000000000,  # Sunday, December 22, 2019 7:33:20 AM
+                    1578009600000,  # Friday, January 3, 2020 12:00:00 AM
+                ]
+            }
+        }
+        # Filter the DataFrame with the interval selection
+        assert len(_filter_dataframe(df, interval_selection)) == 2
+        first, second = _filter_dataframe(df, interval_selection)["field"]
+        assert first == "value1"
+        assert second == "value2"
+
+        # Define an interval selection with a datetime column
+        interval_selection: ChartSelection = {
+            "signal_channel_2": {
+                "datetime_column": [
                     # Vega passes back milliseconds since epoch
                     1577000000000,  # Sunday, December 22, 2019 7:33:20 AM
                     1578009600000,  # Friday, January 3, 2020 12:00:00 AM
@@ -343,7 +342,6 @@ def test_parse_spec_pandas() -> None:
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_parse_spec_narwhal() -> None:
     import altair as alt
-    import narwhals.stable.v1 as nw
 
     data = nw.from_native(pd.DataFrame({"values": [1, 2, 3]}))
     chart = alt.Chart(data).mark_point().encode(x="values:Q")
