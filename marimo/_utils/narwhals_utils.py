@@ -48,7 +48,7 @@ def can_narwhalify(obj: Any) -> TypeGuard[IntoFrame]:
     if obj is None:
         return False
     try:
-        nw.from_native(obj)
+        nw.from_native(obj, strict=True)
         return True
     except TypeError:
         return False
