@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
-from unittest.mock import Mock
 
 import pytest
 
@@ -13,6 +12,7 @@ from marimo._data.series import (
     get_number_series_info,
 )
 from marimo._dependencies.dependencies import DependencyManager
+from tests._data.mocks import create_dataframes, create_series
 
 HAS_DEPS = (
     DependencyManager.pandas.has()
@@ -20,21 +20,13 @@ HAS_DEPS = (
     and DependencyManager.polars.has()
 )
 
-if HAS_DEPS:
-    import pandas as pd
-    import polars as pl
-else:
-    pd = Mock()
-    pl = Mock()
-
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
-    [
-        pd.DataFrame({"A": [1, 2, 3], "B": ["a", "a", "a"]}),
-        pl.DataFrame({"A": [1, 2, 3], "B": ["a", "a", "a"]}),
-    ],
+    create_dataframes(
+        {"A": [1, 2, 3], "B": ["a", "a", "a"]}, exclude=["ibis"]
+    ),
 )
 def test_number_series(
     df: Any,
@@ -50,8 +42,11 @@ def test_number_series(
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-def test_get_with_no_name() -> None:
-    series = pd.Series([1, 2, 3])
+@pytest.mark.parametrize(
+    "series",
+    create_series([1, 2, 3]),
+)
+def test_get_with_no_name(series: Any) -> None:
     series.name = None
     assert get_number_series_info(series).label == ""
 
@@ -59,10 +54,9 @@ def test_get_with_no_name() -> None:
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
-    [
-        pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "b"]}),
-        pl.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "b"]}),
-    ],
+    create_dataframes(
+        {"A": [1, 2, 3], "B": ["a", "b", "b"]}, exclude=["ibis"]
+    ),
 )
 def test_categorical_series(df: Any) -> None:
     response = get_category_series_info(df["B"])
@@ -78,30 +72,18 @@ def test_categorical_series(df: Any) -> None:
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
-    [
-        pd.DataFrame(
-            {
-                "A": [1, 2, 3],
-                "B": ["a", "b", "b"],
-                "C": [
-                    datetime(2024, 1, 1),
-                    datetime(2024, 1, 2),
-                    datetime(2024, 1, 3),
-                ],
-            }
-        ),
-        pl.DataFrame(
-            {
-                "A": [1, 2, 3],
-                "B": ["a", "b", "b"],
-                "C": [
-                    datetime(2024, 1, 1),
-                    datetime(2024, 1, 2),
-                    datetime(2024, 1, 3),
-                ],
-            }
-        ),
-    ],
+    create_dataframes(
+        {
+            "A": [1, 2, 3],
+            "B": ["a", "b", "b"],
+            "C": [
+                datetime(2024, 1, 1),
+                datetime(2024, 1, 2),
+                datetime(2024, 1, 3),
+            ],
+        },
+        exclude=["ibis"],
+    ),
 )
 def test_date_series(df: Any) -> None:
     response = get_date_series_info(df["C"])
@@ -119,30 +101,18 @@ def test_date_series(df: Any) -> None:
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
-    [
-        pd.DataFrame(
-            {
-                "A": [1, 2, 3],
-                "B": ["a", "b", "b"],
-                "C": [
-                    datetime(2024, 1, 1, 12, 0),
-                    datetime(2024, 1, 2, 13, 30),
-                    datetime(2024, 1, 3, 15, 45),
-                ],
-            }
-        ),
-        pl.DataFrame(
-            {
-                "A": [1, 2, 3],
-                "B": ["a", "b", "b"],
-                "C": [
-                    datetime(2024, 1, 1, 12, 0),
-                    datetime(2024, 1, 2, 13, 30),
-                    datetime(2024, 1, 3, 15, 45),
-                ],
-            }
-        ),
-    ],
+    create_dataframes(
+        {
+            "A": [1, 2, 3],
+            "B": ["a", "b", "b"],
+            "C": [
+                datetime(2024, 1, 1, 12, 0),
+                datetime(2024, 1, 2, 13, 30),
+                datetime(2024, 1, 3, 15, 45),
+            ],
+        },
+        exclude=["ibis"],
+    ),
 )
 def test_datetime_series(df: Any) -> None:
     response = get_datetime_series_info(df["C"])
@@ -155,3 +125,30 @@ def test_datetime_series(df: Any) -> None:
         response = get_datetime_series_info(df["B"])
     with pytest.raises(ValueError):
         response = get_datetime_series_info(df["A"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "A": [1, 2, 3],
+            "B": ["a", "b", "b"],
+            "C": [
+                datetime(2024, 1, 1, 12, 0),
+                datetime(2024, 1, 2, 13, 30),
+                datetime(2024, 1, 3, 15, 45),
+            ],
+        },
+        include=["ibis"],
+    ),
+)
+def test_ibis_fails(df: Any) -> None:
+    with pytest.raises(ValueError):
+        get_number_series_info(df["A"])
+    with pytest.raises(ValueError):
+        get_category_series_info(df["B"])
+    with pytest.raises(ValueError):
+        get_date_series_info(df["C"])
+    with pytest.raises(ValueError):
+        get_datetime_series_info(df["C"])

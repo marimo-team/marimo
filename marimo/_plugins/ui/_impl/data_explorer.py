@@ -1,19 +1,15 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, Final, Optional, Union
-
-from marimo._plugins.ui._impl.tables.utils import get_table_manager
-
-if TYPE_CHECKING:
-    import pandas as pd
-    import polars as pl
-    import pyarrow as pa
-
+from typing import TYPE_CHECKING, Any, Callable, Dict, Final, Optional
 
 import marimo._output.data.data as mo_data
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._plugins.ui._impl.tables.utils import get_table_manager
+
+if TYPE_CHECKING:
+    from narwhals.typing import IntoDataFrame
 
 
 @mddoc
@@ -40,7 +36,7 @@ class data_explorer(UIElement[Dict[str, Any], Dict[str, Any]]):
 
     def __init__(
         self,
-        df: Union[pd.DataFrame, pl.DataFrame, pa.Table],
+        df: IntoDataFrame,
         on_change: Optional[Callable[[Dict[str, Any]], None]] = None,
     ) -> None:
         self._data = df

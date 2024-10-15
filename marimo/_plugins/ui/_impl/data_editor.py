@@ -184,9 +184,8 @@ def apply_edits(
     elif isinstance(data, dict):
         return _apply_edits_column_oriented(data, edits, schema)
 
-    # narwhalify
     try:
-        return _apply_edits_dataframe(data, edits, schema)  # type: ignore[no-any-return]
+        return _apply_edits_dataframe(data, edits, schema)
     except Exception as e:
         raise ValueError(
             f"Data editor does not support this type of data: {type(data)}"
@@ -230,15 +229,18 @@ def _apply_edits_row_oriented(
     return data
 
 
-@nw.narwhalify
 def _apply_edits_dataframe(
-    df: nw.DataFrame[Any], edits: DataEdits, schema: Optional[nw.Schema]
-) -> nw.DataFrame[Any]:
+    native_df: IntoDataFrame, edits: DataEdits, schema: Optional[nw.Schema]
+) -> IntoDataFrame:
+    df = nw.from_native(native_df, eager_or_interchange_only=True)
     column_oriented = df.to_dict(as_series=False)
     schema = schema or cast(nw.Schema, df.schema)
     new_data = _apply_edits_column_oriented(column_oriented, edits, schema)
     native_namespace = nw.get_native_namespace(df)
-    return nw.from_dict(new_data, native_namespace=native_namespace)
+    new_native_df = nw.from_dict(
+        new_data, native_namespace=native_namespace
+    ).to_native()
+    return new_native_df  # type: ignore[no-any-return]
 
 
 def _convert_value(
