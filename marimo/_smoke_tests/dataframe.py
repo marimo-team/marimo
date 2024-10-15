@@ -14,7 +14,7 @@
 
 import marimo
 
-__generated_with = "0.8.14"
+__generated_with = "0.9.10"
 app = marimo.App(width="full")
 
 
@@ -32,7 +32,7 @@ def __(mo):
     ]
     as_list = mo.ui.table(_data)
     as_list
-    return as_list,
+    return (as_list,)
 
 
 @app.cell
@@ -50,7 +50,7 @@ def __(mo):
     }
     as_dict = mo.ui.table(_data)
     as_dict
-    return as_dict,
+    return (as_dict,)
 
 
 @app.cell
@@ -64,7 +64,7 @@ def __(mo):
     _data = [1, 2, "hello", False]
     as_primitives = mo.ui.table(_data)
     as_primitives
-    return as_primitives,
+    return (as_primitives,)
 
 
 @app.cell
@@ -89,7 +89,7 @@ def __(mo):
 def __(cars, mo):
     dataframe = mo.ui.dataframe(cars)
     dataframe
-    return dataframe,
+    return (dataframe,)
 
 
 @app.cell(hide_code=True)
@@ -150,7 +150,7 @@ def __(mo):
 def __(mo, pl_dataframe):
     pl_dataframe_prime = mo.ui.dataframe(pl_dataframe)
     pl_dataframe_prime
-    return pl_dataframe_prime,
+    return (pl_dataframe_prime,)
 
 
 @app.cell
@@ -169,7 +169,7 @@ def __(mo):
 def __(cars, mo, pl):
     pl_dataframe = pl.DataFrame(cars)
     mo.ui.table(pl_dataframe, selection=None)
-    return pl_dataframe,
+    return (pl_dataframe,)
 
 
 @app.cell(hide_code=True)
@@ -194,7 +194,7 @@ def __(mo):
 def __(cars, mo, pa):
     arrow_table = pa.Table.from_pandas(cars)
     mo.accordion({"Details": mo.plain_text(arrow_table)})
-    return arrow_table,
+    return (arrow_table,)
 
 
 @app.cell(hide_code=True)
@@ -207,7 +207,7 @@ def __(mo):
 def __(arrow_table, mo):
     arrow_table_el = mo.ui.table(arrow_table)
     arrow_table_el
-    return arrow_table_el,
+    return (arrow_table_el,)
 
 
 @app.cell(hide_code=True)
@@ -242,12 +242,13 @@ def __(mo):
 @app.cell
 def __():
     import dask.dataframe as dd
+    import requests
 
     dask_df = dd.read_csv(
         "https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv"
     )
     dask_df
-    return dask_df, dd
+    return dask_df, dd, requests
 
 
 @app.cell
@@ -274,7 +275,7 @@ def __(mo):
 def __(ibis_data, mo):
     ibis_penguins = mo.ui.table(ibis_data)
     ibis_penguins
-    return ibis_penguins,
+    return (ibis_penguins,)
 
 
 @app.cell

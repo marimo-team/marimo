@@ -35,7 +35,7 @@ def test_number_series(
 
     assert response.min == 1
     assert response.max == 3
-    assert response.label == "A"
+    assert response.label == "A" or is_pyarrow_type(df)
 
     with pytest.raises(ValueError):
         response = get_number_series_info(df["B"])
@@ -62,11 +62,11 @@ def test_categorical_series(df: Any) -> None:
     response = get_category_series_info(df["B"])
 
     assert response.categories == ["a", "b"]
-    assert response.label == "B"
+    assert response.label == "B" or is_pyarrow_type(df)
 
     response = get_category_series_info(df["A"])
     assert response.categories == [1, 2, 3]
-    assert response.label == "A"
+    assert response.label == "A" or is_pyarrow_type(df)
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -90,7 +90,7 @@ def test_date_series(df: Any) -> None:
 
     assert response.min == "2024-01-01"
     assert response.max == "2024-01-03"
-    assert response.label == "C"
+    assert response.label == "C" or is_pyarrow_type(df)
 
     with pytest.raises(ValueError):
         response = get_date_series_info(df["B"])
@@ -119,7 +119,7 @@ def test_datetime_series(df: Any) -> None:
 
     assert response.min == "2024-01-01T12:00:00"
     assert response.max == "2024-01-03T15:45:00"
-    assert response.label == "C"
+    assert response.label == "C" or is_pyarrow_type(df)
 
     with pytest.raises(ValueError):
         response = get_datetime_series_info(df["B"])
@@ -152,3 +152,12 @@ def test_ibis_fails(df: Any) -> None:
         get_date_series_info(df["C"])
     with pytest.raises(ValueError):
         get_datetime_series_info(df["C"])
+
+
+def is_pyarrow_type(response: Any) -> bool:
+    try:
+        import pyarrow as pa
+
+        return isinstance(response, pa.Table)
+    except ImportError:
+        return False

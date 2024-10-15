@@ -19,8 +19,8 @@ def empty_df(native_df: IntoFrame) -> IntoFrame:
     """
     Get an empty dataframe with the same schema as the given dataframe.
     """
-    if can_narwhalify(native_df):
-        df = nw.from_native(native_df, eager_or_interchange_only=True)
+    if can_narwhalify(native_df, eager_only=True):
+        df = nw.from_native(native_df, eager_only=True)
         return df[[]].to_native()
     return native_df
 
@@ -41,14 +41,14 @@ def assert_narwhals_series(series: nw.Series) -> None:
         raise ValueError(f"Unsupported series type. Got {type(series)}")
 
 
-def can_narwhalify(obj: Any) -> TypeGuard[IntoFrame]:
+def can_narwhalify(obj: Any, eager_only: bool = False) -> TypeGuard[IntoFrame]:
     """
     Check if the given object can be narwhalified.
     """
     if obj is None:
         return False
     try:
-        nw.from_native(obj, strict=True)
+        nw.from_native(obj, strict=True, eager_only=eager_only)  # type: ignore[call-overload]
         return True
     except TypeError:
         return False
@@ -60,3 +60,64 @@ def assert_can_narwhalify(obj: Any) -> TypeGuard[IntoFrame]:
     """
     nw.from_native(obj)
     return True
+
+
+def dataframe_to_csv(df: IntoFrame) -> str:
+    """
+    Convert a dataframe to a CSV string.
+    """
+    assert_can_narwhalify(df)
+    df = nw.from_native(df, strict=True)
+    if isinstance(df, nw.LazyFrame):
+        return str(df.collect().write_csv())
+    else:
+        return str(df.write_csv())
+
+
+def is_narwhals_integer_type(
+    dtype: Any,
+) -> TypeGuard[
+    nw.Int64
+    | nw.UInt64
+    | nw.Int32
+    | nw.UInt32
+    | nw.Int16
+    | nw.UInt16
+    | nw.Int8
+    | nw.UInt8
+]:
+    """
+    Check if the given dtype is integer type.
+    """
+    return bool(
+        dtype == nw.Int64
+        or dtype == nw.UInt64
+        or dtype == nw.Int32
+        or dtype == nw.UInt32
+        or dtype == nw.Int16
+        or dtype == nw.UInt16
+        or dtype == nw.Int8
+        or dtype == nw.UInt8
+    )
+
+
+def is_narwhals_temporal_type(
+    dtype: Any,
+) -> TypeGuard[nw.Datetime | nw.Date | nw.Duration | nw.Duration]:
+    """
+    Check if the given dtype is temporal type.
+    """
+    return bool(
+        dtype == nw.Datetime or dtype == nw.Date or dtype == nw.Duration
+    )
+
+
+def is_narwhals_string_type(
+    dtype: Any,
+) -> TypeGuard[nw.String | nw.Categorical | nw.Enum]:
+    """
+    Check if the given dtype is string type.
+    """
+    return bool(
+        dtype == nw.String or dtype == nw.Categorical or dtype == nw.Enum
+    )

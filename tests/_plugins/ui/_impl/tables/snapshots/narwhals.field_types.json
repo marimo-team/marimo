@@ -1,0 +1,14 @@
+{
+  "strings": ["string", "String"],
+  "bool": ["boolean", "Boolean"],
+  "int": ["integer", "Int64"],
+  "float": ["number", "Float64"],
+  "datetime": ["date", "Datetime(time_unit='us', time_zone=None)"],
+  "struct": ["unknown", "Struct"],
+  "list": ["unknown", "List(Int64)"],
+  "array": ["unknown", "List(Int64)"],
+  "nulls": ["string", "String"],
+  "categorical": ["string", "Categorical"],
+  "duration": ["date", "Duration(time_unit='us')"],
+  "mixed_list": ["unknown", "List(String)"]
+}

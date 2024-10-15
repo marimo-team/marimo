@@ -5,31 +5,23 @@ from typing import Any, List
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
-from marimo._plugins.ui._impl.tables.df_protocol_table import (
-    DataFrameProtocolTableManager,
-)
 from marimo._plugins.ui._impl.tables.ibis_table import IbisTableManagerFactory
+from marimo._plugins.ui._impl.tables.narwhals_table import NarwhalsTableManager
 from marimo._plugins.ui._impl.tables.pandas_table import (
     PandasTableManagerFactory,
 )
 from marimo._plugins.ui._impl.tables.polars_table import (
     PolarsTableManagerFactory,
 )
-from marimo._plugins.ui._impl.tables.pyarrow_table import (
-    PyArrowTableManagerFactory,
-)
 from marimo._plugins.ui._impl.tables.table_manager import (
     TableManager,
     TableManagerFactory,
 )
-from marimo._plugins.ui._impl.tables.types import (
-    is_dataframe_like,
-)
+from marimo._utils.narwhals_utils import can_narwhalify
 
 MANAGERS: List[TableManagerFactory] = [
     PandasTableManagerFactory(),
     PolarsTableManagerFactory(),
-    PyArrowTableManagerFactory(),
     IbisTableManagerFactory(),
 ]
 
@@ -52,18 +44,8 @@ def get_table_manager_or_none(data: Any) -> TableManager[Any] | None:
             if manager.is_type(data):
                 return manager(data)
 
-    # Unpack narwhal dataframe wrapper
-    if DependencyManager.narwhals.imported():
-        import narwhals
-
-        if isinstance(data, narwhals.DataFrame):
-            return get_table_manager_or_none(narwhals.to_native(data))
-
-    # If we have a DataFrameLike object, use the DataFrameProtocolTableManager
-    if is_dataframe_like(data):
-        try:
-            return DataFrameProtocolTableManager(data)
-        except Exception:
-            return None
+    # Fallback to generic NarwhalsTableManager
+    if can_narwhalify(data):
+        return NarwhalsTableManager.from_dataframe(data)
 
     return None

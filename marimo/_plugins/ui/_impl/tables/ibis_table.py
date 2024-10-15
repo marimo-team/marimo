@@ -17,9 +17,6 @@ from marimo._plugins.ui._impl.tables.pandas_table import (
 from marimo._plugins.ui._impl.tables.polars_table import (
     PolarsTableManagerFactory,
 )
-from marimo._plugins.ui._impl.tables.pyarrow_table import (
-    PyArrowTableManagerFactory,
-)
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
     FieldType,
@@ -206,10 +203,6 @@ class IbisTableManagerFactory(TableManagerFactory):
                 if DependencyManager.polars.has():
                     return PolarsTableManagerFactory.create()(
                         self.data.to_polars()
-                    )
-                if DependencyManager.pyarrow.has():
-                    return PyArrowTableManagerFactory.create()(
-                        self.data.to_pyarrow()
                     )
 
                 raise ValueError(
