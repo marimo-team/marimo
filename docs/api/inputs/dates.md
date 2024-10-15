@@ -46,9 +46,6 @@
 
 ## Date range
 
-````{eval-rst}
-
-
 ```{eval-rst}
 .. marimo-embed::
     @app.cell
