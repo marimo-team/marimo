@@ -160,7 +160,7 @@ export class DefaultWasmController implements WasmController {
 
     const span = t.startSpan("startSession.runPython");
     const nbFilename = filename || WasmFileSystem.NOTEBOOK_FILENAME;
-    const [bridge, init, imports] = this.requirePyodide.runPython(
+    const [bridge, init, packages] = this.requirePyodide.runPython(
       `
       print("[py] Starting marimo...")
       import asyncio
@@ -182,28 +182,27 @@ export class DefaultWasmController implements WasmController {
           instantiate(session)
         asyncio.create_task(session.start())
 
-      # Load the imports
-      import pyodide.code
+      # Find the packages to install
       with open("${nbFilename}", "r") as f:
-        imports = pyodide.code.find_imports(f.read())
+        packages = session.find_packages(f.read())
 
-      bridge, init, imports`,
+      bridge, init, packages`,
     );
     span.end();
 
-    const moduleImports = new Set<string>(imports.toJs());
+    const foundPackages = new Set<string>(packages.toJs());
 
     // Fire and forgot load packages and instantiation
     // We don't want to wait for this to finish,
     // as it blocks the initial code from being shown.
-    void this.loadNotebookDeps(code, moduleImports).then(() => {
+    void this.loadNotebookDeps(code, foundPackages).then(() => {
       return init(userConfig.runtime.auto_instantiate);
     });
 
     return bridge;
   }
 
-  private async loadNotebookDeps(code: string, foundImports: Set<string>) {
+  private async loadNotebookDeps(code: string, foundPackages: Set<string>) {
     const pyodide = this.requirePyodide;
 
     if (code.includes("mo.sql")) {
@@ -217,14 +216,14 @@ export class DefaultWasmController implements WasmController {
     // 2. pyodide-http, a patch to make basic http requests work in pyodide
     //
     // These packages are included with Pyodide, which is why we don't add them
-    // to `foundImports`:
+    // to `foundPackages`:
     // https://pyodide.org/en/stable/usage/packages-in-pyodide.html
     code = `import docutils\n${code}`;
     code = `import pygments\n${code}`;
     code = `import jedi\n${code}`;
     code = `import pyodide_http\n${code}`;
 
-    const imports = [...foundImports];
+    const imports = [...foundPackages];
 
     // Load from pyodide
     let loadSpan = t.startSpan("pyodide.loadPackage");

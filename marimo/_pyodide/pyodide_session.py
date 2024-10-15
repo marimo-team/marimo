@@ -22,6 +22,9 @@ from marimo._runtime import handlers, patches, requests
 from marimo._runtime.context.kernel_context import initialize_kernel_context
 from marimo._runtime.input_override import input_override
 from marimo._runtime.marimo_pdb import MarimoPdb
+from marimo._runtime.packages.pypi_package_manager import (
+    MicropipPackageManager,
+)
 from marimo._runtime.requests import (
     AppMetadata,
     CodeCompletionRequest,
@@ -147,6 +150,20 @@ class PyodideSession:
 
     def put_input(self, text: str) -> None:
         self._queue_manager.input_queue.put_nowait(text)
+
+    def find_packages(self, code: str) -> list[str]:
+        """
+        Find the packages in the code based on the imports,
+        and mapping from module names to package names.
+        """
+        import pyodide.code  # type: ignore
+
+        imports: list[str] = pyodide.code.find_imports(code)  # type: ignore
+        if not isinstance(imports, list):
+            return []
+
+        package_manager = MicropipPackageManager()
+        return [package_manager.module_to_package(im) for im in imports]
 
 
 class PyodideBridge:
