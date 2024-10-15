@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Dict, Final, List, Optional, Union, cast
 
 from marimo._output.formatting import as_html
+from marimo._output.md import md
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
@@ -205,14 +206,8 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
                 pass
             response = latest_response
 
-        content = (
-            as_html(response).text  # convert to html if not a string
-            if not isinstance(response, str)
-            else response
-        )
-        self._chat_history = messages + [
-            ChatMessage(role="assistant", content=content)
-        ]
+        response_message = ChatMessage(role="assistant", content=response)
+        self._chat_history = messages + [response_message]
 
         from marimo._runtime.context import get_context
 
@@ -234,7 +229,11 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
                     )
                 )
 
-        return content
+        # Return the response as HTML
+        # If the response is a string, convert it to markdown
+        if isinstance(response, str):
+            return md(response).text
+        return as_html(response).text
 
     def _convert_value(self, value: Dict[str, Any]) -> List[ChatMessage]:
         if not isinstance(value, dict) or "messages" not in value:

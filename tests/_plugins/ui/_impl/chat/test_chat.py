@@ -6,6 +6,7 @@ from typing import AsyncIterator, Dict, List
 
 import pytest
 
+from marimo._output.md import md
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.chat.chat import SendMessageRequest
 from marimo._plugins.ui._impl.chat.types import (
@@ -70,7 +71,7 @@ async def test_chat_send_prompt():
     )
     response: str = await chat._send_prompt(request)
 
-    assert response == "Response to: Hello"
+    assert response == md("Response to: Hello").text
     assert len(chat._chat_history) == 2
     assert chat._chat_history[0].role == "user"
     assert chat._chat_history[0].content == "Hello"
@@ -93,7 +94,7 @@ async def test_chat_send_prompt_async_function():
     )
     response: str = await chat._send_prompt(request)
 
-    assert response == "Response to: Hello"
+    assert response == md("Response to: Hello").text
     assert len(chat._chat_history) == 2
     assert chat._chat_history[0].role == "user"
     assert chat._chat_history[0].content == "Hello"
@@ -119,7 +120,7 @@ async def test_chat_send_prompt_async_generator():
     response: str = await chat._send_prompt(request)
 
     # the last yielded value is the response
-    assert response == "2"
+    assert response == md("2").text
     assert len(chat._chat_history) == 2
     assert chat._chat_history[0].role == "user"
     assert chat._chat_history[0].content == "Hello"
