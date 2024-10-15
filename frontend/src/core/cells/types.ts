@@ -25,6 +25,7 @@ export function createCell({
     config: config || {
       hide_code: false,
       disabled: false,
+      column: null,
     },
     name: name,
     code: code,

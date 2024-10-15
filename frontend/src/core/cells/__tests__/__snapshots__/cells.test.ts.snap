@@ -4,6 +4,7 @@ exports[`cell reducer > can initialize stdin 1`] = `
 {
   "code": "",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -31,6 +32,7 @@ exports[`cell reducer > can initialize stdin 2`] = `
 {
   "code": "",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -58,6 +60,7 @@ exports[`cell reducer > can initialize stdin 3`] = `
 {
   "code": "",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -85,6 +88,7 @@ exports[`cell reducer > can initialize stdin 4`] = `
 {
   "code": "",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -112,6 +116,7 @@ exports[`cell reducer > can initialize stdin 5`] = `
 {
   "code": "",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -146,6 +151,7 @@ exports[`cell reducer > can initialize stdin 6`] = `
 {
   "code": "",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -180,6 +186,7 @@ exports[`cell reducer > can initialize stdin 7`] = `
 {
   "code": "",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -220,6 +227,7 @@ exports[`cell reducer > can initialize stdin 8`] = `
 {
   "code": "",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -261,6 +269,7 @@ exports[`cell reducer > can initialize stdin 9`] = `
 {
   "code": "",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -308,6 +317,7 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
 {
   "code": "",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -335,6 +345,7 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
 {
   "code": "",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -369,6 +380,7 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
 {
   "code": "",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -403,6 +415,7 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
 {
   "code": "",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -430,6 +443,7 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
 {
   "code": "",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -464,6 +478,7 @@ exports[`cell reducer > can run a stale cell 1`] = `
 {
   "code": "mo.slider()",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -491,6 +506,7 @@ exports[`cell reducer > can run a stale cell 2`] = `
 {
   "code": "mo.slider()",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -518,6 +534,7 @@ exports[`cell reducer > can run a stopped cell 1`] = `
 {
   "code": "mo.md('This has an ancestor that was stopped')",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -545,6 +562,7 @@ exports[`cell reducer > can run a stopped cell 2`] = `
 {
   "code": "mo.md('This has an ancestor that was stopped')",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -572,6 +590,7 @@ exports[`cell reducer > can run a stopped cell 3`] = `
 {
   "code": "mo.md('This has an ancestor that was stopped')",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -610,6 +629,7 @@ exports[`cell reducer > can run a stopped cell 4`] = `
 {
   "code": "mo.md('This has an ancestor that was stopped')",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -648,6 +668,7 @@ exports[`cell reducer > can run a stopped cell 5`] = `
 {
   "code": "mo.md('This has an ancestor that was stopped')",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -675,6 +696,7 @@ exports[`cell reducer > can run cell and receive cell messages 1`] = `
 {
   "code": "",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -702,6 +724,7 @@ exports[`cell reducer > can run cell and receive cell messages 2`] = `
 {
   "code": "import marimo as mo",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -729,6 +752,7 @@ exports[`cell reducer > can run cell and receive cell messages 3`] = `
 {
   "code": "import marimo as mo",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -756,6 +780,7 @@ exports[`cell reducer > can run cell and receive cell messages 4`] = `
 {
   "code": "import marimo as mo",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -783,6 +808,7 @@ exports[`cell reducer > can run cell and receive cell messages 5`] = `
 {
   "code": "import marimo as mo",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -810,6 +836,7 @@ exports[`cell reducer > can run cell and receive cell messages 6`] = `
 {
   "code": "import marimo as mo",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -844,6 +871,7 @@ exports[`cell reducer > can run cell and receive cell messages 7`] = `
 {
   "code": "import marimo as mo",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -884,6 +912,7 @@ exports[`cell reducer > can run cell and receive cell messages 8`] = `
   "code": "import marimo as mo
 import numpy",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -923,6 +952,7 @@ exports[`cell reducer > can run cell and receive cell messages 9`] = `
 {
   "code": "import marimo as mo",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -963,6 +993,7 @@ exports[`cell reducer > can run cell and receive cell messages 10`] = `
   "code": "import marimo as mo
 import numpy",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -1003,6 +1034,7 @@ exports[`cell reducer > can run cell and receive cell messages 11`] = `
   "code": "import marimo as mo
 import numpy",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -1050,6 +1082,7 @@ exports[`cell reducer > can run cell and receive cell messages 12`] = `
   "code": "import marimo as mo
 import numpy",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -1094,6 +1127,7 @@ exports[`cell reducer > errors reset status to idle 1`] = `
 {
   "code": "",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -1121,6 +1155,7 @@ exports[`cell reducer > errors reset status to idle 2`] = `
 {
   "code": "import marimo as mo",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -1148,6 +1183,7 @@ exports[`cell reducer > errors reset status to idle 3`] = `
 {
   "code": "import marimo as mo",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
@@ -1175,6 +1211,7 @@ exports[`cell reducer > errors reset status to idle 4`] = `
 {
   "code": "import marimo as mo",
   "config": {
+    "column": null,
     "disabled": false,
     "hide_code": false,
   },
