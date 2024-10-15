@@ -9,16 +9,16 @@
       "source": "/guides/plotting.html",
       "destination": "/guides/working_with_data/plotting.html",
       "permanent": true
-		},
+    },
     {
       "source": "/guides/dataframes.html",
       "destination": "/guides/working_with_data/dataframes.html",
       "permanent": true
-		},
+    },
     {
       "source": "/guides/theming.html",
       "destination": "/guides/configuration/theming.html",
       "permanent": true
-		}
+    }
   ]
 }
