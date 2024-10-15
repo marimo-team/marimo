@@ -11,4 +11,5 @@ def module_name_to_conda_name() -> dict[str, str]:
     # that known to be incorrect; this doesn't handle channels ...
     mapping = module_name_to_pypi_name()
     mapping["cv2"] = "opencv"
+    mapping["ibis"] = "ibis-duckdb"
     return mapping
