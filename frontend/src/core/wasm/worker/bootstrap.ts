@@ -220,7 +220,7 @@ export class DefaultWasmController implements WasmController {
     // to `foundImports`:
     // https://pyodide.org/en/stable/usage/packages-in-pyodide.html
     code = `import docutils\n${code}`;
-    code = `import Pygments\n${code}`;
+    code = `import pygments\n${code}`;
     code = `import jedi\n${code}`;
     code = `import pyodide_http\n${code}`;
 
