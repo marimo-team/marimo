@@ -6,9 +6,12 @@
   :hidden:
 
   runtime_configuration
+  theming
 ```
 
-marimo offers two types of configuration: User Configuration and App Configuration. Both can be easily managed through the Settings menu in the marimo editor.
+marimo offers two types of configuration: User Configuration and App
+Configuration. Both can be easily managed through the Settings menu in the
+marimo editor.
 
 <img align="right" src="/_static/docs-app-config.png" width="300px"/>
 
