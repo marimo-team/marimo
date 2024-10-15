@@ -194,4 +194,4 @@ To learn more, run the SQL tutorial:
 marimo tutorial sql
 ```
 
-or read the [SQL guide](/guides/sql.md).
+or read the [SQL guide](/guides/working_with_data/sql.md).
