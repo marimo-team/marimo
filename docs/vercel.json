@@ -1,0 +1,24 @@
+{
+  "redirects": [
+    {
+      "source": "/guides/sql.html",
+      "destination": "/guides/working_with_data/sql.html",
+      "permanent": true
+    },
+    {
+      "source": "/guides/plotting.html",
+      "destination": "/guides/working_with_data/plotting.html",
+      "permanent": true
+    },
+    {
+      "source": "/guides/dataframes.html",
+      "destination": "/guides/working_with_data/dataframes.html",
+      "permanent": true
+    },
+    {
+      "source": "/guides/theming.html",
+      "destination": "/guides/configuration/theming.html",
+      "permanent": true
+    }
+  ]
+}
