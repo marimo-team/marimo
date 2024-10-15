@@ -3,11 +3,11 @@ from __future__ import annotations
 
 import datetime
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 import narwhals.stable.v1 as nw
 
-from marimo._utils.narhwals_utils import assert_narwhals_series
+from marimo._utils.narwhals_utils import assert_narwhals_series
 
 # TODO: use series type when released
 # https://github.com/narwhals-dev/narwhals/pull/991
@@ -96,7 +96,7 @@ def get_date_series_info(series: nw.Series) -> DateSeriesInfo:
         if isinstance(value, datetime.date):
             return value.strftime("%Y-%m-%d")
         if hasattr(value, "strftime"):
-            return value.strftime("%Y-%m-%d")
+            return cast(str, value.strftime("%Y-%m-%d"))
         raise ValueError("Expected a date. Got: " + str(type(value)))
 
     return DateSeriesInfo(
@@ -121,7 +121,7 @@ def get_datetime_series_info(series: nw.Series) -> DateSeriesInfo:
             value = datetime.datetime(value.year, value.month, value.day)
             return value.strftime("%Y-%m-%d")
         if hasattr(value, "strftime"):
-            return value.strftime("%Y-%m-%d")
+            return cast(str, value.strftime("%Y-%m-%d"))
         raise ValueError("Expected a datetime. Got: " + str(type(value)))
 
     return DateSeriesInfo(

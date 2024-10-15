@@ -26,7 +26,11 @@ from marimo._plugins.ui._impl.charts.altair_transformer import (
     register_transformers,
 )
 from marimo._utils import flatten
-from marimo._utils.narhwals_utils import empty_df
+from marimo._utils.narwhals_utils import (
+    assert_can_narwhalify,
+    can_narwhalify,
+    empty_df,
+)
 
 LOGGER = _loggers.marimo_logger()
 
@@ -69,10 +73,10 @@ def _has_geoshape(spec: altair.TopLevelMixin) -> bool:
         return False
 
 
-@nw.narwhalify
 def _filter_dataframe(
-    df: nw.DataFrame[Any], selection: ChartSelection
-) -> nw.DataFrame[Any]:
+    native_df: IntoDataFrame, selection: ChartSelection
+) -> IntoDataFrame:
+    df = nw.from_native(native_df)
     if not isinstance(selection, dict):
         raise TypeError("Input 'selection' must be a dictionary")
 
@@ -92,7 +96,7 @@ def _filter_dataframe(
             # Vega is 1-indexed, so subtract 1
             try:
                 indexes = [int(i) - 1 for i in fields["_vgsid_"]]
-                df = df[indexes]
+                df = cast(nw.DataFrame[Any], df)[indexes]
             except (ValueError, IndexError) as e:
                 raise ValueError(
                     f"Invalid index in selection: {fields['_vgsid_']}"
@@ -136,7 +140,7 @@ def _filter_dataframe(
                     f"Invalid selection: {field}={resolved_values}"
                 )
 
-    return df
+    return nw.to_native(df)
 
 
 def _resolve_values(values: Any, dtype: Any) -> List[Any]:
@@ -377,8 +381,6 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         return cast(ChartDataType, chart.data)
 
     def _convert_value(self, value: ChartSelection) -> ChartDataType:
-        from altair import Undefined
-
         self._chart_selection = value
         flat, _ = flatten.flatten(value)
         if not value or not flat:
@@ -388,12 +390,12 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
                 return []
             if isinstance(self.dataframe, dict):
                 return {}
-            return cast(ChartDataType, empty_df(self.dataframe))
+            return empty_df(self.dataframe)
 
         # When using layered charts, you can no longer access the
         # chart data directly
         # Instead, we should push user to call .apply_selection(df)
-        if self.dataframe is Undefined or self.dataframe is None:
+        if not can_narwhalify(self.dataframe):
             return self.dataframe  # type: ignore
 
         # If we have transforms, we need to filter the dataframe
@@ -401,7 +403,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         if _has_transforms(self._spec):
             try:
                 df: Any = self._chart.transformed_data()
-                return cast(ChartDataType, _filter_dataframe(df, value))
+                return _filter_dataframe(df, value)
             except ImportError as e:
                 sys.stderr.write(
                     "Failed to filter dataframe that includes a transform. "
@@ -409,11 +411,9 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
                     + e.msg
                 )
                 # Fall back to the untransformed dataframe
-                return cast(
-                    ChartDataType, _filter_dataframe(self.dataframe, value)
-                )
+                return _filter_dataframe(self.dataframe, value)
 
-        return cast(ChartDataType, _filter_dataframe(self.dataframe, value))
+        return _filter_dataframe(self.dataframe, value)
 
     def apply_selection(self, df: ChartDataType) -> ChartDataType:
         """Apply the selection to a DataFrame.
@@ -455,7 +455,8 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
 
         - a DataFrame of the plot data filtered by the selections
         """
-        return cast(ChartDataType, _filter_dataframe(df, self.selections))
+        assert assert_can_narwhalify(df)
+        return _filter_dataframe(df, self.selections)
 
     # Proxy all of altair's attributes
     def __getattr__(self, name: str) -> Any:
