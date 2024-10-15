@@ -812,6 +812,7 @@ describe("cell reducer", () => {
     expect(cell.config).toEqual({
       disabled: false,
       hide_code: false,
+      column: null,
     });
 
     actions.updateCellConfig({

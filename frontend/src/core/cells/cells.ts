@@ -1109,7 +1109,7 @@ export function getCellConfigs(state: NotebookState): CellConfig[] {
       return column.inOrderIds.map((cellId) => {
         return {
           ...cells[cellId].config,
-          column: undefined,
+          column: null,
         };
       });
     });

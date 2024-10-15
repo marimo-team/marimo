@@ -94,7 +94,9 @@ describe("getCellConfigs", () => {
     };
 
     const result = getCellConfigs(mockState);
-    expect(result).toEqual([{ hide_code: false, disabled: false }]);
+    expect(result).toEqual([
+      { hide_code: false, disabled: false, column: null },
+    ]);
   });
 
   it("should handle empty notebook state", () => {

@@ -37,8 +37,8 @@ export function notebookNeedsSave(
   const names = data.map((d) => d.name);
   return (
     !arrayShallowEquals(codes, lastSavedNotebook.codes) ||
-    !arrayShallowEquals(configs, lastSavedNotebook.configs) ||
     !arrayShallowEquals(names, lastSavedNotebook.names) ||
+    !isEqual(configs, lastSavedNotebook.configs) ||
     !isEqual(layout.selectedLayout, lastSavedNotebook.layout.selectedLayout) ||
     !isEqual(layout.layoutData, lastSavedNotebook.layout.layoutData)
   );
