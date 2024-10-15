@@ -32,7 +32,7 @@
 - 🔬 **可复现:** [无隐藏状态](https://docs.marimo.io/guides/reactivity.html#no-hidden-state)，确定性执行
 - 🏃‍♂️ **可执行:** [作为 Python 脚本执行](https://docs.marimo.io/guides/scripts.html)，通过命令行调整参数
 - 🛜 **可分享**: [部署为交互式 Web 应用](https://docs.marimo.io/guides/apps.html) 或 [幻灯片](https://docs.marimo.io/guides/apps.html#slides-layout)，[通过 WASM 在浏览器中运行](https://docs.marimo.io/guides/wasm.html)
-- 🛢️ **为数据设计**: 使用 [SQL](https://docs.marimo.io/guides/sql.html) 查询数据框和数据库，过滤和搜索 [数据框](https://docs.marimo.io/guides/dataframes.html#displaying-dataframes)
+- 🛢️ **为数据设计**: 使用 [SQL](https://docs.marimo.io/guides/working_with_data/sql.html) 查询数据框和数据库，过滤和搜索 [数据框](https://docs.marimo.io/guides/working_with_data/dataframes.html)
 - 🐍 **支持 Git:** 笔记本以 `.py` 文件格式存储
 - ⌨️ **现代编辑器**: GitHub Copilot、AI 助手、vim 快捷键、变量浏览器，和 [更多功能](https://docs.marimo.io/guides/editor_features/index.html)
 
@@ -63,7 +63,7 @@ Marimo 确保了您的代码、输出和程序的状态始的一致性，解决�
 
 **高效运行** 通过静态分析代码，marimo 只运行需要运行的单元。
 
-**动态的 Markdown 与 SQL** 使用 Markdown 编写 Python 代码的输出动态进行更新的文档。同时，使用内置 [SQL](https://docs.marimo.io/guides/sql.html) 引擎，可创建依赖于 Python 值的 SQL 查询，并针对数据框、数据库、CSV、Google Sheets 或其他任何内容执行查询，SQL 引擎会将结果返回为 Python 数据框。
+**动态的 Markdown 与 SQL** 使用 Markdown 编写 Python 代码的输出动态进行更新的文档。同时，使用内置 [SQL](https://docs.marimo.io/guides/working_with_data/sql.html) 引擎，可创建依赖于 Python 值的 SQL 查询，并针对数据框、数据库、CSV、Google Sheets 或其他任何内容执行查询，SQL 引擎会将结果返回为 Python 数据框。
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-sql-cell.png" width="700px" />
 
@@ -152,7 +152,7 @@ Marimo 很容易上手，为高级用户提供了很大的空间。 例如，这
       </a>
     </td>
     <td>
-      <a target="_blank" href="https://docs.marimo.io/guides/plotting.html">
+      <a target="_blank" href="https://docs.marimo.io/guides/working_with_data/plotting.html">
         <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/docs-intro.gif" style="max-height: 150px; width: auto; display: block" />
       </a>
     </td>
@@ -170,7 +170,7 @@ Marimo 很容易上手，为高级用户提供了很大的空间。 例如，这
       <a target="_blank" href="https://docs.marimo.io/api/inputs/index.html"> 自定义输入 </a>
     </td>
     <td>
-      <a target="_blank" href="https://docs.marimo.io/guides/plotting.html"> 自定义绘图 </a>
+      <a target="_blank" href="https://docs.marimo.io/guides/working_with_data/plotting.html"> 自定义绘图 </a>
     </td>
     <td>
       <a target="_blank" href="https://docs.marimo.io/api/layouts/index.html"> 自定义布局 </a>
