@@ -345,7 +345,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         chart: altair.Chart,
     ) -> Optional[ChartDataType]:
         if not isinstance(chart.data, str):
-            return chart.data
+            return cast(ChartDataType, chart.data)
 
         url = chart.data
 
@@ -388,7 +388,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
                 return []
             if isinstance(self.dataframe, dict):
                 return {}
-            return empty_df(self.dataframe)
+            return cast(ChartDataType, empty_df(self.dataframe))
 
         # When using layered charts, you can no longer access the
         # chart data directly
@@ -401,7 +401,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         if _has_transforms(self._spec):
             try:
                 df: Any = self._chart.transformed_data()
-                return _filter_dataframe(df, value)
+                return cast(ChartDataType, _filter_dataframe(df, value))
             except ImportError as e:
                 sys.stderr.write(
                     "Failed to filter dataframe that includes a transform. "
@@ -409,9 +409,11 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
                     + e.msg
                 )
                 # Fall back to the untransformed dataframe
-                return _filter_dataframe(self.dataframe, value)
+                return cast(
+                    ChartDataType, _filter_dataframe(self.dataframe, value)
+                )
 
-        return _filter_dataframe(self.dataframe, value)
+        return cast(ChartDataType, _filter_dataframe(self.dataframe, value))
 
     def apply_selection(self, df: ChartDataType) -> ChartDataType:
         """Apply the selection to a DataFrame.
@@ -453,7 +455,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
 
         - a DataFrame of the plot data filtered by the selections
         """
-        return _filter_dataframe(df, self.selections)
+        return cast(ChartDataType, _filter_dataframe(df, self.selections))
 
     # Proxy all of altair's attributes
     def __getattr__(self, name: str) -> Any:
