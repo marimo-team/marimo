@@ -20,6 +20,8 @@ HAS_DEPS = (
     and DependencyManager.polars.has()
 )
 
+# We exclude ibis because it neither eager_or_interchange_only
+
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
@@ -154,6 +156,7 @@ def test_ibis_fails(df: Any) -> None:
         get_datetime_series_info(df["C"])
 
 
+# Pyarrow columns don't have a name
 def is_pyarrow_type(response: Any) -> bool:
     try:
         import pyarrow as pa

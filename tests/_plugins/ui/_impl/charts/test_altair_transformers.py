@@ -86,6 +86,7 @@ def test_data_to_json_string(df: IntoDataFrame):
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
+    # We skip pyarrow because it's csv is formatted differently
     create_dataframes(
         {"A": [1, 2, 3], "B": ["a", "b", "c"]}, exclude=["pyarrow"]
     ),
@@ -158,6 +159,7 @@ def test_to_marimo_inline_csv_large_dataset(df: IntoDataFrame):
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
+    # We skip pyarrow because it's json is missing new lines
     create_dataframes(
         {"A": [1, 2, 3], "B": ['a"b', "c,d", "e\nf"]}, exclude=["pyarrow"]
     ),
