@@ -597,6 +597,19 @@ def run(
 ) -> None:
     from marimo._cli.sandbox import prompt_run_in_sandbox
 
+    # If file is a url, we prompt to run in docker
+    # We only do this for remote files,
+    # but later we can make this a CLI flag
+    if prompt_run_in_docker_container(name):
+        from marimo._cli.run_docker import run_in_docker
+
+        run_in_docker(
+            name,
+            port=port,
+            debug=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
+        )
+        return
+
     if sandbox or prompt_run_in_sandbox(name):
         from marimo._cli.sandbox import run_in_sandbox
 
