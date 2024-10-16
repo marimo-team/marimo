@@ -4,6 +4,7 @@ from __future__ import annotations
 import datetime
 import json
 import sys
+from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import narwhals.stable.v1 as nw
@@ -15,6 +16,7 @@ from marimo._plugins.ui._impl.altair_chart import (
     ChartDataType,
     ChartSelection,
     _filter_dataframe,
+    _has_binning,
     _has_geoshape,
     _parse_spec,
 )
@@ -22,6 +24,9 @@ from marimo._runtime.runtime import Kernel
 from tests._data.mocks import create_dataframes
 from tests.conftest import ExecReqProvider
 from tests.mocks import snapshotter
+
+if TYPE_CHECKING:
+    from narwhals.typing import IntoDataFrame
 
 snapshot = snapshotter(__file__)
 
@@ -72,8 +77,8 @@ class TestAltairChart:
         # Filter the DataFrame with the point selection
         assert len(_filter_dataframe(df, point_selection)) == 2
         first, second = _filter_dataframe(df, point_selection)["field"]
-        assert first == "value2"
-        assert second == "value3"
+        assert str(first) == "value2"
+        assert str(second) == "value3"
 
         # Define an interval selection
         interval_selection: ChartSelection = {
@@ -140,8 +145,8 @@ class TestAltairChart:
         # Filter the DataFrame with the interval selection
         assert len(_filter_dataframe(df, interval_selection)) == 2
         first, second = _filter_dataframe(df, interval_selection)["field"]
-        assert first == "value1"
-        assert second == "value2"
+        assert str(first) == "value1"
+        assert str(second) == "value2"
 
         # Define an interval selection with a datetime column
         interval_selection: ChartSelection = {
@@ -156,8 +161,8 @@ class TestAltairChart:
         # Filter the DataFrame with the interval selection
         assert len(_filter_dataframe(df, interval_selection)) == 2
         first, second = _filter_dataframe(df, interval_selection)["field"]
-        assert first == "value1"
-        assert second == "value2"
+        assert str(first) == "value1"
+        assert str(second) == "value2"
 
     @staticmethod
     async def test_altair_settings_when_set(
@@ -415,3 +420,112 @@ def test_no_selection_polars() -> None:
     assert isinstance(selected_value, pl.DataFrame)
     selected_value = chart._convert_value(None)
     assert isinstance(selected_value, pl.DataFrame)
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"x": [1, 2, 3], "y1": [4, 5, 6], "y2": [7, 8, 9]}, exclude=["ibis"]
+    ),
+)
+def test_layered_chart(df: IntoDataFrame):
+    import altair as alt
+
+    base = alt.Chart(df).encode(x="x")
+    chart1 = base.mark_line().encode(y="y1")
+    chart2 = base.mark_line().encode(y="y2")
+    layered = alt.layer(chart1, chart2)
+
+    marimo_chart = altair_chart.altair_chart(layered)
+    assert isinstance(marimo_chart._chart, alt.LayerChart)
+    assert marimo_chart.dataframe is not None
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes({"values": list(range(100))}),
+)
+def test_chart_with_binning(df: IntoDataFrame):
+    import altair as alt
+
+    chart = (
+        alt.Chart(df)
+        .mark_bar()
+        .encode(x=alt.X("values", bin=True), y="count()")
+    )
+
+    marimo_chart = altair_chart.altair_chart(chart)
+    assert _has_binning(marimo_chart._spec)
+    # Test that selection is disabled for binned charts
+    assert marimo_chart._component_args["chart-selection"] is False
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "x": [1, 2, 3, 4],
+            "y": [1, 2, 3, 4],
+            "category": ["A", "A", "B", "B"],
+        },
+        exclude=["ibis", "pyarrow"],
+    ),
+)
+def test_apply_selection(df: IntoDataFrame):
+    import altair as alt
+
+    chart = alt.Chart(df).mark_point().encode(x="x", y="y", color="category")
+
+    marimo_chart = altair_chart.altair_chart(chart)
+    marimo_chart._chart_selection = {"signal_channel": {"category": ["A"]}}
+
+    filtered_data = marimo_chart.apply_selection(df)
+    assert len(filtered_data) == 2
+    assert all(filtered_data["category"] == "A")
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_chart_with_url_data():
+    import altair as alt
+    import polars as pl
+
+    url = "https://vega.github.io/vega-datasets/data/cars.json"
+    chart = (
+        alt.Chart(url)
+        .mark_point()
+        .encode(x="Horsepower:Q", y="Miles_per_Gallon:Q")
+    )
+
+    marimo_chart = altair_chart.altair_chart(chart)
+    assert isinstance(marimo_chart.dataframe, pl.DataFrame)
+    assert len(marimo_chart.dataframe) > 0
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes({"x": [1, 2, 3], "y": [4, 5, 6]}),
+)
+def test_chart_operations(df: IntoDataFrame):
+    import altair as alt
+
+    chart1 = alt.Chart(df).mark_point().encode(x="x", y="y")
+    chart2 = alt.Chart(df).mark_line().encode(x="x", y="y")
+
+    marimo_chart1 = altair_chart.altair_chart(chart1)
+    marimo_chart2 = altair_chart.altair_chart(chart2)
+
+    combined_chart = marimo_chart1 + marimo_chart2
+    assert isinstance(combined_chart, altair_chart.altair_chart)
+    assert isinstance(combined_chart._chart, alt.LayerChart)
+
+    concat_chart = marimo_chart1 | marimo_chart2
+    assert isinstance(concat_chart, altair_chart.altair_chart)
+    assert isinstance(concat_chart._chart, alt.HConcatChart)
+
+    facet_chart = marimo_chart1 & marimo_chart2
+    assert isinstance(facet_chart, altair_chart.altair_chart)
+    assert isinstance(facet_chart._chart, alt.VConcatChart)

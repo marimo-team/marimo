@@ -174,6 +174,9 @@ def _get_altair_chart(
         request.column_name
     ]
 
+    if summary.total == 0:
+        return None, None, False
+
     # For categorical columns with more than 10 unique values,
     # we limit the chart to 10 items
     should_limit_to_10_items = False

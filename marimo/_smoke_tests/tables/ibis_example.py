@@ -1,20 +1,19 @@
 import marimo
 
-__generated_with = "0.8.15"
+__generated_with = "0.9.10"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
 def __(mo):
     import ibis
 
-    # hover:bg-muted/50 data-[state=selected]:bg-muted
     memtable = ibis.memtable(
         {
             "rowid": range(3000),

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import narwhals.stable.v1 as nw
 import pytest
@@ -28,9 +28,9 @@ if TYPE_CHECKING:
 )
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_empty_df(df: IntoDataFrame) -> None:
-    empty = empty_df(df)
-    assert empty.shape == (0, 2)
-    assert list(empty.columns) == ["a", "b"]
+    empty: Any = empty_df(df)
+    assert len(empty) == 0
+    assert len(empty.columns) == 2
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

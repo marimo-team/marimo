@@ -26,9 +26,6 @@ from marimo._plugins.ui._impl.tables.pandas_table import (
 from marimo._plugins.ui._impl.tables.polars_table import (
     PolarsTableManagerFactory,
 )
-from marimo._plugins.ui._impl.tables.pyarrow_table import (
-    PyArrowTableManagerFactory,
-)
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
     TableManager,
@@ -202,18 +199,6 @@ class DefaultTableManager(TableManager[JsonTableData]):
 
             return PolarsTableManagerFactory.create()(
                 pl.DataFrame(cast(Any, self.data))
-            )
-        if DependencyManager.pyarrow.has():
-            import pyarrow as pa
-
-            if isinstance(self.data, dict):
-                return PyArrowTableManagerFactory.create()(
-                    pa.Table.from_pydict(cast(Any, self.data))
-                )
-            return PyArrowTableManagerFactory.create()(
-                pa.Table.from_pylist(
-                    cast(Any, self._normalize_data(self.data))
-                )
             )
 
         raise ValueError("No supported table libraries found.")

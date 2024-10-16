@@ -8,7 +8,7 @@ from marimo._dependencies.dependencies import DependencyManager
 if TYPE_CHECKING:
     from narwhals.typing import IntoDataFrame
 
-DFType = Literal["pandas", "polars", "ibis"]
+DFType = Literal["pandas", "polars", "ibis", "pyarrow"]
 
 
 def create_dataframes(
@@ -46,6 +46,11 @@ def create_dataframes(
         import ibis  # type: ignore
 
         dfs.append(ibis.memtable(data))
+
+    if DependencyManager.pyarrow.has() and should_include("pyarrow"):
+        import pyarrow as pa
+
+        dfs.append(pa.Table.from_pydict(data))
 
     return dfs
 
