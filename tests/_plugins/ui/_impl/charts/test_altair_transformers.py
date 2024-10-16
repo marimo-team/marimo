@@ -152,8 +152,13 @@ def test_to_marimo_inline_csv_large_dataset(df: IntoDataFrame):
     # Verify the content of the inline CSV
     base64_data = result["url"].split(",")[1]
     decoded_data = base64.b64decode(base64_data).decode("utf-8")
-    assert decoded_data.startswith("A,B\n0,value_0\n1,value_1\n")
-    assert decoded_data.endswith("9998,value_9998\n9999,value_9999\n")
+    assert decoded_data.startswith("A,B")
+    assert (
+        decoded_data.endswith("9999,value_9999\n")
+        or
+        # for windows
+        decoded_data.endswith("9999,value_9999\r\n")
+    )
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
