@@ -2,16 +2,36 @@ from __future__ import annotations
 
 import datetime
 import unittest
+from typing import Any
+from unittest.mock import Mock
 
+import narwhals.stable.v1 as nw
 import pytest
 
 from marimo._data.models import ColumnSummary
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.pandas_table import (
     PandasTableManagerFactory,
 )
 
 HAS_DEPS = DependencyManager.pandas.has()
+
+
+def assert_frame_equal(a: Any, b: Any) -> None:
+    import pandas as pd
+
+    if isinstance(a, nw.DataFrame):
+        a = a.to_native()
+    if isinstance(b, nw.DataFrame):
+        b = b.to_native()
+    pd.testing.assert_frame_equal(a, b)
+
+
+try:
+    import pandas as pd
+except ImportError:
+    pd = Mock()
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -54,32 +74,26 @@ class TestPandasTableManager(unittest.TestCase):
         assert self.manager.to_json() == expected_json
 
     def test_select_rows(self) -> None:
-        import pandas as pd
-
         indices = [0, 2]
         selected_manager = self.manager.select_rows(indices)
         expected_data = self.data.iloc[indices]
-        pd.testing.assert_frame_equal(selected_manager.data, expected_data)
+        assert_frame_equal(selected_manager.data, expected_data)
 
     def test_select_rows_empty(self) -> None:
         selected_manager = self.manager.select_rows([])
         assert selected_manager.data.shape == (0, 6)
 
     def test_select_columns(self) -> None:
-        import pandas as pd
-
         columns = ["A", "C"]
         selected_manager = self.manager.select_columns(columns)
         expected_data = self.data[columns]
-        pd.testing.assert_frame_equal(selected_manager.data, expected_data)
+        assert_frame_equal(selected_manager.data, expected_data)
 
     def test_get_row_headers(self) -> None:
         expected_headers = []
         assert self.manager.get_row_headers() == expected_headers
 
     def test_get_row_headers_date_index(self) -> None:
-        import pandas as pd
-
         data = pd.DataFrame(
             {
                 "A": [1, 2, 3],
@@ -92,8 +106,6 @@ class TestPandasTableManager(unittest.TestCase):
         assert manager.get_row_headers() == [""]
 
     def test_get_row_headers_timedelta_index(self) -> None:
-        import pandas as pd
-
         data = pd.DataFrame(
             {
                 "A": [1, 2, 3],
@@ -106,8 +118,6 @@ class TestPandasTableManager(unittest.TestCase):
         assert manager.get_row_headers() == [""]
 
     def test_get_row_headers_multi_index(self) -> None:
-        import pandas as pd
-
         data = pd.DataFrame(
             {
                 "A": [1, 2, 3],
@@ -126,8 +136,6 @@ class TestPandasTableManager(unittest.TestCase):
         assert not self.manager.is_type("not a dataframe")
 
     def test_get_field_types(self) -> None:
-        import pandas as pd
-
         expected_field_types = {
             "A": ("integer", "int64"),
             "B": ("string", "object"),
@@ -182,8 +190,6 @@ class TestPandasTableManager(unittest.TestCase):
         )
 
     def test_get_fields_types_duplicate_columns(self) -> None:
-        import pandas as pd
-
         # Different types
         data = pd.DataFrame(
             {
@@ -233,12 +239,10 @@ class TestPandasTableManager(unittest.TestCase):
         )
 
     def test_limit(self) -> None:
-        import pandas as pd
-
         limit = 2
         limited_manager = self.manager.take(limit, 0)
         expected_data = self.data.head(limit)
-        pd.testing.assert_frame_equal(limited_manager.data, expected_data)
+        assert_frame_equal(limited_manager.data, expected_data)
 
     def test_take_out_of_bounds(self) -> None:
         # Too large of page
@@ -305,7 +309,6 @@ class TestPandasTableManager(unittest.TestCase):
     def test_summary_date(self) -> None:
         column = "E"
         summary = self.manager.get_summary(column)
-        import pandas as pd
 
         assert summary == ColumnSummary(
             total=3,
@@ -335,11 +338,9 @@ class TestPandasTableManager(unittest.TestCase):
     def test_sort_values(self) -> None:
         sorted_df = self.manager.sort_values("A", descending=True).data
         expected_df = self.data.sort_values("A", ascending=False)
-        assert sorted_df.equals(expected_df)
+        assert_frame_equal(sorted_df, expected_df)
 
     def test_sort_values_with_index(self) -> None:
-        import pandas as pd
-
         data = pd.DataFrame(
             {
                 "A": [1, 3, 2],
@@ -349,7 +350,7 @@ class TestPandasTableManager(unittest.TestCase):
         data.index.name = "index"
         manager = self.factory.create()(data)
         sorted_df = manager.sort_values("A", descending=True).data
-        assert sorted_df.index.tolist() == [3, 2, 1]
+        assert sorted_df.to_native().index.tolist() == [3, 2, 1]
 
     def test_get_unique_column_values(self) -> None:
         column = "B"
@@ -360,8 +361,6 @@ class TestPandasTableManager(unittest.TestCase):
         ]
 
     def test_search(self) -> None:
-        import pandas as pd
-
         df = pd.DataFrame(
             {
                 "A": [1, 2, 3],
@@ -376,21 +375,15 @@ class TestPandasTableManager(unittest.TestCase):
         assert manager.search("food").get_num_rows() == 0
 
     def test_apply_formatting_does_not_modify_original_data(self) -> None:
-        import pandas as pd
-
         original_data = self.data.copy()
         format_mapping = {
             "A": lambda x: x * 2,
             "B": lambda x: x.upper(),
         }
         self.manager.apply_formatting(format_mapping)
-        pd.testing.assert_frame_equal(self.manager.data, original_data)
+        assert_frame_equal(self.manager.data, original_data)
 
     def test_apply_formatting(self) -> None:
-        import pandas as pd
-
-        from marimo._plugins.ui._impl.tables.format import FormatMapping
-
         format_mapping: FormatMapping = {
             "A": lambda x: x * 2,
             "B": lambda x: x.upper(),
@@ -414,13 +407,9 @@ class TestPandasTableManager(unittest.TestCase):
                 ],  # No formatting applied
             }
         )
-        pd.testing.assert_frame_equal(formatted_data, expected_data)
+        assert_frame_equal(formatted_data, expected_data)
 
     def test_apply_formatting_with_empty_dataframe(self) -> None:
-        import pandas as pd
-
-        from marimo._plugins.ui._impl.tables.format import FormatMapping
-
         empty_data = pd.DataFrame()
         manager = self.factory.create()(empty_data)
 
@@ -429,13 +418,9 @@ class TestPandasTableManager(unittest.TestCase):
         }
 
         formatted_data = manager.apply_formatting(format_mapping)
-        pd.testing.assert_frame_equal(formatted_data, empty_data)
+        assert_frame_equal(formatted_data, empty_data)
 
     def test_apply_formatting_partial(self) -> None:
-        import pandas as pd
-
-        from marimo._plugins.ui._impl.tables.format import FormatMapping
-
         format_mapping: FormatMapping = {
             "A": lambda x: x * 2,
         }
@@ -455,35 +440,23 @@ class TestPandasTableManager(unittest.TestCase):
                 "F": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
             }
         )
-        pd.testing.assert_frame_equal(formatted_data, expected_data)
+        assert_frame_equal(formatted_data, expected_data)
 
     def test_apply_formatting_empty(self) -> None:
-        import pandas as pd
-
-        from marimo._plugins.ui._impl.tables.format import FormatMapping
-
         format_mapping: FormatMapping = {}
 
         formatted_data = self.manager.apply_formatting(format_mapping)
-        pd.testing.assert_frame_equal(formatted_data, self.data)
+        assert_frame_equal(formatted_data, self.data)
 
     def test_apply_formatting_invalid_column(self) -> None:
-        import pandas as pd
-
-        from marimo._plugins.ui._impl.tables.format import FormatMapping
-
         format_mapping: FormatMapping = {
             "Z": lambda x: x * 2,
         }
 
         formatted_data = self.manager.apply_formatting(format_mapping)
-        pd.testing.assert_frame_equal(formatted_data, self.data)
+        assert_frame_equal(formatted_data, self.data)
 
     def test_apply_formatting_with_nan(self) -> None:
-        import pandas as pd
-
-        from marimo._plugins.ui._impl.tables.format import FormatMapping
-
         data_with_nan = self.data.copy()
         data_with_nan.loc[1, "A"] = None
         manager_with_nan = self.factory.create()(data_with_nan)
@@ -495,13 +468,9 @@ class TestPandasTableManager(unittest.TestCase):
         formatted_data = manager_with_nan.apply_formatting(format_mapping)
         expected_data = data_with_nan.copy()
         expected_data["A"] = [2, None, 6]
-        pd.testing.assert_frame_equal(formatted_data, expected_data)
+        assert_frame_equal(formatted_data, expected_data)
 
     def test_apply_formatting_with_mixed_types(self) -> None:
-        import pandas as pd
-
-        from marimo._plugins.ui._impl.tables.format import FormatMapping
-
         data = pd.DataFrame(
             {
                 "A": [1, 2, 3],
@@ -544,13 +513,9 @@ class TestPandasTableManager(unittest.TestCase):
                 "G": [None, "text", "3.14"],
             }
         )
-        pd.testing.assert_frame_equal(formatted_data, expected_data)
+        assert_frame_equal(formatted_data, expected_data)
 
     def test_apply_formatting_with_multi_index(self) -> None:
-        import pandas as pd
-
-        from marimo._plugins.ui._impl.tables.format import FormatMapping
-
         data = pd.DataFrame(
             {
                 "A": [1, 2, 3],
@@ -577,13 +542,9 @@ class TestPandasTableManager(unittest.TestCase):
                 [("x", 1), ("y", 2), ("z", 3)], names=["X", "Y"]
             ),
         )
-        pd.testing.assert_frame_equal(formatted_data, expected_data)
+        assert_frame_equal(formatted_data, expected_data)
 
     def test_apply_formatting_with_categorical_data(self) -> None:
-        import pandas as pd
-
-        from marimo._plugins.ui._impl.tables.format import FormatMapping
-
         data = pd.DataFrame(
             {
                 "A": pd.Categorical(["a", "b", "a"]),
@@ -604,13 +565,9 @@ class TestPandasTableManager(unittest.TestCase):
                 "B": [2, 4, 6],
             }
         )
-        pd.testing.assert_frame_equal(formatted_data, expected_data)
+        assert_frame_equal(formatted_data, expected_data)
 
     def test_apply_formatting_with_datetime_index(self) -> None:
-        import pandas as pd
-
-        from marimo._plugins.ui._impl.tables.format import FormatMapping
-
         data = pd.DataFrame(
             {
                 "A": [1, 2, 3],
@@ -633,13 +590,9 @@ class TestPandasTableManager(unittest.TestCase):
             },
             index=pd.to_datetime(["2021-01-01", "2021-01-02", "2021-01-03"]),
         )
-        pd.testing.assert_frame_equal(formatted_data, expected_data)
+        assert_frame_equal(formatted_data, expected_data)
 
     def test_apply_formatting_with_complex_data(self) -> None:
-        import pandas as pd
-
-        from marimo._plugins.ui._impl.tables.format import FormatMapping
-
         data = pd.DataFrame(
             {
                 "A": [1, 2, 3],
@@ -685,11 +638,9 @@ class TestPandasTableManager(unittest.TestCase):
                 "H": [2.23606797749979, 5.0, 7.810249675906654],
             }
         )
-        pd.testing.assert_frame_equal(formatted_data, expected_data)
+        assert_frame_equal(formatted_data, expected_data)
 
     def test_empty_dataframe(self) -> None:
-        import pandas as pd
-
         empty_df = pd.DataFrame()
         empty_manager = self.factory.create()(empty_df)
         assert empty_manager.get_num_rows() == 0
@@ -698,17 +649,14 @@ class TestPandasTableManager(unittest.TestCase):
         assert empty_manager.get_field_types() == {}
 
     def test_dataframe_with_all_null_column(self) -> None:
-        import pandas as pd
-
         df = pd.DataFrame({"A": [1, 2, 3], "B": [None, None, None]})
         manager = self.factory.create()(df)
         summary = manager.get_summary("B")
         assert summary.nulls == 3
-        assert summary.total == 0
+        assert summary.total == 3
+        assert summary.unique == 1
 
     def test_dataframe_with_mixed_types(self) -> None:
-        import pandas as pd
-
         df = pd.DataFrame({"A": [1, "two", 3.0, True]})
         manager = self.factory.create()(df)
         field_types = manager.get_field_types()
@@ -716,24 +664,18 @@ class TestPandasTableManager(unittest.TestCase):
 
     @pytest.mark.skip
     def test_search_with_regex(self) -> None:
-        import pandas as pd
-
         df = pd.DataFrame({"A": ["apple", "banana", "cherry"]})
         manager = self.factory.create()(df)
         result = manager.search("^[ab]")
         assert result.get_num_rows() == 2
 
     def test_sort_values_with_nulls(self) -> None:
-        import pandas as pd
-
         df = pd.DataFrame({"A": [3, 1, None, 2]})
         manager = self.factory.create()(df)
         sorted_manager = manager.sort_values("A", descending=True)
-        assert sorted_manager.data["A"].tolist()[0:3] == [3.0, 2.0, 1.0]
+        assert sorted_manager.data.to_dict()["A"] == [3.0, 2.0, 1.0, None]
 
     def test_dataframe_with_multiindex(self) -> None:
-        import pandas as pd
-
         df = pd.DataFrame(
             {"A": [1, 2, 3, 4], "B": [5, 6, 7, 8]},
             index=[["a", "a", "b", "b"], [1, 2, 1, 2]],

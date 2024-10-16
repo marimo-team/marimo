@@ -136,7 +136,7 @@ def test_to_marimo_csv_with_missing_values(df: IntoDataFrame):
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"A": list(range(10000)), "B": [f"value_{i}" for i in range(10000)]},
+        {"A": range(10000), "B": [f"value_{i}" for i in range(10000)]},
         exclude=["pyarrow"],
     ),
 )

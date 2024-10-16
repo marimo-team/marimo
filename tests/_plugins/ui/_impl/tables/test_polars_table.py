@@ -5,6 +5,7 @@ import json
 import unittest
 from typing import Any
 
+import narwhals.stable.v1 as nw
 import pytest
 
 from marimo._data.models import ColumnSummary
@@ -18,6 +19,17 @@ from tests.mocks import snapshotter
 HAS_DEPS = DependencyManager.polars.has()
 
 snapshot = snapshotter(__file__)
+
+
+def assert_frame_equal(a: Any, b: Any) -> bool:
+    import polars.testing
+
+    if isinstance(a, nw.DataFrame):
+        a = a.to_native()
+    if isinstance(b, nw.DataFrame):
+        b = b.to_native()
+    polars.testing.assert_frame_equal(a, b)
+    return True
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -149,7 +161,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         indices = [0, 2]
         selected_manager = self.manager.select_rows(indices)
         expected_data = self.data[indices]
-        assert selected_manager.data.equals(expected_data)
+        assert assert_frame_equal(selected_manager.data, expected_data)
 
     def test_select_rows_empty(self) -> None:
         selected_manager = self.manager.select_rows([])
@@ -160,7 +172,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         columns = ["A"]
         selected_manager = self.manager.select_columns(columns)
         expected_data = self.data.select(columns)
-        assert selected_manager.data.equals(expected_data)
+        assert assert_frame_equal(selected_manager.data, expected_data)
 
     def test_get_row_headers(self) -> None:
         expected_headers = []
@@ -240,7 +252,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
     def test_limit(self) -> None:
         limited_manager = self.manager.take(1, 0)
         expected_data = self.data.head(1)
-        assert limited_manager.data.equals(expected_data)
+        assert assert_frame_equal(limited_manager.data, expected_data)
 
     def test_take_out_of_bounds(self) -> None:
         # Too large of page
@@ -343,7 +355,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
     def test_sort_values(self) -> None:
         sorted_df = self.manager.sort_values("A", descending=True).data
         expected_df = self.data.sort("A", descending=True)
-        assert sorted_df.equals(expected_df)
+        assert assert_frame_equal(sorted_df, expected_df)
 
     def test_get_unique_column_values(self) -> None:
         column = "A"
@@ -380,8 +392,6 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         assert manager.search("y").get_num_rows() == 0
 
     def test_apply_formatting_does_not_modify_original_data(self) -> None:
-        from polars.testing import assert_frame_equal
-
         original_data = self.data.clone()
         format_mapping = {
             "A": lambda x: x * 2,
@@ -392,7 +402,6 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_apply_formatting(self) -> None:
         import polars as pl
-        from polars.testing import assert_frame_equal
 
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
@@ -418,7 +427,6 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_apply_formatting_with_empty_dataframe(self) -> None:
         import polars as pl
-        from polars.testing import assert_frame_equal
 
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
@@ -434,7 +442,6 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_apply_formatting_partial(self) -> None:
         import polars as pl
-        from polars.testing import assert_frame_equal
 
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
@@ -459,8 +466,6 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         assert_frame_equal(formatted_data, expected_data)
 
     def test_apply_formatting_empty(self) -> None:
-        from polars.testing import assert_frame_equal
-
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         format_mapping: FormatMapping = {}
@@ -469,8 +474,6 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         assert_frame_equal(formatted_data, self.data)
 
     def test_apply_formatting_invalid_column(self) -> None:
-        from polars.testing import assert_frame_equal
-
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         format_mapping: FormatMapping = {
@@ -482,7 +485,6 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_apply_formatting_with_nan(self) -> None:
         import polars as pl
-        from polars.testing import assert_frame_equal
 
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
@@ -511,7 +513,6 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_apply_formatting_with_multi_index(self) -> None:
         import polars as pl
-        from polars.testing import assert_frame_equal
 
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
@@ -542,7 +543,6 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_apply_formatting_with_categorical_data(self) -> None:
         import polars as pl
-        from polars.testing import assert_frame_equal
 
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
@@ -570,7 +570,6 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_apply_formatting_with_datetime_index(self) -> None:
         import polars as pl
-        from polars.testing import assert_frame_equal
 
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 
@@ -607,7 +606,6 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_apply_formatting_with_complex_data(self) -> None:
         import polars as pl
-        from polars.testing import assert_frame_equal
 
         from marimo._plugins.ui._impl.tables.format import FormatMapping
 

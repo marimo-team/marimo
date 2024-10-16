@@ -445,7 +445,7 @@ def test_layered_chart(df: IntoDataFrame):
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
-    create_dataframes({"values": list(range(100))}),
+    create_dataframes({"values": range(100)}),
 )
 def test_chart_with_binning(df: IntoDataFrame):
     import altair as alt

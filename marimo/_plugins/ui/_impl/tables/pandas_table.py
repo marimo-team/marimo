@@ -3,13 +3,15 @@ from __future__ import annotations
 
 from typing import Any, Optional, Tuple
 
-from marimo._data.models import ColumnSummary, ExternalDataType
+import narwhals.stable.v1 as nw
+
+from marimo._data.models import ExternalDataType
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_value,
 )
+from marimo._plugins.ui._impl.tables.narwhals_table import NarwhalsTableManager
 from marimo._plugins.ui._impl.tables.table_manager import (
-    ColumnName,
     FieldType,
     FieldTypes,
     TableManager,
@@ -26,27 +28,46 @@ class PandasTableManagerFactory(TableManagerFactory):
     def create() -> type[TableManager[Any]]:
         import pandas as pd
 
-        class PandasTableManager(TableManager[pd.DataFrame]):
+        class PandasTableManager(NarwhalsTableManager[pd.DataFrame]):
             type = "pandas"
 
+            def __init__(self, data: pd.DataFrame) -> None:
+                super().__init__(nw.from_native(data))
+
+            def as_pandas_frame(self) -> pd.DataFrame:
+                native: Any = self.data.to_native()
+                if isinstance(native, pd.DataFrame):
+                    return native
+                raise ValueError(f"Unsupported native type: {type(native)}")
+
+            # We override narwhals's to_csv to handle pandas
+            # headers
             def to_csv(
                 self, format_mapping: Optional[FormatMapping] = None
             ) -> bytes:
                 has_headers = len(self.get_row_headers()) > 0
                 if format_mapping:
-                    _data = self.apply_formatting(format_mapping)
+                    _data = self.apply_formatting(format_mapping).to_native()
                     return _data.to_csv(
                         index=has_headers,
                     ).encode("utf-8")
-                return self.data.to_csv(index=has_headers).encode("utf-8")
+                return (
+                    self.as_pandas_frame()
+                    .to_csv(index=has_headers)
+                    .encode("utf-8")
+                )
 
             def to_json(self) -> bytes:
-                return self.data.to_json(orient="records").encode("utf-8")
+                return (
+                    self.as_pandas_frame()
+                    .to_json(orient="records")
+                    .encode("utf-8")
+                )
 
             def apply_formatting(
                 self, format_mapping: FormatMapping
-            ) -> pd.DataFrame:
-                _data = self.data.copy()
+            ) -> nw.DataFrame[pd.DataFrame]:
+                _data = self.as_pandas_frame().copy()
                 for col in _data.columns:
                     if col in format_mapping:
                         _data[col] = _data[col].apply(
@@ -54,26 +75,17 @@ class PandasTableManagerFactory(TableManagerFactory):
                                 col, x, format_mapping
                             )
                         )
-                return _data
+                return nw.from_native(
+                    _data, strict=True, eager_or_interchange_only=True
+                )
 
-            def supports_filters(self) -> bool:
-                return True
-
-            def select_rows(
-                self, indices: list[int]
-            ) -> TableManager[pd.DataFrame]:
-                return PandasTableManager(self.data.iloc[indices])
-
-            def select_columns(
-                self, columns: list[str]
-            ) -> TableManager[pd.DataFrame]:
-                return PandasTableManager(self.data[columns])
-
+            # We override the default implementation to use pandas
+            # headers
             def get_row_headers(
                 self,
             ) -> list[str]:
                 return PandasTableManager._get_row_headers_for_index(
-                    self.data.index
+                    self.as_pandas_frame().index
                 )
 
             @staticmethod
@@ -101,34 +113,14 @@ class PandasTableManagerFactory(TableManagerFactory):
 
                 return [str(index.name or "")]
 
+            # We override the default implementation to use pandas's
+            # internal fields since they get displayed in the UI.
             def get_field_types(self) -> FieldTypes:
+                data = self.as_pandas_frame()
                 return {
-                    column: PandasTableManager._get_field_type(
-                        self.data[column]
-                    )
-                    for column in self.data.columns
+                    column: PandasTableManager._get_field_type(data[column])
+                    for column in data.columns
                 }
-
-            def take(self, count: int, offset: int) -> PandasTableManager:
-                if count < 0:
-                    raise ValueError("Count must be a positive integer")
-                if offset < 0:
-                    raise ValueError("Offset must be a non-negative integer")
-                return PandasTableManager(
-                    self.data.iloc[offset : offset + count]
-                )
-
-            def search(self, query: str) -> TableManager[Any]:
-                query = query.lower()
-
-                def contains_query(series: pd.Series[Any]) -> pd.Series[bool]:
-                    def search(s: Any) -> bool:
-                        return query in str(s).lower()
-
-                    return series.map(search)
-
-                mask = self.data.apply(contains_query)
-                return PandasTableManager(self.data.loc[mask.any(axis=1)])
 
             @staticmethod
             def _get_field_type(
@@ -165,88 +157,10 @@ class PandasTableManagerFactory(TableManagerFactory):
                     return ("unknown", dtype)
                 return ("unknown", dtype)
 
-            def get_summary(self, column: str) -> ColumnSummary:
-                # If column is not in the dataframe, return an empty summary
-                if column not in self.data.columns:
-                    return ColumnSummary()
-                col = self.data[column]
-
-                if col.dtype == "object" or col.dtype == "category":
-                    try:
-                        return ColumnSummary(
-                            total=col.count(),
-                            nulls=col.isnull().sum(),
-                            unique=col.nunique(),
-                        )
-                    except TypeError:
-                        # If the column is not hashable,
-                        # we can't get the unique values
-                        return ColumnSummary(
-                            total=col.count(),
-                            nulls=col.isnull().sum(),
-                        )
-
-                if col.dtype == "bool":
-                    return ColumnSummary(
-                        total=col.count(),
-                        nulls=col.isnull().sum(),
-                        true=col.sum(),
-                        false=col.count() - col.sum(),
-                    )
-
-                if col.dtype == "datetime64[ns]":
-                    return ColumnSummary(
-                        total=col.count(),
-                        nulls=col.isnull().sum(),
-                        min=col.min(),
-                        max=col.max(),
-                        mean=col.mean(),
-                        median=col.median(),
-                        p5=col.quantile(0.05),
-                        p25=col.quantile(0.25),
-                        p75=col.quantile(0.75),
-                        p95=col.quantile(0.95),
-                    )
-
-                import numpy as np
-
-                return ColumnSummary(
-                    total=col.count(),
-                    nulls=col.isnull().sum(),
-                    min=col.min(),
-                    max=col.max(),
-                    mean=col.mean(),
-                    # Pandas prints an unhelpful RuntimeWarning when taking
-                    # the median of an all nan column
-                    median=col.median() if not col.isna().all() else np.nan,
-                    std=col.std(),
-                    p5=col.quantile(0.05),
-                    p25=col.quantile(0.25),
-                    p75=col.quantile(0.75),
-                    p95=col.quantile(0.95),
-                )
-
-            def get_num_rows(self, force: bool = True) -> int:
-                del force
-                return self.data.shape[0]
-
-            def get_num_columns(self) -> int:
-                return self.data.shape[1]
-
-            def get_column_names(self) -> list[str]:
-                return self.data.columns.tolist()
-
+            # We override the default since narwhals returns a Series
             def get_unique_column_values(
                 self, column: str
             ) -> list[str | int | float]:
-                return self.data[column].unique().tolist()  # type: ignore[no-any-return]
-
-            def sort_values(
-                self, by: ColumnName, descending: bool
-            ) -> PandasTableManager:
-                sorted_data = self.data.sort_values(
-                    by, ascending=not descending
-                )
-                return PandasTableManager(sorted_data)
+                return self.as_pandas_frame()[column].unique().tolist()  # type: ignore[no-any-return]
 
         return PandasTableManager

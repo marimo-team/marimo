@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Optional, Union, cast
+from typing import Any, Optional, Union, cast
 
 import narwhals.stable.v1 as nw
+from narwhals.typing import IntoFrameT
 
 from marimo._data.models import ColumnSummary
 from marimo._plugins.ui._impl.tables.format import (
@@ -23,17 +24,14 @@ from marimo._utils.narwhals_utils import (
     is_narwhals_temporal_type,
 )
 
-Frame = Union[nw.DataFrame[Any], nw.LazyFrame[Any]]
 
-if TYPE_CHECKING:
-    from narwhals.typing import IntoFrame
-
-
-class NarwhalsTableManager(TableManager[Frame]):
+class NarwhalsTableManager(
+    TableManager[Union[nw.DataFrame[IntoFrameT], nw.LazyFrame[IntoFrameT]]]
+):
     type = "narwhals"
 
     @staticmethod
-    def from_dataframe(data: IntoFrame) -> NarwhalsTableManager:
+    def from_dataframe(data: IntoFrameT) -> NarwhalsTableManager[IntoFrameT]:
         return NarwhalsTableManager(nw.from_native(data, strict=True))
 
     def as_frame(self) -> nw.DataFrame[Any]:
@@ -78,11 +76,11 @@ class NarwhalsTableManager(TableManager[Frame]):
     def supports_filters(self) -> bool:
         return True
 
-    def select_rows(self, indices: list[int]) -> TableManager[Frame]:
+    def select_rows(self, indices: list[int]) -> NarwhalsTableManager[Any]:
         df = self.as_frame()
         return NarwhalsTableManager(df[indices])
 
-    def select_columns(self, columns: list[str]) -> TableManager[Frame]:
+    def select_columns(self, columns: list[str]) -> NarwhalsTableManager[Any]:
         return NarwhalsTableManager(self.data.select(columns))
 
     def get_row_headers(
@@ -113,14 +111,14 @@ class NarwhalsTableManager(TableManager[Frame]):
 
         return field_types
 
-    def take(self, count: int, offset: int) -> NarwhalsTableManager:
+    def take(self, count: int, offset: int) -> NarwhalsTableManager[Any]:
         if count < 0:
             raise ValueError("Count must be a positive integer")
         if offset < 0:
             raise ValueError("Offset must be a non-negative integer")
         return NarwhalsTableManager(self.data[offset:count])
 
-    def search(self, query: str) -> TableManager[Any]:
+    def search(self, query: str) -> NarwhalsTableManager[Any]:
         query = query.lower()
 
         expressions: list[Any] = []
@@ -128,11 +126,11 @@ class NarwhalsTableManager(TableManager[Frame]):
             dtype = self.data[column].dtype
             if dtype == nw.String:
                 expressions.append(nw.col(column).str.contains(query))
-            # TODO: Unsupported by narwhals
-            # elif dtype == nw.List(nw.String):
-            #     expressions.append(
-            #         nw.col(column).cast(nw.String).str.contains(query)
-            #     )
+            elif dtype == nw.List(nw.String):
+                # expressions.append(
+                #     nw.col(column).cast(nw.String).sum().str.contains(query)
+                # )
+                pass
             elif (
                 dtype.is_numeric()
                 or is_narwhals_temporal_type(dtype)
@@ -185,8 +183,8 @@ class NarwhalsTableManager(TableManager[Frame]):
                 min=col.min(),
                 max=col.max(),
                 mean=col.mean(),
-                # TODO: Implement median not in narwhals
-                # median=col.median(),
+                # Quantile not supported on date type
+                # median=col.quantile(0.5, interpolation="nearest"),
             )
         if is_narwhals_temporal_type(col.dtype):
             return ColumnSummary(
@@ -195,8 +193,7 @@ class NarwhalsTableManager(TableManager[Frame]):
                 min=col.min(),
                 max=col.max(),
                 mean=col.mean(),
-                # TODO: Implement median not in narwhals
-                # median=col.median(),
+                median=col.quantile(0.5, interpolation="nearest"),
                 p5=col.quantile(0.05, interpolation="nearest"),
                 p25=col.quantile(0.25, interpolation="nearest"),
                 p75=col.quantile(0.75, interpolation="nearest"),
@@ -221,8 +218,7 @@ class NarwhalsTableManager(TableManager[Frame]):
             min=col.min(),
             max=col.max(),
             mean=col.mean(),
-            # TODO: Implement median not in narwhals
-            # median=col.median(),
+            median=col.quantile(0.5, interpolation="nearest"),
             std=col.std(),
             p5=col.quantile(0.05, interpolation="nearest"),
             p25=col.quantile(0.25, interpolation="nearest"),
@@ -253,9 +249,15 @@ class NarwhalsTableManager(TableManager[Frame]):
 
     def sort_values(
         self, by: ColumnName, descending: bool
-    ) -> NarwhalsTableManager:
-        sorted_data = self.data.sort(by, descending=descending)
-        return NarwhalsTableManager(sorted_data)
+    ) -> NarwhalsTableManager[Any]:
+        if isinstance(self.data, nw.LazyFrame):
+            return NarwhalsTableManager(
+                self.data.sort(by, descending=descending)
+            )
+        else:
+            return NarwhalsTableManager(
+                self.data.sort(by, descending=descending)
+            )
 
     def __repr__(self) -> str:
         rows = self.get_num_rows(force=False)

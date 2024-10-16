@@ -15,6 +15,7 @@ from marimo._plugins.ui._impl.dataframes.dataframe import (
 from marimo._plugins.ui._impl.table import SearchTableArgs
 from marimo._runtime.functions import EmptyArgs
 from marimo._utils.platform import is_windows
+from tests._data.mocks import create_dataframes
 
 HAS_DEPS = (
     DependencyManager.pandas.has()
@@ -33,15 +34,24 @@ else:
     pl = Mock()
 
 
+def df_length(df: Any) -> int:
+    if isinstance(df, pd.DataFrame):
+        return len(df)
+    if isinstance(df, pl.DataFrame):
+        return len(df)
+    if hasattr(df, "count"):
+        return df.count().execute()
+    return len(df)
+
+
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 class TestDataframes:
     @staticmethod
     @pytest.mark.parametrize(
         "df",
-        [
-            pd.DataFrame({"A": [1, 2, 3], "B": ["a", "a", "a"]}),
-            pl.DataFrame({"A": [1, 2, 3], "B": ["a", "a", "a"]}),
-        ],
+        create_dataframes(
+            {"A": [1, 2, 3], "B": ["a", "a", "a"]}, exclude=["pyarrow"]
+        ),
     )
     def test_dataframe(
         df: Any,
@@ -49,13 +59,23 @@ class TestDataframes:
         subject = ui.dataframe(df)
 
         assert subject.value is df
-        assert subject._component_args["columns"] == [
-            ["A", "integer", "i64"],
-            ["B", "string", "str"],
-        ] or subject._component_args["columns"] == [
-            ["A", "integer", "int64"],
-            ["B", "string", "object"],
-        ]
+        assert (
+            subject._component_args["columns"]
+            == [
+                ["A", "integer", "i64"],
+                ["B", "string", "str"],
+            ]
+            or subject._component_args["columns"]
+            == [
+                ["A", "integer", "int64"],
+                ["B", "string", "object"],
+            ]
+            or subject._component_args["columns"]
+            == [
+                ["A", "integer", "int64"],
+                ["B", "string", "string"],
+            ]
+        )
         assert subject.get_column_values(
             GetColumnValuesArgs(column="A")
         ) == GetColumnValuesResponse(values=[1, 2, 3], too_many_values=False)
@@ -69,6 +89,7 @@ class TestDataframes:
     @staticmethod
     @pytest.mark.parametrize(
         "df",
+        # Only pandas supports numeric column names
         [
             pd.DataFrame({1: [1, 2, 3], 2: ["a", "a", "a"]}),
         ],
@@ -102,9 +123,9 @@ class TestDataframes:
     )
     @pytest.mark.parametrize(
         "df",
-        [
-            pd.DataFrame({1: [1, 2, 3], 2: ["a", "a", "a"]}),
-        ],
+        create_dataframes(
+            {"1": [1, 2, 3], "2": ["a", "a", "a"]}, exclude=["pyarrow"]
+        ),
     )
     def test_dataframe_page_size(
         df: Any,
@@ -139,13 +160,18 @@ class TestDataframes:
     @pytest.mark.parametrize(
         "df",
         [
-            pd.DataFrame({"A": [], "B": []}),  # Empty DataFrame
-            pd.DataFrame({"A": [1], "B": ["a"]}),  # Single row DataFrame
-            pd.DataFrame(
+            *create_dataframes(
+                {"A": [], "B": []}, exclude=["pyarrow"]
+            ),  # Empty DataFrame
+            *create_dataframes(
+                {"A": [1], "B": ["a"]}, exclude=["pyarrow"]
+            ),  # Single row DataFrame
+            *create_dataframes(
                 {
-                    "A": list(range(1, 1001)),
+                    "A": range(1, 1001),
                     "B": [f"value_{i}" for i in range(1, 1001)],
-                }
+                },
+                exclude=["pyarrow"],
             ),  # Large DataFrame
         ],
     )
@@ -156,14 +182,14 @@ class TestDataframes:
         assert len(subject._component_args["columns"]) == 2
 
         result = subject.get_dataframe(EmptyArgs())
-        assert result.total_rows == len(df)
+        assert result.total_rows == df_length(df)
 
         # Test get_column_values for empty and large DataFrames
-        if len(df) == 0:
+        if df_length(df) == 0:
             assert subject.get_column_values(
                 GetColumnValuesArgs(column="A")
             ) == GetColumnValuesResponse(values=[], too_many_values=False)
-        elif len(df) >= 1000:
+        elif df_length(df) >= 1000:
             response = subject.get_column_values(
                 GetColumnValuesArgs(column="A")
             )
@@ -171,8 +197,13 @@ class TestDataframes:
             assert len(response.values) == 0
 
     @staticmethod
-    def test_dataframe_with_custom_page_size() -> None:
-        df = pd.DataFrame({"A": range(100), "B": ["a"] * 100})
+    @pytest.mark.parametrize(
+        "df",
+        create_dataframes(
+            {"A": range(100), "B": ["a"] * 100}, exclude=["pyarrow"]
+        ),
+    )
+    def test_dataframe_with_custom_page_size(df: Any) -> None:
         subject = ui.dataframe(df, page_size=10)
 
         result = subject.get_dataframe(EmptyArgs())
@@ -205,8 +236,13 @@ class TestDataframes:
         )
 
     @staticmethod
-    def test_dataframe_with_limit() -> None:
-        df = pd.DataFrame({"A": range(1000), "B": ["a"] * 1000})
+    @pytest.mark.parametrize(
+        "df",
+        create_dataframes(
+            {"A": range(1000), "B": ["a"] * 1000}, exclude=["pyarrow"]
+        ),
+    )
+    def test_dataframe_with_limit(df: Any) -> None:
         subject = ui.dataframe(df, limit=100)
 
         result = subject.get_dataframe(EmptyArgs())
@@ -218,8 +254,13 @@ class TestDataframes:
         assert search_result.total_rows == 100
 
     @staticmethod
-    def test_dataframe_error_handling() -> None:
-        df = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
+    @pytest.mark.parametrize(
+        "df",
+        create_dataframes(
+            {"A": [1, 2, 3], "B": ["a", "b", "c"]}, exclude=["pyarrow"]
+        ),
+    )
+    def test_dataframe_error_handling(df: Any) -> None:
         subject = ui.dataframe(df)
 
         # Test ColumnNotFound error
