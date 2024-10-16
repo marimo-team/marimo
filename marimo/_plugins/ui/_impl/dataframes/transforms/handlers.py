@@ -630,10 +630,14 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
     #     )
 
     @staticmethod
-    def as_sql_code(transformed_df: "ibis.Table") -> str:
+    def as_sql_code(transformed_df: "ibis.Table") -> str | None:
         import ibis
 
-        return str(ibis.to_sql(transformed_df))
+        try:
+            return str(ibis.to_sql(transformed_df))
+        except Exception:
+            # In case it is not a SQL backend
+            return None
 
 
 def _coerce_value(dtype: Any, value: Any) -> Any:

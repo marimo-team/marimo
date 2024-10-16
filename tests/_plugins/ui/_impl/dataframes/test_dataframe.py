@@ -22,6 +22,9 @@ HAS_DEPS = (
     and DependencyManager.polars.has()
 )
 
+HAS_IBIS = DependencyManager.ibis.has()
+HAS_POLARS = DependencyManager.polars.has()
+
 if HAS_DEPS:
     import pandas as pd
     import polars as pl
@@ -222,3 +225,27 @@ class TestDataframes:
         # Test ColumnNotFound error
         with pytest.raises(ColumnNotFound):
             subject.get_column_values(GetColumnValuesArgs(column="C"))
+
+
+@pytest.mark.skipif(
+    not HAS_IBIS or not HAS_POLARS,
+    reason="optional dependencies not installed",
+)
+def test_ibis_with_polars_backend() -> None:
+    import ibis
+
+    import marimo as mo
+
+    prev_backend = ibis.get_backend()
+    ibis.set_backend("polars")
+
+    data = {
+        "a": [1, 2, 3],
+        "b": [22.5, 23.0, 21.5],
+    }
+    memtable = ibis.memtable(data)
+    dataframe = mo.ui.dataframe(memtable)
+    assert dataframe is not None
+    assert dataframe.get_dataframe(EmptyArgs()).total_rows == 3
+    assert dataframe.get_dataframe(EmptyArgs()).sql_code is None
+    ibis.set_backend(prev_backend)
