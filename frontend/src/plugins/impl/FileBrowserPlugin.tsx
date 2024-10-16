@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { Table, TableCell, TableRow } from "@/components/ui/table";
 import { createPlugin } from "../core/builder";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { rpc } from "../core/rpc";
 import { toast } from "@/components/ui/use-toast";
@@ -21,6 +21,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/utils/cn";
 import { Label } from "@/components/ui/label";
 import { PluralWords } from "@/utils/pluralize";
+import { useInternalStateWithSync } from "@/hooks/useInternalStateWithSync";
 
 /**
  * Arguments for a file browser component.
@@ -135,28 +136,9 @@ export const FileBrowser = ({
   restrictNavigation,
   list_directory,
 }: FileBrowserProps): JSX.Element | null => {
-  const [path, setPath] = useState(initialPath);
+  const [path, setPath] = useInternalStateWithSync(initialPath);
   const [selectAllLabel, setSelectAllLabel] = useState("Select all");
   const [isUpdatingPath, setIsUpdatingPath] = useState(false);
-  const [isRestricted, setIsRestricted] = useState(restrictNavigation);
-  const [allowMultiSelect, setAllowMultiSelect] = useState(multiple);
-  const [selectMode, setSelectMode] = useState(selectionMode);
-
-  useEffect(() => {
-    setPath(initialPath);
-  }, [initialPath]);
-
-  useEffect(() => {
-    setIsRestricted(restrictNavigation);
-  }, [restrictNavigation]);
-
-  useEffect(() => {
-    setAllowMultiSelect(multiple);
-  }, [multiple]);
-
-  useEffect(() => {
-    setSelectMode(selectionMode);
-  }, [selectionMode]);
 
   const { data, loading, error } = useAsyncData(
     () =>
@@ -191,8 +173,8 @@ export const FileBrowser = ({
   const selectedFiles = value.map((x) => <li key={x.id}>{x.path}</li>);
 
   const canSelectDirectories =
-    selectMode === "directory" || selectMode === "all";
-  const canSelectFiles = selectMode === "file" || selectMode === "all";
+    selectionMode === "directory" || selectionMode === "all";
+  const canSelectFiles = selectionMode === "file" || selectionMode === "all";
 
   function setNewPath(newPath: string) {
     // Prevent updating path while updating
@@ -219,7 +201,7 @@ export const FileBrowser = ({
     // If restricting navigation, check if path is outside bounds
     const outsideInitialPath = newPath.length < initialPath.length;
 
-    if (isRestricted && outsideInitialPath) {
+    if (restrictNavigation && outsideInitialPath) {
       toast({
         title: "Access denied",
         description:
@@ -253,7 +235,7 @@ export const FileBrowser = ({
   function handleSelection(path: string, name: string, isDirectory: boolean) {
     const fileInfo = createFileInfo(path, name, isDirectory);
 
-    if (allowMultiSelect) {
+    if (multiple) {
       if (selectedPaths.has(path)) {
         setValue(value.filter((x) => x.path !== path));
         setSelectAllLabel("Select all");
@@ -389,7 +371,7 @@ export const FileBrowser = ({
     return `/${dirList.join(delimiter)}`;
   });
 
-  if (isRestricted) {
+  if (restrictNavigation) {
     parentDirectories = parentDirectories.filter((x) =>
       x.startsWith(initialPath),
     );
@@ -397,16 +379,16 @@ export const FileBrowser = ({
   parentDirectories.reverse();
 
   const selectionKindLabel =
-    selectMode === "all"
+    selectionMode === "all"
       ? PluralWords.of("file", "folder")
-      : selectMode === "directory"
+      : selectionMode === "directory"
         ? PluralWords.of("folder")
         : PluralWords.of("file");
   const renderHeader = () => {
     label = label ?? `Select ${selectionKindLabel.join(" and ", 2)}...`;
     const labelText = <Label>{renderHTML({ html: label })}</Label>;
 
-    if (allowMultiSelect) {
+    if (multiple) {
       return (
         <div className="grid grid-cols-2 items-center border-1">
           <div className="justify-self-start mb-1">{labelText}</div>

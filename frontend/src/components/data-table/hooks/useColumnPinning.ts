@@ -2,6 +2,8 @@
 import React from "react";
 import { SELECT_COLUMN_ID } from "../types";
 import type { ColumnPinningState } from "@tanstack/react-table";
+import { useInternalStateWithSync } from "@/hooks/useInternalStateWithSync";
+import { isEqual } from "lodash-es";
 
 interface UseColumnPinningResult {
   columnPinning: ColumnPinningState;
@@ -12,10 +14,14 @@ export function useColumnPinning(
   freezeColumnsLeft?: string[],
   freezeColumnsRight?: string[],
 ): UseColumnPinningResult {
-  const [columnPinning, setColumnPinning] = React.useState<ColumnPinningState>({
-    left: maybeAddSelectColumnId(freezeColumnsLeft),
-    right: freezeColumnsRight,
-  });
+  const [columnPinning, setColumnPinning] =
+    useInternalStateWithSync<ColumnPinningState>(
+      {
+        left: maybeAddSelectColumnId(freezeColumnsLeft),
+        right: freezeColumnsRight,
+      },
+      isEqual,
+    );
 
   const setColumnPinningWithFreeze = (
     newState: React.SetStateAction<ColumnPinningState>,

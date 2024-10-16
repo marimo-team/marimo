@@ -61,7 +61,7 @@ describe("useColumnPinning", () => {
     const { result } = renderHook(() => useColumnPinning(["initialLeft"]));
 
     act(() => {
-      result.current.setColumnPinning((prev: object) => ({
+      result.current.setColumnPinning((prev) => ({
         ...prev,
         right: ["newRight"],
       }));
