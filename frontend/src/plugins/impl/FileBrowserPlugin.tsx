@@ -21,6 +21,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/utils/cn";
 import { Label } from "@/components/ui/label";
 import { PluralWords } from "@/utils/pluralize";
+import { useInternalStateWithSync } from "@/hooks/useInternalStateWithSync";
 
 /**
  * Arguments for a file browser component.
@@ -135,7 +136,7 @@ export const FileBrowser = ({
   restrictNavigation,
   list_directory,
 }: FileBrowserProps): JSX.Element | null => {
-  const [path, setPath] = useState(initialPath);
+  const [path, setPath] = useInternalStateWithSync(initialPath);
   const [selectAllLabel, setSelectAllLabel] = useState("Select all");
   const [isUpdatingPath, setIsUpdatingPath] = useState(false);
 
