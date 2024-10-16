@@ -708,3 +708,28 @@ def test_cli_run_sandbox_prompt_yes() -> None:
     assert p.poll() is None
     _check_started(port)
     p.kill()
+
+
+HAS_DOCKER = DependencyManager.which("docker")
+
+
+@pytest.mark.skipif(
+    HAS_DOCKER, reason="docker is required to be not installed"
+)
+def test_cli_run_docker_remote_url():
+    remote_url = "https://example.com/notebook.py"
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "-y",
+            "edit",
+            remote_url,
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    # Should fail with missing docker
+    assert p.returncode != 0
+    assert p.stdout is not None
+    assert "Docker is not installed" in p.stdout.read().decode()

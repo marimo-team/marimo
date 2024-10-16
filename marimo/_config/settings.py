@@ -18,6 +18,9 @@ class GlobalSettings:
     MANAGE_SCRIPT_METADATA: bool = os.getenv(
         "MARIMO_MANAGE_SCRIPT_METADATA", "false"
     ) in ("true", "1")
+    IN_SECURE_ENVIRONMENT: bool = os.getenv(
+        "MARIMO_IN_SECURE_ENVIRONMENT", "false"
+    ) in ("true", "1")
 
 
 GLOBAL_SETTINGS = GlobalSettings()
