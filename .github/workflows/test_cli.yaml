@@ -77,6 +77,8 @@ jobs:
             "marimo/_tutorials/"
             "MANIFEST.in"
             "marimo.egg-info/SOURCES.txt"
+            "third_party.txt"
+            "third_party_licenses.txt"
           )
 
           for file_or_dir in "${files_or_dirs_to_check[@]}"; do
