@@ -117,7 +117,8 @@ artifacts = ["marimo/_static/", "marimo/_lsp/", "marimo.egg-info/SOURCES.txt"]
 exclude = ["marimo/_smoke_tests"]
 
 [tool.hatch.build.targets.wheel]
-include = ["/marimo", "MANIFEST.in"]
+packages = ["marimo"]
+include = ["MANIFEST.in"]
 artifacts = ["marimo/_static/", "marimo/_lsp/", "marimo.egg-info/SOURCES.txt"]
 exclude = ["marimo/_smoke_tests"]
 
