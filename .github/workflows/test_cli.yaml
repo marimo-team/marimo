@@ -71,18 +71,20 @@ jobs:
       - name: Check for _static/_lsp directory in wheel
         run: |
           wheel_file=$(ls dist/*.whl)
-          directories_to_check=(
+          files_or_dirs_to_check=(
             "marimo/_static/"
             "marimo/_lsp/"
             "marimo/_tutorials/"
+            "MANIFEST.in"
+            "marimo.egg-info/SOURCES.txt"
           )
 
-          for dir in "${directories_to_check[@]}"; do
-            if ! unzip -l "$wheel_file" | grep -q "$dir"; then
-              echo "Error: $dir directory not found in the wheel"
+          for file_or_dir in "${files_or_dirs_to_check[@]}"; do
+            if ! unzip -l "$wheel_file" | grep -q "$file_or_dir"; then
+              echo "Error: $file_or_dir not found in the wheel"
               exit 1
             else
-              echo "Found $dir in the wheel"
+              echo "Found $file_or_dir in the wheel"
             fi
           done
 
