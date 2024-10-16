@@ -730,5 +730,5 @@ def test_cli_run_docker_remote_url():
 
     # Should fail with missing docker
     assert p.returncode != 0
-    assert p.stderr is not None
-    assert "Docker is not installed" in p.stderr.read().decode()
+    assert p.stdout is not None
+    assert "Docker is not installed" in p.stdout.read().decode()
