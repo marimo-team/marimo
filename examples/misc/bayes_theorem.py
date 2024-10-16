@@ -2,12 +2,13 @@
 # requires-python = ">=3.9"
 # dependencies = [
 #     "marimo",
+#     "matplotlib==3.9.2",
 # ]
 # ///
 
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.9.10"
 app = marimo.App(width="medium")
 
 
