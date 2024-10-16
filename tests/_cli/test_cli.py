@@ -725,6 +725,7 @@ def test_cli_run_docker_remote_url():
             "edit",
             remote_url,
         ],
+        stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
 
