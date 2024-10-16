@@ -113,12 +113,12 @@ path = "marimo/__init__.py"
 
 [tool.hatch.build.targets.sdist]
 include = ["/marimo"]
-artifacts = ["marimo/_static/", "marimo/_lsp/"]
+artifacts = ["marimo/_static/", "marimo/_lsp/", "third_party.txt", "third_party_licenses.txt"]
 exclude = ["marimo/_smoke_tests"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["marimo"]
-artifacts = ["marimo/_static/", "marimo/_lsp/"]
+include = ["/marimo"]
+artifacts = ["marimo/_static/", "marimo/_lsp/", "third_party.txt", "third_party_licenses.txt"]
 exclude = ["marimo/_smoke_tests"]
 
 # Override the default uv version to use the latest version
