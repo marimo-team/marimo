@@ -28,6 +28,10 @@ def red(text: str, bold: bool = False) -> str:
     return prefix + text + "\033[0m"
 
 
+def muted(text: str) -> str:
+    return "\033[90m" + text + "\033[0m"
+
+
 def echo(*args: Any, **kwargs: Any) -> None:
     import click
 

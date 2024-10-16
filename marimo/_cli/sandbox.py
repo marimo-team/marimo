@@ -14,7 +14,7 @@ import click
 
 from marimo import __version__, _loggers
 from marimo._cli.file_path import FileContentReader
-from marimo._cli.print import bold, echo, green
+from marimo._cli.print import bold, echo, green, muted
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
 
@@ -227,7 +227,7 @@ def run_in_sandbox(
         temp_file_path,
     ] + cmd
 
-    echo(f"Running in a sandbox: {' '.join(cmd)}")
+    echo(f"Running in a sandbox: {muted(' '.join(cmd))}")
 
     env = os.environ.copy()
     env["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
