@@ -26,11 +26,16 @@ def get_node_version() -> Optional[str]:
 def get_required_modules_list() -> dict[str, str]:
     packages = [
         "click",
-        "importlib-resources",
+        "docutils",
+        "itsdangerous",
         "jedi",
         "markdown",
+        "narwhals",
+        "packaging",
+        "psutil",
         "pygments",
         "pymdown-extensions",
+        "pyyaml",
         "ruff",
         "starlette",
         "tomlkit",

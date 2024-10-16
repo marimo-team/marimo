@@ -75,8 +75,6 @@ jobs:
             "marimo/_static/"
             "marimo/_lsp/"
             "marimo/_tutorials/"
-            "MANIFEST.in"
-            "marimo.egg-info/SOURCES.txt"
             "third_party.txt"
             "third_party_licenses.txt"
           )
