@@ -112,13 +112,13 @@ installer = "uv"
 path = "marimo/__init__.py"
 
 [tool.hatch.build.targets.sdist]
-include = ["/marimo"]
-artifacts = ["marimo/_static/", "marimo/_lsp/"]
+include = ["/marimo", "MANIFEST.in"]
+artifacts = ["marimo/_static/", "marimo/_lsp/", "marimo.egg-info/SOURCES.txt"]
 exclude = ["marimo/_smoke_tests"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["marimo"]
-artifacts = ["marimo/_static/", "marimo/_lsp/"]
+include = ["/marimo", "MANIFEST.in"]
+artifacts = ["marimo/_static/", "marimo/_lsp/", "marimo.egg-info/SOURCES.txt"]
 exclude = ["marimo/_smoke_tests"]
 
 # Override the default uv version to use the latest version
