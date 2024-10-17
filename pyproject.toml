@@ -225,7 +225,7 @@ clean = "cd docs && make clean"
 
 [tool.ruff]
 line-length=79
-include = ["marimo/**/*.py", "tests/**/*.py"]
+include = ["marimo/**/*.py", "tests/**/*.py", "dagger/**/*.py"]
 exclude = [
     "examples",
     "scripts",

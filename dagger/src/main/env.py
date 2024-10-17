@@ -50,10 +50,14 @@ class Env:
             )
             .with_exec(["adduser", "nonroot"])
             .with_mounted_cache(
-                "/home/nonroot/.cache/pip", dag.cache_volume("python-312"), owner="nonroot"
+                "/home/nonroot/.cache/pip",
+                dag.cache_volume("python-312"),
+                owner="nonroot",
             )
             .with_mounted_cache(
-                "/home/nonroot/.cache/uv", dag.cache_volume("uv-python-312"), owner="nonroot"
+                "/home/nonroot/.cache/uv",
+                dag.cache_volume("uv-python-312"),
+                owner="nonroot",
             )
             .with_exec(["pip", "install", "hatch", "typos"])
             .with_user("nonroot")
