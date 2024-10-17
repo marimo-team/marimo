@@ -254,6 +254,7 @@ ignore = [
     "D301", # Use r""" if any backslashes in a docstring
     # TODO: we should fix these, and enable this rule
     "PT011", # `pytest.raises(ValueError)` is too broad, set the `match` parameter or use a more specific exception
+    "E501", # Line too long, we still trim 
 ]
 extend-select = [
     # pyflakes
