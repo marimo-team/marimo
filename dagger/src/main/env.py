@@ -37,9 +37,6 @@ class Env:
             # python base
             dag.container()
             .from_("python:3.12-bookworm")
-            .with_mounted_cache(
-                "/root/.cache/pip", dag.cache_volume("python-312")
-            )
             .with_exec(["apt-get", "update"])
             .with_exec(
                 [
@@ -51,7 +48,15 @@ class Env:
                     "python3-gdal",
                 ]
             )
+            .with_exec(["adduser", "nonroot"])
+            .with_mounted_cache(
+                "/home/nonroot/.cache/pip", dag.cache_volume("python-312"), owner="nonroot"
+            )
+            .with_mounted_cache(
+                "/home/nonroot/.cache/uv", dag.cache_volume("uv-python-312"), owner="nonroot"
+            )
             .with_exec(["pip", "install", "hatch", "typos"])
+            .with_user("nonroot")
         )
 
     @function
