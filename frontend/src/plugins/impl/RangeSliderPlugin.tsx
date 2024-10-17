@@ -7,6 +7,7 @@ import { RangeSlider } from "../../components/ui/range-slider";
 import { Labeled } from "./common/labeled";
 import { cn } from "@/utils/cn";
 import { prettyScientificNumber } from "@/utils/numbers";
+import { isEqual } from "lodash-es";
 
 type T = number[];
 
@@ -124,6 +125,19 @@ const RangeSliderComponent = ({
           onValueCommit={(nextValue: number[]) => {
             if (debounce) {
               setValue(nextValue);
+            }
+          }}
+          // Sometimes onValueCommit doesn't trigger
+          // see https://github.com/radix-ui/primitives/issues/1760
+          // So we also set the value on pointer/mouse up
+          onPointerUp={() => {
+            if (debounce && !isEqual(internalValue, value)) {
+              setValue(internalValue);
+            }
+          }}
+          onMouseUp={() => {
+            if (debounce && !isEqual(internalValue, value)) {
+              setValue(internalValue);
             }
           }}
           valueMap={valueMap}
