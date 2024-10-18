@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.9.10"
 app = marimo.App(width="medium")
 
 
@@ -72,7 +72,7 @@ def __():
     )
     # or add your own md instance
     # duckdb.sql(f"ATTACH IF NOT EXISTS 'md:sample_data'")
-    return duckdb, mo
+    return duckdb, mo, sample_data
 
 
 @app.cell(hide_code=True)
@@ -200,7 +200,7 @@ def __(mo):
 
 
 @app.cell
-def __(MONTHS, duckdb, mo):
+def __(MONTHS, duckdb, hacker_news, mo, sample_data):
     month_select = mo.ui.multiselect(
         MONTHS,
         label="Month",
@@ -325,7 +325,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo, search_value):
+def __(hacker_news, mo, sample_data, search_value):
     keyword_results = mo.sql(
         f"""
         SELECT
