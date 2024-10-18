@@ -4,7 +4,7 @@
   "int": ["integer", "Int64"],
   "float": ["number", "Float64"],
   "datetime": ["date", "Datetime(time_unit='us', time_zone=None)"],
-  "struct": ["unknown", "Struct"],
+  "struct": ["unknown", "Struct({'a': Int64, 'b': Int64})"],
   "list": ["unknown", "List(Int64)"],
   "array": ["unknown", "List(Int64)"],
   "nulls": ["string", "String"],
