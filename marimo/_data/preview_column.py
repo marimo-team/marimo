@@ -45,7 +45,9 @@ def get_column_preview_dataframe(
         # Get the summary of the column
         try:
             summary = table.get_summary(column_name)
-        except Exception as e:
+        except BaseException as e:
+            # Catch-all: some libraries like Polars have bugs and raise
+            # BaseExceptions, which shouldn't crash the kernel
             LOGGER.warning(
                 "Failed to get summary for column %s in table %s",
                 column_name,

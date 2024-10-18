@@ -430,18 +430,23 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         # Get column summaries
         summaries: List[ColumnSummary] = []
         for column in self._manager.get_column_names():
-            summary = self._searched_manager.get_summary(column)
-            summaries.append(
-                ColumnSummary(
-                    column=column,
-                    nulls=summary.nulls,
-                    min=summary.min,
-                    max=summary.max,
-                    unique=summary.unique,
-                    true=summary.true,
-                    false=summary.false,
+            try:
+                summary = self._searched_manager.get_summary(column)
+                summaries.append(
+                    ColumnSummary(
+                        column=column,
+                        nulls=summary.nulls,
+                        min=summary.min,
+                        max=summary.max,
+                        unique=summary.unique,
+                        true=summary.true,
+                        false=summary.false,
+                    )
                 )
-            )
+            except BaseException:
+                # Catch-all: some libraries like Polars have bugs and raise
+                # BaseExceptions, which shouldn't crash the kernel
+                LOGGER.warning("Failed to get summary for column %s", column)
 
         # If we are above the limit to show charts,
         # we don't return the chart data

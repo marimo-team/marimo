@@ -494,7 +494,7 @@ const DatasetColumnPreview: React.FC<{
         size="icon"
         className="z-10 bg-background absolute right-1 -top-1"
         onClick={Events.stopPropagation(() => {
-          const code = `_df = mo.sql(f"SELECT '${column.name}' FROM ${table.name} LIMIT 100")`;
+          const code = `_df = mo.sql(f'SELECT "${column.name}" FROM ${table.name} LIMIT 100')`;
           onAddColumnChart(code);
         })}
       >

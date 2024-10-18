@@ -112,4 +112,45 @@ describe("getAICompletionBody", () => {
       code: "",
     });
   });
+
+  it("should handle dataset names with dots", () => {
+    // Set up test data in the Jotai store
+    const testDatasets = [
+      {
+        name: "dataset.with.dots",
+        columns: [
+          { name: "col1", type: "number" },
+          { name: "col2", type: "string" },
+        ],
+      },
+      {
+        name: "regular_dataset",
+        columns: [{ name: "col3", type: "boolean" }],
+      },
+    ];
+    store.set(datasetsAtom, { tables: testDatasets } as DatasetsState);
+
+    const input = "Use @dataset.with.dots and @regular_dataset for analysis";
+    const result = getAICompletionBody(input);
+
+    expect(result).toEqual({
+      includeOtherCode: "// Some other code",
+      context: {
+        schema: [
+          {
+            name: "dataset.with.dots",
+            columns: [
+              { name: "col1", type: "number" },
+              { name: "col2", type: "string" },
+            ],
+          },
+          {
+            name: "regular_dataset",
+            columns: [{ name: "col3", type: "boolean" }],
+          },
+        ],
+      },
+      code: "",
+    });
+  });
 });
