@@ -12,10 +12,24 @@ We provide the following variants:
 
 or any particular version of marimo; for example, `marimo:0.8.3`, `marimo:0.8.3-data`, `marimo:0.8.3-sql`.
 
+Each container is built on `3.12-slim`, but if you'd like to see different configurations, please file an issue or submit a PR!
+
 ## Running locally
 
 To run the container locally, you can use the following command:
 
 ```bash
 docker run -p 8080:8080 -it ghcr.io/marimo-team/marimo:latest-sql
+```
+
+## Use in a Dockerfile
+
+To use a prebuilt container in a Dockerfile, you can use the following command:
+
+```dockerfile
+FROM ghcr.io/marimo-team/marimo:latest-sql
+
+# Install any additional dependencies here
+
+CMD ["marimo", "edit", "--no-token", "-p", "8080", "--host", "0.0.0.0"]
 ```
