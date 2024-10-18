@@ -1,6 +1,6 @@
 @font-face {
-  font-family: "CalSans";
-  src: url("../CalSans-SemiBold.woff");
+  font-family: 'CalSans';
+  src: url('../CalSans-SemiBold.woff');
 }
 
 body .page {
@@ -13,7 +13,7 @@ body .page {
 }
 
 .sidebar-brand-text {
-  font-family: "CalSans";
+  font-family: 'CalSans';
   color: #1c7362;
   font-weight: 600;
   font-size: 1.85rem;
@@ -23,16 +23,17 @@ body .page {
 body {
   color-scheme: light;
 }
-body[data-theme="dark"] {
+body[data-theme='dark'] {
   color-scheme: dark;
 }
 
 h1,
 h2 {
-  font-family: "CalSans";
+  font-family: 'CalSans';
+  letter-spacing: 0.025em;
 }
 
-[data-theme="dark"] .sidebar-brand-text {
+[data-theme='dark'] .sidebar-brand-text {
   color: #fff;
 }
 
@@ -70,13 +71,13 @@ iframe.demo.xxlarge {
 /* Better formatting of signatures from https://github.com/sphinx-doc/sphinx/issues/1514#issuecomment-742703082 */
 /* Newlines (\a) and spaces (\20) before each parameter */
 .sig-param::before {
-  content: "\a\20\20";
+  content: '\a\20\20';
   white-space: pre;
 }
 
 /* Newline after the last parameter (so the closing bracket is on a new line) */
 dt em.sig-param:last-of-type::after {
-  content: "\a";
+  content: '\a';
   white-space: pre;
 }
 
@@ -94,7 +95,7 @@ figcaption {
   color: gray;
 }
 
-[data-theme="dark"] figcaption {
+[data-theme='dark'] figcaption {
   color: var(--color-content-foreground);
 }
 

@@ -1,31 +1,30 @@
 # MotherDuck
 
-MotherDuck is a cloud-based data warehouse that combines the power of DuckDB with the scalability of the cloud. This guide will help you integrate MotherDuck with marimo.
+[MotherDuck](https://motherduck.com/) is a cloud-based data warehouse that combines the power of DuckDB with the scalability of the cloud. This guide will help you integrate MotherDuck with marimo.
 
 ## 1. Connecting to MotherDuck
 
 To use MotherDuck as a data source, you'll need to install the `marimo[sql]` Python package.
 
-````bash
 ::::{tab-set}
 :::{tab-item} install with pip
 
 ```bash
-pip install marimo[sql]
-````
+pip install "marimo[sql]"
+```
 
 :::
 :::{tab-item} install with uv
 
 ```bash
-uv pip install marimo[sql]
+uv pip install "marimo[sql]"
 ```
 
 :::
 :::{tab-item} install with conda
 
 ```bash
-conda install -c conda-forge marimo[sql]
+conda install -c conda-forge marimo duckdb
 ```
 
 :::
@@ -54,7 +53,7 @@ Once you've authenticated, your MotherDuck tables get automatically discovered a
 <div align="center">
   <figure>
     <img src="/_static/motherduck/motherduck_db_discovery.png"/>
-    <figcaption>Attach to a MotherDuck database</figcaption>
+    <figcaption>Browse your MotherDuck databases</figcaption>
   </figure>
 </div>
 
