@@ -24,7 +24,10 @@ FieldTypes = Dict[ColumnName, Tuple[FieldType, ExternalDataType]]
 
 
 class TableManager(abc.ABC, Generic[T]):
-    DEFAULT_COL_LIMIT = 100
+    # Upper limit for column summaries
+    # The only sets the default to show column summaries,
+    # but it can be overridden by the user
+    DEFAULT_SUMMARY_CHARTS_COLUMN_LIMIT = 40
     # Upper limit for frontend table component to show column summary charts
     # to ensure browser performance
     DEFAULT_SUMMARY_CHARTS_ROW_LIMIT = 20_000

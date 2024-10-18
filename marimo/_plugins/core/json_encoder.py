@@ -64,6 +64,10 @@ class WebComponentEncoder(JSONEncoder):
         if isinstance(o, (dict, list)):
             return o
 
+        # Handle range
+        if isinstance(o, range):
+            return list(o)
+
         # Handle MIME objects
         if hasattr(o, "_mime_"):
             mimetype, data = o._mime_()
