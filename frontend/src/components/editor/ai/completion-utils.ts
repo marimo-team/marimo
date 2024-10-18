@@ -40,7 +40,7 @@ function extractDatasets(input: string): DataTable[] {
   const existingDatasets = Maps.keyBy(datasets, (dataset) => dataset.name);
 
   // Extract dataset mentions from the input
-  const mentionedDatasets = input.match(/@(\w+)/g) || [];
+  const mentionedDatasets = input.match(/@([\w.]+)/g) || [];
 
   // Filter to only include datasets that exist
   return mentionedDatasets
