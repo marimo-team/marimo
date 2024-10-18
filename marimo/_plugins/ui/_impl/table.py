@@ -192,6 +192,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
     - `page_size`: the number of rows to show per page.
       defaults to 10
     - `show_column_summaries`: whether to show column summaries
+      defaults to `True` when the table has less than 40 columns, `False` otherwise
     - `format_mapping`: a mapping from column names to formatting strings
     or functions
     - `freeze_columns_left`: list of column names to freeze on the left
@@ -213,7 +214,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         pagination: Optional[bool] = None,
         selection: Optional[Literal["single", "multi"]] = "multi",
         page_size: int = 10,
-        show_column_summaries: bool = True,
+        show_column_summaries: Optional[bool] = None,
         format_mapping: Optional[
             Dict[str, Union[str, Callable[..., Any]]]
         ] = None,
@@ -243,18 +244,15 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         self._data = data
         # Holds the original data
         self._manager = get_table_manager(data)
-        self._show_column_summaries = show_column_summaries
 
-        if (
-            total_cols := self._manager.get_num_columns()
-        ) > TableManager.DEFAULT_COL_LIMIT:
-            raise ValueError(
-                f"Your table has {total_cols} columns, "
-                "which is greater than the maximum allowed columns of "
-                f"{TableManager.DEFAULT_COL_LIMIT} for mo.ui.table(). "
-                "If this is a problem, please open a GitHub issue: "
-                "https://github.com/marimo-team/marimo/issues"
+        # Set the default value for show_column_summaries,
+        # if it is not set by the user
+        if show_column_summaries is None:
+            show_column_summaries = (
+                self._manager.get_num_columns()
+                <= TableManager.DEFAULT_SUMMARY_CHARTS_COLUMN_LIMIT
             )
+        self._show_column_summaries = show_column_summaries
 
         if _internal_column_charts_row_limit is not None:
             self._column_charts_row_limit = _internal_column_charts_row_limit

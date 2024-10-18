@@ -294,12 +294,9 @@ def test_value_with_search_then_selection() -> None:
     assert list(table._convert_value(["2"])) == [{"value": "cherry"}]
 
 
-def test_table_with_too_many_columns_fails() -> None:
+def test_table_with_too_many_columns_passes() -> None:
     data = {str(i): [1] for i in range(101)}
-    with pytest.raises(ValueError) as e:
-        ui.table(data)
-
-    assert "greater than the maximum allowed columns" in str(e)
+    assert ui.table(data) is not None
 
 
 def test_table_with_too_many_rows_gets_clamped() -> None:
@@ -517,3 +514,45 @@ def test_table_with_filtered_columns_polars() -> None:
     )
 
     assert result.total_rows == 1
+
+
+def test_show_column_summaries_default():
+    # Test default behavior (True for < 40 columns, False otherwise)
+    small_data = {"col" + str(i): range(5) for i in range(39)}
+    table_small = ui.table(small_data)
+    assert table_small._show_column_summaries is True
+    assert table_small._component_args["show-column-summaries"] is True
+
+    large_data = {"col" + str(i): range(5) for i in range(41)}
+    table_large = ui.table(large_data)
+    assert table_large._show_column_summaries is False
+    assert table_large._component_args["show-column-summaries"] is False
+
+    # explicitly set to True
+    table_true = ui.table(large_data, show_column_summaries=True)
+    assert table_true._show_column_summaries is True
+    assert table_true._component_args["show-column-summaries"] is True
+
+
+def test_show_column_summaries_explicit():
+    # Test explicit setting of show_column_summaries
+    data = {"a": [1, 2, 3], "b": [4, 5, 6]}
+    table_true = ui.table(data, show_column_summaries=True)
+    assert table_true._show_column_summaries is True
+    assert table_true._component_args["show-column-summaries"] is True
+
+    table_false = ui.table(data, show_column_summaries=False)
+    assert table_false._show_column_summaries is False
+    assert table_false._component_args["show-column-summaries"] is False
+
+
+def test_show_column_summaries_disabled():
+    # Test when show_column_summaries is explicitly set to False
+    table = ui.table(
+        {"a": [1, 2, 3], "b": [4, 5, 6]}, show_column_summaries=False
+    )
+
+    summaries = table.get_column_summaries(EmptyArgs())
+    assert summaries.is_disabled is False
+    assert summaries.data is None
+    assert len(summaries.summaries) == 0
