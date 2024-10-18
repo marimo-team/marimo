@@ -175,6 +175,15 @@ python = ["3.9","3.10", "3.11", "3.12"]
 [tool.hatch.envs.test.scripts]
 test = "pytest{env:HATCH_TEST_ARGS:} {args:tests}"
 default = "pytest{env:HATCH_TEST_ARGS:} {args:tests}"
+# This is used externally from the narwhals repo to run our tests from their repo.
+# This should include any tests that may use narwhals. 
+# It is ok if we test more than narwhals here, but we should not test less.
+test-narwhals = """
+    pytest{env:HATCH_TEST_ARGS:} \
+        tests/_data/ \
+        tests/_plugins/ui/_impl/ \
+        tests/_utils/test_narwhals_utils.py
+"""
 
 [tool.hatch.envs.test-optional]
 template = "test"
