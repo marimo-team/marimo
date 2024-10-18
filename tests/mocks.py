@@ -52,14 +52,14 @@ def snapshotter(current_file: str) -> Callable[[str, str], None]:
         if is_json:
             import json
 
-            expected = json.loads(expected)
-            result = json.loads(result)
+            expected_json = json.loads(expected)
+            result_json = json.loads(result)
 
-            if expected != result:
+            if expected_json != result_json:
                 write_result()
                 print("Snapshot updated")
 
-            assert expected == result
+            assert expected_json == result_json
         else:
             text_diff = "\n".join(
                 list(
