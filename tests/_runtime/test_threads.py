@@ -1,7 +1,6 @@
 import time
 
 from marimo._runtime.runtime import Kernel
-
 from tests.conftest import ExecReqProvider
 
 
