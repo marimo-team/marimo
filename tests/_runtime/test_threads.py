@@ -31,5 +31,5 @@ async def test_set_ui_element_value_lensed(
     )
 
     # thread run should be basically instantaneous, but sleep just in case ...
-    time.sleep(0.01)
+    time.sleep(0.01)  # noqa: ASYNC251
     assert k.globals["ctx_main"] == k.globals["ctx_thread"]
