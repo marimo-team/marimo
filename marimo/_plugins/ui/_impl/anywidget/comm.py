@@ -145,6 +145,10 @@ class MarimoComm:
 
     def flush(self) -> None:
         if not self.ui_element_id:
+            # If there is no ui_element_id, then it has not been rendered
+            # to the frontend, and just exists in python
+            # We can drop these instead of holding onto them.
+            self._publish_message_buffer = []
             return
 
         from marimo._messaging.ops import SendUIElementMessage
