@@ -15,3 +15,7 @@
 ```{eval-rst}
 .. autofunction:: marimo.notebook_dir
 ```
+
+```{eval-rst}
+.. autoclass:: marimo.Thread
+```
