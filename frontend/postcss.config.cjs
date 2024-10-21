@@ -9,6 +9,7 @@ const config = {
         })
       : undefined,
     process.env.NODE_ENV === "production" ? require("cssnano") : undefined,
+    require("@csstools/postcss-light-dark-function"),
     require("autoprefixer"),
   ],
 };
