@@ -41,6 +41,12 @@ export default defineConfig({
         ? JSON.stringify(packageJson.version)
         : JSON.stringify("latest"),
   },
+  server: {
+    headers: {
+      "Cross-Origin-Opener-Policy": "same-origin",
+      "Cross-Origin-Embedder-Policy": "require-corp",
+    },
+  },
   plugins: [htmlDevPlugin(), react({ tsDecorators: true }), tsconfigPaths()],
   build: {
     emptyOutDir: true,

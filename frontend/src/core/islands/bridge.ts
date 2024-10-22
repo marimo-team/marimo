@@ -12,6 +12,8 @@ import workerUrl from "./worker/worker.tsx?worker&url";
 
 import { createMarimoFile, parseMarimoIslandApps } from "./parse";
 import { Logger } from "@/utils/Logger";
+import { store } from "../state/jotai";
+import { islandsInitializedAtom } from "./state";
 
 export class IslandsPyodideBridge implements RunRequests, EditRequests {
   /**
@@ -36,11 +38,9 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     // TODO: abstract out into a worker constructor
 
     // . in front of workerUrl is necessary to make it a relative import
-    const url = workerUrl.startsWith("./")
+    const url = import.meta.env.DEV
       ? workerUrl
-      : workerUrl.startsWith("/")
-        ? `.${workerUrl}`
-        : `./${workerUrl}`;
+      : makeRelativeWorkerUrl(workerUrl);
     const js = `import ${JSON.stringify(new URL(url, import.meta.url))}`;
     const blob = new Blob([js], { type: "application/javascript" });
     const objURL = URL.createObjectURL(blob);
@@ -64,8 +64,8 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     this.rpc = getWorkerRPC<WorkerSchema>(worker);
 
     // Listeners
+    const apps = parseMarimoIslandApps();
     this.rpc.addMessageListener("ready", () => {
-      const apps = parseMarimoIslandApps();
       for (const app of apps) {
         Logger.debug("Starting session for app", app.id);
         const file = createMarimoFile(app);
@@ -77,9 +77,11 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
       }
     });
     this.rpc.addMessageListener("initialized", () => {
+      store.set(islandsInitializedAtom, true);
       this.initialized.resolve();
     });
     this.rpc.addMessageListener("initializedError", ({ error }) => {
+      store.set(islandsInitializedAtom, error);
       this.initialized.reject(new Error(error));
     });
     this.rpc.addMessageListener("kernelMessage", ({ message }) => {
@@ -168,4 +170,12 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
       payload: operation,
     });
   }
+}
+
+function makeRelativeWorkerUrl(url: string) {
+  return url.startsWith("./")
+    ? url
+    : url.startsWith("/")
+      ? `.${url}`
+      : `./${url}`;
 }

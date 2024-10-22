@@ -125,13 +125,13 @@ class MarimoIslandStub:
             data-reactive="{json.dumps(is_reactive)}"
         >
             <marimo-cell-output>
-            {output if output and display_output else ""}
+            {output.text if output and display_output else ""}
             </marimo-cell-output>
             {code_block}
         </marimo-island>
         """
-            ).strip()
-        )
+            )
+        ).strip()
 
 
 class MarimoIslandGenerator:
@@ -151,7 +151,7 @@ class MarimoIslandGenerator:
     # Example
 
     ```python
-    from marimo import MarimoIslandGenerator
+    from marimo.islands import MarimoIslandGenerator
 
     generator = MarimoIslandGenerator()
     block1 = generator.add_code("import marimo as mo")
@@ -370,10 +370,9 @@ class MarimoIslandGenerator:
         """
 
         init_cell_id = self._app.cell_manager.create_cell_id()
-        init_input = "<marimo-cell-code hidden> '' </marimo-cell-code>"
         init_output = """
-        <div class="marimo" style="--tw-bg-opacity: 0;">
-          <div class="flex flex-col items-center justify-center">
+        <div class="marimo">
+          <div class="flex flex-col flex-1 items-center justify-center">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="24"
@@ -397,12 +396,12 @@ class MarimoIslandGenerator:
             <marimo-island
                 data-app-id="{self._app_id}"
                 data-cell-id="{init_cell_id}"
-                data-reactive="{json.dumps(True)}"
+                data-reactive="{json.dumps(False)}"
             >
                 <marimo-cell-output>
                 {init_output}
                 </marimo-cell-output>
-                {init_input}
+                <marimo-cell-code hidden></marimo-cell-code>
             </marimo-island>
             """
         ).strip()

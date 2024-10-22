@@ -2,7 +2,6 @@
 import { invariant } from "@/utils/invariant";
 import type { CellId } from "../../cells/ids";
 import { store } from "../../state/jotai";
-import { notebookAtom } from "../../cells/cells";
 import ReactDOM, { type Root } from "react-dom/client";
 import { isValidElement } from "react";
 import { extractIslandCodeFromEmbed } from "../parse";
@@ -12,6 +11,7 @@ import { renderHTML } from "@/plugins/core/RenderHTML";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBoundary } from "@/components/editor/boundary/ErrorBoundary";
 import { UI_ELEMENT_REGISTRY } from "@/core/dom/uiregistry";
+import { shouldShowIslandsWarningIndicatorAtom } from "../state";
 
 /**
  * A custom element that renders the output of a marimo cell
@@ -28,6 +28,16 @@ export class MarimoIslandElement extends HTMLElement {
   constructor() {
     super();
     this.classList.add(MarimoIslandElement.styleNamespace);
+
+    // If we warn that islands are still loading, we fade them out.
+    store.sub(shouldShowIslandsWarningIndicatorAtom, () => {
+      const loading = store.get(shouldShowIslandsWarningIndicatorAtom);
+      if (loading) {
+        this.style.setProperty("opacity", "0.5");
+      } else {
+        this.style.removeProperty("opacity");
+      }
+    });
   }
 
   get appId(): string {
@@ -36,13 +46,8 @@ export class MarimoIslandElement extends HTMLElement {
   }
 
   get cellId(): CellId {
-    // Get the cell ID from the code
-    invariant(this.dataset.cellIdx, "Missing data-cell-idx attribute");
-    const { cellIds } = store.get(notebookAtom);
-    const idx = Number.parseInt(this.dataset.cellIdx, 10);
-    const cellId = cellIds.inOrderIds.at(idx);
-    invariant(cellId, "Missing cell ID");
-    return cellId;
+    invariant(this.dataset.cellId, "Missing data-cell-id attribute");
+    return this.dataset.cellId as CellId;
   }
 
   get code(): string {
@@ -72,6 +77,10 @@ export class MarimoIslandElement extends HTMLElement {
     editor: JSX.Element | null,
   ) {
     const alwaysShowRun = !!editor;
+    html = html.trim();
+    const isEmpty = html === "<span></span>" || html === "";
+    const initialHtml = isEmpty ? null : renderHTML({ html });
+
     this.root?.render(
       <ErrorBoundary>
         <Provider store={store}>
@@ -81,7 +90,7 @@ export class MarimoIslandElement extends HTMLElement {
               codeCallback={codeCallback}
               alwaysShowRun={alwaysShowRun}
             >
-              {renderHTML({ html })}
+              {initialHtml}
             </MarimoOutputWrapper>
             {editor}
           </TooltipProvider>

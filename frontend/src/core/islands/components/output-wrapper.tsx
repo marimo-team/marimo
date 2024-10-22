@@ -28,7 +28,7 @@ interface IconButtonProps {
 }
 
 const IconButton: React.FC<IconButtonProps> = ({ tooltip, icon, action }) => (
-  <Tooltip content={tooltip}>
+  <Tooltip content={tooltip} delayDuration={200}>
     <Button
       size="icon"
       variant="outline"
@@ -81,9 +81,12 @@ export const MarimoOutputWrapper: React.FC<Props> = ({
       }
     }),
   );
+  // Set pressed to false if the window loses focus
+  useEventListener(window, "blur", () => setPressed(false));
+  useEventListener(window, "mouseleave", () => setPressed(false));
 
   if (!runtime?.output) {
-    return children;
+    return <div className="relative min-h-6 empty:hidden">{children}</div>;
   }
 
   // No output to display

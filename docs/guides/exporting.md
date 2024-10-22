@@ -8,7 +8,6 @@ marimo export
 
 ## Export to static HTML
 
-
 ### Export from a running notebook
 
 Export the current view your notebook to static HTML via the notebook
@@ -111,10 +110,7 @@ In order to use marimo islands, you need to import the necessary JS/CSS headers 
 ```html
 <head>
   <!-- marimo js/ccs -->
-  <script
-    type="module"
-    src="https://cdn.jsdelivr.net/npm/@marimo-team/islands@<version>/dist/main.js"
-  ></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@marimo-team/islands@<version>/dist/main.js"></script>
   <link
     href="https://cdn.jsdelivr.net/npm/@marimo-team/islands@<version>/dist/style.css"
     rel="stylesheet"
@@ -152,7 +148,7 @@ In order to use marimo islands, you need to import the necessary JS/CSS headers 
 While you can generate the HTML code for islands yourself, it it recommend to use our `MarimoIslandGenerator` class to generate the HTML code for you.
 
 ```{eval-rst}
-.. autoclass:: marimo.MarimoIslandGenerator
+.. autoclass:: marimo.islands.MarimoIslandGenerator
   :members:
 
   .. autoclasstoc::

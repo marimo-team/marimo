@@ -27,6 +27,7 @@ __all__ = [
     # Other namespaces
     "ai",
     "ui",
+    "islands",
     # Application elements
     "accordion",
     "app_meta",
@@ -82,6 +83,7 @@ __all__ = [
 ]
 __version__ = "0.9.11"
 
+import marimo._islands as islands
 from marimo._ast.app import App
 from marimo._ast.cell import Cell
 from marimo._islands.island_generator import MarimoIslandGenerator

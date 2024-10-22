@@ -18,7 +18,12 @@ export class MimeRendererPlugin implements IStatelessPlugin<Data> {
 
   validator = z.object({
     mime: z.string().transform((val) => val as OutputMessage["mimetype"]),
-    data: z.union([z.string(), z.null(), z.record(z.unknown())]),
+    data: z.union([
+      z.string(),
+      z.null(),
+      z.record(z.unknown()),
+      z.array(z.any()),
+    ]),
   });
 
   render({ data }: IStatelessPluginProps<Data>): JSX.Element {
