@@ -30,6 +30,12 @@ import { sendComponentValues } from "../network/requests";
 import type { RequestId } from "../network/DeferredRequestRegistry";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import type { UIElementId } from "../cells/ids";
+import { MarimoValueInputEvent } from "../dom/events";
+import {
+  shouldShowIslandsWarningIndicatorAtom,
+  userTriedToInteractWithIslandsAtom,
+} from "./state";
+import { dismissIslandsLoadingToast, toastIslandsLoading } from "./toast";
 
 /**
  * Main entry point for the js bundle for embedded marimo apps.
@@ -42,7 +48,7 @@ export async function initialize() {
   // This will display all the static HTML content.
   initializePlugins();
 
-  // Add 'marimo' class name to all `marimo-island` elements.
+  // Find all `marimo-island` elements.
   const islands = document.querySelectorAll<HTMLElement>(
     MarimoIslandElement.tagName,
   );
@@ -52,12 +58,29 @@ export async function initialize() {
     return;
   }
 
+  // Add 'marimo' class name to all `marimo-island` elements.
   for (const island of islands) {
     island.classList.add(MarimoIslandElement.styleNamespace);
   }
 
   const actions = createNotebookActions((action) => {
     store.set(notebookAtom, (state) => notebookReducer(state, action));
+  });
+
+  // Define the custom element for the marimo-island tag.
+  requestAnimationFrame(() => {
+    defineCustomElement(MarimoIslandElement.tagName, MarimoIslandElement);
+  });
+
+  // If the user has interacted with the islands before they are initialized,
+  // we show the loading toast.
+  store.sub(shouldShowIslandsWarningIndicatorAtom, () => {
+    const showing = store.get(shouldShowIslandsWarningIndicatorAtom);
+    if (showing) {
+      toastIslandsLoading();
+    } else {
+      dismissIslandsLoadingToast();
+    }
   });
 
   // Consume messages from the kernel
@@ -87,9 +110,6 @@ export async function initialize() {
           setCapabilities: Functions.NOOP,
           onError: Logger.error,
         });
-        // Define the custom element for the marimo-island tag.
-        // This comes after initializing since this reads from the store.
-        defineCustomElement(MarimoIslandElement.tagName, MarimoIslandElement);
         return;
       case "completed-run":
         return;
@@ -143,6 +163,18 @@ export async function initialize() {
         logNever(msg);
     }
   });
+
+  // Set the user tried to interact with islands
+  // before they are initialized.
+  document.addEventListener(
+    MarimoValueInputEvent.TYPE,
+    () => {
+      store.set(userTriedToInteractWithIslandsAtom, true);
+    },
+    {
+      once: true,
+    },
+  );
 
   // Start the runtime
   RuntimeState.INSTANCE.start(sendComponentValues);

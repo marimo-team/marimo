@@ -14,7 +14,7 @@ pnpm dev:islands
 
 ```bash
 # Generate
-python3 ./islands/generate.py > islands/__demo__/index.html
+uv run ./islands/generate.py > islands/__demo__/index.html
 # Run the Vite server
 pnpm dev:islands
 ```

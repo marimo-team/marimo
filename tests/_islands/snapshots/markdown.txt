@@ -1,0 +1,18 @@
+<marimo-island
+            data-app-id="main"
+            data-cell-id="Hbol"
+            data-reactive="true"
+        >
+            <marimo-cell-output>
+            <span class="markdown prose dark:prose-invert"><h1 id="hello-markdown">Hello, Markdown!</h1>
+<span class="paragraph">This is a paragsraph.</span>
+<div class="codehilite"><pre><span></span><code><span class="n">mo</span><span class="o">.</span><span class="n">md</span><span class="p">(</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    # Hello, Markdown!</span>
+<span class="sd">    This is a paragraph.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+<span class="p">)</span>
+</code></pre></div></span>
+            </marimo-cell-output>
+            <marimo-cell-code hidden>%0Aimport%20marimo%20as%20mo%0Amo.md(%0A%20%20%20%20%22%22%22%0A%20%20%20%20%23%20Hello%2C%20Markdown!%0A%0A%20%20%20%20This%20is%20a%20paragsraph.%0A%0A%20%20%20%20%60%60%60python3%0A%20%20%20%20mo.md(%0A%20%20%20%20%20%20%20%20'''%0A%20%20%20%20%20%20%20%20%23%20Hello%2C%20Markdown!%0A%0A%20%20%20%20%20%20%20%20This%20is%20a%20paragraph.%0A%20%20%20%20%20%20%20%20'''%0A%20%20%20%20)%0A%20%20%20%20%60%60%60%0A%20%20%20%20%22%22%22%0A)%0A</marimo-cell-code>
+        </marimo-island>

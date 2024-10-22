@@ -23,7 +23,7 @@ if [ $? -eq 0 ]; then
   exit 1
 fi
 
-echo "[validate: data uri does not convert data:video/mp2t]"
+echo "[validate: data uri does not contain data:video/mp2t]"
 grep -R "data:video/mp2t" $(pwd)/dist
 if [ $? -eq 0 ]; then
   echo "mininification misencoded typescript data uri."

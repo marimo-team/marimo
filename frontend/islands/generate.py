@@ -1,26 +1,45 @@
-#!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "marimo",
+# ]
+# [tool.uv.sources]
+# marimo = { path = "../../", editable = true }
+# ///
 
 import asyncio
 from textwrap import dedent
-from marimo import experimental_MarimoIslandGenerator
+import marimo
 
-generator = experimental_MarimoIslandGenerator()
+generator = marimo.MarimoIslandGenerator()
 
 
 def run():
 
     stubs = [
+        # Basic
         generator.add_code("import marimo as mo"),
         generator.add_code("mo.md('Hello, islands!')"),
+
+        # Slider
         generator.add_code(
             """
         slider = mo.ui.slider(0, 100, 2)
         slider
         """
         ),
+        generator.add_code(
+            """
+        mo.md(f"Slider value: {slider.value}")
+        """
+        ),
+
+        # display_code=True
         generator.add_code("""
         mo.md("We can also show the island code!")
         """, display_code=True),
+
+        # is_reactive=False
         generator.add_code("""
         # Also run expensive outputs without performing them in the browser
         import matplotlib.pyplot as plt
@@ -30,11 +49,16 @@ def run():
         plt.plot(x, y)
         plt.gca()
         """, display_code=True, is_reactive=False),
+
+        # Error
         generator.add_code(
-            """
-        mo.md(f"Slider value: {slider.value}")
+        """
+        import idk_package
+        "Should raise an error"
         """
         ),
+
+        # Markdown
         generator.add_code(
             """
         mo.md(
@@ -63,6 +87,8 @@ def run():
         )
         """
         ),
+
+        # LaTeX
         generator.add_code(
             """
         mo.md(
@@ -121,6 +147,9 @@ def run():
               rel="stylesheet"
               crossorigin="anonymous"
             /> -->
+
+            <!-- If running from Vite -->
+            <!-- <script type="module" src="/src/core/islands/main.ts"></script> -->
         </head>
         <body>
 
@@ -132,19 +161,20 @@ def run():
         <br />
         <br />
         <hr />
-        <div class="bg-blue-500 p-4 border-2 border-red-500 bg-background">
+        <div class="bg-background p-4 border-2 text-primary font-bold bg-background">
         this should not be affected by global tailwind styles
         </div>
         <div class="marimo">
-        <div class="bg-background p-4 border-2 border-red-500 text-foreground">
+        <div class="bg-background p-4 border-2 text-primary font-bold text-foreground">
             this should be affected by global tailwind styles
         </div>
         </div>
         <div class="marimo">
         <div class="dark">
-            <div class="bg-background p-4 border-2 border-red-500 text-foreground">
+            <div class="bg-background p-4 border-2 text-primary font-bold text-foreground">
             this should be affected by global tailwind styles (dark)
             </div>
+        </div>
         </div>
         </div>
 
