@@ -109,7 +109,7 @@
     "lodash-es": "^4.17.21",
     "lucide-react": "^0.428.0",
     "lz-string": "^1.5.0",
-    "mermaid": "^10.9.1",
+    "mermaid": "^11.3.0",
     "partysocket": "1.0.2",
     "path-to-regexp": "^8.0.0",
     "plotly.js": "^2.34.0",
