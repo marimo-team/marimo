@@ -106,7 +106,9 @@ class MarimoIslandStub:
         # make it present for reactivity, unless reactivity is disabled.
         if display_code:
             # TODO: Allow for non-disabled code editors.
-            code_block = as_html(code_editor(self.code, disabled=False)).text
+            code_block = as_html(
+                code_editor(self.code.strip(), disabled=False)
+            ).text
         else:
             code_block = (
                 "<marimo-cell-code hidden>"
