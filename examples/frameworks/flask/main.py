@@ -43,7 +43,7 @@ users = {"admin": generate_password_hash("password123")}
 app_names: list[str] = []
 marimo_app = marimo.create_asgi_app()
 
-for filename in os.listdir(ui_dir):
+for filename in sorted(os.listdir(ui_dir)):
     if filename.endswith(".py"):
         app_name = os.path.splitext(filename)[0]
         app_path = os.path.join(ui_dir, filename)
