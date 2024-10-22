@@ -297,11 +297,19 @@ span.linenos.special {
 .stderr .codehilite {
   .highlight {
     /* Chosen to match error coloring in other parts of notebook. */
-    color: color-mix(in srgb, var(--error), transparent calc((1 - var(--tw-text-opacity)) * 100%));
+    color: color-mix(
+      in srgb,
+      var(--error),
+      transparent calc((1 - var(--tw-text-opacity)) * 100%)
+    );
   }
 
   .gt {
-    color: color-mix(in srgb, var(--error), transparent calc((1 - var(--tw-text-opacity)) * 100%));
+    color: color-mix(
+      in srgb,
+      var(--error),
+      transparent calc((1 - var(--tw-text-opacity)) * 100%)
+    );
   }
 
   .nb {

@@ -108,23 +108,23 @@
 }
 
 .cm .cm-completionIcon-function::after {
-  content: 'λ';
+  content: "λ";
 }
 
 .cm .cm-completionIcon-class::after {
-  content: 'τ';
+  content: "τ";
 }
 
 .cm .cm-completionIcon-module::after {
-  content: 'μ';
+  content: "μ";
 }
 
 .cm .cm-completionIcon-statement::after {
-  content: 'χ';
+  content: "χ";
 }
 
 .cm .cm-completionIcon-keyword::after {
-  content: 'κ';
+  content: "κ";
 }
 
 /* -- Panels -- */

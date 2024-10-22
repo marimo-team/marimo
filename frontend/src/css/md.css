@@ -6,7 +6,8 @@
 
 .markdown p:last-child,
 /* This is needed when markdown is used inside buttons or labels  */
-.markdown .paragraph:last-child {
+  .markdown
+  .paragraph:last-child {
   margin-block-end: 0;
 }
 

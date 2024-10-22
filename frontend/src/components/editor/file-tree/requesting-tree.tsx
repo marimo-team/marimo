@@ -90,7 +90,7 @@ export class RequestingTree {
 
   async move(fromIds: string[], parentId: string | null): Promise<void> {
     const parentPath = parentId
-      ? this.delegate.find(parentId)?.data.path ?? parentId
+      ? (this.delegate.find(parentId)?.data.path ?? parentId)
       : this.rootPath;
 
     await Promise.all(
@@ -122,7 +122,7 @@ export class RequestingTree {
 
   async createFile(name: string, parentId: string | null): Promise<void> {
     const parentPath = parentId
-      ? this.delegate.find(parentId)?.data.path ?? parentId
+      ? (this.delegate.find(parentId)?.data.path ?? parentId)
       : this.rootPath;
     const newFile = await this.callbacks
       .createFileOrFolder({ path: parentPath, type: "file", name: name })
@@ -142,7 +142,7 @@ export class RequestingTree {
 
   async createFolder(name: string, parentId: string | null): Promise<void> {
     const parentPath = parentId
-      ? this.delegate.find(parentId)?.data.path ?? parentId
+      ? (this.delegate.find(parentId)?.data.path ?? parentId)
       : this.rootPath;
     const newFolder = await this.callbacks
       .createFileOrFolder({ path: parentPath, type: "directory", name: name })
