@@ -69,7 +69,7 @@
     data-reactive="true"
 >
     <marimo-cell-output>
-    <marimo-ui-element object-id='vblA-0' random-id='b2824774-605c-4354-a178-f46414b6215f'><marimo-slider data-initial-value='0' data-label='null' data-start='0' data-stop='100' data-step='2' data-steps='[]' data-debounce='false' data-orientation='&quot;horizontal&quot;' data-show-value='false' data-full-width='false'></marimo-slider></marimo-ui-element>
+    <marimo-ui-element object-id='vblA-0' random-id='eb5f2816-d9cf-4b03-bae6-6c67925d4253'><marimo-slider data-initial-value='0' data-label='null' data-start='0' data-stop='100' data-step='2' data-steps='[]' data-debounce='false' data-orientation='&quot;horizontal&quot;' data-show-value='false' data-full-width='false'></marimo-slider></marimo-ui-element>
     </marimo-cell-output>
     <marimo-cell-code hidden>%0Aslider%20%3D%20mo.ui.slider(0%2C%20100%2C%202)%0Aslider%0A</marimo-cell-code>
 </marimo-island>
@@ -91,7 +91,7 @@
     <marimo-cell-output>
     <span class="markdown prose dark:prose-invert"><span class="paragraph">We can also show the island code!</span></span>
     </marimo-cell-output>
-    <marimo-ui-element object-id='6c8f1177-76c6-4bc2-901e-4638de88d1af' random-id='6c8f1177-76c6-4bc2-901e-4638de88d1af'><marimo-code-editor data-initial-value='&quot;&#92;nmo.md(&#92;&quot;We can also show the island code!&#92;&quot;)&#92;n&quot;' data-label='null' data-language='&quot;python&quot;' data-placeholder='&quot;&quot;' data-disabled='false'></marimo-code-editor></marimo-ui-element>
+    <marimo-ui-element object-id='135dcce7-6c7f-49fe-853d-fbcb784342fa' random-id='135dcce7-6c7f-49fe-853d-fbcb784342fa'><marimo-code-editor data-initial-value='&quot;mo.md(&#92;&quot;We can also show the island code!&#92;&quot;)&quot;' data-label='null' data-language='&quot;python&quot;' data-placeholder='&quot;&quot;' data-disabled='false'></marimo-code-editor></marimo-ui-element>
 </marimo-island>
 <marimo-island
     data-app-id="main"
@@ -101,7 +101,7 @@
     <marimo-cell-output>
     <marimo-mime-renderer data-mime='&quot;application/vnd.marimo+error&quot;' data-data='[{&quot;msg&quot;: &quot;This cell raised an exception: ModuleNotFoundError(&#x27;No module named &#x27;matplotlib&#x27;&#x27;)&quot;, &quot;exception_type&quot;: &quot;ModuleNotFoundError&quot;, &quot;raising_cell&quot;: null, &quot;type&quot;: &quot;exception&quot;}]'></marimo-mime-renderer>
     </marimo-cell-output>
-    <marimo-ui-element object-id='a7294821-41f8-4750-b9de-89bdf0775e01' random-id='a7294821-41f8-4750-b9de-89bdf0775e01'><marimo-code-editor data-initial-value='&quot;&#92;n# Also run expensive outputs without performing them in the browser&#92;nimport matplotlib.pyplot as plt&#92;nimport numpy as np&#92;nx = np.linspace(0, 2*np.pi, 100)&#92;ny = np.sin(x)&#92;nplt.plot(x, y)&#92;nplt.gca()&#92;n&quot;' data-label='null' data-language='&quot;python&quot;' data-placeholder='&quot;&quot;' data-disabled='false'></marimo-code-editor></marimo-ui-element>
+    <marimo-ui-element object-id='332c9909-e441-462a-9faa-6a60625e808b' random-id='332c9909-e441-462a-9faa-6a60625e808b'><marimo-code-editor data-initial-value='&quot;# Also run expensive outputs without performing them in the browser&#92;nimport matplotlib.pyplot as plt&#92;nimport numpy as np&#92;nx = np.linspace(0, 2*np.pi, 100)&#92;ny = np.sin(x)&#92;nplt.plot(x, y)&#92;nplt.gca()&quot;' data-label='null' data-language='&quot;python&quot;' data-placeholder='&quot;&quot;' data-disabled='false'></marimo-code-editor></marimo-ui-element>
 </marimo-island>
 <marimo-island
     data-app-id="main"
@@ -114,25 +114,56 @@
     <marimo-cell-code hidden>%0Aimport%20idk_package%0A%22Should%20raise%20an%20error%22%0A</marimo-cell-code>
 </marimo-island>
 <marimo-island
-    data-app-id="main"
-    data-cell-id="SFPL"
-    data-reactive="true"
->
-    <marimo-cell-output>
-    <span class="markdown prose dark:prose-invert"><h1 id="hello-markdown">Hello, Markdown!</h1><span class="paragraph">Use marimo's "<code>md</code>" function to embed rich text into your marimoapps. This function compiles Markdown into HTML that marimocan display.</span><span class="paragraph">For example, here's the code that rendered the above title andparagraph:</span><div class="codehilite"><pre><span></span><code><span class="n">mo</span><span class="o">.</span><span class="n">md</span><span class="p">(</span><span class="w">    </span><span class="sd">&#39;&#39;&#39;</span><span class="sd">    # Hello, Markdown!</span><span class="sd">    Use marimo&#39;s &quot;`md`&quot; function to embed rich text into your marimo</span><span class="sd">    apps. This function compiles your Markdown into HTML that marimo</span><span class="sd">    can display.</span><span class="sd">    &#39;&#39;&#39;</span><span class="p">)</span></code></pre></div></span>
-    </marimo-cell-output>
-    <marimo-cell-code hidden>%0Amo.md(%0A%20%20%20%20%22%22%22%0A%20%20%20%20%23%20Hello%2C%20Markdown!%0A%0A%20%20%20%20Use%20marimo's%20%22%60md%60%22%20function%20to%20embed%20rich%20text%20into%20your%20marimo%0A%20%20%20%20apps.%20This%20function%20compiles%20Markdown%20into%20HTML%20that%20marimo%0A%20%20%20%20can%20display.%0A%0A%20%20%20%20For%20example%2C%20here's%20the%20code%20that%20rendered%20the%20above%20title%20and%0A%20%20%20%20paragraph%3A%0A%0A%20%20%20%20%60%60%60python3%0A%20%20%20%20mo.md(%0A%20%20%20%20%20%20%20%20'''%0A%20%20%20%20%20%20%20%20%23%20Hello%2C%20Markdown!%0A%0A%20%20%20%20%20%20%20%20Use%20marimo's%20%22%60md%60%22%20function%20to%20embed%20rich%20text%20into%20your%20marimo%0A%20%20%20%20%20%20%20%20apps.%20This%20function%20compiles%20your%20Markdown%20into%20HTML%20that%20marimo%0A%20%20%20%20%20%20%20%20can%20display.%0A%20%20%20%20%20%20%20%20'''%0A%20%20%20%20)%0A%20%20%20%20%60%60%60%0A%20%20%20%20%22%22%22%0A)%0A</marimo-cell-code>
-</marimo-island>
+            data-app-id="main"
+            data-cell-id="SFPL"
+            data-reactive="true"
+        >
+            <marimo-cell-output>
+            <span class="markdown prose dark:prose-invert"><h1 id="hello-markdown">Hello, Markdown!</h1>
+<span class="paragraph">Use marimo's "<code>md</code>" function to embed rich text into your marimo
+apps. This function compiles Markdown into HTML that marimo
+can display.</span>
+<span class="paragraph">For example, here's the code that rendered the above title and
+paragraph:</span>
+<div class="codehilite"><pre><span></span><code><span class="n">mo</span><span class="o">.</span><span class="n">md</span><span class="p">(</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    # Hello, Markdown!</span>
+<span class="sd">    Use marimo&#39;s &quot;`md`&quot; function to embed rich text into your marimo</span>
+<span class="sd">    apps. This function compiles your Markdown into HTML that marimo</span>
+<span class="sd">    can display.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+<span class="p">)</span>
+</code></pre></div></span>
+            </marimo-cell-output>
+            <marimo-cell-code hidden>%0Amo.md(%0A%20%20%20%20%22%22%22%0A%20%20%20%20%23%20Hello%2C%20Markdown!%0A%0A%20%20%20%20Use%20marimo's%20%22%60md%60%22%20function%20to%20embed%20rich%20text%20into%20your%20marimo%0A%20%20%20%20apps.%20This%20function%20compiles%20Markdown%20into%20HTML%20that%20marimo%0A%20%20%20%20can%20display.%0A%0A%20%20%20%20For%20example%2C%20here's%20the%20code%20that%20rendered%20the%20above%20title%20and%0A%20%20%20%20paragraph%3A%0A%0A%20%20%20%20%60%60%60python3%0A%20%20%20%20mo.md(%0A%20%20%20%20%20%20%20%20'''%0A%20%20%20%20%20%20%20%20%23%20Hello%2C%20Markdown!%0A%0A%20%20%20%20%20%20%20%20Use%20marimo's%20%22%60md%60%22%20function%20to%20embed%20rich%20text%20into%20your%20marimo%0A%20%20%20%20%20%20%20%20apps.%20This%20function%20compiles%20your%20Markdown%20into%20HTML%20that%20marimo%0A%20%20%20%20%20%20%20%20can%20display.%0A%20%20%20%20%20%20%20%20'''%0A%20%20%20%20)%0A%20%20%20%20%60%60%60%0A%20%20%20%20%22%22%22%0A)%0A</marimo-cell-code>
+        </marimo-island>
 <marimo-island
-    data-app-id="main"
-    data-cell-id="BYtC"
-    data-reactive="true"
->
-    <marimo-cell-output>
-    <span class="markdown prose dark:prose-invert"><h2 id="latex">LaTeX</h2><span class="paragraph">You can embed LaTeX in Markdown.</span><span class="paragraph">For example,</span><div class="codehilite"><pre><span></span><code><span class="n">mo</span><span class="o">.</span><span class="n">md</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;$f : \mathbf</span><span class="si">{R}</span><span class="s1">     o \mathbf</span><span class="si">{R}</span><span class="s1">$&#39;</span><span class="p">)</span></code></pre></div><span class="paragraph">renders <marimo-tex class="arithmatex">||(f : \mathbf{R}     o \mathbf{R}||)</marimo-tex>, while</span><div class="codehilite"><pre><span></span><code><span class="n">mo</span><span class="o">.</span><span class="n">md</span><span class="p">(</span><span class="w">    </span><span class="sa">r</span><span class="sd">&#39;&#39;&#39;</span><span class="sd">    \[</span><span class="sd">    f: \mathbf{R}   o \mathbf{R}</span><span class="sd">    \]</span><span class="sd">    &#39;&#39;&#39;</span><span class="p">)</span></code></pre></div><span class="paragraph">renders the display math</span><marimo-tex class="arithmatex">||[f: \mathbf{R}       o \mathbf{R}.||]</marimo-tex></span>
-    </marimo-cell-output>
-    <marimo-cell-code hidden>%0Amo.md(%0A%20%20%20%20r%22%22%22%0A%20%20%20%20%23%23%20LaTeX%0A%20%20%20%20You%20can%20embed%20LaTeX%20in%20Markdown.%0A%0A%20%20%20%20For%20example%2C%0A%0A%20%20%20%20%60%60%60python3%0A%20%20%20%20mo.md(r'%24f%20%3A%20%5Cmathbf%7BR%7D%20%09o%20%5Cmathbf%7BR%7D%24')%0A%20%20%20%20%60%60%60%0A%0A%20%20%20%20renders%20%24f%20%3A%20%5Cmathbf%7BR%7D%20%09o%20%5Cmathbf%7BR%7D%24%2C%20while%0A%0A%20%20%20%20%60%60%60python3%0A%20%20%20%20mo.md(%0A%20%20%20%20%20%20%20%20r'''%0A%20%20%20%20%20%20%20%20%5C%5B%0A%20%20%20%20%20%20%20%20f%3A%20%5Cmathbf%7BR%7D%20%09o%20%5Cmathbf%7BR%7D%0A%20%20%20%20%20%20%20%20%5C%5D%0A%20%20%20%20%20%20%20%20'''%0A%20%20%20%20)%0A%20%20%20%20%60%60%60%0A%0A%20%20%20%20renders%20the%20display%20math%0A%0A%20%20%20%20%5C%5B%0A%20%20%20%20f%3A%20%5Cmathbf%7BR%7D%20%09o%20%5Cmathbf%7BR%7D.%0A%20%20%20%20%5C%5D%0A%20%20%20%20%22%22%22%0A)%0A</marimo-cell-code>
-</marimo-island>
+            data-app-id="main"
+            data-cell-id="BYtC"
+            data-reactive="true"
+        >
+            <marimo-cell-output>
+            <span class="markdown prose dark:prose-invert"><h2 id="latex">LaTeX</h2>
+<span class="paragraph">You can embed LaTeX in Markdown.</span>
+<span class="paragraph">For example,</span>
+<div class="codehilite"><pre><span></span><code><span class="n">mo</span><span class="o">.</span><span class="n">md</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;$f : \mathbf</span><span class="si">{R}</span><span class="s1">     o \mathbf</span><span class="si">{R}</span><span class="s1">$&#39;</span><span class="p">)</span>
+</code></pre></div>
+<span class="paragraph">renders <marimo-tex class="arithmatex">||(f : \mathbf{R}     o \mathbf{R}||)</marimo-tex>, while</span>
+<div class="codehilite"><pre><span></span><code><span class="n">mo</span><span class="o">.</span><span class="n">md</span><span class="p">(</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    \[</span>
+<span class="sd">    f: \mathbf{R}   o \mathbf{R}</span>
+<span class="sd">    \]</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+<span class="p">)</span>
+</code></pre></div>
+<span class="paragraph">renders the display math</span>
+<marimo-tex class="arithmatex">||[
+f: \mathbf{R}       o \mathbf{R}.
+||]</marimo-tex></span>
+            </marimo-cell-output>
+            <marimo-cell-code hidden>%0Amo.md(%0A%20%20%20%20r%22%22%22%0A%20%20%20%20%23%23%20LaTeX%0A%20%20%20%20You%20can%20embed%20LaTeX%20in%20Markdown.%0A%0A%20%20%20%20For%20example%2C%0A%0A%20%20%20%20%60%60%60python3%0A%20%20%20%20mo.md(r'%24f%20%3A%20%5Cmathbf%7BR%7D%20%09o%20%5Cmathbf%7BR%7D%24')%0A%20%20%20%20%60%60%60%0A%0A%20%20%20%20renders%20%24f%20%3A%20%5Cmathbf%7BR%7D%20%09o%20%5Cmathbf%7BR%7D%24%2C%20while%0A%0A%20%20%20%20%60%60%60python3%0A%20%20%20%20mo.md(%0A%20%20%20%20%20%20%20%20r'''%0A%20%20%20%20%20%20%20%20%5C%5B%0A%20%20%20%20%20%20%20%20f%3A%20%5Cmathbf%7BR%7D%20%09o%20%5Cmathbf%7BR%7D%0A%20%20%20%20%20%20%20%20%5C%5D%0A%20%20%20%20%20%20%20%20'''%0A%20%20%20%20)%0A%20%20%20%20%60%60%60%0A%0A%20%20%20%20renders%20the%20display%20math%0A%0A%20%20%20%20%5C%5B%0A%20%20%20%20f%3A%20%5Cmathbf%7BR%7D%20%09o%20%5Cmathbf%7BR%7D.%0A%20%20%20%20%5C%5D%0A%20%20%20%20%22%22%22%0A)%0A</marimo-cell-code>
+        </marimo-island>
 
 
         <br />
