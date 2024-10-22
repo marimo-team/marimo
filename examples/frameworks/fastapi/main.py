@@ -4,8 +4,10 @@
 #     "fastapi",
 #     "marimo",
 #     "starlette",
+#     "jinja2",
 #     "itsdangerous",
 #     "python-dotenv",
+#     "python-multipart",
 #     "passlib",
 #     "pydantic",
 # ]

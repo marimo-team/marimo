@@ -13,4 +13,4 @@ This example includes:
 ## Running the app
 
 1. [Install `uv`](https://github.com/astral-sh/uv/?tab=readme-ov-file#installation)
-2. Run the app with `uv run fastapi dev`
+2. Run the app with `uv run --no-project main.py`
