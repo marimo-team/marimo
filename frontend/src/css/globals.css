@@ -79,7 +79,7 @@
     /* Base shadows. */
     --base-shadow: light-dark(hsl(0deg 0% 85% / 40%), hsla(0deg 0% 36% / 60%));
     --base-shadow-darker: light-dark(hsl(0deg 0% 50% / 40%), hsl(0deg 0% 50% / 60%));
-    --base-shadow-opacity: light-dark(5%, 85%);
+    --base-shadow-opacity: 5%;
   }
 
   .dark,
