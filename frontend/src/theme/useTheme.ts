@@ -19,6 +19,7 @@ const themeAtom = atom((get) => {
     ) {
       return "dark";
     }
+
     // If it has data-theme=dark or data-mode=dark on the body, use dark mode.
     if (
       document.body.dataset.theme === "dark" ||
@@ -28,6 +29,23 @@ const themeAtom = atom((get) => {
     ) {
       return "dark";
     }
+
+    // Check the computed style for color-scheme
+    const computedStyle = window.getComputedStyle(document.body);
+    const colorScheme = computedStyle.getPropertyValue("color-scheme").trim();
+    if (colorScheme) {
+      return colorScheme.includes("dark") ? "dark" : "light";
+    }
+
+    // Fallback: check for dark background color
+    const bgColor = computedStyle.getPropertyValue("background-color");
+    const rgb = bgColor.match(/\d+/g);
+    if (rgb) {
+      const [r, g, b] = rgb.map(Number);
+      const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+      return brightness < 128 ? "dark" : "light";
+    }
+
     // We don't want to infer from the system theme,
     // since the island consumer may not support dark mode.
     return "light";
