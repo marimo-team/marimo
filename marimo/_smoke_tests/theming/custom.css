@@ -1,10 +1,10 @@
 /* Load Inter from Google Fonts */
 
-@import url('https://fonts.googleapis.com/css?family=Montserrat:300,300italic,800,800italic');
+@import url("https://fonts.googleapis.com/css?family=Montserrat:300,300italic,800,800italic");
 
 :root {
-  --marimo-text-font: 'Montserrat', sans-serif;
-  --marimo-heading-font: 'Montserrat', sans-serif;
+  --marimo-text-font: "Montserrat", sans-serif;
+  --marimo-heading-font: "Montserrat", sans-serif;
 }
 
 .paragraph {

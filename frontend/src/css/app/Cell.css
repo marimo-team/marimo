@@ -259,7 +259,7 @@
   /* expand the hover area left and right */
   &::before,
   &::after {
-    content: '';
+    content: "";
     position: absolute;
     width: var(--gutter-width);
     max-width: var(--gutter-width);

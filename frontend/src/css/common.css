@@ -6,7 +6,7 @@
     display: none !important;
   }
 
-  [data-is-dragging='true'] {
+  [data-is-dragging="true"] {
     .hover-actions-parent.hover-actions-parent .hover-action:not(:hover) {
       display: none !important;
     }
@@ -24,6 +24,6 @@
 }
 
 /* If parent has any children that have an open pop, show hover actions */
-.hover-actions-parent:has([data-state='open']) .hover-action {
+.hover-actions-parent:has([data-state="open"]) .hover-action {
   display: inline-flex !important;
 }

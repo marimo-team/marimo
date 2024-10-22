@@ -16,8 +16,8 @@
 }
 
 .disable-animation .react-grid-item {
-  transition-property: none !important;
   transition: none !important;
+  transition-property: none !important;
 }
 
 /* for images we expand the image to fill the grid item */

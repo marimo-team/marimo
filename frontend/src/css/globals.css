@@ -1,27 +1,27 @@
-@import url('@radix-ui/colors/grass.css');
-@import url('@radix-ui/colors/grass-dark.css');
-@import url('@radix-ui/colors/gray.css');
-@import url('@radix-ui/colors/gray-dark.css');
-@import url('@radix-ui/colors/lime.css');
-@import url('@radix-ui/colors/lime-dark.css');
-@import url('@radix-ui/colors/red.css');
-@import url('@radix-ui/colors/red-dark.css');
-@import url('@radix-ui/colors/sky.css');
-@import url('@radix-ui/colors/sky-dark.css');
-@import url('@radix-ui/colors/cyan.css');
-@import url('@radix-ui/colors/cyan-dark.css');
-@import url('@radix-ui/colors/slate.css');
-@import url('@radix-ui/colors/slate-dark.css');
-@import url('@radix-ui/colors/sage.css');
-@import url('@radix-ui/colors/sage-dark.css');
-@import url('@radix-ui/colors/amber.css');
-@import url('@radix-ui/colors/amber-dark.css');
-@import url('@radix-ui/colors/yellow.css');
-@import url('@radix-ui/colors/yellow-dark.css');
-@import url('@radix-ui/colors/blue.css');
-@import url('@radix-ui/colors/blue-dark.css');
-@import url('@radix-ui/colors/purple.css');
-@import url('@radix-ui/colors/purple-dark.css');
+@import url("@radix-ui/colors/grass.css");
+@import url("@radix-ui/colors/grass-dark.css");
+@import url("@radix-ui/colors/gray.css");
+@import url("@radix-ui/colors/gray-dark.css");
+@import url("@radix-ui/colors/lime.css");
+@import url("@radix-ui/colors/lime-dark.css");
+@import url("@radix-ui/colors/red.css");
+@import url("@radix-ui/colors/red-dark.css");
+@import url("@radix-ui/colors/sky.css");
+@import url("@radix-ui/colors/sky-dark.css");
+@import url("@radix-ui/colors/cyan.css");
+@import url("@radix-ui/colors/cyan-dark.css");
+@import url("@radix-ui/colors/slate.css");
+@import url("@radix-ui/colors/slate-dark.css");
+@import url("@radix-ui/colors/sage.css");
+@import url("@radix-ui/colors/sage-dark.css");
+@import url("@radix-ui/colors/amber.css");
+@import url("@radix-ui/colors/amber-dark.css");
+@import url("@radix-ui/colors/yellow.css");
+@import url("@radix-ui/colors/yellow-dark.css");
+@import url("@radix-ui/colors/blue.css");
+@import url("@radix-ui/colors/blue-dark.css");
+@import url("@radix-ui/colors/purple.css");
+@import url("@radix-ui/colors/purple-dark.css");
 
 @tailwind base;
 @tailwind components;
@@ -34,9 +34,9 @@
 
   :root,
   .marimo {
-    --monospace-font: var(--marimo-monospace-font, 'Fira Mono', monospace);
-    --text-font: var(--marimo-text-font, 'PT Sans', sans-serif);
-    --heading-font: var(--marimo-heading-font, 'Lora', serif);
+    --monospace-font: var(--marimo-monospace-font, "Fira Mono", monospace);
+    --text-font: var(--marimo-text-font, "PT Sans", sans-serif);
+    --heading-font: var(--marimo-heading-font, "Lora", serif);
     --radius: 8px;
 
     /* Radix light colors: https://github.com/radix-ui/colors/blob/main/src/light.ts */
@@ -47,17 +47,29 @@
     --background: light-dark(hsl(0deg 0% 100%), hsl(150deg 7.7% 10.2%));
     --foreground: light-dark(hsl(222.2deg 47.4% 11.2%), hsl(155deg 7% 93%));
     --muted: light-dark(hsl(210deg 40% 96.1%), hsl(180deg 14% 1%));
-    --muted-foreground: light-dark(hsl(215.4deg 16.3% 46.9%), hsl(155deg 5% 68.3%));
+    --muted-foreground: light-dark(
+      hsl(215.4deg 16.3% 46.9%),
+      hsl(155deg 5% 68.3%)
+    );
     --popover: light-dark(hsl(0deg 0% 100%), hsl(151deg 5.5% 15.2%));
-    --popover-foreground: light-dark(hsl(222.2deg 47.4% 11.2%), hsl(155deg 5% 68.3%));
+    --popover-foreground: light-dark(
+      hsl(222.2deg 47.4% 11.2%),
+      hsl(155deg 5% 68.3%)
+    );
     --card: light-dark(hsl(0deg 0% 100%), hsl(151deg 5.5% 15.2%));
-    --card-foreground: light-dark(hsl(222.2deg 47.4% 11.2%), hsl(155deg 5% 76.3%));
+    --card-foreground: light-dark(
+      hsl(222.2deg 47.4% 11.2%),
+      hsl(155deg 5% 76.3%)
+    );
     --border: light-dark(hsl(214.3deg 31.8% 91.4%), hsl(153deg 3.7% 24.2%));
     --input: light-dark(hsl(0deg 0% 64%), hsl(154deg 3.3% 28.7%));
     --primary: light-dark(hsl(208deg 93.5% 47.4%), hsl(192deg 59.8% 39%));
     --primary-foreground: light-dark(hsl(210deg 40% 98%), hsl(190deg 80% 84%));
     --secondary: light-dark(hsl(210deg 40% 96.1%), hsl(155deg 7% 93%));
-    --secondary-foreground: light-dark(hsl(222.2deg 47.4% 11.2%), hsl(151deg 5.5% 15.2%));
+    --secondary-foreground: light-dark(
+      hsl(222.2deg 47.4% 11.2%),
+      hsl(151deg 5.5% 15.2%)
+    );
     --accent: light-dark(hsl(209deg 100% 96.5%), hsl(192deg 56.6% 26.5%));
     --accent-foreground: light-dark(hsl(211deg 90% 42%), hsl(190deg 80% 84%));
     --ring: hsl(215deg 20.2% 65.1%);
@@ -78,7 +90,10 @@
 
     /* Base shadows. */
     --base-shadow: light-dark(hsl(0deg 0% 85% / 40%), hsla(0deg 0% 36% / 60%));
-    --base-shadow-darker: light-dark(hsl(0deg 0% 50% / 40%), hsl(0deg 0% 50% / 60%));
+    --base-shadow-darker: light-dark(
+      hsl(0deg 0% 50% / 40%),
+      hsl(0deg 0% 50% / 60%)
+    );
     --base-shadow-opacity: 5%;
   }
 
@@ -96,7 +111,7 @@
   body {
     @apply bg-background text-foreground;
 
-    font-feature-settings: 'rlig' 1, 'calt' 1;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 
   a.hyperlink {

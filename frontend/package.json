@@ -167,7 +167,7 @@
     "react-dom": "^17 || ^18"
   },
   "devDependencies": {
-    "@biomejs/biome": "1.8.3",
+    "@biomejs/biome": "1.9.4",
     "@csstools/postcss-light-dark-function": "^2.0.5",
     "@playwright/test": "^1.46.1",
     "@storybook/addon-docs": "^8.3.6",

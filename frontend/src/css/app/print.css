@@ -30,17 +30,17 @@ body.printing #App {
     overflow-x: hidden !important;
   }
 
-	h1,
-	h2,
-	h3,
-	h4 {
-		break-after: avoid-page;
-	}
+  h1,
+  h2,
+  h3,
+  h4 {
+    break-after: avoid-page;
+  }
 
-	article {
-		orphans: 2;
-		widows: 2;
-	}
+  article {
+    orphans: 2;
+    widows: 2;
+  }
 
   .container {
     width: 100%;

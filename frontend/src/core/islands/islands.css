@@ -1,12 +1,11 @@
-@import url('../../css/common.css');
-@import url('../../css/globals.css');
-@import url('../../css/codehilite.css');
-@import url('../../css/katex.min.css');
-@import url('../../css/table.css');
-@import url('../../css/md.css');
-@import url('../../css/admonition.css');
-@import url('../../css/md-tooltip.css');
-@import url('../../css/table.css');
+@import url("../../css/common.css");
+@import url("../../css/globals.css");
+@import url("../../css/codehilite.css");
+@import url("../../css/katex.min.css");
+@import url("../../css/md.css");
+@import url("../../css/admonition.css");
+@import url("../../css/md-tooltip.css");
+@import url("../../css/table.css");
 
 .marimo {
   @apply bg-background text-foreground;

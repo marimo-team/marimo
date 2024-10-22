@@ -42,7 +42,7 @@ export const CopyClipboardIcon: React.FC<Props> = ({
 
   return (
     <Tooltip
-      content={isCopied ? "Copied!" : tooltip ?? "Copy to clipboard"}
+      content={isCopied ? "Copied!" : (tooltip ?? "Copy to clipboard")}
       delayDuration={400}
     >
       {button}

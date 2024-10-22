@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.8.3/schema.json",
+  "$schema": "frontend/node_modules/@biomejs/biome/configuration_schema.json",
   "formatter": {
     "enabled": true,
     "formatWithErrors": false,
@@ -43,6 +43,8 @@
         "useButtonType": "info",
         "useIframeTitle": "info",
         "useKeyWithClickEvents": "off",
+        "useGenericFontNames": "off",
+        "useSemanticElements": "warn",
         "useMediaCaption": "info"
       },
       "complexity": {
