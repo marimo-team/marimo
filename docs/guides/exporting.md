@@ -148,7 +148,7 @@ In order to use marimo islands, you need to import the necessary JS/CSS headers 
 While you can generate the HTML code for islands yourself, it it recommend to use our `MarimoIslandGenerator` class to generate the HTML code for you.
 
 ```{eval-rst}
-.. autoclass:: marimo.islands.MarimoIslandGenerator
+.. autoclass:: marimo.MarimoIslandGenerator
   :members:
 
   .. autoclasstoc::
