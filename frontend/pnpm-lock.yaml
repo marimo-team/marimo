@@ -7014,9 +7014,6 @@ packages:
     engines: {node: '>=6'}
     hasBin: true
 
-  jsonc-parser@3.2.0:
-    resolution: {integrity: sha512-gfFQZrcTc8CnKXp6Y4/CBT3fTc0OVuDofpre4aEeEpSBPV5X5v4+Vmx+8snU7RLPrNHPKSgLxGo9YuQzz20o+w==}
-
   jsondiffpatch@0.6.0:
     resolution: {integrity: sha512-3QItJOXp2AP1uv7waBkao5nCvhEv+QmJAd38Ybq7wNI74Q+BBmnLn4EDKz6yI9xGAIQoUF87qHt+kc1IVxB4zQ==}
     engines: {node: ^18.0.0 || >=20.0.0}
@@ -7357,9 +7354,6 @@ packages:
     resolution: {integrity: sha512-vVqVZQyf3WLx2Shd0qJ9xuvqgAyKPLAiqITEtqW0oIUjzo3PePDd6fW9iFz30ef7Ysp/oiWqbhszeGWW2T6Gzw==}
     engines: {node: '>=10'}
     hasBin: true
-
-  mlly@1.4.2:
-    resolution: {integrity: sha512-i/Ykufi2t1EZ6NaPLdfnZk2AX8cs0d+mTzVKuPfqPKPatxLApaBoxJQ9x1/uckXtrS/U5oisPMDkNs0yQTaBRg==}
 
   mlly@1.7.2:
     resolution: {integrity: sha512-tN3dvVHYVz4DhSXinXIk7u9syPYaJvio118uomkovAtWBT+RdbP6Lfh/5Lvo519YMmwBafwlh20IPTXIStscpA==}
@@ -7716,9 +7710,6 @@ packages:
     resolution: {integrity: sha512-5HviZNaZcfqP95rwpv+1HDgUamezbqdSYTyzjTvwtJSnIH+3vnbmWsItli8OFEndS984VT55M3jduxZbX351gg==}
     engines: {node: '>=12'}
 
-  pathe@1.1.1:
-    resolution: {integrity: sha512-d+RQGp0MAYTIaDBIMmOfMwz3E+LOZnxx1HZd5R18mmCZY0QBlK0LDZfPc8FW8Ed2DlvsuE6PRjroDY+wg4+j/Q==}
-
   pathe@1.1.2:
     resolution: {integrity: sha512-whLdWMYL2TwI08hn8/ZqAbrVemu0LNaNNJZX73O6qaIdCTfXutsLhMkjdENX0qhsQ9uIimo4/aQOmXkoon2nDQ==}
 
@@ -7781,9 +7772,6 @@ packages:
   pkg-dir@5.0.0:
     resolution: {integrity: sha512-NPE8TDbzl/3YQYY7CSS228s3g2ollTFnc+Qi3tqmqJp9Vg2ovUpixcJEo2HJScN2Ez+kEaal6y70c0ehqJBJeA==}
     engines: {node: '>=10'}
-
-  pkg-types@1.0.3:
-    resolution: {integrity: sha512-nN7pYi0AQqJnoLPC9eHFQ8AcyaixBUOwvqc5TDnIKCMEE6I0y8P7OKA7fPexsXGCGxQDl/cmrLAp26LhcwxZ4A==}
 
   pkg-types@1.2.1:
     resolution: {integrity: sha512-sQoqa8alT3nHjGuTjuKgOnvjo4cljkufdtLMnO2LBP/wRwuDlo1tkaEdMxCRhyGRPacv/ztlZgDPm2b7FAmEvw==}
@@ -9402,9 +9390,6 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
-  ufo@1.3.2:
-    resolution: {integrity: sha512-o+ORpgGwaYQXgqGDwd+hkS4PuZ3QnmqMMxRuajK/a38L6fTpcE5GPIfrf+L/KemFzfUpeUQc1rRS1iDBozvnFA==}
-
   ufo@1.5.4:
     resolution: {integrity: sha512-UsUk3byDzKd04EyoZ7U4DOlxQaD14JUKQl6/P7wiX4FNvUfm3XL246n9W5AmqwW5RSFJ27NAuM0iLscAOYUiGQ==}
 
@@ -9532,10 +9517,6 @@ packages:
   uuid@3.4.0:
     resolution: {integrity: sha512-HjSDRw6gZE5JMggctHBcjVak08+KEVhSIiDzFnT9S9aegmp85S/bReBVTb4QTFaRNptJ9kuYaNhnbNEOkbKb/A==}
     deprecated: Please upgrade  to version 7 or higher.  Older versions may use Math.random() in certain circumstances, which is known to be problematic.  See https://v8.dev/blog/math-random for details.
-    hasBin: true
-
-  uuid@9.0.0:
-    resolution: {integrity: sha512-MXcSTerfPa4uqyzStbRoTgt5XIe3x5+42+q1sDuy3R5MDk66URdLMOZe5aPX/SQd+kuYAh0FdP/pO28IkQyTeg==}
     hasBin: true
 
   uuid@9.0.1:
@@ -13865,7 +13846,7 @@ snapshots:
       dequal: 2.0.3
       polished: 4.2.2
       storybook: 8.2.9(@babel/preset-env@7.24.6(@babel/core@7.24.4))
-      uuid: 9.0.0
+      uuid: 9.0.1
 
   '@storybook/addon-backgrounds@8.2.9(storybook@8.2.9(@babel/preset-env@7.24.6(@babel/core@7.24.4)))':
     dependencies:
@@ -15094,12 +15075,12 @@ snapshots:
     dependencies:
       '@vitest/utils': 1.6.0
       p-limit: 5.0.0
-      pathe: 1.1.1
+      pathe: 1.1.2
 
   '@vitest/snapshot@1.6.0':
     dependencies:
       magic-string: 0.30.11
-      pathe: 1.1.1
+      pathe: 1.1.2
       pretty-format: 29.7.0
 
   '@vitest/spy@1.6.0':
@@ -17366,7 +17347,7 @@ snapshots:
       https-proxy-agent: 5.0.1
       mri: 1.2.0
       node-fetch-native: 1.1.1
-      pathe: 1.1.1
+      pathe: 1.1.2
       tar: 6.1.15
     transitivePeerDependencies:
       - supports-color
@@ -18114,8 +18095,6 @@ snapshots:
 
   json5@2.2.3: {}
 
-  jsonc-parser@3.2.0: {}
-
   jsondiffpatch@0.6.0:
     dependencies:
       '@types/diff-match-patch': 1.0.36
@@ -18250,8 +18229,8 @@ snapshots:
 
   local-pkg@0.5.0:
     dependencies:
-      mlly: 1.4.2
-      pkg-types: 1.0.3
+      mlly: 1.7.2
+      pkg-types: 1.2.1
 
   locate-path@3.0.0:
     dependencies:
@@ -18466,13 +18445,6 @@ snapshots:
   mitt@3.0.1: {}
 
   mkdirp@1.0.4: {}
-
-  mlly@1.4.2:
-    dependencies:
-      acorn: 8.12.1
-      pathe: 1.1.1
-      pkg-types: 1.0.3
-      ufo: 1.3.2
 
   mlly@1.7.2:
     dependencies:
@@ -18821,8 +18793,6 @@ snapshots:
 
   path-type@5.0.0: {}
 
-  pathe@1.1.1: {}
-
   pathe@1.1.2: {}
 
   pathval@1.1.1: {}
@@ -18867,12 +18837,6 @@ snapshots:
   pkg-dir@5.0.0:
     dependencies:
       find-up: 5.0.0
-
-  pkg-types@1.0.3:
-    dependencies:
-      jsonc-parser: 3.2.0
-      mlly: 1.4.2
-      pathe: 1.1.1
 
   pkg-types@1.2.1:
     dependencies:
@@ -20881,8 +20845,6 @@ snapshots:
 
   typescript@5.5.4: {}
 
-  ufo@1.3.2: {}
-
   ufo@1.5.4: {}
 
   uglify-js@3.19.3:
@@ -21001,8 +20963,6 @@ snapshots:
   utils-merge@1.0.1: {}
 
   uuid@3.4.0: {}
-
-  uuid@9.0.0: {}
 
   uuid@9.0.1: {}
 
@@ -21352,7 +21312,7 @@ snapshots:
     dependencies:
       cac: 6.7.14
       debug: 4.3.6
-      pathe: 1.1.1
+      pathe: 1.1.2
       picocolors: 1.1.0
       vite: 5.4.6(@types/node@20.16.5)(less@4.2.0)(terser@5.33.0)
     transitivePeerDependencies:
@@ -21401,7 +21361,7 @@ snapshots:
       execa: 8.0.1
       local-pkg: 0.5.0
       magic-string: 0.30.11
-      pathe: 1.1.1
+      pathe: 1.1.2
       picocolors: 1.1.0
       std-env: 3.6.0
       strip-literal: 2.0.0
