@@ -469,6 +469,7 @@ class Kernel:
         package_manager = config["package_management"]["manager"]
         autoreload_mode = config["runtime"]["auto_reload"]
         self.reactive_execution_mode = config["runtime"]["on_cell_change"]
+        self.user_config = config
 
         if (
             self.package_manager is None
@@ -476,7 +477,10 @@ class Kernel:
         ):
             self.package_manager = create_package_manager(package_manager)
 
-        if autoreload_mode == "lazy" or autoreload_mode == "autorun":
+        if (
+            autoreload_mode == "lazy" or autoreload_mode == "autorun"
+            # Pyodide doesn't support hot module reloading
+        ) and not is_pyodide():
             if self.module_reloader is None:
                 self.module_reloader = ModuleReloader()
 
@@ -500,8 +504,6 @@ class Kernel:
             if self.module_watcher is not None:
                 self.module_watcher.stop()
                 self.module_watcher = None
-
-        self.user_config = config
 
     @property
     def globals(self) -> dict[Any, Any]:

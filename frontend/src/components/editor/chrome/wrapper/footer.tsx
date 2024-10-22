@@ -28,6 +28,7 @@ import {
 import { ChevronDownIcon } from "lucide-react";
 import { FooterItem } from "./footer-item";
 import { useHotkey } from "@/hooks/useHotkey";
+import { isWasm } from "@/core/wasm/utils";
 
 export const Footer: React.FC = () => {
   const { selectedPanel, isTerminalOpen } = useChromeState();
@@ -136,54 +137,62 @@ export const Footer: React.FC = () => {
 
       <div className="border-r border-border h-6 mx-1" />
 
-      <FooterItem tooltip={null} selected={false}>
-        <DropdownMenu>
-          <DropdownMenuTrigger className="font-prose text-sm flex items-center gap-1">
-            <span>on module change: </span>
-            {config.runtime.auto_reload === "off" && <PowerOffIcon size={14} />}
-            {config.runtime.auto_reload === "lazy" && <ZapOffIcon size={14} />}
-            {config.runtime.auto_reload === "autorun" && <ZapIcon size={14} />}
-            <span>{config.runtime.auto_reload}</span>
-            <ChevronDownIcon size={14} />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            {["off", "lazy", "autorun"].map((option) => (
-              <DropdownMenuItem
-                key={option}
-                onClick={async () => {
-                  const newConfig: UserConfig = {
-                    ...config,
-                    runtime: {
-                      ...config.runtime,
-                      auto_reload: option as "off" | "lazy" | "autorun",
-                    },
-                  };
-                  await saveUserConfig({ config: newConfig }).then(() =>
-                    setConfig(newConfig),
-                  );
-                }}
-              >
-                {option === "off" && (
-                  <PowerOffIcon
-                    size={14}
-                    className="mr-2 text-muted-foreground"
-                  />
-                )}
-                {option === "lazy" && (
-                  <ZapOffIcon
-                    size={14}
-                    className="mr-2 text-muted-foreground"
-                  />
-                )}
-                {option === "autorun" && (
-                  <ZapIcon size={14} className="mr-2 text-muted-foreground" />
-                )}
-                {option}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </FooterItem>
+      {!isWasm() && (
+        <FooterItem tooltip={null} selected={false}>
+          <DropdownMenu>
+            <DropdownMenuTrigger className="font-prose text-sm flex items-center gap-1">
+              <span>on module change: </span>
+              {config.runtime.auto_reload === "off" && (
+                <PowerOffIcon size={14} />
+              )}
+              {config.runtime.auto_reload === "lazy" && (
+                <ZapOffIcon size={14} />
+              )}
+              {config.runtime.auto_reload === "autorun" && (
+                <ZapIcon size={14} />
+              )}
+              <span>{config.runtime.auto_reload}</span>
+              <ChevronDownIcon size={14} />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              {["off", "lazy", "autorun"].map((option) => (
+                <DropdownMenuItem
+                  key={option}
+                  onClick={async () => {
+                    const newConfig: UserConfig = {
+                      ...config,
+                      runtime: {
+                        ...config.runtime,
+                        auto_reload: option as "off" | "lazy" | "autorun",
+                      },
+                    };
+                    await saveUserConfig({ config: newConfig }).then(() =>
+                      setConfig(newConfig),
+                    );
+                  }}
+                >
+                  {option === "off" && (
+                    <PowerOffIcon
+                      size={14}
+                      className="mr-2 text-muted-foreground"
+                    />
+                  )}
+                  {option === "lazy" && (
+                    <ZapOffIcon
+                      size={14}
+                      className="mr-2 text-muted-foreground"
+                    />
+                  )}
+                  {option === "autorun" && (
+                    <ZapIcon size={14} className="mr-2 text-muted-foreground" />
+                  )}
+                  {option}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </FooterItem>
+      )}
 
       <div className="mx-auto" />
 
