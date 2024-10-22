@@ -37,10 +37,10 @@
     --monospace-font: var(--marimo-monospace-font, 'Fira Mono', monospace);
     --text-font: var(--marimo-text-font, 'PT Sans', sans-serif);
     --heading-font: var(--marimo-heading-font, 'Lora', serif);
-
     --radius: 8px;
 
     /* Radix light colors: https://github.com/radix-ui/colors/blob/main/src/light.ts */
+
     /* Radix dark colors: https://github.com/radix-ui/colors/blob/main/src/dark.ts */
 
     /* Base colors. */
