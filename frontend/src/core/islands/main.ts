@@ -59,6 +59,7 @@ export async function initialize() {
   }
 
   // Add 'marimo' class name to all `marimo-island` elements.
+  // This makes our styles apply to the islands.
   for (const island of islands) {
     island.classList.add(MarimoIslandElement.styleNamespace);
   }
@@ -67,19 +68,22 @@ export async function initialize() {
     store.set(notebookAtom, (state) => notebookReducer(state, action));
   });
 
-  // Define the custom element for the marimo-island tag.
-  requestAnimationFrame(() => {
-    defineCustomElement(MarimoIslandElement.tagName, MarimoIslandElement);
-  });
-
   // If the user has interacted with the islands before they are initialized,
   // we show the loading toast.
   store.sub(shouldShowIslandsWarningIndicatorAtom, () => {
     const showing = store.get(shouldShowIslandsWarningIndicatorAtom);
     if (showing) {
       toastIslandsLoading();
+      // For each island, set the opacity to 0.5
+      for (const island of islands) {
+        island.style.setProperty("opacity", "0.5");
+      }
     } else {
       dismissIslandsLoadingToast();
+      // For each island, remove the opacity
+      for (const island of islands) {
+        island.style.removeProperty("opacity");
+      }
     }
   });
 
@@ -110,6 +114,9 @@ export async function initialize() {
           setCapabilities: Functions.NOOP,
           onError: Logger.error,
         });
+        // Define the custom element for the marimo-island tag.
+        // This comes after initializing since this reads from the store.
+        defineCustomElement(MarimoIslandElement.tagName, MarimoIslandElement);
         return;
       case "completed-run":
         return;
