@@ -209,6 +209,7 @@ async def test_render_html():
     assert "<head>" in html
     assert "<body>" in html
     assert "Hello%2C%20HTML!" in html
+    snapshot("html.txt", html)
 
 
 def test_app_config():
