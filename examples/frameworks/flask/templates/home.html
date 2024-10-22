@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Home</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+      <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold">Welcome, {{ username }}!</h1>
+        <a href="{{ url_for('logout') }}" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+          Logout
+        </a>
+      </div>
+      <h2 class="text-2xl font-semibold mb-4">Available Applications:</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {% for app_name in app_names %}
+        <a href="/{{ app_name }}" class="block" target="{{ app_name }}">
+          <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 p-4">
+            <h3 class="text-lg font-semibold text-blue-600 hover:text-blue-800">{{ app_name }}</h3>
+            <p class="text-gray-600 mt-2">Click to open application</p>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+  </body>
+</html>
