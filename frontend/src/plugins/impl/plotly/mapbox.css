@@ -328,8 +328,6 @@ See https://github.com/plotly/plotly.js/issues/1433
   .mapboxgl-ctrl-attrib-inner {
   display: none;
 }
-.mapboxgl-ctrl-attrib-inner {
-}
 .js-plotly-plot .plotly .mapboxgl-ctrl {
   clear: both;
   pointer-events: auto;
