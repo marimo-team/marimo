@@ -15,7 +15,7 @@ import signal
 import threading
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Tuple
 
 from marimo._output.builder import h
 from marimo._output.formatting import as_html
@@ -31,8 +31,6 @@ from marimo._server.utils import find_free_port
 from marimo._utils.signals import get_signals
 
 if TYPE_CHECKING:
-    from matplotlib.axes import Axes
-    from matplotlib.figure import Figure
     from starlette.applications import Starlette
     from starlette.requests import Request
     from starlette.websockets import WebSocket
@@ -73,8 +71,8 @@ def create_application(
     host: str,
     port: int,
 ) -> Starlette:
-    import matplotlib as mpl
-    from matplotlib.backends.backend_webagg import (
+    import matplotlib as mpl  # type: ignore
+    from matplotlib.backends.backend_webagg import (  # type: ignore
         FigureManagerWebAgg,
     )
     from starlette.applications import Starlette
@@ -91,7 +89,7 @@ def create_application(
     async def mpl_js(request: Request) -> Response:
         del request
         return Response(
-            content=FigureManagerWebAgg.get_javascript(),  # type: ignore[no-untyped-call]
+            content=FigureManagerWebAgg.get_javascript(),  # type: ignore
             media_type="application/javascript",
         )
 
@@ -178,7 +176,7 @@ def create_application(
             Mount(
                 "/mpl/_static",
                 StaticFiles(
-                    directory=FigureManagerWebAgg.get_static_file_path()  # type: ignore[no-untyped-call]
+                    directory=FigureManagerWebAgg.get_static_file_path()  # type: ignore # noqa: E501
                 ),
                 name="mpl_static",
             ),
@@ -230,7 +228,7 @@ def get_or_create_application() -> Starlette:
 
 
 @mddoc
-def interactive(figure: Union["Figure", "Axes"]) -> Html:
+def interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defined] # noqa:F821,E501
     """Render a matplotlib figure using an interactive viewer.
 
     The interactive viewer allows you to pan, zoom, and see plot coordinates
@@ -252,21 +250,21 @@ def interactive(figure: Union["Figure", "Axes"]) -> Html:
 
     - An interactive matplotlib figure as an `Html` object
     """
-    ctx = get_context()
-    if not isinstance(ctx, KernelRuntimeContext):
-        return as_html(figure)
-
     # No top-level imports of matplotlib, since it isn't a required
     # dependency
-    from matplotlib.axes import (
+    from matplotlib.axes import (  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
         Axes,
     )
-    from matplotlib.backends.backend_webagg import (  # type: ignore[attr-defined]
+    from matplotlib.backends.backend_webagg import (  # type: ignore
         new_figure_manager_given_figure,
     )
 
     if isinstance(figure, Axes):
         figure = figure.get_figure()
+
+    ctx = get_context()
+    if not isinstance(ctx, KernelRuntimeContext):
+        return as_html(figure)
 
     # Figure Manager, Any type because matplotlib doesn't have typings
     figure_manager = new_figure_manager_given_figure(id(figure), figure)

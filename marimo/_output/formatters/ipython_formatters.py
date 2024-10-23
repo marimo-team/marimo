@@ -15,7 +15,7 @@ class IPythonFormatter(FormatterFactory):
         return "IPython"
 
     def register(self) -> Callable[[], None]:
-        import IPython.display
+        import IPython.display  # type:ignore
 
         from marimo._output import formatting
         from marimo._runtime.output import _output
@@ -39,9 +39,11 @@ class IPythonFormatter(FormatterFactory):
         def unpatch() -> None:
             IPython.display.display = old_display
 
-        @formatting.formatter(IPython.display.HTML)
+        @formatting.formatter(
+            IPython.display.HTML  # type:ignore
+        )
         def _format_html(
-            html: IPython.display.HTML,
+            html: IPython.display.HTML,  # type:ignore
         ) -> tuple[KnownMimeType, str]:
             if html.url is not None:
                 # TODO(akshayka): resize iframe not working

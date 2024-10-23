@@ -142,14 +142,14 @@ class WebComponentEncoder(JSONEncoder):
         if isinstance(o, tuple) and hasattr(o, "_fields"):
             return {
                 field: self._convert_to_json(getattr(o, field))
-                for field in o._fields
+                for field in o._fields  # type: ignore
             }
 
         # Handle objects with __slots__
         if hasattr(o, "__slots__"):
             return {
                 slot: self._convert_to_json(getattr(o, slot))
-                for slot in o.__slots__
+                for slot in o.__slots__  # type: ignore
                 if hasattr(o, slot)
             }
 

@@ -55,7 +55,7 @@ def _get_data_table(value: object, variable_name: str) -> Optional[DataTable]:
 
 
 def has_updates_to_datasource(query: str) -> bool:
-    import duckdb
+    import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
     try:
         statements = duckdb.extract_statements(query.strip())
@@ -82,7 +82,7 @@ def get_datasets_from_duckdb() -> List[DataTable]:
 
 
 def _get_datasets_from_duckdb_internal() -> List[DataTable]:
-    import duckdb
+    import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
     # Columns
     # 0:"database"

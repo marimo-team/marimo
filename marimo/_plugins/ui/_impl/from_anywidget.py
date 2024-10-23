@@ -14,7 +14,9 @@ from marimo._plugins.ui._impl.anywidget.comm import MarimoComm
 from marimo._runtime.functions import Function
 
 if TYPE_CHECKING:
-    from anywidget import AnyWidget
+    from anywidget import (  # type: ignore [import-not-found,unused-ignore]  # noqa: E501
+        AnyWidget,
+    )
 
 LOGGER = _loggers.marimo_logger()
 

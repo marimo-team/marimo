@@ -144,26 +144,20 @@ python = "3.12"
 installer = "uv"
 dependencies = [
     "mypy~=1.10.1",
-    # Types for mypy"
-    "matplotlib-stubs>=0.2.0",
-    "duckdb>=1.1.0",
-    "polars>=1.9.0",
+    # Types for mypy
+    "polars~=1.9.0",
     "narwhals>=1.9.0",
-    "openai>=1.41.1",
-    "anthropic>=0.34.1",
-    "anywidget>=0.9.13",
     "pyarrow-stubs>=17.0",
     "pandas-stubs>=1.5.3.230321",
-    "types-Pillow>=10.2.0.20240520",
-    "types-Pygments>=2.18.0.20240506",
-    "types-psutil>=5.9.5.20240516",
-    "types-Markdown>=3.6.0.20240316",
-    "types-PyYAML>=6.0.12.20240808",
+    "types-Pillow~=10.2.0.20240520",
+    "types-Pygments~=2.18.0.20240506",
+    "types-psutil~=5.9.5.20240516",
+    "types-Markdown~=3.6.0.20240316",
+    "types-PyYAML~=6.0.12.20240808",
 ]
 
 [tool.hatch.envs.typecheck.scripts]
 check = "mypy marimo/"
-check-strict = "mypy --strict marimo/"
 
 [tool.hatch.envs.test]
 extra-dependencies = [
@@ -182,7 +176,7 @@ python = ["3.9","3.10", "3.11", "3.12"]
 test = "pytest{env:HATCH_TEST_ARGS:} {args:tests}"
 default = "pytest{env:HATCH_TEST_ARGS:} {args:tests}"
 # This is used externally from the narwhals repo to run our tests from their repo.
-# This should include any tests that may use narwhals.
+# This should include any tests that may use narwhals. 
 # It is ok if we test more than narwhals here, but we should not test less.
 test-narwhals = """
     pytest{env:HATCH_TEST_ARGS:} \
@@ -269,7 +263,7 @@ ignore = [
     "D301", # Use r""" if any backslashes in a docstring
     # TODO: we should fix these, and enable this rule
     "PT011", # `pytest.raises(ValueError)` is too broad, set the `match` parameter or use a more specific exception
-    "E501", # Line too long, we still trim
+    "E501", # Line too long, we still trim 
 ]
 extend-select = [
     # pyflakes

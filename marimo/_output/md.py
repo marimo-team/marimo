@@ -2,16 +2,16 @@
 from __future__ import annotations
 
 from inspect import cleandoc
-from typing import Any, Literal, Optional
+from typing import Literal, Optional
 
-import markdown
+import markdown  # type: ignore
 
 from marimo._output.hypertext import Html
 from marimo._output.md_extensions.external_links import ExternalLinksExtension
 from marimo._output.md_extensions.iconify import IconifyExtension
 from marimo._output.rich_help import mddoc
 
-extension_configs: dict[str, dict[str, Any]] = {
+extension_configs = {
     "pymdownx.arithmatex": {
         # Use "generic" mode, no preview, since we don't use MathJax
         "preview": False,
@@ -70,7 +70,7 @@ def _md(
             # Iconify
             IconifyExtension(),
         ],
-        extension_configs=extension_configs,
+        extension_configs=extension_configs,  # type: ignore[arg-type]
     ).strip()
     # replace <p> tags with <span> as HTML doesn't allow nested <div>s in <p>s
     html_text = html_text.replace("<p>", '<span class="paragraph">').replace(

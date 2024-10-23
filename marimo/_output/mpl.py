@@ -16,13 +16,13 @@ import base64
 import io
 from typing import Optional
 
-import matplotlib.pyplot as plt
-from matplotlib._pylab_helpers import Gcf
-from matplotlib.backend_bases import (
+import matplotlib.pyplot as plt  # type: ignore
+from matplotlib._pylab_helpers import Gcf  # type: ignore
+from matplotlib.backend_bases import (  # type: ignore
     FigureCanvasBase,
     FigureManagerBase,
 )
-from matplotlib.backends.backend_agg import FigureCanvasAgg
+from matplotlib.backends.backend_agg import FigureCanvasAgg  # type: ignore
 
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.mimetypes import KnownMimeType
@@ -40,9 +40,8 @@ def close_figures() -> None:
 def _internal_show(canvas: FigureCanvasBase) -> None:
     buf = io.BytesIO()
     buf.seek(0)
-    figure = canvas.figure  # type: ignore
-    figure.savefig(buf, format="png", bbox_inches="tight")
-    plt.close(figure)
+    canvas.figure.savefig(buf, format="png", bbox_inches="tight")
+    plt.close(canvas.figure)
     mimetype: KnownMimeType = "image/png"
     plot_bytes = base64.b64encode(buf.getvalue())
     CellOp.broadcast_console_output(
