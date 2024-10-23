@@ -225,7 +225,7 @@ def _generate_schema() -> dict[str, Any]:
         # since it may not have been processed yet
         if cls in processed_classes:
             del processed_classes[cls]
-        name = name_overrides.get(cls, cls.__name__)  # type: ignore[attr-defined]
+        name = name_overrides.get(cls, cls.__name__)
         component_schemas[name] = converter.convert(cls, processed_classes)
         processed_classes[cls] = name
 

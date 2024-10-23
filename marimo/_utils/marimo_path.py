@@ -93,7 +93,7 @@ class MarimoPath:
                 return True
             except ValueError:
                 return False
-        return self.path.is_relative_to(other)  # type: ignore
+        return self.path.is_relative_to(other)
 
     @property
     def absolute_name(self) -> str:

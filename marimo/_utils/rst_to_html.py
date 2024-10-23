@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import contextlib
 import io
 
@@ -6,7 +8,7 @@ import io
 def convert_rst_to_html(rst_content: str) -> str:
     """Convert RST content to HTML."""
 
-    from docutils.core import publish_parts  # type: ignore[import-untyped]
+    from docutils.core import publish_parts
 
     # redirect stderr and ignore it to silence error messages
     with contextlib.redirect_stderr(io.StringIO()) as _:

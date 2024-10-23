@@ -126,7 +126,7 @@ def get_content(
     | GenerateContentResponse,
 ) -> str | None:
     if hasattr(response, "choices"):
-        return response.choices[0].delta.content  # type: ignore
+        return response.choices[0].delta.content
 
     if hasattr(response, "text"):
         return response.text  # type: ignore
@@ -138,7 +138,7 @@ def get_content(
 
     if isinstance(response, RawContentBlockDeltaEvent):
         if isinstance(response.delta, TextDelta):
-            return response.delta.text  # type: ignore
+            return response.delta.text
 
     return None
 

@@ -33,7 +33,7 @@ class MarimoPdb(Pdb):
             skip=skip,
             nosigint=nosigint,
             readrc=readrc,
-        )  # type: ignore[arg-type]
+        )
         # it's fine to use input() since marimo overrides it, but disable
         # it anyway -- stdin is fine too ...
         self.use_rawinput = stdin is None

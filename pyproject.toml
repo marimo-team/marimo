@@ -163,6 +163,7 @@ dependencies = [
 
 [tool.hatch.envs.typecheck.scripts]
 check = "mypy marimo/"
+check-strict = "mypy --strict marimo/"
 
 [tool.hatch.envs.test]
 extra-dependencies = [

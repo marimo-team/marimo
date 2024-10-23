@@ -121,12 +121,12 @@ NamedNode = Union[
     ast.AsyncFunctionDef,
     ast.arg,
     ast.Global,
-    "ast.MatchAs",  # type: ignore
-    "ast.MatchMapping",  # type: ignore
-    "ast.MatchStar",  # type: ignore
-    "ast.TypeVar",  # type: ignore
-    "ast.ParamSpec",  # type: ignore
-    "ast.TypeVarTuple",  # type: ignore
+    "ast.MatchAs",
+    "ast.MatchMapping",
+    "ast.MatchStar",
+    "ast.TypeVar",
+    "ast.ParamSpec",
+    "ast.TypeVarTuple",
 ]
 
 
