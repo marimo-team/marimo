@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.formatter_factory import FormatterFactory
@@ -36,23 +36,11 @@ class ArviZFormatter(FormatterFactory):
         ) -> tuple[KnownMimeType, str]:
             return self.format_numpy_axes(arr)
 
-        @formatting.formatter(dict)  # type: ignore
-        def _format_dict(
-            d: dict,  # type: ignore
-        ) -> tuple[KnownMimeType, str]:
-            return self.format_dict_with_plot(d)
-
         @formatting.formatter(plt.Figure)  # type: ignore
         def _format_figure(
             fig: plt.Figure,  # type: ignore
         ) -> tuple[KnownMimeType, str]:
             return self.format_figure(fig)
-
-        @formatting.formatter(object)
-        def _format_arviz_plot(
-            obj: Any,
-        ) -> tuple[KnownMimeType, str]:
-            return self.format_arviz_plot(obj)
 
     @classmethod
     def format_numpy_axes(cls, arr: np.ndarray) -> tuple[KnownMimeType, str]:  # type: ignore
@@ -122,22 +110,6 @@ class ArviZFormatter(FormatterFactory):
         return f"<img src='data:image/png;base64,{data}'/>"
 
     @classmethod
-    def format_dict_with_plot(cls, d: dict) -> tuple[KnownMimeType, str]:  # type: ignore
-        import matplotlib.pyplot as plt  # type: ignore
-
-        str_repr = str(d)
-        fig = plt.gcf()
-        if fig.get_axes():
-            axes_info = cls._get_axes_info(fig)
-            plot_html = cls._get_plot_html(fig)
-            plt.close(fig)
-            combined_html = (
-                f"<pre>{str_repr}\n{axes_info}</pre><br>" f"{plot_html}"
-            )
-            return ("text/html", combined_html)
-        return ("text/plain", str_repr)
-
-    @classmethod
     def format_figure(cls, fig: Figure) -> tuple[KnownMimeType, str]:  # type: ignore
         import matplotlib.pyplot as plt  # type: ignore
 
@@ -146,21 +118,3 @@ class ArviZFormatter(FormatterFactory):
         plt.close(fig)
         combined_html = f"<pre>{axes_info}</pre><br>{plot_html}"
         return ("text/html", combined_html)
-
-    @classmethod
-    def format_arviz_plot(cls, result: Any) -> tuple[KnownMimeType, str]:
-        import matplotlib.pyplot as plt  # type: ignore
-        import numpy as np  # type: ignore
-        from matplotlib.figure import Figure  # type: ignore
-
-        if isinstance(result, Figure):
-            return cls.format_figure(result)
-        elif isinstance(result, np.ndarray):
-            return cls.format_numpy_axes(result)
-        elif isinstance(result, dict):
-            return cls.format_dict_with_plot(result)
-        else:
-            fig = plt.gcf()
-            if fig.get_axes():
-                return cls.format_figure(fig)
-            return ("text/plain", str(result))
