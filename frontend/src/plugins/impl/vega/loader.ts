@@ -8,54 +8,68 @@ import {
   type FieldTypes,
 } from "./vega-loader";
 
-// Augment the typeParsers to support Date
-typeParsers.date = (value: string) => new Date(value).toISOString();
-const previousBooleanParser = typeParsers.boolean;
-const previousNumberParser = typeParsers.number;
+type Unsubscribe = () => void;
+type Middleware = () => Unsubscribe;
+
+// Store all the previous type parsers so we can restore them later
 const previousIntegerParser = typeParsers.integer;
+const previousNumberParser = typeParsers.number;
+const previousDateParser = typeParsers.date;
+const previousBooleanParser = typeParsers.boolean;
 
-// Custom parser to:
-// - handle BigInt
-// - handle inf and -inf
-const customIntegerParser = (v: string) => {
-  if (v === "") {
-    return "";
-  }
-  if (v === "-inf") {
-    return v;
-  }
-  if (v === "inf") {
-    return v;
-  }
+const BIG_INT_MIDDLEWARE: Middleware = () => {
+  // Custom parser to:
+  // - handle BigInt
+  // - handle inf and -inf
+  typeParsers.integer = (v: string) => {
+    if (v === "") {
+      return "";
+    }
+    if (v === "-inf") {
+      return v;
+    }
+    if (v === "inf") {
+      return v;
+    }
 
-  const parsedInt = Number.parseInt(v);
-  if (isNumber(parsedInt)) {
-    const needsBigInt = Math.abs(parsedInt) > Number.MAX_SAFE_INTEGER;
-    if (!needsBigInt) {
-      return previousIntegerParser(v);
+    const parsedInt = Number.parseInt(v);
+    if (isNumber(parsedInt)) {
+      const needsBigInt = Math.abs(parsedInt) > Number.MAX_SAFE_INTEGER;
+      if (!needsBigInt) {
+        return previousIntegerParser(v);
+      }
+      try {
+        return BigInt(v);
+      } catch {
+        // Floats like 2.0 are parseable as ints but not
+        // as BigInt
+        return previousIntegerParser(v);
+      }
+    } else {
+      return "";
     }
-    try {
-      return BigInt(v);
-    } catch {
-      // Floats like 2.0 are parseable as ints but not
-      // as BigInt
-      return previousIntegerParser(v);
+  };
+  typeParsers.number = (v: string) => {
+    if (v === "-inf") {
+      return v;
     }
-  } else {
-    return "";
-  }
+    if (v === "inf") {
+      return v;
+    }
+    return previousNumberParser(v);
+  };
+
+  return () => {
+    typeParsers.integer = previousIntegerParser;
+    typeParsers.number = previousNumberParser;
+  };
 };
 
-// Custom number parser to:
-// - handle inf and -inf
-const customNumberParser = (v: string) => {
-  if (v === "-inf") {
-    return v;
-  }
-  if (v === "inf") {
-    return v;
-  }
-  return previousNumberParser(v);
+const DATE_MIDDLEWARE: Middleware = () => {
+  typeParsers.date = (value: string) => new Date(value).toISOString();
+  return () => {
+    typeParsers.date = previousDateParser;
+  };
 };
 
 // Custom boolean parser:
@@ -74,16 +88,6 @@ const customBooleanParser = (v: string) => {
 
 typeParsers.boolean = customBooleanParser;
 
-function enableBigInt() {
-  typeParsers.integer = customIntegerParser;
-  typeParsers.number = customNumberParser;
-}
-
-function disableBigInt() {
-  typeParsers.integer = previousIntegerParser;
-  typeParsers.number = previousNumberParser;
-}
-
 export const vegaLoader = createLoader();
 
 /**
@@ -91,17 +95,29 @@ export const vegaLoader = createLoader();
  *
  * This resolves to an array of objects, where each object represents a row.
  */
-export function vegaLoadData<T = object>(
+export async function vegaLoadData<T = object>(
   url: string,
   format: DataFormat | undefined | { type: "csv"; parse: "auto" },
   opts: {
+    // We support enabling/disabling since the Table enables it
+    // but Vega does not support BigInts
     handleBigInt?: boolean;
     replacePeriod?: boolean;
   } = {},
 ): Promise<T[]> {
   const { handleBigInt = false, replacePeriod = false } = opts;
 
-  return vegaLoader.load(url).then((csvOrJsonData) => {
+  const middleware: Middleware[] = [DATE_MIDDLEWARE];
+  if (handleBigInt) {
+    middleware.push(BIG_INT_MIDDLEWARE);
+  }
+
+  // Apply middleware
+  const unsubscribes = middleware.map((m) => m());
+
+  // Load the data
+  try {
+    let csvOrJsonData = await vegaLoader.load(url);
     if (!format) {
       // Infer by trying to parse
       if (typeof csvOrJsonData === "string") {
@@ -134,12 +150,6 @@ export function vegaLoadData<T = object>(
       csvOrJsonData = replacePeriodsInColumnNames(csvOrJsonData);
     }
 
-    // We support enabling/disabling since the Table enables it
-    // but Vega does not support BigInts
-    if (handleBigInt) {
-      enableBigInt();
-    }
-
     // Always set parse to auto for csv data, to be able to parse dates and floats
     const results = isCsv
       ? // csv -> json
@@ -149,22 +159,27 @@ export function vegaLoadData<T = object>(
         })
       : read(csvOrJsonData, format);
 
-    if (handleBigInt) {
-      disableBigInt();
-    }
-
     return results as T[];
-  });
+  } finally {
+    // Unsubscribe from middleware
+    unsubscribes.forEach((u) => u());
+  }
 }
 
 export function parseCsvData(csvData: string, handleBigInt = true): object[] {
+  const middleware: Middleware[] = [DATE_MIDDLEWARE];
   if (handleBigInt) {
-    enableBigInt();
+    middleware.push(BIG_INT_MIDDLEWARE);
   }
+
+  // Apply middleware
+  const unsubscribes = middleware.map((m) => m());
+
   const data = read(csvData, { type: "csv", parse: "auto" });
-  if (handleBigInt) {
-    disableBigInt();
-  }
+
+  // Unsubscribe from middleware
+  unsubscribes.forEach((u) => u());
+
   return data;
 }
 
