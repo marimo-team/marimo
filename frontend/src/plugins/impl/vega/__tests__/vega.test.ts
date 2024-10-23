@@ -1,6 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, it, vi } from "vitest";
-import { vegaLoadData, vegaLoader, exportedForTesting } from "../loader";
+import {
+  vegaLoadData,
+  vegaLoader,
+  exportedForTesting,
+  parseCsvData,
+} from "../loader";
 
 const { ZERO_WIDTH_SPACE, replacePeriodsInColumnNames, uniquifyColumnNames } =
   exportedForTesting;
@@ -151,6 +156,191 @@ yield_error,yield_center
       ]
     `);
   });
+
+  it("should parse csv data with boolean values", async () => {
+    const csvData = `
+is_active,username
+True,user1
+False,user2
+true,user3
+false,user4
+`.trim();
+
+    vi.spyOn(vegaLoader, "load").mockReturnValue(Promise.resolve(csvData));
+
+    const data = await vegaLoadData(csvData, { type: "csv", parse: "auto" });
+
+    expect(data).toMatchInlineSnapshot(`
+      [
+        {
+          "is_active": "True",
+          "username": "user1",
+        },
+        {
+          "is_active": "False",
+          "username": "user2",
+        },
+        {
+          "is_active": "true",
+          "username": "user3",
+        },
+        {
+          "is_active": "false",
+          "username": "user4",
+        },
+      ]
+    `);
+  });
+
+  it("should handle inf and -inf values", async () => {
+    const csvData = `
+value,name
+inf,positive_infinity
+-inf,negative_infinity
+100,regular_number
+`.trim();
+
+    vi.spyOn(vegaLoader, "load").mockReturnValue(Promise.resolve(csvData));
+
+    const data = await vegaLoadData(csvData, { type: "csv", parse: "auto" });
+
+    expect(data).toMatchInlineSnapshot(`
+      [
+        {
+          "name": "positive_infinity",
+          "value": "inf",
+        },
+        {
+          "name": "negative_infinity",
+          "value": "-inf",
+        },
+        {
+          "name": "regular_number",
+          "value": "100",
+        },
+      ]
+    `);
+  });
+
+  it("should handle BigInt values with and without the handleBigInt option", async () => {
+    const csvData = `
+id,name
+9007199254740991,max_safe_integer
+9007199254740992,above_max_safe_integer
+`.trim();
+
+    vi.spyOn(vegaLoader, "load").mockReturnValue(Promise.resolve(csvData));
+
+    const dataWithBigInt = await vegaLoadData(
+      csvData,
+      { type: "csv", parse: "auto" },
+      { handleBigInt: true },
+    );
+
+    expect(dataWithBigInt).toMatchInlineSnapshot(`
+      [
+        {
+          "id": 9007199254740991,
+          "name": "max_safe_integer",
+        },
+        {
+          "id": 9007199254740992n,
+          "name": "above_max_safe_integer",
+        },
+      ]
+    `);
+
+    const dataWithoutBigInt = await vegaLoadData(
+      csvData,
+      { type: "csv", parse: "auto" },
+      { handleBigInt: false },
+    );
+
+    expect(dataWithoutBigInt).toMatchInlineSnapshot(`
+      [
+        {
+          "id": 9007199254740991,
+          "name": "max_safe_integer",
+        },
+        {
+          "id": 9007199254740992,
+          "name": "above_max_safe_integer",
+        },
+      ]
+    `);
+  });
+
+  it("should handle JSON data", async () => {
+    const jsonData = JSON.stringify([
+      { name: "Alice", age: 30 },
+      { name: "Bob", age: 25 },
+    ]);
+
+    vi.spyOn(vegaLoader, "load").mockReturnValue(Promise.resolve(jsonData));
+
+    const data = await vegaLoadData(jsonData, { type: "json" });
+
+    expect(data).toMatchInlineSnapshot(`
+      [
+        {
+          "age": 30,
+          "name": "Alice",
+        },
+        {
+          "age": 25,
+          "name": "Bob",
+        },
+      ]
+    `);
+  });
+
+  it("should handle the replacePeriod option", async () => {
+    const csvData = `
+user.name,user.age
+Alice.Smith,30
+Bob.Jones,25
+`.trim();
+
+    vi.spyOn(vegaLoader, "load").mockReturnValue(Promise.resolve(csvData));
+
+    const dataWithReplacePeriod = await vegaLoadData(
+      csvData,
+      { type: "csv", parse: "auto" },
+      { replacePeriod: true },
+    );
+
+    expect(dataWithReplacePeriod).toMatchInlineSnapshot(`
+      [
+        {
+          "user․age": 30,
+          "user․name": "Alice.Smith",
+        },
+        {
+          "user․age": 25,
+          "user․name": "Bob.Jones",
+        },
+      ]
+    `);
+
+    const dataWithoutReplacePeriod = await vegaLoadData(
+      csvData,
+      { type: "csv", parse: "auto" },
+      { replacePeriod: false },
+    );
+
+    expect(dataWithoutReplacePeriod).toMatchInlineSnapshot(`
+      [
+        {
+          "user.age": 30,
+          "user.name": "Alice.Smith",
+        },
+        {
+          "user.age": 25,
+          "user.name": "Bob.Jones",
+        },
+      ]
+    `);
+  });
 });
 
 describe("uniquifyColumnNames", () => {
@@ -231,5 +421,48 @@ describe("replacePeriodsInColumnNames", () => {
       "Name,Age,Location\nAlice,30.1,New York\nBob,30.5,New York";
     const result = replacePeriodsInColumnNames(csvData);
     expect(result).toBe(expectedResult);
+  });
+});
+
+describe("parseCsvData", () => {
+  it("should parse CSV data with and without handleBigInt option", () => {
+    const csvData = `
+id,name,value
+9007199254740992,big_int,1.5
+100,regular,2.0
+`.trim();
+
+    const dataWithBigInt = parseCsvData(csvData, true);
+    const dataWithoutBigInt = parseCsvData(csvData, false);
+
+    expect(dataWithBigInt).toMatchInlineSnapshot(`
+      [
+        {
+          "id": 9007199254740992n,
+          "name": "big_int",
+          "value": 1.5,
+        },
+        {
+          "id": 100,
+          "name": "regular",
+          "value": 2,
+        },
+      ]
+    `);
+
+    expect(dataWithoutBigInt).toMatchInlineSnapshot(`
+      [
+        {
+          "id": 9007199254740992,
+          "name": "big_int",
+          "value": 1.5,
+        },
+        {
+          "id": 100,
+          "name": "regular",
+          "value": 2,
+        },
+      ]
+    `);
   });
 });

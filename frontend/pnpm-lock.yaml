@@ -347,7 +347,7 @@ importers:
         version: 0.9.6(react@18.3.1)
       react-vega:
         specifier: ^7.6.0
-        version: 7.6.0(react@18.3.1)(vega-lite@5.20.1(vega@5.30.0))(vega@5.30.0)
+        version: 7.6.0(react@18.3.1)(vega-lite@5.21.0(vega@5.30.0))(vega@5.30.0)
       react-virtuoso:
         specifier: ^4.10.1
         version: 4.10.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -382,8 +382,8 @@ importers:
         specifier: ^9.1.0
         version: 9.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       vega-lite:
-        specifier: ^5.20.1
-        version: 5.20.1(vega@5.30.0)
+        specifier: ^5.21.0
+        version: 5.21.0(vega@5.30.0)
       vega-loader:
         specifier: ^4.5.2
         version: 4.5.2
@@ -8082,8 +8082,8 @@ packages:
     peerDependencies:
       vega: ^5.4.0
 
-  vega-lite@5.20.1:
-    resolution: {integrity: sha512-rpw6aT3NXR4bIdctPpK/V+FZAt1VNHMEnfF/TxaZDc4PDOzfYXiYOFf0zOMURUq/EyzFCkhBvtkf1MzmqlAz9g==}
+  vega-lite@5.21.0:
+    resolution: {integrity: sha512-hNxM9nuMqpI1vkUOhEx6ewEf23WWLmJxSFJ4TA86AW43ixJyqcLV+iSCO0NipuVTE0rlDcc2e8joSewWyOlEwA==}
     engines: {node: '>=18'}
     hasBin: true
     peerDependencies:
@@ -16432,15 +16432,15 @@ snapshots:
     dependencies:
       react: 18.3.1
 
-  react-vega@7.6.0(react@18.3.1)(vega-lite@5.20.1(vega@5.30.0))(vega@5.30.0):
+  react-vega@7.6.0(react@18.3.1)(vega-lite@5.21.0(vega@5.30.0))(vega@5.30.0):
     dependencies:
       '@types/react': 18.3.7
       fast-deep-equal: 3.1.3
       prop-types: 15.8.1
       react: 18.3.1
       vega: 5.30.0
-      vega-embed: 6.23.0(vega-lite@5.20.1(vega@5.30.0))(vega@5.30.0)
-      vega-lite: 5.20.1(vega@5.30.0)
+      vega-embed: 6.23.0(vega-lite@5.21.0(vega@5.30.0))(vega@5.30.0)
+      vega-lite: 5.21.0(vega@5.30.0)
 
   react-virtuoso@4.10.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
@@ -17653,7 +17653,7 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
-  vega-embed@6.23.0(vega-lite@5.20.1(vega@5.30.0))(vega@5.30.0):
+  vega-embed@6.23.0(vega-lite@5.21.0(vega@5.30.0))(vega@5.30.0):
     dependencies:
       fast-json-patch: 3.1.1
       json-stringify-pretty-compact: 3.0.0
@@ -17661,9 +17661,9 @@ snapshots:
       tslib: 2.7.0
       vega: 5.30.0
       vega-interpreter: 1.0.5
-      vega-lite: 5.20.1(vega@5.30.0)
+      vega-lite: 5.21.0(vega@5.30.0)
       vega-schema-url-parser: 2.2.0
-      vega-themes: 2.14.0(vega-lite@5.20.1(vega@5.30.0))(vega@5.30.0)
+      vega-themes: 2.14.0(vega-lite@5.21.0(vega@5.30.0))(vega@5.30.0)
       vega-tooltip: 0.33.0
 
   vega-encode@4.10.1:
@@ -17769,7 +17769,7 @@ snapshots:
       vega-util: 1.10.0
       yargs: 13.3.2
 
-  vega-lite@5.20.1(vega@5.30.0):
+  vega-lite@5.21.0(vega@5.30.0):
     dependencies:
       json-stringify-pretty-compact: 3.0.0
       tslib: 2.6.3
@@ -17853,10 +17853,10 @@ snapshots:
     dependencies:
       d3-array: 3.2.4
 
-  vega-themes@2.14.0(vega-lite@5.20.1(vega@5.30.0))(vega@5.30.0):
+  vega-themes@2.14.0(vega-lite@5.21.0(vega@5.30.0))(vega@5.30.0):
     dependencies:
       vega: 5.30.0
-      vega-lite: 5.20.1(vega@5.30.0)
+      vega-lite: 5.21.0(vega@5.30.0)
 
   vega-time@2.1.2:
     dependencies:

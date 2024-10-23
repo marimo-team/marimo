@@ -135,7 +135,7 @@
     "timestring": "^7.0.0",
     "typescript-memoize": "^1.1.1",
     "use-resize-observer": "^9.1.0",
-    "vega-lite": "^5.20.1",
+    "vega-lite": "^5.21.0",
     "vega-loader": "^4.5.2",
     "vscode-languageserver-protocol": "^3.17.5",
     "web-vitals": "^4.2.3",
