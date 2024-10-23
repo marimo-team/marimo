@@ -1,15 +1,14 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.formatter_factory import FormatterFactory
 
 if TYPE_CHECKING:
-    import matplotlib.pyplot as plt  # type: ignore
-    import numpy as np  # type: ignore
-    from matplotlib.figure import Figure  # type: ignore
+    import numpy as np
+    from matplotlib.figure import Figure
 
 
 class ArviZFormatter(FormatterFactory):
@@ -19,37 +18,39 @@ class ArviZFormatter(FormatterFactory):
 
     def register(self) -> None:
         import arviz as az  # type: ignore
-        import matplotlib.pyplot as plt  # type: ignore
-        import numpy as np  # type: ignore
+        import numpy as np
+        from matplotlib.figure import Figure
 
         from marimo._output import formatting
 
-        @formatting.formatter(az.InferenceData)  # type: ignore
+        @formatting.formatter(az.InferenceData)
         def _format_inference_data(
-            data: az.InferenceData,  # type: ignore
+            data: az.InferenceData,
         ) -> tuple[KnownMimeType, str]:
             return ("text/plain", str(data))
 
-        @formatting.formatter(np.ndarray)  # type: ignore
+        @formatting.formatter(np.ndarray)
         def _format_ndarray(
-            arr: np.ndarray,  # type: ignore
+            arr: np.ndarray[Any, Any],
         ) -> tuple[KnownMimeType, str]:
             return self.format_numpy_axes(arr)
 
-        @formatting.formatter(plt.Figure)  # type: ignore
+        @formatting.formatter(Figure)
         def _format_figure(
-            fig: plt.Figure,  # type: ignore
+            fig: Figure,
         ) -> tuple[KnownMimeType, str]:
             return self.format_figure(fig)
 
     @classmethod
-    def format_numpy_axes(cls, arr: np.ndarray) -> tuple[KnownMimeType, str]:  # type: ignore
-        import matplotlib.pyplot as plt  # type: ignore
+    def format_numpy_axes(
+        cls, arr: np.ndarray[Any, Any]
+    ) -> tuple[KnownMimeType, str]:
+        import matplotlib.pyplot as plt
 
         # Check if array contains axes (to render plots) or not
         if arr.dtype == object and cls._contains_axes(arr):
             fig = plt.gcf()
-            if fig.get_axes():  # Only process if there are axes to show
+            if fig.axes:  # Only process if there are axes to show
                 axes_info = cls._get_axes_info(fig)
                 plot_html = cls._get_plot_html(fig)
                 plt.close(fig)  # Safely close the figure after saving
@@ -59,8 +60,8 @@ class ArviZFormatter(FormatterFactory):
         return ("text/plain", str(arr))
 
     @staticmethod
-    def _contains_axes(arr: np.ndarray) -> bool:  # type: ignore
-        from matplotlib.axes import Axes  # type: ignore
+    def _contains_axes(arr: np.ndarray[Any, Any]) -> bool:
+        from matplotlib.axes import Axes
 
         """
         Check if the numpy array contains any matplotlib Axes objects.
@@ -89,7 +90,7 @@ class ArviZFormatter(FormatterFactory):
         return False
 
     @staticmethod
-    def _get_axes_info(fig: Figure) -> str:  # type: ignore
+    def _get_axes_info(fig: Figure) -> str:
         axes_info = []
         for _, ax in enumerate(fig.axes):
             bbox = ax.get_position()
@@ -100,7 +101,7 @@ class ArviZFormatter(FormatterFactory):
         return "\n".join(axes_info)
 
     @staticmethod
-    def _get_plot_html(fig: Figure) -> str:  # type: ignore
+    def _get_plot_html(fig: Figure) -> str:
         import base64
         from io import BytesIO
 
@@ -110,8 +111,8 @@ class ArviZFormatter(FormatterFactory):
         return f"<img src='data:image/png;base64,{data}'/>"
 
     @classmethod
-    def format_figure(cls, fig: Figure) -> tuple[KnownMimeType, str]:  # type: ignore
-        import matplotlib.pyplot as plt  # type: ignore
+    def format_figure(cls, fig: Figure) -> tuple[KnownMimeType, str]:
+        import matplotlib.pyplot as plt
 
         axes_info = cls._get_axes_info(fig)
         plot_html = cls._get_plot_html(fig)

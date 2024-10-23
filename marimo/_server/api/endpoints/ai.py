@@ -19,26 +19,16 @@ from marimo._server.models.completion import (
 from marimo._server.router import APIRouter
 
 if TYPE_CHECKING:
-    from anthropic import (  # type: ignore[import-not-found]
-        Client,
-        Stream as AnthropicStream,
-    )
-    from anthropic.types import (  # type: ignore[import-not-found]
-        RawMessageStreamEvent,
-    )
+    from anthropic import Client, Stream as AnthropicStream
+    from anthropic.types import RawMessageStreamEvent
     from google.generativeai import (  # type: ignore[import-not-found]
         GenerativeModel,
     )
     from google.generativeai.types import (  # type: ignore[import-not-found]
         GenerateContentResponse,
     )
-    from openai import (  # type: ignore[import-not-found]
-        OpenAI,
-        Stream as OpenAiStream,
-    )
-    from openai.types.chat import (  # type: ignore[import-not-found]
-        ChatCompletionChunk,
-    )
+    from openai import OpenAI, Stream as OpenAiStream
+    from openai.types.chat import ChatCompletionChunk
     from starlette.requests import Request
 
 LOGGER = _loggers.marimo_logger()
@@ -49,7 +39,7 @@ router = APIRouter()
 
 def get_openai_client(config: MarimoConfig) -> "OpenAI":
     try:
-        from openai import OpenAI  # type: ignore[import-not-found]
+        from openai import OpenAI
     except ImportError:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
@@ -87,7 +77,7 @@ def get_openai_client(config: MarimoConfig) -> "OpenAI":
 
 def get_anthropic_client(config: MarimoConfig) -> "Client":
     try:
-        from anthropic import Client  # type: ignore[import-not-found]
+        from anthropic import Client
     except ImportError:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
@@ -136,19 +126,19 @@ def get_content(
     | GenerateContentResponse,
 ) -> str | None:
     if hasattr(response, "choices"):
-        return response.choices[0].delta.content  # type: ignore
+        return response.choices[0].delta.content
 
     if hasattr(response, "text"):
         return response.text  # type: ignore
 
-    from anthropic.types import (  # type: ignore[import-not-found]
+    from anthropic.types import (
         RawContentBlockDeltaEvent,
         TextDelta,
     )
 
     if isinstance(response, RawContentBlockDeltaEvent):
         if isinstance(response.delta, TextDelta):
-            return response.delta.text  # type: ignore
+            return response.delta.text
 
     return None
 

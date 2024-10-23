@@ -376,9 +376,9 @@ def remove_secret_placeholders(config: T) -> T:
                 k: deep_remove(v)
                 for k, v in obj.items()
                 if v != SECRET_PLACEHOLDER
-            }  # type: ignore
+            }
         if isinstance(obj, list):
-            return [deep_remove(v) for v in obj]  # type: ignore
+            return [deep_remove(v) for v in obj]
         if obj == SECRET_PLACEHOLDER:
             return None
         return obj
