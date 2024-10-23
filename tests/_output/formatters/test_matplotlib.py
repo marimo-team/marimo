@@ -13,7 +13,7 @@ HAS_MPL = DependencyManager.matplotlib.has()
 async def test_matplotlib_rc_light(
     executing_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    import matplotlib.pyplot as plt  # type: ignore
+    import matplotlib.pyplot as plt
 
     from marimo._output.formatters.formatters import register_formatters
 
@@ -42,7 +42,7 @@ async def test_matplotlib_rc_light(
 async def test_matplotlib_rc_dark(
     executing_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    import matplotlib.pyplot as plt  # type: ignore
+    import matplotlib.pyplot as plt
 
     from marimo._output.formatters.formatters import register_formatters
 

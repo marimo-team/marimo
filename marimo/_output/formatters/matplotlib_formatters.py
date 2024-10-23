@@ -12,7 +12,7 @@ class MatplotlibFormatter(FormatterFactory):
         return "matplotlib"
 
     def register(self) -> None:
-        import matplotlib  # type: ignore
+        import matplotlib
 
         from marimo._runtime.context import (
             get_global_context,
@@ -20,7 +20,6 @@ class MatplotlibFormatter(FormatterFactory):
         from marimo._runtime.context.utils import running_in_notebook
 
         get_global_context().set_mpl_installed(True)
-        from marimo._output import mpl  # noqa: F401
 
         if running_in_notebook():
             matplotlib.use("module://marimo._output.mpl")
@@ -28,8 +27,8 @@ class MatplotlibFormatter(FormatterFactory):
         import base64
         import io
 
-        from matplotlib.artist import Artist  # type: ignore
-        from matplotlib.container import BarContainer  # type: ignore
+        from matplotlib.artist import Artist
+        from matplotlib.container import BarContainer
 
         from marimo._output import formatting
         from marimo._output.utils import build_data_url
@@ -58,7 +57,7 @@ class MatplotlibFormatter(FormatterFactory):
                 return ("text/plain", str(bc))
 
     def apply_theme(self, theme: Theme) -> None:
-        import matplotlib.style  # type: ignore
+        import matplotlib.style
 
         # Note: we don't set to "default", because that overwrites all
         # rcParams.
