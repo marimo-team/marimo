@@ -147,15 +147,18 @@ dependencies = [
     # Types for mypy"
     "matplotlib-stubs>=0.2.0",
     "duckdb>=1.1.0",
-    "polars~=1.9.0",
+    "polars>=1.9.0",
     "narwhals>=1.9.0",
+    "openai>=1.41.1",
+    "anthropic>=0.34.1",
+    "anywidget>=0.9.13",
     "pyarrow-stubs>=17.0",
     "pandas-stubs>=1.5.3.230321",
-    "types-Pillow~=10.2.0.20240520",
-    "types-Pygments~=2.18.0.20240506",
-    "types-psutil~=5.9.5.20240516",
-    "types-Markdown~=3.6.0.20240316",
-    "types-PyYAML~=6.0.12.20240808",
+    "types-Pillow>=10.2.0.20240520",
+    "types-Pygments>=2.18.0.20240506",
+    "types-psutil>=5.9.5.20240516",
+    "types-Markdown>=3.6.0.20240316",
+    "types-PyYAML>=6.0.12.20240808",
 ]
 
 [tool.hatch.envs.typecheck.scripts]
