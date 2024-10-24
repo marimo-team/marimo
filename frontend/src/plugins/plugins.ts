@@ -83,7 +83,7 @@ export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
   LazyPlugin,
   AnyWidgetPlugin,
   DataEditorPlugin,
-  PanelPlugin
+  PanelPlugin,
 ];
 
 // List of output / layout plugins

@@ -36,14 +36,14 @@ def from_panel(obj: Any) -> UIElement[Any, Any]:
     """Create a UIElement from an Panel."""
     try:
         cached = obj in cache
-        cachable = True
+        cacheable = True
     except TypeError:
-        cachable = cached = False
+        cacheable = cached = False
     if cached:
         ui_element = cache[obj]
     else:
         ui_element = panel(obj)
-    if cachable:
+    if cacheable:
         cache[obj] = ui_element
     return ui_element
 
