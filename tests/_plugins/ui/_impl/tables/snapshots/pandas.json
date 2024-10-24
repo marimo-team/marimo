@@ -1,0 +1,53 @@
+[
+  {
+    "strings": "a",
+    "bool": true,
+    "int": 1,
+    "float": 1.0,
+    "datetime": 1609459200000,
+    "date": 1609459200000,
+    "struct": { "a": 1, "b": 2 },
+    "list": [1, 2],
+    "nulls": null,
+    "category": "cat",
+    "set": [1, 2],
+    "imaginary": { "imag": 2.0, "real": 1.0 },
+    "time": "12:30:00",
+    "duration": 86400000,
+    "mixed_list": [1, "two"]
+  },
+  {
+    "strings": "b",
+    "bool": false,
+    "int": 2,
+    "float": 2.0,
+    "datetime": 1609545600000,
+    "date": 1609545600000,
+    "struct": { "a": 3, "b": 4 },
+    "list": [3, 4],
+    "nulls": "data",
+    "category": "dog",
+    "set": [3, 4],
+    "imaginary": { "imag": 4.0, "real": 3.0 },
+    "time": "13:45:00",
+    "duration": 172800000,
+    "mixed_list": [3.0, false]
+  },
+  {
+    "strings": "c",
+    "bool": true,
+    "int": 3,
+    "float": 3.0,
+    "datetime": 1609632000000,
+    "date": 1609632000000,
+    "struct": { "a": 5, "b": 6 },
+    "list": [5, 6],
+    "nulls": null,
+    "category": "mouse",
+    "set": [5, 6],
+    "imaginary": { "imag": 6.0, "real": 5.0 },
+    "time": "14:15:00",
+    "duration": 259200000,
+    "mixed_list": [null, 1609459200000]
+  }
+]

@@ -9,7 +9,10 @@
   "list": ["unknown", "list[i64]"],
   "array": ["unknown", "array[i64, 1]"],
   "nulls": ["string", "str"],
-  "categorical": ["string", "cat"],
-  "duration": ["date", "duration[\u03bcs]"],
+  "category": ["string", "cat"],
+  "set": ["unknown", "object"],
+  "imaginary": ["unknown", "object"],
+  "time": ["time", "Time"],
+  "duration": ["datetime", "duration[\u03bcs]"],
   "mixed_list": ["unknown", "list[str]"]
 }

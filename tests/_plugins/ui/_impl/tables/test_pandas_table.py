@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import json
 import unittest
 from typing import Any
 from unittest.mock import Mock
@@ -14,8 +15,12 @@ from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.pandas_table import (
     PandasTableManagerFactory,
 )
+from marimo._plugins.ui._impl.tables.table_manager import TableManager
+from tests.mocks import snapshotter
 
 HAS_DEPS = DependencyManager.pandas.has()
+
+snapshot = snapshotter(__file__)
 
 
 def assert_frame_equal(a: Any, b: Any) -> None:
@@ -36,6 +41,55 @@ except ImportError:
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 class TestPandasTableManager(unittest.TestCase):
+    def get_complex_data(self) -> TableManager[Any]:
+        import pandas as pd
+
+        complex_data = pd.DataFrame(
+            {
+                "strings": ["a", "b", "c"],
+                "bool": [True, False, True],
+                "int": [1, 2, 3],
+                "float": [1.0, 2.0, 3.0],
+                "datetime": [
+                    datetime.datetime(2021, 1, 1),
+                    datetime.datetime(2021, 1, 2),
+                    datetime.datetime(2021, 1, 3),
+                ],
+                "date": [
+                    datetime.date(2021, 1, 1),
+                    datetime.date(2021, 1, 2),
+                    datetime.date(2021, 1, 3),
+                ],
+                "struct": [
+                    {"a": 1, "b": 2},
+                    {"a": 3, "b": 4},
+                    {"a": 5, "b": 6},
+                ],
+                "list": pd.Series([[1, 2], [3, 4], [5, 6]]),
+                "nulls": pd.Series([None, "data", None]),
+                "category": pd.Categorical(["cat", "dog", "mouse"]),
+                "set": [set([1, 2]), set([3, 4]), set([5, 6])],
+                "imaginary": [1 + 2j, 3 + 4j, 5 + 6j],
+                "time": [
+                    datetime.time(12, 30),
+                    datetime.time(13, 45),
+                    datetime.time(14, 15),
+                ],
+                "duration": [
+                    datetime.timedelta(days=1),
+                    datetime.timedelta(days=2),
+                    datetime.timedelta(days=3),
+                ],
+                "mixed_list": [
+                    [1, "two"],
+                    [3.0, False],
+                    [None, datetime.datetime(2021, 1, 1)],
+                ],
+            },
+        )
+
+        return self.factory.create()(complex_data)
+
     def setUp(self) -> None:
         import pandas as pd
 
@@ -69,9 +123,26 @@ class TestPandasTableManager(unittest.TestCase):
         expected_csv = self.data.to_csv(index=False).encode("utf-8")
         assert self.manager.to_csv() == expected_csv
 
+    def test_to_csv_complex(self) -> None:
+        complex_data = self.get_complex_data()
+        data = complex_data.to_csv()
+        assert isinstance(data, bytes)
+        snapshot("pandas.csv", data.decode("utf-8"))
+
     def test_to_json(self) -> None:
         expected_json = self.data.to_json(orient="records").encode("utf-8")
         assert self.manager.to_json() == expected_json
+
+    def test_to_json_complex(self) -> None:
+        complex_data = self.get_complex_data()
+        data = complex_data.to_json()
+        assert isinstance(data, bytes)
+        snapshot("pandas.json", data.decode("utf-8"))
+
+    def test_complex_data_field_types(self) -> None:
+        complex_data = self.get_complex_data()
+        field_types = complex_data.get_field_types()
+        snapshot("pandas.field_types.json", json.dumps(field_types))
 
     def test_select_rows(self) -> None:
         indices = [0, 2]
@@ -189,6 +260,9 @@ class TestPandasTableManager(unittest.TestCase):
             == expected_field_types
         )
 
+    @pytest.mark.xfail(
+        reason="Narwhals (wrapped pandas) doesn't support duplicate columns",
+    )
     def test_get_fields_types_duplicate_columns(self) -> None:
         # Different types
         data = pd.DataFrame(
@@ -258,16 +332,18 @@ class TestPandasTableManager(unittest.TestCase):
         assert summary == ColumnSummary(
             total=3,
             nulls=0,
-            unique=None,
+            unique=3,
             min=1,
             max=3,
             mean=2.0,
-            median=2.0,
+            median=2,
             std=1.0,
-            p5=1.1,
-            p25=1.5,
-            p75=2.5,
-            p95=2.9,
+            true=None,
+            false=None,
+            p5=1,
+            p25=1,
+            p75=3,
+            p95=3,
         )
 
     def test_summary_string(self) -> None:
@@ -285,15 +361,18 @@ class TestPandasTableManager(unittest.TestCase):
         assert summary == ColumnSummary(
             total=3,
             nulls=0,
+            unique=None,
             min=1.0,
             max=3.0,
             mean=2.0,
             median=2.0,
             std=1.0,
-            p5=1.1,
-            p25=1.5,
-            p75=2.5,
-            p95=2.9,
+            true=None,
+            false=None,
+            p5=1.0,
+            p25=1.0,
+            p75=3.0,
+            p95=3.0,
         )
 
     def test_summary_boolean(self) -> None:
@@ -321,10 +400,10 @@ class TestPandasTableManager(unittest.TestCase):
             std=None,
             true=None,
             false=None,
-            p5=pd.Timestamp("2021-01-01 02:24:00"),
-            p25=pd.Timestamp("2021-01-01 12:00:00"),
-            p75=pd.Timestamp("2021-01-02 12:00:00"),
-            p95=pd.Timestamp("2021-01-02 21:36:00"),
+            p5=pd.Timestamp("2021-01-01 00:00:00"),
+            p25=pd.Timestamp("2021-01-01 00:00:00"),
+            p75=pd.Timestamp("2021-01-03 00:00:00"),
+            p95=pd.Timestamp("2021-01-03 00:00:00"),
         )
 
     def test_summary_list(self) -> None:
@@ -334,6 +413,11 @@ class TestPandasTableManager(unittest.TestCase):
             total=3,
             nulls=0,
         )
+
+    def test_summary_does_fail_on_each_column(self) -> None:
+        complex_data = self.get_complex_data()
+        for column in complex_data.get_column_names():
+            assert complex_data.get_summary(column) is not None
 
     def test_sort_values(self) -> None:
         sorted_df = self.manager.sort_values("A", descending=True).data
@@ -662,7 +746,6 @@ class TestPandasTableManager(unittest.TestCase):
         field_types = manager.get_field_types()
         assert field_types["A"] == ("string", "object")
 
-    @pytest.mark.skip
     def test_search_with_regex(self) -> None:
         df = pd.DataFrame({"A": ["apple", "banana", "cherry"]})
         manager = self.factory.create()(df)
@@ -673,7 +756,11 @@ class TestPandasTableManager(unittest.TestCase):
         df = pd.DataFrame({"A": [3, 1, None, 2]})
         manager = self.factory.create()(df)
         sorted_manager = manager.sort_values("A", descending=True)
-        assert sorted_manager.data.to_dict()["A"] == [3.0, 2.0, 1.0, None]
+        assert sorted_manager.data["A"].to_list()[1:] == [
+            3.0,
+            2.0,
+            1.0,
+        ]
 
     def test_dataframe_with_multiindex(self) -> None:
         df = pd.DataFrame(

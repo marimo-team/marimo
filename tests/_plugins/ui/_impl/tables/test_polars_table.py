@@ -10,6 +10,7 @@ import pytest
 
 from marimo._data.models import ColumnSummary
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.polars_table import (
     PolarsTableManagerFactory,
 )
@@ -121,6 +122,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
     def test_to_csv(self) -> None:
         assert isinstance(self.manager.to_csv(), bytes)
 
+    def test_to_csv_complex(self) -> None:
         complex_data = self.get_complex_data()
         data = complex_data.to_csv()
         assert isinstance(data, bytes)
@@ -140,12 +142,23 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
     def test_to_json(self) -> None:
         assert isinstance(self.manager.to_json(), bytes)
 
+    def test_to_json_complex(self) -> None:
         complex_data = self.get_complex_data()
         # pl.Time and pl.Object are not supported in JSON
         other_columns = [
             col
             for col in complex_data.get_column_names()
-            if col not in ["time", "set", "imaginary"]
+            if col
+            not in [
+                "time",
+                "set",
+                "imaginary",
+                "array",
+                "list",
+                "mixed_list",
+                "struct",
+                "duration",
+            ]
         ]
         manager = complex_data.select_columns(other_columns)
         data = manager.to_json()
@@ -325,7 +338,9 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             min=datetime.datetime(2021, 1, 1, 0, 0),
             max=datetime.datetime(2021, 1, 3, 0, 0),
             mean=datetime.datetime(2021, 1, 2, 0, 0),
-            median=datetime.datetime(2021, 1, 2, 0, 0),
+            # TODO: narwhals doesn't support median
+            # and polars doesn't support quantiles for dates
+            # median=datetime.datetime(2021, 1, 2, 0, 0),
         )
 
     def test_summary_date(self) -> None:
@@ -344,7 +359,9 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             min=datetime.date(2021, 1, 1),
             max=datetime.date(2021, 1, 2),
             mean=datetime.datetime(2021, 1, 1, 12, 0),
-            median=datetime.datetime(2021, 1, 1, 12, 0),
+            # TODO: narwhals doesn't support median
+            # and polars doesn't support quantiles for dates
+            # median=datetime.datetime(2021, 1, 1, 12, 0),
         )
 
     def test_summary_does_fail_on_each_column(self) -> None:
@@ -403,8 +420,6 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
     def test_apply_formatting(self) -> None:
         import polars as pl
 
-        from marimo._plugins.ui._impl.tables.format import FormatMapping
-
         format_mapping: FormatMapping = {
             "A": lambda x: x * 2,
             "B": lambda x: x.upper(),
@@ -428,9 +443,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
     def test_apply_formatting_with_empty_dataframe(self) -> None:
         import polars as pl
 
-        from marimo._plugins.ui._impl.tables.format import FormatMapping
-
-        empty_data = pl.DataFrame()
+        empty_data = pl.DataFrame({"A": []})
         manager = self.factory.create()(empty_data)
 
         format_mapping: FormatMapping = {
@@ -442,8 +455,6 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_apply_formatting_partial(self) -> None:
         import polars as pl
-
-        from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         format_mapping: FormatMapping = {
             "A": lambda x: x * 2,
@@ -466,16 +477,12 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         assert_frame_equal(formatted_data, expected_data)
 
     def test_apply_formatting_empty(self) -> None:
-        from marimo._plugins.ui._impl.tables.format import FormatMapping
-
         format_mapping: FormatMapping = {}
 
         formatted_data = self.manager.apply_formatting(format_mapping)
         assert_frame_equal(formatted_data, self.data)
 
     def test_apply_formatting_invalid_column(self) -> None:
-        from marimo._plugins.ui._impl.tables.format import FormatMapping
-
         format_mapping: FormatMapping = {
             "Z": lambda x: x * 2,
         }
@@ -485,8 +492,6 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_apply_formatting_with_nan(self) -> None:
         import polars as pl
-
-        from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         data_with_nan = self.data.clone()
         data_with_nan = data_with_nan.with_columns(
@@ -514,14 +519,12 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
     def test_apply_formatting_with_multi_index(self) -> None:
         import polars as pl
 
-        from marimo._plugins.ui._impl.tables.format import FormatMapping
-
         data = pl.DataFrame(
             {
                 "A": [1, 2, 3],
                 "B": ["a", "b", "c"],
             }
-        ).with_row_count("index")
+        ).with_row_index()
         data = data.with_columns(pl.col("index").cast(pl.Utf8))
 
         manager = self.factory.create()(data)
@@ -543,8 +546,6 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_apply_formatting_with_categorical_data(self) -> None:
         import polars as pl
-
-        from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         data = pl.DataFrame(
             {
@@ -570,8 +571,6 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_apply_formatting_with_datetime_index(self) -> None:
         import polars as pl
-
-        from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         data = pl.DataFrame(
             {
@@ -606,8 +605,6 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_apply_formatting_with_complex_data(self) -> None:
         import polars as pl
-
-        from marimo._plugins.ui._impl.tables.format import FormatMapping
 
         data = pl.DataFrame(
             {

@@ -199,7 +199,12 @@ class NarwhalsTableManager(
                 p75=col.quantile(0.75, interpolation="nearest"),
                 p95=col.quantile(0.95, interpolation="nearest"),
             )
-        if col.dtype == nw.List:
+        if (
+            col.dtype == nw.List
+            or col.dtype == nw.Struct
+            or col.dtype == nw.Object
+            or col.dtype == nw.Array
+        ):
             return ColumnSummary(
                 total=total,
                 nulls=col.null_count(),

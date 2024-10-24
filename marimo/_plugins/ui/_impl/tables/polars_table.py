@@ -203,6 +203,8 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     or dtype.is_decimal()
                 ):
                     return ("number", dtype_string)
+                elif dtype == pl.Date:
+                    return ("date", dtype_string)
                 elif dtype == pl.Time:
                     return ("time", dtype_string)
                 elif dtype == pl.Datetime:
