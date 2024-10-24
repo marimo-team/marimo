@@ -1,8 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import weakref
 import sys
+import weakref
 from dataclasses import dataclass
 from functools import partial
 from typing import TYPE_CHECKING, Any, Dict, Optional
@@ -57,7 +57,7 @@ class SendToWidgetArgs:
     buffers: Optional[Any] = None
 
 
-from pyviz_comms import Comm, CommManager, JupyterCommJS, JupyterComm
+from pyviz_comms import Comm, CommManager, JupyterComm, JupyterCommJS
 
 
 class MarimoPanelComm(Comm):
@@ -92,7 +92,17 @@ class MarimoPanelCommManager(CommManager):
 def render_extension(load_timeout: int = 500, reloading: bool = False):
     from bokeh.io.notebook import curstate
     from panel.config import config
-    from panel.io.notebook import CDN, INLINE, settings, state, _Unset, Resources, bundle_resources, require_components, _autoload_js
+    from panel.io.notebook import (
+        CDN,
+        INLINE,
+        Resources,
+        _autoload_js,
+        _Unset,
+        bundle_resources,
+        require_components,
+        settings,
+        state,
+    )
 
     curstate().output_notebook()
 
