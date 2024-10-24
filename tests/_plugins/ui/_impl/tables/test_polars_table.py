@@ -153,11 +153,6 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                 "time",
                 "set",
                 "imaginary",
-                "array",
-                "list",
-                "mixed_list",
-                "struct",
-                "duration",
             ]
         ]
         manager = complex_data.select_columns(other_columns)
