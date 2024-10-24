@@ -171,7 +171,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                     return ColumnSummary()
                 col = self.data[column]
 
-                if col.dtype == "object":
+                if col.dtype == "object" or col.dtype == "category":
                     try:
                         return ColumnSummary(
                             total=col.count(),
