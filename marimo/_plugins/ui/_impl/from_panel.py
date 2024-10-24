@@ -7,12 +7,13 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Any, Dict, Optional
 
+from pyviz_comms import Comm, CommManager
+
 from marimo import _loggers
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
 from marimo._plugins.ui._impl.comm import MarimoComm, MarimoCommManager
 from marimo._runtime.functions import Function
-from pyviz_comms import Comm, CommManager
 
 LOGGER = _loggers.marimo_logger()
 
