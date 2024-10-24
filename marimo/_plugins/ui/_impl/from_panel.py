@@ -53,7 +53,6 @@ class SendToWidgetArgs:
 
 
 class MarimoPanelComm(Comm):
-
     def __init__(self, *args: any, **kwargs: any):
         super().__init__(*args, **kwargs)
         self._comm = MarimoComm(
@@ -100,11 +99,14 @@ def render_extension(load_timeout: int = 500, reloading: bool = False) -> str:
     resources = Resources.from_bokeh(resources, notebook=nb_endpoint)
     try:
         bundle = bundle_resources(
-            None, resources, notebook=nb_endpoint, reloading=reloading,
-            enable_mathjax='auto'
+            None,
+            resources,
+            notebook=nb_endpoint,
+            reloading=reloading,
+            enable_mathjax="auto",
         )
         configs, requirements, exports, skip_imports = require_components()
-        ipywidget = 'ipywidgets_bokeh' in sys.modules
+        ipywidget = "ipywidgets_bokeh" in sys.modules
         bokeh_js = _autoload_js(
             bundle=bundle,
             configs=configs,
@@ -113,7 +115,7 @@ def render_extension(load_timeout: int = 500, reloading: bool = False) -> str:
             skip_imports=skip_imports,
             ipywidget=ipywidget,
             reloading=reloading,
-            load_timeout=load_timeout
+            load_timeout=load_timeout,
         )
     finally:
         if user_resources:
@@ -136,7 +138,7 @@ class panel(UIElement[T, T]):
     import panel as pn
 
     slider = pn.widgets.IntSlider(start=0, end=10, value=5)
-    rx_stars = mo.ui.panel(slider.rx() * '*')
+    rx_stars = mo.ui.panel(slider.rx() * "*")
 
     # In another cell, access its value
     # This works for all widgets
@@ -166,7 +168,8 @@ class panel(UIElement[T, T]):
 
         global loaded_extension
         new_exts = [
-            ext for ext in panel_extension._loaded_extensions
+            ext
+            for ext in panel_extension._loaded_extensions
             if ext not in loaded_extensions
         ]
         if not loaded_extension or new_exts:
@@ -195,7 +198,7 @@ class panel(UIElement[T, T]):
             args={
                 "extension": bokeh_js,
                 "render_json": render_json,
-                "docs_json": docs_json
+                "docs_json": docs_json,
             },
             on_change=None,
             functions=(
@@ -211,7 +214,7 @@ class panel(UIElement[T, T]):
         comm = self.obj._comms[ref][0]
         msg = comm.decode(msg)
         self.obj._on_msg(ref, manager, msg)
-        comm.send(data={'type': 'ACK'})
+        comm.send(data={"type": "ACK"})
 
     def _initialize(
         self,

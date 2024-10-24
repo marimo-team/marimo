@@ -52,7 +52,7 @@ THIRD_PARTY_FACTORIES: dict[str, FormatterFactory] = {
     LetsPlotFormatter.package_name(): LetsPlotFormatter(),
     SympyFormatter.package_name(): SympyFormatter(),
     PyechartsFormatter.package_name(): PyechartsFormatter(),
-    PanelFormatter.package_name(): PanelFormatter()
+    PanelFormatter.package_name(): PanelFormatter(),
 }
 
 # Formatters for builtin types and other things that don't require a
