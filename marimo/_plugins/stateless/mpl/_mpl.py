@@ -15,7 +15,7 @@ import signal
 import threading
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
 
 from marimo._output.builder import h
 from marimo._output.formatting import as_html
@@ -31,6 +31,9 @@ from marimo._server.utils import find_free_port
 from marimo._utils.signals import get_signals
 
 if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+    from matplotlib.backends.backend_webagg_core import FigureManagerWebAgg
+    from matplotlib.figure import Figure
     from starlette.applications import Starlette
     from starlette.requests import Request
     from starlette.websockets import WebSocket
@@ -38,17 +41,17 @@ if TYPE_CHECKING:
 
 class FigureManagers:
     def __init__(self) -> None:
-        self.figure_managers: dict[str, Any] = {}
+        self.figure_managers: dict[str, FigureManagerWebAgg] = {}
 
-    def add(self, manager: Any) -> None:
+    def add(self, manager: FigureManagerWebAgg) -> None:
         self.figure_managers[str(manager.num)] = manager
 
-    def get(self, figure_id: str) -> Any:
+    def get(self, figure_id: str) -> FigureManagerWebAgg:
         if figure_id not in self.figure_managers:
             raise RuntimeError(f"Figure {figure_id} not found.")  # noqa: E501
         return self.figure_managers[str(figure_id)]
 
-    def remove(self, manager: Any) -> None:
+    def remove(self, manager: FigureManagerWebAgg) -> None:
         del self.figure_managers[str(manager.num)]
 
 
@@ -71,8 +74,8 @@ def create_application(
     host: str,
     port: int,
 ) -> Starlette:
-    import matplotlib as mpl  # type: ignore
-    from matplotlib.backends.backend_webagg import (  # type: ignore
+    import matplotlib as mpl
+    from matplotlib.backends.backend_webagg_core import (
         FigureManagerWebAgg,
     )
     from starlette.applications import Starlette
@@ -89,7 +92,7 @@ def create_application(
     async def mpl_js(request: Request) -> Response:
         del request
         return Response(
-            content=FigureManagerWebAgg.get_javascript(),  # type: ignore
+            content=FigureManagerWebAgg.get_javascript(),  # type: ignore[no-untyped-call]
             media_type="application/javascript",
         )
 
@@ -127,7 +130,7 @@ def create_application(
         figure_id = websocket.query_params.get("figure")
         assert figure_id is not None
         figure_manager = figure_managers.get(figure_id)
-        figure_manager.add_web_socket(SyncWebSocket())
+        figure_manager.add_web_socket(SyncWebSocket())  # type: ignore[no-untyped-call]
 
         async def receive() -> None:
             try:
@@ -139,7 +142,7 @@ def create_application(
                         # to the figure manager
                         pass
                     else:
-                        figure_manager.handle_json(data)
+                        figure_manager.handle_json(data)  # type: ignore[no-untyped-call]
             except Exception:
                 pass
             finally:
@@ -176,7 +179,7 @@ def create_application(
             Mount(
                 "/mpl/_static",
                 StaticFiles(
-                    directory=FigureManagerWebAgg.get_static_file_path()  # type: ignore # noqa: E501
+                    directory=FigureManagerWebAgg.get_static_file_path()  # type: ignore[no-untyped-call]
                 ),
                 name="mpl_static",
             ),
@@ -227,8 +230,28 @@ def get_or_create_application() -> Starlette:
     return _app
 
 
+def new_figure_manager_given_figure(
+    num: int, figure: Union[Figure, Axes]
+) -> Any:
+    from matplotlib.backends.backend_webagg_core import (
+        FigureCanvasWebAggCore,
+        FigureManagerWebAgg as CoreFigureManagerWebAgg,
+        NavigationToolbar2WebAgg as CoreNavigationToolbar2WebAgg,
+    )
+
+    class FigureManagerWebAgg(CoreFigureManagerWebAgg):
+        _toolbar2_class = CoreNavigationToolbar2WebAgg  # type: ignore[assignment]
+
+    class FigureCanvasWebAgg(FigureCanvasWebAggCore):
+        manager_class = FigureManagerWebAgg  # type: ignore[assignment]
+
+    canvas = FigureCanvasWebAgg(figure)  # type: ignore[no-untyped-call]
+    manager = FigureManagerWebAgg(canvas, num)  # type: ignore[no-untyped-call]
+    return manager
+
+
 @mddoc
-def interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defined] # noqa:F821,E501
+def interactive(figure: Union[Figure, Axes]) -> Html:
     """Render a matplotlib figure using an interactive viewer.
 
     The interactive viewer allows you to pan, zoom, and see plot coordinates
@@ -252,15 +275,12 @@ def interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defined] 
     """
     # No top-level imports of matplotlib, since it isn't a required
     # dependency
-    from matplotlib.axes import (  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
-        Axes,
-    )
-    from matplotlib.backends.backend_webagg import (  # type: ignore
-        new_figure_manager_given_figure,
-    )
+    from matplotlib.axes import Axes
 
     if isinstance(figure, Axes):
-        figure = figure.get_figure()
+        maybe_figure = figure.get_figure()
+        assert maybe_figure is not None, "Axes object does not have a Figure"
+        figure = maybe_figure
 
     ctx = get_context()
     if not isinstance(ctx, KernelRuntimeContext):

@@ -147,6 +147,7 @@ dependencies = [
     # Types for mypy
     "polars~=1.9.0",
     "narwhals>=1.9.0",
+    "matplotlib>=3.8.0",
     "pyarrow-stubs>=17.0",
     "pandas-stubs>=1.5.3.230321",
     "types-Pillow~=10.2.0.20240520",
