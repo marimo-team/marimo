@@ -165,6 +165,7 @@ extra-dependencies = [
     # For server testing
     "httpx~=0.27.0",
     "pytest~=8.3.2",
+    "pytest-timeout~=2.3.1",
     "pytest-codecov~=0.5.1",
     "pytest-asyncio~=0.23.8",
 ]
@@ -191,6 +192,7 @@ extra-dependencies = [
     "hypothesis~=6.102.1",
     "httpx~=0.27.0",
     "pytest~=8.3.2",
+    "pytest-timeout~=2.3.1",
     "pytest-codecov~=0.5.1",
     "pytest-asyncio~=0.23.8",
     # For testing mo.ui.chart, table, ...
@@ -375,6 +377,7 @@ testpaths = [
     "tests",
 ]
 asyncio_mode = "auto"
+timeout = 10 # seconds, per test
 
 [tool.coverage.run]
 omit = ["marimo/_tutorials/*"]
