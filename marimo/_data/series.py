@@ -7,7 +7,10 @@ from typing import Any, cast
 
 import narwhals.stable.v1 as nw
 
-from marimo._utils.narwhals_utils import assert_narwhals_series
+from marimo._utils.narwhals_utils import (
+    assert_narwhals_series,
+    unwrap_py_scalar,
+)
 
 # TODO: use series type when released
 # https://github.com/narwhals-dev/narwhals/pull/991
@@ -60,8 +63,7 @@ def get_number_series_info(series: nw.Series) -> NumberSeriesInfo:
     assert_narwhals_series(series)
 
     def validate_number(value: Any) -> float:
-        if hasattr(value, "as_py"):
-            return validate_number(value.as_py())
+        value = unwrap_py_scalar(value)
         value = float(value)
         if not isinstance(value, (int, float)):
             raise ValueError("Expected a number. Got: " + str(type(value)))
@@ -95,12 +97,11 @@ def get_date_series_info(series: nw.Series) -> DateSeriesInfo:
     assert_narwhals_series(series)
 
     def validate_date(value: Any) -> str:
+        value = unwrap_py_scalar(value)
         if isinstance(value, datetime.date):
             return value.strftime("%Y-%m-%d")
         if hasattr(value, "strftime"):
             return cast(str, value.strftime("%Y-%m-%d"))
-        if hasattr(value, "as_py"):
-            return validate_date(value.as_py())
         raise ValueError("Expected a date. Got: " + str(type(value)))
 
     return DateSeriesInfo(
@@ -118,6 +119,7 @@ def get_datetime_series_info(series: nw.Series) -> DateSeriesInfo:
     assert_narwhals_series(series)
 
     def validate_datetime(value: Any) -> str:
+        value = unwrap_py_scalar(value)
         if isinstance(value, datetime.datetime):
             return value.strftime("%Y-%m-%dT%H:%M:%S")
         if isinstance(value, datetime.date):
@@ -126,8 +128,6 @@ def get_datetime_series_info(series: nw.Series) -> DateSeriesInfo:
             return value.strftime("%Y-%m-%d")
         if hasattr(value, "strftime"):
             return cast(str, value.strftime("%Y-%m-%d"))
-        if hasattr(value, "as_py"):
-            return validate_datetime(value.as_py())
         raise ValueError("Expected a datetime. Got: " + str(type(value)))
 
     return DateSeriesInfo(
