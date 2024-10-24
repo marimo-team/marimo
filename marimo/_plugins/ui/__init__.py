@@ -29,6 +29,7 @@ __all__ = [
     "microphone",
     "multiselect",
     "number",
+    "panel",
     "plotly",
     "radio",
     "range_slider",
@@ -75,6 +76,7 @@ from marimo._plugins.ui._impl.input import (
     text_area,
 )
 from marimo._plugins.ui._impl.microphone import microphone
+from marimo._plugins.ui._impl.from_panel import panel
 from marimo._plugins.ui._impl.plotly import plotly
 from marimo._plugins.ui._impl.refresh import refresh
 from marimo._plugins.ui._impl.run_button import run_button
