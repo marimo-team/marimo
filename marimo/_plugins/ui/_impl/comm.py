@@ -151,6 +151,7 @@ class MarimoComm:
 
         while self._publish_message_buffer:
             data, _metadata, buffers = self._publish_message_buffer.pop(0)
+
             SendUIElementMessage(
                 ui_element=self.ui_element_id,
                 message=data,
