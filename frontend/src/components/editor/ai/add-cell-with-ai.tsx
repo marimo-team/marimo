@@ -328,6 +328,21 @@ export const PromptInput = ({
           },
         },
       ]),
+      // Trap arrow up/down to prevent them from being used to navigate the editor
+      keymap.of([
+        {
+          key: "ArrowUp",
+          preventDefault: true,
+          stopPropagation: true,
+        },
+      ]),
+      keymap.of([
+        {
+          key: "ArrowDown",
+          preventDefault: true,
+          stopPropagation: true,
+        },
+      ]),
     ];
   }, [tables, handleSubmit, handleEscape]);
 

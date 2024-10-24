@@ -2,7 +2,7 @@
 import { type Plugin, defineConfig } from "vite";
 import fs from "node:fs";
 import path from "node:path";
-import react from "@vitejs/plugin-react-swc";
+import react from "@vitejs/plugin-react";
 import tsconfigPaths from "vite-tsconfig-paths";
 import packageJson from "../package.json";
 
@@ -19,6 +19,10 @@ const htmlDevPlugin = (): Plugin => {
       return `<!DOCTYPE html>\n${indexHtml}`;
     },
   };
+};
+
+const ReactCompilerConfig = {
+  target: "18",
 };
 
 // https://vitejs.dev/config/
@@ -47,7 +51,20 @@ export default defineConfig({
       "Cross-Origin-Embedder-Policy": "require-corp",
     },
   },
-  plugins: [htmlDevPlugin(), react({ tsDecorators: true }), tsconfigPaths()],
+  plugins: [
+    htmlDevPlugin(),
+    react({
+      babel: {
+        presets: ["@babel/preset-typescript"],
+        plugins: [
+          ["@babel/plugin-proposal-decorators", { legacy: true }],
+          ["@babel/plugin-proposal-class-properties", { loose: true }],
+          ["babel-plugin-react-compiler", ReactCompilerConfig],
+        ],
+      },
+    }),
+    tsconfigPaths(),
+  ],
   build: {
     emptyOutDir: true,
     lib: {

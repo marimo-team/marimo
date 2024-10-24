@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { defineConfig, type Plugin } from "vite";
-import react from "@vitejs/plugin-react-swc";
+import react from "@vitejs/plugin-react";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { JSDOM } from "jsdom";
 
@@ -105,6 +105,10 @@ const htmlDevPlugin = (): Plugin => {
   };
 };
 
+const ReactCompilerConfig = {
+  target: "18",
+};
+
 // https://vitejs.dev/config/
 export default defineConfig({
   // This allows for a dynamic <base> tag in index.html
@@ -171,14 +175,16 @@ export default defineConfig({
   plugins: [
     htmlDevPlugin(),
     react({
-      tsDecorators: true,
-      plugins: isDev
-        ? [
-            // Fails on latest Vite
-            // ["@swc-jotai/react-refresh", {}]
-          ]
-        : undefined,
+      babel: {
+        presets: ["@babel/preset-typescript"],
+        plugins: [
+          ["@babel/plugin-proposal-decorators", { legacy: true }],
+          ["@babel/plugin-proposal-class-properties", { loose: true }],
+          ["babel-plugin-react-compiler", ReactCompilerConfig],
+        ],
+      },
     }),
+
     tsconfigPaths(),
   ],
 });
