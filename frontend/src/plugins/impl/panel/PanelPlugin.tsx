@@ -202,14 +202,3 @@ const PanelSlot = (props: Props) => {
     </div>
   )
 };
-
-const WidgetMessageSchema = z.union([
-  z.object({
-    method: z.literal("update"),
-    state: z.record(z.any()),
-  }),
-  z.object({
-    method: z.literal("custom"),
-    content: z.any(),
-  }),
-]);
