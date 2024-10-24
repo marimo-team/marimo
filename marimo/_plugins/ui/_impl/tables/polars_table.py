@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Optional, Tuple
+from typing import Any, Optional, Tuple, Union
 
 import narwhals.stable.v1 as nw
 
@@ -31,11 +31,13 @@ class PolarsTableManagerFactory(TableManagerFactory):
         import polars as pl
 
         class PolarsTableManager(
-            NarwhalsTableManager[pl.DataFrame | pl.LazyFrame]
+            NarwhalsTableManager[Union[pl.DataFrame, pl.LazyFrame]]
         ):
             type = "polars"
 
-            def __init__(self, data: pl.DataFrame | pl.LazyFrame) -> None:
+            def __init__(
+                self, data: Union[pl.DataFrame, pl.LazyFrame]
+            ) -> None:
                 super().__init__(nw.from_native(data))
 
             def collect(self) -> pl.DataFrame:
@@ -46,7 +48,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     return native
                 raise ValueError(f"Unsupported native type: {type(native)}")
 
-            def as_polars_frame(self) -> pl.DataFrame | pl.LazyFrame:
+            def as_polars_frame(self) -> Union[pl.DataFrame, pl.LazyFrame]:
                 native: Any = self.data.to_native()
                 if isinstance(native, (pl.LazyFrame, pl.DataFrame)):
                     return native
