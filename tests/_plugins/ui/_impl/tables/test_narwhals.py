@@ -384,7 +384,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             "A": lambda x: x * 2,
             "B": lambda x: x.upper(),
         }
-        self.manager.apply_formatting(format_mapping)
+        assert self.manager.apply_formatting(format_mapping).data is not None
         assert_frame_equal(self.manager.data, original_data)
 
     def test_apply_formatting(self) -> None:
@@ -398,7 +398,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             "E": lambda x: x.strftime("%Y-%m-%d"),
         }
 
-        formatted_data = self.manager.apply_formatting(format_mapping)
+        formatted_data = self.manager.apply_formatting(format_mapping).data
         expected_data = pl.DataFrame(
             {
                 "A": [2, 4, 6],
@@ -422,7 +422,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             "A": lambda x: x * 2,
         }
 
-        formatted_data = manager.apply_formatting(format_mapping)
+        formatted_data = manager.apply_formatting(format_mapping).data
         assert_frame_equal(formatted_data, empty_data)
 
     def test_apply_formatting_partial(self) -> None:
@@ -432,7 +432,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             "A": lambda x: x * 2,
         }
 
-        formatted_data = self.manager.apply_formatting(format_mapping)
+        formatted_data = self.manager.apply_formatting(format_mapping).data
         expected_data = pl.DataFrame(
             {
                 "A": [2, 4, 6],
@@ -451,7 +451,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
     def test_apply_formatting_empty(self) -> None:
         format_mapping: FormatMapping = {}
 
-        formatted_data = self.manager.apply_formatting(format_mapping)
+        formatted_data = self.manager.apply_formatting(format_mapping).data
         assert_frame_equal(formatted_data, self.data)
 
     def test_apply_formatting_invalid_column(self) -> None:
@@ -459,7 +459,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             "Z": lambda x: x * 2,
         }
 
-        formatted_data = self.manager.apply_formatting(format_mapping)
+        formatted_data = self.manager.apply_formatting(format_mapping).data
         assert_frame_equal(formatted_data, self.data)
 
     def test_apply_formatting_with_nan(self) -> None:
@@ -478,7 +478,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             "A": lambda x: x * 2 if x is not None else x,
         }
 
-        formatted_data = manager_with_nan.apply_formatting(format_mapping)
+        formatted_data = manager_with_nan.apply_formatting(format_mapping).data
         expected_data = data_with_nan.clone()
         expected_data = expected_data.with_columns(
             pl.when(pl.col("A").is_not_null())
@@ -506,7 +506,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             "B": lambda x: x.upper(),
         }
 
-        formatted_data = manager.apply_formatting(format_mapping)
+        formatted_data = manager.apply_formatting(format_mapping).data
         expected_data = pl.DataFrame(
             {
                 "index": ["0", "1", "2"],
@@ -532,7 +532,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             "B": lambda x: x * 2,
         }
 
-        formatted_data = manager.apply_formatting(format_mapping)
+        formatted_data = manager.apply_formatting(format_mapping).data
         expected_data = pl.DataFrame(
             {
                 "A": pl.Series(["A", "B", "A"]),
@@ -565,7 +565,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             "B": lambda x: x.upper(),
         }
 
-        formatted_data = manager.apply_formatting(format_mapping)
+        formatted_data = manager.apply_formatting(format_mapping).data
         expected_data = pl.DataFrame(
             {
                 "A": [2, 4, 6],
@@ -604,7 +604,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             "G": abs,
         }
 
-        formatted_data = manager.apply_formatting(format_mapping)
+        formatted_data = manager.apply_formatting(format_mapping).data
         expected_data = pl.DataFrame(
             {
                 "A": [2, 4, 6],

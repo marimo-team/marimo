@@ -46,13 +46,9 @@ class PandasTableManagerFactory(TableManagerFactory):
                 self, format_mapping: Optional[FormatMapping] = None
             ) -> bytes:
                 has_headers = len(self.get_row_headers()) > 0
-                if format_mapping:
-                    _data = self.apply_formatting(format_mapping).to_native()
-                    return _data.to_csv(
-                        index=has_headers,
-                    ).encode("utf-8")
                 return (
-                    self.as_pandas_frame()
+                    self.apply_formatting(format_mapping)
+                    .as_pandas_frame()
                     .to_csv(index=has_headers)
                     .encode("utf-8")
                 )
@@ -65,8 +61,11 @@ class PandasTableManagerFactory(TableManagerFactory):
                 )
 
             def apply_formatting(
-                self, format_mapping: FormatMapping
-            ) -> nw.DataFrame[pd.DataFrame]:
+                self, format_mapping: Optional[FormatMapping]
+            ) -> PandasTableManager:
+                if not format_mapping:
+                    return self
+
                 _data = self.as_pandas_frame().copy()
                 for col in _data.columns:
                     if col in format_mapping:
@@ -75,9 +74,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                                 col, x, format_mapping
                             )
                         )
-                return nw.from_native(
-                    _data, strict=True, eager_or_interchange_only=True
-                )
+                return PandasTableManager(_data)
 
             # We override the default implementation to use pandas
             # headers

@@ -39,6 +39,7 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 from marimo._plugins.ui._impl.utils.dataframe import ListOrTuple, TableData
 from marimo._runtime.functions import EmptyArgs, Function
+from marimo._utils.narwhals_utils import unwrap_narwhals_dataframe
 
 LOGGER = _loggers.marimo_logger()
 
@@ -477,9 +478,10 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         result = self._manager
 
         if filters:
-            handler = get_handler_for_dataframe(result.data)
+            data = unwrap_narwhals_dataframe(result.data)
+            handler = get_handler_for_dataframe(data)
             data = handler.handle_filter_rows(
-                result.data,
+                data,
                 FilterRowsTransform(
                     type=TransformType.FILTER_ROWS,
                     where=filters,

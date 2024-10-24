@@ -464,7 +464,7 @@ class TestPandasTableManager(unittest.TestCase):
             "A": lambda x: x * 2,
             "B": lambda x: x.upper(),
         }
-        self.manager.apply_formatting(format_mapping)
+        assert self.manager.apply_formatting(format_mapping).data is not None
         assert_frame_equal(self.manager.data, original_data)
 
     def test_apply_formatting(self) -> None:
@@ -476,7 +476,7 @@ class TestPandasTableManager(unittest.TestCase):
             "E": lambda x: x.strftime("%Y-%m-%d"),
         }
 
-        formatted_data = self.manager.apply_formatting(format_mapping)
+        formatted_data = self.manager.apply_formatting(format_mapping).data
         expected_data = pd.DataFrame(
             {
                 "A": [2, 4, 6],
@@ -501,7 +501,7 @@ class TestPandasTableManager(unittest.TestCase):
             "A": lambda x: x * 2,
         }
 
-        formatted_data = manager.apply_formatting(format_mapping)
+        formatted_data = manager.apply_formatting(format_mapping).data
         assert_frame_equal(formatted_data, empty_data)
 
     def test_apply_formatting_partial(self) -> None:
@@ -509,7 +509,7 @@ class TestPandasTableManager(unittest.TestCase):
             "A": lambda x: x * 2,
         }
 
-        formatted_data = self.manager.apply_formatting(format_mapping)
+        formatted_data = self.manager.apply_formatting(format_mapping).data
         expected_data = pd.DataFrame(
             {
                 "A": [2, 4, 6],
@@ -529,7 +529,7 @@ class TestPandasTableManager(unittest.TestCase):
     def test_apply_formatting_empty(self) -> None:
         format_mapping: FormatMapping = {}
 
-        formatted_data = self.manager.apply_formatting(format_mapping)
+        formatted_data = self.manager.apply_formatting(format_mapping).data
         assert_frame_equal(formatted_data, self.data)
 
     def test_apply_formatting_invalid_column(self) -> None:
@@ -537,7 +537,7 @@ class TestPandasTableManager(unittest.TestCase):
             "Z": lambda x: x * 2,
         }
 
-        formatted_data = self.manager.apply_formatting(format_mapping)
+        formatted_data = self.manager.apply_formatting(format_mapping).data
         assert_frame_equal(formatted_data, self.data)
 
     def test_apply_formatting_with_nan(self) -> None:
@@ -549,7 +549,7 @@ class TestPandasTableManager(unittest.TestCase):
             "A": lambda x: x * 2 if pd.notna(x) else x,
         }
 
-        formatted_data = manager_with_nan.apply_formatting(format_mapping)
+        formatted_data = manager_with_nan.apply_formatting(format_mapping).data
         expected_data = data_with_nan.copy()
         expected_data["A"] = [2, None, 6]
         assert_frame_equal(formatted_data, expected_data)
@@ -581,7 +581,7 @@ class TestPandasTableManager(unittest.TestCase):
             "G": str,
         }
 
-        formatted_data = manager.apply_formatting(format_mapping)
+        formatted_data = manager.apply_formatting(format_mapping).data
         expected_data = pd.DataFrame(
             {
                 "A": [2, 4, 6],
@@ -616,7 +616,7 @@ class TestPandasTableManager(unittest.TestCase):
             "B": lambda x: x.upper(),
         }
 
-        formatted_data = manager.apply_formatting(format_mapping)
+        formatted_data = manager.apply_formatting(format_mapping).data
         expected_data = pd.DataFrame(
             {
                 "A": [2, 4, 6],
@@ -642,7 +642,7 @@ class TestPandasTableManager(unittest.TestCase):
             "B": lambda x: x * 2,
         }
 
-        formatted_data = manager.apply_formatting(format_mapping)
+        formatted_data = manager.apply_formatting(format_mapping).data
         expected_data = pd.DataFrame(
             {
                 "A": pd.Categorical(["A", "B", "A"]),
@@ -666,7 +666,7 @@ class TestPandasTableManager(unittest.TestCase):
             "B": lambda x: x.upper(),
         }
 
-        formatted_data = manager.apply_formatting(format_mapping)
+        formatted_data = manager.apply_formatting(format_mapping).data
         expected_data = pd.DataFrame(
             {
                 "A": [2, 4, 6],
@@ -705,7 +705,7 @@ class TestPandasTableManager(unittest.TestCase):
             "H": abs,
         }
 
-        formatted_data = manager.apply_formatting(format_mapping)
+        formatted_data = manager.apply_formatting(format_mapping).data
         expected_data = pd.DataFrame(
             {
                 "A": [2, 4, 6],

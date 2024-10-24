@@ -64,7 +64,7 @@ def __():
             ),
         }
     )
-    df
+    mo.ui.table(df)
     return date, datetime, df, mo, pl, time
 
 

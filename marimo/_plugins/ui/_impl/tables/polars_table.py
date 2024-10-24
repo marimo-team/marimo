@@ -61,11 +61,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 self,
                 format_mapping: Optional[FormatMapping] = None,
             ) -> bytes:
-                _data = (
-                    self.apply_formatting_internal(format_mapping)
-                    if format_mapping
-                    else self.collect()
-                )
+                _data = self.apply_formatting(format_mapping).collect()
                 try:
                     return _data.write_csv().encode("utf-8")
                 except pl.exceptions.ComputeError:
@@ -118,9 +114,12 @@ class PolarsTableManagerFactory(TableManagerFactory):
             def to_json(self) -> bytes:
                 return self.collect().write_json().encode("utf-8")
 
-            def apply_formatting_internal(
-                self, format_mapping: FormatMapping
-            ) -> pl.DataFrame:
+            def apply_formatting(
+                self, format_mapping: Optional[FormatMapping]
+            ) -> PolarsTableManager:
+                if not format_mapping:
+                    return self
+
                 _data = self.collect()
                 for col in _data.columns:
                     if col in format_mapping:
@@ -133,7 +132,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
                                 ],
                             )
                         )
-                return _data
+                return PolarsTableManager(_data)
 
             @staticmethod
             def is_type(value: Any) -> bool:

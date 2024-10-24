@@ -1,32 +1,32 @@
 [
   {
     "strings": "a",
-    "bool": "true",
-    "int": "1",
-    "float": "1.0",
-    "datetime": "2021-01-01T00:00:00.000000",
+    "bool": true,
+    "int": 1,
+    "float": 1.0,
+    "datetime": "2021-01-01 00:00:00",
     "date": "2021-01-01",
-    "nulls": "",
+    "nulls": null,
     "category": "cat"
   },
   {
     "strings": "b",
-    "bool": "false",
-    "int": "2",
-    "float": "2.0",
-    "datetime": "2021-01-02T00:00:00.000000",
+    "bool": false,
+    "int": 2,
+    "float": 2.0,
+    "datetime": "2021-01-02 00:00:00",
     "date": "2021-01-02",
     "nulls": "data",
     "category": "dog"
   },
   {
     "strings": "c",
-    "bool": "true",
-    "int": "3",
-    "float": "3.0",
-    "datetime": "2021-01-03T00:00:00.000000",
+    "bool": true,
+    "int": 3,
+    "float": 3.0,
+    "datetime": "2021-01-03 00:00:00",
     "date": "2021-01-03",
-    "nulls": "",
+    "nulls": null,
     "category": "mouse"
   }
 ]

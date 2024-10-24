@@ -144,7 +144,7 @@ class TestDefaultTable(unittest.TestCase):
             "age": lambda x: x + 1,
             "birth_year": lambda x: x.year,
         }
-        formatted_manager = self.manager.apply_formatting(format_mapping)
+        formatted_manager = self.manager.apply_formatting(format_mapping).data
         expected_data = [
             {"name": "ALICE", "age": 31, "birth_year": 1994},
             {"name": "BOB", "age": 26, "birth_year": 1999},
@@ -158,7 +158,7 @@ class TestDefaultTable(unittest.TestCase):
         format_mapping = {
             "age": lambda x: x + 1,
         }
-        formatted_manager = self.manager.apply_formatting(format_mapping)
+        formatted_manager = self.manager.apply_formatting(format_mapping).data
         expected_data = [
             {"name": "Alice", "age": 31, "birth_year": date(1994, 5, 24)},
             {"name": "Bob", "age": 26, "birth_year": date(1999, 7, 14)},
@@ -170,14 +170,14 @@ class TestDefaultTable(unittest.TestCase):
 
     def test_apply_formatting_empty(self) -> None:
         format_mapping = {}
-        formatted_manager = self.manager.apply_formatting(format_mapping)
+        formatted_manager = self.manager.apply_formatting(format_mapping).data
         assert formatted_manager == self.data
 
     def test_apply_formatting_invalid_column(self) -> None:
         format_mapping = {
             "invalid_column": lambda x: x * 2,
         }
-        formatted_manager = self.manager.apply_formatting(format_mapping)
+        formatted_manager = self.manager.apply_formatting(format_mapping).data
         assert formatted_manager == self.data
 
     def test_apply_formatting_with_nan(self) -> None:
@@ -187,7 +187,9 @@ class TestDefaultTable(unittest.TestCase):
         format_mapping = {
             "age": lambda x: x + 1 if x is not None else x,
         }
-        formatted_manager = manager_with_nan.apply_formatting(format_mapping)
+        formatted_manager = manager_with_nan.apply_formatting(
+            format_mapping
+        ).data
         expected_data = [
             {"name": "Alice", "age": 31, "birth_year": date(1994, 5, 24)},
             {"name": "Bob", "age": None, "birth_year": date(1999, 7, 14)},
@@ -208,7 +210,7 @@ class TestDefaultTable(unittest.TestCase):
         format_mapping = {
             "value": str,
         }
-        formatted_manager = manager.apply_formatting(format_mapping)
+        formatted_manager = manager.apply_formatting(format_mapping).data
         expected_data = [
             {"name": "Alice", "value": "1"},
             {"name": "Bob", "value": "foo"},
@@ -245,7 +247,7 @@ class TestDefaultTable(unittest.TestCase):
             "birth_year": lambda x: x.year,
             "score": lambda x: f"{x:.1f}",
         }
-        formatted_manager = manager.apply_formatting(format_mapping)
+        formatted_manager = manager.apply_formatting(format_mapping).data
         expected_data = [
             {"name": "ALICE", "age": 31, "birth_year": 1994, "score": "1.5"},
             {"name": "BOB", "age": 26, "birth_year": 1999, "score": "2.5"},
@@ -369,7 +371,7 @@ class TestColumnarDefaultTable(unittest.TestCase):
             "age": lambda x: x + 1,
             "birth_year": lambda x: x.year,
         }
-        formatted_manager = self.manager.apply_formatting(format_mapping)
+        formatted_manager = self.manager.apply_formatting(format_mapping).data
         expected_data = {
             "name": ["ALICE", "BOB", "CHARLIE", "DAVE", "EVE"],
             "age": [31, 26, 36, 29, 23],
@@ -381,7 +383,7 @@ class TestColumnarDefaultTable(unittest.TestCase):
         format_mapping = {
             "age": lambda x: x + 1,
         }
-        formatted_manager = self.manager.apply_formatting(format_mapping)
+        formatted_manager = self.manager.apply_formatting(format_mapping).data
         expected_data = {
             "name": ["Alice", "Bob", "Charlie", "Dave", "Eve"],
             "age": [31, 26, 36, 29, 23],
@@ -397,14 +399,14 @@ class TestColumnarDefaultTable(unittest.TestCase):
 
     def test_apply_formatting_empty(self) -> None:
         format_mapping = {}
-        formatted_manager = self.manager.apply_formatting(format_mapping)
+        formatted_manager = self.manager.apply_formatting(format_mapping).data
         assert formatted_manager == self.data
 
     def test_apply_formatting_invalid_column(self) -> None:
         format_mapping = {
             "invalid_column": lambda x: x * 2,
         }
-        formatted_manager = self.manager.apply_formatting(format_mapping)
+        formatted_manager = self.manager.apply_formatting(format_mapping).data
         assert formatted_manager == self.data
 
     def test_apply_formatting_with_nan(self) -> None:
@@ -414,7 +416,9 @@ class TestColumnarDefaultTable(unittest.TestCase):
         format_mapping = {
             "age": lambda x: x + 1 if x is not None else x,
         }
-        formatted_manager = manager_with_nan.apply_formatting(format_mapping)
+        formatted_manager = manager_with_nan.apply_formatting(
+            format_mapping
+        ).data
         expected_data = {
             "name": ["Alice", "Bob", "Charlie", "Dave", "Eve"],
             "age": [31, None, 36, 29, 23],
@@ -437,7 +441,7 @@ class TestColumnarDefaultTable(unittest.TestCase):
         format_mapping = {
             "value": str,
         }
-        formatted_manager = manager.apply_formatting(format_mapping)
+        formatted_manager = manager.apply_formatting(format_mapping).data
         expected_data = {
             "name": ["Alice", "Bob", "Charlie", "Dave"],
             "value": ["1", "foo", "2", "False"],
@@ -462,7 +466,7 @@ class TestColumnarDefaultTable(unittest.TestCase):
             "birth_year": lambda x: x.year,
             "score": lambda x: f"{x:.1f}",
         }
-        formatted_manager = manager.apply_formatting(format_mapping)
+        formatted_manager = manager.apply_formatting(format_mapping).data
         expected_data = {
             "name": ["ALICE", "BOB", "CHARLIE"],
             "age": [31, 26, 36],
@@ -551,27 +555,29 @@ class TestDictionaryDefaultTable(unittest.TestCase):
 
     def test_apply_formatting(self) -> None:
         # Doesn't format when dictionary
-        assert self.manager.apply_formatting({"value": lambda x: x + 1}) == {
+        assert self.manager.apply_formatting(
+            {"value": lambda x: x + 1}
+        ).data == {
             "a": 1,
             "b": 2,
         }
 
         assert DefaultTableManager(self.manager.to_data()).apply_formatting(
             {"value": lambda x: x + 1}
-        ) == [
+        ).data == [
             {"key": "a", "value": 2},
             {"key": "b", "value": 3},
         ]
 
     def test_apply_formatting_empty(self) -> None:
         formatted_manager = self.manager.apply_formatting({})
-        assert formatted_manager == self.manager.data
+        assert formatted_manager.data == self.manager.data
 
     def test_apply_formatting_invalid_column(self) -> None:
         formatted_manager = self.manager.apply_formatting(
             {"invalid_column": lambda x: x * 2}
         )
-        assert formatted_manager == self.manager.data
+        assert formatted_manager.data == self.manager.data
 
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"

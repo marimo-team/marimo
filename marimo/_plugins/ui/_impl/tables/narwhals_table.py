@@ -39,15 +39,20 @@ class NarwhalsTableManager(
             return self.data.collect()
         return self.data
 
+    def with_new_data(
+        self, data: nw.DataFrame[Any] | nw.LazyFrame[Any]
+    ) -> TableManager[Any]:
+        if type(self) is NarwhalsTableManager:
+            return NarwhalsTableManager(data)
+        # If this call comes from a subclass, we need to call the constructor
+        # of the subclass with the native data.
+        return self.__class__(data.to_native())
+
     def to_csv(
         self,
         format_mapping: Optional[FormatMapping] = None,
     ) -> bytes:
-        _data = (
-            self.apply_formatting(format_mapping)
-            if format_mapping
-            else self.as_frame()
-        )
+        _data = self.apply_formatting(format_mapping).as_frame()
         csv_str = _data.write_csv()
         if isinstance(csv_str, str):
             return csv_str.encode("utf-8")
@@ -61,27 +66,32 @@ class NarwhalsTableManager(
         return json.dumps([row for row in csv_reader]).encode("utf-8")
 
     def apply_formatting(
-        self, format_mapping: FormatMapping
-    ) -> nw.DataFrame[Any]:
+        self, format_mapping: Optional[FormatMapping]
+    ) -> NarwhalsTableManager[Any]:
+        if not format_mapping:
+            return self
+
         _data = self.as_frame().to_dict(as_series=False).copy()
         for col in _data.keys():
             if col in format_mapping:
                 _data[col] = [
                     format_value(col, x, format_mapping) for x in _data[col]
                 ]
-        return nw.from_dict(
-            _data, native_namespace=nw.get_native_namespace(self.data)
+        return NarwhalsTableManager(
+            nw.from_dict(
+                _data, native_namespace=nw.get_native_namespace(self.data)
+            )
         )
 
     def supports_filters(self) -> bool:
         return True
 
-    def select_rows(self, indices: list[int]) -> NarwhalsTableManager[Any]:
+    def select_rows(self, indices: list[int]) -> TableManager[Any]:
         df = self.as_frame()
-        return NarwhalsTableManager(df[indices])
+        return self.with_new_data(df[indices])
 
-    def select_columns(self, columns: list[str]) -> NarwhalsTableManager[Any]:
-        return NarwhalsTableManager(self.data.select(columns))
+    def select_columns(self, columns: list[str]) -> TableManager[Any]:
+        return self.with_new_data(self.data.select(columns))
 
     def get_row_headers(
         self,
@@ -111,14 +121,14 @@ class NarwhalsTableManager(
 
         return field_types
 
-    def take(self, count: int, offset: int) -> NarwhalsTableManager[Any]:
+    def take(self, count: int, offset: int) -> TableManager[Any]:
         if count < 0:
             raise ValueError("Count must be a positive integer")
         if offset < 0:
             raise ValueError("Offset must be a non-negative integer")
-        return NarwhalsTableManager(self.data[offset:count])
+        return self.with_new_data(self.data[offset:count])
 
-    def search(self, query: str) -> NarwhalsTableManager[Any]:
+    def search(self, query: str) -> TableManager[Any]:
         query = query.lower()
 
         expressions: list[Any] = []
@@ -254,13 +264,13 @@ class NarwhalsTableManager(
 
     def sort_values(
         self, by: ColumnName, descending: bool
-    ) -> NarwhalsTableManager[Any]:
+    ) -> TableManager[Any]:
         if isinstance(self.data, nw.LazyFrame):
-            return NarwhalsTableManager(
+            return self.with_new_data(
                 self.data.sort(by, descending=descending)
             )
         else:
-            return NarwhalsTableManager(
+            return self.with_new_data(
                 self.data.sort(by, descending=descending)
             )
 

@@ -173,6 +173,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
     def test_select_rows(self) -> None:
         indices = [0, 2]
         selected_manager = self.manager.select_rows(indices)
+        assert "PolarsTableManager" in str(type(selected_manager))
         expected_data = self.data[indices]
         assert assert_frame_equal(selected_manager.data, expected_data)
 
@@ -184,6 +185,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
     def test_select_columns(self) -> None:
         columns = ["A"]
         selected_manager = self.manager.select_columns(columns)
+        assert "PolarsTableManager" in str(type(selected_manager))
         expected_data = self.data.select(columns)
         assert assert_frame_equal(selected_manager.data, expected_data)
 
@@ -265,6 +267,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
     def test_limit(self) -> None:
         limited_manager = self.manager.take(1, 0)
         expected_data = self.data.head(1)
+        assert "PolarsTableManager" in str(type(limited_manager))
         assert assert_frame_equal(limited_manager.data, expected_data)
 
     def test_take_out_of_bounds(self) -> None:
@@ -414,7 +417,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             "A": lambda x: x * 2,
             "B": lambda x: x.upper(),
         }
-        self.manager.apply_formatting(format_mapping)
+        assert self.manager.apply_formatting(format_mapping).data is not None
         assert_frame_equal(self.manager.data, original_data)
 
     def test_apply_formatting(self) -> None:
@@ -428,7 +431,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             "E": lambda x: x.strftime("%Y-%m-%d"),
         }
 
-        formatted_data = self.manager.apply_formatting(format_mapping)
+        formatted_data = self.manager.apply_formatting(format_mapping).data
         expected_data = pl.DataFrame(
             {
                 "A": [2, 4, 6],
@@ -450,7 +453,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             "A": lambda x: x * 2,
         }
 
-        formatted_data = manager.apply_formatting(format_mapping)
+        formatted_data = manager.apply_formatting(format_mapping).data
         assert_frame_equal(formatted_data, empty_data)
 
     def test_apply_formatting_partial(self) -> None:
@@ -460,7 +463,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             "A": lambda x: x * 2,
         }
 
-        formatted_data = self.manager.apply_formatting(format_mapping)
+        formatted_data = self.manager.apply_formatting(format_mapping).data
         expected_data = pl.DataFrame(
             {
                 "A": [2, 4, 6],
@@ -479,7 +482,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
     def test_apply_formatting_empty(self) -> None:
         format_mapping: FormatMapping = {}
 
-        formatted_data = self.manager.apply_formatting(format_mapping)
+        formatted_data = self.manager.apply_formatting(format_mapping).data
         assert_frame_equal(formatted_data, self.data)
 
     def test_apply_formatting_invalid_column(self) -> None:
@@ -487,7 +490,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             "Z": lambda x: x * 2,
         }
 
-        formatted_data = self.manager.apply_formatting(format_mapping)
+        formatted_data = self.manager.apply_formatting(format_mapping).data
         assert_frame_equal(formatted_data, self.data)
 
     def test_apply_formatting_with_nan(self) -> None:
@@ -506,7 +509,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             "A": lambda x: x * 2 if x is not None else x,
         }
 
-        formatted_data = manager_with_nan.apply_formatting(format_mapping)
+        formatted_data = manager_with_nan.apply_formatting(format_mapping).data
         expected_data = data_with_nan.clone()
         expected_data = expected_data.with_columns(
             pl.when(pl.col("A").is_not_null())
@@ -534,7 +537,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             "B": lambda x: x.upper(),
         }
 
-        formatted_data = manager.apply_formatting(format_mapping)
+        formatted_data = manager.apply_formatting(format_mapping).data
         expected_data = pl.DataFrame(
             {
                 "index": ["0", "1", "2"],
@@ -560,7 +563,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             "B": lambda x: x * 2,
         }
 
-        formatted_data = manager.apply_formatting(format_mapping)
+        formatted_data = manager.apply_formatting(format_mapping).data
         expected_data = pl.DataFrame(
             {
                 "A": pl.Series(["A", "B", "A"]),
@@ -593,7 +596,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             "B": lambda x: x.upper(),
         }
 
-        formatted_data = manager.apply_formatting(format_mapping)
+        formatted_data = manager.apply_formatting(format_mapping).data
         expected_data = pl.DataFrame(
             {
                 "A": [2, 4, 6],
@@ -632,7 +635,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             "G": abs,
         }
 
-        formatted_data = manager.apply_formatting(format_mapping)
+        formatted_data = manager.apply_formatting(format_mapping).data
         expected_data = pl.DataFrame(
             {
                 "A": [2, 4, 6],
@@ -677,7 +680,6 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         field_types = manager.get_field_types()
         assert field_types["A"] == ("string", "str")
 
-    @pytest.mark.skip
     def test_search_with_regex(self) -> None:
         import polars as pl
 
