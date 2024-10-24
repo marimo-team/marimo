@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Any, Dict, Optional
 
-from pyviz_comms import Comm, CommManager
+from pyviz_comms import Comm
 
 from marimo import _loggers
 from marimo._output.rich_help import mddoc
