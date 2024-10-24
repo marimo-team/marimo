@@ -36,7 +36,7 @@ class HoloViewsFormatter(FormatterFactory):
                 | hv.core.ndmapping.NdMapping
             ),
         ) -> tuple[KnownMimeType, str]:
-            return from_panel(plot)
+            return from_panel(plot)._mime_()
 
     def apply_theme(self, theme: Theme) -> None:
         import holoviews as hv  # type: ignore

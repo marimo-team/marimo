@@ -104,13 +104,11 @@ const PanelSlot = (props: Props) => {
   });
 
   useEffect(() => {
-    if (extension.length === 0) {
-      setLoaded(true)
-      return
+    if (extension.length !== 0) {
+      const script = document.createElement('script');
+      script.innerHTML = extension
+      document.head.appendChild(script);
     }
-    const script = document.createElement('script');
-    script.innerHTML = extension
-    document.head.appendChild(script);
 
     const checkBokeh = setInterval(() => {
       if (window.Bokeh) {
@@ -120,7 +118,9 @@ const PanelSlot = (props: Props) => {
     }, 10);
 
     return () => {
-      document.head.removeChild(script);
+      if (extension.length !== 0) {
+	document.head.removeChild(script);
+      }
       clearInterval(checkBokeh);
     };
   }, []);
