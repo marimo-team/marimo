@@ -5,26 +5,20 @@ import sys
 import weakref
 from dataclasses import dataclass
 from functools import partial
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import Any, Dict, Optional
 
-import marimo._output.data.data as mo_data
 from marimo import _loggers
 from marimo._output.rich_help import mddoc
-from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
 from marimo._plugins.ui._impl.comm import MarimoComm, MarimoCommManager
 from marimo._runtime.functions import Function
-
-if TYPE_CHECKING:
-    from panel.viewable import (  # type: ignore [import-not-found,unused-ignore]  # noqa: E501
-        Viewable,
-    )
+from pyviz_comms import Comm, CommManager
 
 LOGGER = _loggers.marimo_logger()
 
 COMM_MANAGER = MarimoCommManager()
 
-loaded_extension: boolean = False
+loaded_extension: bool = False
 loaded_extensions: list[str] = []
 
 # Weak dictionary
@@ -57,12 +51,9 @@ class SendToWidgetArgs:
     buffers: Optional[Any] = None
 
 
-from pyviz_comms import Comm, CommManager, JupyterComm, JupyterCommJS
-
-
 class MarimoPanelComm(Comm):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: any, **kwargs: any):
         super().__init__(*args, **kwargs)
         self._comm = MarimoComm(
             comm_id=self.id,
@@ -75,21 +66,16 @@ class MarimoPanelComm(Comm):
             self._on_open({})
 
     @classmethod
-    def decode(cls, msg: SendToWidgetArgs):
+    def decode(cls, msg: SendToWidgetArgs) -> dict[str, Any]:
         buffers = {i: v for i, v in enumerate(msg.buffers)}
         return dict(msg.message, _buffers=buffers)
 
-    def send(self, data=None, metadata=None, buffers=[]):
+    def send(self, data=None, metadata=None, buffers=None) -> None:
+        buffers = buffers or []
         self.comm.send({"content": data}, metadata=metadata, buffers=buffers)
 
 
-class MarimoPanelCommManager(CommManager):
-
-    client_comm = MarimoPanelComm
-    server_comm = MarimoPanelComm
-
-
-def render_extension(load_timeout: int = 500, reloading: bool = False):
+def render_extension(load_timeout: int = 500, reloading: bool = False) -> str:
     from bokeh.io.notebook import curstate
     from panel.config import config
     from panel.io.notebook import (
@@ -190,11 +176,8 @@ class panel(UIElement[T, T]):
         loaded_extensions.extend(new_exts)
         loaded_extension = True
 
-        if not issubclass(state._comm_manager, MarimoPanelCommManager):
-            state._comm_manager = MarimoPanelCommManager
-
         doc = Document()
-        comm = state._comm_manager.get_server_comm()
+        comm = MarimoPanelComm()
         root = obj._render_model(doc, comm)
         ref = root.ref["id"]
         manager = CommManager(comm_id=comm.id, plot_id=ref)
@@ -224,7 +207,7 @@ class panel(UIElement[T, T]):
             ),
         )
 
-    def _handle_msg(self, ref, manager, msg):
+    def _handle_msg(self, ref, manager, msg) -> None:
         comm = self.obj._comms[ref][0]
         msg = comm.decode(msg)
         self.obj._on_msg(ref, manager, msg)
