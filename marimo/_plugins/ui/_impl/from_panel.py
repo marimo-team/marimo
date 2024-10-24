@@ -12,7 +12,7 @@ from pyviz_comms import Comm
 from marimo import _loggers
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
-from marimo._plugins.ui._impl.comm import MarimoComm
+from marimo._plugins.ui._impl.comm import MarimoComm, MarimoCommManager
 from marimo._runtime.functions import Function
 
 LOGGER = _loggers.marimo_logger()
