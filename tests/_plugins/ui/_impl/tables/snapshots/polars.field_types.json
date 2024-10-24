@@ -9,7 +9,7 @@
   "list": ["unknown", "list[i64]"],
   "array": ["unknown", "array[i64, 1]"],
   "nulls": ["string", "str"],
-  "category": ["unknown", "cat"],
+  "category": ["string", "cat"],
   "set": ["unknown", "object"],
   "imaginary": ["unknown", "object"],
   "time": ["time", "Time"],
