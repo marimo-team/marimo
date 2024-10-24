@@ -193,6 +193,8 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
       defaults to 10
     - `show_column_summaries`: whether to show column summaries
       defaults to `True` when the table has less than 40 columns, `False` otherwise
+    - `show_download`: whether to show the download button
+      defaults to `True` for dataframes, `False` otherwise
     - `format_mapping`: a mapping from column names to formatting strings
     or functions
     - `freeze_columns_left`: list of column names to freeze on the left
@@ -220,6 +222,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         ] = None,
         freeze_columns_left: Optional[Sequence[str]] = None,
         freeze_columns_right: Optional[Sequence[str]] = None,
+        show_download: bool = True,
         *,
         label: str = "",
         on_change: Optional[
@@ -345,7 +348,8 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
                     selection if self._manager.supports_selection() else None
                 ),
                 "show-filters": self._manager.supports_filters(),
-                "show-download": self._manager.supports_download(),
+                "show-download": show_download
+                and self._manager.supports_download(),
                 "show-column-summaries": show_column_summaries,
                 "row-headers": self._manager.get_row_headers(),
                 "freeze-columns-left": freeze_columns_left,
