@@ -44,6 +44,8 @@ function cellEditorForDataType(dataType: DataType) {
       return "agCheckboxCellEditor";
     // TODO: not working properly
     // case "date":
+    // case "datetime":
+    // case "time":
     //   return 'agDateCellEditor';
     default:
       return "agTextCellEditor";

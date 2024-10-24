@@ -435,6 +435,8 @@ components:
       - integer
       - number
       - date
+      - datetime
+      - time
       - unknown
       type: string
     Datasets:
@@ -1911,7 +1913,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.9.6
+  version: 0.9.14
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

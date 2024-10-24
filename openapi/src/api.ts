@@ -2140,7 +2140,15 @@ export interface components {
       type: components["schemas"]["DataType"];
     };
     /** @enum {string} */
-    DataType: "string" | "boolean" | "integer" | "number" | "date" | "unknown";
+    DataType:
+      | "string"
+      | "boolean"
+      | "integer"
+      | "number"
+      | "date"
+      | "datetime"
+      | "time"
+      | "unknown";
     Datasets: {
       /** @enum {string|null} */
       clear_channel?: "local" | "duckdb" | null;

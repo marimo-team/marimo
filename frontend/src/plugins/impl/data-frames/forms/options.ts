@@ -13,7 +13,10 @@ export interface FieldOptions {
     | "radio_group"
     | "column_filter"
     | "text_area_multiline"
-    | "column_values";
+    | "column_values"
+    | "date"
+    | "datetime"
+    | "time";
 }
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare

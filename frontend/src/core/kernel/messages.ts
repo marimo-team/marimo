@@ -3,6 +3,16 @@ import type { components } from "@marimo-team/marimo-api";
 
 export type schemas = components["schemas"];
 export type DataType = schemas["DataType"];
+export const DATA_TYPES = [
+  "string",
+  "boolean",
+  "integer",
+  "number",
+  "date",
+  "datetime",
+  "time",
+  "unknown",
+] as const;
 export type Banner = OperationMessageData<"banner">;
 export type DataTableColumn = schemas["DataTableColumn"];
 export type DataTable = schemas["DataTable"];

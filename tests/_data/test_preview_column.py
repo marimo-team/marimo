@@ -217,6 +217,89 @@ def test_get_column_preview_for_duckdb_date() -> None:
     sys.platform == "win32",
     reason="Windows encodes base64 differently",
 )
+def test_get_column_preview_for_duckdb_datetime() -> None:
+    import datetime
+
+    import duckdb
+
+    # Test preview for a datetime column
+    duckdb.execute("""
+        CREATE OR REPLACE TABLE datetime_tbl AS
+        SELECT TIMESTAMP '2023-01-01 00:00:00' +
+               INTERVAL (range % 365) DAY +
+               INTERVAL (range % 24) HOUR +
+               INTERVAL (range % 60) MINUTE AS datetime_col
+        FROM range(100)
+    """)
+
+    result_datetime = get_column_preview_for_sql(
+        table_name="memory.main.datetime_tbl",
+        column_name="datetime_col",
+    )
+    assert result_datetime is not None
+    assert result_datetime.summary is not None
+    assert result_datetime.error is None
+
+    # Check if summary contains expected statistics for the datetime pattern
+    assert result_datetime.summary.total == 100
+    assert result_datetime.summary.unique == 100
+    assert result_datetime.summary.nulls == 0
+    assert result_datetime.summary.min == datetime.datetime(2023, 1, 1, 0, 0)
+    assert result_datetime.summary.max == datetime.datetime(2023, 4, 10, 3, 39)
+
+    # Not implemented yet
+    assert result_datetime.chart_code is None
+    assert result_datetime.chart_spec is None
+
+
+@pytest.mark.skipif(
+    not HAS_SQL_DEPS, reason="optional dependencies not installed"
+)
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows encodes base64 differently",
+)
+def test_get_column_preview_for_duckdb_time() -> None:
+    import datetime
+
+    import duckdb
+
+    # Test preview for a time column
+    duckdb.execute("""
+        CREATE OR REPLACE TABLE time_tbl AS
+        SELECT TIME '00:00:00' +
+               INTERVAL (range % 24) HOUR +
+               INTERVAL (range % 60) MINUTE AS time_col
+        FROM range(100)
+    """)
+
+    result_time = get_column_preview_for_sql(
+        table_name="memory.main.time_tbl",
+        column_name="time_col",
+    )
+    assert result_time is not None
+    assert result_time.summary is not None
+    assert result_time.error is None
+
+    # Check if summary contains expected statistics for the time pattern
+    assert result_time.summary.total == 100
+    assert result_time.summary.unique == 100
+    assert result_time.summary.nulls == 0
+    assert result_time.summary.min == datetime.time(0, 0)
+    assert result_time.summary.max == datetime.time(23, 47)
+
+    # Not implemented yet
+    assert result_time.chart_code is None
+    assert result_time.chart_spec is None
+
+
+@pytest.mark.skipif(
+    not HAS_SQL_DEPS, reason="optional dependencies not installed"
+)
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows encodes base64 differently",
+)
 def test_get_column_preview_for_duckdb_bool() -> None:
     import duckdb
 

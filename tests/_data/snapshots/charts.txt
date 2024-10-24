@@ -22,6 +22,30 @@ _chart = (
 )
 _chart
 
+# datetime
+_chart = (
+    alt.Chart(df)
+    .mark_line(point={"filled": False, "fill": "white"})
+    .encode(
+        x=alt.X("some_column", type="temporal"),
+        y=alt.Y("count()", type="quantitative"),
+    )
+    .properties(width="container")
+)
+_chart
+
+# time
+_chart = (
+    alt.Chart(df)
+    .mark_line(point={"filled": False, "fill": "white"})
+    .encode(
+        x=alt.X("some_column", type="temporal"),
+        y=alt.Y("count()", type="quantitative"),
+    )
+    .properties(width="container")
+)
+_chart
+
 # integer
 _chart = (
     alt.Chart(df)

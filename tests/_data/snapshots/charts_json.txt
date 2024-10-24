@@ -84,6 +84,96 @@
   "width": "container"
 }
 
+# datetime
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.20.1.json",
+  "config": {
+    "view": {
+      "continuousHeight": 300,
+      "continuousWidth": 300
+    }
+  },
+  "data": {
+    "name": "data-afce120bec1de31b50bc39eae2fedbed"
+  },
+  "datasets": {
+    "data-afce120bec1de31b50bc39eae2fedbed": [
+      {
+        "some_column": 1
+      },
+      {
+        "some_column": 2
+      },
+      {
+        "some_column": 3
+      }
+    ]
+  },
+  "encoding": {
+    "x": {
+      "field": "some_column",
+      "type": "temporal"
+    },
+    "y": {
+      "aggregate": "count",
+      "type": "quantitative"
+    }
+  },
+  "mark": {
+    "point": {
+      "fill": "white",
+      "filled": false
+    },
+    "type": "line"
+  },
+  "width": "container"
+}
+
+# time
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.20.1.json",
+  "config": {
+    "view": {
+      "continuousHeight": 300,
+      "continuousWidth": 300
+    }
+  },
+  "data": {
+    "name": "data-afce120bec1de31b50bc39eae2fedbed"
+  },
+  "datasets": {
+    "data-afce120bec1de31b50bc39eae2fedbed": [
+      {
+        "some_column": 1
+      },
+      {
+        "some_column": 2
+      },
+      {
+        "some_column": 3
+      }
+    ]
+  },
+  "encoding": {
+    "x": {
+      "field": "some_column",
+      "type": "temporal"
+    },
+    "y": {
+      "aggregate": "count",
+      "type": "quantitative"
+    }
+  },
+  "mark": {
+    "point": {
+      "fill": "white",
+      "filled": false
+    },
+    "type": "line"
+  },
+  "width": "container"
+}
+
 # integer
 {
   "$schema": "https://vega.github.io/schema/vega-lite/v5.20.1.json",

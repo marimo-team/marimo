@@ -40,6 +40,8 @@ import { LoadingTable } from "@/components/data-table/loading-table";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { DelayMount } from "@/components/utils/delay-mount";
+import { DATA_TYPES } from "@/core/kernel/messages";
+
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
 interface ColumnSummaries<T = unknown> {
@@ -107,21 +109,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       rowHeaders: z.array(z.string()),
       freezeColumnsLeft: z.array(z.string()).optional(),
       freezeColumnsRight: z.array(z.string()).optional(),
-      fieldTypes: z
-        .record(
-          z.tuple([
-            z.enum([
-              "boolean",
-              "integer",
-              "number",
-              "date",
-              "string",
-              "unknown",
-            ]),
-            z.string(),
-          ]),
-        )
-        .nullish(),
+      fieldTypes: z.record(z.tuple([z.enum(DATA_TYPES), z.string()])).nullish(),
     }),
   )
   .withFunctions<Functions>({
@@ -371,6 +359,7 @@ export const LoadingDataTableComponent = memo(
 
     let errorComponent: React.ReactNode = null;
     if (error) {
+      console.log(error);
       errorComponent = (
         <Alert variant="destructive" className="mb-2">
           <AlertTitle>Error</AlertTitle>
@@ -469,6 +458,8 @@ const DataTableComponent = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [data, useDeepCompareMemoize([selection, fieldTypes, rowHeaders])],
   );
+
+  console.log(fieldTypes);
 
   const rowSelection = useMemo(
     () => Object.fromEntries((value || []).map((v) => [v, true])),

@@ -277,7 +277,11 @@ def get_chart_builder(
         return WrapperChartBuilder(
             StringChartBuilder(should_limit_to_10_items)
         )
-    if column_type == "date":
+    if (
+        column_type == "date"
+        or column_type == "datetime"
+        or column_type == "time"
+    ):
         return WrapperChartBuilder(DateChartBuilder())
     if column_type == "boolean":
         return WrapperChartBuilder(BooleanChartBuilder())

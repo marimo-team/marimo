@@ -13,6 +13,8 @@ from tests.mocks import snapshotter
 TYPES: List[Tuple[DataType, bool]] = [
     ("boolean", False),
     ("date", False),
+    ("datetime", False),
+    ("time", False),
     ("integer", False),
     ("number", False),
     ("string", False),

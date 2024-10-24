@@ -29,6 +29,11 @@ def __():
                 datetime.datetime(2021, 1, 2),
                 datetime.datetime(2021, 1, 3),
             ],
+            "date": [
+                datetime.date(2021, 1, 1),
+                datetime.date(2021, 1, 2),
+                datetime.date(2021, 1, 3),
+            ],
             "struct": [
                 {"a": 1, "b": 2},
                 {"a": 3, "b": 4},

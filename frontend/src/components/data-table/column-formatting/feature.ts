@@ -112,6 +112,10 @@ export const applyFormat = (
   }
   // Handle date, number, string and boolean formatting
   switch (dataType) {
+    case "time":
+      // Do nothing
+      return value;
+    case "datetime":
     case "date": {
       const date = new Date(value as string);
       switch (format) {

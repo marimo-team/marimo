@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, cast
 
 from marimo._plugins.ui._impl.dataframes.transforms.print_code import (
@@ -254,6 +255,7 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
     def handle_filter_rows(
         df: "pl.DataFrame", transform: FilterRowsTransform
     ) -> "pl.DataFrame":
+        import polars as pl
         from polars import col
 
         # Start with no filter (all rows included)
@@ -262,7 +264,16 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
         # Iterate over all conditions and build the filter expression
         for condition in transform.where:
             column = col(str(condition.column_id))
+            dtype = df.schema[str(condition.column_id)]
             value = condition.value
+
+            # If columns type is a Datetime, we need to convert the value to a datetime
+            if dtype == pl.Datetime and isinstance(value, str):
+                value = datetime.datetime.fromisoformat(value)
+            elif dtype == pl.Date and isinstance(value, str):
+                value = datetime.date.fromisoformat(value)
+            elif dtype == pl.Time and isinstance(value, str):
+                value = datetime.time.fromisoformat(value)
 
             # Build the expression based on the operator
             if condition.operator == "==":

@@ -6,7 +6,16 @@ from datetime import date, datetime, time, timedelta  # noqa: TCH003
 from decimal import Decimal
 from typing import List, Literal, Optional, Union
 
-DataType = Literal["string", "boolean", "integer", "number", "date", "unknown"]
+DataType = Literal[
+    "string",
+    "boolean",
+    "integer",
+    "number",
+    "date",
+    "datetime",
+    "time",
+    "unknown",
+]
 # This is the data type based on the source library
 # e.g. polars, pandas, numpy, etc.
 ExternalDataType = str

@@ -1,12 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { DataFormat } from "./types";
 import { isNumber } from "lodash-es";
-import {
-  typeParsers,
-  createLoader,
-  read,
-  type FieldTypes,
-} from "./vega-loader";
+import { typeParsers, createLoader, read, type DataType } from "./vega-loader";
+import { Objects } from "@/utils/objects";
 
 type Unsubscribe = () => void;
 type Middleware = () => Unsubscribe;
@@ -150,12 +146,28 @@ export async function vegaLoadData<T = object>(
       csvOrJsonData = replacePeriodsInColumnNames(csvOrJsonData);
     }
 
+    let parse = (format?.parse as Record<string, DataType>) || "auto";
+    // Map some of our data types to Vega's data types
+    // - time -> string
+    // - datetime -> date
+    if (typeof parse === "object") {
+      parse = Objects.mapValues(parse, (value) => {
+        if (value === "time") {
+          return "string";
+        }
+        if (value === "datetime") {
+          return "date";
+        }
+        return value;
+      });
+    }
+
     // Always set parse to auto for csv data, to be able to parse dates and floats
     const results = isCsv
       ? // csv -> json
         read(csvOrJsonData, {
           ...format,
-          parse: (format?.parse as FieldTypes) || "auto",
+          parse: parse,
         })
       : read(csvOrJsonData, format);
 
