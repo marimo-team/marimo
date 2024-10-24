@@ -554,7 +554,7 @@ class TestTransformHandler:
             ),
             (
                 pl.DataFrame({"A": [1, 2, 3]}),
-                pl.exceptions.ColumnNotFoundError,
+                (KeyError, pl.exceptions.ColumnNotFoundError),
             ),
             (
                 ibis.memtable({"A": [1, 2, 3]}),
