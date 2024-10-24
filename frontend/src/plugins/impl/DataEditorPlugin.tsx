@@ -15,6 +15,7 @@ import React from "react";
 import "./data-editor/grid.css";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-quartz.css";
+import { DATA_TYPES } from "@/core/kernel/messages";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -46,21 +47,7 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor")
       data: z.union([z.string(), z.array(z.object({}).passthrough())]),
       pagination: z.boolean().default(false),
       pageSize: z.number().default(10),
-      fieldTypes: z
-        .record(
-          z.tuple([
-            z.enum([
-              "boolean",
-              "integer",
-              "number",
-              "date",
-              "string",
-              "unknown",
-            ]),
-            z.string(),
-          ]),
-        )
-        .nullish(),
+      fieldTypes: z.record(z.tuple([z.enum(DATA_TYPES), z.string()])).nullish(),
     }),
   )
   .withFunctions({})

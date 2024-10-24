@@ -36,25 +36,33 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                     datetime.datetime(2021, 1, 2),
                     datetime.datetime(2021, 1, 3),
                 ],
+                "date": [
+                    datetime.date(2021, 1, 1),
+                    datetime.date(2021, 1, 2),
+                    datetime.date(2021, 1, 3),
+                ],
                 "struct": [
                     {"a": 1, "b": 2},
                     {"a": 3, "b": 4},
                     {"a": 5, "b": 6},
                 ],
-                "list": [[1, 2], [3, 4], [5, 6]],
-                "array": [[1, 2, 3], [4], []],
-                "nulls": [None, "data", None],
-                "categorical": pl.Series(["cat", "dog", "mouse"]).cast(
-                    pl.Categorical
+                "list": pl.Series(
+                    [[1, 2], [3, 4], [5, 6]], dtype=pl.List(pl.Int64)
                 ),
-                # raises:
-                #   pyo3_runtime.PanicException:
-                #   not yet implemented: Writing Time64(Nanosecond) to JSON
-                # "time": [
-                #     datetime.time(12, 30),
-                #     datetime.time(13, 45),
-                #     datetime.time(14, 15),
-                # ],
+                "array": pl.Series(
+                    [[1], [2], [3]], dtype=pl.Array(pl.Int64, 1)
+                ),
+                "nulls": pl.Series([None, "data", None]),
+                "category": pl.Series(
+                    ["cat", "dog", "mouse"], dtype=pl.Categorical
+                ),
+                "set": [set([1, 2]), set([3, 4]), set([5, 6])],
+                "imaginary": [1 + 2j, 3 + 4j, 5 + 6j],
+                "time": [
+                    datetime.time(12, 30),
+                    datetime.time(13, 45),
+                    datetime.time(14, 15),
+                ],
                 "duration": [
                     datetime.timedelta(days=1),
                     datetime.timedelta(days=2),
@@ -121,7 +129,14 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         assert isinstance(self.manager.to_json(), bytes)
 
         complex_data = self.get_complex_data()
-        data = complex_data.to_json()
+        # pl.Time and pl.Object are not supported in JSON
+        other_columns = [
+            col
+            for col in complex_data.get_column_names()
+            if col not in ["time", "set", "imaginary"]
+        ]
+        manager = complex_data.select_columns(other_columns)
+        data = manager.to_json()
         assert isinstance(data, bytes)
         snapshot("polars.json", data.decode("utf-8"))
 
@@ -163,7 +178,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             "B": ("string", "str"),
             "C": ("number", "f64"),
             "D": ("boolean", "bool"),
-            "E": ("date", "datetime[μs]"),
+            "E": ("datetime", "datetime[μs]"),
         }
         assert self.manager.get_field_types() == expected_field_types
 
@@ -191,6 +206,16 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                     "5-10",
                     "10-15",
                 ],
+                "K": [
+                    datetime.date(2021, 1, 1),
+                    datetime.date(2021, 1, 2),
+                    datetime.date(2021, 1, 3),
+                ],
+                "L": [
+                    datetime.time(1, 2, 3),
+                    datetime.time(4, 5, 6),
+                    datetime.time(7, 8, 9),
+                ],
             }
         )
         expected_field_types = {
@@ -201,9 +226,11 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             "E": ("unknown", "object"),
             "F": ("unknown", "null"),
             "G": ("unknown", "object"),
-            "H": ("date", "datetime[μs]"),
+            "H": ("datetime", "datetime[μs]"),
             "I": ("string", "str"),
             "J": ("string", "str"),
+            "K": ("date", "date"),
+            "L": ("time", "Time"),
         }
         assert (
             self.factory.create()(complex_data).get_field_types()
@@ -307,6 +334,11 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             mean=datetime.datetime(2021, 1, 1, 12, 0),
             median=datetime.datetime(2021, 1, 1, 12, 0),
         )
+
+    def test_summary_does_fail_on_each_column(self) -> None:
+        complex_data = self.get_complex_data()
+        for column in complex_data.get_column_names():
+            assert complex_data.get_summary(column) is not None
 
     def test_sort_values(self) -> None:
         sorted_df = self.manager.sort_values("A", descending=True).data
@@ -666,3 +698,29 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         manager = self.factory.create()(df)
         sorted_manager = manager.sort_values("A", descending=True)
         assert sorted_manager.data["A"].to_list() == [None, 3, 2, 1]
+
+    def test_get_field_types_with_datetime(self):
+        import polars as pl
+
+        data = pl.DataFrame(
+            {
+                "date_col": [
+                    datetime.date(2021, 1, 1),
+                    datetime.date(2021, 1, 3),
+                ],
+                "datetime_col": [
+                    datetime.datetime(2021, 1, 1),
+                    datetime.datetime(2021, 1, 3),
+                ],
+                "time_col": [
+                    datetime.time(1, 2, 3),
+                    datetime.time(4, 5, 6),
+                ],
+            }
+        )
+        manager = self.factory.create()(data)
+        field_types = manager.get_field_types()
+
+        assert field_types["date_col"] == ("date", "date")
+        assert field_types["datetime_col"] == ("datetime", "datetime[μs]")
+        assert field_types["time_col"] == ("time", "Time")

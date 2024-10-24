@@ -65,7 +65,16 @@ class PolarsTableManagerFactory(TableManagerFactory):
                                 ).arr.join(",")
                             )
                         elif isinstance(dtype, pl.Object):
-                            result = result.with_columns(column.cast(str))
+                            import warnings
+
+                            with warnings.catch_warnings(record=True):
+                                result = result.with_columns(
+                                    # As of writing this, cast(pl.String) doesn't work
+                                    # for pl.Object types, so we use map_elements
+                                    column.map_elements(
+                                        str, return_dtype=pl.String
+                                    )
+                                )
                         elif isinstance(dtype, pl.Duration):
                             if dtype.time_unit == "ms":
                                 result = result.with_columns(
@@ -176,7 +185,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     return ColumnSummary()
                 col = self.data[column]
                 total = len(col)
-                if col.dtype == pl.String:
+                if col.dtype == pl.String or col.dtype == pl.Categorical:
                     return ColumnSummary(
                         total=total,
                         nulls=col.null_count(),
@@ -206,17 +215,23 @@ class PolarsTableManagerFactory(TableManagerFactory):
                         max=cast(NonNestedLiteral, col.max()),
                         mean=cast(NonNestedLiteral, col.mean()),
                         median=cast(NonNestedLiteral, col.median()),
-                        p5=col.quantile(0.05),
-                        p25=col.quantile(0.25),
-                        p75=col.quantile(0.75),
-                        p95=col.quantile(0.95),
                     )
                 if col.dtype.is_(pl.Null):
                     return ColumnSummary(
                         total=total,
                         nulls=col.null_count(),
                     )
-                if col.dtype == pl.List:
+                if col.dtype == pl.Time:
+                    return ColumnSummary(
+                        total=total,
+                        nulls=col.null_count(),
+                    )
+                if (
+                    col.dtype == pl.List
+                    or col.dtype == pl.Array
+                    or col.dtype == pl.Object
+                    or col.dtype == pl.Struct
+                ):
                     return ColumnSummary(
                         total=total,
                         nulls=col.null_count(),
@@ -265,7 +280,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     dtype_string = column.dtype._string_repr()
                 except (TypeError, AttributeError):
                     dtype_string = str(column.dtype)
-                if column.dtype == pl.String:
+                if column.dtype == pl.String or column.dtype == pl.Categorical:
                     return ("string", dtype_string)
                 elif column.dtype == pl.Boolean:
                     return ("boolean", dtype_string)
@@ -273,8 +288,14 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     return ("integer", dtype_string)
                 elif column.dtype.is_float() or column.dtype.is_numeric():
                     return ("number", dtype_string)
-                elif column.dtype.is_temporal():
+                elif column.dtype == pl.Date:
                     return ("date", dtype_string)
+                elif column.dtype == pl.Time:
+                    return ("time", dtype_string)
+                elif column.dtype == pl.Datetime:
+                    return ("datetime", dtype_string)
+                elif column.dtype.is_temporal():
+                    return ("datetime", dtype_string)
                 else:
                     return ("unknown", dtype_string)
 

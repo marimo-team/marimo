@@ -31,10 +31,20 @@ class TestIbisTableManagerFactory(unittest.TestCase):
                 "bool": [True, False, True],
                 "int": [1, 2, 3],
                 "float": [1.0, 2.0, 3.0],
+                "date": [
+                    datetime.date(2021, 1, 1),
+                    datetime.date(2021, 1, 2),
+                    datetime.date(2021, 1, 3),
+                ],
                 "datetime": [
                     datetime.datetime(2021, 1, 1),
                     datetime.datetime(2021, 1, 2),
                     datetime.datetime(2021, 1, 3),
+                ],
+                "time": [
+                    datetime.time(1, 2, 3),
+                    datetime.time(4, 5, 6),
+                    datetime.time(7, 8, 9),
                 ],
                 "nulls": [None, "data", None],
             }
@@ -116,7 +126,7 @@ class TestIbisTableManagerFactory(unittest.TestCase):
             "B": ("string", "string"),
             "C": ("number", "float64"),
             "D": ("boolean", "boolean"),
-            "E": ("date", "timestamp"),
+            "E": ("datetime", "timestamp"),
         }
         assert self.manager.get_field_types() == expected_field_types
 

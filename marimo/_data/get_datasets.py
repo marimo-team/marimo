@@ -176,16 +176,18 @@ def _db_type_to_data_type(db_type: str) -> DataType:
     ]:
         return "string"
     # Date and Time types
+    if db_type == "date":
+        return "date"
+    if db_type == "time":
+        return "time"
     if db_type in [
-        "date",
-        "time",
         "timestamp",
         "timestamp with time zone",
         "timestamptz",
         "datetime",
         "interval",
     ]:
-        return "date"
+        return "datetime"
     # Nested types
     if db_type in ["array", "list", "struct", "map", "union"]:
         return "unknown"

@@ -384,6 +384,17 @@ export const DropdownMenuItemFilter = <TData, TValue>({
     // Not implemented
     return null;
   }
+
+  if (filterType === "time") {
+    // Not implemented
+    return null;
+  }
+
+  if (filterType === "datetime") {
+    // Not implemented
+    return null;
+  }
+
   if (filterType === "date") {
     // Not implemented
     return null;

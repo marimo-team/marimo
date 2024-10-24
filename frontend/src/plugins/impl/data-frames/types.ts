@@ -74,6 +74,7 @@ export function numpyTypeToDataType(
     case "bool":
       return "boolean";
     case "datetime64":
+      return "datetime";
     case "timedelta64":
       return "date";
     default:

@@ -6,6 +6,8 @@ import type { OnChangeFn, RowData } from "@tanstack/react-table";
 // define all format options
 export const formatOptions = {
   date: ["Date", "Datetime", "Time"],
+  datetime: ["Date", "Datetime", "Time"],
+  time: [],
   integer: ["Auto", "Percent", "Scientific", "Integer"],
   number: ["Auto", "Percent", "Scientific", "Integer"],
   string: ["Uppercase", "Lowercase", "Capitalize", "Title"],

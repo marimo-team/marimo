@@ -215,6 +215,10 @@ function getFilterTypeForFieldType(
       return "number";
     case "date":
       return "date";
+    case "datetime":
+      return "datetime";
+    case "time":
+      return "time";
     case "boolean":
       return "boolean";
     default:

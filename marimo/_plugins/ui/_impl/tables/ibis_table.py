@@ -191,6 +191,10 @@ class IbisTableManagerFactory(TableManagerFactory):
                 elif dtype.is_floating():
                     return ("number", str(dtype))
                 elif dtype.is_timestamp():
+                    return ("datetime", str(dtype))
+                elif dtype.is_time():
+                    return ("time", str(dtype))
+                elif dtype.is_date():
                     return ("date", str(dtype))
                 else:
                     return ("unknown", str(dtype))

@@ -133,7 +133,7 @@ class TestPandasTableManager(unittest.TestCase):
             "B": ("string", "object"),
             "C": ("number", "float64"),
             "D": ("boolean", "bool"),
-            "E": ("date", "datetime64[ns]"),
+            "E": ("datetime", "datetime64[ns]"),
             "F": ("string", "object"),
         }
         assert self.manager.get_field_types() == expected_field_types
@@ -172,7 +172,7 @@ class TestPandasTableManager(unittest.TestCase):
             "E": ("unknown", "complex128"),
             "F": ("string", "object"),
             "G": ("string", "object"),
-            "H": ("date", "datetime64[ns]"),
+            "H": ("datetime", "datetime64[ns]"),
             "I": ("string", "timedelta64[ns]"),
             "J": ("string", "interval[int64, right]"),
         }
@@ -741,3 +741,32 @@ class TestPandasTableManager(unittest.TestCase):
         manager = self.factory.create()(df)
         assert manager.get_row_headers() == ["", ""]
         assert manager.get_num_rows() == 4
+
+    def test_get_field_types_with_datetime(self):
+        import pandas as pd
+
+        data = pd.DataFrame(
+            {
+                "date_col": [
+                    datetime.date(2021, 1, 1),
+                    datetime.date(2021, 1, 2),
+                    datetime.date(2021, 1, 3),
+                ],
+                "datetime_col": [
+                    datetime.datetime(2021, 1, 1),
+                    datetime.datetime(2021, 1, 2),
+                    datetime.datetime(2021, 1, 3),
+                ],
+                "time_col": [
+                    datetime.time(1, 2, 3),
+                    datetime.time(4, 5, 6),
+                    datetime.time(7, 8, 9),
+                ],
+            }
+        )
+        manager = self.factory.create()(data)
+        field_types = manager.get_field_types()
+
+        assert field_types["date_col"] == ("string", "object")
+        assert field_types["datetime_col"] == ("datetime", "datetime64[ns]")
+        assert field_types["time_col"] == ("string", "object")

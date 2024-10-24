@@ -141,6 +141,29 @@ function renderZodSchema<T extends FieldValues, S>(
     if (special === "column_values") {
       return <ColumnValuesFormField schema={schema} form={form} path={path} />;
     }
+    if (special === "time") {
+      return (
+        <FormField
+          control={form.control}
+          name={path}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{label}</FormLabel>
+              <FormDescription>{description}</FormDescription>
+              <FormControl>
+                <DebouncedInput
+                  {...field}
+                  onValueChange={field.onChange}
+                  type="time"
+                  className="my-0"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      );
+    }
 
     return <StringFormField schema={schema} form={form} path={path} />;
   }
@@ -213,6 +236,13 @@ function renderZodSchema<T extends FieldValues, S>(
     );
   }
   if (schema instanceof z.ZodDate) {
+    const inputType =
+      special === "datetime"
+        ? "datetime-local"
+        : special === "time"
+          ? "time"
+          : "date";
+
     return (
       <FormField
         control={form.control}
@@ -225,7 +255,7 @@ function renderZodSchema<T extends FieldValues, S>(
               <DebouncedInput
                 {...field}
                 onValueChange={field.onChange}
-                type="date"
+                type={inputType}
                 className="my-0"
               />
             </FormControl>

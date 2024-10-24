@@ -200,7 +200,11 @@ def _get_altair_chart(
         column_data = table.select_columns([request.column_name]).data
         # Date types don't serialize well to csv,
         # so we don't transform them
-        if column_type == "date":
+        if (
+            column_type == "date"
+            or column_type == "datetime"
+            or column_type == "time"
+        ):
             # Default max_rows is 5_000, but we can support more.
             with alt.data_transformers.enable("default", max_rows=20_000):
                 chart_json = chart_builder.altair_json(

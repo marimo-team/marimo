@@ -24,6 +24,7 @@ import type { FieldTypesWithExternalType } from "@/components/data-table/types";
 import { Spinner } from "@/components/icons/spinner";
 import { ReadonlyCode } from "@/components/editor/code/readonly-python-code";
 import { isEqual } from "lodash-es";
+import { DATA_TYPES } from "@/core/kernel/messages";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -96,19 +97,7 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
         total_rows: z.number(),
         row_headers: z.array(z.string()),
         field_types: z
-          .record(
-            z.tuple([
-              z.enum([
-                "boolean",
-                "integer",
-                "number",
-                "date",
-                "string",
-                "unknown",
-              ]),
-              z.string(),
-            ]),
-          )
+          .record(z.tuple([z.enum(DATA_TYPES), z.string()]))
           .nullable(),
         python_code: z.string().nullish(),
         sql_code: z.string().nullish(),

@@ -152,7 +152,11 @@ class PandasTableManagerFactory(TableManagerFactory):
                 if dtype == "bool":
                     return ("boolean", dtype)
                 if dtype == "datetime64[ns]":
+                    return ("datetime", dtype)
+                if dtype == "date":
                     return ("date", dtype)
+                if dtype == "time":
+                    return ("time", dtype)
                 if dtype == "timedelta64[ns]":
                     return ("string", dtype)
                 if dtype == "category":
@@ -167,7 +171,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                     return ColumnSummary()
                 col = self.data[column]
 
-                if col.dtype == "object":
+                if col.dtype == "object" or col.dtype == "category":
                     try:
                         return ColumnSummary(
                             total=col.count(),

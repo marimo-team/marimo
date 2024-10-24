@@ -9,6 +9,7 @@ import {
   DATE_OPERATORS,
   NUMERIC_OPERATORS,
   STRING_OPERATORS,
+  DATETIME_OPERATORS,
 } from "../operators";
 
 describe("getOperatorForDtype", () => {
@@ -37,6 +38,7 @@ describe("getOperatorForDtype", () => {
     expect(getOperatorForDtype("datetime")).toEqual(
       Object.keys(DATE_OPERATORS),
     );
+    expect(getOperatorForDtype("time")).toEqual(Object.keys(DATE_OPERATORS));
   });
 
   it('should return STRING_OPERATORS for "object" and "string"', () => {
@@ -73,7 +75,7 @@ describe("getSchemaForOperator", () => {
       NUMERIC_OPERATORS["=="],
     );
     expect(getSchemaForOperator("datetime64[ns]", "!=")).toEqual(
-      DATE_OPERATORS["!="],
+      DATETIME_OPERATORS["!="],
     );
     expect(getSchemaForOperator("date", "!=")).toEqual(DATE_OPERATORS["!="]);
     expect(getSchemaForOperator("string", "contains")).toEqual(
@@ -91,6 +93,11 @@ describe("isConditionValueValid", () => {
   it("should return true if the value is valid according to the schema for the given operator", () => {
     expect(isConditionValueValid("is_true", true)).toBe(true);
     expect(isConditionValueValid("==", 123)).toBe(true);
+    expect(isConditionValueValid("==", "12:34")).toBe(true);
+    expect(isConditionValueValid("==", "12:34:56")).toBe(true);
+    expect(isConditionValueValid("==", new Date("2024-01-01T12:34:56"))).toBe(
+      true,
+    );
     expect(isConditionValueValid("contains", "test")).toBe(true);
     expect(isConditionValueValid("in", ["test"])).toBe(true);
   });

@@ -59,6 +59,20 @@ function formatValue(value: ColumnFilterValue) {
   if (value.type === "date") {
     return formatMinMax(value.min?.toISOString(), value.max?.toISOString());
   }
+  if (value.type === "time") {
+    const formatTime = new Intl.DateTimeFormat("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+    return formatMinMax(
+      value.min ? formatTime.format(value.min) : undefined,
+      value.max ? formatTime.format(value.max) : undefined,
+    );
+  }
+  if (value.type === "datetime") {
+    return formatMinMax(value.min?.toISOString(), value.max?.toISOString());
+  }
   if (value.type === "boolean") {
     return `is ${value.value ? "True" : "False"}`;
   }

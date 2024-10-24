@@ -6,6 +6,7 @@ import {
   exportedForTesting,
   parseCsvData,
 } from "../loader";
+import { DATA_TYPES } from "@/core/kernel/messages";
 
 const { ZERO_WIDTH_SPACE, replacePeriodsInColumnNames, uniquifyColumnNames } =
   exportedForTesting;
@@ -99,6 +100,17 @@ yield_error,yield_center
         },
       ]
     `);
+  });
+
+  it.each(DATA_TYPES)("should handle %s data-type", async (type) => {
+    const csvData = "name,value_column\nAlice,1";
+    vi.spyOn(vegaLoader, "load").mockReturnValue(Promise.resolve(csvData));
+
+    const result = await vegaLoadData(csvData, {
+      type: "csv",
+      parse: { value_column: type },
+    });
+    expect(result.length).toEqual(1);
   });
 
   it("should parse csv data with out of bound integers", async () => {

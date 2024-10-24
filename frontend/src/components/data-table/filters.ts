@@ -17,7 +17,14 @@ declare module "@tanstack/react-table" {
   }
 }
 
-export type FilterType = "text" | "number" | "date" | "select" | "boolean";
+export type FilterType =
+  | "text"
+  | "number"
+  | "date"
+  | "datetime"
+  | "time"
+  | "select"
+  | "boolean";
 
 // Filter is a factory function that creates a filter object
 export const Filter = {
@@ -36,6 +43,18 @@ export const Filter = {
   date(opts: { min?: Date; max?: Date }) {
     return {
       type: "date",
+      ...opts,
+    } as const;
+  },
+  datetime(opts: { min?: Date; max?: Date }) {
+    return {
+      type: "datetime",
+      ...opts,
+    } as const;
+  },
+  time(opts: { min?: Date; max?: Date }) {
+    return {
+      type: "time",
       ...opts,
     } as const;
   },
@@ -92,7 +111,43 @@ export function filterToFilterCondition(
         operator: "contains",
         value: filter.text,
       };
+    case "datetime": {
+      const conditions: ConditionType[] = [];
+      if (filter.min !== undefined) {
+        conditions.push({
+          column_id,
+          operator: ">=",
+          value: filter.min.toISOString(),
+        });
+      }
+      if (filter.max !== undefined) {
+        conditions.push({
+          column_id,
+          operator: "<=",
+          value: filter.max.toISOString(),
+        });
+      }
+      return conditions;
+    }
     case "date": {
+      const conditions: ConditionType[] = [];
+      if (filter.min !== undefined) {
+        conditions.push({
+          column_id,
+          operator: ">=",
+          value: filter.min.toISOString(),
+        });
+      }
+      if (filter.max !== undefined) {
+        conditions.push({
+          column_id,
+          operator: "<=",
+          value: filter.max.toISOString(),
+        });
+      }
+      return conditions;
+    }
+    case "time": {
       const conditions: ConditionType[] = [];
       if (filter.min !== undefined) {
         conditions.push({
