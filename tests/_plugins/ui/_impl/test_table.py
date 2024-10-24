@@ -556,3 +556,20 @@ def test_show_column_summaries_disabled():
     assert summaries.is_disabled is False
     assert summaries.data is None
     assert len(summaries.summaries) == 0
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(), reason="Pandas not installed"
+)
+def test_show_download():
+    import pandas as pd
+
+    data = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
+    table_default = ui.table(data)
+    assert table_default._component_args["show-download"] is True
+
+    table_true = ui.table(data, show_download=True)
+    assert table_true._component_args["show-download"] is True
+
+    table_false = ui.table(data, show_download=False)
+    assert table_false._component_args["show-download"] is False
