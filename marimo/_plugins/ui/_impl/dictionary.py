@@ -34,6 +34,14 @@ class dictionary(_batch_base):
     elements: interacting with the dictionary will _not_ update the original
     elements, and vice versa.
 
+    This allows you to reuse multiple UI components (e.g., sliders, text
+    inputs, or date pickers) independently, ensuring they don’t interfere with
+    each other when managed through `mo.ui.dictionary`.
+
+    However, if you use a regular Python dictionary, all references remain
+    synchronized, and changes to one element propagate across all linked
+    instances.
+
     **Examples.**
 
     A heterogeneous collection of UI elements:
@@ -59,16 +67,29 @@ class dictionary(_batch_base):
     Access and output a UI element in the array:
 
     ```python
-    mo.md(f"This is a slider: d['slider']")
+    mo.md(f"This is a slider: {d['slider']}")
     ```
 
     Some number of UI elements, determined at runtime:
 
     ```python
-    mo.ui.dictionary({
-        f"option {i}": mo.ui.slider(1, 10)
-        for i in range random.randint(4, 8)
-    })
+    mo.ui.dictionary(
+        {
+            f"option {i}": mo.ui.slider(1, 10)
+            for i in range(random.randint(4, 8))
+        }
+    )
+    ```
+
+    Quick layouts of UI elements:
+
+    ```python
+    mo.ui.dictionary(
+        {
+            f"option {i}": mo.ui.slider(1, 10)
+            for i in range(random.randint(4, 8))
+        }
+    ).vstack()  # Can also use `hstack`, `callout`, `center`, etc.
     ```
 
     **Attributes.**
