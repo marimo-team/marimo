@@ -359,7 +359,7 @@ export const LoadingDataTableComponent = memo(
 
     let errorComponent: React.ReactNode = null;
     if (error) {
-      console.log(error);
+      Logger.error(error);
       errorComponent = (
         <Alert variant="destructive" className="mb-2">
           <AlertTitle>Error</AlertTitle>
@@ -458,8 +458,6 @@ const DataTableComponent = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [data, useDeepCompareMemoize([selection, fieldTypes, rowHeaders])],
   );
-
-  console.log(fieldTypes);
 
   const rowSelection = useMemo(
     () => Object.fromEntries((value || []).map((v) => [v, true])),
