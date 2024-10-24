@@ -41,25 +41,33 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
                     datetime.datetime(2021, 1, 2),
                     datetime.datetime(2021, 1, 3),
                 ],
+                "date": [
+                    datetime.date(2021, 1, 1),
+                    datetime.date(2021, 1, 2),
+                    datetime.date(2021, 1, 3),
+                ],
                 "struct": [
                     {"a": 1, "b": 2},
                     {"a": 3, "b": 4},
                     {"a": 5, "b": 6},
                 ],
-                "list": [[1, 2], [3, 4], [5, 6]],
-                "array": [[1, 2, 3], [4], []],
-                "nulls": [None, "data", None],
-                "categorical": pl.Series(["cat", "dog", "mouse"]).cast(
-                    pl.Categorical
+                "list": pl.Series(
+                    [[1, 2], [3, 4], [5, 6]], dtype=pl.List(pl.Int64)
                 ),
-                # raises:
-                #   pyo3_runtime.PanicException:
-                #   not yet implemented: Writing Time64(Nanosecond) to JSON
-                # "time": [
-                #     datetime.time(12, 30),
-                #     datetime.time(13, 45),
-                #     datetime.time(14, 15),
-                # ],
+                "array": pl.Series(
+                    [[1], [2], [3]], dtype=pl.Array(pl.Int64, 1)
+                ),
+                "nulls": pl.Series([None, "data", None]),
+                "category": pl.Series(
+                    ["cat", "dog", "mouse"], dtype=pl.Categorical
+                ),
+                "set": [set([1, 2]), set([3, 4]), set([5, 6])],
+                "imaginary": [1 + 2j, 3 + 4j, 5 + 6j],
+                "time": [
+                    datetime.time(12, 30),
+                    datetime.time(13, 45),
+                    datetime.time(14, 15),
+                ],
                 "duration": [
                     datetime.timedelta(days=1),
                     datetime.timedelta(days=2),
@@ -121,14 +129,26 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             # Polars doesn't support writing nested lists to csv
             manager.to_csv()
 
+    @pytest.mark.xfail(
+        reason="Narwhals (polars) doesn't support writing nested lists to csv"
+    )
+    def test_to_csv_complex(self) -> None:
+        complex_data = self.get_complex_data()
+        data = complex_data.to_csv()
+        assert isinstance(data, bytes)
+        snapshot("narwhals.csv", data.decode("utf-8"))
+
     def test_to_json(self) -> None:
         assert isinstance(self.manager.to_json(), bytes)
-        import polars as pl
 
+    @pytest.mark.xfail(
+        reason="Narwhals (polars) doesn't support writing nested lists to csv"
+    )
+    def test_to_json_complex(self) -> None:
         complex_data = self.get_complex_data()
-        with pytest.raises(pl.exceptions.ComputeError):
-            # Polars doesn't support writing nested lists to json
-            complex_data.to_json()
+        data = complex_data.to_json()
+        assert isinstance(data, bytes)
+        snapshot("narwhals.json", data.decode("utf-8"))
 
     def test_complex_data_field_types(self) -> None:
         complex_data = self.get_complex_data()
@@ -238,7 +258,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             min=1,
             max=3,
             mean=2.0,
-            # median=2.0,
+            median=2.0,
             std=1.0,
             p5=1.0,
             p25=2.0,
@@ -264,7 +284,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             min=1.0,
             max=3.0,
             mean=2.0,
-            # median=2.0,
+            median=2.0,
             std=1.0,
             p5=1.0,
             p25=2.0,
@@ -313,6 +333,11 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             # median=datetime.datetime(2021, 1, 1, 12, 0),
         )
 
+    def test_summary_does_fail_on_each_column(self) -> None:
+        complex_data = self.get_complex_data()
+        for column in complex_data.get_column_names():
+            assert complex_data.get_summary(column) is not None
+
     def test_sort_values(self) -> None:
         sorted_df = self.manager.sort_values("A", descending=True).data
         expected_df = self.data.sort("A", descending=True)
@@ -359,7 +384,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             "A": lambda x: x * 2,
             "B": lambda x: x.upper(),
         }
-        self.manager.apply_formatting(format_mapping)
+        assert self.manager.apply_formatting(format_mapping).data is not None
         assert_frame_equal(self.manager.data, original_data)
 
     def test_apply_formatting(self) -> None:
@@ -373,7 +398,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             "E": lambda x: x.strftime("%Y-%m-%d"),
         }
 
-        formatted_data = self.manager.apply_formatting(format_mapping)
+        formatted_data = self.manager.apply_formatting(format_mapping).data
         expected_data = pl.DataFrame(
             {
                 "A": [2, 4, 6],
@@ -397,7 +422,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             "A": lambda x: x * 2,
         }
 
-        formatted_data = manager.apply_formatting(format_mapping)
+        formatted_data = manager.apply_formatting(format_mapping).data
         assert_frame_equal(formatted_data, empty_data)
 
     def test_apply_formatting_partial(self) -> None:
@@ -407,7 +432,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             "A": lambda x: x * 2,
         }
 
-        formatted_data = self.manager.apply_formatting(format_mapping)
+        formatted_data = self.manager.apply_formatting(format_mapping).data
         expected_data = pl.DataFrame(
             {
                 "A": [2, 4, 6],
@@ -426,7 +451,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
     def test_apply_formatting_empty(self) -> None:
         format_mapping: FormatMapping = {}
 
-        formatted_data = self.manager.apply_formatting(format_mapping)
+        formatted_data = self.manager.apply_formatting(format_mapping).data
         assert_frame_equal(formatted_data, self.data)
 
     def test_apply_formatting_invalid_column(self) -> None:
@@ -434,7 +459,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             "Z": lambda x: x * 2,
         }
 
-        formatted_data = self.manager.apply_formatting(format_mapping)
+        formatted_data = self.manager.apply_formatting(format_mapping).data
         assert_frame_equal(formatted_data, self.data)
 
     def test_apply_formatting_with_nan(self) -> None:
@@ -453,7 +478,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             "A": lambda x: x * 2 if x is not None else x,
         }
 
-        formatted_data = manager_with_nan.apply_formatting(format_mapping)
+        formatted_data = manager_with_nan.apply_formatting(format_mapping).data
         expected_data = data_with_nan.clone()
         expected_data = expected_data.with_columns(
             pl.when(pl.col("A").is_not_null())
@@ -481,7 +506,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             "B": lambda x: x.upper(),
         }
 
-        formatted_data = manager.apply_formatting(format_mapping)
+        formatted_data = manager.apply_formatting(format_mapping).data
         expected_data = pl.DataFrame(
             {
                 "index": ["0", "1", "2"],
@@ -507,7 +532,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             "B": lambda x: x * 2,
         }
 
-        formatted_data = manager.apply_formatting(format_mapping)
+        formatted_data = manager.apply_formatting(format_mapping).data
         expected_data = pl.DataFrame(
             {
                 "A": pl.Series(["A", "B", "A"]),
@@ -540,7 +565,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             "B": lambda x: x.upper(),
         }
 
-        formatted_data = manager.apply_formatting(format_mapping)
+        formatted_data = manager.apply_formatting(format_mapping).data
         expected_data = pl.DataFrame(
             {
                 "A": [2, 4, 6],
@@ -579,7 +604,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             "G": abs,
         }
 
-        formatted_data = manager.apply_formatting(format_mapping)
+        formatted_data = manager.apply_formatting(format_mapping).data
         expected_data = pl.DataFrame(
             {
                 "A": [2, 4, 6],

@@ -51,8 +51,8 @@ class IbisTableManagerFactory(TableManagerFactory):
                 return False
 
             def apply_formatting(
-                self, format_mapping: FormatMapping
-            ) -> ibis.Table:
+                self, format_mapping: Optional[FormatMapping]
+            ) -> IbisTableManager:
                 raise NotImplementedError("Column formatting not supported")
 
             def supports_filters(self) -> bool:
@@ -101,7 +101,7 @@ class IbisTableManagerFactory(TableManagerFactory):
                 for column in self.data.columns:
                     col = self.data[column]
                     if col.type().is_string():
-                        predicates.append(col.lower().contains(query))
+                        predicates.append(col.lower().rlike(query))
                     elif col.type().is_numeric():
                         predicates.append(
                             col.cast("string").lower().contains(query)

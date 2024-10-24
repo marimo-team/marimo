@@ -82,6 +82,12 @@ def get_handler_for_dataframe(
         if isinstance(df, ibis.Table):
             return IbisTransformHandler()
 
+    if DependencyManager.narwhals.imported():
+        import narwhals as nw
+
+        if isinstance(df, nw.DataFrame):
+            return get_handler_for_dataframe(df.to_native())
+
     raise ValueError(
         "Unsupported dataframe type. Must be Pandas or Polars."
         f" Got: {type(df)}"

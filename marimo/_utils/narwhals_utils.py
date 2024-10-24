@@ -122,3 +122,12 @@ def is_narwhals_string_type(
     return bool(
         dtype == nw.String or dtype == nw.Categorical or dtype == nw.Enum
     )
+
+
+def unwrap_narwhals_dataframe(df: Any) -> Any:
+    """
+    Unwrap a narwhals dataframe.
+    """
+    if isinstance(df, nw.DataFrame):
+        return df.to_native()  # type: ignore[return-value]
+    return df

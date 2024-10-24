@@ -55,20 +55,29 @@ class DefaultTableManager(TableManager[JsonTableData]):
             or DependencyManager.pyarrow.has()
         )
 
-    def apply_formatting(self, format_mapping: FormatMapping) -> JsonTableData:
+    def apply_formatting(
+        self, format_mapping: Optional[FormatMapping]
+    ) -> TableManager[JsonTableData]:
+        if not format_mapping:
+            return self
+
         if isinstance(self.data, dict) and self.is_column_oriented:
-            return {
-                col: format_column(col, values, format_mapping)  # type: ignore
-                for col, values in self.data.items()
-            }
+            return DefaultTableManager(
+                {
+                    col: format_column(col, values, format_mapping)  # type: ignore
+                    for col, values in self.data.items()
+                }
+            )
         if isinstance(self.data, (list, tuple)) and all(
             isinstance(item, dict) for item in self.data
         ):
-            return [
-                format_row(row, format_mapping)  # type: ignore
-                for row in self.data
-            ]
-        return self.data
+            return DefaultTableManager(
+                [
+                    format_row(row, format_mapping)  # type: ignore
+                    for row in self.data
+                ]
+            )
+        return self
 
     def supports_filters(self) -> bool:
         return False
@@ -76,11 +85,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def to_data(
         self, format_mapping: Optional[FormatMapping] = None
     ) -> JSONType:
-        return (
-            self._normalize_data(self.apply_formatting(format_mapping))
-            if format_mapping
-            else self._normalize_data(self.data)
-        )
+        return self._normalize_data(self.apply_formatting(format_mapping).data)
 
     def to_csv(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
         if isinstance(self.data, dict) and not self.is_column_oriented:

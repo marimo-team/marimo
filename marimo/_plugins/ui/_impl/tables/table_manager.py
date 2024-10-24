@@ -62,7 +62,9 @@ class TableManager(abc.ABC, Generic[T]):
         return True
 
     @abc.abstractmethod
-    def apply_formatting(self, format_mapping: FormatMapping) -> T:
+    def apply_formatting(
+        self, format_mapping: Optional[FormatMapping]
+    ) -> TableManager[Any]:
         raise NotImplementedError
 
     @abc.abstractmethod

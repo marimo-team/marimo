@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Sequence
 
 from marimo._dependencies.dependencies import DependencyManager
 
@@ -12,7 +12,7 @@ DFType = Literal["pandas", "polars", "ibis", "pyarrow"]
 
 
 def create_dataframes(
-    data: Dict[str, list[Any]],
+    data: Dict[str, Sequence[Any]],
     include: Optional[List[DFType]] = None,
     exclude: Optional[List[DFType]] = None,
 ) -> list[IntoDataFrame]:

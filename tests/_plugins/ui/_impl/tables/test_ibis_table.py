@@ -186,7 +186,9 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         assert manager.search("true").get_num_rows() == 2
         assert manager.search("food").get_num_rows() == 0
 
-    @pytest.mark.skip
+    @pytest.mark.xfail(
+        reason="column formatting is not supported in ibis",
+    )
     def test_apply_formatting(self) -> None:
         import ibis
 
@@ -236,7 +238,6 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         field_types = manager.get_field_types()
         assert field_types["A"] == ("unknown", "unknown")
 
-    @pytest.mark.skip
     def test_search_with_regex(self) -> None:
         import ibis
 
