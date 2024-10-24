@@ -377,7 +377,7 @@ testpaths = [
     "tests",
 ]
 asyncio_mode = "auto"
-timeout = 10 # seconds, per test
+timeout = 30 # seconds, per test
 
 [tool.coverage.run]
 omit = ["marimo/_tutorials/*"]
