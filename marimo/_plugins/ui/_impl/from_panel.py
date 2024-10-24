@@ -12,7 +12,7 @@ from pyviz_comms import Comm, CommManager
 from marimo import _loggers
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
-from marimo._plugins.ui._impl.comm import MarimoComm, MarimoCommManager
+from marimo._plugins.ui._impl.comm import MarimoComm
 from marimo._runtime.functions import Function
 
 LOGGER = _loggers.marimo_logger()
@@ -157,8 +157,7 @@ class panel(UIElement[T, T]):
         from bokeh.embed.util import standalone_docs_json_and_render_items
         from panel.config import panel_extension
         from panel.io.model import add_to_doc
-        from panel.io.state import state
-        from panel.models.comm_manager import CommManager
+        from panel.models.comm_manager import CommManager as PanelCommManager
         from panel.pane import panel
 
         self.obj = obj = panel(obj)
@@ -181,7 +180,7 @@ class panel(UIElement[T, T]):
         comm = MarimoPanelComm()
         root = obj._render_model(doc, comm)
         ref = root.ref["id"]
-        manager = CommManager(comm_id=comm.id, plot_id=ref)
+        manager = PanelCommManager(comm_id=comm.id, plot_id=ref)
         obj._comms[ref] = (comm, comm)
         add_to_doc(root, doc, True)
         (docs_json, [render_item]) = standalone_docs_json_and_render_items(
