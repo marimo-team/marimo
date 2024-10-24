@@ -165,6 +165,7 @@ class DependencyManager:
     opentelemetry = Dependency("opentelemetry")
     anthropic = Dependency("anthropic")
     google_ai = Dependency("google.generativeai")
+    panel = Dependency("panel")
 
     @staticmethod
     def has(pkg: str) -> bool:

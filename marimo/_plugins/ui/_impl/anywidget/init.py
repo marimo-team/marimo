@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     import ipywidgets  # type: ignore
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._plugins.ui._impl.anywidget.comm import (  # pyright: ignore[reportMissingTypeStubs]
+from marimo._plugins.ui._impl.comm import (  # pyright: ignore[reportMissingTypeStubs]
     BufferType,
     MarimoComm,
     MarimoCommManager,

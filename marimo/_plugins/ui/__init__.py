@@ -29,6 +29,7 @@ __all__ = [
     "microphone",
     "multiselect",
     "number",
+    "panel",
     "plotly",
     "radio",
     "range_slider",
@@ -58,6 +59,7 @@ from marimo._plugins.ui._impl.dates import (
 )
 from marimo._plugins.ui._impl.dictionary import dictionary
 from marimo._plugins.ui._impl.from_anywidget import anywidget
+from marimo._plugins.ui._impl.from_panel import panel
 from marimo._plugins.ui._impl.input import (
     button,
     checkbox,
