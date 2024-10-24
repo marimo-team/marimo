@@ -34,6 +34,14 @@ class dictionary(_batch_base):
     elements: interacting with the dictionary will _not_ update the original
     elements, and vice versa.
 
+    This allows you to reuse multiple UI components (e.g., sliders, text
+    inputs, or date pickers) independently, ensuring they don’t interfere with
+    each other when managed through `mo.ui.dictionary`.
+
+    However, if you use a regular Python dictionary, all references remain
+    synchronized, and changes to one element propagate across all linked
+    instances.
+
     **Examples.**
 
     A heterogeneous collection of UI elements:
