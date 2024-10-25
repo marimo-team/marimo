@@ -10,7 +10,7 @@ from marimo import _loggers
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
-from marimo._plugins.ui._impl.anywidget.comm import MarimoComm
+from marimo._plugins.ui._impl.comm import MarimoComm
 from marimo._runtime.functions import Function
 
 if TYPE_CHECKING:

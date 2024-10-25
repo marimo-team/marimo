@@ -5,8 +5,7 @@ from marimo._config.config import Theme
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.formatter_factory import FormatterFactory
-from marimo._output.formatters.plotly_formatters import PlotlyFormatter
-from marimo._output.formatting import as_html
+from marimo._plugins.ui._impl.from_panel import from_panel
 
 
 class HoloViewsFormatter(FormatterFactory):
@@ -37,23 +36,7 @@ class HoloViewsFormatter(FormatterFactory):
                 | hv.core.ndmapping.NdMapping
             ),
         ) -> tuple[KnownMimeType, str]:
-            backend_output = hv.render(plot)
-
-            # If its a dict, then its a plotly figure,
-            # and we should convert it to a plotly object
-            if DependencyManager.plotly.has() and isinstance(
-                backend_output, dict
-            ):
-                plotly_html = PlotlyFormatter.render_plotly_dict(
-                    backend_output
-                )
-                return ("text/html", plotly_html.text)
-
-            # Call as_html to recurse back into the formatter
-            # this may be bokeh, matplotlib, or plotly
-            html = as_html(backend_output)
-
-            return ("text/html", html.text)
+            return from_panel(plot)._mime_()
 
     def apply_theme(self, theme: Theme) -> None:
         import holoviews as hv  # type: ignore
