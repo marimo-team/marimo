@@ -49,7 +49,6 @@ def test_number_series(
     create_series([1, 2, 3]),
 )
 def test_get_with_no_name(series: Any) -> None:
-    series.name = None
     assert get_number_series_info(series).label == ""
 
 

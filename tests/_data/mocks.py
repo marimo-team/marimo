@@ -67,12 +67,13 @@ def create_dataframes(
 
 
 def create_series(data: list[Any]) -> list[Any]:
+    series: list[Any] = []
     if DependencyManager.pandas.has():
         import pandas as pd
 
-        return [pd.Series(data)]
+        series.append(pd.Series(data))
     if DependencyManager.polars.has():
         import polars as pl
 
-        return [pl.Series(data)]
-    return []
+        series.append(pl.Series(data))
+    return series
