@@ -58,20 +58,25 @@ export function clickablePlaceholderExtension(opts: {
   const { beforeText, linkText, afterText, onClick } = opts;
 
   // Create a placeholder
-  const placeholderText = document.createElement("span");
-  placeholderText.append(document.createTextNode(beforeText));
-  const link = document.createElement("span");
-  link.textContent = linkText;
-  link.classList.add("cm-clickable-placeholder");
-  link.onclick = (evt) => {
-    evt.stopPropagation();
-    onClick();
+  // Needs to be a function to keep event listeners
+  // See https://github.com/codemirror/dev/issues/1457
+  const createPlaceholder = () => {
+    const placeholderText = document.createElement("span");
+    placeholderText.append(document.createTextNode(beforeText));
+    const link = document.createElement("span");
+    link.textContent = linkText;
+    link.classList.add("cm-clickable-placeholder");
+    link.onclick = (evt) => {
+      evt.stopPropagation();
+      onClick();
+    };
+    placeholderText.append(link);
+    placeholderText.append(document.createTextNode(afterText));
+    return placeholderText;
   };
-  placeholderText.append(link);
-  placeholderText.append(document.createTextNode(afterText));
 
   return [
-    placeholder(placeholderText),
+    placeholder(createPlaceholder),
     EditorView.theme({
       ".cm-placeholder": {
         color: "var(--slate-8)",
