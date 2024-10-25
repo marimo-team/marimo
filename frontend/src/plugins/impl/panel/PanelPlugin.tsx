@@ -4,7 +4,6 @@ import { z } from "zod";
 
 import type { IPluginProps } from "@/plugins/types";
 import { useEffect, useRef, useState } from "react";
-import { useOnMount } from "@/hooks/useLifecycle";
 import { createPlugin } from "@/plugins/core/builder";
 import { rpc } from "@/plugins/core/rpc";
 import { useEventListener } from "@/hooks/useEventListener";
@@ -90,19 +89,29 @@ const PanelSlot = (props: Props) => {
   const doc = useRef<any>(null);
   const receiver = useRef<any>(null);
   const [loaded, setLoaded] = useState<boolean>(false);
-  const [mounted, setMounted] = useState<boolean>(false);
+  const [rendered, setRendered] = useState<string | null>(null);
 
-  useOnMount(() => {
-    if (!ref.current) {
-      return;
-    }
-    setMounted(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  });
+  const event_buffer = [];
+  let timeout = Date.now();
+
+  const process_events = () => {
+    const events = event_buffer.splice(0);
+    const patch = doc.current.create_json_patch(events);
+    const message = {
+      ...Bokeh.protocol.Message.create("PATCH-DOC", {}, patch),
+    };
+    const buffers: ArrayBuffer[] = [];
+    extract_buffers(message.content, buffers);
+    functions.send_to_widget({ message, buffers });
+  };
 
   useEffect(() => {
+    if (loaded || rendered) {
+      return;
+    }
+    let script: HTMLScriptElement;
     if (extension.length > 0) {
-      const script = document.createElement("script");
+      script = document.createElement("script");
       script.innerHTML = extension;
       document.head.append(script);
     }
@@ -115,20 +124,23 @@ const PanelSlot = (props: Props) => {
     }, 10);
 
     return () => {
-      if (extension.length > 0) {
-        script.remove();
-      }
       clearInterval(checkBokeh);
     };
   }, [extension]);
 
   // Listen to incoming messages
   useEventListener(host, MarimoIncomingMessageEvent.TYPE, (e) => {
+    const doc_id = Object.keys(docs_json)[0];
     const metadata = e.detail.metadata;
     const buffers = e.detail.buffers;
     const content = e.detail.message.content;
     if (content.type === "ACK") {
-      blocked.current = false;
+      if (event_buffer.length) {
+        process_events();
+        timeout = Date.now();
+      } else {
+        blocked.current = false;
+      }
       return;
     }
     if (content.length > 0) {
@@ -140,24 +152,21 @@ const PanelSlot = (props: Props) => {
     }
     const comm_msg = receiver.current.message;
     if (comm_msg != null && Object.keys(comm_msg.content).length > 0) {
+      if (comm_msg.content.events !== undefined) {
+        comm_msg.content.events = comm_msg.content.events.filter((e) =>
+          doc.current._all_models.has(e.model.id),
+        );
+      }
       doc.current.apply_json_patch(comm_msg.content, comm_msg.buffers);
     }
   });
 
   useEffect(() => {
-    const event_buffer = [];
-    let timeout = Date.now();
-
-    const process_events = () => {
-      const patch = doc.current.create_json_patch(event_buffer);
-      event_buffer.splice(0);
-      const message = {
-        ...Bokeh.protocol.Message.create("PATCH-DOC", {}, patch),
-      };
-      const buffers: ArrayBuffer[] = [];
-      extract_buffers(message.content, buffers);
-      functions.send_to_widget({ message, buffers });
-    };
+    const doc_id = Object.keys(docs_json)[0];
+    if (!loaded || rendered === doc_id) {
+      return;
+    }
+    event_buffer.length = 0;
 
     const sendEvent = (event) => {
       event_buffer.push(event);
@@ -169,24 +178,23 @@ const PanelSlot = (props: Props) => {
     };
 
     const embedItems = async () => {
-      if (!(loaded && mounted)) {
-        return;
-      }
+      const render_item = { ...render_json };
       const roots = {};
       for (const model_id of Object.keys(render_json.roots)) {
         const root_id = render_json.roots[model_id];
         const el = ref.current.querySelector(`#${root_id}`);
         roots[model_id] = el;
       }
-      render_json.roots = roots;
+      render_item.roots = roots;
       const model_id = Object.keys(roots)[0];
-      await Bokeh.embed.embed_items_notebook(docs_json, [render_json]);
+      await Bokeh.embed.embed_items_notebook(docs_json, [render_item]);
       doc.current = Bokeh.index.get_by_id(model_id).model.document;
       receiver.current = new Bokeh.protocol.Receiver();
       doc.current.on_change(sendEvent);
+      setRendered(doc_id);
     };
     embedItems();
-  }, [blocked, functions, loaded, mounted, docs_json, render_json]);
+  }, [docs_json, functions, loaded, render_json, rendered]);
 
   return (
     <div ref={ref}>

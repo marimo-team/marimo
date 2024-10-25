@@ -2,12 +2,9 @@
 from __future__ import annotations
 
 import sys
-import weakref
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, Dict, Optional
-
-from pyviz_comms import Comm
+from typing import Any, Dict, ForwardRef, Optional, Tuple
 
 from marimo import _loggers
 from marimo._output.rich_help import mddoc
@@ -19,28 +16,14 @@ LOGGER = _loggers.marimo_logger()
 
 COMM_MANAGER = MarimoCommManager()
 
-loaded_extension: bool = False
+comm_class = None
+loaded_extension: int = 0
 loaded_extensions: list[str] = []
-
-# Weak dictionary
-# When the widget is deleted, the UIElement will be deleted as well
-cache: dict[Any, UIElement[Any, Any]] = weakref.WeakKeyDictionary()  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
 
 
 def from_panel(obj: Any) -> UIElement[Any, Any]:
     """Create a UIElement from an Panel."""
-    try:
-        cached = obj in cache
-        cacheable = True
-    except TypeError:
-        cacheable = cached = False
-    if cached:
-        ui_element = cache[obj]
-    else:
-        ui_element = panel(obj)
-    if cacheable:
-        cache[obj] = ui_element
-    return ui_element
+    return panel(obj)
 
 
 T = Dict[str, Any]
@@ -52,30 +35,52 @@ class SendToWidgetArgs:
     buffers: Optional[Any] = None
 
 
-class MarimoPanelComm(Comm):
-    def __init__(self, *args: any, **kwargs: any):
-        super().__init__(*args, **kwargs)
-        self._comm = MarimoComm(
-            comm_id=self.id,
-            target_name="panel.comms",
-            data={},
-            comm_manager=COMM_MANAGER,
-        )
-        self._comm.on_msg(self._handle_msg)
-        if self._on_open:
-            self._on_open({})
+def _get_comm_class() -> ForwardRef("MarimoPanelComm"):
+    global comm_class
+    if comm_class:
+        return comm_class
 
-    @classmethod
-    def decode(cls, msg: SendToWidgetArgs) -> dict[str, Any]:
-        buffers = {i: v for i, v in enumerate(msg.buffers)}
-        return dict(msg.message, _buffers=buffers)
+    from pyviz_comms import Comm
 
-    def send(self, data=None, metadata=None, buffers=None) -> None:
-        buffers = buffers or []
-        self.comm.send({"content": data}, metadata=metadata, buffers=buffers)
+    class MarimoPanelComm(Comm):
+        def __init__(self, *args: any, **kwargs: any):
+            super().__init__(*args, **kwargs)
+            self._comm = MarimoComm(
+                comm_id=self.id,
+                target_name="panel.comms",
+                data={},
+                comm_manager=COMM_MANAGER,
+            )
+            self._comm.on_msg(self._handle_msg)
+            if self._on_open:
+                self._on_open({})
+
+        @classmethod
+        def decode(cls, msg: SendToWidgetArgs) -> dict[str, Any]:
+            buffers = {i: v for i, v in enumerate(msg.buffers)}
+            return dict(msg.message, _buffers=buffers)
+
+        def send(self, data=None, metadata=None, buffers=None) -> None:
+            buffers = buffers or []
+            self.comm.send(
+                {"content": data}, metadata=metadata, buffers=buffers
+            )
+
+    comm_class = MarimoPanelComm
+    return comm_class
 
 
-def render_extension(load_timeout: int = 500, reloading: bool = False) -> str:
+def render_extension(load_timeout: int = 500, loaded: bool = False) -> str:
+    from panel.config import panel_extension
+
+    new_exts = [
+        ext
+        for ext in panel_extension._loaded_extensions
+        if ext not in loaded_extensions
+    ]
+    if loaded and not new_exts:
+        return ""
+
     from bokeh.io.notebook import curstate
     from panel.config import config
     from panel.io.notebook import (
@@ -102,7 +107,7 @@ def render_extension(load_timeout: int = 500, reloading: bool = False) -> str:
             None,
             resources,
             notebook=nb_endpoint,
-            reloading=reloading,
+            reloading=loaded,
             enable_mathjax="auto",
         )
         configs, requirements, exports, skip_imports = require_components()
@@ -114,7 +119,7 @@ def render_extension(load_timeout: int = 500, reloading: bool = False) -> str:
             exports=exports,
             skip_imports=skip_imports,
             ipywidget=ipywidget,
-            reloading=reloading,
+            reloading=loaded,
             load_timeout=load_timeout,
         )
     finally:
@@ -122,7 +127,26 @@ def render_extension(load_timeout: int = 500, reloading: bool = False) -> str:
             settings.resources = prev_resources
         else:
             settings.resources.unset_value()
+    loaded_extensions.extend(new_exts)
     return bokeh_js
+
+
+def render_component(obj) -> Tuple[str, dict[str, Any], dict[str, Any]]:
+    from bokeh.document import Document
+    from bokeh.embed.util import standalone_docs_json_and_render_items
+    from panel.io.model import add_to_doc
+
+    doc = Document()
+    comm = _get_comm_class()()
+    root = obj._render_model(doc, comm)
+    ref = root.ref["id"]
+    obj._comms[ref] = (comm, comm)
+    add_to_doc(root, doc, True)
+    (docs_json, [render_item]) = standalone_docs_json_and_render_items(
+        [root], suppress_callback_warning=True
+    )
+    render_json = render_item.to_json()
+    return ref, docs_json, render_json
 
 
 @mddoc
@@ -155,10 +179,6 @@ class panel(UIElement[T, T]):
     """
 
     def __init__(self, obj: Any):
-        from bokeh.document import Document
-        from bokeh.embed.util import standalone_docs_json_and_render_items
-        from panel.config import panel_extension
-        from panel.io.model import add_to_doc
         from panel.models.comm_manager import CommManager as PanelCommManager
         from panel.pane import panel
 
@@ -166,37 +186,20 @@ class panel(UIElement[T, T]):
         # This gets set to True in super().__init__()
         self._initialized = False
 
-        global loaded_extension
-        new_exts = [
-            ext
-            for ext in panel_extension._loaded_extensions
-            if ext not in loaded_extensions
-        ]
-        if not loaded_extension or new_exts:
-            bokeh_js = render_extension(reloading=loaded_extension)
-        else:
-            bokeh_js = ""
-        loaded_extensions.extend(new_exts)
-        loaded_extension = True
+        ref, docs_json, render_json = render_component(obj)
+        self._manager = PanelCommManager(plot_id=ref)
 
-        doc = Document()
-        comm = MarimoPanelComm()
-        root = obj._render_model(doc, comm)
-        ref = root.ref["id"]
-        manager = PanelCommManager(comm_id=comm.id, plot_id=ref)
-        obj._comms[ref] = (comm, comm)
-        add_to_doc(root, doc, True)
-        (docs_json, [render_item]) = standalone_docs_json_and_render_items(
-            [root], suppress_callback_warning=True
-        )
-        render_json = render_item.to_json()
+        global loaded_extension
+        extension = render_extension(loaded=loaded_extension == id(self))
+        if loaded_extension == 0:
+            loaded_extension = id(self)
 
         super().__init__(
             component_name="marimo-panel",
             initial_value=None,
             label="",
             args={
-                "extension": bokeh_js,
+                "extension": extension,
                 "render_json": render_json,
                 "docs_json": docs_json,
             },
@@ -205,15 +208,15 @@ class panel(UIElement[T, T]):
                 Function(
                     name="send_to_widget",
                     arg_cls=SendToWidgetArgs,
-                    function=partial(self._handle_msg, ref, manager),
+                    function=partial(self._handle_msg, ref),
                 ),
             ),
         )
 
-    def _handle_msg(self, ref, manager, msg) -> None:
+    def _handle_msg(self, ref, msg) -> None:
         comm = self.obj._comms[ref][0]
         msg = comm.decode(msg)
-        self.obj._on_msg(ref, manager, msg)
+        self.obj._on_msg(ref, self._manager, msg)
         comm.send(data={"type": "ACK"})
 
     def _initialize(
