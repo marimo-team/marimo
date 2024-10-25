@@ -145,7 +145,7 @@ const PanelSlot = (props: Props) => {
       return;
     }
     const message = MessageSchema.parse(e.detail.message);
-    if (message.type === "ACK") {
+    if (message.content.type === "ACK") {
       if (event_buffer.length > 0) {
         process_events();
         timeout = Date.now();
@@ -225,13 +225,6 @@ const PanelSlot = (props: Props) => {
   );
 };
 
-const MessageSchema = z.union([
-  z.object({
-    type: z.literal("ACK"),
-    content: z.any(),
-  }),
-  z.object({
-    type: z.string().optional(),
-    content: z.any(),
-  }),
-]);
+const MessageSchema = z.object({
+  content: z.any(),
+});

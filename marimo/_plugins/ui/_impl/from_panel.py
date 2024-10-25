@@ -4,7 +4,7 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from marimo import _loggers
 from marimo._output.rich_help import mddoc
@@ -32,7 +32,7 @@ T = Dict[str, Any]
 @dataclass
 class SendToWidgetArgs:
     message: Any
-    buffers: Optional[Dict[int, Any]] = None
+    buffers: Optional[List[Any]] = None
 
 
 def _get_comm_class() -> Any:
@@ -217,7 +217,7 @@ class panel(UIElement[T, T]):
             ),
         )
 
-    def _handle_msg(self, ref: str, msg: Any) -> None:
+    def _handle_msg(self, ref: str, msg: SendToWidgetArgs) -> None:
         comm = self.obj._comms[ref][0]
         msg = comm.decode(msg)
         self.obj._on_msg(ref, self._manager, msg)
