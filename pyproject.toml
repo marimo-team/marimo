@@ -145,6 +145,7 @@ installer = "uv"
 dependencies = [
     "mypy~=1.10.1",
     # Types for mypy
+    "panel~=1.5.3",
     "polars~=1.9.0",
     "narwhals>=1.9.0",
     "matplotlib>=3.8.0",
