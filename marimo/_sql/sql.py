@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
-from marimo._plugins.ui._impl import table
 from marimo._runtime.context.types import (
     ContextNotInitializedError,
     get_context,
@@ -90,6 +89,8 @@ def sql(
         )
 
     if output:
+        from marimo._plugins.ui._impl import table
+
         t = table.table(
             df,
             selection=None,
