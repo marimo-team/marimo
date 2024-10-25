@@ -9,7 +9,7 @@ export const lightTheme = createTheme({
     foreground: "#000000",
     caret: "#000000",
     selection: "#d7d4f0",
-    lineHighlight: "#f7f7f7",
+    lineHighlight: "#cceeff44",
     gutterBackground: "var(--color-background)",
     gutterForeground: "var(--gray-10)",
   },
