@@ -165,7 +165,7 @@ const PanelSlot = (props: Props) => {
     const comm_msg = receiver.current.message;
     if (comm_msg != null && Object.keys(comm_msg.content).length > 0) {
       if (comm_msg.content.events !== undefined) {
-        comm_msg.content.events = comm_msg.content.events.filter((e) =>
+        comm_msg.content.events = comm_msg.content.events.filter((e: any) =>
           doc.current._all_models.has(e.model.id),
         );
       }
@@ -228,6 +228,7 @@ const PanelSlot = (props: Props) => {
 const MessageSchema = z.union([
   z.object({
     type: z.literal("ACK"),
+    content: z.any(),
   }),
   z.object({
     type: z.string().optional(),
