@@ -15,9 +15,6 @@ from typing import (
     cast,
 )
 
-# Import Panel types for better type checking
-from panel.viewable import Viewable
-
 from marimo import _loggers
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
