@@ -14,8 +14,8 @@ class PanelFormatter(FormatterFactory):
         return "panel"
 
     def register(self) -> None:
-        import panel  # type: ignore [import-not-found]
-        import param
+        import panel  # type: ignore
+        import param  # type: ignore
 
         from marimo._output import formatting
 

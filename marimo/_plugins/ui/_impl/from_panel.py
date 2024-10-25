@@ -4,7 +4,7 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, Dict, ForwardRef, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from marimo import _loggers
 from marimo._output.rich_help import mddoc
@@ -32,21 +32,21 @@ T = Dict[str, Any]
 @dataclass
 class SendToWidgetArgs:
     message: Any
-    buffers: Optional[Any] = None
+    buffers: Optional[Dict[int, Any]] = None
 
 
-def _get_comm_class() -> ForwardRef("MarimoPanelComm"):
+def _get_comm_class() -> Any:
     global comm_class
     if comm_class:
         return comm_class
 
-    from pyviz_comms import Comm
+    from pyviz_comms import Comm  # type: ignore
 
-    class MarimoPanelComm(Comm):
-        def __init__(self, *args: any, **kwargs: any):
+    class MarimoPanelComm(Comm):  # type: ignore
+        def __init__(self, *args: Any, **kwargs: Any):
             super().__init__(*args, **kwargs)
             self._comm = MarimoComm(
-                comm_id=self.id,
+                comm_id=str(self.id),
                 target_name="panel.comms",
                 data={},
                 comm_manager=COMM_MANAGER,
@@ -57,10 +57,14 @@ def _get_comm_class() -> ForwardRef("MarimoPanelComm"):
 
         @classmethod
         def decode(cls, msg: SendToWidgetArgs) -> dict[str, Any]:
-            buffers = {i: v for i, v in enumerate(msg.buffers)}
+            buffers: Dict[int, Any] = {
+                i: v for i, v in enumerate(msg.buffers or [])
+            }
             return dict(msg.message, _buffers=buffers)
 
-        def send(self, data=None, metadata=None, buffers=None) -> None:
+        def send(
+            self, data: Any = None, metadata: Any = None, buffers: Any = None
+        ) -> None:
             buffers = buffers or []
             self.comm.send(
                 {"content": data}, metadata=metadata, buffers=buffers
@@ -81,9 +85,9 @@ def render_extension(load_timeout: int = 500, loaded: bool = False) -> str:
     if loaded and not new_exts:
         return ""
 
-    from bokeh.io.notebook import curstate
-    from panel.config import config
-    from panel.io.notebook import (
+    from bokeh.io.notebook import curstate  # type: ignore
+    from panel.config import config  # type: ignore
+    from panel.io.notebook import (  # type: ignore
         CDN,
         INLINE,
         Resources,
@@ -101,18 +105,18 @@ def render_extension(load_timeout: int = 500, loaded: bool = False) -> str:
     prev_resources = settings.resources(default="server")
     user_resources = settings.resources._user_value is not _Unset
     nb_endpoint = not state._is_pyodide
-    resources = Resources.from_bokeh(resources, notebook=nb_endpoint)
+    resources = Resources.from_bokeh(resources, notebook=nb_endpoint)  # type: ignore[no-untyped-call]
     try:
-        bundle = bundle_resources(
+        bundle = bundle_resources(  # type: ignore[no-untyped-call]
             None,
             resources,
             notebook=nb_endpoint,
             reloading=loaded,
             enable_mathjax="auto",
         )
-        configs, requirements, exports, skip_imports = require_components()
+        configs, requirements, exports, skip_imports = require_components()  # type: ignore[no-untyped-call]
         ipywidget = "ipywidgets_bokeh" in sys.modules
-        bokeh_js = _autoload_js(
+        bokeh_js = _autoload_js(  # type: ignore[no-untyped-call]
             bundle=bundle,
             configs=configs,
             requirements=requirements,
@@ -128,10 +132,10 @@ def render_extension(load_timeout: int = 500, loaded: bool = False) -> str:
         else:
             settings.resources.unset_value()
     loaded_extensions.extend(new_exts)
-    return bokeh_js
+    return bokeh_js  # type: ignore[no-any-return]
 
 
-def render_component(obj) -> Tuple[str, dict[str, Any], dict[str, Any]]:
+def render_component(obj: Any) -> Tuple[str, dict[str, Any], dict[str, Any]]:
     from bokeh.document import Document
     from bokeh.embed.util import standalone_docs_json_and_render_items
     from panel.io.model import add_to_doc
@@ -146,7 +150,7 @@ def render_component(obj) -> Tuple[str, dict[str, Any], dict[str, Any]]:
         [root], suppress_callback_warning=True
     )
     render_json = render_item.to_json()
-    return ref, docs_json, render_json
+    return ref, docs_json, render_json  # type: ignore[return-value]
 
 
 @mddoc
@@ -187,7 +191,7 @@ class panel(UIElement[T, T]):
         self._initialized = False
 
         ref, docs_json, render_json = render_component(obj)
-        self._manager = PanelCommManager(plot_id=ref)
+        self._manager = PanelCommManager(plot_id=ref)  # type: ignore[no-untyped-call]
 
         global loaded_extension
         extension = render_extension(loaded=loaded_extension == id(self))
@@ -196,7 +200,7 @@ class panel(UIElement[T, T]):
 
         super().__init__(
             component_name="marimo-panel",
-            initial_value=None,
+            initial_value=dict(),
             label="",
             args={
                 "extension": extension,
@@ -213,7 +217,7 @@ class panel(UIElement[T, T]):
             ),
         )
 
-    def _handle_msg(self, ref, msg) -> None:
+    def _handle_msg(self, ref: str, msg: Any) -> None:
         comm = self.obj._comms[ref][0]
         msg = comm.decode(msg)
         self.obj._on_msg(ref, self._manager, msg)

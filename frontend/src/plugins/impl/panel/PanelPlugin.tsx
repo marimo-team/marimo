@@ -11,8 +11,8 @@ import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 
 interface Data {
   extension: string | null;
-  docs_json: any;
-  render_json: any;
+  docs_json: Record<string, any>;
+  render_json: Record<string, any>;
 }
 
 type T = Record<string, any>;
@@ -24,12 +24,16 @@ type PluginFunctions = {
   >;
 };
 
+declare global {
+  const Bokeh: any;
+}
+
 export const PanelPlugin = createPlugin<T>("marimo-panel")
   .withData(
     z.object({
       extension: z.string().nullable(),
-      docs_json: z.any(),
-      render_json: z.any(),
+      docs_json: z.record(z.any()),
+      render_json: z.record(z.any()),
     }),
   )
   .withFunctions<PluginFunctions>({
@@ -54,6 +58,9 @@ function isPlainObject<T>(obj: unknown): obj is { [key: string]: T } {
   );
 }
 
+function isBuffer(obj: unknown): obj is { buffer: ArrayBuffer } {
+  return typeof obj === "object" && obj !== null && "to_base64" in obj;
+}
 function extract_buffers(value: unknown, buffers: ArrayBuffer[]): any {
   if (Array.isArray(value)) {
     for (const val of value) {
@@ -64,7 +71,7 @@ function extract_buffers(value: unknown, buffers: ArrayBuffer[]): any {
       const v = value.get(key);
       extract_buffers(v, buffers);
     }
-  } else if (value.to_base64 !== undefined) {
+  } else if (isBuffer(value)) {
     const { buffer } = value;
     const id = buffers.length;
     buffers.push(buffer);
@@ -91,7 +98,7 @@ const PanelSlot = (props: Props) => {
   const [loaded, setLoaded] = useState<boolean>(false);
   const [rendered, setRendered] = useState<string | null>(null);
 
-  const event_buffer = [];
+  const event_buffer: any[] = [];
   let timeout = Date.now();
 
   const process_events = () => {
@@ -110,7 +117,7 @@ const PanelSlot = (props: Props) => {
       return;
     }
     let script: HTMLScriptElement;
-    if (extension.length > 0) {
+    if (extension != null && extension.length > 0) {
       script = document.createElement("script");
       script.innerHTML = extension;
       document.head.append(script);
@@ -126,16 +133,20 @@ const PanelSlot = (props: Props) => {
     return () => {
       clearInterval(checkBokeh);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [extension]);
 
   // Listen to incoming messages
   useEventListener(host, MarimoIncomingMessageEvent.TYPE, (e) => {
-    const doc_id = Object.keys(docs_json)[0];
-    const metadata = e.detail.metadata;
+    // const doc_id = Object.keys(docs_json)[0];
+    // const metadata = e.detail.metadata;
     const buffers = e.detail.buffers;
-    const content = e.detail.message.content;
-    if (content.type === "ACK") {
-      if (event_buffer.length) {
+    if (e.detail.message == null) {
+      return;
+    }
+    const message = MessageSchema.parse(e.detail.message);
+    if (message.type === "ACK") {
+      if (event_buffer.length > 0) {
         process_events();
         timeout = Date.now();
       } else {
@@ -143,6 +154,7 @@ const PanelSlot = (props: Props) => {
       }
       return;
     }
+    const content = message.content;
     if (content.length > 0) {
       receiver.current.consume(content);
     } else if (buffers !== undefined && buffers.length > 0) {
@@ -153,7 +165,7 @@ const PanelSlot = (props: Props) => {
     const comm_msg = receiver.current.message;
     if (comm_msg != null && Object.keys(comm_msg.content).length > 0) {
       if (comm_msg.content.events !== undefined) {
-        comm_msg.content.events = comm_msg.content.events.filter((e) =>
+        comm_msg.content.events = comm_msg.content.events.filter((e: any) =>
           doc.current._all_models.has(e.model.id),
         );
       }
@@ -168,22 +180,25 @@ const PanelSlot = (props: Props) => {
     }
     event_buffer.length = 0;
 
-    const sendEvent = (event) => {
+    const sendEvent = (event: any) => {
       event_buffer.push(event);
       if (!blocked.current || Date.now() > timeout) {
         setTimeout(() => process_events(), 50);
         blocked.current = true;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         timeout = Date.now() + 5000;
       }
     };
 
     const embedItems = async () => {
       const render_item = { ...render_json };
-      const roots = {};
+      const roots: Record<string, HTMLElement | null> = {};
       for (const model_id of Object.keys(render_json.roots)) {
         const root_id = render_json.roots[model_id];
-        const el = ref.current.querySelector(`#${root_id}`);
-        roots[model_id] = el;
+        if (ref.current) {
+          const el = ref.current.querySelector(`#${root_id}`);
+          roots[model_id] = el as HTMLElement | null;
+        }
       }
       render_item.roots = roots;
       const model_id = Object.keys(roots)[0];
@@ -209,3 +224,14 @@ const PanelSlot = (props: Props) => {
     </div>
   );
 };
+
+const MessageSchema = z.union([
+  z.object({
+    type: z.literal("ACK"),
+    content: z.any(),
+  }),
+  z.object({
+    type: z.string().optional(),
+    content: z.any(),
+  }),
+]);
