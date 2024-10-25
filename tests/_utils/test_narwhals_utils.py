@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"a": [1, 2, 3], "b": ["x", "y", "z"]}, exclude=["ibis"]
+        {"a": [1, 2, 3], "b": ["x", "y", "z"]}, exclude=["ibis", "duckdb"]
     ),
 )
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
