@@ -8,14 +8,68 @@ import { createPlugin } from "@/plugins/core/builder";
 import { rpc } from "@/plugins/core/rpc";
 import { useEventListener } from "@/hooks/useEventListener";
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
+import { MessageSchema, extractBuffers, EventBuffer } from "./utils";
+import { useEvent } from "@dnd-kit/utilities";
 
-interface Data {
-  extension: string | null;
-  docs_json: Record<string, any>;
-  render_json: Record<string, any>;
+interface BokehDocument {
+  create_json_patch: (events: unknown[]) => unknown;
+  apply_json_patch: (content: unknown, buffers: ArrayBuffer[]) => void;
+  on_change: (callback: (event: unknown) => void) => void;
+  _all_models: Set<string>;
 }
 
-type T = Record<string, any>;
+interface RenderItems {
+  roots: Record<string, HTMLElement | null>;
+  [key: string]: unknown;
+}
+
+declare global {
+  interface Window {
+    Bokeh: {
+      embed: {
+        embed_items_notebook: (
+          docs_json: Record<string, unknown>,
+          render_items: unknown[],
+        ) => Promise<void>;
+      };
+      index: {
+        get_by_id: (id: string) => { model: { document: BokehDocument } };
+      };
+      protocol: {
+        Message: {
+          create: (
+            type: string,
+            metadata: Record<string, unknown>,
+            content: unknown,
+          ) => Record<string, unknown>;
+        };
+        Receiver: new () => {
+          consume: (data: ArrayBuffer | string) => void;
+          message: {
+            content: {
+              events?: Array<{
+                model?: { id?: string };
+              }>;
+              [key: string]: unknown;
+            };
+            buffers: ArrayBuffer[];
+          } | null;
+        };
+      };
+    };
+  }
+}
+
+interface PanelData {
+  extension: string | null;
+  docs_json: Record<string, unknown>;
+  render_json: {
+    roots: Record<string, string>;
+    [key: string]: unknown;
+  };
+}
+
+type T = Record<string, unknown>;
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type PluginFunctions = {
@@ -24,207 +78,179 @@ type PluginFunctions = {
   >;
 };
 
-declare global {
-  const Bokeh: any;
-}
-
 export const PanelPlugin = createPlugin<T>("marimo-panel")
   .withData(
     z.object({
       extension: z.string().nullable(),
-      docs_json: z.record(z.any()),
-      render_json: z.record(z.any()),
+      docs_json: z.record(z.unknown()),
+      render_json: z
+        .object({
+          roots: z.record(z.string()),
+        })
+        .catchall(z.unknown()),
     }),
   )
   .withFunctions<PluginFunctions>({
     send_to_widget: rpc
-      .input(z.object({ message: z.any(), buffers: z.array(z.any()) }))
+      .input(
+        z.object({
+          message: z.unknown(),
+          buffers: z.array(z.instanceof(ArrayBuffer)),
+        }),
+      )
       .output(z.null().optional()),
   })
   .renderer((props) => <PanelSlot {...props} />);
 
-function isObject(obj: unknown): obj is object {
-  const tp = typeof obj;
-  return tp === "function" || (tp === "object" && !!obj);
+function isBokehLoaded() {
+  return window.Bokeh != null;
 }
-
-function is_nullish(obj: unknown): obj is null | undefined {
-  return obj == null;
-}
-
-function isPlainObject<T>(obj: unknown): obj is { [key: string]: T } {
-  return (
-    isObject(obj) && (is_nullish(obj.constructor) || obj.constructor === Object)
-  );
-}
-
-function isBuffer(obj: unknown): obj is { buffer: ArrayBuffer } {
-  return typeof obj === "object" && obj !== null && "to_base64" in obj;
-}
-function extract_buffers(value: unknown, buffers: ArrayBuffer[]): any {
-  if (Array.isArray(value)) {
-    for (const val of value) {
-      extract_buffers(val, buffers);
-    }
-  } else if (value instanceof Map) {
-    for (const key of value.keys()) {
-      const v = value.get(key);
-      extract_buffers(v, buffers);
-    }
-  } else if (isBuffer(value)) {
-    const { buffer } = value;
-    const id = buffers.length;
-    buffers.push(buffer);
-    return { id };
-  } else if (isPlainObject(value)) {
-    for (const key of Object.keys(value)) {
-      const replaced = extract_buffers(value[key], buffers);
-      if (replaced != null) {
-        value[key] = replaced;
-      }
-    }
-  }
-}
-
-type Props = IPluginProps<T, Data, PluginFunctions>;
 
 const PanelSlot = (props: Props) => {
   const { data, functions, host } = props;
-  const { extension, docs_json, render_json } = data;
+  const { extension, docs_json: docsJson, render_json: renderJson } = data;
   const ref = useRef<HTMLDivElement>(null);
-  const blocked = useRef<boolean>(false);
-  const doc = useRef<any>(null);
-  const receiver = useRef<any>(null);
+  const docRef = useRef<BokehDocument | null>(null);
+  const receiverRef = useRef<InstanceType<
+    typeof window.Bokeh.protocol.Receiver
+  > | null>(null);
   const [loaded, setLoaded] = useState<boolean>(false);
   const [rendered, setRendered] = useState<string | null>(null);
 
-  const event_buffer: any[] = [];
-  let timeout = Date.now();
-
-  const process_events = () => {
-    const events = event_buffer.splice(0);
-    const patch = doc.current.create_json_patch(events);
-    const message = {
-      ...Bokeh.protocol.Message.create("PATCH-DOC", {}, patch),
-    };
-    const buffers: ArrayBuffer[] = [];
-    extract_buffers(message.content, buffers);
-    functions.send_to_widget({ message, buffers });
-  };
-
-  useEffect(() => {
-    if (loaded || rendered) {
+  const processEvents = useEvent(() => {
+    if (!eventBufferRef.current || !docRef.current) {
       return;
     }
-    let script: HTMLScriptElement;
-    if (extension != null && extension.length > 0) {
-      script = document.createElement("script");
+
+    const events = eventBufferRef.current.getAndClear();
+    const patch = docRef.current.create_json_patch(events);
+    const message = {
+      ...window.Bokeh.protocol.Message.create("PATCH-DOC", {}, patch),
+    };
+    const buffers: ArrayBuffer[] = [];
+    extractBuffers(message.content, buffers);
+    functions.send_to_widget({ message, buffers });
+  });
+
+  const eventBufferRef = useRef<EventBuffer<unknown> | null>(
+    new EventBuffer(processEvents),
+  );
+
+  // Load the bokeh extension
+  useEffect(() => {
+    // Already loaded
+    if (isBokehLoaded()) {
+      setLoaded(true);
+      return;
+    }
+
+    // Load the extension
+    if (extension) {
+      const script = document.createElement("script");
       script.innerHTML = extension;
       document.head.append(script);
     }
 
+    // Check if Bokeh is loaded every 10ms
     const checkBokeh = setInterval(() => {
-      if (window.Bokeh) {
+      if (isBokehLoaded()) {
         setLoaded(true);
         clearInterval(checkBokeh);
       }
     }, 10);
 
-    return () => {
-      clearInterval(checkBokeh);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [extension]);
+    return () => clearInterval(checkBokeh);
+  }, [extension, setLoaded]);
 
-  // Listen to incoming messages
+  // Listen for incoming messages
   useEventListener(host, MarimoIncomingMessageEvent.TYPE, (e) => {
-    // const doc_id = Object.keys(docs_json)[0];
-    // const metadata = e.detail.metadata;
-    const buffers = e.detail.buffers;
     if (e.detail.message == null) {
       return;
     }
+
     const message = MessageSchema.parse(e.detail.message);
-    if (message.content.type === "ACK") {
-      if (event_buffer.length > 0) {
-        process_events();
-        timeout = Date.now();
-      } else {
-        blocked.current = false;
+    const buffers = e.detail.buffers;
+    const receiver = receiverRef.current;
+    const doc = docRef.current;
+
+    if (!message.content) {
+      return;
+    }
+
+    if (!receiver || !doc) {
+      return;
+    }
+
+    // Handle ACK messages
+    if (typeof message.content !== "string") {
+      if (eventBufferRef.current && eventBufferRef.current.size() > 0) {
+        processEvents();
       }
       return;
     }
+
+    // Handle non-ACK messages
     const content = message.content;
     if (content.length > 0) {
-      receiver.current.consume(content);
+      receiver.consume(content);
     } else if (buffers !== undefined && buffers.length > 0) {
-      receiver.current.consume(buffers[0].buffer);
+      receiver.consume(buffers[0].buffer);
     } else {
       return;
     }
-    const comm_msg = receiver.current.message;
-    if (comm_msg != null && Object.keys(comm_msg.content).length > 0) {
-      if (comm_msg.content.events !== undefined) {
-        comm_msg.content.events = comm_msg.content.events.filter((e: any) =>
-          doc.current._all_models.has(e.model.id),
+
+    const commMessage = receiver.message;
+    if (commMessage != null && Object.keys(commMessage.content).length > 0) {
+      if (commMessage.content.events !== undefined) {
+        commMessage.content.events = commMessage.content.events.filter(
+          (e: any) => doc._all_models.has(e.model.id),
         );
       }
-      doc.current.apply_json_patch(comm_msg.content, comm_msg.buffers);
+      doc.apply_json_patch(commMessage.content, commMessage.buffers);
     }
   });
 
+  // Embed the items on the first render
   useEffect(() => {
-    const doc_id = Object.keys(docs_json)[0];
-    if (!loaded || rendered === doc_id) {
+    const docId = Object.keys(docsJson)[0];
+
+    // Skip if not loaded or already rendered
+    if (!loaded || rendered === docId) {
       return;
     }
-    event_buffer.length = 0;
-
-    const sendEvent = (event: any) => {
-      event_buffer.push(event);
-      if (!blocked.current || Date.now() > timeout) {
-        setTimeout(() => process_events(), 50);
-        blocked.current = true;
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        timeout = Date.now() + 5000;
-      }
-    };
 
     const embedItems = async () => {
-      const render_item = { ...render_json };
-      const roots: Record<string, HTMLElement | null> = {};
-      for (const model_id of Object.keys(render_json.roots)) {
-        const root_id = render_json.roots[model_id];
+      const renderItem: RenderItems = {
+        ...renderJson,
+        roots: {},
+      };
+      for (const model_id of Object.keys(renderJson.roots)) {
+        const root_id = renderJson.roots[model_id];
         if (ref.current) {
           const el = ref.current.querySelector(`#${root_id}`);
-          roots[model_id] = el as HTMLElement | null;
+          renderItem.roots[model_id] = el as HTMLElement | null;
         }
       }
-      render_item.roots = roots;
-      const model_id = Object.keys(roots)[0];
-      await Bokeh.embed.embed_items_notebook(docs_json, [render_item]);
-      doc.current = Bokeh.index.get_by_id(model_id).model.document;
-      receiver.current = new Bokeh.protocol.Receiver();
-      doc.current.on_change(sendEvent);
-      setRendered(doc_id);
+      const modelId = Object.keys(renderItem.roots)[0];
+      await window.Bokeh.embed.embed_items_notebook(docsJson, [renderItem]);
+      docRef.current = window.Bokeh.index.get_by_id(modelId).model.document;
+      receiverRef.current = new window.Bokeh.protocol.Receiver();
+      docRef.current.on_change((event) => eventBufferRef.current?.add(event));
+      setRendered(docId);
     };
+
     embedItems();
-  }, [docs_json, functions, loaded, render_json, rendered]);
+  }, [docsJson, loaded, renderJson, rendered]);
 
   return (
     <div ref={ref}>
-      {Object.keys(render_json.roots).map((model_id) => {
-        const root_id = render_json.roots[model_id];
-        return (
-          <div key={root_id} id={root_id}>
-            <div data-root-id={root_id} style={{ display: "contents" }} />
-          </div>
-        );
-      })}
+      {Object.values(renderJson.roots).map((rootId) => (
+        <div key={rootId} id={rootId}>
+          <div data-root-id={rootId} style={{ display: "contents" }} />
+        </div>
+      ))}
     </div>
   );
 };
 
-const MessageSchema = z.object({
-  content: z.any(),
-});
+type Props = IPluginProps<T, PanelData, PluginFunctions>;

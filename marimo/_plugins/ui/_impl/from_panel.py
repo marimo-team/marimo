@@ -3,8 +3,17 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass
-from functools import partial
-from typing import Any, Dict, List, Optional, Tuple
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    cast,
+)
 
 from marimo import _loggers
 from marimo._output.rich_help import mddoc
@@ -12,21 +21,18 @@ from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
 from marimo._plugins.ui._impl.comm import MarimoComm, MarimoCommManager
 from marimo._runtime.functions import Function
 
+if TYPE_CHECKING:
+    from panel.viewable import Viewable
+
 LOGGER = _loggers.marimo_logger()
 
 COMM_MANAGER = MarimoCommManager()
 
-comm_class = None
+comm_class: Optional[Type[Any]] = None
 loaded_extension: int = 0
 loaded_extensions: list[str] = []
 
-
-def from_panel(obj: Any) -> UIElement[Any, Any]:
-    """Create a UIElement from an Panel."""
-    return panel(obj)
-
-
-T = Dict[str, Any]
+T = TypeVar("T", bound=Dict[str, Any])
 
 
 @dataclass
@@ -35,7 +41,8 @@ class SendToWidgetArgs:
     buffers: Optional[List[Any]] = None
 
 
-def _get_comm_class() -> Any:
+# Singleton, we only create one instance of this class
+def _get_comm_class() -> Type[Any]:
     global comm_class
     if comm_class:
         return comm_class
@@ -75,9 +82,19 @@ def _get_comm_class() -> Any:
 
 
 def render_extension(load_timeout: int = 500, loaded: bool = False) -> str:
+    """
+    Render Panel extension JavaScript.
+
+    Args:
+        load_timeout: Timeout for loading resources (in milliseconds)
+        loaded: Whether the extension has been loaded before
+
+    Returns:
+        JavaScript code for Panel extension
+    """
     from panel.config import panel_extension
 
-    new_exts = [
+    new_exts: list[str] = [
         ext
         for ext in panel_extension._loaded_extensions
         if ext not in loaded_extensions
@@ -86,16 +103,15 @@ def render_extension(load_timeout: int = 500, loaded: bool = False) -> str:
         return ""
 
     from bokeh.io.notebook import curstate  # type: ignore
-    from panel.config import config  # type: ignore
+    from bokeh.resources import CDN, INLINE
+    from bokeh.settings import settings
+    from panel.config import config
     from panel.io.notebook import (  # type: ignore
-        CDN,
-        INLINE,
         Resources,
         _autoload_js,
         _Unset,
         bundle_resources,
         require_components,
-        settings,
         state,
     )
 
@@ -106,6 +122,7 @@ def render_extension(load_timeout: int = 500, loaded: bool = False) -> str:
     user_resources = settings.resources._user_value is not _Unset
     nb_endpoint = not state._is_pyodide
     resources = Resources.from_bokeh(resources, notebook=nb_endpoint)  # type: ignore[no-untyped-call]
+
     try:
         bundle = bundle_resources(  # type: ignore[no-untyped-call]
             None,
@@ -135,7 +152,18 @@ def render_extension(load_timeout: int = 500, loaded: bool = False) -> str:
     return bokeh_js  # type: ignore[no-any-return]
 
 
-def render_component(obj: Any) -> Tuple[str, dict[str, Any], dict[str, Any]]:
+def render_component(
+    obj: Viewable,
+) -> Tuple[str, dict[str, Any], dict[str, Any]]:
+    """
+    Render a Panel component.
+
+    Args:
+        obj: Panel Viewable object
+
+    Returns:
+        Tuple containing reference ID, docs JSON, and render JSON
+    """
     from bokeh.document import Document
     from bokeh.embed.util import standalone_docs_json_and_render_items
     from panel.io.model import add_to_doc
@@ -184,13 +212,14 @@ class panel(UIElement[T, T]):
 
     def __init__(self, obj: Any):
         from panel.models.comm_manager import CommManager as PanelCommManager
-        from panel.pane import panel
+        from panel.pane import panel as panel_func
 
-        self.obj = obj = panel(obj)
+        self.obj = obj = panel_func(obj)
         # This gets set to True in super().__init__()
         self._initialized = False
 
         ref, docs_json, render_json = render_component(obj)
+        self._ref = ref
         self._manager = PanelCommManager(plot_id=ref)  # type: ignore[no-untyped-call]
 
         global loaded_extension
@@ -200,7 +229,7 @@ class panel(UIElement[T, T]):
 
         super().__init__(
             component_name="marimo-panel",
-            initial_value=dict(),
+            initial_value=cast(T, {}),
             label="",
             args={
                 "extension": extension,
@@ -212,12 +241,13 @@ class panel(UIElement[T, T]):
                 Function(
                     name="send_to_widget",
                     arg_cls=SendToWidgetArgs,
-                    function=partial(self._handle_msg, ref),
+                    function=self._handle_msg,
                 ),
             ),
         )
 
-    def _handle_msg(self, ref: str, msg: SendToWidgetArgs) -> None:
+    def _handle_msg(self, msg: SendToWidgetArgs) -> None:
+        ref = self._ref
         comm = self.obj._comms[ref][0]
         msg = comm.decode(msg)
         self.obj._on_msg(ref, self._manager, msg)
@@ -225,9 +255,7 @@ class panel(UIElement[T, T]):
 
     def _initialize(
         self,
-        initialization_args: InitializationArgs[
-            Dict[str, Any], Dict[str, Any]
-        ],
+        initialization_args: InitializationArgs[T, T],
     ) -> None:
         super()._initialize(initialization_args)
         for comm, _ in self.obj._comms.values():
