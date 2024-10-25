@@ -55,13 +55,13 @@ def create_dataframes(
     if DependencyManager.duckdb.has() and should_include("duckdb"):
         import duckdb
 
-        # Assume we have polars as well
-        import polars as pl
+        if DependencyManager.polars.has():
+            import polars as pl
 
-        duck_df = pl.DataFrame(data)
-        relation = duckdb.sql("SELECT * FROM duck_df")
-        del duck_df
-        dfs.append(relation)
+            duck_df = pl.DataFrame(data)
+            relation = duckdb.sql("SELECT * FROM duck_df")
+            del duck_df
+            dfs.append(relation)
 
     return dfs
 
