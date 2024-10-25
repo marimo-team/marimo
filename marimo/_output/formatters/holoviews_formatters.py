@@ -5,7 +5,7 @@ from marimo._config.config import Theme
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.formatter_factory import FormatterFactory
-from marimo._plugins.ui._impl.from_panel import from_panel
+from marimo._plugins.ui._impl.from_panel import panel as from_panel
 
 
 class HoloViewsFormatter(FormatterFactory):
