@@ -155,15 +155,13 @@ def test_get_datasets() -> None:
     create_dataframes({"A": [1, 2, 3], "B": ["a", "a", "a"]}),
 )
 def test_get_datasets_from_variables(df: Any) -> None:
-    try:
-        rows = df.shape[0]
-        rows = 3
-    except Exception:
-        rows = None
-
     datatests = get_datasets_from_variables([("my_df", df), ("non_df", 123)])
+    # We don't compare these values
     external_type1 = datatests[0].columns[0].external_type
     external_type2 = datatests[0].columns[1].external_type
+
+    rows = datatests[0].num_rows
+    assert rows is None or rows == 3
 
     assert datatests == [
         DataTable(

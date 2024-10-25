@@ -133,8 +133,7 @@ class NarwhalsTableManager(
         query = query.lower()
 
         expressions: list[Any] = []
-        for column in self.data.columns:
-            dtype = self.data[column].dtype
+        for column, dtype in self.data.schema.items():
             if dtype == nw.String:
                 expressions.append(nw.col(column).str.contains(query))
             elif dtype == nw.List(nw.String):
@@ -170,7 +169,7 @@ class NarwhalsTableManager(
 
     def _get_summary_internal(self, column: str) -> ColumnSummary:
         # If column is not in the dataframe, return an empty summary
-        if column not in self.data.columns:
+        if column not in self.data.schema:
             return ColumnSummary()
         col = self.data[column]
         total = len(col)
@@ -259,10 +258,10 @@ class NarwhalsTableManager(
             return None
 
     def get_num_columns(self) -> int:
-        return len(self.data.columns)
+        return len(self.data.schema.names())
 
     def get_column_names(self) -> list[str]:
-        return self.data.columns
+        return self.data.schema.names()
 
     def get_unique_column_values(self, column: str) -> list[str | int | float]:
         return self.data[column].unique().to_list()

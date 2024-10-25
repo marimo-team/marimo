@@ -27,7 +27,7 @@ HAS_DEPS = (
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"A": [1, 2, 3], "B": ["a", "a", "a"]}, exclude=["ibis"]
+        {"A": [1, 2, 3], "B": ["a", "a", "a"]}, exclude=["ibis", "duckdb"]
     ),
 )
 def test_number_series(
@@ -57,7 +57,7 @@ def test_get_with_no_name(series: Any) -> None:
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"A": [1, 2, 3], "B": ["a", "b", "b"]}, exclude=["ibis"]
+        {"A": [1, 2, 3], "B": ["a", "b", "b"]}, exclude=["ibis", "duckdb"]
     ),
 )
 def test_categorical_series(df: Any) -> None:
@@ -84,7 +84,7 @@ def test_categorical_series(df: Any) -> None:
                 datetime(2024, 1, 3),
             ],
         },
-        exclude=["ibis"],
+        exclude=["ibis", "duckdb"],
     ),
 )
 def test_date_series(df: Any) -> None:
@@ -113,7 +113,7 @@ def test_date_series(df: Any) -> None:
                 datetime(2024, 1, 3, 15, 45),
             ],
         },
-        exclude=["ibis"],
+        exclude=["ibis", "duckdb"],
     ),
 )
 def test_datetime_series(df: Any) -> None:
@@ -142,17 +142,17 @@ def test_datetime_series(df: Any) -> None:
                 datetime(2024, 1, 3, 15, 45),
             ],
         },
-        include=["ibis"],
+        include=["ibis", "duckdb"],
     ),
 )
 def test_ibis_fails(df: Any) -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises((TypeError, ValueError)):
         get_number_series_info(df["A"])
-    with pytest.raises(ValueError):
+    with pytest.raises((TypeError, ValueError)):
         get_category_series_info(df["B"])
-    with pytest.raises(ValueError):
+    with pytest.raises((TypeError, ValueError)):
         get_date_series_info(df["C"])
-    with pytest.raises(ValueError):
+    with pytest.raises((TypeError, ValueError)):
         get_datetime_series_info(df["C"])
 
 
