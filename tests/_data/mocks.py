@@ -8,7 +8,7 @@ from marimo._dependencies.dependencies import DependencyManager
 if TYPE_CHECKING:
     from narwhals.typing import IntoDataFrame
 
-DFType = Literal["pandas", "polars", "ibis", "pyarrow"]
+DFType = Literal["pandas", "polars", "ibis", "pyarrow", "duckdb"]
 
 
 def create_dataframes(
@@ -52,16 +52,28 @@ def create_dataframes(
 
         dfs.append(pa.Table.from_pydict(data))
 
+    if DependencyManager.duckdb.has() and should_include("duckdb"):
+        import duckdb
+
+        if DependencyManager.polars.has():
+            import polars as pl
+
+            duck_df = pl.DataFrame(data)
+            relation = duckdb.sql("SELECT * FROM duck_df")
+            del duck_df
+            dfs.append(relation)
+
     return dfs
 
 
 def create_series(data: list[Any]) -> list[Any]:
+    series: list[Any] = []
     if DependencyManager.pandas.has():
         import pandas as pd
 
-        return [pd.Series(data)]
+        series.append(pd.Series(data))
     if DependencyManager.polars.has():
         import polars as pl
 
-        return [pl.Series(data)]
-    return []
+        series.append(pl.Series(data))
+    return series

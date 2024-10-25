@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from marimo._data.get_datasets import (
     get_datasets_from_duckdb,
+    get_datasets_from_variables,
     has_updates_to_datasource,
 )
 from marimo._data.models import DataTable, DataTableColumn
 from marimo._dependencies.dependencies import DependencyManager
+from tests._data.mocks import create_dataframes
 
 HAS_DEPS = DependencyManager.duckdb.has()
 
@@ -140,6 +144,43 @@ def test_get_datasets() -> None:
                 ),
                 DataTableColumn(
                     name="col_json", type="unknown", external_type="JSON"
+                ),
+            ],
+        )
+    ]
+
+
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes({"A": [1, 2, 3], "B": ["a", "a", "a"]}),
+)
+def test_get_datasets_from_variables(df: Any) -> None:
+    datatests = get_datasets_from_variables([("my_df", df), ("non_df", 123)])
+    # We don't compare these values
+    external_type1 = datatests[0].columns[0].external_type
+    external_type2 = datatests[0].columns[1].external_type
+
+    rows = datatests[0].num_rows
+    assert rows is None or rows == 3
+
+    assert datatests == [
+        DataTable(
+            name="my_df",
+            source_type="local",
+            source="memory",
+            num_rows=rows,
+            num_columns=2,
+            variable_name="my_df",
+            columns=[
+                DataTableColumn(
+                    name="A",
+                    type="integer",
+                    external_type=external_type1,
+                ),
+                DataTableColumn(
+                    name="B",
+                    type="string",
+                    external_type=external_type2,
                 ),
             ],
         )

@@ -131,3 +131,14 @@ def unwrap_narwhals_dataframe(df: Any) -> Any:
     if isinstance(df, nw.DataFrame):
         return df.to_native()  # type: ignore[return-value]
     return df
+
+
+def unwrap_py_scalar(value: Any) -> Any:
+    """
+    Convert a narwhals value to a python scalar if possible, otherwise return
+    the value as is.
+    """
+    try:
+        return nw.to_py_scalar(value)
+    except ValueError:
+        return value

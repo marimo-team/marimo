@@ -56,7 +56,7 @@ class TestAltairChart:
                 "field_2": [1, 2, 3, 4],
                 "field_3": [10, 20, 30, 40],
             },
-            exclude=["ibis"],
+            exclude=["ibis", "duckdb"],
         ),
     )
     def test_filter_dataframe(df: ChartDataType) -> None:
@@ -121,7 +121,7 @@ class TestAltairChart:
                     datetime.datetime(2020, 1, 10),
                 ],
             },
-            exclude=["ibis"],
+            exclude=["ibis", "duckdb"],
         ),
     )
     def test_filter_dataframe_with_dates(
@@ -471,7 +471,7 @@ def test_chart_with_binning(df: IntoDataFrame):
             "y": [1, 2, 3, 4],
             "category": ["A", "A", "B", "B"],
         },
-        exclude=["ibis", "pyarrow"],
+        exclude=["ibis", "pyarrow", "duckdb"],
     ),
 )
 def test_apply_selection(df: IntoDataFrame):

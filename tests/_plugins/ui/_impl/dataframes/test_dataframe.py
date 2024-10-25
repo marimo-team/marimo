@@ -50,7 +50,8 @@ class TestDataframes:
     @pytest.mark.parametrize(
         "df",
         create_dataframes(
-            {"A": [1, 2, 3], "B": ["a", "a", "a"]}, exclude=["pyarrow"]
+            {"A": [1, 2, 3], "B": ["a", "a", "a"]},
+            exclude=["pyarrow", "duckdb"],
         ),
     )
     def test_dataframe(
@@ -124,7 +125,8 @@ class TestDataframes:
     @pytest.mark.parametrize(
         "df",
         create_dataframes(
-            {"1": [1, 2, 3], "2": ["a", "a", "a"]}, exclude=["pyarrow"]
+            {"1": [1, 2, 3], "2": ["a", "a", "a"]},
+            exclude=["pyarrow", "duckdb"],
         ),
     )
     def test_dataframe_page_size(
@@ -161,17 +163,17 @@ class TestDataframes:
         "df",
         [
             *create_dataframes(
-                {"A": [], "B": []}, exclude=["pyarrow"]
+                {"A": [], "B": []}, exclude=["pyarrow", "duckdb"]
             ),  # Empty DataFrame
             *create_dataframes(
-                {"A": [1], "B": ["a"]}, exclude=["pyarrow"]
+                {"A": [1], "B": ["a"]}, exclude=["pyarrow", "duckdb"]
             ),  # Single row DataFrame
             *create_dataframes(
                 {
                     "A": range(1, 1001),
                     "B": [f"value_{i}" for i in range(1, 1001)],
                 },
-                exclude=["pyarrow"],
+                exclude=["pyarrow", "duckdb"],
             ),  # Large DataFrame
         ],
     )
@@ -200,7 +202,7 @@ class TestDataframes:
     @pytest.mark.parametrize(
         "df",
         create_dataframes(
-            {"A": range(100), "B": ["a"] * 100}, exclude=["pyarrow"]
+            {"A": range(100), "B": ["a"] * 100}, exclude=["pyarrow", "duckdb"]
         ),
     )
     def test_dataframe_with_custom_page_size(df: Any) -> None:
@@ -239,7 +241,8 @@ class TestDataframes:
     @pytest.mark.parametrize(
         "df",
         create_dataframes(
-            {"A": range(1000), "B": ["a"] * 1000}, exclude=["pyarrow"]
+            {"A": range(1000), "B": ["a"] * 1000},
+            exclude=["pyarrow", "duckdb"],
         ),
     )
     def test_dataframe_with_limit(df: Any) -> None:
@@ -257,7 +260,8 @@ class TestDataframes:
     @pytest.mark.parametrize(
         "df",
         create_dataframes(
-            {"A": [1, 2, 3], "B": ["a", "b", "c"]}, exclude=["pyarrow"]
+            {"A": [1, 2, 3], "B": ["a", "b", "c"]},
+            exclude=["pyarrow", "duckdb"],
         ),
     )
     def test_dataframe_error_handling(df: Any) -> None:

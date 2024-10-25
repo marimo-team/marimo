@@ -29,7 +29,9 @@ if TYPE_CHECKING:
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
-    create_dataframes({"A": [1, 2, 3], "B": ["a", "b", "c"]}),
+    create_dataframes(
+        {"A": [1, 2, 3], "B": ["a", "b", "c"]}, exclude=["duckdb"]
+    ),
 )
 def test_to_marimo_json(df: IntoDataFrame):
     result = _to_marimo_json(df)
@@ -43,7 +45,9 @@ def test_to_marimo_json(df: IntoDataFrame):
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
-    create_dataframes({"A": [1, 2, 3], "B": ["a", "b", "c"]}),
+    create_dataframes(
+        {"A": [1, 2, 3], "B": ["a", "b", "c"]}, exclude=["duckdb"]
+    ),
 )
 def test_to_marimo_csv(df: IntoDataFrame):
     result = _to_marimo_csv(df)
@@ -57,7 +61,9 @@ def test_to_marimo_csv(df: IntoDataFrame):
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
-    create_dataframes({"A": [1, 2, 3], "B": ["a", "b", "c"]}),
+    create_dataframes(
+        {"A": [1, 2, 3], "B": ["a", "b", "c"]}, exclude=["duckdb"]
+    ),
 )
 def test_to_marimo_inline_csv(df: IntoDataFrame):
     result = _to_marimo_inline_csv(df)
@@ -72,7 +78,9 @@ def test_to_marimo_inline_csv(df: IntoDataFrame):
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
-    create_dataframes({"A": [1, 2, 3], "B": ["a", "b", "c"]}),
+    create_dataframes(
+        {"A": [1, 2, 3], "B": ["a", "b", "c"]}, exclude=["duckdb"]
+    ),
 )
 def test_data_to_json_string(df: IntoDataFrame):
     result = _data_to_json_string(df)
@@ -88,7 +96,7 @@ def test_data_to_json_string(df: IntoDataFrame):
     "df",
     # We skip pyarrow because it's csv is formatted differently
     create_dataframes(
-        {"A": [1, 2, 3], "B": ["a", "b", "c"]}, exclude=["pyarrow"]
+        {"A": [1, 2, 3], "B": ["a", "b", "c"]}, exclude=["pyarrow", "duckdb"]
     ),
 )
 def test_data_to_csv_string(df: IntoDataFrame):
@@ -103,7 +111,7 @@ def test_data_to_csv_string(df: IntoDataFrame):
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
-    create_dataframes({}, exclude=["ibis"]),
+    create_dataframes({}, exclude=["ibis", "duckdb"]),
 )
 def test_to_marimo_json_empty_dataframe(df: IntoDataFrame):
     result = _to_marimo_json(df)
@@ -119,7 +127,8 @@ def test_to_marimo_json_empty_dataframe(df: IntoDataFrame):
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"A": [1, 1, 3], "B": ["a", None, "c"], "C": [True, False, None]}
+        {"A": [1, 1, 3], "B": ["a", None, "c"], "C": [True, False, None]},
+        exclude=["duckdb"],
     ),
 )
 def test_to_marimo_csv_with_missing_values(df: IntoDataFrame):
@@ -137,7 +146,7 @@ def test_to_marimo_csv_with_missing_values(df: IntoDataFrame):
     "df",
     create_dataframes(
         {"A": range(10000), "B": [f"value_{i}" for i in range(10000)]},
-        exclude=["pyarrow"],
+        exclude=["pyarrow", "duckdb"],
     ),
 )
 def test_to_marimo_inline_csv_large_dataset(df: IntoDataFrame):
@@ -166,7 +175,8 @@ def test_to_marimo_inline_csv_large_dataset(df: IntoDataFrame):
     "df",
     # We skip pyarrow because it's json is missing new lines
     create_dataframes(
-        {"A": [1, 2, 3], "B": ['a"b', "c,d", "e\nf"]}, exclude=["pyarrow"]
+        {"A": [1, 2, 3], "B": ['a"b', "c,d", "e\nf"]},
+        exclude=["pyarrow", "duckdb"],
     ),
 )
 def test_data_to_json_string_with_special_characters(
@@ -197,7 +207,7 @@ def test_data_to_json_string_with_special_characters(
             ],
             "category": ["a", "b", "c"],
         },
-        exclude=["ibis"],
+        exclude=["ibis", "duckdb"],
     ),
 )
 def test_data_to_csv_string_with_different_dtypes(df: IntoDataFrame):

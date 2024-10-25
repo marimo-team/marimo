@@ -22,6 +22,7 @@ from marimo._utils.narwhals_utils import (
     is_narwhals_integer_type,
     is_narwhals_string_type,
     is_narwhals_temporal_type,
+    unwrap_py_scalar,
 )
 
 
@@ -132,8 +133,7 @@ class NarwhalsTableManager(
         query = query.lower()
 
         expressions: list[Any] = []
-        for column in self.data.columns:
-            dtype = self.data[column].dtype
+        for column, dtype in self.data.schema.items():
             if dtype == nw.String:
                 expressions.append(nw.col(column).str.contains(query))
             elif dtype == nw.List(nw.String):
@@ -164,12 +164,12 @@ class NarwhalsTableManager(
         summary = self._get_summary_internal(column)
         for key, value in summary.__dict__.items():
             if value is not None:
-                summary.__dict__[key] = _maybe_convert_as_py(value)
+                summary.__dict__[key] = unwrap_py_scalar(value)
         return summary
 
     def _get_summary_internal(self, column: str) -> ColumnSummary:
         # If column is not in the dataframe, return an empty summary
-        if column not in self.data.columns:
+        if column not in self.data.schema:
             return ColumnSummary()
         col = self.data[column]
         total = len(col)
@@ -251,13 +251,17 @@ class NarwhalsTableManager(
             return None
 
         # Otherwise, we can get the number of rows from the shape
-        return self.data.shape[0]
+        try:
+            return self.data.shape[0]
+        except Exception:
+            # narwhals will raise on metadata-only frames
+            return None
 
     def get_num_columns(self) -> int:
-        return len(self.data.columns)
+        return len(self.data.schema.names())
 
     def get_column_names(self) -> list[str]:
-        return self.data.columns
+        return self.data.schema.names()
 
     def get_unique_column_values(self, column: str) -> list[str | int | float]:
         return self.data[column].unique().to_list()
@@ -281,13 +285,3 @@ class NarwhalsTableManager(
         if rows is None:
             return f"{df_type}: {columns:,} columns"
         return f"{df_type}: {rows:,} rows x {columns:,} columns"
-
-
-# pyarrow use wrapper types for primitives
-# so we need to convert to the primitive type
-def _maybe_convert_as_py(value: Any) -> Any:
-    if hasattr(value, "to_pylist"):
-        return value.to_pylist()
-    if hasattr(value, "as_py"):
-        return value.as_py()
-    return value
