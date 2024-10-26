@@ -356,6 +356,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
                     )
 
         if wrapped_columns:
+            column_names = self._manager.get_column_names()
             for column in wrapped_columns:
                 if column not in column_names:
                     raise ValueError(f"Column '{column}' not found in table.")
