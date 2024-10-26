@@ -13,6 +13,7 @@ import type { FilterType } from "./filters";
 import type { FieldTypesWithExternalType } from "./types";
 import { UrlDetector } from "./url-detector";
 import { Arrays } from "@/utils/arrays";
+import { cn } from "@/utils/cn";
 
 interface ColumnInfo {
   key: string;
@@ -73,11 +74,13 @@ export function generateColumns<T>({
   rowHeaders,
   selection,
   fieldTypes,
+  textJustifyColumns,
 }: {
   items: T[];
   rowHeaders: string[];
   selection: "single" | "multi" | null;
   fieldTypes?: FieldTypesWithExternalType;
+  textJustifyColumns?: Record<string, "left" | "center" | "right">;
 }): Array<ColumnDef<T>> {
   const columnInfo = getColumnInfo(items);
   const rowHeadersSet = new Set(rowHeaders);
@@ -127,23 +130,36 @@ export function generateColumns<T>({
         }
 
         const value = getValue();
+        const justify = textJustifyColumns?.[info.key];
 
         const format = column.getColumnFormatting?.();
         if (format) {
-          return column.applyColumnFormatting(value);
+          return (
+            <div className={getTextJustifyClass(justify)}>
+              {column.applyColumnFormatting(value)}
+            </div>
+          );
         }
 
         if (isPrimitiveOrNullish(value)) {
           const rendered = renderValue();
-          if (rendered == null) {
-            return "";
-          }
-          if (typeof rendered === "string") {
-            return <UrlDetector text={rendered} />;
-          }
-          return String(rendered);
+          return (
+            <div className={getTextJustifyClass(justify)}>
+              {rendered == null ? (
+                ""
+              ) : typeof rendered === "string" ? (
+                <UrlDetector text={rendered} />
+              ) : (
+                String(rendered)
+              )}
+            </div>
+          );
         }
-        return <MimeCell value={value} />;
+        return (
+          <div className={getTextJustifyClass(justify)}>
+            <MimeCell value={value} />
+          </div>
+        );
       },
       // Only enable sorting for primitive types and non-row headers
       enableSorting: info.type === "primitive" && !rowHeadersSet.has(info.key),
@@ -224,4 +240,15 @@ function getFilterTypeForFieldType(
     default:
       return undefined;
   }
+}
+
+function getTextJustifyClass(
+  justify: "left" | "center" | "right" | undefined,
+): string {
+  return cn(
+    "w-full",
+    "text-left",
+    justify === "center" && "text-center",
+    justify === "right" && "text-right",
+  );
 }
