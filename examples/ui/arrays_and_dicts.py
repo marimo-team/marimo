@@ -78,17 +78,13 @@ def __(array, dictionary, mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         r"""
-        Fundamental difference between marimo dict and standard python dict.
+        Key difference between marimo dict and standard python dict:
 
-        The UI elements in marimo dict are clones of the original: interacting with the marimo dictionary will not update the original elements, and vice versa.
-
-        This allows you to reuse multiple UI components (e.g., sliders, text inputs, or date pickers) independently, ensuring they don’t interfere with each other when managed through marimo dict.
-
-        However, if you use a regular python dict, all references remain synchronized, and changes to one element propagate across all linked instances.
+        The main reason to use `mo.ui.dictionary` is for reactive execution — when you interact with an element in a `mo.ui.dictionary`, all cells that reference the `mo.ui.dictionary` run automatically, just like all other ui elements. When you use a regular dictionary, you don't get this reactivity.
         """
     )
     return
@@ -125,6 +121,26 @@ def __(create, mo):
         justify="space-around",
     )
     return date, mo_d, py_d, slider, text
+
+
+@app.cell(hide_code=True)
+def __(mo, mo_d, py_d):
+    mo_d_ref = {k: mo_d[k].value for k in mo_d.value.keys()}
+    py_d_ref = {k: py_d[k].value for k in py_d.keys()}
+    mo.hstack(
+        [
+            mo.vstack(["reference of marimo dict", mo_d_ref]),
+            mo.vstack(["reference of python dict", py_d_ref]),
+        ],
+        justify="space-around",
+    )
+    return mo_d_ref, py_d_ref
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(r"""Notice that when you interact with the UI elements in the marimo dict, the reference of marimo dict updates automatically. However, when you interact with the elements in the python dict, you need to manually re-run the cell to see the updated values.""")
+    return
 
 
 @app.cell
