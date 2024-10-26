@@ -461,7 +461,7 @@ const DataTableComponent = ({
         fieldTypes: fieldTypes ?? {},
         textJustifyColumns,
       }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    /* eslint-disable react-hooks/exhaustive-deps */
     [
       data,
       useDeepCompareMemoize([
@@ -470,7 +470,8 @@ const DataTableComponent = ({
         rowHeaders,
         textJustifyColumns,
       ]),
-    ],
+    ]
+    /* eslint-enable react-hooks/exhaustive-deps */
   );
 
   const rowSelection = useMemo(
@@ -542,3 +543,4 @@ const DataTableComponent = ({
     </>
   );
 };
+
