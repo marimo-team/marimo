@@ -202,6 +202,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
     - `freeze_columns_right`: list of column names to freeze on the right
     - `text_justify_columns`: dictionary of column names to text justification
       options: `left`, `center`, `right`
+    - `wrapped_columns`: list of column names to wrap
     - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
@@ -228,6 +229,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         text_justify_columns: Optional[
             Dict[str, Literal["left", "center", "right"]]
         ] = None,
+        wrapped_columns: Optional[List[str]] = None,
         show_download: bool = True,
         *,
         label: str = "",
@@ -353,6 +355,11 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
                         f"Must be one of: {', '.join(valid_justifications)}."
                     )
 
+        if wrapped_columns:
+            for column in wrapped_columns:
+                if column not in column_names:
+                    raise ValueError(f"Column '{column}' not found in table.")
+
         super().__init__(
             component_name=table._name,
             label=label,
@@ -374,6 +381,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
                 "freeze-columns-left": freeze_columns_left,
                 "freeze-columns-right": freeze_columns_right,
                 "text-justify-columns": text_justify_columns,
+                "wrapped-columns": wrapped_columns,
             },
             on_change=on_change,
             functions=(

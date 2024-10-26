@@ -71,6 +71,7 @@ interface Data<T> {
   freezeColumnsLeft?: string[];
   freezeColumnsRight?: string[];
   textJustifyColumns?: Record<string, "left" | "center" | "right">;
+  wrappedColumns?: string[];
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -113,6 +114,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       textJustifyColumns: z
         .record(z.enum(["left", "center", "right"]))
         .optional(),
+      wrappedColumns: z.array(z.string()).optional(),
       fieldTypes: z.record(z.tuple([z.enum(DATA_TYPES), z.string()])).nullish(),
     }),
   )
@@ -426,6 +428,7 @@ const DataTableComponent = ({
   freezeColumnsLeft,
   freezeColumnsRight,
   textJustifyColumns,
+  wrappedColumns,
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
@@ -460,6 +463,7 @@ const DataTableComponent = ({
         selection,
         fieldTypes: fieldTypes ?? {},
         textJustifyColumns,
+        wrappedColumns,
       }),
     /* eslint-disable react-hooks/exhaustive-deps */
     [
@@ -469,6 +473,7 @@ const DataTableComponent = ({
         fieldTypes,
         rowHeaders,
         textJustifyColumns,
+        wrappedColumns,
       ]),
     ]
     /* eslint-enable react-hooks/exhaustive-deps */

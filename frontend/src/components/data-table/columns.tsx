@@ -75,12 +75,14 @@ export function generateColumns<T>({
   selection,
   fieldTypes,
   textJustifyColumns,
+  wrappedColumns,
 }: {
   items: T[];
   rowHeaders: string[];
   selection: "single" | "multi" | null;
   fieldTypes?: FieldTypesWithExternalType;
   textJustifyColumns?: Record<string, "left" | "center" | "right">;
+  wrappedColumns?: string[];
 }): Array<ColumnDef<T>> {
   const columnInfo = getColumnInfo(items);
   const rowHeadersSet = new Set(rowHeaders);
@@ -131,11 +133,12 @@ export function generateColumns<T>({
 
         const value = getValue();
         const justify = textJustifyColumns?.[info.key];
+        const wrapped = wrappedColumns?.includes(info.key);
 
         const format = column.getColumnFormatting?.();
         if (format) {
           return (
-            <div className={getTextJustifyClass(justify)}>
+            <div className={getCellStyleClass(justify, wrapped)}>
               {column.applyColumnFormatting(value)}
             </div>
           );
@@ -144,7 +147,7 @@ export function generateColumns<T>({
         if (isPrimitiveOrNullish(value)) {
           const rendered = renderValue();
           return (
-            <div className={getTextJustifyClass(justify)}>
+            <div className={getCellStyleClass(justify, wrapped)}>
               {rendered == null ? (
                 ""
               ) : typeof rendered === "string" ? (
@@ -156,7 +159,7 @@ export function generateColumns<T>({
           );
         }
         return (
-          <div className={getTextJustifyClass(justify)}>
+          <div className={getCellStyleClass(justify, wrapped)}>
             <MimeCell value={value} />
           </div>
         );
@@ -242,13 +245,15 @@ function getFilterTypeForFieldType(
   }
 }
 
-function getTextJustifyClass(
+function getCellStyleClass(
   justify: "left" | "center" | "right" | undefined,
+  wrapped: boolean | undefined,
 ): string {
   return cn(
     "w-full",
     "text-left",
     justify === "center" && "text-center",
     justify === "right" && "text-right",
+    wrapped && "whitespace-pre-wrap min-w-[200px]",
   );
 }
