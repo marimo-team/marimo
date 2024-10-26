@@ -470,7 +470,7 @@ const DataTableComponent = ({
         rowHeaders,
         textJustifyColumns,
       ]),
-    ]
+    ],
     /* eslint-enable react-hooks/exhaustive-deps */
   );
 
@@ -543,4 +543,3 @@ const DataTableComponent = ({
     </>
   );
 };
-
