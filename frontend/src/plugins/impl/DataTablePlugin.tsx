@@ -475,7 +475,7 @@ const DataTableComponent = ({
         textJustifyColumns,
         wrappedColumns,
       ]),
-    ]
+    ],
     /* eslint-enable react-hooks/exhaustive-deps */
   );
 
@@ -548,4 +548,3 @@ const DataTableComponent = ({
     </>
   );
 };
-
