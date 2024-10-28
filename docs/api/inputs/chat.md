@@ -207,6 +207,13 @@ mo.ui.chat(
 )
 ```
 
+```{eval-rst}
+.. autoclass:: marimo.ai.llm.google
+  :members:
+
+  .. autoclasstoc:: marimo._plugins.ui._impl.chat.llm.google
+```
+
 ## Types
 
 Chatbots can be implemented with a function that receives a list of
