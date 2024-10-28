@@ -75,7 +75,7 @@ def __(key, mo):
 
 @app.cell
 def __(mo):
-    mo.md("""Access the chatbot's historical messages with `chatbot.value`.""")
+    mo.md("""Access the chatbot's historical messages with [`chatbot.value`](https://docs.marimo.io/api/inputs/chat.html#accessing-chat-history).""")
     return
 
 
