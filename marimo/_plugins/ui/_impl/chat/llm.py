@@ -140,6 +140,7 @@ class anthropic(ChatModel):
     **Args:**
 
     - model: The model to use.
+        Can be found on the [Anthropic models page](https://docs.anthropic.com/en/docs/about-claude/models)
     - system_message: The system message to use
     - api_key: The API key to use.
         If not provided, the API key will be retrieved
@@ -237,6 +238,7 @@ class google(ChatModel):
     **Args:**
 
     - model: The model to use.
+        Can be found on the [Gemini models page](https://ai.google.dev/gemini-api/docs/models/gemini)
     - system_message: The system message to use
     - api_key: The API key to use.
         If not provided, the API key will be retrieved
