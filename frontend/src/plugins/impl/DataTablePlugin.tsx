@@ -70,6 +70,8 @@ interface Data<T> {
   fieldTypes?: FieldTypesWithExternalType | null;
   freezeColumnsLeft?: string[];
   freezeColumnsRight?: string[];
+  textJustifyColumns?: Record<string, "left" | "center" | "right">;
+  wrappedColumns?: string[];
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -109,6 +111,10 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       rowHeaders: z.array(z.string()),
       freezeColumnsLeft: z.array(z.string()).optional(),
       freezeColumnsRight: z.array(z.string()).optional(),
+      textJustifyColumns: z
+        .record(z.enum(["left", "center", "right"]))
+        .optional(),
+      wrappedColumns: z.array(z.string()).optional(),
       fieldTypes: z.record(z.tuple([z.enum(DATA_TYPES), z.string()])).nullish(),
     }),
   )
@@ -421,6 +427,8 @@ const DataTableComponent = ({
   reloading,
   freezeColumnsLeft,
   freezeColumnsRight,
+  textJustifyColumns,
+  wrappedColumns,
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
@@ -454,9 +462,21 @@ const DataTableComponent = ({
         rowHeaders: rowHeaders,
         selection,
         fieldTypes: fieldTypes ?? {},
+        textJustifyColumns,
+        wrappedColumns,
       }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [data, useDeepCompareMemoize([selection, fieldTypes, rowHeaders])],
+    /* eslint-disable react-hooks/exhaustive-deps */
+    [
+      data,
+      useDeepCompareMemoize([
+        selection,
+        fieldTypes,
+        rowHeaders,
+        textJustifyColumns,
+        wrappedColumns,
+      ]),
+    ],
+    /* eslint-enable react-hooks/exhaustive-deps */
   );
 
   const rowSelection = useMemo(
