@@ -42,7 +42,7 @@ dependencies = [
     # required dependency in Starlette for SessionMiddleware support
     "itsdangerous>=2.0.0",
     # for dataframe support
-    "narwhals>=1.9.0",
+    "narwhals>=1.12.0",
     # for cell formatting; if user version is not compatible, no-op
     # so no lower bound needed
     "ruff",
@@ -147,7 +147,7 @@ dependencies = [
     # Types for mypy
     "panel~=1.5.3",
     "polars~=1.9.0",
-    "narwhals>=1.9.0",
+    "narwhals>=1.12.0",
     "matplotlib>=3.8.0",
     "pyarrow-stubs>=17.0",
     "pandas-stubs>=1.5.3.230321",
