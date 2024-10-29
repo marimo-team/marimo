@@ -20,10 +20,23 @@ import { DEFAULT_CELL_NAME } from "@/core/cells/names";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
 import { renderShortcut } from "../shortcuts/renderShortcut";
-import { BetweenHorizontalStartIcon, EraserIcon, PlayIcon } from "lucide-react";
+import {
+  BetweenHorizontalStartIcon,
+  EraserIcon,
+  PlayIcon,
+  HistoryIcon,
+} from "lucide-react";
 import { HideInKioskMode } from "../editor/kiosk-mode";
 import { useLastFocusedCellId } from "@/core/cells/focus";
 import { Spinner } from "../icons/spinner";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import {
+  addToHistoryAtom,
+  scratchpadHistoryAtom,
+  historyVisibleAtom,
+} from "./scratchpad-history";
+import AnyLanguageCodeMirror from "@/plugins/impl/code/any-language-editor";
+import { cn } from "@/utils/cn";
 
 export const ScratchPad: React.FC = () => {
   const notebookState = useNotebook();
@@ -41,8 +54,13 @@ export const ScratchPad: React.FC = () => {
   const cellData = notebookState.cellData[cellId];
   const code = cellData?.code ?? "";
 
+  const addToHistory = useSetAtom(addToHistoryAtom);
+  const [historyVisible, setHistoryVisible] = useAtom(historyVisibleAtom);
+  const history = useAtomValue(scratchpadHistoryAtom);
+
   const handleRun = useEvent(() => {
     sendRunScratchpad({ code });
+    addToHistory(code);
   });
 
   const handleInsertCode = useEvent(() => {
@@ -75,6 +93,108 @@ export const ScratchPad: React.FC = () => {
     }
   });
 
+  const handleSelectHistoryItem = useEvent((item: string) => {
+    setHistoryVisible(false);
+    updateCellCode({
+      cellId,
+      code: item,
+      formattingChange: false,
+    });
+    const ev = ref.current;
+    if (ev) {
+      ev.dispatch({
+        changes: {
+          from: 0,
+          to: ev.state.doc.length,
+          insert: item,
+        },
+      });
+    }
+  });
+
+  const renderBody = () => {
+    // We overlay the history on top of the body, instead of removing it,
+    // so we don't have to re-render the entire editor and outputs.
+    return (
+      <>
+        <div className="overflow-auto flex-shrink-0 max-h-[40%]">
+          <CellEditor
+            theme={theme}
+            allowFocus={false}
+            showPlaceholder={false}
+            id={cellId}
+            code={code}
+            status="idle"
+            serializedEditorState={null}
+            runCell={handleRun}
+            updateCellCode={updateCellCode}
+            createNewCell={Functions.NOOP}
+            deleteCell={Functions.NOOP}
+            focusCell={Functions.NOOP}
+            moveCell={Functions.NOOP}
+            moveToNextCell={undefined}
+            updateCellConfig={Functions.NOOP}
+            clearSerializedEditorState={Functions.NOOP}
+            userConfig={userConfig}
+            editorViewRef={ref}
+            hidden={false}
+          />
+        </div>
+        <div className="flex-1 overflow-auto flex-shrink-0">
+          <OutputArea
+            allowExpand={false}
+            output={output}
+            className="output-area"
+            cellId={cellId}
+            stale={false}
+          />
+        </div>
+        <div className="overflow-auto flex-shrink-0 max-h-[35%]">
+          <ConsoleOutput
+            consoleOutputs={consoleOutputs}
+            className="overflow-auto"
+            stale={false}
+            cellName={DEFAULT_CELL_NAME}
+            onSubmitDebugger={Functions.NOOP}
+            cellId={cellId}
+            debuggerActive={false}
+          />
+        </div>
+      </>
+    );
+  };
+
+  const renderHistory = () => {
+    if (!historyVisible) {
+      return null;
+    }
+    return (
+      <div className="absolute inset-0 z-100 bg-background p-3 border-none overflow-auto">
+        <div className="overflow-auto flex flex-col gap-3">
+          {history.map((item, index) => (
+            <div
+              key={index}
+              className="border rounded-md hover:shadow-sm cursor-pointer hover:border-input overflow-hidden"
+              onClick={() => handleSelectHistoryItem(item)}
+            >
+              <AnyLanguageCodeMirror
+                language="python"
+                theme={theme}
+                basicSetup={{
+                  highlightActiveLine: false,
+                  highlightActiveLineGutter: false,
+                }}
+                value={item.trim()}
+                editable={false}
+                readOnly={true}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div
       className="flex flex-col h-full overflow-hidden divide-y"
@@ -85,6 +205,7 @@ export const ScratchPad: React.FC = () => {
           <Button
             data-testid="scratchpad-run-button"
             onClick={handleRun}
+            disabled={historyVisible}
             variant="text"
             // className="bg-[var(--grass-3)] hover:bg-[var(--grass-4)] rounded-none"
             size="xs"
@@ -93,63 +214,48 @@ export const ScratchPad: React.FC = () => {
           </Button>
         </Tooltip>
         <Tooltip content="Clear code and outputs">
-          <Button size="xs" variant="text" onClick={handleClearCode}>
+          <Button
+            disabled={historyVisible}
+            size="xs"
+            variant="text"
+            onClick={handleClearCode}
+          >
             <EraserIcon size={16} />
           </Button>
         </Tooltip>
         <HideInKioskMode>
           <Tooltip content="Insert code">
-            <Button size="xs" variant="text" onClick={handleInsertCode}>
+            <Button
+              disabled={historyVisible}
+              size="xs"
+              variant="text"
+              onClick={handleInsertCode}
+            >
               <BetweenHorizontalStartIcon size={16} />
             </Button>
           </Tooltip>
         </HideInKioskMode>
+
         {(status === "running" || status === "queued") && (
           <Spinner className="inline" size="small" />
         )}
+        <div className="flex-1" />
+
+        <Tooltip content="Toggle history">
+          <Button
+            size="xs"
+            variant="text"
+            className={cn(historyVisible && "bg-[var(--sky-3)] rounded-none")}
+            onClick={() => setHistoryVisible(!historyVisible)}
+            disabled={history.length === 0}
+          >
+            <HistoryIcon size={16} />
+          </Button>
+        </Tooltip>
       </div>
-      <div className="overflow-auto flex-shrink-0 max-h-[40%]">
-        <CellEditor
-          theme={theme}
-          allowFocus={false}
-          showPlaceholder={false}
-          id={cellId}
-          code={code}
-          status="idle"
-          serializedEditorState={null}
-          runCell={handleRun}
-          updateCellCode={updateCellCode}
-          createNewCell={Functions.NOOP}
-          deleteCell={Functions.NOOP}
-          focusCell={Functions.NOOP}
-          moveCell={Functions.NOOP}
-          moveToNextCell={undefined}
-          updateCellConfig={Functions.NOOP}
-          clearSerializedEditorState={Functions.NOOP}
-          userConfig={userConfig}
-          editorViewRef={ref}
-          hidden={false}
-        />
-      </div>
-      <div className="flex-1 overflow-auto flex-shrink-0">
-        <OutputArea
-          allowExpand={false}
-          output={output}
-          className="output-area"
-          cellId={cellId}
-          stale={false}
-        />
-      </div>
-      <div className="overflow-auto flex-shrink-0 max-h-[35%]">
-        <ConsoleOutput
-          consoleOutputs={consoleOutputs}
-          className="overflow-auto"
-          stale={false}
-          cellName={DEFAULT_CELL_NAME}
-          onSubmitDebugger={Functions.NOOP}
-          cellId={cellId}
-          debuggerActive={false}
-        />
+      <div className="flex-1 divide-y relative">
+        {renderBody()}
+        {renderHistory()}
       </div>
     </div>
   );
