@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { exportAsHTMLAndTakeScreenshot, takeScreenshot } from "./helper";
 import { fileURLToPath } from "node:url";
 
-const __filename = fileURLToPath(import.meta.url);
+const _filename = fileURLToPath(import.meta.url);
 
 test.skip("can screenshot and download as html edit", async ({ page }) => {
   await page.goto("http://localhost:3000");
@@ -13,7 +13,7 @@ test.skip("can screenshot and download as html edit", async ({ page }) => {
   // See text Welcome
   await expect(page.getByText("Welcome").first()).toBeVisible();
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
   await exportAsHTMLAndTakeScreenshot(page);
 });
 
@@ -25,5 +25,5 @@ test.skip("can screenshot and download as html in run", async ({ page }) => {
   // See text Welcome
   await expect(page.getByText("Welcome").first()).toBeVisible();
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });

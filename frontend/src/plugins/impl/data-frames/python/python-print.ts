@@ -67,8 +67,8 @@ export function pythonPrint(dfName: string, transform: TransformType): string {
       }
       return `${dfName}.agg({${column_ids
         .map(
-          (column_id) =>
-            `${asLiteral(column_id)}: ${listOfStrings(aggregations)}`,
+          (columnId) =>
+            `${asLiteral(columnId)}: ${listOfStrings(aggregations)}`,
         )
         .join(", ")}})`;
     }
@@ -107,8 +107,8 @@ export function pythonPrint(dfName: string, transform: TransformType): string {
       return `${dfName}.explode(${listOfStrings(column_ids)})`;
     }
     case "expand_dict": {
-      const column_id = asLiteral(transform.column_id);
-      const args = `df.pop(${column_id}).values.tolist())`;
+      const columnId = asLiteral(transform.column_id);
+      const args = `df.pop(${columnId}).values.tolist())`;
       return `${dfName}.join(pd.DataFrame(${args})`;
     }
     default:

@@ -99,7 +99,7 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
         if (output.channel === "pdb") {
           return null;
         }
-        const original_idx = consoleOutputs.length - idx - 1;
+        const originalIdx = consoleOutputs.length - idx - 1;
 
         if (output.channel === "stdin") {
           invariant(
@@ -120,7 +120,7 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
                   placeholder="stdin"
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
-                      onSubmitDebugger(e.currentTarget.value, original_idx);
+                      onSubmitDebugger(e.currentTarget.value, originalIdx);
                     }
                   }}
                 />

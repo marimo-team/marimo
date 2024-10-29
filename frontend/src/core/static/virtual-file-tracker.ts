@@ -28,7 +28,7 @@ export class VirtualFileTracker {
 
   track(message: Pick<CellMessage, "cell_id" | "output">): void {
     const output = message.output;
-    const cell_id = message.cell_id as CellId;
+    const cellId = message.cell_id as CellId;
     if (!output) {
       return;
     }
@@ -36,10 +36,10 @@ export class VirtualFileTracker {
     switch (output.mimetype) {
       case "application/json":
       case "text/html": {
-        const prev = this.virtualFiles.get(cell_id);
+        const prev = this.virtualFiles.get(cellId);
         const matches = findVirtualFiles(output.data);
         prev?.forEach((file) => matches.add(file));
-        this.virtualFiles.set(cell_id, matches);
+        this.virtualFiles.set(cellId, matches);
         return;
       }
       default:

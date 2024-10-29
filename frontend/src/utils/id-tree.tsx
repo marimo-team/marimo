@@ -411,7 +411,7 @@ export class MultiColumn<T> {
     // Ensure there is always at least one column
     const numColumns = Math.max(
       1,
-      ...idAndColumns.map(([_, column]) => (column ?? 0) + 1),
+      ...idAndColumns.map(([, column]) => (column ?? 0) + 1),
     );
     const idsList: T[][] = Array.from({ length: numColumns }, () => []);
 

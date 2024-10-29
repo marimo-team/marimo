@@ -4,7 +4,7 @@ import { getAppUrl, startServer } from "../playwright.config";
 import { takeScreenshot } from "./helper";
 import { fileURLToPath } from "node:url";
 
-const __filename = fileURLToPath(import.meta.url);
+const _filename = fileURLToPath(import.meta.url);
 
 test("can resume a session", async ({ page }) => {
   const appUrl = getAppUrl("shutdown.py");
@@ -65,7 +65,7 @@ test("shutdown shows disconnected text", async ({ page }) => {
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Download unsaved changes?")).toHaveCount(1);
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });
 
 test.afterAll(() => {

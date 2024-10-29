@@ -49,7 +49,7 @@ const countsForName: Record<string, number> = {};
 /**
  * Take a screenshot of the page.
  * @example
- * await takeScreenshot(page, __filename);
+ * await takeScreenshot(page, _filename);
  */
 export async function takeScreenshot(page: Page, filename: string) {
   const clean = path.basename(filename).replace(".spec.ts", "");
