@@ -86,7 +86,7 @@ class plotly(UIElement[PlotlySelection, List[Dict[str, Any]]]):
     **Initialization Args.**
 
     - `figure`: A `plotly.graph_objects.Figure`
-    - `config`: optional configuration for the plot
+    - `config`: optional configuration for the plot.
         This is a dictionary that is passed directly to the plotly.
         See the plotly documentation for more information:
         https://plotly.com/javascript/configuration-options/
