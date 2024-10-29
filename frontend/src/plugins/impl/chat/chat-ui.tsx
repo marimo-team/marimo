@@ -46,6 +46,7 @@ import { ChatBubbleIcon } from "@radix-ui/react-icons";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { Input } from "@/components/ui/input";
 import { PopoverAnchor } from "@radix-ui/react-popover";
+import { copyToClipboard } from "@/utils/copy";
 
 interface Props {
   prompts: string[];
@@ -246,8 +247,8 @@ export const Chatbot: React.FC<Props> = (props) => {
             <div className="flex justify-end text-xs gap-2 invisible group-hover:visible">
               <button
                 type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(message.content);
+                onClick={async () => {
+                  await copyToClipboard(message.content);
                   toast({
                     title: "Copied to clipboard",
                   });
