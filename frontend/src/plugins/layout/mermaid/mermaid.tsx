@@ -81,7 +81,7 @@ const Mermaid: React.FC<Props> = ({ diagram }) => {
       });
 
     return result.svg;
-  }, [diagram, id]);
+  }, [diagram, id, darkMode]);
 
   if (!svg) {
     return null;
