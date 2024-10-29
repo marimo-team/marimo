@@ -2,6 +2,7 @@
 import React from "react";
 import { toast } from "../ui/use-toast";
 import { Badge } from "../ui/badge";
+import { copyToClipboard } from "@/utils/copy";
 
 interface Props extends React.HTMLAttributes<HTMLDivElement> {
   name: string;
@@ -20,12 +21,12 @@ export const VariableName: React.FC<Props> = ({
         title={name}
         variant={declaredBy.length > 1 ? "destructive" : "outline"}
         className="rounded-sm text-ellipsis block overflow-hidden max-w-fit cursor-pointer font-medium"
-        onClick={(evt) => {
+        onClick={async (evt) => {
           if (onClick) {
             onClick(evt);
             return;
           }
-          navigator.clipboard.writeText(name);
+          await copyToClipboard(name);
           toast({ title: "Copied to clipboard" });
         }}
       >

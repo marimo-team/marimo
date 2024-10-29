@@ -23,6 +23,7 @@ import { hotkeysAtom } from "@/core/config/config";
 import { useAtomValue } from "jotai";
 import { ImageViewer, CsvViewer, AudioViewer, VideoViewer } from "./renderers";
 import { isWasm } from "@/core/wasm/utils";
+import { copyToClipboard } from "@/utils/copy";
 
 interface Props {
   file: FileInfo;
@@ -138,8 +139,8 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
           <Tooltip content="Copy contents to clipboard">
             <Button
               size="small"
-              onClick={() => {
-                navigator.clipboard.writeText(internalValue);
+              onClick={async () => {
+                await copyToClipboard(internalValue);
               }}
             >
               <CopyIcon />

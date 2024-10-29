@@ -8,6 +8,7 @@ import { isOutputEmpty } from "@/core/cells/outputs";
 import type { CellRuntimeState } from "@/core/cells/types";
 import { sendRun } from "@/core/network/requests";
 import { useEventListener } from "@/hooks/useEventListener";
+import { copyToClipboard } from "@/utils/copy";
 import { Logger } from "@/utils/Logger";
 import { useAtomValue } from "jotai";
 import { selectAtom } from "jotai/utils";
@@ -107,7 +108,7 @@ export const MarimoOutputWrapper: React.FC<Props> = ({
         <IconButton
           tooltip="Copy code"
           icon={<CopyIcon className="size-3" />}
-          action={() => navigator.clipboard.writeText(codeCallback())}
+          action={() => copyToClipboard(codeCallback())}
         />
         <IconButton
           tooltip="Re-run cell"

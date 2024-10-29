@@ -16,6 +16,7 @@ import { Tooltip } from "../ui/tooltip";
 import { Constants } from "@/core/constants";
 import { exportAsHTML } from "@/core/network/requests";
 import { VirtualFileTracker } from "@/core/static/virtual-file-tracker";
+import { copyToClipboard } from "@/utils/copy";
 
 const BASE_URL = "https://static.marimo.app";
 
@@ -142,8 +143,8 @@ export const ShareStaticNotebookModal: React.FC<{
             aria-label="Save"
             variant="default"
             type="submit"
-            onClick={() => {
-              navigator.clipboard.writeText(url);
+            onClick={async () => {
+              await copyToClipboard(url);
             }}
           >
             Create
@@ -157,9 +158,9 @@ export const ShareStaticNotebookModal: React.FC<{
 const CopyButton = (props: { text: string }) => {
   const [copied, setCopied] = React.useState(false);
 
-  const copy = Events.stopPropagation((e) => {
+  const copy = Events.stopPropagation(async (e) => {
     e.preventDefault();
-    navigator.clipboard.writeText(props.text);
+    await copyToClipboard(props.text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   });

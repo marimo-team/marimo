@@ -7,6 +7,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { CheckIcon, CopyIcon, Loader2Icon, XIcon } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
+import { copyToClipboard } from "@/utils/copy";
 
 type Step =
   | "signedIn"
@@ -133,11 +134,11 @@ export const CopilotConfig = memo(() => {
                 <strong className="ml-2">{localData?.code}</strong>
                 <CopyIcon
                   className="ml-2 cursor-pointer opacity-60 hover:opacity-100 h-3 w-3"
-                  onClick={() => {
+                  onClick={async () => {
                     if (!localData) {
                       return;
                     }
-                    navigator.clipboard.writeText(localData.code);
+                    await copyToClipboard(localData.code);
                     toast({
                       description: "Copied to clipboard",
                     });

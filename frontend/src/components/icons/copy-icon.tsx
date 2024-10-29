@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Tooltip } from "../ui/tooltip";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
+import { copyToClipboard } from "@/utils/copy";
 
 interface Props {
   value: string;
@@ -19,8 +20,8 @@ export const CopyClipboardIcon: React.FC<Props> = ({
 }) => {
   const [isCopied, setIsCopied] = useState(false);
 
-  const handleCopy = Events.stopPropagation(() => {
-    navigator.clipboard.writeText(value).then(() => {
+  const handleCopy = Events.stopPropagation(async () => {
+    await copyToClipboard(value).then(() => {
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
     });
