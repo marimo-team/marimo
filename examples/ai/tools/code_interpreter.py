@@ -18,6 +18,7 @@ def __():
     import marimo as mo
     import ell
     import textwrap
+
     return ell, mo, textwrap
 
 
@@ -35,7 +36,9 @@ def __(mo):
 
 @app.cell(hide_code=True)
 def __(mo):
-    backend = mo.ui.dropdown(["ollama", "openai"], label="Backend", value="ollama")
+    backend = mo.ui.dropdown(
+        ["ollama", "openai"], label="Backend", value="openai"
+    )
     backend
     return (backend,)
 
@@ -56,15 +59,6 @@ def __(backend, mo):
     return input_key, openai, os, os_key
 
 
-@app.cell
-def __(openai):
-    client = openai.Client(
-        api_key="ollama",
-        base_url="http://localhost:11434/v1",
-    )
-    return (client,)
-
-
 @app.cell(hide_code=True)
 def __(backend, input_key, mo, os_key):
     def _get_open_ai_client():
@@ -81,7 +75,6 @@ def __(backend, input_key, mo, os_key):
 
         return openai.Client(api_key=openai_key)
 
-
     def _get_ollama_client():
         import openai
 
@@ -90,8 +83,7 @@ def __(backend, input_key, mo, os_key):
             base_url="http://localhost:11434/v1",
         )
 
-
-    _client = (
+    client = (
         _get_ollama_client()
         if backend.value == "ollama"
         else _get_open_ai_client()
@@ -116,7 +108,9 @@ def __():
             if len(stmts) > 1:
                 exec(
                     compile(
-                        ast.Module(body=stmts[:-1]), filename="<ast>", mode="exec"
+                        ast.Module(body=stmts[:-1]),
+                        filename="<ast>",
+                        mode="exec",
                     ),
                     globals,
                     locals,
@@ -134,6 +128,7 @@ def __():
         else:
             # otherwise we just execute the entire code
             return exec(script, globals, locals)
+
     return (exec_with_result,)
 
 
@@ -141,7 +136,6 @@ def __():
 def __(ell, exec_with_result, mo):
     def code_fence(code):
         return f"```python\n\n{code}\n\n```"
-
 
     @ell.tool()
     def execute_code(code: str):
@@ -159,6 +153,7 @@ def __(ell, exec_with_result, mo):
                 code_fence(result if result is not None else output),
             ]
             return mo.md("\n\n".join(results))
+
     return code_fence, execute_code
 
 
@@ -174,12 +169,12 @@ def __(client, ell, execute_code, mo, model):
             for message in messages
         ]
 
-
     def my_model(messages, config):
         response = custom_chatbot(messages, config)
         if response.tool_calls:
             return response.tool_calls[0]()
         return mo.md(response.text)
+
     return custom_chatbot, my_model
 
 
