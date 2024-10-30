@@ -140,9 +140,9 @@ export function handleRemoveUIElements(
   // This removes the element from the registry to (1) clean-up
   // memory and (2) make sure that the old value doesn't get re-used
   // if the same cell-id is later reused for another element.
-  const cell_id = data.cell_id as CellId;
-  UI_ELEMENT_REGISTRY.removeElementsByCell(cell_id);
-  VirtualFileTracker.INSTANCE.removeForCellId(cell_id);
+  const cellId = data.cell_id as CellId;
+  UI_ELEMENT_REGISTRY.removeElementsByCell(cellId);
+  VirtualFileTracker.INSTANCE.removeForCellId(cellId);
 }
 
 export function handleCellOperation(

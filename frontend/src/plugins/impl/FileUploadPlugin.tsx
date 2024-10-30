@@ -174,7 +174,7 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
 
   const uploadedFiles = (
     <ul>
-      {value.map(([fileName, _]) => (
+      {value.map(([fileName]) => (
         <li key={fileName}>{fileName}</li>
       ))}
     </ul>

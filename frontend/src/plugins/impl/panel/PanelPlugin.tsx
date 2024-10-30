@@ -224,11 +224,11 @@ const PanelSlot = (props: Props) => {
         ...renderJson,
         roots: {},
       };
-      for (const model_id of Object.keys(renderJson.roots)) {
-        const root_id = renderJson.roots[model_id];
+      for (const modelId of Object.keys(renderJson.roots)) {
+        const rootId = renderJson.roots[modelId];
         if (ref.current) {
-          const el = ref.current.querySelector(`#${root_id}`);
-          renderItem.roots[model_id] = el as HTMLElement | null;
+          const el = ref.current.querySelector(`#${rootId}`);
+          renderItem.roots[modelId] = el as HTMLElement | null;
         }
       }
       const modelId = Object.keys(renderItem.roots)[0];

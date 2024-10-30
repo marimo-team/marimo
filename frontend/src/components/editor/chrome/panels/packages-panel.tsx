@@ -26,6 +26,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/utils/cn";
 import { Kbd } from "@/components/ui/kbd";
 import { Events } from "@/utils/events";
+import { copyToClipboard } from "@/utils/copy";
 
 export const PackagesPanel: React.FC = () => {
   const [config] = useUserConfig();
@@ -212,8 +213,8 @@ const PackagesList: React.FC<{
           <TableRow
             key={item.name}
             className="group"
-            onClick={() => {
-              navigator.clipboard.writeText(`${item.name}==${item.version}`);
+            onClick={async () => {
+              await copyToClipboard(`${item.name}==${item.version}`);
               toast({
                 title: "Copied to clipboard",
               });

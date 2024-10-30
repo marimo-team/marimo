@@ -4,7 +4,7 @@ import { getAppUrl } from "../playwright.config";
 import { takeScreenshot } from "./helper";
 import { fileURLToPath } from "node:url";
 
-const __filename = fileURLToPath(import.meta.url);
+const _filename = fileURLToPath(import.meta.url);
 
 const appUrl = getAppUrl("components.py");
 test.beforeEach(async ({ page }, info) => {
@@ -47,7 +47,7 @@ test("page renders read only view in read mode", async ({ page }) => {
   // Can see output
   await expect(page.locator("h1").getByText("UI Elements")).toBeVisible();
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });
 
 test("button", async ({ page }) => {
@@ -64,7 +64,7 @@ test("button", async ({ page }) => {
   // Verify output
   await helper.verifyOutput("1");
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });
 
 test("checkbox", async ({ page }) => {
@@ -85,7 +85,7 @@ test("checkbox", async ({ page }) => {
   // Verify output
   await helper.verifyOutput("False");
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });
 
 test("date", async ({ page }) => {
@@ -99,7 +99,7 @@ test("date", async ({ page }) => {
   // Verify output
   await helper.verifyOutput("2020-01-20");
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });
 
 test("dropdown", async ({ page }) => {
@@ -117,7 +117,7 @@ test("dropdown", async ({ page }) => {
   // Verify output
   await helper.verifyOutput("b");
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });
 
 test("file button", async ({ page }) => {
@@ -130,7 +130,7 @@ test("file button", async ({ page }) => {
   // Verify output
   await helper.verifyOutput("None");
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });
 
 test("file area", async ({ page }) => {
@@ -142,7 +142,7 @@ test("file area", async ({ page }) => {
   // Verify output
   await helper.verifyOutput("None");
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });
 
 test("multiselect", async ({ page }) => {
@@ -166,7 +166,7 @@ test("multiselect", async ({ page }) => {
   // Verify output
   await helper.verifyOutput("b, c");
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });
 
 test("number", async ({ page }) => {
@@ -186,7 +186,7 @@ test("number", async ({ page }) => {
   // Verify output
   await helper.verifyOutput("5");
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });
 
 test("radio", async ({ page }) => {
@@ -204,7 +204,7 @@ test("radio", async ({ page }) => {
   // Verify output
   await helper.verifyOutput("b");
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });
 
 test("slider", async ({ page }) => {
@@ -221,7 +221,7 @@ test("slider", async ({ page }) => {
   // Verify output
   await helper.verifyOutput("6");
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });
 
 test("switch", async ({ page }) => {
@@ -242,7 +242,7 @@ test("switch", async ({ page }) => {
   // Verify output
   await helper.verifyOutput("False");
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });
 
 test("table", async ({ page }) => {
@@ -288,7 +288,7 @@ test("table", async ({ page }) => {
     { useInnerText: true },
   );
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });
 
 test("text", async ({ page }) => {
@@ -303,7 +303,7 @@ test("text", async ({ page }) => {
   // Verify output
   await helper.verifyOutput("hello");
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });
 
 test("text_area", async ({ page }) => {
@@ -318,7 +318,7 @@ test("text_area", async ({ page }) => {
   // Verify output
   await helper.verifyOutput("hello");
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });
 
 test("complex - array", async ({ page }) => {
@@ -351,7 +351,7 @@ test("complex - array", async ({ page }) => {
     { useInnerText: true },
   );
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });
 
 test("complex - batch", async ({ page }) => {
@@ -380,7 +380,7 @@ test("complex - batch", async ({ page }) => {
     { useInnerText: true },
   );
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });
 
 test("complex - dictionary", async ({ page }) => {
@@ -418,7 +418,7 @@ test("complex - dictionary", async ({ page }) => {
     { useInnerText: true },
   );
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });
 
 test("complex - form", async ({ page }) => {
@@ -441,7 +441,7 @@ test("complex - form", async ({ page }) => {
   // Verify output
   await helper.verifyOutput("something!");
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });
 
 test("complex - reused in json", async ({ page }) => {
@@ -473,7 +473,7 @@ test("complex - reused in json", async ({ page }) => {
   await expect(textbox.first()).toHaveValue("world");
   await expect(number.first()).toHaveValue("10");
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });
 
 test("complex - reused in markdown", async ({ page }) => {
@@ -505,5 +505,5 @@ test("complex - reused in markdown", async ({ page }) => {
   await expect(textbox.first()).toHaveValue("world");
   await expect(number.first()).toHaveValue("10");
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });

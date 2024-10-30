@@ -27,7 +27,7 @@ export function useSetRegisteredAction() {
     },
     unregisterAction: (shortcut: HotkeyAction) => {
       set((actions) => {
-        const { [shortcut]: _, ...rest } = actions;
+        const { [shortcut]: unused, ...rest } = actions;
         return rest;
       });
     },
