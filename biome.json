@@ -67,7 +67,7 @@
         "noParameterAssign": "off",
         "noUnusedTemplateLiteral": "error",
         "useNamingConvention": {
-          "level": "error",
+          "level": "warn",
           "options": {
             "strictCase": false,
             "conventions": [
