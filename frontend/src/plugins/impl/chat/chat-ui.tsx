@@ -206,7 +206,7 @@ export const Chatbot: React.FC<Props> = (props) => {
 
   return (
     <div
-      className="flex flex-col h-full bg-[var(--slate-1)] rounded-lg shadow border border-[var(--slate-6)] overflow-hidden"
+      className="flex flex-col h-full bg-[var(--slate-1)] rounded-lg shadow border border-[var(--slate-6)] overflow-hidden relative"
       style={{ maxHeight: props.maxHeight }}
     >
       <div className="absolute top-0 right-0 flex justify-end z-10 border border-[var(--slate-6)] bg-inherit rounded-bl-lg">
