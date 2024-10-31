@@ -267,26 +267,32 @@ export const LoadingDataTableComponent = memo(
       }
 
       // If we have sort/search/filter, use the search function
-      if (!shouldSkipSearch) {
-        const searchResults = await search<T>({
-          sort:
-            sorting.length > 0
-              ? {
-                  by: sorting[0].id,
-                  descending: sorting[0].desc,
-                }
-              : undefined,
-          query: searchQuery,
-          page_number: paginationState.pageIndex,
-          page_size: paginationState.pageSize,
-          filters: filters.flatMap((filter) => {
-            return filterToFilterCondition(
-              filter.id,
-              filter.value as ColumnFilterValue,
-            );
-          }),
-        });
+      const searchResultsPromise = search<T>({
+        sort:
+          sorting.length > 0
+            ? {
+                by: sorting[0].id,
+                descending: sorting[0].desc,
+              }
+            : undefined,
+        query: searchQuery,
+        page_number: paginationState.pageIndex,
+        page_size: paginationState.pageSize,
+        filters: filters.flatMap((filter) => {
+          return filterToFilterCondition(
+            filter.id,
+            filter.value as ColumnFilterValue,
+          );
+        }),
+      });
 
+      if (shouldSkipSearch) {
+        // We still want to run the search,
+        // so the backend knows the current state for selection
+        // see https://github.com/marimo-team/marimo/issues/2756
+        void searchResultsPromise;
+      } else {
+        const searchResults = await searchResultsPromise;
         tableData = searchResults.data;
         totalRows = searchResults.total_rows;
       }
