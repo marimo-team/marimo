@@ -53,7 +53,7 @@ def get_openai_client(config: MarimoConfig) -> "OpenAI":
     except ImportError:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
-            detail="OpenAI not installed. Run `pip install openai`",
+            detail="OpenAI not installed. Add 'openai' using the package installer in the sidebar.",
         ) from None
 
     if "ai" not in config:
@@ -91,7 +91,7 @@ def get_anthropic_client(config: MarimoConfig) -> "Client":
     except ImportError:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
-            detail="Anthropic not installed. Run `pip install anthropic`",
+            detail="Anthropic not installed. Add 'anthropic' using the package installer in the sidebar.",
         ) from None
 
     if "ai" not in config:
@@ -217,7 +217,7 @@ def get_google_client(config: MarimoConfig, model: str) -> "GenerativeModel":
             status_code=HTTPStatus.BAD_REQUEST,
             detail=(
                 "Google AI not installed. "
-                "Run `pip install google-generativeai`"
+                "Add 'google-generativeai' using the package installer in the sidebar."
             ),
         ) from None
 
