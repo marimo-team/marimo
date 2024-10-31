@@ -167,9 +167,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
                             (cellData.lastExecutionTime as Milliseconds)
                           }
                           serializedEditorState={cellData.serializedEditorState}
-                          showDeleteButton={
-                            !hasOnlyOneCell && !cellData.config.hide_code
-                          }
+                          canDelete={!hasOnlyOneCell}
                           mode={mode}
                           appClosed={connStatus.state !== WebSocketState.OPEN}
                           ref={notebook.cellHandles[cellId]}

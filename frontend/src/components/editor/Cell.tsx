@@ -110,7 +110,10 @@ export interface CellProps
   showPlaceholder: boolean;
   mode: AppMode;
   appClosed: boolean;
-  showDeleteButton: boolean;
+  /**
+   * False only when there is only one cell in the notebook.
+   */
+  canDelete: boolean;
   /**
    * If true, the cell is allowed to be focus on.
    * This is false when the app is initially loading.
@@ -144,7 +147,7 @@ const CellComponent = (
     mode,
     debuggerActive,
     appClosed,
-    showDeleteButton,
+    canDelete,
     updateCellCode,
     prepareForRun,
     createNewCell,
@@ -345,6 +348,8 @@ const CellComponent = (
 
   const HTMLId = HTMLCellId.create(cellId);
 
+  const isCellCodeShown = !cellConfig.hide_code || temporarilyVisible;
+
   // Register hotkeys on the cell instead of the code editor
   // This is in case the code editor is hidden
   useHotkeysOnElement(editing ? cellRef.current : null, {
@@ -411,7 +416,7 @@ const CellComponent = (
     },
     // only register j/k movement if the cell is hidden, so as to not
     // interfere with editing
-    ...(userConfig.keymap.preset === "vim" && cellConfig.hide_code
+    ...(userConfig.keymap.preset === "vim" && isCellCodeShown
       ? {
           j: () => {
             moveToNextCell({ cellId, before: false, noCreate: true });
@@ -511,6 +516,7 @@ const CellComponent = (
               allowFocus={allowFocus}
               id={cellId}
               code={code}
+              config={cellConfig}
               status={status}
               serializedEditorState={serializedEditorState}
               runCell={handleRun}
@@ -524,7 +530,7 @@ const CellComponent = (
               clearSerializedEditorState={clearSerializedEditorState}
               userConfig={userConfig}
               editorViewRef={editorView}
-              hidden={cellConfig.hide_code && !temporarilyVisible}
+              hidden={!isCellCodeShown}
               setTemporarilyVisible={setTemporarilyVisible}
             />
             <div className="shoulder-right z-20">
@@ -544,7 +550,7 @@ const CellComponent = (
               </div>
             </div>
             <div className="shoulder-bottom hover-action">
-              {showDeleteButton ? (
+              {canDelete && isCellCodeShown && (
                 <DeleteButton
                   appClosed={appClosed}
                   status={status}
@@ -554,7 +560,7 @@ const CellComponent = (
                     }
                   }}
                 />
-              ) : null}
+              )}
             </div>
           </div>
           {userConfig.display.cell_output === "below" && outputArea}

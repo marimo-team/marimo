@@ -40,7 +40,7 @@ import { useSplitCellCallback } from "../useSplitCell";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
-    Pick<CellData, "id" | "code" | "serializedEditorState">,
+    Pick<CellData, "id" | "code" | "serializedEditorState" | "config">,
     Pick<
       CellActions,
       | "updateCellCode"
@@ -62,6 +62,10 @@ export interface CellEditorProps
    */
   allowFocus: boolean;
   userConfig: UserConfig;
+  /**
+   * If true, the cell code is hidden.
+   * This is different from cellConfig.hide_code, since it may be temporarily shown.
+   */
   hidden?: boolean;
   /**
    * Not used by scratchpad.
@@ -74,6 +78,7 @@ const CellEditorInternal = ({
   showPlaceholder,
   allowFocus,
   id: cellId,
+  config: cellConfig,
   code,
   status,
   serializedEditorState,
@@ -137,7 +142,8 @@ const CellEditorInternal = ({
   );
 
   const toggleHideCode = useEvent(() => {
-    const nextHidden = !hidden;
+    // Use cellConfig.hide_code instead of hidden, since it may be temporarily shown
+    const nextHidden = !cellConfig.hide_code;
     // Fire-and-forget save
     void saveCellConfig({ configs: { [cellId]: { hide_code: nextHidden } } });
     updateCellConfig({ cellId, config: { hide_code: nextHidden } });
