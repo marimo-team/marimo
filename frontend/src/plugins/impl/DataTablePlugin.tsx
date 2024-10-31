@@ -255,8 +255,9 @@ export const LoadingDataTableComponent = memo(
       let tableData = props.data;
       let totalRows = props.totalRows;
 
-      // First page and no search query
-      const shouldSkipSearch =
+      // If it is just the first page and no search query,
+      // we can show the initial page.
+      const canShowInitialPage =
         searchQuery === "" &&
         paginationState.pageIndex === 0 &&
         filters.length === 0 &&
@@ -286,7 +287,7 @@ export const LoadingDataTableComponent = memo(
         }),
       });
 
-      if (shouldSkipSearch) {
+      if (canShowInitialPage) {
         // We still want to run the search,
         // so the backend knows the current state for selection
         // see https://github.com/marimo-team/marimo/issues/2756
