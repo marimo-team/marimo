@@ -82,6 +82,32 @@ def convert_to_anthropic_messages(
     return anthropic_messages
 
 
+def convert_to_groq_messages(
+    messages: List[ChatMessage],
+) -> List[Dict[Any, Any]]:
+    groq_messages: List[Dict[Any, Any]] = []
+
+    for message in messages:
+        # Currently only supports text content
+        if message.attachments:
+            # Convert attachments to text if possible
+            text_content = message.content
+            for attachment in message.attachments:
+                content_type = attachment.content_type or "text/plain"
+                if content_type.startswith("text"):
+                    text_content += "\n" + _extract_text(attachment.url)
+
+            groq_messages.append(
+                {"role": message.role, "content": text_content}
+            )
+        else:
+            groq_messages.append(
+                {"role": message.role, "content": message.content}
+            )
+
+    return groq_messages
+
+
 # Matches from google.generativeai.types import content_types
 class BlobDict(TypedDict):
     mime_type: str
