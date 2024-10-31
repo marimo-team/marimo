@@ -120,12 +120,12 @@ function truncateHead(consoleOutputs: OutputMessage[], limit: number) {
   const output = consoleOutputs[cutoff];
   if (output.mimetype === "text/plain") {
     invariant(typeof output.data === "string", "expected string");
-    const output_lines = output.data.split("\n");
-    const nLinesAfterOutput = nLines - output_lines.length;
+    const outputLines = output.data.split("\n");
+    const nLinesAfterOutput = nLines - outputLines.length;
     const nLinesToKeep = limit - nLinesAfterOutput;
     return [
       warningOutput,
-      { ...output, data: output_lines.slice(-nLinesToKeep).join("\n") },
+      { ...output, data: outputLines.slice(-nLinesToKeep).join("\n") },
       ...consoleOutputs.slice(cutoff + 1),
     ];
   }

@@ -79,26 +79,26 @@ export type ColumnFilterForType<T extends FilterType> = T extends FilterType
   : never;
 
 export function filterToFilterCondition(
-  columnId: string,
+  columnIdString: string,
   filter: ColumnFilterValue | undefined,
 ): ConditionType[] | ConditionType {
   if (!filter) {
     return [];
   }
-  const column_id = columnId as ColumnId;
+  const columnId = columnIdString as ColumnId;
   switch (filter.type) {
     case "number": {
       const conditions: ConditionType[] = [];
       if (filter.min !== undefined) {
         conditions.push({
-          column_id,
+          column_id: columnId,
           operator: ">=",
           value: filter.min,
         });
       }
       if (filter.max !== undefined) {
         conditions.push({
-          column_id,
+          column_id: columnId,
           operator: "<=",
           value: filter.max,
         });
@@ -107,7 +107,7 @@ export function filterToFilterCondition(
     }
     case "text":
       return {
-        column_id,
+        column_id: columnId,
         operator: "contains",
         value: filter.text,
       };
@@ -115,14 +115,14 @@ export function filterToFilterCondition(
       const conditions: ConditionType[] = [];
       if (filter.min !== undefined) {
         conditions.push({
-          column_id,
+          column_id: columnId,
           operator: ">=",
           value: filter.min.toISOString(),
         });
       }
       if (filter.max !== undefined) {
         conditions.push({
-          column_id,
+          column_id: columnId,
           operator: "<=",
           value: filter.max.toISOString(),
         });
@@ -133,14 +133,14 @@ export function filterToFilterCondition(
       const conditions: ConditionType[] = [];
       if (filter.min !== undefined) {
         conditions.push({
-          column_id,
+          column_id: columnId,
           operator: ">=",
           value: filter.min.toISOString(),
         });
       }
       if (filter.max !== undefined) {
         conditions.push({
-          column_id,
+          column_id: columnId,
           operator: "<=",
           value: filter.max.toISOString(),
         });
@@ -151,14 +151,14 @@ export function filterToFilterCondition(
       const conditions: ConditionType[] = [];
       if (filter.min !== undefined) {
         conditions.push({
-          column_id,
+          column_id: columnId,
           operator: ">=",
           value: filter.min.toISOString(),
         });
       }
       if (filter.max !== undefined) {
         conditions.push({
-          column_id,
+          column_id: columnId,
           operator: "<=",
           value: filter.max.toISOString(),
         });
@@ -168,13 +168,13 @@ export function filterToFilterCondition(
     case "boolean":
       if (filter.value) {
         return {
-          column_id,
+          column_id: columnId,
           operator: "is_true",
         };
       }
       if (!filter.value) {
         return {
-          column_id,
+          column_id: columnId,
           operator: "is_false",
         };
       }
@@ -182,7 +182,7 @@ export function filterToFilterCondition(
       return [];
     case "select":
       return {
-        column_id,
+        column_id: columnId,
         operator: "in",
         value: filter.options,
       };

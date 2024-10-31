@@ -200,6 +200,9 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
     or functions
     - `freeze_columns_left`: list of column names to freeze on the left
     - `freeze_columns_right`: list of column names to freeze on the right
+    - `text_justify_columns`: dictionary of column names to text justification
+      options: `left`, `center`, `right`
+    - `wrapped_columns`: list of column names to wrap
     - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
@@ -223,6 +226,10 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         ] = None,
         freeze_columns_left: Optional[Sequence[str]] = None,
         freeze_columns_right: Optional[Sequence[str]] = None,
+        text_justify_columns: Optional[
+            Dict[str, Literal["left", "center", "right"]]
+        ] = None,
+        wrapped_columns: Optional[List[str]] = None,
         show_download: bool = True,
         *,
         label: str = "",
@@ -335,6 +342,25 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
                             f"Column '{column}' not found in table."
                         )
 
+        if text_justify_columns:
+            valid_justifications = {"left", "center", "right"}
+            column_names = self._manager.get_column_names()
+
+            for column, justify in text_justify_columns.items():
+                if column not in column_names:
+                    raise ValueError(f"Column '{column}' not found in table.")
+                if justify not in valid_justifications:
+                    raise ValueError(
+                        f"Invalid justification '{justify}' for column '{column}'. "
+                        f"Must be one of: {', '.join(valid_justifications)}."
+                    )
+
+        if wrapped_columns:
+            column_names = self._manager.get_column_names()
+            for column in wrapped_columns:
+                if column not in column_names:
+                    raise ValueError(f"Column '{column}' not found in table.")
+
         super().__init__(
             component_name=table._name,
             label=label,
@@ -355,6 +381,8 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
                 "row-headers": self._manager.get_row_headers(),
                 "freeze-columns-left": freeze_columns_left,
                 "freeze-columns-right": freeze_columns_right,
+                "text-justify-columns": text_justify_columns,
+                "wrapped-columns": wrapped_columns,
             },
             on_change=on_change,
             functions=(

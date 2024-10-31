@@ -4,7 +4,7 @@ import { getAppUrl } from "../playwright.config";
 import { takeScreenshot } from "./helper";
 import { fileURLToPath } from "node:url";
 
-const __filename = fileURLToPath(import.meta.url);
+const _filename = fileURLToPath(import.meta.url);
 
 test("it can clear and append output", async ({ page }) => {
   const appUrl = getAppUrl("output.py//run");
@@ -29,5 +29,5 @@ test("it can clear and append output", async ({ page }) => {
   await expect(page.getByText("To be replaced.")).not.toBeVisible();
   await expect(page.getByText("Replaced by index!")).toBeVisible();
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });

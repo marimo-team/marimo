@@ -19,6 +19,7 @@ import {
 } from "../ui/dialog";
 import { CopyIcon, DownloadIcon } from "lucide-react";
 import { createShareableLink } from "@/core/wasm/share";
+import { copyToClipboard } from "@/utils/copy";
 
 export const StaticBanner: React.FC = () => {
   if (!isStaticNotebook()) {
@@ -127,8 +128,8 @@ const StaticBannerDialog = ({ code }: { code: string }) => {
           <Button
             data-testid="copy-static-notebook-dialog-button"
             variant="secondary"
-            onClick={() => {
-              window.navigator.clipboard.writeText(code);
+            onClick={async () => {
+              await copyToClipboard(code);
               toast({ title: "Copied to clipboard" });
             }}
           >

@@ -8,7 +8,7 @@ import {
 import { maybeRestartKernel, takeScreenshot } from "./helper";
 import { fileURLToPath } from "node:url";
 
-const __filename = fileURLToPath(import.meta.url);
+const _filename = fileURLToPath(import.meta.url);
 
 async function gotoPage(
   app: ApplicationNames,
@@ -47,7 +47,7 @@ test("page renders edit feature in edit mode", async ({ context }) => {
   // Can see output
   await expect(page.locator("h1").getByText("Hello Marimo!")).toBeVisible();
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });
 
 test.skip("can bring up the find/replace dialog", async ({ context }) => {
@@ -63,7 +63,7 @@ test.skip("can bring up the find/replace dialog", async ({ context }) => {
   // Has placeholder text "Find"
   await expect(page.locator("[placeholder='Find']")).toBeVisible();
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });
 
 test("can toggle to presenter mode", async ({ context }) => {
@@ -88,7 +88,7 @@ test("can toggle to presenter mode", async ({ context }) => {
   await expect(page.locator("h1").getByText("Hello Marimo!")).toBeVisible();
   await expect(page.getByText("# Hello Marimo!")).toBeVisible();
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });
 
 test("page renders read only view in read mode", async ({ context }) => {
@@ -102,5 +102,5 @@ test("page renders read only view in read mode", async ({ context }) => {
   // Can see output
   await expect(page.locator("h1").getByText("UI Elements")).toBeVisible();
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });

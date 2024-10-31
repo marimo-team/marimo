@@ -66,6 +66,37 @@
         "noNonNullAssertion": "off",
         "noParameterAssign": "off",
         "noUnusedTemplateLiteral": "error",
+        "useNamingConvention": {
+          "level": "warn",
+          "options": {
+            "strictCase": false,
+            "conventions": [
+              {
+                "selector": { "kind": "const", "scope": "global" },
+                "match": ".*"
+              },
+              {
+                "selector": { "kind": "let", "scope": "global" },
+                "match": ".*"
+              },
+              {
+                "selector": { "kind": "function" },
+                "formats": ["camelCase", "PascalCase"]
+              },
+              {
+                "selector": { "kind": "variable" },
+                "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
+              },
+              {
+                "selector": { "kind": "typeLike" },
+                "formats": ["PascalCase", "CONSTANT_CASE", "camelCase"]
+              },
+              {
+                "match": ".*"
+              }
+            ]
+          }
+        },
         "useConsistentArrayType": "off",
         "useImportType": "error",
         "useNodejsImportProtocol": "error",

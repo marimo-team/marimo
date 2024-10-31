@@ -12,6 +12,7 @@ import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/python";
 import { sql } from "@codemirror/lang-sql";
+import { copyToClipboard } from "@/utils/copy";
 
 const pythonExtensions = [
   customPythonLanguageSupport(),
@@ -69,8 +70,8 @@ export const ReadonlyCode = memo(
 ReadonlyCode.displayName = "ReadonlyCode";
 
 const CopyButton = (props: { text: string }) => {
-  const copy = Events.stopPropagation(() => {
-    navigator.clipboard.writeText(props.text);
+  const copy = Events.stopPropagation(async () => {
+    await copyToClipboard(props.text);
     toast({ title: "Copied to clipboard" });
   });
 

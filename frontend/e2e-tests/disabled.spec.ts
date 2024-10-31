@@ -4,7 +4,7 @@ import { getAppUrl, resetFile } from "../playwright.config";
 import { maybeRestartKernel, takeScreenshot } from "./helper";
 import { fileURLToPath } from "node:url";
 
-const __filename = fileURLToPath(import.meta.url);
+const _filename = fileURLToPath(import.meta.url);
 
 const appUrl = getAppUrl("disabled_cells.py");
 test.beforeEach(async ({ page }, info) => {
@@ -112,5 +112,5 @@ test("disabled cells", async ({ page }) => {
   // Check the status
   await expect(page.getByTitle("This cell is disabled")).toHaveCount(0);
 
-  await takeScreenshot(page, __filename);
+  await takeScreenshot(page, _filename);
 });

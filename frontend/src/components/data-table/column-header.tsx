@@ -38,6 +38,7 @@ import { DATA_TYPE_ICON } from "../datasets/icons";
 import { formattingExample } from "./column-formatting/feature";
 import { PinLeftIcon, PinRightIcon } from "@radix-ui/react-icons";
 import { NAMELESS_COLUMN_PREFIX } from "./columns";
+import { copyToClipboard } from "@/utils/copy";
 
 interface DataTableColumnHeaderProps<TData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {
@@ -245,8 +246,8 @@ export const DataTableColumnHeader = <TData, TValue>({
         {renderSorts()}
         {!column.id.startsWith(NAMELESS_COLUMN_PREFIX) && (
           <DropdownMenuItem
-            onClick={() =>
-              navigator.clipboard.writeText(
+            onClick={async () =>
+              await copyToClipboard(
                 typeof header === "string" ? header : column.id,
               )
             }

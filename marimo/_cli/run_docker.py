@@ -19,6 +19,8 @@ LOGGER = _loggers.marimo_logger()
 def prompt_run_in_docker_container(name: str | None) -> bool:
     if GLOBAL_SETTINGS.IN_SECURE_ENVIRONMENT:
         return False
+    if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
+        return False
 
     # Only prompt for remote files
     if name is None:

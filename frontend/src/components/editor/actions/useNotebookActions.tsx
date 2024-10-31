@@ -63,6 +63,7 @@ import { useCopyNotebook } from "./useCopyNotebook";
 import { isWasm } from "@/core/wasm/utils";
 import { settingDialogAtom } from "@/components/app-config/app-config-button";
 import { renderShortcut } from "@/components/shortcuts/renderShortcut";
+import { copyToClipboard } from "@/utils/copy";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -116,7 +117,7 @@ export function useNotebookActions() {
           handle: async () => {
             const code = await readCode();
             const url = createShareableLink({ code: code.contents });
-            window.navigator.clipboard.writeText(url);
+            await copyToClipboard(url);
             toast({
               title: "Copied",
               description: "Link copied to clipboard.",
@@ -300,7 +301,7 @@ export function useNotebookActions() {
       hidden: !filename,
       handle: async () => {
         const code = await readCode();
-        navigator.clipboard.writeText(code.contents);
+        await copyToClipboard(code.contents);
         toast({
           title: "Copied",
           description: "Code copied to clipboard.",

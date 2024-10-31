@@ -34,13 +34,10 @@ class dictionary(_batch_base):
     elements: interacting with the dictionary will _not_ update the original
     elements, and vice versa.
 
-    This allows you to reuse multiple UI components (e.g., sliders, text
-    inputs, or date pickers) independently, ensuring they don’t interfere with
-    each other when managed through `mo.ui.dictionary`.
-
-    However, if you use a regular Python dictionary, all references remain
-    synchronized, and changes to one element propagate across all linked
-    instances.
+    The main reason to use mo.ui.dictionary is for reactive execution — when you
+    interact with an element in a mo.ui.dictionary, all cells that reference the
+    mo.ui.dictionary run automatically, just like all other ui elements. When you
+    use a regular dictionary, you don't get this reactivity.
 
     **Examples.**
 

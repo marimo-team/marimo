@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.2.2"
+__generated_with = "0.9.14"
 app = marimo.App()
 
 
@@ -22,7 +22,7 @@ def __(mo):
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md("## `marimo.ui`")
+    mo.md("""## marimo.ui""")
     return
 
 
@@ -38,7 +38,7 @@ def __(mo):
         For example, here's a `slider`: {slider}
         """
     )
-    return slider,
+    return (slider,)
 
 
 @app.cell
@@ -96,21 +96,110 @@ def __(mo, slider):
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md(
-        """
-        ### Simple elements
-        """
-    )
+    mo.md("""### Simple elements""")
     return
 
 
 @app.cell(hide_code=True)
+def __(mo):
+    mo.md("""marimo has a [large library of simple UI elements](https://docs.marimo.io/api/inputs/index.html). Here are a just few examples:""")
+    return
+
+
+@app.cell
+def __(mo):
+    number = mo.ui.number(start=1, stop=10, step=1)
+    number
+    return (number,)
+
+
+@app.cell
+def __(number):
+    number.value
+    return
+
+
+@app.cell
+def __(mo):
+    checkbox = mo.ui.checkbox(label="checkbox")
+    checkbox
+    return (checkbox,)
+
+
+@app.cell
+def __(checkbox):
+    checkbox.value
+    return
+
+
+@app.cell
+def __(mo):
+    text = mo.ui.text(placeholder="type some text ...")
+    text
+    return (text,)
+
+
+@app.cell
+def __(text):
+    text.value
+    return
+
+
+@app.cell
+def __(mo):
+    text_area = mo.ui.text_area(placeholder="type some text ...")
+    text_area
+    return (text_area,)
+
+
+@app.cell
+def __(text_area):
+    text_area.value
+    return
+
+
+@app.cell
+def __(mo):
+    dropdown = mo.ui.dropdown(["a", "b", "c"])
+    dropdown
+    return (dropdown,)
+
+
+@app.cell
+def __(dropdown):
+    dropdown.value
+    return
+
+
+@app.cell
+def __(mo):
+    run_button = mo.ui.run_button(label="click me")
+    run_button
+    return (run_button,)
+
+
+@app.cell
+def __(run_button):
+    "Run button was clicked!" if run_button.value else "Click the run button!"
+    return
+
+
+@app.cell
+def __(mo):
+    file_upload = mo.ui.file(kind="area")
+    file_upload
+    return (file_upload,)
+
+
+@app.cell
+def __(file_upload):
+    file_upload.value
+    return
+
+
+@app.cell
 def __(basic_ui_elements, mo):
-    mo.md(
-        f"""
-        marimo has a large library of simple UI elements: {basic_ui_elements}
-        """
-    )
+    mo.md(f"To see more examples, use this dropdown: {basic_ui_elements}")
     return
 
 
@@ -118,7 +207,7 @@ def __(basic_ui_elements, mo):
 def __(basic_ui_elements, construct_element, show_element):
     selected_element = construct_element(basic_ui_elements.value)
     show_element(selected_element)
-    return selected_element,
+    return (selected_element,)
 
 
 @app.cell
@@ -134,18 +223,78 @@ def __(basic_ui_elements, documentation):
 
 
 @app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        """
+        ### Composite elements
+
+            Composite elements are advanced elements 
+            let you build UI elements out of other UI elements. 
+
+            Use these powerful elements to logically group together related elements, 
+            create a dynamic set of UI elements, or reduce the number of global 
+            variables in your program.
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        r"""
+        This first example shows how to create an array of UI elements using `mo.ui.array`.
+        When you interact with an element in the array, all cells that reference the
+        array are reactively run. If you instead used a regular Python list, cells referring to the list would _not_ be run.
+        """
+    )
+    return
+
+
+@app.cell
+def __(mo):
+    array = mo.ui.array(
+        [mo.ui.text(), mo.ui.slider(start=1, stop=10), mo.ui.date()]
+    )
+    array
+    return (array,)
+
+
+@app.cell
+def __(array):
+    array.value
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(r"""marimo also comes with `mo.ui.dictionary`, which is analogous to `mo.ui.array`""")
+    return
+
+
+@app.cell
+def __(mo):
+    dictionary = mo.ui.dictionary(
+        {
+            "text": mo.ui.text(),
+            "slider": mo.ui.slider(start=1, stop=10),
+            "date": mo.ui.date(),
+        }
+    )
+    dictionary
+    return (dictionary,)
+
+
+@app.cell
+def __(dictionary):
+    dictionary.value
+    return
+
+
+@app.cell(hide_code=True)
 def __(composite_elements, mo):
     mo.md(
-        f"""### Composite elements
-
-        Composite elements are advanced elements 
-        let you build UI elements out of other UI elements.
-        Use these powerful elements to logically group together related elements, 
-        create a dynamic set of UI elements, or reduce the number of global 
-        variables in your program.
-
-        Select a composite element: {composite_elements}
-        """
+        f"To see additional composite elements, use this dropdown: {composite_elements}"
     )
     return
 
@@ -154,7 +303,7 @@ def __(composite_elements, mo):
 def __(composite_elements, construct_element, show_element):
     composite_element = construct_element(composite_elements.value)
     show_element(composite_element)
-    return composite_element,
+    return (composite_element,)
 
 
 @app.cell
@@ -169,352 +318,18 @@ def __(composite_elements, documentation):
     return
 
 
-@app.cell
-def __(mo):
-    mo.md("## State")
-    return
-
-
 @app.cell(hide_code=True)
 def __(mo):
     mo.md(
-        """
-        **Heads up!**
+        r"""
+        ### Building custom elements
 
-        The rest of this tutorial covers state, an advanced topic. Feel free
-        to return here later, if or when you find yourself
-        limited in building interactive stateful apps.
-        """
-    ).callout(kind="warn")
-    return
-
-
-@app.cell(hide_code=True)
-def __(mo):
-    mo.md(
-        """
-        You can build powerful interactive notebooks and apps using just
-        `mo.ui` and reactivity.
-
-        Sometimes, however, you might want interactions to mutate **state**. 
-        Maybe you're building a checklist, and you want to maintain a list
-        of action items. Or maybe you want to tie two different UI elements, so 
-        that updating one updates the other. 
-
-        For these and other cases, marimo provides the function `mo.state`, which
-        creates state returns a getter function and a setter function. When you 
-        call the setter function in one cell, all other 
-        cells that reference the getter via a global variable are automatically 
-        run (similar to UI elements).
+        marimo supports third-party UI elements through anywidget — this lets you build
+        your own interactive UI elements, or use widgets built by others in the
+        community. To learn more, [see our
+        docs](https://docs.marimo.io/guides/integrating_with_marimo/custom_ui_plugins.html).
         """
     )
-    return
-
-
-@app.cell
-def __(mo):
-    mo.accordion({"Documentation on `mo.state`": mo.doc(mo.state)})
-    return
-
-
-@app.cell(hide_code=True)
-def __(mo):
-    mo.md(
-        """
-        ### Creating state
-
-        `mo.state` takes an initial state value as its argument, and returns
-
-        - a function that returns the state value;
-        - a function that updates the state value.
-
-        For exaxmple,
-
-        ```python
-        get_counter, set_counter = mo.state(0)
-        ```
-        """
-    )
-    return
-
-
-@app.cell
-def __(mo):
-    get_counter, set_counter = mo.state(0)
-    return get_counter, set_counter
-
-
-@app.cell(hide_code=True)
-def __(mo):
-    mo.accordion(
-        {
-            "Tip: assign state getters to global variables": (
-                """
-                Calling a state's setter function will only 
-                trigger reactive execution if the corresponding getter is 
-                assigned to and referenced via a global variable.
-                """
-            ),
-            "Tip: use state sparingly": (
-                """
-                You can get far using just `mo.ui`, without state. That said,
-                judiciously using state can simplify the implementation of highly 
-                interactive notebooks/apps, and also enables new use cases.
-                """
-            ),
-        }
-    )
-    return
-
-
-@app.cell
-def __(get_counter, mo):
-    mo.md(
-        f"""
-        Access the value of the state via its getter: `get_counter()` 
-        returned **{get_counter()}**
-        """
-    )
-    return
-
-
-@app.cell(hide_code=True)
-def __(mo):
-    mo.md(
-        """
-        ### Setting State
-
-        Set an element's state by calling its setter function.
-
-        - Call it with a new value: `set_counter(1)`
-        - Call it with a function that takes the current value and returns a new 
-          one: `set_counter(lambda count: count + 1)`
-
-        **State updates are reactive.** When you call a state's setter in one
-        cell, _all other cells that reference the state getter via a global 
-        variable_ are automatically
-        run with the new state value. This is similar to how interacting with
-        a UI element automatically runs all cells that use the element.
-        """
-    )
-    return
-
-
-@app.cell(hide_code=True)
-def __(mo):
-    mo.md(
-        """
-        **The `on_change` callback.** Every UI element takes an optional 
-        `on_change` callback, a function
-        that takes the new value of the element and does anything with it. You can
-        use the setter function in an `on_change` callback to mutate state.
-
-        **🌊 Try it!** Click the button below and watch what happens.
-        """
-    )
-    return
-
-
-@app.cell
-def __(mo, set_counter):
-    increment = mo.ui.button(
-        label="increment",
-        on_change=lambda _: set_counter(lambda v: v + 1),
-    )
-
-    decrement = mo.ui.button(
-        label="decrement",
-        on_change=lambda _: set_counter(lambda v: v - 1),
-    )
-
-    mo.hstack([increment, decrement], justify="center")
-    return decrement, increment
-
-
-@app.cell
-def __(get_counter, mo):
-    mo.md(
-        f"""
-        The counter's current value is **{get_counter()}**!
-
-        This cell runs automatically on button click, even though it 
-        doesn't reference either button. 
-        """
-    )
-    return
-
-
-@app.cell(hide_code=True)
-def __(mo):
-    mo.accordion(
-        {
-            "Tip: no self-loops": (
-                """
-                Calling a state's setter in one cell won't ever cause that same
-                cell to re-execute, even if it reads that state getter. This 
-                prevents accidental infinite loops and makes some things, like
-                tying elements, easier."
-                """
-            )
-        }
-    )
-    return
-
-
-@app.cell(hide_code=True)
-def __(mo):
-    mo.md("### Tied elements")
-    return
-
-
-@app.cell(hide_code=True)
-def __(mo):
-    mo.md(
-        """
-        Use state to tie two UI elements to the same value.
-        """
-    )
-    return
-
-
-@app.cell
-def __(mo):
-    get_shared_state, set_shared_state = mo.state(0)
-    return get_shared_state, set_shared_state
-
-
-@app.cell
-def __(get_shared_state, mo, set_shared_state):
-    x = mo.ui.slider(
-        0,
-        10,
-        value=get_shared_state(),
-        on_change=set_shared_state,
-        label="$x$:",
-    )
-    return x,
-
-
-@app.cell
-def __(get_shared_state, mo, set_shared_state):
-    x_plus_one = mo.ui.number(
-        1,
-        11,
-        value=get_shared_state() + 1,
-        on_change=lambda v: set_shared_state(v - 1),
-        label="$x + 1$:",
-    )
-    return x_plus_one,
-
-
-@app.cell
-def __(x, x_plus_one):
-    [x, x_plus_one]
-    return
-
-
-@app.cell(hide_code=True)
-def __(mo):
-    mo.accordion(
-        {
-            "Tip: tying elements and cycles": (
-                """
-                To tie elements, you must `mo.state`, and the tied elements
-                must be created in different cells (since self-loops with state
-                are not allowed).
-                """
-            )
-        }
-    )
-    return
-
-
-@app.cell(hide_code=True)
-def __(mo):
-    mo.md(
-        """
-        ### Example: Task list
-        """
-    )
-    return
-
-
-@app.cell
-def __(dataclass, mo):
-    @dataclass
-    class Task:
-        name: str
-        done: bool = False
-
-    get_tasks, set_tasks = mo.state([])
-    task_list_mutated, set_task_list_mutated = mo.state(False)
-    return (
-        Task,
-        get_tasks,
-        set_task_list_mutated,
-        set_tasks,
-        task_list_mutated,
-    )
-
-
-@app.cell
-def __(mo, task_list_mutated):
-    task_list_mutated
-
-    task_entry_box = mo.ui.text(placeholder="a task ...")
-    return task_entry_box,
-
-
-@app.cell
-def __(Task, mo, set_task_list_mutated, set_tasks, task_entry_box):
-    def add_task():
-        if task_entry_box.value:
-            set_tasks(lambda v: v + [Task(task_entry_box.value)])
-            set_task_list_mutated(True)
-
-    def clear_tasks():
-        set_tasks(lambda v: [task for task in v if not task.done])
-        set_task_list_mutated(True)
-
-    add_task_button = mo.ui.button(
-        label="add task",
-        on_change=lambda _: add_task(),
-    )
-
-    clear_tasks_button = mo.ui.button(
-        label="clear completed tasks", on_change=lambda _: clear_tasks()
-    )
-    return add_task, add_task_button, clear_tasks, clear_tasks_button
-
-
-@app.cell
-def __(Task, get_tasks, mo, set_tasks):
-    task_list = mo.ui.array(
-        [
-            mo.ui.checkbox(value=task.done, label=task.name)
-            for task in get_tasks()
-        ],
-        label="tasks",
-        on_change=lambda v: set_tasks(
-            lambda tasks: [
-                Task(task.name, done=v[i]) for i, task in enumerate(tasks)
-            ]
-        ),
-    )
-    return task_list,
-
-
-@app.cell
-def __(add_task_button, clear_tasks_button, mo, task_entry_box):
-    mo.hstack(
-        [task_entry_box, add_task_button, clear_tasks_button], justify="start"
-    )
-    return
-
-
-@app.cell
-def __(mo, task_list):
-    mo.as_html(task_list) if task_list.value else mo.md("No tasks! 🎉")
     return
 
 
@@ -544,8 +359,9 @@ def __(mo):
                 }.items()
             )
         ),
+        allow_select_none=True
     )
-    return composite_elements,
+    return (composite_elements,)
 
 
 @app.cell
@@ -573,7 +389,7 @@ def __(mo):
             )
         ),
     )
-    return basic_ui_elements,
+    return (basic_ui_elements,)
 
 
 @app.cell
@@ -656,7 +472,7 @@ def __(mo):
         elif value == mo.ui.text_area:
             return mo.ui.text_area()
         return None
-    return construct_element,
+    return (construct_element,)
 
 
 @app.cell
@@ -664,7 +480,7 @@ def __(mo):
     def show_element(element):
         if element is not None:
             return mo.hstack([element], justify="center")
-    return show_element,
+    return (show_element,)
 
 
 @app.cell
@@ -681,7 +497,7 @@ def __(mo):
                 The element's current value is {mo.as_html(element.value)}
                 """
             )
-    return value,
+    return (value,)
 
 
 @app.cell
@@ -695,19 +511,13 @@ def __(mo):
                     )
                 }
             )
-    return documentation,
-
-
-@app.cell
-def __():
-    from dataclasses import dataclass
-    return dataclass,
+    return (documentation,)
 
 
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 if __name__ == "__main__":
