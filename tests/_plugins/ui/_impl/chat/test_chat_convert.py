@@ -8,6 +8,7 @@ import pytest
 from marimo._plugins.ui._impl.chat.convert import (
     convert_to_anthropic_messages,
     convert_to_google_messages,
+    convert_to_groq_messages,
     convert_to_openai_messages,
 )
 from marimo._plugins.ui._impl.chat.types import (
@@ -134,11 +135,42 @@ def test_convert_to_google_messages(sample_messages: List[ChatMessage]):
     ]
 
 
+def test_convert_to_groq_messages(sample_messages: List[ChatMessage]):
+    result = convert_to_groq_messages(sample_messages)
+
+    assert len(result) == 2
+
+    # Check user message
+    assert result[0]["role"] == "user"
+    assert len(result[0]["content"]) == 3
+    assert result[0]["content"][0] == {
+        "type": "text",
+        "text": "Hello, I have a question.",
+    }
+    assert result[0]["content"][1] == {
+        "type": "image_url",
+        "image_url": {"url": "data:image/png;base64,b'aGVsbG8='"},
+    }
+    assert result[0]["content"][2] == {
+        "type": "text",
+        "text": "A\n1\n2\n3\n",
+    }
+
+    # Check assistant message
+    assert result[1]["role"] == "assistant"
+    assert len(result[1]["content"]) == 1
+    assert result[1]["content"][0] == {
+        "type": "text",
+        "text": "Sure, I'd be happy to help. What's your question?",
+    }
+
+
 def test_empty_messages():
     empty_messages = []
     assert convert_to_openai_messages(empty_messages) == []
     assert convert_to_anthropic_messages(empty_messages) == []
     assert convert_to_google_messages(empty_messages) == []
+    assert convert_to_groq_messages(empty_messages) == []
 
 
 def test_message_without_attachments():
@@ -170,6 +202,15 @@ def test_message_without_attachments():
     assert len(google_result) == 1
     assert google_result[0]["role"] == "user"
     assert google_result[0]["parts"] == ["Just a simple message"]
+
+    groq_result = convert_to_groq_messages(messages)
+    assert len(groq_result) == 1
+    assert groq_result[0]["role"] == "user"
+    assert len(groq_result[0]["content"]) == 1
+    assert groq_result[0]["content"][0] == {
+        "type": "text",
+        "text": "Just a simple message",
+    }
 
 
 def test_from_chat_message_dict():
