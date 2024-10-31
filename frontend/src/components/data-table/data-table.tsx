@@ -1,4 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+"use no memo";
+// tanstack/table is not compatible with React compiler
+// https://github.com/TanStack/table/issues/5567
+
 import React, { memo } from "react";
 import {
   type ColumnDef,

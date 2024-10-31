@@ -103,6 +103,10 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
   const [selection, setSelection] = useState<GraphSelection>();
   useFitToViewOnDimensionChange();
 
+  const handleClearSelection = () => {
+    setSelection(undefined);
+  };
+
   return (
     <EdgeMarkerContext.Provider value={layoutDirection}>
       <ReactFlow
@@ -138,7 +142,6 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
         <Controls position="bottom-right" showInteractive={false}>
           <Tooltip
             content="Jump to focused cell"
-            usePortal={false}
             delayDuration={200}
             side="left"
             asChild={false}
@@ -171,6 +174,7 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
           selection={selection}
           variables={variables}
           edges={edges}
+          onClearSelection={handleClearSelection}
         />
         {children}
       </ReactFlow>
