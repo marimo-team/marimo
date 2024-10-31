@@ -37,7 +37,7 @@ const props: CellProps = {
   mode: "edit",
   name: "cell_1",
   appClosed: false,
-  showDeleteButton: true,
+  canDelete: true,
   allowFocus: false,
   debuggerActive: false,
   isCollapsed: false,

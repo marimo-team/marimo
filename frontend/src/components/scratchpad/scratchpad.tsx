@@ -37,6 +37,12 @@ import {
 } from "./scratchpad-history";
 import AnyLanguageCodeMirror from "@/plugins/impl/code/any-language-editor";
 import { cn } from "@/utils/cn";
+import type { CellConfig } from "@/core/network/types";
+
+const scratchpadCellConfig: CellConfig = {
+  hide_code: false,
+  disabled: false,
+};
 
 export const ScratchPad: React.FC = () => {
   const notebookState = useNotebook();
@@ -124,6 +130,7 @@ export const ScratchPad: React.FC = () => {
             showPlaceholder={false}
             id={cellId}
             code={code}
+            config={scratchpadCellConfig}
             status="idle"
             serializedEditorState={null}
             runCell={handleRun}
