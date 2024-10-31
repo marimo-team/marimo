@@ -92,6 +92,11 @@ export const DependencyGraphMinimap: React.FC<PropsWithChildren<Props>> = ({
 
   const translateExtent = useTranslateExtent(nodes, height);
 
+  const handleClearSelection = () => {
+    setSelectedNodeId(undefined);
+    setSelectedEdge(undefined);
+  };
+
   const renderGraphSelectionPanel = () => {
     if (selectedEdge) {
       return (
@@ -101,6 +106,7 @@ export const DependencyGraphMinimap: React.FC<PropsWithChildren<Props>> = ({
             source: selectedEdge.source as CellId,
             target: selectedEdge.target as CellId,
           }}
+          onClearSelection={handleClearSelection}
           variables={variables}
           edges={edges}
         />
@@ -112,6 +118,7 @@ export const DependencyGraphMinimap: React.FC<PropsWithChildren<Props>> = ({
           selection={{ type: "node", id: selectedNodeId }}
           variables={variables}
           edges={edges}
+          onClearSelection={handleClearSelection}
         />
       );
     }

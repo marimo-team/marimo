@@ -12,6 +12,7 @@ import {
   SquareFunction,
   SettingsIcon,
   MoreVerticalIcon,
+  XIcon,
 } from "lucide-react";
 import type { GraphLayoutView, GraphSelection, GraphSettings } from "./types";
 import { CellLink } from "../editor/links/cell-link";
@@ -109,9 +110,10 @@ GraphToolbar.displayName = "GraphToolbar";
 
 export const GraphSelectionPanel: React.FC<{
   selection: GraphSelection;
+  onClearSelection: () => void;
   edges: Edge[];
   variables: Variables;
-}> = memo(({ selection, edges, variables }) => {
+}> = memo(({ selection, edges, variables, onClearSelection }) => {
   if (!selection) {
     return null;
   }
@@ -189,6 +191,15 @@ export const GraphSelectionPanel: React.FC<{
                 <MoreVerticalIcon className="w-4 h-4" />
               </Button>
             </ConnectionCellActionsDropdown>
+            <Button
+              variant="text"
+              size="icon"
+              onClick={() => {
+                onClearSelection();
+              }}
+            >
+              <XIcon className="w-4 h-4" />
+            </Button>
           </div>
           <div className="text-sm flex flex-col py-3 pl-2 pr-4 flex-1 justify-center">
             <div className="flex flex-col gap-2">
