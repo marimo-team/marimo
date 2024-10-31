@@ -8,6 +8,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.chat.convert import (
     convert_to_anthropic_messages,
     convert_to_google_messages,
+    convert_to_groq_messages,
     convert_to_openai_messages,
 )
 from marimo._plugins.ui._impl.chat.types import (
@@ -308,4 +309,87 @@ class google(ChatModel):
         response = client.generate_content(google_messages)
 
         content = response.text
+        return content or ""
+
+
+class groq(ChatModel):
+    """
+    Groq ChatModel
+
+    **Args:**
+
+    - model: The model to use.
+        Can be found on the [Groq models page](https://console.groq.com/docs/models)
+    - system_message: The system message to use
+    - api_key: The API key to use.
+        If not provided, the API key will be retrieved
+        from the GROQ_API_KEY environment variable or the user's config.
+    - base_url: The base URL to use
+    """
+
+    def __init__(
+        self,
+        model: str,
+        *,
+        system_message: str = DEFAULT_SYSTEM_MESSAGE,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+    ):
+        self.model = model
+        self.system_message = system_message
+        self.api_key = api_key
+        self.base_url = base_url
+
+    @property
+    def _require_api_key(self) -> str:
+        # If the api key is provided, use it
+        if self.api_key is not None:
+            return self.api_key
+
+        # Then check the environment variable
+        env_key = os.environ.get("GROQ_API_KEY")
+        if env_key is not None:
+            return env_key
+
+        # Then check the user's config
+        try:
+            from marimo._runtime.context.types import get_context
+
+            api_key = get_context().user_config["ai"]["groq"]["api_key"]
+            if api_key:
+                return api_key
+        except Exception:
+            pass
+
+        raise ValueError(
+            "groq api key not provided. Pass it as an argument or "
+            "set GROQ_API_KEY as an environment variable"
+        )
+
+    def __call__(
+        self, messages: List[ChatMessage], config: ChatModelConfig
+    ) -> object:
+        DependencyManager.groq.require(
+            "chat model requires groq. `pip install groq`"
+        )
+        from groq import Groq  # type: ignore[import-not-found]
+
+        client = Groq(api_key=self._require_api_key, base_url=self.base_url)
+
+        groq_messages = convert_to_groq_messages(
+            [ChatMessage(role="system", content=self.system_message)]
+            + messages
+        )
+        response = client.chat.completions.create(
+            model=self.model,
+            messages=groq_messages,
+            max_tokens=config.max_tokens,
+            temperature=config.temperature,
+            top_p=config.top_p,
+            stop=None,
+            stream=False,
+        )
+
+        choice = response.choices[0]
+        content = choice.message.content
         return content or ""
