@@ -140,36 +140,16 @@ def test_convert_to_groq_messages(sample_messages: List[ChatMessage]):
 
     assert len(result) == 2
 
-    # Check user message
+    # Check user message with text attachment
     assert result[0]["role"] == "user"
-    assert len(result[0]["content"]) == 3
-    assert result[0]["content"][0] == {
-        "type": "text",
-        "text": "Hello, I have a question.",
-    }
-
-    # Commenting out the following till multi-modal models
-    # are added to groq models to test them
-    # assert result[0]["content"][1] == {
-    #     "type": "image",
-    #     "source": {
-    #         "data": "b'aGVsbG8='",
-    #         "media_type": "image/png",
-    #         "type": "base64",
-    #     },
-    # }
-    assert result[0]["content"][2] == {
-        "type": "text",
-        "text": "A\n1\n2\n3\n",
-    }
+    assert result[0]["content"] == "Hello, I have a question.\nA\n1\n2\n3\n"
 
     # Check assistant message
     assert result[1]["role"] == "assistant"
-    assert len(result[1]["content"]) == 1
-    assert result[1]["content"][0] == {
-        "type": "text",
-        "text": "Sure, I'd be happy to help. What's your question?",
-    }
+    assert (
+        result[1]["content"]
+        == "Sure, I'd be happy to help. What's your question?"
+    )
 
 
 def test_empty_messages():
