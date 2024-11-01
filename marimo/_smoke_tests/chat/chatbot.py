@@ -11,17 +11,23 @@
 
 import marimo
 
-__generated_with = "0.8.20"
+__generated_with = "0.9.14"
 app = marimo.App(width="medium")
 
 
-@app.cell
+@app.cell(hide_code=True)
+def __():
+    import marimo as mo
+    return (mo,)
+
+
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(r"""# Built-in chatbots""")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(r"""## OpenAI""")
     return
@@ -43,7 +49,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(r"""## Anthropic""")
     return
@@ -63,13 +69,27 @@ def __(mo):
     return
 
 
-@app.cell
-def __():
-    import marimo as mo
-    return (mo,)
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(r"""## Google Gemini""")
+    return
 
 
 @app.cell
+def __(mo):
+    mo.ui.chat(
+        mo.ai.llm.google("gemini-1.5-pro-001"),
+        show_configuration_controls=True,
+        prompts=[
+            "Tell me a joke",
+            "What is the meaning of life?",
+            "What is 2 + {{number}}",
+        ],
+    )
+    return
+
+
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(r"""# Custom chatbots""")
     return
@@ -107,7 +127,7 @@ def __(mo, openai_key):
     return client, ell, openai
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(r"""## Simple""")
     return
@@ -125,7 +145,7 @@ def __(client, ell, mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(r"""## Complex""")
     return

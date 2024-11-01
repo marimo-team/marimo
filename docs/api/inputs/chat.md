@@ -207,6 +207,35 @@ mo.ui.chat(
 )
 ```
 
+```{eval-rst}
+.. autoclass:: marimo.ai.llm.google
+  :members:
+
+  .. autoclasstoc:: marimo._plugins.ui._impl.chat.llm.google
+```
+
+### Groq
+
+```python
+import marimo as mo
+
+mo.ui.chat(
+    mo.ai.llm.groq(
+        "llama-3.1-70b-versatile",
+        system_message="You are a helpful assistant.",
+        api_key="gsk-...",
+    ),
+    show_configuration_controls=True
+)
+```
+
+```{eval-rst}
+.. autoclass:: marimo.ai.llm.groq
+  :members:
+
+  .. autoclasstoc:: marimo._plugins.ui._impl.chat.llm.groq
+```
+
 ## Types
 
 Chatbots can be implemented with a function that receives a list of
