@@ -13,11 +13,11 @@
     "codegen": "npx openapi-typescript ./api.yaml -o ./src/api.ts"
   },
   "devDependencies": {
-    "openapi-typescript": "^7.3.0",
+    "openapi-typescript": "^7.4.2",
     "typescript": "^5.5.4"
   },
   "dependencies": {
     "openapi-fetch": "0.9.7"
   },
-  "packageManager": "pnpm@9.8.0"
+  "packageManager": "pnpm@9.12.3"
 }

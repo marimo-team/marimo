@@ -75,31 +75,31 @@ marimo = "marimo._cli.cli:main"
 homepage = "https://github.com/marimo-team/marimo"
 
 [project.optional-dependencies]
-sql = ["duckdb >= 1.0.0"]
+sql = ["duckdb >=1.1.2"]
 
 dev = [
     "click <8.1.4",  # https://github.com/pallets/click/issues/2558
     "black~=23.12.1",
     # For tracing debugging
-    "opentelemetry-api~=1.26.0",
-    "opentelemetry-sdk~=1.26.0",
+    "opentelemetry-api~=1.27.0",
+    "opentelemetry-sdk~=1.27.0",
     # For SQL
-    "duckdb>=1.0.0",
+    "duckdb>=1.1.2",
     # For linting
-    "ruff~=0.6.1",
+    "ruff~=0.7.1",
     # For AI
-    "openai~=1.41.1",
+    "openai~=1.53.0",
 ]
 
 docs = [
-    "pypandoc~=1.13",
-    "autoclasstoc~=1.6.0",
+    "pypandoc~=1.14",
+    "autoclasstoc~=1.7.0",
     # furo raises an error during docs build when sphinx is upgraded
-    "sphinx~=7.0.1",
+    "sphinx~=7.4.7",
     "sphinx-copybutton~=0.5.2",
-    "sphinx-new-tab-link~=0.5.3",
+    "sphinx-new-tab-link~=0.6.1",
     "sphinx-sitemap~=2.6.0",
-    "sphinx-design~=0.5.0",
+    "sphinx-design~=0.6.1",
     "sphinx-autobuild~=2024.10.3",
     "myst_parser~=3.0.1",
     "furo==2024.8.6"
@@ -123,16 +123,16 @@ exclude = ["marimo/_smoke_tests"]
 
 # Override the default uv version to use the latest version
 [tool.hatch.envs.hatch-uv]
-dependencies = ["uv>=0.4.17"]
+dependencies = ["uv>=0.4.29"]
 
 [tool.hatch.envs.default]
 features = ["dev"]
 python = "3.12"
 installer = "uv"
 dependencies = [
-    "uv>=0.4.17", # so we can bump the version used by hatch
+    "uv>=0.4.29", # so we can bump the version used by hatch
     # Typo checking
-    "typos~=1.23.6",
+    "typos~=1.26.8",
 ]
 
 [tool.hatch.envs.default.scripts]
@@ -143,19 +143,19 @@ format = "ruff format"
 python = "3.12"
 installer = "uv"
 dependencies = [
-    "mypy~=1.10.1",
+    "mypy~=1.13.0",
     # Types for mypy
     "panel~=1.5.3",
-    "polars~=1.9.0",
-    "narwhals>=1.12.0",
-    "matplotlib>=3.8.0",
-    "pyarrow-stubs>=17.0",
+    "polars~=1.12.0",
+    "narwhals>=1.12.1",
+    "matplotlib>=3.9.2",
+    "pyarrow-stubs>=17.11",
     "pandas-stubs>=1.5.3.230321",
-    "types-Pillow~=10.2.0.20240520",
+    "types-Pillow~=10.2.0.20240822",
     "types-Pygments~=2.18.0.20240506",
     "types-psutil~=5.9.5.20240516",
-    "types-Markdown~=3.6.0.20240316",
-    "types-PyYAML~=6.0.12.20240808",
+    "types-Markdown~=3.7.0.20240822",
+    "types-PyYAML~=6.0.12.20240917",
 ]
 
 [tool.hatch.envs.typecheck.scripts]
@@ -163,13 +163,13 @@ check = "mypy marimo/"
 
 [tool.hatch.envs.test]
 extra-dependencies = [
-    "hypothesis~=6.102.1",
+    "hypothesis~=6.115.6",
     # For server testing
-    "httpx~=0.27.0",
-    "pytest~=8.3.2",
+    "httpx~=0.27.2",
+    "pytest~=8.3.3",
     "pytest-timeout~=2.3.1",
-    "pytest-codecov~=0.5.1",
-    "pytest-asyncio~=0.23.8",
+    "pytest-codecov~=0.6.0",
+    "pytest-asyncio~=0.24.0",
 ]
 
 [[tool.hatch.envs.test.matrix]]
@@ -191,19 +191,19 @@ test-narwhals = """
 [tool.hatch.envs.test-optional]
 template = "test"
 extra-dependencies = [
-    "hypothesis~=6.102.1",
-    "httpx~=0.27.0",
-    "pytest~=8.3.2",
+    "hypothesis~=6.115.6",
+    "httpx~=0.27.2",
+    "pytest~=8.3.3",
     "pytest-timeout~=2.3.1",
-    "pytest-codecov~=0.5.1",
-    "pytest-asyncio~=0.23.8",
+    "pytest-codecov~=0.6.0",
+    "pytest-asyncio~=0.24.0",
     # For testing mo.ui.chart, table, ...
     "matplotlib",
     "vl-convert-python",
     "pyarrow",
     "pyarrow_hotfix",
-    "altair>=5.4.0",
-    "polars~=1.9.0",
+    "altair>=5.4.1",
+    "polars~=1.12.0",
     "pandas>=1.5.3",
     "geopandas~=0.14.4; python_version > '3.9'",
     # FOr testing sql
@@ -211,18 +211,18 @@ extra-dependencies = [
     # For testing mo.image
     "pillow~=10.4.0",
     "anywidget~=0.9.13",
-    "ipython~=8.12.3",
+    "ipython~=8.29.0",
     # testing gen ai
-    "openai~=1.41.1",
-    "anthropic==0.34.1",
-    "google-generativeai==0.8.2",
+    "openai~=1.53.0",
+    "anthropic==0.37.1",
+    "google-generativeai==0.8.3",
     # exporting as ipynb
     "nbformat >=5.10.4",
-    "sympy>=1.13.2",
+    "sympy>=1.13.3",
     # For standard scientific computing/ ML
-    "jax>=0.4.0; python_version == '3.12'",
-    "torch>=2.4.0; python_version == '3.12'",
-    "scikit-bio>=0.6.0; python_version == '3.12'",
+    "jax>=0.4.35; python_version == '3.12'",
+    "torch>=2.5.1; python_version == '3.12'",
+    "scikit-bio>=0.6.2; python_version == '3.12'",
 ]
 
 [[tool.hatch.envs.test-optional.matrix]]
