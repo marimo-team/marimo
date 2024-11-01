@@ -165,6 +165,7 @@ class DependencyManager:
     opentelemetry = Dependency("opentelemetry")
     anthropic = Dependency("anthropic")
     google_ai = Dependency("google.generativeai")
+    groq = Dependency("groq")
     panel = Dependency("panel")
 
     @staticmethod
