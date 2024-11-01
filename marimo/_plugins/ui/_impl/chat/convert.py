@@ -88,10 +88,11 @@ def convert_to_groq_messages(
     groq_messages: List[Dict[Any, Any]] = []
 
     for message in messages:
-        # Currently only supports text content
+        # Currently only supports text content (Llava is deprecated now)
+        # See here - https://console.groq.com/docs/deprecations
         if message.attachments:
             # Convert attachments to text if possible
-            text_content = message.content
+            text_content = str(message.content)  # Explicitly convert to string
             for attachment in message.attachments:
                 content_type = attachment.content_type or "text/plain"
                 if content_type.startswith("text"):
@@ -102,7 +103,12 @@ def convert_to_groq_messages(
             )
         else:
             groq_messages.append(
-                {"role": message.role, "content": message.content}
+                {
+                    "role": message.role,
+                    "content": str(
+                        message.content
+                    ),  # Explicitly convert to string
+                }
             )
 
     return groq_messages
