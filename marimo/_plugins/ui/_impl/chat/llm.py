@@ -351,15 +351,16 @@ class groq(ChatModel):
         if env_key is not None:
             return env_key
 
-        # Then check the user's config
-        try:
-            from marimo._runtime.context.types import get_context
-
-            api_key = get_context().user_config["ai"]["groq"]["api_key"]
-            if api_key:
-                return api_key
-        except Exception:
-            pass
+        # TODO(haleshot): Add config support later
+        # # Then check the user's config
+        # try:
+        #     from marimo._runtime.context.types import get_context
+        #
+        #     api_key = get_context().user_config["ai"]["groq"]["api_key"]
+        #     if api_key:
+        #         return api_key
+        # except Exception:
+        #     pass
 
         raise ValueError(
             "groq api key not provided. Pass it as an argument or "
