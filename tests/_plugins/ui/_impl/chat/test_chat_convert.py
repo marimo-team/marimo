@@ -193,11 +193,7 @@ def test_message_without_attachments():
     groq_result = convert_to_groq_messages(messages)
     assert len(groq_result) == 1
     assert groq_result[0]["role"] == "user"
-    assert len(groq_result[0]["content"]) == 1
-    assert groq_result[0]["content"][0] == {
-        "type": "text",
-        "text": "Just a simple message",
-    }
+    assert groq_result[0]["content"] == "Just a simple message"
 
 
 def test_from_chat_message_dict():
