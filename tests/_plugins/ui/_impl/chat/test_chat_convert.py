@@ -142,27 +142,14 @@ def test_convert_to_groq_messages(sample_messages: List[ChatMessage]):
 
     # Check user message
     assert result[0]["role"] == "user"
-    assert len(result[0]["content"]) == 3
-    assert result[0]["content"][0] == {
-        "type": "text",
-        "text": "Hello, I have a question.",
-    }
-    assert result[0]["content"][1] == {
-        "type": "image_url",
-        "image_url": {"url": "data:image/png;base64,b'aGVsbG8='"},
-    }
-    assert result[0]["content"][2] == {
-        "type": "text",
-        "text": "A\n1\n2\n3\n",
-    }
+    assert result[0]["content"] == "Hello, I have a question."
 
     # Check assistant message
     assert result[1]["role"] == "assistant"
-    assert len(result[1]["content"]) == 1
-    assert result[1]["content"][0] == {
-        "type": "text",
-        "text": "Sure, I'd be happy to help. What's your question?",
-    }
+    assert (
+        result[1]["content"]
+        == "Sure, I'd be happy to help. What's your question?"
+    )
 
 
 def test_empty_messages():
