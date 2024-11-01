@@ -1,3 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "marimo",
+#     "openai==1.53.0",
+# ]
+# ///
 import marimo
 
 __generated_with = "0.9.10"
