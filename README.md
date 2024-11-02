@@ -22,6 +22,7 @@
 <a href="https://discord.gg/JE7nhX6mD8"><img src="https://shields.io/discord/1059888774789730424" alt="discord" /></a>
 <a href="https://static.pepy.tech/badge/marimo"><img src="https://static.pepy.tech/badge/marimo" alt="downloads" /></a>
 <a href="https://github.com/marimo-team/marimo/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/marimo" /></a>
+<a href="https://gurubase.io/g/marimo"><img src="https://img.shields.io/badge/Gurubase-Ask%20marimo%20Guru-006BFF" alt="Gurubase" /></a>
 </p>
 
 **marimo** is a reactive Python notebook: run a cell or interact with a UI
