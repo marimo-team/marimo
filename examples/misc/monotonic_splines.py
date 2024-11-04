@@ -1,3 +1,16 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "altair==5.4.1",
+#     "drawdata==0.3.4",
+#     "marimo",
+#     "matplotlib==3.9.2",
+#     "numpy==2.1.3",
+#     "pandas==2.2.3",
+#     "scikit-learn==1.5.2",
+# ]
+# ///
+
 import marimo
 
 __generated_with = "0.9.14"
@@ -20,7 +33,7 @@ def __():
     return check_array, make_pipeline, matplotlib, mo, np, plt, sklearn
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         r"""
@@ -30,7 +43,7 @@ def __(mo):
         >
         > This document reflects the code discussed in [this probabl livestream](https://www.youtube.com/watch?v=BLsWIJSKcGg) which in turn was heavily insired by [this blogpost](https://matekadlicsko.github.io/posts/monotonic-splines/).
 
-        We are going to dive into feature engineering in this document, but before going there it would help to have a dataset first. So lets draw one! Draw some points below, but make sure that you only draw a single class of points here. We're going for a regression dataset here where the x-values need to predict the y-values.
+        We are going to dive into feature engineering in this document, but before going there it would help to have a dataset first. So let's draw one! **Draw some points below**, but make sure that you only draw a single class of points here. We're going for a regression dataset here where the x-values need to predict the y-values.
         """
     )
     return
@@ -46,6 +59,18 @@ def __(mo):
 
 
 @app.cell
+def __(mo, widget):
+    mo.stop(
+        not widget.value["data"],
+        mo.md("Draw a dataset above to proceed!").callout(),
+    )
+
+    df = widget.data_as_pandas.sort_values("x")
+    X, y = df[["x"]].values, df["y"].values
+    return X, df, y
+
+
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -70,7 +95,7 @@ def __(X, np, plt, tfm):
     return X_tfm, x_range, x_range_tfm
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -86,7 +111,9 @@ def __(mo):
 
 @app.cell(hide_code=True)
 def __(mo):
-    n_knots = mo.ui.slider(2, 20, step=1, show_value=True, label="number of knots", value=5)
+    n_knots = mo.ui.slider(
+        2, 20, step=1, show_value=True, label="number of knots", value=5
+    )
     knots = mo.ui.dropdown(["uniform", "quantile"], value="uniform")
     degree = mo.ui.slider(1, 4, step=1, show_value=True, label="degree", value=2)
     mo.vstack([n_knots, degree, knots])
@@ -97,25 +124,20 @@ def __(mo):
 def __(degree, knots, n_knots):
     from sklearn.preprocessing import SplineTransformer
 
-    tfm = SplineTransformer(n_knots=n_knots.value, knots=knots.value, degree=degree.value)
+    tfm = SplineTransformer(
+        n_knots=n_knots.value, knots=knots.value, degree=degree.value
+    )
     tfm
     return SplineTransformer, tfm
 
 
 @app.cell(hide_code=True)
-def __(widget):
-    df = widget.data_as_pandas.sort_values("x")
-    X, y = df[['x']].values, df["y"].values
-    return X, df, y
-
-
-@app.cell
 def __(mo):
     mo.md(r"""When you then take these generated features and pass them to a linear model, you should be able to see that we're indeed able to fit a very non-linear curve with a linear model.""")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(r"""... turn into these features:""")
     return
@@ -137,7 +159,7 @@ def __(X_tfm, df, y):
     return Ridge, alt, p1, p2, pltr, preds
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         r"""
@@ -163,13 +185,13 @@ def __(plt, x_range, x_range_tfm):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(r"""Note the correspondence between the lines here. The color in the chart above has a direct correspondence with the line below.""")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         r"""
@@ -186,10 +208,7 @@ def __(mo):
     strictly_positive = mo.ui.checkbox(label="Strictly positive")
     show_iso = mo.ui.checkbox(label="Show Isotonic Regression")
 
-    mo.vstack([
-        strictly_positive,
-        show_iso
-    ])
+    mo.vstack([strictly_positive, show_iso])
     return show_iso, strictly_positive
 
 
@@ -203,7 +222,11 @@ def __():
 def __(Ridge, X, X_tfm, alt, pd, pltr, show_iso, strictly_positive, y):
     from sklearn.isotonic import IsotonicRegression
 
-    preds_mono = Ridge(positive=strictly_positive.value).fit(X_tfm.cumsum(axis=0), y).predict(X_tfm.cumsum(axis=0))
+    preds_mono = (
+        Ridge(positive=strictly_positive.value)
+        .fit(X_tfm.cumsum(axis=0), y)
+        .predict(X_tfm.cumsum(axis=0))
+    )
 
     final_df = pd.DataFrame({"preds": preds_mono, "x": X[:, 0]})
 
@@ -214,7 +237,11 @@ def __(Ridge, X, X_tfm, alt, pd, pltr, show_iso, strictly_positive, y):
     if show_iso.value:
         iso = IsotonicRegression().fit(X, y)
         df_iso = pd.DataFrame({"preds_iso": iso.predict(X), "x": X[:, 0]})
-        together += alt.Chart(df_iso).mark_line(color="purple").encode(x="x", y="preds_iso")
+        together += (
+            alt.Chart(df_iso)
+            .mark_line(color="purple")
+            .encode(x="x", y="preds_iso")
+        )
 
     together.properties(width=1000).interactive()
     return (
@@ -229,7 +256,7 @@ def __(Ridge, X, X_tfm, alt, pd, pltr, show_iso, strictly_positive, y):
     )
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         r"""
@@ -242,11 +269,6 @@ def __(mo):
         3. Note that this technique is very general. It can be used on whatever estimator that enables you to learn strictly positive weights.
         """
     )
-    return
-
-
-@app.cell
-def __():
     return
 
 
