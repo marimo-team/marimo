@@ -1,6 +1,7 @@
+# Copyright 2024 Marimo. All rights reserved.
 from marimo._ast.visitor import VariableData
-from marimo._data.get_datasets import get_table_manager_or_none
 from marimo._output.rich_help import mddoc
+from marimo._plugins.ui._impl.tables.utils import get_table_manager_or_none
 from marimo._runtime.context.types import (
     ContextNotInitializedError,
     get_context,
@@ -9,9 +10,15 @@ from marimo._runtime.context.types import (
 
 @mddoc
 def register_datasource(obj: object, name: str) -> None:
-    """Register a datasource with the current context.
+    """Register a datasource.
 
-    This datasource will be available to other cells in the same context.
+    This registered object will be available in the global scope of the
+    notebook, including as a variable in the graph.
+
+    WARNING: This function may cause unintended bugs in reactivity, since
+    defined variables cannot be statically analyzed. Also, this can be
+    confusing for users if used inappropriately to flood the global scope.
+    Please be mindful of this function.
 
     **Args:**
 
@@ -21,6 +28,9 @@ def register_datasource(obj: object, name: str) -> None:
     try:
         ctx = get_context()
     except ContextNotInitializedError:
+        return
+
+    if ctx.execution_context is None:
         return
 
     if get_table_manager_or_none(obj) is None:
@@ -33,6 +43,6 @@ def register_datasource(obj: object, name: str) -> None:
     cell.defs.add(name)
     cell.variable_data[name] = [VariableData("variable")]
     if name in ctx.graph.definitions:
-        ctx.graph.definitions[name].append(cell_id)
+        ctx.graph.definitions[name].add(cell_id)
     else:
-        ctx.graph.definitions.update({name: [cell_id]})
+        ctx.graph.definitions.update({name: {cell_id}})
