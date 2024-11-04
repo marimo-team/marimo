@@ -78,7 +78,7 @@ def __(mo):
 
         There are some inputs for this `SplineTransformer` though. We can ask the transformer to add more hills, each hill also has a polynomial degree attached to it that we may alter and we can also tell the component to have the placement of each hill be determined by the quantiles in the dataset. 
 
-        Feel free to change the drawing and the paramters at this point to try and get a feeling for this.
+        Feel free to change the drawing and the parameters at this point to try and get a feeling for this.
         """
     )
     return
@@ -173,7 +173,7 @@ def __(mo):
 def __(mo):
     mo.md(
         r"""
-        You could wonder ... what would happpen if I use these 'cumsum' features? Would I still be able to get a nice fit?
+        You could wonder ... what would happen if I use these 'cumsum' features? Would I still be able to get a nice fit?
 
         The chart below shows you the new predictions.
         """
