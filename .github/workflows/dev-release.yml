@@ -68,7 +68,10 @@ jobs:
           sed -i "s/__version__ = \".*\"/__version__ = \"$MARIMO_VERSION\"/" marimo/__init__.py
 
       - name: 📦 Build marimo
-        run: hatch build
+        run: hatch build --clean
+
+      - name: 📦 Validate wheel under 2mb
+        run: ./scripts/validate_base_wheel_size.sh
 
       - name: 📤 Upload to TestPyPI
         env:

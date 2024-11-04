@@ -35,7 +35,10 @@ jobs:
         run: ./scripts/modify_pyproject_for_marimo_base.sh
 
       - name: 📦 Build marimo-base
-        run: hatch build
+        run: hatch build --clean
+
+      - name: 📦 Validate wheel under 2mb
+        run: ./scripts/validate_base_wheel_size.sh
 
       - name: 📤 Upload to PyPI
         env:
