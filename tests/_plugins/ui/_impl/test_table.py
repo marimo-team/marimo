@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._output.data.data import from_data_uri
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.dataframes.transforms.types import Condition
 from marimo._plugins.ui._impl.table import SearchTableArgs, SortArgs
@@ -14,6 +15,7 @@ from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
 from marimo._plugins.ui._impl.utils.dataframe import TableData
 from marimo._runtime.functions import EmptyArgs
 from marimo._runtime.runtime import Kernel
+from tests._data.mocks import create_dataframes
 
 
 @pytest.fixture
@@ -211,24 +213,18 @@ def test_sort_dict_of_tuples(dtm: DefaultTableManager) -> None:
 
 def test_value() -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
-    data = _normalize_data(data)
     table = ui.table(data)
     assert list(table.value) == []
 
 
 def test_value_with_selection() -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
-    data = _normalize_data(data)
     table = ui.table(data)
-    assert list(table._convert_value(["0", "2"])) == [
-        {"value": "banana"},
-        {"value": "cherry"},
-    ]
+    assert list(table._convert_value(["0", "2"])) == ["banana", "cherry"]
 
 
 def test_value_with_sorting_then_selection() -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
-    data = _normalize_data(data)
     table = ui.table(data)
 
     table.search(
@@ -257,9 +253,37 @@ def test_value_with_sorting_then_selection() -> None:
     ]
 
 
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"a": ["x", "z", "y"]}, exclude=["ibis", "duckdb", "pyarrow"]
+    ),
+)
+def test_value_with_sorting_then_selection_dfs(df: Any) -> None:
+    import narwhals as nw
+
+    table = ui.table(df)
+    table.search(
+        SearchTableArgs(
+            sort=SortArgs("a", descending=True),
+            page_size=10,
+            page_number=0,
+        )
+    )
+    assert nw.from_native(table._convert_value(["0"]))["a"][0] == "z"
+
+    table.search(
+        SearchTableArgs(
+            sort=SortArgs("a", descending=False),
+            page_size=10,
+            page_number=0,
+        )
+    )
+    assert nw.from_native(table._convert_value(["0"]))["a"][0] == "x"
+
+
 def test_value_with_search_then_selection() -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
-    data = _normalize_data(data)
     table = ui.table(data)
 
     table.search(
@@ -291,7 +315,45 @@ def test_value_with_search_then_selection() -> None:
             page_number=0,
         )
     )
-    assert list(table._convert_value(["2"])) == [{"value": "cherry"}]
+    assert list(table._convert_value(["2"])) == ["cherry"]
+
+
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"a": ["foo", "bar", "baz"]}, exclude=["ibis", "duckdb", "pyarrow"]
+    ),
+)
+def test_value_with_search_then_selection_dfs(df: Any) -> None:
+    import narwhals as nw
+
+    table = ui.table(df)
+    table.search(
+        SearchTableArgs(
+            query="bar",
+            page_size=10,
+            page_number=0,
+        )
+    )
+    assert nw.from_native(table._convert_value(["0"]))["a"][0] == "bar"
+
+    table.search(
+        SearchTableArgs(
+            query="foo",
+            page_size=10,
+            page_number=0,
+        )
+    )
+    assert nw.from_native(table._convert_value(["0"]))["a"][0] == "foo"
+
+    # empty search
+    table.search(
+        SearchTableArgs(
+            page_size=10,
+            page_number=0,
+        )
+    )
+    assert nw.from_native(table._convert_value(["2"]))["a"][0] == "baz"
 
 
 def test_table_with_too_many_columns_passes() -> None:
@@ -335,6 +397,29 @@ def test_can_get_second_page_with_search() -> None:
     assert len(result.data) == 5
     assert result.data[0]["a"] == 23
     assert result.data[-1]["a"] == 27
+
+
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes({"a": list(range(40))}, ["ibis"]),
+)
+def test_can_get_second_page_with_search_df(df: Any) -> None:
+    import polars as pl
+
+    table = ui.table(df)
+    result = table.search(
+        SearchTableArgs(
+            query="2",
+            page_size=5,
+            page_number=1,
+        )
+    )
+    mime_type, data = from_data_uri(result.data)
+    assert mime_type == "text/csv"
+    data = pl.read_csv(data)
+    assert len(data) == 5
+    assert int(data["a"][0]) == 23
+    assert int(data["a"][-1]) == 27
 
 
 def test_with_no_pagination() -> None:

@@ -137,6 +137,44 @@ class TestIbisTableManagerFactory(unittest.TestCase):
             expected_data.to_pandas()
         )
 
+    def test_take(self) -> None:
+        assert (
+            self.manager.take(1, 0).select_columns(["A"]).to_json()
+            == b'[{"A":1}]'
+        )
+        assert (
+            self.manager.take(2, 0).select_columns(["A"]).to_json()
+            == b'[{"A":1},{"A":2}]'
+        )
+        assert (
+            self.manager.take(2, 1).select_columns(["A"]).to_json()
+            == b'[{"A":2},{"A":3}]'
+        )
+        assert (
+            self.manager.take(2, 2).select_columns(["A"]).to_json()
+            == b'[{"A":3}]'
+        )
+
+    def test_take_zero(self) -> None:
+        limited_manager = self.manager.take(0, 0)
+        assert limited_manager.data.count().execute() == 0
+
+    def test_take_negative(self) -> None:
+        with pytest.raises(ValueError):
+            self.manager.take(-1, 0)
+
+    def test_take_negative_offset(self) -> None:
+        with pytest.raises(ValueError):
+            self.manager.take(1, -1)
+
+    def test_take_out_of_bounds(self) -> None:
+        # Too large of page
+        assert self.manager.take(10, 0).data.count().execute() == 3
+        assert self.data.count().execute() == 3
+
+        # Too large of page and offset
+        assert self.manager.take(10, 10).data.count().execute() == 0
+
     def test_summary_integer(self) -> None:
         column = "A"
         summary = self.manager.get_summary(column)
