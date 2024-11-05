@@ -16,8 +16,14 @@ _Get started with Copilot_:
 1. Install [Node.js](https://nodejs.org/en/download).
 2. Enable Copilot via the settings menu in the marimo editor.
 
-_Note_: Copilot is not yet available in our conda distribution; please install
-marimo using `pip` if you need Copilot.
+```{admonition} Built from the ground up
+:class: note
+   marimo comes with GitHub Copilot, a tool that helps you write code faster by
+   suggesting in-line code suggestions based on the context of your current code.
+
+   marimo also comes with the ability to use AI for refactoring a cell, finishing writing a cell, or writing a full cell from scratch.
+   This feature is currently experimental and is not enabled by default.
+```
 
 ## Codeium Copilot
 
@@ -71,14 +77,51 @@ activate_on_typing = true
 
 ## Generate code with our AI assistant
 
-marimo has built-in support for generating and refactoring code with AI, with a
-variety of providers. marimo works with both hosted AI providers, such as
-OpenAI and Anthropic, as well as local models served via Ollama.
+marimo has built-in support for generating and refactoring code with AI, with a variety of providers. marimo works with hosted AI providers, such as OpenAI, Anthropic, and Google, as well as local models served via Ollama.
 
-Below we describe how to connect marimo to your AI provider. Once enabled, you
-can generate entirely new cells by clicking the "Generate with AI" button at
-the bottom of your notebook. You can also refactor existing cells by inputting
-`Ctrl/Cmd-Shift-e` in a cell, opening an input to modify the cell using AI.
+### Custom AI Rules
+
+You can customize how the AI assistant behaves by adding rules in the marimo settings. These rules help ensure consistent code generation across all AI providers. You can find more information about marimo's supported plotting libraries and data handling in the [Plotting Guide](https://docs.marimo.io/guides/working_with_data/plotting.html#plotting) and [Data Working Guide](https://docs.marimo.io/guides/working_with_data/index.html).
+
+<div align="center">
+  <figure>
+    <img src="/_static/docs-ai-completion-custom-assist-rules.png"/>
+    <figcaption>Configure custom AI rules in settings</figcaption>
+  </figure>
+</div>
+
+For example, you can add rules about:
+- Preferred plotting libraries (matplotlib, plotly, altair)
+- Data handling practices
+- Code style conventions
+- Error handling preferences
+
+Example custom rules:
+```
+Use plotly for interactive visualizations and matplotlib for static plots
+Prefer polars over pandas for data manipulation due to better performance
+Include docstrings for all functions using NumPy style
+Use Type hints for all function parameters and return values
+Handle errors with try/except blocks and provide informative error messages
+Follow PEP 8 style guidelines
+When working with data:
+- Use altair, plotly for declarative visualizations
+- Prefer polars over pandsa
+- Ensure proper error handling for data operations
+For plotting:
+- Use px.scatter for scatter plots
+- Use px.line for time series
+- Include proper axis labels and titles
+- Set appropriate color schemes
+```
+
+To locate your configuration file, run:
+```bash
+marimo config show
+```
+At the top, the path to your `marimo.toml` file will be shown. You can Ctrl/Cmd+click the path to open it in your editor. For more information about configuration, see the [Configuration Guide](https://docs.marimo.io/guides/configuration/index.html#user-configuration-file).
+
+Below we describe how to connect marimo to your AI provider. Once enabled, you can generate entirely new cells by clicking the "Generate with AI" button at the bottom of your notebook. You can also refactor existing cells by inputting `Ctrl/Cmd-Shift-e` in a cell, opening an input to modify the cell using AI.
 
 <div align="center">
 <figure>
@@ -99,6 +142,9 @@ the bottom of your notebook. You can also refactor existing cells by inputting
 api_key = "sk-proj-..."
 # Choose a model, we recommend "gpt-4-turbo"
 model = "gpt-4-turbo"
+# Available models: gpt-4-turbo-preview, gpt-4, gpt-3.5-turbo
+# See https://platform.openai.com/docs/models for all available models
+
 # Change the base_url if you are using a different OpenAI-compatible API
 base_url = "https://api.openai.com/v1"
 ```
@@ -119,32 +165,6 @@ model = "claude-3-5-sonnet-20240620"
 api_key = "sk-ant-..."
 ```
 
-### Using other AI providers
-
-marimo supports OpenAI's GPT-3.5 API by default. If your provider is compatible with OpenAI's API, you can use it by changing the `base_url` in the configuration.
-
-For other providers not compatible with OpenAI's API, please submit a [feature request](https://github.com/marimo-team/marimo/issues) or "thumbs up" an existing one.
-
-### Using local models with Ollama
-
-Ollama allows you to run open-source LLMs (e.g. Llama 3.1, Phi 3, Mistral,
-Gemma 2) on your local machine. To integrate Ollama with marimo:
-
-1. Download and install [Ollama](https://ollama.com/).
-2. Download the model you want to use:
-   1. `ollama pull llama3.1`
-   2. We also recommend `codellama` (code specific).
-3. Start the Ollama server: `ollama run llama3.1`
-4. Visit <http://localhost:11434> to confirm that the server is running.
-5. Add the following to your `marimo.toml`:
-
-```toml
-[ai.open_ai]
-api_key = "ollama" # This is not used, but required
-model = "llama3.1" # or the model you downloaded from above
-base_url = "http://localhost:11434/v1"
-```
-
 ### Using Google AI
 
 To use Google AI with marimo:
@@ -162,4 +182,48 @@ model = "gemini-1.5-flash"
 api_key = "AI..."
 ```
 
-You can now use Google AI for code generation and refactoring in marimo.
+### Using local models with Ollama
+
+Ollama allows you to run open-source LLMs on your local machine. To integrate Ollama with marimo:
+
+1. Download and install [Ollama](https://ollama.com/).
+2. Download the model you want to use:
+   ```bash
+   # View available models at https://ollama.com/library
+   ollama pull llama3.1
+   ollama pull codellama  # recommended for code generation
+   
+   # View your installed models
+   ollama ls
+   ```
+3. Start the Ollama server in a terminal:
+   ```bash
+   ollama serve
+   # In a new terminal
+   ollama run codellama  # or any model from ollama ls
+   ```
+4. Visit http://127.0.0.1:11434 to confirm that the server is running.
+
+   > **Note**: If you get a "port already in use" error, you may need to close an existing Ollama instance. On Windows, click the up arrow in the taskbar, find the Ollama icon, and select "Quit". This is a known issue (see [Ollama Issue #3575](https://github.com/ollama/ollama/issues/3575)). Once you've closed the existing Ollama instance, you should be able to run `ollama serve` successfully.
+
+5. Open a new terminal and start marimo:
+   ```bash
+   marimo edit notebook.py
+   ```
+
+6. Add the following to your `marimo.toml`:
+
+```toml
+[ai.open_ai]
+api_key = "ollama" # This is not used, but required
+model = "codellama" # or another model from `ollama ls`
+base_url = "http://127.0.0.1:11434/v1"
+```
+
+### Using other AI providers
+
+marimo supports OpenAI's API by default. Many providers offer OpenAI API-compatible endpoints, which can be used by simply changing the `base_url` in your configuration. For example, providers like [GROQ](https://console.groq.com/docs/openai) follow this pattern.
+
+For a comprehensive list of compatible providers and their configurations, please refer to the [liteLLM Providers documentation](https://litellm.vercel.app/docs/providers).
+
+For providers not compatible with OpenAI's API, please submit a [feature request](https://github.com/marimo-team/marimo/issues) or "thumbs up" an existing one.
