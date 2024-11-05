@@ -106,7 +106,7 @@ Handle errors with try/except blocks and provide informative error messages
 Follow PEP 8 style guidelines
 When working with data:
 - Use altair, plotly for declarative visualizations
-- Prefer polars over pandsa
+- Prefer polars over pandas
 - Ensure proper error handling for data operations
 For plotting:
 - Use px.scatter for scatter plots
