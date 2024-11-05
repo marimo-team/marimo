@@ -1,5 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { generateColumns } from "@/components/data-table/columns";
+import {
+  generateColumns,
+  inferFieldTypes,
+} from "@/components/data-table/columns";
 import { DataTable } from "@/components/data-table/data-table";
 import { parseCsvData } from "@/plugins/impl/vega/loader";
 import { Objects } from "@/utils/objects";
@@ -17,14 +20,15 @@ export const CsvViewer: React.FC<{ contents: string }> = ({ contents }) => {
     pageIndex: 0,
     pageSize: PAGE_SIZE,
   });
+  const fieldTypes = useMemo(() => inferFieldTypes(data), [data]);
   const columns = useMemo(
     () =>
-      generateColumns({
-        items: data,
+      generateColumns<object>({
         rowHeaders: Arrays.EMPTY,
         selection: null,
+        fieldTypes,
       }),
-    [data],
+    [fieldTypes],
   );
 
   return (

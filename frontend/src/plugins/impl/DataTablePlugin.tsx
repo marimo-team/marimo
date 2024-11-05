@@ -2,7 +2,10 @@
 import { memo, useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { DataTable } from "../../components/data-table/data-table";
-import { generateColumns } from "../../components/data-table/columns";
+import {
+  generateColumns,
+  inferFieldTypes,
+} from "../../components/data-table/columns";
 import { Labeled } from "./common/labeled";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { rpc } from "../core/rpc";
@@ -462,19 +465,19 @@ const DataTableComponent = ({
     );
   }, [fieldTypes, columnSummaries]);
 
+  const fieldTypesOrInferred = fieldTypes ?? inferFieldTypes(data);
+
   const columns = useMemo(
     () =>
       generateColumns({
-        items: data,
         rowHeaders: rowHeaders,
         selection,
-        fieldTypes: fieldTypes ?? {},
+        fieldTypes: fieldTypesOrInferred,
         textJustifyColumns,
         wrappedColumns,
       }),
     /* eslint-disable react-hooks/exhaustive-deps */
     [
-      data,
       useDeepCompareMemoize([
         selection,
         fieldTypes,
@@ -483,7 +486,6 @@ const DataTableComponent = ({
         wrappedColumns,
       ]),
     ],
-    /* eslint-enable react-hooks/exhaustive-deps */
   );
 
   const rowSelection = useMemo(

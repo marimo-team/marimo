@@ -6,7 +6,6 @@ import {
   CalendarIcon,
   HashIcon,
   TypeIcon,
-  ListOrderedIcon,
   type LucideIcon,
   CalendarClockIcon,
   ClockIcon,
@@ -23,6 +22,6 @@ export const DATA_TYPE_ICON: Record<DataType, LucideIcon> = {
   datetime: CalendarClockIcon,
   number: HashIcon,
   string: TypeIcon,
-  integer: ListOrderedIcon,
+  integer: HashIcon,
   unknown: CurlyBracesIcon,
 };
