@@ -21,7 +21,7 @@ App Configuration is specific to each notebook and is stored in the `notebook.py
 
 - Notebook width
 - Notebook title
-- Custom CSS
+- [Custom CSS](https://docs.marimo.io/guides/configuration/theming.html)
 - Automatically download HTML snapshots
 
 Configure these settings through the notebook menu.
@@ -45,9 +45,9 @@ You can customize the following:
 - Completion (auto-completion, AI copilot, etc.)
 - Display (theme, font size, output placement, etc.)
 - Autosave 
-- Package management 
+- [Package management](https://docs.marimo.io/guides/editor_features/package_management.html#package-management) 
 - Server settings
-- VIM keybindings
+- [VIM keybindings](https://docs.marimo.io/guides/editor_features/overview.html#vim-keybindings)
 - Formatting settings
 - [AI assistance](/guides/editor_features/ai_completion.md)
 
