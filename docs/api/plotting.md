@@ -122,3 +122,4 @@ You can use all the popular plotting libraries with marimo. Such as:
 - [HoloViews](http://holoviews.org/)
 - [hvPlot](https://hvplot.holoviz.org/)
 - [Leafmap](https://leafmap.org/)
+- [Pygwalker](https://kanaries.net/pygwalker)
