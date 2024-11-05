@@ -1,4 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+"use no memo";
 
 import type { DataType } from "@/core/kernel/messages";
 import type { ConditionType } from "@/plugins/impl/data-frames/schema";

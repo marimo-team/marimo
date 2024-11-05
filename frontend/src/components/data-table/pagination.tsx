@@ -1,4 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+"use no memo";
+
 import type { Table } from "@tanstack/react-table";
 import {
   ChevronLeft,

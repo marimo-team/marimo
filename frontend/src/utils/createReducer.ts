@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Logger } from "@/utils/Logger";
-import type { NoInfer } from "@tanstack/react-table";
 import { atom, useSetAtom } from "jotai";
 import type { Reducer } from "react";
+
+export type NoInfer<T> = [T][T extends any ? 0 : never];
 
 interface ReducerAction<T> {
   type: string;
