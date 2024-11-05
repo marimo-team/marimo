@@ -6,6 +6,8 @@ import { prettyNumber, prettyScientificNumber } from "@/utils/numbers";
 import { prettyDate } from "@/utils/dates";
 import { DelayMount } from "../utils/delay-mount";
 import { ChartSkeleton } from "../charts/chart-skeleton";
+import { logNever } from "@/utils/assertNever";
+import { DatePopover } from "./date-popover";
 
 export const ColumnChartContext = React.createContext<
   ColumnChartSpecModel<unknown>
@@ -25,7 +27,6 @@ export const TableColumnSummary = <TData, TValue>({
   const chartSpecModel = useContext(ColumnChartContext);
   const { theme } = useTheme();
   const { spec, type, summary } = chartSpecModel.getHeaderSummary(columnId);
-
   let chart: React.ReactNode = null;
   if (spec) {
     chart = (
@@ -45,6 +46,17 @@ export const TableColumnSummary = <TData, TValue>({
     );
   }
 
+  const renderDate = (
+    date: string | number | null | undefined,
+    type: "date" | "datetime",
+  ) => {
+    return (
+      <DatePopover date={date} type={type}>
+        {prettyDate(date, type)}
+      </DatePopover>
+    );
+  };
+
   const renderStats = () => {
     if (!summary) {
       return null;
@@ -52,12 +64,13 @@ export const TableColumnSummary = <TData, TValue>({
 
     switch (type) {
       case "date":
+      case "datetime":
         // Without a chart
         if (!spec) {
           return (
             <div className="flex flex-col whitespace-pre">
-              <span>min: {prettyDate(summary.min)}</span>
-              <span>max: {prettyDate(summary.max)}</span>
+              <span>min: {renderDate(summary.min, type)}</span>
+              <span>max: {renderDate(summary.max, type)}</span>
               <span>unique: {prettyNumber(summary.unique)}</span>
               <span>nulls: {prettyNumber(summary.nulls)}</span>
             </div>
@@ -66,8 +79,8 @@ export const TableColumnSummary = <TData, TValue>({
 
         return (
           <div className="flex justify-between w-full px-2 whitespace-pre">
-            <span>{prettyDate(summary.min)}</span>-
-            <span>{prettyDate(summary.max)}</span>
+            <span>{renderDate(summary.min, type)}</span>-
+            <span>{renderDate(summary.max, type)}</span>
           </div>
         );
       case "integer":
@@ -132,6 +145,8 @@ export const TableColumnSummary = <TData, TValue>({
             <span>nulls: {prettyNumber(summary.nulls)}</span>
           </div>
         );
+      case "time":
+        return null;
       case "string":
         return (
           <div className="flex flex-col whitespace-pre">
@@ -145,6 +160,9 @@ export const TableColumnSummary = <TData, TValue>({
             <span>nulls: {prettyNumber(summary.nulls)}</span>
           </div>
         );
+      default:
+        logNever(type);
+        return null;
     }
   };
 

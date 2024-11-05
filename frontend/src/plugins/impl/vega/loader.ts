@@ -108,8 +108,7 @@ export async function vegaLoadData<T = object>(
     middleware.push(BIG_INT_MIDDLEWARE);
   }
 
-  // Apply middleware
-  const unsubscribes = middleware.map((m) => m());
+  let unsubscribes: Unsubscribe[] = [];
 
   // Load the data
   try {
@@ -162,6 +161,8 @@ export async function vegaLoadData<T = object>(
       });
     }
 
+    // Apply middleware
+    unsubscribes = middleware.map((m) => m());
     // Always set parse to auto for csv data, to be able to parse dates and floats
     const results = isCsv
       ? // csv -> json

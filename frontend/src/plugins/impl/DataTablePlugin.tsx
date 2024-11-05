@@ -330,7 +330,7 @@ export const LoadingDataTableComponent = memo(
       search,
       filters,
       searchQuery,
-      props.fieldTypes,
+      useDeepCompareMemoize(props.fieldTypes),
       props.data,
       paginationState.pageSize,
       paginationState.pageIndex,
