@@ -416,7 +416,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         indices = [int(v) for v in value]
         self._selected_manager = self._searched_manager.select_rows(indices)
         self._has_any_selection = len(indices) > 0
-        return self._selected_manager.data  # type: ignore[no-any-return]
+        return unwrap_narwhals_dataframe(self._selected_manager.data)  # type: ignore[no-any-return]
 
     def download_as(self, args: DownloadAsArgs) -> str:
         # download selected rows if there are any, otherwise use all rows
