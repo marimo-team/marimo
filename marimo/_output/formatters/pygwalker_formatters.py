@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._runtime.context.utils import running_in_notebook
 
