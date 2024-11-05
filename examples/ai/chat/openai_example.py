@@ -2,12 +2,13 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #     "marimo",
+#     "openai==1.54.1",
 # ]
 # ///
 
 import marimo
 
-__generated_with = "0.9.0"
+__generated_with = "0.9.14"
 app = marimo.App(width="medium")
 
 
@@ -57,15 +58,15 @@ def __(mo, openai_key):
             "gpt-4o",
             system_message="You are a helpful assistant.",
             api_key=openai_key,
-            allow_attachments=[
-            "image/png",
-            "image/jpeg"
-        ],
        ),
         prompts=[
             "Hello",
             "How are you?",
             "I'm doing great, how about you?",
+        ],
+        allow_attachments=[
+            "image/png",
+            "image/jpeg"
         ],
     )
     chatbot
