@@ -270,7 +270,9 @@ def test_value_with_sorting_then_selection_dfs(df: Any) -> None:
             page_number=0,
         )
     )
-    assert nw.from_native(table._convert_value(["0"]))["a"][0] == "z"
+    value = table._convert_value(["0"])
+    assert not isinstance(value, nw.DataFrame)
+    assert nw.from_native(value)["a"][0] == "z"
 
     table.search(
         SearchTableArgs(
@@ -279,7 +281,9 @@ def test_value_with_sorting_then_selection_dfs(df: Any) -> None:
             page_number=0,
         )
     )
-    assert nw.from_native(table._convert_value(["0"]))["a"][0] == "x"
+    value = table._convert_value(["0"])
+    assert not isinstance(value, nw.DataFrame)
+    assert nw.from_native(value)["a"][0] == "x"
 
 
 def test_value_with_search_then_selection() -> None:
@@ -335,7 +339,9 @@ def test_value_with_search_then_selection_dfs(df: Any) -> None:
             page_number=0,
         )
     )
-    assert nw.from_native(table._convert_value(["0"]))["a"][0] == "bar"
+    value = table._convert_value(["0"])
+    assert not isinstance(value, nw.DataFrame)
+    assert nw.from_native(value)["a"][0] == "bar"
 
     table.search(
         SearchTableArgs(
@@ -344,7 +350,9 @@ def test_value_with_search_then_selection_dfs(df: Any) -> None:
             page_number=0,
         )
     )
-    assert nw.from_native(table._convert_value(["0"]))["a"][0] == "foo"
+    value = table._convert_value(["0"])
+    assert not isinstance(value, nw.DataFrame)
+    assert nw.from_native(value)["a"][0] == "foo"
 
     # empty search
     table.search(
@@ -353,7 +361,9 @@ def test_value_with_search_then_selection_dfs(df: Any) -> None:
             page_number=0,
         )
     )
-    assert nw.from_native(table._convert_value(["2"]))["a"][0] == "baz"
+    value = table._convert_value(["2"])
+    assert not isinstance(value, nw.DataFrame)
+    assert nw.from_native(value)["a"][0] == "baz"
 
 
 def test_table_with_too_many_columns_passes() -> None:
