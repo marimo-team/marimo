@@ -3,6 +3,7 @@ import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queri
 import { mint, orange, slate } from "@radix-ui/colors";
 import type { ColumnHeaderSummary, FieldTypes } from "./types";
 import { asURL } from "@/utils/url";
+import { parseCsvData } from "@/plugins/impl/vega/loader";
 
 const MAX_BAR_HEIGHT = 24; // px
 const MAX_BAR_WIDTH = 28; // px
@@ -33,6 +34,16 @@ export class ColumnChartSpecModel<T> {
       includeCharts: boolean;
     },
   ) {
+    // Support CSV data as a string
+    const isCsv =
+      typeof this.data === "string" &&
+      !this.data.startsWith("./@file") &&
+      !this.data.startsWith("/@file") &&
+      !this.data.startsWith("data:text/csv");
+    if (isCsv) {
+      this.data = parseCsvData(this.data) as T[];
+    }
+
     this.columnSummaries = new Map(summaries.map((s) => [s.column, s]));
   }
 
@@ -48,14 +59,12 @@ export class ColumnChartSpecModel<T> {
     if (!this.data) {
       return null;
     }
-    if (typeof this.data !== "string") {
-      return null;
-    }
-
     const base: Omit<TopLevelFacetedUnitSpec, "mark"> = {
-      data: {
-        url: asURL(this.data).href,
-      } as TopLevelFacetedUnitSpec["data"],
+      data: (typeof this.data === "string"
+        ? {
+            url: asURL(this.data).href,
+          }
+        : { values: this.data }) as TopLevelFacetedUnitSpec["data"],
       background: "transparent",
       config: {
         view: {
