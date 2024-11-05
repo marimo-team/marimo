@@ -4,6 +4,7 @@ import { mint, orange, slate } from "@radix-ui/colors";
 import type { ColumnHeaderSummary, FieldTypes } from "./types";
 import { asURL } from "@/utils/url";
 import { parseCsvData } from "@/plugins/impl/vega/loader";
+import { logNever } from "@/utils/assertNever";
 
 const MAX_BAR_HEIGHT = 24; // px
 const MAX_BAR_WIDTH = 28; // px
@@ -88,6 +89,8 @@ export class ColumnChartSpecModel<T> {
 
     switch (type) {
       case "date":
+      case "datetime":
+      case "time":
         return {
           ...base,
           mark: {
@@ -108,7 +111,12 @@ export class ColumnChartSpecModel<T> {
               {
                 field: column,
                 type: "temporal",
-                format: "%Y-%m-%d",
+                format:
+                  type === "date"
+                    ? "%Y-%m-%d"
+                    : type === "time"
+                      ? "%H:%M:%S"
+                      : "%Y-%m-%dT%H:%M:%S",
                 bin: true,
                 title: column,
               },
@@ -241,6 +249,7 @@ export class ColumnChartSpecModel<T> {
       case "string":
         return null;
       default:
+        logNever(type);
         return null;
     }
   }

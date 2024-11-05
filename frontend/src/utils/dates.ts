@@ -1,12 +1,23 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { Logger } from "./Logger";
 
-export function prettyDate(value: string | number | null | undefined): string {
+export function prettyDate(
+  value: string | number | null | undefined,
+  type: "date" | "datetime",
+): string {
   if (value == null) {
     return "";
   }
 
   try {
+    // If type is date, drop the timezone by rendering in UTC
+    // since dates are absolute
+    if (type === "date") {
+      value = new Date(value).toLocaleDateString(undefined, {
+        timeZone: "UTC",
+      });
+    }
+
     return new Date(value).toLocaleDateString(undefined, {
       year: "numeric",
       month: "short",

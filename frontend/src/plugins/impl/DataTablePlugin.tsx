@@ -330,7 +330,7 @@ export const LoadingDataTableComponent = memo(
       search,
       filters,
       searchQuery,
-      props.fieldTypes,
+      useDeepCompareMemoize(props.fieldTypes),
       props.data,
       paginationState.pageSize,
       paginationState.pageIndex,
@@ -466,6 +466,7 @@ const DataTableComponent = ({
   }, [fieldTypes, columnSummaries]);
 
   const fieldTypesOrInferred = fieldTypes ?? inferFieldTypes(data);
+  console.log("values", data);
 
   const columns = useMemo(
     () =>
