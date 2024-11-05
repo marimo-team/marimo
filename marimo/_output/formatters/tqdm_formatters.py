@@ -35,7 +35,9 @@ class TqdmFormatter(FormatterFactory):
                     total = args[2]
 
                 return progress_bar(
-                    collection=iterable, title=desc, total=total
+                    collection=iterable,
+                    title=desc or "Loading...",
+                    total=total,
                 )
 
             tqdm.notebook.tqdm = tqdm_to_progress_bar
