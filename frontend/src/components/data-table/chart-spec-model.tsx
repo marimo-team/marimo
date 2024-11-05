@@ -5,20 +5,12 @@ import type { ColumnHeaderSummary, FieldTypes } from "./types";
 import { asURL } from "@/utils/url";
 import { parseCsvData } from "@/plugins/impl/vega/loader";
 import { logNever } from "@/utils/assertNever";
+import type { TopLevelSpec } from "vega-lite";
 
 const MAX_BAR_HEIGHT = 24; // px
 const MAX_BAR_WIDTH = 28; // px
 const CONTAINER_WIDTH = 120; // px
 const PAD = 1; // px
-const VARIABLE_WIDTH = `min(${MAX_BAR_WIDTH}, ${CONTAINER_WIDTH} / length(data('source_0')) - ${PAD})`;
-
-const scale = {
-  align: 0,
-  paddingInner: 0,
-  paddingOuter: {
-    expr: "length(data('source_0')) == 2 ? 1 : length(data('source_0')) == 3 ? 0.5 : length(data('source_0')) == 4 ? 0 : 0",
-  },
-};
 
 export class ColumnChartSpecModel<T> {
   private columnSummaries = new Map<string | number, ColumnHeaderSummary>();
@@ -26,6 +18,9 @@ export class ColumnChartSpecModel<T> {
   public static readonly EMPTY = new ColumnChartSpecModel([], {}, [], {
     includeCharts: false,
   });
+
+  private dataSpec: TopLevelSpec["data"];
+  private sourceName: "data_0" | "source_0";
 
   constructor(
     private readonly data: T[] | string,
@@ -35,14 +30,38 @@ export class ColumnChartSpecModel<T> {
       includeCharts: boolean;
     },
   ) {
-    // Support CSV data as a string
-    const isCsv =
-      typeof this.data === "string" &&
-      !this.data.startsWith("./@file") &&
-      !this.data.startsWith("/@file") &&
-      !this.data.startsWith("data:text/csv");
-    if (isCsv) {
-      this.data = parseCsvData(this.data) as T[];
+    // Data may come in from a few different sources:
+    // - A URL
+    // - A CSV data URI (e.g. "data:text/csv;base64,...")
+    // - A CSV string (e.g. "a,b,c\n1,2,3\n4,5,6")
+    // - An array of objects
+    // For each case, we need to set up the data spec and source name appropriately.
+    // If its a file, the source name will be "source_0", otherwise it will be "data_0".
+    // We have a few snapshot tests to ensure that the spec is correct for each case.
+    if (typeof this.data === "string") {
+      if (this.data.startsWith("./@file") || this.data.startsWith("/@file")) {
+        this.dataSpec = {
+          url: asURL(this.data).href,
+        };
+        this.sourceName = "source_0";
+      } else if (this.data.startsWith("data:text/csv;base64,")) {
+        const decoded = atob(this.data.split(",")[1]);
+        this.dataSpec = {
+          values: parseCsvData(decoded) as T[],
+        };
+        this.sourceName = "data_0";
+      } else {
+        // Assume it's a CSV string
+        this.dataSpec = {
+          values: parseCsvData(this.data) as T[],
+        };
+        this.sourceName = "data_0";
+      }
+    } else {
+      this.dataSpec = {
+        values: this.data,
+      };
+      this.sourceName = "source_0";
     }
 
     this.columnSummaries = new Map(summaries.map((s) => [s.column, s]));
@@ -61,11 +80,7 @@ export class ColumnChartSpecModel<T> {
       return null;
     }
     const base: Omit<TopLevelFacetedUnitSpec, "mark"> = {
-      data: (typeof this.data === "string"
-        ? {
-            url: asURL(this.data).href,
-          }
-        : { values: this.data }) as TopLevelFacetedUnitSpec["data"],
+      data: this.dataSpec as TopLevelFacetedUnitSpec["data"],
       background: "transparent",
       config: {
         view: {
@@ -87,6 +102,9 @@ export class ColumnChartSpecModel<T> {
     // escape colons in column names
     column = column.replaceAll(":", "\\:");
 
+    const scale = this.getScale();
+    const variableWidth = `min(${MAX_BAR_WIDTH}, ${CONTAINER_WIDTH} / length(data('${this.sourceName}')) - ${PAD})`;
+
     switch (type) {
       case "date":
       case "datetime":
@@ -96,7 +114,7 @@ export class ColumnChartSpecModel<T> {
           mark: {
             type: "bar",
             color: mint.mint11,
-            width: { expr: VARIABLE_WIDTH },
+            width: { expr: variableWidth },
           },
           encoding: {
             x: {
@@ -145,7 +163,7 @@ export class ColumnChartSpecModel<T> {
           mark: {
             type: "bar",
             color: mint.mint11,
-            size: { expr: VARIABLE_WIDTH },
+            size: { expr: variableWidth },
             align: "right",
           },
           encoding: {
@@ -252,5 +270,15 @@ export class ColumnChartSpecModel<T> {
         logNever(type);
         return null;
     }
+  }
+
+  private getScale() {
+    return {
+      align: 0,
+      paddingInner: 0,
+      paddingOuter: {
+        expr: `length(data('${this.sourceName}')) == 2 ? 1 : length(data('${this.sourceName}')) == 3 ? 0.5 : length(data('${this.sourceName}')) == 4 ? 0 : 0`,
+      },
+    };
   }
 }

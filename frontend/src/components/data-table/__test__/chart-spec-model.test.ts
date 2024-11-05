@@ -91,4 +91,51 @@ describe("ColumnChartSpecModel", () => {
       "column\\.with\\[special\\:chars\\]",
     );
   });
+
+  describe("snapshot", () => {
+    const fieldTypes: FieldTypes = {
+      ...mockFieldTypes,
+      a: "number",
+    };
+
+    it("url data", () => {
+      const model = new ColumnChartSpecModel(
+        mockData,
+        fieldTypes,
+        mockSummaries,
+        { includeCharts: true },
+      );
+      expect(model.getHeaderSummary("date").spec).toMatchSnapshot();
+    });
+
+    it("csv data", () => {
+      const model = new ColumnChartSpecModel(
+        `data:text/csv;base64,${btoa("a,b,c\n1,2,3\n4,5,6")}`,
+        fieldTypes,
+        mockSummaries,
+        { includeCharts: true },
+      );
+      expect(model.getHeaderSummary("a").spec).toMatchSnapshot();
+    });
+
+    it("csv string", () => {
+      const model = new ColumnChartSpecModel(
+        "a,b,c\n1,2,3\n4,5,6",
+        fieldTypes,
+        mockSummaries,
+        { includeCharts: true },
+      );
+      expect(model.getHeaderSummary("a").spec).toMatchSnapshot();
+    });
+
+    it("array", () => {
+      const model = new ColumnChartSpecModel(
+        ["a", "b", "c"],
+        fieldTypes,
+        mockSummaries,
+        { includeCharts: true },
+      );
+      expect(model.getHeaderSummary("a").spec).toMatchSnapshot();
+    });
+  });
 });
