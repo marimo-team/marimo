@@ -13,29 +13,31 @@ def convert_to_openai_messages(
     openai_messages: List[Dict[Any, Any]] = []
 
     for message in messages:
+        if not message.attachments:
+            openai_messages.append(
+                {"role": message.role, "content": message.content}
+            )
+            continue
+
+        # Handle attachments
         parts: List[Dict[Any, Any]] = []
-
         parts.append({"type": "text", "text": message.content})
+        for attachment in message.attachments:
+            content_type = attachment.content_type or "text/plain"
 
-        if message.attachments:
-            for attachment in message.attachments:
-                content_type = attachment.content_type or "text/plain"
-
-                if content_type.startswith("image"):
-                    parts.append(
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": attachment.url},
-                        }
-                    )
-                elif content_type.startswith("text"):
-                    parts.append(
-                        {"type": "text", "text": _extract_text(attachment.url)}
-                    )
-                else:
-                    raise ValueError(
-                        f"Unsupported content type {content_type}"
-                    )
+            if content_type.startswith("image"):
+                parts.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": attachment.url},
+                    }
+                )
+            elif content_type.startswith("text"):
+                parts.append(
+                    {"type": "text", "text": _extract_text(attachment.url)}
+                )
+            else:
+                raise ValueError(f"Unsupported content type {content_type}")
 
         openai_messages.append({"role": message.role, "content": parts})
 
@@ -48,34 +50,36 @@ def convert_to_anthropic_messages(
     anthropic_messages: List[Dict[Any, Any]] = []
 
     for message in messages:
+        if not message.attachments:
+            anthropic_messages.append(
+                {"role": message.role, "content": message.content}
+            )
+            continue
+
+        # Handle attachments
         parts: List[Dict[Any, Any]] = []
-
         parts.append({"type": "text", "text": message.content})
+        for attachment in message.attachments:
+            content_type = attachment.content_type or "text/plain"
+            if content_type.startswith("image"):
+                parts.append(
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": content_type,
+                            "data": _extract_data(attachment.url),
+                        },
+                    }
+                )
 
-        if message.attachments:
-            for attachment in message.attachments:
-                content_type = attachment.content_type or "text/plain"
-                if content_type.startswith("image"):
-                    parts.append(
-                        {
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": content_type,
-                                "data": _extract_data(attachment.url),
-                            },
-                        }
-                    )
+            elif content_type.startswith("text"):
+                parts.append(
+                    {"type": "text", "text": _extract_text(attachment.url)}
+                )
 
-                elif content_type.startswith("text"):
-                    parts.append(
-                        {"type": "text", "text": _extract_text(attachment.url)}
-                    )
-
-                else:
-                    raise ValueError(
-                        f"Unsupported content type {content_type}"
-                    )
+            else:
+                raise ValueError(f"Unsupported content type {content_type}")
 
         anthropic_messages.append({"role": message.role, "content": parts})
 

@@ -68,11 +68,10 @@ def test_convert_to_openai_messages(sample_messages: List[ChatMessage]):
 
     # Check assistant message
     assert result[1]["role"] == "assistant"
-    assert len(result[1]["content"]) == 1
-    assert result[1]["content"][0] == {
-        "type": "text",
-        "text": "Sure, I'd be happy to help. What's your question?",
-    }
+    assert (
+        result[1]["content"]
+        == "Sure, I'd be happy to help. What's your question?"
+    )
 
 
 def test_convert_to_anthropic_messages(sample_messages: List[ChatMessage]):
@@ -102,11 +101,10 @@ def test_convert_to_anthropic_messages(sample_messages: List[ChatMessage]):
 
     # Check assistant message
     assert result[1]["role"] == "assistant"
-    assert len(result[1]["content"]) == 1
-    assert result[1]["content"][0] == {
-        "type": "text",
-        "text": "Sure, I'd be happy to help. What's your question?",
-    }
+    assert (
+        result[1]["content"]
+        == "Sure, I'd be happy to help. What's your question?"
+    )
 
 
 def test_convert_to_google_messages(sample_messages: List[ChatMessage]):
@@ -170,20 +168,12 @@ def test_message_without_attachments():
     openai_result = convert_to_openai_messages(messages)
     assert len(openai_result) == 1
     assert openai_result[0]["role"] == "user"
-    assert len(openai_result[0]["content"]) == 1
-    assert openai_result[0]["content"][0] == {
-        "type": "text",
-        "text": "Just a simple message",
-    }
+    assert openai_result[0]["content"] == "Just a simple message"
 
     anthropic_result = convert_to_anthropic_messages(messages)
     assert len(anthropic_result) == 1
     assert anthropic_result[0]["role"] == "user"
-    assert len(anthropic_result[0]["content"]) == 1
-    assert anthropic_result[0]["content"][0] == {
-        "type": "text",
-        "text": "Just a simple message",
-    }
+    assert anthropic_result[0]["content"] == "Just a simple message"
 
     google_result = convert_to_google_messages(messages)
     assert len(google_result) == 1
