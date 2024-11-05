@@ -17,8 +17,8 @@ class PygWalkerFormatter(FormatterFactory):
             # older versions of marimo may not have api.marimo, and not sure
             # about pygwalker's API stability, so use a coarse try/except
             try:
-                import pygwalker
-                from pygwalker.api.marimo import walk
+                import pygwalker  # type: ignore
+                from pygwalker.api.marimo import walk  # type: ignore
 
                 pygwalker.walk = walk  # type: ignore
             except Exception:
