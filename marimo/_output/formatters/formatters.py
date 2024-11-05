@@ -25,6 +25,7 @@ from marimo._output.formatters.pandas_formatters import PandasFormatter
 from marimo._output.formatters.panel_formatters import PanelFormatter
 from marimo._output.formatters.plotly_formatters import PlotlyFormatter
 from marimo._output.formatters.pyecharts_formatters import PyechartsFormatter
+from marimo._output.formatters.pygwalker_formatters import PygWalkerFormatter
 from marimo._output.formatters.seaborn_formatters import SeabornFormatter
 from marimo._output.formatters.structures import StructuresFormatter
 from marimo._output.formatters.sympy_formatters import SympyFormatter
@@ -39,6 +40,7 @@ THIRD_PARTY_FACTORIES: dict[str, FormatterFactory] = {
     PandasFormatter.package_name(): PandasFormatter(),
     PolarsFormatter.package_name(): PolarsFormatter(),
     PyArrowFormatter.package_name(): PyArrowFormatter(),
+    PygWalkerFormatter.package_name(): PygWalkerFormatter(),
     PlotlyFormatter.package_name(): PlotlyFormatter(),
     SeabornFormatter.package_name(): SeabornFormatter(),
     LeafmapFormatter.package_name(): LeafmapFormatter(),
