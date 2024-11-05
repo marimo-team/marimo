@@ -466,7 +466,6 @@ const DataTableComponent = ({
   }, [fieldTypes, columnSummaries]);
 
   const fieldTypesOrInferred = fieldTypes ?? inferFieldTypes(data);
-  console.log("values", data);
 
   const columns = useMemo(
     () =>
