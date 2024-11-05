@@ -1,6 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { DataTable } from "@/components/data-table/data-table";
-import { generateColumns } from "@/components/data-table/columns";
+import {
+  generateColumns,
+  inferFieldTypes,
+} from "@/components/data-table/columns";
 import { Functions } from "@/utils/functions";
 
 export default {
@@ -25,7 +28,7 @@ export const Default = {
         },
       ]}
       columns={generateColumns({
-        items: [
+        fieldTypes: inferFieldTypes([
           {
             first_name: "Michael",
             last_name: "Scott",
@@ -34,7 +37,7 @@ export const Default = {
             first_name: "Dwight",
             last_name: "Schrute",
           },
-        ],
+        ]),
         rowHeaders: [],
         selection: null,
       })}
@@ -52,7 +55,7 @@ export const Empty1 = {
       setPaginationState={Functions.NOOP}
       data={[]}
       columns={generateColumns({
-        items: [
+        fieldTypes: inferFieldTypes([
           {
             first_name: "Michael",
             last_name: "Scott",
@@ -61,7 +64,7 @@ export const Empty1 = {
             first_name: "Dwight",
             last_name: "Schrute",
           },
-        ],
+        ]),
         rowHeaders: [],
         selection: null,
       })}
@@ -101,7 +104,7 @@ export const Pagination = {
         },
       ]}
       columns={generateColumns({
-        items: [
+        fieldTypes: inferFieldTypes([
           {
             first_name: "Michael",
             last_name: "Scott",
@@ -110,7 +113,7 @@ export const Pagination = {
             first_name: "Dwight",
             last_name: "Schrute",
           },
-        ],
+        ]),
         rowHeaders: [],
         selection: null,
       })}
