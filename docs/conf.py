@@ -99,7 +99,7 @@ html_theme_options = {
             </form>
             <div style="flex: 1; display: flex; justify-content: flex-end; padding-left: 1rem;">
                 <a target="_blank" href="https://github.com/marimo-team/marimo" class="muted-link fa-brands fa-solid fa-github fa-2x px-2"></a>
-                <a target="_blank" href="https://discord.gg/JE7nhX6mD8" class="muted-link fa-brands fa-solid fa-discord fa-2x px-2"></a>
+                <a target="_blank" href="https://marimo.io/discord?ref=docs" class="muted-link fa-brands fa-solid fa-discord fa-2x px-2"></a>
                 <a target="_blank" href="https://twitter.com/marimo_io" class="muted-link fa-brands fa-solid fa-twitter fa-2x px-2"></a>
             </div>
         </div>
@@ -129,7 +129,7 @@ html_theme_options = {
         },
         {
             "name": "Discord",
-            "url": "https://discord.gg/JE7nhX6mD8",
+            "url": "https://marimo.io/discord?ref=docs",
             "html": "",
             "class": "fa-brands fa-solid fa-discord fa-2x px-1",
         },
