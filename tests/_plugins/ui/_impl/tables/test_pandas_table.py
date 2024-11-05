@@ -318,6 +318,24 @@ class TestPandasTableManager(unittest.TestCase):
         expected_data = self.data.head(limit)
         assert_frame_equal(limited_manager.data, expected_data)
 
+    def test_take(self) -> None:
+        assert self.manager.take(1, 0).data["A"].to_list() == [1]
+        assert self.manager.take(2, 0).data["A"].to_list() == [1, 2]
+        assert self.manager.take(2, 1).data["A"].to_list() == [2, 3]
+        assert self.manager.take(2, 2).data["A"].to_list() == [3]
+
+    def test_take_zero(self) -> None:
+        limited_manager = self.manager.take(0, 0)
+        assert limited_manager.data.is_empty()
+
+    def test_take_negative(self) -> None:
+        with pytest.raises(ValueError):
+            self.manager.take(-1, 0)
+
+    def test_take_negative_offset(self) -> None:
+        with pytest.raises(ValueError):
+            self.manager.take(1, -1)
+
     def test_take_out_of_bounds(self) -> None:
         # Too large of page
         assert len(self.manager.take(10, 0).data) == 3

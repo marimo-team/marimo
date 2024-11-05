@@ -127,7 +127,7 @@ class NarwhalsTableManager(
             raise ValueError("Count must be a positive integer")
         if offset < 0:
             raise ValueError("Offset must be a non-negative integer")
-        return self.with_new_data(self.data[offset:count])
+        return self.with_new_data(self.data[offset : offset + count])
 
     def search(self, query: str) -> TableManager[Any]:
         query = query.lower()
