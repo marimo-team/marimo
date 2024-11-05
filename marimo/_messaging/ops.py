@@ -148,7 +148,7 @@ class CellOp(Op):
 
                 Increasing the max output size may cause performance issues.
                 If you run into problems, please reach out
-                to us on [Discord](https://discord.gg/JE7nhX6mD8) or
+                to us on [Discord](https://marimo.io/discord?ref=app) or
                 [GitHub](https://github.com/marimo-team/marimo/issues).
                 """
 

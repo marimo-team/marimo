@@ -7,7 +7,7 @@
 
 <p align="center">
   <a href="https://docs.marimo.io" target="_blank"><strong>用户手册</strong></a> ·
-  <a href="https://discord.gg/JE7nhX6mD8" target="_blank"><strong>Discord 社区</strong></a> ·
+  <a href="https://marimo.io/discord?ref=readme" target="_blank"><strong>Discord 社区</strong></a> ·
   <a href="https://github.com/marimo-team/marimo/tree/main/examples" target="_blank"><strong>示例</strong></a>
 </p>
 
@@ -205,14 +205,14 @@ Marimo 很容易上手，为高级用户提供了很大的空间。 例如，这
 我们感谢所有人的贡献! 这是为所有人设计的工具，我们真挚的欢迎任何人的任何意见！
 请参阅[CONTRIBUTING.md](https://github.com/marimo-team/marimo/blob/main/CONTRIBUTING.md) 获取更多信息，了解如何参与到这个项目中来。
 
-> 看到这里，如果你有任何的想法或者问题，欢迎加入我们的 [Discord](https://discord.gg/JE7nhX6mD8)！
+> 看到这里，如果你有任何的想法或者问题，欢迎加入我们的 [Discord](https://marimo.io/discord?ref=readme)！
 
 ## 社区
 
 我们也正在建设 marimo 社区，来和我们一起玩吧！
 
 - 🌟 [给我们的项目点一颗星星](https://github.com/marimo-team/marimo)
-- 💬 [在 Discord 上与我们交流](https://discord.gg/JE7nhX6mD8)
+- 💬 [在 Discord 上与我们交流](https://marimo.io/discord?ref=readme)
 - 📧 [订阅我们的最新动态](https://marimo.io/newsletter)
 - ☁️ [加入我们的云服务器候补名单](https://marimo.io/cloud)
 - ✏️ [在 github 上开始一个讨论话题](https://github.com/marimo-team/marimo/discussions)

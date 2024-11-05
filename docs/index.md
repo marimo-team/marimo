@@ -110,7 +110,7 @@ reproducibility, maintainability, composability, and shareability.
    :maxdepth: 2
 
    GitHub <https://github.com/marimo-team/marimo>
-   Discord <https://discord.gg/JE7nhX6mD8>
+   Discord <https://marimo.io/discord?ref=docs>
    Newsletter <https://marimo.io/newsletter>
    Twitter <https://twitter.com/marimo_io>
    Marimo Cloud Waitlist <https://marimo.io/cloud>

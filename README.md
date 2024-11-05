@@ -7,7 +7,7 @@
 
 <p align="center">
   <a href="https://docs.marimo.io" target="_blank"><strong>Docs</strong></a> ·
-  <a href="https://discord.gg/JE7nhX6mD8" target="_blank"><strong>Discord</strong></a> ·
+  <a href="https://marimo.io/discord?ref=readme" target="_blank"><strong>Discord</strong></a> ·
   <a href="https://github.com/marimo-team/marimo/tree/main/examples" target="_blank"><strong>Examples</strong></a>
 </p>
 
@@ -19,7 +19,7 @@
 <p align="center">
 <a href="https://pypi.org/project/marimo/"><img src="https://img.shields.io/pypi/v/marimo?color=%2334D058&label=pypi" /></a>
 <a href="https://anaconda.org/conda-forge/marimo"><img src="https://img.shields.io/conda/vn/conda-forge/marimo.svg"/></a>
-<a href="https://discord.gg/JE7nhX6mD8"><img src="https://shields.io/discord/1059888774789730424" alt="discord" /></a>
+<a href="https://marimo.io/discord?ref=readme"><img src="https://shields.io/discord/1059888774789730424" alt="discord" /></a>
 <img alt="Pepy Total Downloads" src="https://img.shields.io/pepy/dt/marimo?label=pypi%20%7C%20downloads"/>
 <img alt="Conda Downloads" src="https://img.shields.io/conda/d/conda-forge/marimo" />
 <a href="https://github.com/marimo-team/marimo/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/marimo" /></a>
@@ -241,14 +241,14 @@ We appreciate all contributions! You don't need to be an expert to help out.
 Please see [CONTRIBUTING.md](https://github.com/marimo-team/marimo/blob/main/CONTRIBUTING.md) for more details on how to get
 started.
 
-> Questions? Reach out to us [on Discord](https://discord.gg/JE7nhX6mD8).
+> Questions? Reach out to us [on Discord](https://marimo.io/discord?ref=readme).
 
 ## Community
 
 We're building a community. Come hang out with us!
 
 - 🌟 [Star us on GitHub](https://github.com/marimo-team/marimo)
-- 💬 [Chat with us on Discord](https://discord.gg/JE7nhX6mD8)
+- 💬 [Chat with us on Discord](https://marimo.io/discord?ref=readme)
 - 📧 [Subscribe to our Newsletter](https://marimo.io/newsletter)
 - ☁️ [Join our Cloud Waitlist](https://marimo.io/cloud)
 - ✏️ [Start a GitHub Discussion](https://github.com/marimo-team/marimo/discussions)

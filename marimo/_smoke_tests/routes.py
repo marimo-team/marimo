@@ -49,7 +49,7 @@ def __(mo):
 
         <p align="center">
           <a href="https://docs.marimo.io" target="_blank"><strong>Docs</strong></a> ·
-          <a href="https://discord.gg/JE7nhX6mD8" target="_blank"><strong>Discord</strong></a> ·
+          <a href="https://marimo.io/discord" target="_blank"><strong>Discord</strong></a> ·
           <a href="https://github.com/marimo-team/marimo/tree/main/examples" target="_blank"><strong>Examples</strong></a>
         </p>
 
@@ -90,7 +90,7 @@ def __(mo):
         We're building a community. Come hang out with us!
 
         - 🌟 [Star us on GitHub](https://github.com/marimo-team/marimo)
-        - 💬 [Chat with us on Discord](https://discord.gg/JE7nhX6mD8)
+        - 💬 [Chat with us on Discord](https://marimo.io/discord)
         - 📧 [Subscribe to our Newsletter](https://marimo.io/newsletter)
         - ☁️ [Join our Cloud Waitlist](https://marimo.io/cloud)
         - ✏️ [Start a GitHub Discussion](https://github.com/marimo-team/marimo/discussions)

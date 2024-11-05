@@ -12,7 +12,7 @@
 These guides will help you integrate your objects with marimo and hook
 into marimo's reactive execution engine for UI plugins.
 
-Still need help? Reach out to us on [Discord](https://discord.gg/JE7nhX6mD8) or
+Still need help? Reach out to us on [Discord](https://marimo.io/discord?ref=docs) or
 [GitHub issues](https://github.com/marimo-team/marimo/issues).
 
 ```{admonition} Checking if running in a marimo notebook
