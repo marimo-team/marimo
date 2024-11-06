@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable, Dict, Final, Optional
 
 import marimo._output.data.data as mo_data
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
@@ -39,6 +40,8 @@ class data_explorer(UIElement[Dict[str, Any], Dict[str, Any]]):
         df: IntoDataFrame,
         on_change: Optional[Callable[[Dict[str, Any]], None]] = None,
     ) -> None:
+        # Drop the index since empty column names break the data explorer
+        df = _drop_index(df)
         self._data = df
 
         manager = get_table_manager(df)
@@ -55,3 +58,12 @@ class data_explorer(UIElement[Dict[str, Any], Dict[str, Any]]):
 
     def _convert_value(self, value: Dict[str, Any]) -> Dict[str, Any]:
         return value
+
+
+def _drop_index(df: IntoDataFrame) -> IntoDataFrame:
+    if DependencyManager.pandas.imported():
+        import pandas as pd
+
+        if isinstance(df, pd.DataFrame):
+            return df.reset_index(drop=True)
+    return df

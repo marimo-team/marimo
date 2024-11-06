@@ -83,7 +83,7 @@ const categories = [
     id: "labs",
     label: "Labs",
     Icon: FlaskConicalIcon,
-    className: "bg-[var(--yellow-4)]",
+    className: "bg-[var(--slate-4)]",
   },
 ] as const;
 
