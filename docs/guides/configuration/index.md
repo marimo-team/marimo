@@ -45,7 +45,7 @@ You can customize the following:
 - Completion (auto-completion, AI copilot, etc.)
 - Display (theme, font size, output placement, etc.)
 - Autosave 
-- [Package management](https://docs.marimo.io/guides/editor_features/package_management.html#package-management) 
+- [Package management](https://docs.marimo.io/guides/editor_features/package_management.html#package-management)
 - Server settings
 - [VIM keybindings](/guides/editor_features/overview#vim-keybindings)
 - Formatting settings
