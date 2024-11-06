@@ -23,7 +23,7 @@ export const Column = memo((props: Props) => {
     <div
       className={cn(
         "flex flex-col gap-5",
-        // box-content is so the column is width=contentWidth, but not affected by padding
+        // box-content is needed so the column is width=contentWidth, but not affected by padding
         props.width === "columns" &&
           "w-contentWidth box-content	 min-h-[100px] border border-t-0 border-[var(--slate-3)] rounded-b-lg px-11 py-6 bg-[var(--slate-2)]",
       )}
