@@ -8,7 +8,7 @@ To create a SQL cell, you first need to install additional dependencies,
 including [duckdb](https://duckdb.org/):
 
 ```bash
-pip install marimo[sql]
+pip install 'marimo[sql]'
 ```
 
 ```{admonition} Examples

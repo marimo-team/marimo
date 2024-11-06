@@ -254,7 +254,7 @@ const AddCellButtons: React.FC<{
               <div className="flex flex-col">
                 <span>
                   Additional dependencies required:
-                  <Kbd className="inline">pip install marimo[sql]</Kbd>.
+                  <Kbd className="inline">pip install 'marimo[sql]'</Kbd>.
                 </span>
                 <span>
                   You will need to restart the notebook after installing.
