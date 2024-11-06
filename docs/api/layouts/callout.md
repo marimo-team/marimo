@@ -6,7 +6,7 @@
     def __():
         callout_kind = mo.ui.dropdown(
             label="Color",
-            options=["neutral", "danger", "warn", "success"],
+            options=["info", "neutral", "danger", "warn", "success"],
             value="neutral",
         )
         return

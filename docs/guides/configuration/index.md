@@ -21,7 +21,7 @@ App Configuration is specific to each notebook and is stored in the `notebook.py
 
 - Notebook width
 - Notebook title
-- Custom CSS
+- [Custom CSS](/guides/configuration/theming)
 - Automatically download HTML snapshots
 
 Configure these settings through the notebook menu.
@@ -44,10 +44,10 @@ You can customize the following:
 - [Hotkeys](/guides/editor_features/hotkeys.md)
 - Completion (auto-completion, AI copilot, etc.)
 - Display (theme, font size, output placement, etc.)
-- Autosave 
-- Package management 
+- Autosave
+- [Package management](/guides/editor_features/package_management.md#package-management)
 - Server settings
-- VIM keybindings
+- [VIM keybindings](/guides/editor_features/overview.md#vim-keybindings)
 - Formatting settings
 - [AI assistance](/guides/editor_features/ai_completion.md)
 
