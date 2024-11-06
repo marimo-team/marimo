@@ -114,7 +114,7 @@ jobs:
           VITE_MARIMO_VERSION: ${{ env.MARIMO_VERSION }}
 
       - name: ☁️ Google Auth
-        uses: google-github-actions/auth@v1
+        uses: google-github-actions/auth@v2
         # Skip on forks
         if: github.event.pull_request.head.repo.organization == 'marimo-team'
         with:
