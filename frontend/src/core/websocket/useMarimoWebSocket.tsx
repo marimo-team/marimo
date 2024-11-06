@@ -253,6 +253,7 @@ export function useMarimoWebSocket(opts: {
             state: WebSocketState.CLOSED,
             code: WebSocketClosedReason.ALREADY_RUNNING,
             reason: "another browser tab is already connected to the kernel",
+            canTakeover: true,
           });
           ws.close(); // close to prevent reconnecting
           return;
