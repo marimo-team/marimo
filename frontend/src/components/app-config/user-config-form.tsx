@@ -40,6 +40,7 @@ import {
   PackageIcon,
   CpuIcon,
   BrainIcon,
+  FlaskConicalIcon,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { KNOWN_AI_MODELS } from "./constants";
@@ -77,6 +78,12 @@ const categories = [
     label: "AI",
     Icon: BrainIcon,
     className: "bg-[linear-gradient(45deg,var(--purple-5),var(--cyan-5))]",
+  },
+  {
+    id: "labs",
+    label: "Labs",
+    Icon: FlaskConicalIcon,
+    className: "bg-[var(--yellow-4)]",
   },
 ] as const;
 
@@ -961,6 +968,40 @@ export const UserConfigForm: React.FC = () => {
               />
             </SettingGroup>
           </>
+        );
+      case "labs":
+        return (
+          <SettingGroup title="Experimental Features">
+            <p className="text-sm text-muted-secondary mb-4">
+              ⚠️ These features are experimental and may require restarting your
+              notebook to take effect.
+            </p>
+            <FormField
+              control={form.control}
+              name="experimental.multi_column"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">
+                      Multi-column layout
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="multi-column-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <FormDescription>
+                    Enable experimental support for multi-column notebook
+                    layouts. This adds a new width setting to the notebook
+                    settings menu.
+                  </FormDescription>
+                </div>
+              )}
+            />
+          </SettingGroup>
         );
     }
   };
