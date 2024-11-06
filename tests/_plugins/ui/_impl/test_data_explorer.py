@@ -24,7 +24,7 @@ def test_data_explorer(df: Any) -> None:
 
 
 @pytest.mark.skipif(
-    not HAS_DEPS and is_windows(),
+    not HAS_DEPS or is_windows(),
     reason="optional dependencies not installed or windows",
 )
 def test_data_explorer_index() -> None:
