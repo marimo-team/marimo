@@ -39,6 +39,7 @@ import { kioskModeAtom } from "../mode";
 import { focusAndScrollCellOutputIntoView } from "../cells/scrollCellIntoView";
 import { capabilitiesAtom } from "../config/capabilities";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
+import { reloadSafe } from "@/utils/reload-safe";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -69,7 +70,7 @@ export function useMarimoWebSocket(opts: {
     const msg = jsonParseWithSpecialChar(e.data);
     switch (msg.op) {
       case "reload":
-        window.location.reload();
+        reloadSafe();
         return;
       case "kernel-ready":
         handleKernelReady(msg.data, {

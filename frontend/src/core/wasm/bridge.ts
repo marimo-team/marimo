@@ -35,6 +35,7 @@ import { store } from "../state/jotai";
 import { notebookIsRunningAtom } from "../cells/cells";
 import { getInitialAppMode, initialMode } from "../mode";
 import { wasmInitializationAtom } from "./state";
+import { reloadSafe } from "@/utils/reload-safe";
 
 type SaveWorker = ReturnType<
   typeof getWorkerRPC<SaveWorkerSchema>
@@ -310,7 +311,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
       notebookFileStore.saveFile(code.contents);
       fallbackFileStore.saveFile(code.contents);
     }
-    window.location.reload();
+    reloadSafe();
     return null;
   };
 

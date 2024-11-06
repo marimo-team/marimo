@@ -3,6 +3,7 @@ import { API } from "@/core/network/api";
 import { Button } from "../ui/button";
 import { toast } from "../ui/use-toast";
 import { prettyError } from "@/utils/errors";
+import { reloadSafe } from "@/utils/reload-safe";
 
 interface DisconnectedProps {
   reason: string;
@@ -19,7 +20,7 @@ export const Disconnected = ({
       await API.post(`/kernel/takeover?${searchParams.toString()}`, {});
 
       // Refresh the page to reconnect
-      window.location.reload();
+      reloadSafe();
     } catch (error) {
       toast({
         title: "Failed to take over session",
