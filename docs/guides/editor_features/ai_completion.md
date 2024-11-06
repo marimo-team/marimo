@@ -16,13 +16,10 @@ _Get started with Copilot_:
 1. Install [Node.js](https://nodejs.org/en/download).
 2. Enable Copilot via the settings menu in the marimo editor.
 
-```{admonition} Built from the ground up
+```{admonition} Installation Requirement
 :class: note
-   marimo comes with GitHub Copilot, a tool that helps you write code faster by
-   suggesting in-line code suggestions based on the context of your current code.
-
-   marimo also comes with the ability to use AI for refactoring a cell, finishing writing a cell, or writing a full cell from scratch.
-   This feature is currently experimental and is not enabled by default.
+   Copilot is not yet available in our conda distribution; please install
+   marimo using ``pip`` if you need Copilot.
 ```
 
 ## Codeium Copilot
@@ -119,7 +116,7 @@ To locate your configuration file, run:
 ```bash
 marimo config show
 ```
-At the top, the path to your `marimo.toml` file will be shown. You can Ctrl/Cmd+click the path to open it in your editor. For more information about configuration, see the [Configuration Guide](https://docs.marimo.io/guides/configuration/index.html#user-configuration-file).
+At the top, the path to your `marimo.toml` file will be shown. You can Ctrl/Cmd+click the path to open it in your editor. For more information about configuration, see the [Configuration Guide](/guides/configuration/theming).
 
 Below we describe how to connect marimo to your AI provider. Once enabled, you can generate entirely new cells by clicking the "Generate with AI" button at the bottom of your notebook. You can also refactor existing cells by inputting `Ctrl/Cmd-Shift-e` in a cell, opening an input to modify the cell using AI.
 
