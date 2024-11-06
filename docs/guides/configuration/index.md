@@ -47,7 +47,7 @@ You can customize the following:
 - Autosave 
 - [Package management](https://docs.marimo.io/guides/editor_features/package_management.html#package-management) 
 - Server settings
-- [VIM keybindings](https://docs.marimo.io/guides/editor_features/overview.html#vim-keybindings)
+- [VIM keybindings](/guides/editor_features/overview#vim-keybindings)
 - Formatting settings
 - [AI assistance](/guides/editor_features/ai_completion.md)
 
