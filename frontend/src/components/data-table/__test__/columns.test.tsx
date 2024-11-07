@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { expect, test } from "vitest";
+import { describe, expect, it, test } from "vitest";
 import { uniformSample } from "../uniformSample";
 import { UrlDetector } from "../url-detector";
 import { render } from "@testing-library/react";
-import { inferFieldTypes } from "../columns";
+import { generateColumns, inferFieldTypes } from "../columns";
+import type { FieldTypesWithExternalType } from "../types";
 
 test("uniformSample", () => {
   const items = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
@@ -117,4 +118,79 @@ test("inferFieldTypes with mimetypes", () => {
       ],
     }
   `);
+});
+
+describe("generateColumns", () => {
+  const fieldTypes: FieldTypesWithExternalType = {
+    name: ["string", "text"],
+    age: ["number", "integer"],
+  };
+
+  it("should generate columns with row headers", () => {
+    const columns = generateColumns({
+      rowHeaders: ["name"],
+      selection: null,
+      fieldTypes,
+    });
+
+    expect(columns).toHaveLength(3);
+    expect(columns[0].id).toBe("name");
+    expect(columns[0].meta?.rowHeader).toBe(true);
+    expect(columns[0].enableSorting).toBe(true);
+  });
+
+  it("should generate columns with nameless row headers", () => {
+    const columns = generateColumns({
+      rowHeaders: [""],
+      selection: null,
+      fieldTypes,
+    });
+
+    expect(columns).toHaveLength(3);
+    expect(columns[0].id).toMatchInlineSnapshot(`"__m_column__0"`);
+    expect(columns[0].meta?.rowHeader).toBe(true);
+    expect(columns[0].enableSorting).toBe(false);
+  });
+
+  it("should include selection column for multi selection", () => {
+    const columns = generateColumns({
+      rowHeaders: [],
+      selection: "multi",
+      fieldTypes,
+    });
+
+    expect(columns[0].id).toBe("__select__");
+    expect(columns[0].enableSorting).toBe(false);
+  });
+
+  it("should generate columns with correct meta data", () => {
+    const columns = generateColumns({
+      rowHeaders: [],
+      selection: null,
+      fieldTypes,
+    });
+
+    expect(columns.length).toBe(2);
+    expect(columns[0].meta?.dataType).toBe("string");
+    expect(columns[1].meta?.dataType).toBe("number");
+  });
+
+  it("should handle text justification and wrapping", () => {
+    const columns = generateColumns({
+      rowHeaders: [],
+      selection: null,
+      fieldTypes,
+      textJustifyColumns: { name: "center" },
+      wrappedColumns: ["age"],
+    });
+
+    // Assuming getCellStyleClass is a function that returns a class name
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cell = (columns[0].cell as any)({
+      column: columns[0],
+      renderValue: () => "John",
+      getValue: () => "John",
+    });
+    expect(cell?.props.className).toContain("center");
+  });
 });
