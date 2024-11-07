@@ -353,6 +353,48 @@ Bob.Jones,25
       ]
     `);
   });
+
+  it("should handle null values", async () => {
+    const csvData = "name,age\nAlice,30\nBob,null";
+    vi.spyOn(vegaLoader, "load").mockReturnValue(Promise.resolve(csvData));
+    const data = await vegaLoadData(csvData, {
+      type: "csv",
+      parse: { age: "number", name: "string" },
+    });
+    expect(data).toMatchInlineSnapshot(`
+      [
+        {
+          "age": 30,
+          "name": "Alice",
+        },
+        {
+          "age": NaN,
+          "name": "Bob",
+        },
+      ]
+    `);
+  });
+
+  it("should handle empty dates", async () => {
+    const csvData = "name,created_at\nAlice,2024-01-01T00:00:00Z\nBob,";
+    vi.spyOn(vegaLoader, "load").mockReturnValue(Promise.resolve(csvData));
+    const data = await vegaLoadData(csvData, {
+      type: "csv",
+      parse: { created_at: "date", name: "string" },
+    });
+    expect(data).toMatchInlineSnapshot(`
+      [
+        {
+          "created_at": "2024-01-01T00:00:00.000Z",
+          "name": "Alice",
+        },
+        {
+          "created_at": "",
+          "name": "Bob",
+        },
+      ]
+    `);
+  });
 });
 
 describe("uniquifyColumnNames", () => {
