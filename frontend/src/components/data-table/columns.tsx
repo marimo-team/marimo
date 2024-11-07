@@ -14,7 +14,6 @@ import type { FilterType } from "./filters";
 import type { FieldTypesWithExternalType } from "./types";
 import { UrlDetector } from "./url-detector";
 import { cn } from "@/utils/cn";
-import { Objects } from "@/utils/objects";
 import { uniformSample } from "./uniformSample";
 
 function inferDataType(value: unknown): DataType {
@@ -94,8 +93,27 @@ export function generateColumns<T>({
 }): Array<ColumnDef<T>> {
   const rowHeadersSet = new Set(rowHeaders);
 
-  const columns = Objects.entries(fieldTypes).map(
-    ([key, types], idx): ColumnDef<T> => ({
+  const getMeta = (key: string) => {
+    const types = fieldTypes[key];
+    const isRowHeader = rowHeadersSet.has(key);
+
+    if (isRowHeader || !types) {
+      return {
+        rowHeader: isRowHeader,
+      };
+    }
+
+    return {
+      rowHeader: isRowHeader,
+      filterType: getFilterTypeForFieldType(types[0]),
+      dtype: types[1],
+      dataType: types[0],
+    };
+  };
+
+  const columnKeys = [...rowHeaders, ...Object.keys(fieldTypes)];
+  const columns = columnKeys.map(
+    (key, idx): ColumnDef<T> => ({
       id: key || `${NAMELESS_COLUMN_PREFIX}${idx}`,
       // Use an accessorFn instead of an accessorKey because column names
       // may have periods in them ...
@@ -174,12 +192,10 @@ export function generateColumns<T>({
       },
       // Remove any default filtering
       filterFn: undefined,
-      meta: {
-        rowHeader: rowHeadersSet.has(key),
-        filterType: getFilterTypeForFieldType(types[0]),
-        dtype: types[1],
-        dataType: types[0],
-      },
+      // Can only sort if key is defined
+      // For example, unnamed index columns, won't be sortable
+      enableSorting: !!key,
+      meta: getMeta(key),
     }),
   );
 
