@@ -57,6 +57,12 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
     number = mo.ui.number(start=1, stop=10, step=2)
     ```
 
+    Or for integer-only values:
+
+    ```python
+    number = mo.ui.number(step=1)
+    ```
+
     Or from a dataframe series:
 
     ```python
