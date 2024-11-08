@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.5.2"
+__generated_with = "0.9.15"
 app = marimo.App()
 
 
@@ -14,7 +14,7 @@ def __(mo):
 def __(basic_ui_elements, mo):
     mo.md(
         f"""### Basic elements
-
+                                    
         {basic_ui_elements}
         """
     )
@@ -25,7 +25,7 @@ def __(basic_ui_elements, mo):
 def __(basic_ui_elements, construct_element, show_element):
     selected_element = construct_element(basic_ui_elements.value)
     show_element(selected_element)
-    return selected_element,
+    return (selected_element,)
 
 
 @app.cell
@@ -49,7 +49,7 @@ def __(composite_elements, mo):
 def __(composite_elements, construct_element, show_element):
     composite_element = construct_element(composite_elements.value)
     show_element(composite_element)
-    return composite_element,
+    return (composite_element,)
 
 
 @app.cell
@@ -70,7 +70,7 @@ def __(mo):
             'reused-in-json': 'reused-in-json',
         }.items())),
     )
-    return composite_elements,
+    return (composite_elements,)
 
 
 @app.cell
@@ -117,7 +117,7 @@ def __(file_area, file_button, mo):
             ).batch(name=mo.ui.text(), date=mo.ui.date())
         elif value == mo.ui.button:
             return mo.ui.button(
-                value=0, label="click me", on_click=lambda value: value + 1
+                value=0, label="click me", on_click=lambda value: value + 1, keyboard_shortcut="Cmd-l"
             )
         elif value == mo.ui.checkbox:
             return mo.ui.checkbox(label="check me")
@@ -181,7 +181,7 @@ def __(file_area, file_button, mo):
         elif value == mo.ui.text_area:
             return mo.ui.text_area()
         return None
-    return construct_element,
+    return (construct_element,)
 
 
 @app.cell
@@ -189,7 +189,7 @@ def __(mo):
     def show_element(element):
         if element is not None:
           return mo.hstack([element], justify="center")
-    return show_element,
+    return (show_element,)
 
 
 @app.cell
@@ -213,13 +213,13 @@ def __(mo):
                 The element's current value is {printed_value}
                 """
             )
-    return value,
+    return (value,)
 
 
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 if __name__ == "__main__":

@@ -55,6 +55,7 @@ class run_button(UIElement[Any, Any]):
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
+    - `keyboard_shortcut`: keyboard shortcut to trigger the button (e.g. 'Ctrl+Shift+K')
     """
 
     # We reuse the button plugin on the frontend, UI/logic are the same
@@ -69,8 +70,10 @@ class run_button(UIElement[Any, Any]):
         label: str = "click to run",
         on_change: Optional[Callable[[Any], None]] = None,
         full_width: bool = False,
+        keyboard_shortcut: Optional[str] = None,
     ) -> None:
         self._initial_value = False
+        tooltip = keyboard_shortcut if tooltip is None else tooltip
         super().__init__(
             component_name=button._name,
             # frontend's value is a counter
@@ -81,6 +84,7 @@ class run_button(UIElement[Any, Any]):
                 "disabled": disabled,
                 "tooltip": tooltip,
                 "full-width": full_width,
+                "keyboard-shortcut": keyboard_shortcut,
             },
             on_change=on_change,
         )

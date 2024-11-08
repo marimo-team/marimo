@@ -1117,6 +1117,7 @@ class button(UIElement[Any, Any]):
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
+    - `keyboard_shortcut`: keyboard shortcut to trigger the button (e.g. 'Ctrl+Shift+K')
     """
 
     _name: Final[str] = "marimo-button"
@@ -1132,9 +1133,11 @@ class button(UIElement[Any, Any]):
         label: str = "click here",
         on_change: Optional[Callable[[Any], None]] = None,
         full_width: bool = False,
+        keyboard_shortcut: Optional[str] = None,
     ) -> None:
         self._on_click = (lambda _: value) if on_click is None else on_click
         self._initial_value = value
+        tooltip = keyboard_shortcut if tooltip is None else tooltip
         # This should be kept in sync with mo.ui.run_button()
         super().__init__(
             component_name=button._name,
@@ -1146,6 +1149,7 @@ class button(UIElement[Any, Any]):
                 "disabled": disabled,
                 "tooltip": tooltip,
                 "full-width": full_width,
+                "keyboard-shortcut": keyboard_shortcut,
             },
             on_change=on_change,
         )

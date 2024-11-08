@@ -14,6 +14,7 @@ interface Data {
   disabled: boolean;
   fullWidth: boolean;
   tooltip?: string;
+  keyboardShortcut?: string;
 }
 
 export class ButtonPlugin implements IPlugin<number, Data> {
@@ -25,11 +26,12 @@ export class ButtonPlugin implements IPlugin<number, Data> {
     disabled: z.boolean().default(false),
     fullWidth: z.boolean().default(false),
     tooltip: z.string().optional(),
+    keyboardShortcut: z.string().optional(),
   });
 
   render(props: IPluginProps<number, Data>): JSX.Element {
     const {
-      data: { disabled, kind, label, fullWidth, tooltip },
+      data: { disabled, kind, label, fullWidth, tooltip, keyboardShortcut },
     } = props;
     // value counts number of times button was clicked
     const button = (
@@ -38,6 +40,7 @@ export class ButtonPlugin implements IPlugin<number, Data> {
         variant={kindToButtonVariant(kind)}
         disabled={disabled}
         size="xs"
+        keyboardShortcut={keyboardShortcut}
         className={cn({
           "w-full": fullWidth,
         })}
