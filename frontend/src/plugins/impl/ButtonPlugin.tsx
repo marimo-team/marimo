@@ -7,6 +7,7 @@ import { renderHTML } from "../core/RenderHTML";
 import { type Intent, zodIntent } from "./common/intent";
 import { cn } from "@/utils/cn";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+import { KeyboardHotkeys } from "@/components/shortcuts/renderShortcut";
 
 interface Data {
   label: string;
@@ -57,10 +58,21 @@ export class ButtonPlugin implements IPlugin<number, Data> {
       </Button>
     );
 
-    if (tooltip) {
+    let tooltipContent: string | JSX.Element | undefined;
+
+    // eslint-disable-next-line unicorn/prefer-ternary
+    if (keyboardShortcut && !tooltip) {
+      tooltipContent = <KeyboardHotkeys shortcut={keyboardShortcut} />;
+    } else {
+      tooltipContent = tooltip;
+    }
+
+    if (tooltipContent) {
       return (
         <TooltipProvider>
-          <Tooltip content={tooltip}>{button}</Tooltip>
+          <Tooltip content={tooltipContent} delayDuration={200}>
+            {button}
+          </Tooltip>
         </TooltipProvider>
       );
     }

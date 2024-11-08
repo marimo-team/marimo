@@ -1117,7 +1117,7 @@ class button(UIElement[Any, Any]):
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
-    - `keyboard_shortcut`: keyboard shortcut to trigger the button (e.g. 'Ctrl+Shift+K')
+    - `keyboard_shortcut`: keyboard shortcut to trigger the button (e.g. 'Ctrl-L')
     """
 
     _name: Final[str] = "marimo-button"
@@ -1137,7 +1137,6 @@ class button(UIElement[Any, Any]):
     ) -> None:
         self._on_click = (lambda _: value) if on_click is None else on_click
         self._initial_value = value
-        tooltip = keyboard_shortcut if tooltip is None else tooltip
         # This should be kept in sync with mo.ui.run_button()
         super().__init__(
             component_name=button._name,
