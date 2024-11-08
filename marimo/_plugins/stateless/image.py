@@ -89,11 +89,11 @@ def _normalize_image(src: ImageLike) -> Image:
 def image(
     src: ImageLike,
     alt: Optional[str] = None,
-    caption: Optional[str] = None,
     width: Optional[int] = None,
     height: Optional[int] = None,
     rounded: bool = False,
     style: Optional[dict[str, Any]] = None,
+    caption: Optional[str] = None,
 ) -> Html:
     """Render an image as HTML.
 
@@ -109,10 +109,10 @@ def image(
     mo.image(
         src="https://marimo.io/logo.png",
         alt="Marimo logo",
-        caption="Marimo logo",
         width=100,
         height=100,
         rounded=True,
+        caption="Marimo logo",
     )
     ```
 
@@ -121,11 +121,11 @@ def image(
     - `src`: a path or URL to an image, a file-like object
         (opened in binary mode), or array-like object.
     - `alt`: the alt text of the image
-    - `caption`: the caption of the image
     - `width`: the width of the image in pixels
     - `height`: the height of the image in pixels
     - `rounded`: whether to round the corners of the image
     - `style`: a dictionary of CSS styles to apply to the image
+    - `caption`: the caption of the image
 
     **Returns.**
 
