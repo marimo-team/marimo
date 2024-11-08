@@ -161,7 +161,7 @@ def image(
         }
     )
     img = h.img(src=resolved_src, alt=alt, style=styles)
-    if caption:
+    if caption is not None:
         return Html(
             h.div(
                 [
