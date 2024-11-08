@@ -89,6 +89,7 @@ def _normalize_image(src: ImageLike) -> Image:
 def image(
     src: ImageLike,
     alt: Optional[str] = None,
+    caption: Optional[str] = None,
     width: Optional[int] = None,
     height: Optional[int] = None,
     rounded: bool = False,
@@ -108,6 +109,7 @@ def image(
     mo.image(
         src="https://marimo.io/logo.png",
         alt="Marimo logo",
+        caption="Marimo logo",
         width=100,
         height=100,
         rounded=True,
@@ -119,6 +121,7 @@ def image(
     - `src`: a path or URL to an image, a file-like object
         (opened in binary mode), or array-like object.
     - `alt`: the alt text of the image
+    - `caption`: the caption of the image
     - `width`: the width of the image in pixels
     - `height`: the height of the image in pixels
     - `rounded`: whether to round the corners of the image
@@ -158,4 +161,18 @@ def image(
         }
     )
     img = h.img(src=resolved_src, alt=alt, style=styles)
+    if caption:
+        return Html(
+            h.div(
+                [
+                    img,
+                    h.div(
+                        [caption],
+                        style="color: var(--muted-foreground); "
+                        "text-align: center; margin-top: 0.5rem;",
+                    ),
+                ],
+                style="display: flex; flex-direction: column;",
+            )
+        )
     return Html(img)
