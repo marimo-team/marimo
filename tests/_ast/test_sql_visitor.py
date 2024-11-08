@@ -9,6 +9,7 @@ from marimo._ast.sql_visitor import (
     SQLDefs,
     SQLVisitor,
     find_sql_defs,
+    find_sql_refs,
 )
 from marimo._dependencies.dependencies import DependencyManager
 
@@ -91,7 +92,7 @@ def test_sql_with_variable() -> None:
 
 
 @pytest.mark.skipif(not HAS_DUCKDB, reason="Missing DuckDB")
-class TestFindCreatedTables:
+class TestFindSQLDefs:
     @staticmethod
     def test_find_sql_defs_simple() -> None:
         sql = "CREATE TABLE test_table (id INT, name VARCHAR(255));"
@@ -421,3 +422,134 @@ class TestFindCreatedTables:
 )
 def test_find_sql_defs_duckdb_not_available() -> None:
     assert find_sql_defs("CREATE TABLE test (id INT);") == SQLDefs([], [], [])
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="Missing DuckDB")
+class TestFindSQLRefs:
+    @staticmethod
+    def test_find_sql_refs_simple() -> None:
+        sql = "SELECT * FROM test_table;"
+        assert find_sql_refs(sql) == ["test_table"]
+
+    @staticmethod
+    def test_find_sql_refs_multiple() -> None:
+        sql = """
+        SELECT * FROM table1;
+        SELECT * FROM table2;
+        """
+        assert find_sql_refs(sql) == ["table1", "table2"]
+
+    @staticmethod
+    def test_find_sql_refs_with_schema() -> None:
+        sql = "SELECT * FROM my_schema.my_table;"
+        assert find_sql_refs(sql) == ["my_schema", "my_table"]
+
+    @staticmethod
+    def test_find_sql_refs_with_catalog() -> None:
+        # Skip the schema if it's coming from a catalog
+        # Why? Because it may be called "public" or "main" across all catalogs
+        # and they aren't referenced in the code
+        sql = "SELECT * FROM my_catalog.my_schema.my_table;"
+        assert find_sql_refs(sql) == ["my_catalog", "my_table"]
+
+    @staticmethod
+    def test_find_sql_refs_skip_memory_main() -> None:
+        # This is the default in-memory catalog and schema
+        # and we don't want to include them in the references
+        sql = "SELECT * FROM memory.main.my_table;"
+        assert find_sql_refs(sql) == ["my_table"]
+
+    @staticmethod
+    @staticmethod
+    def test_find_sql_refs_with_join() -> None:
+        sql = """
+        SELECT * FROM table1
+        JOIN table2 ON table1.id = table2.id;
+        """
+        assert find_sql_refs(sql) == ["table1", "table2"]
+
+    @staticmethod
+    def test_find_sql_refs_with_subquery() -> None:
+        sql = """
+        SELECT * FROM (
+            SELECT * FROM inner_table
+        ) t;
+        """
+        assert find_sql_refs(sql) == ["inner_table"]
+
+    @staticmethod
+    def test_find_sql_refs_with_cte() -> None:
+        sql = """
+        WITH cte AS (
+            SELECT * FROM source_table
+        )
+        SELECT * FROM cte;
+        """
+        assert find_sql_refs(sql) == ["source_table"]
+
+    @staticmethod
+    def test_find_sql_refs_with_union() -> None:
+        sql = """
+        SELECT * FROM table1
+        UNION
+        SELECT * FROM table2;
+        """
+        assert find_sql_refs(sql) == ["table1", "table2"]
+
+    @staticmethod
+    def test_find_sql_refs_with_quoted_names() -> None:
+        sql = """
+        SELECT * FROM "My Table"
+        JOIN "Weird.Name" ON "My Table".id = "Weird.Name".id;
+        """
+        assert find_sql_refs(sql) == ["My Table", "Weird.Name"]
+
+    @staticmethod
+    @pytest.mark.xfail(reason="Multiple CTEs are not supported")
+    def test_find_sql_refs_with_multiple_ctes() -> None:
+        sql = """
+        WITH
+            cte1 AS (SELECT * FROM table1),
+            cte2 AS (SELECT * FROM table2),
+            cte3 AS (SELECT * FROM cte1 JOIN cte2)
+        SELECT * FROM cte3;
+        """
+        assert find_sql_refs(sql) == ["table1", "table2"]
+
+    @staticmethod
+    @pytest.mark.xfail(reason="Nested joins are not supported")
+    def test_find_sql_refs_with_nested_joins() -> None:
+        sql = """
+        SELECT * FROM t1
+        JOIN (t2 JOIN t3 ON t2.id = t3.id)
+        ON t1.id = t2.id;
+        """
+        assert find_sql_refs(sql) == ["t1", "t2", "t3"]
+
+    @staticmethod
+    def test_find_sql_refs_with_lateral_join() -> None:
+        sql = """
+        SELECT * FROM employees,
+        LATERAL (SELECT * FROM departments WHERE departments.id = employees.dept_id) dept;
+        """
+        assert find_sql_refs(sql) == ["employees", "departments"]
+
+    @staticmethod
+    def test_find_sql_refs_with_schema_switching() -> None:
+        sql = """
+        SELECT * FROM schema1.table1
+        JOIN schema2.table2 ON schema1.table1.id = schema2.table2.id;
+        """
+        assert find_sql_refs(sql) == ["schema1", "table1", "schema2", "table2"]
+
+    @staticmethod
+    def test_find_sql_refs_with_complex_subqueries() -> None:
+        sql = """
+        SELECT * FROM (
+            SELECT * FROM (
+                SELECT * FROM deeply.nested.table
+            ) t1
+            JOIN another_table
+        ) t2;
+        """
+        assert find_sql_refs(sql) == ["deeply", "table", "another_table"]

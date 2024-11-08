@@ -4,9 +4,12 @@ from __future__ import annotations
 import ast
 import re
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, List, Optional
 
+from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
+
+LOGGER = _loggers.marimo_logger()
 
 
 class SQLVisitor(ast.NodeVisitor):
@@ -222,17 +225,17 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
 
 # TODO(akshayka): there are other kinds of refs to find; this should be
 # find_sql_refs
-def find_from_targets(
+def find_sql_refs(
     sql_statement: str,
 ) -> list[str]:
     """
-    Find tokens following the FROM keyword, which may be tables or schemas.
+    Find table and schema references in a SQL statement.
 
     Args:
         sql_statement: The SQL statement to parse.
 
     Returns:
-        A list of names following the FROM keyword.
+        A list of table and schema names referenced in the statement.
     """
     if not DependencyManager.duckdb.has():
         return []
@@ -244,22 +247,95 @@ def find_from_targets(
         sql_statement=sql_statement, tokens=tokens
     )
     refs: list[str] = []
+    cte_names: set[str] = set()
     i = 0
 
+    # First pass - collect CTE names
     while i < len(tokens):
-        if token_extractor.is_keyword(i, "from"):
+        if token_extractor.is_keyword(i, "with"):
             i += 1
-            if i < len(tokens):
-                # TODO(akshayka): this is maybe a name, but it's totally
-                # possible that it's not a name -- could be a function (such as
-                # range), or the start of a subquery, ...
-                name = token_extractor.strip_quotes(
+            # Handle optional parenthesis after WITH
+            if token_extractor.token_str(i) == "(":
+                i += 1
+            while i < len(tokens):
+                if token_extractor.is_keyword(i, "select"):
+                    break
+                if (
+                    token_extractor.token_str(i) == ","
+                    or token_extractor.token_str(i) == "("
+                ):
+                    i += 1
+                    continue
+                cte_name = token_extractor.strip_quotes(
                     token_extractor.token_str(i)
                 )
-                if "." in name:
-                    # get the schema
-                    name = name.split(".")[0]
-                refs.append(name)
+                if not token_extractor.is_keyword(i, "as"):
+                    cte_names.add(cte_name)
+                i += 1
+                if token_extractor.is_keyword(i, "as"):
+                    break
         i += 1
 
-    return refs
+    # Second pass - collect references excluding CTEs
+    i = 0
+    while i < len(tokens):
+        if token_extractor.is_keyword(i, "from") or token_extractor.is_keyword(
+            i, "join"
+        ):
+            i += 1
+            if i < len(tokens):
+                # Skip over opening parenthesis for subqueries
+                if token_extractor.token_str(i) == "(":
+                    continue
+
+                parts: List[str] = []
+                while i < len(tokens):
+                    part = token_extractor.strip_quotes(
+                        token_extractor.token_str(i)
+                    )
+                    if part in (
+                        "on",
+                        "as",
+                        "where",
+                        "group",
+                        "order",
+                        "limit",
+                        "offset",
+                        ")",
+                    ):
+                        break
+                    if part not in (",", "("):
+                        if part not in cte_names:
+                            parts.append(part)
+
+                    i += 1
+                    if i >= len(tokens) or token_extractor.token_str(i) != ".":
+                        break
+                    i += 1
+
+                if len(parts) == 3:
+                    if parts[0] == "memory":
+                        # Skip catalog and schema, if its the default
+                        # in-memory catalog
+                        refs.append(parts[2])
+                    else:
+                        # Just add the catalog and table, skip schema
+                        refs.extend([parts[0], parts[2]])
+                elif len(parts) == 2:
+                    # It's a schema and table
+                    refs.extend(parts)
+                elif len(parts) == 1:
+                    # It's a table, make sure it's not a CTE
+                    if parts[0] not in cte_names:
+                        refs.append(parts[0])
+                else:
+                    LOGGER.warning(
+                        "Unexpected number of parts in SQL reference: %s",
+                        parts,
+                    )
+
+                i -= 1  # Compensate for outer loop increment
+        i += 1
+
+    # Remove duplicates while preserving order
+    return list(dict.fromkeys(refs))
