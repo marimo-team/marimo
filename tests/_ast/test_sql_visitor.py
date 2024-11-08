@@ -460,7 +460,6 @@ class TestFindSQLRefs:
         assert find_sql_refs(sql) == ["my_table"]
 
     @staticmethod
-    @staticmethod
     def test_find_sql_refs_with_join() -> None:
         sql = """
         SELECT * FROM table1
