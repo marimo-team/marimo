@@ -770,14 +770,14 @@ class Kernel:
                     duckdb.execute(f"DROP VIEW IF EXISTS memory.main.{name}")
                 except Exception as e:
                     LOGGER.warning("Failed to drop view %s: %s", name, str(e))
-            elif variable.kind == "schema" and DependencyManager.duckdb.has():
+            elif variable.kind == "catalog" and DependencyManager.duckdb.has():
                 import duckdb
 
                 try:
                     duckdb.execute(f"DETACH DATABASE IF EXISTS {name}")
                 except Exception as e:
                     LOGGER.warning(
-                        "Failed to detach schema %s: %s", name, str(e)
+                        "Failed to detach catalog %s: %s", name, str(e)
                     )
             else:
                 if name in self.globals:

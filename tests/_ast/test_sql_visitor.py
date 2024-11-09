@@ -97,16 +97,12 @@ class TestFindSQLDefs:
     def test_find_sql_defs_simple() -> None:
         sql = "CREATE TABLE test_table (id INT, name VARCHAR(255));"
         assert find_sql_defs(sql) == SQLDefs(
-            ["test_table"],
-            [],
-            [],
+            tables=["test_table"],
         )
 
         sql = "CREATE VIEW test_view (id INT, name VARCHAR(255));"
         assert find_sql_defs(sql) == SQLDefs(
-            [],
-            ["test_view"],
-            [],
+            views=["test_view"],
         )
 
     @staticmethod
@@ -116,12 +112,10 @@ class TestFindSQLDefs:
         CREATE TABLE table2 (name VARCHAR(255));
         """
         assert find_sql_defs(sql) == SQLDefs(
-            [
+            tables=[
                 "table1",
                 "table2",
             ],
-            [],
-            [],
         )
 
         sql = """
@@ -129,12 +123,10 @@ class TestFindSQLDefs:
         CREATE VIEW table2 (name VARCHAR(255));
         """
         assert find_sql_defs(sql) == SQLDefs(
-            [],
-            [
+            views=[
                 "table1",
                 "table2",
             ],
-            [],
         )
 
     @staticmethod
@@ -149,12 +141,10 @@ class TestFindSQLDefs:
         CREATE TABLE table2 (name VARCHAR(255));
         """
         assert find_sql_defs(sql) == SQLDefs(
-            [
+            tables=[
                 "table1",
                 "table2",
             ],
-            [],
-            [],
         )
 
         sql = """
@@ -167,60 +157,46 @@ class TestFindSQLDefs:
         CREATE VIEW table2 (name VARCHAR(255));
         """
         assert find_sql_defs(sql) == SQLDefs(
-            [],
-            [
+            views=[
                 "table1",
                 "table2",
             ],
-            [],
         )
 
     @staticmethod
     def test_find_sql_defs_with_or_replace() -> None:
         sql = "CREATE OR REPLACE TABLE test_table (id INT);"
         assert find_sql_defs(sql) == SQLDefs(
-            ["test_table"],
-            [],
-            [],
+            tables=["test_table"],
         )
 
         sql = "CREATE OR REPLACE VIEW test_view (id INT);"
         assert find_sql_defs(sql) == SQLDefs(
-            [],
-            ["test_view"],
-            [],
+            views=["test_view"],
         )
 
     @staticmethod
     def test_find_sql_defs_temporary() -> None:
         sql = "CREATE TEMPORARY TABLE temp_table (id INT);"
         assert find_sql_defs(sql) == SQLDefs(
-            ["temp_table"],
-            [],
-            [],
+            tables=["temp_table"],
         )
 
         sql = "CREATE TEMPORARY VIEW temp_table (id INT);"
         assert find_sql_defs(sql) == SQLDefs(
-            [],
-            ["temp_table"],
-            [],
+            views=["temp_table"],
         )
 
     @staticmethod
     def test_find_sql_defs_if_not_exists() -> None:
         sql = "CREATE TABLE IF NOT EXISTS new_table (id INT);"
         assert find_sql_defs(sql) == SQLDefs(
-            ["new_table"],
-            [],
-            [],
+            tables=["new_table"],
         )
 
         sql = "CREATE VIEW IF NOT EXISTS new_table (id INT);"
         assert find_sql_defs(sql) == SQLDefs(
-            [],
-            ["new_table"],
-            [],
+            views=["new_table"],
         )
 
     @staticmethod
@@ -231,13 +207,11 @@ class TestFindSQLDefs:
         CREATE TABLE table3 (date DATE);
         """  # noqa: E501
         assert find_sql_defs(sql) == SQLDefs(
-            [
+            tables=[
                 "table1",
                 "table2",
                 "table3",
             ],
-            [],
-            [],
         )
 
         sql = """
@@ -246,34 +220,28 @@ class TestFindSQLDefs:
         CREATE VIEW table3 (date DATE);
         """  # noqa: E501
         assert find_sql_defs(sql) == SQLDefs(
-            [],
-            [
+            views=[
                 "table1",
                 "table2",
                 "table3",
             ],
-            [],
         )
 
     @staticmethod
     def test_find_sql_defs_no_create() -> None:
         sql = "SELECT * FROM existing_table;"
-        assert find_sql_defs(sql) == SQLDefs([], [], [])
+        assert find_sql_defs(sql) == SQLDefs()
 
     @staticmethod
     def test_find_sql_defs_case_insensitive() -> None:
         sql = "create TABLE Test_Table (id INT);"
         assert find_sql_defs(sql) == SQLDefs(
-            ["Test_Table"],
-            [],
-            [],
+            tables=["Test_Table"],
         )
 
         sql = "create VIEW Test_Table (id INT);"
         assert find_sql_defs(sql) == SQLDefs(
-            [],
-            ["Test_Table"],
-            [],
+            views=["Test_Table"],
         )
 
     @staticmethod
@@ -288,11 +256,7 @@ class TestFindSQLDefs:
     def test_find_sql_defs_empty_input(
         query: str,
     ) -> None:
-        assert find_sql_defs(query) == SQLDefs(
-            [],
-            [],
-            [],
-        )
+        assert find_sql_defs(query) == SQLDefs()
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -339,9 +303,7 @@ class TestFindSQLDefs:
         query: str,
     ) -> None:
         assert find_sql_defs(query) == SQLDefs(
-            ["my_table"],
-            [],
-            [],
+            tables=["my_table"],
         )
 
     @staticmethod
@@ -368,7 +330,7 @@ class TestFindSQLDefs:
         CREATE TABLE e'escaped\ntable' (id INT);
         """
         assert find_sql_defs(sql) == SQLDefs(
-            [
+            tables=[
                 "my--table",
                 "my_table_with_select",
                 "my/*weird*/table",
@@ -376,44 +338,120 @@ class TestFindSQLDefs:
                 "single-quotes",
                 r"escaped\ntable",
             ],
-            [],
-            [],
         )
 
     @staticmethod
     def test_find_created_database() -> None:
         sql = "ATTACH 'Chinook.sqlite';"
         assert find_sql_defs(sql) == SQLDefs(
-            [],
-            [],
-            ["Chinook"],
+            catalogs=["Chinook"],
         )
 
         sql = "ATTACH 'Chinook.sqlite' AS my_db;"
         assert find_sql_defs(sql) == SQLDefs(
-            [],
-            [],
-            ["my_db"],
+            catalogs=["my_db"],
         )
         sql = "ATTACH DATABASE 'Chinook.sqlite';"
         assert find_sql_defs(sql) == SQLDefs(
-            [],
-            [],
-            ["Chinook"],
+            catalogs=["Chinook"],
         )
 
         sql = "ATTACH DATABASE IF NOT EXISTS 'Chinook.sqlite';"
         assert find_sql_defs(sql) == SQLDefs(
-            [],
-            [],
-            ["Chinook"],
+            catalogs=["Chinook"],
         )
 
         sql = "ATTACH DATABASE IF NOT EXISTS 'Chinook.sqlite' AS my_db;"
         assert find_sql_defs(sql) == SQLDefs(
-            [],
-            [],
-            ["my_db"],
+            catalogs=["my_db"],
+        )
+
+    @staticmethod
+    def test_find_sql_defs_with_catalog() -> None:
+        sql = """
+        CREATE TABLE my_catalog.my_table (id INT);
+        """
+        assert find_sql_defs(sql) == SQLDefs(
+            tables=["my_table"],
+            reffed_catalogs=["my_catalog"],
+        )
+
+    @staticmethod
+    def test_find_sql_defs_create_or_replace_with_catalog() -> None:
+        sql = """
+        CREATE OR REPLACE TABLE my_db.my_table as (SELECT 42);
+        """
+        assert find_sql_defs(sql) == SQLDefs(
+            tables=["my_table"],
+            reffed_catalogs=["my_db"],
+        )
+
+    @staticmethod
+    def test_find_sql_defs_with_catalog_and_schema() -> None:
+        sql = """
+        CREATE TABLE my_catalog.my_schema.my_table (id INT);
+        """
+        assert find_sql_defs(sql) == SQLDefs(
+            tables=["my_table"],
+            reffed_catalogs=["my_catalog"],
+            reffed_schemas=["my_schema"],
+        )
+
+    @staticmethod
+    def test_find_sql_defs_with_catalog_and_main() -> None:
+        sql = """
+        CREATE TABLE my_catalog.main.my_table (id INT);
+        """
+        assert find_sql_defs(sql) == SQLDefs(
+            tables=["my_table"],
+            reffed_catalogs=["my_catalog"],
+            reffed_schemas=[],  # main not included, since that is the default
+        )
+
+    @staticmethod
+    def test_find_sql_defs_create_schema() -> None:
+        sql = """
+        CREATE SCHEMA my_catalog.my_schema;
+        """
+        assert find_sql_defs(sql) == SQLDefs(
+            schemas=["my_schema"],
+            reffed_catalogs=["my_catalog"],
+        )
+
+    @staticmethod
+    def test_find_sql_defs_with_in_memory_catalog_and_schema() -> None:
+        sql = """
+        CREATE TABLE memory.main.my_table (id INT);
+        """
+        assert find_sql_defs(sql) == SQLDefs(
+            tables=["my_table"],
+        )
+
+    @staticmethod
+    def test_find_sql_defs_with_in_memory_catalog() -> None:
+        sql = """
+        CREATE TABLE memory.my_table (id INT);
+        """
+        assert find_sql_defs(sql) == SQLDefs(
+            tables=["my_table"],
+        )
+
+    @staticmethod
+    def test_find_sql_defs_with_temp_table() -> None:
+        sql = """
+        CREATE TEMP TABLE my_temp_table (id INT);
+        """
+        assert find_sql_defs(sql) == SQLDefs(
+            tables=["my_temp_table"],
+        )
+
+    @staticmethod
+    def test_find_sql_defs_with_if_not_exists() -> None:
+        sql = """
+        CREATE TABLE IF NOT EXISTS my_table (id INT);
+        """
+        assert find_sql_defs(sql) == SQLDefs(
+            tables=["my_table"],
         )
 
 
@@ -421,7 +459,7 @@ class TestFindSQLDefs:
     HAS_DUCKDB, reason="Test requires DuckDB to be unavailable"
 )
 def test_find_sql_defs_duckdb_not_available() -> None:
-    assert find_sql_defs("CREATE TABLE test (id INT);") == SQLDefs([], [], [])
+    assert find_sql_defs("CREATE TABLE test (id INT);") == SQLDefs()
 
 
 @pytest.mark.skipif(not HAS_DUCKDB, reason="Missing DuckDB")

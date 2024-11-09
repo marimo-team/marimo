@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import ast
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, List, Optional
 
 from marimo import _loggers
@@ -122,18 +122,25 @@ class TokenExtractor:
 
 @dataclass
 class SQLDefs:
-    tables: list[str]
-    views: list[str]
-    schemas: list[str]
+    tables: list[str] = field(default_factory=list)
+    views: list[str] = field(default_factory=list)
+    schemas: list[str] = field(default_factory=list)
+    catalogs: list[str] = field(default_factory=list)
+
+    # The schemas referenced in the CREATE SQL statement
+    reffed_schemas: list[str] = field(default_factory=list)
+    # The catalogs referenced in the CREATE SQL statement
+    reffed_catalogs: list[str] = field(default_factory=list)
 
 
 def find_sql_defs(sql_statement: str) -> SQLDefs:
     """
-    Find the tables, views, and schemas created/attached in a SQL statement.
+    Find the tables, views, schemas, and catalogs created/attached in a SQL statement.
 
     This function uses the DuckDB tokenizer to find the tables created
     and schemas attached in a SQL statement. It returns a list of the table
-    names created and schemas attached in the statement.
+    names created, views created, schemas created, and catalogs attached in the
+    statement.
 
     Args:
         sql_statement: The SQL statement to parse.
@@ -142,7 +149,7 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
         SQLDefs
     """
     if not DependencyManager.duckdb.has():
-        return SQLDefs([], [], [])
+        return SQLDefs()
 
     import duckdb
 
@@ -153,6 +160,10 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
     created_tables: list[str] = []
     created_views: list[str] = []
     created_schemas: list[str] = []
+    created_catalogs: list[str] = []
+
+    reffed_schemas: list[str] = []
+    reffed_catalogs: list[str] = []
     i = 0
 
     # See
@@ -167,7 +178,7 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
     # for ATTACH syntax
     while i < len(tokens):
         if token_extractor.is_keyword(i, "create"):
-            # CREATE TABLE and CREATE VIEW have the same syntax
+            # CREATE TABLE, CREATE VIEW, CREATE SCHEMA have the same syntax
             i += 1
             if i < len(tokens) and token_extractor.is_keyword(i, "or"):
                 i += 2  # Skip 'OR REPLACE'
@@ -176,50 +187,112 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
                 or token_extractor.is_keyword(i, "temp")
             ):
                 i += 1  # Skip 'TEMPORARY' or 'TEMP'
+
+            is_table = False
+            is_view = False
+            is_schema = False
+
             if i < len(tokens) and (
                 (is_table := token_extractor.is_keyword(i, "table"))
-                or token_extractor.is_keyword(i, "view")
+                or (is_view := token_extractor.is_keyword(i, "view"))
+                or (is_schema := token_extractor.is_keyword(i, "schema"))
             ):
                 i += 1
                 if i < len(tokens) and token_extractor.is_keyword(i, "if"):
                     i += 3  # Skip 'IF NOT EXISTS'
                 if i < len(tokens):
-                    table_name = token_extractor.strip_quotes(
-                        token_extractor.token_str(i)
-                    )
+                    # Get table name parts, this could be:
+                    # - catalog.schema.table
+                    # - catalog.table (this is shorthand for catalog.main.table)
+                    # - table
+
+                    parts: List[str] = []
+                    while i < len(tokens):
+                        part = token_extractor.strip_quotes(
+                            token_extractor.token_str(i)
+                        )
+                        parts.append(part)
+                        # next token is a dot, so we continue getting parts
+                        if (
+                            i + 1 < len(tokens)
+                            and token_extractor.token_str(i + 1) == "."
+                        ):
+                            i += 2
+                            continue
+                        break
+
+                    # Assert parts is either 1, 2, or 3
+                    if len(parts) not in (1, 2, 3):
+                        LOGGER.warning(
+                            "Unexpected number of parts in CREATE TABLE: %s",
+                            parts,
+                        )
+
                     if is_table:
-                        created_tables.append(table_name)
-                    else:
-                        created_views.append(table_name)
+                        # only add the table name
+                        created_tables.append(parts[-1])
+                        # add the catalog and schema if exist
+                        if len(parts) == 3:
+                            reffed_catalogs.append(parts[0])
+                            reffed_schemas.append(parts[1])
+                        if len(parts) == 2:
+                            reffed_catalogs.append(parts[0])
+                    elif is_view:
+                        # only add the table name
+                        created_views.append(parts[-1])
+                        # add the catalog and schema if exist
+                        if len(parts) == 3:
+                            reffed_catalogs.append(parts[0])
+                            reffed_schemas.append(parts[1])
+                        if len(parts) == 2:
+                            reffed_catalogs.append(parts[0])
+                    elif is_schema:
+                        # only add the schema name
+                        created_schemas.append(parts[-1])
+                        # add the catalog if exist
+                        if len(parts) == 2:
+                            reffed_catalogs.append(parts[0])
         elif token_extractor.is_keyword(i, "attach"):
-            schema_name = None
+            catalog_name = None
             i += 1
             if i < len(tokens) and token_extractor.is_keyword(i, "database"):
                 i += 1  # Skip 'DATABASE'
             if i < len(tokens) and token_extractor.is_keyword(i, "if"):
                 i += 3  # Skip "IF NOT EXISTS"
             if i < len(tokens):
-                schema_name = token_extractor.strip_quotes(
+                catalog_name = token_extractor.strip_quotes(
                     token_extractor.token_str(i)
                 )
-                if "." in schema_name:
+                if "." in catalog_name:
                     # strip the extension from the name
-                    schema_name = schema_name.split(".")[0]
+                    catalog_name = catalog_name.split(".")[0]
             if i + 1 < len(tokens) and token_extractor.is_keyword(i + 1, "as"):
                 # Skip over database-path 'AS'
                 i += 2
                 # AS clause gets precedence in creating database
                 if i < len(tokens):
-                    schema_name = token_extractor.strip_quotes(
+                    catalog_name = token_extractor.strip_quotes(
                         token_extractor.token_str(i)
                     )
-            if schema_name is not None:
-                created_schemas.append(schema_name)
+            if catalog_name is not None:
+                created_catalogs.append(catalog_name)
 
         i += 1
 
+    # Remove 'memory' from catalogs, as this is the default and doesn't have a def
+    if "memory" in reffed_catalogs:
+        reffed_catalogs.remove("memory")
+    # Remove 'main' from schemas, as this is the default and doesn't have a def
+    if "main" in reffed_schemas:
+        reffed_schemas.remove("main")
+
     return SQLDefs(
-        tables=created_tables, views=created_views, schemas=created_schemas
+        tables=created_tables,
+        views=created_views,
+        schemas=created_schemas,
+        catalogs=created_catalogs,
+        reffed_schemas=reffed_schemas,
+        reffed_catalogs=reffed_catalogs,
     )
 
 
@@ -288,42 +361,41 @@ def find_sql_refs(
                 if token_extractor.token_str(i) == "(":
                     continue
 
+                # Get table name parts, this could be:
+                # - catalog.schema.table
+                # - catalog.table (this is shorthand for catalog.main.table)
+                # - table
+
                 parts: List[str] = []
                 while i < len(tokens):
                     part = token_extractor.strip_quotes(
                         token_extractor.token_str(i)
                     )
-                    if part in (
-                        "on",
-                        "as",
-                        "where",
-                        "group",
-                        "order",
-                        "limit",
-                        "offset",
-                        ")",
+                    parts.append(part)
+                    # next token is a dot, so we continue getting parts
+                    if (
+                        i + 1 < len(tokens)
+                        and token_extractor.token_str(i + 1) == "."
                     ):
-                        break
-                    if part not in (",", "("):
-                        if part not in cte_names:
-                            parts.append(part)
-
-                    i += 1
-                    if i >= len(tokens) or token_extractor.token_str(i) != ".":
-                        break
-                    i += 1
+                        i += 2
+                        continue
+                    break
 
                 if len(parts) == 3:
+                    # If its the default in-memory catalog,
+                    # only add the table name
                     if parts[0] == "memory":
-                        # Skip catalog and schema, if its the default
-                        # in-memory catalog
                         refs.append(parts[2])
                     else:
                         # Just add the catalog and table, skip schema
                         refs.extend([parts[0], parts[2]])
                 elif len(parts) == 2:
-                    # It's a schema and table
-                    refs.extend(parts)
+                    # If its the default in-memory catalog, only add the table
+                    if parts[0] == "memory":
+                        refs.append(parts[1])
+                    else:
+                        # It's a catalog and table, add both
+                        refs.extend(parts)
                 elif len(parts) == 1:
                     # It's a table, make sure it's not a CTE
                     if parts[0] not in cte_names:
@@ -336,6 +408,11 @@ def find_sql_refs(
 
                 i -= 1  # Compensate for outer loop increment
         i += 1
+
+    # Re-use find_sql_defs to find referenced schemas and catalogs during creation.
+    defs = find_sql_defs(sql_statement)
+    refs.extend(defs.reffed_schemas)
+    refs.extend(defs.reffed_catalogs)
 
     # Remove duplicates while preserving order
     return list(dict.fromkeys(refs))

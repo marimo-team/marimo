@@ -44,9 +44,16 @@ class ImportData:
 
 @dataclass
 class VariableData:
-    # "table", "view", and "schema" are SQL variables, not Python.
+    # "table", "view", "schema", and "catalog" are SQL variables, not Python.
     kind: Literal[
-        "function", "class", "import", "variable", "table", "view", "schema"
+        "function",
+        "class",
+        "import",
+        "variable",
+        "table",
+        "view",
+        "schema",
+        "catalog",
     ] = "variable"
 
     # If kind == function or class, it may be dependent on externally defined
@@ -72,6 +79,7 @@ class VariableData:
                 self.kind == "table"
                 or self.kind == "schema"
                 or self.kind == "view"
+                or self.kind == "catalog"
             )
             else "python"
         )
@@ -519,6 +527,8 @@ class ScopedVisitor(ast.NodeVisitor):
                         self._define(None, _view, VariableData("view"))
                     for _schema in sql_defs.schemas:
                         self._define(None, _schema, VariableData("schema"))
+                    for _catalog in sql_defs.catalogs:
+                        self._define(None, _catalog, VariableData("catalog"))
 
         # Visit arguments, keyword args, etc.
         self.generic_visit(node)
