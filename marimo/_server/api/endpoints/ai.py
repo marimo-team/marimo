@@ -82,7 +82,11 @@ def get_openai_client(config: MarimoConfig) -> "OpenAI":
     if not base_url:
         base_url = None
 
-    return OpenAI(api_key=key, base_url=base_url)
+    return OpenAI(
+        default_headers={"api-key": key},
+        api_key=key, 
+        base_url=base_url,
+    )
 
 
 def get_anthropic_client(config: MarimoConfig) -> "Client":
