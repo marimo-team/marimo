@@ -11,8 +11,8 @@ from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast.sql_visitor import (
-    find_from_targets,
     find_sql_defs,
+    find_sql_refs,
     normalize_sql_f_string,
 )
 from marimo._dependencies.dependencies import DependencyManager
@@ -487,7 +487,7 @@ class ScopedVisitor(ast.NodeVisitor):
                         # TODO(akshayka): more comprehensive parsing
                         # of the statement -- schemas can show up in
                         # joins, queries, ...
-                        from_targets = find_from_targets(statement.query)
+                        from_targets = find_sql_refs(statement.query)
                     except (duckdb.ProgrammingError, duckdb.IOException):
                         self.generic_visit(node)
                         continue
