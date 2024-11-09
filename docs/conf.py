@@ -112,10 +112,8 @@ html_theme_options = {
     "source_branch": "main",
     "source_directory": "docs/",
     "light_css_variables": {
-        "color-brand-primary": "#1C7362",
-        "color-brand-content": "#1C7362",
-    },
-    "light_css_variables": {
+        "color-sidebar-background": "var(--color-background-primary)",
+        "color-sidebar-search-background": "var(--color-background-primary)",
         "font-stack": "Inter, sans-serif",
         "font-stack--monospace": "Fira Mono",
         "code-font-size": "0.875rem",
