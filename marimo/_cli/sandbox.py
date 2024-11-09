@@ -156,6 +156,11 @@ def prompt_run_in_sandbox(name: str | None) -> bool:
         if GLOBAL_SETTINGS.YES:
             return True
 
+        # Check if not in an interactive terminal (i.e. Docker)
+        # default to False
+        if not sys.stdin.isatty():
+            return False
+
         return click.confirm(
             "This notebook has inlined package dependencies.\n"
             + green(

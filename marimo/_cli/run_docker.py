@@ -31,6 +31,11 @@ def prompt_run_in_docker_container(name: str | None) -> bool:
     if GLOBAL_SETTINGS.YES:
         return True
 
+    # Check if not in an interactive terminal
+    # default to False
+    if not sys.stdin.isatty():
+        return False
+
     return click.confirm(
         "This notebook is hosted on a remote server.\n"
         + green(

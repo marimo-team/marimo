@@ -11,8 +11,8 @@ from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast.sql_visitor import (
-    find_from_targets,
     find_sql_defs,
+    find_sql_refs,
     normalize_sql_f_string,
 )
 from marimo._dependencies.dependencies import DependencyManager
@@ -44,9 +44,16 @@ class ImportData:
 
 @dataclass
 class VariableData:
-    # "table", "view", and "schema" are SQL variables, not Python.
+    # "table", "view", "schema", and "catalog" are SQL variables, not Python.
     kind: Literal[
-        "function", "class", "import", "variable", "table", "view", "schema"
+        "function",
+        "class",
+        "import",
+        "variable",
+        "table",
+        "view",
+        "schema",
+        "catalog",
     ] = "variable"
 
     # If kind == function or class, it may be dependent on externally defined
@@ -72,6 +79,7 @@ class VariableData:
                 self.kind == "table"
                 or self.kind == "schema"
                 or self.kind == "view"
+                or self.kind == "catalog"
             )
             else "python"
         )
@@ -487,7 +495,7 @@ class ScopedVisitor(ast.NodeVisitor):
                         # TODO(akshayka): more comprehensive parsing
                         # of the statement -- schemas can show up in
                         # joins, queries, ...
-                        from_targets = find_from_targets(statement.query)
+                        from_targets = find_sql_refs(statement.query)
                     except (duckdb.ProgrammingError, duckdb.IOException):
                         self.generic_visit(node)
                         continue
@@ -519,6 +527,8 @@ class ScopedVisitor(ast.NodeVisitor):
                         self._define(None, _view, VariableData("view"))
                     for _schema in sql_defs.schemas:
                         self._define(None, _schema, VariableData("schema"))
+                    for _catalog in sql_defs.catalogs:
+                        self._define(None, _catalog, VariableData("catalog"))
 
         # Visit arguments, keyword args, etc.
         self.generic_visit(node)

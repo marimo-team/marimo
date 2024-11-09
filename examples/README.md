@@ -26,7 +26,13 @@ comment. Here are the steps to open an example notebook:
 
 1. [Install marimo](https://docs.marimo.io/getting_started/index.html#installation)
 2. [Install `uv`](https://github.com/astral-sh/uv/?tab=readme-ov-file#installation)
-3. Open an example with `marimo edit --sandbox <notebook.py>`.
+3. Open an example with `marimo edit --sandbox <notebook-url>`.
+
+For example:
+
+```bash
+marimo edit --sandbox https://github.com/marimo-team/marimo/blob/main/examples/ui/reactive_plots.py
+```
 
 > [!TIP]
 > The [`--sandbox` flag](https://docs.marimo.io/guides/editor_features/package_management.html) opens the notebook in an isolated virtual environment,

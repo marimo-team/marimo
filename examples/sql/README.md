@@ -9,6 +9,7 @@ analytical database.
 - `read_csv.py` shows hows to read CSV data into duckdb
 - `read_json.py` shows hows to read JSON data into duckdb
 - `read_parquet.py` shows hows to read parquet data into duckdb
+- `connect_to_persistent_db.py` shows hows to connect to a duckdb persistent database
 - `connect_to_sqlite.py` shows hows to connect to a SQLite database
 - `connect_to_postgres.py` shows hows to connect to a PostgreSQL database
 - `connect_to_motherduck.py` shows hows to connect to [motherduck](https://motherduck.com)
@@ -29,7 +30,8 @@ comment. Here are the steps to open an example notebook:
 
 1. [Install marimo](https://docs.marimo.io/getting_started/index.html#installation)
 2. [Install `uv`](https://github.com/astral-sh/uv/?tab=readme-ov-file#installation)
-3. Open an example with `marimo edit --sandbox <notebook.py>`.
+3. Open an example with `marimo edit --sandbox <notebook-url>`.
+
 
 > [!TIP]
 > The [`--sandbox` flag](https://docs.marimo.io/guides/editor_features/package_management.html) opens the notebook in an isolated virtual environment,
