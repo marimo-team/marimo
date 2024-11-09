@@ -1,4 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import { reloadSafe } from "@/utils/reload-safe";
 import { API, marimoClient } from "./api";
 import type { RunRequests, EditRequests } from "./types";
 
@@ -167,7 +168,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       await marimoClient
         .POST("/api/kernel/restart_session")
         .then(handleResponseReturnNull);
-      window.location.reload();
+      reloadSafe();
       return null;
     },
     getUsageStats: () => {

@@ -4,6 +4,7 @@ import { AlertDialogDestructiveAction } from "@/components/ui/alert-dialog";
 import { connectionAtom } from "@/core/network/connection";
 import { sendRestart } from "@/core/network/requests";
 import { WebSocketState } from "@/core/websocket/types";
+import { reloadSafe } from "@/utils/reload-safe";
 import { useSetAtom } from "jotai";
 
 export function useRestartKernel() {
@@ -21,7 +22,7 @@ export function useRestartKernel() {
           onClick={async () => {
             setConnection({ state: WebSocketState.CLOSING });
             await sendRestart();
-            window.location.reload();
+            reloadSafe();
           }}
           aria-label="Confirm Restart"
         >

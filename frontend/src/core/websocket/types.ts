@@ -23,6 +23,11 @@ export type ConnectionStatus =
        * Human-readable reason for closing the connection.
        */
       reason: string;
+      /**
+       * Whether the current session can be taken over by another session,
+       * since we only allow single-user editing.
+       */
+      canTakeover?: boolean;
     }
   | {
       state:
