@@ -172,7 +172,7 @@ For example, here's an embedding visualizer made in marimo
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/embedding.gif" width="700px" />
 
 Check out our [docs](https://docs.marimo.io),
-the [`examples/`](examples/) folder, and our [gallery](https://marimo.io/@public) to learn more.
+the [`examples/`](examples/) folder, and our [gallery](https://marimo.io/gallery) to learn more.
 
 <table border="0">
   <tr>
