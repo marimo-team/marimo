@@ -313,6 +313,7 @@ for the better.
    :maxdepth: 2
 
    GitHub <https://github.com/marimo-team/marimo>
+   Gallery <https://marimo.io/gallery>
    Discord <https://marimo.io/discord?ref=docs>
    Newsletter <https://marimo.io/newsletter>
    Twitter <https://twitter.com/marimo_io>
