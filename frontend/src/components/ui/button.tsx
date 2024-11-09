@@ -4,6 +4,8 @@ import { Slot } from "@radix-ui/react-slot";
 import { type VariantProps, cva } from "class-variance-authority";
 
 import { cn } from "@/utils/cn";
+import { parseShortcut } from "@/core/hotkeys/shortcuts";
+import { useEventListener } from "@/hooks/useEventListener";
 
 const activeCommon = "active:shadow-xsSolid";
 
@@ -90,10 +92,40 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     Omit<VariantProps<typeof buttonVariants>, "disabled"> {
   asChild?: boolean;
+  keyboardShortcut?: string;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  (
+    { className, variant, size, asChild = false, keyboardShortcut, ...props },
+    ref,
+  ) => {
+    const buttonRef = React.useRef<HTMLButtonElement>(null);
+
+    React.useImperativeHandle(
+      ref,
+      // eslint-disable-next-line @typescript-eslint/non-nullable-type-assertion-style
+      () => buttonRef.current as HTMLButtonElement,
+    );
+
+    const handleKeyPress = React.useCallback(
+      (e: KeyboardEvent) => {
+        if (!keyboardShortcut) {
+          return;
+        }
+        if (parseShortcut(keyboardShortcut)(e)) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (buttonRef?.current && !buttonRef.current.disabled) {
+            buttonRef.current.click();
+          }
+        }
+      },
+      [keyboardShortcut],
+    );
+
+    useEventListener(document, "keydown", handleKeyPress);
+
     const Comp = asChild ? Slot : "button";
     return (
       <Comp
@@ -106,7 +138,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           }),
           className,
         )}
-        ref={ref}
+        ref={buttonRef}
         {...props}
       />
     );

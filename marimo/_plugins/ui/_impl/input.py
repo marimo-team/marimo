@@ -1123,6 +1123,7 @@ class button(UIElement[Any, Any]):
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
+    - `keyboard_shortcut`: keyboard shortcut to trigger the button (e.g. 'Ctrl-L')
     """
 
     _name: Final[str] = "marimo-button"
@@ -1138,6 +1139,7 @@ class button(UIElement[Any, Any]):
         label: str = "click here",
         on_change: Optional[Callable[[Any], None]] = None,
         full_width: bool = False,
+        keyboard_shortcut: Optional[str] = None,
     ) -> None:
         self._on_click = (lambda _: value) if on_click is None else on_click
         self._initial_value = value
@@ -1152,6 +1154,7 @@ class button(UIElement[Any, Any]):
                 "disabled": disabled,
                 "tooltip": tooltip,
                 "full-width": full_width,
+                "keyboard-shortcut": keyboard_shortcut,
             },
             on_change=on_change,
         )
