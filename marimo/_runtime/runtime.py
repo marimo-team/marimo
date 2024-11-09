@@ -126,6 +126,7 @@ from marimo._runtime.utils.set_ui_element_request_manager import (
 )
 from marimo._runtime.validate_graph import check_for_errors
 from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
+from marimo._server.model import SessionMode
 from marimo._server.types import QueueType
 from marimo._tracer import kernel_tracer
 from marimo._utils.assert_never import assert_never
@@ -2001,6 +2002,7 @@ def launch_kernel(
         stdout=stdout,
         stderr=stderr,
         virtual_files_supported=virtual_files_supported,
+        mode=SessionMode.EDIT if is_edit_mode else SessionMode.RUN,
     )
 
     if is_edit_mode:

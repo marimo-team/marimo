@@ -370,6 +370,7 @@ def _launch_pyodide_kernel(
         stdout=stdout,
         stderr=stderr,
         virtual_files_supported=False,
+        mode=SessionMode.EDIT if is_edit_mode else SessionMode.RUN,
     )
 
     if is_edit_mode:
