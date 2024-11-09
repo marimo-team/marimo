@@ -84,7 +84,7 @@ def get_openai_client(config: MarimoConfig) -> "OpenAI":
 
     return OpenAI(
         default_headers={"api-key": key},
-        api_key=key, 
+        api_key=key,
         base_url=base_url,
     )
 
