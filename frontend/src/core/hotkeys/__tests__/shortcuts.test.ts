@@ -27,6 +27,12 @@ describe("parseShortcut", () => {
     expect(shortcut(event)).toBe(true);
   });
 
+  it("should recognize Arrow key shortcuts", () => {
+    const shortcut = parseShortcut("ArrowRight");
+    const event = new KeyboardEvent("keydown", { key: "ArrowRight" });
+    expect(shortcut(event)).toBe(true);
+  });
+
   it("should recognize Space key shortcuts", () => {
     const shortcut = parseShortcut("Space");
     const event = new KeyboardEvent("keydown", { code: "Space" });
