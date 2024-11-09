@@ -163,10 +163,10 @@ def image(
     img = h.img(src=resolved_src, alt=alt, style=styles)
     if caption is not None:
         return Html(
-            h.div(
+            h.figure(
                 [
                     img,
-                    h.div(
+                    h.figcaption(
                         [caption],
                         style="color: var(--muted-foreground); "
                         "text-align: center; margin-top: 0.5rem;",
