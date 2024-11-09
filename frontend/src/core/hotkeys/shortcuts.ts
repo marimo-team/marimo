@@ -20,68 +20,7 @@ export function isPlatformMac() {
   return /mac/i.test(platform);
 }
 
-export function parseShortcut(shortcut: string): (e: KeyboardEvent) => boolean {
-  const keys = shortcut.split("-");
-  return (e: KeyboardEvent) => {
-    let satisfied = true;
-    for (const character of keys) {
-      switch (character) {
-        case "Ctrl":
-          satisfied &&= e.ctrlKey;
-          break;
-        case "Cmd":
-          satisfied &&= e.metaKey;
-          break;
-        case "Shift":
-          satisfied &&= e.shiftKey;
-          break;
-        case "Alt":
-          satisfied &&= e.altKey;
-          break;
-        case "Space":
-          satisfied &&= e.code === "Space";
-          break;
-        default:
-          satisfied &&= e.key.toLowerCase() === character.toLowerCase();
-          break;
-      }
-
-      if (!satisfied) {
-        return false;
-      }
-    }
-    if (!keys.includes("Shift")) {
-      satisfied &&= !e.shiftKey;
-    }
-    if (!keys.includes("Ctrl")) {
-      satisfied &&= !e.ctrlKey;
-    }
-    if (!keys.includes("Cmd")) {
-      satisfied &&= !e.metaKey;
-    }
-    if (!keys.includes("Alt")) {
-      satisfied &&= !e.altKey;
-    }
-    return satisfied;
-  };
-}
-
-function normalizeKey(key: string): string {
-  const specialKeys: { [key: string]: string } = {
-    control: "ctrl",
-    command: "meta",
-    cmd: "meta",
-    option: "alt",
-    return: "enter",
-    " ": "space",
-  };
-  return specialKeys[key.toLowerCase()] || key.toLowerCase();
-}
-
-export function isShortcutPressed(shortcut: string, e: KeyboardEvent): boolean {
-  const separator = shortcut.includes("+") ? "+" : "-";
-  const keys = shortcut.split(separator).map(normalizeKey);
-
+function areKeysPressed(keys: string[], e: KeyboardEvent): boolean {
   let satisfied = true;
   for (const key of keys) {
     switch (key) {
@@ -124,4 +63,21 @@ export function isShortcutPressed(shortcut: string, e: KeyboardEvent): boolean {
   }
 
   return satisfied;
+}
+
+function normalizeKey(key: string): string {
+  const specialKeys: { [key: string]: string } = {
+    control: "ctrl",
+    command: "meta",
+    cmd: "meta",
+    option: "alt",
+    return: "enter",
+  };
+  return specialKeys[key.toLowerCase()] || key.toLowerCase();
+}
+
+export function parseShortcut(shortcut: string): (e: KeyboardEvent) => boolean {
+  const separator = shortcut.includes("+") ? "+" : "-";
+  const keys = shortcut.split(separator).map(normalizeKey);
+  return (e: KeyboardEvent) => areKeysPressed(keys, e);
 }

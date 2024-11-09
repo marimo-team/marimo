@@ -58,14 +58,12 @@ export class ButtonPlugin implements IPlugin<number, Data> {
       </Button>
     );
 
-    let tooltipContent: string | JSX.Element | undefined;
-
-    // eslint-disable-next-line unicorn/prefer-ternary
-    if (keyboardShortcut && !tooltip) {
-      tooltipContent = <KeyboardHotkeys shortcut={keyboardShortcut} />;
-    } else {
-      tooltipContent = tooltip;
-    }
+    const tooltipContent =
+      keyboardShortcut && !tooltip ? (
+        <KeyboardHotkeys shortcut={keyboardShortcut} />
+      ) : (
+        tooltip
+      );
 
     if (tooltipContent) {
       return (
