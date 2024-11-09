@@ -93,6 +93,7 @@ def image(
     height: Optional[int] = None,
     rounded: bool = False,
     style: Optional[dict[str, Any]] = None,
+    caption: Optional[str] = None,
 ) -> Html:
     """Render an image as HTML.
 
@@ -111,6 +112,7 @@ def image(
         width=100,
         height=100,
         rounded=True,
+        caption="Marimo logo",
     )
     ```
 
@@ -123,6 +125,7 @@ def image(
     - `height`: the height of the image in pixels
     - `rounded`: whether to round the corners of the image
     - `style`: a dictionary of CSS styles to apply to the image
+    - `caption`: the caption of the image
 
     **Returns.**
 
@@ -158,4 +161,18 @@ def image(
         }
     )
     img = h.img(src=resolved_src, alt=alt, style=styles)
+    if caption is not None:
+        return Html(
+            h.figure(
+                [
+                    img,
+                    h.figcaption(
+                        [caption],
+                        style="color: var(--muted-foreground); "
+                        "text-align: center; margin-top: 0.5rem;",
+                    ),
+                ],
+                style="display: flex; flex-direction: column;",
+            )
+        )
     return Html(img)
