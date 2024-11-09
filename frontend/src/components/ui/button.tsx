@@ -4,7 +4,7 @@ import { Slot } from "@radix-ui/react-slot";
 import { type VariantProps, cva } from "class-variance-authority";
 
 import { cn } from "@/utils/cn";
-import { parseShortcut } from "@/core/hotkeys/shortcuts";
+import { isShortcutPressed } from "@/core/hotkeys/shortcuts";
 import { useEventListener } from "@/hooks/useEventListener";
 
 const activeCommon = "active:shadow-xsSolid";
@@ -113,7 +113,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         if (!keyboardShortcut) {
           return;
         }
-        if (parseShortcut(keyboardShortcut)(e)) {
+        if (isShortcutPressed(keyboardShortcut, e)) {
           e.preventDefault();
           e.stopPropagation();
           if (buttonRef?.current && !buttonRef.current.disabled) {

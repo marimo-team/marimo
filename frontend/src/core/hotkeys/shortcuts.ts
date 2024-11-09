@@ -65,3 +65,63 @@ export function parseShortcut(shortcut: string): (e: KeyboardEvent) => boolean {
     return satisfied;
   };
 }
+
+function normalizeKey(key: string): string {
+  const specialKeys: { [key: string]: string } = {
+    control: "ctrl",
+    command: "meta",
+    cmd: "meta",
+    option: "alt",
+    return: "enter",
+    " ": "space",
+  };
+  return specialKeys[key.toLowerCase()] || key.toLowerCase();
+}
+
+export function isShortcutPressed(shortcut: string, e: KeyboardEvent): boolean {
+  const separator = shortcut.includes("+") ? "+" : "-";
+  const keys = shortcut.split(separator).map(normalizeKey);
+
+  let satisfied = true;
+  for (const key of keys) {
+    switch (key) {
+      case "ctrl":
+        satisfied &&= e.ctrlKey;
+        break;
+      case "meta":
+        satisfied &&= e.metaKey;
+        break;
+      case "shift":
+        satisfied &&= e.shiftKey;
+        break;
+      case "alt":
+        satisfied &&= e.altKey;
+        break;
+      case "space":
+        satisfied &&= e.code === "Space";
+        break;
+      default:
+        satisfied &&= e.key.toLowerCase() === key;
+        break;
+    }
+
+    if (!satisfied) {
+      return false;
+    }
+  }
+
+  if (!keys.includes("shift")) {
+    satisfied &&= !e.shiftKey;
+  }
+  if (!keys.includes("ctrl")) {
+    satisfied &&= !e.ctrlKey;
+  }
+  if (!keys.includes("meta")) {
+    satisfied &&= !e.metaKey;
+  }
+  if (!keys.includes("alt")) {
+    satisfied &&= !e.altKey;
+  }
+
+  return satisfied;
+}
