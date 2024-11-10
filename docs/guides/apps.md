@@ -54,7 +54,7 @@ Options:
 ## Layout
 
 While editing a notebook with `marimo edit`, you can preview the notebook
-as an app by clicking the preview button in the bottom-left of the editor.
+as an app by clicking the preview button in the bottom-right of the editor.
 (You can also use the command palette.)
 
 ### Vertical layout

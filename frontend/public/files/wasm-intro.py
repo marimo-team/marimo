@@ -285,7 +285,7 @@ def __(mo):
         ## 4. Running notebooks as apps
 
         marimo notebooks can double as apps. Click the app window icon in the
-        bottom-left to see this notebook in "app view."
+        bottom-right to see this notebook in "app view."
 
         Serve a notebook as an app with `marimo run` at the command-line.
         Of course, you can use marimo just to level-up your
