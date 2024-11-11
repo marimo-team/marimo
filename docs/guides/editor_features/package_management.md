@@ -37,3 +37,23 @@ For example, whenever you add or remove a package, marimo will automatically upd
 ```
 
 This means your notebook file is a completely self-contained artifact with all the necessary information to run.
+
+### Sandbox creation configuration
+
+Running marimo in a sandbox environment uses `uv` to create a virtual environment. You can use any of `uv`'s [supported environment variables](https://docs.astral.sh/uv/configuration/environment/).
+
+#### Choosing the Python version
+
+For example, you can specify the Python version using the `UV_PYTHON` environment variable:
+
+```bash
+UV_PYTHON=3.13 marimo edit --sandbox notebook.py
+```
+
+#### Other common configuration
+
+or you can use `uv`'s link mode:
+
+```bash
+UV_LINK_MODE="copy" marimo edit --sandbox notebook.py
+```

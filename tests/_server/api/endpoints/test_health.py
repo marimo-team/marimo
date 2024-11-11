@@ -33,6 +33,7 @@ def test_status(client: TestClient) -> None:
     assert content["sessions"] == 0
     assert content["version"] == __version__
     assert content["lsp_running"] is False
+    assert content["python_version"] is not None
 
 
 def test_version(client: TestClient) -> None:

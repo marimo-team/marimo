@@ -135,3 +135,7 @@ def get_chrome_version() -> Optional[str]:
             return None
     except FileNotFoundError:
         return None
+
+
+def get_python_version() -> str:
+    return sys.version.split()[0]
