@@ -339,3 +339,33 @@ def test_as_dom_node():
     assert as_dom_node(True).text == "True"
     assert as_dom_node(False).text == "False"
     assert as_dom_node({"key": "value"}).text.startswith("<marimo-json")
+
+
+class CustomList(list[int]):
+    def _repr_html_(self):
+        return f"<h1>{', '.join(map(str, self))}</h1>"
+
+
+def test_format_extend_list():
+    my_list = CustomList([1, 2, 3])
+    assert as_dom_node(my_list).text == "<h1>1, 2, 3</h1>"
+
+
+class CustomDict(dict[str, int]):
+    def _repr_html_(self):
+        return f"<h1>{', '.join(map(str, self.items()))}</h1>"
+
+
+def test_format_extend_dict():
+    my_dict = CustomDict({"a": 1, "b": 2, "c": 3})
+    assert as_dom_node(my_dict).text == "<h1>('a', 1), ('b', 2), ('c', 3)</h1>"
+
+
+class CustomTuple(tuple[int, int]):
+    def _repr_html_(self):
+        return f"<h1>{', '.join(map(str, self))}</h1>"
+
+
+def test_format_extend_tuple():
+    my_tuple = CustomTuple((1, 2, 3))
+    assert as_dom_node(my_tuple).text == "<h1>1, 2, 3</h1>"

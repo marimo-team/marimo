@@ -8,6 +8,7 @@ from typing import Any, Union
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output import formatting
 from marimo._output.formatters.formatter_factory import FormatterFactory
+from marimo._output.formatters.repr_formatters import maybe_get_repr_formatter
 from marimo._utils.flatten import CyclicStructureError, flatten
 
 
@@ -52,6 +53,12 @@ class StructuresFormatter(FormatterFactory):
         def _format_structure(
             t: Union[tuple[Any, ...], list[Any], dict[str, Any]],
         ) -> tuple[KnownMimeType, str]:
+            # Some objects extend list/tuple/dict, but also have _repr_ methods
+            # that we want to use preferentially.
+            repr_formatter = maybe_get_repr_formatter(t)
+            if repr_formatter is not None:
+                return repr_formatter(t)
+
             if t and "matplotlib" in sys.modules:
                 # Special case for matplotlib:
                 #
