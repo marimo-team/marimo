@@ -5,9 +5,10 @@
 # ]
 # ///
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.69"
+__generated_with = "0.9.17"
 app = marimo.App()
 
 
@@ -48,6 +49,12 @@ def __(sns, tips):
         style="smoker",
         size="size",
     )
+    return
+
+
+@app.cell
+def __(sns):
+    sns.color_palette("pastel")
     return
 
 
