@@ -12,7 +12,7 @@ class AppMeta:
     Metadata about the app.
 
     This class provides access to runtime metadata about a marimo app, such as
-    its display theme and execution mode. Get an instance with `marimo.app_meta()`.
+    its display theme and execution mode.
     """
 
     def __init__(self) -> None:
