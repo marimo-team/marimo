@@ -112,6 +112,9 @@ export const PlotlyComponent = memo(
     // Used for rendering LaTeX. TODO: Serve this library from Marimo
     const mathJaxStatus = useScript(
       "https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-MML-AM_CHTML",
+      {
+        removeOnUnmount: true,
+      },
     );
     const mathJaxLoaded = mathJaxStatus === "ready";
 
