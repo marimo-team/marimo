@@ -6,7 +6,7 @@ deploy either on our cloud servers or your own (we'll bring the software).
 
 Marimo Cloud is currently in beta: if you'd like access, email us at
 [contact@marimo.io](mailto:contact@marimo.io) or book time on [our
-calendar](calendly.com/akshay-marimo) and we'll onboard you very quickly.
+calendar](https://calendly.com/akshay-marimo) and we'll onboard you very quickly.
 
 ## Marimo Cloud
 
@@ -29,7 +29,7 @@ experimenting on data, from small workloads to very large ones as well.
 If you'd like to get onboarded, learn more about our roadmap, or share
 ideas/feature requests of your own, reach out at
 [contact@marimo.io](mailto:contact@marimo.io) or book time on
-[our calendar](calendly.com/akshay-marimo).
+[our calendar](https://calendly.com/akshay-marimo).
 
 ## Follow along!
 
