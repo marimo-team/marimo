@@ -258,7 +258,7 @@ const requestHandler = createRPCRequestHandler({
         `);
     }
 
-    // Special case to lazily install pyaml on export_markdown
+    // Special case to lazily install PyYAML on export_markdown
     if (functionName === "export_markdown") {
       await self.pyodide.runPythonAsync(`
         import micropip
