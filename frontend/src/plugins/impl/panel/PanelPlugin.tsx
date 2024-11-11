@@ -95,7 +95,7 @@ export const PanelPlugin = createPlugin<T>("marimo-panel")
       .input(
         z.object({
           message: z.unknown(),
-          buffers: z.array(z.instanceof(ArrayBuffer)),
+          buffers: z.array(z.string()),
         }),
       )
       .output(z.null().optional()),
@@ -127,8 +127,8 @@ const PanelSlot = (props: Props) => {
     const message = {
       ...window.Bokeh.protocol.Message.create("PATCH-DOC", {}, patch),
     };
-    const buffers: ArrayBuffer[] = [];
-    extractBuffers(message.content, buffers);
+    const buffers: string[] = [];
+    message.content = extractBuffers(message.content, buffers);
     functions.send_to_widget({ message, buffers });
   });
 
@@ -173,28 +173,23 @@ const PanelSlot = (props: Props) => {
     const receiver = receiverRef.current;
     const doc = docRef.current;
 
-    if (!message.content) {
-      return;
-    }
-
     if (!receiver || !doc) {
       return;
     }
 
-    // Handle ACK messages
-    if (typeof message.content !== "string") {
+    const content = message.content;
+    if (content !== null && typeof message.content !== "string") {
+      // Handle ACK messages
       if (eventBufferRef.current && eventBufferRef.current.size() > 0) {
         processEvents();
       }
       return;
     }
 
-    // Handle non-ACK messages
-    const content = message.content;
-    if (content.length > 0) {
-      receiver.consume(content);
-    } else if (buffers !== undefined && buffers.length > 0) {
+    if (buffers?.length > 0) {
       receiver.consume(buffers[0].buffer);
+    } else if (content.length) {
+      receiver.consume(content);
     } else {
       return;
     }
