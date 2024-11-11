@@ -36,7 +36,7 @@ To connect to MotherDuck, import `duckdb` and `ATTACH` your MotherDuck database.
 import duckdb
 
 # Connect to MotherDuck
-duckdb.sql("ATTACH 'md:your_motherduck_database_name' AS sample_data")
+duckdb.sql("ATTACH IF NOT EXISTS 'md:my_db'")
 ```
 
 You will be prompted to authenticate with MotherDuck when you run the above cell. This will open a browser window where you can log in and authorize marimo to access your MotherDuck database. In order to avoid being prompted each time you open a notebook, you can set the `motherduck_token` environment variable:
