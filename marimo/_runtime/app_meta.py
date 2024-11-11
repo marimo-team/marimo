@@ -29,5 +29,5 @@ class AppMeta:
 
     @property
     def mode(self) -> Optional[Literal["edit", "run", "script"]]:
-        """The mode of the app (edit/run/script/unknown)."""
+        """The mode of the app (edit/run/script) or None."""
         return get_mode()
