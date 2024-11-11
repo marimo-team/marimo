@@ -1,6 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import Literal, Optional
+
 from marimo._config.utils import load_config
 from marimo._runtime.context.utils import get_mode
 
@@ -26,6 +28,6 @@ class AppMeta:
         return theme
 
     @property
-    def mode(self) -> str:
+    def mode(self) -> Optional[Literal["edit", "run", "script"]]:
         """The mode of the app (edit/run/script/unknown)."""
         return get_mode()
