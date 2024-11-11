@@ -274,13 +274,17 @@ async def takeover_endpoint(
     *,
     request: Request,
 ) -> JSONResponse:
-    """Force close any existing sessions for the current file.
-
+    """
     responses:
-        200:
-            description: Successfully closed existing sessions
-        403:
-            description: Not allowed to take over in this mode
+    200:
+        description: Successfully closed existing sessions
+        content:
+            application/json:
+                schema:
+                    type: object
+                    properties:
+                        status:
+                            type: string
     """
     app_state = AppState(request)
 
