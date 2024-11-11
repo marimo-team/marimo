@@ -26,7 +26,7 @@ def get_mode() -> Optional[Literal["run", "edit", "script"]]:
 
     Returns:
         Optional[Literal["run", "edit", "script"]]: The current mode,
-        or None if marimo is not executing
+        or None if marimo has no context initialized.
     """
     try:
         context = get_context()

@@ -30,7 +30,12 @@ export function extractBuffers(
     }
     return result;
   }
-  if (value.to_base64 !== undefined) {
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "to_base64" in value &&
+    typeof value.to_base64 === "function"
+  ) {
     const id = buffers.length;
     buffers.push(value.to_base64());
     return { id };

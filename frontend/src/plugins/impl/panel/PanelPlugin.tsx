@@ -127,7 +127,7 @@ const PanelSlot = (props: Props) => {
     const message = {
       ...window.Bokeh.protocol.Message.create("PATCH-DOC", {}, patch),
     };
-    const buffers: string[] = [];
+    const buffers: ArrayBuffer[] = [];
     message.content = extractBuffers(message.content, buffers);
     functions.send_to_widget({ message, buffers });
   });
@@ -186,9 +186,9 @@ const PanelSlot = (props: Props) => {
       return;
     }
 
-    if (buffers?.length > 0) {
+    if (buffers && buffers.length > 0) {
       receiver.consume(buffers[0].buffer);
-    } else if (content.length) {
+    } else if (content && typeof content === "string") {
       receiver.consume(content);
     } else {
       return;
