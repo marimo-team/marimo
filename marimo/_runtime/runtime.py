@@ -244,8 +244,7 @@ def app_meta() -> AppMeta:
     """Get the metadata of a marimo app.
 
     The `AppMeta` class provides access to runtime metadata about a marimo app,
-    such as its display theme and execution mode. Get an instance with
-    `marimo.app_meta()`.
+    such as its display theme and execution mode.
 
     **Examples**:
 
