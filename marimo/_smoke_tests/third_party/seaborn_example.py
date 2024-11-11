@@ -22,6 +22,12 @@ def __():
 
 
 @app.cell
+def __(sns):
+    sns.color_palette("pastel")
+    return
+
+
+@app.cell
 def __(penguins, sns):
     sns.jointplot(
         data=penguins,
@@ -49,12 +55,6 @@ def __(sns, tips):
         style="smoker",
         size="size",
     )
-    return
-
-
-@app.cell
-def __(sns):
-    sns.color_palette("pastel")
     return
 
 
