@@ -30,10 +30,9 @@ export function extractBuffers(
     }
     return result;
   }
-  if (value instanceof ArrayBuffer) {
-    // TODO: this does not seem correct
+  if (value.to_base64 !== undefined) {
     const id = buffers.length;
-    buffers.push(value);
+    buffers.push(value.to_base64());
     return { id };
   }
   if (typeof value === "object" && value !== null) {
