@@ -51,7 +51,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   }
 
   private rpc!: ReturnType<typeof getWorkerRPC<WorkerSchema>>;
-  private saveRpc!: SaveWorker;
+  private saveRpc: SaveWorker | undefined;
   private interruptBuffer?: Uint8Array;
   private messageConsumer: ((message: string) => void) | undefined;
 
@@ -101,13 +101,15 @@ export class PyodideBridge implements RunRequests, EditRequests {
 
     // Create the RPC
     this.rpc = getWorkerRPC<WorkerSchema>(worker);
-    this.saveRpc = this.getSaveWorker();
 
     // Listeners
     this.rpc.addMessageListener("ready", () => {
       this.startSession();
     });
     this.rpc.addMessageListener("initialized", () => {
+      // Wait until the worker is ready to create the save worker
+      // By initializing after, we get hits on cached network requests
+      this.saveRpc = this.getSaveWorker();
       this.setInterruptBuffer();
       this.initialized.resolve();
     });
@@ -200,6 +202,11 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendSave: EditRequests["sendSave"] = async (request) => {
+    if (!this.saveRpc) {
+      Logger.warn("Save RPC not initialized");
+      return null;
+    }
+
     await this.saveRpc.saveNotebook(request);
     const code = await this.readCode();
     if (code.contents) {
@@ -316,6 +323,10 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   readCode: EditRequests["readCode"] = async () => {
+    if (!this.saveRpc) {
+      Logger.warn("Save RPC not initialized");
+      return { contents: "" };
+    }
     const contents = await this.saveRpc.readNotebook();
     return { contents };
   };

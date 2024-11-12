@@ -1,19 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { PyodideInterface } from "pyodide";
+import { type PyodideInterface, loadPyodide } from "pyodide";
 import { WasmFileSystem } from "./fs";
 import { Logger } from "../../../utils/Logger";
 import type { SerializedBridge, WasmController } from "./types";
 import { invariant } from "../../../utils/invariant";
 import type { UserConfig } from "@/core/config/config-schema";
-import { getMarimoWheel } from "./getMarimoWheel";
 import type { OperationMessage } from "@/core/kernel/messages";
 import type { JsonString } from "@/utils/json/base64";
 import { t } from "./tracer";
 
-declare let loadPyodide: (opts: {
-  packages: string[];
-  indexURL: string;
-}) => Promise<PyodideInterface>;
+const MAKE_SNAPSHOT = false;
 
 // This class initializes the wasm environment
 // We would like this initialization to be parallelizable
@@ -37,91 +33,50 @@ export class DefaultWasmController implements WasmController {
     version: string;
     pyodideVersion: string;
   }): Promise<PyodideInterface> {
-    const pyodide = await this.loadPyodideAndPackages(opts.pyodideVersion);
+    const pyodide = await this.loadPyodideAndPackages(opts);
 
-    const { version } = opts;
-
-    // If is a dev release, we need to install from test.pypi.org
-    if (version.includes("dev")) {
-      await this.installDevMarimoAndDeps(pyodide, version);
-      return pyodide;
+    if (MAKE_SNAPSHOT) {
+      const snapshot = pyodide.makeMemorySnapshot();
+      Logger.log("Snapshot size (mb):", snapshot.byteLength / 1024 / 1024);
     }
-
-    await this.installMarimoAndDeps(pyodide, version);
 
     return pyodide;
   }
 
-  private async loadPyodideAndPackages(
-    pyodideVersion: string,
-  ): Promise<PyodideInterface> {
+  private async loadPyodideAndPackages(opts: {
+    version: string;
+    pyodideVersion: string;
+  }): Promise<PyodideInterface> {
     if (!loadPyodide) {
       throw new Error("loadPyodide is not defined");
     }
     // Load pyodide and packages
     const span = t.startSpan("loadPyodide");
-    const pyodide = await loadPyodide({
-      // Perf: These get loaded while pyodide is being bootstrapped
-      packages: ["micropip"],
-      // Without this, this fails in Firefox with
-      // `Could not extract indexURL path from pyodide module`
-      // This fixes for Firefox and does not break Chrome/others
-      indexURL: `https://cdn.jsdelivr.net/pyodide/${pyodideVersion}/full/`,
-    });
-    this.pyodide = pyodide;
-    span.end("ok");
-    return pyodide;
-  }
-
-  private async installDevMarimoAndDeps(
-    pyodide: PyodideInterface,
-    version: string,
-  ) {
-    const span = t.startSpan("installDevMarimoAndDeps");
-    await Promise.all([
-      pyodide.runPythonAsync(`
-      import micropip
-      await micropip.install(
-        [
-          "${getMarimoWheel(version)}",
+    try {
+      const pyodide = await loadPyodide({
+        // Perf: These get loaded while pyodide is being bootstrapped
+        packages: [
+          "micropip",
+          "marimo-base",
+          "Markdown",
+          "pymdown-extensions",
+          "narwhals",
+          "packaging",
         ],
-        deps=False,
-        index_urls="https://test.pypi.org/pypi/{package_name}/json"
-        );
-      `),
-      pyodide.runPythonAsync(`
-      import micropip
-      await micropip.install(
-        [
-          "Markdown==3.6",
-          "pymdown-extensions==10.8.1",
-          "narwhals==1.9.2",
-        ],
-        deps=False,
-        );
-      `),
-    ]);
-    span.end("ok");
-  }
-
-  private async installMarimoAndDeps(
-    pyodide: PyodideInterface,
-    version: string,
-  ) {
-    const span = t.startSpan("installMarimoAndDeps");
-    await pyodide.runPythonAsync(`
-      import micropip
-      await micropip.install(
-        [
-          "${getMarimoWheel(version)}",
-          "Markdown==3.6",
-          "pymdown-extensions==10.8.1",
-          "narwhals==1.9.2",
-        ],
-        deps=False,
-      );
-    `);
-    span.end("ok");
+        _makeSnapshot: MAKE_SNAPSHOT,
+        lockFileURL: `https://wasm.marimo.app/pyodide-lock.json?v=${opts.version}&pyodide=${opts.pyodideVersion}`,
+        // Without this, this fails in Firefox with
+        // `Could not extract indexURL path from pyodide module`
+        // This fixes for Firefox and does not break Chrome/others
+        indexURL: `https://cdn.jsdelivr.net/pyodide/${opts.pyodideVersion}/full/`,
+      });
+      this.pyodide = pyodide;
+      span.end("ok");
+      return pyodide;
+    } catch (error) {
+      Logger.error("Failed to load Pyodide", error);
+      throw error;
+    }
   }
 
   async mountFilesystem(opts: { code: string; filename: string | null }) {

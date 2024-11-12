@@ -1,17 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import { version as pyodideVersion } from "pyodide";
+
 const ALLOW_DEV_VERSIONS = false;
 
 export function getPyodideVersion(marimoVersion: string) {
   return marimoVersion.includes("dev") && ALLOW_DEV_VERSIONS
     ? "dev"
-    : "v0.26.2";
-}
-
-export async function importPyodide(marimoVersion: string) {
-  // Vite does not like imports with dynamic urls
-  return marimoVersion.includes("dev") && ALLOW_DEV_VERSIONS
-    ? // @ts-expect-error typescript does not like
-      await import("https://cdn.jsdelivr.net/pyodide/dev/full/pyodide.js")
-    : // @ts-expect-error typescript does not like
-      await import("https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js");
+    : `v${pyodideVersion}`;
 }

@@ -18,10 +18,7 @@ import { ReadonlyWasmController } from "./controller";
 import type { OperationMessage } from "@/core/kernel/messages";
 import type { JsonString } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
-import {
-  getPyodideVersion,
-  importPyodide,
-} from "@/core/wasm/worker/getPyodideVersion";
+import { getPyodideVersion } from "@/core/wasm/worker/getPyodideVersion";
 
 declare const self: Window & {
   pyodide: PyodideInterface;
@@ -32,7 +29,6 @@ declare const self: Window & {
 async function loadPyodideAndPackages() {
   const marimoVersion = getMarimoVersion();
   const pyodideVersion = getPyodideVersion(marimoVersion);
-  await importPyodide(marimoVersion);
   try {
     self.controller = new ReadonlyWasmController();
     self.pyodide = await self.controller.bootstrap({
