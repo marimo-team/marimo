@@ -1,0 +1,35 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "21add5b",
+   "metadata": {
+    "jupyter": {
+     "source_hidden": true
+    }
+   },
+   "outputs": [],
+   "source": [
+    "# /// script\n",
+    "# requires-python = \">=3.12\"\n",
+    "# dependencies = [\n",
+    "#     \"anywidget\",\n",
+    "#     \"polars\",\n",
+    "# ]\n",
+    "# ///"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "0624bd12",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {},
+ "nbformat": 4,
+ "nbformat_minor": 5
+}

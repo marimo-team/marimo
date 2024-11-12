@@ -2,6 +2,7 @@
 *.csv
 *.pdf
 *.txt
+!tests/**/*.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__
