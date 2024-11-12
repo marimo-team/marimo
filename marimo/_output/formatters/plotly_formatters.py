@@ -25,6 +25,7 @@ class PlotlyFormatter(FormatterFactory):
         from marimo._output import formatting
 
         @formatting.formatter(plotly.graph_objects.Figure)
+        @formatting.formatter(plotly.graph_objects.FigureWidget)
         def _show_plotly_figure(
             fig: plotly.graph_objects.Figure,
         ) -> tuple[KnownMimeType, str]:
