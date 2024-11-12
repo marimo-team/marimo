@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import ast
 import json
+import re
 import sys
 from collections import defaultdict
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Union
 
 from marimo._ast.compiler import compile_cell
 from marimo._ast.transformers import NameTransformer
@@ -603,6 +604,21 @@ def transform_strip_whitespace(sources: List[str]) -> List[str]:
     return [source.strip() for source in sources]
 
 
+def extract_inline_meta(script: str) -> tuple[str | None, str]:
+    """
+    Extract PEP 723 metadata from a Python source.
+
+    Returns a tuple of the metadata comment and the remaining script.
+    """
+    if match := re.search(
+        r"(?m)^# /// (?P<type>[a-zA-Z0-9-]+)$\s(?P<content>(^#(| .*)$\s)+)^# ///$",
+        script,
+    ):
+        meta_comment = match.group(0)
+        return meta_comment, script.replace(meta_comment, "").strip()
+    return None, script
+
+
 def _transform_sources(
     sources: list[str], metadata: list[dict[str, Any]]
 ) -> list[str]:
@@ -627,6 +643,7 @@ def convert_from_ipynb(raw_notebook: str) -> str:
     notebook = json.loads(raw_notebook)
     sources: List[str] = []
     metadata: List[Dict[str, Any]] = []
+    inline_meta: Union[str, None] = None
 
     for cell in notebook["cells"]:
         source = (
@@ -636,7 +653,14 @@ def convert_from_ipynb(raw_notebook: str) -> str:
         )
         if cell["cell_type"] == "markdown":
             source = markdown_to_marimo(source)
-        sources.append(source)
-        metadata.append(cell.get("metadata", {}))
+        elif inline_meta is None:
+            # Eagerly find PEP 723 metadata, first match wins
+            inline_meta, source = extract_inline_meta(source)
 
-    return generate_from_sources(_transform_sources(sources, metadata))
+        if source:
+            sources.append(source)
+            metadata.append(cell.get("metadata", {}))
+
+    return generate_from_sources(
+        _transform_sources(sources, metadata), header_comments=inline_meta
+    )
