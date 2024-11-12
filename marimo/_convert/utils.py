@@ -23,7 +23,9 @@ def markdown_to_marimo(source: str) -> str:
 
 
 def generate_from_sources(
-    sources: list[str], config: Optional[_AppConfig] = None
+    sources: list[str],
+    config: Optional[_AppConfig] = None,
+    header_comments: Optional[str] = None,
 ) -> str:
     """
     Given a list of Python source code,
@@ -34,4 +36,5 @@ def generate_from_sources(
         ["__" for _ in sources],
         [CellConfig() for _ in range(len(sources))],
         config=config,
+        header_comments=header_comments,
     )
