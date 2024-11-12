@@ -82,7 +82,8 @@ If your notebook uses `mo.mpl.interactive()` for interactive matplotlib plots, y
 ```Dockerfile
 # Add these lines before the CMD instruction
 ENV MARIMO_MPL_HOST="0.0.0.0" # same as main host from `marimo run`.
-EXPOSE 10000  # In addition to your main application port
+ENV MARIMO_MPL_SECURE=true # if you are running on https
+EXPOSE 10000  # Expose in addition to your main application port
 ```
 
 This exposes the additional CSS and JavaScript required.
