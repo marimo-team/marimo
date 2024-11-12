@@ -350,7 +350,8 @@ class App:
         ```
 
         ```python
-        # execute the notebook
+        # execute the notebook; app.embed() can't be called in the cell
+        # that imported it!
         result = await app.embed()
         ```
 
@@ -369,9 +370,10 @@ class App:
 
         Embedded notebook outputs are interactive: when you interact with
         UI elements in an embedded notebook's output, any cell referring
-        to the `app` object is marked for execution, and its internal state
-        is automatically updated. This lets you use notebooks as building
-        blocks or components to create higher-level notebooks.
+        to the `app` object other than the one that imported it is marked for
+        execution, and its internal state is automatically updated. This lets
+        you use notebooks as building blocks or components to create
+        higher-level notebooks.
 
         Multiple levels of nesting are supported: it's possible to embed a
         notebook that in turn embeds another notebook, and marimo will do the
@@ -389,6 +391,8 @@ class App:
         self._maybe_initialize()
 
         if running_in_notebook():
+            # TODO(akshayka): raise a RuntimeError if called in the cell
+            # that defined the name bound to this App, if any
             app_kernel_runner = self._get_kernel_runner()
 
             if not app_kernel_runner.outputs:
