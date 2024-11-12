@@ -110,6 +110,10 @@ selection, consider using [`mo.ui.altair_chart`](#marimo.ui.altair_chart).
 .. autofunction:: marimo.mpl.interactive
 ```
 
+## Leafmap support
+
+marimo supports rendering [Leafmap](https://leafmap.org/) maps using the `folium` and `plotly` backends.
+
 ## Other plotting libraries
 
 You can use all the popular plotting libraries with marimo. Such as:
