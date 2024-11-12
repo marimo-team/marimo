@@ -75,6 +75,18 @@ docker run -p 8080:8080 -it my_app
 
 After verifying that your application runs without errors, you can use these files to deploy your application on your preferred cloud provider that supports dockerized applications.
 
+### Using Interactive Matplotlib Plots in Docker
+
+If your notebook uses `mo.mpl.interactive()` for interactive matplotlib plots, you'll need to make some additional configurations in your Dockerfile:
+
+```Dockerfile
+# Add these lines before the CMD instruction
+ENV MARIMO_MPL_HOST="0.0.0.0" # same as main host from `marimo run`.
+EXPOSE 10000  # In addition to your main application port
+```
+
+This exposes the additional CSS and JavaScript required.
+
 ## Health checks
 
 You can add a health check to your Dockerfile to ensure that your application is running as expected. This is especially useful when deploying to a cloud provider.

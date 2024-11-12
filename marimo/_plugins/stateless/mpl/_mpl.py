@@ -11,6 +11,7 @@ import asyncio
 import html
 import io
 import mimetypes
+import os
 import signal
 import threading
 import time
@@ -56,6 +57,27 @@ class FigureManagers:
 
 
 figure_managers = FigureManagers()
+
+def _get_host() -> str:
+    """
+    Get the host from environment variable or fall back to localhost.
+    """
+    host = os.environ.get("MARIMO_MPL_HOST", "localhost")
+    if not host or not isinstance(host, str):
+        return "localhost"
+    if "://" in host:
+        raise ValueError(
+            f"Invalid host '{host}': should not include protocol (http:// or https://)"
+        )
+    if "/" in host:
+        raise ValueError(
+            f"Invalid host '{host}': should not include paths"
+        )
+    if ":" in host:
+        raise ValueError(
+            f"Invalid host '{host}': should not include port numbers"
+        )
+    return host
 
 
 def _template(
@@ -195,14 +217,17 @@ def create_application(
 _app: Optional[Starlette] = None
 
 
-def get_or_create_application() -> Starlette:
+def get_or_create_application(
+    app_host: Optional[str] = None,
+    free_port: Optional[int] = None
+) -> Starlette:
     global _app
 
     import uvicorn
 
     if _app is None:
-        host = "localhost"
-        port = find_free_port(10_000)
+        host = app_host if app_host is not None else _get_host()
+        port = free_port if free_port is not None else find_free_port(10_000)
         app = create_application(host, port)
         app.state.host = host
         app.state.port = port
