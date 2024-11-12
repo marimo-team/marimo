@@ -58,6 +58,7 @@ class FigureManagers:
 
 figure_managers = FigureManagers()
 
+
 def _get_host() -> str:
     """
     Get the host from environment variable or fall back to localhost.
@@ -70,14 +71,13 @@ def _get_host() -> str:
             f"Invalid host '{host}': should not include protocol (http:// or https://)"
         )
     if "/" in host:
-        raise ValueError(
-            f"Invalid host '{host}': should not include paths"
-        )
+        raise ValueError(f"Invalid host '{host}': should not include paths")
     if ":" in host:
         raise ValueError(
             f"Invalid host '{host}': should not include port numbers"
         )
     return host
+
 
 def _get_secure() -> bool:
     """
@@ -96,12 +96,8 @@ def _get_secure() -> bool:
         f"Invalid secure value '{secure}': should be 'true' or 'false'"
     )
 
-def _template(
-    host: str,
-    port: int,
-    fig_id: str,
-    secure: bool = False
-) -> str:
+
+def _template(host: str, port: int, fig_id: str, secure: bool = False) -> str:
     ws_protocol = "wss" if secure else "ws"
     http_protocol = "https" if secure else "http"
 
@@ -240,7 +236,7 @@ _app: Optional[Starlette] = None
 def get_or_create_application(
     app_host: Optional[str] = None,
     free_port: Optional[int] = None,
-    secure_host: Optional[bool] = None
+    secure_host: Optional[bool] = None,
 ) -> Starlette:
     global _app
 
