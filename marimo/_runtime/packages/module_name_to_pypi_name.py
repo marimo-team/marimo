@@ -385,7 +385,6 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "pysynth_samp": "PySynth",
         "deployer": "juju-deployer",
         "depot": "filedepot",
-        "devtools": "tg.devtools",
         "dgis": "2gis",
         "dhtmlparser": "pyDHTMLParser",
         "digitalocean": "python-digitalocean",
