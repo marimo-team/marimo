@@ -33,6 +33,10 @@ def test_split_packages() -> None:
         "foo==1.2.3",
         "bar==4.5.6",
     ]
+    assert split_packages("foo[extra1,extra2]==1.2.3 bar[extra3]==4.5.6") == [
+        "foo[extra1,extra2]==1.2.3",
+        "bar[extra3]==4.5.6",
+    ]
     assert split_packages("foo -e /path/to/foo") == ["foo -e /path/to/foo"]
     assert split_packages("foo @ /path/to/foo") == ["foo @ /path/to/foo"]
     assert split_packages("foo -e /path/to/foo bar") == [

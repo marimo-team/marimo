@@ -46,6 +46,7 @@ def split_packages(package: str) -> List[str]:
     This can handle editable packages (i.e. local directories)
 
     e.g.
+    "package1[extra1,extra2]==1.0.0" -> ["package1[extra1,extra2]==1.0.0"]
     "package1 package2" -> ["package1", "package2"]
     "package1==1.0.0 package2==2.0.0" -> ["package1==1.0.0", "package2==2.0.0"]
     "package1 -e /path/to/package1" -> ["package1 -e /path/to/package1"]

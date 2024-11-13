@@ -8,6 +8,7 @@ from starlette.authentication import requires
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._runtime.packages.package_manager import PackageManager
 from marimo._runtime.packages.package_managers import create_package_manager
+from marimo._runtime.packages.utils import split_packages
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.models.packages import (
@@ -27,7 +28,7 @@ router = APIRouter()
 
 @router.post("/add")
 @requires("edit")
-async def install_package(request: Request) -> PackageOperationResponse:
+async def add_package(request: Request) -> PackageOperationResponse:
     """
     requestBody:
         content:
@@ -59,8 +60,7 @@ async def install_package(request: Request) -> PackageOperationResponse:
     if filename is not None and GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
         package_manager.update_notebook_script_metadata(
             filepath=filename,
-            import_namespaces_to_add=[body.package],
-            import_namespaces_to_remove=[],
+            packages_to_add=split_packages(body.package),
         )
 
     if success:
@@ -73,7 +73,7 @@ async def install_package(request: Request) -> PackageOperationResponse:
 
 @router.post("/remove")
 @requires("edit")
-async def uninstall_package(request: Request) -> PackageOperationResponse:
+async def remove_package(request: Request) -> PackageOperationResponse:
     """
     requestBody:
         content:
@@ -105,8 +105,7 @@ async def uninstall_package(request: Request) -> PackageOperationResponse:
     if filename is not None and GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
         package_manager.update_notebook_script_metadata(
             filepath=filename,
-            import_namespaces_to_add=[],
-            import_namespaces_to_remove=[body.package],
+            packages_to_remove=split_packages(body.package),
         )
 
     if success:

@@ -87,13 +87,26 @@ class PackageManager(abc.ABC):
     def update_notebook_script_metadata(
         self,
         filepath: str,
-        import_namespaces_to_add: List[str],
-        import_namespaces_to_remove: List[str],
+        *,
+        packages_to_add: Optional[List[str]] = None,
+        packages_to_remove: Optional[List[str]] = None,
+        import_namespaces_to_add: Optional[List[str]] = None,
+        import_namespaces_to_remove: Optional[List[str]] = None,
     ) -> None:
-        del filepath, import_namespaces_to_add, import_namespaces_to_remove
+        del (
+            filepath,
+            packages_to_add,
+            packages_to_remove,
+            import_namespaces_to_add,
+            import_namespaces_to_remove,
+        )
         """
         Add or remove inline script metadata metadata
         in the marimo notebook.
+
+        For packages_to_add, packages_to_remove, we use the package name as-is.
+        For import_namespaces_to_add, import_namespaces_to_remove, we canonicalize
+        to the module name based on popular packages on PyPI.
 
         This follows PEP 723 https://peps.python.org/pep-0723/
         """
