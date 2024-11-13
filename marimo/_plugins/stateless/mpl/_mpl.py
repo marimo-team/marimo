@@ -11,6 +11,7 @@ import asyncio
 import html
 import io
 import mimetypes
+import os
 import signal
 import threading
 import time
@@ -58,15 +59,52 @@ class FigureManagers:
 figure_managers = FigureManagers()
 
 
-def _template(
-    host: str,
-    port: int,
-    fig_id: str,
-) -> str:
+def _get_host() -> str:
+    """
+    Get the host from environment variable or fall back to localhost.
+    """
+    host = os.environ.get("MARIMO_MPL_HOST", "localhost")
+    if not host or not isinstance(host, str):
+        return "localhost"
+    if "://" in host:
+        raise ValueError(
+            f"Invalid host '{host}': should not include protocol (http:// or https://)"
+        )
+    if "/" in host:
+        raise ValueError(f"Invalid host '{host}': should not include paths")
+    if ":" in host:
+        raise ValueError(
+            f"Invalid host '{host}': should not include port numbers"
+        )
+    return host
+
+
+def _get_secure() -> bool:
+    """
+    Get the secure status from environment variable or fall back to False.
+    """
+    secure = os.environ.get("MARIMO_MPL_SECURE", "false")
+    if not secure or not isinstance(secure, str):
+        return False
+    secure = secure.lower().strip()
+    if secure in ("true", "1", "yes", "on"):
+        return True
+    if secure in ("false", "0", "no", "off"):
+        return False
+
+    raise ValueError(
+        f"Invalid secure value '{secure}': should be 'true' or 'false'"
+    )
+
+
+def _template(host: str, port: int, fig_id: str, secure: bool = False) -> str:
+    ws_protocol = "wss" if secure else "ws"
+    http_protocol = "https" if secure else "http"
+
     return html_content % {
-        "ws_uri": f"ws://{host}:{port}/ws?figure={fig_id}",
+        "ws_uri": f"{ws_protocol}://{host}:{port}/ws?figure={fig_id}",
         "fig_id": fig_id,
-        "base_url": f"http://{host}:{port}",
+        "base_url": f"{http_protocol}://{host}:{port}",
     }
 
 
@@ -195,17 +233,23 @@ def create_application(
 _app: Optional[Starlette] = None
 
 
-def get_or_create_application() -> Starlette:
+def get_or_create_application(
+    app_host: Optional[str] = None,
+    free_port: Optional[int] = None,
+    secure_host: Optional[bool] = None,
+) -> Starlette:
     global _app
 
     import uvicorn
 
     if _app is None:
-        host = "localhost"
-        port = find_free_port(10_000)
+        host = app_host if app_host is not None else _get_host()
+        port = free_port if free_port is not None else find_free_port(10_000)
+        secure = secure_host if secure_host is not None else _get_secure()
         app = create_application(host, port)
         app.state.host = host
         app.state.port = port
+        app.state.secure = secure
         _app = app
 
         def start_server() -> None:
@@ -294,6 +338,7 @@ def interactive(figure: Union[Figure, Axes]) -> Html:
     application = get_or_create_application()
     host = application.state.host
     port = application.state.port
+    secure = application.state.secure
 
     class CleanupHandle(CellLifecycleItem):
         def create(self, context: RuntimeContext) -> None:
@@ -310,7 +355,7 @@ def interactive(figure: Union[Figure, Axes]) -> Html:
     ctx.cell_lifecycle_registry.add(CleanupHandle())
     ctx.stream.cell_id = ctx.execution_context.cell_id
 
-    content = _template(host, port, str(figure_manager.num))
+    content = _template(host, port, str(figure_manager.num), secure)
 
     return Html(
         h.iframe(
