@@ -19,7 +19,7 @@ the [docs page on CLI args](/api/cli_args.md) to learn more.
 :::{admonition} Producing notebook outputs
 :class: note
 
-To run as a script while also producing HTML of the noteobok outputs, use
+To run as a script while also producing HTML of the notebook outputs, use
 
 ```bash
 marimo export html notebook.py -o notebook.html
