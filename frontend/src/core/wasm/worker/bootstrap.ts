@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { type PyodideInterface, loadPyodide } from "pyodide";
+import { loadPyodide, type PyodideInterface } from "pyodide";
 import { WasmFileSystem } from "./fs";
 import { Logger } from "../../../utils/Logger";
 import type { SerializedBridge, WasmController } from "./types";
