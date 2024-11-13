@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import List
-
 import pytest
 
 from marimo._runtime.packages.package_managers import create_package_manager
@@ -27,7 +25,7 @@ def test_create_package_managers() -> None:
 
 
 def test_update_script_metadata() -> None:
-    runs_calls: List[List[str]] = []
+    runs_calls: list[list[str]] = []
 
     class MockUvPackageManager(UvPackageManager):
         def run(self, command: list[str]) -> bool:
@@ -50,7 +48,7 @@ def test_update_script_metadata() -> None:
 
 
 def test_update_script_metadata_with_version_map() -> None:
-    runs_calls: List[List[str]] = []
+    runs_calls: list[list[str]] = []
 
     class MockUvPackageManager(UvPackageManager):
         def run(self, command: list[str]) -> bool:
@@ -74,7 +72,7 @@ def test_update_script_metadata_with_version_map() -> None:
 
 
 def test_update_script_metadata_with_mapping() -> None:
-    runs_calls: List[List[str]] = []
+    runs_calls: list[list[str]] = []
 
     class MockUvPackageManager(UvPackageManager):
         def run(self, command: list[str]) -> bool:
@@ -102,7 +100,7 @@ def test_update_script_metadata_with_mapping() -> None:
     ]
     runs_calls.clear()
 
-    # It should canonicalize when passed as an import name
+    # It should not canonicalize when passed as an import name
     # and works with brackets
     pm.update_notebook_script_metadata(
         "nb.py", import_namespaces_to_add=["ibis"]
