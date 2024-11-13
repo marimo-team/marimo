@@ -140,7 +140,8 @@ describe("SQLLanguageAdapter", () => {
         "my_df = mo.sql(
             f"""
             SELECT * FROM table
-            """, output=False
+            """,
+            output=False,
         )"
       `);
       expect(offset).toBe(26);
