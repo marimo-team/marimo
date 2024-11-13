@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Any, Dict, Optional
 
 import starlette
 import starlette.status as status
-from packaging import version
 from starlette.datastructures import Secret
 from starlette.exceptions import HTTPException
 from starlette.middleware.sessions import SessionMiddleware
@@ -168,6 +167,8 @@ class CustomSessionMiddleware(SessionMiddleware):
         https_only: bool = False,
         domain: typing.Optional[str] = None,
     ) -> None:
+        from packaging import version
+
         # We can't update the cookie here since
         # we don't have access to the app state
 
