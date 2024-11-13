@@ -147,9 +147,11 @@ export class DefaultWasmController implements WasmController {
 
     const foundPackages = new Set<string>(packages.toJs());
 
-    // Fire and forgot load packages and instantiation
+    // Fire and forget:
+    // Load notebook dependencies and instantiate the session
     // We don't want to wait for this to finish,
-    // as it blocks the initial code from being shown.
+    // so we can show the initial code immediately giving
+    // a sense of responsiveness.
     void this.loadNotebookDeps(code, foundPackages).then(() => {
       return init(userConfig.runtime.auto_instantiate);
     });
@@ -200,8 +202,9 @@ export class DefaultWasmController implements WasmController {
         import sys
         # Filter out builtins
         missing = [p for p in ${JSON.stringify(missingPackages)} if p not in sys.modules]
-        print("Loaded from micropip:", missing)
-        await micropip.install(missing)
+        if len(missing) > 0:
+          print("Loading from micropip:", missing)
+          await micropip.install(missing)
       `)
         .catch((error) => {
           // Don't let micropip loading failures stop the notebook from loading
