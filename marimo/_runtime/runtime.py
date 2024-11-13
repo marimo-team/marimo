@@ -1804,7 +1804,6 @@ class Kernel:
             self.package_manager.update_notebook_script_metadata(
                 filepath=filename,
                 import_namespaces_to_add=import_namespaces_to_add,
-                import_namespaces_to_remove=[],
             )
         except Exception as e:
             LOGGER.error("Failed to add script metadata to notebook: %s", e)

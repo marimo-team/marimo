@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-from typing import List
+from typing import List, Optional
 
 from marimo._runtime.packages.module_name_to_pypi_name import (
     module_name_to_pypi_name,
@@ -124,30 +124,39 @@ class UvPackageManager(PypiPackageManager):
     def update_notebook_script_metadata(
         self,
         filepath: str,
-        import_namespaces_to_add: List[str],
-        import_namespaces_to_remove: List[str],
+        *,
+        packages_to_add: Optional[List[str]] = None,
+        packages_to_remove: Optional[List[str]] = None,
+        import_namespaces_to_add: Optional[List[str]] = None,
+        import_namespaces_to_remove: Optional[List[str]] = None,
     ) -> None:
-        if not import_namespaces_to_add and not import_namespaces_to_remove:
-            return
+        packages_to_add = packages_to_add or []
+        packages_to_remove = packages_to_remove or []
+        import_namespaces_to_add = import_namespaces_to_add or []
+        import_namespaces_to_remove = import_namespaces_to_remove or []
 
-        # Convert from module name to package name
-        packages_to_add = [
+        packages_to_add = packages_to_add + [
             self.module_to_package(im) for im in import_namespaces_to_add
         ]
-        packages_to_remove = [
+        packages_to_remove = packages_to_remove + [
             self.module_to_package(im) for im in import_namespaces_to_remove
         ]
+
+        if not packages_to_add and not packages_to_remove:
+            return
 
         version_map = self._get_version_map()
 
         def _is_installed(package: str) -> bool:
-            return package.lower() in version_map
+            without_brackets = package.split("[")[0]
+            return without_brackets.lower() in version_map
 
         def _maybe_add_version(package: str) -> str:
             # Skip marimo
             if package == "marimo":
                 return package
-            version = version_map.get(package.lower())
+            without_brackets = package.split("[")[0]
+            version = version_map.get(without_brackets.lower())
             if version:
                 return f"{package}=={version}"
             return package
