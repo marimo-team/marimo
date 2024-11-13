@@ -14,8 +14,9 @@ import { type PlotlyTemplateParser, createParser } from "./parse-from-template";
 import { Objects } from "@/utils/objects";
 import { isEqual, pick, set } from "lodash-es";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
-import { usePrevious, useScript } from "@uidotdev/usehooks";
+import { usePrevious } from "@uidotdev/usehooks";
 import { Arrays } from "@/utils/arrays";
+import { useScript } from "@/hooks/useScript";
 
 interface Data {
   figure: Figure;
@@ -110,13 +111,9 @@ export const PlotlyComponent = memo(
     });
 
     // Used for rendering LaTeX. TODO: Serve this library from Marimo
-    const mathJaxStatus = useScript(
+    const isScriptLoaded = useScript(
       "https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-MML-AM_CHTML",
-      {
-        removeOnUnmount: true,
-      },
     );
-    const mathJaxLoaded = mathJaxStatus === "ready";
 
     useEffect(() => {
       const nextFigure = structuredClone(originalFigure);
@@ -126,7 +123,7 @@ export const PlotlyComponent = memo(
         ...value,
       });
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [originalFigure, mathJaxLoaded]);
+    }, [originalFigure, isScriptLoaded]);
 
     const [layout, setLayout] = useState<Partial<Plotly.Layout>>(() => {
       return {
