@@ -264,8 +264,13 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
                     token_extractor.token_str(i)
                 )
                 if "." in catalog_name:
+                    # e.g. "db.sqlite"
                     # strip the extension from the name
                     catalog_name = catalog_name.split(".")[0]
+                if ":" in catalog_name:
+                    # e.g. "md:my_db"
+                    # split on ":" and take the second part
+                    catalog_name = catalog_name.split(":")[1]
             if i + 1 < len(tokens) and token_extractor.is_keyword(i + 1, "as"):
                 # Skip over database-path 'AS'
                 i += 2

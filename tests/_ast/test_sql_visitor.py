@@ -367,6 +367,13 @@ class TestFindSQLDefs:
         )
 
     @staticmethod
+    def test_find_sql_defs_attach_with_colon() -> None:
+        sql = "ATTACH 'md:my_db'"
+        assert find_sql_defs(sql) == SQLDefs(
+            catalogs=["my_db"],
+        )
+
+    @staticmethod
     def test_find_sql_defs_with_catalog() -> None:
         sql = """
         CREATE TABLE my_catalog.my_table (id INT);

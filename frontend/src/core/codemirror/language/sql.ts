@@ -101,7 +101,7 @@ export class SQLLanguageAdapter implements LanguageAdapter {
     // Multiline code
     const start = `${this.dataframeName} = mo.sql(\n    ${prefix}"""\n`;
     const escapedCode = code.replaceAll('"""', String.raw`\"""`);
-    const end = `\n    """${this.showOutput ? "" : ", output=False"}\n)`;
+    const end = `\n    """${this.showOutput ? "" : ",\n    output=False,"}\n)`;
     return [start + indentOneTab(escapedCode) + end, start.length + 1];
   }
 
