@@ -50,7 +50,7 @@ Normally, overriding the `base_url` parameter should work. Here are some example
 chatbot = mo.ui.chat(
    mo.ai.llm.openai(
        model="llama3.1-8b",
-       api_key=key,
+       api_key="csk-...", # insert your key here,
        base_url="https://api.cerebras.ai/v1/",
    ),
 )
@@ -64,7 +64,7 @@ chatbot
 chatbot = mo.ui.chat(
    mo.ai.llm.openai(
        model="llama-3.1-70b-versatile",
-       api_key=key,
+       api_key="gsk_...", # insert your key here,
        base_url="https://api.groq.com/openai/v1/",
    ),
 )
