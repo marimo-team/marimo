@@ -75,7 +75,7 @@ chatbot
 ::::
 
 ```{note}
-We have added examples for GROQ and Cerebras. These providers offer free API keys and are great for trying out Llama models (from Meta). Cerebras, as of today, offers the fastest inferencing of the Llama3.2 model, and GROQ is also competitive in this space.
+We have added examples for GROQ and Cerebras. These providers offer free API keys and are great for trying out Llama models (from Meta). Cerebras, as of today, offers the fastest inferencing of the Llama3.1 70B model and GROQ is also competitive in this space.
 ```
 
 ### Finding the Right Endpoint URLs
