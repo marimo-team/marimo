@@ -297,7 +297,7 @@ chatbot
 ::::
 
 ```{note}
-We have added examples for GROQ and Cerebras. These providers offer free API keys and are great for trying out Llama models (from Meta). Cerebras, as of today, offers the fastest inferencing of the Llama3.1 70B model and GROQ is also competitive in this space.
+We have added examples for GROQ and Cerebras. These providers offer free API keys and are great for trying out Llama models (from Meta). You can sign up on their platforms and integrate with various AI integrations in marimo easily. For more information, refer to the [AI completion in marimo](/guides/editor_features/ai_completion#ai-completion).
 ```
 
 ### Finding the Right Endpoint URLs
@@ -316,8 +316,6 @@ chatbot = mo.ui.chat(
 )
 chatbot
 ```
-
-We recommend using free providers like [GROQ](https://groq.com/) and [Cerebras](https://cerebras.ai/), as you can sign up on their platforms and integrate with various AI integrations in marimo easily. For more information, refer to the [AI completion documentation in marimo](https://docs.marimo.io/guides/editor_features/ai_completion.html#ai-completion).
 
 If you want more examples for model providers and their endpoints listed, please submit a [feature request](https://github.com/marimo-team/marimo/issues/new?template=documentation.yaml).
 
