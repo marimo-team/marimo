@@ -16,6 +16,7 @@ import { isEqual, pick, set } from "lodash-es";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { usePrevious } from "@uidotdev/usehooks";
 import { Arrays } from "@/utils/arrays";
+import { useScript } from "@/hooks/useScript";
 
 interface Data {
   figure: Figure;
@@ -109,6 +110,12 @@ export const PlotlyComponent = memo(
       return structuredClone(originalFigure);
     });
 
+    // Used for rendering LaTeX. TODO: Serve this library from Marimo
+    const scriptStatus = useScript(
+      "https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-MML-AM_CHTML",
+    );
+    const isScriptLoaded = scriptStatus === "ready";
+
     useEffect(() => {
       const nextFigure = structuredClone(originalFigure);
       setFigure(nextFigure);
@@ -117,7 +124,7 @@ export const PlotlyComponent = memo(
         ...value,
       });
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [originalFigure]);
+    }, [originalFigure, isScriptLoaded]);
 
     const [layout, setLayout] = useState<Partial<Plotly.Layout>>(() => {
       return {
