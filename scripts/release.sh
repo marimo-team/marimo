@@ -95,7 +95,7 @@ fi
 # Commit version change
 print_step "Committing version change"
 git add marimo/__init__.py
-git commit -m "Release $NEW_VERSION"
+git commit -m "release: $NEW_VERSION"
 
 # Push changes
 if confirm "Push changes to remote?"; then
@@ -105,7 +105,7 @@ fi
 
 # Create and push tag
 if confirm "Create and push tag v$NEW_VERSION?"; then
-  git tag -a "v$NEW_VERSION" -m "Release $NEW_VERSION"
+  git tag -a "$NEW_VERSION" -m "release: $NEW_VERSION"
   git push origin --tags
   echo -e "${GREEN}✓ Tag pushed successfully${NC}"
 fi
