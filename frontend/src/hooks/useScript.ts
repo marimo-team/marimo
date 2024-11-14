@@ -12,10 +12,15 @@ export function useScript(
   src: string,
   options: ScriptOptions = defaultOptions,
 ) {
-  const [status, setStatus] = React.useState<ScriptStatus>();
+  const [status, setStatus] = React.useState<ScriptStatus>(() => {
+    const existingScript = document.querySelector<HTMLScriptElement>(
+      `script[src="${src}"]`,
+    );
+    return (existingScript?.dataset.status as ScriptStatus) || "unknown";
+  });
 
   React.useEffect(() => {
-    let script: HTMLScriptElement | null = document.querySelector(
+    let script = document.querySelector<HTMLScriptElement>(
       `script[src="${src}"]`,
     );
 
@@ -44,14 +49,7 @@ export function useScript(
       return observer;
     };
 
-    if (script) {
-      const domStatus = script.dataset.status;
-      if (domStatus) {
-        setStatus(domStatus as ScriptStatus);
-        const observer = observeScript(script);
-        return () => observer.disconnect();
-      }
-    } else {
+    if (!script) {
       script = document.createElement("script");
       script.src = src;
       script.async = true;
@@ -75,6 +73,17 @@ export function useScript(
         }
       };
     }
+
+    const domStatus = script.dataset.status;
+    if (domStatus) {
+      setStatus(domStatus as ScriptStatus);
+      if (domStatus === "ready" || domStatus === "error") {
+        return;
+      }
+      const observer = observeScript(script);
+      return () => observer.disconnect();
+    }
+
     setStatus("unknown");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src]);
