@@ -37,88 +37,6 @@ AI models from popular providers or custom functions.
 
 ## Basic Usage
 
-## Supported Model Providers
-
-You can refer to the [LiteLLM page](https://litellm.vercel.app/docs/providers) for a list of OpenAI API supported providers. If you want any specific provider added explicitly (ones that don't abide by the standard OpenAI API format), you can file a [feature request](https://github.com/marimo-team/marimo/issues/new?template=feature_request.yaml).
-
-Normally, overriding the `base_url` parameter should work. Here are some examples:
-
-::::{tab-set}
-:::{tab-item} Cerebras
-
-```python
-chatbot = mo.ui.chat(
-   mo.ai.llm.openai(
-       model="llama3.1-8b",
-       api_key="csk-...", # insert your key here,
-       base_url="https://api.cerebras.ai/v1/",
-   ),
-)
-chatbot
-```
-
-:::
-:::{tab-item} Groq
-
-```python
-chatbot = mo.ui.chat(
-   mo.ai.llm.openai(
-       model="llama-3.1-70b-versatile",
-       api_key="gsk_...", # insert your key here,
-       base_url="https://api.groq.com/openai/v1/",
-   ),
-)
-chatbot
-```
-
-:::
-::::
-
-```{note}
-We have added examples for GROQ and Cerebras. These providers offer free API keys and are great for trying out Llama models (from Meta). Cerebras, as of today, offers the fastest inferencing of the Llama3.1 70B model and GROQ is also competitive in this space.
-```
-
-### Finding the Right Endpoint URLs
-
-While the [LiteLLM page](https://litellm.vercel.app/docs/providers) provides a list of OpenAI API supported providers, the endpoints mentioned there are for chat completion and are not suitable for the `base_url` parameter. You need to do your research on the documentation websites of the model providers you select and find the right endpoint URL for normal inferencing (can usually be found in the curl commands).
-
-For example, here is how you can override the `base_url` and specify the endpoint for Cerebras:
-
-```python
-chatbot = mo.ui.chat(
-   mo.ai.llm.openai(
-       model="llama3.1-8b",
-       api_key=key,
-       base_url="https://api.cerebras.ai/v1/",
-   ),
-)
-chatbot
-```
-
-We recommend using free providers like [GROQ](https://groq.com/) and [Cerebras](https://cerebras.ai/), as you can sign up on their platforms and integrate with various AI integrations in marimo easily. For more information, refer to the [AI completion documentation in marimo](https://docs.marimo.io/guides/editor_features/ai_completion.html#ai-completion).
-
-If you want more examples for model providers and their endpoints listed, please submit a [feature request](https://github.com/marimo-team/marimo/issues/new?template=documentation.yaml).
-
-### Example Usage
-
-```python
-import marimo as mo
-chatbot = mo.ui.chat(
-   mo.ai.llm.openai(
-       model="llama3.1-8b",
-       system_message="You are a helpful assistant.",
-       api_key="csk-...", # insert your key here
-       base_url="https://api.cerebras.ai/v1/",
-   ),
-    prompts=[
-        "Hello",
-        "How are you?",
-        "I'm doing great, how about you?",
-    ],
-)
-chatbot
-```
-
 Here's a simple example using a custom echo model:
 
 ```python
@@ -339,4 +257,86 @@ configuration with a dictionary conforming to the config.
 
 ```{eval-rst}
 .. autoclass:: marimo.ai.ChatAttachment
+```
+
+## Supported Model Providers
+
+You can refer to the [LiteLLM page](https://litellm.vercel.app/docs/providers) for a list of OpenAI API supported providers. If you want any specific provider added explicitly (ones that don't abide by the standard OpenAI API format), you can file a [feature request](https://github.com/marimo-team/marimo/issues/new?template=feature_request.yaml).
+
+Normally, overriding the `base_url` parameter should work. Here are some examples:
+
+::::{tab-set}
+:::{tab-item} Cerebras
+
+```python
+chatbot = mo.ui.chat(
+   mo.ai.llm.openai(
+       model="llama3.1-8b",
+       api_key="csk-...", # insert your key here,
+       base_url="https://api.cerebras.ai/v1/",
+   ),
+)
+chatbot
+```
+
+:::
+:::{tab-item} Groq
+
+```python
+chatbot = mo.ui.chat(
+   mo.ai.llm.openai(
+       model="llama-3.1-70b-versatile",
+       api_key="gsk_...", # insert your key here,
+       base_url="https://api.groq.com/openai/v1/",
+   ),
+)
+chatbot
+```
+
+:::
+::::
+
+```{note}
+We have added examples for GROQ and Cerebras. These providers offer free API keys and are great for trying out Llama models (from Meta). Cerebras, as of today, offers the fastest inferencing of the Llama3.1 70B model and GROQ is also competitive in this space.
+```
+
+### Finding the Right Endpoint URLs
+
+While the [LiteLLM page](https://litellm.vercel.app/docs/providers) provides a list of OpenAI API supported providers, the endpoints mentioned there are for chat completion and are not suitable for the `base_url` parameter. You need to do your research on the documentation websites of the model providers you select and find the right endpoint URL for normal inferencing (can usually be found in the curl commands).
+
+For example, here is how you can override the `base_url` and specify the endpoint for Cerebras:
+
+```python
+chatbot = mo.ui.chat(
+   mo.ai.llm.openai(
+       model="llama3.1-8b",
+       api_key=key,
+       base_url="https://api.cerebras.ai/v1/",
+   ),
+)
+chatbot
+```
+
+We recommend using free providers like [GROQ](https://groq.com/) and [Cerebras](https://cerebras.ai/), as you can sign up on their platforms and integrate with various AI integrations in marimo easily. For more information, refer to the [AI completion documentation in marimo](https://docs.marimo.io/guides/editor_features/ai_completion.html#ai-completion).
+
+If you want more examples for model providers and their endpoints listed, please submit a [feature request](https://github.com/marimo-team/marimo/issues/new?template=documentation.yaml).
+
+### Example Usage
+
+```python
+import marimo as mo
+chatbot = mo.ui.chat(
+   mo.ai.llm.openai(
+       model="llama3.1-8b",
+       system_message="You are a helpful assistant.",
+       api_key="csk-...", # insert your key here
+       base_url="https://api.cerebras.ai/v1/",
+   ),
+    prompts=[
+        "Hello",
+        "How are you?",
+        "I'm doing great, how about you?",
+    ],
+)
+chatbot
 ```
