@@ -35,7 +35,7 @@ const DisconnectedIcon = () => (
 );
 
 const LockedIcon = () => (
-  <Tooltip content="App locked">
+  <Tooltip content="Notebook locked">
     <div className={topLeftStatus}>
       <LockIcon className="w-[25px] h-[25px] text-[var(--blue-11)]" />
     </div>

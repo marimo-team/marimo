@@ -33,7 +33,6 @@ export const Disconnected = ({
   };
 
   if (canTakeover) {
-    // Show a banner instead
     return (
       <div className="flex justify-center">
         <Banner
@@ -51,6 +50,7 @@ export const Disconnected = ({
               <Button
                 onClick={handleTakeover}
                 variant="outline"
+                data-testid="takeover-button"
                 className="flex-shrink-0"
               >
                 <ArrowRightSquareIcon className="w-4 h-4 mr-2" />
