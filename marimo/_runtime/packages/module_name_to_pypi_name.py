@@ -734,6 +734,7 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "twitter": "python-twitter",
         "txclib": "transifex-client",
         "u115": "115wangpan",
+        "umap": "umap-learn",
         "unidecode": "Unidecode",
         "universe": "ansible-universe",
         "usb": "pyusb",

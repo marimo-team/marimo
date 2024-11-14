@@ -5,6 +5,8 @@ import sys
 from dataclasses import dataclass
 from typing import TypeVar
 
+from marimo._config.packages import infer_package_manager
+
 if sys.version_info < (3, 11):
     from typing_extensions import NotRequired
 else:
@@ -280,7 +282,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "autosave_delay": 1000,
         "format_on_save": False,
     },
-    "package_management": {"manager": "pip"},
+    "package_management": {"manager": infer_package_manager()},
     "server": {
         "browser": "default",
         "follow_symlink": False,

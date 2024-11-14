@@ -23,9 +23,18 @@ def in_conda_env() -> bool:
     return "CONDA_DEFAULT_ENV" in os.environ
 
 
+def is_dockerized() -> bool:
+    return os.path.exists("/.dockerenv")
+
+
 def is_python_isolated() -> bool:
     """Returns True if not using system Python"""
-    return in_virtual_environment() or in_conda_env() or is_pyodide()
+    return (
+        in_virtual_environment()
+        or in_conda_env()
+        or is_pyodide()
+        or is_dockerized()
+    )
 
 
 def append_version(pkg_name: str, version: Optional[str]) -> str:
