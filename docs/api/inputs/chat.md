@@ -339,3 +339,4 @@ configuration with a dictionary conforming to the config.
 
 ```{eval-rst}
 .. autoclass:: marimo.ai.ChatAttachment
+```
