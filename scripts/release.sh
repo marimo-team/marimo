@@ -78,6 +78,8 @@ print_step "Updating version"
 echo -e "Running: hatch version $VERSION_TYPE\n"
 hatch version $VERSION_TYPE
 NEW_VERSION=$(hatch version) # re-run to get the version
+# Strip any color codes from version
+NEW_VERSION=$(echo "$NEW_VERSION" | sed 's/\x1b\[[0-9;]*m//g')
 
 # Summary and confirmation
 echo -e "\n${BOLD}Release Summary:${NC}"
