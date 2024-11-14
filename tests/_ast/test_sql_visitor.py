@@ -485,6 +485,23 @@ class TestFindSQLRefs:
         assert find_sql_refs(sql) == ["table1", "table2"]
 
     @staticmethod
+    def test_find_sql_refs_without_duplicates() -> None:
+        sql = """
+        SELECT * FROM table1;
+        SELECT * FROM table2;
+        SELECT * FROM table1;
+        """
+        assert find_sql_refs(sql) == ["table1", "table2"]
+
+    @staticmethod
+    def test_find_sql_refs_with_function() -> None:
+        sql = """
+        SELECT *, embedding(text) as text_embedding
+        FROM prompts;
+        """
+        assert find_sql_refs(sql) == ["prompts"]
+
+    @staticmethod
     def test_find_sql_refs_with_schema() -> None:
         sql = "SELECT * FROM my_schema.my_table;"
         assert find_sql_refs(sql) == ["my_schema", "my_table"]

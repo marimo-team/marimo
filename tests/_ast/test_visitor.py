@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 from inspect import cleandoc
+from textwrap import dedent
 
 import pytest
 
@@ -1096,6 +1097,23 @@ def test_sql_statement_with_url() -> None:
     assert v.defs == set(["cars"])
     assert v.variable_data == {"cars": [VariableData("table")]}
     assert v.refs == set(["mo"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_statement_with_function() -> None:
+    code = dedent('''
+    prompt_embeddings = mo.sql(
+        f"""
+        SELECT *, embedding(text) as text_embedding
+        FROM prompts;
+        """
+    )
+    ''')
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["prompt_embeddings"])
+    assert v.refs == set(["mo", "prompts"])
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
