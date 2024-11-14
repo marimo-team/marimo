@@ -76,7 +76,6 @@ export function useScript(
 
     const domStatus = script.dataset.status;
     if (domStatus) {
-      setStatus(domStatus as ScriptStatus);
       if (domStatus === "ready" || domStatus === "error") {
         return;
       }
