@@ -297,7 +297,7 @@ chatbot
 ::::
 
 ```{note}
-We have added examples for GROQ and Cerebras. These providers offer free API keys and are great for trying out Llama models (from Meta). You can sign up on their platforms and integrate with various AI integrations in marimo easily. For more information, refer to the [AI completion in marimo](/guides/editor_features/ai_completion#ai-completion).
+We have added examples for GROQ and Cerebras. These providers offer free API keys and are great for trying out Llama models (from Meta). You can sign up on their platforms and integrate with various AI integrations in marimo easily. For more information, refer to the [AI completion in marimo](/guides/editor_features/ai_completion).
 ```
 
 ### Finding the Right Endpoint URLs
