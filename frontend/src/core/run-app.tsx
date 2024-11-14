@@ -38,7 +38,7 @@ export const RunApp: React.FC<AppProps> = ({ appConfig }) => {
 
   return (
     <AppContainer
-      connectionState={connection.state}
+      connection={connection}
       isRunning={isRunning}
       width={appConfig.width}
     >

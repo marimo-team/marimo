@@ -760,7 +760,10 @@ class SessionManager:
         self, file_key: MarimoFileKey
     ) -> Optional[Session]:
         for session in self.sessions.values():
-            if session.initialization_id == file_key:
+            if (
+                session.initialization_id == file_key
+                or session.app_file_manager.path == os.path.abspath(file_key)
+            ):
                 return session
         return None
 
@@ -832,15 +835,6 @@ class SessionManager:
             ):
                 return True
         return False
-
-    def get_session_for_key(self, key: MarimoFileKey) -> Optional[Session]:
-        for session in self.sessions.values():
-            if (
-                session.app_file_manager.path == os.path.abspath(key)
-                or session.initialization_id == key
-            ) and session.connection_state() == ConnectionState.OPEN:
-                return session
-        return None
 
     async def start_lsp_server(self) -> None:
         """Starts the lsp server if it is not already started.

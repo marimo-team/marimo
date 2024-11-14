@@ -233,7 +233,7 @@ export const KeyboardShortcuts: React.FC = () => {
   const renderGroup = (group: HotkeyGroup) => {
     const items = groups[group];
     return (
-      <div className="keyboard-shortcut-group gap-2 flex flex-col">
+      <div className="mb-[40px] gap-2 flex flex-col">
         <h3 className="text-lg font-medium">{group}</h3>
 
         {items.map((item) => renderItem(item))}

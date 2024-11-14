@@ -301,7 +301,7 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   return (
     <>
       <AppContainer
-        connectionState={connection.state}
+        connection={connection}
         isRunning={isRunning}
         width={appConfig.width}
       >
