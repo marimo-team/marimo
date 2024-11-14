@@ -258,3 +258,58 @@ configuration with a dictionary conforming to the config.
 ```{eval-rst}
 .. autoclass:: marimo.ai.ChatAttachment
 ```
+
+## Supported Model Providers
+
+We support any OpenAI-compatible endpoint. If you want any specific provider added explicitly (ones that don't abide by the standard OpenAI API format), you can file a [feature request](https://github.com/marimo-team/marimo/issues/new?template=feature_request.yaml).
+
+Normally, overriding the `base_url` parameter should work. Here are some examples:
+
+::::{tab-set}
+:::{tab-item} Cerebras
+
+```python
+chatbot = mo.ui.chat(
+   mo.ai.llm.openai(
+       model="llama3.1-8b",
+       api_key="csk-...", # insert your key here
+       base_url="https://api.cerebras.ai/v1/",
+   ),
+)
+chatbot
+```
+
+:::
+:::{tab-item} Groq
+
+```python
+chatbot = mo.ui.chat(
+   mo.ai.llm.openai(
+       model="llama-3.1-70b-versatile",
+       api_key="gsk_...", # insert your key here
+       base_url="https://api.groq.com/openai/v1/",
+   ),
+)
+chatbot
+```
+
+:::
+:::{tab-item} xAI
+
+```python
+chatbot = mo.ui.chat(
+   mo.ai.llm.openai(
+       model="grok-beta",
+       api_key=key, # insert your key here
+       base_url="https://api.x.ai/v1",
+   ),
+)
+chatbot
+```
+
+:::
+::::
+
+```{note}
+We have added examples for GROQ and Cerebras. These providers offer free API keys and are great for trying out Llama models (from Meta). You can sign up on their platforms and integrate with various AI integrations in marimo easily. For more information, refer to the [AI completion documentation in marimo](/guides/editor_features/ai_completion).
+```
