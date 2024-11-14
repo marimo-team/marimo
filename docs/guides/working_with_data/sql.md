@@ -7,9 +7,29 @@ the query result back as a Python dataframe.
 To create a SQL cell, you first need to install additional dependencies,
 including [duckdb](https://duckdb.org/):
 
+::::{tab-set}
+:::{tab-item} install with pip
+
 ```bash
-pip install 'marimo[sql]'
+pip install "marimo[sql]"
 ```
+
+:::
+:::{tab-item} install with uv
+
+```bash
+uv pip install "marimo[sql]"
+```
+
+:::
+:::{tab-item} install with conda
+
+```bash
+conda install -c conda-forge marimo duckdb polars
+```
+
+:::
+::::
 
 ```{admonition} Examples
 :class: tip
@@ -17,7 +37,6 @@ pip install 'marimo[sql]'
 For example notebooks, check out
 [`examples/sql/` on GitHub](https://github.com/marimo-team/marimo/tree/main/examples/sql/).
 ```
-
 
 ## Example
 
