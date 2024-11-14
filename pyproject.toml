@@ -75,7 +75,19 @@ marimo = "marimo._cli.cli:main"
 homepage = "https://github.com/marimo-team/marimo"
 
 [project.optional-dependencies]
-sql = ["duckdb >= 1.0.0"]
+sql = [
+    "duckdb >= 1.0.0",
+    "polars >= 1.9.0",
+]
+# List of deps that are recommended for most users
+# in order to unlock all features in marimo
+recommended = [
+    "duckdb>=1.1.0", # SQL cells
+    "altair>=5.4.0", # Plotting in datasource viewer
+    "polars>=1.9.0", # SQL output back in Python
+    "openai>=1.41.1", # AI features
+    "ruff", # Formatting
+]
 
 dev = [
     "click <8.1.4",  # https://github.com/pallets/click/issues/2558

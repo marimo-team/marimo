@@ -143,6 +143,43 @@ auto_instantiate = false
 
 :::
 
+## Enable more features with optional dependencies
+
+Some features require additional dependencies, which are not installed by default. This includes:
+
+- [SQL cells](/guides/working_with_data/sql.md)
+- Charts in the datasource viewer
+- [AI features](/guides/editor_features/ai_completion.md)
+- Format on save
+
+To install the optional dependencies, run:
+
+::::{tab-set}
+:::{tab-item} install with pip
+
+```bash
+pip install "marimo[recommended]"
+```
+
+:::
+:::{tab-item} install with uv
+
+```bash
+uv pip install "marimo[recommended]"
+```
+
+:::
+:::{tab-item} install with conda
+
+```bash
+conda install -c conda-forge marimo duckdb altair polars openai ruff
+```
+
+:::
+::::
+
+This will install: `duckdb`, `altair`, `polars`, `openai`, and `ruff`.
+
 ## GitHub Copilot and AI Assistant
 
 The marimo editor natively supports [GitHub Copilot](https://copilot.github.com/),

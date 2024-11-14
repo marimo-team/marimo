@@ -24,7 +24,7 @@ uv pip install "marimo[sql]"
 :::{tab-item} install with conda
 
 ```bash
-conda install -c conda-forge marimo duckdb
+conda install -c conda-forge marimo duckdb polars
 ```
 
 :::
