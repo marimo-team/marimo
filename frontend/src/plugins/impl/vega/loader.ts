@@ -71,7 +71,7 @@ const DATE_MIDDLEWARE: Middleware = () => {
       return null;
     }
     try {
-      return new Date(value).toISOString();
+      return new Date(value);
     } catch {
       Logger.warn(`Failed to parse date: ${value}`);
       return value;

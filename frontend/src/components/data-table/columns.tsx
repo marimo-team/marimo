@@ -2,6 +2,7 @@
 "use no memo";
 
 import type { ColumnDef } from "@tanstack/react-table";
+import { format as formatDate } from "date-fns";
 import {
   DataTableColumnHeader,
   DataTableColumnHeaderWithSummary,
@@ -15,6 +16,7 @@ import type { FieldTypesWithExternalType } from "./types";
 import { UrlDetector } from "./url-detector";
 import { cn } from "@/utils/cn";
 import { uniformSample } from "./uniformSample";
+import { DatePopover } from "./date-popover";
 
 function inferDataType(value: unknown): DataType {
   if (typeof value === "string") {
@@ -184,6 +186,20 @@ export function generateColumns<T>({
             </div>
           );
         }
+
+        if (value instanceof Date) {
+          // e.g. 2010-10-07 17:15:00
+          const type =
+            column.columnDef.meta?.dataType === "date" ? "date" : "datetime";
+          return (
+            <div className={getCellStyleClass(justify, wrapped)}>
+              <DatePopover date={value} type={type}>
+                {formatDate(value, "yyyy-MM-dd HH:mm:ss")}
+              </DatePopover>
+            </div>
+          );
+        }
+
         return (
           <div className={getCellStyleClass(justify, wrapped)}>
             <MimeCell value={value} />
