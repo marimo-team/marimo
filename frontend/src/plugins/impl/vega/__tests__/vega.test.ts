@@ -26,12 +26,12 @@ active,username,id
     expect(data).toMatchInlineSnapshot(`
       [
         {
-          "active": "2023-08-14T19:28:47.000Z",
+          "active": 2023-08-14T19:28:47.000Z,
           "id": 1994308,
           "username": "akshayka",
         },
         {
-          "active": "2023-08-14T21:30:17.000Z",
+          "active": 2023-08-14T21:30:17.000Z,
           "id": 5108954,
           "username": "mscolnick",
         },
@@ -385,7 +385,7 @@ Bob.Jones,25
     expect(data).toMatchInlineSnapshot(`
       [
         {
-          "created_at": "2024-01-01T00:00:00.000Z",
+          "created_at": 2024-01-01T00:00:00.000Z,
           "name": "Alice",
         },
         {
