@@ -56,7 +56,7 @@ latest value.
 
 **Pure Python programs.** Unlike Jupyter notebooks, marimo notebooks are stored
 as pure Python files that can be executed as scripts, deployed as interactive
-web apps, and versioned easily with git.
+web apps, and versioned easily with Git.
 
 <a name="faq-problems"></a>
 
@@ -78,9 +78,14 @@ consistent, eliminating hidden state and making your notebook reproducible.
 marimo achieves this by intelligently analyzing your code and understanding the
 relationships between cells, and automatically re-running cells as needed.
 
+In addition, marimo notebooks can serialize package requirements inline;
+marimo runs these "sandboxed" notebooks in temporary virtual environments,
+making them [reproducible down to the packages](/guides/editor_features/package_management.md).
+
+
 **Maintainability.**
 marimo notebooks are stored as pure Python programs (`.py` files). This lets you
-version them with git; in contrast, Jupyter notebooks are stored as JSON and
+version them with Git; in contrast, Jupyter notebooks are stored as JSON and
 require extra steps to version.
 
 **Interactivity.**
