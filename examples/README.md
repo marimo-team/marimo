@@ -9,7 +9,7 @@ This folder contains example marimo notebooks.
 - 📦 [`third_party/`](third_party/): using popular third-party packages in marimo
 - ☁️  [`cloud/`](cloud/): using various cloud providers
 - 🧩 [`frameworks/`](frameworks/): integrating with different frameworks (web/ASGI)
-- ✨ [`misc/`](misc/): miscellenous topical examples
+- ✨ [`misc/`](misc/): miscellaneous topical examples
 
 > [!TIP]
 > New to marimo? Run `marimo tutorial ui` at the command line first!
