@@ -19,6 +19,7 @@ from marimo._server.api.auth import (
 from marimo._server.api.middleware import (
     AuthBackend,
     OpenTelemetryMiddleware,
+    ProxyMiddleware,
     SkewProtectionMiddleware,
 )
 from marimo._server.api.router import build_routes
@@ -110,6 +111,12 @@ def create_starlette_app(
                 allow_headers=["*"],
             ),
             Middleware(SkewProtectionMiddleware),
+            Middleware(
+                # TODO: use correct url/host
+                ProxyMiddleware,
+                path="/mpl",
+                target="http://localhost:10000",
+            ),
         ]
     )
 
