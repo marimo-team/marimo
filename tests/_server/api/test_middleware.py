@@ -5,16 +5,25 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 import uvicorn
+from uvicorn import Config, Server
 from starlette.testclient import TestClient
+from starlette.responses import Response
+from starlette.websockets import WebSocketDisconnect, WebSocket
 
 from marimo._config.manager import UserConfigManager
 from marimo._server.main import create_starlette_app
 from marimo._server.model import SessionMode
 from marimo._server.tokens import AuthToken
+from marimo._server.api.middleware import ProxyMiddleware
+from multiprocessing import Process
 from tests._server.mocks import get_mock_session_manager, token_header
+import httpx
+import time
+import json
 
 if TYPE_CHECKING:
     from starlette.applications import Starlette
+    from starlette.types import ASGIApp
 
 
 def test_base_url() -> None:
@@ -227,15 +236,89 @@ class TestNoAuth:
         assert response.headers.get("Set-Cookie") is None
 
     def tets_any_query(self, no_auth_app: Starlette) -> None:
-        # Test unauthorized access with bad auth token
         client = TestClient(no_auth_app)
         response = client.get("/?access_token=bad-token")
         assert response.status_code == 200, response.text
         assert response.headers.get("Set-Cookie") is None
 
     def test_any_header(self, no_auth_app: Starlette) -> None:
-        # Test unauthorized access with bad auth token
         client = TestClient(no_auth_app)
         response = client.get("/", headers=token_header("bad-token"))
         assert response.status_code == 200, response.text
         assert response.headers.get("Set-Cookie") is None
+
+
+# Define the target server app at the module level
+async def target_app(scope, receive, send):
+    if scope["type"] == "http":
+        response = Response(
+            json.dumps({"message": "response from proxied app"}),
+            media_type="application/json"
+        )
+        await response(scope, receive, send)
+    elif scope["type"] == "websocket":
+        websocket = WebSocket(scope, receive=receive, send=send)
+        await websocket.accept()
+        await websocket.send_json({"message": "ws response from proxied app"})
+        await websocket.close()
+
+def run_target_server():
+    """Runs the target app with uvicorn."""
+    config = Config(app=target_app, host="127.0.0.1", port=8765, log_level="info")
+    server = Server(config)
+    server.run()
+
+class TestProxyMiddleware:
+    @pytest.fixture(scope="module")
+    def target_server(self) -> None:
+        """Start a separate `uvicorn` server for the target app."""
+        process = Process(target=run_target_server, daemon=True)
+        process.start()
+        time.sleep(1)  # Ensure the server has started before tests run
+        yield
+        process.terminate()
+        process.join()
+
+    @pytest.fixture
+    def app_with_proxy(self, edit_app: Starlette, target_server: None) -> ASGIApp:
+        """Create the app with ProxyMiddleware targeting the running server."""
+        edit_app.add_middleware(
+            ProxyMiddleware,
+            proxy_path="/proxy",
+            target_url="http://127.0.0.1:8765",
+        )
+        return edit_app
+
+    @pytest.mark.parametrize("method, payload", [
+        ("GET", None),
+        ("POST", {"data": "test"}),
+    ])
+    def test_proxy_basic_http_functionality(
+        self,
+        app_with_proxy: Starlette,
+        method: str,
+        payload: dict | None
+    ) -> None:
+        client = TestClient(app_with_proxy)
+        response = client.request(
+            method,
+            "/proxy/api/test",
+            headers=token_header("fake-token"),
+            json=payload
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["message"] == "response from proxied app"
+
+    def test_original_app_auth_still_works(self, app_with_proxy: Starlette) -> None:
+        client = TestClient(app_with_proxy)
+        response = client.get("/api/status", headers=token_header("bad-token"))
+        assert response.status_code == 401, response.text
+        assert response.headers.get("Set-Cookie") is None
+
+    @pytest.mark.asyncio
+    async def test_proxy_websocket_with_session(self, app_with_proxy: Starlette) -> None:
+        client = TestClient(app_with_proxy)
+        with client.websocket_connect("/proxy/ws") as websocket:
+            websocket.send_json({"message": "hello there"})
+            response = websocket.receive_json()
+            assert response['message'] == "ws response from proxied app"

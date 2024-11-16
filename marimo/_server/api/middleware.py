@@ -154,10 +154,10 @@ class OpenTelemetryMiddleware(BaseHTTPMiddleware):
 
 
 class ProxyMiddleware:
-    def __init__(self, app: ASGIApp, path: str, target: str) -> None:
+    def __init__(self, app: ASGIApp, proxy_path: str, target_url: str) -> None:
         self.app = app
-        self.path = path.rstrip("/")
-        self.target = target.rstrip("/")
+        self.path = proxy_path.rstrip("/")
+        self.target = target_url.rstrip("/")
         self.client = httpx.AsyncClient(base_url=self.target)
 
     async def __call__(
