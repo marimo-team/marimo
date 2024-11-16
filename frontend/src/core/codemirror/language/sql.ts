@@ -19,6 +19,7 @@ import {
   upgradePrefixKind,
 } from "./utils/quotes";
 import { capabilitiesAtom } from "@/core/config/capabilities";
+import { MarkdownLanguageAdapter } from "./markdown";
 
 const quoteKinds = [
   ['"""', '"""'],
@@ -59,7 +60,11 @@ export class SQLLanguageAdapter implements LanguageAdapter {
 
   transformIn(pythonCode: string): [string, number] {
     if (!this.isSupported(pythonCode)) {
-      throw new Error("Not supported");
+      // Attempt to remove any markdown wrappers
+      const [transformedCode, offset] =
+        new MarkdownLanguageAdapter().transformIn(pythonCode);
+      // Just return the original code
+      return [transformedCode, offset];
     }
 
     pythonCode = pythonCode.trim();

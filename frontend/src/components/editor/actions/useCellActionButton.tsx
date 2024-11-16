@@ -2,11 +2,7 @@
 import { downloadCellOutput } from "@/components/export/export-output-button";
 import { Switch } from "@/components/ui/switch";
 import { formatEditorViews } from "@/core/codemirror/format";
-import {
-  canToggleToLanguage,
-  getCurrentLanguageAdapter,
-  toggleToLanguage,
-} from "@/core/codemirror/language/commands";
+import { toggleToLanguage } from "@/core/codemirror/language/commands";
 import {
   hasOnlyOneCellAtom,
   useCellActions,
@@ -58,6 +54,7 @@ import { useDeleteCellCallback } from "../cell/useDeleteCell";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import type { CellConfig, RuntimeState } from "@/core/network/types";
 import { kioskModeAtom } from "@/core/mode";
+import { switchLanguage } from "@/core/codemirror/language/extension";
 
 export interface CellActionButtonProps
   extends Pick<CellData, "name" | "config"> {
@@ -100,7 +97,6 @@ export function useCellActionButtons({ cell }: Props) {
 
   const { cellId, config, getEditorView, name, hasOutput, status } = cell;
   const cellIdx = cellIds.inOrderIds.indexOf(cellId);
-  const editorView = getEditorView();
 
   const toggleDisabled = async () => {
     const newConfig = { disabled: !config.disabled };
@@ -112,7 +108,7 @@ export function useCellActionButtons({ cell }: Props) {
     const newConfig: Partial<CellConfig> = { hide_code: !config.hide_code };
     await saveCellConfig({ configs: { [cellId]: newConfig } });
     updateCellConfig({ cellId, config: newConfig });
-
+    const editorView = getEditorView();
     // If we're hiding the code, we should blur the editor
     // otherwise, we should focus it
     if (editorView) {
@@ -202,54 +198,11 @@ export function useCellActionButtons({ cell }: Props) {
         label: "Format cell",
         hotkey: "cell.format",
         handle: () => {
+          const editorView = getEditorView();
           if (!editorView) {
             return;
           }
           formatEditorViews({ [cellId]: editorView }, updateCellCode);
-        },
-      },
-      {
-        icon: <MarkdownIcon />,
-        label: "View as Markdown",
-        hotkey: "cell.viewAsMarkdown",
-        // We allow them to toggle to markdown in Python
-        // even if its not wrapped in a mo.md
-        hidden: getCurrentLanguageAdapter(editorView) !== "python",
-        handle: () => {
-          if (!editorView) {
-            return;
-          }
-          maybeAddMarimoImport(autoInstantiate, createCell);
-
-          toggleToLanguage(editorView, "markdown", { force: true });
-        },
-      },
-      {
-        icon: <DatabaseIcon size={13} strokeWidth={1.5} />,
-        label: "View as SQL",
-        hidden: !canToggleToLanguage(editorView, "sql"),
-        handle: () => {
-          if (!editorView) {
-            return;
-          }
-          toggleToLanguage(editorView, "sql");
-        },
-      },
-      {
-        icon: <PythonIcon />,
-        label: "View as Python",
-        // If we're in markdown mode, we should use the markdown hotkey
-        hotkey:
-          getCurrentLanguageAdapter(editorView) === "markdown"
-            ? "cell.viewAsMarkdown"
-            : undefined,
-        hidden: !canToggleToLanguage(editorView, "python"),
-        handle: () => {
-          if (!editorView) {
-            return;
-          }
-          maybeAddMarimoImport(autoInstantiate, createCell);
-          toggleToLanguage(editorView, "python");
         },
       },
       {
@@ -278,6 +231,47 @@ export function useCellActionButtons({ cell }: Props) {
           />
         ),
         handle: toggleDisabled,
+      },
+    ],
+
+    // View as
+    [
+      {
+        icon: <MarkdownIcon />,
+        label: "Convert to Markdown",
+        hotkey: "cell.viewAsMarkdown",
+        handle: () => {
+          const editorView = getEditorView();
+          if (!editorView) {
+            return;
+          }
+          maybeAddMarimoImport(autoInstantiate, createCell);
+          switchLanguage(editorView, "markdown", { keepCodeAsIs: true });
+        },
+      },
+      {
+        icon: <DatabaseIcon size={13} strokeWidth={1.5} />,
+        label: "Convert to SQL",
+        handle: () => {
+          const editorView = getEditorView();
+          if (!editorView) {
+            return;
+          }
+          maybeAddMarimoImport(autoInstantiate, createCell);
+          switchLanguage(editorView, "sql", { keepCodeAsIs: true });
+        },
+      },
+      {
+        icon: <PythonIcon />,
+        label: "Toggle as Python",
+        handle: () => {
+          const editorView = getEditorView();
+          if (!editorView) {
+            return;
+          }
+          maybeAddMarimoImport(autoInstantiate, createCell);
+          toggleToLanguage(editorView, "python", { force: true });
+        },
       },
     ],
 

@@ -26,23 +26,20 @@ export const LanguageToggles: React.FC<LanguageTogglesProps> = ({
   onAfterToggle,
 }) => {
   const canUseMarkdown = useMemo(
-    () => new MarkdownLanguageAdapter().isSupported(code),
+    () => new MarkdownLanguageAdapter().isSupported(code) || code.trim() === "",
     [code],
   );
   const canUseSQL = useMemo(
-    () => new SQLLanguageAdapter().isSupported(code),
+    () => new SQLLanguageAdapter().isSupported(code) || code.trim() === "",
     [code],
   );
 
   return (
-    <div className="absolute right-2 top-2 z-20 flex hover-action">
+    <div className="absolute right-3 top-2 z-20 flex hover-action gap-1">
       <LanguageToggle
         editorView={editorView}
         currentLanguageAdapter={currentLanguageAdapter}
-        // Prefer showing markdown over SQL when both are supported
-        canSwitchToLanguage={
-          canUseSQL && currentLanguageAdapter === "python" && !canUseMarkdown
-        }
+        canSwitchToLanguage={canUseSQL && currentLanguageAdapter === "python"}
         icon={
           <DatabaseIcon
             color={"var(--sky-11)"}

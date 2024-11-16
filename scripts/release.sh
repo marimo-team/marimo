@@ -102,7 +102,7 @@ if confirm "Push changes to remote?"; then
 fi
 
 # Create and push tag
-if confirm "Create and push tag v$NEW_VERSION?"; then
+if confirm "Create and push tag $NEW_VERSION?"; then
   git tag -a "$NEW_VERSION" -m "release: $NEW_VERSION"
   git push origin --tags
   echo -e "${GREEN}✓ Tag pushed successfully${NC}"
@@ -110,3 +110,6 @@ fi
 
 # Final success message
 echo -e "\n${BOLD}${GREEN}🎉 Release $NEW_VERSION completed successfully! 🎉${NC}\n"
+echo -e "${YELLOW}Don't forget to:${NC}"
+echo "  1. Monitor the release: https://github.com/marimo-team/marimo/actions/workflows/release.yml"
+echo "  2. Draft the release notes: https://github.com/marimo-team/marimo/releases/new?tag=$NEW_VERSION"
