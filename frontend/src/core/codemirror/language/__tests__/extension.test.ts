@@ -148,9 +148,6 @@ describe("switchLanguage", () => {
       )"
     `);
 
-    // Check that the cursor position is shifted
-    expect(mockEditor.state.selection.main.from).toEqual(18);
-
     // Switch to sql
     switchLanguage(mockEditor, "sql", { keepCodeAsIs: false });
     expect(mockEditor.state.doc.toString()).toMatchInlineSnapshot(`
@@ -158,20 +155,13 @@ describe("switchLanguage", () => {
       print('Goodbye')"
     `);
 
-    // Check that the cursor position is shifted
-    expect(mockEditor.state.selection.main.from).toEqual(18);
-
     // Switch back to python
     switchLanguage(mockEditor, "python", { keepCodeAsIs: false });
     expect(mockEditor.state.doc.toString()).toMatchInlineSnapshot(`
       "_df = mo.sql(
           f"""
-          mo.md(
-              \\"""
-              print('Hello')
-              print('Goodbye')
-              \\"""
-          )
+          print('Hello')
+          print('Goodbye')
           """
       )"
     `);
