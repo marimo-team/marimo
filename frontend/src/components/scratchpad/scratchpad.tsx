@@ -35,9 +35,9 @@ import {
   scratchpadHistoryAtom,
   historyVisibleAtom,
 } from "./scratchpad-history";
-import AnyLanguageCodeMirror from "@/plugins/impl/code/any-language-editor";
 import { cn } from "@/utils/cn";
 import type { CellConfig } from "@/core/network/types";
+import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 
 const scratchpadCellConfig: CellConfig = {
   hide_code: false,
@@ -184,7 +184,7 @@ export const ScratchPad: React.FC = () => {
               className="border rounded-md hover:shadow-sm cursor-pointer hover:border-input overflow-hidden"
               onClick={() => handleSelectHistoryItem(item)}
             >
-              <AnyLanguageCodeMirror
+              <LazyAnyLanguageCodeMirror
                 language="python"
                 theme={theme}
                 basicSetup={{

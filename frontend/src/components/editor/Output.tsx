@@ -153,6 +153,8 @@ export const OutputRenderer: React.FC<{
         <LazyAnyLanguageCodeMirror
           theme={theme === "dark" ? "dark" : "light"}
           value={data}
+          readOnly={true}
+          editable={false}
           language="markdown"
         />
       );
@@ -210,11 +212,20 @@ const MimeBundleOutputRenderer: React.FC<{
     );
   }
 
+  const mimeEntries = Objects.entries(mimebundle);
+  // Sort HTML first
+  mimeEntries.sort(([mimeA], [mimeB]) => {
+    if (mimeA === "text/html") {
+      return -1;
+    }
+    return 0;
+  });
+
   return (
     <Tabs defaultValue={first} orientation="vertical">
       <div className="flex">
         <TabsList className="self-start max-h-none flex flex-col gap-2 mr-4 flex-shrink-0">
-          {Object.keys(mimebundle).map((mime) => (
+          {mimeEntries.map(([mime]) => (
             <TabsTrigger
               key={mime}
               value={mime}
@@ -227,7 +238,7 @@ const MimeBundleOutputRenderer: React.FC<{
           ))}
         </TabsList>
         <div className="flex-1">
-          {Objects.entries(mimebundle).map(([mime, output]) => (
+          {mimeEntries.map(([mime, output]) => (
             <TabsContent key={mime} value={mime}>
               <ErrorBoundary>
                 <OutputRenderer
