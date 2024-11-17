@@ -60,7 +60,6 @@ export const Autocompleter = {
           info: () => constructCompletionInfoNode(option.completion_info),
         };
       }),
-      validFor: /^[\w.]*$/,
     };
   },
 
