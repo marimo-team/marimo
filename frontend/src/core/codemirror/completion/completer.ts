@@ -36,7 +36,7 @@ export async function completer(
     return null;
   }
 
-  // If it is a tooltip, show it as a Tooltip instead of a completion
+  // If it is a tooltip, set it in the documentation panel
   const tooltip = Autocompleter.asHoverTooltip({
     position: context.pos,
     message: result,
