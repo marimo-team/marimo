@@ -47,9 +47,6 @@ export async function completer(
       documentation: tooltip.html ?? null,
     });
   }
-  if (tooltip) {
-    return null;
-  }
 
   return Autocompleter.asCompletionResult(context.pos, result);
 }

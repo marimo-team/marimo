@@ -313,7 +313,7 @@ def complete(
     glbls: dict[str, Any],
     glbls_lock: threading.RLock,
     stream: Stream,
-    docstrings_limit: int = 80,
+    docstrings_limit: int = 100,
     timeout: float | None = None,
     prefer_interpreter_completion: bool = False,
 ) -> None:
