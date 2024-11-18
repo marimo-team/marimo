@@ -1,29 +1,34 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import io
+import json
+import time
+from multiprocessing import Process
 from typing import TYPE_CHECKING, Any, Tuple
 
 import pytest
 import uvicorn
-from uvicorn import Config, Server
-from starlette.testclient import TestClient
-from starlette.responses import Response, FileResponse
-from starlette.websockets import WebSocketDisconnect, WebSocket
+from starlette.applications import Starlette
 from starlette.middleware import Middleware
+from starlette.responses import FileResponse, Response
 from starlette.routing import Route
+from starlette.testclient import TestClient
+from starlette.websockets import WebSocket, WebSocketDisconnect
+from uvicorn import Config, Server
 
 from marimo._config.manager import UserConfigManager
+from marimo._server.api.middleware import (
+    AsyncHTTPClient,
+    AsyncHTTPResponse,
+    ProxyMiddleware,
+    URLRequest,
+)
 from marimo._server.main import create_starlette_app
 from marimo._server.model import SessionMode
 from marimo._server.tokens import AuthToken
-from marimo._server.api.middleware import ProxyMiddleware, AsyncHTTPClient, AsyncHTTPResponse, URLRequest
 from marimo._server.utils import find_free_port
-from multiprocessing import Process
-from starlette.applications import Starlette
 from tests._server.mocks import get_mock_session_manager, token_header
-import time
-import json
-import io
 
 if TYPE_CHECKING:
     from starlette.types import ASGIApp
@@ -278,7 +283,9 @@ def run_target_server():
 def run_mpl_server(host: str, port: int):
     """Runs the matplotlib plugin server.
     Defined at module level so it can be pickled."""
-    from marimo._plugins.stateless.mpl._mpl import create_application  # Import here to avoid circular imports
+    from marimo._plugins.stateless.mpl._mpl import (
+        create_application,  # Import here to avoid circular imports
+    )
     app = create_application()
     app.state.host = host
     app.state.port = port

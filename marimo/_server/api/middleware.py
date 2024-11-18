@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import asyncio
 from functools import partial
-from http.client import HTTPConnection, HTTPSConnection, HTTPResponse
+from http.client import HTTPConnection, HTTPResponse, HTTPSConnection
+from typing import TYPE_CHECKING, Any, AsyncIterable, Dict, Optional
 from urllib.parse import urljoin, urlparse
 
 import starlette.status as status
@@ -31,7 +32,6 @@ from marimo._server.api.auth import validate_auth
 from marimo._server.api.deps import AppState, AppStateBase
 from marimo._server.model import SessionMode
 from marimo._tracer import server_tracer
-from typing import Any, Dict, Optional, AsyncIterable, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from starlette.requests import HTTPConnection
@@ -173,7 +173,7 @@ class AsyncHTTPResponse:
                 if not chunk:
                     break
                 yield chunk
-        except Exception as e:
+        except Exception:
             raise
         finally:
             await self.aclose()
@@ -223,7 +223,7 @@ class AsyncHTTPClient:
                             else:
                                 chunks.append(chunk)
                         return b''.join(chunks)
-                    except Exception as e:
+                    except Exception:
                         raise
                 if isinstance(request.data, str):
                     return request.data.encode()
@@ -236,11 +236,11 @@ class AsyncHTTPClient:
 
         try:
             body = await collect_body()
-        except Exception as e:
+        except Exception:
             raise
 
         def _send():
-            from http.client import HTTPSConnection, HTTPConnection
+            from http.client import HTTPConnection
             parsed_url = urlparse(request.full_url)
             path_and_query = parsed_url.path
             if parsed_url.query:
@@ -260,7 +260,7 @@ class AsyncHTTPClient:
                 )
                 resp = conn.getresponse()
                 return resp
-            except Exception as e:
+            except Exception:
                 raise
 
         response = await loop.run_in_executor(None, _send)
@@ -346,9 +346,9 @@ class ProxyMiddleware:
                             await ws_client.send(msg["text"])
                         elif "bytes" in msg:
                             await ws_client.send(msg["bytes"])
-                except ConnectionClosed as e:
+                except ConnectionClosed:
                     return
-                except Exception as e_2:
+                except Exception:
                     await websocket.close()
                     return
 
@@ -361,9 +361,9 @@ class ProxyMiddleware:
                             await websocket.send_bytes(msg)
                         else:
                             await websocket.send_text(msg)
-                except ConnectionClosed as e:
+                except ConnectionClosed:
                     return
-                except Exception as e_2:
+                except Exception:
 
                     await websocket.close()
 

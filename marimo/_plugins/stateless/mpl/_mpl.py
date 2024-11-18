@@ -37,7 +37,11 @@ if TYPE_CHECKING:
     from matplotlib.figure import Figure
     from starlette.applications import Starlette
     from starlette.requests import Request
-    from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
+    from starlette.websockets import (
+        WebSocket,
+        WebSocketDisconnect,
+        WebSocketState,
+    )
 
 
 class FigureManagers:
@@ -167,7 +171,7 @@ def create_application() -> Starlette:
 
         try:
             figure_manager = figure_managers.get(figure_id)
-        except RuntimeError as e:
+        except RuntimeError:
             await websocket.send_json({
                 "type": "error",
                 "message": f"Figure with id '{figure_id}' not found"
