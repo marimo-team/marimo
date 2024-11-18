@@ -112,7 +112,6 @@ def create_starlette_app(
             ),
             Middleware(SkewProtectionMiddleware),
             Middleware(
-                # TODO: use correct url/host
                 ProxyMiddleware,
                 proxy_path="/mpl",
                 target_url="http://localhost:10000",

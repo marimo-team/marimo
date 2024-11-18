@@ -1,28 +1,31 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Tuple
 
 import pytest
 import uvicorn
 from uvicorn import Config, Server
 from starlette.testclient import TestClient
-from starlette.responses import Response
+from starlette.responses import Response, FileResponse
 from starlette.websockets import WebSocketDisconnect, WebSocket
+from starlette.middleware import Middleware
+from starlette.routing import Route
 
 from marimo._config.manager import UserConfigManager
 from marimo._server.main import create_starlette_app
 from marimo._server.model import SessionMode
 from marimo._server.tokens import AuthToken
-from marimo._server.api.middleware import ProxyMiddleware
+from marimo._server.api.middleware import ProxyMiddleware, AsyncHTTPClient, AsyncHTTPResponse, URLRequest
+from marimo._server.utils import find_free_port
 from multiprocessing import Process
+from starlette.applications import Starlette
 from tests._server.mocks import get_mock_session_manager, token_header
-import httpx
 import time
 import json
+import io
 
 if TYPE_CHECKING:
-    from starlette.applications import Starlette
     from starlette.types import ASGIApp
 
 
@@ -248,7 +251,6 @@ class TestNoAuth:
         assert response.headers.get("Set-Cookie") is None
 
 
-# Define the target server app at the module level
 async def target_app(scope, receive, send):
     if scope["type"] == "http":
         response = Response(
@@ -259,8 +261,13 @@ async def target_app(scope, receive, send):
     elif scope["type"] == "websocket":
         websocket = WebSocket(scope, receive=receive, send=send)
         await websocket.accept()
-        await websocket.send_json({"message": "ws response from proxied app"})
-        await websocket.close()
+        try:
+            while True:
+                data = await websocket.receive_json()
+                await websocket.send_json({"message": "ws response from proxied app"})
+        except WebSocketDisconnect:
+            print("Client disconnected")
+            return
 
 def run_target_server():
     """Runs the target app with uvicorn."""
@@ -268,9 +275,47 @@ def run_target_server():
     server = Server(config)
     server.run()
 
+def run_mpl_server(host: str, port: int):
+    """Runs the matplotlib plugin server.
+    Defined at module level so it can be pickled."""
+    from marimo._plugins.stateless.mpl._mpl import create_application  # Import here to avoid circular imports
+    app = create_application()
+    app.state.host = host
+    app.state.port = port
+    app.state.secure = False
+    config = Config(app=app, host=host, port=port, log_level="info")
+    server = Server(config)
+    server.run()
+
+async def serve_static(request):
+    content = "body { color: red; }"
+    return Response(
+        content=content,
+        media_type="text/css"
+    )
+
+async def serve_large_file(request):
+    content = "x" * 1024 * 1024  # 1MB of 'x' characters
+    return Response(
+        content=content,
+        media_type="text/plain"
+    )
+
+target_static_app = Starlette(routes=[
+    Route("/_static/css/page.css", serve_static),
+    Route("/_static/large-file.txt", serve_large_file),
+])
+
+def run_static_server():
+    """Runs the static file server with uvicorn."""
+    config = Config(app=target_static_app, host="127.0.0.1", port=8766, log_level="info")
+    server = Server(config)
+    server.run()
+
+
 class TestProxyMiddleware:
     @pytest.fixture(scope="module")
-    def target_server(self) -> None:
+    def target_server(self):
         """Start a separate `uvicorn` server for the target app."""
         process = Process(target=run_target_server, daemon=True)
         process.start()
@@ -288,6 +333,170 @@ class TestProxyMiddleware:
             target_url="http://127.0.0.1:8765",
         )
         return edit_app
+
+    @pytest.fixture(scope="module")
+    def mpl_server(self):
+        """Start the matplotlib plugin server in a separate process."""
+        host = '127.0.0.1'
+        port = 10_000
+
+        process = Process(
+            target=run_mpl_server,
+            args=(host, port),
+            daemon=True
+        )
+        process.start()
+        time.sleep(1)
+        yield host, port
+        process.terminate()
+        process.join()
+
+    @pytest.fixture
+    def app_with_mpl_proxy(self, edit_app: Starlette, mpl_server: Tuple[str, int]) -> ASGIApp:
+        """Create the app with ProxyMiddleware targeting the matplotlib plugin server."""
+        host, port = mpl_server
+        target_url = f"http://{host}:{port}"
+        edit_app.add_middleware(
+            ProxyMiddleware,
+            proxy_path="/mpl",
+            target_url=target_url,
+        )
+        return edit_app
+
+    @pytest.fixture(scope="module")
+    def static_server(self):
+        """Start a separate server for static files."""
+        process = Process(target=run_static_server, daemon=True)
+        process.start()
+        time.sleep(1)  # Ensure the server has started
+        yield
+        process.terminate()
+        process.join()
+
+    @pytest.fixture
+    def app_with_static_proxy(self, edit_app: Starlette, static_server: None, tmp_path) -> ASGIApp:
+        """Create the app with ProxyMiddleware targeting the static server."""
+        # Create test static files
+        css_dir = tmp_path / "static" / "css"
+        css_dir.mkdir(parents=True)
+        css_file = css_dir / "page.css"
+        css_file.write_text("body { color: red; }")
+
+        large_file = tmp_path / "static" / "large-file.txt"
+        large_file.write_text("x" * 1024 * 1024)  # 1MB file
+
+        edit_app.add_middleware(
+            ProxyMiddleware,
+            proxy_path="/_static",
+            target_url="http://127.0.0.1:8766",
+        )
+        return edit_app
+
+    def test_proxy_static_file(self, app_with_static_proxy):
+        client = TestClient(app_with_static_proxy)
+        response = client.get("/_static/css/page.css")
+        assert response.status_code == 200, response.text
+        assert response.headers["content-type"].startswith('text/css')
+        assert "body { color: red; }" in response.text
+
+    def test_proxy_large_static_file(self, app_with_static_proxy):
+        client = TestClient(app_with_static_proxy)
+        response = client.get("/_static/large-file.txt")
+        assert response.status_code == 200, response.text
+        assert response.headers["content-type"].startswith("text/plain")
+        assert len(response.content) == 1024 * 1024  # Check full content length
+
+    def test_proxy_static_file_streaming(self, app_with_static_proxy):
+        client = TestClient(app_with_static_proxy)
+        with client.stream("GET", "/_static/large-file.txt") as response:
+            assert response.status_code == 200, response.text
+            content_length = 0
+            for chunk in response.iter_bytes():
+                content_length += len(chunk)
+            assert content_length == 1024 * 1024
+
+
+    @pytest.mark.asyncio
+    async def test_http_client_streaming(self, app_with_proxy: Starlette) -> None:
+        client = AsyncHTTPClient(base_url="http://127.0.0.1:8765")
+
+        request = URLRequest(
+            "http://127.0.0.1:8765/test",
+            method="POST",
+            headers={"Content-Type": "application/json"},
+            data=b"test string"
+        )
+        response = await client.send(request, stream=True)
+        assert response.status_code == 200
+        chunks = [chunk async for chunk in response.aiter_raw()]
+        assert len(chunks) > 0
+        await response.aclose()
+
+    @pytest.mark.asyncio
+    async def test_http_client_body_types(self, app_with_proxy: Starlette) -> None:
+        client = AsyncHTTPClient(base_url="http://127.0.0.1:8765")
+
+        # Test with bytes data
+        request = URLRequest(
+            "http://127.0.0.1:8765/test",
+            method="POST",
+            headers={"Content-Type": "application/json"},
+            data=b'{"test": "data"}'
+        )
+        response = await client.send(request)
+        assert response.status_code == 200
+        await response.aclose()
+
+        # Test with iterable of bytes using a file-like object
+        class BytesBuffer(io.BytesIO):
+            def read(self, size: int | None = -1) -> bytes:
+                return super().read(size)
+
+        buffer = BytesBuffer(b'{"test": "data"}')
+        request = URLRequest(
+            "http://127.0.0.1:8765/test",
+            method="POST",
+            headers={"Content-Type": "application/json"},
+            data=buffer
+        )
+        response = await client.send(request)
+        assert response.status_code == 200
+        await response.aclose()
+
+    @pytest.mark.asyncio
+    async def test_http_client_headers(self, app_with_proxy: Starlette) -> None:
+        client = AsyncHTTPClient(base_url="http://127.0.0.1:8765")
+
+        custom_headers = {
+            "X-Test-Header": "test-value",
+            "Content-Type": "application/json"
+        }
+        request = URLRequest(
+            "http://127.0.0.1:8765/test",
+            method="GET",
+            headers=custom_headers,
+            data=None  # Explicitly set to None for GET request
+        )
+        response = await client.send(request)
+        assert response.headers.get("content-type") == "application/json"
+        await response.aclose()
+
+    def test_http_client_url_building(self) -> None:
+        client = AsyncHTTPClient(base_url="http://127.0.0.1:8765")
+
+        url = type('URL', (), {
+            'path': '/test/path',
+            'query': b'param=value'
+        })()
+
+        request = client.build_request(
+            "GET",
+            url,
+            headers={},
+            content=None
+        )
+        assert request.full_url == "http://127.0.0.1:8765/test/path?param=value"
+        assert "host" in request.headers
 
     @pytest.mark.parametrize("method, payload", [
         ("GET", None),
@@ -316,9 +525,24 @@ class TestProxyMiddleware:
         assert response.headers.get("Set-Cookie") is None
 
     @pytest.mark.asyncio
-    async def test_proxy_websocket_with_session(self, app_with_proxy: Starlette) -> None:
+    async def test_proxy_websocket(self, app_with_proxy: Starlette) -> None:
         client = TestClient(app_with_proxy)
         with client.websocket_connect("/proxy/ws") as websocket:
             websocket.send_json({"message": "hello there"})
             response = websocket.receive_json()
             assert response['message'] == "ws response from proxied app"
+            websocket.send_json({"message": "hello there again"})
+            response_2 = websocket.receive_json()
+            assert response_2['message'] == "ws response from proxied app"
+            websocket.send_json({"message": "hello there again"})
+            response_3 = websocket.receive_json()
+            assert response_3['message'] == "ws response from proxied app"
+
+    def test_proxy_websocket_with_invalid_id(self, app_with_mpl_proxy: Starlette) -> None:
+        client = TestClient(app_with_mpl_proxy)
+        with client.websocket_connect("/mpl/ws?figure=invalid_id") as websocket:
+            websocket.send_json({"type": "supports_binary", "value": True})
+            message = websocket.receive_json()
+            assert message["type"] == "error"
+            assert "invalid" in message["message"].lower()
+    # Could be good to go on to test the happy path for mpl but we're already doing that with the test client above so leaving just this invalid ID test for
