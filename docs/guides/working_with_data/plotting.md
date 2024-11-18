@@ -285,4 +285,3 @@ If you want to output the plot in the console area, use `plt.show()` or
 To make matplotlib plots interactive, use
 [mo.mpl.interactive](/api/plotting.md#marimo.mpl.interactive).
 (Matplotlib plots are not yet reactive.)
-For additional instructions when deploying an interactive matplotlib plot in Docker, see [Interactive Matplotlib Plots in Docker](/guides/deploying/deploying_docker.md#using-interactive-matplotlib-plots-in-docker)

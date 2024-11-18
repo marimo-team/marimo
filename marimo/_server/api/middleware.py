@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Optional
-from urllib.parse import urljoin
+from functools import partial
+from http.client import HTTPConnection, HTTPResponse, HTTPSConnection
+from typing import TYPE_CHECKING, Any, AsyncIterable, Dict, Optional
+from urllib.parse import urljoin, urlparse
 
-import httpx
 import starlette.status as status
 from starlette.authentication import (
     AuthCredentials,
@@ -152,22 +153,133 @@ class OpenTelemetryMiddleware(BaseHTTPMiddleware):
                 raise
             return response
 
+class URLRequest:
+    def __init__(self, url, method, headers, data):
+        self.full_url = url
+        self.method = method
+        self.headers = headers
+        self.data = data
+
+class AsyncHTTPResponse:
+    def __init__(self, response: HTTPResponse):
+        self.raw_response = response
+        self.status_code = response.status
+        self.headers = {k.lower(): v for k, v in response.getheaders()}
+
+    async def aiter_raw(self):
+        try:
+            while True:
+                chunk = self.raw_response.read(8192)
+                if not chunk:
+                    break
+                yield chunk
+        except Exception:
+            raise
+        finally:
+            await self.aclose()
+
+    async def aclose(self):
+        self.raw_response.close()
+
+class AsyncHTTPClient:
+    def __init__(self, base_url: str):
+        self.base_url = base_url.rstrip("/")
+        parsed = urlparse(base_url)
+        self.host = parsed.netloc
+        self.is_https = parsed.scheme == "https"
+
+    def build_request(self, method: str, url: Any, headers: Dict[str, str], content: Any) -> URLRequest:
+        # Combine base_url with path and query to form a full URL
+        full_url = f"{self.base_url}{url.path}"
+        if hasattr(url, 'query') and url.query:
+            full_url += f"?{url.query.decode('utf-8')}"
+
+        headers = dict(headers)
+        headers['host'] = self.host
+
+        request = URLRequest(
+            full_url,  # Use the full URL here
+            method=method,
+            headers=headers,
+            data=content
+        )
+
+        request.method = method
+        return request
+
+    async def send(self, request: URLRequest, stream: bool = False) -> AsyncHTTPResponse:
+        loop = asyncio.get_event_loop()
+
+        async def collect_body() -> bytes:
+            if hasattr(request, 'data'):
+                if request.data is None:
+                    return b''
+                if isinstance(request.data, AsyncIterable):
+                    chunks: list[bytes] = []
+                    try:
+                        async for chunk in request.data:
+                            if isinstance(chunk, str):
+                                chunks.append(chunk.encode())
+                            else:
+                                chunks.append(chunk)
+                        return b''.join(chunks)
+                    except Exception:
+                        raise
+                if isinstance(request.data, str):
+                    return request.data.encode()
+                if isinstance(request.data, bytes):
+                    return request.data
+                if hasattr(request.data, 'read'):
+                    return request.data.read()  # type: ignore
+                raise ValueError(f"Unsupported request data type: {type(request.data)}")
+            return b''
+
+        try:
+            body = await collect_body()
+        except Exception:
+            raise
+
+        def _send():
+            from http.client import HTTPConnection
+            parsed_url = urlparse(request.full_url)
+            path_and_query = parsed_url.path
+            if parsed_url.query:
+                path_and_query += f"?{parsed_url.query}"
+
+            conn_class = HTTPSConnection if self.is_https else HTTPConnection
+            conn = conn_class(self.host)
+
+            method = request.method if request.method is not None else "GET"
+
+            try:
+                conn.request(
+                    method=method,
+                    url=path_and_query,  # Only path and query
+                    body=body,
+                    headers=request.headers
+                )
+                resp = conn.getresponse()
+                return resp
+            except Exception:
+                raise
+
+        response = await loop.run_in_executor(None, _send)
+        return AsyncHTTPResponse(response)
+
 
 class ProxyMiddleware:
-    def __init__(self, app: ASGIApp, path: str, target: str) -> None:
+    def __init__(self, app: ASGIApp, proxy_path: str, target_url: str) -> None:
         self.app = app
-        self.path = path.rstrip("/")
-        self.target = target.rstrip("/")
-        self.client = httpx.AsyncClient(base_url=self.target)
+        self.path = proxy_path.rstrip("/")
+        self.target = target_url.rstrip("/")
+        self.client = AsyncHTTPClient(base_url=self.target)
 
-    async def __call__(
-        self, scope: Scope, receive: Receive, send: Send
-    ) -> None:
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == "websocket":
             if not scope["path"].startswith(self.path):
                 return await self.app(scope, receive, send)
 
-            # Connect to target websocket
+            # WebSocket handling remains unchanged
             ws_url = urljoin(self.target, scope["path"])
             if scope["scheme"] in ("http", "ws"):
                 ws_url = ws_url.replace("http", "ws", 1)
@@ -185,15 +297,24 @@ class ProxyMiddleware:
             await self.app(scope, receive, send)
             return
 
-        url = httpx.URL(
-            path=request.url.path, query=request.url.query.encode("utf-8")
-        )
+        target_path = request.url.path
+        target_query = request.url.query.encode('utf-8')
+
+        # Construct the URL object with path and query
+        url = type('URL', (), {
+            'path': target_path,
+            'query': target_query
+        })()
+
+        headers = {k.decode(): v.decode() for k, v in request.headers.raw}
+
         rp_req = self.client.build_request(
             request.method,
             url,
-            headers=request.headers.raw,
+            headers=headers,
             content=request.stream(),
         )
+
         rp_resp = await self.client.send(rp_req, stream=True)
         response = StreamingResponse(
             rp_resp.aiter_raw(),
@@ -201,18 +322,17 @@ class ProxyMiddleware:
             headers=rp_resp.headers,
             background=BackgroundTask(rp_resp.aclose),
         )
-
         await response(scope, receive, send)
 
-    # TODO: this does not work, but the correct answer probably lies
-    # in here: https://github.com/valohai/asgiproxy/blob/master/asgiproxy/proxies/websocket.py
     async def _proxy_websocket(
         self, scope: Scope, receive: Receive, send: Send, ws_url: str
     ) -> None:
         websocket = WebSocket(scope, receive=receive, send=send)
+        original_params = websocket.query_params
+        if original_params:
+            ws_url = f"{ws_url}?{'&'.join(f'{k}={v}' for k,v in original_params.items())}"
         await websocket.accept()
 
-        print("[debug] CONNECTING TO", ws_url)
         async with connect(ws_url) as ws_client:
 
             async def client_to_upstream() -> None:
@@ -226,10 +346,12 @@ class ProxyMiddleware:
                             await ws_client.send(msg["text"])
                         elif "bytes" in msg:
                             await ws_client.send(msg["bytes"])
-                except ConnectionClosed as e:
-                    await websocket.close()
-                    print("[debug] CLIENT CLOSED", e)
+                except ConnectionClosed:
                     return
+                except Exception:
+                    await websocket.close()
+                    return
+
 
             async def upstream_to_client() -> None:
                 try:
@@ -239,10 +361,12 @@ class ProxyMiddleware:
                             await websocket.send_bytes(msg)
                         else:
                             await websocket.send_text(msg)
-                except ConnectionClosed as e:
-                    await websocket.close()
-                    print("[debug] UPSTREAM CLOSED", e)
+                except ConnectionClosed:
                     return
+                except Exception:
+
+                    await websocket.close()
+
 
             # Run both relay loops concurrently
             relay_tasks = [
@@ -251,25 +375,11 @@ class ProxyMiddleware:
             ]
 
             try:
-                # Wait for either task to complete
-                done, pending = await asyncio.wait(
-                    relay_tasks, return_when=asyncio.FIRST_COMPLETED
-                )
-
-                # Cancel pending tasks
-                for task in pending:
-                    task.cancel()
-
-                # Check for exceptions
-                for task in done:
-                    try:
-                        task.result()
-                    except Exception:
-                        pass
-
+                await asyncio.gather(*relay_tasks)
+            except Exception as e:
+                raise e
             finally:
-                # Ensure websocket is closed
                 try:
                     await websocket.close()
-                except Exception:
-                    pass
+                except Exception as e:
+                    raise e

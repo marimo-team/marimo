@@ -37,7 +37,11 @@ if TYPE_CHECKING:
     from matplotlib.figure import Figure
     from starlette.applications import Starlette
     from starlette.requests import Request
-    from starlette.websockets import WebSocket
+    from starlette.websockets import (
+        WebSocket,
+        WebSocketDisconnect,
+        WebSocketState,
+    )
 
 
 class FigureManagers:
@@ -148,19 +152,33 @@ def create_application() -> Starlette:
 
     async def websocket_endpoint(websocket: WebSocket) -> None:
         await websocket.accept()
-
-        queue = asyncio.Queue[Tuple[Any, str]]()
+        queue: asyncio.Queue[Tuple[Any, str]] = asyncio.Queue()
 
         class SyncWebSocket:
             def send_json(self, content: str) -> None:
                 queue.put_nowait((content, "json"))
-
             def send_binary(self, blob: Any) -> None:
                 queue.put_nowait((blob, "binary"))
 
         figure_id = websocket.query_params.get("figure")
-        assert figure_id is not None
-        figure_manager = figure_managers.get(figure_id)
+        if not figure_id:
+            await websocket.send_json({
+                "type": "error",
+                "message": "No figure ID provided"
+            })
+            await websocket.close()
+            return
+
+        try:
+            figure_manager = figure_managers.get(figure_id)
+        except RuntimeError:
+            await websocket.send_json({
+                "type": "error",
+                "message": f"Figure with id '{figure_id}' not found"
+            })
+            await websocket.close()
+            return
+
         figure_manager.add_web_socket(SyncWebSocket())  # type: ignore[no-untyped-call]
 
         async def receive() -> None:
@@ -174,11 +192,15 @@ def create_application() -> Starlette:
                         pass
                     else:
                         figure_manager.handle_json(data)  # type: ignore[no-untyped-call]
-            except Exception:
+            except WebSocketDisconnect:
                 pass
+            except Exception as e:
+                if websocket.application_state != WebSocketState.DISCONNECTED:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": str(e)
+                    })
             finally:
-                from starlette.websockets import WebSocketState
-
                 if websocket.application_state != WebSocketState.DISCONNECTED:
                     await websocket.close()
 
@@ -190,15 +212,28 @@ def create_application() -> Starlette:
                         await websocket.send_json(data)
                     else:
                         await websocket.send_bytes(data)
-            except Exception:
+            except WebSocketDisconnect:
+                # Client disconnected normally
                 pass
+            except Exception as e:
+                if websocket.application_state != WebSocketState.DISCONNECTED:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": str(e)
+                    })
             finally:
-                from starlette.websockets import WebSocketState
-
                 if websocket.application_state != WebSocketState.DISCONNECTED:
                     await websocket.close()
 
-        await asyncio.gather(receive(), send())
+        try:
+            await asyncio.gather(receive(), send())
+        except Exception as e:
+            if websocket.application_state != WebSocketState.DISCONNECTED:
+                await websocket.send_json({
+                    "type": "error",
+                    "message": str(e)
+                })
+                await websocket.close()
 
     return Starlette(
         routes=[
