@@ -96,7 +96,9 @@ function languageToggle() {
             return false;
           }
 
-          updateLanguageAdapterAndCode(cm, nextLanguage);
+          updateLanguageAdapterAndCode(cm, nextLanguage, {
+            keepCodeAsIs: false,
+          });
           return true;
         },
       },
@@ -107,6 +109,7 @@ function languageToggle() {
 function updateLanguageAdapterAndCode(
   view: EditorView,
   nextLanguage: LanguageAdapter,
+  opts: { keepCodeAsIs: boolean },
 ) {
   const currentLanguage = view.state.field(languageAdapterState);
   const code = view.state.doc.toString();
@@ -114,15 +117,25 @@ function updateLanguageAdapterAndCode(
   const hotkeysProvider = view.state.facet(hotkeysProviderState);
   const placeholderType = view.state.facet(placeholderState);
   const movementCallbacks = view.state.facet(movementCallbacksState);
-  // Update the code
-  const [codeOut, cursorDiff1] = currentLanguage.transformOut(code);
-  const [newCode, cursorDiff2] = nextLanguage.transformIn(codeOut);
-
-  // Update the cursor position
   let cursor = view.state.selection.main.head;
-  cursor += cursorDiff1;
-  cursor -= cursorDiff2;
-  cursor = clamp(cursor, 0, newCode.length);
+
+  // If keepCodeAsIs is true, we just keep the original code
+  // but update the language.
+  // If keepCodeAsIs is false, we need to transform the code
+  // from the current language to the next language and update
+  // the cursor position.
+  let finalCode: string;
+  if (opts.keepCodeAsIs) {
+    finalCode = code;
+  } else {
+    const [codeOut, cursorDiff1] = currentLanguage.transformOut(code);
+    const [newCode, cursorDiff2] = nextLanguage.transformIn(codeOut);
+    // Update the cursor position
+    cursor += cursorDiff1;
+    cursor -= cursorDiff2;
+    cursor = clamp(cursor, 0, newCode.length);
+    finalCode = newCode;
+  }
 
   // Update the state
   view.dispatch({
@@ -144,7 +157,7 @@ function updateLanguageAdapterAndCode(
     changes: {
       from: 0,
       to: view.state.doc.length,
-      insert: newCode,
+      insert: finalCode,
     },
     selection: EditorSelection.cursor(cursor),
   });
@@ -232,9 +245,18 @@ export function getInitialLanguageAdapter(state: EditorView["state"]) {
 export function switchLanguage(
   view: EditorView,
   language: LanguageAdapter["type"],
+  opts: { keepCodeAsIs?: boolean } = {},
 ) {
+  // If the existing language is the same as the new language, do nothing
+  const currentLanguage = view.state.field(languageAdapterState);
+  if (currentLanguage.type === language) {
+    return;
+  }
+
   const newLanguage = LanguageAdapters[language];
-  updateLanguageAdapterAndCode(view, newLanguage());
+  updateLanguageAdapterAndCode(view, newLanguage(), {
+    keepCodeAsIs: opts.keepCodeAsIs ?? false,
+  });
 }
 
 /**

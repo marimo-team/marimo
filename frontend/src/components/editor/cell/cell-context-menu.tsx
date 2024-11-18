@@ -127,7 +127,9 @@ export const CellActionsContextMenu = ({ children, ...props }: Props) => {
                 >
                   <div className="flex items-center flex-1">
                     {action.icon && (
-                      <div className="mr-2 w-5">{action.icon}</div>
+                      <div className="mr-2 w-5 text-muted-foreground">
+                        {action.icon}
+                      </div>
                     )}
                     <div className="flex-1">{action.label}</div>
                     <div className="flex-shrink-0 text-sm">
