@@ -369,3 +369,57 @@ class CustomTuple(tuple[int, int]):
 def test_format_extend_tuple():
     my_tuple = CustomTuple((1, 2, 3))
     assert as_dom_node(my_tuple).text == "<h1>1, 2, 3</h1>"
+
+
+def test_repr_mimebundle_with_markdown():
+    class ReprMimeBundleWithMarkdown:
+        def _repr_mimebundle_(self):
+            return {
+                "text/markdown": "# Hello, World!",
+            }
+
+    obj = ReprMimeBundleWithMarkdown()
+    formatter = get_formatter(obj)
+    assert formatter
+    mime, content = formatter(obj)
+    assert mime == "application/vnd.marimo+mimebundle"
+    assert content == {
+        "text/html": '<span class="markdown prose dark:prose-invert"><h1 id="hello-world">Hello, World!</h1></span>',
+        "text/markdown": "# Hello, World!",
+    }
+
+    # Does not convert markdown to html if html is already present
+    class ReprMimeBundleWithMarkdownAndHtml:
+        def _repr_mimebundle_(self):
+            return {
+                "text/html": "<h1>Hello, World!</h1>",
+                "text/markdown": "# Hello, World!",
+            }
+
+    obj = ReprMimeBundleWithMarkdownAndHtml()
+    formatter = get_formatter(obj)
+    assert formatter
+    mime, content = formatter(obj)
+    assert mime == "application/vnd.marimo+mimebundle"
+    assert content == {
+        "text/html": "<h1>Hello, World!</h1>",
+        "text/markdown": "# Hello, World!",
+    }
+
+
+def test_repr_mimebundle_with_latex():
+    class ReprMimeBundleWithLatex:
+        def _repr_mimebundle_(self):
+            return {
+                "text/latex": r"$e^x$",
+            }
+
+    obj = ReprMimeBundleWithLatex()
+    formatter = get_formatter(obj)
+    assert formatter
+    mime, content = formatter(obj)
+    assert mime == "application/vnd.marimo+mimebundle"
+    assert content == {
+        "text/html": '<span class="markdown prose dark:prose-invert"><span class="paragraph"><marimo-tex class="arithmatex">||(e^x||)</marimo-tex></span></span>',
+        "text/latex": r"$e^x$",
+    }

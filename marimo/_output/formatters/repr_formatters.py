@@ -56,6 +56,18 @@ def maybe_get_repr_formatter(
                     # (e.g. ibis)
                     if "text/plain" in contents and len(contents) > 1:
                         contents.pop("text/plain")
+                    # Convert markdown/latex to text/html if text/html is
+                    # not present
+                    for md_mime_type in md_mime_types:
+                        if (
+                            "text/html" not in contents
+                            and md_mime_type in contents
+                        ):
+                            from marimo._output.md import md
+
+                            contents["text/html"] = md(
+                                str(contents[md_mime_type])
+                            ).text
                 else:
                     contents = method()
 
