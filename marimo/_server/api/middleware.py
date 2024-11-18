@@ -176,6 +176,7 @@ class AsyncHTTPResponse:
         except Exception as e:
             raise
         finally:
+            await self.aclose()
 
     async def aclose(self):
         self.raw_response.close()
