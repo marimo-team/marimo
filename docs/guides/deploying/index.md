@@ -42,7 +42,6 @@ These guides help you deploy marimo notebooks as read-only apps.
 | {doc}`deploying_docker`         | Deploy with Docker                                       |
 | {doc}`authentication`           | Authentication and security                              |
 | {doc}`deploying_public_gallery` | Deploy to our public gallery                             |
-| {doc}`deploying_marimo_cloud`   | Deploy to Marimo Cloud                                   |
 | {doc}`deploying_hugging_face`   | Deploy to Hugging Face                                   |
 | {doc}`deploying_ploomber`       | Deploy to Ploomber Cloud                                 |
 
