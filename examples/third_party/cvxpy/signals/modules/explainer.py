@@ -11,7 +11,7 @@ def explainer(component: str) -> Optional[str]:
         LIB.ASYMMETRIC_SMALL: (
             f"""
             The **{component}** creates a component that treats values
-            bigger and smaller than the component mean asymetrically. It's
+            bigger and smaller than the component mean asymmetrically. It's
             often used as a residual component class. Use the threshold
             parameter to control the trade-off between positive and negative
             values (or, when building a multiplicative decomposition, between
