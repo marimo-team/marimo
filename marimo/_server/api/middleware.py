@@ -22,7 +22,7 @@ from starlette.middleware.base import (
 )
 from starlette.requests import HTTPConnection, Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
-from starlette.websockets import WebSocket
+from starlette.websockets import WebSocket, WebSocketState
 from websockets import ConnectionClosed
 from websockets.client import connect
 
@@ -349,7 +349,6 @@ class ProxyMiddleware:
                 except ConnectionClosed:
                     return
                 except Exception:
-                    await websocket.close()
                     return
 
 
@@ -364,8 +363,7 @@ class ProxyMiddleware:
                 except ConnectionClosed:
                     return
                 except Exception:
-
-                    await websocket.close()
+                    return
 
 
             # Run both relay loops concurrently
@@ -380,6 +378,7 @@ class ProxyMiddleware:
                 raise e
             finally:
                 try:
-                    await websocket.close()
+                    if websocket.client_state != WebSocketState.DISCONNECTED:
+                        await websocket.close()
                 except Exception as e:
                     raise e
