@@ -429,7 +429,6 @@ def test_display_protocol_takes_precedence() -> None:
     register_formatters()
 
     class Foo(list):
-
         def _display_(self):
             return "foo"
 

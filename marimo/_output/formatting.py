@@ -127,7 +127,6 @@ def get_formatter(
     if is_callable_method(obj, "_display_"):
 
         def f_mime(obj: T) -> tuple[KnownMimeType, str]:
-            
             displayable_object = obj._display_()  # type: ignore
             _f = get_formatter(displayable_object)
             if _f is not None:
