@@ -49,18 +49,18 @@ def test_formatters_with_opinionated_formatter() -> None:
     # Happy path
     obj = ["test"]
     formatter = get_formatter(obj)
-    assert formatter
+    assert formatter is not None
     assert formatter(obj) == ("application/json", '["text/plain:\\"test\\""]')
 
     # With Plain
     obj = Plain(["test"])
     formatter = get_formatter(obj)
-    assert formatter
+    assert formatter is not None
     assert formatter(obj) == ("application/json", '["text/plain:\\"test\\""]')
 
     # With pandas DataFrame
     formatter = get_formatter(pd_df)
-    assert formatter
+    assert formatter is not None
     mime, content = formatter(pd_df)
     assert mime == "text/html"
     assert "<marimo-table" in content
@@ -68,14 +68,14 @@ def test_formatters_with_opinionated_formatter() -> None:
     # With plain DataFrame + Plain
     obj = Plain(pd_df)
     formatter = get_formatter(obj)
-    assert formatter
+    assert formatter is not None
     mime, content = formatter(obj)
     assert mime == "text/html"
     assert "<marimo-table" not in content
 
     # With polars DataFrame
     formatter = get_formatter(pl_df)
-    assert formatter
+    assert formatter is not None
     mime, content = formatter(pl_df)
     assert mime == "text/html"
     assert "<marimo-table" in content
@@ -83,7 +83,7 @@ def test_formatters_with_opinionated_formatter() -> None:
     # With plain DataFrame + Plain
     obj = Plain(pl_df)
     formatter = get_formatter(obj)
-    assert formatter
+    assert formatter is not None
     mime, content = formatter(obj)
     assert mime == "text/html"
     assert "<marimo-table" not in content
@@ -151,7 +151,7 @@ def test_repr_markdown():
 
     obj = ReprMarkdown()
     formatter = get_formatter(obj)
-    assert formatter
+    assert formatter is not None
     mime, content = formatter(obj)
     assert mime == "text/html"
     assert (
@@ -167,7 +167,7 @@ def test_repr_latex():
 
     obj = ReprLatex()
     formatter = get_formatter(obj)
-    assert formatter
+    assert formatter is not None
     mime, content = formatter(obj)
     assert mime == "text/html"
     assert (
@@ -183,7 +183,7 @@ def test_repr_html():
 
     obj = ReprHTML()
     formatter = get_formatter(obj)
-    assert formatter
+    assert formatter is not None
     mime, content = formatter(obj)
     assert mime == "text/html"
     assert content == "<h1>Hello, World!</h1>"
@@ -198,7 +198,7 @@ def test_repr_png():
 
     obj = ReprPNG()
     formatter = get_formatter(obj)
-    assert formatter
+    assert formatter is not None
     mime, content = formatter(obj)
     assert mime == "image/png"
     assert content == png
@@ -213,7 +213,7 @@ def test_repr_jpeg():
 
     obj = ReprJPEG()
     formatter = get_formatter(obj)
-    assert formatter
+    assert formatter is not None
     mime, content = formatter(obj)
     assert mime == "image/jpeg"
     assert content == jpeg
@@ -228,7 +228,7 @@ def test_repr_svg():
 
     obj = ReprSVG()
     formatter = get_formatter(obj)
-    assert formatter
+    assert formatter is not None
     mime, content = formatter(obj)
     assert mime == "image/svg+xml"
     assert content == svg
@@ -241,7 +241,7 @@ def test_repr_json():
 
     obj = ReprJSON()
     formatter = get_formatter(obj)
-    assert formatter
+    assert formatter is not None
     mime, content = formatter(obj)
     assert mime == "application/json"
     assert content == {"message": "Hello, World!"}
@@ -257,7 +257,7 @@ def test_prefer_repr_html_over_repr_markdown():
 
     obj = ReprBoth()
     formatter = get_formatter(obj)
-    assert formatter
+    assert formatter is not None
     mime, content = formatter(obj)
     assert mime == "text/html"
     assert content == "<h6>Hello, World!</h6>"
@@ -273,7 +273,7 @@ def test_repr_mimebundle():
 
     obj = ReprMimeBundle()
     formatter = get_formatter(obj)
-    assert formatter
+    assert formatter is not None
     mime, content = formatter(obj)
     assert mime == "application/vnd.marimo+mimebundle"
     assert content == {"application/json": {"message": "Hello, World!"}}
@@ -290,7 +290,7 @@ def test_repr_mimebundle_with_exclude():
 
     obj = ReprMimeBundle()
     formatter = get_formatter(obj)
-    assert formatter
+    assert formatter is not None
     mime, content = formatter(obj)
     assert mime == "application/vnd.marimo+mimebundle"
     assert content == {"application/json": {"message": "Hello, World!"}}
@@ -309,7 +309,7 @@ def test_repr_returns_none():
 
     obj = ReprNone()
     formatter = get_formatter(obj)
-    assert formatter
+    assert formatter is not None
     mime, content = formatter(obj)
     assert mime == "application/json"
     assert content == "{}"
@@ -325,7 +325,7 @@ def test_repr_empty_string():
 
     obj = ReprNone()
     formatter = get_formatter(obj)
-    assert formatter
+    assert formatter is not None
     mime, content = formatter(obj)
     assert mime == "application/json"
     assert content == ""
@@ -380,7 +380,7 @@ def test_repr_mimebundle_with_markdown():
 
     obj = ReprMimeBundleWithMarkdown()
     formatter = get_formatter(obj)
-    assert formatter
+    assert formatter is not None
     mime, content = formatter(obj)
     assert mime == "application/vnd.marimo+mimebundle"
     assert content == {
@@ -398,7 +398,7 @@ def test_repr_mimebundle_with_markdown():
 
     obj = ReprMimeBundleWithMarkdownAndHtml()
     formatter = get_formatter(obj)
-    assert formatter
+    assert formatter is not None
     mime, content = formatter(obj)
     assert mime == "application/vnd.marimo+mimebundle"
     assert content == {
@@ -416,10 +416,29 @@ def test_repr_mimebundle_with_latex():
 
     obj = ReprMimeBundleWithLatex()
     formatter = get_formatter(obj)
-    assert formatter
+    assert formatter is not None
     mime, content = formatter(obj)
     assert mime == "application/vnd.marimo+mimebundle"
     assert content == {
         "text/html": '<span class="markdown prose dark:prose-invert"><span class="paragraph"><marimo-tex class="arithmatex">||(e^x||)</marimo-tex></span></span>',
         "text/latex": r"$e^x$",
     }
+
+
+def test_display_protocol_takes_precedence() -> None:
+    register_formatters()
+
+    class Foo(list):
+
+        def _display_(self):
+            return "foo"
+
+        def _repr_html_(self):
+            return "<h1>Hello, World!</h1>"
+
+    obj = Foo()
+    formatter = get_formatter(obj)
+    assert formatter is not None
+    mime, content = formatter(obj)
+    assert mime == "text/html"
+    assert content == "<span>foo</span>"

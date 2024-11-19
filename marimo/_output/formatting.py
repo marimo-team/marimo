@@ -112,6 +112,7 @@ def get_formatter(
             # a kernel (eg, in a unit test or when run as a Python script)
             register_formatters()
 
+    # Plain opts out of opinionated formatters
     if isinstance(obj, Plain):
         child_formatter = get_formatter(obj.child, include_opinionated=False)
         if child_formatter:
@@ -126,6 +127,7 @@ def get_formatter(
     if is_callable_method(obj, "_display_"):
 
         def f_mime(obj: T) -> tuple[KnownMimeType, str]:
+            
             displayable_object = obj._display_()  # type: ignore
             _f = get_formatter(displayable_object)
             if _f is not None:
