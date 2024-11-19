@@ -7,9 +7,50 @@ seaborn, Plotly, altair pandas, and more. These rich representations are
 displayed for the last expression of a cell, or when using
 [`mo.output.append`](#marimo.output.append).
 
-You can register rich displays with marimo for your own objects.
+You can register rich displays with marimo for your own objects. You have
+three options:
 
-### Option 1: Implement an IPython `_repr_*_()` method
+1. Implement a `_display_()` method
+2. Implement a `_mime_()` method
+3. Implement an IPython-style `_repr_*_()` method
+
+If you can't modify the object, you can also add a formatter to the marimo 
+library (option 4).
+
+The return value of these methods determines what is shown. `_display_`
+has the highest precedence, then built-in formatters, then `_mime_`, then `IPython` style `_repr_*_`
+methods.
+
+
+### Option 1: Implement a `_display_()` method
+
+If an object implements a `_display_()`, marimo will use its return value
+to visualize the object as an output.
+
+For example:
+
+```
+class Dice:
+    def _display_(self):
+        import random
+
+        return f"You rolled {random.randint(0, 7)}"
+```
+
+The return value of `_display_` can be any Python object, for example a
+a matplotlib plot, a dataframe, a list, `mo.Html`, or a `mo.ui` element, and
+marimo will attempt to display it.
+
+In addition to being the most convenient way do define a custom display in
+marimo (in terms of syntax), it is also helpful for library developers: this
+option lets you make an object showable in marimo without adding marimo as a
+dependency to your project.
+
+However, if you need to display an object that marimo does not know how to
+render (for example, maybe you are building a new plotting library), then
+you need to consider of the other options below.
+
+### Option 2: Implement an IPython `_repr_*_()` method
 
 marimo can render objects that implement
 [IPython's `_repr_*_()` protocol](https://ipython.readthedocs.io/en/stable/config/integrating.html#custom-methods)
@@ -38,7 +79,7 @@ We support the following methods:
 - `_repr_latex_`
 - `_repr_text_`
 
-### Option 2: Implement a `_mime_` method
+### Option 3: Implement a `_mime_` method
 
 When displaying an object, marimo's media viewer checks for the presence of a
 method called `_mime_`. This method should take no arguments and return
@@ -102,13 +143,13 @@ a tuple of two strings, the [mime type](https://developer.mozilla.org/en-US/docs
     Image("https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/marimo-logotype-thick.svg")
 ```
 
-### Option 3: Add a formatter to the marimo repo
+### Option 4: Add a formatter to the marimo repo
 
 The recommended way to render rich displays of objects in marimo is to
-implement either the IPython `_repr_*_()_` protocol or marimo's `_mime_()`
-protocol. If you are a a user of a library that does not render properly in
-marimo, consider asking the library maintainers to implement one of these
-protocols.
+implement `_display_` if possible, otherwise either the IPython `_repr_*_()_`
+protocol or marimo's `_mime_()` protocol. If you are a a user of a library that
+does not render properly in marimo, consider asking the library maintainers to
+implement one of these protocols.
 
 If it is not possible to implement a renderer protocol on the type
 you want displayed, we will consider contributions to add formatters to the
