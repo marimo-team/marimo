@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.9"
 # dependencies = [
-#     "leafmap==0.38.0",
+#     "leafmap==0.41.0",
 #     "marimo",
 # ]
 # ///
@@ -18,7 +18,7 @@ def __(mo):
         """
         # Using Leafmap
 
-        marimo can render leafmap figures using the foliumap or plotlymap backends.
+        This example shows how to render a `leafmap.Map` in marimo; just output it like any other object.
         """
     )
     return
@@ -26,7 +26,7 @@ def __(mo):
 
 @app.cell
 def __():
-    import leafmap.foliumap as leafmap
+    import leafmap
     return (leafmap,)
 
 
