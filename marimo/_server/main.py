@@ -111,11 +111,7 @@ def create_starlette_app(
                 allow_headers=["*"],
             ),
             Middleware(SkewProtectionMiddleware),
-            Middleware(
-                ProxyMiddleware,
-                proxy_path="/mpl",
-                target_url="http://localhost:10000",
-            ),
+            _create_mpl_proxy_middleware(),
         ]
     )
 
@@ -131,4 +127,24 @@ def create_starlette_app(
             HTTPException: handle_error,
             MarimoHTTPException: handle_error,
         },
+    )
+
+
+def _create_mpl_proxy_middleware() -> Middleware:
+    # MPL proxy logic
+    def mpl_target_url(path: str) -> str:
+        # Path format: /mpl/<port>/rest/of/path
+        port = path.split("/", 3)[2]
+        return f"http://localhost:{port}"
+
+    def mpl_path_rewrite(path: str) -> str:
+        # Remove the /mpl/<port>/ prefix
+        rest = path.split("/", 3)[3]
+        return f"/{rest}"
+
+    return Middleware(
+        ProxyMiddleware,
+        proxy_path="/mpl",
+        target_url=mpl_target_url,
+        path_rewrite=mpl_path_rewrite,
     )

@@ -18,6 +18,11 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
 
+from starlette.websockets import (
+    WebSocketDisconnect,
+    WebSocketState,
+)
+
 from marimo._output.builder import h
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html
@@ -37,11 +42,7 @@ if TYPE_CHECKING:
     from matplotlib.figure import Figure
     from starlette.applications import Starlette
     from starlette.requests import Request
-    from starlette.websockets import (
-        WebSocket,
-        WebSocketDisconnect,
-        WebSocketState,
-    )
+    from starlette.websockets import WebSocket
 
 
 class FigureManagers:
@@ -101,10 +102,11 @@ def _get_secure() -> bool:
     )
 
 
-def _template(fig_id: str) -> str:
+def _template(fig_id: str, port: int) -> str:
     return html_content % {
-        "ws_uri": f"/mpl/ws?figure={fig_id}",
+        "ws_uri": f"/mpl/{port}/ws?figure={fig_id}",
         "fig_id": fig_id,
+        "port": port,
     }
 
 
@@ -121,7 +123,8 @@ def create_application() -> Starlette:
     async def main_page(request: Request) -> HTMLResponse:
         figure_id = request.query_params.get("figure")
         assert figure_id is not None
-        content = _template(figure_id)
+        port = request.app.state.port
+        content = _template(figure_id, port)
         return HTMLResponse(content=content)
 
     async def mpl_js(request: Request) -> Response:
@@ -157,25 +160,27 @@ def create_application() -> Starlette:
         class SyncWebSocket:
             def send_json(self, content: str) -> None:
                 queue.put_nowait((content, "json"))
+
             def send_binary(self, blob: Any) -> None:
                 queue.put_nowait((blob, "binary"))
 
         figure_id = websocket.query_params.get("figure")
         if not figure_id:
-            await websocket.send_json({
-                "type": "error",
-                "message": "No figure ID provided"
-            })
+            await websocket.send_json(
+                {"type": "error", "message": "No figure ID provided"}
+            )
             await websocket.close()
             return
 
         try:
             figure_manager = figure_managers.get(figure_id)
         except RuntimeError:
-            await websocket.send_json({
-                "type": "error",
-                "message": f"Figure with id '{figure_id}' not found"
-            })
+            await websocket.send_json(
+                {
+                    "type": "error",
+                    "message": f"Figure with id '{figure_id}' not found",
+                }
+            )
             await websocket.close()
             return
 
@@ -196,10 +201,9 @@ def create_application() -> Starlette:
                 pass
             except Exception as e:
                 if websocket.application_state != WebSocketState.DISCONNECTED:
-                    await websocket.send_json({
-                        "type": "error",
-                        "message": str(e)
-                    })
+                    await websocket.send_json(
+                        {"type": "error", "message": str(e)}
+                    )
             finally:
                 if websocket.application_state != WebSocketState.DISCONNECTED:
                     await websocket.close()
@@ -217,10 +221,9 @@ def create_application() -> Starlette:
                 pass
             except Exception as e:
                 if websocket.application_state != WebSocketState.DISCONNECTED:
-                    await websocket.send_json({
-                        "type": "error",
-                        "message": str(e)
-                    })
+                    await websocket.send_json(
+                        {"type": "error", "message": str(e)}
+                    )
             finally:
                 if websocket.application_state != WebSocketState.DISCONNECTED:
                     await websocket.close()
@@ -229,28 +232,25 @@ def create_application() -> Starlette:
             await asyncio.gather(receive(), send())
         except Exception as e:
             if websocket.application_state != WebSocketState.DISCONNECTED:
-                await websocket.send_json({
-                    "type": "error",
-                    "message": str(e)
-                })
+                await websocket.send_json({"type": "error", "message": str(e)})
                 await websocket.close()
 
     return Starlette(
         routes=[
-            Route("/mpl", main_page, methods=["GET"]),
-            Route("/mpl/mpl.js", mpl_js, methods=["GET"]),
-            Route("/mpl/custom.css", mpl_custom_css, methods=["GET"]),
-            Route("/mpl/download.{fmt}", download, methods=["GET"]),
-            WebSocketRoute("/mpl/ws", websocket_endpoint),
+            Route("/", main_page, methods=["GET"]),
+            Route("/mpl.js", mpl_js, methods=["GET"]),
+            Route("/custom.css", mpl_custom_css, methods=["GET"]),
+            Route("/download.{fmt}", download, methods=["GET"]),
+            WebSocketRoute("/ws", websocket_endpoint),
             Mount(
-                "/mpl/_static",
+                "/_static",
                 StaticFiles(
                     directory=FigureManagerWebAgg.get_static_file_path()  # type: ignore[no-untyped-call]
                 ),
                 name="mpl_static",
             ),
             Mount(
-                "/mpl/_images",
+                "/_images",
                 StaticFiles(directory=Path(mpl.get_data_path(), "images")),
                 name="mpl_images",
             ),
@@ -363,7 +363,8 @@ def interactive(figure: Union[Figure, Axes]) -> Html:
 
     # TODO(akshayka): Proxy this server through the marimo server to help with
     # deployment.
-    get_or_create_application()
+    app = get_or_create_application()
+    port = app.state.port
 
     class CleanupHandle(CellLifecycleItem):
         def create(self, context: RuntimeContext) -> None:
@@ -380,11 +381,10 @@ def interactive(figure: Union[Figure, Axes]) -> Html:
     ctx.cell_lifecycle_registry.add(CleanupHandle())
     ctx.stream.cell_id = ctx.execution_context.cell_id
 
-    content = _template(str(figure_manager.num))
+    content = _template(str(figure_manager.num), port)
 
     return Html(
         h.iframe(
-            # srcdoc allows us to use __resizeIframe
             srcdoc=html.escape(content),
             width="100%",
             height="550px",
@@ -397,13 +397,13 @@ html_content = """
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <base href='/mpl/' />
-    <link rel="stylesheet" href="/mpl/_static/css/page.css" type="text/css" />
-    <link rel="stylesheet" href="/mpl/_static/css/boilerplate.css" type="text/css" />
-    <link rel="stylesheet" href="/mpl/_static/css/fbm.css" type="text/css" />
-    <link rel="stylesheet" href="/mpl/_static/css/mpl.css" type="text/css" />
-    <link rel="stylesheet" href="/mpl/custom.css" type="text/css" />
-    <script src="/mpl/mpl.js"></script>
+    <base href='/mpl/%(port)s/    ' />
+    <link rel="stylesheet" href="/mpl/%(port)s/_static/css/page.css" type="text/css" />
+    <link rel="stylesheet" href="/mpl/%(port)s/_static/css/boilerplate.css" type="text/css" />
+    <link rel="stylesheet" href="/mpl/%(port)s/_static/css/fbm.css" type="text/css" />
+    <link rel="stylesheet" href="/mpl/%(port)s/_static/css/mpl.css" type="text/css" />
+    <link rel="stylesheet" href="/mpl/%(port)s/custom.css" type="text/css" />
+    <script src="/mpl/%(port)s/mpl.js"></script>
 
     <script>
       function ondownload(figure, format) {
