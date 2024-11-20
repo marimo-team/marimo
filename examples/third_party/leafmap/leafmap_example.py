@@ -5,26 +5,29 @@
 #     "marimo",
 # ]
 # ///
+
 import marimo
 
-__generated_with = "0.1.59"
+__generated_with = "0.9.20"
 app = marimo.App()
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
-        f"""
-    # Leafmap + marimo
+        """
+        # Using Leafmap
 
-    To get started, install **[leafmap](https://leafmap.org/)**:
-
-    ```
-    pip install leafmap marimo
-    ```
-    """
+        marimo can render leafmap figures using the foliumap or plotlymap backends.
+        """
     )
     return
+
+
+@app.cell
+def __():
+    import leafmap.foliumap as leafmap
+    return (leafmap,)
 
 
 @app.cell
@@ -38,14 +41,13 @@ def __(leafmap):
         attribution="Google",
     )
     m
-    return m,
+    return (m,)
 
 
 @app.cell
 def __():
     import marimo as mo
-    import leafmap
-    return leafmap, mo
+    return (mo,)
 
 
 if __name__ == "__main__":
