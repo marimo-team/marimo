@@ -77,6 +77,7 @@ def create_starlette_app(
     lifespan: Optional[Lifespan[Starlette]] = None,
     enable_auth: bool = True,
     allow_origins: Optional[tuple[str, ...]] = None,
+    lsp_port: Optional[int] = None,
 ) -> Starlette:
     final_middlewares: List[Middleware] = []
 
@@ -115,6 +116,9 @@ def create_starlette_app(
         ]
     )
 
+    if lsp_port is not None:
+        final_middlewares.append(_create_lsp_proxy_middleware(lsp_port))
+
     if middleware:
         final_middlewares.extend(middleware)
 
@@ -147,4 +151,14 @@ def _create_mpl_proxy_middleware() -> Middleware:
         proxy_path="/mpl",
         target_url=mpl_target_url,
         path_rewrite=mpl_path_rewrite,
+    )
+
+
+def _create_lsp_proxy_middleware(lsp_port: int) -> Middleware:
+    return Middleware(
+        ProxyMiddleware,
+        proxy_path="/lsp",
+        target_url=f"http://localhost:{lsp_port}",
+        # Remove the /lsp prefix
+        path_rewrite=lambda path: path.replace("/lsp", ""),
     )
