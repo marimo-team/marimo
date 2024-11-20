@@ -75,22 +75,19 @@ marimo = "marimo._cli.cli:main"
 homepage = "https://github.com/marimo-team/marimo"
 
 [project.optional-dependencies]
-sql = [
-    "duckdb >= 1.0.0",
-    "polars >= 1.9.0",
-]
+sql = ["duckdb >= 1.0.0", "polars >= 1.9.0"]
 # List of deps that are recommended for most users
 # in order to unlock all features in marimo
 recommended = [
-    "duckdb>=1.1.0", # SQL cells
-    "altair>=5.4.0", # Plotting in datasource viewer
-    "polars>=1.9.0", # SQL output back in Python
+    "duckdb>=1.1.0",  # SQL cells
+    "altair>=5.4.0",  # Plotting in datasource viewer
+    "polars>=1.9.0",  # SQL output back in Python
     "openai>=1.41.1", # AI features
-    "ruff", # Formatting
+    "ruff",           # Formatting
 ]
 
 dev = [
-    "click <8.1.4",  # https://github.com/pallets/click/issues/2558
+    "click <8.1.4",   # https://github.com/pallets/click/issues/2558
     "black~=23.12.1",
     # For tracing debugging
     "opentelemetry-api~=1.26.0",
@@ -114,7 +111,7 @@ docs = [
     "sphinx-design~=0.5.0",
     "sphinx-autobuild~=2024.10.3",
     "myst_parser~=3.0.1",
-    "furo==2024.8.6"
+    "furo==2024.8.6",
 ]
 
 [tool.hatch]
@@ -125,12 +122,22 @@ path = "marimo/__init__.py"
 
 [tool.hatch.build.targets.sdist]
 include = ["/marimo"]
-artifacts = ["marimo/_static/", "marimo/_lsp/", "third_party.txt", "third_party_licenses.txt"]
+artifacts = [
+    "marimo/_static/",
+    "marimo/_lsp/",
+    "third_party.txt",
+    "third_party_licenses.txt",
+]
 exclude = ["marimo/_smoke_tests"]
 
 [tool.hatch.build.targets.wheel]
 include = ["/marimo"]
-artifacts = ["marimo/_static/", "marimo/_lsp/", "third_party.txt", "third_party_licenses.txt"]
+artifacts = [
+    "marimo/_static/",
+    "marimo/_lsp/",
+    "third_party.txt",
+    "third_party_licenses.txt",
+]
 exclude = ["marimo/_smoke_tests"]
 
 # Override the default uv version to use the latest version
@@ -179,6 +186,7 @@ extra-dependencies = [
     "hypothesis~=6.102.1",
     # For server testing
     "httpx~=0.27.0",
+    "matplotlib~=3.9.2",
     "pytest~=8.3.2",
     "pytest-timeout~=2.3.1",
     "pytest-codecov~=0.5.1",
@@ -186,7 +194,7 @@ extra-dependencies = [
 ]
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.9","3.10", "3.11", "3.12"]
+python = ["3.9", "3.10", "3.11", "3.12"]
 
 [tool.hatch.envs.test.scripts]
 test = "pytest{env:HATCH_TEST_ARGS:} {args:tests}"
@@ -206,12 +214,12 @@ template = "test"
 extra-dependencies = [
     "hypothesis~=6.102.1",
     "httpx~=0.27.0",
+    "matplotlib~=3.9.2",
     "pytest~=8.3.2",
     "pytest-timeout~=2.3.1",
     "pytest-codecov~=0.5.1",
     "pytest-asyncio~=0.23.8",
     # For testing mo.ui.chart, table, ...
-    "matplotlib",
     "vl-convert-python",
     "pyarrow",
     "pyarrow_hotfix",
@@ -239,7 +247,7 @@ extra-dependencies = [
 ]
 
 [[tool.hatch.envs.test-optional.matrix]]
-python = ["3.9","3.10", "3.11", "3.12"]
+python = ["3.9", "3.10", "3.11", "3.12"]
 
 [tool.hatch.envs.docs]
 features = ["docs"]
@@ -250,7 +258,7 @@ autobuild = "sphinx-autobuild {args:docs/ docs/_build}"
 clean = "cd docs && make clean"
 
 [tool.ruff]
-line-length=79
+line-length = 79
 include = ["marimo/**/*.py", "tests/**/*.py", "dagger/**/*.py"]
 exclude = [
     "examples",
@@ -275,12 +283,12 @@ exclude = [
 
 [tool.ruff.lint]
 ignore = [
-    "G004", # Logging statement uses f-string
+    "G004",   # Logging statement uses f-string
     "TCH001", # Move application import into a type-checking block
-    "D301", # Use r""" if any backslashes in a docstring
+    "D301",   # Use r""" if any backslashes in a docstring
     # TODO: we should fix these, and enable this rule
     "PT011", # `pytest.raises(ValueError)` is too broad, set the `match` parameter or use a more specific exception
-    "E501", # Line too long, we still trim
+    "E501",  # Line too long, we still trim
 ]
 extend-select = [
     # pyflakes
@@ -307,10 +315,10 @@ extend-select = [
     "I001",
     # Enable entire ruff rule section
     "ASYNC", # subset of flake8-async rules
-    "TCH", # Rules around TYPE_CHECKING blocks
-    "G", # flake8-logging-format rules
-    "LOG", # flake8-logging rules, most of them autofixable
-    "PT", # flake8-pytest-style rules
+    "TCH",   # Rules around TYPE_CHECKING blocks
+    "G",     # flake8-logging-format rules
+    "LOG",   # flake8-logging rules, most of them autofixable
+    "PT",    # flake8-pytest-style rules
     "TID25", # flake8-tidy-imports rules
     # Per rule enables
     # "RUF100", # Unused noqa (auto-fixable)
@@ -325,13 +333,13 @@ extend-select = [
     "D403",
     "D412",
     "D419",
-    "PGH004",  # Use specific rule codes when using noqa
+    "PGH004", # Use specific rule codes when using noqa
     "PGH005", # Invalid unittest.mock.Mock methods/attributes/properties
     # "S101", # Checks use `assert` outside the test cases, test cases should be added into the exclusions
-    "B004", # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
-    "B006", # Checks for uses of mutable objects as function argument defaults.
-    "B017", # Checks for pytest.raises context managers that catch Exception or BaseException.
-    "B019", # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
+    "B004",   # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
+    "B006",   # Checks for uses of mutable objects as function argument defaults.
+    "B017",   # Checks for pytest.raises context managers that catch Exception or BaseException.
+    "B019",   # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
     "TRY002", # Prohibit use of `raise Exception`, use specific exceptions instead.
 ]
 
@@ -357,7 +365,16 @@ docstring-code-format = true
 ban-relative-imports = "all"
 # Ban certain modules from being imported at module level, instead requiring
 # that they're imported lazily (e.g., within a function definition).
-banned-module-level-imports = ["numpy", "pandas", "tomlkit", "polars", "altair", "ipython", "anywidget", "packaging"]
+banned-module-level-imports = [
+    "numpy",
+    "pandas",
+    "tomlkit",
+    "polars",
+    "altair",
+    "ipython",
+    "anywidget",
+    "packaging",
+]
 
 [tool.ruff.lint.flake8-pytest-style]
 mark-parentheses = false
@@ -377,22 +394,20 @@ exclude = [
     'marimo/_snippets/data/',
     'marimo/_smoke_tests/',
 ]
-warn_unused_ignores=false
+warn_unused_ignores = false
 
 # tutorials shouldn't be type-checked (should be excluded), but they
 # get included anyway, maybe due to import following; this is coarse but works
 [[tool.mypy.overrides]]
-module= "marimo._tutorials.*"
+module = "marimo._tutorials.*"
 ignore_errors = true
 
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = "-ra -q -v --ignore tests/_cli/ipynb_data --ignore tests/_ast/codegen_data --ignore tests/_ast/app_data"
-testpaths = [
-    "tests",
-]
+testpaths = ["tests"]
 asyncio_mode = "auto"
-timeout = 30 # seconds, per test
+timeout = 30                                                                                                       # seconds, per test
 
 [tool.coverage.run]
 omit = ["marimo/_tutorials/*"]
@@ -402,9 +417,9 @@ extend-ignore-re = ["[0-9a-zA-Z]{43}"]
 
 [tool.typos.default.extend-words]
 wheres = "wheres"
-Ue = "Ue" # Used in one of the cell IDs
-Nd = "Nd" # Confused with And
-pn = "pn" # Panel
+Ue = "Ue"         # Used in one of the cell IDs
+Nd = "Nd"         # Confused with And
+pn = "pn"         # Panel
 
 [tool.typos.files]
 extend-exclude = [
