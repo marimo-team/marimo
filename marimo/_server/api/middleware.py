@@ -32,6 +32,7 @@ from starlette.websockets import WebSocket, WebSocketState
 from websockets import ConnectionClosed
 from websockets.client import connect
 
+from marimo import _loggers
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.api.auth import validate_auth
@@ -42,6 +43,8 @@ from marimo._tracer import server_tracer
 if TYPE_CHECKING:
     from starlette.requests import HTTPConnection
     from starlette.types import ASGIApp, Receive, Scope, Send
+
+LOGGER = _loggers.marimo_logger()
 
 
 class AuthBackend(AuthenticationBackend):
@@ -323,7 +326,9 @@ class ProxyMiddleware:
             elif scope["scheme"] in ("https", "wss"):
                 ws_url = ws_url.replace("https", "wss", 1)
 
+            LOGGER.debug(f"Creating websocket proxy for {ws_url}")
             await self._proxy_websocket(scope, receive, send, ws_url)
+            LOGGER.debug(f"Done with websocket proxy for {ws_url}")
             return
 
         if scope["type"] != "http":
@@ -381,6 +386,10 @@ class ProxyMiddleware:
                     while True:
                         msg = await websocket.receive()
                         if msg["type"] == "websocket.disconnect":
+                            # Cancel the other task when client disconnects
+                            for task in relay_tasks:
+                                if not task.done():
+                                    task.cancel()
                             return
 
                         if "text" in msg:
@@ -401,6 +410,10 @@ class ProxyMiddleware:
                         else:
                             await websocket.send_text(msg)
                 except ConnectionClosed:
+                    # Cancel the other task when connection closes
+                    for task in relay_tasks:
+                        if not task.done():
+                            task.cancel()
                     return
                 except Exception:
                     return
@@ -413,11 +426,14 @@ class ProxyMiddleware:
 
             try:
                 await asyncio.gather(*relay_tasks)
+            except asyncio.CancelledError:
+                pass
             except Exception as e:
                 raise e
             finally:
-                try:
-                    if websocket.client_state != WebSocketState.DISCONNECTED:
-                        await websocket.close()
-                except Exception as e:
-                    raise e
+                for task in relay_tasks:
+                    if not task.done():
+                        task.cancel()
+                if websocket.client_state != WebSocketState.DISCONNECTED:
+                    await websocket.close()
+                await ws_client.close()
