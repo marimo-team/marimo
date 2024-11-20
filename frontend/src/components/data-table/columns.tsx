@@ -18,23 +18,23 @@ import { cn } from "@/utils/cn";
 import { uniformSample } from "./uniformSample";
 import { DatePopover } from "./date-popover";
 
-function inferDataType(value: unknown): DataType {
+function inferDataType(value: unknown): [type: DataType, displayType: string] {
   if (typeof value === "string") {
-    return "string";
+    return ["string", "string"];
   }
   if (typeof value === "number") {
-    return "number";
+    return ["number", "number"];
   }
   if (value instanceof Date) {
-    return "datetime";
+    return ["datetime", "datetime"];
   }
   if (typeof value === "boolean") {
-    return "boolean";
+    return ["boolean", "boolean"];
   }
   if (value == null) {
-    return "unknown";
+    return ["unknown", "object"];
   }
-  return "unknown";
+  return ["unknown", "object"];
 }
 
 export function inferFieldTypes<T>(items: T[]): FieldTypesWithExternalType {
@@ -62,15 +62,13 @@ export function inferFieldTypes<T>(items: T[]): FieldTypesWithExternalType {
       const currentValue = fieldTypes[key];
       if (!currentValue) {
         // Set for the first time
-        const dtype = inferDataType(value);
-        fieldTypes[key] = [dtype, dtype];
+        fieldTypes[key] = inferDataType(value);
       }
 
       // If its not null, override the type
       if (value != null) {
         // This can be lossy as we infer take the last seen type
-        const dtype = inferDataType(value);
-        fieldTypes[key] = [dtype, dtype];
+        fieldTypes[key] = inferDataType(value);
       }
     });
   });
@@ -86,12 +84,14 @@ export function generateColumns<T>({
   fieldTypes,
   textJustifyColumns,
   wrappedColumns,
+  showDataTypes,
 }: {
   rowHeaders: string[];
   selection: "single" | "multi" | null;
   fieldTypes: FieldTypesWithExternalType;
   textJustifyColumns?: Record<string, "left" | "center" | "right">;
   wrappedColumns?: string[];
+  showDataTypes?: boolean;
 }): Array<ColumnDef<T>> {
   const rowHeadersSet = new Set(rowHeaders);
 
@@ -130,7 +130,7 @@ export function generateColumns<T>({
         const headerWithType = (
           <div className="flex flex-col">
             <span className="font-bold">{key}</span>
-            {dtype && (
+            {showDataTypes && dtype && (
               <span className="text-xs text-muted-foreground">{dtype}</span>
             )}
           </div>
