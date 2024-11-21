@@ -475,6 +475,8 @@ const DataTableComponent = ({
         fieldTypes: fieldTypesOrInferred,
         textJustifyColumns,
         wrappedColumns,
+        // Only show data types if they are explicitly set
+        showDataTypes: Boolean(fieldTypes),
       }),
     /* eslint-disable react-hooks/exhaustive-deps */
     [
