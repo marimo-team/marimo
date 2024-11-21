@@ -291,6 +291,6 @@ function getCellStyleClass(
     "text-left",
     justify === "center" && "text-center",
     justify === "right" && "text-right",
-    wrapped && "whitespace-pre-wrap min-w-[200px]",
+    wrapped && "whitespace-pre-wrap min-w-[200px] break-words",
   );
 }
