@@ -108,6 +108,15 @@ function prettyPrintHotkey(key: string): [label: string, symbol?: string] {
   return [lowerKey];
 }
 
+export function getSymbol(key: string) {
+  const platform = isPlatformMac() ? "mac" : "default";
+  const keyData = KEY_MAPPINGS[key.toLowerCase()];
+  if (keyData) {
+    return keyData.symbols[platform] || keyData.symbols.default;
+  }
+  return key;
+}
+
 interface KeyData {
   symbols: {
     mac?: string;
@@ -189,6 +198,10 @@ const KEY_MAPPINGS: Record<string, KeyData> = {
   end: {
     symbols: { mac: "↘", default: "End" },
     label: "End",
+  },
+  mod: {
+    symbols: { mac: "⌘", windows: "⊞ Win", default: "Ctrl" },
+    label: "Control",
   },
 };
 

@@ -56,7 +56,9 @@ import { historyCompartment } from "./editing/extensions";
 import { goToDefinitionBundle } from "./go-to-definition/extension";
 import type { HotkeyProvider } from "../hotkeys/hotkeys";
 import { lightTheme } from "./theme/light";
-
+import { promptPlugin } from "./prompt/prompt";
+import { requestEditCompletion } from "./prompt/request";
+import { getCurrentLanguageAdapter } from "./language/commands";
 export interface CodeMirrorSetupOpts {
   cellId: CellId;
   showPlaceholder: boolean;
@@ -79,6 +81,7 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
     cellCodeCallbacks,
     keymapConfig,
     hotkeys,
+    enableAI,
   } = opts;
 
   return [
@@ -91,6 +94,20 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
     basicBundle(opts),
     // Underline cmd+clickable placeholder
     goToDefinitionBundle(),
+    // AI prompt edit
+    enableAI
+      ? promptPlugin({
+          complete: (req) => {
+            return requestEditCompletion({
+              prompt: req.prompt,
+              selection: req.selection,
+              codeBefore: req.codeBefore,
+              code: req.editorView.state.doc.toString(),
+              language: getCurrentLanguageAdapter(req.editorView),
+            });
+          },
+        })
+      : [],
   ];
 };
 
