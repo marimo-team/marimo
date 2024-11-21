@@ -60,15 +60,15 @@ test("inferFieldTypes", () => {
       ],
       "c": [
         "unknown",
-        "unknown",
+        "object",
       ],
       "d": [
         "unknown",
-        "unknown",
+        "object",
       ],
       "e": [
         "unknown",
-        "unknown",
+        "object",
       ],
       "f": [
         "boolean",
@@ -97,7 +97,7 @@ test("inferFieldTypes with nulls", () => {
       ],
       "b": [
         "unknown",
-        "unknown",
+        "object",
       ],
     }
   `);
@@ -110,11 +110,11 @@ test("inferFieldTypes with mimetypes", () => {
     {
       "a": [
         "unknown",
-        "unknown",
+        "object",
       ],
       "b": [
         "unknown",
-        "unknown",
+        "object",
       ],
     }
   `);

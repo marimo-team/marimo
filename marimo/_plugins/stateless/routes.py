@@ -54,7 +54,7 @@ class routes(UIElement[str, str]):
 
     _name: Final[str] = "marimo-routes"
 
-    CATCH_ALL = "/(.*)"
+    CATCH_ALL = "{/*path}"
     DEFAULT = "/"
 
     def __init__(
