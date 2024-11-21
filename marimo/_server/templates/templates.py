@@ -14,7 +14,7 @@ from marimo._config.config import MarimoConfig
 from marimo._messaging.cell_output import CellOutput
 from marimo._output.utils import uri_encode_component
 from marimo._server.api.utils import parse_title
-from marimo._server.file_manager import read_css_file
+from marimo._server.file_manager import read_css_file, read_html_head_file
 from marimo._server.model import SessionMode
 from marimo._server.tokens import SkewProtectionToken
 
@@ -73,6 +73,15 @@ def notebook_page_template(
             css_contents = f"<style>{css_contents}</style>"
             # Append to head
             html = html.replace("</head>", f"{css_contents}</head>")
+
+    # Add HTML head file contents if specified
+    if app_config.html_head_file:
+        head_contents = read_html_head_file(
+            app_config.html_head_file, filename=filename
+        )
+        if head_contents:
+            # Append to head
+            html = html.replace("</head>", f"{head_contents}</head>")
 
     return html
 
@@ -150,6 +159,16 @@ def static_notebook_template(
         window.__MARIMO_STATIC__.files = {json.dumps(files)};
     </script>
     """)
+
+    # Add HTML head file contents if specified
+    if app_config.html_head_file:
+        head_contents = read_html_head_file(
+            app_config.html_head_file, filename=filepath
+        )
+        if head_contents:
+            static_block += dedent(f"""
+            {head_contents}
+            """)
 
     # If has custom css, inline the css and add to the head
     if app_config.css_file:

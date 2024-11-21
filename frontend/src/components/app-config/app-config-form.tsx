@@ -148,6 +148,34 @@ export const AppConfigForm: React.FC = () => {
         />
         <FormField
           control={form.control}
+          name="html_head_file"
+          render={({ field }) => (
+            <div className="flex flex-col gap-y-1">
+              <FormItem className="flex flex-row items-center space-x-1 space-y-0">
+                <FormLabel className="flex-shrink-0">HTML Head</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    value={field.value ?? ""}
+                    placeholder="head.html"
+                    onChange={(e) => {
+                      field.onChange(e.target.value);
+                    }}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+              <FormDescription>
+                A filepath to an HTML file to be injected into the{" "}
+                <Kbd className="inline">{"<head/>"}</Kbd> section of the
+                notebook. Use this to add analytics, custom fonts, meta tags, or
+                external scripts.
+              </FormDescription>
+            </div>
+          )}
+        />
+        <FormField
+          control={form.control}
           name="auto_download"
           render={({ field }) => (
             <div className="flex flex-col gap-y-1">

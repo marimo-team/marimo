@@ -12,6 +12,7 @@ def test_app_config_default():
     assert config.width == "compact"
     assert config.app_title is None
     assert config.css_file is None
+    assert config.html_head_file is None
     assert config.auto_download == []
 
 
@@ -20,6 +21,7 @@ def test_app_config_from_untrusted_dict():
         "width": "full",
         "app_title": "My App",
         "css_file": "custom.css",
+        "html_head_file": "head.html",
         "auto_download": ["html", "markdown"],
         "invalid_key": "should be ignored",
     }
@@ -27,6 +29,7 @@ def test_app_config_from_untrusted_dict():
     assert config.width == "full"
     assert config.app_title == "My App"
     assert config.css_file == "custom.css"
+    assert config.html_head_file == "head.html"
     assert config.auto_download == ["html", "markdown"]
     assert not hasattr(config, "invalid_key")
 
@@ -36,6 +39,7 @@ def test_app_config_asdict():
         width="medium",
         app_title="Test App",
         css_file="style.css",
+        html_head_file="head.html",
         auto_download=["html"],
     )
     config_dict = config.asdict()
@@ -43,6 +47,7 @@ def test_app_config_asdict():
         "width": "medium",
         "app_title": "Test App",
         "css_file": "style.css",
+        "html_head_file": "head.html",
         "auto_download": ["html"],
         "layout_file": None,
     }

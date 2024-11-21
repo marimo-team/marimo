@@ -7,6 +7,7 @@
 
   runtime_configuration
   theming
+  html_head
 ```
 
 marimo offers two types of configuration: User Configuration and App
@@ -21,7 +22,8 @@ App Configuration is specific to each notebook and is stored in the `notebook.py
 
 - Notebook width
 - Notebook title
-- [Custom CSS](/guides/configuration/theming)
+- [Custom CSS](/guides/configuration/theming.md)
+- [Custom HTML Head](/guides/configuration/html_head.md)
 - Automatically download HTML snapshots
 
 Configure these settings through the notebook menu.

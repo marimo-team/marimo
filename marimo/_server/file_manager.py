@@ -202,6 +202,12 @@ class AppFileManager:
             return None
         return read_css_file(css_file, self.filename)
 
+    def read_html_head_file(self) -> Optional[str]:
+        html_head_file = self.app.config.html_head_file
+        if not html_head_file or not self.filename:
+            return None
+        return read_html_head_file(html_head_file, self.filename)
+
     @property
     def path(self) -> Optional[str]:
         if self.filename is None:
@@ -322,6 +328,29 @@ def read_css_file(css_file: str, filename: Optional[str]) -> Optional[str]:
     except OSError as e:
         LOGGER.warning(
             "Failed to open custom CSS file %s for reading: %s",
+            filepath,
+            str(e),
+        )
+        return None
+
+
+def read_html_head_file(
+    html_head_file: str, filename: Optional[str]
+) -> Optional[str]:
+    if not html_head_file or not filename:
+        return None
+
+    app_dir = os.path.dirname(filename)
+    filepath = os.path.join(app_dir, html_head_file)
+    if not os.path.exists(filepath):
+        LOGGER.error("HTML head file %s does not exist", html_head_file)
+        return None
+    try:
+        with open(filepath) as f:
+            return f.read()
+    except OSError as e:
+        LOGGER.warning(
+            "Failed to open HTML head file %s for reading: %s",
             filepath,
             str(e),
         )
