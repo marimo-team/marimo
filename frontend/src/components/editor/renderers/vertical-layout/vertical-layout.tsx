@@ -148,8 +148,11 @@ const ActionButtons: React.FC<{
     await downloadAsHTML({ filename: document.title, includeCode: true });
   };
 
+  // Don't change the id of this element
+  // as this may be used in custom css to hide/show the actions dropdown
   return (
     <div
+      id="notebook-actions-dropdown"
       className={cn(
         "right-0 top-0 z-50 m-4 no-print flex gap-2 print:hidden",
         // If the notebook is static, we have a banner at the top, so
@@ -167,7 +170,10 @@ const ActionButtons: React.FC<{
         <DropdownMenuContent align="end" className="no-print w-[220px]">
           {canShowCode && (
             <>
-              <DropdownMenuItem onSelect={onToggleShowCode}>
+              <DropdownMenuItem
+                onSelect={onToggleShowCode}
+                id="notebook-action-show-code"
+              >
                 <Code2Icon className="mr-2" size={14} strokeWidth={1.5} />
                 <span className="flex-1">Show code</span>
                 {showCode && <Check className="h-4 w-4" />}
@@ -175,11 +181,17 @@ const ActionButtons: React.FC<{
               <DropdownMenuSeparator />
             </>
           )}
-          <DropdownMenuItem onSelect={handleDownloadAsHTML}>
+          <DropdownMenuItem
+            onSelect={handleDownloadAsHTML}
+            id="notebook-action-download-html"
+          >
             <FolderDownIcon className="mr-2" size={14} strokeWidth={1.5} />
             Download as HTML
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={handleDownloadAsPNG}>
+          <DropdownMenuItem
+            onSelect={handleDownloadAsPNG}
+            id="notebook-action-download-png"
+          >
             <ImageIcon className="mr-2" size={14} strokeWidth={1.5} />
             Download as PNG
           </DropdownMenuItem>
