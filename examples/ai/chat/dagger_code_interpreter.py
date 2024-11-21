@@ -1,16 +1,17 @@
 # /// script
 # requires-python = ">=3.12"
 # dependencies = [
-#     "dagger-io==0.13.5",
-#     "ell-ai==0.0.13",
+#     "dagger-io==0.14.0",
+#     "ell-ai==0.0.14",
 #     "marimo",
-#     "openai==1.51.0",
+#     "openai==1.55.0",
+#     "pydantic==2.8.2",
 # ]
 # ///
 
 import marimo
 
-__generated_with = "0.9.9"
+__generated_with = "0.9.20"
 app = marimo.App(width="medium")
 
 
@@ -100,7 +101,27 @@ def __():
 
 
 @app.cell
-def __(dagger, ell, mo):
+def __(mo):
+    files = mo.ui.file(kind="area")
+    files
+    return (files,)
+
+
+@app.cell
+def __(mo):
+    packages = mo.ui.text_area(label="Packages", value="pandas")
+    packages
+    return (packages,)
+
+
+@app.cell
+def __(files):
+    [file.name for file in files.value]
+    return
+
+
+@app.cell
+def __(dagger, ell, files, mo, packages):
     @ell.tool()
     async def execute_code(code: str):
         """
@@ -111,11 +132,20 @@ def __(dagger, ell, mo):
                 _dag.container()
                 .from_("python:3.12-slim")
                 .with_new_file("/app/script.py", contents=code)
+                .with_new_file("/app/requirements.txt", contents=packages.value)
+                .with_exec(["pip", "install", "-r", "/app/requirements.txt"])
             )
 
-            result = await container.with_exec(
-                ["python", "/app/script.py"]
-            ).stdout()
+            for file in files.value:
+                container = container.with_new_file(
+                    f"/app/{file.name}", contents=file.contents.decode("utf-8")
+                )
+
+            result = (
+                await container.with_workdir("/app")
+                .with_exec(["python", "/app/script.py"])
+                .stdout()
+            )
 
         return mo.vstack(
             [
@@ -126,12 +156,60 @@ def __(dagger, ell, mo):
     return (execute_code,)
 
 
+@app.cell(hide_code=True)
+def __():
+    def describe_file(file):
+        if file.name.endswith(".py"):
+            return f"Python file: {file.name}"
+        if file.name.endswith(".txt"):
+            return f"Text file: {file.name}"
+        if file.name.endswith(".csv"):
+            return f"CSV file: {file.name}. Headers: {file.contents.decode('utf-8').splitlines()[0]}"
+        return f"File: {file.name}"
+    return (describe_file,)
+
+
 @app.cell
-def __(client, ell, execute_code, mo, model):
-    @ell.complex(model=model, tools=[execute_code], client=client)
+def __(
+    client,
+    describe_file,
+    ell,
+    execute_code,
+    files,
+    mo,
+    model,
+    packages,
+):
+    files_instructions = ""
+    packages_instructions = ""
+    if files.value:
+        files_instructions = f"""
+        Here are the files you can access:"
+
+        {"\n".join([describe_file(file) for file in files.value])}
+        """
+
+    if packages.value:
+        packages_instructions = f"""
+        Here are the python packages you can access:"
+        {packages.value}
+        """
+
+
+    @ell.complex(
+        model=model,
+        tools=[execute_code],
+        client=client,
+    )
     def custom_chatbot(messages, config) -> str:
-        """You are data scientist with access to writing python code."""
-        return [
+        system_message = ell.system(f"""
+            You are data scientist with access to writing python code.
+
+            {files_instructions}
+
+            {packages_instructions}
+            """)
+        return [system_message] + [
             ell.user(message.content)
             if message.role == "user"
             else ell.assistant(message.content)
@@ -144,7 +222,7 @@ def __(client, ell, execute_code, mo, model):
         if response.tool_calls:
             return response.tool_calls[0]()
         return mo.md(response.text)
-    return custom_chatbot, my_model
+    return custom_chatbot, files_instructions, my_model, packages_instructions
 
 
 @app.cell
