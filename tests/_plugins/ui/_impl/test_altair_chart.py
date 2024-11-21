@@ -11,14 +11,16 @@ import narwhals.stable.v1 as nw
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._plugins.ui._impl import altair_chart
 from marimo._plugins.ui._impl.altair_chart import (
     ChartDataType,
     ChartSelection,
     _filter_dataframe,
     _has_binning,
     _has_geoshape,
+    _has_legend_param,
+    _has_selection_param,
     _parse_spec,
+    altair_chart,
 )
 from marimo._runtime.runtime import Kernel
 from tests._data.mocks import create_dataframes
@@ -202,9 +204,7 @@ class TestAltairChart:
         # smoke test; this shouldn't error, even though it's larger than
         # altair's default of 5000 data points.
         df = pd.DataFrame({"a": [10000], "b": [10000]})
-        altair_chart.altair_chart(
-            alt.Chart(df).mark_circle().encode(x="a", y="b")
-        )
+        altair_chart(alt.Chart(df).mark_circle().encode(x="a", y="b"))
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -215,10 +215,8 @@ def test_can_add_altair_chart() -> None:
     unwrapped = (
         alt.Chart(data).mark_point().encode(x="values:Q").properties(width=200)
     )
-    chart1 = altair_chart.altair_chart(unwrapped)
-    chart2 = altair_chart.altair_chart(
-        alt.Chart(data).mark_bar().encode(x="values:Q")
-    )
+    chart1 = altair_chart(unwrapped)
+    chart2 = altair_chart(alt.Chart(data).mark_bar().encode(x="values:Q"))
 
     assert chart1 + chart2 is not None
     assert chart2 + chart1 is not None
@@ -235,10 +233,8 @@ def test_can_or_altair_chart() -> None:
     unwrapped = (
         alt.Chart(data).mark_point().encode(x="values:Q").properties(width=200)
     )
-    chart1 = altair_chart.altair_chart(unwrapped)
-    chart2 = altair_chart.altair_chart(
-        alt.Chart(data).mark_bar().encode(x="values:Q")
-    )
+    chart1 = altair_chart(unwrapped)
+    chart2 = altair_chart(alt.Chart(data).mark_bar().encode(x="values:Q"))
 
     assert chart1 | chart2 is not None
     assert chart2 | chart1 is not None
@@ -255,10 +251,8 @@ def test_can_and_altair_chart() -> None:
     unwrapped = (
         alt.Chart(data).mark_point().encode(x="values:Q").properties(width=200)
     )
-    chart1 = altair_chart.altair_chart(unwrapped)
-    chart2 = altair_chart.altair_chart(
-        alt.Chart(data).mark_bar().encode(x="values:Q")
-    )
+    chart1 = altair_chart(unwrapped)
+    chart2 = altair_chart(alt.Chart(data).mark_bar().encode(x="values:Q"))
 
     assert chart1 & chart2 is not None
     assert chart2 & chart1 is not None
@@ -277,9 +271,7 @@ def test_does_not_modify_original() -> None:
     )
     alt2 = alt.Chart(data).mark_bar().encode(x="values:Q").properties()
     combined1 = alt1 | alt2
-    combined2 = altair_chart.altair_chart(alt1) | altair_chart.altair_chart(
-        alt2
-    )
+    combined2 = altair_chart(alt1) | altair_chart(alt2)
 
     assert combined1 == combined2._chart
 
@@ -289,9 +281,7 @@ def test_get_dataframe() -> None:
     import altair as alt
 
     data = {"values": [1, 2, 3]}
-    chart = altair_chart.altair_chart(
-        alt.Chart(data).mark_point().encode(x="values:Q")
-    )
+    chart = altair_chart(alt.Chart(data).mark_point().encode(x="values:Q"))
     assert chart.dataframe == data
 
 
@@ -302,9 +292,7 @@ def test_get_dataframe_csv() -> None:
     import polars as pl
 
     data = "https://cdn.jsdelivr.net/npm/vega-datasets@v1.29.0/data/stocks.csv"
-    chart = altair_chart.altair_chart(
-        alt.Chart(data).mark_point().encode(x="values:Q")
-    )
+    chart = altair_chart(alt.Chart(data).mark_point().encode(x="values:Q"))
     assert isinstance(chart.dataframe, (pd.DataFrame, pl.DataFrame))
 
 
@@ -317,9 +305,7 @@ def test_get_dataframe_json() -> None:
     data = (
         "https://cdn.jsdelivr.net/npm/vega-datasets@v1.29.0/data/barley.json"
     )
-    chart = altair_chart.altair_chart(
-        alt.Chart(data).mark_point().encode(x="values:Q")
-    )
+    chart = altair_chart(alt.Chart(data).mark_point().encode(x="values:Q"))
     assert isinstance(chart.dataframe, (pd.DataFrame, pl.DataFrame))
 
 
@@ -394,9 +380,7 @@ def test_no_selection_pandas() -> None:
     import pandas as pd
 
     data = pd.DataFrame({"values": [1, 2, 3]})
-    chart = altair_chart.altair_chart(
-        alt.Chart(data).mark_point().encode(x="values:Q")
-    )
+    chart = altair_chart(alt.Chart(data).mark_point().encode(x="values:Q"))
     assert isinstance(chart._value, pd.DataFrame)
     assert len(chart._value) == 0
     selected_value = chart._convert_value({})
@@ -411,9 +395,7 @@ def test_no_selection_polars() -> None:
     import polars as pl
 
     data = pl.DataFrame({"values": [1, 2, 3]})
-    chart = altair_chart.altair_chart(
-        alt.Chart(data).mark_point().encode(x="values:Q")
-    )
+    chart = altair_chart(alt.Chart(data).mark_point().encode(x="values:Q"))
     assert isinstance(chart._value, pl.DataFrame)
     assert len(chart._value) == 0
     selected_value = chart._convert_value({})
@@ -437,7 +419,7 @@ def test_layered_chart(df: IntoDataFrame):
     chart2 = base.mark_line().encode(y="y2")
     layered = alt.layer(chart1, chart2)
 
-    marimo_chart = altair_chart.altair_chart(layered)
+    marimo_chart = altair_chart(layered)
     assert isinstance(marimo_chart._chart, alt.LayerChart)
     assert marimo_chart.dataframe is not None
 
@@ -456,7 +438,7 @@ def test_chart_with_binning(df: IntoDataFrame):
         .encode(x=alt.X("values", bin=True), y="count()")
     )
 
-    marimo_chart = altair_chart.altair_chart(chart)
+    marimo_chart = altair_chart(chart)
     assert _has_binning(marimo_chart._spec)
     # Test that selection is disabled for binned charts
     assert marimo_chart._component_args["chart-selection"] is False
@@ -479,7 +461,7 @@ def test_apply_selection(df: IntoDataFrame):
 
     chart = alt.Chart(df).mark_point().encode(x="x", y="y", color="category")
 
-    marimo_chart = altair_chart.altair_chart(chart)
+    marimo_chart = altair_chart(chart)
     marimo_chart._chart_selection = {"signal_channel": {"category": ["A"]}}
 
     filtered_data = marimo_chart.apply_selection(df)
@@ -499,7 +481,7 @@ def test_chart_with_url_data():
         .encode(x="Horsepower:Q", y="Miles_per_Gallon:Q")
     )
 
-    marimo_chart = altair_chart.altair_chart(chart)
+    marimo_chart = altair_chart(chart)
     assert isinstance(marimo_chart.dataframe, pl.DataFrame)
     assert len(marimo_chart.dataframe) > 0
 
@@ -515,17 +497,89 @@ def test_chart_operations(df: IntoDataFrame):
     chart1 = alt.Chart(df).mark_point().encode(x="x", y="y")
     chart2 = alt.Chart(df).mark_line().encode(x="x", y="y")
 
-    marimo_chart1 = altair_chart.altair_chart(chart1)
-    marimo_chart2 = altair_chart.altair_chart(chart2)
+    marimo_chart1 = altair_chart(chart1)
+    marimo_chart2 = altair_chart(chart2)
 
     combined_chart = marimo_chart1 + marimo_chart2
-    assert isinstance(combined_chart, altair_chart.altair_chart)
+    assert isinstance(combined_chart, altair_chart)
     assert isinstance(combined_chart._chart, alt.LayerChart)
 
     concat_chart = marimo_chart1 | marimo_chart2
-    assert isinstance(concat_chart, altair_chart.altair_chart)
+    assert isinstance(concat_chart, altair_chart)
     assert isinstance(concat_chart._chart, alt.HConcatChart)
 
     facet_chart = marimo_chart1 & marimo_chart2
-    assert isinstance(facet_chart, altair_chart.altair_chart)
+    assert isinstance(facet_chart, altair_chart)
     assert isinstance(facet_chart._chart, alt.VConcatChart)
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_has_selection_param() -> None:
+    import altair as alt
+
+    # Chart with no selection param
+    chart = alt.Chart().mark_point()
+    assert _has_selection_param(chart) is False
+
+    # Chart with selection param but bound to input
+    chart = (
+        alt.Chart()
+        .mark_point()
+        .add_params(
+            alt.selection_point(
+                name="my_selection", encodings=["x"], bind="legend"
+            )
+        )
+    )
+    assert _has_selection_param(chart) is False
+
+    # Chart with unbound selection param
+    chart = (
+        alt.Chart()
+        .mark_point()
+        .add_params(alt.selection_point(name="my_selection"))
+    )
+    assert chart.params[0].bind is alt.Undefined
+    assert _has_selection_param(chart) is True
+
+    # Layer chart
+    rule = alt.Chart().mark_rule(strokeDash=[2, 2]).encode(y=alt.datum(2))
+    layered = alt.layer(chart, rule)
+    assert _has_selection_param(layered) is True
+
+    # Invalid chart
+    chart = None
+    assert _has_selection_param(chart) is False
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_has_legend_param() -> None:
+    import altair as alt
+
+    # Chart with no legend param
+    chart = alt.Chart().mark_point()
+    assert _has_legend_param(chart) is False
+
+    # Chart with legend binding
+    chart = (
+        alt.Chart()
+        .mark_point()
+        .add_params(alt.selection_point(fields=["color"], bind="legend"))
+    )
+    assert _has_legend_param(chart) is True
+
+    # Layer chart
+    rule = alt.Chart().mark_rule(strokeDash=[2, 2]).encode(y=alt.datum(2))
+    layered = alt.layer(chart, rule)
+    assert _has_legend_param(layered) is True
+
+    # Chart with non-legend binding
+    chart = alt.Chart().mark_point().add_params(alt.selection_point())
+    assert _has_legend_param(chart) is False
+
+    layered = alt.layer(chart, rule)
+    assert _has_legend_param(layered) is False
+
+    # Invalid chart
+    chart = None
+    assert _has_legend_param(chart) is False
