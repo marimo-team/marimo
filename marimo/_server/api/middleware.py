@@ -29,8 +29,7 @@ from starlette.middleware.base import (
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.websockets import WebSocket, WebSocketState
-from websockets import ConnectionClosed
-from websockets.client import connect
+from websockets import ConnectionClosed, connect
 
 from marimo import _loggers
 from marimo._config.settings import GLOBAL_SETTINGS
