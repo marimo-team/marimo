@@ -36,6 +36,9 @@ def find_free_port(port: int, attempts: int = 100) -> int:
 
     import socket
 
+    # Valid port range is 1-65535
+    port = max(1, min(port, 65535))
+
     if attempts == 0:
         raise RuntimeError("Could not find a free port")
 
@@ -47,7 +50,13 @@ def find_free_port(port: int, attempts: int = 100) -> int:
         except OSError:
             LOGGER.debug(f"Port {port} is already in use")
             pass
-    return find_free_port(port + 1, attempts - 1)
+
+    # Ensure we don't exceed valid port range
+    next_port = min(port + 1, 65535)
+    if next_port == port:
+        raise RuntimeError("No more ports available")
+
+    return find_free_port(next_port, attempts - 1)
 
 
 def initialize_mimetypes() -> None:

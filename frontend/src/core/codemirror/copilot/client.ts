@@ -79,15 +79,6 @@ export function copilotServer() {
   });
 }
 
-const DEVELOPMENT_WS_PORT = 27_180;
 export function createWsUrl(): string {
-  // TODO: this should be configurable, but instead we add a 0 and hope it is free
-  // NOTE: window.location.port may also be empty if running behind a proxy
-  // (plain 80 or 443 just gives a protocol), so default to the development port.
-  const LSP_PORT =
-    process.env.NODE_ENV === "development" || !window.location.port
-      ? DEVELOPMENT_WS_PORT
-      : `${window.location.port}0`;
-  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-  return `${protocol}://${window.location.hostname}:${LSP_PORT}/copilot`;
+  return "/lsp/copilot";
 }

@@ -89,6 +89,7 @@ def start(
     # Find a free port if none is specified
     # if the user specifies a port, we don't try to find a free one
     port = port or find_free_port(DEFAULT_PORT)
+    lsp_port = find_free_port(DEFAULT_PORT + 200)  # Add 200 to avoid conflicts
     user_config_mgr = UserConfigManager()
 
     session_manager = SessionManager(
@@ -97,7 +98,7 @@ def start(
         development_mode=development_mode,
         quiet=quiet,
         include_code=include_code,
-        lsp_server=LspServer(port * 10),
+        lsp_server=LspServer(lsp_port),
         user_config_manager=user_config_mgr,
         cli_args=cli_args,
         auth_token=auth_token,
@@ -122,9 +123,11 @@ def start(
         ),
         allow_origins=allow_origins,
         enable_auth=not AuthToken.is_empty(session_manager.auth_token),
+        lsp_port=lsp_port,
     )
 
     app.state.port = external_port
+    app.state.lsp_port = lsp_port
     app.state.host = external_host
 
     app.state.headless = headless
