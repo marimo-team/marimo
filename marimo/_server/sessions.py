@@ -64,7 +64,7 @@ from marimo._server.recents import RecentFilesManager
 from marimo._server.session.session_view import SessionView
 from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._server.types import QueueType
-from marimo._server.utils import print_tabbed
+from marimo._server.utils import print_, print_tabbed
 from marimo._tracer import server_tracer
 from marimo._utils.disposable import Disposable
 from marimo._utils.distributor import (
@@ -313,7 +313,7 @@ class KernelManager:
                 self.queue_manager.control_queue.put(requests.StopRequest())
                 # Hack: Wait for kernel to exit and write out profile;
                 # joining the process hangs, but not sure why.
-                print(
+                print_(
                     "\tWriting profile statistics to",
                     self.profile_path,
                     " ...",
@@ -490,9 +490,9 @@ class Session:
             if not self.kernel_manager.is_alive():
                 LOGGER.debug("Closing session because kernel died")
                 self.close()
-                print()
+                print_()
                 print_tabbed(red("The Python kernel died unexpectedly."))
-                print()
+                print_()
                 sys.exit()
 
         # Start a heartbeat task, which checks if the kernel is alive

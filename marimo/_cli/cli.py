@@ -654,7 +654,7 @@ def recover(name: str) -> None:
     if not path.is_file():
         raise click.UsageError("Invalid NAME - %s is not a file" % name)
 
-    print(codegen.recover(name))
+    click.echo(codegen.recover(name))
 
 
 @main.command(
@@ -758,7 +758,7 @@ def env() -> None:
 
         marimo env
     """
-    print(json.dumps(get_system_info(), indent=2))
+    click.echo(json.dumps(get_system_info(), indent=2))
 
 
 main.command()(convert)
