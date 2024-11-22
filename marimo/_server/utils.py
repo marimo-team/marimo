@@ -116,5 +116,5 @@ def print_(*args: Any, **kwargs: Any) -> None:
         import click
 
         click.echo(*args, **kwargs)
-    except NameError:
+    except ImportError:
         print(*args, **kwargs)  # noqa: T201
