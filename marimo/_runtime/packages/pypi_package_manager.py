@@ -222,6 +222,31 @@ class PoetryPackageManager(PypiPackageManager):
             ["poetry", "remove", "--no-interaction", *split_packages(package)]
         )
 
+    def _list_packages_from_cmd(
+        self, cmd: List[str]
+    ) -> List[PackageDescription]:
+        if not self.is_manager_installed():
+            return []
+        proc = subprocess.run(cmd, capture_output=True, text=True)
+        if proc.returncode != 0:
+            return []
+
+        # Each line in package_lines is of the form
+        # package_name    version_string      some more arbitrary text
+        #
+        # For each line, extract the package_name and version_string, ignoring
+        # the rest of the text.
+        package_lines = proc.stdout.splitlines()
+        packages = []
+        for line in package_lines:
+            parts = line.split()
+            if len(parts) < 2:
+                continue
+            packages.append(
+                PackageDescription(name=parts[0], version=parts[1])
+            )
+        return packages
+
     def list_packages(self) -> List[PackageDescription]:
-        cmd = ["poetry", "show", "--no-dev", "--format=json"]
+        cmd = ["poetry", "show", "--no-dev"]
         return self._list_packages_from_cmd(cmd)
