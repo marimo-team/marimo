@@ -341,13 +341,14 @@ extend-select = [
     "B017",   # Checks for pytest.raises context managers that catch Exception or BaseException.
     "B019",   # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
     "TRY002", # Prohibit use of `raise Exception`, use specific exceptions instead.
+    "T201",   # No print statements
 ]
 
 # Never try to fix `F401` (unused imports).
 unfixable = ["F401"]
 
 [tool.ruff.lint.per-file-ignores]
-"**/{tests}/*" = ["ANN201", "ANN202"]
+"**/{tests}/*" = ["ANN201", "ANN202", "T201"]
 "dagger/*" = ["TID252"]
 
 [tool.ruff.lint.isort]
