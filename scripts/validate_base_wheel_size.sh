@@ -11,6 +11,7 @@ fi
 
 if [ $size -gt 2097152 ]; then
   echo "Wheel file is larger than 2mb"
+  echo "Size: $size bytes"
   exit 1
 fi
 
