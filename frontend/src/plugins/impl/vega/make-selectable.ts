@@ -18,11 +18,21 @@ export function makeSelectable<T extends VegaLiteSpec>(
   },
 ): T {
   // Both default to true
-  const { chartSelection = true, fieldSelection = true } = opts;
+  let { chartSelection = true, fieldSelection = true } = opts;
 
   // Disable selection if both are false
   if (!chartSelection && !fieldSelection) {
     return spec;
+  }
+
+  // If params already exist, we don't add any more
+  const hasLegendParam = spec.params?.some((param) => param.bind === "legend");
+  if (hasLegendParam) {
+    fieldSelection = false;
+  }
+  const hasChartParam = spec.params?.some((param) => !param.bind);
+  if (hasChartParam) {
+    chartSelection = false;
   }
 
   if ("vconcat" in spec) {
