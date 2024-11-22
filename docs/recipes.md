@@ -426,6 +426,43 @@ import random
 random.randint(0, 1000)
 ```
 
+### Triggering computation from multiple UI elements with initial state
+
+**Use cases.** UI for constructing [complex API requests or database queries](https://gist.github.com/liquidcarbon/8574249103648c4306c22a2e60c486e1). Alternative to `.form()`.
+
+**Recipe.**
+
+1. Import packages
+
+```python
+import marimo as mo
+```
+
+2. Define UI elements
+
+```python
+button = mo.ui.run_button(label="CAPITALIZE")
+text = mo.ui.text()
+```
+
+3. Define initial values
+
+```python
+# this cell won't re-run because Marimo does not mutate objects
+# would not work with TEXT = ""
+TEXT = [""]
+```
+
+4. Run on clicking the button.
+
+```python
+if button.value:
+    TEXT[0] = text.value.upper()
+    
+text, button, TEXT[0]
+```
+
+
 ### Create a counter button
 
 **Use cases.** A counter button, i.e. a button that counts the number of times
