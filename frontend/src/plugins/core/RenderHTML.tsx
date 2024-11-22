@@ -39,10 +39,29 @@ const replaceValidIframes = (domNode: DOMNode) => {
   }
 };
 
+const replaceSrcScripts = (domNode: DOMNode): JSX.Element | undefined => {
+  if (domNode instanceof Element && domNode.name === "script") {
+    // Missing src, we don't handle inline scripts
+    const src = domNode.attribs.src;
+    if (!src) {
+      return;
+    }
+    // Check if script already exists
+    if (!document.querySelector(`script[src="${src}"]`)) {
+      const script = document.createElement("script");
+      script.src = src;
+      document.head.append(script);
+    }
+    // eslint-disable-next-line react/jsx-no-useless-fragment
+    return <></>;
+  }
+};
+
 export const renderHTML = ({ html, additionalReplacements = [] }: Options) => {
   const renderFunctions: ReplacementFn = [
     replaceValidTags,
     replaceValidIframes,
+    replaceSrcScripts,
     ...additionalReplacements,
   ];
 
