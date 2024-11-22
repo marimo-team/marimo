@@ -306,7 +306,6 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         if _has_selection_param(chart):
             # Log a warning if the user has set chart_selection
             # but the chart already has a selection param
-            print("chart_selection", chart_selection)
             if isinstance(chart_selection, str):
                 sys.stderr.write(
                     f"Warning: chart already has a selection param. "
@@ -316,7 +315,6 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         if _has_legend_param(chart):
             # Log a warning if the user has set legend_selection
             # but the chart already has a legend param
-            print("legend_selection", legend_selection)
             if (
                 isinstance(legend_selection, list)
                 and len(legend_selection) > 0
