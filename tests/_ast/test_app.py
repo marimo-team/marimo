@@ -307,6 +307,7 @@ class TestApp:
         assert app._config.asdict() == {
             "app_title": None,
             "css_file": None,
+            "html_head_file": None,
             "width": "full",
             "layout_file": None,
             "auto_download": [],
@@ -515,6 +516,7 @@ def test_app_config() -> None:
     assert config.asdict() == {
         "app_title": None,
         "css_file": None,
+        "html_head_file": None,
         "width": "full",
         "layout_file": None,
         "auto_download": [],
@@ -530,6 +532,7 @@ def test_app_config_extra_args_ignored() -> None:
     assert config.asdict() == {
         "app_title": None,
         "css_file": None,
+        "html_head_file": None,
         "width": "full",
         "layout_file": None,
         "auto_download": [],

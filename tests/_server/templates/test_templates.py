@@ -105,6 +105,39 @@ class TestNotebookPageTemplate(unittest.TestCase):
         finally:
             os.remove(css_file)
 
+    def test_notebook_page_template_custom_head(self) -> None:
+        # Create html head file
+        head = """
+        <!-- Google tag (gtag.js) -->
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-XXXXXXXXXX');
+        </script>
+        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+        """
+
+        head_file = os.path.join(os.path.dirname(self.filename), "head.html")
+        with open(head_file, "w") as f:
+            f.write(head)
+
+        try:
+            result = templates.notebook_page_template(
+                self.html,
+                self.base_url,
+                self.user_config,
+                self.server_token,
+                _AppConfig(html_head_file="head.html"),
+                self.filename,
+                self.mode,
+            )
+
+            assert head in result
+        finally:
+            os.remove(head_file)
+
 
 class TestHomePageTemplate(unittest.TestCase):
     def setUp(self) -> None:
@@ -271,3 +304,43 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             snapshot("export4.txt", normalize_index_html(result))
         finally:
             os.remove(css_file)
+
+    def test_static_notebook_template_with_head(self) -> None:
+        # Create html head file
+        head = """
+        <!-- Google tag (gtag.js) -->
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-XXXXXXXXXX');
+        </script>
+        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+        """
+
+        head_file = os.path.join(os.path.dirname(self.filename), "head.html")
+        with open(head_file, "w") as f:
+            f.write(head)
+
+        try:
+            result = templates.static_notebook_template(
+                self.html,
+                self.user_config,
+                self.server_token,
+                _AppConfig(html_head_file="head.html"),
+                self.filename,
+                "",
+                hash_code(self.code),
+                [],
+                [],
+                [],
+                [],
+                {},
+                {},
+                {},
+            )
+
+            snapshot("export5.txt", normalize_index_html(result))
+        finally:
+            os.remove(head_file)
