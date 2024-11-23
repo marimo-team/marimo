@@ -12,7 +12,9 @@ type EventMap<T extends Target> = T extends Document
       ? WindowEventMap
       : never;
 
-function isRefObject<T>(target: T | RefObject<T>): target is RefObject<T> {
+export function isRefObject<T>(
+  target: T | RefObject<T>,
+): target is RefObject<T> {
   return target !== null && typeof target === "object" && "current" in target;
 }
 
