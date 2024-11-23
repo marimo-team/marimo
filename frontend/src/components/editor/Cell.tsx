@@ -405,7 +405,7 @@ const CellComponent = (
     },
   });
 
-  useKeydownOnElement(editing ? cellRef.current : null, {
+  useKeydownOnElement(editing ? cellRef : null, {
     ArrowDown: () => {
       moveToNextCell({ cellId, before: false, noCreate: true });
       return true;
