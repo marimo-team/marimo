@@ -72,7 +72,11 @@ const SortableCellInternal = React.forwardRef(
         ref={mergedRef}
         {...props}
         data-is-dragging={isDragging}
-        className={cn(props.className, isMoving && "is-moving")}
+        className={cn(
+          props.className,
+          isMoving && "is-moving",
+          "outline-offset-4 outline-primary/40 rounded-lg",
+        )}
         style={style}
       >
         <DragHandleSlot.Provider value={dragHandle}>
