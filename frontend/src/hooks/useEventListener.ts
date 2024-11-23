@@ -17,7 +17,7 @@ function isRefObject<T>(target: T | RefObject<T>): target is RefObject<T> {
 }
 
 export function useEventListener<T extends Target, K extends keyof EventMap<T>>(
-  targetValue: Target | TargetRef,
+  targetValue: T | TargetRef,
   type: K & string,
   listener: (ev: EventMap<T>[K]) => unknown,
   options?: boolean | AddEventListenerOptions,
