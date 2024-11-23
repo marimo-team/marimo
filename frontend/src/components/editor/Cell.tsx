@@ -352,7 +352,7 @@ const CellComponent = (
 
   // Register hotkeys on the cell instead of the code editor
   // This is in case the code editor is hidden
-  useHotkeysOnElement(editing ? cellRef.current : null, {
+  useHotkeysOnElement(editing ? cellRef : null, {
     "cell.run": handleRun,
     "cell.runAndNewBelow": () => {
       handleRun();
