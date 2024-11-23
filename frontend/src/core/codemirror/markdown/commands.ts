@@ -267,6 +267,71 @@ export function insertLink(view: EditorView, url = "http://") {
   return true;
 }
 
+export async function insertImage(view: EditorView, file: File) {
+  const reader = new FileReader();
+  const dataUrl = await new Promise<string>((resolve) => {
+    reader.onload = () => resolve(reader.result as string);
+    reader.readAsDataURL(file);
+  });
+
+  const changes = view.state.changeByRange((range) => {
+    const text = view.state.sliceDoc(range.from, range.to);
+    return {
+      changes: [
+        { from: range.from, to: range.to, insert: `![${text}](${dataUrl})` },
+      ],
+      range,
+    };
+  });
+
+  view.dispatch(
+    view.state.update(changes, {
+      scrollIntoView: true,
+      annotations: Transaction.userEvent.of("input"),
+    }),
+  );
+
+  const { to } = changes.selection.main;
+  try {
+    view.dispatch({
+      selection: EditorSelection.create([
+        EditorSelection.range(to + 4, to + 4 + dataUrl.length),
+        EditorSelection.cursor(to + 4 + dataUrl.length),
+      ]),
+    });
+  } catch {
+    // Do nothing
+  }
+
+  view.focus();
+
+  return true;
+}
+
+export async function insertTextFile(view: EditorView, file: File) {
+  const text = await file.text();
+
+  // Just insert at the cursor
+  const changes = view.state.changeByRange((range) => {
+    return {
+      // Insert at the start of the range, don't replace any existing text
+      changes: [{ from: range.from, to: range.from, insert: text }],
+      range,
+    };
+  });
+
+  view.dispatch(
+    view.state.update(changes, {
+      scrollIntoView: true,
+      annotations: Transaction.userEvent.of("input"),
+    }),
+  );
+
+  view.focus();
+
+  return true;
+}
+
 export function insertUL(view: EditorView) {
   // Only apply on selection
   if (!hasSelection(view)) {
