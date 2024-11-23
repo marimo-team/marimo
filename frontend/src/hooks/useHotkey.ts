@@ -54,7 +54,7 @@ export function useHotkey(shortcut: HotkeyAction, callback: HotkeyHandler) {
 }
 
 /**
- * Registers a hotkey listener on a given element.
+ * Registers a hotkey listener on a given element or ref to an element.
  */
 export function useHotkeysOnElement<T extends HotkeyAction>(
   element: HTMLElement | RefObject<HTMLElement> | null,
@@ -78,7 +78,7 @@ export function useHotkeysOnElement<T extends HotkeyAction>(
 }
 
 /**
- * Registers a hotkey listener on a given element.
+ * Registers a hotkey listener on a given element or ref to an element.
  */
 export function useKeydownOnElement(
   element: HTMLElement | RefObject<HTMLElement> | null,
