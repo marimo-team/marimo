@@ -6,7 +6,10 @@ import type { IPluginProps } from "@/plugins/types";
 import { useEffect, useRef, useState } from "react";
 import { createPlugin } from "@/plugins/core/builder";
 import { rpc } from "@/plugins/core/rpc";
-import { useEventListener } from "@/hooks/useEventListener";
+import {
+  type HTMLElementNotDerivedFromRef,
+  useEventListener,
+} from "@/hooks/useEventListener";
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import { MessageSchema, extractBuffers, EventBuffer } from "./utils";
 import { useEvent } from "@dnd-kit/utilities";
@@ -163,47 +166,51 @@ const PanelSlot = (props: Props) => {
   }, [extension, setLoaded]);
 
   // Listen for incoming messages
-  useEventListener(host, MarimoIncomingMessageEvent.TYPE, (e) => {
-    if (e.detail.message == null) {
-      return;
-    }
-
-    const message = MessageSchema.parse(e.detail.message);
-    const buffers = e.detail.buffers;
-    const receiver = receiverRef.current;
-    const doc = docRef.current;
-
-    if (!receiver || !doc) {
-      return;
-    }
-
-    const content = message.content;
-    if (content !== null && typeof message.content !== "string") {
-      // Handle ACK messages
-      if (eventBufferRef.current && eventBufferRef.current.size() > 0) {
-        processEvents();
+  useEventListener(
+    host as HTMLElementNotDerivedFromRef,
+    MarimoIncomingMessageEvent.TYPE,
+    (e) => {
+      if (e.detail.message == null) {
+        return;
       }
-      return;
-    }
 
-    if (buffers && buffers.length > 0) {
-      receiver.consume(buffers[0].buffer);
-    } else if (content && typeof content === "string") {
-      receiver.consume(content);
-    } else {
-      return;
-    }
+      const message = MessageSchema.parse(e.detail.message);
+      const buffers = e.detail.buffers;
+      const receiver = receiverRef.current;
+      const doc = docRef.current;
 
-    const commMessage = receiver.message;
-    if (commMessage != null && Object.keys(commMessage.content).length > 0) {
-      if (commMessage.content.events !== undefined) {
-        commMessage.content.events = commMessage.content.events.filter(
-          (e: any) => doc._all_models.has(e.model.id),
-        );
+      if (!receiver || !doc) {
+        return;
       }
-      doc.apply_json_patch(commMessage.content, commMessage.buffers);
-    }
-  });
+
+      const content = message.content;
+      if (content !== null && typeof message.content !== "string") {
+        // Handle ACK messages
+        if (eventBufferRef.current && eventBufferRef.current.size() > 0) {
+          processEvents();
+        }
+        return;
+      }
+
+      if (buffers && buffers.length > 0) {
+        receiver.consume(buffers[0].buffer);
+      } else if (content && typeof content === "string") {
+        receiver.consume(content);
+      } else {
+        return;
+      }
+
+      const commMessage = receiver.message;
+      if (commMessage != null && Object.keys(commMessage.content).length > 0) {
+        if (commMessage.content.events !== undefined) {
+          commMessage.content.events = commMessage.content.events.filter(
+            (e: any) => doc._all_models.has(e.model.id),
+          );
+        }
+        doc.apply_json_patch(commMessage.content, commMessage.buffers);
+      }
+    },
+  );
 
   // Embed the items on the first render
   useEffect(() => {

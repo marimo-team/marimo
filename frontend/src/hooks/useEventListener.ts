@@ -1,27 +1,43 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { useRef, useEffect, type RefObject } from "react";
 
-type Target = Document | HTMLElement | Window | null;
-type TargetRef = RefObject<Target>;
+/**
+ * A type that makes it clear that an `HTMLElement` is not derived from a `RefObject`.
+ * If an `HTMLElement` is derived from a `RefObject`, then pass that in directly.
+ *
+ * This doesn't actually do anything at runtime (it is just a type annotation), but
+ * this forces the user to check that the `targetValue` is not a `RefObject`.
+ */
+export type HTMLElementNotDerivedFromRef<T = HTMLElement> = T & {
+  __brand: "HTMLElementNotDerivedFromRef";
+};
 
-type EventMap<T extends Target> = T extends Document
-  ? DocumentEventMap
-  : T extends HTMLElement
-    ? HTMLElementEventMap
-    : T extends Window
-      ? WindowEventMap
-      : never;
-
-export function isRefObject<T>(
-  target: T | RefObject<T>,
-): target is RefObject<T> {
+export function isRefObject<T>(target: unknown): target is RefObject<T> {
   return target !== null && typeof target === "object" && "current" in target;
 }
 
-export function useEventListener<T extends Target, K extends keyof EventMap<T>>(
-  targetValue: T | TargetRef,
-  type: K & string,
-  listener: (ev: EventMap<T>[K]) => unknown,
+export function useEventListener<K extends keyof DocumentEventMap>(
+  targetValue: Document,
+  type: K,
+  listener: (ev: DocumentEventMap[K]) => unknown,
+  options?: boolean | AddEventListenerOptions,
+): void;
+export function useEventListener<K extends keyof WindowEventMap>(
+  targetValue: Window,
+  type: K,
+  listener: (ev: WindowEventMap[K]) => unknown,
+  options?: boolean | AddEventListenerOptions,
+): void;
+export function useEventListener<K extends keyof HTMLElementEventMap>(
+  targetValue: HTMLElementNotDerivedFromRef | RefObject<HTMLElement> | null,
+  type: K,
+  listener: (ev: HTMLElementEventMap[K]) => unknown,
+  options?: boolean | AddEventListenerOptions,
+): void;
+export function useEventListener(
+  targetValue: EventTarget | RefObject<EventTarget> | null,
+  type: string,
+  listener: (ev: Event) => unknown,
   options?: boolean | AddEventListenerOptions,
 ): void {
   const savedListener = useRef(listener);

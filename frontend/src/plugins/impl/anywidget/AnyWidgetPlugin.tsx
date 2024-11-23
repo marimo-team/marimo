@@ -13,7 +13,10 @@ import { createPlugin } from "@/plugins/core/builder";
 import { rpc } from "@/plugins/core/rpc";
 import type { AnyModel, AnyWidget, EventHandler, Experimental } from "./types";
 import { Logger } from "@/utils/Logger";
-import { useEventListener } from "@/hooks/useEventListener";
+import {
+  type HTMLElementNotDerivedFromRef,
+  useEventListener,
+} from "@/hooks/useEventListener";
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import { updateBufferPaths } from "@/utils/date-views";
 
@@ -148,9 +151,13 @@ const LoadedSlot = ({
   );
 
   // Listen to incoming messages
-  useEventListener(host, MarimoIncomingMessageEvent.TYPE, (e) => {
-    model.current.receiveCustomMessage(e.detail.message, e.detail.buffers);
-  });
+  useEventListener(
+    host as HTMLElementNotDerivedFromRef,
+    MarimoIncomingMessageEvent.TYPE,
+    (e) => {
+      model.current.receiveCustomMessage(e.detail.message, e.detail.buffers);
+    },
+  );
 
   useOnMount(() => {
     if (!ref.current) {
