@@ -1,7 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, type RefObject } from "react";
 
 type Target = Document | HTMLElement | Window | null;
+type TargetRef = RefObject<Target>;
+
 type EventMap<T extends Target> = T extends Document
   ? DocumentEventMap
   : T extends HTMLElement
@@ -10,8 +12,14 @@ type EventMap<T extends Target> = T extends Document
       ? WindowEventMap
       : never;
 
+export function isRefObject<T>(
+  target: T | RefObject<T>,
+): target is RefObject<T> {
+  return target !== null && typeof target === "object" && "current" in target;
+}
+
 export function useEventListener<T extends Target, K extends keyof EventMap<T>>(
-  target: T,
+  targetValue: T | TargetRef,
   type: K & string,
   listener: (ev: EventMap<T>[K]) => unknown,
   options?: boolean | AddEventListenerOptions,
@@ -23,6 +31,9 @@ export function useEventListener<T extends Target, K extends keyof EventMap<T>>(
   }, [listener]);
 
   useEffect(() => {
+    // Get the actual target, whether it's from a ref or direct value
+    // We get ref.current inside the effect instead of during render because changes to ref.current will not trigger a re-render
+    const target = isRefObject(targetValue) ? targetValue.current : targetValue;
     if (!target) {
       return;
     }
@@ -34,5 +45,5 @@ export function useEventListener<T extends Target, K extends keyof EventMap<T>>(
     return () => {
       target.removeEventListener(type, eventListener, options);
     };
-  }, [type, target, options]);
+  }, [type, targetValue, options]);
 }
