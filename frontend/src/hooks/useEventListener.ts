@@ -3,7 +3,7 @@ import { useRef, useEffect, type RefObject } from "react";
 
 type Target = Document | HTMLElement | Window | null;
 type TargetRef = RefObject<Target>;
-type TargetValue = Target | TargetRef;
+
 type EventMap<T extends Target> = T extends Document
   ? DocumentEventMap
   : T extends HTMLElement
@@ -17,7 +17,7 @@ function isRefObject<T>(target: T | RefObject<T>): target is RefObject<T> {
 }
 
 export function useEventListener<T extends Target, K extends keyof EventMap<T>>(
-  targetValue: TargetValue,
+  targetValue: Target | TargetRef,
   type: K & string,
   listener: (ev: EventMap<T>[K]) => unknown,
   options?: boolean | AddEventListenerOptions,
