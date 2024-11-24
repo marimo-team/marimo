@@ -71,8 +71,15 @@ def dataframe_to_csv(df: IntoFrame) -> str:
     df = nw.from_native(df, strict=True)
     if isinstance(df, nw.LazyFrame):
         return str(df.collect().write_csv())
+    if nw.get_level(df) == "interchange":
+        # `write_csv` isn't supported by interchange-level-only
+        # DataFrames, so we convert to PyArrow in this case
+        csv_str = nw.from_native(df.to_arrow(), eager_only=True).write_csv()
     else:
-        return str(df.write_csv())
+        csv_str = df.write_csv()
+    if isinstance(csv_str, bytes):
+        return csv_str.decode("utf-8")
+    return str(csv_str)
 
 
 def is_narwhals_integer_type(
