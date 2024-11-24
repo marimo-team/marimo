@@ -1,10 +1,68 @@
-# Performance
+# Expensive notebooks
 
-## Disable autorun
+marimo provides tools to control when cells run. Use these tools to
+prevent expensive cells, which may call APIs or take a long time to run, from
+accidentally running.
 
-For expensive notebooks, you can [disable automatic execution](/guides/reactivity.md#runtime-configuration).
+## Stop execution with `mo.stop`
 
-## Cache computations with `@mo.cache`
+Use [`mo.stop`](#marimo.stop) to stop a cell from executing if a condition
+is met:
+
+```
+# if condition is True, the cell will stop executing after mo.stop() returns
+mo.stop(condition)
+# this won't be called if condition is True
+expensive_function_call()
+```
+
+Use [`mo.stop()`](#marimo.stop) in conjunction with
+[`mo.ui.run_button()`](#marimo.ui.run_button) to require a button press for
+expensive cells:
+
+```{eval-rst}
+.. marimo-embed::
+    :size: medium
+
+    @app.cell
+    def __():
+        run_button = mo.ui.run_button()
+        run_button
+        return
+
+    @app.cell
+    def __():
+        mo.stop(not run_button.value, mo.md("Click 👆 to run this cell"))
+        mo.md("You clicked the button! 🎉")
+        return
+```
+
+## Configure how marimo runs cells
+
+### Disabling cell autorun
+
+If you habitually work with very expensive notebooks, you can
+[disable automatic
+execution](/guides/configuration/runtime_configuration.md#on-cell-change). When
+automatic execution is disabled, when you run a cell, marimo
+marks dependent cells as stale instead of running them automatically.
+
+### Disabling autorun on startup
+
+marimo autoruns notebooks on startup, with `marimo edit notebook.py` behaving
+analogously to `python notebook.py`. This can also be disabled through the
+[notebook settings](/guides/configuration/runtime_configuration.md#on-startup).
+
+### Disable individual cells
+
+marimo lets you temporarily disable cells from automatically running. This is
+helpful when you want to edit one part of a notebook without triggering
+execution of other parts. See the
+[reactivity guide](/guides/reactivity.md#disabling-cells) for more info.
+
+## Caching
+
+### Cache computations with `@mo.cache`
 
 Use [`mo.cache`](#marimo.cache) to cache the return values of
 expensive functions, based on their arguments:
@@ -45,11 +103,11 @@ the overhead is negligible. For performance critical code, where the decorated
 function will be called in a tight loop, prefer `functools.cache`.
 :::
 
-## Save/load from disk with `mo.persistent_cache`
+### Save and load from disk with `mo.persistent_cache`
 
-Use `mo.persistent_cache` to cache variables to disk. The next time your
-run your notebook, the cached variables will be loaded from disk instead of
-being recomputed, letting you pick up where you left off.
+Use [`mo.persistent_cache`](#marimo.persistent_cache) to cache variables to
+disk. The next time your run your notebook, the cached variables will be loaded
+from disk instead of being recomputed, letting you pick up where you left off.
 
 Reserve this for expensive computations that you would like to persist across
 notebook restarts. Cached outputs are automatically saved to `__marimo__/cache`.
@@ -72,16 +130,10 @@ is not stale, meaning its code hasn't changed and neither have its ancestors.
 On cache hit the code block won't execute and instead variables will be loaded
 into memory.
 
-## Disable expensive cells
+## Lazy-load expensive UIs
 
-marimo lets you temporarily disable cells from automatically running. This is
-helpful when you want to edit one part of a notebook without triggering
-execution of other parts. See the
-[reactivity guide](/guides/reactivity.md#disabling-cells) for more info.
-
-## Lazy-load expensive elements or computations
-
-You can lazily render UI elements that are expensive to compute using `marimo.lazy`.
+Lazily render UI elements that are expensive to compute using
+`marimo.lazy`.
 
 For example,
 
@@ -111,4 +163,8 @@ accordion = mo.ui.accordion({
 })
 ```
 
-In this example, we pass a function to `mo.lazy` instead of a component. This function will only be called when the user opens the accordion. In this way, `expensive_component` lazily computed and we only query the database when the user needs to see the data. This can be useful when the data is expensive to compute and the user may not need to see it immediately.
+In this example, we pass a function to `mo.lazy` instead of a component. This
+function will only be called when the user opens the accordion. In this way,
+`expensive_component` lazily computed and we only query the database when the
+user needs to see the data. This can be useful when the data is expensive to
+compute and the user may not need to see it immediately.
