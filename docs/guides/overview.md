@@ -27,13 +27,15 @@ variables defined by that cell._ This is reactive execution.
 </figure>
 </div>
 
-```{admonition} Lazy evaluation
-:class: tip
+```{admonition} Working with expensive notebooks
+:class: important
 
-If you don't want cells to run automatically, the runtime can be
-configured to be lazy, only running cells when you ask for them to be run and
-marking affected cells as stale. Learn more in the
-[runtime configuration guide](/guides/configuration/runtime_configuration.md)
+If you don't want cells to run automatically, the [runtime can be
+configured](/guides/configuration/runtime_configuration.md) to be lazy, only
+running cells when you ask for them to be run and marking affected cells as
+stale. **See our guide on working with [expensive
+notebooks](/guides/expensive_notebooks.md) for more tips.**
+
 ```
 
 **Execution order.**
@@ -96,8 +98,8 @@ import marimo as mo
 marimo visualizes the last expression of each cell as its **output**. Outputs
 can be any Python value, including markdown and interactive elements created
 with the marimo library, _e.g._, `mo.md(...)`, `mo.ui.slider(...)`.
-You can even interpolate Python values into markdown and other marimo elements
-to build rich composite outputs.
+You can even interpolate Python values into markdown (using `mo.md(f"...")`) and
+other marimo elements to build rich composite outputs:
 
 <div align="center">
 <figure>
