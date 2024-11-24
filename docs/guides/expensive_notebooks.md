@@ -50,7 +50,7 @@ marks dependent cells as stale instead of running them automatically.
 ### Disabling autorun on startup
 
 marimo autoruns notebooks on startup, with `marimo edit notebook.py` behaving
-analogously to `pyhton notebook.py`. This can also be disabled through the
+analogously to `python notebook.py`. This can also be disabled through the
 [notebook settings](/guides/configuration/runtime_configuration.md#on-startup).
 
 ### Disable individual cells
