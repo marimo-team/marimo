@@ -54,6 +54,10 @@ class NarwhalsTableManager(
         format_mapping: Optional[FormatMapping] = None,
     ) -> bytes:
         _data = self.apply_formatting(format_mapping).as_frame()
+        if nw.get_level(_data) == "interchange":
+            # `write_csv` isn't supported by interchange-level-only
+            # DataFrames, so we convert to PyArrow in this case
+            _data = _data.to_arrow()
         csv_str = _data.write_csv()
         if isinstance(csv_str, str):
             return csv_str.encode("utf-8")
