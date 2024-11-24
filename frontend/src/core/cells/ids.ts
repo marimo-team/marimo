@@ -63,3 +63,10 @@ export const UIElementId = {
     return id;
   },
 };
+
+export type CellOutputId = `output-${CellId}`;
+export const CellOutputId = {
+  create(cellId: CellId): CellOutputId {
+    return `output-${cellId}`;
+  },
+};
