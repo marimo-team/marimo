@@ -23,6 +23,7 @@ from typing import (
     cast,
 )
 
+from marimo._dependencies.dependencies import DependencyManager
 from marimo import _loggers
 from marimo._data.series import (
     DataFrameSeries,
@@ -234,9 +235,10 @@ class slider(UIElement[Numeric, Numeric]):
         if steps is not None:
             # Cast to a list in case user passes a numpy array
             if not isinstance(steps, list):
-                import numpy as np
-                if isinstance(steps, np.ndarray):
-                    steps = steps.tolist()
+                if DependencyManager.numpy.has():
+                    import numpy as np
+                    if isinstance(steps, np.ndarray):
+                        steps = steps.tolist()
             self._dtype = _infer_dtype(steps)
             self._mapping = dict(enumerate(steps))
             try:
