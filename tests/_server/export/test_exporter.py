@@ -1,13 +1,19 @@
 from __future__ import annotations
 
+import pytest
+
 from marimo._ast.app import App, InternalApp
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.export.exporter import Exporter
 from marimo._server.file_manager import AppFileManager
 from tests.mocks import snapshotter
 
 snapshot = snapshotter(__file__)
 
+HAS_NBFORMAT = DependencyManager.nbformat.has()
 
+
+@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
 def test_export_ipynb_empty():
     app = App()
     file_manager = AppFileManager.from_app(InternalApp(app))
@@ -20,6 +26,7 @@ def test_export_ipynb_empty():
     snapshot("empty_notebook.ipynb.txt", content)
 
 
+@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
 def test_export_ipynb_with_cells():
     app = App()
 
@@ -37,6 +44,7 @@ def test_export_ipynb_with_cells():
     snapshot("notebook_with_cells.ipynb.txt", content)
 
 
+@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
 def test_export_ipynb_sort_modes():
     app = App()
 

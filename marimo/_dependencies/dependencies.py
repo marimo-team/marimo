@@ -52,9 +52,9 @@ class Dependency:
 
         """
         if not self.has():
-            raise ModuleNotFoundError(
-                f"{self.pkg} is required {why}."
-            ) from None
+            message = f"{self.pkg} is required {why}."
+            sys.stderr.write(message + "\n\n")
+            raise ModuleNotFoundError(message) from None
 
     def require_at_version(
         self,

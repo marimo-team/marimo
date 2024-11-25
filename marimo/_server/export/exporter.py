@@ -14,6 +14,7 @@ from marimo._config.config import (
     DisplayConfig,
     _deep_copy,
 )
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.utils import build_data_url
 from marimo._runtime import dataflow
@@ -141,6 +142,9 @@ class Exporter:
         file_manager: AppFileManager,
         sort_mode: Literal["top-down", "topological"],
     ) -> tuple[str, str]:
+        DependencyManager.nbformat.require(
+            "to convert marimo notebooks to ipynb"
+        )
         import nbformat  # type: ignore
 
         def create_notebook_cell(cell: CellImpl) -> nbformat.NotebookNode:

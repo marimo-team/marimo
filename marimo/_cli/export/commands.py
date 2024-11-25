@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 import asyncio
-import importlib.util
 from typing import TYPE_CHECKING, Callable, Literal
 
 import click
 
 from marimo._cli.parse_args import parse_args
 from marimo._cli.print import echo, green
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.export import (
     export_as_ipynb,
     export_as_md,
@@ -309,10 +309,10 @@ def ipynb(
     def export_callback(file_path: MarimoPath) -> str:
         return export_as_ipynb(file_path, sort_mode=sort)[0]
 
-    if importlib.util.find_spec("nbformat") is None:
-        raise ModuleNotFoundError(
-            "Install `nbformat` from PyPI to use marimo export ipynb"
-        )
+    DependencyManager.nbformat.require(
+        why="to convert marimo notebooks to ipynb"
+    )
+
     return watch_and_export(MarimoPath(name), output, watch, export_callback)
 
 
