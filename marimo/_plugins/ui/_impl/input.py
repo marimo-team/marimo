@@ -235,6 +235,7 @@ class slider(UIElement[Numeric, Numeric]):
             # Cast to a list in case user passes a numpy array
             if not isinstance(steps, list):
                 import numpy as np
+
                 if isinstance(steps, np.ndarray):
                     steps = steps.tolist()
             self._dtype = _infer_dtype(steps)
