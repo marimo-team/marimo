@@ -30,7 +30,7 @@ A non-exhaustive list of settings:
 - Code formatting with ruff/black
 - [GitHub Copilot](/guides/editor_features/ai_completion.md)
 - [LLM coding assistant](/guides/editor_features/ai_completion.md)
-- [Module autoreloading](/guides/reactivity.md#module-change)
+- [Module autoreloading](/guides/configuration/runtime_configuration.md#on-module-change)
 
 ### Vim keybindings
 

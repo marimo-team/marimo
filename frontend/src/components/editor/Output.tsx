@@ -11,7 +11,7 @@ import { ImageOutput } from "./output/ImageOutput";
 import { MarimoErrorOutput } from "./output/MarimoErrorOutput";
 import { TextOutput } from "./output/TextOutput";
 import { VideoOutput } from "./output/VideoOutput";
-import type { CellId } from "@/core/cells/ids";
+import { CellOutputId, type CellId } from "@/core/cells/ids";
 import { cn } from "@/utils/cn";
 import { ErrorBoundary } from "./boundary/ErrorBoundary";
 
@@ -287,7 +287,7 @@ export const OutputArea = React.memo(
         <Container
           title={title}
           cellId={cellId}
-          id={`output-${cellId}`}
+          id={CellOutputId.create(cellId)}
           className={cn(stale && "marimo-output-stale", className)}
         >
           <OutputRenderer message={output} />

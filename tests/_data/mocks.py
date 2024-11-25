@@ -15,6 +15,7 @@ def create_dataframes(
     data: Dict[str, Sequence[Any]],
     include: Optional[List[DFType]] = None,
     exclude: Optional[List[DFType]] = None,
+    strict: bool = True,
 ) -> list[IntoDataFrame]:
     dfs: list[IntoDataFrame] = []
 
@@ -40,7 +41,7 @@ def create_dataframes(
     if DependencyManager.polars.has() and should_include("polars"):
         import polars as pl
 
-        dfs.append(pl.DataFrame(data))
+        dfs.append(pl.DataFrame(data, strict=strict))
 
     if DependencyManager.ibis.has() and should_include("ibis"):
         import ibis  # type: ignore

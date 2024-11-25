@@ -82,6 +82,7 @@ export interface CellProps
       | "stopped"
       | "staleInputs"
       | "runStartTimestamp"
+      | "lastRunStartTimestamp"
       | "runElapsedTimeMs"
       | "debuggerActive"
     >,
@@ -137,6 +138,7 @@ const CellComponent = (
     consoleOutputs,
     status,
     runStartTimestamp,
+    lastRunStartTimestamp,
     runElapsedTimeMs,
     edited,
     interrupted,
@@ -352,7 +354,7 @@ const CellComponent = (
 
   // Register hotkeys on the cell instead of the code editor
   // This is in case the code editor is hidden
-  useHotkeysOnElement(editing ? cellRef.current : null, {
+  useHotkeysOnElement(editing ? cellRef : null, {
     "cell.run": handleRun,
     "cell.runAndNewBelow": () => {
       handleRun();
@@ -405,7 +407,7 @@ const CellComponent = (
     },
   });
 
-  useKeydownOnElement(editing ? cellRef.current : null, {
+  useKeydownOnElement(editing ? cellRef : null, {
     ArrowDown: () => {
       moveToNextCell({ cellId, before: false, noCreate: true });
       return true;
@@ -544,6 +546,7 @@ const CellComponent = (
                 elapsedTime={runElapsedTimeMs}
                 runStartTimestamp={runStartTimestamp}
                 uninstantiated={uninstantiated}
+                lastRunStartTimestamp={lastRunStartTimestamp}
               />
               <div className="flex gap-2 items-end">
                 <CellDragHandle />

@@ -4,9 +4,11 @@ import {
   insertBlockquote,
   insertBoldMarker,
   insertCodeMarker,
+  insertImage,
   insertItalicMarker,
   insertLink,
   insertOL,
+  insertTextFile,
   insertUL,
 } from "./commands";
 import { EditorView, keymap } from "@codemirror/view";
@@ -63,18 +65,40 @@ export function enhancedMarkdownExtension(
         },
       ]),
     ),
-    // Smart on paste of URLs
+    // Smart paste of URLs
     EditorView.domEventHandlers({
       paste: (event, view) => {
         // If no selection, do nothing
         if (view.state.selection.main.empty) {
-          return;
+          return false;
         }
 
         const url = event.clipboardData?.getData("text/plain");
         if (url?.startsWith("http")) {
           event.preventDefault();
           insertLink(view, url);
+        }
+      },
+    }),
+    // Smart paste of files
+    EditorView.domEventHandlers({
+      paste: (event, view) => {
+        const file = event.clipboardData?.files[0];
+
+        if (!file) {
+          return false;
+        }
+
+        if (file.type.startsWith("image/")) {
+          event.preventDefault();
+          void insertImage(view, file);
+          return true;
+        }
+
+        if (file.type.startsWith("text/")) {
+          event.preventDefault();
+          void insertTextFile(view, file);
+          return true;
         }
       },
     }),

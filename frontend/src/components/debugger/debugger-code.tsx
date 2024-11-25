@@ -79,7 +79,7 @@ const DebuggerInput: React.FC<{
   const ref = React.useRef<HTMLDivElement>(null);
 
   // Capture some events to prevent default behavior
-  useKeydownOnElement(ref.current, {
+  useKeydownOnElement(ref, {
     ArrowUp: Functions.NOOP,
     ArrowDown: Functions.NOOP,
   });

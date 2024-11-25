@@ -1,4 +1,4 @@
-# Reactivity
+# Reactive execution
 
 Every marimo notebook is a directed acyclic graph (DAG) that models how data
 flows across blocks of Python code, i.e., cells.
@@ -10,19 +10,21 @@ the page.
 Reactive execution is based on a single rule:
 
 ```{admonition} Runtime Rule
-:class: tip
+:class: important
 
 When a cell is run, marimo automatically runs all other cells that
 **reference** any of the global variables it **defines**.
 ```
 
-```{admonition} Lazy evaluation
-:class: note
+```{admonition} Working with expensive notebooks
+:class: tip
 
-The runtime can be configured to be lazy, only running cells when you ask for
-them to be run and marking affected cells as stale, instead of automatically
-running them. Learn more in the
-[runtime configuration guide](/guides/configuration/runtime_configuration.md)
+marimo gives you tools that make it easy to work with expensive notebooks. For
+example, the [runtime can be
+configured](#/guides/configuration/runtime_configuration.md) to be lazy, only
+running cells when you ask for them to be run and marking affected cells as
+stale instead of auto-running them. **See our guide on working with [expensive
+notebooks](/guides/expensive_notebooks.md) for more tips.**
 ```
 
 ## References and definitions
@@ -37,8 +39,8 @@ dependencies. marimo creates this graph by statically analyzing each cell
 ```{admonition} Global variables
 :class: tip
 
-A variable can refer to any Python object. In particular, functions,
-classes, and imported names are all variables.
+A variable can refer to any Python object. Functions, classes, and imported
+names are all variables.
 ```
 
 There is an edge from one cell to another if the latter cell references any
@@ -52,7 +54,7 @@ To make sure your notebook is DAG, marimo requires that every global
 variable be defined by only one cell.
 
 ```{admonition} Local variables
-:class: note
+:class: important
 
 Variables prefixed with an underscore are local to a cell (_.e.g._, `_x`). You
 can use this in a pinch to fix multiple definition errors, but try instead to
@@ -82,7 +84,7 @@ many others
 [[1]](https://austinhenley.com/pubs/Chattopadhyay2020CHI_NotebookPainpoints.pdf)
 [[2]](https://docs.google.com/presentation/d/1n2RlMdmv1p25Xy5thJUhkKGvjtV-dkAIsUXP-AL4ffI/edit#slide=id.g362da58057_0_1).
 
-**marimo eliminates the problem of hidden state**: running
+**marimo eliminates hidden state**: running
 a cell automatically refreshes downstream outputs, and _deleting a cell
 deletes its global variables from program memory_.
 

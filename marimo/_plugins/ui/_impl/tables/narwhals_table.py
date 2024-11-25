@@ -19,6 +19,7 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 )
 from marimo._utils.narwhals_utils import (
     can_narwhalify,
+    dataframe_to_csv,
     is_narwhals_integer_type,
     is_narwhals_string_type,
     is_narwhals_temporal_type,
@@ -54,13 +55,10 @@ class NarwhalsTableManager(
         format_mapping: Optional[FormatMapping] = None,
     ) -> bytes:
         _data = self.apply_formatting(format_mapping).as_frame()
-        csv_str = _data.write_csv()
-        if isinstance(csv_str, str):
-            return csv_str.encode("utf-8")
-        return cast(bytes, csv_str)
+        return dataframe_to_csv(_data).encode("utf-8")
 
     def to_json(self) -> bytes:
-        csv_str = self.as_frame().write_csv()
+        csv_str = self.to_csv().decode("utf-8")
         import csv
 
         csv_reader = csv.DictReader(csv_str.splitlines())

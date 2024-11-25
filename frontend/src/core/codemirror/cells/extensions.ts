@@ -227,7 +227,10 @@ export function cellMovementBundle(
         if (isHidden) {
           ev.contentDOM.blur();
           // Focus on the parent element
-          document.getElementById(HTMLCellId.create(cellId))?.focus();
+          // https://github.com/marimo-team/marimo/issues/2941
+          document
+            .getElementById(HTMLCellId.create(cellId))
+            ?.parentElement?.focus();
         } else {
           ev.contentDOM.focus();
         }

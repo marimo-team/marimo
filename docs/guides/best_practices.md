@@ -1,14 +1,6 @@
 
 # Best practices
 
-```{eval-rst}
-.. toctree::
-  :maxdepth: 2
-  :hidden:
-
-  performance
-```
-
 Here are best practices for writing marimo notebooks.
 
 **Use global variables sparingly.** Keep the number of global variables in your
@@ -24,8 +16,24 @@ result in better code.
 global namespace with
 temporary or intermediate variables, and to avoid code duplication.
 
+**Use [`mo.stop`](#marimo.stop) to stop execution.** Use [`mo.stop`](#marimo.stop)
+to stop a cell from running when a condition is true; this is helpful
+when working with expensive notebooks. For example, prevent a cell from running
+until a button is clicked using [`mo.ui.run_button`](#marimo.ui.run_button) and
+[`mo.stop`](#marimo.stop).
+
+```{admonition} Expensive notebooks
+:class: caution
+
+For more tips on working with expensive notebooks, see the
+associated [guide](/guides/expensive_notebooks.md).
+```
+
 **Use Python modules.** If your notebook gets too long, split complex logic
-into helper Python modules and import them into your notebook.
+into helper Python modules and import them into your notebook. Use marimo's
+built-in [module
+reloading](/guides/configuration/runtime_configuration.md#on-module-change)
+to automatically bring changes from your modules into your notebook.
 
 **Minimize mutations.** marimo does not track mutations to objects. Try to
 only mutate an object in the cell that creates it, or create new objects
@@ -69,11 +77,3 @@ extended_list = l + [new_item()]
 Write cells whose outputs and behavior are the same
 when given the same inputs (references); such cells are called idempotent. This
 will help you avoid bugs and cache expensive intermediate computations.
-
-```{admonition} Performance
-:class: tip
-
-For tips on writing
-performant notebooks (e.g., how to cache intermediate outputs), see the
-[performance guide](/guides/best_practices/performance.md).
-```

@@ -33,6 +33,7 @@ const props: CellProps = {
   prepareForRun: Logger.log,
   runStartTimestamp: 0 as Seconds,
   runElapsedTimeMs: 10 as Milliseconds,
+  lastRunStartTimestamp: 0 as Seconds,
   serializedEditorState: null,
   mode: "edit",
   name: "cell_1",

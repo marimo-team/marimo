@@ -1,9 +1,11 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import os
 import sys
 from typing import Optional
 
-from marimo._server.utils import print_tabbed
+from marimo._server.utils import print_, print_tabbed
 
 UTF8_SUPPORTED = False
 
@@ -17,7 +19,7 @@ except Exception:
 def print_startup(
     file_name: Optional[str], url: str, run: bool, new: bool
 ) -> None:
-    print()
+    print_()
     if file_name is not None and not run:
         print_tabbed(
             f"\033[1;32mEdit {os.path.basename(file_name)} "
@@ -38,15 +40,15 @@ def print_startup(
             "\033[1;32mCreate or edit notebooks in your "
             "browser\033[0m " + _utf8("📝")
         )
-    print()
+    print_()
     print_tabbed(f"\033[32mURL\033[0m: \033[1m{url}\033[0m")
-    print()
+    print_()
 
 
 def print_shutdown() -> None:
-    print()
+    print_()
     print_tabbed("\033[32mThanks for using marimo!\033[0m %s" % _utf8("🌊🍃"))
-    print()
+    print_()
 
 
 def _utf8(msg: str) -> str:

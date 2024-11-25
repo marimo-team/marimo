@@ -21,7 +21,7 @@ marimo/_lsp: $(shell find lsp)
 .PHONY: py
 # editable python install; only need to run once
 py:
-	pip install -e .[dev]
+	pip install -e ".[dev]"
 
 .PHONY: check
 # run all checks

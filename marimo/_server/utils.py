@@ -21,7 +21,7 @@ LOGGER = _loggers.marimo_logger()
 
 
 def print_tabbed(string: str, n_tabs: int = 1) -> None:
-    print(f"{TAB * n_tabs}{string}")
+    print_(f"{TAB * n_tabs}{string}")
 
 
 def canonicalize_filename(filename: str) -> str:
@@ -109,3 +109,12 @@ def asyncio_run(coro: Coroutine[Any, Any, T], **kwargs: dict[Any, Any]) -> T:
     """
     initialize_asyncio()
     return asyncio.run(coro, **kwargs)  # type: ignore[arg-type]
+
+
+def print_(*args: Any, **kwargs: Any) -> None:
+    try:
+        import click
+
+        click.echo(*args, **kwargs)
+    except ImportError:
+        print(*args, **kwargs)  # noqa: T201

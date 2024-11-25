@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { expect, describe, test } from "vitest";
-import { CellId, HTMLCellId } from "../ids";
+import { CellId, CellOutputId, HTMLCellId } from "../ids";
 
 describe("CellId", () => {
   test("create", () => {
@@ -37,5 +37,13 @@ describe("HTMLCellId", () => {
     const cell = HTMLCellId.findElement(innerDiv!);
     expect(cell).toBeDefined();
     expect(cell!.id.startsWith("cell-")).toBe(true);
+  });
+});
+
+describe("CellOutputId", () => {
+  test("create", () => {
+    const cellId = CellId.create();
+    const cellOutputId = CellOutputId.create(cellId);
+    expect(cellOutputId).toBe(`output-${cellId}`);
   });
 });

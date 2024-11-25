@@ -167,6 +167,7 @@ export const AppConfigSchema = z
       }),
     app_title: AppTitleSchema.nullish(),
     css_file: z.string().nullish(),
+    html_head_file: z.string().nullish(),
     auto_download: z.array(z.string()).default([]),
   })
   .default({ width: "medium", auto_download: [] });

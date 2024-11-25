@@ -26,9 +26,6 @@ exports[`makeSelectable > should return correctly if existing legend selection 1
               "param": "param_1",
             },
             {
-              "param": "legend_selection_series",
-            },
-            {
               "param": "select_point",
             },
           ],
@@ -64,16 +61,6 @@ exports[`makeSelectable > should return correctly if existing legend selection 1
     {
       "bind": "legend",
       "name": "param_1",
-      "select": {
-        "fields": [
-          "series",
-        ],
-        "type": "point",
-      },
-    },
-    {
-      "bind": "legend",
-      "name": "legend_selection_series",
       "select": {
         "fields": [
           "series",
@@ -555,6 +542,301 @@ exports[`makeSelectable > should work for geoshape 1`] = `
   },
   "mark": "geoshape",
   "params": [],
+}
+`;
+
+exports[`makeSelectable > should work for layered charts, with existing legend selection 1`] = `
+{
+  "data": {
+    "name": "data-34c3e7380bd529c27667c64406db8bb8",
+  },
+  "datasets": {
+    "data-34c3e7380bd529c27667c64406db8bb8": [
+      {
+        "Level1": "a",
+        "count": 1,
+        "stage": "france",
+      },
+      {
+        "Level1": "b",
+        "count": 2,
+        "stage": "france",
+      },
+      {
+        "Level1": "c",
+        "count": 3,
+        "stage": "england",
+      },
+    ],
+  },
+  "layer": [
+    {
+      "encoding": {
+        "color": {
+          "condition": {
+            "field": "stage",
+            "param": "param_22",
+          },
+          "value": "lightgray",
+        },
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "select_point_0",
+                },
+                {
+                  "param": "select_interval_0",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
+        "x": {
+          "field": "Level1",
+          "sort": {
+            "order": "descending",
+          },
+          "title": "Subpillar",
+          "type": "nominal",
+        },
+        "y": {
+          "field": "count",
+          "title": "Number of Companies",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "cursor": "pointer",
+        "tooltip": true,
+        "type": "bar",
+      },
+      "name": "view_21",
+      "params": [
+        {
+          "name": "select_point_0",
+          "select": {
+            "encodings": [
+              "x",
+            ],
+            "on": "click[!event.metaKey]",
+            "type": "point",
+          },
+        },
+        {
+          "name": "select_interval_0",
+          "select": {
+            "encodings": [
+              "x",
+            ],
+            "mark": {
+              "fill": "#669EFF",
+              "fillOpacity": 0.07,
+              "stroke": "#669EFF",
+              "strokeOpacity": 0.4,
+            },
+            "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "type": "interval",
+          },
+        },
+        {
+          "bind": "scales",
+          "name": "pan_zoom",
+          "select": {
+            "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+            "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+            "type": "interval",
+            "zoom": "wheel![event.metaKey]",
+          },
+        },
+      ],
+    },
+    {
+      "encoding": {
+        "color": {
+          "datum": "england",
+        },
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "select_point_1",
+                },
+                {
+                  "param": "select_interval_1",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
+        "y": {
+          "datum": 2,
+        },
+      },
+      "mark": {
+        "cursor": "pointer",
+        "strokeDash": [
+          2,
+          2,
+        ],
+        "tooltip": true,
+        "type": "rule",
+      },
+      "params": [
+        {
+          "name": "select_point_1",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "on": "click[!event.metaKey]",
+            "type": "point",
+          },
+        },
+        {
+          "name": "select_interval_1",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "mark": {
+              "fill": "#669EFF",
+              "fillOpacity": 0.07,
+              "stroke": "#669EFF",
+              "strokeOpacity": 0.4,
+            },
+            "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "type": "interval",
+          },
+        },
+      ],
+    },
+  ],
+  "params": [
+    {
+      "bind": "legend",
+      "name": "param_22",
+      "select": {
+        "fields": [
+          "x",
+        ],
+        "type": "point",
+      },
+      "views": [
+        "view_21",
+      ],
+    },
+  ],
+}
+`;
+
+exports[`makeSelectable > should work for layered charts, with existing selection 1`] = `
+{
+  "data": {
+    "name": "data-34c3e7380bd529c27667c64406db8bb8",
+  },
+  "datasets": {
+    "data-34c3e7380bd529c27667c64406db8bb8": [
+      {
+        "Level1": "a",
+        "count": 1,
+        "stage": "france",
+      },
+      {
+        "Level1": "b",
+        "count": 2,
+        "stage": "france",
+      },
+      {
+        "Level1": "c",
+        "count": 3,
+        "stage": "england",
+      },
+    ],
+  },
+  "layer": [
+    {
+      "encoding": {
+        "color": {
+          "condition": {
+            "field": "stage",
+            "param": "param_22",
+          },
+          "value": "lightgray",
+        },
+        "x": {
+          "field": "Level1",
+          "sort": {
+            "order": "descending",
+          },
+          "title": "Subpillar",
+          "type": "nominal",
+        },
+        "y": {
+          "field": "count",
+          "title": "Number of Companies",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "type": "bar",
+      },
+      "name": "view_21",
+      "params": [
+        {
+          "bind": "scales",
+          "name": "pan_zoom",
+          "select": {
+            "on": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+            "translate": "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
+            "type": "interval",
+            "zoom": "wheel![event.metaKey]",
+          },
+        },
+      ],
+    },
+    {
+      "encoding": {
+        "color": {
+          "datum": "england",
+        },
+        "y": {
+          "datum": 2,
+        },
+      },
+      "mark": {
+        "strokeDash": [
+          2,
+          2,
+        ],
+        "type": "rule",
+      },
+    },
+  ],
+  "params": [
+    {
+      "name": "param_22",
+      "select": {
+        "encodings": [
+          "x",
+        ],
+        "type": "point",
+      },
+      "views": [
+        "view_21",
+      ],
+    },
+  ],
 }
 `;
 

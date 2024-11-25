@@ -2358,6 +2358,7 @@ export interface components {
         app_title?: string | null;
         auto_download: ("html" | "markdown")[];
         css_file?: string | null;
+        html_head_file?: string | null;
         layout_file?: string | null;
         /** @enum {string} */
         width: "normal" | "compact" | "medium" | "full";

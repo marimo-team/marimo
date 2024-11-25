@@ -71,6 +71,9 @@ class _AppConfig:
     # CSS file, relative to the app file
     css_file: Optional[str] = None
 
+    # HTML head file, relative to the app file
+    html_head_file: Optional[str] = None
+
     # Whether to automatically download the app as HTML and Markdown
     auto_download: List[Literal["html", "markdown"]] = field(
         default_factory=list

@@ -888,6 +888,9 @@ components:
             css_file:
               nullable: true
               type: string
+            html_head_file:
+              nullable: true
+              type: string
             layout_file:
               nullable: true
               type: string
@@ -1913,7 +1916,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.9.17
+  version: 0.9.21
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

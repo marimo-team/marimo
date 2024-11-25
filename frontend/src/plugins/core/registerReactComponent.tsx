@@ -41,7 +41,10 @@ import useEvent from "react-use-event-hook";
 import { Functions } from "@/utils/functions";
 import { StyleNamespace } from "@/theme/namespace";
 import { UIElementRegistry } from "@/core/dom/uiregistry";
-import { useEventListener } from "@/hooks/useEventListener";
+import {
+  type HTMLElementNotDerivedFromRef,
+  useEventListener,
+} from "@/hooks/useEventListener";
 import { shallowCompare } from "@/utils/shallow-compare";
 
 export interface PluginSlotHandle {
@@ -99,11 +102,15 @@ function PluginSlotInternal<T>(
   }));
 
   // Listen to value updates
-  useEventListener(hostElement, MarimoValueUpdateEvent.TYPE, (e) => {
-    if (e.detail.element === hostElement) {
-      setValue(e.detail.value as T);
-    }
-  });
+  useEventListener(
+    hostElement as HTMLElementNotDerivedFromRef,
+    MarimoValueUpdateEvent.TYPE,
+    (e) => {
+      if (e.detail.element === hostElement) {
+        setValue(e.detail.value as T);
+      }
+    },
+  );
 
   // We create a mutation observer to listen for changes to the host element's attributes
   // and update the plugin's data accordingly

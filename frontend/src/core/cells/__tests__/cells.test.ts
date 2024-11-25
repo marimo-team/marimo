@@ -420,6 +420,7 @@ describe("cell reducer", () => {
     expect(cell.edited).toBe(false);
     expect(cell.runElapsedTimeMs).toBe(null);
     expect(cell.runStartTimestamp).toBe(null);
+    expect(cell.lastRunStartTimestamp).toBe(null);
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
     // Receive running messages
@@ -437,6 +438,7 @@ describe("cell reducer", () => {
     expect(cell.edited).toBe(false);
     expect(cell.runElapsedTimeMs).toBe(null);
     expect(cell.runStartTimestamp).toBe(20);
+    expect(cell.lastRunStartTimestamp).toBe(20);
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
     // Console messages shouldn't transition status
@@ -458,6 +460,7 @@ describe("cell reducer", () => {
     expect(cell.edited).toBe(false);
     expect(cell.runElapsedTimeMs).toBe(null);
     expect(cell.runStartTimestamp).toBe(20);
+    expect(cell.lastRunStartTimestamp).toBe(20);
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
     // Receive output messages
@@ -484,6 +487,7 @@ describe("cell reducer", () => {
     expect(cell.edited).toBe(false);
     expect(cell.runElapsedTimeMs).toBe(13_000);
     expect(cell.runStartTimestamp).toBe(null);
+    expect(cell.lastRunStartTimestamp).toBe(20);
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
     // EDITING BACK AND FORTH
@@ -1621,5 +1625,89 @@ describe("cell reducer", () => {
     expect(state.cellIds.getColumns()[0].topLevelIds).toEqual(["0"]);
     expect(state.cellIds.getColumns()[1].topLevelIds).toEqual(["1"]);
     expect(state.cellIds.getColumns()[2].topLevelIds).toEqual(["2"]);
+  });
+
+  it("can clear output of a single cell", () => {
+    // Set up initial state with output
+    actions.handleCellMessage({
+      cell_id: firstCellId,
+      output: {
+        channel: "output",
+        mimetype: "text/plain",
+        data: "test output",
+        timestamp: 0,
+      },
+      console: {
+        channel: "stdout",
+        mimetype: "text/plain",
+        data: "console output",
+        timestamp: 0,
+      },
+      status: "idle",
+      stale_inputs: null,
+      timestamp: new Date(33).getTime() as Seconds,
+    });
+
+    // Verify initial state has output
+    let cell = cells[0];
+    expect(cell.output).not.toBeNull();
+    expect(cell.consoleOutputs.length).toBe(1);
+
+    // Clear output
+    actions.clearCellOutput({ cellId: firstCellId });
+
+    // Verify output is cleared
+    cell = cells[0];
+    expect(cell.output).toBeNull();
+    expect(cell.consoleOutputs).toEqual([]);
+  });
+
+  it("can clear output of all cells", () => {
+    // Create multiple cells with output
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    const secondCellId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(1);
+
+    // Add output to both cells
+    const outputMessage = {
+      output: {
+        channel: "output",
+        mimetype: "text/plain",
+        data: "test output",
+        timestamp: 0,
+      },
+      console: {
+        channel: "stdout",
+        mimetype: "text/plain",
+        data: "console output",
+        timestamp: 0,
+      },
+      status: "idle",
+      stale_inputs: null,
+      timestamp: new Date(33).getTime() as Seconds,
+    } as const;
+
+    actions.handleCellMessage({
+      ...outputMessage,
+      cell_id: firstCellId,
+    });
+    actions.handleCellMessage({
+      ...outputMessage,
+      cell_id: secondCellId,
+    });
+
+    // Verify initial state has output
+    expect(state.cellRuntime[firstCellId].output).not.toBeNull();
+    expect(state.cellRuntime[firstCellId].consoleOutputs.length).toBe(1);
+    expect(state.cellRuntime[secondCellId].output).not.toBeNull();
+    expect(state.cellRuntime[secondCellId].consoleOutputs.length).toBe(1);
+
+    // Clear all outputs
+    actions.clearAllCellOutputs();
+
+    // Verify all outputs are cleared
+    expect(state.cellRuntime[firstCellId].output).toBeNull();
+    expect(state.cellRuntime[firstCellId].consoleOutputs).toEqual([]);
+    expect(state.cellRuntime[secondCellId].output).toBeNull();
+    expect(state.cellRuntime[secondCellId].consoleOutputs).toEqual([]);
   });
 });
