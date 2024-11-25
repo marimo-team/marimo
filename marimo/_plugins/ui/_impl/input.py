@@ -232,6 +232,8 @@ class slider(UIElement[Numeric, Numeric]):
             )
         # If steps are provided
         if steps is not None:
+            # Cast to a list in case user passes a numpy array
+            steps = list(steps)
             self._dtype = _infer_dtype(steps)
             self._mapping = dict(enumerate(steps))
             try:
