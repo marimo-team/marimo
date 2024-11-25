@@ -23,13 +23,13 @@ from typing import (
     cast,
 )
 
-from marimo._dependencies.dependencies import DependencyManager
 from marimo import _loggers
 from marimo._data.series import (
     DataFrameSeries,
     get_category_series_info,
     get_number_series_info,
 )
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import S as JSONTypeBound, UIElement
