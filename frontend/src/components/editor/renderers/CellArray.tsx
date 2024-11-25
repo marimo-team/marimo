@@ -162,6 +162,9 @@ export const CellArray: React.FC<CellArrayProps> = ({
                           stopped={cellRuntime.stopped}
                           staleInputs={cellRuntime.staleInputs}
                           runStartTimestamp={cellRuntime.runStartTimestamp}
+                          lastRunStartTimestamp={
+                            cellRuntime.lastRunStartTimestamp
+                          }
                           runElapsedTimeMs={
                             cellRuntime.runElapsedTimeMs ??
                             (cellData.lastExecutionTime as Milliseconds)

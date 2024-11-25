@@ -82,6 +82,7 @@ export interface CellProps
       | "stopped"
       | "staleInputs"
       | "runStartTimestamp"
+      | "lastRunStartTimestamp"
       | "runElapsedTimeMs"
       | "debuggerActive"
     >,
@@ -137,6 +138,7 @@ const CellComponent = (
     consoleOutputs,
     status,
     runStartTimestamp,
+    lastRunStartTimestamp,
     runElapsedTimeMs,
     edited,
     interrupted,
@@ -544,6 +546,7 @@ const CellComponent = (
                 elapsedTime={runElapsedTimeMs}
                 runStartTimestamp={runStartTimestamp}
                 uninstantiated={uninstantiated}
+                lastRunStartTimestamp={lastRunStartTimestamp}
               />
               <div className="flex gap-2 items-end">
                 <CellDragHandle />
