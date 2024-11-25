@@ -167,6 +167,20 @@ class slider(UIElement[Numeric, Numeric]):
     slider = mo.ui.slider.from_series(df["column_name"])
     ```
 
+    Or using numpy arrays:
+
+    ```python
+    import numpy as np
+
+    # linear steps
+    steps = np.array([1, 2, 3, 4, 5])
+    slider = mo.ui.slider(steps=steps)
+    # log steps
+    log_slider = mo.ui.slider(steps=np.logspace(0, 3, 4))
+    # power steps
+    power_slider = mo.ui.slider(steps=np.power([1, 2, 3], 2))
+    ```
+
     **Attributes.**
 
     - `value`: the current numeric value of the slider
@@ -235,11 +249,7 @@ class slider(UIElement[Numeric, Numeric]):
         if steps is not None:
             # Cast to a list in case user passes a numpy array
             if not isinstance(steps, list):
-                if DependencyManager.numpy.has():
-                    import numpy as np
-
-                    if isinstance(steps, np.ndarray):
-                        steps = steps.tolist()
+                steps = _convert_numpy_array(steps)
             self._dtype = _infer_dtype(steps)
             self._mapping = dict(enumerate(steps))
             try:
@@ -358,6 +368,20 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
     range_slider = mo.ui.range_slider.from_series(df["column_name"])
     ```
 
+    Or using numpy arrays:
+
+    ```python
+    import numpy as np
+
+    steps = np.array([1, 2, 3, 4, 5])
+    # linear steps
+    range_slider = mo.ui.range_slider(steps=steps)
+    # log steps
+    log_range_slider = mo.ui.range_slider(steps=np.logspace(0, 3, 4))
+    # power steps
+    power_range_slider = mo.ui.range_slider(steps=np.power([1, 2, 3], 2))
+    ```
+
     **Attributes.**
 
     - `value`: the current range value of the slider
@@ -423,6 +447,9 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
             )
 
         if steps is not None:
+            # Cast to a list in case user passes a numpy array
+            if not isinstance(steps, list):
+                steps = _convert_numpy_array(steps)
             self._dtype = _infer_dtype(steps)
             self._mapping = dict(enumerate(steps))
 
@@ -1619,3 +1646,13 @@ class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
             return None
         self.element._update(value)
         return self.element.value
+
+
+def _convert_numpy_array(steps: Any) -> list[Numeric]:
+    """Convert numpy array to list if needed."""
+    if DependencyManager.numpy.has():
+        import numpy as np
+
+        if isinstance(steps, np.ndarray):
+            return steps.tolist()  # type: ignore[no-any-return]
+    return steps  # type: ignore[no-any-return]
