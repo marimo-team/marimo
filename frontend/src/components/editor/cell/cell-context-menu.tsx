@@ -21,6 +21,8 @@ import {
   SearchIcon,
 } from "lucide-react";
 import { goToDefinitionAtCursorPosition } from "@/core/codemirror/go-to-definition/utils";
+import { CellOutputId } from "@/core/cells/ids";
+import { Logger } from "@/utils/Logger";
 
 interface Props extends CellActionButtonProps {
   children: React.ReactNode;
@@ -36,7 +38,23 @@ export const CellActionsContextMenu = ({ children, ...props }: Props) => {
       label: "Copy",
       icon: <CopyIcon size={13} strokeWidth={1.5} />,
       handle: () => {
-        document.execCommand("copy");
+        // Has selection, use browser copy
+        const hasSelection = window.getSelection()?.toString();
+        if (hasSelection) {
+          document.execCommand("copy");
+          return;
+        }
+
+        // No selection, copy the full cell output
+        const output = document.getElementById(
+          CellOutputId.create(props.cellId),
+        );
+        if (!output) {
+          Logger.warn("cell-context-menu: output not found");
+          return;
+        }
+        // Copy the output of the cell
+        navigator.clipboard.writeText(output.textContent ?? "");
       },
     },
     {
