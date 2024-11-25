@@ -237,6 +237,7 @@ class slider(UIElement[Numeric, Numeric]):
             if not isinstance(steps, list):
                 if DependencyManager.numpy.has():
                     import numpy as np
+
                     if isinstance(steps, np.ndarray):
                         steps = steps.tolist()
             self._dtype = _infer_dtype(steps)
