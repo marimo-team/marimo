@@ -26,6 +26,7 @@ import {
   SparklesIcon,
   DatabaseIcon,
   Columns2Icon,
+  XCircleIcon,
 } from "lucide-react";
 import type { ActionButton } from "./types";
 import { MultiIcon } from "@/components/icons/multi-icon";
@@ -78,6 +79,7 @@ export function useCellActionButtons({ cell }: Props) {
     sendToTop,
     sendToBottom,
     addColumnBreakpoint,
+    clearCellOutput,
   } = useCellActions();
   const runCell = useRunCell(cell?.cellId);
   const hasOnlyOneCell = useAtomValue(hasOnlyOneCellAtom);
@@ -231,6 +233,14 @@ export function useCellActionButtons({ cell }: Props) {
           />
         ),
         handle: toggleDisabled,
+      },
+      {
+        icon: <XCircleIcon size={13} strokeWidth={1.5} />,
+        label: "Clear output",
+        hidden: !hasOutput,
+        handle: () => {
+          clearCellOutput({ cellId });
+        },
       },
     ],
 

@@ -1057,6 +1057,28 @@ const {
       },
     };
   },
+  clearCellOutput: (state, action: { cellId: CellId }) => {
+    const { cellId } = action;
+    return updateCellRuntimeState(state, cellId, (cell) => ({
+      ...cell,
+      output: null,
+      consoleOutputs: [],
+    }));
+  },
+  clearAllCellOutputs: (state) => {
+    const newCellRuntime = { ...state.cellRuntime };
+    for (const cellId of state.cellIds.inOrderIds) {
+      newCellRuntime[cellId] = {
+        ...newCellRuntime[cellId],
+        output: null,
+        consoleOutputs: [],
+      };
+    }
+    return {
+      ...state,
+      cellRuntime: newCellRuntime,
+    };
+  },
 });
 
 // Helper function to update a cell in the array

@@ -27,6 +27,7 @@ import {
   LayoutTemplateIcon,
   Files,
   SettingsIcon,
+  XCircleIcon,
 } from "lucide-react";
 import { commandPaletteAtom } from "../controls/command-palette";
 import { useCellActions, useNotebook } from "@/core/cells/cells";
@@ -79,7 +80,8 @@ export function useNotebookActions() {
   const kioskMode = useAtomValue(kioskModeAtom);
 
   const notebook = useNotebook();
-  const { updateCellConfig, undoDeleteCell } = useCellActions();
+  const { updateCellConfig, undoDeleteCell, clearAllCellOutputs } =
+    useCellActions();
   const restartKernel = useRestartKernel();
   const copyNotebook = useCopyNotebook(filename);
   const setCommandPaletteOpen = useSetAtom(commandPaletteAtom);
@@ -340,6 +342,13 @@ export function useNotebookActions() {
         for (const cellId of ids) {
           updateCellConfig({ cellId, config: { disabled: true } });
         }
+      },
+    },
+    {
+      icon: <XCircleIcon size={14} strokeWidth={1.5} />,
+      label: "Clear all outputs",
+      handle: () => {
+        clearAllCellOutputs();
       },
     },
     {
