@@ -9,6 +9,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
 
 HAS_PANDAS = DependencyManager.pandas.has()
+HAS_NUMPY = DependencyManager.numpy.has()
 
 
 def test_number_init() -> None:
@@ -278,6 +279,15 @@ def test_range_slider_from_dataframe() -> None:
     assert slider.value == [1, 3]
     assert slider.step == 0.1
     assert slider._args.label == "Custom label"
+
+
+@pytest.mark.skipif(not HAS_NUMPY, reason="numpy not installed")
+def test_range_slider_from_np_array() -> None:
+    import numpy as np
+
+    slider = ui.slider(steps=np.array([1, 2, 3]))
+    assert slider.start == 1
+    assert slider.stop == 3
 
 
 def test_text() -> None:

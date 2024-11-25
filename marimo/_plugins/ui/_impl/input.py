@@ -29,6 +29,7 @@ from marimo._data.series import (
     get_category_series_info,
     get_number_series_info,
 )
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import S as JSONTypeBound, UIElement
@@ -232,6 +233,12 @@ class slider(UIElement[Numeric, Numeric]):
             )
         # If steps are provided
         if steps is not None:
+            # Cast to a list in case user passes a numpy array
+            if not isinstance(steps, list):
+                if DependencyManager.numpy.has():
+                    import numpy as np
+                    if isinstance(steps, np.ndarray):
+                        steps = steps.tolist()
             self._dtype = _infer_dtype(steps)
             self._mapping = dict(enumerate(steps))
             try:
