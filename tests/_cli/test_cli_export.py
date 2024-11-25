@@ -455,3 +455,37 @@ class TestExportIpynb:
         output = p.stdout.decode()
         # ipynb has non-deterministic ids
         snapshot("ipynb.txt", output)
+
+    @pytest.mark.skipif(
+        not DependencyManager.nbformat.has(),
+        reason="This test requires nbformat.",
+    )
+    def test_export_ipynb_sort_modes(
+        self, temp_marimo_file_with_md: str
+    ) -> None:
+        # Test topological sort (default)
+        p = subprocess.run(
+            ["marimo", "export", "ipynb", temp_marimo_file_with_md],
+            capture_output=True,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+        topo_output = p.stdout.decode()
+
+        # Test top-down sort
+        p = subprocess.run(
+            [
+                "marimo",
+                "export",
+                "ipynb",
+                temp_marimo_file_with_md,
+                "--sort",
+                "top-down",
+            ],
+            capture_output=True,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+        topdown_output = p.stdout.decode()
+        snapshot("ipynb_topdown.txt", topdown_output)
+
+        # Outputs should be different since sorting is different
+        assert topo_output != topdown_output

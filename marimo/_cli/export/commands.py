@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, Literal
 
 import click
 
@@ -268,6 +268,13 @@ Requires nbformat to be installed.
 """
 )
 @click.option(
+    "--sort",
+    type=click.Choice(["top-down", "topological"]),
+    default="topological",
+    help="Sort cells top-down or in topological order.",
+    show_default=True,
+)
+@click.option(
     "--watch/--no-watch",
     default=False,
     show_default=True,
@@ -293,13 +300,14 @@ def ipynb(
     name: str,
     output: str,
     watch: bool,
+    sort: Literal["top-down", "topological"],
 ) -> None:
     """
     Export a marimo notebook as a Jupyter notebook in topological order.
     """
 
     def export_callback(file_path: MarimoPath) -> str:
-        return export_as_ipynb(file_path)[0]
+        return export_as_ipynb(file_path, sort_mode=sort)[0]
 
     if importlib.util.find_spec("nbformat") is None:
         raise ModuleNotFoundError(

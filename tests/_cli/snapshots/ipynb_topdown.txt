@@ -3,24 +3,6 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "bkHC",
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "import marimo as mo"
-   ]
-  },
-  {
-   "cell_type": "markdown",
-   "id": "vblA",
-   "metadata": {},
-   "source": [
-    "plain markdown"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": null,
    "id": "Hbol",
    "metadata": {},
    "outputs": [],
@@ -38,6 +20,24 @@
    "source": [
     "control_dep\n",
     "mo.md(f\"parametrized markdown {123}\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "vblA",
+   "metadata": {},
+   "source": [
+    "plain markdown"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "bkHC",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import marimo as mo"
    ]
   }
  ],

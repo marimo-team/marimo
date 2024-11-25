@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Callable
+from typing import Callable, Literal
 
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.ops import MessageOperation
@@ -42,13 +42,14 @@ def export_as_md(
 
 def export_as_ipynb(
     path: MarimoPath,
+    sort_mode: Literal["top-down", "topological"],
 ) -> tuple[str, str]:
     file_router = AppFileRouter.from_filename(path)
     file_key = file_router.get_unique_file_key()
     assert file_key is not None
     file_manager = file_router.get_file_manager(file_key)
 
-    return Exporter().export_as_ipynb(file_manager)
+    return Exporter().export_as_ipynb(file_manager, sort_mode=sort_mode)
 
 
 async def run_app_then_export_as_html(
