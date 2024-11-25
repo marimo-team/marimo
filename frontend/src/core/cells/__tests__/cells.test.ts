@@ -420,6 +420,7 @@ describe("cell reducer", () => {
     expect(cell.edited).toBe(false);
     expect(cell.runElapsedTimeMs).toBe(null);
     expect(cell.runStartTimestamp).toBe(null);
+    expect(cell.lastRunStartTimestamp).toBe(null);
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
     // Receive running messages
@@ -437,6 +438,7 @@ describe("cell reducer", () => {
     expect(cell.edited).toBe(false);
     expect(cell.runElapsedTimeMs).toBe(null);
     expect(cell.runStartTimestamp).toBe(20);
+    expect(cell.lastRunStartTimestamp).toBe(20);
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
     // Console messages shouldn't transition status
@@ -458,6 +460,7 @@ describe("cell reducer", () => {
     expect(cell.edited).toBe(false);
     expect(cell.runElapsedTimeMs).toBe(null);
     expect(cell.runStartTimestamp).toBe(20);
+    expect(cell.lastRunStartTimestamp).toBe(20);
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
     // Receive output messages
@@ -484,6 +487,7 @@ describe("cell reducer", () => {
     expect(cell.edited).toBe(false);
     expect(cell.runElapsedTimeMs).toBe(13_000);
     expect(cell.runStartTimestamp).toBe(null);
+    expect(cell.lastRunStartTimestamp).toBe(20);
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
     // EDITING BACK AND FORTH
