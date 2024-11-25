@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import json
 import unittest
+from math import isnan
 from typing import Any
 
 import pytest
@@ -14,6 +15,8 @@ from marimo._plugins.ui._impl.tables.narwhals_table import (
     NarwhalsTableManager,
 )
 from marimo._plugins.ui._impl.tables.table_manager import TableManager
+from marimo._utils.narwhals_utils import unwrap_py_scalar
+from tests._data.mocks import create_dataframes
 from tests.mocks import snapshotter
 
 HAS_DEPS = DependencyManager.polars.has()
@@ -640,45 +643,100 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
         )
         assert_frame_equal(formatted_data, expected_data)
 
-    def test_empty_dataframe(self) -> None:
-        import polars as pl
 
-        empty_df = pl.DataFrame()
-        empty_manager = NarwhalsTableManager.from_dataframe(empty_df)
-        assert empty_manager.get_num_rows() == 0
-        assert empty_manager.get_num_columns() == 0
-        assert empty_manager.get_column_names() == []
-        assert empty_manager.get_field_types() == {}
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "A": [1, 2, 3],
+            "B": ["a", "b", "c"],
+            "C": [1.0, 2.0, 3.0],
+        },
+    ),
+)
+def test_to_csv(df: Any) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+    assert isinstance(manager.to_csv(), bytes)
 
-    def test_dataframe_with_all_null_column(self) -> None:
-        import polars as pl
 
-        df = pl.DataFrame({"A": [1, 2, 3], "B": [None, None, None]})
-        manager = NarwhalsTableManager.from_dataframe(df)
-        summary = manager.get_summary("B")
-        assert summary.nulls == 3
-        assert summary.total == 3
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "A": [1, 2, 3],
+            "B": ["a", "b", "c"],
+            "C": [1.0, 2.0, 3.0],
+        },
+    ),
+)
+def test_to_json(df: Any) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+    assert isinstance(manager.to_json(), bytes)
 
-    def test_dataframe_with_mixed_types(self) -> None:
-        import polars as pl
 
-        df = pl.DataFrame({"A": [1, "two", 3.0, True]}, strict=False)
-        manager = NarwhalsTableManager.from_dataframe(df)
-        field_types = manager.get_field_types()
-        assert field_types["A"] == ("string", "String")
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes({}, exclude=["ibis", "duckdb"]),
+)
+def test_empty_dataframe(df: Any) -> None:
+    empty_manager = NarwhalsTableManager.from_dataframe(df)
+    assert empty_manager.get_num_rows() == 0
+    assert empty_manager.get_num_columns() == 0
+    assert empty_manager.get_column_names() == []
+    assert empty_manager.get_field_types() == {}
 
-    def test_search_with_regex(self) -> None:
-        import polars as pl
 
-        df = pl.DataFrame({"A": ["apple", "banana", "cherry"]})
-        manager = NarwhalsTableManager.from_dataframe(df)
-        result = manager.search("^[ab]")
-        assert result.get_num_rows() == 2
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"A": [1, 2, 3], "B": [None, None, None]}, exclude=["ibis", "duckdb"]
+    ),
+)
+def test_dataframe_with_all_null_column(df: Any) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+    summary = manager.get_summary("B")
+    assert summary.nulls == 3
+    assert summary.total == 3
 
-    def test_sort_values_with_nulls(self) -> None:
-        import polars as pl
 
-        df = pl.DataFrame({"A": [3, 1, None, 2]})
-        manager = NarwhalsTableManager.from_dataframe(df)
-        sorted_manager = manager.sort_values("A", descending=True)
-        assert sorted_manager.data["A"].to_list() == [None, 3, 2, 1]
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"A": [1, "two", 3.0, True]}, include=["polars"], strict=False
+    ),
+)
+def test_dataframe_with_mixed_types(df: Any) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+    field_types = manager.get_field_types()
+    assert field_types["A"] == ("string", "String")
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"A": ["apple", "banana", "cherry"]}, exclude=["ibis", "duckdb"]
+    ),
+)
+def test_search_with_regex(df: Any) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+    result = manager.search("^[ab]")
+    assert result.get_num_rows() == 2
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes({"A": [3, 1, None, 2]}, exclude=["ibis", "duckdb"]),
+)
+def test_sort_values_with_nulls(df: Any) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+    sorted_manager = manager.sort_values("A", descending=True)
+    first = unwrap_py_scalar(sorted_manager.data["A"][0])
+    assert first is None or isnan(first)
+    assert sorted_manager.data["A"].to_list()[1:] == [3, 2, 1]

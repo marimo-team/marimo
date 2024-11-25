@@ -207,7 +207,7 @@ def test_data_to_json_string_with_special_characters(
             ],
             "category": ["a", "b", "c"],
         },
-        exclude=["ibis", "duckdb"],
+        exclude=["ibis"],
     ),
 )
 def test_data_to_csv_string_with_different_dtypes(df: IntoDataFrame):
