@@ -1654,5 +1654,5 @@ def _convert_numpy_array(steps: Any) -> list[Numeric]:
         import numpy as np
 
         if isinstance(steps, np.ndarray):
-            return steps.tolist()
-    return steps
+            return steps.tolist()  # type: ignore[no-any-return]
+    return steps  # type: ignore[no-any-return]
