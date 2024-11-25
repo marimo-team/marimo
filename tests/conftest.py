@@ -307,11 +307,6 @@ def temp_marimo_file_with_md() -> Generator[str, None, None]:
         app = marimo.App()
 
         @app.cell
-        def __():
-            import marimo as mo
-            return mo,
-
-        @app.cell
         def __(mo):
             control_dep = None
             mo.md("markdown")
@@ -323,6 +318,15 @@ def temp_marimo_file_with_md() -> Generator[str, None, None]:
             mo.md(f"parametrized markdown {123}")
             return
 
+        @app.cell
+        def __():
+            mo.md("plain markdown")
+            return mo,
+
+        @app.cell
+        def __():
+            import marimo as mo
+            return mo,
 
         if __name__ == "__main__":
             app.run()

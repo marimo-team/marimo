@@ -5,7 +5,7 @@ import base64
 import io
 import mimetypes
 import os
-from typing import Optional, cast
+from typing import Literal, Optional, cast
 
 from marimo import __version__
 from marimo._ast.cell import Cell, CellConfig, CellImpl
@@ -14,6 +14,7 @@ from marimo._config.config import (
     DisplayConfig,
     _deep_copy,
 )
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.utils import build_data_url
 from marimo._runtime import dataflow
@@ -133,13 +134,17 @@ class Exporter:
         ]
         code = f'\n__generated_with = "{__version__}"\n\n' + "\n\n".join(codes)
 
-        download_filename = get_download_filename(file_manager, ".script.py")
+        download_filename = get_download_filename(file_manager, "script.py")
         return code, download_filename
 
     def export_as_ipynb(
         self,
         file_manager: AppFileManager,
+        sort_mode: Literal["top-down", "topological"],
     ) -> tuple[str, str]:
+        DependencyManager.nbformat.require(
+            "to convert marimo notebooks to ipynb"
+        )
         import nbformat  # type: ignore
 
         def create_notebook_cell(cell: CellImpl) -> nbformat.NotebookNode:
@@ -155,15 +160,23 @@ class Exporter:
 
         notebook = nbformat.v4.new_notebook()  # type: ignore
         graph = file_manager.app.graph
+
+        if sort_mode == "top-down":
+            # Get cells in document order
+            cell_ids = list(file_manager.app.cell_manager.cell_ids())
+        else:
+            # Get cells in topological order
+            cell_ids = dataflow.topological_sort(graph, graph.cells.keys())
+
         notebook["cells"] = [
             create_notebook_cell(graph.cells[cid])  # type: ignore
-            for cid in dataflow.topological_sort(graph, graph.cells.keys())
+            for cid in cell_ids
         ]
 
         stream = io.StringIO()
         nbformat.write(notebook, stream)  # type: ignore
         stream.seek(0)
-        download_filename = get_download_filename(file_manager, ".ipynb")
+        download_filename = get_download_filename(file_manager, "ipynb")
         return stream.read(), download_filename
 
     def export_as_md(self, file_manager: AppFileManager) -> tuple[str, str]:
@@ -260,7 +273,7 @@ class Exporter:
             previous_was_markdown = False
             document.append(formatted_code_block(code, attributes))
 
-        download_filename = get_download_filename(file_manager, ".md")
+        download_filename = get_download_filename(file_manager, "md")
         return "\n".join(document).strip(), download_filename
 
 
