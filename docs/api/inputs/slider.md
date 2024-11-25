@@ -15,7 +15,7 @@
     @app.cell
     def __():
         # You can also use steps to create a slider on a custom range
-        log_slider = mo.ui.slider(steps=np.logspace(-2, 2, 101), label="Logarithmic Slider")
+        log_slider = mo.ui.slider(steps=np.logspace(-2, 2, 101), label="Logarithmic Slider", value=1)
         return
 
     @app.cell
