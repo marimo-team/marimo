@@ -281,15 +281,6 @@ def test_range_slider_from_dataframe() -> None:
     assert slider._args.label == "Custom label"
 
 
-@pytest.mark.skipif(not HAS_NUMPY, reason="numpy not installed")
-def test_range_slider_from_np_array() -> None:
-    import numpy as np
-
-    slider = ui.slider(steps=np.array([1, 2, 3]))
-    assert slider.start == 1
-    assert slider.stop == 3
-
-
 def test_text() -> None:
     assert ui.text().value == ""
     assert ui.text(value="hello world").value == "hello world"
@@ -470,3 +461,58 @@ def test_form_in_dictionary_allowed() -> None:
 
 
 # TODO(akshayka): test file
+
+
+@pytest.mark.skipif(not HAS_NUMPY, reason="numpy not installed")
+def test_numpy_steps() -> None:
+    import numpy as np
+
+    steps = np.array([1, 2, 3, 4, 5])
+    slider = ui.slider(steps=steps)
+    assert slider.steps == [1, 2, 3, 4, 5]
+    assert slider.start == 1
+    assert slider.stop == 5
+    assert slider.step is None
+
+    range_slider = ui.range_slider(steps=steps)
+    assert range_slider.steps == [1, 2, 3, 4, 5]
+    assert range_slider.start == 1
+    assert range_slider.stop == 5
+    assert range_slider.step is None
+
+
+@pytest.mark.skipif(not HAS_NUMPY, reason="numpy not installed")
+def test_log_scale() -> None:
+    import numpy as np
+
+    steps = np.logspace(0, 3, 4)
+    slider = ui.slider(steps=steps)
+
+    assert slider.steps == [1, 10, 100, 1000]
+    assert slider.start == 1
+    assert slider.stop == 1000
+    assert slider.step is None
+
+    range_slider = ui.range_slider(steps=steps)
+    assert range_slider.steps == [1, 10, 100, 1000]
+    assert range_slider.start == 1
+    assert range_slider.stop == 1000
+    assert range_slider.step is None
+
+
+@pytest.mark.skipif(not HAS_NUMPY, reason="numpy not installed")
+def test_power_scale() -> None:
+    import numpy as np
+
+    steps = np.power([1, 2, 3], 2)
+    slider = ui.slider(steps=steps)
+    assert slider.steps == [1, 4, 9]
+    assert slider.start == 1
+    assert slider.stop == 9
+    assert slider.step is None
+
+    range_slider = ui.range_slider(steps=steps)
+    assert range_slider.steps == [1, 4, 9]
+    assert range_slider.start == 1
+    assert range_slider.stop == 9
+    assert range_slider.step is None
