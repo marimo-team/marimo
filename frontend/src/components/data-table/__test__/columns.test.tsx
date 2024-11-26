@@ -49,40 +49,64 @@ test("inferFieldTypes", () => {
   ];
   const fieldTypes = inferFieldTypes(data);
   expect(fieldTypes).toMatchInlineSnapshot(`
-    {
-      "a": [
-        "number",
-        "number",
+    [
+      [
+        "a",
+        [
+          "number",
+          "number",
+        ],
       ],
-      "b": [
-        "string",
-        "string",
+      [
+        "b",
+        [
+          "string",
+          "string",
+        ],
       ],
-      "c": [
-        "unknown",
-        "object",
+      [
+        "c",
+        [
+          "unknown",
+          "object",
+        ],
       ],
-      "d": [
-        "unknown",
-        "object",
+      [
+        "d",
+        [
+          "unknown",
+          "object",
+        ],
       ],
-      "e": [
-        "unknown",
-        "object",
+      [
+        "e",
+        [
+          "unknown",
+          "object",
+        ],
       ],
-      "f": [
-        "boolean",
-        "boolean",
+      [
+        "f",
+        [
+          "boolean",
+          "boolean",
+        ],
       ],
-      "g": [
-        "boolean",
-        "boolean",
+      [
+        "g",
+        [
+          "boolean",
+          "boolean",
+        ],
       ],
-      "h": [
-        "datetime",
-        "datetime",
+      [
+        "h",
+        [
+          "datetime",
+          "datetime",
+        ],
       ],
-    }
+    ]
   `);
 });
 
@@ -90,16 +114,22 @@ test("inferFieldTypes with nulls", () => {
   const data = [{ a: 1, b: null }];
   const fieldTypes = inferFieldTypes(data);
   expect(fieldTypes).toMatchInlineSnapshot(`
-    {
-      "a": [
-        "number",
-        "number",
+    [
+      [
+        "a",
+        [
+          "number",
+          "number",
+        ],
       ],
-      "b": [
-        "unknown",
-        "object",
+      [
+        "b",
+        [
+          "unknown",
+          "object",
+        ],
       ],
-    }
+    ]
   `);
 });
 
@@ -107,24 +137,30 @@ test("inferFieldTypes with mimetypes", () => {
   const data = [{ a: { mime: "text/csv" }, b: { mime: "image/png" } }];
   const fieldTypes = inferFieldTypes(data);
   expect(fieldTypes).toMatchInlineSnapshot(`
-    {
-      "a": [
-        "unknown",
-        "object",
+    [
+      [
+        "a",
+        [
+          "unknown",
+          "object",
+        ],
       ],
-      "b": [
-        "unknown",
-        "object",
+      [
+        "b",
+        [
+          "unknown",
+          "object",
+        ],
       ],
-    }
+    ]
   `);
 });
 
 describe("generateColumns", () => {
-  const fieldTypes: FieldTypesWithExternalType = {
-    name: ["string", "text"],
-    age: ["number", "integer"],
-  };
+  const fieldTypes: FieldTypesWithExternalType = [
+    ["name", ["string", "text"]],
+    ["age", ["number", "integer"]],
+  ];
 
   it("should generate columns with row headers", () => {
     const columns = generateColumns({

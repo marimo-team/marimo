@@ -2,19 +2,19 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Optional, Union, cast
+from typing import Any, Optional, Tuple, Union, cast
 
 import narwhals.stable.v1 as nw
 from narwhals.typing import IntoFrameT
 
-from marimo._data.models import ColumnSummary
+from marimo._data.models import ColumnSummary, ExternalDataType
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_value,
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
-    FieldTypes,
+    FieldType,
     TableManager,
 )
 from marimo._utils.narwhals_utils import (
@@ -101,24 +101,23 @@ class NarwhalsTableManager(
     def is_type(value: Any) -> bool:
         return can_narwhalify(value)
 
-    def get_field_types(self) -> FieldTypes:
-        field_types: FieldTypes = {}
-        for column, dtype in self.data.schema.items():
-            dtype_string = str(dtype)
-            if is_narwhals_string_type(dtype):
-                field_types[column] = ("string", dtype_string)
-            elif dtype == nw.Boolean:
-                field_types[column] = ("boolean", dtype_string)
-            elif is_narwhals_integer_type(dtype):
-                field_types[column] = ("integer", dtype_string)
-            elif is_narwhals_temporal_type(dtype):
-                field_types[column] = ("date", dtype_string)
-            elif dtype.is_numeric():
-                field_types[column] = ("number", dtype_string)
-            else:
-                field_types[column] = ("unknown", dtype_string)
-
-        return field_types
+    def get_field_type(
+        self, column_name: str
+    ) -> Tuple[FieldType, ExternalDataType]:
+        dtype = self.data.schema[column_name]
+        dtype_string = str(dtype)
+        if is_narwhals_string_type(dtype):
+            return ("string", dtype_string)
+        elif dtype == nw.Boolean:
+            return ("boolean", dtype_string)
+        elif is_narwhals_integer_type(dtype):
+            return ("integer", dtype_string)
+        elif is_narwhals_temporal_type(dtype):
+            return ("date", dtype_string)
+        elif dtype.is_numeric():
+            return ("number", dtype_string)
+        else:
+            return ("unknown", dtype_string)
 
     def take(self, count: int, offset: int) -> TableManager[Any]:
         if count < 0:

@@ -121,13 +121,13 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         assert not self.manager.is_type("not a table")
 
     def test_get_field_types(self) -> None:
-        expected_field_types = {
-            "A": ("integer", "int64"),
-            "B": ("string", "string"),
-            "C": ("number", "float64"),
-            "D": ("boolean", "boolean"),
-            "E": ("datetime", "timestamp"),
-        }
+        expected_field_types = [
+            ("A", ("integer", "int64")),
+            ("B", ("string", "string")),
+            ("C", ("number", "float64")),
+            ("D", ("boolean", "boolean")),
+            ("E", ("datetime", "timestamp")),
+        ]
         assert self.manager.get_field_types() == expected_field_types
 
     def test_limit(self) -> None:
@@ -273,8 +273,7 @@ class TestIbisTableManagerFactory(unittest.TestCase):
 
         table = ibis.memtable({"A": [1, "two", 3.0, True]})
         manager = self.factory.create()(table)
-        field_types = manager.get_field_types()
-        assert field_types["A"] == ("unknown", "unknown")
+        assert manager.get_field_type("A") == ("unknown", "unknown")
 
     def test_search_with_regex(self) -> None:
         import ibis

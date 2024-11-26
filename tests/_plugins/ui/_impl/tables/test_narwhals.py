@@ -186,13 +186,13 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
     def test_get_field_types(self) -> None:
         import polars as pl
 
-        expected_field_types = {
-            "A": ("integer", "Int64"),
-            "B": ("string", "String"),
-            "C": ("number", "Float64"),
-            "D": ("boolean", "Boolean"),
-            "E": ("date", "Datetime(time_unit='us', time_zone=None)"),
-        }
+        expected_field_types = [
+            ("A", ("integer", "Int64")),
+            ("B", ("string", "String")),
+            ("C", ("number", "Float64")),
+            ("D", ("boolean", "Boolean")),
+            ("E", ("date", "Datetime(time_unit='us', time_zone=None)")),
+        ]
         assert self.manager.get_field_types() == expected_field_types
 
         complex_data = pl.DataFrame(
@@ -221,18 +221,18 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
                 ],
             }
         )
-        expected_field_types = {
-            "A": ("integer", "Int64"),
-            "B": ("string", "String"),
-            "C": ("number", "Float64"),
-            "D": ("boolean", "Boolean"),
-            "E": ("unknown", "Object"),
-            "F": ("unknown", "Unknown"),
-            "G": ("unknown", "Object"),
-            "H": ("date", "Datetime(time_unit='us', time_zone=None)"),
-            "I": ("string", "String"),
-            "J": ("string", "String"),
-        }
+        expected_field_types = [
+            ("A", ("integer", "Int64")),
+            ("B", ("string", "String")),
+            ("C", ("number", "Float64")),
+            ("D", ("boolean", "Boolean")),
+            ("E", ("unknown", "Object")),
+            ("F", ("unknown", "Unknown")),
+            ("G", ("unknown", "Object")),
+            ("H", ("date", "Datetime(time_unit='us', time_zone=None)")),
+            ("I", ("string", "String")),
+            ("J", ("string", "String")),
+        ]
         assert (
             NarwhalsTableManager.from_dataframe(complex_data).get_field_types()
             == expected_field_types
@@ -686,7 +686,7 @@ def test_empty_dataframe(df: Any) -> None:
     assert empty_manager.get_num_rows() == 0
     assert empty_manager.get_num_columns() == 0
     assert empty_manager.get_column_names() == []
-    assert empty_manager.get_field_types() == {}
+    assert empty_manager.get_field_types() == []
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -712,8 +712,7 @@ def test_dataframe_with_all_null_column(df: Any) -> None:
 )
 def test_dataframe_with_mixed_types(df: Any) -> None:
     manager = NarwhalsTableManager.from_dataframe(df)
-    field_types = manager.get_field_types()
-    assert field_types["A"] == ("string", "String")
+    assert manager.get_field_type("A") == ("string", "String")
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

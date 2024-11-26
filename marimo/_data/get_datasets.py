@@ -34,7 +34,7 @@ def _get_data_table(value: object, variable_name: str) -> Optional[DataTable]:
                 type=column_type[0],
                 external_type=column_type[1],
             )
-            for column_name, column_type in table.get_field_types().items()
+            for column_name, column_type in table.get_field_types()
         ]
         return DataTable(
             name=variable_name,

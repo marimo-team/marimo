@@ -17,6 +17,8 @@ import { UrlDetector } from "./url-detector";
 import { cn } from "@/utils/cn";
 import { uniformSample } from "./uniformSample";
 import { DatePopover } from "./date-popover";
+import { Objects } from "@/utils/objects";
+import { Maps } from "@/utils/maps";
 
 function inferDataType(value: unknown): [type: DataType, displayType: string] {
   if (typeof value === "string") {
@@ -40,15 +42,15 @@ function inferDataType(value: unknown): [type: DataType, displayType: string] {
 export function inferFieldTypes<T>(items: T[]): FieldTypesWithExternalType {
   // No items
   if (items.length === 0) {
-    return {};
+    return [];
   }
 
   // Not an object
   if (typeof items[0] !== "object") {
-    return {};
+    return [];
   }
 
-  const fieldTypes: FieldTypesWithExternalType = {};
+  const fieldTypes: Record<string, [DataType, string]> = {};
 
   // This can be slow for large datasets,
   // so only sample 10 evenly distributed rows
@@ -73,7 +75,7 @@ export function inferFieldTypes<T>(items: T[]): FieldTypesWithExternalType {
     });
   });
 
-  return fieldTypes;
+  return Objects.entries(fieldTypes);
 }
 
 export const NAMELESS_COLUMN_PREFIX = "__m_column__";
@@ -95,8 +97,10 @@ export function generateColumns<T>({
 }): Array<ColumnDef<T>> {
   const rowHeadersSet = new Set(rowHeaders);
 
+  const typesByColumn = Maps.keyBy(fieldTypes, (entry) => entry[0]);
+
   const getMeta = (key: string) => {
-    const types = fieldTypes[key];
+    const types = typesByColumn.get(key)?.[1];
     const isRowHeader = rowHeadersSet.has(key);
 
     if (isRowHeader || !types) {
@@ -113,7 +117,10 @@ export function generateColumns<T>({
     };
   };
 
-  const columnKeys = [...rowHeaders, ...Object.keys(fieldTypes)];
+  const columnKeys = [
+    ...rowHeaders,
+    ...fieldTypes.map(([columnName]) => columnName),
+  ];
   const columns = columnKeys.map(
     (key, idx): ColumnDef<T> => ({
       id: key || `${NAMELESS_COLUMN_PREFIX}${idx}`,

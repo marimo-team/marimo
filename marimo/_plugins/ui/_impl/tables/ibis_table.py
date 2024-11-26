@@ -20,7 +20,6 @@ from marimo._plugins.ui._impl.tables.polars_table import (
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
     FieldType,
-    FieldTypes,
     TableManager,
     TableManagerFactory,
 )
@@ -81,12 +80,6 @@ class IbisTableManagerFactory(TableManagerFactory):
             @staticmethod
             def is_type(value: Any) -> bool:
                 return isinstance(value, ibis.Table)
-
-            def get_field_types(self) -> FieldTypes:
-                return {
-                    column: IbisTableManager._get_field_type(self.data[column])
-                    for column in self.data.columns
-                }
 
             def take(self, count: int, offset: int) -> IbisTableManager:
                 if count < 0:
@@ -177,10 +170,10 @@ class IbisTableManagerFactory(TableManagerFactory):
                 )
                 return IbisTableManager(sorted_data)
 
-            @staticmethod
-            def _get_field_type(
-                column: ibis.expr.types.Column,
+            def get_field_type(
+                self, column_name: str
             ) -> Tuple[FieldType, ExternalDataType]:
+                column = self.data[column_name]
                 dtype = column.type()
                 if dtype.is_string():
                     return ("string", str(dtype))
