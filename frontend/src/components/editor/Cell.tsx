@@ -636,7 +636,7 @@ const CellComponent = (
                   runStartTimestamp={runStartTimestamp}
                   uninstantiated={uninstantiated}
                   lastRunStartTimestamp={lastRunStartTimestamp}
-              />
+                />
               </div>
               <div className="flex gap-2 items-end">
                 <CellDragHandle />
