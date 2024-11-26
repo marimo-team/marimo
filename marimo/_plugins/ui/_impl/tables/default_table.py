@@ -7,11 +7,12 @@ from typing import (
     List,
     Optional,
     Sequence,
+    Tuple,
     Union,
     cast,
 )
 
-from marimo._data.models import ColumnSummary
+from marimo._data.models import ColumnSummary, ExternalDataType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.mime import MIME
 from marimo._plugins.core.web_component import JSONType
@@ -28,6 +29,8 @@ from marimo._plugins.ui._impl.tables.polars_table import (
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
+    FieldType,
+    FieldTypes,
     TableManager,
 )
 
@@ -187,6 +190,17 @@ class DefaultTableManager(TableManager[JsonTableData]):
         )
 
     def get_row_headers(self) -> list[str]:
+        return []
+
+    def get_field_type(
+        self, column_name: str
+    ) -> Tuple[FieldType, ExternalDataType]:
+        del column_name
+        return ("unknown", "object")
+
+    # By default, don't provide any field types
+    # so the frontend can infer them
+    def get_field_types(self) -> FieldTypes:
         return []
 
     def _as_table_manager(self) -> TableManager[Any]:

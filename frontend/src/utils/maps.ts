@@ -30,6 +30,16 @@ export const Maps = {
 
     return map;
   },
+  collect<T, V, K = string>(
+    items: Iterable<T>,
+    key: (item: NoInfer<T>) => K,
+    mapper: (item: NoInfer<T>) => V,
+  ): Map<K, V> {
+    return Maps.mapValues(Maps.keyBy(items, key), mapper);
+  },
+  /**
+   * Filter a map by a predicate.
+   */
   filterMap<K, V>(
     map: Map<K, V>,
     predicate: (value: V, key: K) => boolean,

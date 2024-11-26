@@ -309,7 +309,7 @@ class TestColumnarDefaultTable(unittest.TestCase):
         assert not self.manager.is_type("not a dataframe")
 
     def test_get_field_types(self) -> None:
-        assert self.manager.get_field_types() == {}
+        assert self.manager.get_field_types() == []
 
     def test_limit(self) -> None:
         limited_manager = self.manager.take(1, 0)

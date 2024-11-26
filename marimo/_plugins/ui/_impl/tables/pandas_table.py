@@ -13,7 +13,6 @@ from marimo._plugins.ui._impl.tables.format import (
 from marimo._plugins.ui._impl.tables.narwhals_table import NarwhalsTableManager
 from marimo._plugins.ui._impl.tables.table_manager import (
     FieldType,
-    FieldTypes,
     TableManager,
     TableManagerFactory,
 )
@@ -112,17 +111,11 @@ class PandasTableManagerFactory(TableManagerFactory):
 
             # We override the default implementation to use pandas's
             # internal fields since they get displayed in the UI.
-            def get_field_types(self) -> FieldTypes:
-                data = self.as_pandas_frame()
-                return {
-                    column: PandasTableManager._get_field_type(data[column])
-                    for column in data.columns
-                }
-
-            @staticmethod
-            def _get_field_type(
-                series: pd.Series[Any] | pd.DataFrame,
+            def get_field_type(
+                self, column_name: str
             ) -> Tuple[FieldType, ExternalDataType]:
+                data = self.as_pandas_frame()
+                series = data[column_name]
                 # If a df has duplicate columns, it won't be a series, but
                 # a dataframe. In this case, we take the dtype of the columns
                 if isinstance(series, pd.DataFrame):

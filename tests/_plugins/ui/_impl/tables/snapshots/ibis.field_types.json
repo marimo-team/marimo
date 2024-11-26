@@ -1,10 +1,10 @@
-{
-  "strings": ["string", "string"],
-  "bool": ["boolean", "boolean"],
-  "int": ["integer", "int64"],
-  "float": ["number", "float64"],
-  "date": ["date", "date"],
-  "datetime": ["datetime", "timestamp"],
-  "time": ["time", "time"],
-  "nulls": ["string", "string"]
-}
+[
+  ["strings", ["string", "string"]],
+  ["bool", ["boolean", "boolean"]],
+  ["int", ["integer", "int64"]],
+  ["float", ["number", "float64"]],
+  ["date", ["date", "date"]],
+  ["datetime", ["datetime", "timestamp"]],
+  ["time", ["time", "time"]],
+  ["nulls", ["string", "string"]]
+]

@@ -17,9 +17,10 @@ import { ColumnChartSpecModel } from "@/components/data-table/chart-spec-model";
 import { ColumnChartContext } from "@/components/data-table/column-summary";
 import { Logger } from "@/utils/Logger";
 
-import type {
-  ColumnHeaderSummary,
-  FieldTypesWithExternalType,
+import {
+  toFieldTypes,
+  type ColumnHeaderSummary,
+  type FieldTypesWithExternalType,
 } from "@/components/data-table/types";
 import type {
   ColumnFiltersState,
@@ -35,7 +36,6 @@ import {
   type ColumnFilterValue,
   filterToFilterCondition,
 } from "@/components/data-table/filters";
-import { Objects } from "@/utils/objects";
 import React from "react";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { Arrays } from "@/utils/arrays";
@@ -118,7 +118,9 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         .record(z.enum(["left", "center", "right"]))
         .optional(),
       wrappedColumns: z.array(z.string()).optional(),
-      fieldTypes: z.record(z.tuple([z.enum(DATA_TYPES), z.string()])).nullish(),
+      fieldTypes: z
+        .array(z.tuple([z.string(), z.tuple([z.enum(DATA_TYPES), z.string()])]))
+        .nullish(),
     }),
   )
   .withFunctions<Functions>({
@@ -309,10 +311,7 @@ export const LoadingDataTableComponent = memo(
         };
       }
 
-      const withoutExternalTypes = Objects.mapValues(
-        props.fieldTypes ?? {},
-        ([type]) => type,
-      );
+      const withoutExternalTypes = toFieldTypes(props.fieldTypes ?? []);
 
       // Otherwise, load the data from the URL
       tableData = await vegaLoadData(
@@ -451,10 +450,7 @@ const DataTableComponent = ({
     if (!fieldTypes || !columnSummaries.summaries) {
       return ColumnChartSpecModel.EMPTY;
     }
-    const fieldTypesWithoutExternalTypes = Objects.mapValues(
-      fieldTypes,
-      ([type]) => type,
-    );
+    const fieldTypesWithoutExternalTypes = toFieldTypes(fieldTypes);
     return new ColumnChartSpecModel(
       columnSummaries.data || [],
       fieldTypesWithoutExternalTypes,

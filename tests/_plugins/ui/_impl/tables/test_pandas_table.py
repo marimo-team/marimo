@@ -207,14 +207,14 @@ class TestPandasTableManager(unittest.TestCase):
         assert not self.manager.is_type("not a dataframe")
 
     def test_get_field_types(self) -> None:
-        expected_field_types = {
-            "A": ("integer", "int64"),
-            "B": ("string", "object"),
-            "C": ("number", "float64"),
-            "D": ("boolean", "bool"),
-            "E": ("datetime", "datetime64[ns]"),
-            "F": ("string", "object"),
-        }
+        expected_field_types = [
+            ("A", ("integer", "int64")),
+            ("B", ("string", "object")),
+            ("C", ("number", "float64")),
+            ("D", ("boolean", "bool")),
+            ("E", ("datetime", "datetime64[ns]")),
+            ("F", ("string", "object")),
+        ]
         assert self.manager.get_field_types() == expected_field_types
 
         complex_data = pd.DataFrame(
@@ -243,18 +243,18 @@ class TestPandasTableManager(unittest.TestCase):
                 ],
             }
         )
-        expected_field_types = {
-            "A": ("integer", "int64"),
-            "B": ("string", "object"),
-            "C": ("number", "float64"),
-            "D": ("boolean", "bool"),
-            "E": ("unknown", "complex128"),
-            "F": ("string", "object"),
-            "G": ("string", "object"),
-            "H": ("datetime", "datetime64[ns]"),
-            "I": ("string", "timedelta64[ns]"),
-            "J": ("string", "interval[int64, right]"),
-        }
+        expected_field_types = [
+            ("A", ("integer", "int64")),
+            ("B", ("string", "object")),
+            ("C", ("number", "float64")),
+            ("D", ("boolean", "bool")),
+            ("E", ("unknown", "complex128")),
+            ("F", ("string", "object")),
+            ("G", ("string", "object")),
+            ("H", ("datetime", "datetime64[ns]")),
+            ("I", ("string", "timedelta64[ns]")),
+            ("J", ("string", "interval[int64, right]")),
+        ]
         assert (
             self.factory.create()(complex_data).get_field_types()
             == expected_field_types
@@ -272,9 +272,9 @@ class TestPandasTableManager(unittest.TestCase):
             }
         )
         data = data.rename(columns={"A": "B"})
-        expected_field_types = {
-            "B": ("string", "object"),
-        }
+        expected_field_types = [
+            ("B", ("string", "object")),
+        ]
         assert (
             self.factory.create()(data).get_field_types()
             == expected_field_types
@@ -288,9 +288,9 @@ class TestPandasTableManager(unittest.TestCase):
             }
         )
         data = data.rename(columns={"A": "B"})
-        expected_field_types = {
-            "B": ("string", "object"),
-        }
+        expected_field_types = [
+            ("B", ("string", "object")),
+        ]
         assert (
             self.factory.create()(data).get_field_types()
             == expected_field_types
@@ -304,9 +304,9 @@ class TestPandasTableManager(unittest.TestCase):
             }
         )
         data = data.rename(columns={"A": "B"})
-        expected_field_types = {
-            "B": ("string", "object"),
-        }
+        expected_field_types = [
+            ("B", ("string", "object")),
+        ]
         assert (
             self.factory.create()(data).get_field_types()
             == expected_field_types
@@ -748,7 +748,7 @@ class TestPandasTableManager(unittest.TestCase):
         assert empty_manager.get_num_rows() == 0
         assert empty_manager.get_num_columns() == 0
         assert empty_manager.get_column_names() == []
-        assert empty_manager.get_field_types() == {}
+        assert empty_manager.get_field_types() == []
 
     def test_dataframe_with_all_null_column(self) -> None:
         df = pd.DataFrame({"A": [1, 2, 3], "B": [None, None, None]})
@@ -761,8 +761,7 @@ class TestPandasTableManager(unittest.TestCase):
     def test_dataframe_with_mixed_types(self) -> None:
         df = pd.DataFrame({"A": [1, "two", 3.0, True]})
         manager = self.factory.create()(df)
-        field_types = manager.get_field_types()
-        assert field_types["A"] == ("string", "object")
+        assert manager.get_field_type("A") == ("string", "object")
 
     def test_search_with_regex(self) -> None:
         df = pd.DataFrame({"A": ["apple", "banana", "cherry"]})
@@ -812,8 +811,10 @@ class TestPandasTableManager(unittest.TestCase):
             }
         )
         manager = self.factory.create()(data)
-        field_types = manager.get_field_types()
 
-        assert field_types["date_col"] == ("string", "object")
-        assert field_types["datetime_col"] == ("datetime", "datetime64[ns]")
-        assert field_types["time_col"] == ("string", "object")
+        assert manager.get_field_type("date_col") == ("string", "object")
+        assert manager.get_field_type("datetime_col") == (
+            "datetime",
+            "datetime64[ns]",
+        )
+        assert manager.get_field_type("time_col") == ("string", "object")

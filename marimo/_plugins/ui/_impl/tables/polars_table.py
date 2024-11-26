@@ -15,7 +15,6 @@ from marimo._plugins.ui._impl.tables.format import (
 from marimo._plugins.ui._impl.tables.narwhals_table import NarwhalsTableManager
 from marimo._plugins.ui._impl.tables.table_manager import (
     FieldType,
-    FieldTypes,
     TableManager,
     TableManagerFactory,
 )
@@ -140,16 +139,6 @@ class PolarsTableManagerFactory(TableManagerFactory):
             def is_type(value: Any) -> bool:
                 return isinstance(value, pl.DataFrame)
 
-            # We override the default implementation to use polars's
-            # internal fields since they get displayed in the UI.
-            def get_field_types(self) -> FieldTypes:
-                return {
-                    column: PolarsTableManager._get_field_type(dtype)
-                    for column, dtype in self.schema().items()
-                }
-
-            # We override the default implementation since
-            # polars supports list expressions
             def search(self, query: str) -> PolarsTableManager:
                 query = query.lower()
 
@@ -180,10 +169,12 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 filtered = self.as_polars_frame().filter(or_expr)
                 return PolarsTableManager(filtered)
 
-            @staticmethod
-            def _get_field_type(
-                dtype: pl.DataType,
+            # We override the default implementation to use polars's
+            # internal fields since they get displayed in the UI.
+            def get_field_type(
+                self, column_name: str
             ) -> Tuple[FieldType, ExternalDataType]:
+                dtype = self.schema()[column_name]
                 try:
                     dtype_string = dtype._string_repr()
                 except (TypeError, AttributeError):
