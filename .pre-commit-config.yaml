@@ -18,19 +18,19 @@ repos:
       - id: validate-pyproject
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.42.0
+    rev: v0.43.0
     hooks:
       - id: markdownlint-fix
         args: [-c, configs/.markdownlint.yaml, --fix, --disable, MD028]
         exclude: ^marimo/_tutorials/.*\.md
 
   - repo: https://github.com/crate-ci/typos
-    rev: typos-dict-v0.11.35
+    rev: v1.28.0
     hooks:
       - id: typos
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.7.4
+    rev: v0.8.0
     hooks:
       # Run the linter
       - id: ruff
