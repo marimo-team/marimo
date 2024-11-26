@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <base href='/' />
     <meta charset="utf-8" />
     <link rel="icon" crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist/favicon.ico" />
     <!-- Preload is necessary because we show these images when we disconnect from the server,
