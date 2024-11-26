@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from typing import Dict
 
 from marimo import _loggers
@@ -43,7 +44,7 @@ class DefaultFormatter(Formatter):
 class RuffFormatter(Formatter):
     def format(self, codes: CellCodes) -> CellCodes:
         try:
-            process = subprocess.run("ruff", capture_output=True)
+            process = subprocess.run(f"{sys.prefix}/ruff", capture_output=True)
         except FileNotFoundError:
             LOGGER.warning(
                 "To enable code formatting, install ruff (pip install ruff)"
@@ -55,7 +56,7 @@ class RuffFormatter(Formatter):
             try:
                 process = subprocess.run(
                     [
-                        "ruff",
+                        f"{sys.prefix}/ruff",
                         "format",
                         "--line-length",
                         str(self.line_length),
