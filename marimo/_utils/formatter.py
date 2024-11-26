@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import platform
 import subprocess
 import sys
 from pathlib import Path
@@ -46,11 +47,15 @@ class RuffFormatter(Formatter):
     def format(self, codes: CellCodes) -> CellCodes:
         # first look for ruff next to sys.executable
         ruff_path = Path(sys.prefix) / "ruff"
-        if not ruff_path.exists():
+        if platform.system() == "Windows":
+            ruff_path = ruff_path.with_suffix(".exe")
+        if ruff_path.exists():
             # fall back to ruff on PATH
-            ruff_path = "ruff"
+            ruff_cmd = "ruff"
+        else:
+            ruff_cmd = ruff_path.as_posix()
         try:
-            process = subprocess.run(ruff_path.as_posix(), capture_output=True)
+            process = subprocess.run(ruff_cmd, capture_output=True)
         except FileNotFoundError:
             LOGGER.warning(
                 "To enable code formatting, install ruff (pip install ruff)"
@@ -62,7 +67,7 @@ class RuffFormatter(Formatter):
             try:
                 process = subprocess.run(
                     [
-                        ruff_path.as_posix(),
+                        ruff_cmd,
                         "format",
                         "--line-length",
                         str(self.line_length),
