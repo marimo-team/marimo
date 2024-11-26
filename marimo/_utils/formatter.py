@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from pathlib import Path
 from typing import Dict
 
 from marimo import _loggers
@@ -43,8 +44,13 @@ class DefaultFormatter(Formatter):
 
 class RuffFormatter(Formatter):
     def format(self, codes: CellCodes) -> CellCodes:
+        # first look for ruff next to sys.executable
+        ruff_path = Path(sys.prefix) / "ruff"
+        if not ruff_path.exists():
+            # fall back to ruff on PATH
+            ruff_path = "ruff"
         try:
-            process = subprocess.run(f"{sys.prefix}/ruff", capture_output=True)
+            process = subprocess.run(ruff_path.as_posix(), capture_output=True)
         except FileNotFoundError:
             LOGGER.warning(
                 "To enable code formatting, install ruff (pip install ruff)"
@@ -56,7 +62,7 @@ class RuffFormatter(Formatter):
             try:
                 process = subprocess.run(
                     [
-                        f"{sys.prefix}/ruff",
+                        ruff_path.as_posix(),
                         "format",
                         "--line-length",
                         str(self.line_length),
