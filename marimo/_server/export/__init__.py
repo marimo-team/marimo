@@ -52,6 +52,23 @@ def export_as_ipynb(
     return Exporter().export_as_ipynb(file_manager, sort_mode=sort_mode)
 
 
+async def run_app_then_export_as_ipynb(
+    path: MarimoPath,
+    sort_mode: Literal["top-down", "topological"],
+    cli_args: SerializedCLIArgs,
+) -> tuple[str, str]:
+    file_router = AppFileRouter.from_filename(path)
+    file_key = file_router.get_unique_file_key()
+    assert file_key is not None
+    file_manager = file_router.get_file_manager(file_key)
+
+    session_view = await run_app_until_completion(file_manager, cli_args)
+
+    return Exporter().export_as_ipynb(
+        file_manager, sort_mode=sort_mode, session_view=session_view
+    )
+
+
 async def run_app_then_export_as_html(
     path: MarimoPath,
     include_code: bool,

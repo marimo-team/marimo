@@ -14,6 +14,7 @@ from marimo._server.export import (
     export_as_md,
     export_as_script,
     run_app_then_export_as_html,
+    run_app_then_export_as_ipynb,
 )
 from marimo._server.utils import asyncio_run
 from marimo._utils.file_watcher import FileWatcher
@@ -295,18 +296,32 @@ Requires nbformat to be installed.
     will be printed to stdout.
     """,
 )
+@click.option(
+    "--include-outputs/--no-include-outputs",
+    default=False,
+    show_default=True,
+    type=bool,
+    help="Run the notebook and include outputs in the exported ipynb file.",
+)
 @click.argument("name", required=True)
 def ipynb(
     name: str,
     output: str,
     watch: bool,
     sort: Literal["top-down", "topological"],
+    include_outputs: bool,
 ) -> None:
     """
     Export a marimo notebook as a Jupyter notebook in topological order.
     """
 
     def export_callback(file_path: MarimoPath) -> str:
+        if include_outputs:
+            return asyncio_run(
+                run_app_then_export_as_ipynb(
+                    file_path, sort_mode=sort, cli_args={}
+                )
+            )[0]
         return export_as_ipynb(file_path, sort_mode=sort)[0]
 
     DependencyManager.nbformat.require(

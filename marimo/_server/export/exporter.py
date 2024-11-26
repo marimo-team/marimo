@@ -165,7 +165,7 @@ class Exporter:
         notebook["cells"] = []
         for cid in cell_ids:
             cell = graph.cells[cid]
-            outputs: list[dict[str, Any]] | None = None
+            outputs: list[nbformat.NotebookNode] = []
 
             if session_view is not None:
                 # Get outputs for this cell and convert to IPython format
@@ -181,6 +181,8 @@ class Exporter:
 
             notebook_cell = _create_notebook_cell(cell, outputs)
             notebook["cells"].append(notebook_cell)
+
+        # notebook.metadata["marimo-version"] = __version__
 
         stream = io.StringIO()
         nbformat.write(notebook, stream)
@@ -333,7 +335,7 @@ def hash_code(code: str) -> str:
 
 
 def _create_notebook_cell(
-    cell: CellImpl, outputs: list[dict[str, Any]] | None = None
+    cell: CellImpl, outputs: list["nbformat.NotebookNode"]
 ) -> "nbformat.NotebookNode":
     import nbformat  # type: ignore
 
@@ -351,47 +353,59 @@ def _create_notebook_cell(
 
 def _convert_marimo_output_to_ipynb(
     output: Optional[CellOutput], console_outputs: list[CellOutput]
-) -> list[dict[str, Any]]:
+) -> list["nbformat.NotebookNode"]:
     """Convert marimo output format to IPython notebook format."""
-    ipynb_outputs: list[dict[str, Any]] = []
+    import nbformat
+
+    ipynb_outputs: list[nbformat.NotebookNode] = []
 
     # Handle stdout/stderr
     for output in console_outputs:
         if output.channel == CellChannel.STDOUT:
             ipynb_outputs.append(
-                {
-                    "output_type": "stream",
-                    "name": "stdout",
-                    "text": output.data,
-                }
+                nbformat.v4.new_output(
+                    "stream",
+                    name="stdout",
+                    text=output.data,
+                )
             )
         if output.channel == CellChannel.STDERR:
             ipynb_outputs.append(
-                {
-                    "output_type": "stream",
-                    "name": "stderr",
-                    "text": output.data,
-                }
+                nbformat.v4.new_output(
+                    "stream",
+                    name="stderr",
+                    text=output.data,
+                )
             )
+
+    if not output:
+        return ipynb_outputs
+
+    if output.data is None:
+        return ipynb_outputs
+
+    if output.channel not in (CellChannel.OUTPUT, CellChannel.MEDIA):
+        return ipynb_outputs
 
     # Handle rich output
-    if output is not None and output.data:
-        data: dict[str, Any] = {}
-        metadata: dict[str, Any] = {}
+    data: dict[str, Any] = {}
 
-        if output.mimetype == "application/vnd.marimo+mimebundle":
-            for mime, content in cast(dict[str, Any], output.data).items():
-                data[mime] = content
-        else:
-            data[output.mimetype] = output.data
+    if output.mimetype == "application/vnd.marimo+error":
+        # Captured by stdout/stderr
+        return ipynb_outputs
+    elif output.mimetype == "application/vnd.marimo+mimebundle":
+        for mime, content in cast(dict[str, Any], output.data).items():
+            data[mime] = content
+    else:
+        data[output.mimetype] = output.data
 
-        if data:
-            ipynb_outputs.append(
-                {
-                    "output_type": "display_data",
-                    "data": data,
-                    "metadata": metadata,
-                }
+    if data:
+        ipynb_outputs.append(
+            nbformat.v4.new_output(
+                "display_data",
+                data=data,
+                metadata={},
             )
+        )
 
     return ipynb_outputs
