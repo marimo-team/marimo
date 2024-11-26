@@ -8595,7 +8595,7 @@ packages:
     engines: {node: '>=12.20'}
 
   zod-to-json-schema@3.22.5:
-    resolution: {integrity: sha512-+akaPo6a0zpVCCseDed504KBJUQpEW5QZw7RMneNmKw+fGaML1Z9tUNLnHHAC8x6dzVRO1eB2oEMyZRnuBZg7Q==}
+    resolution: {integrity: sha512-+akaPo6a0zpVCCseDead504KBJUQpEW5QZw7RMneNmKw+fGaML1Z9tUNLnHHAC8x6dzVRO1eB2oEMyZRnuBZg7Q==}
     peerDependencies:
       zod: ^3.22.4
 
@@ -13595,12 +13595,12 @@ snapshots:
 
   cytoscape-cose-bilkent@4.1.0(cytoscape@3.30.2):
     dependencies:
-      cose-base: 1.0.3
+      case-base: 1.0.3
       cytoscape: 3.30.2
 
   cytoscape-fcose@2.2.0(cytoscape@3.30.2):
     dependencies:
-      cose-base: 2.2.0
+      case-base: 2.2.0
       cytoscape: 3.30.2
 
   cytoscape@3.30.2: {}
@@ -15614,7 +15614,7 @@ snapshots:
       '@iconify/utils': 2.1.33
       '@mermaid-js/parser': 0.3.0
       cytoscape: 3.30.2
-      cytoscape-cose-bilkent: 4.1.0(cytoscape@3.30.2)
+      cytoscape-case-bilkent: 4.1.0(cytoscape@3.30.2)
       cytoscape-fcose: 2.2.0(cytoscape@3.30.2)
       d3: 7.9.0
       d3-sankey: 0.12.3
