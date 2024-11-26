@@ -44,7 +44,7 @@ class DefaultFormatter(Formatter):
 class RuffFormatter(Formatter):
     def format(self, codes: CellCodes) -> CellCodes:
         ruff_cmd = [sys.executable, "-m", "ruff"]
-        process = subprocess.run([*ruff_cmd, "--help"])
+        process = subprocess.run([*ruff_cmd, "--help"], capture_output=True)
         if process.returncode != 0:
             LOGGER.warning(
                 "To enable code formatting, install ruff (pip install ruff)"
