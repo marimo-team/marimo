@@ -241,11 +241,6 @@ export const LoadingDataTableComponent = memo(
       }
     }, [props.pageSize, paginationState.pageSize]);
 
-    // If total rows change, reset pageIndex
-    useEffect(() => {
-      setPaginationState((state) => ({ ...state, pageIndex: 0 }));
-    }, [props.totalRows]);
-
     // Data loading
     const { data, loading, error } = useAsyncData<{
       rows: T[];
@@ -334,6 +329,13 @@ export const LoadingDataTableComponent = memo(
       paginationState.pageSize,
       paginationState.pageIndex,
     ]);
+
+    // If total rows change, reset pageIndex
+    useEffect(() => {
+      setPaginationState((state) =>
+        state.pageIndex === 0 ? state : { ...state, pageIndex: 0 },
+      );
+    }, [data?.totalRows]);
 
     // Column summaries
     const { data: columnSummaries, error: columnSummariesError } = useAsyncData<

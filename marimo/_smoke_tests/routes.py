@@ -80,7 +80,7 @@ def __(mo):
         - **reactive**: run a cell, and marimo automatically runs all dependent cells
         - **interactive**: bind sliders, tables, plots, and more to Python — no callbacks required
         - **reproducible**: no hidden state, deterministic execution
-        - **executable**: execute as a Python script, parametrized by CLI args
+        - **executable**: execute as a Python script, parameterized by CLI args
         - **shareable**: deploy as an interactive web app, or run in the browser via WASM
         - **git-friendly**: stored as `.py` files
 

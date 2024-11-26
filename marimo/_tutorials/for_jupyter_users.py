@@ -258,7 +258,7 @@ def __(mo):
     mo.md(
         rf"""
         **Explanation.** By lifting Markdown into Python, marimo lets you construct
-        dynamic Markdown parametrized by arbitrary Python elements. marimo knows
+        dynamic Markdown parameterized by arbitrary Python elements. marimo knows
         how to render its own elements, and you can use `mo.as_html` to render other
         objects, like plots.
 

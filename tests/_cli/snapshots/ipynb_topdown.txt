@@ -19,7 +19,7 @@
    "outputs": [],
    "source": [
     "control_dep\n",
-    "mo.md(f\"parametrized markdown {123}\")"
+    "mo.md(f\"parameterized markdown {123}\")"
    ]
   },
   {
