@@ -416,6 +416,7 @@ pn = "pn"         # Panel
 extend-exclude = [
     "MultiSelectPlugin.test.ts",
     "module_name_to_pypi_name.py",
+    "**/pnpm-lock.yaml",
     "**/snapshots/*",
     "**/__demo__/*",
     "base64.test.ts",
