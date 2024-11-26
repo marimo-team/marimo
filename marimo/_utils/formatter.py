@@ -1,10 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import platform
 import subprocess
 import sys
-from pathlib import Path
 from typing import Dict
 
 from marimo import _loggers
@@ -45,15 +43,7 @@ class DefaultFormatter(Formatter):
 
 class RuffFormatter(Formatter):
     def format(self, codes: CellCodes) -> CellCodes:
-        # first look for ruff next to sys.executable
-        ruff_path = Path(sys.prefix) / "ruff"
-        if platform.system() == "Windows":
-            ruff_path = ruff_path.with_suffix(".exe")
-        if ruff_path.exists():
-            ruff_cmd = ruff_path.as_posix()
-        else:
-            # fall back to ruff on PATH (how it was before #2980)
-            ruff_cmd = "ruff"
+        ruff_cmd = [sys.executable, "-m", "ruff"]
         try:
             process = subprocess.run(ruff_cmd, capture_output=True)
         except FileNotFoundError:
@@ -67,7 +57,7 @@ class RuffFormatter(Formatter):
             try:
                 process = subprocess.run(
                     [
-                        ruff_cmd,
+                        *ruff_cmd,
                         "format",
                         "--line-length",
                         str(self.line_length),
