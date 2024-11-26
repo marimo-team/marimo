@@ -1,5 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Strings } from "@/utils/strings";
 import React, { useEffect, useRef, useState } from "react";
 import { Terminal } from "@xterm/xterm";
 import { AttachAddon } from "@xterm/addon-attach";
@@ -28,7 +27,7 @@ const TerminalComponent: React.FC<{
       return;
     }
 
-    const socket = new WebSocket(createWsUrl());
+    const socket = new WebSocket("terminal/ws");
     const attachAddon = new AttachAddon(socket);
     terminal.loadAddon(attachAddon);
 
@@ -87,16 +86,5 @@ const TerminalComponent: React.FC<{
     </div>
   );
 };
-
-export function createWsUrl(): string {
-  const baseURI = document.baseURI;
-
-  const url = new URL(baseURI);
-  const protocol = url.protocol === "https:" ? "wss" : "ws";
-  url.protocol = protocol;
-  url.pathname = `${Strings.withoutTrailingSlash(url.pathname)}/terminal/ws`;
-
-  return url.toString();
-}
 
 export default React.memo(TerminalComponent);

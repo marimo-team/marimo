@@ -58,8 +58,8 @@ const remoteDefaultFileStore: FileStore = {
     if (window.location.hostname !== "marimo.app") {
       return null;
     }
-    const baseURI = document.baseURI;
-    return fetch(`${baseURI}files/wasm-intro.py`)
+    const url = new URL("files/wasm-intro.py", document.baseURI);
+    return fetch(url.toString())
       .then((res) => (res.ok ? res.text() : null))
       .catch(() => null);
   },

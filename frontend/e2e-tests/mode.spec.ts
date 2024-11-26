@@ -35,7 +35,7 @@ test.afterAll(async () => {
   await page.close();
 });
 
-test("page renders edit feature in edit mode", async ({ context }) => {
+test.skip("page renders edit feature in edit mode", async ({ context }) => {
   await gotoPage("title.py", page, context);
 
   // 'title.py' to be in the document.

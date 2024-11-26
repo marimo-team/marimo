@@ -20,6 +20,8 @@ test("can run Grid layout", async ({ page }) => {
 
   // Type in search box
   await page.getByRole("textbox").last().fill("hello");
+  // Blur
+  await page.getByRole("textbox").last().blur();
 
   // Verify dependent output updated
   await expect(page.getByText("Searching hello")).toBeVisible();
@@ -65,6 +67,7 @@ test("can edit Grid layout", async ({ page }) => {
 
   // Can still use interactive elements
   await page.getByRole("textbox").last().fill("hello");
+  await page.getByRole("textbox").last().blur();
   await expect(page.getByText("Searching hello")).toBeVisible();
 
   // Can toggle to Vertical layout

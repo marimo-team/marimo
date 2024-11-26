@@ -9,6 +9,14 @@ const getServerTokenOnce = once(() => {
   return getMarimoServerToken();
 });
 
+function getBaseUriWithoutQueryParams(): string {
+  // Remove query params and hash
+  const url = new URL(document.baseURI);
+  url.search = "";
+  url.hash = "";
+  return url.toString();
+}
+
 /**
  * Wrapper around fetch that adds XSRF token and session ID to the request and
  * strong types.
@@ -22,7 +30,7 @@ export const API = {
       baseUrl?: string;
     } = {},
   ): Promise<RESP> {
-    const baseUrl = opts.baseUrl ?? document.baseURI;
+    const baseUrl = opts.baseUrl ?? getBaseUriWithoutQueryParams();
     const fullUrl = `${baseUrl}api${url}`;
     return fetch(fullUrl, {
       method: "POST",
@@ -61,7 +69,7 @@ export const API = {
       baseUrl?: string;
     } = {},
   ): Promise<RESP> {
-    const baseUrl = opts.baseUrl ?? document.baseURI;
+    const baseUrl = opts.baseUrl ?? getBaseUriWithoutQueryParams();
     const fullUrl = `${baseUrl}api${url}`;
     return fetch(fullUrl, {
       method: "GET",
@@ -118,7 +126,10 @@ export const API = {
 
 export const marimoClient = createMarimoClient({
   // eslint-disable-next-line ssr-friendly/no-dom-globals-in-module-scope
-  baseUrl: typeof document === "undefined" ? undefined : document.baseURI,
+  baseUrl:
+    typeof document === "undefined"
+      ? undefined
+      : getBaseUriWithoutQueryParams(),
 });
 
 marimoClient.use({
