@@ -95,9 +95,12 @@ const EyeCloseButton = (props: { onClick: () => void }) => {
   );
 };
 
-export const HideCodeButton = (props: { onClick: () => void }) => {
+export const HideCodeButton = (props: {
+  className?: string;
+  onClick: () => void;
+}) => {
   return (
-    <div className="absolute inset-0 z-10" onClick={props.onClick}>
+    <div className={props.className} onClick={props.onClick}>
       <EyeIcon className="hover-action w-5 h-5 text-muted-foreground cursor-pointer absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-80 hover:opacity-100" />
     </div>
   );
