@@ -668,3 +668,33 @@ def test_show_download():
 
     table_false = ui.table(data, show_download=False)
     assert table_false._component_args["show-download"] is False
+
+
+def test_pagination_behavior() -> None:
+    # Test with default page_size=10
+    data = {"a": list(range(8))}
+    table = ui.table(data)
+    assert table._component_args["pagination"] is False
+    assert table._component_args["page-size"] == 10
+    assert len(table._component_args["data"]) == 8
+
+    # Test with custom page_size=5 and data <= page_size
+    data = {"a": list(range(5))}
+    table = ui.table(data, page_size=5)
+    assert table._component_args["pagination"] is False
+    assert table._component_args["page-size"] == 5
+    assert len(table._component_args["data"]) == 5
+
+    # Test with custom page_size=5 and data > page_size
+    data = {"a": list(range(8))}
+    table = ui.table(data, page_size=5)
+    assert table._component_args["pagination"] is True
+    assert table._component_args["page-size"] == 5
+    assert len(table._component_args["data"]) == 5
+
+    # Test with explicit pagination=True
+    data = {"a": list(range(5))}
+    table = ui.table(data, pagination=True, page_size=5)
+    assert table._component_args["pagination"] is True
+    assert table._component_args["page-size"] == 5
+    assert len(table._component_args["data"]) == 5

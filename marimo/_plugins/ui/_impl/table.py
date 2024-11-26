@@ -298,12 +298,14 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
 
         if pagination is False and total_rows != "too_many":
             page_size = total_rows
-        # pagination defaults to True if there are more than 10 rows
+        # pagination defaults to True if there are more than page_size rows
         if pagination is None:
             if total_rows == "too_many":
                 pagination = True
-            elif total_rows > 10:
+            elif total_rows > page_size:
                 pagination = True
+            else:
+                pagination = False
 
         # Search first page
         search_result = self.search(
