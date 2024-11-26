@@ -50,10 +50,10 @@ class RuffFormatter(Formatter):
         if platform.system() == "Windows":
             ruff_path = ruff_path.with_suffix(".exe")
         if ruff_path.exists():
-            # fall back to ruff on PATH
-            ruff_cmd = "ruff"
-        else:
             ruff_cmd = ruff_path.as_posix()
+        else:
+            # fall back to ruff on PATH (how it was before #2980)
+            ruff_cmd = "ruff"
         try:
             process = subprocess.run(ruff_cmd, capture_output=True)
         except FileNotFoundError:
