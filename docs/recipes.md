@@ -398,7 +398,7 @@ form.value
 ### Populating form with pre-defined examples
 
 **Use cases.** To give examples of how a filled form looks like.  Useful for illustrating complex API requests or database queries.
-The form can also be populated from [URL query parameters](https://docs.marimo.io/api/query_params.html) ([example](https://marimo.app/l/w21a3x?t1=query&t2=params)).
+The form can also be populated from [URL query parameters](https://docs.marimo.io/api/query_params.html) (<a href="https://marimo.app/l/w21a3x?t1=query&t2=params">notebook example</a>).
 
 **Recipe.**
 
