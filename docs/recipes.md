@@ -411,7 +411,6 @@ import marimo as mo
 2. Create dropdown of examples
 
 ```python
-query_params = mo.query_params().to_dict()
 examples = mo.ui.dropdown(
     options={
         "ex 1": {"t1": "hello", "t2": "world"},
