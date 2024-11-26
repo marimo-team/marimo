@@ -24,7 +24,7 @@
     <script data-marimo="true">
       function __resizeIframe(obj) {
         var scrollbarHeight = 20; // Max between windows, mac, and linux
-
+        
         function setHeight() {
           var element = obj.contentWindow.document.documentElement;
           // If there is no vertical scrollbar, we don't need to resize the iframe
@@ -44,7 +44,7 @@
 
         // Resize the iframe to the height of the content and bottom scrollbar height
         setHeight();
-
+        
         // Resize the iframe when the content changes
         const resizeObserver = new ResizeObserver((entries) => {
           setHeight();
@@ -61,7 +61,7 @@
     <title>notebook</title>
     <script type="module" crossorigin crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist/assets/index.js""></script>
     <link rel="stylesheet" crossorigin crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist/assets/index.css"">
-
+  
 <script data-marimo="true">
     window.__MARIMO_STATIC__ = {};
     window.__MARIMO_STATIC__.version = "0.0.0";
