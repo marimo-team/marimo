@@ -332,7 +332,9 @@ export const LoadingDataTableComponent = memo(
 
     // If total rows change, reset pageIndex
     useEffect(() => {
-      setPaginationState((state) => ({ ...state, pageIndex: 0 }));
+      setPaginationState((state) =>
+        state.pageIndex === 0 ? state : { ...state, pageIndex: 0 },
+      );
     }, [data?.totalRows]);
 
     // Column summaries
