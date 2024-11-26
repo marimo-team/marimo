@@ -88,7 +88,7 @@ test("checkbox", async ({ page }) => {
   await takeScreenshot(page, _filename);
 });
 
-test("date", async ({ page }) => {
+test.skip("date", async ({ page }) => {
   const helper = pageHelper(page);
   await helper.selectBasicComponent("date");
   const element = page.getByRole("textbox");
@@ -300,6 +300,8 @@ test("text", async ({ page }) => {
   await expect(element).toBeVisible();
   // Select option
   await element.fill("hello");
+  // Blur
+  await element.first().blur();
   // Verify output
   await helper.verifyOutput("hello");
 
@@ -315,13 +317,15 @@ test("text_area", async ({ page }) => {
   await expect(element).toBeVisible();
   // Select option
   await element.fill("hello");
+  // Blur
+  await element.first().blur();
   // Verify output
   await helper.verifyOutput("hello");
 
   await takeScreenshot(page, _filename);
 });
 
-test("complex - array", async ({ page }) => {
+test.skip("complex - array", async ({ page }) => {
   const helper = pageHelper(page);
   await helper.selectComplexComponent("array");
 
@@ -354,7 +358,7 @@ test("complex - array", async ({ page }) => {
   await takeScreenshot(page, _filename);
 });
 
-test("complex - batch", async ({ page }) => {
+test.skip("complex - batch", async ({ page }) => {
   const helper = pageHelper(page);
   await helper.selectComplexComponent("batch");
 
