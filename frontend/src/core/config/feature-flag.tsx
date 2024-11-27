@@ -11,6 +11,7 @@ export interface ExperimentalFeatures {
   wasm_layouts: boolean;
   scratchpad: boolean;
   multi_column: boolean;
+  chat_sidebar: boolean;
   // Add new feature flags here
 }
 
@@ -19,6 +20,7 @@ const defaultValues: ExperimentalFeatures = {
   wasm_layouts: false,
   scratchpad: true,
   multi_column: import.meta.env.DEV,
+  chat_sidebar: import.meta.env.DEV,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(

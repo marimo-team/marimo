@@ -4,7 +4,7 @@ from __future__ import annotations
 import base64
 from typing import Any, Dict, List, TypedDict
 
-from marimo._plugins.ui._impl.chat.types import ChatMessage
+from marimo._ai.types import ChatMessage
 
 
 def convert_to_openai_messages(

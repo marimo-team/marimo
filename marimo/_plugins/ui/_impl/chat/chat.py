@@ -5,16 +5,16 @@ import inspect
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Final, List, Optional, Union, cast
 
+from marimo._ai.types import (
+    ChatMessage,
+    ChatModelConfig,
+    ChatModelConfigDict,
+)
 from marimo._output.formatting import as_html
 from marimo._output.md import md
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
-from marimo._plugins.ui._impl.chat.types import (
-    ChatMessage,
-    ChatModelConfig,
-    ChatModelConfigDict,
-)
 from marimo._plugins.ui._impl.chat.utils import from_chat_message_dict
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.context.types import ContextNotInitializedError

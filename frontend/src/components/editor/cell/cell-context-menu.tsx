@@ -23,6 +23,7 @@ import {
 import { goToDefinitionAtCursorPosition } from "@/core/codemirror/go-to-definition/utils";
 import { CellOutputId } from "@/core/cells/ids";
 import { Logger } from "@/utils/Logger";
+import { copyToClipboard } from "@/utils/copy";
 
 interface Props extends CellActionButtonProps {
   children: React.ReactNode;
@@ -37,7 +38,7 @@ export const CellActionsContextMenu = ({ children, ...props }: Props) => {
     {
       label: "Copy",
       icon: <CopyIcon size={13} strokeWidth={1.5} />,
-      handle: () => {
+      handle: async () => {
         // Has selection, use browser copy
         const hasSelection = window.getSelection()?.toString();
         if (hasSelection) {
@@ -54,7 +55,7 @@ export const CellActionsContextMenu = ({ children, ...props }: Props) => {
           return;
         }
         // Copy the output of the cell
-        navigator.clipboard.writeText(output.textContent ?? "");
+        await copyToClipboard(output.textContent ?? "");
       },
     },
     {

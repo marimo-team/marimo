@@ -12,7 +12,7 @@ import { Maps } from "@/utils/maps";
  */
 export function getAICompletionBody(
   input: string,
-): Omit<AiCompletionRequest, "language" | "prompt"> {
+): Omit<AiCompletionRequest, "language" | "prompt" | "code"> {
   const datasets = extractDatasets(input);
   Logger.debug("Included datasets", datasets);
 
@@ -27,7 +27,6 @@ export function getAICompletionBody(
         })),
       })),
     },
-    code: "",
   };
 }
 

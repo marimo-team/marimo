@@ -10,8 +10,8 @@ __all__ = [
     "llm",
 ]
 
-from marimo._plugins.ui._impl.chat import llm
-from marimo._plugins.ui._impl.chat.types import (
+from marimo._ai import llm
+from marimo._ai.types import (
     ChatAttachment,
     ChatMessage,
     ChatModelConfig,

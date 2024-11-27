@@ -6,14 +6,14 @@ from typing import AsyncIterator, Dict, List
 
 import pytest
 
-from marimo._output.md import md
-from marimo._plugins import ui
-from marimo._plugins.ui._impl.chat.chat import SendMessageRequest
-from marimo._plugins.ui._impl.chat.types import (
+from marimo._ai.types import (
     ChatMessage,
     ChatModelConfig,
     ChatModelConfigDict,
 )
+from marimo._output.md import md
+from marimo._plugins import ui
+from marimo._plugins.ui._impl.chat.chat import SendMessageRequest
 from marimo._runtime.functions import EmptyArgs
 from marimo._runtime.requests import SetUIElementValueRequest
 from marimo._runtime.runtime import Kernel

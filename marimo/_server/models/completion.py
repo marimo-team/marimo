@@ -4,6 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import List, Literal, Optional
 
+from marimo._ai.types import ChatMessage
+
 
 @dataclass
 class SchemaColumn:
@@ -32,3 +34,12 @@ class AiCompletionRequest:
     code: str
     context: Optional[AiCompletionContext] = None
     language: Language = "python"
+
+
+@dataclass
+class ChatRequest:
+    messages: List[ChatMessage]
+    model: Optional[str] = None
+    variables: Optional[List[str]] = None
+    context: Optional[AiCompletionContext] = None
+    include_other_code: str = ""

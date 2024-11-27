@@ -1001,6 +1001,28 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               )}
             />
+            <FormField
+              control={form.control}
+              name="experimental.chat_sidebar"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">Chat Sidebar</FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="chat-sidebar-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <FormDescription>
+                    Enable experimental chat sidebar to ask questions with an AI
+                    assistant.
+                  </FormDescription>
+                </div>
+              )}
+            />
           </SettingGroup>
         );
     }

@@ -5,13 +5,13 @@ from typing import List
 
 import pytest
 
-from marimo._plugins.ui._impl.chat.convert import (
+from marimo._ai.convert import (
     convert_to_anthropic_messages,
     convert_to_google_messages,
     convert_to_groq_messages,
     convert_to_openai_messages,
 )
-from marimo._plugins.ui._impl.chat.types import (
+from marimo._ai.types import (
     ChatAttachment,
     ChatMessage,
 )
