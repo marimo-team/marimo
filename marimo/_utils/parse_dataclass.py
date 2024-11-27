@@ -116,9 +116,11 @@ class DataclassParser:
             not self.allow_unknown_keys
             and not snake_cased_values.keys() <= types.keys()
         ):
+            unknown_keys = snake_cased_values.keys() - types.keys()
             raise ValueError(
-                "values in build_dataclass do not match arguments "
-                "for constructor"
+                f"values in build_dataclass do not match arguments "
+                f"for constructor. Unknown keys: {unknown_keys}. "
+                f"Expected keys: {types.keys()}"
             )
 
         transformed = {

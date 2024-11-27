@@ -87,7 +87,7 @@ containing `role`, `content`, and optional `attachments` attributes.
 .. autoclass:: ChatMessage
   :members:
 
-  .. autoclasstoc:: marimo._plugins.ui._impl.chat.types.ChatMessage
+  .. autoclasstoc:: marimo._ai.types.types.ChatMessage
 ```
 
 ## Custom Model with Additional Context
@@ -167,7 +167,7 @@ mo.ui.chat(
 .. autoclass:: marimo.ai.llm.openai
   :members:
 
-  .. autoclasstoc:: marimo._plugins.ui._impl.chat.llm.openai
+  .. autoclasstoc:: marimo._ai.llm.openai
 ```
 
 ### Anthropic
@@ -189,7 +189,7 @@ mo.ui.chat(
 .. autoclass:: marimo.ai.llm.anthropic
   :members:
 
-  .. autoclasstoc:: marimo._plugins.ui._impl.chat.llm.anthropic
+  .. autoclasstoc:: marimo._ai.llm.anthropic
 ```
 
 ### Google AI
@@ -211,7 +211,7 @@ mo.ui.chat(
 .. autoclass:: marimo.ai.llm.google
   :members:
 
-  .. autoclasstoc:: marimo._plugins.ui._impl.chat.llm.google
+  .. autoclasstoc:: marimo._ai.llm.google
 ```
 
 ### Groq
@@ -233,7 +233,7 @@ mo.ui.chat(
 .. autoclass:: marimo.ai.llm.groq
   :members:
 
-  .. autoclasstoc:: marimo._plugins.ui._impl.chat.llm.groq
+  .. autoclasstoc:: marimo._ai.llm.groq
 ```
 
 ## Types

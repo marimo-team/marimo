@@ -83,6 +83,7 @@ __all__ = [
 ]
 __version__ = "0.9.27"
 
+import marimo._ai as ai
 import marimo._islands as islands
 from marimo._ast.app import App
 from marimo._ast.cell import Cell
@@ -93,7 +94,7 @@ from marimo._output.hypertext import Html
 from marimo._output.justify import center, left, right
 from marimo._output.md import md
 from marimo._output.show_code import show_code
-from marimo._plugins import ai, ui
+from marimo._plugins import ui
 from marimo._plugins.stateless import mpl, status
 from marimo._plugins.stateless.accordion import accordion
 from marimo._plugins.stateless.audio import audio

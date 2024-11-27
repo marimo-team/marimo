@@ -56,6 +56,10 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
   readonly type = "markdown";
   readonly defaultCode = 'mo.md(r"""\n""")';
 
+  static fromMarkdown(markdown: string) {
+    return `mo.md(r"""\n${markdown}\n""")`;
+  }
+
   lastQuotePrefix: QuotePrefixKind = "";
 
   transformIn(pythonCode: string): [string, number] {

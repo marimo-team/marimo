@@ -28,6 +28,7 @@ import { LazyMount } from "@/components/utils/lazy-mount";
 import { ScratchpadPanel } from "../panels/scratchpad-panel";
 import { IfCapability } from "@/core/config/if-capability";
 import { PackagesPanel } from "../panels/packages-panel";
+import { ChatPanel } from "@/components/chat/chat-panel";
 
 const LazyTerminal = React.lazy(() => import("@/components/terminal/terminal"));
 
@@ -148,6 +149,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
           {selectedPanel === "documentation" && <DocumentationPanel />}
           {selectedPanel === "snippets" && <SnippetsPanel />}
           {selectedPanel === "scratchpad" && <ScratchpadPanel />}
+          {selectedPanel === "chat" && <ChatPanel />}
           {selectedPanel === "logs" && <LogsPanel />}
         </div>
       </Suspense>

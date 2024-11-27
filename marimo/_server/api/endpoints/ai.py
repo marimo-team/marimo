@@ -1,13 +1,19 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generator, Optional
+from typing import TYPE_CHECKING, Any, Generator, Optional, cast
 
 from starlette.authentication import requires
 from starlette.exceptions import HTTPException
 from starlette.responses import StreamingResponse
 
 from marimo import _loggers
+from marimo._ai.convert import (
+    convert_to_anthropic_messages,
+    convert_to_google_messages,
+    convert_to_openai_messages,
+)
+from marimo._ai.types import ChatMessage
 from marimo._config.config import MarimoConfig
 from marimo._server.ai.prompts import Prompter
 from marimo._server.api.deps import AppState
@@ -15,6 +21,7 @@ from marimo._server.api.status import HTTPStatus
 from marimo._server.api.utils import parse_request
 from marimo._server.models.completion import (
     AiCompletionRequest,
+    ChatRequest,
 )
 from marimo._server.router import APIRouter
 
@@ -213,6 +220,28 @@ def make_stream_response(
     LOGGER.debug(f"Completion content: {original_content}")
 
 
+def as_stream_response(
+    response: OpenAiStream[ChatCompletionChunk]
+    | AnthropicStream[RawMessageStreamEvent]
+    | GenerateContentResponse,
+) -> Generator[str, None, None]:
+    original_content = ""
+    buffer = ""
+
+    for chunk in response:
+        content = get_content(chunk)
+        if not content:
+            continue
+
+        buffer += content
+        original_content += content
+
+        yield buffer
+        buffer = ""
+
+    LOGGER.debug(f"Completion content: {original_content}")
+
+
 def get_google_client(config: MarimoConfig, model: str) -> "GenerativeModel":
     try:
         import google.generativeai as genai  # type: ignore[import-not-found]
@@ -283,11 +312,13 @@ async def ai_completion(
     body = await parse_request(request, cls=AiCompletionRequest)
     custom_rules = config.get("ai", {}).get("rules", None)
 
-    prompter = Prompter(body.code, body.include_other_code, body.context)
+    prompter = Prompter(code=body.code, context=body.context)
     system_prompt = Prompter.get_system_prompt(
-        body.language, custom_rules=custom_rules
+        language=body.language, custom_rules=custom_rules
     )
-    prompt = prompter.get_prompt(body.prompt)
+    prompt = prompter.get_prompt(
+        user_prompt=body.prompt, include_other_code=body.include_other_code
+    )
 
     model = get_model(config)
 
@@ -346,5 +377,83 @@ async def ai_completion(
 
     return StreamingResponse(
         content=make_stream_response(response),
+        media_type="application/json",
+    )
+
+
+@router.post("/chat")
+@requires("edit")
+async def ai_chat(
+    *,
+    request: Request,
+) -> StreamingResponse:
+    """
+    Chat endpoint that handles ongoing conversations
+    """
+    app_state = AppState(request)
+    app_state.require_current_session()
+    config = app_state.config_manager.get_config(hide_secrets=False)
+    body = await parse_request(request, cls=ChatRequest)
+
+    # Get the model from request or fallback to config
+    model = body.model or get_model(config)
+    messages = body.messages
+
+    # Get the system prompt
+    system_prompt = Prompter.get_chat_system_prompt(
+        custom_rules=config.get("ai", {}).get("rules", None),
+        variables=body.variables,
+        context=body.context,
+        include_other_code=body.include_other_code,
+    )
+
+    # Handle different model providers
+    if model.startswith("claude"):
+        anthropic_client = get_anthropic_client(config)
+        response = anthropic_client.messages.create(
+            model=model,
+            max_tokens=1000,
+            messages=cast(Any, convert_to_anthropic_messages(messages)),
+            system=system_prompt,
+            stream=True,
+            temperature=0,
+        )
+
+        return StreamingResponse(
+            content=as_stream_response(response),
+            media_type="application/json",
+        )
+
+    if model.startswith("google") or model.startswith("gemini"):
+        google_client = get_google_client(config, model)
+        response = google_client.generate_content(
+            contents=convert_to_google_messages(
+                [ChatMessage(role="system", content=system_prompt)] + messages
+            ),
+            stream=True,
+        )
+
+        return StreamingResponse(
+            content=as_stream_response(response),
+            media_type="application/json",
+        )
+
+    # Default to OpenAI
+    openai_client = get_openai_client(config)
+    response = openai_client.chat.completions.create(
+        model=model,
+        messages=cast(
+            Any,
+            convert_to_openai_messages(
+                [ChatMessage(role="system", content=system_prompt)] + messages
+            ),
+        ),
+        temperature=0,
+        stream=True,
+        timeout=15,
+    )
+
+    return StreamingResponse(
+        content=as_stream_response(response),
         media_type="application/json",
     )

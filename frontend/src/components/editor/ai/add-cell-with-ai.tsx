@@ -71,6 +71,7 @@ export const AddCellWithAI: React.FC<{
     body: {
       ...completionBody,
       language: language,
+      code: "",
     },
     onError: (error) => {
       toast({
@@ -191,10 +192,12 @@ export const AddCellWithAI: React.FC<{
 
 interface PromptInputProps {
   inputRef?: React.RefObject<ReactCodeMirrorRef>;
+  placeholder?: string;
   value: string;
+  className?: string;
   onClose: () => void;
   onChange: (value: string) => void;
-  onSubmit: () => void;
+  onSubmit: (e: KeyboardEvent | undefined, value: string) => void;
   theme: ResolvedTheme;
 }
 
@@ -206,7 +209,9 @@ interface PromptInputProps {
  */
 export const PromptInput = ({
   value,
+  placeholder,
   inputRef,
+  className,
   onChange,
   onSubmit,
   onClose,
@@ -286,7 +291,7 @@ export const PromptInput = ({
                 event.metaKey || event.ctrlKey || event.shiftKey;
               // If no mod key is pressed, submit
               if (event.key === "Enter" && !pressedModOrShift) {
-                handleSubmit();
+                handleSubmit(event, view.state.doc.toString());
                 event.preventDefault();
                 event.stopPropagation();
                 return true;
@@ -349,7 +354,7 @@ export const PromptInput = ({
   return (
     <ReactCodeMirror
       ref={inputRef}
-      className="flex-1 font-sans overflow-auto my-1"
+      className={cn("flex-1 font-sans overflow-auto my-1", className)}
       autoFocus={true}
       width="100%"
       value={value}
@@ -357,7 +362,7 @@ export const PromptInput = ({
       extensions={extensions}
       onChange={onChange}
       theme={theme === "dark" ? "dark" : "light"}
-      placeholder={"Generate with AI"}
+      placeholder={placeholder || "Generate with AI"}
     />
   );
 };
