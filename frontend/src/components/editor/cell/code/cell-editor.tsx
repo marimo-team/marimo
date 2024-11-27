@@ -56,8 +56,6 @@ export interface CellEditorProps
   theme: Theme;
   showPlaceholder: boolean;
   editorViewRef: React.MutableRefObject<EditorView | null>;
-  // DOM node where the editorView will be mounted
-  editorViewParentRef: React.MutableRefObject<HTMLDivElement | null>;
   /**
    * If true, the cell is allowed to be focus on.
    * This is false when the app is initially loading.
@@ -69,7 +67,10 @@ export interface CellEditorProps
    * This is different from cellConfig.hide_code, since it may be temporarily shown.
    */
   hidden?: boolean;
-  temporarilyShowCode: () => void;
+  // Props below are not used by scratchpad
+  // DOM node where the editorView will be mounted
+  editorViewParentRef?: React.MutableRefObject<HTMLDivElement | null>;
+  temporarilyShowCode?: () => void;
 }
 
 const CellEditorInternal = ({
@@ -298,6 +299,7 @@ const CellEditorInternal = ({
 
     if (
       editorViewRef.current !== null &&
+      editorViewParentRef &&
       editorViewParentRef.current !== null
     ) {
       // Always replace the children in case the editor view was re-created.
@@ -372,7 +374,7 @@ const CellEditorInternal = ({
         onFocus={() => setLastFocusedCellId(cellId)}
       >
         {/* Completely hide the editor and icons when markdown is hidden. If just hidden, display. */}
-        {!isMarkdown && hidden && (
+        {!isMarkdown && hidden && temporarilyShowCode && (
           <HideCodeButton
             className="absolute inset-0 z-10"
             onClick={temporarilyShowCode}
@@ -408,7 +410,7 @@ const CellCodeMirrorEditor = React.forwardRef(
       className?: string;
       editorView: EditorView | null;
     },
-    ref: React.Ref<HTMLDivElement>,
+    ref?: React.Ref<HTMLDivElement>,
   ) => {
     const { className, editorView } = props;
     const internalRef = useRef<HTMLDivElement>(null);
@@ -430,7 +432,7 @@ const CellCodeMirrorEditor = React.forwardRef(
     return (
       <div
         className={cn("cm", className)}
-        ref={mergeRefs(ref, internalRef)}
+        ref={(ref && mergeRefs(ref, internalRef)) || internalRef}
         data-testid="cell-editor"
       />
     );

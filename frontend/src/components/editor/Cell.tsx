@@ -57,6 +57,7 @@ import { cn } from "@/utils/cn";
 import { isErrorMime } from "@/core/mime";
 import { getCurrentLanguageAdapter } from "@/core/codemirror/language/commands";
 import { HideCodeButton } from "./code/readonly-python-code";
+import { useResizeObserver } from "@/hooks/useResizeObserver";
 
 /**
  * Imperative interface of the cell.
@@ -316,9 +317,35 @@ const CellComponent = (
   const isCellCodeShown = !cellConfig.hide_code || temporarilyVisible;
   const isMarkdown =
     getCurrentLanguageAdapter(editorView.current) === "markdown";
-  const isMarkdownCodeHidden = isMarkdown && !isCellCodeShown;
+  const [isMarkdownCodeHidden, setIsMarkdownCodeHidden] = useState(
+    isMarkdown && !isCellCodeShown,
+  );
+
+  useEffect(() => {
+    if (
+      getCurrentLanguageAdapter(editorView.current) === "markdown" &&
+      !isCellCodeShown
+    ) {
+      setIsMarkdownCodeHidden(true);
+    }
+  }, [isCellCodeShown, setIsMarkdownCodeHidden]);
 
   const cellContainerRef = useRef<HTMLDivElement>(null);
+
+  // If the cell is too short, we need to position the cellStatus inline to not cause overlaps
+  // This can only happen to markdown cells when the code is hidden completely
+  const [isCellStatusInline, setIsCellStatusInline] = useState(false);
+  useResizeObserver({
+    ref: cellContainerRef,
+    skip: !isMarkdownCodeHidden,
+    onResize: (size) => {
+      if (size.height && size.height < 60 && hasOutput) {
+        setIsCellStatusInline(true);
+      } else if (isCellStatusInline) {
+        setIsCellStatusInline(false);
+      }
+    },
+  });
 
   // DOM node where the editorView will be mounted
   const editorViewParentRef = useRef<HTMLDivElement>(null);
@@ -356,34 +383,6 @@ const CellComponent = (
       temporarilyShowCode();
     }
   };
-
-  // If the cell is too short, we need to position the cellStatus inline to not cause overlaps
-  // This can only happen to markdown cells when the code is hidden completely
-  const [isCellStatusInline, setIsCellStatusInline] = useState(false);
-  useEffect(() => {
-    const isCurrentlyMarkdown =
-      getCurrentLanguageAdapter(editorView.current) === "markdown";
-    if (!isCurrentlyMarkdown) {
-      return;
-    }
-
-    const resizeObserver = new ResizeObserver(() => {
-      const height = cellContainerRef.current?.clientHeight;
-      if (height && height < 60) {
-        setIsCellStatusInline(true);
-      } else {
-        setIsCellStatusInline(false);
-      }
-    });
-
-    if (cellContainerRef.current) {
-      resizeObserver.observe(cellContainerRef.current);
-    }
-
-    return () => {
-      resizeObserver.disconnect();
-    };
-  }, [isMarkdown]);
 
   const hasOutput = !isOutputEmpty(output);
 
