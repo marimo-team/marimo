@@ -296,86 +296,13 @@ for the better.
 ```{eval-rst}
 .. toctree::
    :maxdepth: 2
-   :caption: Getting started
 
    getting_started/index
-   guides/overview
-   guides/coming_from/jupyter
-   examples
-   api/index
-```
-
-```{eval-rst}
-.. toctree::
-   :caption: Core concepts
-   :maxdepth: 2
-  
-   guides/reactivity
-   guides/interactivity
-   guides/outputs
-   guides/expensive_notebooks
-```
-
-```{eval-rst}
-.. toctree::
-   :caption: Working with data
-   :maxdepth: 2
-  
-   guides/working_with_data/sql
-   guides/working_with_data/dataframes
-   guides/working_with_data/plotting
-```
-
-```{eval-rst}
-.. toctree::
-   :caption: Apps and scripts
-   :maxdepth: 2
-  
-   guides/apps
-   guides/scripts
-```
-
-```{eval-rst}
-.. toctree::
-   :caption: Editor features
-   :maxdepth: 2
-  
-   guides/editor_features/overview
-   guides/editor_features/package_management
-   guides/editor_features/ai_completion
-   guides/editor_features/hotkeys
-   guides/configuration/index
-```
-
-```{eval-rst}
-.. toctree::
-   :caption: Exporting and deploying
-   :maxdepth: 2
-  
-   guides/exporting
-   guides/wasm
-   guides/deploying/index
-```
-
-```{eval-rst}
-.. toctree::
-   :caption: Integrating with marimo
-   :maxdepth: 2
-  
-   guides/integrating_with_marimo/displaying_objects
-   guides/integrating_with_marimo/custom_ui_plugins
-```
-
-```{eval-rst}
-.. toctree::
-   :maxdepth: 2
-   :caption: Reference
-
-   faq
+   guides/index
    recipes
-   guides/best_practices/
-   guides/troubleshooting
-   guides/coming_from/index
+   api/index
+   faq
+   examples
    integrations/index
    community
 ```
