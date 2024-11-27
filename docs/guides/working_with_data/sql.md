@@ -1,4 +1,4 @@
-# SQL
+# Using SQL
 
 marimo lets you can mix and match **Python and SQL**: Use SQL to query
 Python dataframes (or databases like SQLite and Postgres), and get

@@ -1,4 +1,4 @@
-# Custom UI elements
+# Building custom UI elements
 
 Build custom UI plugins that hook into marimo's reactive
 execution engine by using [anywidget](https://anywidget.dev/).

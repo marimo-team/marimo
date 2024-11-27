@@ -1,4 +1,4 @@
-# Exporting
+# Exporting to HTML and other formats
 
 Export marimo notebooks to other file formats at the command line using
 
