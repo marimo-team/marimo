@@ -480,7 +480,7 @@ const DataTableComponent = ({
     [
       useDeepCompareMemoize([
         selection,
-        fieldTypes,
+        fieldTypesOrInferred,
         rowHeaders,
         textJustifyColumns,
         wrappedColumns,
