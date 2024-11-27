@@ -13,6 +13,6 @@
 
 .. autoclass:: app_meta()
 
-  .. autofunction:: marimo._runtime.app_meta.AppMeta.theme
-  .. autofunction:: marimo._runtime.app_meta.AppMeta.mode
+  .. automethod:: marimo._runtime.app_meta.AppMeta.theme
+  .. automethod:: marimo._runtime.app_meta.AppMeta.mode
 ```

@@ -14,15 +14,13 @@ three options:
 2. Implement a `_mime_()` method
 3. Implement an IPython-style `_repr_*_()` method
 
-If you can't modify the object, you can also add a formatter to the marimo 
-library (option 4).
+If you can't modify the object, you can also add a formatter to the marimo library (option 4).
 
 The return value of these methods determines what is shown. `_display_`
 has the highest precedence, then built-in formatters, then `_mime_`, then `IPython` style `_repr_*_`
 methods.
 
-
-### Option 1: Implement a `_display_()` method
+## Option 1: Implement a `_display_()` method
 
 If an object implements a `_display_()`, marimo will use its return value
 to visualize the object as an output.
@@ -50,7 +48,7 @@ However, if you need to display an object that marimo does not know how to
 render (for example, maybe you are building a new plotting library), then
 you need to consider of the other options below.
 
-### Option 2: Implement an IPython `_repr_*_()` method
+## Option 2: Implement an IPython `_repr_*_()` method
 
 marimo can render objects that implement
 [IPython's `_repr_*_()` protocol](https://ipython.readthedocs.io/en/stable/config/integrating.html#custom-methods)
@@ -68,7 +66,6 @@ class Shout:
 
 We support the following methods:
 
-
 - `_repr_html_`
 - `_repr_mimebundle_`
 - `_repr_svg_`
@@ -79,7 +76,7 @@ We support the following methods:
 - `_repr_latex_`
 - `_repr_text_`
 
-### Option 3: Implement a `_mime_` method
+## Option 3: Implement a `_mime_` method
 
 When displaying an object, marimo's media viewer checks for the presence of a
 method called `_mime_`. This method should take no arguments and return
@@ -143,7 +140,7 @@ a tuple of two strings, the [mime type](https://developer.mozilla.org/en-US/docs
     Image("https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/marimo-logotype-thick.svg")
 ```
 
-### Option 4: Add a formatter to the marimo repo
+## Option 4: Add a formatter to the marimo repo
 
 The recommended way to render rich displays of objects in marimo is to
 implement `_display_` if possible, otherwise either the IPython `_repr_*_()_`
