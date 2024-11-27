@@ -41,6 +41,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   setSorting?: OnChangeFn<SortingState>; // controlled sorting
   // Pagination
   totalRows: number | "too_many";
+  totalColumns: number;
   pagination?: boolean;
   manualPagination?: boolean; // server-side pagination
   paginationState?: PaginationState; // controlled pagination
@@ -68,6 +69,7 @@ const DataTableInternal = <TData,>({
   columns,
   data,
   selection,
+  totalColumns,
   totalRows,
   manualSorting = false,
   sorting,
@@ -168,6 +170,7 @@ const DataTableInternal = <TData,>({
       </div>
       <TableActions
         enableSearch={enableSearch}
+        totalColumns={totalColumns}
         onSearchQueryChange={onSearchQueryChange}
         isSearchEnabled={isSearchEnabled}
         setIsSearchEnabled={setIsSearchEnabled}
