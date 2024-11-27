@@ -12,7 +12,7 @@ and Jupyter has no understanding of how different blocks are related to each
 other. As a result a Jupyter notebook can easily
 accumulate "hidden state" (and hidden bugs) --- you might accidentally execute
 cells out of order, or you might run (or delete) a cell but forget to re-run
-cells that dependend on its variables. Because of this, Jupyter notebooks
+cells that depended on its variables. Because of this, Jupyter notebooks
 suffer from a [reproducibility crisis](/faq.md#faq-problems), with over
 a third of Jupyter notebooks on GitHub failing to reproduce.
 
