@@ -187,7 +187,7 @@ charts](/guides/working_with_data/plotting) using
 [`mo.ui.altair_chart`](marimo.ui.altair_chart) or
 [`mo.ui.plotly`](marimo.ui.plotly), or as a row-selectable table with
 (`mo.ui.table`)(marimo.ui.table). Select points in the chart, or select a table
-row, and your selection is _automatically sent to Python as a Pandas
+row, and your selection is _automatically sent to Python as a subset of the original
 dataframe_.
 
 <div align="center">
