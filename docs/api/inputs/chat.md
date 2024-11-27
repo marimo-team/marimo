@@ -49,7 +49,7 @@ chat = mo.ui.chat(echo_model, prompts=["Hello", "How are you?"])
 chat
 ```
 
-Here, `messages` is a list of [`ChatMessage`](#marimo.ui.ChatMessage) objects,
+Here, `messages` is a list of [`ChatMessage`](#marimo.ai.ChatMessage) objects,
 which has `role` (`"user"`, `"assistant"`, or `"system"`) and `content` (the
 message string) attributes; `config` is a
 [`ChatModelConfig`](#marimo.ai.ChatModelConfig) object with various

@@ -11,8 +11,8 @@
   chat
   checkbox
   code_editor
-  dataframe
   data_explorer
+  dataframe
   dates
   dictionary
   dropdown
@@ -21,6 +21,7 @@
   form
   microphone
   multiselect
+  nav_menu
   number
   radio
   range_slider
