@@ -1,4 +1,4 @@
-# Cell outputs
+# Visualizing outputs
 
 The last expression of a cell is its visual output, rendered above the cell.
 Outputs are included in the "app" or read-only view of the notebook. marimo

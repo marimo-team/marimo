@@ -6,9 +6,9 @@
   :hidden:
 
   jupyter
+  streamlit
   jupytext
   papermill
-  streamlit
 ```
 
 marimo is a **single tool** that replaces  `jupyter`, `streamlit`, `jupytext`,
@@ -17,6 +17,6 @@ marimo is a **single tool** that replaces  `jupyter`, `streamlit`, `jupytext`,
 | Guide            | Description                          |
 | :--------------- | :----------------------------------- |
 | {doc}`jupyter`   | Transitioning from Jupyter notebooks |
+| {doc}`streamlit` | Transitioning from Streamlit         |
 | {doc}`jupytext`  | Transitioning from Jupytext          |
 | {doc}`papermill` | Transitioning from Papermill         |
-| {doc}`streamlit` | Transitioning from Streamlit         |

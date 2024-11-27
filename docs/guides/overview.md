@@ -2,7 +2,9 @@
 
 marimo notebooks are **reactive**: they automatically react to your code
 changes and UI interactions and keep your notebook up-to-date, not unlike a
-spreadsheet.
+spreadsheet. This makes your notebooks reproducibile, [eliminating hidden
+state](/faq.md#faq-problems); it's also what enables marimo notebooks to double as
+apps and Python scripts.
 
 ```{admonition} Creating marimo notebooks
 :class: tip
@@ -11,7 +13,17 @@ Make sure to first read the [getting started](/getting_started/index.md) page,
 which teaches you how to install marimo and create notebooks.
 ```
 
-## Cells
+```{admonition} Working with expensive notebooks
+:class: important
+
+If you don't want cells to run automatically, the [runtime can be
+configured](/guides/configuration/runtime_configuration.md) to be lazy, only
+running cells when you ask for them to be run and marking affected cells as
+stale. **See our guide on working with [expensive
+notebooks](/guides/expensive_notebooks.md) for more tips.**
+```
+
+## How marimo executes cells
 
 A marimo notebook is made of small blocks of Python code called **cells**.
 _When you run a cell, marimo automatically runs all cells that read any global
@@ -26,17 +38,6 @@ variables defined by that cell._ This is reactive execution.
 <img src="/_static/reactive.gif" width="600px"/>
 </figure>
 </div>
-
-```{admonition} Working with expensive notebooks
-:class: important
-
-If you don't want cells to run automatically, the [runtime can be
-configured](/guides/configuration/runtime_configuration.md) to be lazy, only
-running cells when you ask for them to be run and marking affected cells as
-stale. **See our guide on working with [expensive
-notebooks](/guides/expensive_notebooks.md) for more tips.**
-
-```
 
 **Execution order.**
 The order of cells on the page has no bearing on the order cells are
@@ -60,6 +61,18 @@ cell's code just once, creating a directed acyclic graph based on the
 global names each cell defines and reads. This is how data flows
 in a marimo notebook.
 
+**The marimo library.**
+We recommend starting each marimo notebook with a cell containing a single
+line of code,
+
+```python3
+import marimo as mo
+```
+The marimo library lets you use
+interactive UI elements, layout elements, dynamic markdown, and more in your
+marimo notebooks.
+
+
 ```{admonition} Minimize variable mutation.
 :class: warning
 
@@ -80,24 +93,11 @@ marimo tutorial dataflow
 
 or read the [reactivity guide](/guides/reactivity.md).
 
-## The marimo library
-
-marimo is both a notebook and a library. The marimo library lets you use
-markdown, interactive UI elements, layout elements, and more in your marimo
-notebooks.
-
-We recommend starting each marimo notebook with a cell containing a single
-line of code,
-
-```python3
-import marimo as mo
-```
-
-## Outputs
+## Visualizing outputs
 
 marimo visualizes the last expression of each cell as its **output**. Outputs
 can be any Python value, including markdown and interactive elements created
-with the marimo library, _e.g._, `mo.md(...)`, `mo.ui.slider(...)`.
+with the marimo library, (_e.g._, [`mo.md`](marimo.md), [`mo.ui.slider`](marimo.ui.slider)).
 You can even interpolate Python values into markdown (using `mo.md(f"...")`) and
 other marimo elements to build rich composite outputs:
 
@@ -109,6 +109,12 @@ other marimo elements to build rich composite outputs:
 
 > Thanks to reactive execution, running a cell refreshes all the relevant outputs in your notebook.
 
+The marimo library also comes with elements for laying out outputs, including
+[`mo.hstack`](#marimo.hstack), [`mo.vstack`](#marimo.vstack),
+[`mo.accordion`](#marimo.accordion), [`mo.ui.tabs`](#marimo.ui.tabs), [`mo.sidebar`](#marimo.sidebar),
+[`mo.nav_menu`](#marimo.nav_menu), [`mo.ui.table`](#marimo.ui.table),
+and [many more](https://docs.marimo.io/api/layouts/index.html).
+
 For more on outputs, try these tutorials:
 
 ```bash
@@ -117,10 +123,10 @@ marimo tutorial plots
 marimo tutorial layout
 ```
 
-## Interactive elements
+## Creating interactive elements
 
 The marimo library comes with many interactive stateful elements in
-`marimo.ui`, including simple ones like sliders, dropdowns, text fields, and file
+[`marimo.ui`](/api/inputs/index), including simple ones like sliders, dropdowns, text fields, and file
 upload areas, as well as composite ones like forms, arrays, and dictionaries
 that can wrap other UI elements.
 
@@ -131,7 +137,7 @@ that can wrap other UI elements.
 </div>
 
 **Using UI elements.**
-To use a UI element, create it with `marimo.ui` and **assign it to a global
+To use a UI element, create it with `mo.ui` and **assign it to a global
 variable.** When you interact with a UI element in your browser (_e.g._,
 sliding a slider), _marimo sends the new value back to Python and reactively
 runs all cells that use the element_, which you can access via its `value`
@@ -142,8 +148,16 @@ attribute.
 > and apps.
 
 _marimo can only synchronize UI elements that are assigned to
-global variables._ You can use composite elements like `mo.ui.array` and
-`mo.ui.dictionary` if the set of UI elements is not known until runtime.
+global variables._ Use composite elements like [`mo.ui.array`](marimo.ui.array) and
+[`mo.ui.dictionary`](marimo.ui.dictionary) if the set of UI elements is not
+known until runtime.
+
+```{admonition} Using buttons to execute cells
+:class: tip
+
+Use [`mo.ui.run_button`](marimo.ui.run_button) to create a button that
+triggers computation when clicked; see our recipes for [an example](/recipes#create-a-button-that-triggers-computation-when-clicked).
+```
 
 For more on interactive elements, run the UI tutorial:
 
@@ -151,29 +165,7 @@ For more on interactive elements, run the UI tutorial:
 marimo tutorial ui
 ```
 
-### Composite elements
-
-marimo's composite UI elements let you wrap other UI
-elements to create powerful UIs. For example,
-`marimo.ui.form` lets you gate elements on submission, while
-`marimo.ui.dictionary` and `marimo.ui.array` let you batch arbitrary
-collections of elements.
-
-<div align="center">
-<figure>
-<img src="/_static/readme-ui-form.gif" width="600px"/>
-</figure>
-</div>
-
-## Layout
-
-The marimo library also comes with elements for laying out outputs, including
-[`mo.hstack`](#marimo.hstack), [`mo.vstack`](#marimo.vstack),
-[`mo.accordion`](#marimo.accordion), [`mo.ui.tabs`](#marimo.ui.tabs), [`mo.sidebar`](#marimo.sidebar),
-[`mo.nav_menu`](#marimo.nav_menu), [`mo.ui.table`](#marimo.ui.table),
-and [many more](https://docs.marimo.io/api/layouts/index.html).
-
-## SQL
+## Query dataframes and databases with SQL
 
 marimo has built-in support for SQL: you can query Python dataframes,
 databases, CSVs, Google Sheets, or anything else. After executing your query,
@@ -188,7 +180,8 @@ to go back and forth between SQL and Python.
 </div>
 
 To create a SQL cell, click on the SQL button that appears at the bottom of the
-cell array, or right click the create cell button next to a cell.
+cell array, or right click the create cell button next to a cell. Today,
+SQL in marimo is executed using [duckdb](https://duckdb.org/docs/).
 
 To learn more, run the SQL tutorial:
 

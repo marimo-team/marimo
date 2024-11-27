@@ -2,7 +2,7 @@
 
 Installing marimo gets you the `marimo` command-line interface (CLI), the entry point to all things marimo.
 
-## Installation
+## Install marimo
 
 Before installing marimo, we recommend creating and activating a Python
 [virtual environment](https://docs.python.org/3/tutorial/venv.html#creating-virtual-environments).
@@ -78,7 +78,7 @@ A tutorial notebook should open in your browser.
 Having installation issues? Reach out to us [at GitHub](https://github.com/marimo-team/marimo/issues) or [on Discord](https://marimo.io/discord?ref=docs).
 ```
 
-## Tutorials
+## Run tutorials
 
 `marimo tutorial intro` opens the intro tutorial. List all tutorials with
 
@@ -143,7 +143,7 @@ auto_instantiate = false
 
 :::
 
-## Enable more features with optional dependencies
+## Install optional dependencies for more features
 
 Some features require additional dependencies, which are not installed by default. This includes:
 
@@ -180,7 +180,7 @@ conda install -c conda-forge marimo duckdb altair polars openai ruff
 
 This will install: `duckdb`, `altair`, `polars`, `openai`, and `ruff`.
 
-## GitHub Copilot and AI Assistant
+## Enable GitHub Copilot and AI Assistant
 
 The marimo editor natively supports [GitHub Copilot](https://copilot.github.com/),
 an AI pair programmer, similar to VS Code.
@@ -196,10 +196,11 @@ marimo from `PyPI` if you need Copilot.
 marimo also comes with support for [other copilots](/guides/editor_features/ai_completion.md#codeium-copilot),
 and a built-in [AI assistant](/guides/editor_features/ai_completion.md#generate-code-with-our-ai-assistant) that helps you write code.
 
-## VS Code extension
+## Try our VS Code extension
 
-If you prefer VS Code over terminal, try our
-[VS Code extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo).
+The best way to use marimo is through the CLI. However, if you prefer VS Code
+over terminal, try our [VS Code
+extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo).
 Use this extension to edit and run notebooks directly from VS Code, and to list
 all marimo notebooks in your current directory.
 
