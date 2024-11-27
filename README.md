@@ -80,6 +80,12 @@ use them are automatically re-run with their latest values.
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-ui.gif" width="700px" />
 
+**Interactive dataframes.** Dataframes in marimo are interactive by default:
+[page through, search, filter, and sort](https://docs.marimo.io/guides/working_with_data/dataframes.html)
+millions of rows blazingly fast, no code required. 
+
+<img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/docs-df.gif" width="700px" />
+
 **Performant runtime.** marimo runs only those cells that need to be run by
 statically analyzing your code.
 
