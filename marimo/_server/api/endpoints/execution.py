@@ -18,6 +18,7 @@ from marimo._server.api.deps import AppState
 from marimo._server.api.endpoints.ws import FILE_QUERY_PARAM_KEY
 from marimo._server.api.utils import parse_request
 from marimo._server.file_router import MarimoFileKey
+from marimo._server.ids import ConsumerId
 from marimo._server.models.models import (
     BaseResponse,
     InstantiateRequest,
@@ -62,7 +63,8 @@ async def set_ui_element_values(
     app_state.require_current_session().put_control_request(
         SetUIElementValueRequest(
             object_ids=body.object_ids, values=body.values, token=str(uuid4())
-        )
+        ),
+        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
     )
 
     return SuccessResponse()
@@ -115,7 +117,10 @@ async def function_call(
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=FunctionCallRequest)
-    app_state.require_current_session().put_control_request(body)
+    app_state.require_current_session().put_control_request(
+        body,
+        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
+    )
 
     return SuccessResponse()
 
@@ -164,7 +169,8 @@ async def run_cell(
     app_state = AppState(request)
     body = await parse_request(request, cls=RunRequest)
     app_state.require_current_session().put_control_request(
-        body.as_execution_request()
+        body.as_execution_request(),
+        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
     )
 
     return SuccessResponse()
@@ -193,7 +199,8 @@ async def run_scratchpad(
     app_state = AppState(request)
     body = await parse_request(request, cls=RunScratchpadRequest)
     app_state.require_current_session().put_control_request(
-        body.as_execution_request()
+        body.as_execution_request(),
+        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
     )
 
     return SuccessResponse()
@@ -310,7 +317,8 @@ async def takeover_endpoint(
                 title="Session taken over",
                 description="Another user has taken over this session.",
                 variant="danger",
-            )
+            ),
+            from_consumer_id=None,
         )
         # Wait 100ms to ensure the client has received the message
         await asyncio.sleep(0.1)

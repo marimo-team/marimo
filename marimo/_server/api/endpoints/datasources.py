@@ -9,6 +9,7 @@ from marimo import _loggers
 from marimo._runtime.requests import PreviewDatasetColumnRequest
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
+from marimo._server.ids import ConsumerId
 from marimo._server.models.models import BaseResponse, SuccessResponse
 from marimo._server.router import APIRouter
 
@@ -42,5 +43,8 @@ async def preview_column(
     """
     app_state = AppState(request)
     body = await parse_request(request, PreviewDatasetColumnRequest)
-    app_state.require_current_session().put_control_request(body)
+    app_state.require_current_session().put_control_request(
+        body,
+        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
+    )
     return SuccessResponse()

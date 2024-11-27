@@ -351,22 +351,6 @@ class WebsocketHandler(SessionConsumer):
         )
         LOGGER.debug("Existing sessions: %s", mgr.sessions)
 
-        # Only one frontend can be connected at a time in edit mode.
-        if (
-            mgr.mode == SessionMode.EDIT
-            and mgr.any_clients_connected(self.file_key)
-            and not self.kiosk
-        ):
-            LOGGER.debug(
-                "Refusing connection; a frontend is already connected."
-            )
-            if self.websocket.application_state is WebSocketState.CONNECTED:
-                await self.websocket.close(
-                    WebSocketCodes.ALREADY_CONNECTED,
-                    "MARIMO_ALREADY_CONNECTED",
-                )
-            return
-
         def get_session() -> Session:
             # 1. If we are in kiosk mode, connect to the existing session
             if self.kiosk:
@@ -396,11 +380,6 @@ class WebsocketHandler(SessionConsumer):
                 return kiosk_session
 
             # 2. Handle reconnection
-
-            # The session already exists, but it was disconnected.
-            # This can happen in local development when the client
-            # goes to sleep and wakes later. Just replace the session's
-            # socket, but keep its kernel
             existing_session = mgr.get_session(session_id)
             if existing_session is not None:
                 LOGGER.debug("Reconnecting session %s", session_id)
@@ -409,9 +388,16 @@ class WebsocketHandler(SessionConsumer):
                 self._reconnect_session(existing_session, replay=False)
                 return existing_session
 
-            # 3. Handle resume
+            # 3. Check for existing session with same file
+            existing_session = mgr.get_session_by_file_key(self.file_key)
+            if existing_session is not None:
+                LOGGER.debug(
+                    "Connecting to existing session for file %s", self.file_key
+                )
+                self._connect_to_existing_session(existing_session)
+                return existing_session
 
-            # Get resumable possible resumable session
+            # 4. Handle resume
             resumable_session = mgr.maybe_resume_session(
                 session_id, self.file_key
             )
@@ -420,18 +406,8 @@ class WebsocketHandler(SessionConsumer):
                 self._reconnect_session(resumable_session, replay=True)
                 return resumable_session
 
-            # 4. Create a new session
-
-            # If the client refreshed their page, there will be one
-            # existing session with a closed socket for a different session
-            # id; that's why we call `close_all_sessions`.
-            # if mgr.mode == SessionMode.EDIT:
-            #     mgr.close_all_sessions()
-
+            # 5. Create new session
             # Grab the query params from the websocket
-            # Note: if we resume a session, we don't pick up the new query
-            # params, and instead use the query params from when the
-            # session was created.
             query_params = QueryParams({}, NoopStream())
             for key, value in self.websocket.query_params.multi_items():
                 if key in QueryParams.IGNORED_KEYS:
@@ -462,12 +438,12 @@ class WebsocketHandler(SessionConsumer):
             while True:
                 (op, data) = await self.message_queue.get()
 
-                if op in KIOSK_ONLY_OPERATIONS and not self.kiosk:
-                    LOGGER.debug(
-                        "Ignoring operation %s, not in kiosk mode",
-                        op,
-                    )
-                    continue
+                # if op in KIOSK_ONLY_OPERATIONS and not self.kiosk:
+                #     LOGGER.debug(
+                #         "Ignoring operation %s, not in kiosk mode",
+                #         op,
+                #     )
+                #     continue
                 if op in KIOSK_EXCLUDED_OPERATIONS and self.kiosk:
                     LOGGER.debug(
                         "Ignoring operation %s, in kiosk mode",
@@ -593,6 +569,27 @@ class WebsocketHandler(SessionConsumer):
             self.write_operation(Alert(title=title, description=description))
 
         check_for_updates(on_update)
+
+    def _connect_to_existing_session(self, session: Session) -> None:
+        """Connect to an existing session and replay all messages."""
+        self.status = ConnectionState.OPEN
+        session.connect_consumer(self, main=False)
+
+        # Write kernel ready with current state
+        self._write_kernel_ready(
+            session=session,
+            resumed=True,
+            ui_values=session.get_current_state().ui_values,
+            last_executed_code=session.get_current_state().last_executed_code,
+            last_execution_time=session.get_current_state().last_execution_time,
+            kiosk=False,
+        )
+
+        # Replay all operations
+        operations = session.get_current_state().operations
+        for op in operations:
+            LOGGER.debug("Replaying operation %s", serialize(op))
+            self.write_operation(op)
 
 
 HAS_TOASTED = False

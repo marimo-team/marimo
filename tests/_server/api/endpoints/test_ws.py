@@ -46,6 +46,13 @@ HEADERS = {
 }
 
 
+def headers(session_id: str) -> dict[str, str]:
+    return {
+        "Marimo-Session-Id": session_id,
+        **token_header("fake-token"),
+    }
+
+
 def assert_kernel_ready_response(
     raw_data: dict[str, Any], response: Optional[dict[str, Any]] = None
 ) -> None:
@@ -123,24 +130,20 @@ def test_disconnect_then_reconnect_then_refresh(client: TestClient) -> None:
     client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
-def test_fails_on_multiple_connections_with_other_sessions(
+def test_allows_multiple_connections_with_other_sessions(
     client: TestClient,
 ) -> None:
     with client.websocket_connect("/ws?session_id=123") as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data)
-        with pytest.raises(WebSocketDisconnect) as exc_info:  # noqa: PT012
-            with client.websocket_connect(
-                "/ws?session_id=456"
-            ) as other_websocket:
-                other_websocket.receive_json()
-                raise AssertionError()
-        assert exc_info.value.code == 1003
-        assert exc_info.value.reason == "MARIMO_ALREADY_CONNECTED"
+        # Should allow second connection
+        with client.websocket_connect("/ws?session_id=456") as other_websocket:
+            data = other_websocket.receive_json()
+            assert_kernel_ready_response(data)
     client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
-def test_fails_on_multiple_connections_with_same_file(
+def test_allows_multiple_connections_with_same_file(
     client: TestClient,
     temp_marimo_file: str,
 ) -> None:
@@ -149,12 +152,10 @@ def test_fails_on_multiple_connections_with_same_file(
     with client.websocket_connect(ws_1) as websocket:
         data = websocket.receive_json()
         assert_parse_ready_response(data)
-        with pytest.raises(WebSocketDisconnect) as exc_info:  # noqa: PT012
-            with client.websocket_connect(ws_2) as other_websocket:
-                other_websocket.receive_json()
-                raise AssertionError()
-        assert exc_info.value.code == 1003
-        assert exc_info.value.reason == "MARIMO_ALREADY_CONNECTED"
+        # Should allow second connection
+        with client.websocket_connect(ws_2) as other_websocket:
+            data = other_websocket.receive_json()
+            assert_parse_ready_response(data)
     client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
@@ -247,3 +248,96 @@ async def test_cannot_connect_kiosk_with_run_session(
 
     client.post("/api/kernel/shutdown", headers=HEADERS)
     session_manager.mode = SessionMode.EDIT
+
+
+def test_connects_to_existing_session_with_same_file(
+    client: TestClient,
+    temp_marimo_file: str,
+) -> None:
+    ws_1 = f"/ws?session_id=123&file={temp_marimo_file}"
+    ws_2 = f"/ws?session_id=456&file={temp_marimo_file}"
+
+    with client.websocket_connect(ws_1) as websocket1:
+        data = websocket1.receive_json()
+        assert_parse_ready_response(data)
+
+        # Connect second client - should connect to same session
+        with client.websocket_connect(ws_2) as websocket2:
+            data = websocket2.receive_json()
+            assert_parse_ready_response(data)
+
+            # Send a message from first client
+            client.post(
+                "/api/kernel/set_ui_element_value",
+                headers=headers("123"),
+                json={
+                    "object_ids": ["test"],
+                    "values": ["value1"],
+                },
+            )
+
+            # Both clients should receive the update
+            data1 = websocket1.receive_json()
+            data2 = websocket2.receive_json()
+            assert data1 == data2
+
+    client.post("/api/kernel/shutdown", headers=HEADERS)
+
+
+def test_replays_messages_when_connecting_to_existing_session(
+    client: TestClient,
+    temp_marimo_file: str,
+) -> None:
+    ws_1 = f"/ws?session_id=123&file={temp_marimo_file}"
+    ws_2 = f"/ws?session_id=456&file={temp_marimo_file}"
+
+    with client.websocket_connect(ws_1) as websocket1:
+        data = websocket1.receive_json()
+        assert_parse_ready_response(data)
+
+        # Send a message before second client connects
+        client.post(
+            "/api/kernel/set_ui_element_value",
+            headers=token_header("fake-token"),
+            json={
+                "object_ids": ["test1"],
+                "values": ["value1"],
+            },
+        )
+        # First client receives update
+        data1 = websocket1.receive_json()
+
+        # Connect second client - should connect to same session
+        with client.websocket_connect(ws_2) as websocket2:
+            # Should get kernel ready with current state
+            data = websocket2.receive_json()
+            assert_kernel_ready_response(
+                data,
+                create_response(
+                    {
+                        "resumed": True,
+                        "ui_values": {"test1": "value1"},
+                    }
+                ),
+            )
+
+            # Should get replayed operation
+            data2 = websocket2.receive_json()
+            assert data1 == data2
+
+            # New operations should go to both clients
+            client.post(
+                "/api/kernel/set_ui_element_value",
+                headers=token_header("fake-token"),
+                json={
+                    "object_ids": ["test2"],
+                    "values": ["value2"],
+                },
+            )
+
+            # Both clients receive new update
+            data1 = websocket1.receive_json()
+            data2 = websocket2.receive_json()
+            assert data1 == data2
+
+    client.post("/api/kernel/shutdown", headers=HEADERS)

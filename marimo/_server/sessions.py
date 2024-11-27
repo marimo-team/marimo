@@ -383,8 +383,14 @@ class Room:
         finally:
             disposable.dispose()
 
-    def broadcast(self, operation: MessageOperation) -> None:
+    def broadcast(
+        self,
+        operation: MessageOperation,
+        except_consumer: Optional[ConsumerId],
+    ) -> None:
         for consumer in self.consumers:
+            if consumer.consumer_id == except_consumer:
+                continue
             consumer.write_operation(operation)
 
     def close(self) -> None:
@@ -514,7 +520,11 @@ class Session:
         """Try to interrupt the kernel."""
         self.kernel_manager.interrupt_kernel()
 
-    def put_control_request(self, request: requests.ControlRequest) -> None:
+    def put_control_request(
+        self,
+        request: requests.ControlRequest,
+        from_consumer_id: Optional[ConsumerId],
+    ) -> None:
         """Put a control request in the control queue."""
         self._queue_manager.control_queue.put(request)
         if isinstance(request, SetUIElementValueRequest):
@@ -525,10 +535,14 @@ class Session:
                 UpdateCellCodes(
                     cell_ids=request.cell_ids,
                     codes=request.codes,
-                )
+                ),
+                except_consumer=from_consumer_id,
             )
             if len(request.cell_ids) == 1:
-                self.room.broadcast(FocusCell(cell_id=request.cell_ids[0]))
+                self.room.broadcast(
+                    FocusCell(cell_id=request.cell_ids[0]),
+                    except_consumer=from_consumer_id,
+                )
         self.session_view.add_control_request(request)
 
     def put_completion_request(
@@ -588,10 +602,14 @@ class Session:
             return ConnectionState.ORPHANED
         return self.room.main_consumer.connection_state()
 
-    def write_operation(self, operation: MessageOperation) -> None:
+    def write_operation(
+        self,
+        operation: MessageOperation,
+        from_consumer_id: Optional[ConsumerId],
+    ) -> None:
         """Write an operation to the session consumer and the session view."""
         self.session_view.add_operation(operation)
-        self.room.broadcast(operation)
+        self.room.broadcast(operation, except_consumer=from_consumer_id)
 
     def close(self) -> None:
         """
@@ -623,7 +641,8 @@ class Session:
                     values=request.values,
                     token=str(uuid4()),
                 ),
-            )
+            ),
+            from_consumer_id=None,
         )
 
     def __repr__(self) -> str:
@@ -849,7 +868,7 @@ class SessionManager:
 
         if alert is not None:
             for _, session in self.sessions.items():
-                session.write_operation(alert)
+                session.write_operation(alert, from_consumer_id=None)
             return
 
     def close_session(self, session_id: SessionId) -> bool:
@@ -899,7 +918,7 @@ class SessionManager:
             LOGGER.debug(f"{path} was modified")
             for _, session in self.sessions.items():
                 session.app_file_manager.reload()
-                session.write_operation(Reload())
+                session.write_operation(Reload(), from_consumer_id=None)
 
         LOGGER.debug("Starting file watcher for %s", file_path)
         self.watcher = FileWatcher.create(Path(file_path), on_file_changed)

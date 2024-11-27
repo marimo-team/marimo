@@ -48,7 +48,7 @@ import {
   type CellIndex,
   MultiColumn,
 } from "@/utils/id-tree";
-import { isEqual } from "lodash-es";
+import { debounce, isEqual } from "lodash-es";
 import { isErrorMime } from "../mime";
 
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
@@ -695,6 +695,11 @@ const {
     };
   },
   setCellIds: (state, action: { cellIds: CellId[] }) => {
+    const isTheSame = isEqual(state.cellIds.inOrderIds, action.cellIds);
+    if (isTheSame) {
+      return state;
+    }
+
     // Create new cell data and runtime states for the new cell IDs
     const nextCellData = { ...state.cellData };
     const nextCellRuntime = { ...state.cellRuntime };
@@ -1371,6 +1376,8 @@ export function useCellActions(): CellActions {
  */
 export type CellActions = ReturnType<typeof createActions>;
 
+const debounceSyncCellIds = debounce(syncCellIds, 400);
+
 export const CellEffects = {
   onCellIdsChange: (
     cellIds: MultiColumn<CellId>,
@@ -1393,7 +1400,7 @@ export const CellEffects = {
     // If they are different references, send an update to the server
     if (!isEqual(cellIds.inOrderIds, prevCellIds.inOrderIds)) {
       // "name" property is not actually required
-      void syncCellIds({
+      void debounceSyncCellIds({
         cell_ids: cellIds.inOrderIds,
       } as unknown as UpdateCellIdsRequest);
     }
