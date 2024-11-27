@@ -274,7 +274,7 @@ exclude = [
 [tool.ruff.lint]
 ignore = [
     "G004",   # Logging statement uses f-string
-    "TC001", # Move application import into a type-checking block
+    "TCH001", # Move application import into a type-checking block
     "D301",   # Use r""" if any backslashes in a docstring
     # TODO: we should fix these, and enable this rule
     "PT011", # `pytest.raises(ValueError)` is too broad, set the `match` parameter or use a more specific exception
