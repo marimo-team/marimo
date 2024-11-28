@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { memo, useState } from "react";
+import { memo } from "react";
 import {
   type DataType,
   JsonViewer,
@@ -14,8 +14,6 @@ import { TextOutput } from "./TextOutput";
 import { VideoOutput } from "./VideoOutput";
 import { logNever } from "../../../utils/assertNever";
 import { useTheme } from "../../../theme/useTheme";
-import { Labeled } from "@/plugins/impl/common/labeled";
-import { Switch } from "@/components/ui/switch";
 
 interface Props {
   /**
@@ -42,44 +40,27 @@ export const JsonOutput: React.FC<Props> = memo(
     if (format === "auto") {
       format = inferBestFormat(data);
     }
-    const [wrapText, setWrapText] = useState(false);
 
     switch (format) {
       case "tree":
         return (
-          <>
-            <div className="grid justify-items-end">
-              <Labeled label="Wrap text" align="right" labelClassName="ml-1">
-                <Switch
-                  id="json-wrap-text-switch"
-                  size="sm"
-                  checked={wrapText}
-                  onCheckedChange={setWrapText}
-                  className="data-[state=unchecked]:hover:bg-input/80 mb-0"
-                />
-              </Labeled>
-            </div>
-            <JsonViewer
-              className={
-                wrapText
-                  ? "marimo-json-output marimo-json-output-wrapped"
-                  : "marimo-json-output"
-              }
-              rootName={name}
-              theme={theme}
-              value={data}
-              style={{
-                backgroundColor: "transparent",
-              }}
-              valueTypes={VALUE_TYPE}
-              // disable array grouping (it's misleading) by using a large value
-              groupArraysAfterLength={1_000_000}
-              // TODO(akshayka): disable clipboard until we have a better
-              // solution: copies raw values, shifts content; can use onCopy prop
-              // to override what is copied to clipboard
-              enableClipboard={false}
-            />
-          </>
+          <JsonViewer
+            className="marimo-json-output"
+            rootName={name}
+            theme={theme}
+            value={data}
+            style={{
+              backgroundColor: "transparent",
+            }}
+            valueTypes={VALUE_TYPE}
+            // disable array grouping (it's misleading) by using a large value
+            groupArraysAfterLength={1_000_000}
+            collapseStringsAfterLength={500}
+            // TODO(akshayka): disable clipboard until we have a better
+            // solution: copies raw values, shifts content; can use onCopy prop
+            // to override what is copied to clipboard
+            enableClipboard={false}
+          />
         );
       case "raw":
         return <pre className={className}>{JSON.stringify(data, null, 2)}</pre>;
