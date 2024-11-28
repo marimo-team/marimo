@@ -70,7 +70,7 @@ export interface CellEditorProps
   // Props below are not used by scratchpad
   // DOM node where the editorView will be mounted
   editorViewParentRef?: React.MutableRefObject<HTMLDivElement | null>;
-  temporarilyShowCode?: () => void;
+  temporarilyShowCode: () => void;
 }
 
 const CellEditorInternal = ({
@@ -374,7 +374,7 @@ const CellEditorInternal = ({
         onFocus={() => setLastFocusedCellId(cellId)}
       >
         {/* Completely hide the editor and icons when markdown is hidden. If just hidden, display. */}
-        {!isMarkdown && hidden && temporarilyShowCode && (
+        {!isMarkdown && hidden && (
           <HideCodeButton
             className="absolute inset-0 z-10"
             onClick={temporarilyShowCode}

@@ -145,6 +145,7 @@ export const ScratchPad: React.FC = () => {
             userConfig={userConfig}
             editorViewRef={ref}
             hidden={false}
+            temporarilyShowCode={Functions.NOOP}
           />
         </div>
         <div className="flex-1 overflow-auto flex-shrink-0">
