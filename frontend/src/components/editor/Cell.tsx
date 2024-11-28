@@ -341,32 +341,26 @@ const CellComponent = (
   const editorViewParentRef = useRef<HTMLDivElement>(null);
 
   // if the cell is hidden, show the code editor temporarily
-  const temporarilyShowCode = useCallback(async () => {
-    if (!isCellCodeShown && setTemporarilyVisible !== undefined) {
+  const temporarilyShowCode = useCallback(() => {
+    if (!isCellCodeShown) {
       setTemporarilyVisible(true);
       editorView.current?.focus();
       // Reach one parent up
       const parent = editorViewParentRef.current?.parentElement;
-      const abortController = new AbortController();
-      parent?.addEventListener(
-        "focusout",
-        () => {
-          requestAnimationFrame(() => {
-            // Skip closing if the focus is still in the parent element
-            const focusedElement = document.activeElement;
-            if (parent?.contains(focusedElement)) {
-              return;
-            }
+
+      const handleFocusOut = () => {
+        requestAnimationFrame(() => {
+          if (!parent?.contains(document.activeElement)) {
             // Hide the code editor
             setTemporarilyVisible(false);
             editorView.current?.dom.blur();
-            abortController.abort();
-          });
-        },
-        { signal: abortController.signal },
-      );
+            parent?.removeEventListener("focusout", handleFocusOut);
+          }
+        });
+      };
+      parent?.addEventListener("focusout", handleFocusOut);
     }
-  }, [isCellCodeShown, setTemporarilyVisible, editorViewParentRef, editorView]);
+  }, [isCellCodeShown, editorView]);
 
   const showHiddenMarkdownCode = () => {
     if (isMarkdownCodeHidden) {
