@@ -2,14 +2,7 @@
 import { historyField } from "@codemirror/commands";
 import { EditorState, StateEffect } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
-import React, {
-  memo,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useMemo,
-} from "react";
+import React, { memo, useCallback, useEffect, useRef, useMemo } from "react";
 
 import { setupCodeMirror } from "@/core/codemirror/cm";
 import useEvent from "react-use-event-hook";
@@ -67,6 +60,10 @@ export interface CellEditorProps
    * This is different from cellConfig.hide_code, since it may be temporarily shown.
    */
   hidden?: boolean;
+  languageAdapter: LanguageAdapterType | undefined;
+  setLanguageAdapter: React.Dispatch<
+    React.SetStateAction<LanguageAdapterType | undefined>
+  >;
   // Props below are not used by scratchpad.
   // DOM node where the editorView will be mounted
   editorViewParentRef?: React.MutableRefObject<HTMLDivElement | null>;
@@ -96,9 +93,10 @@ const CellEditorInternal = ({
   editorViewParentRef,
   hidden,
   temporarilyShowCode,
+  languageAdapter,
+  setLanguageAdapter,
 }: CellEditorProps) => {
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
-  const [languageAdapter, setLanguageAdapter] = useState<LanguageAdapterType>();
   const setLastFocusedCellId = useSetLastFocusedCellId();
 
   const loading = status === "running" || status === "queued";
@@ -241,6 +239,7 @@ const CellEditorInternal = ({
     runCell,
     setAiCompletionCell,
     afterToggleMarkdown,
+    setLanguageAdapter,
   ]);
 
   useEffect(() => {

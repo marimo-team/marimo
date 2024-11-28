@@ -10,7 +10,6 @@ import {
   useImperativeHandle,
   useRef,
   useState,
-  useEffect,
 } from "react";
 
 import { saveCellConfig, sendRun, sendStdin } from "@/core/network/requests";
@@ -58,6 +57,7 @@ import { isErrorMime } from "@/core/mime";
 import { getCurrentLanguageAdapter } from "@/core/codemirror/language/commands";
 import { HideCodeButton } from "./code/readonly-python-code";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
+import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 
 /**
  * Imperative interface of the cell.
@@ -185,6 +185,8 @@ const CellComponent = (
   const editorView = useRef<EditorView | null>(null);
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
   const [temporarilyVisible, setTemporarilyVisible] = useState(false);
+
+  const [languageAdapter, setLanguageAdapter] = useState<LanguageAdapterType>();
 
   const disabledOrAncestorDisabled =
     cellConfig.disabled || status === "disabled-transitively";
@@ -315,20 +317,8 @@ const CellComponent = (
   );
 
   const isCellCodeShown = !cellConfig.hide_code || temporarilyVisible;
-  const isMarkdown =
-    getCurrentLanguageAdapter(editorView.current) === "markdown";
-  const [isMarkdownCodeHidden, setIsMarkdownCodeHidden] = useState(
-    isMarkdown && !isCellCodeShown,
-  );
-
-  useEffect(() => {
-    if (
-      getCurrentLanguageAdapter(editorView.current) === "markdown" &&
-      !isCellCodeShown
-    ) {
-      setIsMarkdownCodeHidden(true);
-    }
-  }, [isCellCodeShown, setIsMarkdownCodeHidden]);
+  const isMarkdown = languageAdapter === "markdown";
+  const isMarkdownCodeHidden = isMarkdown && !isCellCodeShown;
 
   const cellContainerRef = useRef<HTMLDivElement>(null);
 
@@ -337,7 +327,7 @@ const CellComponent = (
   const [isCellStatusInline, setIsCellStatusInline] = useState(false);
   useResizeObserver({
     ref: cellContainerRef,
-    skip: !isMarkdownCodeHidden,
+    skip: !isMarkdown,
     onResize: (size) => {
       if (size.height && size.height < 60 && hasOutput) {
         setIsCellStatusInline(true);
@@ -621,6 +611,8 @@ const CellComponent = (
               editorViewParentRef={editorViewParentRef}
               hidden={!isCellCodeShown}
               temporarilyShowCode={temporarilyShowCode}
+              languageAdapter={languageAdapter}
+              setLanguageAdapter={setLanguageAdapter}
             />
             <div className="shoulder-right z-20">
               <div className={cn(isCellStatusInline && "relative -right-7")}>
