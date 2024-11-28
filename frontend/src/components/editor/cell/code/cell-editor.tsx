@@ -67,7 +67,7 @@ export interface CellEditorProps
    * This is different from cellConfig.hide_code, since it may be temporarily shown.
    */
   hidden?: boolean;
-  // Props below are not used by scratchpad
+  // Props below are not used by scratchpad.
   // DOM node where the editorView will be mounted
   editorViewParentRef?: React.MutableRefObject<HTMLDivElement | null>;
   temporarilyShowCode: () => void;
