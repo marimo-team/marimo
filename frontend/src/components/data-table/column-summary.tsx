@@ -8,6 +8,7 @@ import { DelayMount } from "../utils/delay-mount";
 import { ChartSkeleton } from "../charts/chart-skeleton";
 import { logNever } from "@/utils/assertNever";
 import { DatePopover } from "./date-popover";
+import { createBatchedLoader } from "@/plugins/impl/vega/debounced";
 
 export const ColumnChartContext = React.createContext<
   ColumnChartSpecModel<unknown>
@@ -20,6 +21,10 @@ interface Props<TData, TValue> {
 const LazyVegaLite = React.lazy(() =>
   import("react-vega").then((m) => ({ default: m.VegaLite })),
 );
+
+// We batch multiple calls to the same URL returning the same promise
+// for all calls with the same key.
+const batchedLoader = createBatchedLoader();
 
 export const TableColumnSummary = <TData, TValue>({
   columnId,
@@ -38,6 +43,8 @@ export const TableColumnSummary = <TData, TValue>({
           spec={spec}
           width={120}
           height={50}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          loader={batchedLoader as any}
           style={{ minWidth: "unset", maxHeight: "60px" }}
           actions={false}
           theme={theme === "dark" ? "dark" : "vox"}
