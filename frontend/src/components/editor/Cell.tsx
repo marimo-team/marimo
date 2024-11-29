@@ -370,6 +370,21 @@ const CellComponent = (
 
   const hasOutput = !isOutputEmpty(output);
 
+  const unhideCode = useEvent(() => {
+    // Fire-and-forget save
+    void saveCellConfig({ configs: { [cellId]: { hide_code: false } } });
+    updateCellConfig({ cellId, config: { hide_code: false } });
+
+    // focus the editor
+    editorView.current?.focus();
+    return false;
+  });
+
+  // When markdown cell is hidden & output is cleared, show the code editor
+  if (isMarkdownCodeHidden && !hasOutput) {
+    unhideCode();
+  }
+
   const outputArea = hasOutput && (
     <div className="relative" onDoubleClick={showHiddenMarkdownCode}>
       <div className="absolute top-5 -left-8 z-10 print:hidden">
@@ -608,7 +623,7 @@ const CellComponent = (
               languageAdapter={languageAdapter}
               setLanguageAdapter={setLanguageAdapter}
             />
-            <div className="shoulder-right z-20">
+            <div className="shoulder-right">
               <div className={cn(isCellStatusInline && "relative -right-7")}>
                 <CellStatusComponent
                   status={status}
