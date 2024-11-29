@@ -14,6 +14,7 @@ import {
 import { renderMinimalShortcut } from "@/components/shortcuts/renderShortcut";
 import type { ActionButton } from "../actions/types";
 import {
+  ClipboardCopyIcon,
   ClipboardPasteIcon,
   CopyIcon,
   ImageIcon,
@@ -24,6 +25,7 @@ import { goToDefinitionAtCursorPosition } from "@/core/codemirror/go-to-definiti
 import { CellOutputId } from "@/core/cells/ids";
 import { Logger } from "@/utils/Logger";
 import { copyToClipboard } from "@/utils/copy";
+import { toast } from "@/components/ui/use-toast";
 
 interface Props extends CellActionButtonProps {
   children: React.ReactNode;
@@ -37,6 +39,7 @@ export const CellActionsContextMenu = ({ children, ...props }: Props) => {
   const DEFAULT_CONTEXT_MENU_ITEMS: ActionButton[] = [
     {
       label: "Copy",
+      hidden: Boolean(imageRightClicked),
       icon: <CopyIcon size={13} strokeWidth={1.5} />,
       handle: async () => {
         // Has selection, use browser copy
@@ -60,6 +63,7 @@ export const CellActionsContextMenu = ({ children, ...props }: Props) => {
     },
     {
       label: "Cut",
+      hidden: Boolean(imageRightClicked),
       icon: <ScissorsIcon size={13} strokeWidth={1.5} />,
       handle: () => {
         document.execCommand("cut");
@@ -67,6 +71,7 @@ export const CellActionsContextMenu = ({ children, ...props }: Props) => {
     },
     {
       label: "Paste",
+      hidden: Boolean(imageRightClicked),
       icon: <ClipboardPasteIcon size={13} strokeWidth={1.5} />,
       handle: async () => {
         const { getEditorView } = props;
@@ -86,6 +91,33 @@ export const CellActionsContextMenu = ({ children, ...props }: Props) => {
           });
           // Apply the transaction
           editorView.dispatch(tr);
+        }
+      },
+    },
+    {
+      label: "Copy image",
+      hidden: !imageRightClicked,
+      icon: <ClipboardCopyIcon size={13} strokeWidth={1.5} />,
+      handle: async () => {
+        if (imageRightClicked) {
+          const response = await fetch(imageRightClicked.src);
+          const blob = await response.blob();
+          const item = new ClipboardItem({ [blob.type]: blob });
+          await navigator.clipboard
+            .write([item])
+            .then(() => {
+              toast({
+                title: "Copied image to clipboard",
+              });
+            })
+            .catch((error) => {
+              toast({
+                title:
+                  "Failed to copy image to clipboard. Try downloading instead.",
+                description: error.message,
+              });
+              Logger.error("Failed to copy image to clipboard", error);
+            });
         }
       },
     },
