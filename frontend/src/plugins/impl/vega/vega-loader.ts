@@ -24,15 +24,13 @@ export function read<T = object>(
 }
 
 export interface Loader {
-  load: (
+  load(
     uri: string,
     options?: unknown,
-  ) => Promise<
-    string | Record<string, unknown> | Array<Record<string, unknown>>
-  >;
-  sanitize: (uri: string, options: unknown) => Promise<{ href: string }>;
-  http: (uri: string, options: unknown) => Promise<string>;
-  file: (filename: string) => Promise<string>;
+  ): Promise<string | Record<string, unknown> | Array<Record<string, unknown>>>;
+  sanitize(uri: string, options?: unknown): Promise<{ href: string }>;
+  http(uri: string, options?: unknown): Promise<string>;
+  file(filename: string): Promise<string>;
 }
 
 export function createLoader(): Loader {

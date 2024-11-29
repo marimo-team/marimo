@@ -10,6 +10,6 @@ export function createBatchedLoader(): Loader {
     load: batch(loader.load.bind(loader) as any, toKey),
     sanitize: batch(loader.sanitize.bind(loader) as any, toKey),
     http: batch(loader.http.bind(loader) as any, toKey),
-    file: batch(loader.file.bind(loader) as any, toKey),
+    file: batch(loader.file.bind(loader), toKey),
   };
 }

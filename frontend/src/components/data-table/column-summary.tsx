@@ -8,7 +8,7 @@ import { DelayMount } from "../utils/delay-mount";
 import { ChartSkeleton } from "../charts/chart-skeleton";
 import { logNever } from "@/utils/assertNever";
 import { DatePopover } from "./date-popover";
-import { createBatchedLoader } from "@/plugins/impl/vega/debounced";
+import { createBatchedLoader } from "@/plugins/impl/vega/batched";
 
 export const ColumnChartContext = React.createContext<
   ColumnChartSpecModel<unknown>
