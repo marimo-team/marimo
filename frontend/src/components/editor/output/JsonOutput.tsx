@@ -75,6 +75,7 @@ function inferBestFormat(data: unknown): "tree" | "raw" {
   return typeof data === "object" && data !== null ? "tree" : "raw";
 }
 
+// Text with length > 500 is collapsed by default, and can be expanded by clicking on it.
 const CollapsibleTextOutput = (props: { text: string }) => {
   const [isCollapsed, setIsCollapsed] = useState(true);
   return (
