@@ -1,10 +1,12 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 from typing import Optional
 
 from marimo import _loggers
 from marimo._config.config import (
+    DEFAULT_CONFIG,
     MarimoConfig,
     PartialMarimoConfig,
     mask_secrets,
@@ -42,6 +44,14 @@ class UserConfigManager:
 
         self.config = merge_default_config(merged)
         return self.config
+
+    def save_config_if_missing(self) -> None:
+        try:
+            config_path = self.get_config_path()
+            if not os.path.exists(config_path):
+                self.save_config(DEFAULT_CONFIG)
+        except Exception as e:
+            LOGGER.warning("Failed to save config: %s", e)
 
     def get_config(self, hide_secrets: bool = True) -> MarimoConfig:
         if hide_secrets:

@@ -24,6 +24,8 @@ def show() -> None:
     import tomlkit
 
     config_manager = UserConfigManager()
+    # Save config if doesn't exist
+    config_manager.save_config_if_missing()
     echo(f"User config from {green(config_manager.get_config_path())}\n")
     toml_string = tomlkit.dumps(config_manager.get_config())
     echo(highlight_toml_headers(toml_string))
