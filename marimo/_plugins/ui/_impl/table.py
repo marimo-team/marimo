@@ -38,6 +38,7 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 )
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 from marimo._plugins.ui._impl.utils.dataframe import ListOrTuple, TableData
+from marimo._plugins.validators import validate_no_integer_columns
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._utils.narwhals_utils import unwrap_narwhals_dataframe
 
@@ -254,6 +255,8 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         _internal_summary_row_limit: Optional[int] = None,
         _internal_total_rows: Optional[Union[int, Literal["too_many"]]] = None,
     ) -> None:
+        validate_no_integer_columns(data)
+
         # The original data passed in
         self._data = data
         # Holds the original data
