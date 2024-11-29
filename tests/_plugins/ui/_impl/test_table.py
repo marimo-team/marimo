@@ -850,3 +850,23 @@ def test_column_clamping_with_polars():
     headers = csv.split("\n")[0].split(",")
     assert len(headers) == 60  # 60 columns
     assert len(table._component_args["field-types"]) == 60
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(), reason="Pandas not installed"
+)
+def test_dataframe_with_int_column_names():
+    import warnings
+
+    import pandas as pd
+
+    data = pd.DataFrame([[1, 2, 3], [4, 5, 6]], columns=[0, 1, 2])
+    with warnings.catch_warnings(record=True) as w:
+        table = ui.table(data)
+        # Check that warnings were made
+        assert len(w) > 0
+        assert "DataFrame has integer column names" in str(w[0].message)
+
+    # Check that the table handles integer column names correctly
+    assert table._manager.get_column_names() == [0, 1, 2]
+    assert table._component_args["total-columns"] == 3

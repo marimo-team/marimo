@@ -4,6 +4,8 @@ from __future__ import annotations
 import warnings
 from typing import Any
 
+from marimo._dependencies.dependencies import DependencyManager
+
 
 def validate_range(
     min_value: int | float | None,
@@ -57,3 +59,21 @@ def warn_js_safe_number(*values: int | float | None) -> None:
                 "integers in JavaScript. This may cause precision issues.",
                 stacklevel=3,
             )
+
+
+def validate_no_integer_columns(df: Any) -> None:
+    if not DependencyManager.pandas.has():
+        return
+
+    import pandas as pd
+
+    if not isinstance(df, pd.DataFrame):
+        return
+
+    has_int_column_names = any(isinstance(name, int) for name in df.columns)
+    if has_int_column_names:
+        warnings.warn(
+            "DataFrame has integer column names. This is not supported and can lead to bugs. "
+            "Please use strings for column names.",
+            stacklevel=3,
+        )
