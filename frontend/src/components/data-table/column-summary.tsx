@@ -32,6 +32,8 @@ export const TableColumnSummary = <TData, TValue>({
     chart = (
       <DelayMount
         milliseconds={200}
+        visibility={true}
+        rootMargin="200px"
         fallback={<ChartSkeleton seed={columnId} width={130} height={60} />}
       >
         <LazyVegaLite

@@ -75,6 +75,7 @@ interface Data<T> {
   freezeColumnsRight?: string[];
   textJustifyColumns?: Record<string, "left" | "center" | "right">;
   wrappedColumns?: string[];
+  totalColumns: number;
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -119,8 +120,14 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         .optional(),
       wrappedColumns: z.array(z.string()).optional(),
       fieldTypes: z
-        .array(z.tuple([z.string(), z.tuple([z.enum(DATA_TYPES), z.string()])]))
+        .array(
+          z.tuple([
+            z.coerce.string(),
+            z.tuple([z.enum(DATA_TYPES), z.string()]),
+          ]),
+        )
         .nullish(),
+      totalColumns: z.number(),
     }),
   )
   .withFunctions<Functions>({
@@ -440,6 +447,7 @@ const DataTableComponent = ({
   freezeColumnsRight,
   textJustifyColumns,
   wrappedColumns,
+  totalColumns,
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
@@ -464,6 +472,7 @@ const DataTableComponent = ({
   }, [fieldTypes, columnSummaries]);
 
   const fieldTypesOrInferred = fieldTypes ?? inferFieldTypes(data);
+  const shownColumns = fieldTypesOrInferred.length;
 
   const columns = useMemo(
     () =>
@@ -515,6 +524,11 @@ const DataTableComponent = ({
           Result clipped. If no LIMIT is given, we only show the first 300 rows.
         </Banner>
       )}
+      {shownColumns < totalColumns && (
+        <Banner className="mb-2 rounded">
+          Result clipped. Showing {shownColumns} of {totalColumns} columns.
+        </Banner>
+      )}
       {columnSummaries?.is_disabled && (
         // Note: Keep the text in sync with the constant defined in table_manager.py
         //       This hard-code can be removed when Functions can pass structural
@@ -532,6 +546,7 @@ const DataTableComponent = ({
             className={className}
             sorting={sorting}
             totalRows={totalRows}
+            totalColumns={totalColumns}
             manualSorting={true}
             setSorting={setSorting}
             pagination={pagination}

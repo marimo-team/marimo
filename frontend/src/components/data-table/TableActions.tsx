@@ -15,6 +15,7 @@ interface TableActionsProps<TData> {
   isSearchEnabled: boolean;
   setIsSearchEnabled: React.Dispatch<React.SetStateAction<boolean>>;
   pagination: boolean;
+  totalColumns: number;
   selection?: "single" | "multi" | null;
   onRowSelectionChange?: (value: RowSelectionState) => void;
   table: Table<TData>;
@@ -27,6 +28,7 @@ export const TableActions = <TData,>({
   isSearchEnabled,
   setIsSearchEnabled,
   pagination,
+  totalColumns,
   selection,
   onRowSelectionChange,
   table,
@@ -48,6 +50,7 @@ export const TableActions = <TData,>({
       )}
       {pagination ? (
         <DataTablePagination
+          totalColumns={totalColumns}
           selection={selection}
           onSelectAllRowsChange={
             onRowSelectionChange

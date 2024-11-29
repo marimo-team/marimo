@@ -698,3 +698,155 @@ def test_pagination_behavior() -> None:
     assert table._component_args["pagination"] is True
     assert table._component_args["page-size"] == 5
     assert len(table._component_args["data"]) == 5
+
+
+def test_column_clamping():
+    # Create data with many columns
+    data = {f"col{i}": [1, 2, 3] for i in range(100)}
+
+    # Test default max_columns
+    table = ui.table(data)
+    assert len(table._manager.get_column_names()) == 100
+    assert table._component_args["total-columns"] == 100
+    assert len(table._component_args["data"][0].keys()) == 50
+    assert table._component_args["field-types"] is None
+
+    # Test custom max_columns
+    table = ui.table(data, max_columns=20)
+    assert len(table._manager.get_column_names()) == 100
+    assert table._component_args["total-columns"] == 100
+    assert len(table._component_args["data"][0].keys()) == 20
+    assert table._component_args["field-types"] is None
+
+    # Test no clamping
+    table = ui.table(data, max_columns=None)
+    assert len(table._manager.get_column_names()) == 100
+    assert table._component_args["total-columns"] == 100
+    assert len(table._component_args["data"][0].keys()) == 100
+    assert table._component_args["field-types"] is None
+
+
+def test_column_clamping_with_small_data():
+    data = {f"col{i}": [1, 2, 3] for i in range(10)}
+
+    # Should not clamp when under max_columns
+    table = ui.table(data)
+    assert len(table._manager.get_column_names()) == 10
+    assert table._component_args["total-columns"] == 10
+    assert len(table._component_args["data"][0].keys()) == 10
+    assert table._component_args["field-types"] is None
+
+
+def test_search_clamping_columns():
+    data = {f"col{i}": [1, 2, 3] for i in range(100)}
+    table = ui.table(data, max_columns=20)
+
+    # Perform a search
+    search_args = SearchTableArgs(page_size=10, page_number=0, query="1")
+    response = table.search(search_args)
+
+    # Check that the search result is clamped
+    assert len(response.data[0].keys()) == 20
+
+    # Check that selection is not clamped
+    table._selected_manager = table._searched_manager.select_rows([0])
+    selected_data = table._selected_manager.data
+    assert len(selected_data) == 100
+
+
+def test_search_no_clamping_columns():
+    data = {f"col{i}": [1, 2, 3] for i in range(100)}
+    table = ui.table(data, max_columns=None)
+
+    # Perform a search
+    search_args = SearchTableArgs(page_size=10, page_number=0, query="1")
+    response = table.search(search_args)
+
+    # Check that the search result is not clamped
+    assert len(response.data[0].keys()) == 100
+
+    # Check that selection is not clamped
+    table._selected_manager = table._searched_manager.select_rows([0])
+    selected_data = table._selected_manager.data
+    assert len(selected_data) == 100
+
+
+def test_column_clamping_with_exact_max_columns():
+    data = {f"col{i}": [1, 2, 3] for i in range(50)}
+    table = ui.table(data, max_columns=50)
+
+    # Check that the table is not clamped
+    assert len(table._manager.get_column_names()) == 50
+    assert table._component_args["total-columns"] == 50
+    assert len(table._component_args["data"][0].keys()) == 50
+    assert table._component_args["field-types"] is None
+
+
+def test_column_clamping_with_more_than_max_columns():
+    data = {f"col{i}": [1, 2, 3] for i in range(60)}
+    table = ui.table(data, max_columns=50)
+
+    # Check that the table is clamped
+    assert len(table._manager.get_column_names()) == 60
+    assert table._component_args["total-columns"] == 60
+    assert len(table._component_args["data"][0].keys()) == 50
+    assert table._component_args["field-types"] is None
+
+
+def test_column_clamping_with_no_columns():
+    table = ui.table([], max_columns=50)
+
+    # Check that the table handles no columns gracefully
+    assert len(table._manager.get_column_names()) == 1
+    assert table._component_args["total-columns"] == 1
+    assert len(table._component_args["data"]) == 0
+    assert table._component_args["field-types"] is None
+
+
+def test_column_clamping_with_single_column():
+    data = {"col1": [1, 2, 3]}
+    table = ui.table(data, max_columns=50)
+
+    # Check that the table handles a single column gracefully
+    assert len(table._manager.get_column_names()) == 1
+    assert table._component_args["total-columns"] == 1
+    assert len(table._component_args["data"][0].keys()) == 1
+    assert table._component_args["field-types"] is None
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
+def test_column_clamping_with_polars():
+    import polars as pl
+
+    data = pl.DataFrame({f"col{i}": [1, 2, 3] for i in range(60)})
+    table = ui.table(data)
+
+    # Check that the table is clamped
+    assert len(table._manager.get_column_names()) == 60
+    assert table._component_args["total-columns"] == 60
+    csv = from_data_uri(table._component_args["data"])[1].decode("utf-8")
+    headers = csv.split("\n")[0].split(",")
+    assert len(headers) == 50  # 50 columns
+    assert len(table._component_args["field-types"]) == 50
+
+    table = ui.table(data, max_columns=40)
+
+    # Check that the table is clamped
+    assert len(table._manager.get_column_names()) == 60
+    assert table._component_args["total-columns"] == 60
+    csv = from_data_uri(table._component_args["data"])[1].decode("utf-8")
+    headers = csv.split("\n")[0].split(",")
+    assert len(headers) == 40  # 40 columns
+    assert len(table._component_args["field-types"]) == 40
+
+    table = ui.table(data, max_columns=None)
+
+    # Check that the table is not clamped
+    assert len(table._manager.get_column_names()) == 60
+    assert table._component_args["total-columns"] == 60
+    csv = from_data_uri(table._component_args["data"])[1].decode("utf-8")
+    headers = csv.split("\n")[0].split(",")
+    assert len(headers) == 60  # 60 columns
+    assert len(table._component_args["field-types"]) == 60

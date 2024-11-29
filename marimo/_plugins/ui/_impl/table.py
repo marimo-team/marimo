@@ -205,6 +205,8 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
     - `wrapped_columns`: list of column names to wrap
     - `label`: markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
+    - `max_columns`: maximum number of columns to display, defaults to 50.
+      Set to None to show all columns.
     """
 
     _name: Final[str] = "marimo-table"
@@ -220,6 +222,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         pagination: Optional[bool] = None,
         selection: Optional[Literal["single", "multi"]] = "multi",
         page_size: int = 10,
+        max_columns: Optional[int] = 50,
         show_column_summaries: Optional[bool] = None,
         format_mapping: Optional[
             Dict[str, Union[str, Callable[..., Any]]]
@@ -255,6 +258,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         self._data = data
         # Holds the original data
         self._manager = get_table_manager(data)
+        self._max_columns = max_columns
 
         # Set the default value for show_column_summaries,
         # if it is not set by the user
@@ -363,6 +367,13 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
                 if column not in column_names:
                     raise ValueError(f"Column '{column}' not found in table.")
 
+        # Clamp field types to max columns
+        if (
+            self._max_columns is not None
+            and len(field_types) > self._max_columns
+        ):
+            field_types = field_types[: self._max_columns]
+
         super().__init__(
             component_name=table._name,
             label=label,
@@ -370,6 +381,8 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
             args={
                 "data": search_result.data,
                 "total-rows": total_rows,
+                "total-columns": self._manager.get_num_columns(),
+                "banner-text": self._get_banner_text(),
                 "pagination": pagination,
                 "page-size": page_size,
                 "field-types": field_types or None,
@@ -411,6 +424,14 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         self,
     ) -> TableData:
         return self._data
+
+    def _get_banner_text(self) -> str:
+        total_columns = self._manager.get_num_columns()
+        if self._max_columns is not None and total_columns > self._max_columns:
+            return (
+                f"Only showing {self._max_columns} of {total_columns} columns."
+            )
+        return ""
 
     def _convert_value(
         self, value: list[str]
@@ -531,15 +552,23 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
     def search(self, args: SearchTableArgs) -> SearchTableResponse:
         offset = args.page_number * args.page_size
 
+        def clamp_rows_and_columns(manager: TableManager[Any]) -> JSONType:
+            # Limit to page and column clamping for the frontend
+            data = manager.take(args.page_size, offset)
+            column_names = data.get_column_names()
+            if (
+                self._max_columns is not None
+                and len(column_names) > self._max_columns
+            ):
+                data = data.select_columns(column_names[: self._max_columns])
+            return data.to_data(self._format_mapping)
+
         # If no query or sort, return nothing
         # The frontend will just show the original data
         if not args.query and not args.sort and not args.filters:
             self._searched_manager = self._manager
-            data = self._manager.take(args.page_size, offset).to_data(
-                self._format_mapping
-            )
             return SearchTableResponse(
-                data=data,
+                data=clamp_rows_and_columns(self._manager),
                 total_rows=self._manager.get_num_rows(force=True) or 0,
             )
 
@@ -552,11 +581,9 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
 
         # Save the manager to be used for selection
         self._searched_manager = result
-        data = result.take(args.page_size, offset).to_data(
-            self._format_mapping
-        )
+
         return SearchTableResponse(
-            data=data,
+            data=clamp_rows_and_columns(result),
             total_rows=result.get_num_rows(force=True) or 0,
         )
 

@@ -48,7 +48,12 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor")
       pagination: z.boolean().default(false),
       pageSize: z.number().default(10),
       fieldTypes: z
-        .array(z.tuple([z.string(), z.tuple([z.enum(DATA_TYPES), z.string()])]))
+        .array(
+          z.tuple([
+            z.coerce.string(),
+            z.tuple([z.enum(DATA_TYPES), z.string()]),
+          ]),
+        )
         .nullish(),
     }),
   )
