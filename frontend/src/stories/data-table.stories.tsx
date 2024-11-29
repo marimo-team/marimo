@@ -15,6 +15,7 @@ export const Default = {
   render: () => (
     <DataTable
       totalRows={100}
+      totalColumns={2}
       paginationState={{ pageIndex: 0, pageSize: 10 }}
       setPaginationState={Functions.NOOP}
       data={[

@@ -36,6 +36,7 @@ export const CsvViewer: React.FC<{ contents: string }> = ({ contents }) => {
       data={data}
       totalRows={data.length}
       columns={columns}
+      totalColumns={columns.length}
       manualPagination={false}
       paginationState={pagination}
       setPaginationState={setPagination}
