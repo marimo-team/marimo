@@ -62,7 +62,7 @@ def warn_js_safe_number(*values: int | float | None) -> None:
 
 
 def validate_no_integer_columns(df: Any) -> None:
-    if not DependencyManager.pandas.has():
+    if not DependencyManager.pandas.imported():
         return
 
     import pandas as pd
