@@ -79,3 +79,9 @@ def test_md_iconify() -> None:
     mixed_input = "# Header with ::lucide:star:: icon\n\n**Bold text with ::mdi:alert:: icon**"  # noqa: E501
     expected_output = '<h1 id="header-with-icon">Header with <iconify-icon icon="lucide:star" inline=""></iconify-icon> icon</h1>\n<span class="paragraph"><strong>Bold text with <iconify-icon icon="mdi:alert" inline=""></iconify-icon> icon</strong></span>'  # noqa: E501
     assert _md(mixed_input, apply_markdown_class=False).text == expected_output
+
+
+def test_md_sane_lists() -> None:
+    input_text = "2. hey\n3. hey"
+    expected_output = '<ol start="2">\n<li>hey</li>\n<li>hey</li>\n</ol>'
+    assert _md(input_text, apply_markdown_class=False).text == expected_output

@@ -65,6 +65,8 @@ def _md(
             "footnotes",
             # Admonitions
             "admonition",
+            # Sane lists, to include <ol start="n">
+            "sane_lists",
             # Links
             ExternalLinksExtension(),
             # Iconify
