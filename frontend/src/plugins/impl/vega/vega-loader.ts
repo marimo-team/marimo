@@ -23,14 +23,17 @@ export function read<T = object>(
   return vl.read(data, format);
 }
 
-export function createLoader(): {
-  load: (
-    url: string,
-  ) => Promise<
-    string | Record<string, unknown> | Array<Record<string, unknown>>
-  >;
-  http: (url: string) => Promise<string>;
-} {
+export interface Loader {
+  load(
+    uri: string,
+    options?: unknown,
+  ): Promise<string | Record<string, unknown> | Array<Record<string, unknown>>>;
+  sanitize(uri: string, options?: unknown): Promise<{ href: string }>;
+  http(uri: string, options?: unknown): Promise<string>;
+  file(filename: string): Promise<string>;
+}
+
+export function createLoader(): Loader {
   return vl.loader();
 }
 
