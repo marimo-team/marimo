@@ -52,6 +52,7 @@ export const Empty1 = {
   render: () => (
     <DataTable
       totalRows={100}
+      totalColumns={2}
       paginationState={{ pageIndex: 0, pageSize: 10 }}
       setPaginationState={Functions.NOOP}
       data={[]}
@@ -79,6 +80,7 @@ export const Empty2 = {
   render: () => (
     <DataTable
       totalRows={100}
+      totalColumns={2}
       paginationState={{ pageIndex: 0, pageSize: 10 }}
       setPaginationState={Functions.NOOP}
       data={[]}
@@ -92,6 +94,7 @@ export const Pagination = {
   render: () => (
     <DataTable
       totalRows={100}
+      totalColumns={2}
       paginationState={{ pageIndex: 0, pageSize: 10 }}
       setPaginationState={Functions.NOOP}
       data={[
