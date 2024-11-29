@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { memo } from "react";
+import { memo, useState } from "react";
 import {
   type DataType,
   JsonViewer,
@@ -55,7 +55,6 @@ export const JsonOutput: React.FC<Props> = memo(
             valueTypes={VALUE_TYPE}
             // disable array grouping (it's misleading) by using a large value
             groupArraysAfterLength={1_000_000}
-            collapseStringsAfterLength={500}
             // TODO(akshayka): disable clipboard until we have a better
             // solution: copies raw values, shifts content; can use onCopy prop
             // to override what is copied to clipboard
@@ -76,6 +75,22 @@ function inferBestFormat(data: unknown): "tree" | "raw" {
   return typeof data === "object" && data !== null ? "tree" : "raw";
 }
 
+const CollapsibleTextOutput = (props: { text: string }) => {
+  const [isCollapsed, setIsCollapsed] = useState(true);
+  return (
+    <span className="cursor-pointer">
+      {isCollapsed ? (
+        <span onClick={() => setIsCollapsed(false)}>
+          {props.text.slice(0, 500)}
+          {props.text.length > 500 && "..."}
+        </span>
+      ) : (
+        <span onClick={() => setIsCollapsed(true)}>{props.text}</span>
+      )}
+    </span>
+  );
+};
+
 /**
  * Map from mimetype-prefix to render function.
  *
@@ -85,7 +100,7 @@ const LEAF_RENDERERS = {
   "image/": (value: string) => <ImageOutput src={value} />,
   "video/": (value: string) => <VideoOutput src={value} />,
   "text/html": (value: string) => <HtmlOutput html={value} inline={true} />,
-  "text/plain": (value: string) => <TextOutput text={value} />,
+  "text/plain": (value: string) => <CollapsibleTextOutput text={value} />,
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -132,6 +147,6 @@ function renderLeaf(
   try {
     return render(leafData(leaf));
   } catch {
-    return <TextOutput text={"Invalid leaf: {leaf}"} />;
+    return <TextOutput text={`Invalid leaf: ${leaf}`} />;
   }
 }

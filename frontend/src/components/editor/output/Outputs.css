@@ -65,11 +65,6 @@
   @apply text-xs;
 }
 
-.marimo-json-output span {
-  text-wrap: wrap;
-  word-break: break-word;
-}
-
 .marimo-json-output .data-key-pair:not(:last-child) {
   margin-top: 0.2rem;
   margin-bottom: 0.2rem;
