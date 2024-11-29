@@ -60,6 +60,33 @@ export const DatePopover: React.FC<DatePopoverProps> = ({
 
 function getTimezones(date: Date) {
   const localTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  const hasSubSeconds = date.getUTCMilliseconds() !== 0;
+  if (hasSubSeconds) {
+    return {
+      UTC: new Intl.DateTimeFormat("en-US", {
+        timeZone: "UTC",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        fractionalSecondDigits: 3,
+      }).format(date),
+      [localTimezone]: new Intl.DateTimeFormat("en-US", {
+        timeZone: localTimezone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        fractionalSecondDigits: 3,
+      }).format(date),
+    };
+  }
+
   return {
     UTC: new Intl.DateTimeFormat("en-US", {
       timeZone: "UTC",

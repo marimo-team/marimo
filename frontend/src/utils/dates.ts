@@ -1,4 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import { formatDate } from "date-fns";
 import { Logger } from "./Logger";
 
 export function prettyDate(
@@ -27,6 +28,18 @@ export function prettyDate(
     Logger.warn("Failed to parse date", error);
     return value.toString();
   }
+}
+
+/**
+ * If the date has sub-second precision, it should say "2024-10-07 17:15:00.123".
+ * Otherwise, it should say "2024-10-07 17:15:00".
+ */
+export function exactDateTime(value: Date): string {
+  const hasSubSeconds = value.getUTCMilliseconds() !== 0;
+  if (hasSubSeconds) {
+    return formatDate(value, "yyyy-MM-dd HH:mm:ss.SSS");
+  }
+  return formatDate(value, "yyyy-MM-dd HH:mm:ss");
 }
 
 /**

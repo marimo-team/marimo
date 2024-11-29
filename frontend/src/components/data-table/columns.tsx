@@ -2,7 +2,6 @@
 "use no memo";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { format as formatDate } from "date-fns";
 import {
   DataTableColumnHeader,
   DataTableColumnHeaderWithSummary,
@@ -19,6 +18,7 @@ import { uniformSample } from "./uniformSample";
 import { DatePopover } from "./date-popover";
 import { Objects } from "@/utils/objects";
 import { Maps } from "@/utils/maps";
+import { exactDateTime } from "@/utils/dates";
 
 function inferDataType(value: unknown): [type: DataType, displayType: string] {
   if (typeof value === "string") {
@@ -201,7 +201,7 @@ export function generateColumns<T>({
           return (
             <div className={getCellStyleClass(justify, wrapped)}>
               <DatePopover date={value} type={type}>
-                {formatDate(value, "yyyy-MM-dd HH:mm:ss")}
+                {exactDateTime(value)}
               </DatePopover>
             </div>
           );
