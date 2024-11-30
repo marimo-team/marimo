@@ -385,6 +385,8 @@ const CellComponent = (
     unhideCode();
   }
 
+  const canCollapse = canCollapseOutline(outline);
+
   const outputArea = hasOutput && (
     <div className="relative" onDoubleClick={showHiddenMarkdownCode}>
       <div className="absolute top-5 -left-8 z-10 print:hidden">
@@ -397,7 +399,7 @@ const CellComponent = (
               collapseCell({ cellId });
             }
           }}
-          canCollapse={canCollapseOutline(outline)}
+          canCollapse={canCollapse}
         />
       </div>
       <OutputArea
@@ -598,6 +600,7 @@ const CellComponent = (
               className={cn(
                 "absolute flex flex-col gap-[2px] justify-center h-full left-[-34px] z-20",
                 isMarkdownCodeHidden && "-top-7",
+                isMarkdownCodeHidden && canCollapse && "gap-3", // Add extra gap for collapse button
               )}
             >
               <CreateCellButton

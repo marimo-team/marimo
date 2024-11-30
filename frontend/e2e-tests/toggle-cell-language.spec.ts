@@ -17,7 +17,9 @@ test.afterEach(async () => {
   await resetFile("title.py");
 });
 
-test("change the cell to a markdown cell and hide code", async ({ page }) => {
+test("change the cell to a markdown cell and toggle hide code", async ({
+  page,
+}) => {
   const title = page.getByText("Hello Marimo!", { exact: true });
   await expect(title).toBeVisible();
 
@@ -32,10 +34,18 @@ test("change the cell to a markdown cell and hide code", async ({ page }) => {
 
   // Hide code
   await openCellActions(page, title);
-  await page.getByText("Hide Code").click();
+  await page.getByText("Hide code").click();
   await expect(title).toBeVisible();
 
   // Verify code editor is hidden
   const cellEditor = page.getByTestId("cell-editor");
   await expect(cellEditor).toBeHidden();
+
+  // Unhide code
+  await openCellActions(page, title);
+  await page.getByText("Show code").click();
+  await expect(title).toBeVisible();
+
+  // Verify code editor is visible
+  await expect(cellEditor).toBeVisible();
 });
