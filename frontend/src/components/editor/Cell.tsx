@@ -542,6 +542,21 @@ const CellComponent = (
     setAiCompletionCell({ cellId, initialPrompt: opts.prompt });
   };
 
+  const cellStatusComponent = (
+    <CellStatusComponent
+      status={status}
+      staleInputs={staleInputs}
+      interrupted={interrupted}
+      editing={editing}
+      edited={edited}
+      disabled={cellConfig.disabled ?? false}
+      elapsedTime={runElapsedTimeMs}
+      runStartTimestamp={runStartTimestamp}
+      uninstantiated={uninstantiated}
+      lastRunStartTimestamp={lastRunStartTimestamp}
+    />
+  );
+
   return (
     <CellActionsContextMenu
       cellId={cellId}
@@ -624,22 +639,10 @@ const CellComponent = (
               setLanguageAdapter={setLanguageAdapter}
             />
             <div className="shoulder-right">
-              <div className={cn(isCellStatusInline && "relative -right-7")}>
-                <CellStatusComponent
-                  status={status}
-                  staleInputs={staleInputs}
-                  interrupted={interrupted}
-                  editing={editing}
-                  edited={edited}
-                  disabled={cellConfig.disabled ?? false}
-                  elapsedTime={runElapsedTimeMs}
-                  runStartTimestamp={runStartTimestamp}
-                  uninstantiated={uninstantiated}
-                  lastRunStartTimestamp={lastRunStartTimestamp}
-                />
-              </div>
+              {!isCellStatusInline && cellStatusComponent}
               <div className="flex gap-2 items-end">
                 <CellDragHandle />
+                {isCellStatusInline && cellStatusComponent}
               </div>
             </div>
             <div className="shoulder-bottom hover-action">
