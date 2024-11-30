@@ -321,18 +321,25 @@ const CellComponent = (
   const isMarkdownCodeHidden = isMarkdown && !isCellCodeShown;
 
   const cellContainerRef = useRef<HTMLDivElement>(null);
+  const canCollapse = canCollapseOutline(outline);
 
-  // If the cell is too short, we need to position the cellStatus inline to not cause overlaps
+  // If the cell is too short, we need to position some icons inline to prevent overlaps.
   // This can only happen to markdown cells when the code is hidden completely
   const [isCellStatusInline, setIsCellStatusInline] = useState(false);
+  const [isCellButtonsInline, setIsCellButtonsInline] = useState(false);
+
   useResizeObserver({
     ref: cellContainerRef,
     skip: !isMarkdown,
     onResize: (size) => {
-      if (size.height && size.height < 60 && hasOutput) {
-        setIsCellStatusInline(true);
-      } else if (isCellStatusInline) {
-        setIsCellStatusInline(false);
+      const shouldBeInline =
+        (size.height && size.height < 68 && hasOutput) || false;
+      setIsCellStatusInline(shouldBeInline);
+
+      if (canCollapse && shouldBeInline) {
+        setIsCellButtonsInline(shouldBeInline);
+      } else if (isCellButtonsInline) {
+        setIsCellButtonsInline(false);
       }
     },
   });
@@ -384,8 +391,6 @@ const CellComponent = (
   if (isMarkdownCodeHidden && !hasOutput) {
     unhideCode();
   }
-
-  const canCollapse = canCollapseOutline(outline);
 
   const outputArea = hasOutput && (
     <div className="relative" onDoubleClick={showHiddenMarkdownCode}>
@@ -600,7 +605,7 @@ const CellComponent = (
               className={cn(
                 "absolute flex flex-col gap-[2px] justify-center h-full left-[-34px] z-20",
                 isMarkdownCodeHidden && "-top-7",
-                isMarkdownCodeHidden && canCollapse && "gap-3", // Add extra gap for collapse button
+                isMarkdownCodeHidden && isCellButtonsInline && "-left-[3.8rem]",
               )}
             >
               <CreateCellButton
