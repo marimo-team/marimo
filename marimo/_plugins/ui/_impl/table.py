@@ -223,7 +223,6 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         pagination: Optional[bool] = None,
         selection: Optional[Literal["single", "multi"]] = "multi",
         page_size: int = 10,
-        max_columns: Optional[int] = 50,
         show_column_summaries: Optional[bool] = None,
         format_mapping: Optional[
             Dict[str, Union[str, Callable[..., Any]]]
@@ -235,6 +234,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         ] = None,
         wrapped_columns: Optional[List[str]] = None,
         show_download: bool = True,
+        max_columns: Optional[int] = 50,
         *,
         label: str = "",
         on_change: Optional[
