@@ -494,7 +494,7 @@ const CellComponent = (
     },
     Enter: () => {
       showHiddenMarkdownCode();
-      return true;
+      return false;
     },
     // only register j/k movement if the cell is hidden, so as to not
     // interfere with editing
