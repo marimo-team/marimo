@@ -213,6 +213,8 @@ dependencies; follow those instructions.)
 For best practices on writing end-to-end tests, check out the [Best Practices
 doc](https://playwright.dev/docs/best-practices).
 
+For frontend tests, you want to build the frontend first with `make fe`.
+
 **Run end-to-end tests.**
 
 In the root directory, run:

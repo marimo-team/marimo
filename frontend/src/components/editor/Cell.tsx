@@ -734,7 +734,11 @@ const CellToolbar = ({
         config={cellConfig}
         hasOutput={hasOutput}
       >
-        <ToolbarItem variant={"green"} tooltip={null}>
+        <ToolbarItem
+          variant={"green"}
+          tooltip={null}
+          data-testid="cell-actions-button"
+        >
           <MoreHorizontalIcon strokeWidth={1.5} />
         </ToolbarItem>
       </CellActionsDropdown>
