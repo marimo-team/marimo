@@ -32,6 +32,7 @@ export const ChatPanel = () => {
   const [newThreadInput, setNewThreadInput] = useState("");
   const newThreadInputRef = useRef<ReactCodeMirrorRef>(null);
   const newMessageInputRef = useRef<ReactCodeMirrorRef>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const {
     messages,
@@ -87,6 +88,13 @@ export const ChatPanel = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeChat?.id]);
+
+  const lastMessageText = messages.at(-1)?.content;
+  useEffect(() => {
+    if (isLoading) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, isLoading, lastMessageText]);
 
   const createNewThread = (initialMessage: string) => {
     const newChat: Chat = {
@@ -268,6 +276,8 @@ export const ChatPanel = () => {
             </Button>
           </div>
         )}
+
+        <div ref={messagesEndRef} />
       </div>
 
       {messages && messages.length > 0 && (

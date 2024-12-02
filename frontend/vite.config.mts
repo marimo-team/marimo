@@ -128,7 +128,6 @@ If the server is already running, make sure it is using port ${SERVER_PORT} with
 
       // copies these elements from server to dev
       const copyElements = [
-        "base",
         "title",
         "marimo-filename",
         "marimo-version",
