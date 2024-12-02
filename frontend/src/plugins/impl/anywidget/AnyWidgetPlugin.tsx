@@ -6,7 +6,6 @@ import type { IPluginProps } from "@/plugins/types";
 import { useEffect, useMemo, useRef } from "react";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { dequal } from "dequal";
-import { useOnMount } from "@/hooks/useLifecycle";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { ErrorBanner } from "../common/error-banner";
 import { createPlugin } from "@/plugins/core/builder";
@@ -22,6 +21,7 @@ import { updateBufferPaths } from "@/utils/date-views";
 
 interface Data {
   jsUrl: string;
+  jsHash: string;
   css?: string | null;
   bufferPaths?: Array<Array<string | number>> | null;
 }
@@ -37,6 +37,7 @@ export const AnyWidgetPlugin = createPlugin<T>("marimo-anywidget")
   .withData(
     z.object({
       jsUrl: z.string(),
+      jsHash: z.string(),
       css: z.string().nullish(),
       bufferPaths: z
         .array(z.array(z.union([z.string(), z.number()])))
@@ -53,19 +54,16 @@ export const AnyWidgetPlugin = createPlugin<T>("marimo-anywidget")
 type Props = IPluginProps<T, Data, PluginFunctions>;
 
 const AnyWidgetSlot = (props: Props) => {
-  const { css, jsUrl, bufferPaths } = props.data;
+  const { css, jsUrl, jsHash, bufferPaths } = props.data;
   // JS is an ESM file with a render function on it
   // export function render({ model, el }) {
   //   ...
-  const {
-    data: module,
-    loading,
-    error,
-  } = useAsyncData(async () => {
+  const { data: module, error } = useAsyncData(async () => {
     const baseUrl = document.baseURI;
     const url = new URL(jsUrl, baseUrl).toString();
     return await import(/* @vite-ignore */ url);
-  }, []);
+    // Re-render on jsHash change instead of url change (since URLs may change)
+  }, [jsHash]);
 
   const valueWithBuffer = useMemo(() => {
     return updateBufferPaths(props.value, bufferPaths);
@@ -88,7 +86,7 @@ const AnyWidgetSlot = (props: Props) => {
     return <ErrorBanner error={error} />;
   }
 
-  if (!module || loading) {
+  if (!module) {
     return null;
   }
 
@@ -123,6 +121,8 @@ async function runAnyWidgetModule(
       throw new Error(message);
     },
   };
+  // Clear the element, in case the widget is re-rendering
+  el.innerHTML = "";
   const widget =
     typeof widgetDef === "function" ? await widgetDef() : widgetDef;
   await widget.initialize?.({ model, experimental });
@@ -159,13 +159,12 @@ const LoadedSlot = ({
     },
   );
 
-  useOnMount(() => {
+  useEffect(() => {
     if (!ref.current) {
       return;
     }
     runAnyWidgetModule(widget, model.current, ref.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  });
+  }, [widget]);
 
   // When the value changes, update the model
   useEffect(() => {
