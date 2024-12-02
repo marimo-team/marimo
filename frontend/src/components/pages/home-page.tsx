@@ -35,7 +35,6 @@ import {
 import { ShutdownButton } from "../editor/controls/shutdown-button";
 import {
   type SessionId,
-  generateSessionId,
   getSessionId,
   isSessionId,
 } from "@/core/kernel/session";
@@ -86,6 +85,7 @@ import { CaretDownIcon } from "@radix-ui/react-icons";
 import { ErrorBoundary } from "../editor/boundary/ErrorBoundary";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import { prettyError } from "@/utils/errors";
+import { newNotebookURL } from "@/utils/urls";
 
 function tabTarget(path: string) {
   // Consistent tab target so we open in the same tab when clicking on the same notebook
@@ -525,16 +525,16 @@ const SessionShutdownButton: React.FC<{ filePath: string }> = ({
 };
 
 const CreateNewNotebook: React.FC = () => {
-  const sessionId = generateSessionId();
-  const initializationId = `__new__${sessionId}`;
+  const url = newNotebookURL();
   return (
     <a
       className="relative rounded-lg p-6 group
       text-primary hover:bg-[var(--blue-2)] shadow-mdSolid shadow-accent border
       transition-all duration-300 cursor-pointer
       "
-      href={asURL(`?file=${initializationId}`).toString()}
-      target={tabTarget(initializationId)}
+      href={url}
+      target="_blank"
+      rel="noreferrer"
     >
       <h2 className="text-lg font-semibold">Create a new notebook</h2>
       <div className="group-hover:opacity-100 opacity-0 absolute right-5 top-0 bottom-0 rounded-lg flex items-center justify-center transition-all duration-300">

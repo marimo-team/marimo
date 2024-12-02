@@ -28,6 +28,7 @@ import {
   Files,
   SettingsIcon,
   XCircleIcon,
+  FilePlus2Icon,
 } from "lucide-react";
 import { commandPaletteAtom } from "../controls/command-palette";
 import { useCellActions, useNotebook } from "@/core/cells/cells";
@@ -65,6 +66,7 @@ import { isWasm } from "@/core/wasm/utils";
 import { settingDialogAtom } from "@/components/app-config/app-config-button";
 import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 import { copyToClipboard } from "@/utils/copy";
+import { newNotebookURL } from "@/utils/urls";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -393,9 +395,24 @@ export function useNotebookActions() {
       divider: true,
       icon: <Home size={14} strokeWidth={1.5} />,
       label: "Return home",
+      // If file is in the url, then we ran `marimo edit`
+      // without a specific file
       hidden: !location.search.includes("file"),
       handle: () => {
-        window.location.href = document.baseURI;
+        const withoutSearch = document.baseURI.split("?")[0];
+        window.open(withoutSearch, "_self");
+      },
+    },
+
+    {
+      icon: <FilePlus2Icon size={14} strokeWidth={1.5} />,
+      label: "New notebook",
+      // If file is in the url, then we ran `marimo edit`
+      // without a specific file
+      hidden: !location.search.includes("file"),
+      handle: () => {
+        const url = newNotebookURL();
+        window.open(url, "_blank");
       },
     },
 
