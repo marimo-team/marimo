@@ -55,6 +55,9 @@ import { Toolbar, ToolbarItem } from "@/components/editor/cell/toolbar";
 import { cn } from "@/utils/cn";
 import { isErrorMime } from "@/core/mime";
 import { getCurrentLanguageAdapter } from "@/core/codemirror/language/commands";
+import { HideCodeButton } from "./code/readonly-python-code";
+import { useResizeObserver } from "@/hooks/useResizeObserver";
+import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 
 /**
  * Imperative interface of the cell.
@@ -182,6 +185,8 @@ const CellComponent = (
   const editorView = useRef<EditorView | null>(null);
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
   const [temporarilyVisible, setTemporarilyVisible] = useState(false);
+
+  const [languageAdapter, setLanguageAdapter] = useState<LanguageAdapterType>();
 
   const disabledOrAncestorDisabled =
     cellConfig.disabled || status === "disabled-transitively";
@@ -311,10 +316,84 @@ const CellComponent = (
     [cellRef, editorView],
   );
 
+  const isCellCodeShown = !cellConfig.hide_code || temporarilyVisible;
+  const isMarkdown = languageAdapter === "markdown";
+  const isMarkdownCodeHidden = isMarkdown && !isCellCodeShown;
+
+  const cellContainerRef = useRef<HTMLDivElement>(null);
+  const canCollapse = canCollapseOutline(outline);
+
+  // If the cell is too short, we need to position some icons inline to prevent overlaps.
+  // This can only happen to markdown cells when the code is hidden completely
+  const [isCellStatusInline, setIsCellStatusInline] = useState(false);
+  const [isCellButtonsInline, setIsCellButtonsInline] = useState(false);
+
+  useResizeObserver({
+    ref: cellContainerRef,
+    skip: !isMarkdown,
+    onResize: (size) => {
+      const shouldBeInline =
+        (size.height && size.height < 68 && hasOutput) || false;
+      setIsCellStatusInline(shouldBeInline);
+
+      if (canCollapse && shouldBeInline) {
+        setIsCellButtonsInline(shouldBeInline);
+      } else if (isCellButtonsInline) {
+        setIsCellButtonsInline(false);
+      }
+    },
+  });
+
+  // DOM node where the editorView will be mounted
+  const editorViewParentRef = useRef<HTMLDivElement>(null);
+
+  // if the cell is hidden, show the code editor temporarily
+  const temporarilyShowCode = useCallback(() => {
+    if (!isCellCodeShown) {
+      setTemporarilyVisible(true);
+      editorView.current?.focus();
+      // Reach one parent up
+      const parent = editorViewParentRef.current?.parentElement;
+
+      const handleFocusOut = () => {
+        requestAnimationFrame(() => {
+          if (!parent?.contains(document.activeElement)) {
+            // Hide the code editor
+            setTemporarilyVisible(false);
+            editorView.current?.dom.blur();
+            parent?.removeEventListener("focusout", handleFocusOut);
+          }
+        });
+      };
+      parent?.addEventListener("focusout", handleFocusOut);
+    }
+  }, [isCellCodeShown, editorView]);
+
+  const showHiddenMarkdownCode = () => {
+    if (isMarkdownCodeHidden) {
+      temporarilyShowCode();
+    }
+  };
+
   const hasOutput = !isOutputEmpty(output);
 
+  const unhideCode = useEvent(() => {
+    // Fire-and-forget save
+    void saveCellConfig({ configs: { [cellId]: { hide_code: false } } });
+    updateCellConfig({ cellId, config: { hide_code: false } });
+
+    // focus the editor
+    editorView.current?.focus();
+    return false;
+  });
+
+  // When markdown cell is hidden & output is cleared, show the code editor
+  if (isMarkdownCodeHidden && !hasOutput) {
+    unhideCode();
+  }
+
   const outputArea = hasOutput && (
-    <div className="relative">
+    <div className="relative" onDoubleClick={showHiddenMarkdownCode}>
       <div className="absolute top-5 -left-8 z-10 print:hidden">
         <CollapseToggle
           isCollapsed={isCollapsed}
@@ -325,7 +404,7 @@ const CellComponent = (
               collapseCell({ cellId });
             }
           }}
-          canCollapse={canCollapseOutline(outline)}
+          canCollapse={canCollapse}
         />
       </div>
       <OutputArea
@@ -335,6 +414,12 @@ const CellComponent = (
         cellId={cellId}
         stale={outputStale}
       />
+      {isMarkdownCodeHidden && (
+        <HideCodeButton
+          className="z-20 relative -top-3"
+          onClick={temporarilyShowCode}
+        />
+      )}
     </div>
   );
 
@@ -349,8 +434,6 @@ const CellComponent = (
   });
 
   const HTMLId = HTMLCellId.create(cellId);
-
-  const isCellCodeShown = !cellConfig.hide_code || temporarilyVisible;
 
   // Register hotkeys on the cell instead of the code editor
   // This is in case the code editor is hidden
@@ -416,6 +499,10 @@ const CellComponent = (
       moveToNextCell({ cellId, before: true, noCreate: true });
       return true;
     },
+    Enter: () => {
+      showHiddenMarkdownCode();
+      return false;
+    },
     // only register j/k movement if the cell is hidden, so as to not
     // interfere with editing
     ...(userConfig.keymap.preset === "vim" && !isCellCodeShown
@@ -462,6 +549,21 @@ const CellComponent = (
     setAiCompletionCell({ cellId, initialPrompt: opts.prompt });
   };
 
+  const cellStatusComponent = (
+    <CellStatusComponent
+      status={status}
+      staleInputs={staleInputs}
+      interrupted={interrupted}
+      editing={editing}
+      edited={edited}
+      disabled={cellConfig.disabled ?? false}
+      elapsedTime={runElapsedTimeMs}
+      runStartTimestamp={runStartTimestamp}
+      uninstantiated={uninstantiated}
+      lastRunStartTimestamp={lastRunStartTimestamp}
+    />
+  );
+
   return (
     <CellActionsContextMenu
       cellId={cellId}
@@ -481,9 +583,9 @@ const CellComponent = (
         canMoveX={canMoveX}
         title={cellTitle()}
       >
-        <div className={className} id={HTMLId}>
+        <div className={className} id={HTMLId} ref={cellContainerRef}>
           {userConfig.display.cell_output === "above" && outputArea}
-          <div className="tray">
+          <div className={cn("tray", isMarkdownCodeHidden && "!border-t-0")}>
             <div className="absolute right-2 -top-4 z-10">
               <CellToolbar
                 edited={edited}
@@ -499,7 +601,13 @@ const CellComponent = (
                 onRun={handleRun}
               />
             </div>
-            <div className="absolute flex flex-col gap-[2px] justify-center h-full left-[-34px] z-20">
+            <div
+              className={cn(
+                "absolute flex flex-col gap-[2px] justify-center h-full left-[-34px] z-20",
+                isMarkdownCodeHidden && "-top-7",
+                isMarkdownCodeHidden && isCellButtonsInline && "-left-[3.8rem]",
+              )}
+            >
               <CreateCellButton
                 tooltipContent={renderShortcut("cell.createAbove")}
                 appClosed={appClosed}
@@ -532,24 +640,17 @@ const CellComponent = (
               clearSerializedEditorState={clearSerializedEditorState}
               userConfig={userConfig}
               editorViewRef={editorView}
+              editorViewParentRef={editorViewParentRef}
               hidden={!isCellCodeShown}
-              setTemporarilyVisible={setTemporarilyVisible}
+              temporarilyShowCode={temporarilyShowCode}
+              languageAdapter={languageAdapter}
+              setLanguageAdapter={setLanguageAdapter}
             />
-            <div className="shoulder-right z-20">
-              <CellStatusComponent
-                status={status}
-                staleInputs={staleInputs}
-                interrupted={interrupted}
-                editing={editing}
-                edited={edited}
-                disabled={cellConfig.disabled ?? false}
-                elapsedTime={runElapsedTimeMs}
-                runStartTimestamp={runStartTimestamp}
-                uninstantiated={uninstantiated}
-                lastRunStartTimestamp={lastRunStartTimestamp}
-              />
+            <div className="shoulder-right">
+              {!isCellStatusInline && cellStatusComponent}
               <div className="flex gap-2 items-end">
                 <CellDragHandle />
+                {isCellStatusInline && cellStatusComponent}
               </div>
             </div>
             <div className="shoulder-bottom hover-action">
@@ -644,7 +745,11 @@ const CellToolbar = ({
         config={cellConfig}
         hasOutput={hasOutput}
       >
-        <ToolbarItem variant={"green"} tooltip={null}>
+        <ToolbarItem
+          variant={"green"}
+          tooltip={null}
+          data-testid="cell-actions-button"
+        >
           <MoreHorizontalIcon strokeWidth={1.5} />
         </ToolbarItem>
       </CellActionsDropdown>

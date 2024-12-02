@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type React from "react";
 import { useUserConfig } from "@/core/config/config";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useTheme } from "@/theme/useTheme";
 import { CellEditor } from "../editor/cell/code/cell-editor";
 import { HTMLCellId } from "@/core/cells/ids";
@@ -38,6 +38,7 @@ import {
 import { cn } from "@/utils/cn";
 import type { CellConfig } from "@/core/network/types";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
+import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 
 const scratchpadCellConfig: CellConfig = {
   hide_code: false,
@@ -118,6 +119,8 @@ export const ScratchPad: React.FC = () => {
     }
   });
 
+  const [languageAdapter, setLanguageAdapter] = useState<LanguageAdapterType>();
+
   const renderBody = () => {
     // We overlay the history on top of the body, instead of removing it,
     // so we don't have to re-render the entire editor and outputs.
@@ -145,6 +148,9 @@ export const ScratchPad: React.FC = () => {
             userConfig={userConfig}
             editorViewRef={ref}
             hidden={false}
+            temporarilyShowCode={Functions.NOOP}
+            languageAdapter={languageAdapter}
+            setLanguageAdapter={setLanguageAdapter}
           />
         </div>
         <div className="flex-1 overflow-auto flex-shrink-0">
