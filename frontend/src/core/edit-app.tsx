@@ -18,10 +18,10 @@ import {
   notebookIsRunningAtom,
   useCellActions,
   useNotebook,
-  CellEffects,
   cellIdsAtom,
   getCellConfigs,
 } from "./cells/cells";
+import { CellEffects } from "./cells/effects";
 import {
   canUndoDeletes,
   notebookCells,
