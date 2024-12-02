@@ -36,56 +36,66 @@ extension_configs = {
 MarkdownSize = Literal["sm", "base", "lg", "xl", "2xl"]
 
 
-def _md(
-    text: str,
-    apply_markdown_class: bool = True,
-    size: Optional[MarkdownSize] = None,
-) -> Html:
-    # cleandoc uniformly strips leading whitespace; useful for
-    # indented multiline strings
-    text = cleandoc(text)
-    # markdown.markdown appends a newline, hence strip
-    html_text = markdown.markdown(
-        text,
-        extensions=[
-            # Syntax highlighting
-            "codehilite",
-            # Markdown tables
-            "tables",
-            # LaTeX
-            "pymdownx.arithmatex",
-            # Subscripts and strikethrough
-            "pymdownx.tilde",
-            # Better code blocks
-            "pymdownx.superfences",
-            # Table of contents
-            # This adds ids to the HTML headers
-            "toc",
-            # Footnotes
-            "footnotes",
-            # Admonitions
-            "admonition",
-            # Sane lists, to include <ol start="n">
-            "sane_lists",
-            # Links
-            ExternalLinksExtension(),
-            # Iconify
-            IconifyExtension(),
-        ],
-        extension_configs=extension_configs,  # type: ignore[arg-type]
-    ).strip()
-    # replace <p> tags with <span> as HTML doesn't allow nested <div>s in <p>s
-    html_text = html_text.replace("<p>", '<span class="paragraph">').replace(
-        "</p>", "</span>"
-    )
+class _md(Html):
+    def __init__(
+        self,
+        text: str,
+        *,
+        apply_markdown_class: bool = True,
+        size: Optional[MarkdownSize] = None,
+    ) -> None:
+        # cleandoc uniformly strips leading whitespace; useful for
+        # indented multiline strings
+        text = cleandoc(text)
+        self._markdown_text = text
 
-    if apply_markdown_class:
-        classes = ["markdown", "prose", "dark:prose-invert"]
-        if size is not None:
-            classes.append(f"prose-{size}")
-        return Html(f'<span class="{" ".join(classes)}">{html_text}</span>')
-    else:
-        return Html(html_text)
+        # markdown.markdown appends a newline, hence strip
+        html_text = markdown.markdown(
+            text,
+            extensions=[
+                # Syntax highlighting
+                "codehilite",
+                # Markdown tables
+                "tables",
+                # LaTeX
+                "pymdownx.arithmatex",
+                # Subscripts and strikethrough
+                "pymdownx.tilde",
+                # Better code blocks
+                "pymdownx.superfences",
+                # Table of contents
+                # This adds ids to the HTML headers
+                "toc",
+                # Footnotes
+                "footnotes",
+                # Admonitions
+                "admonition",
+                # Sane lists, to include <ol start="n">
+                "sane_lists",
+                # Links
+                ExternalLinksExtension(),
+                # Iconify
+                IconifyExtension(),
+            ],
+            extension_configs=extension_configs,  # type: ignore[arg-type]
+        ).strip()
+        # replace <p> tags with <span> as HTML doesn't allow nested <div>s in <p>s
+        html_text = html_text.replace(
+            "<p>", '<span class="paragraph">'
+        ).replace("</p>", "</span>")
+
+        if apply_markdown_class:
+            classes = ["markdown", "prose", "dark:prose-invert"]
+            if size is not None:
+                classes.append(f"prose-{size}")
+            super().__init__(
+                f'<span class="{" ".join(classes)}">{html_text}</span>'
+            )
+        else:
+            super().__init__(html_text)
+
+    def _repr_markdown_(self) -> str:
+        return self._markdown_text
 
 
 @mddoc
