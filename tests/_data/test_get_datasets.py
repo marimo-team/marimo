@@ -215,6 +215,11 @@ def test_get_datasets_from_variables(df: Any) -> None:
     rows = datatests[0].num_rows
     assert rows is None or rows == 3
 
+    sample_values1 = datatests[0].columns[0].sample_values
+    sample_values2 = datatests[0].columns[1].sample_values
+    assert sample_values1 == [1, 2, 3] or sample_values1 == []
+    assert sample_values2 == ["a", "a", "a"] or sample_values2 == []
+
     assert datatests == [
         DataTable(
             name="my_df",
@@ -228,13 +233,13 @@ def test_get_datasets_from_variables(df: Any) -> None:
                     name="A",
                     type="integer",
                     external_type=external_type1,
-                    sample_values=[],
+                    sample_values=sample_values1,
                 ),
                 DataTableColumn(
                     name="B",
                     type="string",
                     external_type=external_type2,
-                    sample_values=[],
+                    sample_values=sample_values2,
                 ),
             ],
         )
