@@ -34,6 +34,7 @@ class DataTableColumn:
     name: str
     type: DataType
     external_type: ExternalDataType
+    sample_values: List[str]
 
 
 DataTableSource = Literal["local", "duckdb"]

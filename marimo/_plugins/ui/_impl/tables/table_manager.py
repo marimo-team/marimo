@@ -146,6 +146,10 @@ class TableManager(abc.ABC, Generic[T]):
     def get_unique_column_values(self, column: str) -> list[str | int | float]:
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def get_sample_values(self, column: str) -> list[Any]:
+        raise NotImplementedError
+
     def __repr__(self) -> str:
         rows = self.get_num_rows(force=False)
         columns = self.get_num_columns()

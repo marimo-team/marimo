@@ -395,6 +395,12 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         unique_values = self.manager.get_unique_column_values(column)
         assert unique_values == [1, 2, 3]
 
+    def test_get_sample_values(self) -> None:
+        sample_values = self.manager.get_sample_values("A")
+        assert sample_values == [1, 2, 3]
+        sample_values = self.manager.get_sample_values("B")
+        assert sample_values == ["a", "b", "c"]
+
     def test_search(self) -> None:
         import polars as pl
 

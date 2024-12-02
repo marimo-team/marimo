@@ -263,6 +263,15 @@ class NarwhalsTableManager(
     def get_unique_column_values(self, column: str) -> list[str | int | float]:
         return self.data[column].unique().to_list()
 
+    def get_sample_values(self, column: str) -> list[Any]:
+        # Sample 3 values from the column
+        SAMPLE_SIZE = 3
+        try:
+            return self.data[column].head(SAMPLE_SIZE).to_list()
+        except Exception:
+            # May be metadata-only frame
+            return []
+
     def sort_values(
         self, by: ColumnName, descending: bool
     ) -> TableManager[Any]:

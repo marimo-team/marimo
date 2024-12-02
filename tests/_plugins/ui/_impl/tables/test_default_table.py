@@ -348,6 +348,20 @@ class TestColumnarDefaultTable(unittest.TestCase):
         unique_values = self.manager.get_unique_column_values("age")
         assert unique_values == [22, 25, 28, 30, 35]
 
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    def test_get_sample_values(self) -> None:
+        data = {
+            "age": [22, 25, 28, 30, 35],
+            "name": ["Alice", "Bob", "Charlie", "Dave", "Eve"],
+        }
+        manager = DefaultTableManager(data)
+        sample_values = manager.get_sample_values("age")
+        assert sample_values == [22, 25, 28]
+        sample_values = manager.get_sample_values("name")
+        assert sample_values == ["Alice", "Bob", "Charlie"]
+
     def test_search(self) -> None:
         searched_manager = self.manager.search("alice")
         expected_data = {

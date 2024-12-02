@@ -30,6 +30,28 @@ def test_system_prompts():
         language="python", custom_rules="Always use type hints."
     )
 
+    result += _header("with context")
+    result += Prompter.get_system_prompt(
+        language="python",
+        context=AiCompletionContext(
+            schema=[
+                SchemaTable(
+                    name="df_1",
+                    columns=[
+                        SchemaColumn(
+                            "age", "int", sample_values=["1", "2", "3"]
+                        ),
+                        SchemaColumn(
+                            "name",
+                            "str",
+                            sample_values=["Alice", "Bob", "Charlie"],
+                        ),
+                    ],
+                )
+            ]
+        ),
+    )
+
     snapshot("system_prompts.txt", result)
 
 
@@ -47,20 +69,18 @@ def test_user_prompts():
 
     result: str = ""
     result += _header("no code")
-    result += Prompter(code="", context=AiCompletionContext()).get_prompt(
+    result += Prompter(code="").get_prompt(
         user_prompt=prompt, include_other_code=""
     )
 
     result += _header("with code")
     result += Prompter(
         code="df = pd.DataFrame({'a': [1, 2, 3], 'b': [4, 5, 6]})",
-        context=AiCompletionContext(),
     ).get_prompt(user_prompt=prompt, include_other_code="")
 
     result += _header("with code and other code")
     result += Prompter(
         code="df = pd.DataFrame({'a': [1, 2, 3], 'b': [4, 5, 6]})",
-        context=AiCompletionContext(),
     ).get_prompt(
         user_prompt=prompt,
         include_other_code="import pandas as pd\nimport numpy as np\n",
@@ -69,34 +89,15 @@ def test_user_prompts():
     result += _header("with just other code")
     result += Prompter(
         code="",
-        context=AiCompletionContext(),
     ).get_prompt(
         user_prompt=prompt,
         include_other_code="import pandas as pd\nimport numpy as np\n",
     )
 
     result += _header("with context")
-    result += Prompter(
-        code="import pandas as pd",
-        context=AiCompletionContext(
-            schema=[
-                SchemaTable(
-                    name="df_1",
-                    columns=[
-                        SchemaColumn("age", "int"),
-                        SchemaColumn("name", "str"),
-                    ],
-                ),
-                SchemaTable(
-                    name="d2_2",
-                    columns=[
-                        SchemaColumn("a", "int"),
-                        SchemaColumn("b", "int"),
-                    ],
-                ),
-            ],
-        ),
-    ).get_prompt(user_prompt=prompt, include_other_code="import marimo as mo")
+    result += Prompter(code="import pandas as pd").get_prompt(
+        user_prompt=prompt, include_other_code="import marimo as mo"
+    )
 
     snapshot("user_prompts.txt", result)
 
@@ -119,15 +120,25 @@ def test_chat_system_prompts():
                 SchemaTable(
                     name="df_1",
                     columns=[
-                        SchemaColumn("age", "int"),
-                        SchemaColumn("name", "str"),
+                        SchemaColumn(
+                            "age", "int", sample_values=["1", "2", "3"]
+                        ),
+                        SchemaColumn(
+                            "name",
+                            "str",
+                            sample_values=["Alice", "Bob", "Charlie"],
+                        ),
                     ],
                 ),
                 SchemaTable(
                     name="d2_2",
                     columns=[
-                        SchemaColumn("a", "int"),
-                        SchemaColumn("b", "int"),
+                        SchemaColumn(
+                            "a", "int", sample_values=["1", "2", "3"]
+                        ),
+                        SchemaColumn(
+                            "b", "int", sample_values=["4", "5", "6"]
+                        ),
                     ],
                 ),
             ],
@@ -149,8 +160,14 @@ def test_chat_system_prompts():
                 SchemaTable(
                     name="df_1",
                     columns=[
-                        SchemaColumn("age", "int"),
-                        SchemaColumn("name", "str"),
+                        SchemaColumn(
+                            "age", "int", sample_values=["1", "2", "3"]
+                        ),
+                        SchemaColumn(
+                            "name",
+                            "str",
+                            sample_values=["Alice", "Bob", "Charlie"],
+                        ),
                     ],
                 ),
             ],

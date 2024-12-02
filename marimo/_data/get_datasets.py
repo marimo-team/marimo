@@ -33,6 +33,7 @@ def _get_data_table(value: object, variable_name: str) -> Optional[DataTable]:
                 name=column_name,
                 type=column_type[0],
                 external_type=column_type[1],
+                sample_values=table.get_sample_values(column_name),
             )
             for column_name, column_type in table.get_field_types()
         ]
@@ -115,6 +116,7 @@ def _get_datasets_from_duckdb_internal() -> List[DataTable]:
                 name=column_name,
                 type=_db_type_to_data_type(column_type),
                 external_type=column_type,
+                sample_values=[],
             )
             for column_name, column_type in zip(
                 cast(list[str], column_names),

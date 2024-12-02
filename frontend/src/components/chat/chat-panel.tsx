@@ -71,7 +71,8 @@ export const ChatPanel = () => {
 
   const setInput = (newValue: string) => {
     setInputInternal(newValue);
-    setCompletionBody(getAICompletionBody(newValue));
+    const messagesConcat = messages.map((m) => m.content).join("\n");
+    setCompletionBody(getAICompletionBody(`${messagesConcat}\n\n${newValue}`));
   };
 
   useEffect(() => {

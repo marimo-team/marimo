@@ -10,8 +10,6 @@ from marimo._server.models.completion import (
 
 language_rules = {
     "python": [
-        "Do not describe the code, just write the code.",
-        "Do not output markdown or backticks.",
         "When using matplotlib to show plots, use plt.gca() instead of plt.show().",
         "If an import already exists, do not import it again.",
         "If a variable is already defined, use another name, or make it private by adding an underscore at the beginning.",
@@ -23,23 +21,39 @@ language_rules = {
 }
 
 
+def _format_schema_info(context: Optional[AiCompletionContext]) -> str:
+    """Helper to format schema information from context"""
+    if not context or not context.schema:
+        return ""
+
+    schema_info = "\n\nAvailable schema:\n"
+    for schema in context.schema:
+        schema_info += f"- Table: {schema.name}\n"
+        for col in schema.columns:
+            schema_info += f"  - Column: {col.name}\n"
+            schema_info += f"    - Type: {col.type}\n"
+            if col.sample_values:
+                samples = ", ".join(f"{v}" for v in col.sample_values)
+                schema_info += f"    - Sample values: {samples}\n"
+    return schema_info
+
+
 class Prompter:
-    def __init__(
-        self,
-        code: str,
-        context: Optional[AiCompletionContext],
-    ):
+    def __init__(self, code: str):
         self.code = code
-        self.context = context
 
     @staticmethod
     def get_system_prompt(
-        *, language: Language, custom_rules: Optional[str] = None
+        *,
+        language: Language,
+        custom_rules: Optional[str] = None,
+        context: Optional[AiCompletionContext] = None,
     ) -> str:
         if language in language_rules:
-            all_rules = [f"You can only output {language}."] + language_rules[
-                language
-            ]
+            all_rules = [
+                "Do not describe the code, just write the code.",
+                "Do not output markdown or backticks.",
+            ] + language_rules[language]
             rules = "\n".join(
                 f"{i+1}. {rule}" for i, rule in enumerate(all_rules)
             )
@@ -50,25 +64,23 @@ class Prompter:
 
             if custom_rules and custom_rules.strip():
                 system_prompt += f"\n\nAdditional rules:\n{custom_rules}"
-
-            return system_prompt
         else:
-            return "You are a helpful assistant that can answer questions."
+            system_prompt = (
+                "You are a helpful assistant that can answer questions."
+            )
+
+        system_prompt += _format_schema_info(context)
+
+        return system_prompt
 
     def get_prompt(self, *, user_prompt: str, include_other_code: str) -> str:
         prompt = user_prompt
         if include_other_code:
-            prompt += f"\n\nCode from other cells:\n{include_other_code}"
+            prompt += f"\n\n<code-from-other-cells>\n{include_other_code.strip()}\n</code-from-other-cells>"
         if self.code.strip():
-            prompt += f"\n\nCurrent code:\n{self.code}"
-        if self.context and self.context.schema:
-            schema_info = "\n\nAvailable schema:\n"
-            for schema in self.context.schema:
-                columns = ", ".join(
-                    [f"{col.name} ({col.type})" for col in schema.columns]
-                )
-                schema_info += f"- {schema.name}: {columns}\n"
-            prompt += schema_info
+            prompt += (
+                f"\n\n<current-code>\n{self.code.strip()}\n</current-code>"
+            )
         return prompt
 
     @staticmethod
@@ -116,13 +128,6 @@ class Prompter:
                 f"\n\nCode from other cells:\n{include_other_code.strip()}"
             )
 
-        if context and context.schema:
-            schema_info = "\n\nAvailable schema:\n"
-            for schema in context.schema:
-                columns = ", ".join(
-                    [f"{col.name} ({col.type})" for col in schema.columns]
-                )
-                schema_info += f"- {schema.name}: {columns}\n"
-            system_prompt += schema_info
+        system_prompt += _format_schema_info(context)
 
         return system_prompt

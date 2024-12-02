@@ -8,40 +8,40 @@ Create a pandas dataframe
 
 Create a pandas dataframe
 
-Current code:
+<current-code>
 df = pd.DataFrame({'a': [1, 2, 3], 'b': [4, 5, 6]})
+</current-code>
 
 ==================== with code and other code ====================
 
 Create a pandas dataframe
 
-Code from other cells:
+<code-from-other-cells>
 import pandas as pd
 import numpy as np
+</code-from-other-cells>
 
-
-Current code:
+<current-code>
 df = pd.DataFrame({'a': [1, 2, 3], 'b': [4, 5, 6]})
+</current-code>
 
 ==================== with just other code ====================
 
 Create a pandas dataframe
 
-Code from other cells:
+<code-from-other-cells>
 import pandas as pd
 import numpy as np
-
+</code-from-other-cells>
 
 ==================== with context ====================
 
 Create a pandas dataframe
 
-Code from other cells:
+<code-from-other-cells>
 import marimo as mo
+</code-from-other-cells>
 
-Current code:
+<current-code>
 import pandas as pd
-
-Available schema:
-- df_1: age (int), name (str)
-- d2_2: a (int), b (int)
+</current-code>

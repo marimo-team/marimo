@@ -249,6 +249,7 @@ def test_add_datasets() -> None:
                                 name="col1",
                                 type="boolean",
                                 external_type="BOOL",
+                                sample_values=["true", "false"],
                             )
                         ],
                         num_rows=1,
@@ -263,7 +264,8 @@ def test_add_datasets() -> None:
                             DataTableColumn(
                                 name="col2",
                                 type="integer",
-                                external_type="BOOL",
+                                external_type="INT",
+                                sample_values=["1", "2"],
                             )
                         ],
                         num_rows=2,
@@ -295,6 +297,7 @@ def test_add_datasets() -> None:
                                 name="new_col",
                                 type="boolean",
                                 external_type="BOOL",
+                                sample_values=["true", "false"],
                             )
                         ],
                         num_rows=20,
