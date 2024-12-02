@@ -1,4 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import { generateSessionId } from "@/core/kernel/session";
+import { asURL } from "./url";
+
 export function updateQueryParams(updater: (params: URLSearchParams) => void) {
   const url = new URL(window.location.href);
   updater(url.searchParams);
@@ -16,4 +19,10 @@ export function hasQueryParam(key: string, value?: string): boolean {
   }
 
   return urlParams.get(key) === value;
+}
+
+export function newNotebookURL() {
+  const sessionId = generateSessionId();
+  const initializationId = `__new__${sessionId}`;
+  return asURL(`?file=${initializationId}`).toString();
 }
