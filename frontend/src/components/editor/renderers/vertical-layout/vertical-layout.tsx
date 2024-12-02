@@ -258,7 +258,7 @@ const VerticalCell = memo(
     // Kiosk and not presenting
     const kioskFull = kiosk && mode !== "present";
 
-    const className = cn("Cell", "hover-actions-parent", {
+    const className = cn("Cell", "hover-actions-parent empty:invisible", {
       published: !showCode && !kioskFull,
       interactive: mode === "edit",
       "has-error": errored,

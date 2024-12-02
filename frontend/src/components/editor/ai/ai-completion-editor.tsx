@@ -30,6 +30,7 @@ const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
 
 interface Props {
+  className?: string;
   currentCode: string;
   currentLanguageAdapter: LanguageAdapterType | undefined;
   initialPrompt: string | undefined;
@@ -51,6 +52,7 @@ const baseExtensions = [customPythonLanguageSupport(), EditorView.lineWrapping];
  * This shows a left/right split with the original and modified code.
  */
 export const AiCompletionEditor: React.FC<Props> = ({
+  className,
   onChange,
   initialPrompt,
   currentLanguageAdapter,
@@ -116,7 +118,12 @@ export const AiCompletionEditor: React.FC<Props> = ({
   const { theme } = useTheme();
 
   return (
-    <div className="flex flex-col w-full rounded-[inherit] overflow-hidden">
+    <div
+      className={cn(
+        "flex flex-col w-full rounded-[inherit] overflow-hidden",
+        className,
+      )}
+    >
       <div
         className={cn(
           "flex items-center gap-2 border-b px-3 transition-all rounded-[inherit] rounded-b-none duration-300 overflow-hidden",
