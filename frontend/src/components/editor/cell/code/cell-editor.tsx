@@ -375,6 +375,7 @@ const CellEditorInternal = ({
         {/* Completely hide the editor and icons when markdown is hidden. If just hidden, display. */}
         {!isMarkdown && hidden && (
           <HideCodeButton
+            tooltip="Edit code"
             className="absolute inset-0 z-10"
             onClick={temporarilyShowCode}
           />

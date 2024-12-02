@@ -416,6 +416,7 @@ const CellComponent = (
       />
       {isMarkdownCodeHidden && (
         <HideCodeButton
+          tooltip="Edit markdown"
           className="z-20 relative -top-3"
           onClick={temporarilyShowCode}
         />
@@ -564,6 +565,8 @@ const CellComponent = (
     />
   );
 
+  const cellOutput = userConfig.display.cell_output;
+
   return (
     <CellActionsContextMenu
       cellId={cellId}
@@ -584,8 +587,8 @@ const CellComponent = (
         title={cellTitle()}
       >
         <div className={className} id={HTMLId} ref={cellContainerRef}>
-          {userConfig.display.cell_output === "above" && outputArea}
-          <div className={cn("tray", isMarkdownCodeHidden && "!border-t-0")}>
+          {cellOutput === "above" && outputArea}
+          <div className={cn("tray")} data-hidden={isMarkdownCodeHidden}>
             <div className="absolute right-2 -top-4 z-10">
               <CellToolbar
                 edited={edited}
@@ -604,7 +607,8 @@ const CellComponent = (
             <div
               className={cn(
                 "absolute flex flex-col gap-[2px] justify-center h-full left-[-34px] z-20",
-                isMarkdownCodeHidden && "-top-7",
+                isMarkdownCodeHidden && cellOutput === "above" && "-top-7",
+                isMarkdownCodeHidden && cellOutput === "below" && "-bottom-10",
                 isMarkdownCodeHidden && isCellButtonsInline && "-left-[3.8rem]",
               )}
             >
@@ -667,7 +671,7 @@ const CellComponent = (
               )}
             </div>
           </div>
-          {userConfig.display.cell_output === "below" && outputArea}
+          {cellOutput === "below" && outputArea}
           <ConsoleOutput
             consoleOutputs={consoleOutputs}
             stale={consoleOutputStale}

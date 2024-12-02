@@ -13,6 +13,7 @@ import { cn } from "@/utils/cn";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/python";
 import { sql } from "@codemirror/lang-sql";
 import { copyToClipboard } from "@/utils/copy";
+import { Tooltip } from "@/components/ui/tooltip";
 
 const pythonExtensions = [
   customPythonLanguageSupport(),
@@ -46,10 +47,16 @@ export const ReadonlyCode = memo(
           className,
         )}
       >
-        {hideCode && <HideCodeButton onClick={() => setHideCode(false)} />}
+        {hideCode && (
+          <HideCodeButton
+            tooltip="Show code"
+            onClick={() => setHideCode(false)}
+          />
+        )}
         {!hideCode && (
           <div className="absolute top-0 right-0 my-1 mx-2 z-10 hover-action flex gap-2">
             <CopyButton text={code} />
+
             <EyeCloseButton onClick={() => setHideCode(true)} />
           </div>
         )}
@@ -76,32 +83,39 @@ const CopyButton = (props: { text: string }) => {
   });
 
   return (
-    <Button onClick={copy} size="xs" className="py-0" variant="secondary">
-      <CopyIcon size={14} strokeWidth={1.5} />
-    </Button>
+    <Tooltip content="Copy code" usePortal={false}>
+      <Button onClick={copy} size="xs" className="py-0" variant="secondary">
+        <CopyIcon size={14} strokeWidth={1.5} />
+      </Button>
+    </Tooltip>
   );
 };
 
 const EyeCloseButton = (props: { onClick: () => void }) => {
   return (
-    <Button
-      onClick={props.onClick}
-      size="xs"
-      className="py-0"
-      variant="secondary"
-    >
-      <EyeOffIcon size={14} strokeWidth={1.5} />
-    </Button>
+    <Tooltip content="Hide code" usePortal={false}>
+      <Button
+        onClick={props.onClick}
+        size="xs"
+        className="py-0"
+        variant="secondary"
+      >
+        <EyeOffIcon size={14} strokeWidth={1.5} />
+      </Button>
+    </Tooltip>
   );
 };
 
 export const HideCodeButton = (props: {
+  tooltip?: string;
   className?: string;
   onClick: () => void;
 }) => {
   return (
     <div className={props.className} onClick={props.onClick}>
-      <EyeIcon className="hover-action w-5 h-5 text-muted-foreground cursor-pointer absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-80 hover:opacity-100" />
+      <Tooltip usePortal={false} content={props.tooltip}>
+        <EyeIcon className="hover-action w-5 h-5 text-muted-foreground cursor-pointer absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-80 hover:opacity-100 z-20" />
+      </Tooltip>
     </div>
   );
 };

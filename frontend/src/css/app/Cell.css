@@ -80,6 +80,14 @@
     }
   }
 
+  > [data-hidden="true"] ~ * {
+    border-top: none;
+  }
+
+  > * ~ [data-hidden="true"] {
+    border-top: none;
+  }
+
   /* Stale styles for Cell */
   &.stale,
   &.disabled.stale {
