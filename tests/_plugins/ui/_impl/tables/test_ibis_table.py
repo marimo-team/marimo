@@ -208,6 +208,10 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         unique_values = self.manager.get_unique_column_values(column)
         assert sorted(unique_values) == [1, 2, 3]
 
+    def test_get_sample_values(self) -> None:
+        sample_values = self.manager.get_sample_values("A")
+        assert sample_values == []
+
     def test_search(self) -> None:
         import ibis
 

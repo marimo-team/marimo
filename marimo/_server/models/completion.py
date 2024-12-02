@@ -11,6 +11,7 @@ from marimo._ai.types import ChatMessage
 class SchemaColumn:
     name: str
     type: str
+    sample_values: List[str]
 
 
 @dataclass
@@ -38,8 +39,8 @@ class AiCompletionRequest:
 
 @dataclass
 class ChatRequest:
+    context: AiCompletionContext
+    include_other_code: str
     messages: List[ChatMessage]
     model: Optional[str] = None
     variables: Optional[List[str]] = None
-    context: Optional[AiCompletionContext] = None
-    include_other_code: str = ""

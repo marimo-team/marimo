@@ -24,6 +24,7 @@ export function getAICompletionBody(
         columns: dataset.columns.map((column) => ({
           name: column.name,
           type: column.type,
+          sampleValues: column.sample_values,
         })),
       })),
     },

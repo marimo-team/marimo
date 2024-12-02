@@ -162,6 +162,12 @@ class IbisTableManagerFactory(TableManagerFactory):
                 )
                 return result  # type: ignore
 
+            def get_sample_values(self, column: str) -> list[Any]:
+                # Don't sample values for Ibis tables
+                # since it can be expensive
+                del column
+                return []
+
             def sort_values(
                 self, by: ColumnName, descending: bool
             ) -> IbisTableManager:

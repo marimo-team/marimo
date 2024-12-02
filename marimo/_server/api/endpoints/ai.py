@@ -312,7 +312,7 @@ async def ai_completion(
     body = await parse_request(request, cls=AiCompletionRequest)
     custom_rules = config.get("ai", {}).get("rules", None)
 
-    prompter = Prompter(code=body.code, context=body.context)
+    prompter = Prompter(code=body.code)
     system_prompt = Prompter.get_system_prompt(
         language=body.language, custom_rules=custom_rules
     )

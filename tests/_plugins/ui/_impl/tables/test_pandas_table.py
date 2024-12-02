@@ -818,3 +818,11 @@ class TestPandasTableManager(unittest.TestCase):
             "datetime64[ns]",
         )
         assert manager.get_field_type("time_col") == ("string", "object")
+
+    def test_get_sample_values(self) -> None:
+        df = pd.DataFrame({"A": [1, 2, 3, 4], "B": ["a", "b", "c", "d"]})
+        manager = self.factory.create()(df)
+        sample_values = manager.get_sample_values("A")
+        assert sample_values == [1, 2, 3]
+        sample_values = manager.get_sample_values("B")
+        assert sample_values == ["a", "b", "c"]

@@ -8,11 +8,9 @@ You are a helpful assistant working in a marimo notebook. You can answer questio
 
 
 Rules for python:
-1. Do not describe the code, just write the code.
-2. Do not output markdown or backticks.
-3. When using matplotlib to show plots, use plt.gca() instead of plt.show().
-4. If an import already exists, do not import it again.
-5. If a variable is already defined, use another name, or make it private by adding an underscore at the beginning.
+1. When using matplotlib to show plots, use plt.gca() instead of plt.show().
+2. If an import already exists, do not import it again.
+3. If a variable is already defined, use another name, or make it private by adding an underscore at the beginning.
 
 Rules for sql:
 1. The SQL must use duckdb syntax.
@@ -25,11 +23,9 @@ You are a helpful assistant working in a marimo notebook. You can answer questio
 
 
 Rules for python:
-1. Do not describe the code, just write the code.
-2. Do not output markdown or backticks.
-3. When using matplotlib to show plots, use plt.gca() instead of plt.show().
-4. If an import already exists, do not import it again.
-5. If a variable is already defined, use another name, or make it private by adding an underscore at the beginning.
+1. When using matplotlib to show plots, use plt.gca() instead of plt.show().
+2. If an import already exists, do not import it again.
+3. If a variable is already defined, use another name, or make it private by adding an underscore at the beginning.
 
 Rules for sql:
 1. The SQL must use duckdb syntax.
@@ -45,11 +41,9 @@ You are a helpful assistant working in a marimo notebook. You can answer questio
 
 
 Rules for python:
-1. Do not describe the code, just write the code.
-2. Do not output markdown or backticks.
-3. When using matplotlib to show plots, use plt.gca() instead of plt.show().
-4. If an import already exists, do not import it again.
-5. If a variable is already defined, use another name, or make it private by adding an underscore at the beginning.
+1. When using matplotlib to show plots, use plt.gca() instead of plt.show().
+2. If an import already exists, do not import it again.
+3. If a variable is already defined, use another name, or make it private by adding an underscore at the beginning.
 
 Rules for sql:
 1. The SQL must use duckdb syntax.
@@ -65,18 +59,28 @@ You are a helpful assistant working in a marimo notebook. You can answer questio
 
 
 Rules for python:
-1. Do not describe the code, just write the code.
-2. Do not output markdown or backticks.
-3. When using matplotlib to show plots, use plt.gca() instead of plt.show().
-4. If an import already exists, do not import it again.
-5. If a variable is already defined, use another name, or make it private by adding an underscore at the beginning.
+1. When using matplotlib to show plots, use plt.gca() instead of plt.show().
+2. If an import already exists, do not import it again.
+3. If a variable is already defined, use another name, or make it private by adding an underscore at the beginning.
 
 Rules for sql:
 1. The SQL must use duckdb syntax.
 
 Available schema:
-- df_1: age (int), name (str)
-- d2_2: a (int), b (int)
+- Table: df_1
+  - Column: age
+    - Type: int
+    - Sample values: 1, 2, 3
+  - Column: name
+    - Type: str
+    - Sample values: Alice, Bob, Charlie
+- Table: d2_2
+  - Column: a
+    - Type: int
+    - Sample values: 1, 2, 3
+  - Column: b
+    - Type: int
+    - Sample values: 4, 5, 6
 
 
 ==================== with other code ====================
@@ -87,11 +91,9 @@ You are a helpful assistant working in a marimo notebook. You can answer questio
 
 
 Rules for python:
-1. Do not describe the code, just write the code.
-2. Do not output markdown or backticks.
-3. When using matplotlib to show plots, use plt.gca() instead of plt.show().
-4. If an import already exists, do not import it again.
-5. If a variable is already defined, use another name, or make it private by adding an underscore at the beginning.
+1. When using matplotlib to show plots, use plt.gca() instead of plt.show().
+2. If an import already exists, do not import it again.
+3. If a variable is already defined, use another name, or make it private by adding an underscore at the beginning.
 
 Rules for sql:
 1. The SQL must use duckdb syntax.
@@ -108,11 +110,9 @@ You are a helpful assistant working in a marimo notebook. You can answer questio
 
 
 Rules for python:
-1. Do not describe the code, just write the code.
-2. Do not output markdown or backticks.
-3. When using matplotlib to show plots, use plt.gca() instead of plt.show().
-4. If an import already exists, do not import it again.
-5. If a variable is already defined, use another name, or make it private by adding an underscore at the beginning.
+1. When using matplotlib to show plots, use plt.gca() instead of plt.show().
+2. If an import already exists, do not import it again.
+3. If a variable is already defined, use another name, or make it private by adding an underscore at the beginning.
 
 Rules for sql:
 1. The SQL must use duckdb syntax.
@@ -128,4 +128,10 @@ import pandas as pd
 import numpy as np
 
 Available schema:
-- df_1: age (int), name (str)
+- Table: df_1
+  - Column: age
+    - Type: int
+    - Sample values: 1, 2, 3
+  - Column: name
+    - Type: str
+    - Sample values: Alice, Bob, Charlie

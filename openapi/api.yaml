@@ -22,11 +22,16 @@ components:
                       properties:
                         name:
                           type: string
+                        sampleValues:
+                          items:
+                            type: string
+                          type: array
                         type:
                           type: string
                       required:
                       - name
                       - type
+                      - sampleValues
                       type: object
                     type: array
                   name:
@@ -421,12 +426,17 @@ components:
           type: string
         name:
           type: string
+        sample_values:
+          items:
+            type: string
+          type: array
         type:
           $ref: '#/components/schemas/DataType'
       required:
       - name
       - type
       - external_type
+      - sample_values
       type: object
     DataType:
       enum:
@@ -1916,7 +1926,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.9.21
+  version: 0.9.28
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

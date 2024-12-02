@@ -739,3 +739,35 @@ def test_sort_values_with_nulls(df: Any) -> None:
     first = unwrap_py_scalar(sorted_manager.data["A"][0])
     assert first is None or isnan(first)
     assert sorted_manager.data["A"].to_list()[1:] == [3, 2, 1]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"A": [1, 2, 3, 4], "B": ["a", "b", "c", "d"]},
+        exclude=["ibis", "duckdb"],
+    ),
+)
+def test_get_sample_values(df: Any) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+    sample_values = manager.get_sample_values("A")
+    assert sample_values == [1, 2, 3]
+    sample_values = manager.get_sample_values("B")
+    assert sample_values == ["a", "b", "c"]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"A": [1, 2, 3, 4], "B": ["a", "b", "c", "d"]},
+        include=["ibis", "duckdb"],
+    ),
+)
+def test_get_sample_values_with_metadata_only_frame(df: Any) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+    sample_values = manager.get_sample_values("A")
+    assert sample_values == []
+    sample_values = manager.get_sample_values("B")
+    assert sample_values == []
