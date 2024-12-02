@@ -257,6 +257,9 @@ class Html(MIME):
 
         return _style.style(self, style=style, **kwargs)
 
+    def _repr_html_(self) -> str:
+        return self.text
+
 
 def _js(text: str) -> Html:
     # TODO: interpolation of Python values to javascript

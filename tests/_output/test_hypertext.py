@@ -121,3 +121,8 @@ def test_js_multiple_lines():
     assert "console.log('Line 1');" in js_html.text
     assert "console.log('Line 2');" in js_html.text
     assert "</script>" in js_html.text
+
+
+def test_html_repr_html():
+    html = Html("<p>Hello</p>")
+    assert html._repr_html_() == "<p>Hello</p>"
