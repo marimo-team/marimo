@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import hashlib
 import weakref
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Optional
@@ -134,12 +135,15 @@ class anywidget(UIElement[T, T]):
             _put_buffers(change, buffer_paths, buffers)
             widget.set_state(change)
 
+        js_hash: str = hashlib.md5(js.encode("utf-8")).hexdigest()
+
         super().__init__(
             component_name="marimo-anywidget",
             initial_value=json_args,
             label="",
             args={
                 "js-url": mo_data.js(js).url if js else "",  # type: ignore [unused-ignore]  # noqa: E501
+                "js-hash": js_hash,
                 "css": css,
                 "buffer-paths": buffer_paths,
             },

@@ -21,6 +21,7 @@ import { updateBufferPaths } from "@/utils/date-views";
 
 interface Data {
   jsUrl: string;
+  jsHash: string;
   css?: string | null;
   bufferPaths?: Array<Array<string | number>> | null;
 }
@@ -36,6 +37,7 @@ export const AnyWidgetPlugin = createPlugin<T>("marimo-anywidget")
   .withData(
     z.object({
       jsUrl: z.string(),
+      jsHash: z.string(),
       css: z.string().nullish(),
       bufferPaths: z
         .array(z.array(z.union([z.string(), z.number()])))
@@ -52,7 +54,7 @@ export const AnyWidgetPlugin = createPlugin<T>("marimo-anywidget")
 type Props = IPluginProps<T, Data, PluginFunctions>;
 
 const AnyWidgetSlot = (props: Props) => {
-  const { css, jsUrl, bufferPaths } = props.data;
+  const { css, jsUrl, jsHash, bufferPaths } = props.data;
   // JS is an ESM file with a render function on it
   // export function render({ model, el }) {
   //   ...
@@ -60,7 +62,8 @@ const AnyWidgetSlot = (props: Props) => {
     const baseUrl = document.baseURI;
     const url = new URL(jsUrl, baseUrl).toString();
     return await import(/* @vite-ignore */ url);
-  }, [jsUrl]);
+    // Re-render on jsHash change instead of url change (since URLs may change)
+  }, [jsHash]);
 
   const valueWithBuffer = useMemo(() => {
     return updateBufferPaths(props.value, bufferPaths);
