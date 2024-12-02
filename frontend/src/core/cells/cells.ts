@@ -41,15 +41,13 @@ import {
   updateEditorCodeFromPython,
 } from "../codemirror/language/utils";
 import { invariant } from "@/utils/invariant";
-import type { CellConfig, UpdateCellIdsRequest } from "../network/types";
-import { syncCellIds } from "../network/requests";
-import { kioskModeAtom } from "../mode";
+import type { CellConfig } from "../network/types";
 import {
   type CellColumnId,
   type CellIndex,
   MultiColumn,
 } from "@/utils/id-tree";
-import { debounce, isEqual } from "lodash-es";
+import { isEqual } from "lodash-es";
 import { isErrorMime } from "../mime";
 
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
@@ -1364,37 +1362,6 @@ export function useCellActions(): CellActions {
  * Map of cell actions
  */
 export type CellActions = ReturnType<typeof createActions>;
-
-const debounceSyncCellIds = debounce(syncCellIds, 400);
-
-export const CellEffects = {
-  onCellIdsChange: (
-    cellIds: MultiColumn<CellId>,
-    prevCellIds: MultiColumn<CellId>,
-  ) => {
-    const kioskMode = store.get(kioskModeAtom);
-    if (kioskMode) {
-      return;
-    }
-    // If cellIds is empty, return early
-    if (cellIds.isEmpty()) {
-      return;
-    }
-    // If prevCellIds is empty, also return early
-    // this means that the notebook was just created
-    if (prevCellIds.isEmpty()) {
-      return;
-    }
-
-    // If they are different references, send an update to the server
-    if (!isEqual(cellIds.inOrderIds, prevCellIds.inOrderIds)) {
-      // "name" property is not actually required
-      void debounceSyncCellIds({
-        cell_ids: cellIds.inOrderIds,
-      } as unknown as UpdateCellIdsRequest);
-    }
-  },
-};
 
 /**
  * This is exported for testing purposes only.

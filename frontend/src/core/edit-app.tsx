@@ -10,11 +10,11 @@ import { useMarimoWebSocket } from "./websocket/useMarimoWebSocket";
 import {
   notebookIsRunningAtom,
   useCellActions,
-  CellEffects,
   cellIdsAtom,
   numColumnsAtom,
   hasCellsAtom,
 } from "./cells/cells";
+import { CellEffects } from "./cells/effects";
 import type { AppConfig, UserConfig } from "./config/config-schema";
 import { viewStateAtom } from "./mode";
 import { useHotkey } from "../hooks/useHotkey";
