@@ -152,7 +152,7 @@ class TestOpenAiEndpoints:
                 "messages"
             ][1]["content"]
             assert prompt == (
-                "Help me create a dataframe\n\nCurrent code:\nimport pandas as pd"  # noqa: E501
+                "Help me create a dataframe\n\n<current-code>\nimport pandas as pd\n</current-code>"
             )
 
     @staticmethod
@@ -279,7 +279,7 @@ class TestAnthropicAiEndpoints:
                 "messages"
             ][0]["content"]
             assert prompt == (
-                "Help me create a dataframe\n\nCurrent code:\nimport pandas as pd"  # noqa: E501
+                "Help me create a dataframe\n\n<current-code>\nimport pandas as pd\n</current-code>"
             )
 
 
@@ -318,7 +318,7 @@ class TestGoogleAiEndpoints:
                 "contents"
             ]
             assert prompt == (
-                "Help me create a dataframe\n\nCurrent code:\nimport pandas as pd"  # noqa: E501
+                "Help me create a dataframe\n\n<current-code>\nimport pandas as pd\n</current-code>"
             )
 
     @staticmethod
