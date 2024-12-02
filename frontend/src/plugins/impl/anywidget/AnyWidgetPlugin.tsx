@@ -6,7 +6,6 @@ import type { IPluginProps } from "@/plugins/types";
 import { useEffect, useMemo, useRef } from "react";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { dequal } from "dequal";
-import { useOnMount } from "@/hooks/useLifecycle";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { ErrorBanner } from "../common/error-banner";
 import { createPlugin } from "@/plugins/core/builder";
@@ -65,7 +64,7 @@ const AnyWidgetSlot = (props: Props) => {
     const baseUrl = document.baseURI;
     const url = new URL(jsUrl, baseUrl).toString();
     return await import(/* @vite-ignore */ url);
-  }, []);
+  }, [jsUrl]);
 
   const valueWithBuffer = useMemo(() => {
     return updateBufferPaths(props.value, bufferPaths);
@@ -88,7 +87,7 @@ const AnyWidgetSlot = (props: Props) => {
     return <ErrorBanner error={error} />;
   }
 
-  if (!module || loading) {
+  if (!module) {
     return null;
   }
 
@@ -123,6 +122,8 @@ async function runAnyWidgetModule(
       throw new Error(message);
     },
   };
+  // Clear the element, in case the widget is re-rendering
+  el.innerHTML = "";
   const widget =
     typeof widgetDef === "function" ? await widgetDef() : widgetDef;
   await widget.initialize?.({ model, experimental });
@@ -159,13 +160,12 @@ const LoadedSlot = ({
     },
   );
 
-  useOnMount(() => {
+  useEffect(() => {
     if (!ref.current) {
       return;
     }
     runAnyWidgetModule(widget, model.current, ref.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  });
+  }, [widget]);
 
   // When the value changes, update the model
   useEffect(() => {
