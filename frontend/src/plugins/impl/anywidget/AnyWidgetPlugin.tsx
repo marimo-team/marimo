@@ -56,11 +56,7 @@ const AnyWidgetSlot = (props: Props) => {
   // JS is an ESM file with a render function on it
   // export function render({ model, el }) {
   //   ...
-  const {
-    data: module,
-    loading,
-    error,
-  } = useAsyncData(async () => {
+  const { data: module, error } = useAsyncData(async () => {
     const baseUrl = document.baseURI;
     const url = new URL(jsUrl, baseUrl).toString();
     return await import(/* @vite-ignore */ url);
