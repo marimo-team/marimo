@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { memo } from "react";
+import { memo, useState } from "react";
 import {
   type DataType,
   JsonViewer,
@@ -45,7 +45,7 @@ export const JsonOutput: React.FC<Props> = memo(
       case "tree":
         return (
           <JsonViewer
-            className={"marimo-json-output"}
+            className="marimo-json-output"
             rootName={name}
             theme={theme}
             value={data}
@@ -75,6 +75,23 @@ function inferBestFormat(data: unknown): "tree" | "raw" {
   return typeof data === "object" && data !== null ? "tree" : "raw";
 }
 
+// Text with length > 500 is collapsed by default, and can be expanded by clicking on it.
+const CollapsibleTextOutput = (props: { text: string }) => {
+  const [isCollapsed, setIsCollapsed] = useState(true);
+  return (
+    <span className="cursor-pointer">
+      {isCollapsed ? (
+        <span onClick={() => setIsCollapsed(false)}>
+          {props.text.slice(0, 500)}
+          {props.text.length > 500 && "..."}
+        </span>
+      ) : (
+        <span onClick={() => setIsCollapsed(true)}>{props.text}</span>
+      )}
+    </span>
+  );
+};
+
 /**
  * Map from mimetype-prefix to render function.
  *
@@ -84,7 +101,7 @@ const LEAF_RENDERERS = {
   "image/": (value: string) => <ImageOutput src={value} />,
   "video/": (value: string) => <VideoOutput src={value} />,
   "text/html": (value: string) => <HtmlOutput html={value} inline={true} />,
-  "text/plain": (value: string) => <TextOutput text={value} />,
+  "text/plain": (value: string) => <CollapsibleTextOutput text={value} />,
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -131,6 +148,6 @@ function renderLeaf(
   try {
     return render(leafData(leaf));
   } catch {
-    return <TextOutput text={"Invalid leaf: {leaf}"} />;
+    return <TextOutput text={`Invalid leaf: ${leaf}`} />;
   }
 }
