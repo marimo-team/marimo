@@ -23,13 +23,13 @@ def _leaf_formatter(value: object) -> bool | None | str | int:
         return value
     if isinstance(value, int):
         return value
+    # floats are still converted to strings because JavaScript
+    # can't reliably distinguish between them (eg 1 and 1.0)
     if isinstance(value, float):
         return f"text/plain+float:{value}"
     if value is None:
         return value
 
-    # floats are still converted to strings because JavaScript
-    # can't reliably distinguish between them (eg 1 and 1.0)
     try:
         return f"text/plain:{json.dumps(value)}"
     except TypeError:
