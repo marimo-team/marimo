@@ -640,6 +640,9 @@ const CellComponent = (
               serializedEditorState={serializedEditorState}
               runCell={handleRun}
               updateCellCode={updateCellCode}
+              setEditorView={(ev) => {
+                editorView.current = ev;
+              }}
               createNewCell={createNewCell}
               deleteCell={deleteCell}
               focusCell={focusCell}

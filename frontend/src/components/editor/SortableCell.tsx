@@ -1,12 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React, { memo, useContext } from "react";
-import { mergeRefs } from "../../utils/mergeRefs";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVerticalIcon } from "lucide-react";
 import type { CellId } from "@/core/cells/ids";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
+import { mergeRefs } from "@/utils/mergeRefs";
 
 interface Props extends React.HTMLAttributes<HTMLDivElement> {
   cellId: CellId;
@@ -25,7 +25,10 @@ export const CellDragHandle: React.FC = memo(() => {
 CellDragHandle.displayName = "DragHandle";
 
 const SortableCellInternal = React.forwardRef(
-  ({ cellId, canMoveX, ...props }: Props, ref: React.Ref<HTMLDivElement>) => {
+  (
+    { cellId, canMoveX, ...props }: Props,
+    ref: React.ForwardedRef<HTMLDivElement>,
+  ) => {
     // Sort
     const {
       attributes,
@@ -50,8 +53,6 @@ const SortableCellInternal = React.forwardRef(
       position: "relative",
     };
 
-    const mergedRef = mergeRefs<HTMLDivElement>(ref, setNodeRef);
-
     const dragHandle = (
       <div
         {...attributes}
@@ -69,7 +70,9 @@ const SortableCellInternal = React.forwardRef(
     return (
       <div
         tabIndex={-1}
-        ref={mergedRef}
+        ref={(r) => {
+          mergeRefs<HTMLDivElement>(ref, setNodeRef)(r);
+        }}
         {...props}
         data-is-dragging={isDragging}
         className={cn(

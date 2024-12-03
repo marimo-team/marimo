@@ -49,7 +49,7 @@ export const ScratchPad: React.FC = () => {
   const notebookState = useNotebook();
   const [userConfig] = useUserConfig();
   const { theme } = useTheme();
-  const ref = useRef<EditorView>(null);
+  const ref = useRef<EditorView | null>(null);
   const lastFocusedCellId = useLastFocusedCellId();
   const { createNewCell, updateCellCode } = useCellActions();
 
@@ -147,6 +147,9 @@ export const ScratchPad: React.FC = () => {
             clearSerializedEditorState={Functions.NOOP}
             userConfig={userConfig}
             editorViewRef={ref}
+            setEditorView={(ev) => {
+              ref.current = ev;
+            }}
             hidden={false}
             temporarilyShowCode={Functions.NOOP}
             languageAdapter={languageAdapter}

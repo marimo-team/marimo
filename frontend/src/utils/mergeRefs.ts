@@ -1,5 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-export function mergeRefs<T>(...refs: Array<React.Ref<T>>): React.Ref<T> {
+export function mergeRefs<T>(
+  ...refs: Array<React.Ref<T>>
+): (value: T | null) => void {
   return (value) => {
     refs.forEach((ref) => {
       if (typeof ref === "function") {

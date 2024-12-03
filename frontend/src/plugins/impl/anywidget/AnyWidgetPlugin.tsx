@@ -167,10 +167,10 @@ const LoadedSlot = ({
   }, [widget]);
 
   // When the value changes, update the model
+  const valueMemo = useDeepCompareMemoize(value);
   useEffect(() => {
-    model.current.updateAndEmitDiffs(value);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [useDeepCompareMemoize([value])]);
+    model.current.updateAndEmitDiffs(valueMemo);
+  }, [valueMemo]);
 
   return <div ref={ref} />;
 };
