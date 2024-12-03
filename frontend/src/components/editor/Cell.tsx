@@ -654,7 +654,7 @@ const CellComponent = (
             />
             <div
               className={cn(
-                "shoulder-right",
+                "shoulder-right z-20",
                 isMarkdownCodeHidden && cellOutput === "below" && "top-14",
               )}
             >
