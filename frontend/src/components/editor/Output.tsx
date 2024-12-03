@@ -262,12 +262,28 @@ interface OutputAreaProps {
   output: OutputMessage | null;
   cellId: CellId;
   stale: boolean;
+  /**
+   * Whether to allow expanding the output
+   * This shows the expand button and allows the user to expand the output
+   */
   allowExpand: boolean;
+  /**
+   * Whether to force expand the output
+   * When true, there will be no expand button and the output will be expanded.
+   */
+  forceExpand?: boolean;
   className?: string;
 }
 
 export const OutputArea = React.memo(
-  ({ output, cellId, stale, allowExpand, className }: OutputAreaProps) => {
+  ({
+    output,
+    cellId,
+    stale,
+    allowExpand,
+    forceExpand,
+    className,
+  }: OutputAreaProps) => {
     if (output === null) {
       return null;
     }
@@ -287,6 +303,7 @@ export const OutputArea = React.memo(
         <Container
           title={title}
           cellId={cellId}
+          forceExpand={forceExpand}
           id={CellOutputId.create(cellId)}
           className={cn(stale && "marimo-output-stale", className)}
         >
@@ -311,9 +328,11 @@ const ExpandableOutput = React.memo(
   ({
     cellId,
     children,
+    forceExpand,
     ...props
   }: React.HTMLProps<HTMLDivElement> & {
     cellId: CellId;
+    forceExpand?: boolean;
   }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [isExpanded, setIsExpanded] = useExpandedOutput(cellId);
@@ -357,12 +376,13 @@ const ExpandableOutput = React.memo(
                   <ExpandIcon className="size-4" strokeWidth={1.25} />
                 </Button>
               </Tooltip>
-              {(isOverflowing || isExpanded) && (
+              {(isOverflowing || isExpanded) && !forceExpand && (
                 <Button
                   data-testid="expand-output-button"
                   className={cn(
+                    "hover:border-border border border-transparent hover:bg-muted",
                     // Force show button if expanded
-                    !isExpanded && "hover-action hover:bg-muted",
+                    !isExpanded && "hover-action",
                   )}
                   onClick={() => setIsExpanded(!isExpanded)}
                   size="xs"
@@ -388,7 +408,9 @@ const ExpandableOutput = React.memo(
               props.className,
             )}
             ref={containerRef}
-            style={isExpanded ? { maxHeight: "none" } : undefined}
+            style={
+              isExpanded || forceExpand ? { maxHeight: "none" } : undefined
+            }
           >
             {children}
           </div>
