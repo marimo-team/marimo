@@ -50,13 +50,13 @@ def test_formatters_with_opinionated_formatter() -> None:
     obj = ["test"]
     formatter = get_formatter(obj)
     assert formatter is not None
-    assert formatter(obj) == ("application/json", '["text/plain:\\"test\\""]')
+    assert formatter(obj) == ("application/json", '["test"]')
 
     # With Plain
     obj = Plain(["test"])
     formatter = get_formatter(obj)
     assert formatter is not None
-    assert formatter(obj) == ("application/json", '["text/plain:\\"test\\""]')
+    assert formatter(obj) == ("application/json", '["test"]')
 
     # With pandas DataFrame
     formatter = get_formatter(pd_df)
