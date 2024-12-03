@@ -409,7 +409,10 @@ const CellComponent = (
         />
       </div>
       <OutputArea
+        // Only allow expanding in edit mode
         allowExpand={editing}
+        // Force expand when markdown is hidden
+        forceExpand={isMarkdownCodeHidden}
         output={output}
         className="output-area"
         cellId={cellId}
