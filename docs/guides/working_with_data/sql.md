@@ -123,6 +123,16 @@ SELECT * FROM read_parquet('path/to/example.parquet');
 For a full list you can check out the [duckdb extensions](https://duckdb.org/docs/extensions/overview).
 You can also check out our [examples on GitHub](https://github.com/marimo-team/marimo/tree/main/examples/sql).
 
+## Escaping SQL brackets
+
+Our "SQL" cells are really just Python under the hood to keep notebooks as pure Python scripts. By default, we use `f-strings` for SQL strings, which allows for parameterized SQL like which allows for parameterized SQL like `SELECT * from table where value < {min}`.
+
+To escape real `{`/`}` that you don't want parameterized, use double `{{...}}`:
+
+```sql
+SELECT unnest([{{'a': 42, 'b': 84}}, {{'a': 100, 'b': NULL}}]);
+```
+
 ## Interactive tutorial
 
 For an interactive tutorial, run
