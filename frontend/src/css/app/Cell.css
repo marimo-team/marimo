@@ -205,7 +205,7 @@
     border-color: transparent;
     box-shadow: none;
 
-    /* As the original */
+    /* Apply the original styles */
     &:hover {
       border: 1px solid var(--gray-4);
       @apply shadow-smSolid shadow-shade;
