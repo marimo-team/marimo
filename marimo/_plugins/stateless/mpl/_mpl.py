@@ -18,11 +18,6 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
 
-from starlette.websockets import (
-    WebSocketDisconnect,
-    WebSocketState,
-)
-
 from marimo._output.builder import h
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html
@@ -119,6 +114,10 @@ def create_application() -> Starlette:
     from starlette.responses import HTMLResponse, Response
     from starlette.routing import Mount, Route, WebSocketRoute
     from starlette.staticfiles import StaticFiles
+    from starlette.websockets import (
+        WebSocketDisconnect,
+        WebSocketState,
+    )
 
     async def main_page(request: Request) -> HTMLResponse:
         figure_id = request.query_params.get("figure")
