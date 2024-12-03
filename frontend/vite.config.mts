@@ -20,6 +20,14 @@ const htmlDevPlugin = (): Plugin => {
         return html;
       }
 
+      // Add react-scan in dev mode
+      if (isDev) {
+        html = html.replace(
+          "<head>",
+          '<head>\n<script src="https://unpkg.com/react-scan/dist/auto.global.js"></script>',
+        );
+      }
+
       if (isPyodide) {
         const modeFromUrl = ctx.originalUrl?.includes("mode=read")
           ? "read"

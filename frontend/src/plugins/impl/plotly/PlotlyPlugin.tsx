@@ -119,11 +119,10 @@ export const PlotlyComponent = memo(
     useEffect(() => {
       const nextFigure = structuredClone(originalFigure);
       setFigure(nextFigure);
-      setLayout({
+      setLayout((prev) => ({
         ...initialLayout(nextFigure),
-        ...value,
-      });
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+        ...prev,
+      }));
     }, [originalFigure, isScriptLoaded]);
 
     const [layout, setLayout] = useState<Partial<Plotly.Layout>>(() => {
@@ -141,6 +140,7 @@ export const PlotlyComponent = memo(
       setValue({});
     });
 
+    const configMemo = useDeepCompareMemoize(config);
     const plotlyConfig = useMemo((): Partial<Plotly.Config> => {
       return {
         displaylogo: false,
@@ -161,10 +161,9 @@ export const PlotlyComponent = memo(
           },
         ],
         // Prioritize user's config
-        ...config,
+        ...configMemo,
       };
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [handleReset, useDeepCompareMemoize(config)]);
+    }, [handleReset, configMemo]);
 
     const prevFigure = usePrevious(figure) ?? figure;
 

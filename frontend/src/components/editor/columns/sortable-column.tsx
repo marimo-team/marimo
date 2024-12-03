@@ -48,8 +48,6 @@ const SortableColumnInternal = React.forwardRef(
       "--gutter-width": "50px",
     };
 
-    const mergedRef = mergeRefs<HTMLDivElement>(ref, setNodeRef);
-
     const { deleteColumn, moveColumn, addColumn } = useCellActions();
 
     const buttonClasses = cn("h-full hover:bg-muted rounded-none");
@@ -129,7 +127,9 @@ const SortableColumnInternal = React.forwardRef(
     return (
       <div
         tabIndex={-1}
-        ref={mergedRef}
+        ref={(r) => {
+          mergeRefs(ref, setNodeRef)(r);
+        }}
         {...props}
         style={style}
         data-is-dragging={isDragging}

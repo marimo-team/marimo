@@ -49,8 +49,7 @@ export function useHotkey(shortcut: HotkeyAction, callback: HotkeyHandler) {
       registerAction(shortcut, memoizeCallback);
       return () => unregisterAction(shortcut);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [memoizeCallback, shortcut, isNOOP]);
+  }, [memoizeCallback, shortcut, isNOOP, registerAction, unregisterAction]);
 }
 
 /**

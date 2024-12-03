@@ -78,20 +78,6 @@ export const ChatPanel = () => {
     setCompletionBody(getAICompletionBody(`${messagesConcat}\n\n${newValue}`));
   };
 
-  useEffect(() => {
-    if (activeChat) {
-      setMessages(
-        activeChat.messages.map(({ role, content, timestamp }) => ({
-          role,
-          content,
-          id: timestamp.toString(),
-        })),
-      );
-      setInput("");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeChat?.id]);
-
   const lastMessageText = messages.at(-1)?.content;
   useEffect(() => {
     if (isLoading) {
@@ -123,6 +109,7 @@ export const ChatPanel = () => {
     setCompletionBody(nextCompletionBody);
 
     setMessages([]);
+    setInput("");
     append(
       {
         role: "user",

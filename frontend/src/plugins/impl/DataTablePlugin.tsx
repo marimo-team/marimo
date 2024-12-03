@@ -219,6 +219,7 @@ export const LoadingDataTableComponent = memo(
     props: Omit<DataTableProps<T>, "sorting"> & { data: TableData<T> },
   ) => {
     const search = props.search;
+    const setValue = props.setValue;
     // Sorting/searching state
     const [sorting, setSorting] = useState<SortingState>([]);
     const [paginationState, setPaginationState] =
@@ -234,9 +235,8 @@ export const LoadingDataTableComponent = memo(
     // so we can't rely on the data to be the same
     // We can remove this when we have a stable key for each row
     useEffect(() => {
-      props.setValue([]);
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [props.setValue, filters, searchQuery, sorting]);
+      setValue([]);
+    }, [setValue, filters, searchQuery, sorting]);
 
     // If pageSize changes, reset pagination state
     useEffect(() => {

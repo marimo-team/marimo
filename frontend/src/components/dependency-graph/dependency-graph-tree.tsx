@@ -11,12 +11,7 @@ import ReactFlow, {
   useReactFlow,
 } from "reactflow";
 
-import React, {
-  type PropsWithChildren,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { type PropsWithChildren, useEffect, useState } from "react";
 import {
   EdgeMarkerContext,
   nodeTypes,
@@ -57,7 +52,8 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
   layoutDirection,
   settings,
 }) => {
-  const initial = useMemo(() => {
+  // eslint-disable-next-line react/hook-use-state
+  const [initial] = useState(() => {
     let elements = elementsBuilder.createElements(
       cellIds,
       cellAtoms,
@@ -70,8 +66,7 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
 
     return elements;
     // Only run once
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  });
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initial.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);

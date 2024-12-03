@@ -84,8 +84,7 @@ export function useScript(
     }
 
     setStatus("unknown");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [src]);
+  }, [src, options.removeOnUnmount]);
 
   return status;
 }

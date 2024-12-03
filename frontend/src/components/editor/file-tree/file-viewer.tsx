@@ -71,7 +71,7 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
   internalValueRef.current = internalValue;
   useEffect(() => {
     return () => {
-      if (!data) {
+      if (!data?.contents) {
         return;
       }
       const draft = internalValueRef.current;
@@ -81,7 +81,6 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
         unsavedContentsForFile.set(file.path, draft);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file.path, data?.contents]);
 
   if (error) {

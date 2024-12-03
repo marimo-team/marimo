@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { SetStateAction } from "jotai";
 import { type DependencyList, useState, useEffect, type Dispatch } from "react";
+import useEvent from "react-use-event-hook";
 
 interface AsyncDataResponse<T> {
   data: T | undefined;
@@ -55,6 +56,8 @@ export function useAsyncData<T>(
       ? { fetch: loaderOrProps }
       : loaderOrProps;
 
+  const fetchStable = useEvent(asProps.fetch);
+
   useEffect(() => {
     let isCancelled = false;
     let keepPrevious = false;
@@ -64,8 +67,7 @@ export function useAsyncData<T>(
       },
     };
     setLoading(true);
-    asProps
-      .fetch(context)
+    fetchStable(context)
       .then((data) => {
         if (isCancelled) {
           return;
@@ -92,8 +94,7 @@ export function useAsyncData<T>(
     return () => {
       isCancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [...deps, nonce]);
+  }, [...deps, nonce, fetchStable]);
 
   return {
     data,
