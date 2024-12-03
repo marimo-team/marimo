@@ -45,7 +45,7 @@ def watch_and_export(
         if output:
             # Make dirs if needed
             maybe_make_dirs(output)
-            with open(output, "w") as f:
+            with open(output, "w", encoding="utf-8") as f:
                 f.write(data)
                 f.close()
         else:

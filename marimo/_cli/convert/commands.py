@@ -64,7 +64,7 @@ def convert(
     if output:
         # Make dirs if needed
         maybe_make_dirs(output)
-        with open(output, "w") as f:
+        with open(output, "w", encoding="utf-8") as f:
             f.write(notebook)
         echo(f"Converted notebook saved to {output}")
     else:
