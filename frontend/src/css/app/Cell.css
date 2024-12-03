@@ -200,6 +200,18 @@
     }
   }
 
+  /* Borderless styles for Cell */
+  &.borderless {
+    border-color: transparent;
+    box-shadow: none;
+
+    /* As the original */
+    &:hover {
+      border: 1px solid var(--gray-4);
+      @apply shadow-smSolid shadow-shade;
+    }
+  }
+
   /* -------------------------- Shoulders/Buttons ---------------------------- */
   .shoulder-right {
     display: inline-flex;
