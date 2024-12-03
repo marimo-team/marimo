@@ -2005,7 +2005,7 @@ export interface components {
         schema: {
           columns: {
             name: string;
-            sampleValues: string[];
+            sampleValues: unknown[];
             type: string;
           }[];
           name: string;
@@ -2163,7 +2163,7 @@ export interface components {
     DataTableColumn: {
       external_type: string;
       name: string;
-      sample_values: string[];
+      sample_values: unknown[];
       type: components["schemas"]["DataType"];
     };
     /** @enum {string} */

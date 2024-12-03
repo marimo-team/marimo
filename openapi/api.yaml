@@ -23,8 +23,7 @@ components:
                         name:
                           type: string
                         sampleValues:
-                          items:
-                            type: string
+                          items: {}
                           type: array
                         type:
                           type: string
@@ -427,8 +426,7 @@ components:
         name:
           type: string
         sample_values:
-          items:
-            type: string
+          items: {}
           type: array
         type:
           $ref: '#/components/schemas/DataType'

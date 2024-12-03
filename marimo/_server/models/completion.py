@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Literal, Optional
+from typing import Any, List, Literal, Optional
 
 from marimo._ai.types import ChatMessage
 
@@ -11,7 +11,7 @@ from marimo._ai.types import ChatMessage
 class SchemaColumn:
     name: str
     type: str
-    sample_values: List[str]
+    sample_values: List[Any]
 
 
 @dataclass
