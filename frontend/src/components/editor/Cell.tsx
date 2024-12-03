@@ -332,12 +332,13 @@ const CellComponent = (
     ref: cellContainerRef,
     skip: !isMarkdown,
     onResize: (size) => {
+      const cellTooShort = size.height && size.height < 68;
       const shouldBeInline =
-        (size.height && size.height < 68 && hasOutput) || false;
+        isMarkdownCodeHidden && (cellTooShort || cellOutput === "below");
       setIsCellStatusInline(shouldBeInline);
 
       if (canCollapse && shouldBeInline) {
-        setIsCellButtonsInline(shouldBeInline);
+        setIsCellButtonsInline(true);
       } else if (isCellButtonsInline) {
         setIsCellButtonsInline(false);
       }
@@ -432,6 +433,7 @@ const CellComponent = (
     stopped: stopped,
     disabled: cellConfig.disabled,
     stale: status === "disabled-transitively",
+    borderless: isMarkdownCodeHidden,
   });
 
   const HTMLId = HTMLCellId.create(cellId);
@@ -608,7 +610,7 @@ const CellComponent = (
               className={cn(
                 "absolute flex flex-col gap-[2px] justify-center h-full left-[-34px] z-20",
                 isMarkdownCodeHidden && cellOutput === "above" && "-top-7",
-                isMarkdownCodeHidden && cellOutput === "below" && "-bottom-10",
+                isMarkdownCodeHidden && cellOutput === "below" && "-bottom-8",
                 isMarkdownCodeHidden && isCellButtonsInline && "-left-[3.8rem]",
               )}
             >
@@ -650,7 +652,12 @@ const CellComponent = (
               languageAdapter={languageAdapter}
               setLanguageAdapter={setLanguageAdapter}
             />
-            <div className="shoulder-right">
+            <div
+              className={cn(
+                "shoulder-right",
+                isMarkdownCodeHidden && cellOutput === "below" && "top-14",
+              )}
+            >
               {!isCellStatusInline && cellStatusComponent}
               <div className="flex gap-2 items-end">
                 <CellDragHandle />
