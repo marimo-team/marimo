@@ -37,7 +37,7 @@ from marimo._utils.paths import import_files
 root = os.path.realpath(str(import_files("marimo").joinpath("_static")))
 
 if TYPE_CHECKING:
-    import nbformat
+    import nbformat  # type:ignore
 
 
 class Exporter:
@@ -337,7 +337,7 @@ def hash_code(code: str) -> str:
 def _create_notebook_cell(
     cell: CellImpl, outputs: list["nbformat.NotebookNode"]
 ) -> "nbformat.NotebookNode":
-    import nbformat  # type: ignore
+    import nbformat  # ignore
 
     markdown_string = get_markdown_from_cell(
         Cell(_name="__", _cell=cell), cell.code

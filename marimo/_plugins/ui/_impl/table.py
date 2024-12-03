@@ -597,7 +597,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         """
         df = self.data
         if hasattr(df, "_repr_html_"):
-            return df._repr_html_()  # type: ignore[attr-defined]
+            return df._repr_html_()  # type: ignore[attr-defined,no-any-return]
         return str(df)
 
     def __hash__(self) -> int:
