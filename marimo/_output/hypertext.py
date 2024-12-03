@@ -121,7 +121,7 @@ class Html(MIME):
             return (
                 "image/png",
                 cast(
-                    str, cast(Any, self)._repr_png_()
+                    str, cast(Any, self)._repr_png_().decode()
                 ),  # ignore[no-untyped-call]
             )
         if no_js and hasattr(self, "_repr_markdown_"):
