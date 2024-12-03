@@ -25,12 +25,12 @@ repos:
         exclude: ^marimo/_tutorials/.*\.md
 
   - repo: https://github.com/crate-ci/typos
-    rev: v1.28.0
+    rev: typos-dict-v0.11.37
     hooks:
       - id: typos
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.0
+    rev: v0.8.1
     hooks:
       # Run the linter
       - id: ruff
