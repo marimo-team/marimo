@@ -48,6 +48,7 @@ export const JsonOutput: React.FC<Props> = memo(
             className="marimo-json-output"
             rootName={name}
             theme={theme}
+            displayDataTypes={false}
             value={data}
             style={{
               backgroundColor: "transparent",
@@ -101,6 +102,7 @@ const LEAF_RENDERERS = {
   "image/": (value: string) => <ImageOutput src={value} />,
   "video/": (value: string) => <VideoOutput src={value} />,
   "text/html": (value: string) => <HtmlOutput html={value} inline={true} />,
+  "text/plain+float:": (value: string) => <span>{value}</span>,
   "text/plain": (value: string) => <CollapsibleTextOutput text={value} />,
 };
 

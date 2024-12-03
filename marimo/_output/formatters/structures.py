@@ -9,24 +9,31 @@ from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output import formatting
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._output.formatters.repr_formatters import maybe_get_repr_formatter
+from marimo._plugins.stateless import plain_text
 from marimo._utils.flatten import CyclicStructureError, flatten
 
 
-def _leaf_formatter(value: object) -> bool | None | str:
+def _leaf_formatter(value: object) -> bool | None | str | int:
     formatter = formatting.get_formatter(value)
     if formatter is not None:
         return ":".join(formatter(value))
     if isinstance(value, bool):
         return value
-    elif value is None:
+    if isinstance(value, str):
         return value
-    else:
-        # floats and ints are still converted to strings because JavaScript
-        # can't reliably distinguish between them (eg 1 and 1.0)
-        try:
-            return f"text/plain:{json.dumps(value)}"
-        except TypeError:
-            return f"text/plain:{value}"
+    if isinstance(value, int):
+        return value
+    # floats are still converted to strings because JavaScript
+    # can't reliably distinguish between them (eg 1 and 1.0)
+    if isinstance(value, float):
+        return f"text/plain+float:{value}"
+    if value is None:
+        return value
+
+    try:
+        return f"text/plain:{json.dumps(value)}"
+    except TypeError:
+        return f"text/plain:{value}"
 
 
 def format_structure(
@@ -58,6 +65,19 @@ class StructuresFormatter(FormatterFactory):
             repr_formatter = maybe_get_repr_formatter(t)
             if repr_formatter is not None:
                 return repr_formatter(t)
+
+            # Check if the object is a subclass of tuple, list, or dict
+            # and the repr is different from the default
+            # e.g. sys.version_info
+            if isinstance(t, tuple) and type(t) is not tuple:
+                if str(t) != str(tuple(t)):
+                    return plain_text.plain_text(str(t))._mime_()
+            elif isinstance(t, list) and type(t) is not list:
+                if str(t) != str(list(t)):
+                    return plain_text.plain_text(str(t))._mime_()
+            elif isinstance(t, dict) and type(t) is not dict:
+                if str(t) != str(dict(t)):
+                    return plain_text.plain_text(str(t))._mime_()
 
             if t and "matplotlib" in sys.modules:
                 # Special case for matplotlib:
