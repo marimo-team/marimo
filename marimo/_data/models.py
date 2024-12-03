@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta  # noqa: TCH003
 from decimal import Decimal
-from typing import List, Literal, Optional, Union
+from typing import Any, List, Literal, Optional, Union
 
 DataType = Literal[
     "string",
@@ -34,7 +34,7 @@ class DataTableColumn:
     name: str
     type: DataType
     external_type: ExternalDataType
-    sample_values: List[str]
+    sample_values: List[Any]
 
 
 DataTableSource = Literal["local", "duckdb"]
