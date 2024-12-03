@@ -387,6 +387,11 @@ def _convert_marimo_output_to_ipynb(
     if output.channel not in (CellChannel.OUTPUT, CellChannel.MEDIA):
         return ipynb_outputs
 
+    if output.mimetype == "text/plain" and (
+        output.data == [] or output.data == ""
+    ):
+        return ipynb_outputs
+
     # Handle rich output
     data: dict[str, Any] = {}
 

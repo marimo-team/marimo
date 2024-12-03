@@ -1,8 +1,10 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 import weakref
-from typing import TYPE_CHECKING, Any, Literal, Optional, final
+from contextlib import contextmanager
+from typing import TYPE_CHECKING, Any, Iterator, Literal, Optional, cast, final
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.mime import MIME
@@ -68,8 +70,6 @@ class Html(MIME):
     - `right`: right-justify this element in the output area
     """
 
-    _text: str
-
     def __init__(self, text: str) -> None:
         """Initialize the HTML element.
 
@@ -116,6 +116,21 @@ class Html(MIME):
 
     @final
     def _mime_(self) -> tuple[KnownMimeType, str]:
+        no_js = os.getenv("MARIMO_NO_JS", "false").lower() == "true"
+        if no_js and hasattr(self, "_repr_png_"):
+            return (
+                "image/png",
+                cast(
+                    str, cast(Any, self)._repr_png_()
+                ),  # ignore[no-untyped-call]
+            )
+        if no_js and hasattr(self, "_repr_markdown_"):
+            return (
+                "text/markdown",
+                cast(
+                    str, cast(Any, self)._repr_markdown_()
+                ),  # ignore[no-untyped-call]
+            )
         return ("text/html", self.text)
 
     def __format__(self, spec: str) -> str:
@@ -264,3 +279,21 @@ class Html(MIME):
 def _js(text: str) -> Html:
     # TODO: interpolation of Python values to javascript
     return Html("<script>" + text + "</script>")
+
+
+@contextmanager
+def patch_html_for_non_interactive_output() -> Iterator[None]:
+    """
+    Patch Html to return text/markdown for simpler non-interactive outputs,
+    that can be rendered without JS/CSS (just as in the GitHub viewer).
+    """
+    # HACK: we must set MARIMO_NO_JS since the rendering may happen in another
+    # thread
+    # This won't work when we are running a marimo server and are auto-exporting
+    # with this enabled.
+    old_no_js = os.getenv("MARIMO_NO_JS", "false")
+    try:
+        os.environ["MARIMO_NO_JS"] = "true"
+        yield
+    finally:
+        os.environ["MARIMO_NO_JS"] = old_no_js

@@ -34,6 +34,7 @@
    ],
    "source": [
     "import sys\n",
+    "\n",
     "sys.stdout.write(\"world\\n\")"
    ]
   },
@@ -44,13 +45,23 @@
    "metadata": {},
    "outputs": [
     {
-     "data": {
-      "text/plain": []
-     },
-     "metadata": {},
-     "output_type": "display_data"
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "error\n"
+     ]
     }
    ],
+   "source": [
+    "sys.stderr.write(\"error\\n\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "bkHC",
+   "metadata": {},
+   "outputs": [],
    "source": [
     "x = 10"
    ]
@@ -58,7 +69,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "bkHC",
+   "id": "lEQa",
    "metadata": {},
    "outputs": [
     {
@@ -79,24 +90,16 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "lEQa",
+   "id": "PKri",
    "metadata": {},
-   "outputs": [
-    {
-     "data": {
-      "text/plain": []
-     },
-     "metadata": {},
-     "output_type": "display_data"
-    }
-   ],
+   "outputs": [],
    "source": [
     "import marimo as mo"
    ]
   },
   {
    "cell_type": "markdown",
-   "id": "PKri",
+   "id": "Xref",
    "metadata": {},
    "source": [
     "hello"
@@ -105,13 +108,13 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "Xref",
+   "id": "SFPL",
    "metadata": {},
    "outputs": [
     {
      "data": {
-      "text/html": [
-       "<span class=\"markdown prose dark:prose-invert\"><span class=\"paragraph\">hello 10</span></span>"
+      "text/markdown": [
+       "hello 10"
       ]
      },
      "metadata": {},
@@ -120,6 +123,124 @@
    ],
    "source": [
     "mo.md(f\"hello {x}\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "BYtC",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/markdown": [
+       "<div><style>\n",
+       ".dataframe > thead > tr,\n",
+       ".dataframe > tbody > tr {\n",
+       "  text-align: right;\n",
+       "  white-space: pre-wrap;\n",
+       "}\n",
+       "</style>\n",
+       "<small>shape: (3, 1)</small><table border=\"1\" class=\"dataframe\"><thead><tr><th>a</th></tr><tr><td>i64</td></tr></thead><tbody><tr><td>1</td></tr><tr><td>2</td></tr><tr><td>3</td></tr></tbody></table></div>"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "import polars as pl\n",
+    "\n",
+    "df = pl.DataFrame({\"a\": [1, 2, 3]})\n",
+    "df"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "RGSE",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/markdown": [
+       "<div><style>\n",
+       ".dataframe > thead > tr,\n",
+       ".dataframe > tbody > tr {\n",
+       "  text-align: right;\n",
+       "  white-space: pre-wrap;\n",
+       "}\n",
+       "</style>\n",
+       "<small>shape: (3, 1)</small><table border=\"1\" class=\"dataframe\"><thead><tr><th>a</th></tr><tr><td>i64</td></tr></thead><tbody><tr><td>1</td></tr><tr><td>2</td></tr><tr><td>3</td></tr></tbody></table></div>"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "mo.ui.table(df)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "Kclp",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/markdown": [
+       "&lt;marimo-slider data-initial-value=&#x27;0&#x27; data-label=&#x27;null&#x27; data-start=&#x27;0&#x27; data-stop=&#x27;10&#x27; data-steps=&#x27;[]&#x27; data-debounce=&#x27;false&#x27; data-orientation=&#x27;&amp;quot;horizontal&amp;quot;&#x27; data-show-value=&#x27;false&#x27; data-full-width=&#x27;false&#x27;&gt;&lt;/marimo-slider&gt;"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "mo.ui.slider(start=0, stop=10)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "emfo",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div style='display: flex;flex: 1;flex-direction: column;justify-content: flex-start;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><div><span class=\"markdown prose dark:prose-invert\"><span class=\"paragraph\">hello</span></span></div><div><span class=\"markdown prose dark:prose-invert\"><span class=\"paragraph\">world</span></span></div><div><marimo-mime-renderer data-mime='&quot;text/markdown&quot;' data-data='&quot;&lt;div&gt;&lt;style&gt;&#92;n.dataframe &gt; thead &gt; tr,&#92;n.dataframe &gt; tbody &gt; tr {&#92;n  text-align: right;&#92;n  white-space: pre-wrap;&#92;n}&#92;n&lt;/style&gt;&#92;n&lt;small&gt;shape: (3, 1)&lt;/small&gt;&lt;table border=&#92;&quot;1&#92;&quot; class=&#92;&quot;dataframe&#92;&quot;&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;a&lt;/th&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;i64&lt;/td&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;1&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;2&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;3&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;&lt;/div&gt;&quot;'></marimo-mime-renderer></div></div>"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "mo.vstack([mo.md(\"hello\"), mo.md(\"world\"), df])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "Hstk",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "application/vnd.vegalite.v5+json": "{\n  \"$schema\": \"https://vega.github.io/schema/vega-lite/v5.20.1.json\",\n  \"config\": {\n    \"view\": {\n      \"continuousHeight\": 300,\n      \"continuousWidth\": 300\n    }\n  },\n  \"data\": {\n    \"name\": \"data-eee7b1e4b6c75ac82244a034063d66fd\"\n  },\n  \"datasets\": {\n    \"data-eee7b1e4b6c75ac82244a034063d66fd\": [\n      {\n        \"a\": 1\n      },\n      {\n        \"a\": 2\n      },\n      {\n        \"a\": 3\n      }\n    ]\n  },\n  \"encoding\": {\n    \"x\": {\n      \"field\": \"a\",\n      \"type\": \"quantitative\"\n    }\n  },\n  \"mark\": {\n    \"type\": \"point\"\n  },\n  \"usermeta\": {\n    \"embedOptions\": {}\n  }\n}"
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "import altair as alt\n",
+    "\n",
+    "chart = alt.Chart(df).mark_point().encode(x=\"a\")\n",
+    "chart"
    ]
   }
  ],

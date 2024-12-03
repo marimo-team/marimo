@@ -10,6 +10,7 @@ import types
 import uuid
 import weakref
 from dataclasses import dataclass, fields
+from html import escape
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -528,3 +529,8 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
             "probably want to call `.value` instead."
         )
         return True
+
+    def _repr_markdown_(self) -> str:
+        # When rendering to markdown, remove the marimo-ui-element tag
+        # and render the inner-text escaped.
+        return escape(self._inner_text)

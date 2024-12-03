@@ -7,6 +7,7 @@ from typing import Callable, Literal
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.ops import MessageOperation
 from marimo._messaging.types import KernelMessage
+from marimo._output.hypertext import patch_html_for_non_interactive_output
 from marimo._runtime.requests import AppMetadata, SerializedCLIArgs
 from marimo._server.export.exporter import Exporter
 from marimo._server.file_manager import AppFileManager
@@ -62,7 +63,8 @@ async def run_app_then_export_as_ipynb(
     assert file_key is not None
     file_manager = file_router.get_file_manager(file_key)
 
-    session_view = await run_app_until_completion(file_manager, cli_args)
+    with patch_html_for_non_interactive_output():
+        session_view = await run_app_until_completion(file_manager, cli_args)
 
     return Exporter().export_as_ipynb(
         file_manager, sort_mode=sort_mode, session_view=session_view
