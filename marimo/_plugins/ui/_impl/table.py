@@ -547,7 +547,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         if query:
             result = result.search(query)
 
-        if sort:
+        if sort and sort.by in result.get_column_names():
             result = result.sort_values(sort.by, sort.descending)
 
         return result

@@ -366,6 +366,22 @@ def test_value_with_search_then_selection_dfs(df: Any) -> None:
     assert nw.from_native(value)["a"][0] == "baz"
 
 
+def test_search_sort_nonexistent_columns() -> None:
+    data = ["banana", "apple", "cherry", "date", "elderberry"]
+    table = ui.table(data)
+
+    # no error raised
+    table.search(
+        SearchTableArgs(
+            sort=SortArgs("missing_column", descending=False),
+            page_size=10,
+            page_number=0,
+        )
+    )
+
+    assert table._convert_value(["0"]) == ["banana"]
+
+
 def test_table_with_too_many_columns_passes() -> None:
     data = {str(i): [1] for i in range(101)}
     assert ui.table(data) is not None

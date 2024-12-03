@@ -268,7 +268,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
         if query:
             result = result.search(query)
 
-        if sort:
+        if sort and sort.by in result.get_column_names():
             result = result.sort_values(sort.by, sort.descending)
 
         return result
