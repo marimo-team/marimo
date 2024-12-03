@@ -24,6 +24,7 @@ import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import { getAICompletionBody } from "../editor/ai/completion-utils";
 import { addMessageToChat } from "@/core/ai/chat-utils";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
+import { useTheme } from "@/theme/useTheme";
 
 export const ChatPanel = () => {
   const [chatState, setChatState] = useAtom(chatStateAtom);
@@ -33,6 +34,7 @@ export const ChatPanel = () => {
   const newThreadInputRef = useRef<ReactCodeMirrorRef>(null);
   const newMessageInputRef = useRef<ReactCodeMirrorRef>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { theme } = useTheme();
 
   const {
     messages,
@@ -200,7 +202,7 @@ export const ChatPanel = () => {
               key="new-thread-input"
               value={newThreadInput}
               placeholder="Ask anything, @ to include context"
-              theme="light"
+              theme={theme}
               onClose={() => newThreadInputRef.current?.editor?.blur()}
               onChange={setNewThreadInput}
               onSubmit={() =>
@@ -223,7 +225,7 @@ export const ChatPanel = () => {
                 <PromptInput
                   key={message.id}
                   value={message.content}
-                  theme="light"
+                  theme={theme}
                   placeholder="Type your message..."
                   onChange={() => {
                     // noop
@@ -316,7 +318,7 @@ export const ChatPanel = () => {
               }
             }}
             onClose={() => newMessageInputRef.current?.editor?.blur()}
-            theme="light"
+            theme={theme}
             placeholder="Type your message..."
           />
         </div>
