@@ -4,6 +4,7 @@ from __future__ import annotations
 import abc
 import base64
 import copy
+import random
 import sys
 import types
 import uuid
@@ -111,6 +112,8 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
     _value_frontend: S
     _value: T
 
+    _random_seed = random.Random(42)
+
     def __init__(
         self,
         component_name: str,
@@ -194,7 +197,11 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         # element will trigger a re-render and reset it to its initial value.
         # We need this to ensure that the element on the page is synchronized
         # with the element in the kernel.
-        self._random_id = str(uuid.uuid4())
+        # We use a fixed seed so that we can reproduce the same random ids
+        # across multiple runs (useful when exporting as html or in tests)
+        self._random_id = str(
+            uuid.UUID(int=self._random_seed.getrandbits(128))
+        )
 
         # Stable ID
         #
