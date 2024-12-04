@@ -63,11 +63,11 @@
    * margin collapse. */
   overflow: auto;
   @apply text-xs;
-}
 
-.marimo-json-output .data-key-pair:not(:last-child) {
-  margin-top: 0.2rem;
-  margin-bottom: 0.2rem;
+  .data-key-pair:not(:last-child) {
+    margin-top: 0.2rem;
+    margin-bottom: 0.2rem;
+  }
 }
 
 .traceback-cell-link {

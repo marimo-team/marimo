@@ -1,11 +1,11 @@
 import marimo
 
-__generated_with = "0.9.29"
+__generated_with = "0.9.30"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def __(mo):
     [
         {
             "a": 1,
@@ -13,6 +13,13 @@ def __():
             "c": "foo",
             "d": True,
             "e": False,
+            "e": mo.ui.slider(0, 10),
+            "f": "bar" * 1000,
+            "url": "https://www.google.com",
+            "g": [1, 2, 3],
+            "h": (1, 2, 3),
+            "i": {1, 2, 3},
+            "j": {"a": 1, "b": 2},
         }
     ]
     return

@@ -1,9 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { Events } from "@/utils/events";
 
+const urlRegex = /(https?:\/\/\S+)/g;
 export const UrlDetector = ({ text }: { text: string }) => {
-  const urlRegex = /(https?:\/\/\S+)/g;
-
   const createMarkup = (text: string) => {
     const parts = text.split(urlRegex);
 

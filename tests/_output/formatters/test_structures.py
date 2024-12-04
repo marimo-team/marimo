@@ -218,3 +218,13 @@ def test_format_structure_subclasses_with_different_built_in_repr() -> None:
     assert get_and_format(sys.version_info)[1].startswith(
         "<pre style='font-size: 12px'>sys.version_info(major=3"
     )
+
+
+def test_format_structure_set() -> None:
+    test_set = {1, 2, 3}
+    assert format_structure([test_set]) == (["text/plain+set:{1, 2, 3}"])
+
+
+def test_format_structure_tuple() -> None:
+    test_tuple = (1, 2, 3)
+    assert format_structure(test_tuple) == (1, 2, 3)
