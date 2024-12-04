@@ -22,14 +22,6 @@
    ]
   },
   {
-   "cell_type": "markdown",
-   "id": "vblA",
-   "metadata": {},
-   "source": [
-    "plain markdown"
-   ]
-  },
-  {
    "cell_type": "code",
    "execution_count": null,
    "id": "MJUe",
@@ -38,6 +30,14 @@
    "source": [
     "control_dep\n",
     "mo.md(f\"parameterized markdown {123}\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "vblA",
+   "metadata": {},
+   "source": [
+    "plain markdown"
    ]
   }
  ],

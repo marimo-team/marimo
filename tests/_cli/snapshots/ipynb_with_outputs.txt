@@ -5,25 +5,9 @@
    "execution_count": null,
    "id": "bkHC",
    "metadata": {},
-   "outputs": [
-    {
-     "data": {
-      "text/plain": []
-     },
-     "metadata": {},
-     "output_type": "display_data"
-    }
-   ],
+   "outputs": [],
    "source": [
     "import marimo as mo"
-   ]
-  },
-  {
-   "cell_type": "markdown",
-   "id": "vblA",
-   "metadata": {},
-   "source": [
-    "plain markdown"
    ]
   },
   {
@@ -34,8 +18,8 @@
    "outputs": [
     {
      "data": {
-      "text/html": [
-       "<span class=\"markdown prose dark:prose-invert\"><span class=\"paragraph\">markdown</span></span>"
+      "text/markdown": [
+       "markdown"
       ]
      },
      "metadata": {},
@@ -55,8 +39,8 @@
    "outputs": [
     {
      "data": {
-      "text/html": [
-       "<span class=\"markdown prose dark:prose-invert\"><span class=\"paragraph\">parametrized markdown 123</span></span>"
+      "text/markdown": [
+       "parameterized markdown 123"
       ]
      },
      "metadata": {},
@@ -65,7 +49,15 @@
    ],
    "source": [
     "control_dep\n",
-    "mo.md(f\"parametrized markdown {123}\")"
+    "mo.md(f\"parameterized markdown {123}\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "vblA",
+   "metadata": {},
+   "source": [
+    "plain markdown"
    ]
   }
  ],
