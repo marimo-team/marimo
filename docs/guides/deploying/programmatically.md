@@ -37,3 +37,30 @@ if __name__ == "__main__":
 ```
 
 For a more complete example, see the [FastAPI example](https://github.com/marimo-team/marimo/tree/main/examples/frameworks/fastapi).
+
+## Dynamic directory
+
+If you'd like to create a server to dynamically load marimo notebooks from a directory, you can use the `with_dynamic_directory` method. This is useful if the contents of the directory change often, such as a directory of notebooks for a dashboard, without restarting the server.
+
+```python
+server = (
+    marimo.create_asgi_app()
+    .with_dynamic_directory(path="/dashboard", directory="./notebooks")
+)
+```
+
+If the notebooks in the directory are expected to be static, it is better to use the `with_app` method and loop through the directory contents.
+
+```python
+from pathlib import Path
+server = marimo.create_asgi_app()
+app_names: list[str] = []
+
+notebooks_dir = Path(__file__).parent / "notebooks"
+
+for filename in sorted(notebooks_dir.iterdir()):
+    if filename.suffix == ".py":
+        app_name = filename.stem
+        server = server.with_app(path=f"/{app_name}", root=filename)
+        app_names.append(app_name)
+```
