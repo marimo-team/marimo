@@ -51,3 +51,28 @@ def test_bool_ui_element() -> None:
         res = not element
         del res
         assert buf.getvalue() == expected_warning
+
+
+def test_ui_element_random_id() -> None:
+    element1 = Element()
+    element2 = Element()
+
+    assert element1._random_id != element2._random_id
+
+    class AnotherElement(UIElement[int, int]):
+        _name: str = "another_element"
+
+        def __init__(self) -> None:
+            super().__init__(
+                component_name=AnotherElement._name,
+                initial_value=0,
+                label=None,
+                args={},
+                on_change=None,
+            )
+
+        def _convert_value(self, value: int) -> int:
+            return value
+
+    another_element = AnotherElement()
+    assert element1._random_id != another_element._random_id
