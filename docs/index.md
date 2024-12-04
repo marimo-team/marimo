@@ -324,6 +324,8 @@ for the better.
    Discord <https://marimo.io/discord?ref=docs>
    Newsletter <https://marimo.io/newsletter>
    Twitter <https://twitter.com/marimo_io>
+   Bluesky <https://bsky.app/profile/marimo.io>
+   Awesome marimo <https://github.com/marimo-team/awesome-marimo>
    Marimo Cloud Waitlist <https://marimo.io/cloud>
    Blog <https://marimo.io/blog>
 ```
