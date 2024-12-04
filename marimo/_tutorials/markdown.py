@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.8.22"
+__generated_with = "0.9.30"
 app = marimo.App()
 
 
@@ -37,12 +37,15 @@ def __(mo):
 def __(mo):
     mo.md(
         """
-        **Tip: toggling between Markdown and Python views**
+        **Tip: toggling between the Markdown and Python editor**
 
-        Although markdown is written with `mo.md`, marimo provides a markdown view
-        that hides this boilerplate from you. You can toggle between Markdown and
-        Python views by clicking the button in the top-right of this cell or
-        entering `Ctrl/Cmd+Shift+M`.
+        Although markdown is written with `mo.md`, marimo provides a markdown editor
+        that hides this boilerplate from you.
+
+        Toggle between the Markdown and Python
+        editors by clicking the blue icon in the top-right of the editor,
+        entering `Ctrl/Cmd+Shift+M`, or using the "cell actions menu". You can
+        also **hide** the markdown editor through the cell actions menu.
 
         **Tip**: To interpolate Python values into markdown strings, you'll
         need to use `mo.md(f"...")` directly; the markdown view does not support
