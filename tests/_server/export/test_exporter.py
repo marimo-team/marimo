@@ -81,11 +81,16 @@ def test_export_ipynb_sort_modes():
     snapshot("notebook_topological.ipynb.txt", content)
 
 
-# ruff: noqa: B018
-@pytest.mark.skipif(
-    not HAS_NBFORMAT or not DependencyManager.polars.has(),
-    reason="nbformat is not installed",
+HAS_DEPS = (
+    HAS_NBFORMAT
+    and DependencyManager.polars.has()
+    and DependencyManager.altair.has()
+    and DependencyManager.matplotlib.has()
 )
+
+
+# ruff: noqa: B018
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_export_ipynb_with_outputs():
     app = App()
 
@@ -183,6 +188,14 @@ def test_export_ipynb_with_outputs():
         chart = alt.Chart(df).mark_point().encode(x="a")
         chart
         return (chart,)
+
+    # matplotlib
+    @app.cell()
+    def cell_14():
+        import matplotlib.pyplot as plt
+
+        plt.plot([1, 2])
+        return (plt,)
 
     file_manager = AppFileManager.from_app(InternalApp(app))
     exporter = Exporter()

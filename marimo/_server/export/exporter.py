@@ -402,7 +402,14 @@ def _convert_marimo_output_to_ipynb(
         for mime, content in cast(dict[str, Any], output.data).items():
             data[mime] = content
     else:
-        data[output.mimetype] = output.data
+        if (
+            isinstance(output.data, str)
+            and output.data.startswith("data:")
+            and ";base64," in output.data
+        ):
+            data[output.mimetype] = output.data.split(";base64,")[1]
+        else:
+            data[output.mimetype] = output.data
 
     if data:
         ipynb_outputs.append(
