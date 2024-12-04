@@ -91,6 +91,7 @@ HAS_DEPS = (
 
 # ruff: noqa: B018
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.timeout(50)
 def test_export_ipynb_with_outputs():
     app = App()
 
