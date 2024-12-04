@@ -30,6 +30,7 @@ from marimo._runtime.input_override import input_override
 from marimo._runtime.marimo_pdb import MarimoPdb
 from marimo._runtime.requests import AppMetadata, ExecutionRequest
 from marimo._runtime.runtime import Kernel
+from marimo._server.model import SessionMode
 
 # register import hooks for third-party module formatters
 register_formatters()
@@ -128,6 +129,8 @@ class MockedKernel:
             stream=self.stream,  # type: ignore
             stdout=self.stdout,  # type: ignore
             stderr=self.stderr,  # type: ignore
+            virtual_files_supported=True,
+            mode=SessionMode.EDIT,
         )
 
     def teardown(self) -> None:

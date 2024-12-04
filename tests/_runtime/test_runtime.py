@@ -37,6 +37,7 @@ from marimo._runtime.requests import (
 )
 from marimo._runtime.runtime import Kernel
 from marimo._runtime.scratch import SCRATCH_CELL_ID
+from marimo._server.model import SessionMode
 from marimo._utils.parse_dataclass import parse_raw
 from tests.conftest import ExecReqProvider, MockedKernel
 
@@ -920,6 +921,8 @@ class TestExecution:
                 stream=k.stream,
                 stdout=k.stdout,
                 stderr=k.stderr,
+                virtual_files_supported=True,
+                mode=SessionMode.EDIT,
             )
 
             await k.run(
