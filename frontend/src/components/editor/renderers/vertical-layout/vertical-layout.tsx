@@ -258,11 +258,13 @@ const VerticalCell = memo(
     // Kiosk and not presenting
     const kioskFull = kiosk && mode !== "present";
 
+    const isPureMarkdown = new MarkdownLanguageAdapter().isSupported(code);
     const className = cn("Cell", "hover-actions-parent empty:invisible", {
       published: !showCode && !kioskFull,
       interactive: mode === "edit",
       "has-error": errored,
       stopped: stopped,
+      borderless: isPureMarkdown,
     });
 
     const HTMLId = HTMLCellId.create(cellId);
@@ -280,7 +282,6 @@ const VerticalCell = memo(
       );
 
       const isCodeEmpty = code.trim() === "";
-      const isPureMarkdown = new MarkdownLanguageAdapter().isSupported(code);
 
       return (
         <div tabIndex={-1} id={HTMLId} ref={cellRef} className={className}>
