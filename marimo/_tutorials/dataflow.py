@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.6.0"
+__generated_with = "0.9.30"
 app = marimo.App()
 
 
@@ -26,7 +26,7 @@ def __(mo):
 @app.cell(hide_code=True)
 def __(mo):
     mo.md(
-        rf"""
+        r"""
         **Tip: disabling automatic execution.**
 
         marimo lets you disable automatic execution: just go into the notebook settings
@@ -512,7 +512,7 @@ def __(mo, tips):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -654,7 +654,6 @@ def __():
 @app.cell
 def __():
     import marimo as mo
-
     return (mo,)
 
 
