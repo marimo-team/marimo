@@ -415,7 +415,7 @@ class Session:
         app_file_manager: AppFileManager,
         user_config_manager: UserConfigManager,
         virtual_files_supported: bool,
-        redirect_console_to_browser: bool = False,
+        redirect_console_to_browser: bool,
     ) -> Session:
         """
         Create a new session.

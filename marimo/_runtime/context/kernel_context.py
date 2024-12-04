@@ -122,12 +122,13 @@ class KernelRuntimeContext(RuntimeContext):
 
 
 def create_kernel_context(
+    *,
     kernel: Kernel,
     stream: Stream,
     stdout: Stdout | None,
     stderr: Stderr | None,
-    virtual_files_supported: bool = True,
-    mode: SessionMode = SessionMode.EDIT,
+    virtual_files_supported: bool,
+    mode: SessionMode,
     app: InternalApp | None = None,
     parent: KernelRuntimeContext | None = None,
 ) -> KernelRuntimeContext:
@@ -155,12 +156,13 @@ def create_kernel_context(
 
 
 def initialize_kernel_context(
+    *,
     kernel: Kernel,
     stream: Stream,
     stdout: Stdout | None,
     stderr: Stderr | None,
-    virtual_files_supported: bool = True,
-    mode: SessionMode = SessionMode.EDIT,
+    virtual_files_supported: bool,
+    mode: SessionMode,
 ) -> None:
     """Initializes thread-local/session-specific context.
 
@@ -168,11 +170,11 @@ def initialize_kernel_context(
     """
     initialize_context(
         runtime_context=create_kernel_context(
-            kernel,
-            stream,
-            stdout,
-            stderr,
-            virtual_files_supported,
-            mode,
+            kernel=kernel,
+            stream=stream,
+            stdout=stdout,
+            stderr=stderr,
+            virtual_files_supported=virtual_files_supported,
+            mode=mode,
         )
     )

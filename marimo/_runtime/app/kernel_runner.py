@@ -16,6 +16,7 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
 )
 from marimo._runtime.runner import cell_runner
+from marimo._server.model import SessionMode
 
 if TYPE_CHECKING:
     from marimo._ast.app import InternalApp
@@ -85,6 +86,7 @@ class AppKernelRunner:
             stdout=None,
             stderr=None,
             virtual_files_supported=True,
+            mode=SessionMode.EDIT,
             parent=ctx,
         )
         ctx.add_child(self._runtime_context)
