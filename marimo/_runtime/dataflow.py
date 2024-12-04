@@ -489,11 +489,25 @@ def get_cycles(
 def topological_sort(
     graph: DirectedGraph, cell_ids: Collection[CellId_t]
 ) -> list[CellId_t]:
-    """Sort `cell_ids` in a topological order."""
+    """Sort `cell_ids` in a topological order.
+
+    When multiple cells have the same parents (including no parents), the tie is broken by
+    registration order - cells registered earlier are processed first.
+    """
     parents, children = induced_subgraph(graph, cell_ids)
-    roots = [cid for cid in cell_ids if not parents[cid]]
-    sorted_cell_ids = []
+    top_down_keys = {
+        key: index for index, key in enumerate(graph.cells.keys())
+    }
+
+    # Group cells by their parents and sort within each group by registration order
+    roots = sorted(
+        [cid for cid in cell_ids if not parents[cid]],
+        key=lambda x: top_down_keys[x],
+    )
+    sorted_cell_ids: list[CellId_t] = []
     while roots:
+        # Within each level, process cells in registration order
+        roots.sort(key=lambda x: top_down_keys[x])
         cid = roots.pop(0)
         sorted_cell_ids.append(cid)
         for child in children[cid]:

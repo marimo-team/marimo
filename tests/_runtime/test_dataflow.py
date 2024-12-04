@@ -227,6 +227,97 @@ def test_register_with_stale_ancestor() -> None:
     assert graph.get_stale() == set(["0", "1"])
 
 
+def test_topological_sort_single_node() -> None:
+    graph = dataflow.DirectedGraph()
+    code = "x = 0"
+    cell = parse_cell(code)
+    graph.register_cell("0", cell)
+    sorted_cells = dataflow.topological_sort(graph, ["0"])
+    assert sorted_cells == ["0"]
+
+
+def test_topological_sort_linear_chain() -> None:
+    graph = dataflow.DirectedGraph()
+    code = "x = 0"
+    first_cell = parse_cell(code)
+    graph.register_cell("0", first_cell)
+
+    code = "y = x"
+    second_cell = parse_cell(code)
+    graph.register_cell("1", second_cell)
+
+    code = "z = y"
+    third_cell = parse_cell(code)
+    graph.register_cell("2", third_cell)
+
+    sorted_cells = dataflow.topological_sort(graph, ["0", "1", "2"])
+    assert sorted_cells == ["0", "1", "2"]
+
+
+def test_topological_sort_diamond_dependency() -> None:
+    graph = dataflow.DirectedGraph()
+    code = "x = 0"
+    first_cell = parse_cell(code)
+    graph.register_cell("0", first_cell)
+
+    code = "y = x"
+    second_cell = parse_cell(code)
+    graph.register_cell("1", second_cell)
+
+    code = "z = x"
+    third_cell = parse_cell(code)
+    graph.register_cell("2", third_cell)
+
+    code = "a = y + z"
+    fourth_cell = parse_cell(code)
+    graph.register_cell("3", fourth_cell)
+
+    sorted_cells = dataflow.topological_sort(graph, ["0", "1", "2", "3"])
+    assert sorted_cells == ["0", "1", "2", "3"]
+
+    sorted_cells = dataflow.topological_sort(graph, ["3", "2", "1", "0"])
+    assert sorted_cells == ["0", "1", "2", "3"]
+
+    # Subset of nodes
+    sorted_cells = dataflow.topological_sort(graph, ["0"])
+    assert sorted_cells == ["0"]
+
+
+def test_topological_sort_with_unrelated_nodes() -> None:
+    graph = dataflow.DirectedGraph()
+    code = "x = 0"
+    first_cell = parse_cell(code)
+    graph.register_cell("0", first_cell)
+
+    code = "y = x"
+    second_cell = parse_cell(code)
+    graph.register_cell("1", second_cell)
+
+    code = "a = 0"
+    third_cell = parse_cell(code)
+    graph.register_cell("2", third_cell)
+
+    sorted_cells = dataflow.topological_sort(graph, ["0", "1", "2"])
+    assert sorted_cells == ["0", "1", "2"]
+
+    sorted_cells = dataflow.topological_sort(graph, ["2", "1", "0"])
+    assert sorted_cells == ["0", "1", "2"]
+
+
+def test_topological_sort_with_cycle() -> None:
+    graph = dataflow.DirectedGraph()
+    code = "x = y"
+    first_cell = parse_cell(code)
+    graph.register_cell("0", first_cell)
+
+    code = "y = x"
+    second_cell = parse_cell(code)
+    graph.register_cell("1", second_cell)
+
+    sorted_cells = dataflow.topological_sort(graph, ["0", "1"])
+    assert sorted_cells == []
+
+
 @pytest.mark.skipif(not HAS_DUCKDB, reason="duckdb is required")
 class TestSQL:
     @pytest.mark.parametrize(
