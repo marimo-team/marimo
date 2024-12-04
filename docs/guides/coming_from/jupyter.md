@@ -92,7 +92,8 @@ To adapt to the restriction, we suggest:
 3. Mutatinge variables in the cell that defines them.
 
 When working with **dataframes**, you might be used to redefining the same `df`
-variable in multiple cells. That won't work in marimo. Instead, either merge
+variable in multiple cells. That won't work in marimo. Instead, try merging
+the cells into a single cell:
 
 _Don't_ do this:
 
@@ -142,6 +143,29 @@ Convert Jupyter notebooks to marimo notebooks at the command-line:
 ```
 marimo convert your_notebook.ipynb -o your_notebook.py
 ```
+
+## Adapting to the absence of magic commands
+
+Because marimo notebooks are just Python (improving maintainability), marimo
+doesn't support IPython magic commands or `!`-prefixed console commands. Here
+are some alternatives.
+
+### Run console commands with subprocess.run
+
+To run a console command, use Python's [subprocess.run](https://docs.python.org/3/library/subprocess.html#subprocess.run):
+
+```python
+import subprocess
+
+# run: "ls -l"
+subprocess.run(["ls", "-l"])
+```
+
+### Installing packages with marimo's package manager
+
+Use marimo's package management sidebar panel to install packages to your current
+environment. Learn more in our [package management
+guide](/guides/editor_features/package_management.md).
 
 ## Interactive guide
 

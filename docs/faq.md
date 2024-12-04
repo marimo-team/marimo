@@ -31,6 +31,7 @@
   - [How do I use marimo on a remote server?](#faq-remote)
   - [How do I make marimo accessible on all network interfaces?](#faq-interfaces)
   - [How do I use marimo behind JupyterHub?](#faq-jupyter-hub)
+  - [How do I use marimo with JupyterBook?](#faq-jupyter-book)
   - [How do I deploy apps?](#faq-app-deploy)
   - [Is marimo free?](#faq-marimo-free)
 
@@ -490,6 +491,19 @@ marimo edit --host 0.0.0.0
 
 JupyterHub can be configured to launch marimo using the [`jupyter-marimo-proxy`
 package](https://github.com/jyio/jupyter-marimo-proxy).
+
+<a name="faq-jupyter-hub"></a>
+
+### How do I use marimo with JupyterBook?
+
+[JupyterBook](https://jupyterbook.org/en/stable/intro.html) makes it easy
+to create static websites with markdown and Jupyter notebooks.
+
+To include a marimo notebook in a JupyterBook, you can either export your
+notebook to an `ipynb` file, or export to `HTML`:
+
+1. export to ipynb: `marimo export ipynb my_notebook.py -o my_notebook.ipynb --include-outputs`
+2. export to HTML: `marimo export ipynb my_notebook.py -o my_notebook.html`
 
 <a name="faq-app-deploy"></a>
 
