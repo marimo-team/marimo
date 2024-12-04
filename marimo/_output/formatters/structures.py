@@ -29,6 +29,10 @@ def _leaf_formatter(value: object) -> bool | None | str | int:
         return f"text/plain+float:{value}"
     if value is None:
         return value
+    if isinstance(value, set):
+        return f"text/plain+set:{str(value)}"
+    if isinstance(value, tuple):
+        return f"text/plain+tuple:{json.dumps(value)}"
 
     try:
         return f"text/plain:{json.dumps(value)}"

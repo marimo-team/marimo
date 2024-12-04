@@ -6,6 +6,7 @@ import {
   booleanType,
   defineDataType,
   nullType,
+  stringType,
 } from "@textea/json-viewer";
 
 import { HtmlOutput } from "./HtmlOutput";
@@ -14,6 +15,8 @@ import { TextOutput } from "./TextOutput";
 import { VideoOutput } from "./VideoOutput";
 import { logNever } from "../../../utils/assertNever";
 import { useTheme } from "../../../theme/useTheme";
+import { isUrl } from "@/utils/urls";
+import { copyToClipboard } from "@/utils/copy";
 
 interface Props {
   /**
@@ -53,13 +56,15 @@ export const JsonOutput: React.FC<Props> = memo(
             style={{
               backgroundColor: "transparent",
             }}
+            collapseStringsAfterLength={COLLAPSED_TEXT_LENGTH}
             valueTypes={VALUE_TYPE}
             // disable array grouping (it's misleading) by using a large value
             groupArraysAfterLength={1_000_000}
-            // TODO(akshayka): disable clipboard until we have a better
-            // solution: copies raw values, shifts content; can use onCopy prop
-            // to override what is copied to clipboard
-            enableClipboard={false}
+            onCopy={async (_path, value) => {
+              await copyToClipboard(getCopyValue(value));
+              return value;
+            }}
+            enableClipboard={true}
           />
         );
       case "raw":
@@ -76,19 +81,34 @@ function inferBestFormat(data: unknown): "tree" | "raw" {
   return typeof data === "object" && data !== null ? "tree" : "raw";
 }
 
-// Text with length > 500 is collapsed by default, and can be expanded by clicking on it.
+const COLLAPSED_TEXT_LENGTH = 100;
+// Text with length > COLLAPSED_TEXT_LENGTH is collapsed by default, and can be expanded by clicking on it.
 const CollapsibleTextOutput = (props: { text: string }) => {
   const [isCollapsed, setIsCollapsed] = useState(true);
+
+  // Doesn't need to be collapsed
+  if (props.text.length <= COLLAPSED_TEXT_LENGTH) {
+    return <span>{props.text}</span>;
+  }
+
+  if (isCollapsed) {
+    return (
+      <span
+        className="cursor-pointer hover:opacity-90"
+        onClick={() => setIsCollapsed(false)}
+      >
+        {props.text.slice(0, COLLAPSED_TEXT_LENGTH)}
+        {props.text.length > COLLAPSED_TEXT_LENGTH && "..."}
+      </span>
+    );
+  }
+
   return (
-    <span className="cursor-pointer">
-      {isCollapsed ? (
-        <span onClick={() => setIsCollapsed(false)}>
-          {props.text.slice(0, 500)}
-          {props.text.length > 500 && "..."}
-        </span>
-      ) : (
-        <span onClick={() => setIsCollapsed(true)}>{props.text}</span>
-      )}
+    <span
+      className="cursor-pointer hover:opacity-90"
+      onClick={() => setIsCollapsed(true)}
+    >
+      {props.text}
     </span>
   );
 };
@@ -101,9 +121,11 @@ const CollapsibleTextOutput = (props: { text: string }) => {
 const LEAF_RENDERERS = {
   "image/": (value: string) => <ImageOutput src={value} />,
   "video/": (value: string) => <VideoOutput src={value} />,
-  "text/html": (value: string) => <HtmlOutput html={value} inline={true} />,
+  "text/html:": (value: string) => <HtmlOutput html={value} inline={true} />,
   "text/plain+float:": (value: string) => <span>{value}</span>,
-  "text/plain": (value: string) => <CollapsibleTextOutput text={value} />,
+  "text/plain+set:": (value: string) => <span>set{value}</span>,
+  "text/plain+tuple:": (value: string) => <span>{value}</span>,
+  "text/plain:": (value: string) => <CollapsibleTextOutput text={value} />,
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -124,7 +146,27 @@ const PYTHON_NONE_TYPE = defineDataType<null>({
   Component: () => <span>None</span>,
 });
 
-const VALUE_TYPE = [...MIME_TYPES, PYTHON_BOOLEAN_TYPE, PYTHON_NONE_TYPE];
+const URL_TYPE = defineDataType<string>({
+  ...stringType,
+  is: (value) => isUrl(value),
+  Component: ({ value }) => (
+    <a
+      href={value}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-link hover:underline"
+    >
+      {value}
+    </a>
+  ),
+});
+
+const VALUE_TYPE = [
+  ...MIME_TYPES,
+  PYTHON_BOOLEAN_TYPE,
+  PYTHON_NONE_TYPE,
+  URL_TYPE,
+];
 
 function leafData(leaf: string): string {
   const delimIndex = leaf.indexOf(":");
@@ -152,4 +194,57 @@ function renderLeaf(
   } catch {
     return <TextOutput text={`Invalid leaf: ${leaf}`} />;
   }
+}
+
+const MIME_PREFIXES = Object.keys(LEAF_RENDERERS);
+const REPLACE_PREFIX = "<marimo-replace>";
+const REPLACE_SUFFIX = "</marimo-replace>";
+/**
+ * Get the string representation (as Python) of a value.
+ * - recursively handles lists and dictionaries
+ * - trims mimetype prefix
+ * - maps booleans to True and False
+ * - maps null/undefined to None
+ */
+function pythonJsonReplacer(key: string, value: unknown): unknown {
+  if (value == null) {
+    return `${REPLACE_PREFIX}None${REPLACE_SUFFIX}`;
+  }
+  if (typeof value === "object") {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    // If float, we want to keep the quotes around the number.
+    if (value.startsWith("text/plain+float:")) {
+      return `${REPLACE_PREFIX}${leafData(value)}${REPLACE_SUFFIX}`;
+    }
+    if (value.startsWith("text/plain+tuple:")) {
+      // replace first and last characters [] with ()
+      return `${REPLACE_PREFIX}(${leafData(value).slice(1, -1)})${REPLACE_SUFFIX}`;
+    }
+    if (value.startsWith("text/plain+set:")) {
+      // replace first and last characters [] with {}
+      return `${REPLACE_PREFIX}{${leafData(value).slice(1, -1)}}${REPLACE_SUFFIX}`;
+    }
+
+    if (MIME_PREFIXES.some((prefix) => value.startsWith(prefix))) {
+      return leafData(value);
+    }
+    return value;
+  }
+  if (typeof value === "boolean") {
+    return `${REPLACE_PREFIX}${value ? "True" : "False"}${REPLACE_SUFFIX}`;
+  }
+  return value;
+}
+
+export function getCopyValue(value: unknown): string {
+  // Because this results in valid json, it adds quotes around None and True/False.
+  // but we want to make this look like Python, so we remove the quotes.
+  return JSON.stringify(value, pythonJsonReplacer)
+    .replaceAll(`"${REPLACE_PREFIX}`, "")
+    .replaceAll(`${REPLACE_SUFFIX}"`, "");
 }

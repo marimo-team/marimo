@@ -26,3 +26,8 @@ export function newNotebookURL() {
   const initializationId = `__new__${sessionId}`;
   return asURL(`?file=${initializationId}`).toString();
 }
+
+const urlRegex = /(https?:\/\/\S+)/g;
+export function isUrl(value: unknown): boolean {
+  return typeof value === "string" && urlRegex.test(value);
+}
