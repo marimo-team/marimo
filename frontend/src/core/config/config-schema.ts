@@ -1,8 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { z } from "zod";
 import { Logger } from "@/utils/Logger";
-import { getMarimoAppConfig, getMarimoUserConfig } from "../dom/marimo-tag";
+import {
+  getMarimoAppConfig,
+  getMarimoConfigOverrides,
+  getMarimoUserConfig,
+} from "../dom/marimo-tag";
 import type { MarimoConfig } from "../network/types";
+import { invariant } from "@/utils/invariant";
 
 // This has to be defined in the same file as the zod schema to satisfy zod
 export const PackageManagerNames = [
@@ -198,6 +203,23 @@ export function parseUserConfig(): UserConfig {
       `Marimo got an unexpected value in the configuration file: ${error}`,
     );
     return defaultUserConfig();
+  }
+}
+
+export function parseConfigOverrides(): {} {
+  try {
+    const overrides = getMarimoConfigOverrides() as {};
+    invariant(
+      typeof overrides === "object",
+      "internal-error: marimo-config-overrides is not an object",
+    );
+    if (Object.keys(overrides).length > 0) {
+      Logger.log("🔧 Project configuration overrides:", overrides);
+    }
+    return overrides as {};
+  } catch (error) {
+    Logger.error(`Marimo got an unexpected configuration overrides: ${error}`);
+    return {};
   }
 }
 

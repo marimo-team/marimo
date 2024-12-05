@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Iterator, Optional
 
 from marimo._cli.parse_args import args_from_argv
 from marimo._config.config import MarimoConfig
+from marimo._config.manager import get_default_config_manager
 from marimo._plugins.ui._core.ids import NoIDProviderException
 from marimo._plugins.ui._core.registry import UIElementRegistry
 from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
@@ -59,8 +60,10 @@ class ScriptRuntimeContext(RuntimeContext):
         return self._app.execution_context
 
     @property
-    def user_config(self) -> MarimoConfig:
-        return self._app.user_config
+    def marimo_config(self) -> MarimoConfig:
+        return get_default_config_manager(
+            current_path=self.filename
+        ).get_config()
 
     @property
     def cell_id(self) -> Optional[CellId_t]:

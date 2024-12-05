@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { store } from "@/core/state/jotai";
 import { atom, useAtomValue } from "jotai";
-import { userConfigAtom } from "@/core/config/config";
+import { resolvedMarimoConfigAtom } from "@/core/config/config";
 import { isIslands } from "@/core/islands/utils";
 
 export type Theme = "light" | "dark" | "system";
@@ -51,7 +51,7 @@ const themeAtom = atom((get) => {
     return "light";
   }
 
-  return get(userConfigAtom).display.theme;
+  return get(resolvedMarimoConfigAtom).display.theme;
 });
 
 const prefersDarkModeAtom = atom(false);

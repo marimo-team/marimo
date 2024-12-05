@@ -36,7 +36,7 @@ import type React from "react";
 import { Button } from "../ui/button";
 import type { PackageInstallationStatus } from "@/core/kernel/messages";
 import { logNever } from "@/utils/assertNever";
-import { useUserConfig } from "@/core/config/config";
+import { useResolvedMarimoConfig } from "@/core/config/config";
 import { isWasm } from "@/core/wasm/utils";
 import {
   type PackageManagerName,
@@ -51,7 +51,7 @@ import { cleanPythonModuleName, reverseSemverSort } from "@/utils/versions";
 export const PackageAlert: React.FC = () => {
   const { packageAlert } = useAlerts();
   const { clearPackageAlert } = useAlertActions();
-  const [userConfig] = useUserConfig();
+  const [userConfig] = useResolvedMarimoConfig();
   const [desiredPackageVersions, setDesiredPackageVersions] = useState<
     Record<string, string>
   >({});
@@ -298,7 +298,7 @@ const InstallPackagesButton = ({
 };
 
 const PackageManagerForm: React.FC = () => {
-  const [config, setConfig] = useUserConfig();
+  const [config, setConfig] = useResolvedMarimoConfig();
 
   // Create form
   const form = useForm<UserConfig>({

@@ -87,7 +87,7 @@ class openai(ChatModel):
         try:
             from marimo._runtime.context.types import get_context
 
-            api_key = get_context().user_config["ai"]["open_ai"]["api_key"]
+            api_key = get_context().marimo_config["ai"]["open_ai"]["api_key"]
             if api_key:
                 return api_key
         except Exception:
@@ -174,7 +174,7 @@ class anthropic(ChatModel):
         try:
             from marimo._runtime.context.types import get_context
 
-            api_key = get_context().user_config["ai"]["anthropic"]["api_key"]
+            api_key = get_context().marimo_config["ai"]["anthropic"]["api_key"]
             if api_key:
                 return api_key
         except Exception:
@@ -268,7 +268,7 @@ class google(ChatModel):
         try:
             from marimo._runtime.context.types import get_context
 
-            api_key = get_context().user_config["ai"]["google"]["api_key"]
+            api_key = get_context().marimo_config["ai"]["google"]["api_key"]
             if api_key:
                 return api_key
         except Exception:

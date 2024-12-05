@@ -7,7 +7,7 @@ import { useAtomValue } from "jotai";
 import { cellErrorCount } from "@/core/cells/cells";
 import { type PanelDescriptor, PANELS } from "../types";
 import { MachineStats } from "./machine-stats";
-import { useUserConfig } from "@/core/config/config";
+import { useResolvedMarimoConfig } from "@/core/config/config";
 import {
   PowerOffIcon,
   TerminalSquareIcon,
@@ -33,7 +33,7 @@ import { isWasm } from "@/core/wasm/utils";
 export const Footer: React.FC = () => {
   const { selectedPanel, isTerminalOpen } = useChromeState();
   const { openApplication, toggleTerminal } = useChromeActions();
-  const [config, setConfig] = useUserConfig();
+  const [config, setConfig] = useResolvedMarimoConfig();
   const errorCount = useAtomValue(cellErrorCount);
 
   const renderIcon = ({ Icon }: PanelDescriptor, className?: string) => {

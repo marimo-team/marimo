@@ -33,7 +33,7 @@ from uuid import uuid4
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t
 from marimo._cli.print import red
-from marimo._config.manager import UserConfigManager
+from marimo._config.manager import MarimoConfigReader
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.ops import (
     Alert,
@@ -119,9 +119,9 @@ class QueueManager:
             if context is not None
             else queue.Queue(maxsize=1)
         )
-        self.stream_queue: (
-            "queue.Queue[Union[KernelMessage , None]]" | None
-        ) = None
+        self.stream_queue: Optional[
+            queue.Queue[Union[KernelMessage, None]]
+        ] = None
         if not use_multiprocessing:
             self.stream_queue = queue.Queue()
 
@@ -162,7 +162,7 @@ class KernelManager:
         mode: SessionMode,
         configs: dict[CellId_t, CellConfig],
         app_metadata: AppMetadata,
-        user_config_manager: UserConfigManager,
+        user_config_manager: MarimoConfigReader,
         virtual_files_supported: bool,
         redirect_console_to_browser: bool = False,
     ) -> None:
@@ -413,7 +413,7 @@ class Session:
         mode: SessionMode,
         app_metadata: AppMetadata,
         app_file_manager: AppFileManager,
-        user_config_manager: UserConfigManager,
+        user_config_manager: MarimoConfigReader,
         virtual_files_supported: bool,
         redirect_console_to_browser: bool,
     ) -> Session:
@@ -657,7 +657,7 @@ class SessionManager:
         quiet: bool,
         include_code: bool,
         lsp_server: LspServer,
-        user_config_manager: UserConfigManager,
+        user_config_manager: MarimoConfigReader,
         cli_args: SerializedCLIArgs,
         auth_token: Optional[AuthToken],
         redirect_console_to_browser: bool = False,

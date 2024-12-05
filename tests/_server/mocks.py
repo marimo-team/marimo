@@ -5,7 +5,7 @@ import base64
 import tempfile
 from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
-from marimo._config.manager import UserConfigManager
+from marimo._config.manager import get_default_config_manager
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import SessionMode
 from marimo._server.sessions import NoopLspServer, SessionManager
@@ -53,7 +53,7 @@ if __name__ == "__main__":
         quiet=False,
         include_code=True,
         lsp_server=lsp_server,
-        user_config_manager=UserConfigManager(),
+        user_config_manager=get_default_config_manager(current_path=None),
         cli_args={},
         auth_token=AuthToken("fake-token"),
     )

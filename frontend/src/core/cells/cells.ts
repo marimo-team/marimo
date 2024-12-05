@@ -40,7 +40,7 @@ import type {
   RuntimeState,
   UpdateCellIdsRequest,
 } from "../network/types";
-import { getUserConfig } from "@/core/config/config";
+import { getResolvedMarimoConfig } from "@/core/config/config";
 import { syncCellIds } from "../network/requests";
 import { kioskModeAtom } from "../mode";
 import {
@@ -1319,7 +1319,7 @@ export function isUninstantiated(
  * Cells that are stale and can be run.
  */
 export function staleCellIds(state: NotebookState) {
-  const autoInstantiate = getUserConfig().runtime.auto_instantiate;
+  const autoInstantiate = getResolvedMarimoConfig().runtime.auto_instantiate;
 
   const { cellIds, cellData, cellRuntime } = state;
   return cellIds.inOrderIds.filter(

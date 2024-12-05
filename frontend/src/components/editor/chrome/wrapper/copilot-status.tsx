@@ -7,7 +7,7 @@ import {
   githubCopilotLoadingVersion,
 } from "@/core/codemirror/copilot/state";
 import { atom, useAtomValue, useSetAtom } from "jotai";
-import { aiEnabledAtom, userConfigAtom } from "@/core/config/config";
+import { aiEnabledAtom, resolvedMarimoConfigAtom } from "@/core/config/config";
 import { GitHubCopilotIcon } from "@/components/icons/github-copilot";
 import { SparklesIcon } from "lucide-react";
 import { FooterItem } from "./footer-item";
@@ -48,10 +48,10 @@ export const AIStatusIcon: React.FC = () => {
 };
 
 const copilotAtom = atom((get) => {
-  return get(userConfigAtom).completion.copilot;
+  return get(resolvedMarimoConfigAtom).completion.copilot;
 });
 const aiAtom = atom((get) => {
-  return get(userConfigAtom).ai;
+  return get(resolvedMarimoConfigAtom).ai;
 });
 
 export function useOpenAISettings() {

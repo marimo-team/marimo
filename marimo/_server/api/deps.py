@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 from marimo import _loggers as loggers
-from marimo._config.manager import UserConfigManager
+from marimo._config.manager import MarimoConfigManager
 from marimo._server.ids import SessionId
 from marimo._server.model import SessionMode
 from marimo._server.sessions import Session, SessionManager
@@ -78,8 +78,9 @@ class AppStateBase:
         return server
 
     @property
-    def config_manager(self) -> UserConfigManager:
-        cm: UserConfigManager = self.state.config_manager
+    def config_manager(self) -> MarimoConfigManager:
+        cm = self.state.config_manager
+        assert isinstance(cm, MarimoConfigManager)
         return cm
 
     @property

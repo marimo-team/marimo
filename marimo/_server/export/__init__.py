@@ -5,8 +5,7 @@ import asyncio
 from typing import Callable, Literal
 
 from marimo._config.manager import (
-    UserConfigManager,
-    UserConfigManagerWithOverride,
+    get_default_config_manager,
 )
 from marimo._messaging.ops import MessageOperation
 from marimo._messaging.types import KernelMessage
@@ -85,7 +84,7 @@ async def run_app_then_export_as_html(
     assert file_key is not None
     file_manager = file_router.get_file_manager(file_key)
 
-    config = UserConfigManager()
+    config = get_default_config_manager(current_path=file_manager.path)
     session_view = await run_app_until_completion(file_manager, cli_args)
     # Export the session as HTML
     html, filename = Exporter().export_as_html(
@@ -147,15 +146,16 @@ async def run_app_until_completion(
         def connection_state(self) -> ConnectionState:
             return ConnectionState.OPEN
 
-    config_manager = UserConfigManagerWithOverride(
-        UserConfigManager(),
+    config_manager = get_default_config_manager(
+        current_path=file_manager.path
+    ).with_overrides(
         {
             "runtime": {
                 "on_cell_change": "autorun",
                 "auto_instantiate": True,
                 "auto_reload": "off",
             }
-        },
+        }
     )
 
     # Create a session
