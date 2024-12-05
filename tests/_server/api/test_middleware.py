@@ -16,7 +16,7 @@ from starlette.testclient import TestClient
 from starlette.websockets import WebSocket, WebSocketDisconnect
 from uvicorn import Config, Server
 
-from marimo._config.manager import UserConfigManager
+from marimo._config.manager import MarimoConfigManager, UserConfigManager
 from marimo._server.api.middleware import (
     ProxyMiddleware,
     _AsyncHTTPClient,
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 def test_base_url() -> None:
     app = create_starlette_app(base_url="/foo")
     app.state.session_manager = get_mock_session_manager()
-    app.state.config_manager = UserConfigManager()
+    app.state.config_manager = MarimoConfigManager(UserConfigManager())
     client = TestClient(app)
 
     # Mock out the server
@@ -113,7 +113,7 @@ def edit_app() -> Starlette:
     app = create_starlette_app(base_url="")
     app.state.session_manager = get_mock_session_manager()
     app.state.session_manager.mode = SessionMode.EDIT
-    app.state.config_manager = UserConfigManager()
+    app.state.config_manager = MarimoConfigManager(UserConfigManager())
     # Mock out the server
     uvicorn_server = uvicorn.Server(uvicorn.Config(app))
     uvicorn_server.servers = []
@@ -129,7 +129,7 @@ def read_app() -> Starlette:
     app = create_starlette_app(base_url="")
     app.state.session_manager = get_mock_session_manager()
     app.state.session_manager.mode = SessionMode.RUN
-    app.state.config_manager = UserConfigManager()
+    app.state.config_manager = MarimoConfigManager(UserConfigManager())
     # Mock out the server
     uvicorn_server = uvicorn.Server(uvicorn.Config(app))
     uvicorn_server.servers = []
@@ -151,7 +151,7 @@ def no_auth_edit_app() -> Starlette:
     app.state.session_manager = get_mock_session_manager()
     app.state.session_manager.mode = SessionMode.EDIT
     app.state.session_manager.auth_token = AuthToken("")  # no auth
-    app.state.config_manager = UserConfigManager()
+    app.state.config_manager = MarimoConfigManager(UserConfigManager())
     # Mock out the server
     uvicorn_server = uvicorn.Server(uvicorn.Config(app))
     uvicorn_server.servers = []
@@ -168,7 +168,7 @@ def no_auth_read_app() -> Starlette:
     app.state.session_manager = get_mock_session_manager()
     app.state.session_manager.mode = SessionMode.RUN
     app.state.session_manager.auth_token = AuthToken("")  # no auth
-    app.state.config_manager = UserConfigManager()
+    app.state.config_manager = MarimoConfigManager(UserConfigManager())
     # Mock out the server
     uvicorn_server = uvicorn.Server(uvicorn.Config(app))
     uvicorn_server.servers = []

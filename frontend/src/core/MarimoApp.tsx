@@ -9,7 +9,7 @@ import { ErrorBoundary } from "../components/editor/boundary/ErrorBoundary";
 import { TooltipProvider } from "../components/ui/tooltip";
 import { Toaster } from "../components/ui/toaster";
 import { ModalProvider } from "../components/modal/ImperativeModal";
-import { useAppConfig, useUserConfig } from "@/core/config/config";
+import { useAppConfig, useResolvedMarimoConfig } from "@/core/config/config";
 import { initialMode } from "./mode";
 import { CssVariables } from "@/theme/ThemeProvider";
 import { TailwindIndicator } from "@/components/debug/indicator";
@@ -48,7 +48,7 @@ preload(initialMode);
  * The root component of the Marimo app.
  */
 export const MarimoApp: React.FC = memo(() => {
-  const [userConfig] = useUserConfig();
+  const [userConfig] = useResolvedMarimoConfig();
   const [appConfig] = useAppConfig();
   const editorFontSize = toRem(userConfig.display.code_editor_font_size);
 

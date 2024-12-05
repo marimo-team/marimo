@@ -17,7 +17,7 @@ def include_opinionated() -> bool:
 
     if runtime_context_installed():
         ctx = get_context()
-        return ctx.user_config["display"]["dataframes"] == "rich"
+        return ctx.marimo_config["display"]["dataframes"] == "rich"
     return True
 
 

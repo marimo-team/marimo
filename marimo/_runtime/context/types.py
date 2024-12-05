@@ -93,7 +93,11 @@ class RuntimeContext(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def user_config(self) -> MarimoConfig:
+    def marimo_config(self) -> MarimoConfig:
+        """
+        Get the marimo configuration.
+        This is a merged configuration from the user config and project config.
+        """
         pass
 
     @property

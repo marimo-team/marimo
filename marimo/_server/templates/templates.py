@@ -10,7 +10,7 @@ from typing import Any, List, Optional, cast
 from marimo import __version__
 from marimo._ast.app import _AppConfig
 from marimo._ast.cell import CellConfig, CellId_t
-from marimo._config.config import MarimoConfig
+from marimo._config.config import MarimoConfig, PartialMarimoConfig
 from marimo._messaging.cell_output import CellOutput
 from marimo._output.utils import uri_encode_component
 from marimo._server.api.utils import parse_title
@@ -23,10 +23,12 @@ def home_page_template(
     html: str,
     base_url: str,
     user_config: MarimoConfig,
+    config_overrides: PartialMarimoConfig,
     server_token: SkewProtectionToken,
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
     html = html.replace("{{ user_config }}", json.dumps(user_config))
+    html = html.replace("{{ config_overrides }}", json.dumps(config_overrides))
     html = html.replace("{{ server_token }}", str(server_token))
     html = html.replace("{{ version }}", __version__)
 
@@ -42,6 +44,7 @@ def notebook_page_template(
     html: str,
     base_url: str,
     user_config: MarimoConfig,
+    config_overrides: PartialMarimoConfig,
     server_token: SkewProtectionToken,
     app_config: _AppConfig,
     filename: Optional[str],
@@ -49,6 +52,7 @@ def notebook_page_template(
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
     html = html.replace("{{ user_config }}", json.dumps(user_config))
+    html = html.replace("{{ config_overrides }}", json.dumps(config_overrides))
     html = html.replace("{{ server_token }}", str(server_token))
     html = html.replace("{{ version }}", __version__)
 
@@ -89,6 +93,7 @@ def notebook_page_template(
 def static_notebook_template(
     html: str,
     user_config: MarimoConfig,
+    config_overrides: PartialMarimoConfig,
     server_token: SkewProtectionToken,
     app_config: _AppConfig,
     filepath: Optional[str],
@@ -114,6 +119,7 @@ def static_notebook_template(
     html = html.replace(
         "{{ user_config }}", json.dumps(user_config, sort_keys=True)
     )
+    html = html.replace("{{ config_overrides }}", json.dumps(config_overrides))
     html = html.replace("{{ server_token }}", str(server_token))
     html = html.replace("{{ version }}", __version__)
 

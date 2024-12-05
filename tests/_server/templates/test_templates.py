@@ -6,7 +6,7 @@ import unittest
 
 from marimo._ast.app import _AppConfig
 from marimo._ast.cell import CellConfig
-from marimo._config.config import DEFAULT_CONFIG
+from marimo._config.config import DEFAULT_CONFIG, PartialMarimoConfig
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._server.export.exporter import hash_code
 from marimo._server.model import SessionMode
@@ -29,6 +29,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
 
         self.base_url = "/subpath"
         self.user_config = DEFAULT_CONFIG
+        self.config_overrides: PartialMarimoConfig = {}
         self.server_token = SkewProtectionToken("token")
         self.app_config = _AppConfig()
         self.filename = "notebook.py"
@@ -39,6 +40,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
             self.html,
             self.base_url,
             self.user_config,
+            self.config_overrides,
             self.server_token,
             self.app_config,
             self.filename,
@@ -55,6 +57,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
             self.html,
             self.base_url,
             self.user_config,
+            self.config_overrides,
             self.server_token,
             self.app_config,
             None,
@@ -71,6 +74,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
             self.html,
             self.base_url,
             self.user_config,
+            self.config_overrides,
             self.server_token,
             self.app_config,
             self.filename,
@@ -95,6 +99,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
                 self.html,
                 self.base_url,
                 self.user_config,
+                self.config_overrides,
                 self.server_token,
                 _AppConfig(css_file="custom.css"),
                 self.filename,
@@ -128,6 +133,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
                 self.html,
                 self.base_url,
                 self.user_config,
+                self.config_overrides,
                 self.server_token,
                 _AppConfig(html_head_file="head.html"),
                 self.filename,
@@ -150,6 +156,9 @@ class TestHomePageTemplate(unittest.TestCase):
 
         self.base_url = "/subpath"
         self.user_config = DEFAULT_CONFIG
+        self.config_overrides: PartialMarimoConfig = {
+            "formatting": {"line_length": 100},
+        }
         self.server_token = SkewProtectionToken("token")
 
     def test_home_page_template(self) -> None:
@@ -157,6 +166,7 @@ class TestHomePageTemplate(unittest.TestCase):
             self.html,
             self.base_url,
             self.user_config,
+            self.config_overrides,
             self.server_token,
         )
 
@@ -179,6 +189,9 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             self.html = f.read()
 
         self.user_config = DEFAULT_CONFIG
+        self.config_overrides: PartialMarimoConfig = {
+            "formatting": {"line_length": 100},
+        }
         self.server_token = SkewProtectionToken("token")
         self.app_config = _AppConfig()
         self.filename = "notebook.py"
@@ -219,6 +232,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         result = templates.static_notebook_template(
             self.html,
             self.user_config,
+            self.config_overrides,
             self.server_token,
             self.app_config,
             self.filepath,
@@ -239,6 +253,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         result = templates.static_notebook_template(
             self.html,
             self.user_config,
+            self.config_overrides,
             self.server_token,
             self.app_config,
             None,
@@ -259,6 +274,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         result = templates.static_notebook_template(
             self.html,
             self.user_config,
+            self.config_overrides,
             self.server_token,
             self.app_config,
             self.filepath,
@@ -287,6 +303,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             result = templates.static_notebook_template(
                 self.html,
                 self.user_config,
+                self.config_overrides,
                 self.server_token,
                 _AppConfig(css_file="custom.css"),
                 self.filename,
@@ -327,6 +344,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             result = templates.static_notebook_template(
                 self.html,
                 self.user_config,
+                self.config_overrides,
                 self.server_token,
                 _AppConfig(html_head_file="head.html"),
                 self.filename,

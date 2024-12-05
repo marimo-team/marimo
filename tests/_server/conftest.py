@@ -10,7 +10,7 @@ import pytest
 import uvicorn
 from starlette.testclient import TestClient
 
-from marimo._config.manager import UserConfigManager
+from marimo._config.manager import MarimoConfigManager, UserConfigManager
 from marimo._config.utils import CONFIG_FILENAME
 from marimo._server.main import create_starlette_app
 from marimo._server.sessions import SessionManager
@@ -33,20 +33,29 @@ def client_with_lifespans() -> Generator[TestClient, None, None]:
 
 
 @pytest.fixture
-def user_config_manager() -> UserConfigManager:
-    class TestUserConfigManager(UserConfigManager):
-        def _get_config_path(self) -> str:
-            tmp = TemporaryDirectory()
-            return os.path.join(tmp.name, CONFIG_FILENAME)
+def user_config_manager() -> Iterator[UserConfigManager]:
+    tmp = TemporaryDirectory(delete=False)
+    config_path = os.path.join(tmp.name, CONFIG_FILENAME)
+    with open(config_path, "w") as f:
+        f.write("")
 
-    return TestUserConfigManager()
+    class TestUserConfigManager(UserConfigManager):
+        def __init__(self) -> None:
+            super().__init__()
+
+        def get_config_path(self) -> str:
+            return config_path
+
+    yield TestUserConfigManager()
+
+    tmp.cleanup()
 
 
 @pytest.fixture
 def client(user_config_manager: UserConfigManager) -> Iterator[TestClient]:
     main = sys.modules["__main__"]
     app.state.session_manager = get_mock_session_manager()
-    app.state.config_manager = user_config_manager
+    app.state.config_manager = MarimoConfigManager(user_config_manager)
     client = TestClient(app)
 
     # Mock out the server
