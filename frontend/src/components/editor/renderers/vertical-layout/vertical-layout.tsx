@@ -261,7 +261,7 @@ const VerticalCell = memo(
     const isPureMarkdown = new MarkdownLanguageAdapter().isSupported(code);
     const published = !showCode && !kioskFull;
     const className = cn("Cell", "hover-actions-parent empty:invisible", {
-      published: !showCode && !kioskFull,
+      published: published,
       interactive: mode === "edit",
       "has-error": errored,
       stopped: stopped,
