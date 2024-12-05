@@ -4,9 +4,13 @@ from __future__ import annotations
 import asyncio
 from typing import Callable, Literal
 
-from marimo._config.manager import UserConfigManager
+from marimo._config.manager import (
+    UserConfigManager,
+    UserConfigManagerWithOverride,
+)
 from marimo._messaging.ops import MessageOperation
 from marimo._messaging.types import KernelMessage
+from marimo._output.hypertext import patch_html_for_non_interactive_output
 from marimo._runtime.requests import AppMetadata, SerializedCLIArgs
 from marimo._server.export.exporter import Exporter
 from marimo._server.file_manager import AppFileManager
@@ -50,6 +54,24 @@ def export_as_ipynb(
     file_manager = file_router.get_file_manager(file_key)
 
     return Exporter().export_as_ipynb(file_manager, sort_mode=sort_mode)
+
+
+async def run_app_then_export_as_ipynb(
+    path: MarimoPath,
+    sort_mode: Literal["top-down", "topological"],
+    cli_args: SerializedCLIArgs,
+) -> tuple[str, str]:
+    file_router = AppFileRouter.from_filename(path)
+    file_key = file_router.get_unique_file_key()
+    assert file_key is not None
+    file_manager = file_router.get_file_manager(file_key)
+
+    with patch_html_for_non_interactive_output():
+        session_view = await run_app_until_completion(file_manager, cli_args)
+
+    return Exporter().export_as_ipynb(
+        file_manager, sort_mode=sort_mode, session_view=session_view
+    )
 
 
 async def run_app_then_export_as_html(
@@ -125,7 +147,16 @@ async def run_app_until_completion(
         def connection_state(self) -> ConnectionState:
             return ConnectionState.OPEN
 
-    config = UserConfigManager()
+    config_manager = UserConfigManagerWithOverride(
+        UserConfigManager(),
+        {
+            "runtime": {
+                "on_cell_change": "autorun",
+                "auto_instantiate": True,
+                "auto_reload": "off",
+            }
+        },
+    )
 
     # Create a session
     session = Session.create(
@@ -140,7 +171,7 @@ async def run_app_until_completion(
             cli_args=cli_args,
         ),
         app_file_manager=file_manager,
-        user_config_manager=config,
+        user_config_manager=config_manager,
         virtual_files_supported=False,
         redirect_console_to_browser=False,
     )

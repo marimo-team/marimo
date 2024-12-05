@@ -590,5 +590,15 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
             total_rows=result.get_num_rows(force=True) or 0,
         )
 
+    def _repr_markdown_(self) -> str:
+        """
+        Return a markdown representation of the table.
+        Useful for rendering in the GitHub viewer.
+        """
+        df = self.data
+        if hasattr(df, "_repr_html_"):
+            return df._repr_html_()  # type: ignore[attr-defined,no-any-return]
+        return str(df)
+
     def __hash__(self) -> int:
         return id(self)

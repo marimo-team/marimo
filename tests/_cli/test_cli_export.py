@@ -442,12 +442,10 @@ class TestExportMarkdown:
 
 
 class TestExportIpynb:
-    # @pytest.mark.skipif(
-    #     not DependencyManager.nbformat.has(),
-    #     reason="This test requires nbformat.",
-    # )
-    # Flaky on CI
-    @pytest.mark.skip
+    @pytest.mark.skipif(
+        not DependencyManager.nbformat.has(),
+        reason="This test requires nbformat.",
+    )
     def test_export_ipynb(self, temp_marimo_file_with_md: str) -> None:
         p = subprocess.run(
             ["marimo", "export", "ipynb", temp_marimo_file_with_md],
@@ -491,3 +489,36 @@ class TestExportIpynb:
 
         # Outputs should be different since sorting is different
         assert topo_output != topdown_output
+
+    @pytest.mark.skipif(
+        not DependencyManager.nbformat.has(),
+        reason="This test requires nbformat.",
+    )
+    def test_export_ipynb_with_outputs(
+        self, temp_marimo_file_with_md: str
+    ) -> None:
+        # Test without outputs (default)
+        p = subprocess.run(
+            ["marimo", "export", "ipynb", temp_marimo_file_with_md],
+            capture_output=True,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+        no_outputs = p.stdout.decode()
+
+        # Test with outputs
+        p = subprocess.run(
+            [
+                "marimo",
+                "export",
+                "ipynb",
+                temp_marimo_file_with_md,
+                "--include-outputs",
+            ],
+            capture_output=True,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+        with_outputs = p.stdout.decode()
+        snapshot("ipynb_with_outputs.txt", with_outputs)
+
+        # Outputs should be different since one includes execution results
+        assert no_outputs != with_outputs

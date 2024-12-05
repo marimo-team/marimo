@@ -15,7 +15,17 @@
    "execution_count": null,
    "id": "Hbol",
    "metadata": {},
-   "outputs": [],
+   "outputs": [
+    {
+     "data": {
+      "text/markdown": [
+       "markdown"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
    "source": [
     "control_dep = None\n",
     "mo.md(\"markdown\")"
@@ -26,7 +36,17 @@
    "execution_count": null,
    "id": "MJUe",
    "metadata": {},
-   "outputs": [],
+   "outputs": [
+    {
+     "data": {
+      "text/markdown": [
+       "parameterized markdown 123"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
    "source": [
     "control_dep\n",
     "mo.md(f\"parameterized markdown {123}\")"

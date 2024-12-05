@@ -5,7 +5,7 @@ import base64
 import io
 import mimetypes
 import os
-from typing import Literal, Optional, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
 from marimo import __version__
 from marimo._ast.cell import Cell, CellConfig, CellImpl
@@ -15,6 +15,7 @@ from marimo._config.config import (
     _deep_copy,
 )
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.utils import build_data_url
 from marimo._runtime import dataflow
@@ -34,6 +35,9 @@ from marimo._utils.paths import import_files
 
 # Root directory for static assets
 root = os.path.realpath(str(import_files("marimo").joinpath("_static")))
+
+if TYPE_CHECKING:
+    import nbformat  # type:ignore
 
 
 class Exporter:
@@ -141,40 +145,47 @@ class Exporter:
         self,
         file_manager: AppFileManager,
         sort_mode: Literal["top-down", "topological"],
+        session_view: Optional[SessionView] = None,
     ) -> tuple[str, str]:
+        """Export notebook as .ipynb, optionally including outputs if session_view provided."""
         DependencyManager.nbformat.require(
             "to convert marimo notebooks to ipynb"
         )
-        import nbformat  # type: ignore
+        import nbformat
 
-        def create_notebook_cell(cell: CellImpl) -> nbformat.NotebookNode:
-            markdown_string = get_markdown_from_cell(
-                Cell(_name="__", _cell=cell), cell.code
-            )
-            if markdown_string is not None:
-                return nbformat.v4.new_markdown_cell(  # type: ignore
-                    markdown_string, id=cell.cell_id
-                )
-            else:
-                return nbformat.v4.new_code_cell(cell.code, id=cell.cell_id)  # type: ignore
-
-        notebook = nbformat.v4.new_notebook()  # type: ignore
+        notebook = nbformat.v4.new_notebook()
         graph = file_manager.app.graph
 
+        # Sort cells based on sort_mode
         if sort_mode == "top-down":
-            # Get cells in document order
             cell_ids = list(file_manager.app.cell_manager.cell_ids())
         else:
-            # Get cells in topological order
             cell_ids = dataflow.topological_sort(graph, graph.cells.keys())
 
-        notebook["cells"] = [
-            create_notebook_cell(graph.cells[cid])  # type: ignore
-            for cid in cell_ids
-        ]
+        notebook["cells"] = []
+        for cid in cell_ids:
+            cell = graph.cells[cid]
+            outputs: list[nbformat.NotebookNode] = []
+
+            if session_view is not None:
+                # Get outputs for this cell and convert to IPython format
+                cell_output = session_view.get_cell_outputs([cid]).get(
+                    cid, None
+                )
+                cell_console_outputs = session_view.get_cell_console_outputs(
+                    [cid]
+                ).get(cid, [])
+                outputs = _convert_marimo_output_to_ipynb(
+                    cell_output, cell_console_outputs
+                )
+
+            notebook_cell = _create_notebook_cell(cell, outputs)
+            notebook["cells"].append(notebook_cell)
+
+        # notebook.metadata["marimo-version"] = __version__
 
         stream = io.StringIO()
-        nbformat.write(notebook, stream)  # type: ignore
+        nbformat.write(notebook, stream)
         stream.seek(0)
         download_filename = get_download_filename(file_manager, "ipynb")
         return stream.read(), download_filename
@@ -321,3 +332,92 @@ def hash_code(code: str) -> str:
     import hashlib
 
     return hashlib.sha256(code.encode("utf-8")).hexdigest()
+
+
+def _create_notebook_cell(
+    cell: CellImpl, outputs: list["nbformat.NotebookNode"]
+) -> "nbformat.NotebookNode":
+    import nbformat  # ignore
+
+    markdown_string = get_markdown_from_cell(
+        Cell(_name="__", _cell=cell), cell.code
+    )
+    if markdown_string is not None:
+        return nbformat.v4.new_markdown_cell(markdown_string, id=cell.cell_id)
+
+    node = nbformat.v4.new_code_cell(cell.code, id=cell.cell_id)
+    if outputs:
+        node.outputs = outputs
+    return node
+
+
+def _convert_marimo_output_to_ipynb(
+    output: Optional[CellOutput], console_outputs: list[CellOutput]
+) -> list["nbformat.NotebookNode"]:
+    """Convert marimo output format to IPython notebook format."""
+    import nbformat
+
+    ipynb_outputs: list[nbformat.NotebookNode] = []
+
+    # Handle stdout/stderr
+    for output in console_outputs:
+        if output.channel == CellChannel.STDOUT:
+            ipynb_outputs.append(
+                nbformat.v4.new_output(
+                    "stream",
+                    name="stdout",
+                    text=output.data,
+                )
+            )
+        if output.channel == CellChannel.STDERR:
+            ipynb_outputs.append(
+                nbformat.v4.new_output(
+                    "stream",
+                    name="stderr",
+                    text=output.data,
+                )
+            )
+
+    if not output:
+        return ipynb_outputs
+
+    if output.data is None:
+        return ipynb_outputs
+
+    if output.channel not in (CellChannel.OUTPUT, CellChannel.MEDIA):
+        return ipynb_outputs
+
+    if output.mimetype == "text/plain" and (
+        output.data == [] or output.data == ""
+    ):
+        return ipynb_outputs
+
+    # Handle rich output
+    data: dict[str, Any] = {}
+
+    if output.mimetype == "application/vnd.marimo+error":
+        # Captured by stdout/stderr
+        return ipynb_outputs
+    elif output.mimetype == "application/vnd.marimo+mimebundle":
+        for mime, content in cast(dict[str, Any], output.data).items():
+            data[mime] = content
+    else:
+        if (
+            isinstance(output.data, str)
+            and output.data.startswith("data:")
+            and ";base64," in output.data
+        ):
+            data[output.mimetype] = output.data.split(";base64,")[1]
+        else:
+            data[output.mimetype] = output.data
+
+    if data:
+        ipynb_outputs.append(
+            nbformat.v4.new_output(
+                "display_data",
+                data=data,
+                metadata={},
+            )
+        )
+
+    return ipynb_outputs
