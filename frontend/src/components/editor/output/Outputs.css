@@ -68,6 +68,18 @@
     margin-top: 0.2rem;
     margin-bottom: 0.2rem;
   }
+
+  .copy-button {
+    @apply invisible;
+  }
+
+  .data-key-pair:hover > .copy-button {
+    @apply visible;
+  }
+
+  .data-key-pair:hover > .data-key > .copy-button {
+    @apply visible;
+  }
 }
 
 .traceback-cell-link {

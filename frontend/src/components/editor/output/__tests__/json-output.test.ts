@@ -28,7 +28,13 @@ describe("getCopyValue", () => {
   it("should handle arrays", () => {
     const value = ["text/plain:Hello", true, null];
     const result = getCopyValue(value);
-    expect(result).toMatchInlineSnapshot(`"["Hello",True,None]"`);
+    expect(result).toMatchInlineSnapshot(`
+      "[
+        "Hello",
+        True,
+        None
+      ]"
+    `);
   });
 
   it("should handle objects", () => {
@@ -39,7 +45,13 @@ describe("getCopyValue", () => {
     };
     const result = getCopyValue(value);
     expect(result).toMatchInlineSnapshot(
-      `"{"key1":"Hello","key2":False,"key3":None}"`,
+      `
+      "{
+        "key1": "Hello",
+        "key2": False,
+        "key3": None
+      }"
+    `,
     );
   });
 
@@ -52,7 +64,14 @@ describe("getCopyValue", () => {
     };
     const result = getCopyValue(value);
     expect(result).toMatchInlineSnapshot(
-      `"{"true":"true","None":"none","null":"null","sentence":"something true none null something"}"`,
+      `
+      "{
+        "true": "true",
+        "None": "none",
+        "null": "null",
+        "sentence": "something true none null something"
+      }"
+    `,
     );
   });
 
@@ -66,14 +85,31 @@ describe("getCopyValue", () => {
     };
     const result = getCopyValue(value);
     expect(result).toMatchInlineSnapshot(
-      `"{"key1":{"nestedKey1":"Nested Hello","nestedKey2":True},"key2":False}"`,
+      `
+      "{
+        "key1": {
+          "nestedKey1": "Nested Hello",
+          "nestedKey2": True
+        },
+        "key2": False
+      }"
+    `,
     );
   });
 
   it("should handle nested arrays", () => {
     const value = ["text/plain:Hello", [true, null, "text/plain:World"]];
     const result = getCopyValue(value);
-    expect(result).toMatchInlineSnapshot(`"["Hello",[True,None,"World"]]"`);
+    expect(result).toMatchInlineSnapshot(`
+      "[
+        "Hello",
+        [
+          True,
+          None,
+          "World"
+        ]
+      ]"
+    `);
   });
 
   it("should handle empty objects", () => {
@@ -103,7 +139,14 @@ describe("getCopyValue", () => {
   it("should handle mixed types in arrays", () => {
     const value = [42, "text/plain:Hello", true, null];
     const result = getCopyValue(value);
-    expect(result).toMatchInlineSnapshot(`"[42,"Hello",True,None]"`);
+    expect(result).toMatchInlineSnapshot(`
+      "[
+        42,
+        "Hello",
+        True,
+        None
+      ]"
+    `);
   });
 
   it("should handle mixed types in objects", () => {
@@ -116,7 +159,15 @@ describe("getCopyValue", () => {
     };
     const result = getCopyValue(value);
     expect(result).toMatchInlineSnapshot(
-      `"{"key1":42,"key2":"Hello","key3":True,"key4":None,"key5":1.23}"`,
+      `
+      "{
+        "key1": 42,
+        "key2": "Hello",
+        "key3": True,
+        "key4": None,
+        "key5": 1.23
+      }"
+    `,
     );
   });
 
@@ -134,7 +185,13 @@ describe("getCopyValue", () => {
     };
     const result = getCopyValue(value);
     expect(result).toMatchInlineSnapshot(
-      `"{"key1":42,"key2":{1,2,3},"key3":True}"`,
+      `
+      "{
+        "key1": 42,
+        "key2": {1,2,3},
+        "key3": True
+      }"
+    `,
     );
   });
 
@@ -152,7 +209,13 @@ describe("getCopyValue", () => {
     };
     const result = getCopyValue(value);
     expect(result).toMatchInlineSnapshot(
-      `"{"key1":42,"key2":(1,2,3),"key3":True}"`,
+      `
+      "{
+        "key1": 42,
+        "key2": (1,2,3),
+        "key3": True
+      }"
+    `,
     );
   });
 });

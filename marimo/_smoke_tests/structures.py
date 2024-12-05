@@ -1,28 +1,37 @@
 import marimo
 
-__generated_with = "0.9.30"
+__generated_with = "0.9.31"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __(mo):
+def __(mo, x):
+    import datetime
+
     [
         {
             "a": 1,
             "b": 2.0,
             "c": "foo",
             "d": True,
-            "e": False,
+            "d.1": False,
             "e": mo.ui.slider(0, 10),
             "f": "bar" * 1000,
             "url": "https://www.google.com",
-            "g": [1, 2, 3],
-            "h": (1, 2, 3),
-            "i": {1, 2, 3},
+            "g": [1, 2],
+            "h": (1, 2),
+            "i": {1, 2},
             "j": {"a": 1, "b": 2},
+            "none": None,
+            "nan": float("nan"),
+            "inf": float("inf"),
+            "x": x,
+            "datetime": datetime.datetime.now(),
+            "date": datetime.date.today(),
+            "time": datetime.time(1, 2, 3),
         }
     ]
-    return
+    return (datetime,)
 
 
 @app.cell

@@ -1,11 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { memo, useState } from "react";
 import {
+  type DataItemProps,
   type DataType,
   JsonViewer,
   booleanType,
   defineDataType,
+  intType,
   nullType,
+  objectType,
   stringType,
 } from "@textea/json-viewer";
 
@@ -17,6 +20,8 @@ import { logNever } from "../../../utils/assertNever";
 import { useTheme } from "../../../theme/useTheme";
 import { isUrl } from "@/utils/urls";
 import { copyToClipboard } from "@/utils/copy";
+import { CheckIcon, CopyIcon } from "lucide-react";
+import { cn } from "@/utils/cn";
 
 interface Props {
   /**
@@ -33,6 +38,42 @@ interface Props {
 
   className?: string;
 }
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const CopyButton: React.FC<DataItemProps<any>> = ({ value }) => {
+  const skipCopy =
+    typeof value === "string" &&
+    (value.startsWith("text/html:") ||
+      value.startsWith("image/") ||
+      value.startsWith("video/"));
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async (evt: React.MouseEvent) => {
+    evt.stopPropagation();
+    await copyToClipboard(getCopyValue(value));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1000);
+  };
+
+  if (skipCopy) {
+    return null;
+  }
+  return (
+    <button
+      onClick={handleCopy}
+      className={cn(
+        "inline-flex ml-2 copy-button rounded w-6 h-3 justify-center items-center relative",
+      )}
+      aria-label="Copy to clipboard"
+    >
+      {copied ? (
+        <CheckIcon className="w-5 h-5 absolute -top-0.5 p-1 hover:bg-muted rounded" />
+      ) : (
+        <CopyIcon className="w-5 h-5 absolute -top-0.5 p-1 hover:bg-muted rounded" />
+      )}
+    </button>
+  );
+};
 
 /**
  * Output component for JSON data.
@@ -60,13 +101,12 @@ export const JsonOutput: React.FC<Props> = memo(
             valueTypes={VALUE_TYPE}
             // disable array grouping (it's misleading) by using a large value
             groupArraysAfterLength={1_000_000}
-            onCopy={async (_path, value) => {
-              await copyToClipboard(getCopyValue(value));
-              return value;
-            }}
-            enableClipboard={true}
+            // Built-in clipboard shifts content on hover
+            // so we provide our own copy button
+            enableClipboard={false}
           />
         );
+
       case "raw":
         return <pre className={className}>{JSON.stringify(data, null, 2)}</pre>;
       default:
@@ -88,13 +128,13 @@ const CollapsibleTextOutput = (props: { text: string }) => {
 
   // Doesn't need to be collapsed
   if (props.text.length <= COLLAPSED_TEXT_LENGTH) {
-    return <span>{props.text}</span>;
+    return <span className="break-all">{props.text}</span>;
   }
 
   if (isCollapsed) {
     return (
       <span
-        className="cursor-pointer hover:opacity-90"
+        className="cursor-pointer hover:opacity-90 break-all"
         onClick={() => setIsCollapsed(false)}
       >
         {props.text.slice(0, COLLAPSED_TEXT_LENGTH)}
@@ -105,7 +145,7 @@ const CollapsibleTextOutput = (props: { text: string }) => {
 
   return (
     <span
-      className="cursor-pointer hover:opacity-90"
+      className="cursor-pointer hover:opacity-90 break-all"
       onClick={() => setIsCollapsed(true)}
     >
       {props.text}
@@ -132,23 +172,27 @@ const LEAF_RENDERERS = {
 const MIME_TYPES: Array<DataType<any>> = Object.entries(LEAF_RENDERERS).map(
   ([leafType, render]) => ({
     is: (value) => typeof value === "string" && value.startsWith(leafType),
+    PostComponent: CopyButton,
     Component: (props) => renderLeaf(props.value, render),
   }),
 );
 
 const PYTHON_BOOLEAN_TYPE = defineDataType<boolean>({
   ...booleanType,
+  PostComponent: CopyButton,
   Component: ({ value }) => <span>{value ? "True" : "False"}</span>,
 });
 
 const PYTHON_NONE_TYPE = defineDataType<null>({
   ...nullType,
+  PostComponent: CopyButton,
   Component: () => <span>None</span>,
 });
 
 const URL_TYPE = defineDataType<string>({
   ...stringType,
   is: (value) => isUrl(value),
+  PostComponent: CopyButton,
   Component: ({ value }) => (
     <a
       href={value}
@@ -161,12 +205,36 @@ const URL_TYPE = defineDataType<string>({
   ),
 });
 
+const INTEGER_TYPE = defineDataType<number>({
+  ...intType,
+  PostComponent: CopyButton,
+});
+
+const FALLBACK_RENDERER = defineDataType<string>({
+  ...stringType,
+  PostComponent: CopyButton,
+});
+
+const OBJECT_TYPE = defineDataType<object>({
+  ...objectType,
+  PreComponent: (props) => (
+    <>
+      {objectType.PreComponent && <objectType.PreComponent {...props} />}
+      <CopyButton {...props} />
+    </>
+  ),
+});
+
 const VALUE_TYPE = [
-  ...MIME_TYPES,
+  INTEGER_TYPE,
   PYTHON_BOOLEAN_TYPE,
   PYTHON_NONE_TYPE,
+  ...MIME_TYPES,
   URL_TYPE,
-];
+  OBJECT_TYPE,
+  FALLBACK_RENDERER,
+].reverse();
+// Last one wins, so we reverse the array.
 
 function leafData(leaf: string): string {
   const delimIndex = leaf.indexOf(":");
@@ -244,7 +312,7 @@ function pythonJsonReplacer(key: string, value: unknown): unknown {
 export function getCopyValue(value: unknown): string {
   // Because this results in valid json, it adds quotes around None and True/False.
   // but we want to make this look like Python, so we remove the quotes.
-  return JSON.stringify(value, pythonJsonReplacer)
+  return JSON.stringify(value, pythonJsonReplacer, 2)
     .replaceAll(`"${REPLACE_PREFIX}`, "")
     .replaceAll(`${REPLACE_SUFFIX}"`, "");
 }
