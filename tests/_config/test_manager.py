@@ -6,7 +6,10 @@ from typing import Any, Callable, TypeVar
 from unittest.mock import patch
 
 from marimo._config.config import PartialMarimoConfig, merge_default_config
-from marimo._config.manager import UserConfigManager
+from marimo._config.manager import (
+    UserConfigManager,
+    UserConfigManagerWithOverride,
+)
 from marimo._config.utils import load_config
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -37,7 +40,7 @@ class TestUserConfigManager(unittest.TestCase):
         result = manager.save_config(mock_config)
 
         mock_load.assert_called_once()
-        assert result == manager.config
+        assert result == manager._config
 
         assert mock_dump.mock_calls[0][1][0] == result
 
@@ -98,4 +101,21 @@ class TestUserConfigManager(unittest.TestCase):
         result = manager.get_config()
 
         mock_load.assert_called_once()
-        assert result == manager.config
+        assert result == manager._config
+
+    @restore_config
+    @patch("marimo._config.manager.load_config")
+    def test_get_config_with_override(self, mock_load: Any) -> None:
+        mock_config = merge_default_config(PartialMarimoConfig())
+        mock_load.return_value = mock_config
+        manager = UserConfigManagerWithOverride(
+            UserConfigManager(),
+            {
+                "runtime": {
+                    "on_cell_change": "autorun",
+                    "auto_instantiate": True,
+                    "auto_reload": "lazy",
+                }
+            },
+        )
+        assert manager.get_config()["runtime"]["auto_reload"] == "lazy"

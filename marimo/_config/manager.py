@@ -25,7 +25,7 @@ LOGGER = _loggers.marimo_logger()
 class UserConfigManager:
     def __init__(self, config_path: Optional[str] = None) -> None:
         self._config_path = config_path
-        self.config = load_config()
+        self._config = load_config()
 
     def save_config(
         self, config: MarimoConfig | PartialMarimoConfig
@@ -37,13 +37,13 @@ class UserConfigManager:
         # Remove the secret placeholders from the incoming config
         config = remove_secret_placeholders(config)
         # Merge the current config with the new config
-        merged = merge_config(self.config, config)
+        merged = merge_config(self._config, config)
 
         with open(config_path, "w", encoding="utf-8") as f:
             tomlkit.dump(merged, f)
 
-        self.config = merge_default_config(merged)
-        return self.config
+        self._config = merge_default_config(merged)
+        return self._config
 
     def save_config_if_missing(self) -> None:
         try:
@@ -55,8 +55,21 @@ class UserConfigManager:
 
     def get_config(self, hide_secrets: bool = True) -> MarimoConfig:
         if hide_secrets:
-            return mask_secrets(self.config)
-        return self.config
+            return mask_secrets(self._config)
+        return self._config
 
     def get_config_path(self) -> str:
         return get_or_create_config_path()
+
+
+class UserConfigManagerWithOverride(UserConfigManager):
+    def __init__(
+        self, delegate: UserConfigManager, override_config: PartialMarimoConfig
+    ) -> None:
+        self.delegate = delegate
+        self.override_config = override_config
+
+    def get_config(self, hide_secrets: bool = True) -> MarimoConfig:
+        return merge_config(
+            self.delegate.get_config(hide_secrets), self.override_config
+        )

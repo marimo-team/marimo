@@ -4,7 +4,10 @@ from __future__ import annotations
 import asyncio
 from typing import Callable, Literal
 
-from marimo._config.manager import UserConfigManager
+from marimo._config.manager import (
+    UserConfigManager,
+    UserConfigManagerWithOverride,
+)
 from marimo._messaging.ops import MessageOperation
 from marimo._messaging.types import KernelMessage
 from marimo._output.hypertext import patch_html_for_non_interactive_output
@@ -144,7 +147,16 @@ async def run_app_until_completion(
         def connection_state(self) -> ConnectionState:
             return ConnectionState.OPEN
 
-    config = UserConfigManager()
+    config_manager = UserConfigManagerWithOverride(
+        UserConfigManager(),
+        {
+            "runtime": {
+                "on_cell_change": "autorun",
+                "auto_instantiate": True,
+                "auto_reload": "off",
+            }
+        },
+    )
 
     # Create a session
     session = Session.create(
@@ -159,7 +171,7 @@ async def run_app_until_completion(
             cli_args=cli_args,
         ),
         app_file_manager=file_manager,
-        user_config_manager=config,
+        user_config_manager=config_manager,
         virtual_files_supported=False,
         redirect_console_to_browser=False,
     )

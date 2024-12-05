@@ -200,7 +200,7 @@ class KernelManager:
                     is_edit_mode,
                     self.configs,
                     self.app_metadata,
-                    self.user_config_manager.config,
+                    self.user_config_manager.get_config(hide_secrets=False),
                     self._virtual_files_supported,
                     self.redirect_console_to_browser,
                     self.queue_manager.win32_interrupt_queue,
@@ -226,7 +226,7 @@ class KernelManager:
             # threads (in edit mode, the single kernel process installs
             # formatters ...)
             register_formatters(
-                theme=self.user_config_manager.config["display"]["theme"]
+                theme=self.user_config_manager.get_config()["display"]["theme"]
             )
 
             assert self.queue_manager.stream_queue is not None
@@ -245,7 +245,7 @@ class KernelManager:
                     is_edit_mode,
                     self.configs,
                     self.app_metadata,
-                    self.user_config_manager.config,
+                    self.user_config_manager.get_config(hide_secrets=False),
                     self._virtual_files_supported,
                     self.redirect_console_to_browser,
                     # win32 interrupt queue
