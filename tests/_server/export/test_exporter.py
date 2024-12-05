@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import asyncio
-
 import pytest
 
 from marimo._ast.app import App, InternalApp
@@ -92,7 +90,7 @@ HAS_DEPS = (
 # ruff: noqa: B018
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.timeout(50)
-def test_export_ipynb_with_outputs():
+async def test_export_ipynb_with_outputs():
     app = App()
 
     # stdout
@@ -101,20 +99,19 @@ def test_export_ipynb_with_outputs():
         print("hello")
         return ()
 
-    # Hangs in CI
     # stdout
-    # @app.cell()
-    # def cell_2():
-    #     import sys
+    @app.cell()
+    def cell_2():
+        import sys
 
-    #     sys.stdout.write("world\n")
-    #     return (sys,)
+        sys.stdout.write("world\n")
+        return (sys,)
 
-    # # stderr
-    # @app.cell()
-    # def cell_3(sys):
-    #     sys.stderr.write("error\n")
-    #     return ()
+    # stderr
+    @app.cell()
+    def cell_3(sys):
+        sys.stderr.write("error\n")
+        return ()
 
     # This includes the filepath in the error message, which is not
     # good for snapshots
@@ -155,50 +152,49 @@ def test_export_ipynb_with_outputs():
         mo.md(f"hello {x}")
         return ()
 
-    # Hangs in CI
     # # polars
-    # @app.cell()
-    # def cell_9():
-    #     import polars as pl
+    @app.cell()
+    def cell_9():
+        import polars as pl
 
-    #     df = pl.DataFrame({"a": [1, 2, 3]})
-    #     df
-    #     return (df,)
+        df = pl.DataFrame({"a": [1, 2, 3]})
+        df
+        return (df,)
 
-    # # mo.ui.table
-    # @app.cell()
-    # def cell_10(df, mo):
-    #     mo.ui.table(df)
-    #     return ()
+    # mo.ui.table
+    @app.cell()
+    def cell_10(df, mo):
+        mo.ui.table(df)
+        return ()
 
-    # # slider
-    # @app.cell()
-    # def cell_11(mo):
-    #     mo.ui.slider(start=0, stop=10)
-    #     return ()
+    # slider
+    @app.cell()
+    def cell_11(mo):
+        mo.ui.slider(start=0, stop=10)
+        return ()
 
-    # # hstack
-    # @app.cell()
-    # def cell_12(mo, df):
-    #     mo.vstack([mo.md("hello"), mo.md("world"), df])
-    #     return ()
+    # hstack
+    @app.cell()
+    def cell_12(mo, df):
+        mo.vstack([mo.md("hello"), mo.md("world"), df])
+        return ()
 
-    # # altair chart
-    # @app.cell()
-    # def cell_13(df):
-    #     import altair as alt
+    # altair chart
+    @app.cell()
+    def cell_13(df):
+        import altair as alt
 
-    #     chart = alt.Chart(df).mark_point().encode(x="a")
-    #     chart
-    #     return (chart,)
+        chart = alt.Chart(df).mark_point().encode(x="a")
+        chart
+        return (chart,)
 
-    # # matplotlib
-    # @app.cell()
-    # def cell_14():
-    #     import matplotlib.pyplot as plt
+    # matplotlib
+    @app.cell()
+    def cell_14():
+        import matplotlib.pyplot as plt
 
-    #     plt.plot([1, 2])
-    #     return (plt,)
+        plt.plot([1, 2])
+        return (plt,)
 
     file_manager = AppFileManager.from_app(InternalApp(app))
     exporter = Exporter()
@@ -210,8 +206,8 @@ def test_export_ipynb_with_outputs():
 
     # Create a session view with outputs
     with patch_html_for_non_interactive_output():
-        session_view = asyncio.run(
-            run_app_until_completion(file_manager, cli_args={})
+        session_view = await run_app_until_completion(
+            file_manager, cli_args={}
         )
     content, filename = exporter.export_as_ipynb(
         file_manager, sort_mode="top-down", session_view=session_view
