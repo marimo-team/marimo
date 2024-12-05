@@ -16,6 +16,19 @@ from marimo._runtime.requests import SetUserConfigRequest
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
+INTERVAL = 0.1
+
+
+@pytest.fixture(autouse=True)
+def _setup_test_sleep():
+    """Automatically set up faster sleep interval for all tests in this module"""
+    import marimo._runtime.reload.module_watcher as mw
+
+    old_interval = mw._TEST_SLEEP_INTERVAL
+    mw._TEST_SLEEP_INTERVAL = INTERVAL
+    yield
+    mw._TEST_SLEEP_INTERVAL = old_interval
+
 
 # these tests use random filenames for modules because they share
 # the same sys.modules object, and each test needs fresh modules
@@ -57,7 +70,7 @@ async def test_reload_function(
     )
 
     # wait for the watcher to pick up the change
-    await asyncio.sleep(2.5)
+    await asyncio.sleep(INTERVAL * 3)
     assert k.graph.cells[er_1.cell_id].stale
     assert k.graph.cells[er_2.cell_id].stale
     assert not k.graph.cells[er_3.cell_id].stale
@@ -117,7 +130,7 @@ async def test_disable_and_reenable_reload(
     )
 
     # wait for the watcher to pick up the change
-    await asyncio.sleep(2.5)
+    await asyncio.sleep(INTERVAL * 3)
     assert k.graph.cells[er_1.cell_id].stale
     assert k.graph.cells[er_2.cell_id].stale
     assert not k.graph.cells[er_3.cell_id].stale
@@ -172,7 +185,7 @@ async def test_reload_nested_module_function(
     update_file(nested_module, "func = lambda : 2")
 
     # wait for the watcher to pick up the change
-    await asyncio.sleep(2.5)
+    await asyncio.sleep(INTERVAL * 3)
     assert k.graph.cells[er_1.cell_id].stale
     assert k.graph.cells[er_2.cell_id].stale
     assert not k.graph.cells[er_3.cell_id].stale
@@ -227,7 +240,7 @@ async def test_reload_nested_module_import_module(
     update_file(nested_module, "func = lambda : 2")
 
     # wait for the watcher to pick up the change
-    await asyncio.sleep(2.5)
+    await asyncio.sleep(INTERVAL * 3)
     assert k.graph.cells[er_1.cell_id].stale
     assert k.graph.cells[er_2.cell_id].stale
     assert not k.graph.cells[er_3.cell_id].stale
@@ -334,7 +347,7 @@ async def test_reload_package(
     update_file(nested_module, "func = lambda : 2")
 
     # wait for the watcher to pick up the change
-    await asyncio.sleep(2.5)
+    await asyncio.sleep(INTERVAL * 3)
     assert k.graph.cells[er_1.cell_id].stale
     assert k.graph.cells[er_2.cell_id].stale
     assert not k.graph.cells[er_3.cell_id].stale
@@ -390,7 +403,7 @@ async def test_reload_third_party(
     )
 
     # wait for the watcher to pick up the change
-    await asyncio.sleep(2.5)
+    await asyncio.sleep(INTERVAL * 3)
     assert k.graph.cells[er_1.cell_id].stale
     assert k.graph.cells[er_2.cell_id].stale
     assert not k.graph.cells[er_3.cell_id].stale
@@ -439,7 +452,7 @@ async def test_reload_with_modified_cell(
     )
 
     # wait for the watcher to pick up the change
-    await asyncio.sleep(2.5)
+    await asyncio.sleep(INTERVAL * 3)
     assert k.graph.cells[er_1.cell_id].stale
     assert k.graph.cells[er_2.cell_id].stale
     assert not k.graph.cells[er_3.cell_id].stale
@@ -502,10 +515,10 @@ async def test_reload_function_in_import_block(
     )
 
     # wait for the watcher to pick up the change
-    elapsed = 0
-    while elapsed < 10:
-        await asyncio.sleep(1)
-        elapsed += 1
+    retries = 0
+    while retries < 10:
+        await asyncio.sleep(INTERVAL)
+        retries += 1
         if k.graph.cells[er_1.cell_id].stale:
             break
 
