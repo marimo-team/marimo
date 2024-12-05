@@ -138,6 +138,8 @@ class MockedKernel:
         teardown_context()
         self.stdout._watcher.stop()
         self.stderr._watcher.stop()
+        if self.k.module_watcher is not None:
+            self.k.module_watcher.stop()
         sys.modules["__main__"] = self._main
 
 
