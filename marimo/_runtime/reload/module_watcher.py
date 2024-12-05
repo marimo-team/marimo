@@ -113,6 +113,12 @@ def _check_modules(
     return stale_modules
 
 
+MODULE_WATCHER_SLEEP_INTERVAL = 1.0
+
+# For testing only - do not use in production
+_TEST_SLEEP_INTERVAL: float | None = None
+
+
 def watch_modules(
     graph: dataflow.DirectedGraph,
     reloader: ModuleReloader,
@@ -131,6 +137,7 @@ def watch_modules(
     # work with a copy to avoid race conditions
     # in CPython, dict.copy() is atomic
     sys_modules = sys.modules.copy()
+    sleep_interval = _TEST_SLEEP_INTERVAL or MODULE_WATCHER_SLEEP_INTERVAL
     while not should_exit.is_set():
         # Collect the modules used by each cell
         modules: dict[str, types.ModuleType] = {}
@@ -186,7 +193,7 @@ def watch_modules(
         # Don't proceed until enqueue_run_stale_cells() has been processed,
         # ie until stale cells have been rerun
         run_is_processed.wait()
-        time.sleep(1)
+        time.sleep(sleep_interval)
         # Update our snapshot of sys.modules
         sys_modules = sys.modules.copy()
 
