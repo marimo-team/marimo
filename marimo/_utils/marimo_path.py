@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Union
 
 
 class MarimoPath:
@@ -10,7 +11,7 @@ class MarimoPath:
     And reduce API surface area of pathlib.Path.
     """
 
-    def __init__(self, path: str | Path, strict: bool = False) -> None:
+    def __init__(self, path: Union[str, Path], strict: bool = False) -> None:
         self.path: Path = Path(path)
         # Do this on initialization to avoid issues with changing directories
         self.cwd = Path.cwd()
@@ -27,7 +28,7 @@ class MarimoPath:
             )
 
     @staticmethod
-    def is_valid_path(path: str | Path) -> bool:
+    def is_valid_path(path: Union[str, Path]) -> bool:
         try:
             MarimoPath(path)
             return True

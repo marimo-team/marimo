@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Dict, Optional, cast
+from typing import Any, Dict, Optional, Union, cast
 
 from marimo import _loggers
 from marimo._config.config import PartialMarimoConfig
@@ -7,7 +7,7 @@ from marimo._config.config import PartialMarimoConfig
 LOGGER = _loggers.marimo_logger()
 
 
-def read_toml(file_path: str | Path) -> Dict[str, Any]:
+def read_toml(file_path: Union[str, Path]) -> Dict[str, Any]:
     """Read and parse a TOML file."""
     import tomlkit
 
@@ -21,7 +21,7 @@ def read_marimo_config(path: str) -> PartialMarimoConfig:
 
 
 def read_pyproject_config(
-    start_path: str | Path,
+    start_path: Union[str, Path],
 ) -> Optional[PartialMarimoConfig]:
     """Read the pyproject.toml configuration."""
     path = find_nearest_pyproject_toml(start_path)
@@ -41,7 +41,9 @@ def read_pyproject_config(
     return cast(PartialMarimoConfig, marimo_tool_config)
 
 
-def find_nearest_pyproject_toml(start_path: str | Path) -> Optional[Path]:
+def find_nearest_pyproject_toml(
+    start_path: Union[str, Path],
+) -> Optional[Path]:
     """Find the nearest pyproject.toml file."""
     path = Path(start_path)
     root = Path(path.root)
