@@ -34,7 +34,7 @@ def client_with_lifespans() -> Generator[TestClient, None, None]:
 
 @pytest.fixture
 def user_config_manager() -> Iterator[UserConfigManager]:
-    tmp = TemporaryDirectory(delete=False)
+    tmp = TemporaryDirectory()
     config_path = os.path.join(tmp.name, CONFIG_FILENAME)
     with open(config_path, "w") as f:
         f.write("")

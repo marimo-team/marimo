@@ -96,7 +96,6 @@ export const activeUserConfigCategoryAtom = atom<CategoryId>(categories[0].id);
 
 export const UserConfigForm: React.FC = () => {
   const [config, setConfig] = useUserConfig();
-  console.log("config", config);
   const formElement = useRef<HTMLFormElement>(null);
   const setKeyboardShortcutsOpen = useSetAtom(keyboardShortcutsAtom);
   const [activeCategory, setActiveCategory] = useAtom(
