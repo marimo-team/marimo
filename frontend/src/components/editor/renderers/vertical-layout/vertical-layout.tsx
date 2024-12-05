@@ -259,12 +259,13 @@ const VerticalCell = memo(
     const kioskFull = kiosk && mode !== "present";
 
     const isPureMarkdown = new MarkdownLanguageAdapter().isSupported(code);
+    const published = !showCode && !kioskFull;
     const className = cn("Cell", "hover-actions-parent empty:invisible", {
-      published: !showCode && !kioskFull,
+      published: published,
       interactive: mode === "edit",
       "has-error": errored,
       stopped: stopped,
-      borderless: isPureMarkdown,
+      borderless: isPureMarkdown && !published,
     });
 
     const HTMLId = HTMLCellId.create(cellId);

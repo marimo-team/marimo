@@ -421,7 +421,7 @@ const CellComponent = (
     stopped: stopped,
     disabled: cellConfig.disabled,
     stale: status === "disabled-transitively",
-    borderless: isMarkdownCodeHidden,
+    borderless: isMarkdownCodeHidden && editing,
   });
 
   const HTMLId = HTMLCellId.create(cellId);
