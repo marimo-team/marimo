@@ -1,6 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import Union
+
 from marimo._config.config import (
     DEFAULT_CONFIG,
     MarimoConfig,
@@ -10,7 +12,7 @@ from marimo._config.config import (
 )
 
 
-def assert_config(override: MarimoConfig | PartialMarimoConfig) -> None:
+def assert_config(override: Union[MarimoConfig, PartialMarimoConfig]) -> None:
     user_config = merge_default_config(override)
     assert user_config == {**DEFAULT_CONFIG, **override}
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 from abc import abstractmethod
-from typing import Optional, cast
+from typing import Optional, Union, cast
 
 from marimo import _loggers
 from marimo._config.config import (
@@ -78,7 +78,7 @@ class MarimoConfigManager(MarimoConfigReader):
         )
 
     def save_config(
-        self, config: MarimoConfig | PartialMarimoConfig
+        self, config: Union[MarimoConfig, PartialMarimoConfig]
     ) -> MarimoConfig:
         """Save the configuration"""
         return self.user_config_mgr.save_config(config)
@@ -126,7 +126,7 @@ class UserConfigManager(MarimoConfigReader):
     """Read and write the user configuration"""
 
     def save_config(
-        self, config: MarimoConfig | PartialMarimoConfig
+        self, config: Union[MarimoConfig, PartialMarimoConfig]
     ) -> MarimoConfig:
         import tomlkit
 

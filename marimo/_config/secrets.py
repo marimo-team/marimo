@@ -1,4 +1,4 @@
-from typing import Any, Dict, TypeVar, cast
+from typing import Any, Dict, TypeVar, Union, cast
 
 from marimo._config.config import MarimoConfig, PartialMarimoConfig
 from marimo._config.utils import deep_copy
@@ -6,7 +6,9 @@ from marimo._config.utils import deep_copy
 SECRET_PLACEHOLDER = "********"
 
 
-def mask_secrets(config: MarimoConfig | PartialMarimoConfig) -> MarimoConfig:
+def mask_secrets(
+    config: Union[MarimoConfig, PartialMarimoConfig],
+) -> MarimoConfig:
     def deep_remove_from_path(path: list[str], obj: Dict[str, Any]) -> None:
         key = path[0]
         if key not in obj:
