@@ -135,6 +135,9 @@ During the session, you can install additional packages, but their information w
 
 ### Specifying Additional Requirements
 
+
+#Todo: check how similar this is to https://docs.marimo.io/guides/editor_features/package_management.html#package-management
+
 To include dependency information to the metadata, use the --sandbox option:
 
 ```bash
