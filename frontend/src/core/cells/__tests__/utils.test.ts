@@ -66,7 +66,6 @@ describe("getCellConfigs", () => {
     expect(mockState.cellData[cellId1].config).toEqual({
       hide_code: false,
       disabled: false,
-      column: 0,
     });
     expect(mockState.cellData[cellId2].config).toEqual({
       hide_code: true,
@@ -75,7 +74,6 @@ describe("getCellConfigs", () => {
     expect(mockState.cellData[cellId3].config).toEqual({
       hide_code: false,
       disabled: true,
-      column: 1,
     });
     expect(mockState.cellData[cellId4].config).toEqual({
       hide_code: true,
