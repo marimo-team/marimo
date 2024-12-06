@@ -6,7 +6,7 @@ You can run a Marimo notebook using the package manager `uv` through one of the 
 1. **Within a project environment**  
 2. **Temporary installation (cached)**  
 3. **Directly from a URL**  
-4. **Using `uv` as a globally installed tool**
+4. **Globally Installed Tool**
 
 ---
 
@@ -208,17 +208,19 @@ uvx marimo edit hi.py
 
 This pattern will run marimo from a URL.
 
+uvx marimo edit --sandbox https://gist.githubusercontent.com/kolibril13/a59135dd0973b97d488ba21c650667fe/raw/5f98021b5d3c024d5827fa9464787517495178b4/marimo_minimal_numpy_example.py
+```
 
-With uv run URL
+#TODO One sentence about portability.
 
-What is the word 
-
-I'm looking for a word to describe this kind of code pattern.
-`pip install 
-I can run a script like this
-uv run https://gist.githubusercontent.com/kolibril13/f4597c16452b4b72965c8d20fe6c0978/raw/a7757d3f206d467f6e76eeea621e64b0cb92530c/benchmark.py
-
-
+**Note:**
+1. This command will run code from a URL. Make sure you trust the source before proceeding.
+2. Upon execution, you’ll be prompted:
+   ```
+   Would you like to run it in a secure docker container? [Y/n]:
+   ```
+   To proceed securely, ensure you have [Docker](https://www.docker.com/) installed and running, then press `Y`.
+3. Include `.py` at the end of the filename *(#TODO: Fact-check if that's really the case)*
 
 # Globally Installed Tool
 
