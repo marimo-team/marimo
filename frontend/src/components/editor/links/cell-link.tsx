@@ -69,7 +69,7 @@ export const CellLinkTraceback = ({
   cellId,
   lineNumber,
 }: { cellId: CellId; lineNumber: number }): JSX.Element => {
-  const [filename] = useFilename();
+  const filename = useFilename();
   return (
     <CellLink
       cellId={cellId}

@@ -26,7 +26,7 @@ export const BadPluginData: React.FC<Props> = ({
     return (
       <Alert variant="destructive">
         <AlertTitle>Bad Data</AlertTitle>
-        <div className="text-md">
+        <div className="text-md prose dark:prose-invert">
           <ul>
             {error.issues.map((issue) => {
               const path = issue.path.join(".");

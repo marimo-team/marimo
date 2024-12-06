@@ -57,6 +57,8 @@ const { valueAtom: layoutStateAtom, useActions } = createReducerAndAtoms(
   },
 );
 
+export { layoutStateAtom };
+
 export const useLayoutState = () => {
   return useAtomValue(layoutStateAtom);
 };

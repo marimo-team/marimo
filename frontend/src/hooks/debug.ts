@@ -49,16 +49,17 @@ export function usePropsDidChange(
       return prevProps.current[key] !== props[key];
     });
 
-    // If any props are deeply equal, we should warn about it
     const equalKeys = changedKeys.filter((key) => {
       return dequal(prevProps.current[key], props[key]);
     });
 
     if (changedKeys.length > 0) {
       Logger.debug(`[${name}] Props changed: ${changedKeys.join(", ")}`);
-      if (equalKeys.length > 0) {
+
+      // If all changed keys are deeply equal, we should warn about it
+      if (equalKeys.length === changedKeys.length) {
         Logger.debug(
-          `[${name}] Props are deeply equal: ${equalKeys.join(", ")}`,
+          `[${name}] ⚠️ Props are deeply equal: ${equalKeys.join(", ")}`,
         );
       }
     }

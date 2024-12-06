@@ -269,7 +269,7 @@ export const ScratchPad: React.FC = () => {
           </Button>
         </Tooltip>
       </div>
-      <div className="flex-1 divide-y relative">
+      <div className="flex-1 divide-y relative overflow-hidden flex flex-col">
         {renderBody()}
         {renderHistory()}
       </div>

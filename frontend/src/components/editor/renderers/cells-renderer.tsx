@@ -5,10 +5,18 @@ import { type PropsWithChildren, memo } from "react";
 import { cellRendererPlugins } from "./plugins";
 import type { AppConfig } from "@/core/config/config-schema";
 import { type AppMode, kioskModeAtom } from "@/core/mode";
-import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
+import {
+  type LayoutData,
+  useLayoutActions,
+  useLayoutState,
+} from "@/core/layout/layout";
 import { useAtomValue } from "jotai";
 import { KnownQueryParams } from "@/core/constants";
-import { type LayoutType, OVERRIDABLE_LAYOUT_TYPES } from "./types";
+import {
+  type ICellRendererPlugin,
+  type LayoutType,
+  OVERRIDABLE_LAYOUT_TYPES,
+} from "./types";
 
 interface Props {
   appConfig: AppConfig;
@@ -17,9 +25,7 @@ interface Props {
 
 export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(
   ({ appConfig, mode, children }) => {
-    const notebook = useNotebook();
     const { selectedLayout, layoutData } = useLayoutState();
-    const { setCurrentLayoutData } = useLayoutActions();
     const kioskMode = useAtomValue(kioskModeAtom);
 
     // Just render children if we are in edit mode
@@ -46,20 +52,44 @@ export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(
       return children;
     }
 
-    const cells = flattenTopLevelNotebookCells(notebook);
-
-    const Renderer = plugin.Component;
-    const body = (
-      <Renderer
+    return (
+      <PluginCellRenderer
         appConfig={appConfig}
         mode={mode}
-        cells={cells}
-        layout={layoutData[finalLayout] || plugin.getInitialLayout(cells)}
-        setLayout={setCurrentLayoutData}
+        plugin={plugin}
+        layoutData={layoutData}
+        finalLayout={finalLayout}
       />
     );
-
-    return body;
   },
 );
 CellsRenderer.displayName = "CellsRenderer";
+
+interface PluginCellRendererProps extends PropsWithChildren<Props> {
+  appConfig: AppConfig;
+  mode: AppMode;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  plugin: ICellRendererPlugin<any, any>;
+  layoutData: Partial<Record<LayoutType, LayoutData>>;
+  finalLayout: LayoutType;
+}
+
+export const PluginCellRenderer = (props: PluginCellRendererProps) => {
+  const { appConfig, mode, plugin, layoutData, finalLayout } = props;
+  const notebook = useNotebook();
+  const { setCurrentLayoutData } = useLayoutActions();
+  const cells = flattenTopLevelNotebookCells(notebook);
+
+  const Renderer = plugin.Component;
+  const body = (
+    <Renderer
+      appConfig={appConfig}
+      mode={mode}
+      cells={cells}
+      layout={layoutData[finalLayout] || plugin.getInitialLayout(cells)}
+      setLayout={setCurrentLayoutData}
+    />
+  );
+
+  return body;
+};
