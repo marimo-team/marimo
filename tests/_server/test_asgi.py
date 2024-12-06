@@ -2,6 +2,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 
 from starlette.applications import Starlette
 from starlette.requests import Request
@@ -401,3 +402,95 @@ class TestDynamicDirectoryMiddleware(unittest.TestCase):
         response = self.client.get("/apps/nested/nonexistent/")
         assert response.status_code == 404
         assert response.text == "Not Found"
+
+    def test_validate_callback(self):
+        # Create test files
+        allowed_file = Path(self.temp_dir) / "allowed_app.py"
+        allowed_file.write_text(contents)
+
+        blocked_file = Path(self.temp_dir) / "blocked_app.py"
+        blocked_file.write_text(contents)
+
+        async def async_validate(app_path: str, scope: Any):
+            del scope
+            # Only allow apps with "allowed" in the name
+            return app_path.startswith("allowed")
+
+        middleware = DynamicDirectoryMiddleware(
+            app=self.base_app,
+            base_path="/apps",
+            directory=self.temp_dir,
+            app_builder=default_app_builder,
+            validate_callback=async_validate,
+        )
+        client = TestClient(middleware)
+
+        # Allowed app should work
+        response = client.get("/apps/allowed_app/")
+        assert response.status_code == 200
+
+        # Blocked app should fail
+        response = client.get("/apps/blocked_app/")
+        assert response.status_code == 404
+
+    def test_sync_validate_callback(self):
+        # Create test files
+        allowed_file = Path(self.temp_dir) / "allowed_app.py"
+        allowed_file.write_text(contents)
+
+        blocked_file = Path(self.temp_dir) / "blocked_app.py"
+        blocked_file.write_text(contents)
+
+        def sync_validate(app_path: str, scope: Any):
+            del scope
+            return app_path.startswith("allowed")
+
+        middleware = DynamicDirectoryMiddleware(
+            app=self.base_app,
+            base_path="/apps",
+            directory=self.temp_dir,
+            app_builder=default_app_builder,
+            validate_callback=sync_validate,
+        )
+        client = TestClient(middleware)
+
+        # Allowed app should work
+        response = client.get("/apps/allowed_app/")
+        assert response.status_code == 200
+
+        # Blocked app should fail
+        response = client.get("/apps/blocked_app/")
+        assert response.status_code == 404
+
+    def test_validate_custom_exception(self):
+        from starlette.exceptions import HTTPException
+
+        async def async_validate(app_path: str, scope: Any):
+            del app_path
+            del scope
+            raise HTTPException(status_code=403)
+
+        middleware = DynamicDirectoryMiddleware(
+            app=self.base_app,
+            base_path="/apps",
+            directory=self.temp_dir,
+            app_builder=default_app_builder,
+            validate_callback=async_validate,
+        )
+
+        client = TestClient(middleware)
+        response = client.get("/apps/blocked_app/")
+        assert response.status_code == 403
+        assert response.text == "403: Forbidden"
+
+
+def default_app_builder(base_url: str, file_path: str) -> Starlette:
+    del base_url
+    app = Starlette()
+
+    async def handle(request: Request) -> Response:
+        del request
+        return PlainTextResponse(f"App from {Path(file_path).stem}")
+
+    app.add_route("/{path:path}", handle)
+    return app
