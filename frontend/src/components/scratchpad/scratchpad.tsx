@@ -125,7 +125,7 @@ export const ScratchPad: React.FC = () => {
     // We overlay the history on top of the body, instead of removing it,
     // so we don't have to re-render the entire editor and outputs.
     return (
-      <div className="absolute overflow-auto h-full w-full">
+      <>
         <div className="overflow-auto flex-shrink-0 max-h-[40%]">
           <CellEditor
             theme={theme}
@@ -156,7 +156,7 @@ export const ScratchPad: React.FC = () => {
             setLanguageAdapter={setLanguageAdapter}
           />
         </div>
-        <div className="flex-1 overflow-auto flex-shrink-0 max-h-[35%]">
+        <div className="flex-1 overflow-auto flex-shrink-0">
           <OutputArea
             allowExpand={false}
             output={output}
@@ -176,7 +176,7 @@ export const ScratchPad: React.FC = () => {
             debuggerActive={false}
           />
         </div>
-      </div>
+      </>
     );
   };
 
@@ -269,7 +269,7 @@ export const ScratchPad: React.FC = () => {
           </Button>
         </Tooltip>
       </div>
-      <div className="flex-1 divide-y relative">
+      <div className="flex-1 divide-y relative overflow-hidden flex flex-col">
         {renderBody()}
         {renderHistory()}
       </div>
