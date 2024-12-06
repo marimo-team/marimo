@@ -136,7 +136,7 @@ uv tool run marimo edit hi.py --sandbox
 While in the notebook, you can install packages as shown earlier, either using the pop-ups or through the packages tab. However, note that adding packages via the terminal is not supported in this mode. #TODO: fact check this.
 
 And the special thing: The notebook is now **fully self-contained** and can be reproduced by anyone.
-THis is because the following package metadata was added to the notebook accroding to  (PEP 723 – Inline script metadata)[https://peps.python.org/pep-0723/]
+THis is because the following package metadata was added to the notebook according to  (PEP 723 – Inline script metadata)[https://peps.python.org/pep-0723/]
 
 
 ```python
