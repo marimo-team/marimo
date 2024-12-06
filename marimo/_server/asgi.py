@@ -18,6 +18,12 @@ from typing import (
 )
 
 if TYPE_CHECKING:
+    import sys
+
+    if sys.version_info < (3, 10):
+        from typing_extensions import TypeAlias
+    else:
+        from typing import TypeAlias
     from starlette.requests import Request
     from starlette.responses import Response
     from starlette.types import ASGIApp, Receive, Scope, Send
