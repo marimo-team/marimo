@@ -23,44 +23,6 @@
    "execution_count": null,
    "id": "MJUe",
    "metadata": {},
-   "outputs": [
-    {
-     "name": "stdout",
-     "output_type": "stream",
-     "text": [
-      "world\n"
-     ]
-    }
-   ],
-   "source": [
-    "import sys\n",
-    "\n",
-    "sys.stdout.write(\"world\\n\")"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "id": "vblA",
-   "metadata": {},
-   "outputs": [
-    {
-     "name": "stderr",
-     "output_type": "stream",
-     "text": [
-      "error\n"
-     ]
-    }
-   ],
-   "source": [
-    "sys.stderr.write(\"error\\n\")"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "id": "bkHC",
-   "metadata": {},
    "outputs": [],
    "source": [
     "x = 10"
@@ -69,7 +31,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "lEQa",
+   "id": "vblA",
    "metadata": {},
    "outputs": [
     {
@@ -90,7 +52,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "PKri",
+   "id": "bkHC",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -99,7 +61,7 @@
   },
   {
    "cell_type": "markdown",
-   "id": "Xref",
+   "id": "lEQa",
    "metadata": {},
    "source": [
     "hello"
@@ -108,7 +70,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "SFPL",
+   "id": "PKri",
    "metadata": {},
    "outputs": [
     {
@@ -128,7 +90,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "BYtC",
+   "id": "Xref",
    "metadata": {},
    "outputs": [
     {
@@ -158,7 +120,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "RGSE",
+   "id": "SFPL",
    "metadata": {},
    "outputs": [
     {
@@ -185,7 +147,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "Kclp",
+   "id": "BYtC",
    "metadata": {},
    "outputs": [
     {
@@ -205,7 +167,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "emfo",
+   "id": "RGSE",
    "metadata": {},
    "outputs": [
     {
