@@ -13,7 +13,6 @@ from typing import (
     List,
     Optional,
     Tuple,
-    TypeAlias,
     Union,
 )
 
