@@ -45,10 +45,10 @@ def find_nearest_pyproject_toml(
     start_path: Union[str, Path],
 ) -> Optional[Path]:
     """Find the nearest pyproject.toml file."""
-    path = Path(start_path)
-    root = Path(path.root)
+    path = Path(start_path).resolve()
+    root = path.anchor
     while not path.joinpath("pyproject.toml").exists():
-        if path == root:
+        if str(path) == root:
             return None
         path = path.parent
     return path.joinpath("pyproject.toml")
