@@ -15,7 +15,7 @@ import {
 } from "./scrollCellIntoView";
 import { CellId } from "./ids";
 import { prepareCellForExecution, transitionCell } from "./cell";
-import { store } from "../state/jotai";
+import { createDeepEqualAtom, store } from "../state/jotai";
 import { createReducerAndAtoms } from "../../utils/createReducer";
 import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
 import { findCollapseRange, mergeOutlines, parseOutline } from "../dom/outline";
@@ -1141,12 +1141,12 @@ export function getCellConfigs(state: NotebookState): CellConfig[] {
         config.column = columnIndex;
       }
 
-      cells[cellId].config = {
+      const newConfig = {
         ...cells[cellId].config,
         ...config,
       };
 
-      return cells[cellId].config;
+      return newConfig;
     });
   });
 }
@@ -1222,13 +1222,15 @@ export const notebookOutline = atom((get) => {
 
 export const cellErrorCount = atom((get) => get(cellErrorsAtom).length);
 
-export const cellIdToNamesMap = atom((get) => {
-  const { cellIds, cellData } = get(notebookAtom);
-  const names: Record<CellId, string | undefined> = Objects.fromEntries(
-    cellIds.inOrderIds.map((cellId) => [cellId, cellData[cellId]?.name]),
-  );
-  return names;
-});
+export const cellIdToNamesMap = createDeepEqualAtom(
+  atom((get) => {
+    const { cellIds, cellData } = get(notebookAtom);
+    const names: Record<CellId, string | undefined> = Objects.fromEntries(
+      cellIds.inOrderIds.map((cellId) => [cellId, cellData[cellId]?.name]),
+    );
+    return names;
+  }),
+);
 
 /// HOOKS
 

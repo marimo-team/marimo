@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { type Atom, createStore, useStore } from "jotai";
+import { atom, type Atom, createStore, useStore } from "jotai";
+import { isEqual } from "lodash-es";
 import { useEffect } from "react";
 
 /**
@@ -45,4 +46,23 @@ export function useJotaiEffect<T>(
       prevValue = value;
     });
   }, [atom, effect, store]);
+}
+
+const sentinel = Symbol("sentinel");
+
+export function createDeepEqualAtom<T>(
+  baseAtom: Atom<T>,
+  areEqual: (a: T, b: T) => boolean = isEqual,
+) {
+  let cachedValue: T | typeof sentinel = sentinel;
+
+  return atom((get) => {
+    const nextValue = get(baseAtom);
+
+    if (cachedValue === sentinel || !areEqual(cachedValue, nextValue)) {
+      cachedValue = nextValue;
+    }
+
+    return cachedValue;
+  });
 }
