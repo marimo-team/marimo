@@ -89,7 +89,7 @@ Screenshot demonstrating the "Packages" tab.
 
 ### Defining Dependencies with `pyproject.toml`
 
-A pyproject.toml file makes it easier to manage your project’s dependencies in one place. Using the uv tool, you can quickly set up and customize your project’s environment
+A pyproject.toml file makes it easier to manage your project’s dependencies in one place. Using `uv`, you can quickly set up and customize your project’s environment
 
 ```bash
 uv init           # Creates a pyproject.toml file
@@ -114,11 +114,11 @@ This command ensures that your environment matches the dependency specifications
 
 ## Temporary Installation
 
-When you run a command with `uv tool run`, no virtual environment folder is created in your working directory. Instead, `uv` will:
+When you run a command with `uv tool run`, no virtual environment folder is created in your working directory. Instead, `uv` performs the following actions:
 
-1. **Cache the dependencies or re-use already cached ones** that are specified.
-2. **Create a temporary virtual environment** on your system.
-3. **Remove the temporary environment** as soon as the process exits.
+1. **Caches dependencies or reuses existing cached ones** as specified in the marimo notebook metadata.
+2. **Creates a temporary virtual environment** on your system.
+3. **Removes the temporary environment** immediately after the process exits.
 
 This lightweight approach keeps your workspace clean while still providing an isolated, dependency-managed environment for running commands.
 
@@ -128,16 +128,21 @@ For example, you can run:
 uv tool run marimo edit hi.py
 ```
 
-To specify additional requirements, enable the `--sandbox` mode by running:
+### Specifying Additional Requirements
+
+To include additional dependencies, use the `--sandbox` option:
 
 ```bash
 uv tool run marimo edit hi.py --sandbox
 ```
-While in the notebook, you can install packages as shown earlier, either using the pop-ups or through the packages tab. However, note that adding packages via the terminal is not supported in this mode. #TODO: fact check this.
 
-And the special thing: The notebook is now **fully self-contained** and can be reproduced by anyone.
-THis is because the following package metadata was added to the notebook according to  (PEP 723 – Inline script metadata)[https://peps.python.org/pep-0723/]
+While working in the notebook, packages can be installed as described earlier, either through pop-ups or via the packages tab. However, **adding packages via the terminal is not supported in this mode**. *( #TODO Fact-check pending.)*
 
+---
+
+### Fully Self-Contained Notebooks
+
+A unique feature of this setup is that the notebook becomes **fully self-contained** and reproducible by anyone. This is achieved by embedding package metadata directly in the notebook, following the guidelines of [PEP 723 – Inline Script Metadata](https://peps.python.org/pep-0723/). If you open the notebook in a plain text editor, you’ll see the following metadata embedded inside: *(#TODO: Replace this with a screenshot from the text editor.)*
 
 ```python
 # /// script
@@ -146,14 +151,40 @@ THis is because the following package metadata was added to the notebook accordi
 #     "polars==1.16.0",
 # ]
 # ///
+
+import marimo
+
+__generated_with = "0.9.31"
+app = marimo.App(width="medium")
+
+
+@app.cell
+def __():
+    import polars
+    return (polars,)
 ```
 
-
+After closing the session, all dependencies will be cleard.
+Running this line will reconstruct the session:
 ```bash
-uvx marimo edit hi.py
+uv tool run marimo edit hi.py --sandbox
 ```
 
-Here, `uvx` is simply an alias for `uv tool run`.
+Marimo will auto-detect that dependencies were added in sandbox mode, so you can also just run 
+```bash
+uv tool run marimo edit hi.py
+```
+and the marimo cli will ask you: 
+`Run in a sandboxed venv containing this notebook's dependencies?`
+
+This can become even easier. `uvx` is an alias for `uv tool run`.
+Therefore, the two below lines are the same
+```
+uv tool run marimo edit hi.py
+uvx run marimo edit hi.py
+
+```
+
 
 ## From URL
 
