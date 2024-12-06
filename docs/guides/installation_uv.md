@@ -10,7 +10,7 @@ There are four methods to run a Marimo notebook using UV:
 
 # Project evnironment
 
-We recommend using marimo in a project environemnt like this:
+We recommend using marimo in a project environment like this:
 ```py
 uv venv
 uv pip install marimo
@@ -25,12 +25,12 @@ The default python version is defined at #TODO CHECK.
 There are 3 ways to install packages.
 
 a) Terminal: `pip install matplotlib polars`
-b) In the notebook itelf type `import polars as pd` and a installation guide will pop up.
+b) In the notebook itself type `import polars as pd` and a installation guide will pop up.
 c) Go to the packages tab, and select the package.
 
 #Todo: screen recroding of packages tab.
 
-If you want to define your project dependecies in `pyproject.toml`, you can make the follwoing workflow:
+If you want to define your project dependencies in `pyproject.toml`, you can make the following workflow:
 
 ```
 uv init (this will create a pyproject.toml file)
@@ -40,7 +40,7 @@ uv run marimo edit hi.py
 
 # Temporary installation
 This won't create a virtual environment folder in your working direory. 
-Instead, uv will cache all dependencies, make a temporary venv in your system, which will be destoyed after exiting the process.
+Instead, uv will cache all dependencies, make a temporary venv in your system, which will be destroyed after exiting the process.
 
 `
 uv tool run marimo edit hi.py
