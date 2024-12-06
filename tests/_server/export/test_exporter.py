@@ -89,10 +89,6 @@ HAS_DEPS = (
 
 # ruff: noqa: B018
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-@pytest.mark.xfail(
-    reason="Can be flaky and not finish",
-    strict=False,
-)
 async def test_export_ipynb_with_outputs():
     app = App()
 
@@ -182,22 +178,23 @@ async def test_export_ipynb_with_outputs():
         mo.vstack([mo.md("hello"), mo.md("world"), df])
         return ()
 
-    # altair chart
-    @app.cell()
-    def cell_13(df):
-        import altair as alt
+    # Hangs in CI
+    # # altair chart
+    # @app.cell()
+    # def cell_13(df):
+    #     import altair as alt
 
-        chart = alt.Chart(df).mark_point().encode(x="a")
-        chart
-        return (chart,)
+    #     chart = alt.Chart(df).mark_point().encode(x="a")
+    #     chart
+    #     return (chart,)
 
-    # matplotlib
-    @app.cell()
-    def cell_14():
-        import matplotlib.pyplot as plt
+    # # matplotlib
+    # @app.cell()
+    # def cell_14():
+    #     import matplotlib.pyplot as plt
 
-        plt.plot([1, 2])
-        return (plt,)
+    #     plt.plot([1, 2])
+    #     return (plt,)
 
     file_manager = AppFileManager.from_app(InternalApp(app))
     exporter = Exporter()
