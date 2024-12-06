@@ -936,7 +936,7 @@ class Kernel:
         cells_before_mutation = set(self.graph.cells.keys())
         cells_with_errors_before_mutation = set(self.errors.keys())
         edges_before = deepcopy(self.graph.children)
-        definitions_before = deepcopy(set(self.graph.definitions.keys()))
+        definitions_before = set(self.graph.definitions.keys())
 
         # The set of cells that were successfully registered
         registered_cell_ids: set[CellId_t] = set()
