@@ -127,7 +127,7 @@ For example, you can run:
 ```bash
 uv tool run marimo edit hi.py
 ```
-You can install packages during the session, however the packge information will be lost after ther session is closes.
+You can install packages during the session, however the package information will be lost after ther session is closes.
 That's where the notebook metadata comes in, and here's how to use it!
 
 ### Specifying Additional Requirements
