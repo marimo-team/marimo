@@ -127,6 +127,8 @@ For example, you can run:
 ```bash
 uv tool run marimo edit hi.py
 ```
+You can install packages during the session, however the packge information will be lost after ther session is closes.
+That's where the notebook metadata comes in, and here's how to use it!
 
 ### Specifying Additional Requirements
 
@@ -181,7 +183,7 @@ This can become even easier. `uvx` is an alias for `uv tool run`.
 Therefore, the two below lines are the same
 ```
 uv tool run marimo edit hi.py
-uvx run marimo edit hi.py
+uvx marimo edit hi.py
 
 ```
 
