@@ -208,6 +208,7 @@ uvx marimo edit hi.py
 
 This pattern will run marimo from a URL.
 
+```
 uvx marimo edit --sandbox https://gist.githubusercontent.com/kolibril13/a59135dd0973b97d488ba21c650667fe/raw/5f98021b5d3c024d5827fa9464787517495178b4/marimo_minimal_numpy_example.py
 ```
 
