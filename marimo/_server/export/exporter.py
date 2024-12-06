@@ -12,8 +12,8 @@ from marimo._ast.cell import Cell, CellConfig, CellImpl
 from marimo._config.config import (
     DEFAULT_CONFIG,
     DisplayConfig,
-    _deep_copy,
 )
+from marimo._config.utils import deep_copy
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.mimetypes import KnownMimeType
@@ -76,7 +76,7 @@ class Exporter:
         # since we use:
         # - display.theme
         # - display.cell_output
-        config = _deep_copy(DEFAULT_CONFIG)
+        config = deep_copy(DEFAULT_CONFIG)
         config["display"] = display_config
 
         # code and console outputs are grouped together, but
@@ -98,6 +98,7 @@ class Exporter:
         html = static_notebook_template(
             html=index_html,
             user_config=config,
+            config_overrides={},
             server_token=SkewProtectionToken("static"),
             app_config=file_manager.app.config,
             filepath=file_manager.filename,

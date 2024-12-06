@@ -322,7 +322,7 @@ def create_asgi_app(
     from starlette.responses import RedirectResponse
 
     import marimo._server.api.lifespans as lifespans
-    from marimo._config.manager import UserConfigManager
+    from marimo._config.manager import get_default_config_manager
     from marimo._server.file_router import AppFileRouter
     from marimo._server.main import create_starlette_app
     from marimo._server.model import SessionMode
@@ -331,7 +331,7 @@ def create_asgi_app(
     from marimo._server.utils import initialize_asyncio
     from marimo._utils.marimo_path import MarimoPath
 
-    user_config_mgr = UserConfigManager()
+    config_reader = get_default_config_manager(current_path=None)
     base_app = Starlette()
 
     # Default to an empty token
@@ -371,7 +371,7 @@ def create_asgi_app(
                 # Currently we only support run mode,
                 # which doesn't require an LSP server
                 lsp_server=NoopLspServer(),
-                user_config_manager=user_config_mgr,
+                user_config_manager=config_reader,
                 # We don't pass any CLI args for now
                 # since we don't want to read arbitrary args and apply them
                 # to each application
@@ -392,7 +392,7 @@ def create_asgi_app(
             )
             app.state.session_manager = session_manager
             app.state.base_url = base_url
-            app.state.config_manager = user_config_mgr
+            app.state.config_manager = config_reader
             return app
 
         def build(self) -> "ASGIApp":

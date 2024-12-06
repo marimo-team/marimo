@@ -12,7 +12,7 @@ from starlette.responses import FileResponse, HTMLResponse, Response
 from starlette.staticfiles import StaticFiles
 
 from marimo import _loggers
-from marimo._config.manager import UserConfigManager
+from marimo._config.manager import get_default_config_manager
 from marimo._runtime.virtual_file import EMPTY_VIRTUAL_FILE, read_virtual_file
 from marimo._server.api.deps import AppState
 from marimo._server.router import APIRouter
@@ -33,7 +33,11 @@ router = APIRouter()
 # Root directory for static assets
 root = os.path.realpath(str(import_files("marimo").joinpath("_static")))
 
-config = UserConfigManager().get_config().get("server", {})
+config = (
+    get_default_config_manager(current_path=None)
+    .get_config()
+    .get("server", {})
+)
 
 router.mount(
     "/assets",
@@ -51,7 +55,6 @@ FILE_QUERY_PARAM_KEY = "file"
 @requires("read", redirect="auth:login_page")
 async def index(request: Request) -> HTMLResponse:
     app_state = AppState(request)
-    user_config = app_state.config_manager.get_config()
     index_html = os.path.join(root, "index.html")
 
     file_key = (
@@ -68,7 +71,8 @@ async def index(request: Request) -> HTMLResponse:
         html = home_page_template(
             html=html,
             base_url=app_state.base_url,
-            user_config=user_config,
+            user_config=app_state.config_manager.get_user_config(),
+            config_overrides=app_state.config_manager.get_config_overrides(),
             server_token=app_state.skew_protection_token,
         )
     else:
@@ -80,7 +84,8 @@ async def index(request: Request) -> HTMLResponse:
         html = notebook_page_template(
             html=html,
             base_url=app_state.base_url,
-            user_config=user_config,
+            user_config=app_state.config_manager.get_user_config(),
+            config_overrides=app_state.config_manager.get_config_overrides(),
             server_token=app_state.skew_protection_token,
             app_config=app_config,
             filename=app_manager.filename,

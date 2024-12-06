@@ -36,7 +36,7 @@ import type { CellConfig } from "@/core/network/types";
 import { useAtomValue } from "jotai";
 import { FloatingOutline } from "../../chrome/panels/outline/floating-outline";
 import { KnownQueryParams } from "@/core/constants";
-import { useUserConfig } from "@/core/config/config";
+import { useResolvedMarimoConfig } from "@/core/config/config";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
 import { isErrorMime } from "@/core/mime";
 
@@ -50,7 +50,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
 }) => {
   const { invisible } = useDelayVisibility(cells.length, mode);
   const kioskMode = useAtomValue(kioskModeAtom);
-  const [userConfig] = useUserConfig();
+  const [userConfig] = useResolvedMarimoConfig();
 
   const urlParams = new URLSearchParams(window.location.search);
   const showCodeDefault = urlParams.get(KnownQueryParams.showCode);

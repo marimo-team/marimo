@@ -2,9 +2,9 @@
 import { SettingSubtitle } from "./common";
 
 import React, { useRef } from "react";
-import { useForm } from "react-hook-form";
+import { type FieldPath, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { atom, useAtom, useSetAtom } from "jotai";
+import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   Form,
   FormControl,
@@ -22,7 +22,7 @@ import { NumberField } from "@/components/ui/number-field";
 import { Kbd } from "@/components/ui/kbd";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
 import { KEYMAP_PRESETS } from "@/core/codemirror/keymaps/keymaps";
-import { useUserConfig } from "@/core/config/config";
+import { configOverridesAtom, useUserConfig } from "@/core/config/config";
 import {
   UserConfigSchema,
   PackageManagerNames,
@@ -41,10 +41,13 @@ import {
   CpuIcon,
   BrainIcon,
   FlaskConicalIcon,
+  FolderCog2,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { KNOWN_AI_MODELS } from "./constants";
 import { Textarea } from "../ui/textarea";
+import { get } from "lodash-es";
+import { Tooltip } from "../ui/tooltip";
 
 const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
 
@@ -149,6 +152,10 @@ export const UserConfigForm: React.FC = () => {
                   />
                 </FormControl>
                 <FormMessage />
+                <IsOverridden
+                  userConfig={config}
+                  name="completion.codeium_api_key"
+                />
               </FormItem>
             )}
           />
@@ -184,6 +191,8 @@ export const UserConfigForm: React.FC = () => {
                         }}
                       />
                     </FormControl>
+                    <FormMessage />
+                    <IsOverridden userConfig={config} name="save.autosave" />
                   </FormItem>
                 )}
               />
@@ -212,6 +221,10 @@ export const UserConfigForm: React.FC = () => {
                       />
                     </FormControl>
                     <FormMessage />
+                    <IsOverridden
+                      userConfig={config}
+                      name="save.autosave_delay"
+                    />
                   </FormItem>
                 )}
               />
@@ -235,6 +248,11 @@ export const UserConfigForm: React.FC = () => {
                         }}
                       />
                     </FormControl>
+                    <FormMessage />
+                    <IsOverridden
+                      userConfig={config}
+                      name="save.format_on_save"
+                    />
                   </FormItem>
                 )}
               />
@@ -263,6 +281,10 @@ export const UserConfigForm: React.FC = () => {
                         />
                       </FormControl>
                       <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="formatting.line_length"
+                      />
                     </FormItem>
 
                     <FormDescription>
@@ -292,6 +314,11 @@ export const UserConfigForm: React.FC = () => {
                           }}
                         />
                       </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="completion.activate_on_typing"
+                      />
                     </FormItem>
                     <FormDescription>
                       When unchecked, code completion is still available through
@@ -340,6 +367,7 @@ export const UserConfigForm: React.FC = () => {
                         </NativeSelect>
                       </FormControl>
                       <FormMessage />
+                      <IsOverridden userConfig={config} name="keymap.preset" />
                     </FormItem>
 
                     <div>
@@ -389,6 +417,10 @@ export const UserConfigForm: React.FC = () => {
                         </NativeSelect>
                       </FormControl>
                       <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="display.default_width"
+                      />
                     </FormItem>
 
                     <FormDescription>
@@ -421,6 +453,7 @@ export const UserConfigForm: React.FC = () => {
                         </NativeSelect>
                       </FormControl>
                       <FormMessage />
+                      <IsOverridden userConfig={config} name="display.theme" />
                     </FormItem>
 
                     <FormDescription>
@@ -453,6 +486,10 @@ export const UserConfigForm: React.FC = () => {
                       </span>
                     </FormControl>
                     <FormMessage />
+                    <IsOverridden
+                      userConfig={config}
+                      name="display.code_editor_font_size"
+                    />
                   </FormItem>
                 )}
               />
@@ -481,6 +518,10 @@ export const UserConfigForm: React.FC = () => {
                         </NativeSelect>
                       </FormControl>
                       <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="display.cell_output"
+                      />
                     </FormItem>
 
                     <FormDescription>
@@ -512,6 +553,10 @@ export const UserConfigForm: React.FC = () => {
                         </NativeSelect>
                       </FormControl>
                       <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="display.dataframes"
+                      />
                     </FormItem>
 
                     <FormDescription>
@@ -552,6 +597,10 @@ export const UserConfigForm: React.FC = () => {
                       </NativeSelect>
                     </FormControl>
                     <FormMessage />
+                    <IsOverridden
+                      userConfig={config}
+                      name="package_management.manager"
+                    />
                   </FormItem>
 
                   <FormDescription>
@@ -605,6 +654,11 @@ export const UserConfigForm: React.FC = () => {
                         onCheckedChange={field.onChange}
                       />
                     </FormControl>
+                    <FormMessage />
+                    <IsOverridden
+                      userConfig={config}
+                      name="runtime.auto_instantiate"
+                    />
                   </FormItem>
 
                   <FormDescription>
@@ -636,6 +690,11 @@ export const UserConfigForm: React.FC = () => {
                         ))}
                       </NativeSelect>
                     </FormControl>
+                    <FormMessage />
+                    <IsOverridden
+                      userConfig={config}
+                      name="runtime.on_cell_change"
+                    />
                   </FormItem>
                   <FormDescription>
                     Whether marimo should automatically run cells or just mark
@@ -671,6 +730,11 @@ export const UserConfigForm: React.FC = () => {
                         ))}
                       </NativeSelect>
                     </FormControl>
+                    <FormMessage />
+                    <IsOverridden
+                      userConfig={config}
+                      name="runtime.auto_reload"
+                    />
                   </FormItem>
                   <FormDescription>
                     Whether marimo should automatically reload modules before
@@ -739,6 +803,10 @@ export const UserConfigForm: React.FC = () => {
                         </NativeSelect>
                       </FormControl>
                       <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="completion.copilot"
+                      />
                     </FormItem>
                   </div>
                 )}
@@ -770,6 +838,10 @@ export const UserConfigForm: React.FC = () => {
                         />
                       </FormControl>
                       <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="ai.open_ai.api_key"
+                      />
                     </FormItem>
                     <FormDescription>
                       Your OpenAI API key from{" "}
@@ -810,6 +882,10 @@ export const UserConfigForm: React.FC = () => {
                         />
                       </FormControl>
                       <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="ai.anthropic.api_key"
+                      />
                     </FormItem>
                     <FormDescription>
                       Your Anthropic API key from{" "}
@@ -850,6 +926,10 @@ export const UserConfigForm: React.FC = () => {
                         />
                       </FormControl>
                       <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="ai.google.api_key"
+                      />
                     </FormItem>
                     <FormDescription>
                       Your Google AI API key from{" "}
@@ -899,6 +979,10 @@ export const UserConfigForm: React.FC = () => {
                         />
                       </FormControl>
                       <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="ai.open_ai.base_url"
+                      />
                     </FormItem>
                     <FormDescription>
                       This URL can be any OpenAI-compatible API endpoint.
@@ -924,6 +1008,10 @@ export const UserConfigForm: React.FC = () => {
                         />
                       </FormControl>
                       <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="ai.open_ai.model"
+                      />
                     </FormItem>
                     <datalist id="ai-model-datalist">
                       {KNOWN_AI_MODELS.map((model) => (
@@ -959,6 +1047,7 @@ export const UserConfigForm: React.FC = () => {
                         />
                       </FormControl>
                       <FormMessage />
+                      <IsOverridden userConfig={config} name="ai.rules" />
                     </FormItem>
                     <FormDescription>
                       Custom rules to include in all AI completion prompts.
@@ -1091,5 +1180,52 @@ const SettingGroup = ({
       <SettingSubtitle className="text-base">{title}</SettingSubtitle>
       {children}
     </div>
+  );
+};
+
+const IsOverridden = ({
+  userConfig,
+  name,
+}: { userConfig: UserConfig; name: FieldPath<UserConfig> }) => {
+  const currentValue = get(userConfig, name);
+  const overrides = useAtomValue(configOverridesAtom);
+  const overriddenValue = get(overrides as UserConfig, name);
+  if (overriddenValue == null) {
+    return null;
+  }
+
+  if (currentValue === overriddenValue) {
+    return null;
+  }
+
+  return (
+    <Tooltip
+      content={
+        <>
+          <span>
+            This setting is overridden by{" "}
+            <Kbd className="inline">pyproject.toml</Kbd>.
+          </span>
+          <br />
+          <span>
+            Edit the <Kbd className="inline">pyproject.toml</Kbd> file directly
+            to change this setting.
+          </span>
+          <br />
+          <span>
+            User value: <strong>{String(currentValue)}</strong>
+          </span>
+          <br />
+          <span>
+            Project value: <strong>{String(overriddenValue)}</strong>
+          </span>
+        </>
+      }
+    >
+      <span className="text-[var(--amber-12)] text-xs flex items-center gap-1 border rounded px-2 py-1 bg-[var(--amber-2)] border-[var(--amber-6)] ml-1">
+        <FolderCog2 className="w-3 h-3" />
+        Overridden by pyproject.toml [{String(overriddenValue)}]
+      </span>
+    </Tooltip>
   );
 };

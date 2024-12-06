@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type React from "react";
-import { useUserConfig } from "@/core/config/config";
+import { useResolvedMarimoConfig } from "@/core/config/config";
 import { useRef, useState } from "react";
 import { useTheme } from "@/theme/useTheme";
 import { CellEditor } from "../editor/cell/code/cell-editor";
@@ -47,7 +47,7 @@ const scratchpadCellConfig: CellConfig = {
 
 export const ScratchPad: React.FC = () => {
   const notebookState = useNotebook();
-  const [userConfig] = useUserConfig();
+  const [userConfig] = useResolvedMarimoConfig();
   const { theme } = useTheme();
   const ref = useRef<EditorView | null>(null);
   const lastFocusedCellId = useLastFocusedCellId();

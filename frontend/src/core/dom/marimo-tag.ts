@@ -8,6 +8,7 @@ interface MarimoSettings {
   getMarimoServerToken: () => string;
   getMarimoAppConfig: () => unknown;
   getMarimoUserConfig: () => unknown;
+  getMarimoConfigOverrides: () => unknown;
   getMarimoCode: () => string;
 }
 
@@ -23,6 +24,13 @@ const domBasedMarimoSettings: MarimoSettings = {
   },
   getMarimoUserConfig: () => {
     return JSON.parse(getMarimoDOMValue("marimo-user-config", "config"));
+  },
+  getMarimoConfigOverrides: () => {
+    try {
+      return JSON.parse(getMarimoDOMValue("marimo-user-config", "overrides"));
+    } catch {
+      return {};
+    }
   },
   getMarimoCode: () => {
     const tag = document.querySelector("marimo-code");
@@ -40,6 +48,9 @@ const islandsBasedMarimoSettings: MarimoSettings = {
   getMarimoServerToken: () => {
     return "";
   },
+  getMarimoConfigOverrides: () => {
+    return {};
+  },
   getMarimoAppConfig: () => {
     return {};
   },
@@ -56,6 +67,7 @@ export const {
   getMarimoServerToken,
   getMarimoAppConfig,
   getMarimoUserConfig,
+  getMarimoConfigOverrides,
   getMarimoCode,
 } = isIslands() ? islandsBasedMarimoSettings : domBasedMarimoSettings;
 

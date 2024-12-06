@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass
-from typing import TypeVar
 
 from marimo._config.packages import infer_package_manager
+from marimo._config.utils import deep_copy
 
 if sys.version_info < (3, 11):
     from typing_extensions import NotRequired
@@ -305,7 +305,7 @@ def merge_config(
     # so that they don't get merged into the new config
     if new_config.get("keymap", {}).get("overrides") is not None:
         # Clone config to avoid modifying the original
-        config = _deep_copy(config)
+        config = deep_copy(config)
         config.get("keymap", {}).pop("overrides", {})
 
     merged = cast(
@@ -316,73 +316,18 @@ def merge_config(
     )
 
     # Patches for backward compatibility
-    if (
-        merged["runtime"]["auto_reload"] is False  # type:ignore[comparison-overlap]
-    ):
-        merged["runtime"]["auto_reload"] = "off"
-    if (
-        merged["runtime"]["auto_reload"] is True  # type:ignore[comparison-overlap]
-    ):
-        merged["runtime"]["auto_reload"] = "lazy"
-    if (
-        merged["runtime"]["auto_reload"] == "detect"  # type:ignore[comparison-overlap]
-    ):
-        merged["runtime"]["auto_reload"] = "lazy"
+    if "runtime" in merged:
+        if (
+            merged["runtime"].get("auto_reload") is False  # type:ignore[comparison-overlap]
+        ):
+            merged["runtime"]["auto_reload"] = "off"
+        elif (
+            merged["runtime"].get("auto_reload") is True  # type:ignore[comparison-overlap]
+        ):
+            merged["runtime"]["auto_reload"] = "lazy"
+        elif (
+            merged["runtime"].get("auto_reload") == "detect"  # type:ignore[comparison-overlap]
+        ):
+            merged["runtime"]["auto_reload"] = "lazy"
 
     return merged
-
-
-def _deep_copy(obj: Any) -> Any:
-    if isinstance(obj, dict):
-        return {k: _deep_copy(v) for k, v in obj.items()}  # type: ignore
-    if isinstance(obj, list):
-        return [_deep_copy(v) for v in obj]  # type: ignore
-    return obj
-
-
-SECRET_PLACEHOLDER = "********"
-
-
-def mask_secrets(config: MarimoConfig | PartialMarimoConfig) -> MarimoConfig:
-    def deep_remove_from_path(path: list[str], obj: Dict[str, Any]) -> None:
-        key = path[0]
-        if key not in obj:
-            return
-        if len(path) == 1:
-            if obj[key]:
-                obj[key] = SECRET_PLACEHOLDER
-        else:
-            deep_remove_from_path(path[1:], cast(Dict[str, Any], obj[key]))
-
-    secrets = [
-        ["ai", "open_ai", "api_key"],
-        ["ai", "anthropic", "api_key"],
-        ["ai", "google", "api_key"],
-    ]
-
-    new_config = _deep_copy(config)
-    for secret in secrets:
-        deep_remove_from_path(secret, cast(Dict[str, Any], new_config))
-
-    return new_config  # type: ignore
-
-
-T = TypeVar("T")
-
-
-def remove_secret_placeholders(config: T) -> T:
-    def deep_remove(obj: Any) -> Any:
-        if isinstance(obj, dict):
-            # Filter all keys with value SECRET_PLACEHOLDER
-            return {
-                k: deep_remove(v)
-                for k, v in obj.items()
-                if v != SECRET_PLACEHOLDER
-            }  # type: ignore
-        if isinstance(obj, list):
-            return [deep_remove(v) for v in obj]  # type: ignore
-        if obj == SECRET_PLACEHOLDER:
-            return None
-        return obj
-
-    return deep_remove(_deep_copy(config))  # type: ignore

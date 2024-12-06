@@ -1,5 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { getUserConfig, userConfigAtom } from "@/core/config/config";
+import {
+  getResolvedMarimoConfig,
+  resolvedMarimoConfigAtom,
+} from "@/core/config/config";
 import { store, waitFor } from "@/core/state/jotai";
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
@@ -40,12 +43,12 @@ function getIsLastSignedIn() {
 
 export function isCopilotEnabled() {
   const copilot = getIsLastSignedIn();
-  const userConfig = getUserConfig();
+  const userConfig = getResolvedMarimoConfig();
   return copilot && userConfig.completion.copilot === "github";
 }
 
 export function waitForEnabledCopilot() {
-  return waitFor(userConfigAtom, (value) => {
+  return waitFor(resolvedMarimoConfigAtom, (value) => {
     return value.completion.copilot === "github";
   });
 }

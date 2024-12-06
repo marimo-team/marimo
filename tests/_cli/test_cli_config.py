@@ -13,3 +13,11 @@ def test_config_show() -> None:
     output = p.stdout.decode()
     assert "User config from" in output
     assert "[formatting]" in output
+
+
+def test_config_describe() -> None:
+    p = subprocess.run(
+        ["marimo", "config", "describe"],
+        capture_output=True,
+    )
+    assert p.returncode == 0, p.stderr.decode()

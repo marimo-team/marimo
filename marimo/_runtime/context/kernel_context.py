@@ -50,7 +50,7 @@ class KernelRuntimeContext(RuntimeContext):
         return self._kernel.execution_context
 
     @property
-    def user_config(self) -> MarimoConfig:
+    def marimo_config(self) -> MarimoConfig:
         return self._kernel.user_config
 
     @property

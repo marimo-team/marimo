@@ -3,7 +3,11 @@ from __future__ import annotations
 
 from typing import Literal, Optional
 
-from marimo._config.utils import load_config
+from marimo._config.config import DEFAULT_CONFIG
+from marimo._runtime.context.types import (
+    ContextNotInitializedError,
+    get_context,
+)
 from marimo._runtime.context.utils import get_mode
 
 
@@ -14,9 +18,6 @@ class AppMeta:
     This class provides access to runtime metadata about a marimo app, such as
     its display theme and execution mode.
     """
-
-    def __init__(self) -> None:
-        self.user_config = load_config()
 
     @property
     def theme(self) -> str:
@@ -42,7 +43,13 @@ class AppMeta:
 
         - "light" or "dark", indicating the app's display theme
         """
-        theme = self.user_config["display"]["theme"] or "light"
+        try:
+            context = get_context()
+            marimo_config = context.marimo_config
+        except ContextNotInitializedError:
+            marimo_config = DEFAULT_CONFIG
+
+        theme = marimo_config["display"]["theme"] or "light"
         if theme == "system":
             # TODO(mscolnick): have frontend tell the backend the system theme
             return "light"
