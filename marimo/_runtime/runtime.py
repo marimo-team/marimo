@@ -14,7 +14,7 @@ import sys
 import threading
 import time
 import traceback
-from copy import copy
+from copy import copy, deepcopy
 from multiprocessing import connection
 from typing import TYPE_CHECKING, Any, Callable, Iterator, List, Optional, cast
 from uuid import uuid4
@@ -935,6 +935,8 @@ class Kernel:
         LOGGER.debug("Current set of errors: %s", self.errors)
         cells_before_mutation = set(self.graph.cells.keys())
         cells_with_errors_before_mutation = set(self.errors.keys())
+        edges_before = deepcopy(self.graph.children)
+        definitions_before = deepcopy(set(self.graph.definitions.keys()))
 
         # The set of cells that were successfully registered
         registered_cell_ids: set[CellId_t] = set()
@@ -1085,20 +1087,27 @@ class Kernel:
                 cell_id=cid,
             )
 
-        Variables(
-            variables=[
-                VariableDeclaration(
-                    name=variable,
-                    declared_by=list(declared_by),
-                    used_by=list(
-                        self.graph.get_referring_cells(
-                            variable, language="python"
-                        )
-                    ),
-                )
-                for variable, declared_by in self.graph.definitions.items()
-            ]
-        ).broadcast()
+        # Only broadcast Variables message if definitions changed
+        edges_after = self.graph.children
+        definitions_after = set(self.graph.definitions.keys())
+        if (
+            edges_before != edges_after
+            or definitions_before != definitions_after
+        ):
+            Variables(
+                variables=[
+                    VariableDeclaration(
+                        name=variable,
+                        declared_by=list(declared_by),
+                        used_by=list(
+                            self.graph.get_referring_cells(
+                                variable, language="python"
+                            )
+                        ),
+                    )
+                    for variable, declared_by in self.graph.definitions.items()
+                ]
+            ).broadcast()
 
         stale_cells = (
             set(
