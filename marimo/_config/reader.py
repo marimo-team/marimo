@@ -50,5 +50,7 @@ def find_nearest_pyproject_toml(
     while not path.joinpath("pyproject.toml").exists():
         if str(path) == root:
             return None
+        if path.parent == path:
+            return None
         path = path.parent
     return path.joinpath("pyproject.toml")
