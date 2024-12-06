@@ -3,8 +3,19 @@ from __future__ import annotations
 
 import abc
 import logging
+from asyncio import iscoroutine
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple
+from typing import (
+    TYPE_CHECKING,
+    Awaitable,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    TypeAlias,
+    Union,
+)
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -22,7 +33,9 @@ class ASGIAppBuilder(abc.ABC):
         with_app(path: str, root: str) -> ASGIAppBuilder:
             Adds a static application to the ASGI app at the specified path.
 
-        with_dynamic_directory(path: str, directory: str) -> ASGIAppBuilder:
+        with_dynamic_directory(
+            path: str, directory: str, validate_callback: Optional[ValidateCallback] = None
+        ) -> ASGIAppBuilder:
             Adds a dynamic directory to the ASGI app, allowing for dynamic loading of applications from the specified directory.
 
         build() -> ASGIApp:
@@ -45,7 +58,11 @@ class ASGIAppBuilder(abc.ABC):
 
     @abc.abstractmethod
     def with_dynamic_directory(
-        self, *, path: str, directory: str
+        self,
+        *,
+        path: str,
+        directory: str,
+        validate_callback: Optional[ValidateCallback] = None,
     ) -> "ASGIAppBuilder":
         """
         Adds a dynamic directory to the ASGI app, allowing for dynamic loading of applications from the specified directory.
@@ -53,6 +70,11 @@ class ASGIAppBuilder(abc.ABC):
         Args:
             path (str): The URL path where the dynamic directory will be mounted.
             directory (str): The directory containing the applications.
+            validate_callback (Optional[ValidateCallback]): A callback function to validate the application path.
+                This is useful to plug in authentication or authorization checks.
+                The validate_callback receives the application path and the scope,
+                and returns a boolean indicating whether the application is valid.
+                You may also raise an exception for a custom error message.
 
         Returns:
             ASGIAppBuilder: The builder instance for chaining.
@@ -70,6 +92,11 @@ class ASGIAppBuilder(abc.ABC):
         pass
 
 
+ValidateCallback: TypeAlias = Callable[
+    [str, "Scope"], Union[Awaitable[bool], bool]
+]
+
+
 class DynamicDirectoryMiddleware:
     def __init__(
         self,
@@ -77,12 +104,14 @@ class DynamicDirectoryMiddleware:
         base_path: str,
         directory: str,
         app_builder: Callable[[str, str], ASGIApp],
+        validate_callback: Optional[ValidateCallback] = None,
     ) -> None:
         self.app = app
         self.base_path = base_path.rstrip("/")
         self.directory = Path(directory)
         self.app_builder = app_builder
         self._app_cache: Dict[str, ASGIApp] = {}
+        self.validate_callback = validate_callback
         LOGGER.debug(
             f"Initialized DynamicDirectoryMiddleware with base_path={self.base_path}, "
             f"directory={self.directory} (exists={self.directory.exists()}, "
@@ -111,7 +140,8 @@ class DynamicDirectoryMiddleware:
         self, relative_path: str
     ) -> Optional[Tuple[Path, str]]:
         """Find a matching Python file in the directory structure.
-        Returns tuple of (matching file, remaining path) if found, None otherwise."""
+        Returns tuple of (matching file, remaining path) if found, None otherwise.
+        """
         # Try direct match first, skip if relative path has an extension
         if not Path(relative_path).suffix:
             direct_match = self.directory / f"{relative_path}.py"
@@ -138,25 +168,49 @@ class DynamicDirectoryMiddleware:
     async def __call__(
         self, scope: Scope, receive: Receive, send: Send
     ) -> None:
-        path = scope["path"]
-
         if scope["type"] not in ("http", "websocket"):
-            LOGGER.debug(
-                f"Non-HTTP/WS request type: {scope['type']}, passing through"
-            )
             await self.app(scope, receive, send)
             return
 
-        # Only handle requests starting with the base_path
-        if not path.startswith(f"{self.base_path}/"):
-            LOGGER.debug(
-                f"Path {path} doesn't start with base_path {self.base_path}/, passing through"
-            )
+        path = scope["path"]
+        if not path.startswith(self.base_path + "/"):
             await self.app(scope, receive, send)
             return
+
+        app_path = path[len(self.base_path) + 1 :]
+
+        # Empty path or starts with an underscore is not a valid app
+        if not app_path or app_path.startswith("/_"):
+            await self.app(scope, receive, send)
+            return
+
+        # Add validation check
+        if self.validate_callback:
+            from starlette.responses import Response
+
+            try:
+                valid = self.validate_callback(app_path, scope)
+                if iscoroutine(valid):
+                    valid = await valid
+            except Exception as e:
+                status_code = getattr(e, "status_code", 500)
+                headers = getattr(e, "headers", None)
+                response = Response(
+                    status_code=status_code, headers=headers, content=str(e)
+                )
+                await response(scope, receive, send)
+                return
+
+            if not valid:
+                LOGGER.debug(
+                    f"Validate callback returned False for {app_path}, ",
+                )
+                response = Response(status_code=404)
+                await response(scope, receive, send)
+                return
 
         # Extract the relative path after the base_path
-        relative_path = path[len(self.base_path) + 1 :]
+        relative_path = app_path
         if not relative_path:
             LOGGER.debug("Empty relative_path, passing through")
             await self.app(scope, receive, send)
@@ -347,7 +401,9 @@ def create_asgi_app(
     class Builder(ASGIAppBuilder):
         def __init__(self) -> None:
             self._mount_configs: List[Tuple[str, str]] = []
-            self._dynamic_directory_configs: List[Tuple[str, str]] = []
+            self._dynamic_directory_configs: List[
+                Tuple[str, str, Optional[ValidateCallback]]
+            ] = []
             self._app_cache: Dict[str, ASGIApp] = {}
 
         def with_app(self, *, path: str, root: str) -> "ASGIAppBuilder":
@@ -355,9 +411,15 @@ def create_asgi_app(
             return self
 
         def with_dynamic_directory(
-            self, *, path: str, directory: str
+            self,
+            *,
+            path: str,
+            directory: str,
+            validate_callback: Optional[ValidateCallback] = None,
         ) -> "ASGIAppBuilder":
-            self._dynamic_directory_configs.append((path, directory))
+            self._dynamic_directory_configs.append(
+                (path, directory, validate_callback)
+            )
             return self
 
         @staticmethod
@@ -428,12 +490,17 @@ def create_asgi_app(
 
             # Add dynamic directory middleware for each directory config
             app: ASGIApp = base_app
-            for path, directory in self._dynamic_directory_configs:
+            for (
+                path,
+                directory,
+                validate_callback,
+            ) in self._dynamic_directory_configs:
                 app = DynamicDirectoryMiddleware(
                     app=app,
                     base_path=path,
                     directory=directory,
                     app_builder=self._create_app_for_file,
+                    validate_callback=validate_callback,
                 )
 
             return app
