@@ -23,8 +23,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Constants
-GITHUB_REPO = "marimo-team/marimo"
-ROOT_DIR = "examples/ui"
+GITHUB_REPO = os.environ.get("GITHUB_REPO", "marimo-team/marimo")
+ROOT_DIR = os.environ.get("ROOT_DIR", "examples/ui")
 templates_dir = os.path.join(os.path.dirname(__file__), "templates")
 
 # Set up templates
