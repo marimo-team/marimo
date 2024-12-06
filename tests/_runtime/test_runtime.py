@@ -2476,3 +2476,45 @@ class TestStateTransitions:
 
         assert k.graph.cells[er_1.cell_id].runtime_state == "idle"
         assert k.graph.cells[er_2.cell_id].runtime_state == "idle"
+
+    @staticmethod
+    async def test_variables_broadcast_only_on_change(
+        mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        # Initial run defines x
+        er = exec_req.get("x = 1")
+        await k.run([er])
+        initial_messages = len(
+            [m for m in stream.messages if m[0] == "variables"]
+        )
+        assert initial_messages == 1
+
+        # Re-running same cell shouldn't broadcast Variables
+        stream.messages.clear()
+        await k.run([er])
+        assert not any(m[0] == "variables" for m in stream.messages)
+
+        # Adding a new variable should broadcast Variables
+        stream.messages.clear()
+        er_2 = exec_req.get("y = 1")
+        await k.run([er_2])
+        assert sum(1 for m in stream.messages if m[0] == "variables") == 1
+
+        # Adding a new edge should broadcast Variables
+        stream.messages.clear()
+        await k.run([exec_req.get("z = y")])
+        assert sum(1 for m in stream.messages if m[0] == "variables") == 1
+
+        # Modifying value without changing edges/defs shouldn't broadcast
+        stream.messages.clear()
+        er_2.code = "y = 2"
+        await k.run([exec_req.get_with_id(er_2.cell_id, er_2.code)])
+        assert not any(m[0] == "variables" for m in stream.messages)
+
+        # Deleting a cell should broadcast Variables
+        stream.messages.clear()
+        await k.delete_cell(DeleteCellRequest(cell_id=er_2.cell_id))
+        assert sum(1 for m in stream.messages if m[0] == "variables") == 1
