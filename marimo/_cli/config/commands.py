@@ -107,7 +107,7 @@ def describe() -> None:
                 else:
                     output.append(
                         indent(
-                            f"{yellow(key)} = {type_hint}", "  " * indent_level
+                            f"{yellow(key)}: {type_hint}", "  " * indent_level
                         )
                     )
                     output.append("")

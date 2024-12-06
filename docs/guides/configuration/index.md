@@ -88,8 +88,11 @@ For example, the following `pyproject.toml` file overrides the `autosave` settin
 in the user configuration:
 
 ```toml
-[tool.marimo.save]
-autosave = "after_delay"
+[tool.marimo.format]
+line_length = 120
+
+[tool.marimo.display]
+default_width = "full"
 ```
 
 You can override any user configuration setting in this way. To find these settings run `marimo config show`.
