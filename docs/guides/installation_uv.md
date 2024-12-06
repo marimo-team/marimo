@@ -98,22 +98,62 @@ uv run marimo edit hi.py
 ```
 
 
-### Reading a `pyproject.toml` from an already exisiing project.
-    
+### Reading a `pyproject.toml` from an Existing Project
 
-## Temporary installation
-This won't create a virtual environment folder in your working direory. 
-Instead, uv will cache all dependencies, make a temporary venv in your system, which will be destroyed after exiting the process.
+If you already have a `pyproject.toml` file—for example, when cloning an existing project—you can use the `uv sync` command to synchronize and install the dependencies defined within it:
+
+```bash
+uv sync
+uv run marimo edit hi.py
+
+```
+
+
+
+This command ensures that your environment matches the dependency specifications of the existing project, making it simple to get up and running without manually adding packages.    
+
+## Temporary Installation
+
+When you run a command with `uv tool run`, no virtual environment folder is created in your working directory. Instead, `uv` will:
+
+1. **Cache the dependencies or re-use already cached ones** that are specified.
+2. **Create a temporary virtual environment** on your system.
+3. **Remove the temporary environment** as soon as the process exits.
+
+This lightweight approach keeps your workspace clean while still providing an isolated, dependency-managed environment for running commands.
+
+For example, you can run:
 
 ```bash
 uv tool run marimo edit hi.py
 ```
-this line is 100% identical to 
+
+To specify additional requirements, enable the `--sandbox` mode by running:
+
+```bash
+uv tool run marimo edit hi.py --sandbox
+```
+While in the notebook, you can install packages as shown earlier, either using the pop-ups or through the packages tab. However, note that adding packages via the terminal is not supported in this mode. #TODO: fact check this.
+
+And the special thing: The notebook is now **fully self-contained** and can be reproduced by anyone.
+THis is because the following package metadata was added to the notebook accroding to  (PEP 723 – Inline script metadata)[https://peps.python.org/pep-0723/]
+
+
+```python
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "polars==1.16.0",
+# ]
+# ///
+```
+
+
 ```bash
 uvx marimo edit hi.py
 ```
-(`uvx` is an alias for `uv tool run`)
 
+Here, `uvx` is simply an alias for `uv tool run`.
 
 ## From URL
 
