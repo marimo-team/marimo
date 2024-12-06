@@ -1,7 +1,7 @@
 
 # Running Marimo with `uv`
 
-You can run a Marimo notebook using `uv` through one of the following methods:
+You can run a Marimo notebook using the package manager `uv` through one of the following methods:
 
 1. **Within a project environment**  
 2. **Temporary installation (cached)**  
@@ -74,7 +74,7 @@ Screenshot demonstrating the "Missing package" window.
 </div>
 
 
-1. **Using the Packages Tab**  
+3. **Using the Packages Tab**  
    Navigate to the "Packages" tab and select the desired package.
 
 <div align="center">
@@ -149,7 +149,7 @@ While working in the notebook, you can install packages through pop-ups or via t
 
 A unique feature of this setup is that the notebook becomes **fully self-contained** and reproducible by anyone. This is achieved by embedding package metadata directly within the notebook, following the guidelines of [PEP 723 – Inline Script Metadata](https://peps.python.org/pep-0723/). 
 
-When opened in a plain text editor, the notebook displays the following embedded metadata: *(#TODO: Replace this example with a screenshot from a text editor.)*
+When opened in a plain text editor, the notebook displays the following embedded metadata: *(#TODO: Replace this example with a screenshot from a text editor. and add a green circle around the metadata)*
 
 ```python
 # /// script
