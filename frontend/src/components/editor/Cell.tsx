@@ -16,7 +16,8 @@ import { saveCellConfig, sendRun, sendStdin } from "@/core/network/requests";
 import { autocompletionKeymap } from "@/core/codemirror/cm";
 import type { UserConfig } from "../../core/config/config-schema";
 import type { CellData, CellRuntimeState } from "../../core/cells/types";
-import { type CellActions, isUninstantiated } from "../../core/cells/cells";
+import type { CellActions } from "../../core/cells/cells";
+import { isUninstantiated } from "../../core/cells/utils";
 import { derefNotNull } from "../../utils/dereference";
 import { OutputArea } from "./Output";
 import { ConsoleOutput } from "./output/ConsoleOutput";
@@ -191,14 +192,14 @@ const CellComponent = (
   const disabledOrAncestorDisabled =
     cellConfig.disabled || status === "disabled-transitively";
 
-  const uninstantiated = isUninstantiated(
-    userConfig.runtime.auto_instantiate,
-    runElapsedTimeMs,
+  const uninstantiated = isUninstantiated({
+    autoInstantiate: userConfig.runtime.auto_instantiate,
+    executionTime: runElapsedTimeMs,
     status,
     errored,
     interrupted,
     stopped,
-  );
+  });
 
   const needsRun =
     uninstantiated ||

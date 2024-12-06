@@ -78,6 +78,7 @@ export class CollapsibleTree<T> {
     return new CollapsibleTree(nodes, this.id);
   }
 
+  @Memoize()
   get topLevelIds(): T[] {
     return this.nodes.map((n) => n.value);
   }
@@ -429,6 +430,7 @@ export class MultiColumn<T> {
     return MultiColumn.from(idsList);
   }
 
+  @Memoize()
   get topLevelIds(): T[][] {
     return this.columns.map((c) => c.topLevelIds);
   }
@@ -447,6 +449,7 @@ export class MultiColumn<T> {
     return iter();
   }
 
+  @Memoize()
   get inOrderIds(): T[] {
     return this.columns.flatMap((c) => c.inOrderIds);
   }
@@ -485,6 +488,11 @@ export class MultiColumn<T> {
 
   hasOnlyOneId(): boolean {
     return this.idLength === 1;
+  }
+
+  @Memoize()
+  getColumnIds(): CellColumnId[] {
+    return this.columns.map((c) => c.id);
   }
 
   indexOf(column: CollapsibleTree<T>): number {

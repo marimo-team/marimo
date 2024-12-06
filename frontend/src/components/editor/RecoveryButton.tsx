@@ -13,18 +13,40 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { downloadBlob } from "@/utils/download";
+import { useEvent } from "@/hooks/useEvent";
+import { getNotebook } from "@/core/cells/cells";
+import { notebookCells } from "@/core/cells/utils";
+import { useFilename } from "@/core/saving/filename";
 
 const RecoveryModal = (props: {
   proposedName: string;
-  getCellsAsJSON: () => string;
   closeModal: () => void;
 }): JSX.Element => {
+  const filename = useFilename();
+
   const downloadRecoveryFile = () => {
     downloadBlob(
-      new Blob([props.getCellsAsJSON()], { type: "text/plain" }),
+      new Blob([getCellsAsJSON()], { type: "text/plain" }),
       `${props.proposedName}.json`,
     );
   };
+
+  const getCellsAsJSON = useEvent(() => {
+    const notebook = getNotebook();
+    const cells = notebookCells(notebook);
+    return JSON.stringify(
+      {
+        filename: filename,
+        cells: cells.map((cell) => {
+          return { name: cell.name, code: cell.code };
+        }),
+      },
+      // no replacer
+      null,
+      // whitespace for indentation
+      2,
+    );
+  });
 
   // NB: we use markdown class to have sane styling for list, paragraph
   return (
@@ -95,9 +117,8 @@ const RecoveryModal = (props: {
 export const RecoveryButton = (props: {
   filename: string | null;
   needsSave: boolean;
-  getCellsAsJSON: () => string;
 }): JSX.Element => {
-  const { filename, needsSave, getCellsAsJSON } = props;
+  const { filename, needsSave } = props;
   const { openModal, closeModal } = useImperativeModal();
 
   const proposedName = filename === null ? "app" : filename.slice(0, -3);
@@ -105,11 +126,7 @@ export const RecoveryButton = (props: {
   const openRecoveryModal = () => {
     if (needsSave) {
       openModal(
-        <RecoveryModal
-          getCellsAsJSON={getCellsAsJSON}
-          proposedName={proposedName}
-          closeModal={closeModal}
-        />,
+        <RecoveryModal proposedName={proposedName} closeModal={closeModal} />,
       );
     }
   };

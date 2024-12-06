@@ -27,6 +27,10 @@ export const hotkeysAtom = atom((get) => {
   return new OverridingHotkeyProvider(overrides);
 });
 
+export const autoSaveConfigAtom = atom((get) => {
+  return get(userConfigAtom).save;
+});
+
 /**
  * Returns the user config.
  */

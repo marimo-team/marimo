@@ -1,7 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import {
   LayoutTemplateIcon,
-  SaveIcon,
   EditIcon,
   PlayIcon,
   SquareIcon,
@@ -11,11 +10,14 @@ import {
 import { Button } from "@/components/editor/inputs/Inputs";
 import { KeyboardShortcuts } from "@/components/editor/controls/keyboard-shortcuts";
 import { ShutdownButton } from "@/components/editor/controls/shutdown-button";
-import { RecoveryButton } from "@/components/editor/RecoveryButton";
 
 import { Tooltip } from "../../ui/tooltip";
 import { renderShortcut } from "../../shortcuts/renderShortcut";
-import { useCellActions } from "../../../core/cells/cells";
+import {
+  canUndoDeletesAtom,
+  needsRunAtom,
+  useCellActions,
+} from "../../../core/cells/cells";
 import { ConfigButton } from "../../app-config/app-config-button";
 import { LayoutSelect } from "../renderers/layout-select";
 import { NotebookMenuDropdown } from "@/components/editor/controls/notebook-menu-dropdown";
@@ -26,45 +28,32 @@ import { CommandPaletteButton } from "./command-palette-button";
 import { cn } from "@/utils/cn";
 import { HideInKioskMode } from "../kiosk-mode";
 import { Functions } from "@/utils/functions";
+import { SaveComponent } from "@/core/saving/Save";
+import { useAtomValue } from "jotai";
 
 interface ControlsProps {
-  filename: string | null;
-  needsSave: boolean;
-  onSaveNotebook: () => void;
-  getCellsAsJSON: () => string;
   presenting: boolean;
   onTogglePresenting: () => void;
   onInterrupt: () => void;
   onRun: () => void;
   closed: boolean;
   running: boolean;
-  needsRun: boolean;
-  undoAvailable: boolean;
-  appWidth: AppConfig["width"];
+  appConfig: AppConfig;
 }
 
 export const Controls = ({
-  filename,
-  needsSave,
-  onSaveNotebook,
-  getCellsAsJSON,
   presenting,
   onTogglePresenting,
   onInterrupt,
   onRun,
   closed,
   running,
-  needsRun,
-  undoAvailable,
-  appWidth,
+  appConfig,
 }: ControlsProps): JSX.Element => {
+  const appWidth = appConfig.width;
+  const undoAvailable = useAtomValue(canUndoDeletesAtom);
+  const needsRun = useAtomValue(needsRunAtom);
   const { undoDeleteCell } = useCellActions();
-
-  const handleSaveClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onSaveNotebook();
-  };
 
   let undoControl: JSX.Element | null = null;
   if (!closed && undoAvailable) {
@@ -103,25 +92,7 @@ export const Controls = ({
         )}
       >
         <HideInKioskMode>
-          {closed ? (
-            <RecoveryButton
-              filename={filename}
-              getCellsAsJSON={getCellsAsJSON}
-              needsSave={needsSave}
-            />
-          ) : (
-            <Tooltip content={renderShortcut("global.save")}>
-              <Button
-                data-testid="save-button"
-                id="save-button"
-                shape="rectangle"
-                color={needsSave ? "yellow" : "hint-green"}
-                onClick={handleSaveClick}
-              >
-                <SaveIcon strokeWidth={1.5} size={18} />
-              </Button>
-            </Tooltip>
-          )}
+          <SaveComponent kioskMode={false} appConfig={appConfig} />
         </HideInKioskMode>
 
         <Tooltip content={renderShortcut("global.hideCode")}>
