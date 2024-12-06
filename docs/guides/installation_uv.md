@@ -214,29 +214,41 @@ I'm looking for a word to describe this kind of code pattern.
 `pip install 
 I can run a script like this
 uv run https://gist.githubusercontent.com/kolibril13/f4597c16452b4b72965c8d20fe6c0978/raw/a7757d3f206d467f6e76eeea621e64b0cb92530c/benchmark.py
-``` 
 
 
-# globally installed tool
 
-This is not recommended, as dependencies will be installed globally as well. #TODO:FactCheck
+# Globally Installed Tool
 
-```
+It is generally **not recommended** to install tools globally, as dependencies will also be installed globally. *(#TODO: Fact-check this recommendation.)*
+
+### Installation
+
+To install the tool globally, use:
+
+```bash
 uv tool install marimo
 ```
 
-Use a **specific python version** (this will overwrite the previous global installation):
+### Using a Specific Python Version
 
-```
-UV_PYTHON=python3.11 uv tool install marimo 
-```
+To install the tool globally with a specific Python version, use the following command. This will overwrite any existing global installation:
 
-**Update** global version of marimo:
-```
-uv tool install marimo --upgrade.
+```bash
+UV_PYTHON=python3.11 uv tool install marimo
 ```
 
-**Uninstall**
+### Updating the Global Version
+
+To update the global version of Marimo, run:
+
+```bash
+uv tool install marimo --upgrade
 ```
-uv tool install marimo
+
+### Uninstallation
+
+To uninstall the globally installed tool, use:
+
+```bash
+uv tool uninstall marimo
 ```
