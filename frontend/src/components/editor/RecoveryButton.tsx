@@ -63,33 +63,35 @@ const RecoveryModal = (props: {
           }
         }}
       >
-        <DialogTitle className="text-accent mb-6">
+        <DialogTitle className="text-accent-foreground mb-6">
           Download unsaved changes?
         </DialogTitle>
         <DialogDescription
           className="markdown break-words"
           style={{ wordBreak: "break-word" }}
         >
-          <p>This app has unsaved changes. To recover:</p>
+          <div className="prose dark:prose-invert">
+            <p>This app has unsaved changes. To recover:</p>
 
-          <ol>
-            <li style={{ paddingBottom: "10px" }}>
-              Click the "Download" button. This will download a file
-              called&nbsp;
-              <code>{props.proposedName}.json</code>. This file contains your
-              code.
-            </li>
+            <ol>
+              <li style={{ paddingBottom: "10px" }}>
+                Click the "Download" button. This will download a file
+                called&nbsp;
+                <code>{props.proposedName}.json</code>. This file contains your
+                code.
+              </li>
 
-            <li style={{ paddingBottom: "10px" }}>
-              In your terminal, type
-              <code style={{ display: "block", padding: "10px" }}>
-                marimo recover {props.proposedName}.json {">"}{" "}
-                {props.proposedName}.py
-              </code>
-              to overwrite <code>{props.proposedName}.py</code> with the
-              recovered changes.
-            </li>
-          </ol>
+              <li style={{ paddingBottom: "10px" }}>
+                In your terminal, type
+                <code style={{ display: "block", padding: "10px" }}>
+                  marimo recover {props.proposedName}.json {">"}{" "}
+                  {props.proposedName}.py
+                </code>
+                to overwrite <code>{props.proposedName}.py</code> with the
+                recovered changes.
+              </li>
+            </ol>
+          </div>
         </DialogDescription>
         <DialogFooter>
           <Button

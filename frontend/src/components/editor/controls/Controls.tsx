@@ -28,7 +28,7 @@ import { CommandPaletteButton } from "./command-palette-button";
 import { cn } from "@/utils/cn";
 import { HideInKioskMode } from "../kiosk-mode";
 import { Functions } from "@/utils/functions";
-import { SaveComponent } from "@/core/saving/Save";
+import { SaveComponent } from "@/core/saving/save-component";
 import { useAtomValue } from "jotai";
 
 interface ControlsProps {

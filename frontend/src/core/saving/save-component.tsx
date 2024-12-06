@@ -4,10 +4,10 @@ import { useState } from "react";
 import { sendSave } from "@/core/network/requests";
 
 import { FilenameInput } from "@/components/editor/header/filename-input";
-import { WebSocketState } from "./../websocket/types";
-import { useCellActions, useNotebook, getCellConfigs } from "./../cells/cells";
-import { notebookCells } from "./../cells/utils";
-import type { AppConfig } from "./../config/config-schema";
+import { WebSocketState } from "../websocket/types";
+import { useCellActions, useNotebook, getCellConfigs } from "../cells/cells";
+import { notebookCells } from "../cells/utils";
+import type { AppConfig } from "../config/config-schema";
 import { useImperativeModal } from "../../components/modal/ImperativeModal";
 import {
   DialogContent,
@@ -18,12 +18,12 @@ import { Label } from "../../components/ui/label";
 import { Button } from "../../components/ui/button";
 import { useEvent } from "../../hooks/useEvent";
 import { Logger } from "../../utils/Logger";
-import { useAutoSave } from "./../saving/useAutoSave";
+import { useAutoSave } from "./useAutoSave";
 import { toast } from "../../components/ui/use-toast";
-import { getSerializedLayout, useLayoutState } from "./../layout/layout";
+import { getSerializedLayout, useLayoutState } from "../layout/layout";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { formatAll } from "./../codemirror/format";
-import { useFilename, useUpdateFilename } from "./../saving/filename";
+import { formatAll } from "../codemirror/format";
+import { useFilename, useUpdateFilename } from "./filename";
 import { connectionAtom } from "../network/connection";
 import { autoSaveConfigAtom } from "../config/config";
 import { lastSavedNotebookAtom, needsSaveAtom } from "./state";
@@ -41,7 +41,7 @@ interface SaveNotebookProps {
 
 export const SaveComponent = ({ kioskMode, appConfig }: SaveNotebookProps) => {
   const filename = useFilename();
-  const { saveOrNameNotebook, needsSave } = useSaveNotebook({
+  const { saveOrNameNotebook, needsSave, closed } = useSaveNotebook({
     appConfig,
     kioskMode,
   });
@@ -177,6 +177,7 @@ export function useSaveNotebook({ kioskMode, appConfig }: SaveNotebookProps) {
   return {
     saveOrNameNotebook,
     needsSave,
+    closed: connection.state === WebSocketState.CLOSED,
   };
 }
 
