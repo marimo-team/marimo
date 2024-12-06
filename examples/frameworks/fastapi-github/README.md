@@ -1,6 +1,6 @@
-# FastAPI + marimo
+# Server marimo notebooks from a GitHub repository
 
-This is a simple example of how to use FastAPI with marimo. This example programmatically creates multiple marimo apps from a GitHub repository, and then serves them as a single FastAPI app.
+In this example, we programmatically create multiple marimo apps from a GitHub repository, and then serve them as a single FastAPI app.
 
 This example includes:
 
