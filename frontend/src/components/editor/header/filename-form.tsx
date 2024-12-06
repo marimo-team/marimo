@@ -1,14 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { FilenameInput } from "@/components/editor/header/filename-input";
+import { useUpdateFilename } from "@/core/saving/filename";
 import { Paths } from "@/utils/paths";
 
 export const FilenameForm = ({
   filename,
-  setFilename,
 }: {
   filename: string | null;
-  setFilename: (filename: string) => void;
 }): JSX.Element => {
+  const setFilename = useUpdateFilename();
   return (
     <FilenameInput
       placeholderText={

@@ -1,15 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { CellId } from "./ids";
-import { arrayShallowEquals } from "@/utils/arrays";
 import { Objects } from "@/utils/objects";
 import type { EditorView } from "@codemirror/view";
-import type { LayoutState } from "../layout/layout";
-import { isEqual } from "lodash-es";
-import {
-  type NotebookState,
-  type LastSavedNotebook,
-  staleCellIds,
-} from "./cells";
+import type { NotebookState } from "./cells";
+import type { RuntimeState } from "../network/types";
 
 export function notebookIsRunning(state: NotebookState) {
   return Object.values(state.cellRuntime).some(
@@ -22,30 +16,11 @@ export function notebookQueueOrRunningCount(state: NotebookState) {
   ).length;
 }
 
-export function notebookNeedsSave(
+export function notebookNeedsRun(
   state: NotebookState,
-  layout: LayoutState,
-  lastSavedNotebook: LastSavedNotebook | undefined,
+  autoInstantiate: boolean,
 ) {
-  if (!lastSavedNotebook) {
-    return false;
-  }
-  const { cellIds, cellData } = state;
-  const data = cellIds.inOrderIds.map((cellId) => cellData[cellId]);
-  const codes = data.map((d) => d.code);
-  const configs = data.map((d) => d.config);
-  const names = data.map((d) => d.name);
-  return (
-    !arrayShallowEquals(codes, lastSavedNotebook.codes) ||
-    !arrayShallowEquals(names, lastSavedNotebook.names) ||
-    !isEqual(configs, lastSavedNotebook.configs) ||
-    !isEqual(layout.selectedLayout, lastSavedNotebook.layout.selectedLayout) ||
-    !isEqual(layout.layoutData, lastSavedNotebook.layout.layoutData)
-  );
-}
-
-export function notebookNeedsRun(state: NotebookState) {
-  return staleCellIds(state).length > 0;
+  return staleCellIds(state, autoInstantiate).length > 0;
 }
 
 export function notebookCells(state: NotebookState) {
@@ -65,16 +40,26 @@ export function notebookCellEditorViews({ cellHandles }: NotebookState) {
 
 export function disabledCellIds(state: NotebookState) {
   const { cellIds, cellData } = state;
-  return cellIds.inOrderIds
-    .map((cellId) => cellData[cellId])
-    .filter((cell) => cell.config.disabled);
+  const disabledCells: CellId[] = [];
+  for (const cellId of cellIds.inOrderIds) {
+    const cell = cellData[cellId];
+    if (cell.config.disabled) {
+      disabledCells.push(cellId);
+    }
+  }
+  return disabledCells;
 }
 
 export function enabledCellIds(state: NotebookState) {
   const { cellIds, cellData } = state;
-  return cellIds.inOrderIds
-    .map((cellId) => cellData[cellId])
-    .filter((cell) => !cell.config.disabled);
+  const enabledCells: CellId[] = [];
+  for (const cellId of cellIds.inOrderIds) {
+    const cell = cellData[cellId];
+    if (!cell.config.disabled) {
+      enabledCells.push(cellId);
+    }
+  }
+  return enabledCells;
 }
 
 export function canUndoDeletes(state: NotebookState) {
@@ -102,4 +87,62 @@ export function getDescendantsStatus(state: NotebookState, cellId: CellId) {
     errored,
     runningOrQueued,
   };
+}
+
+/**
+ * Cells that are stale and can be run.
+ */
+export function staleCellIds(state: NotebookState, autoInstantiate: boolean) {
+  const { cellIds, cellData, cellRuntime } = state;
+  return cellIds.inOrderIds.filter(
+    (cellId) =>
+      isUninstantiated({
+        autoInstantiate,
+        // runElapstedTimeMs is what we've seen in this session
+        executionTime:
+          cellRuntime[cellId].runElapsedTimeMs ??
+          // lastExecutionTime is what was seen on session start/resume
+          cellData[cellId].lastExecutionTime,
+        status: cellRuntime[cellId].status,
+        errored: cellRuntime[cellId].errored,
+        interrupted: cellRuntime[cellId].interrupted,
+        stopped: cellRuntime[cellId].stopped,
+      }) ||
+      cellData[cellId].edited ||
+      cellRuntime[cellId].interrupted ||
+      (cellRuntime[cellId].staleInputs &&
+        // if a cell is disabled, it can't be run ...
+        !(
+          cellRuntime[cellId].status === "disabled-transitively" ||
+          cellData[cellId].config.disabled
+        )),
+  );
+}
+
+export function isUninstantiated({
+  autoInstantiate,
+  executionTime,
+  status,
+  errored,
+  interrupted,
+  stopped,
+}: {
+  autoInstantiate: boolean;
+  executionTime: number | null;
+  status: RuntimeState;
+  errored: boolean;
+  interrupted: boolean;
+  stopped: boolean;
+}) {
+  return (
+    // autorun on startup is off ...
+    !autoInstantiate &&
+    // hasn't run ...
+    executionTime === null &&
+    // isn't currently queued/running &&
+    status !== "queued" &&
+    status !== "running" &&
+    // and isn't in an error state.
+    !(errored || interrupted || stopped)
+  );
 }
