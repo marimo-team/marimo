@@ -112,39 +112,44 @@ uv run marimo edit hi.py
 
 This command ensures that your environment matches the dependency specifications of the existing project, making it simple to get up and running without manually adding packages.    
 
+
 ## Temporary Installation
 
-When you run a command with `uv tool run`, no virtual environment folder is created in your working directory. Instead, `uv` performs the following actions:
+When you execute a command using `uv tool run`, no virtual environment folder is created in your working directory. Instead, `uv` takes the following steps:
 
-1. **Caches dependencies or reuses existing cached ones** as specified in the marimo notebook metadata.
+1. **Caches dependencies or reuses existing cached ones** based on the metadata in the Marimo notebook.
 2. **Creates a temporary virtual environment** on your system.
-3. **Removes the temporary environment** immediately after the process exits.
+3. **Deletes the temporary environment** immediately after the process ends.
 
 This lightweight approach keeps your workspace clean while still providing an isolated, dependency-managed environment for running commands.
 
-For example, you can run:
+For instance, you can run:
 
 ```bash
 uv tool run marimo edit hi.py
 ```
-You can install packages during the session, however the package information will be lost after ther session is closes.
-That's where the notebook metadata comes in, and here's how to use it!
+
+During the session, you can install additional packages, but their information will not be preserved once the session ends. This is where notebook metadata comes into play, as explained in the following section.
+
+---
 
 ### Specifying Additional Requirements
 
-To include additional dependencies, use the `--sandbox` option:
+To include dependency information to the metadata, use the --sandbox option:
 
 ```bash
 uv tool run marimo edit hi.py --sandbox
 ```
 
-While working in the notebook, packages can be installed as described earlier, either through pop-ups or via the packages tab. However, **adding packages via the terminal is not supported in this mode**. *( #TODO Fact-check pending.)*
+While working in the notebook, you can install packages through pop-ups or via the **Packages** tab. However, **adding packages through the terminal is not supported in sandbox mode.** *(#TODO: Fact-check this limitation.)*
 
 ---
 
 ### Fully Self-Contained Notebooks
 
-A unique feature of this setup is that the notebook becomes **fully self-contained** and reproducible by anyone. This is achieved by embedding package metadata directly in the notebook, following the guidelines of [PEP 723 – Inline Script Metadata](https://peps.python.org/pep-0723/). If you open the notebook in a plain text editor, you’ll see the following metadata embedded inside: *(#TODO: Replace this with a screenshot from the text editor.)*
+A unique feature of this setup is that the notebook becomes **fully self-contained** and reproducible by anyone. This is achieved by embedding package metadata directly within the notebook, following the guidelines of [PEP 723 – Inline Script Metadata](https://peps.python.org/pep-0723/). 
+
+When opened in a plain text editor, the notebook displays the following embedded metadata: *(#TODO: Replace this example with a screenshot from a text editor.)*
 
 ```python
 # /// script
@@ -166,28 +171,36 @@ def __():
     return (polars,)
 ```
 
-After closing the session, all dependencies will be cleard.
-Running this line will reconstruct the session:
+Once the session ends, the venv is cleared.  
+To reconstruct the session, simply run:
+
 ```bash
 uv tool run marimo edit hi.py --sandbox
 ```
 
-Marimo will auto-detect that dependencies were added in sandbox mode, so you can also just run 
+Marimo detects the embedded dependencies in sandbox mode, so you can also use:
+
 ```bash
 uv tool run marimo edit hi.py
 ```
-and the marimo cli will ask you: 
-`Run in a sandboxed venv containing this notebook's dependencies?`
 
-This can become even easier. `uvx` is an alias for `uv tool run`.
-Therefore, the two below lines are the same
+In this case, the Marimo CLI will show:
+
+```bash
+Run in a sandboxed venv containing this notebook's dependencies? 
+[Y/n]
 ```
+
+---
+
+### Simplifying with `uvx`
+
+For convenience, `uvx` is a shorthand for `uv tool run`. These two commands are equivalent:
+
+```bash
 uv tool run marimo edit hi.py
 uvx marimo edit hi.py
-
 ```
-
-
 ## From URL
 
 This pattern will run marimo from a URL.
