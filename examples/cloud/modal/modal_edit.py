@@ -6,7 +6,7 @@ import modal
 
 app = modal.App(
     image=modal.Image.debian_slim().pip_install(
-        "marimo>=0.9.32", "modal>=0.67.31", 'jupyter'
+        "marimo>=0.9.32", "modal>=0.67.31"
     ))
 
 TOKEN = secrets.token_urlsafe(16)
