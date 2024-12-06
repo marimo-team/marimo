@@ -1,58 +1,121 @@
 
-# Installation with uv
+# Running Marimo with `uv`
 
-There are four methods to run a Marimo notebook using UV:
-1.	Within a project environment
-2.	Temporary installation (cached)
-3.	Directly from a URL
-4.	Using UV as a globally installed tool
+You can run a Marimo notebook using `uv` through one of the following methods:
 
+1. **Within a project environment**  
+2. **Temporary installation (cached)**  
+3. **Directly from a URL**  
+4. **Using `uv` as a globally installed tool**
 
-# Project evnironment
+---
 
-We recommend using marimo in a project environment like this:
-```py
+## Running in a Project Environment
+
+We recommend running Marimo within a project-specific environment.  
+Here's how you can set it up:
+
+```bash
 uv venv
 uv pip install marimo
 uv run marimo edit hi.py
 ```
 
-Note: this venv can also be activated via `source .venv/bin/activate` and then marimo can be started via `marimo edit hi.py`, but this pattern is **not recommended**.  
+The `uv run` command provides the simplest way to access the virtual environment.   
 
-For specific python versions, use `uv venv --python 3.13`.
-The default python version is defined at #TODO CHECK.
+However, if you prefer to activate it manually, you can do so with the following commands:
 
-There are 3 ways to install packages.
+```bash
+source .venv/bin/activate
+marimo edit hi.py
+``` 
 
-a) Terminal: `pip install matplotlib polars`
-b) In the notebook itself type `import polars as pd` and a installation guide will pop up.
-c) Go to the packages tab, and select the package.
+---
+### Using Specific Python Versions
 
-#Todo: screen recroding of packages tab.
+To specify a Python version, add the `--python` option while creating the venv. For example:
 
-If you want to define your project dependencies in `pyproject.toml`, you can make the following workflow:
-
-```
-uv init (this will create a pyproject.toml file)
-uv add marimo  (this will add "marimo>=0.9.9" to dependencies in pyproject.toml)
-uv run marimo edit hi.py 
+```bash
+uv venv --python 3.13
 ```
 
-# Temporary installation
+```{admonition} Tip
+:class: tip
+
+uv will automatically fetch Python versions as needed — you don't need to install Python to get started.
+```
+<!-- Source: https://docs.astral.sh/uv/guides/install-python/#installing-python -->
+
+
+If no version is specified, the default Python version is used (currently: **[TODO: Specify default Python version]**).
+
+---
+
+### Installing Packages
+
+There are three ways to install additional packages:
+
+1. **Via Terminal**  
+   Run the following command:  
+   ```bash
+   uv pip install matplotlib polars
+   ```
+
+2. **Within the Notebook**  
+   Type `import polars as pd`. Run the cell, and a "Missing package" pop up window will appear.
+
+<div align="center">
+<figure>
+<img src="/_static/image.png" width="650px"/>
+<figcaption>
+Screenshot demonstrating the "Missing package" window.
+</figcaption>
+</figure>
+</div>
+
+
+1. **Using the Packages Tab**  
+   Navigate to the "Packages" tab and select the desired package.
+
+<div align="center">
+<figure>
+<img src="/_static/image-1.png" width="400px"/>
+<figcaption>
+Screenshot demonstrating the "Packages" tab.
+</figcaption>
+</figure>
+</div>
+
+
+### Defining Dependencies with `pyproject.toml`
+
+A pyproject.toml file makes it easier to manage your project’s dependencies in one place. Using the uv tool, you can quickly set up and customize your project’s environment
+
+```bash
+uv init           # Creates a pyproject.toml file
+uv add marimo     # Adds "marimo>=0.9.31" to dependencies
+uv run marimo edit hi.py
+```
+
+
+### Reading a `pyproject.toml` from an already exisiing project.
+    
+
+## Temporary installation
 This won't create a virtual environment folder in your working direory. 
 Instead, uv will cache all dependencies, make a temporary venv in your system, which will be destroyed after exiting the process.
 
-`
+```bash
 uv tool run marimo edit hi.py
-`
+```
 this line is 100% identical to 
-`
+```bash
 uvx marimo edit hi.py
-`
+```
+(`uvx` is an alias for `uv tool run`)
 
 
-
-# From URL
+## From URL
 
 This pattern will run marimo from a URL.
 
