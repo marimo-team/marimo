@@ -67,7 +67,7 @@ There are three ways to install additional packages:
 
 <div align="center">
 <figure>
-<img src="/_static/image.png" width="650px"/>
+<img src="/_static/docs-missing-package-popup.png" width="650px"/>
 <figcaption>
 Screenshot demonstrating the "Missing package" window.
 </figcaption>
@@ -79,7 +79,7 @@ Screenshot demonstrating the "Missing package" window.
 
 <div align="center">
 <figure>
-<img src="/_static/image-1.png" width="400px"/>
+<img src="/_static/docs-add-package_tab.png" width="400px"/>
 <figcaption>
 Screenshot demonstrating the "Packages" tab.
 </figcaption>
