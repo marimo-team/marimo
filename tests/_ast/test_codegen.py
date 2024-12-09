@@ -412,8 +412,8 @@ class TestGetCodes:
         app = codegen.get_app(get_filepath("test_app_with_no_cells"))
         assert app is not None
         app._cell_manager.ensure_one_cell()
-        assert app._cell_manager.names() == ["__"]
-        assert app._cell_manager.codes() == [""]
+        assert list(app._cell_manager.names()) == ["__"]
+        assert list(app._cell_manager.codes()) == [""]
 
 
 @pytest.fixture
