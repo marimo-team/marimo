@@ -536,14 +536,14 @@ def create_asgi_app(
 
             for path, root, middleware in self._mount_configs:
                 if root not in self._app_cache:
-                    app = self._create_app_for_file(
+                    single_asgi_app: ASGIApp = self._create_app_for_file(
                         base_url=path, file_path=root
                     )
                     # Apply middleware if provided
                     if middleware:
                         for m in middleware:
-                            app = m(app)
-                    self._app_cache[root] = app
+                            single_asgi_app = m(single_asgi_app)
+                    self._app_cache[root] = single_asgi_app
                 base_app.mount(path, self._app_cache[root])
 
                 # If path is not empty,
@@ -569,14 +569,14 @@ def create_asgi_app(
                     path: str,
                     file_path: str,
                 ) -> ASGIApp:
-                    single_app = self._create_app_for_file(
+                    single_asgi_app: ASGIApp = self._create_app_for_file(
                         base_url=path, file_path=file_path
                     )
                     # Apply middleware if provided.
                     if middleware:
                         for m in middleware:
-                            single_app = m(single_app)
-                    return single_app
+                            single_asgi_app = m(single_asgi_app)
+                    return single_asgi_app
 
                 # This comes after the middleware, so it's applied first.
                 app = DynamicDirectoryMiddleware(
