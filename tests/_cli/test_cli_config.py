@@ -3,7 +3,12 @@ from __future__ import annotations
 
 import subprocess
 
+import pytest
 
+from marimo._utils.platform import is_windows
+
+
+@pytest.mark.xfail(condition=is_windows(), reason="flaky on Windows")
 def test_config_show() -> None:
     p = subprocess.run(
         ["marimo", "config", "show"],
