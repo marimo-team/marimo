@@ -402,7 +402,7 @@ const GridControls: React.FC<{
   setIsLocked: (isLocked: boolean) => void;
 }> = ({ layout, setLayout, isLocked, setIsLocked }) => {
   return (
-    <div className="flex flex-row absolute pl-5 top-8 gap-4 w-full justify-end pr-[350px] pb-3 border-b z-20">
+    <div className="flex flex-row absolute pl-5 top-8 gap-4 w-full justify-end pr-[350px] pb-3 border-b z-50">
       <div className="flex flex-row items-center gap-2">
         <Label htmlFor="columns">Columns</Label>
         <NumberField
