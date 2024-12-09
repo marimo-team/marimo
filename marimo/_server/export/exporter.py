@@ -183,7 +183,7 @@ class Exporter:
 
             notebook_cell = _create_notebook_cell(cell, outputs)
             # Add metadata to the cell
-            marimo_metadata = {}
+            marimo_metadata: dict[str, Any] = {}
             if cell.config.is_different_from_default():
                 marimo_metadata["config"] = (
                     cell.config.asdict_without_defaults()
