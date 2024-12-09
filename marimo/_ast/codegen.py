@@ -223,6 +223,17 @@ def get_app(filename: Optional[str]) -> Optional[App]:
 
         return convert_from_md_to_app(contents)
 
+    # Below assumes it's a Python file
+
+    # This means it could have only the package dependencies
+    # but no actual code yet.
+    has_only_comments = all(
+        not line.strip() or line.strip().startswith("#")
+        for line in contents.splitlines()
+    )
+    if has_only_comments:
+        return None
+
     spec = importlib.util.spec_from_file_location("marimo_app", filename)
     if spec is None:
         raise RuntimeError("Failed to load module spec")

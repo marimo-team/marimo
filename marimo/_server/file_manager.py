@@ -153,7 +153,10 @@ class AppFileManager:
                 config=CellConfig(),
             )
             return empty_app
-        return InternalApp(app)
+        result = InternalApp(app)
+        # Ensure at least one cell
+        result.cell_manager.ensure_one_cell()
+        return result
 
     def rename(self, new_filename: str) -> None:
         """Rename the file."""
