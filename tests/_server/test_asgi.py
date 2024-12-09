@@ -8,6 +8,7 @@ from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse, Response
 from starlette.testclient import TestClient
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from starlette.websockets import WebSocket
 
 from marimo._server.asgi import (
@@ -140,6 +141,83 @@ class TestASGIAppBuilder(unittest.TestCase):
         assert response.status_code == 404, response.text
         response = client.get("/app1/health")
         assert response.status_code == 200, response.text
+
+    def test_app_with_middleware(self):
+        # Create a simple middleware
+        class TestMiddleware:
+            def __init__(self, app: ASGIApp):
+                self.app = app
+
+            async def __call__(
+                self,
+                scope: Scope,
+                receive: Receive,
+                send: Send,
+            ) -> None:
+                if scope["type"] == "http":
+
+                    async def wrapped_send(message: Message) -> None:
+                        if message["type"] == "http.response.start":
+                            headers: Any = dict(message.get("headers", []))
+                            headers[b"x-test-middleware"] = b"applied"
+                            message["headers"] = list(headers.items())
+                        await send(message)
+
+                    await self.app(scope, receive, wrapped_send)
+                else:
+                    await self.app(scope, receive, send)
+
+        builder = create_asgi_app(quiet=True, include_code=True)
+        builder = builder.with_app(
+            path="/app1", root=self.app1, middleware=[TestMiddleware]
+        )
+        app = builder.build()
+        client = TestClient(app)
+        response = client.get("/app1")
+        assert response.status_code == 200
+        assert response.headers["x-test-middleware"] == "applied"
+
+    def test_multiple_middleware(self):
+        def middleware1(app: ASGIApp) -> ASGIApp:
+            async def middleware_app(
+                scope: Scope, receive: Receive, send: Send
+            ) -> None:
+                async def wrapped_send(message: Message) -> None:
+                    if message["type"] == "http.response.start":
+                        headers: Any = dict(message.get("headers", []))
+                        headers[b"x-middleware-1"] = b"applied"
+                        message["headers"] = list(headers.items())
+                    await send(message)
+
+                await app(scope, receive, wrapped_send)
+
+            return middleware_app
+
+        def middleware2(app: ASGIApp) -> ASGIApp:
+            async def middleware_app(
+                scope: Scope, receive: Receive, send: Send
+            ) -> None:
+                async def wrapped_send(message: Message) -> None:
+                    if message["type"] == "http.response.start":
+                        headers: Any = dict(message.get("headers", []))
+                        headers[b"x-middleware-2"] = b"applied"
+                        message["headers"] = list(headers.items())
+                    await send(message)
+
+                await app(scope, receive, wrapped_send)
+
+            return middleware_app
+
+        builder = create_asgi_app(quiet=True, include_code=True)
+        builder = builder.with_app(
+            path="/app1", root=self.app1, middleware=[middleware1, middleware2]
+        )
+        app = builder.build()
+        client = TestClient(app)
+        response = client.get("/app1")
+        assert response.status_code == 200
+        assert response.headers["x-middleware-1"] == "applied"
+        assert response.headers["x-middleware-2"] == "applied"
 
 
 class TestDynamicDirectoryMiddleware(unittest.TestCase):
@@ -482,6 +560,63 @@ class TestDynamicDirectoryMiddleware(unittest.TestCase):
         response = client.get("/apps/blocked_app/")
         assert response.status_code == 403
         assert response.text == "403: Forbidden"
+
+    def test_dynamic_directory_middleware(self):
+        # Create test files
+        allowed_file = Path(self.temp_dir) / "my_app.py"
+        allowed_file.write_text(contents)
+
+        blocked_file = Path(self.temp_dir) / "nested/another_app.py"
+        blocked_file.write_text(contents)
+
+        class CustomMiddleware:
+            def __init__(self, app: ASGIApp):
+                self.app = app
+
+            async def __call__(
+                self, scope: Scope, receive: Receive, send: Send
+            ) -> None:
+                # Check the marimo app file as added to the scope prior.
+                file = scope["marimo_app_file"]
+                assert isinstance(file, str)
+                assert file.endswith("my_app.py") or file.endswith(
+                    "nested/another_app.py"
+                )
+
+                if scope["type"] == "http":
+
+                    async def wrapped_send(message: Message) -> None:
+                        if message["type"] == "http.response.start":
+                            headers: Any = dict(message.get("headers", []))
+                            headers[b"x-custom-middleware"] = b"applied"
+                            message["headers"] = list(headers.items())
+                        await send(message)
+
+                    await self.app(scope, receive, wrapped_send)
+                else:
+                    await self.app(scope, receive, send)
+
+        app = (
+            create_asgi_app()
+            .with_dynamic_directory(
+                path="/apps",
+                directory=self.temp_dir,
+                middleware=[CustomMiddleware],
+            )
+            .build()
+        )
+
+        client = TestClient(app)
+
+        # App
+        response = client.get("/apps/my_app/")
+        assert response.status_code == 200
+        assert response.headers["x-custom-middleware"] == "applied"
+
+        # Nested app
+        response = client.get("/apps/nested/another_app/")
+        assert response.status_code == 200
+        assert response.headers["x-custom-middleware"] == "applied"
 
 
 def default_app_builder(base_url: str, file_path: str) -> Starlette:

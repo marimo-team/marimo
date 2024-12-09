@@ -4,6 +4,7 @@ from __future__ import annotations
 import abc
 import logging
 from asyncio import iscoroutine
+from functools import partial
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -12,6 +13,7 @@ from typing import (
     Dict,
     List,
     Optional,
+    Protocol,
     Tuple,
     Union,
 )
@@ -23,6 +25,7 @@ if TYPE_CHECKING:
         from typing_extensions import TypeAlias
     else:
         from typing import TypeAlias
+
     from starlette.requests import Request
     from starlette.responses import Response
     from starlette.types import ASGIApp, Receive, Scope, Send
@@ -30,31 +33,64 @@ if TYPE_CHECKING:
 LOGGER = logging.getLogger(__name__)
 
 
+class MiddlewareFactory(Protocol):
+    def __call__(self, app: ASGIApp) -> ASGIApp: ...  # pragma: no cover
+
+
 class ASGIAppBuilder(abc.ABC):
     """
     Class for building ASGI applications.
 
     Methods:
-        with_app(path: str, root: str) -> ASGIAppBuilder:
+        with_app(
+            path: str,
+            root: str,
+            middleware: Optional[list[MiddlewareFactory]] = None,
+        ) -> ASGIAppBuilder:
             Adds a static application to the ASGI app at the specified path.
 
+            Args:
+                path (str): The URL path where the application will be mounted.
+                root (str): The root directory of the application.
+                middleware (Optional[list[MiddlewareFactory]]): Middleware to apply to the application.
+
         with_dynamic_directory(
-            path: str, directory: str, validate_callback: Optional[ValidateCallback] = None
+            path: str,
+            directory: str,
+            validate_callback: Optional[ValidateCallback] = None,
+            middleware: Optional[list[MiddlewareFactory]] = None,
         ) -> ASGIAppBuilder:
             Adds a dynamic directory to the ASGI app, allowing for dynamic loading of applications from the specified directory.
+
+            Args:
+                path (str): The URL path where the dynamic directory will be mounted.
+                directory (str): The directory containing the applications.
+                validate_callback (Optional[ValidateCallback]): A callback function to validate the application path.
+                    This is useful to plug in authentication or authorization checks.
+                    The validate_callback receives the application path and the scope,
+                    and returns a boolean indicating whether the application is valid.
+                    You may also raise an exception for a custom error message.
+                middleware (Optional[list[MiddlewareFactory]]): Middleware to apply to sub app.
 
         build() -> ASGIApp:
             Builds and returns the final ASGI application.
     """
 
     @abc.abstractmethod
-    def with_app(self, *, path: str, root: str) -> "ASGIAppBuilder":
+    def with_app(
+        self,
+        *,
+        path: str,
+        root: str,
+        middleware: Optional[list[MiddlewareFactory]] = None,
+    ) -> "ASGIAppBuilder":
         """
         Adds a static application to the ASGI app at the specified path.
 
         Args:
             path (str): The URL path where the application will be mounted.
             root (str): The root directory of the application.
+            middleware (Optional[list[MiddlewareFactory]]): Middleware to apply to the application.
 
         Returns:
             ASGIAppBuilder: The builder instance for chaining.
@@ -68,6 +104,7 @@ class ASGIAppBuilder(abc.ABC):
         path: str,
         directory: str,
         validate_callback: Optional[ValidateCallback] = None,
+        middleware: Optional[list[MiddlewareFactory]] = None,
     ) -> "ASGIAppBuilder":
         """
         Adds a dynamic directory to the ASGI app, allowing for dynamic loading of applications from the specified directory.
@@ -80,6 +117,8 @@ class ASGIAppBuilder(abc.ABC):
                 The validate_callback receives the application path and the scope,
                 and returns a boolean indicating whether the application is valid.
                 You may also raise an exception for a custom error message.
+            middleware (Optional[list[MiddlewareFactory]]): Middleware to apply to sub app. `marimo_app_file`
+            is added to the scope of the request, so middleware can access it.
 
         Returns:
             ASGIAppBuilder: The builder instance for chaining.
@@ -236,10 +275,15 @@ class DynamicDirectoryMiddleware:
             await self.app(scope, receive, send)
             return
 
-        potential_file, remaining_path = match_result
+        marimo_file, remaining_path = match_result
         LOGGER.debug(
-            f"Found matching file: {potential_file} with remaining path: {remaining_path}"
+            f"Found matching file: {marimo_file} with remaining path: {remaining_path}"
         )
+
+        # Add app_path to scope
+        # This is considered public API, so downstream middleware can access it
+        new_scope = dict(scope)
+        new_scope["marimo_app_file"] = str(marimo_file)
 
         # For HTTP requests without trailing slash, redirect only if there's no remaining path
         if (
@@ -250,12 +294,12 @@ class DynamicDirectoryMiddleware:
             LOGGER.debug(
                 "Path matches file but missing trailing slash, redirecting"
             )
-            response = self._redirect_response(scope)
-            await response(scope, receive, send)
+            response = self._redirect_response(new_scope)
+            await response(new_scope, receive, send)
             return
 
         # Create or get cached app
-        cache_key = str(potential_file)
+        cache_key = str(marimo_file)
         if cache_key not in self._app_cache:
             LOGGER.debug(f"Creating new app for {cache_key}")
             try:
@@ -269,8 +313,7 @@ class DynamicDirectoryMiddleware:
                 return
 
         # Update scope to use the remaining path
-        new_scope = dict(scope)
-        old_path = new_scope["path"]
+        old_path = scope["path"]
         new_scope["path"] = f"/{remaining_path}" if remaining_path else "/"
         LOGGER.debug(f"Updated path: {old_path} -> {new_scope['path']}")
 
@@ -405,14 +448,27 @@ def create_asgi_app(
     # support directories or code in the future
     class Builder(ASGIAppBuilder):
         def __init__(self) -> None:
-            self._mount_configs: List[Tuple[str, str]] = []
+            self._mount_configs: List[
+                Tuple[str, str, Optional[list[MiddlewareFactory]]]
+            ] = []
             self._dynamic_directory_configs: List[
-                Tuple[str, str, Optional[ValidateCallback]]
+                Tuple[
+                    str,
+                    str,
+                    Optional[ValidateCallback],
+                    Optional[list[MiddlewareFactory]],
+                ]
             ] = []
             self._app_cache: Dict[str, ASGIApp] = {}
 
-        def with_app(self, *, path: str, root: str) -> "ASGIAppBuilder":
-            self._mount_configs.append((path, root))
+        def with_app(
+            self,
+            *,
+            path: str,
+            root: str,
+            middleware: Optional[list[MiddlewareFactory]] = None,
+        ) -> "ASGIAppBuilder":
+            self._mount_configs.append((path, root, middleware))
             return self
 
         def with_dynamic_directory(
@@ -421,9 +477,10 @@ def create_asgi_app(
             path: str,
             directory: str,
             validate_callback: Optional[ValidateCallback] = None,
+            middleware: Optional[list[MiddlewareFactory]] = None,
         ) -> "ASGIAppBuilder":
             self._dynamic_directory_configs.append(
-                (path, directory, validate_callback)
+                (path, directory, validate_callback, middleware)
             )
             return self
 
@@ -477,11 +534,16 @@ def create_asgi_app(
                     url=redirect_path, status_code=301
                 )
 
-            for path, root in self._mount_configs:
+            for path, root, middleware in self._mount_configs:
                 if root not in self._app_cache:
-                    self._app_cache[root] = self._create_app_for_file(
+                    app = self._create_app_for_file(
                         base_url=path, file_path=root
                     )
+                    # Apply middleware if provided
+                    if middleware:
+                        for m in middleware:
+                            app = m(app)
+                    self._app_cache[root] = app
                 base_app.mount(path, self._app_cache[root])
 
                 # If path is not empty,
@@ -499,12 +561,29 @@ def create_asgi_app(
                 path,
                 directory,
                 validate_callback,
+                middleware,
             ) in self._dynamic_directory_configs:
+
+                def app_builder(
+                    middleware: list[MiddlewareFactory],
+                    path: str,
+                    file_path: str,
+                ) -> ASGIApp:
+                    single_app = self._create_app_for_file(
+                        base_url=path, file_path=file_path
+                    )
+                    # Apply middleware if provided.
+                    if middleware:
+                        for m in middleware:
+                            single_app = m(single_app)
+                    return single_app
+
+                # This comes after the middleware, so it's applied first.
                 app = DynamicDirectoryMiddleware(
                     app=app,
                     base_path=path,
                     directory=directory,
-                    app_builder=self._create_app_for_file,
+                    app_builder=partial(app_builder, middleware or []),
                     validate_callback=validate_callback,
                 )
 
