@@ -52,6 +52,12 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 
+DEFAULT_CELL_NAME = "__"
+
+
+def is_default_cell_name(name: str) -> bool:
+    return name == DEFAULT_CELL_NAME
+
 
 @dataclass
 class _AppConfig:
@@ -495,7 +501,7 @@ class CellManager:
         cell_id: Optional[CellId_t],
         code: str,
         config: Optional[CellConfig],
-        name: str = "__",
+        name: str = DEFAULT_CELL_NAME,
         cell: Optional[Cell] = None,
     ) -> None:
         if cell_id is None:
@@ -528,9 +534,12 @@ class CellManager:
             cell_id=self.create_cell_id(),
             code=code,
             config=cell_config,
-            name=name or "__",
+            name=name or DEFAULT_CELL_NAME,
             cell=None,
         )
+
+    def cell_name(self, cell_id: CellId_t) -> str:
+        return self._cell_data[cell_id].name
 
     def names(self) -> Iterable[str]:
         for cell_data in self._cell_data.values():

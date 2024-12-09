@@ -94,9 +94,9 @@ async def test_export_ipynb_with_outputs():
 
     # stdout
     @app.cell()
-    def cell_1():
+    def __():
         print("hello")
-        return ()
+        return
 
     # # stdout
     # @app.cell()
@@ -120,10 +120,16 @@ async def test_export_ipynb_with_outputs():
     #     return ()
 
     # display
-    @app.cell()
+    @app.cell(hide_code=True)
     def cell_4():
         x = 10
         return (x,)
+
+    # disabled
+    @app.cell(disabled=True)
+    def __():
+        print("disabled")
+        return
 
     # dependency
     @app.cell()

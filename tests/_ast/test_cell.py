@@ -6,6 +6,7 @@ from collections.abc import Awaitable
 import pytest
 
 from marimo._ast.app import App
+from marimo._ast.cell import CellConfig
 
 
 class TestCellRun:
@@ -201,3 +202,22 @@ def help_smoke() -> None:
 
     assert "Async" in f._help().text
     assert "Async" not in g._help().text
+
+
+def test_cell_config_asdict_without_defaults():
+    config = CellConfig()
+    assert config.asdict_without_defaults() == {}
+
+    config = CellConfig(hide_code=True)
+    assert config.asdict_without_defaults() == {"hide_code": True}
+
+    config = CellConfig(hide_code=False)
+    assert config.asdict_without_defaults() == {}
+
+
+def test_is_different_from_default():
+    config = CellConfig(hide_code=True)
+    assert config.is_different_from_default()
+
+    config = CellConfig(hide_code=False)
+    assert not config.is_different_from_default()
