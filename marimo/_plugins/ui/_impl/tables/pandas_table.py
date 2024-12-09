@@ -151,6 +151,6 @@ class PandasTableManagerFactory(TableManagerFactory):
             def get_unique_column_values(
                 self, column: str
             ) -> list[str | int | float]:
-                return self.as_pandas_frame()[column].unique().tolist()  # type: ignore[no-any-return]
+                return self.as_pandas_frame()[column].unique().tolist()  # type: ignore[return-value,no-any-return]
 
         return PandasTableManager

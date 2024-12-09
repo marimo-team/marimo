@@ -172,7 +172,7 @@ async def run_app_until_completion(
     instantiated_event = asyncio.Event()
 
     class DefaultSessionConsumer(SessionConsumer):
-        def __init__(self):
+        def __init__(self) -> None:
             self.did_error = False
             super().__init__(consumer_id="default")
 
