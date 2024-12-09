@@ -2,11 +2,16 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Callable, Literal
+import sys
+from dataclasses import dataclass
+from typing import Any, Callable, Literal, cast
 
+from marimo._cli.print import echo
 from marimo._config.manager import (
     get_default_config_manager,
 )
+from marimo._messaging.cell_output import CellChannel
+from marimo._messaging.errors import Error
 from marimo._messaging.ops import MessageOperation
 from marimo._messaging.types import KernelMessage
 from marimo._output.hypertext import patch_html_for_non_interactive_output
@@ -19,57 +24,87 @@ from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.models.models import InstantiateRequest
 from marimo._server.session.session_view import SessionView
 from marimo._utils.marimo_path import MarimoPath
+from marimo._utils.parse_dataclass import parse_raw
+
+
+@dataclass
+class ExportResult:
+    contents: str
+    download_filename: str
+    did_error: bool
 
 
 def export_as_script(
     path: MarimoPath,
-) -> tuple[str, str]:
+) -> ExportResult:
     file_router = AppFileRouter.from_filename(path)
     file_key = file_router.get_unique_file_key()
     assert file_key is not None
     file_manager = file_router.get_file_manager(file_key)
 
-    return Exporter().export_as_script(file_manager)
+    result = Exporter().export_as_script(file_manager)
+    return ExportResult(
+        contents=result[0],
+        download_filename=result[1],
+        did_error=False,
+    )
 
 
 def export_as_md(
     path: MarimoPath,
-) -> tuple[str, str]:
+) -> ExportResult:
     file_router = AppFileRouter.from_filename(path)
     file_key = file_router.get_unique_file_key()
     assert file_key is not None
     file_manager = file_router.get_file_manager(file_key)
 
-    return Exporter().export_as_md(file_manager)
+    result = Exporter().export_as_md(file_manager)
+    return ExportResult(
+        contents=result[0],
+        download_filename=result[1],
+        did_error=False,
+    )
 
 
 def export_as_ipynb(
     path: MarimoPath,
     sort_mode: Literal["top-down", "topological"],
-) -> tuple[str, str]:
+) -> ExportResult:
     file_router = AppFileRouter.from_filename(path)
     file_key = file_router.get_unique_file_key()
     assert file_key is not None
     file_manager = file_router.get_file_manager(file_key)
 
-    return Exporter().export_as_ipynb(file_manager, sort_mode=sort_mode)
+    result = Exporter().export_as_ipynb(file_manager, sort_mode=sort_mode)
+    return ExportResult(
+        contents=result[0],
+        download_filename=result[1],
+        did_error=False,
+    )
 
 
 async def run_app_then_export_as_ipynb(
     path: MarimoPath,
     sort_mode: Literal["top-down", "topological"],
     cli_args: SerializedCLIArgs,
-) -> tuple[str, str]:
+) -> ExportResult:
     file_router = AppFileRouter.from_filename(path)
     file_key = file_router.get_unique_file_key()
     assert file_key is not None
     file_manager = file_router.get_file_manager(file_key)
 
     with patch_html_for_non_interactive_output():
-        session_view = await run_app_until_completion(file_manager, cli_args)
+        (session_view, did_error) = await run_app_until_completion(
+            file_manager, cli_args
+        )
 
-    return Exporter().export_as_ipynb(
+    result = Exporter().export_as_ipynb(
         file_manager, sort_mode=sort_mode, session_view=session_view
+    )
+    return ExportResult(
+        contents=result[0],
+        download_filename=result[1],
+        did_error=did_error,
     )
 
 
@@ -77,7 +112,7 @@ async def run_app_then_export_as_html(
     path: MarimoPath,
     include_code: bool,
     cli_args: SerializedCLIArgs,
-) -> tuple[str, str]:
+) -> ExportResult:
     # Create a file router and file manager
     file_router = AppFileRouter.from_filename(path)
     file_key = file_router.get_unique_file_key()
@@ -85,7 +120,9 @@ async def run_app_then_export_as_html(
     file_manager = file_router.get_file_manager(file_key)
 
     config = get_default_config_manager(current_path=file_manager.path)
-    session_view = await run_app_until_completion(file_manager, cli_args)
+    session_view, did_error = await run_app_until_completion(
+        file_manager, cli_args
+    )
     # Export the session as HTML
     html, filename = Exporter().export_as_html(
         file_manager=file_manager,
@@ -97,13 +134,17 @@ async def run_app_then_export_as_html(
             files=[],
         ),
     )
-    return html, filename
+    return ExportResult(
+        contents=html,
+        download_filename=filename,
+        did_error=did_error,
+    )
 
 
 async def run_app_then_export_as_reactive_html(
     path: MarimoPath,
     include_code: bool,
-) -> tuple[str, str]:
+) -> ExportResult:
     import os
 
     from marimo._islands.island_generator import MarimoIslandGenerator
@@ -115,23 +156,51 @@ async def run_app_then_export_as_reactive_html(
     html = generator.render_html()
     basename = os.path.basename(path.absolute_name)
     filename = f"{os.path.splitext(basename)[0]}.html"
-    return html, filename
+    return ExportResult(
+        contents=html,
+        download_filename=filename,
+        did_error=False,
+    )
 
 
 async def run_app_until_completion(
     file_manager: AppFileManager,
     cli_args: SerializedCLIArgs,
-) -> SessionView:
+) -> tuple[SessionView, bool]:
     from marimo._server.sessions import Session
 
     instantiated_event = asyncio.Event()
 
-    # Create a no-op session consumer
-    class NoopSessionConsumer(SessionConsumer):
+    class DefaultSessionConsumer(SessionConsumer):
+        def __init__(self) -> None:
+            self.did_error = False
+            super().__init__(consumer_id="default")
+
         def on_start(
             self,
         ) -> Callable[[KernelMessage], None]:
             def listener(message: KernelMessage) -> None:
+                # Print errors to stderr
+                if message[0] == "cell-op":
+                    op_data = message[1]
+                    if (
+                        op_data.get("output")
+                        and op_data["output"]["channel"]
+                        == CellChannel.MARIMO_ERROR
+                    ):
+                        errors = cast(list[Any], op_data["output"]["data"])
+
+                        @dataclass
+                        class Container:
+                            error: Error
+
+                        for err in errors:
+                            parsed = parse_raw({"error": err}, Container)
+                            echo(
+                                f"{parsed.error.__class__.__name__}: {parsed.error.describe()}",
+                                file=sys.stderr,
+                            )
+                        self.did_error = True
                 if message[0] == "completed-run":
                     instantiated_event.set()
 
@@ -159,10 +228,11 @@ async def run_app_until_completion(
     )
 
     # Create a session
+    session_consumer = DefaultSessionConsumer()
     session = Session.create(
         # Any initialization ID will do
         initialization_id="_any_",
-        session_consumer=NoopSessionConsumer(consumer_id="noop"),
+        session_consumer=session_consumer,
         # Run in EDIT mode so that console outputs are captured
         mode=SessionMode.EDIT,
         app_metadata=AppMetadata(
@@ -192,4 +262,4 @@ async def run_app_until_completion(
     # Stop distributor, terminate kernel process, etc -- all information is
     # captured by the session view.
     session.close()
-    return session.session_view
+    return session.session_view, session_consumer.did_error

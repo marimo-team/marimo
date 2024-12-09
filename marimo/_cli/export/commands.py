@@ -6,10 +6,12 @@ from typing import TYPE_CHECKING, Callable, Literal
 
 import click
 
+import marimo._cli.cli_validators as validators
 from marimo._cli.parse_args import parse_args
 from marimo._cli.print import echo, green
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.export import (
+    ExportResult,
     export_as_ipynb,
     export_as_md,
     export_as_script,
@@ -34,7 +36,7 @@ def watch_and_export(
     marimo_path: MarimoPath,
     output: str,
     watch: bool,
-    export_callback: Callable[[MarimoPath], str],
+    export_callback: Callable[[MarimoPath], ExportResult],
 ) -> None:
     if watch and not output:
         raise click.UsageError(
@@ -55,14 +57,18 @@ def watch_and_export(
 
     # No watch, just run once
     if not watch:
-        data = export_callback(marimo_path)
-        write_data(data)
+        result = export_callback(marimo_path)
+        write_data(result.contents)
+        if result.did_error:
+            raise click.ClickException(
+                "Export was successful, but some cells failed to execute."
+            )
         return
 
     async def on_file_changed(file_path: Path) -> None:
         echo(f"File {str(file_path)} changed. Re-exporting to {green(output)}")
-        data = export_callback(MarimoPath(file_path))
-        write_data(data)
+        result = export_callback(MarimoPath(file_path))
+        write_data(result.contents)
 
     async def start() -> None:
         # Watch the file for changes
@@ -121,7 +127,7 @@ Optionally pass CLI args to the notebook:
     If not provided, the HTML will be printed to stdout.
     """,
 )
-@click.argument("name", required=True)
+@click.argument("name", required=True, callback=validators.is_file_path)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def html(
     name: str,
@@ -136,13 +142,12 @@ def html(
 
     cli_args = parse_args(args)
 
-    def export_callback(file_path: MarimoPath) -> str:
-        (html, _filename) = asyncio_run(
+    def export_callback(file_path: MarimoPath) -> ExportResult:
+        return asyncio_run(
             run_app_then_export_as_html(
                 file_path, include_code=include_code, cli_args=cli_args
             )
         )
-        return html
 
     return watch_and_export(MarimoPath(name), output, watch, export_callback)
 
@@ -183,7 +188,7 @@ Watch for changes and regenerate the script on modification:
     If not provided, the script will be printed to stdout.
     """,
 )
-@click.argument("name", required=True)
+@click.argument("name", required=True, callback=validators.is_file_path)
 def script(
     name: str,
     output: str,
@@ -193,8 +198,8 @@ def script(
     Export a marimo notebook as a flat script, in topological order.
     """
 
-    def export_callback(file_path: MarimoPath) -> str:
-        return export_as_script(file_path)[0]
+    def export_callback(file_path: MarimoPath) -> ExportResult:
+        return export_as_script(file_path)
 
     return watch_and_export(MarimoPath(name), output, watch, export_callback)
 
@@ -235,7 +240,7 @@ Watch for changes and regenerate the script on modification:
     If not provided, markdown will be printed to stdout.
     """,
 )
-@click.argument("name", required=True)
+@click.argument("name", required=True, callback=validators.is_file_path)
 def md(
     name: str,
     output: str,
@@ -245,8 +250,8 @@ def md(
     Export a marimo notebook as a code fenced markdown document.
     """
 
-    def export_callback(file_path: MarimoPath) -> str:
-        return export_as_md(file_path)[0]
+    def export_callback(file_path: MarimoPath) -> ExportResult:
+        return export_as_md(file_path)
 
     return watch_and_export(MarimoPath(name), output, watch, export_callback)
 
@@ -303,7 +308,7 @@ Requires nbformat to be installed.
     type=bool,
     help="Run the notebook and include outputs in the exported ipynb file.",
 )
-@click.argument("name", required=True)
+@click.argument("name", required=True, callback=validators.is_file_path)
 def ipynb(
     name: str,
     output: str,
@@ -314,19 +319,18 @@ def ipynb(
     """
     Export a marimo notebook as a Jupyter notebook in topological order.
     """
+    DependencyManager.nbformat.require(
+        why="to convert marimo notebooks to ipynb"
+    )
 
-    def export_callback(file_path: MarimoPath) -> str:
+    def export_callback(file_path: MarimoPath) -> ExportResult:
         if include_outputs:
             return asyncio_run(
                 run_app_then_export_as_ipynb(
                     file_path, sort_mode=sort, cli_args={}
                 )
-            )[0]
-        return export_as_ipynb(file_path, sort_mode=sort)[0]
-
-    DependencyManager.nbformat.require(
-        why="to convert marimo notebooks to ipynb"
-    )
+            )
+        return export_as_ipynb(file_path, sort_mode=sort)
 
     return watch_and_export(MarimoPath(name), output, watch, export_callback)
 

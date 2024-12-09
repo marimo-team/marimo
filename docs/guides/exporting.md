@@ -41,6 +41,13 @@ marimo export html notebook.py -o notebook.html --watch
 When you export from the command line, marimo runs your notebook to produce
 its visual outputs before saving as HTML.
 
+```{admonition} Note
+:class: note
+
+If any cells error during the export process, the status code will be non-zero. However, the export result may still be generated, with the error included in the output.
+Errors can be ignored by appending `|| true` to the command, e.g. `marimo export html notebook.py || true`.
+```
+
 ## Export to a Python script
 
 Export to a flat Python script in topological order, so the cells adhere to

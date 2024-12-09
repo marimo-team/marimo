@@ -379,6 +379,75 @@ def temp_md_marimo_file() -> Generator[str, None, None]:
         tmp_dir.cleanup()
 
 
+@pytest.fixture
+def temp_marimo_file_with_errors() -> Generator[str, None, None]:
+    tmp_dir = TemporaryDirectory()
+    tmp_file = os.path.join(tmp_dir.name, "notebook.py")
+    content = inspect.cleandoc(
+        """
+        import marimo
+        app = marimo.App()
+
+        @app.cell
+        def __():
+            import marimo as mo
+            return mo,
+
+        @app.cell
+        def __(mo):
+            slider = mo.ui.slider(0, 10)
+            return slider,
+
+        @app.cell
+        def __():
+            1 / 0
+            return
+
+        if __name__ == "__main__":
+            app.run()
+        """
+    )
+
+    try:
+        with open(tmp_file, "w") as f:
+            f.write(content)
+        yield tmp_file
+    finally:
+        tmp_dir.cleanup()
+
+
+@pytest.fixture
+def temp_marimo_file_with_multiple_definitions() -> Generator[str, None, None]:
+    tmp_dir = TemporaryDirectory()
+    tmp_file = os.path.join(tmp_dir.name, "notebook.py")
+    content = inspect.cleandoc(
+        """
+        import marimo
+        app = marimo.App()
+
+        @app.cell
+        def __():
+            x = 1
+            return x,
+
+        @app.cell
+        def __():
+            x = 2
+            return x,
+
+        if __name__ == "__main__":
+            app.run()
+        """
+    )
+
+    try:
+        with open(tmp_file, "w") as f:
+            f.write(content)
+        yield tmp_file
+    finally:
+        tmp_dir.cleanup()
+
+
 # Factory to create ExecutionRequests and abstract away cell ID
 class ExecReqProvider:
     def __init__(self) -> None:

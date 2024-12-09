@@ -6,6 +6,7 @@ import inspect
 import subprocess
 import sys
 from os import path
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -72,6 +73,38 @@ class TestExportHTML:
         dirname = path.dirname(temp_async_marimo_file)
         html = html.replace(dirname, "path")
         assert '<marimo-code hidden=""></marimo-code>' not in html
+
+    @staticmethod
+    def test_export_html_with_errors(
+        temp_marimo_file_with_errors: str,
+    ) -> None:
+        p = subprocess.run(
+            ["marimo", "export", "html", temp_marimo_file_with_errors],
+            capture_output=True,
+        )
+        assert p.returncode != 0, p.stderr.decode()
+        html = normalize_index_html(p.stdout.decode())
+        # Errors but still produces HTML
+        assert "ZeroDivisionError" in p.stderr.decode()
+        assert "<marimo-code" in html
+
+    @staticmethod
+    def test_export_html_with_multiple_definitions(
+        temp_marimo_file_with_multiple_definitions: str,
+    ) -> None:
+        p = subprocess.run(
+            [
+                "marimo",
+                "export",
+                "html",
+                temp_marimo_file_with_multiple_definitions,
+            ],
+            capture_output=True,
+        )
+        assert p.returncode != 0, p.stderr.decode()
+        # Errors but still produces HTML
+        assert "MultipleDefinitionError" in p.stderr.decode()
+        assert "<marimo-code" in p.stdout.decode()
 
     @pytest.mark.skipif(
         condition=DependencyManager.watchdog.has(),
@@ -148,7 +181,7 @@ class TestExportHtmlSmokeTests:
     def assert_not_errored(
         self, p: subprocess.CompletedProcess[bytes]
     ) -> None:
-        assert p.returncode == 0
+        assert p.returncode == 0, p.stderr.decode()
         assert not any(
             line.startswith("Traceback")
             for line in p.stderr.decode().splitlines()
@@ -157,6 +190,17 @@ class TestExportHtmlSmokeTests:
             line.startswith("Traceback")
             for line in p.stdout.decode().splitlines()
         )
+
+    def assert_has_errors(self, p: subprocess.CompletedProcess[bytes]) -> None:
+        assert p.returncode != 0, p.stderr.decode()
+        assert any(
+            "Export was successful, but some cells failed to execute" in line
+            for line in p.stderr.decode().splitlines()
+        ), p.stderr.decode()
+        assert not any(
+            line.startswith("Traceback")
+            for line in p.stdout.decode().splitlines()
+        ), p.stdout.decode()
 
     def test_export_intro_tutorial(self, tmp_path: pathlib.Path) -> None:
         from marimo._tutorials import intro
@@ -168,6 +212,7 @@ class TestExportHtmlSmokeTests:
             ["marimo", "export", "html", str(file), "-o", str(out)],
             capture_output=True,
         )
+        assert Path(out).exists()
         self.assert_not_errored(p)
 
     def test_export_ui_tutorial(self, tmp_path: pathlib.Path) -> None:
@@ -180,6 +225,7 @@ class TestExportHtmlSmokeTests:
             ["marimo", "export", "html", str(file), "-o", str(out)],
             capture_output=True,
         )
+        assert Path(out).exists()
         self.assert_not_errored(p)
 
     def test_export_dataflow_tutorial(self, tmp_path: pathlib.Path) -> None:
@@ -192,7 +238,7 @@ class TestExportHtmlSmokeTests:
             ["marimo", "export", "html", str(file), "-o", str(out)],
             capture_output=True,
         )
-        self.assert_not_errored(p)
+        self.assert_has_errors(p)
 
     def test_export_layout_tutorial(self, tmp_path: pathlib.Path) -> None:
         from marimo._tutorials import layout as mod
@@ -204,8 +250,13 @@ class TestExportHtmlSmokeTests:
             ["marimo", "export", "html", str(file), "-o", str(out)],
             capture_output=True,
         )
+        assert Path(out).exists()
         self.assert_not_errored(p)
 
+    @pytest.mark.skipif(
+        condition=not DependencyManager.matplotlib.has(),
+        reason="matplotlib is not installed",
+    )
     def test_export_plots_tutorial(self, tmp_path: pathlib.Path) -> None:
         from marimo._tutorials import plots as mod
 
@@ -216,6 +267,7 @@ class TestExportHtmlSmokeTests:
             ["marimo", "export", "html", str(file), "-o", str(out)],
             capture_output=True,
         )
+        assert Path(out).exists()
         self.assert_not_errored(p)
 
     def test_export_marimo_for_jupyter_users(
@@ -230,7 +282,8 @@ class TestExportHtmlSmokeTests:
             ["marimo", "export", "html", str(file), "-o", str(out)],
             capture_output=True,
         )
-        self.assert_not_errored(p)
+        assert Path(out).exists()
+        self.assert_has_errors(p)
 
 
 class TestExportScript:
@@ -256,6 +309,41 @@ class TestExportScript:
             "Cannot export a notebook with async code to a flat script"
             in p.stderr.decode()
         )
+
+    @staticmethod
+    def test_export_script_with_multiple_definitions(
+        temp_marimo_file_with_multiple_definitions: str,
+    ) -> None:
+        p = subprocess.run(
+            [
+                "marimo",
+                "export",
+                "script",
+                temp_marimo_file_with_multiple_definitions,
+            ],
+            capture_output=True,
+        )
+        assert (
+            p.returncode != 0
+        ), "Expected non-zero return code due to multiple definitions"
+        error_message = p.stderr.decode()
+        assert (
+            "MultipleDefinitionError: This app can't be run because it has multiple definitions of the name x"
+            in error_message
+        )
+
+    @staticmethod
+    def test_export_script_with_errors(
+        temp_marimo_file_with_errors: str,
+    ) -> None:
+        p = subprocess.run(
+            ["marimo", "export", "script", temp_marimo_file_with_errors],
+            capture_output=True,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+        output = p.stdout.decode()
+        output = output.replace(__version__, "0.0.0")
+        snapshot("script_with_errors.txt", output)
 
     @pytest.mark.skipif(
         condition=DependencyManager.watchdog.has() or _is_win32(),
@@ -365,6 +453,19 @@ class TestExportMarkdown:
         output = p.stdout.decode()
         output = output.replace(__version__, "0.0.0")
         snapshot("broken.txt", output)
+
+    @staticmethod
+    def test_export_markdown_with_errors(
+        temp_marimo_file_with_errors: str,
+    ) -> None:
+        p = subprocess.run(
+            ["marimo", "export", "md", temp_marimo_file_with_errors],
+            capture_output=True,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+        output = p.stdout.decode()
+        output = output.replace(__version__, "0.0.0")
+        snapshot("export_markdown_with_errors.txt", output)
 
     @pytest.mark.skipif(
         condition=DependencyManager.watchdog.has() or _is_win32(),
@@ -522,3 +623,53 @@ class TestExportIpynb:
 
         # Outputs should be different since one includes execution results
         assert no_outputs != with_outputs
+
+    @pytest.mark.skipif(
+        not DependencyManager.nbformat.has(),
+        reason="This test requires nbformat.",
+    )
+    def test_export_ipynb_with_multiple_definitions(
+        self, temp_marimo_file_with_multiple_definitions: str
+    ) -> None:
+        p = subprocess.run(
+            [
+                "marimo",
+                "export",
+                "ipynb",
+                temp_marimo_file_with_multiple_definitions,
+                "--include-outputs",
+            ],
+            capture_output=True,
+        )
+        assert p.returncode != 0, p.stderr.decode()
+        assert "MultipleDefinitionError" in p.stderr.decode()
+        assert p.stdout.decode() == ""
+
+    @pytest.mark.skipif(
+        not DependencyManager.nbformat.has(),
+        reason="This test requires nbformat.",
+    )
+    def test_export_ipynb_with_errors(
+        self, temp_marimo_file_with_errors: str
+    ) -> None:
+        p = subprocess.run(
+            [
+                "marimo",
+                "export",
+                "ipynb",
+                temp_marimo_file_with_errors,
+                "--include-outputs",
+            ],
+            capture_output=True,
+        )
+        assert p.returncode != 0, p.stderr.decode()
+        assert "ZeroDivisionError" in p.stderr.decode()
+        output = p.stdout.decode()
+        output = _delete_lines_with_files(output.replace(__version__, "0.0.0"))
+        snapshot("ipynb_with_errors.txt", output)
+
+
+def _delete_lines_with_files(output: str) -> str:
+    return "\n".join(
+        line for line in output.splitlines() if "File " not in line
+    )
