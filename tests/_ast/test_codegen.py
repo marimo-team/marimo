@@ -402,6 +402,19 @@ class TestGetCodes:
             '_ another_error\n_ and """another"""\n\n    \\t',
         ]
 
+    @staticmethod
+    def test_get_codes_app_with_only_comments() -> None:
+        app = codegen.get_app(get_filepath("test_app_with_only_comments"))
+        assert app is None
+
+    @staticmethod
+    def test_get_codes_app_with_no_cells() -> None:
+        app = codegen.get_app(get_filepath("test_app_with_no_cells"))
+        assert app is not None
+        app._cell_manager.ensure_one_cell()
+        assert list(app._cell_manager.names()) == ["__"]
+        assert list(app._cell_manager.codes()) == [""]
+
 
 @pytest.fixture
 def marimo_app() -> App:

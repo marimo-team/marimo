@@ -538,6 +538,15 @@ class CellManager:
             cell=None,
         )
 
+    def ensure_one_cell(self) -> None:
+        if not self._cell_data:
+            cell_id = self.create_cell_id()
+            self.register_cell(
+                cell_id=cell_id,
+                code="",
+                config=CellConfig(),
+            )
+
     def cell_name(self, cell_id: CellId_t) -> str:
         return self._cell_data[cell_id].name
 
