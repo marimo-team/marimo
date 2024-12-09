@@ -419,6 +419,35 @@ def inline_packages(
     )
 
 
+@click.command(help="Print all routes")
+def print_routes() -> None:
+    from starlette.applications import Starlette
+    from starlette.routing import Mount, Route, Router
+
+    from marimo._server.start import create_starlette_app
+
+    app = create_starlette_app(base_url="")
+
+    def print_all_routes(app: Any, base_path: str = "") -> None:
+        if not isinstance(app, (Starlette, Router)):
+            return
+        for route in app.routes:
+            if isinstance(route, Route) and route.methods is not None:
+                full_path = base_path + route.path
+                for method in route.methods:
+                    if method == "HEAD":
+                        continue
+                    click.echo(f"{method} {full_path}")
+            elif isinstance(route, Mount) and route.app is not None:
+                # Recursively append base path for mounted apps
+                new_base_path = base_path + route.path
+                print_all_routes(route.app, new_base_path)
+
+    print_all_routes(app)
+    return
+
+
 development.add_command(inline_packages)
 development.add_command(openapi)
 development.add_command(ps)
+development.add_command(print_routes)
