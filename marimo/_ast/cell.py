@@ -39,6 +39,16 @@ class CellConfig:
     def asdict(self) -> dict[str, Any]:
         return dataclasses.asdict(self)
 
+    def asdict_without_defaults(self) -> dict[str, Any]:
+        return {
+            k: v
+            for k, v in self.asdict().items()
+            if v != getattr(CellConfig(), k)
+        }
+
+    def is_different_from_default(self) -> bool:
+        return self != CellConfig()
+
     def configure(self, update: dict[str, Any] | CellConfig) -> None:
         """Update the config in-place.
 

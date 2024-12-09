@@ -8,6 +8,7 @@ import os
 from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
 from marimo import __version__
+from marimo._ast.app import is_default_cell_name
 from marimo._ast.cell import Cell, CellConfig, CellImpl
 from marimo._config.config import (
     DEFAULT_CONFIG,
@@ -181,6 +182,17 @@ class Exporter:
                 )
 
             notebook_cell = _create_notebook_cell(cell, outputs)
+            # Add metadata to the cell
+            marimo_metadata: dict[str, Any] = {}
+            if cell.config.is_different_from_default():
+                marimo_metadata["config"] = (
+                    cell.config.asdict_without_defaults()
+                )
+            name = file_manager.app.cell_manager.cell_name(cid)
+            if not is_default_cell_name(name):
+                marimo_metadata["name"] = name
+            if marimo_metadata:
+                notebook_cell["metadata"]["marimo"] = marimo_metadata
             notebook["cells"].append(notebook_cell)
 
         # notebook.metadata["marimo-version"] = __version__

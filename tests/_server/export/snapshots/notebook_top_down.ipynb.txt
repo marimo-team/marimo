@@ -4,7 +4,11 @@
    "cell_type": "code",
    "execution_count": null,
    "id": "Hbol",
-   "metadata": {},
+   "metadata": {
+    "marimo": {
+     "name": "result"
+    }
+   },
    "outputs": [],
    "source": [
     "z = x + y"

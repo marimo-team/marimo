@@ -22,7 +22,14 @@
    "cell_type": "code",
    "execution_count": null,
    "id": "MJUe",
-   "metadata": {},
+   "metadata": {
+    "marimo": {
+     "config": {
+      "hide_code": true
+     },
+     "name": "cell_4"
+    }
+   },
    "outputs": [],
    "source": [
     "x = 10"
@@ -32,7 +39,27 @@
    "cell_type": "code",
    "execution_count": null,
    "id": "vblA",
-   "metadata": {},
+   "metadata": {
+    "marimo": {
+     "config": {
+      "disabled": true
+     }
+    }
+   },
+   "outputs": [],
+   "source": [
+    "print(\"disabled\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "bkHC",
+   "metadata": {
+    "marimo": {
+     "name": "cell_5"
+    }
+   },
    "outputs": [
     {
      "data": {
@@ -52,8 +79,12 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "bkHC",
-   "metadata": {},
+   "id": "lEQa",
+   "metadata": {
+    "marimo": {
+     "name": "cell_6"
+    }
+   },
    "outputs": [],
    "source": [
     "import marimo as mo"
@@ -61,8 +92,12 @@
   },
   {
    "cell_type": "markdown",
-   "id": "lEQa",
-   "metadata": {},
+   "id": "PKri",
+   "metadata": {
+    "marimo": {
+     "name": "cell_7"
+    }
+   },
    "source": [
     "hello"
    ]
@@ -70,8 +105,12 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "PKri",
-   "metadata": {},
+   "id": "Xref",
+   "metadata": {
+    "marimo": {
+     "name": "cell_8"
+    }
+   },
    "outputs": [
     {
      "data": {
@@ -90,8 +129,12 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "Xref",
-   "metadata": {},
+   "id": "SFPL",
+   "metadata": {
+    "marimo": {
+     "name": "cell_11"
+    }
+   },
    "outputs": [
     {
      "data": {
@@ -110,8 +153,12 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "SFPL",
-   "metadata": {},
+   "id": "BYtC",
+   "metadata": {
+    "marimo": {
+     "name": "cell_12"
+    }
+   },
    "outputs": [
     {
      "data": {
