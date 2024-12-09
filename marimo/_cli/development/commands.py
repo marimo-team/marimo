@@ -424,7 +424,7 @@ def print_routes() -> None:
     from starlette.applications import Starlette
     from starlette.routing import Mount, Route, Router
 
-    from marimo._server.start import create_starlette_app
+    from marimo._server.main import create_starlette_app
 
     app = create_starlette_app(base_url="")
 
