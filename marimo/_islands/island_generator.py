@@ -273,10 +273,11 @@ class MarimoIslandGenerator:
         if self.has_run:
             raise ValueError("You can only call build() once")
 
-        session = await run_app_until_completion(
+        (session, did_error) = await run_app_until_completion(
             file_manager=AppFileManager.from_app(self._app),
             cli_args={},
         )
+        del did_error
         self.has_run = True
 
         for stub in self._stubs:

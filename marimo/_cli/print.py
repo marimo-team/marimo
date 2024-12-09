@@ -38,9 +38,12 @@ def muted(text: str) -> str:
 
 
 def echo(*args: Any, **kwargs: Any) -> None:
-    import click
-
     if GLOBAL_SETTINGS.QUIET:
         return
 
-    click.echo(*args, **kwargs)
+    try:
+        import click
+
+        click.echo(*args, **kwargs)
+    except ModuleNotFoundError:
+        print(*args, **kwargs)  # noqa: T201

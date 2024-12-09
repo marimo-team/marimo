@@ -209,11 +209,12 @@ async def test_export_ipynb_with_outputs():
 
     # Create a session view with outputs
     with patch_html_for_non_interactive_output():
-        session_view = await run_app_until_completion(
+        session_view, did_error = await run_app_until_completion(
             file_manager, cli_args={}
         )
     content, filename = exporter.export_as_ipynb(
         file_manager, sort_mode="top-down", session_view=session_view
     )
+    assert not did_error
     assert filename == "notebook.ipynb"
     snapshot("notebook_with_outputs.ipynb.txt", content)
