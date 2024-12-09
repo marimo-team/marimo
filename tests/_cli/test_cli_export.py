@@ -253,6 +253,10 @@ class TestExportHtmlSmokeTests:
         assert Path(out).exists()
         self.assert_not_errored(p)
 
+    @pytest.mark.skipif(
+        condition=not DependencyManager.matplotlib.has(),
+        reason="matplotlib is not installed",
+    )
     def test_export_plots_tutorial(self, tmp_path: pathlib.Path) -> None:
         from marimo._tutorials import plots as mod
 
