@@ -1,17 +1,20 @@
-# Overview
+# Key concepts
+
+This page covers marimo's key concepts:
+
+* marimo lets you rapidly experiment with data using Python, SQL, and interactive
+elements in a reproducible **notebook environment**.
+* Unlike Jupyter notebooks, marimo notebooks are reusable software artifacts.
+  marimo notebooks can be shared as as **interactive web apps** and executed as
+  **Python scripts**.
+
+## Editing notebooks
 
 marimo notebooks are **reactive**: they automatically react to your code
 changes and UI interactions and keep your notebook up-to-date, not unlike a
 spreadsheet. This makes your notebooks reproducibile, [eliminating hidden
 state](/faq.md#faq-problems); it's also what enables marimo notebooks to double as
 apps and Python scripts.
-
-```{admonition} Creating marimo notebooks
-:class: tip
-
-Make sure to first read the [getting started](/getting_started/index.md) page,
-which teaches you how to install marimo and create notebooks.
-```
 
 ```{admonition} Working with expensive notebooks
 :class: important
@@ -23,15 +26,32 @@ stale. **See our guide on working with [expensive
 notebooks](/guides/expensive_notebooks.md) for more tips.**
 ```
 
-## How marimo executes cells
+**Create your first notebook.** After [installing
+marimo](/getting_started/installation.md), create your first notebook with
+
+```bash
+marimo edit my_notebook.py
+```
+
+at the command-line.
+
+
+**The marimo library**.
+We recommend starting each marimo notebook with a cell containing a single
+line of code,
+
+```python3
+import marimo as mo
+```
+
+The marimo library lets you use interactive UI elements, layout elements,
+dynamic markdown, and more in your marimo notebooks.
+
+### How marimo executes cells
 
 A marimo notebook is made of small blocks of Python code called **cells**.
 _When you run a cell, marimo automatically runs all cells that read any global
 variables defined by that cell._ This is reactive execution.
-
-> **Reactive execution guarantees that your code and program state are
-> consistent.** It also gives notebooks a deterministic execution order,
-> letting them double as both reproducible scripts and interactive apps.
 
 <div align="center">
 <figure>
@@ -61,17 +81,6 @@ cell's code just once, creating a directed acyclic graph based on the
 global names each cell defines and reads. This is how data flows
 in a marimo notebook.
 
-**The marimo library.**
-We recommend starting each marimo notebook with a cell containing a single
-line of code,
-
-```python3
-import marimo as mo
-```
-The marimo library lets you use
-interactive UI elements, layout elements, dynamic markdown, and more in your
-marimo notebooks.
-
 
 ```{admonition} Minimize variable mutation.
 :class: warning
@@ -83,9 +92,10 @@ dataframe), you should perform the mutation in the same cell as the one that
 defines it.
 
 Learn more in our [reactivity guide](/guides/reactivity.md#reactivity-mutations).
+```
 
 
-For more on reactive execution, open the dataflow tutorial:
+For more on reactive execution, open the dataflow tutorial
 
 ```bash
 marimo tutorial dataflow
@@ -93,7 +103,7 @@ marimo tutorial dataflow
 
 or read the [reactivity guide](/guides/reactivity.md).
 
-## Visualizing outputs
+### Visualizing outputs
 
 marimo visualizes the last expression of each cell as its **output**. Outputs
 can be any Python value, including markdown and interactive elements created
@@ -123,7 +133,9 @@ marimo tutorial plots
 marimo tutorial layout
 ```
 
-## Creating interactive elements
+or read the [visualizing outputs guide](/guides/outputs.md).
+
+### Creating interactive elements
 
 The marimo library comes with many interactive stateful elements in
 [`marimo.ui`](/api/inputs/index), including simple ones like sliders, dropdowns, text fields, and file
@@ -159,13 +171,15 @@ Use [`mo.ui.run_button`](marimo.ui.run_button) to create a button that
 triggers computation when clicked; see our recipes for [an example](/recipes#create-a-button-that-triggers-computation-when-clicked).
 ```
 
-For more on interactive elements, run the UI tutorial:
+For more on interactive elements, run the UI tutorial
 
 ```bash
 marimo tutorial ui
 ```
 
-## Query dataframes and databases with SQL
+or read the [interactivity guide](/guides/interactivity.md).
+
+### Querying dataframes and databases with SQL
 
 marimo has built-in support for SQL: you can query Python dataframes,
 databases, CSVs, Google Sheets, or anything else. After executing your query,
@@ -183,10 +197,38 @@ To create a SQL cell, click on the SQL button that appears at the bottom of the
 cell array, or right click the create cell button next to a cell. Today,
 SQL in marimo is executed using [duckdb](https://duckdb.org/docs/).
 
-To learn more, run the SQL tutorial:
+To learn more, run the SQL tutorial
 
 ```bash
 marimo tutorial sql
 ```
 
 or read the [SQL guide](/guides/working_with_data/sql.md).
+
+## Running notebooks as applications
+
+You can use marimo as a notebook, similar to how you might use Jupyter.
+
+But you can also do more: because marimo notebooks are reactive and can include
+interactive elements, hiding notebook code gives you a simple web app!
+
+You can run your notebook as a read-only web app from the command-line:
+
+```bash
+marimo run my_notebook.py
+```
+
+The default renderer just hides the notebook code and concatenates outputs
+vertically. But marimo also supports [other layouts](/guides/apps.md),
+such as slides and grid.
+
+## Running notebooks as scripts
+
+Because marimo notebooks are stored as pure Python files, each notebook
+can be executed as a script from the command-line:
+
+```python
+python my_notebook.py
+```
+
+You can also [pass command-line arguments](/guides/scripts.md) to scripts.

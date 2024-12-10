@@ -5,12 +5,11 @@
   :maxdepth: 2
   :hidden:
 
-  overview
   reactivity
   interactivity
   outputs
-  expensive_notebooks
   coming_from/jupyter
+  expensive_notebooks
   working_with_data/index
   editor_features/index
   configuration/index
@@ -37,12 +36,11 @@ tutorials that you can launch with `marimo tutorial` at the command line.
 
 | Guide                                | Description                                                  |
 | :----------------------------------- | :----------------------------------------------------------- |
-| {doc}`overview`                      | An overview of basic concepts                                |
 | {doc}`reactivity`                    | How marimo runs cells                                        |
 | {doc}`interactivity`                 | Using interactive UI elements                                |
 | {doc}`outputs`                       | Creating markdown, plots, and other visual outputs           |
-| {doc}`expensive_notebooks`           | Tips for working with expensive notebooks                    |
 | {doc}`/guides/coming_from/jupyter`   | Tips for transitioning from Jupyter                          |
+| {doc}`expensive_notebooks`           | Tips for working with expensive notebooks                    |
 | {doc}`working_with_data/index`       | Using SQL cells, no-code dataframe tools, and reactive plots |
 | {doc}`editor_features/index`         | View variables, dataframe schemas, docstrings, and more      |
 | {doc}`configuration/index`           | Configure various settings                                   |

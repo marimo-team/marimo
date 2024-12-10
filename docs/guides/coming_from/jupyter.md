@@ -89,7 +89,7 @@ To adapt to the restriction, we suggest:
    of global variables.
 2. Prefixing temporary variables with an underscore (`_my_temporary`), which
    makes the variable **local** to a cell.
-3. Mutatinge variables in the cell that defines them.
+3. Mutating variables in the cell that defines them.
 
 When working with **dataframes**, you might be used to redefining the same `df`
 variable in multiple cells. That won't work in marimo. Instead, try merging
