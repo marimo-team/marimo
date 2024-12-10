@@ -1,7 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import {
-  DialogFooter,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -9,8 +8,6 @@ import {
 } from "@/components/ui/dialog";
 import { Slot } from "@radix-ui/react-slot";
 import React, { type PropsWithChildren } from "react";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import { Constants } from "@/core/constants";
 
@@ -22,14 +19,6 @@ export const FeedbackButton: React.FC<PropsWithChildren> = ({ children }) => {
       {children}
     </Slot>
   );
-};
-
-const EmojiToRating: Record<string, number> = {
-  "😡": 1,
-  "🙁": 2,
-  "😐": 3,
-  "🙂": 4,
-  "😍": 5,
 };
 
 const FeedbackModal: React.FC<{
