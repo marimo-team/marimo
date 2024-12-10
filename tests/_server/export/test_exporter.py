@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from marimo._ast.app import App, InternalApp
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.ops import CellOp
 from marimo._output.hypertext import patch_html_for_non_interactive_output
 from marimo._server.export import run_app_until_completion
 from marimo._server.export.exporter import Exporter
@@ -220,3 +223,39 @@ async def test_export_ipynb_with_outputs():
     assert not did_error
     assert filename == "notebook.ipynb"
     snapshot("notebook_with_outputs.ipynb.txt", content)
+
+
+async def test_run_until_completion_with_stop():
+    app = App()
+
+    @app.cell()
+    def cell_1():
+        import marimo as mo
+
+        return (mo,)
+
+    @app.cell()
+    def cell_2(mo):
+        mo.stop(True)
+        x = 10
+        return (x,)
+
+    @app.cell()
+    def cell_3(x):
+        y = x + 1
+        y
+        return (y,)
+
+    file_manager = AppFileManager.from_app(InternalApp(app))
+
+    session_view, did_error = await run_app_until_completion(
+        file_manager, cli_args={}
+    )
+    assert did_error is False
+    output_data = [
+        op for op in session_view.operations if isinstance(op, CellOp)
+    ]
+    serialized_out = json.dumps(
+        [op.output.data for op in output_data if op.output is not None]
+    )
+    snapshot("run_until_completion_with_stop.txt", serialized_out)
