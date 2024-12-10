@@ -2,6 +2,7 @@
 export const Constants = {
   githubPage: "https://github.com/marimo-team/marimo",
   issuesPage: "https://github.com/marimo-team/marimo/issues",
+  feedbackForm: "https://marimo.io/feedback",
 };
 
 export const KnownQueryParams = {

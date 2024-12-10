@@ -66,7 +66,18 @@ const FeedbackModal: React.FC<{
         <DialogHeader>
           <DialogTitle>Send Feedback</DialogTitle>
           <DialogDescription>
-            Let us know what you think about marimo! If you have a bug that you
+            Help us improve marimo by taking our{" "}
+            <a
+              href={Constants.feedbackForm}
+              target="_blank"
+              rel="noreferrer"
+              className="underline"
+            >
+              two-minute survey!
+            </a>
+          </DialogDescription>
+          <DialogDescription>
+            If you have a bug that you
             would like to report, please use the{" "}
             <a
               href={Constants.issuesPage}
@@ -74,9 +85,9 @@ const FeedbackModal: React.FC<{
               rel="noreferrer"
               className="underline"
             >
-              GitHub issue tracker
+              GitHub issue tracker 
             </a>
-            .
+            {" "}instead .
           </DialogDescription>
           <DialogDescription>
             Your feedback is anonymous and will help us improve marimo. Thank
