@@ -142,7 +142,7 @@ Marimo 很容易上手，为高级用户提供了很大的空间。 例如，这
 <table border="0">
   <tr>
     <td>
-      <a target="_blank" href="https://docs.marimo.io/guides/overview.html">
+      <a target="_blank" href="https://docs.marimo.io/getting_started/key_concepts.html">
         <img src="https://docs.marimo.io/_static/reactive.gif" style="max-height: 150px; width: auto; display: block" />
       </a>
     </td>
@@ -164,7 +164,7 @@ Marimo 很容易上手，为高级用户提供了很大的空间。 例如，这
   </tr>
   <tr>
     <td>
-      <a target="_blank" href="https://docs.marimo.io/guides/overview.html"> 教程 </a>
+      <a target="_blank" href="https://docs.marimo.io/getting_started/key_concepts.html"> 教程 </a>
     </td>
     <td>
       <a target="_blank" href="https://docs.marimo.io/api/inputs/index.html"> 自定义输入 </a>
