@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import datetime
 import sys
 from typing import (
     TYPE_CHECKING,
@@ -118,13 +119,14 @@ def _filter_dataframe(
 
             dtype = df[field].dtype
             resolved_values = _resolve_values(values, dtype)
-
             if is_point_selection:
                 df = df.filter(nw.col(field).is_in(resolved_values))
             elif len(resolved_values) == 1:
                 df = df.filter(nw.col(field) == resolved_values[0])
             # Range selection
-            elif len(resolved_values) == 2 and _is_numeric(values[0]):
+            elif len(resolved_values) == 2 and _is_numeric_or_date(
+                resolved_values[0]
+            ):
                 left_value, right_value = resolved_values
                 df = df.filter(
                     (nw.col(field) >= left_value)
@@ -145,14 +147,28 @@ def _filter_dataframe(
 
 def _resolve_values(values: Any, dtype: Any) -> List[Any]:
     def _coerce_value(value: Any, dtype: Any) -> Any:
-        import datetime
+        import zoneinfo
 
         if nw.Date == dtype:
+            if isinstance(value, str):
+                return datetime.date.fromisoformat(value)
             # Value is milliseconds since epoch
+            # so we convert to seconds since epoch
             return datetime.date.fromtimestamp(value / 1000)
-        if nw.Datetime == dtype:
+        if nw.Datetime == dtype and isinstance(dtype, nw.Datetime):
+            if isinstance(value, str):
+                return datetime.datetime.fromisoformat(value)
+
             # Value is milliseconds since epoch
-            return datetime.datetime.fromtimestamp(value / 1000)
+            # so we convert to seconds since epoch
+            return datetime.datetime.fromtimestamp(
+                value / 1000,
+                tz=(
+                    zoneinfo.ZoneInfo(dtype.time_zone)
+                    if dtype.time_zone
+                    else None
+                ),
+            )
         return value
 
     if isinstance(values, list):
@@ -160,11 +176,11 @@ def _resolve_values(values: Any, dtype: Any) -> List[Any]:
     return [_coerce_value(values, dtype)]
 
 
-def _is_numeric(value: Any) -> bool:
-    if isinstance(value, (int, float)):
+def _is_numeric_or_date(value: Any) -> bool:
+    if isinstance(value, (int, float, datetime.date, datetime.datetime)):
         return True
 
-    if DependencyManager.numpy.has():
+    if DependencyManager.numpy.imported():
         import numpy as np
 
         if isinstance(value, np.number):
