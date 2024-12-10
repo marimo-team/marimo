@@ -251,7 +251,17 @@ class TestAltairChart:
                     df,
                     {
                         "select_point": {
-                            "datetime_column_utc": ["1970-01-01T02:46:40Z"],
+                            "datetime_column_utc": [
+                                datetime.datetime(
+                                    1970,
+                                    1,
+                                    1,
+                                    2,
+                                    46,
+                                    40,
+                                    tzinfo=datetime.timezone.utc,
+                                ).isoformat()
+                            ],
                             "vlPoint": [1],
                         }
                     },
@@ -266,8 +276,24 @@ class TestAltairChart:
                     {
                         "select_interval": {
                             "datetime_column_utc": [
-                                "1970-01-01T01:46:40Z",
-                                "1970-02-01T01:46:40Z",
+                                datetime.datetime(
+                                    1970,
+                                    1,
+                                    1,
+                                    1,
+                                    46,
+                                    40,
+                                    tzinfo=datetime.timezone.utc,
+                                ).isoformat(),
+                                datetime.datetime(
+                                    1970,
+                                    2,
+                                    1,
+                                    1,
+                                    46,
+                                    40,
+                                    tzinfo=datetime.timezone.utc,
+                                ).isoformat(),
                             ]
                         }
                     },
@@ -282,8 +308,24 @@ class TestAltairChart:
                     {
                         "select_interval": {
                             "datetime_column_utc": [
-                                "1970-01-01T01:00:40Z",
-                                "1970-01-01T01:01:40Z",
+                                datetime.datetime(
+                                    1970,
+                                    1,
+                                    1,
+                                    1,
+                                    0,
+                                    40,
+                                    tzinfo=datetime.timezone.utc,
+                                ).isoformat(),
+                                datetime.datetime(
+                                    1970,
+                                    1,
+                                    1,
+                                    1,
+                                    1,
+                                    40,
+                                    tzinfo=datetime.timezone.utc,
+                                ).isoformat(),
                             ]
                         }
                     },
