@@ -1650,7 +1650,7 @@ class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
 
 def _convert_numpy_array(steps: Any) -> list[Numeric]:
     """Convert numpy array to list if needed."""
-    if DependencyManager.numpy.has():
+    if DependencyManager.numpy.imported():
         import numpy as np
 
         if isinstance(steps, np.ndarray):
