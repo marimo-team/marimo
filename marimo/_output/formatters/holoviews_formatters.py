@@ -41,6 +41,9 @@ class HoloViewsFormatter(FormatterFactory):
     def apply_theme(self, theme: Theme) -> None:
         import holoviews as hv  # type: ignore
 
+        # TODO: checking for has() imports the library, which is not ideal,
+        # but the importing bokeh may come after importing holoviews.
+        # We can maybe improve this hooking into the holoviews Store.renderers
         if DependencyManager.bokeh.has():
             hv.renderer("bokeh").theme = (
                 "dark_minimal" if theme == "dark" else None
