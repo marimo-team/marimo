@@ -196,11 +196,16 @@ async def run_app_until_completion(
 
                         for err in errors:
                             parsed = parse_raw({"error": err}, Container)
-                            echo(
-                                f"{parsed.error.__class__.__name__}: {parsed.error.describe()}",
-                                file=sys.stderr,
-                            )
-                        self.did_error = True
+                            # Not all errors are fatal
+                            if parsed.error.type not in [
+                                "ancestor-prevented",
+                                "ancestor-stopped",
+                            ]:
+                                echo(
+                                    f"{parsed.error.__class__.__name__}: {parsed.error.describe()}",
+                                    file=sys.stderr,
+                                )
+                                self.did_error = True
                 if message[0] == "completed-run":
                     instantiated_event.set()
 
