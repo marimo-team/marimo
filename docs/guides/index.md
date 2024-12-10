@@ -6,6 +6,7 @@
   :hidden:
 
   overview
+  installation_uv
   reactivity
   interactivity
   outputs
