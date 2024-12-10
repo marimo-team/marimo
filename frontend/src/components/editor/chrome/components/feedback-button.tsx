@@ -96,9 +96,8 @@ const FeedbackModal: React.FC<{
               </li>
             </ul>
             <p className="my-2 prose">
-              We're excited you're here as we build the future of
-              Python data tooling. Thanks for being part of our
-              community!
+              We're excited you're here as we build the future of Python data
+              tooling. Thanks for being part of our community!
             </p>
           </DialogDescription>
         </DialogHeader>
