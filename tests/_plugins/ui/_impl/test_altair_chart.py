@@ -4,7 +4,7 @@ from __future__ import annotations
 import datetime
 import json
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock
 
 import narwhals.stable.v1 as nw
@@ -44,6 +44,10 @@ if HAS_DEPS:
     import pandas as pd
 else:
     pd = Mock()
+
+
+def get_len(df: IntoDataFrame) -> int:
+    return nw.from_native(df).shape[0]
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -116,6 +120,20 @@ class TestAltairChart:
                     datetime.date(2020, 1, 8),
                     datetime.date(2020, 1, 10),
                 ],
+                "date_column_utc": [
+                    datetime.datetime(
+                        2019, 12, 29, tzinfo=datetime.timezone.utc
+                    ),
+                    datetime.datetime(
+                        2020, 1, 1, tzinfo=datetime.timezone.utc
+                    ),
+                    datetime.datetime(
+                        2020, 1, 8, tzinfo=datetime.timezone.utc
+                    ),
+                    datetime.datetime(
+                        2020, 1, 10, tzinfo=datetime.timezone.utc
+                    ),
+                ],
                 "datetime_column": [
                     datetime.datetime(2019, 12, 29),
                     datetime.datetime(2020, 1, 1),
@@ -145,7 +163,41 @@ class TestAltairChart:
             }
         }
         # Filter the DataFrame with the interval selection
-        assert len(_filter_dataframe(df, interval_selection)) == 2
+        assert get_len(_filter_dataframe(df, interval_selection)) == 2
+        first, second = _filter_dataframe(df, interval_selection)["field"]
+        assert str(first) == "value1"
+        assert str(second) == "value2"
+
+        # Date interface from isoformat
+        interval_selection = {
+            "signal_channel_2": {
+                "date_column": [
+                    datetime.date(2019, 12, 29).isoformat(),
+                    datetime.date(2020, 1, 1).isoformat(),
+                ]
+            }
+        }
+        assert get_len(_filter_dataframe(df, interval_selection)) == 2
+        first, second = _filter_dataframe(df, interval_selection)["field"]
+        assert str(first) == "value1"
+        assert str(second) == "value2"
+
+        # Date with utc
+        interval_selection = {
+            "signal_channel_2": {
+                "date_column_utc": [
+                    datetime.datetime(
+                        2019, 12, 29, tzinfo=datetime.timezone.utc
+                    ).timestamp()
+                    * 1000,
+                    datetime.datetime(
+                        2020, 1, 1, tzinfo=datetime.timezone.utc
+                    ).timestamp()
+                    * 1000,
+                ]
+            }
+        }
+        assert get_len(_filter_dataframe(df, interval_selection)) == 2
         first, second = _filter_dataframe(df, interval_selection)["field"]
         assert str(first) == "value1"
         assert str(second) == "value2"
@@ -165,6 +217,242 @@ class TestAltairChart:
         first, second = _filter_dataframe(df, interval_selection)["field"]
         assert str(first) == "value1"
         assert str(second) == "value2"
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    @pytest.mark.parametrize(
+        "df",
+        create_dataframes(
+            {
+                "datetime_column_utc": [
+                    datetime.datetime.fromtimestamp(
+                        10000, datetime.timezone.utc
+                    ),
+                    datetime.datetime.fromtimestamp(
+                        20000, datetime.timezone.utc
+                    ),
+                ],
+                "datetime_column": [
+                    datetime.datetime(2019, 12, 29),
+                    datetime.datetime(2020, 1, 1),
+                ],
+            },
+            exclude=["ibis", "duckdb"],
+        ),
+    )
+    def test_filter_dataframe_with_datetimes_as_strings(
+        df: IntoDataFrame,
+    ) -> None:
+        assert (
+            get_len(
+                _filter_dataframe(
+                    df,
+                    {
+                        "select_point": {
+                            "datetime_column_utc": [
+                                datetime.datetime(
+                                    1970,
+                                    1,
+                                    1,
+                                    2,
+                                    46,
+                                    40,
+                                    tzinfo=datetime.timezone.utc,
+                                ).isoformat()
+                            ],
+                            "vlPoint": [1],
+                        }
+                    },
+                )
+            )
+            == 1
+        )
+        assert (
+            get_len(
+                _filter_dataframe(
+                    df,
+                    {
+                        "select_interval": {
+                            "datetime_column_utc": [
+                                datetime.datetime(
+                                    1970,
+                                    1,
+                                    1,
+                                    1,
+                                    46,
+                                    40,
+                                    tzinfo=datetime.timezone.utc,
+                                ).isoformat(),
+                                datetime.datetime(
+                                    1970,
+                                    2,
+                                    1,
+                                    1,
+                                    46,
+                                    40,
+                                    tzinfo=datetime.timezone.utc,
+                                ).isoformat(),
+                            ]
+                        }
+                    },
+                )
+            )
+            == 2
+        )
+        assert (
+            get_len(
+                _filter_dataframe(
+                    df,
+                    {
+                        "select_interval": {
+                            "datetime_column_utc": [
+                                datetime.datetime(
+                                    1970,
+                                    1,
+                                    1,
+                                    1,
+                                    0,
+                                    40,
+                                    tzinfo=datetime.timezone.utc,
+                                ).isoformat(),
+                                datetime.datetime(
+                                    1970,
+                                    1,
+                                    1,
+                                    1,
+                                    1,
+                                    40,
+                                    tzinfo=datetime.timezone.utc,
+                                ).isoformat(),
+                            ]
+                        }
+                    },
+                )
+            )
+            == 0
+        )
+
+        # Non-UTC datetimes
+        assert (
+            get_len(
+                _filter_dataframe(
+                    df,
+                    {
+                        "select_interval": {
+                            "datetime_column": [
+                                datetime.datetime(2019, 12, 29).isoformat(),
+                                datetime.datetime(2020, 1, 1).isoformat(),
+                            ]
+                        }
+                    },
+                )
+            )
+            == 2
+        )
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    @pytest.mark.parametrize(
+        "df",
+        create_dataframes(
+            {
+                "datetime_column_utc": [
+                    datetime.datetime.fromtimestamp(
+                        10000, datetime.timezone.utc
+                    ),
+                    datetime.datetime.fromtimestamp(
+                        20000, datetime.timezone.utc
+                    ),
+                ],
+                "datetime_column": [
+                    datetime.datetime.fromtimestamp(10000),
+                    datetime.datetime.fromtimestamp(20000),
+                ],
+            },
+            exclude=["ibis", "duckdb"],
+        ),
+    )
+    def test_filter_dataframe_with_datetimes_as_numbers(
+        df: Any,
+    ) -> None:
+        def to_milliseconds(seconds: int) -> int:
+            return int(seconds * 1000)
+
+        milliseconds_since_epoch = to_milliseconds(10000)
+        assert (
+            get_len(
+                _filter_dataframe(
+                    df,
+                    {
+                        "select_interval": {
+                            "datetime_column_utc": [
+                                0,
+                                milliseconds_since_epoch - 1,
+                            ]
+                        }
+                    },
+                )
+            )
+            == 0
+        )
+        assert (
+            get_len(
+                _filter_dataframe(
+                    df,
+                    {
+                        "select_interval": {
+                            "datetime_column_utc": [
+                                milliseconds_since_epoch,
+                                milliseconds_since_epoch
+                                + to_milliseconds(9000),
+                            ]
+                        }
+                    },
+                )
+            )
+            == 1
+        )
+        assert (
+            get_len(
+                _filter_dataframe(
+                    df,
+                    {
+                        "select_interval": {
+                            "datetime_column_utc": [
+                                milliseconds_since_epoch,
+                                milliseconds_since_epoch
+                                + to_milliseconds(20000),
+                            ]
+                        }
+                    },
+                )
+            )
+            == 2
+        )
+
+        # non-UTC datetimes
+        assert (
+            get_len(
+                _filter_dataframe(
+                    df,
+                    {
+                        "select_interval": {
+                            "datetime_column": [
+                                0,
+                                datetime.datetime(2020, 1, 1)
+                                .now()
+                                .timestamp(),
+                            ]
+                        }
+                    },
+                )
+            )
+            == 2
+        )
 
     @staticmethod
     async def test_altair_settings_when_set(
