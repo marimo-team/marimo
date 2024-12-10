@@ -183,7 +183,7 @@ the [`examples/`](examples/) folder, and our [gallery](https://marimo.io/gallery
 <table border="0">
   <tr>
     <td>
-      <a target="_blank" href="https://docs.marimo.io/guides/overview.html">
+      <a target="_blank" href="https://docs.marimo.io/getting_started/key_concepts.html">
         <img src="https://docs.marimo.io/_static/reactive.gif" style="max-height: 150px; width: auto; display: block" />
       </a>
     </td>
@@ -205,7 +205,7 @@ the [`examples/`](examples/) folder, and our [gallery](https://marimo.io/gallery
   </tr>
   <tr>
     <td>
-      <a target="_blank" href="https://docs.marimo.io/guides/overview.html"> Tutorial </a>
+      <a target="_blank" href="https://docs.marimo.io/getting_started/key_concepts.html"> Tutorial </a>
     </td>
     <td>
       <a target="_blank" href="https://docs.marimo.io/api/inputs/index.html"> Inputs </a>

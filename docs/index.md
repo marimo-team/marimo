@@ -192,7 +192,7 @@ GitHub to learn more.
 <table border="0">
   <tr>
     <td>
-      <a target="_blank" href="/guides/overview.md">
+      <a target="_blank" href="/getting_started/key_concepts.md">
         <img src="/_static/reactive.gif" style="max-height: 150px; width: auto; display: block" />
       </a>
     </td>
@@ -214,7 +214,7 @@ GitHub to learn more.
   </tr>
   <tr>
     <td>
-      <a target="_blank" href="/guides/overview.md"> Tutorial </a>
+      <a target="_blank" href="/getting_started/key_concepts.md"> Tutorial </a>
     </td>
     <td>
       <a target="_blank" href="/api/inputs/index.md"> Inputs </a>

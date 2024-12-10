@@ -1,4 +1,4 @@
-# Expensive notebooks
+# Working with expensive notebooks
 
 marimo provides tools to control when cells run. Use these tools to
 prevent expensive cells, which may call APIs or take a long time to run, from
