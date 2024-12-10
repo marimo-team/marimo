@@ -15,6 +15,7 @@ from marimo._plugins.ui._impl.tables.narwhals_table import (
     NarwhalsTableManager,
 )
 from marimo._plugins.ui._impl.tables.table_manager import TableManager
+from marimo._plugins.ui._impl.tables.utils import get_table_manager
 from marimo._utils.narwhals_utils import unwrap_py_scalar
 from tests._data.mocks import create_dataframes
 from tests.mocks import snapshotter
@@ -771,3 +772,25 @@ def test_get_sample_values_with_metadata_only_frame(df: Any) -> None:
     assert sample_values == []
     sample_values = manager.get_sample_values("B")
     assert sample_values == []
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes({f"col_{i}": [1, 2, 3] for i in range(2000)}),
+)
+def test_get_field_types_with_many_columns_is_performant(df: Any) -> None:
+    import time
+
+    manager = get_table_manager(df)
+
+    start_time = time.time()
+    manager.get_field_types()
+    end_time = time.time()
+
+    # This can be slow if get_field_types is not optimized.
+    # https://github.com/marimo-team/marimo/issues/3107
+    total_ms = (end_time - start_time) * 1000
+    assert (
+        total_ms < 300
+    ), f"Total time: {total_ms}ms for {df.shape[1]} columns with {type(df)}"

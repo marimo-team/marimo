@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import json
+from functools import cached_property
 from typing import Any, Optional, Tuple, Union, cast
 
 import narwhals.stable.v1 as nw
-from narwhals.typing import IntoFrameT
+from narwhals.stable.v1.typing import IntoFrameT
 
 from marimo._data.models import ColumnSummary, ExternalDataType
 from marimo._plugins.ui._impl.tables.format import (
@@ -101,10 +102,14 @@ class NarwhalsTableManager(
     def is_type(value: Any) -> bool:
         return can_narwhalify(value)
 
+    @cached_property
+    def nw_schema(self) -> nw.Schema:
+        return cast(nw.Schema, self.data.schema)
+
     def get_field_type(
         self, column_name: str
     ) -> Tuple[FieldType, ExternalDataType]:
-        dtype = self.data.schema[column_name]
+        dtype = self.nw_schema[column_name]
         dtype_string = str(dtype)
         if is_narwhals_string_type(dtype):
             return ("string", dtype_string)
@@ -130,7 +135,7 @@ class NarwhalsTableManager(
         query = query.lower()
 
         expressions: list[Any] = []
-        for column, dtype in self.data.schema.items():
+        for column, dtype in self.nw_schema.items():
             if dtype == nw.String:
                 expressions.append(nw.col(column).str.contains(query))
             elif dtype == nw.List(nw.String):
@@ -166,7 +171,7 @@ class NarwhalsTableManager(
 
     def _get_summary_internal(self, column: str) -> ColumnSummary:
         # If column is not in the dataframe, return an empty summary
-        if column not in self.data.schema:
+        if column not in self.nw_schema:
             return ColumnSummary()
         col = self.data[column]
         total = len(col)
@@ -224,9 +229,9 @@ class NarwhalsTableManager(
         return ColumnSummary(
             total=total,
             nulls=col.null_count(),
-            unique=col.n_unique()
-            if is_narwhals_integer_type(col.dtype)
-            else None,
+            unique=(
+                col.n_unique() if is_narwhals_integer_type(col.dtype) else None
+            ),
             min=col.min(),
             max=col.max(),
             mean=col.mean(),
@@ -255,10 +260,10 @@ class NarwhalsTableManager(
             return None
 
     def get_num_columns(self) -> int:
-        return len(self.data.schema.names())
+        return len(self.nw_schema.names())
 
     def get_column_names(self) -> list[str]:
-        return self.data.schema.names()
+        return self.nw_schema.names()
 
     def get_unique_column_values(self, column: str) -> list[str | int | float]:
         return self.data[column].unique().to_list()

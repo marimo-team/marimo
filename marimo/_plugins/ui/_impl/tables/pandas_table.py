@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import Any, Optional, Tuple
 
 import narwhals.stable.v1 as nw
@@ -31,13 +32,12 @@ class PandasTableManagerFactory(TableManagerFactory):
             type = "pandas"
 
             def __init__(self, data: pd.DataFrame) -> None:
+                self._original_data = data
                 super().__init__(nw.from_native(data))
 
-            def as_pandas_frame(self) -> pd.DataFrame:
-                native: Any = self.data.to_native()
-                if isinstance(native, pd.DataFrame):
-                    return native
-                raise ValueError(f"Unsupported native type: {type(native)}")
+            @cached_property
+            def schema(self) -> pd.Series[Any]:
+                return self._original_data.dtypes  # type: ignore
 
             # We override narwhals's to_csv to handle pandas
             # headers
@@ -47,16 +47,13 @@ class PandasTableManagerFactory(TableManagerFactory):
                 has_headers = len(self.get_row_headers()) > 0
                 return (
                     self.apply_formatting(format_mapping)
-                    .as_pandas_frame()
-                    .to_csv(index=has_headers)
+                    ._original_data.to_csv(index=has_headers)
                     .encode("utf-8")
                 )
 
             def to_json(self) -> bytes:
-                return (
-                    self.as_pandas_frame()
-                    .to_json(orient="records")
-                    .encode("utf-8")
+                return self._original_data.to_json(orient="records").encode(
+                    "utf-8"
                 )
 
             def apply_formatting(
@@ -65,7 +62,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                 if not format_mapping:
                     return self
 
-                _data = self.as_pandas_frame().copy()
+                _data = self._original_data.copy()
                 for col in _data.columns:
                     if col in format_mapping:
                         _data[col] = _data[col].apply(
@@ -81,7 +78,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                 self,
             ) -> list[str]:
                 return PandasTableManager._get_row_headers_for_index(
-                    self.as_pandas_frame().index
+                    self._original_data.index
                 )
 
             @staticmethod
@@ -114,14 +111,13 @@ class PandasTableManagerFactory(TableManagerFactory):
             def get_field_type(
                 self, column_name: str
             ) -> Tuple[FieldType, ExternalDataType]:
-                data = self.as_pandas_frame()
-                series = data[column_name]
+                dtype = self.schema[column_name]
                 # If a df has duplicate columns, it won't be a series, but
                 # a dataframe. In this case, we take the dtype of the columns
-                if isinstance(series, pd.DataFrame):
-                    dtype = str(series.columns.dtype)
+                if isinstance(dtype, pd.DataFrame):
+                    dtype = str(dtype.columns.dtype)
                 else:
-                    dtype = str(series.dtype)
+                    dtype = str(dtype)
 
                 if dtype.startswith("interval"):
                     return ("string", dtype)
@@ -151,6 +147,6 @@ class PandasTableManagerFactory(TableManagerFactory):
             def get_unique_column_values(
                 self, column: str
             ) -> list[str | int | float]:
-                return self.as_pandas_frame()[column].unique().tolist()  # type: ignore[return-value,no-any-return]
+                return self._original_data[column].unique().tolist()  # type: ignore[return-value,no-any-return]
 
         return PandasTableManager
