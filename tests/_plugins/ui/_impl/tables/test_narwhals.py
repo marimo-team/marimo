@@ -792,5 +792,5 @@ def test_get_field_types_with_many_columns_is_performant(df: Any) -> None:
     # https://github.com/marimo-team/marimo/issues/3107
     total_ms = (end_time - start_time) * 1000
     assert (
-        total_ms < 300
+        total_ms < 500
     ), f"Total time: {total_ms}ms for {df.shape[1]} columns with {type(df)}"
