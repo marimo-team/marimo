@@ -574,7 +574,9 @@ def test_cli_sandbox_run(temp_marimo_file: str) -> None:
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
-def test_cli_sandbox_run_with_python_version(temp_marimo_file_with_inline_metadata: str) -> None:
+def test_cli_sandbox_run_with_python_version(
+    temp_marimo_file_with_inline_metadata: str,
+) -> None:
     port = _get_port()
     p = subprocess.Popen(
         [

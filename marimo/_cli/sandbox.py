@@ -272,7 +272,8 @@ def run_in_sandbox(
             "-m",
             "marimo",
             "run",
-        ] + ([name] if name is not None else [])
+        ]
+        + ([name] if name is not None else [])
     )
 
     echo(f"Running in a sandbox: {muted(' '.join(cmd))}")
