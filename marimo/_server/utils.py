@@ -44,12 +44,10 @@ def find_free_port(port: int, attempts: int = 100) -> int:
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         try:
-            in_use = sock.connect_ex(("localhost", port)) == 0
-            if not in_use:
-                return port
+            sock.bind(("localhost", port))
+            return port
         except OSError:
             LOGGER.debug(f"Port {port} is already in use")
-            pass
 
     # Ensure we don't exceed valid port range
     next_port = min(port + 1, 65535)

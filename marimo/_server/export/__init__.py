@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import sys
 from dataclasses import dataclass
-from typing import Any, Callable, Literal, cast
+from typing import Any, Callable, Literal, Optional, cast
 
 from marimo._cli.print import echo
 from marimo._config.manager import (
@@ -76,6 +76,31 @@ def export_as_ipynb(
     file_manager = file_router.get_file_manager(file_key)
 
     result = Exporter().export_as_ipynb(file_manager, sort_mode=sort_mode)
+    return ExportResult(
+        contents=result[0],
+        download_filename=result[1],
+        did_error=False,
+    )
+
+
+def export_as_wasm(
+    path: MarimoPath,
+    mode: Literal["edit", "run"],
+    asset_url: Optional[str] = None,
+) -> ExportResult:
+    file_router = AppFileRouter.from_filename(path)
+    file_key = file_router.get_unique_file_key()
+    assert file_key is not None
+    file_manager = file_router.get_file_manager(file_key)
+    config = get_default_config_manager(current_path=file_manager.path)
+
+    result = Exporter().export_as_wasm(
+        file_manager=file_manager,
+        display_config=config.get_config()["display"],
+        mode=mode,
+        code=file_manager.to_code(),
+        asset_url=asset_url,
+    )
     return ExportResult(
         contents=result[0],
         download_filename=result[1],

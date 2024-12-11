@@ -5,15 +5,17 @@ import base64
 import io
 import mimetypes
 import os
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
-from marimo import __version__
+from marimo import __version__, _loggers
 from marimo._ast.app import is_default_cell_name
 from marimo._ast.cell import Cell, CellConfig, CellImpl
 from marimo._config.config import (
     DEFAULT_CONFIG,
     DisplayConfig,
 )
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._config.utils import deep_copy
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
@@ -30,9 +32,14 @@ from marimo._server.export.utils import (
 from marimo._server.file_manager import AppFileManager
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.session.session_view import SessionView
-from marimo._server.templates.templates import static_notebook_template
+from marimo._server.templates.templates import (
+    static_notebook_template,
+    wasm_notebook_template,
+)
 from marimo._server.tokens import SkewProtectionToken
 from marimo._utils.paths import import_files
+
+LOGGER = _loggers.marimo_logger()
 
 # Root directory for static assets
 root = os.path.realpath(str(import_files("marimo").joinpath("_static")))
@@ -50,13 +57,10 @@ class Exporter:
         display_config: DisplayConfig,
         request: ExportAsHTMLRequest,
     ) -> tuple[str, str]:
-        index_html_file = os.path.join(root, "index.html")
+        index_html = get_html_contents()
 
         cell_ids = list(file_manager.app.cell_manager.cell_ids())
         filename = get_filename(file_manager)
-
-        with open(index_html_file, "r") as f:  # noqa: ASYNC101 ASYNC230
-            index_html = f.read()
 
         files: dict[str, str] = {}
         for filename_and_length in request.files:
@@ -300,6 +304,50 @@ class Exporter:
         download_filename = get_download_filename(file_manager, "md")
         return "\n".join(document).strip(), download_filename
 
+    def export_as_wasm(
+        self,
+        *,
+        file_manager: AppFileManager,
+        display_config: DisplayConfig,
+        code: str,
+        mode: Literal["edit", "run"],
+        asset_url: Optional[str] = None,
+    ) -> tuple[str, str]:
+        """Export notebook as a WASM-powered standalone HTML file."""
+        index_html = get_html_contents()
+        filename = get_filename(file_manager)
+
+        # We only want to pass the display config in the static notebook
+        config = deep_copy(DEFAULT_CONFIG)
+        config["display"] = display_config
+
+        html = wasm_notebook_template(
+            html=index_html,
+            version=__version__,
+            filename=filename,
+            mode=mode,
+            user_config=config,
+            config_overrides={},
+            app_config=file_manager.app.config,
+            code=code,
+            asset_url=asset_url,
+        )
+
+        download_filename = get_download_filename(file_manager, "wasm.html")
+
+        return html, download_filename
+
+    def export_assets(self, directory: str) -> None:
+        # Copy assets to the same directory as the notebook
+        dirpath = Path(directory)
+        LOGGER.debug(f"Copying assets to {dirpath}")
+        if not dirpath.exists():
+            dirpath.mkdir(parents=True, exist_ok=True)
+
+        import shutil
+
+        shutil.copytree(root, dirpath, dirs_exist_ok=True)
+
 
 class AutoExporter:
     EXPORT_DIR = "__marimo__"
@@ -362,6 +410,22 @@ def _create_notebook_cell(
     if outputs:
         node.outputs = outputs
     return node
+
+
+def get_html_contents() -> str:
+    if GLOBAL_SETTINGS.DEVELOPMENT_MODE:
+        import urllib.request
+
+        # Fetch from a CDN
+        LOGGER.info(
+            "Fetching index.html from jsdelivr because in development mode"
+        )
+        url = f"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{__version__}/dist/index.html"
+        with urllib.request.urlopen(url) as response:
+            return response.read().decode("utf-8")
+
+    with open(os.path.join(root, "index.html"), "r") as f:
+        return f.read()
 
 
 def _convert_marimo_output_to_ipynb(

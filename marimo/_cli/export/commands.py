@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Callable, Literal
+import os
+from typing import TYPE_CHECKING, Callable, Literal, Optional
 
 import click
 
@@ -15,9 +16,11 @@ from marimo._server.export import (
     export_as_ipynb,
     export_as_md,
     export_as_script,
+    export_as_wasm,
     run_app_then_export_as_html,
     run_app_then_export_as_ipynb,
 )
+from marimo._server.export.exporter import Exporter
 from marimo._server.utils import asyncio_run
 from marimo._utils.file_watcher import FileWatcher
 from marimo._utils.marimo_path import MarimoPath
@@ -34,7 +37,7 @@ def export() -> None:
 
 def watch_and_export(
     marimo_path: MarimoPath,
-    output: str,
+    output: Optional[str],
     watch: bool,
     export_callback: Callable[[MarimoPath], ExportResult],
 ) -> None:
@@ -66,7 +69,10 @@ def watch_and_export(
         return
 
     async def on_file_changed(file_path: Path) -> None:
-        echo(f"File {str(file_path)} changed. Re-exporting to {green(output)}")
+        if output:
+            echo(
+                f"File {str(file_path)} changed. Re-exporting to {green(output)}"
+            )
         result = export_callback(MarimoPath(file_path))
         write_data(result.contents)
 
@@ -335,7 +341,75 @@ def ipynb(
     return watch_and_export(MarimoPath(name), output, watch, export_callback)
 
 
+@click.command(
+    help="""Export a notebook as a WASM-powered standalone HTML file.
+
+Example:
+
+  \b
+  * marimo export html-wasm notebook.py -o notebook.wasm.html
+
+The exported HTML file will run the notebook using WebAssembly, making it
+completely self-contained and executable in the browser.
+
+In order for this file to be able to run, it must be served over HTTP,
+and cannot be opened directly from the file system (e.g. file://).
+"""
+)
+@click.option(
+    "-o",
+    "--output",
+    type=str,
+    required=True,
+    help="""Output directory to save the HTML to.""",
+)
+@click.option(
+    "--mode",
+    type=click.Choice(["edit", "run"]),
+    help="Mode to run the notebook in.",
+    required=True,
+)
+@click.option(
+    "--include-assets/--no-include-assets",
+    default=True,
+    show_default=True,
+    type=bool,
+    help="""
+    Include assets in the exported notebook.
+    These assets are required for the notebook to run in the browser.
+    """,
+)
+@click.argument("name", required=True, callback=validators.is_file_path)
+def html_wasm(
+    name: str,
+    output: str,
+    mode: Literal["edit", "run"],
+    include_assets: bool,
+) -> None:
+    """Export a notebook as a WASM-powered standalone HTML file."""
+
+    def export_callback(file_path: MarimoPath) -> ExportResult:
+        return export_as_wasm(file_path, mode)
+
+    # Validate output is not a file
+    if os.path.isfile(output):
+        raise click.UsageError(
+            f"Output {output} is a file, but must be a directory."
+        )
+
+    # Export assets first
+    if include_assets:
+        Exporter().export_assets(output)
+        echo(
+            f"Assets copied to {green(output)}. These assets are required for the notebook to run in the browser."
+        )
+
+    outfile = os.path.join(output, "index.html")
+    return watch_and_export(MarimoPath(name), outfile, False, export_callback)
+
+
 export.add_command(html)
 export.add_command(script)
 export.add_command(md)
 export.add_command(ipynb)
+export.add_command(html_wasm)

@@ -132,6 +132,40 @@ You can also use other tools that work with Jupyter notebooks:
 - [Quarto](https://quarto.org) - Create beautiful documents, websites, presentations
 - [nbgrader](https://nbgrader.readthedocs.io/) - Grade notebook assignments
 
+## Export to WASM-powered HTML
+
+Export your notebook to a self-contained HTML file that runs using WebAssembly:
+
+```bash
+marimo export html-wasm notebook.py -o output_dir --mode run
+# Or edit mode
+marimo export html-wasm notebook.py -o output_dir --mode edit
+```
+
+The exported HTML file will run your notebook using WebAssembly, making it completely self-contained and executable in the browser. This means users can interact with your notebook without needing Python or marimo installed.
+
+Options:
+
+- `--mode`: Choose between `run` (read-only) or `edit` (allows editing)
+- `--output`: Directory to save the HTML and required assets
+
+```{admonition} Note
+:class: note
+
+The exported file must be served over HTTP to function correctly - it cannot be opened directly from the filesystem (file://).
+Your server must also serve the assets in the `assets` directory, next to the HTML file. For this reason, we recommend using the online playground if possible: <https://marimo.app>.
+```
+
+### Testing the export
+
+You can test the export by running the following command in the directory containing your notebook:
+
+```bash
+marimo serve path/to/output_dir
+```
+
+This spins up a local HTTP server that serves the HTML and assets. We do not recommend using this for production and instead recommend using a proper HTTP server.
+
 ## 🏝️ Embed marimo outputs in HTML using Islands
 
 ```{admonition} Preview

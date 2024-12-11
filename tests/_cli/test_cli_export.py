@@ -60,6 +60,52 @@ class TestExportHTML:
         assert '<marimo-code hidden=""></marimo-code>' in html
 
     @staticmethod
+    def test_cli_export_html_wasm(temp_marimo_file: str) -> None:
+        out_dir = Path(temp_marimo_file).parent / "out"
+        p = subprocess.run(
+            [
+                "marimo",
+                "export",
+                "html-wasm",
+                temp_marimo_file,
+                "--mode",
+                "edit",
+                "--output",
+                out_dir,
+                "--no-include-assets",
+            ],
+            capture_output=True,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+        html = Path(out_dir / "index.html").read_text()
+        assert "<marimo-mode data-mode='edit'" in html
+        assert '<marimo-code hidden=""></marimo-code>' not in html
+        assert "<marimo-wasm" in html
+
+    @staticmethod
+    def test_cli_export_html_wasm_read(temp_marimo_file: str) -> None:
+        out_dir = Path(temp_marimo_file).parent / "out"
+        p = subprocess.run(
+            [
+                "marimo",
+                "export",
+                "html-wasm",
+                temp_marimo_file,
+                "--mode",
+                "run",
+                "--output",
+                out_dir,
+                "--no-include-assets",
+            ],
+            capture_output=True,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+        html = Path(out_dir / "index.html").read_text()
+        assert "<marimo-mode data-mode='read'" in html
+        assert '<marimo-code hidden=""></marimo-code>' not in html
+        assert "<marimo-wasm" in html
+
+    @staticmethod
     def test_cli_export_async(temp_async_marimo_file: str) -> None:
         p = subprocess.run(
             ["marimo", "export", "html", temp_async_marimo_file],
