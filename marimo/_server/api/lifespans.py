@@ -109,10 +109,11 @@ async def logging(app: Starlette) -> AsyncIterator[None]:
     if not manager.quiet:
         file = file_router.maybe_get_single_file()
         print_startup(
-            file.name if file else None,
-            _startup_url(state),
-            manager.mode == SessionMode.RUN,
+            file_name=file.name if file else None,
+            url=_startup_url(state),
+            run=manager.mode == SessionMode.RUN,
             new=file_router.get_unique_file_key() == AppFileRouter.NEW_FILE,
+            network=state.host == "0.0.0.0",
         )
 
     yield
