@@ -55,12 +55,12 @@ const FeedbackModal: React.FC<{
         <DialogHeader>
           <DialogTitle>Send Feedback</DialogTitle>
           <DialogDescription>
-            <p className="my-2 prose">
-              We want to hear from <span className="font-bold">you</span>: from
-              minor bug reports to wishlist features and everything in between.
-              Here are some ways you can get in touch:
+            <p className="my-2 prose dark:prose-invert">
+              We want to hear from you — from minor bug reports to wishlist
+              features and everything in between. Here are some ways you can get
+              in touch:
             </p>
-            <ul className="list-disc ml-8 my-2 prose">
+            <ul className="list-disc ml-8 my-2 prose dark:prose-invert">
               <li className="my-0">
                 Take our{" "}
                 <a
@@ -95,10 +95,9 @@ const FeedbackModal: React.FC<{
                 </a>
               </li>
             </ul>
-            <p className="my-2 prose">
-              We're excited you're here as we build the future of
-              Python data tooling. Thanks for being part of our
-              community!
+            <p className="my-2 prose dark:prose-invert">
+              We're excited you're here as we build the future of Python data
+              tooling. Thanks for being part of our community!
             </p>
           </DialogDescription>
         </DialogHeader>
