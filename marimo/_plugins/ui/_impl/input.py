@@ -1311,12 +1311,7 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
         # Validate filetypes have leading dots or contain a forward slash
         if filetypes is not None:
             invalid_types = [
-                ft
-                for ft in filetypes
-                if not (
-                    ft.startswith(".")
-                    or "/" in ft
-                )
+                ft for ft in filetypes if not (ft.startswith(".") or "/" in ft)
             ]
             if invalid_types:
                 raise ValueError(
