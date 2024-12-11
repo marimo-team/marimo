@@ -137,10 +137,11 @@ class NarwhalsTableManager(
         expressions: list[Any] = []
         for column, dtype in self.nw_schema.items():
             if dtype == nw.String:
-                expressions.append(nw.col(column).str.contains(query))
+                expressions.append(nw.col(column).str.contains(f"(?i){query}"))
             elif dtype == nw.List(nw.String):
+                # TODO: Narwhals doesn't support list.contains
                 # expressions.append(
-                #     nw.col(column).cast(nw.String).sum().str.contains(query)
+                #     nw.col(column).list.contains(query)
                 # )
                 pass
             elif (

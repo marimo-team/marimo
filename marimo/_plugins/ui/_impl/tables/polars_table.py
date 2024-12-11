@@ -142,7 +142,9 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 expressions: list[pl.Expr] = []
                 for column, dtype in self.schema.items():
                     if dtype == pl.String:
-                        expressions.append(pl.col(column).str.contains(query))
+                        expressions.append(
+                            pl.col(column).str.contains(f"(?i){query}")
+                        )
                     elif dtype == pl.List(pl.Utf8):
                         expressions.append(pl.col(column).list.contains(query))
                     elif (
