@@ -135,7 +135,15 @@ def _read_pyproject(script: str) -> Dict[str, Any] | None:
         )
         import tomlkit
 
-        return tomlkit.parse(content)
+        # Print debug info
+        print(f"DEBUG: Found script lines: {content.splitlines()}")
+
+        pyproject = tomlkit.parse(content)
+
+        # Print debug info
+        print(f"DEBUG: Parsed TOML: {pyproject}")
+
+        return pyproject
     else:
         return None
 
@@ -143,12 +151,16 @@ def _read_pyproject(script: str) -> Dict[str, Any] | None:
 def _get_python_version_requirement(pyproject: Dict[str, Any]) -> str | None:
     """Extract Python version requirement from pyproject metadata."""
     if pyproject is None:
+        print("DEBUG: pyproject is None")
         return None
 
     try:
         version = pyproject.get("requires-python")
+        # Print debug info
+        print(f"DEBUG: Found Python version requirement: {version}")
         # Only return string version requirements
         if not isinstance(version, str):
+            print(f"DEBUG: Version is not a string: {type(version)}")
             return None
         return version
     except Exception as e:
@@ -260,16 +272,22 @@ def run_in_sandbox(
 
     # Add Python version if specified
     if python_version:
-        cmd.extend(["--python-version", python_version])
+        cmd.extend(["--python", python_version])
 
     cmd.extend(
         [
             "--with-requirements",
             temp_file_path,
+            "python",
+            "-m",
+            "marimo",
+            "run",
+            name,
         ]
-        + cmd
     )
 
+    # Print the command for debugging
+    print(f"DEBUG: Running command: {' '.join(cmd)}")
     echo(f"Running in a sandbox: {muted(' '.join(cmd))}")
 
     env = os.environ.copy()

@@ -8,6 +8,7 @@ Requires frontend to be built
 from __future__ import annotations
 
 import contextlib
+import inspect
 import os
 import signal
 import socket
@@ -17,7 +18,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
-from typing import Any, Callable, Iterator, Optional
+from typing import Any, Callable, Generator, Iterator, Optional
 
 import pytest
 
@@ -148,6 +149,43 @@ def _read_toml(filepath: str) -> Optional[dict]:
         return None
     with open(filepath, "r") as file:
         return tomlkit.parse(file.read())
+
+
+@pytest.fixture
+def temp_marimo_file_with_inline_metadata() -> Generator[str, None, None]:
+    tmp_dir = tempfile.TemporaryDirectory()
+    tmp_file = os.path.join(tmp_dir.name, "notebook.py")
+    content = inspect.cleandoc(
+        """
+        # /// script
+        # requires-python = ">=3.11"
+        # dependencies = ["polars"]
+        # ///
+
+        import marimo
+        app = marimo.App()
+
+        @app.cell
+        def __():
+            import marimo as mo
+            return mo,
+
+        @app.cell
+        def __(mo):
+            slider = mo.ui.slider(0, 10)
+            return slider,
+
+        if __name__ == "__main__":
+            app.run()
+        """
+    )
+
+    try:
+        with open(tmp_file, "w") as f:
+            f.write(content)
+        yield tmp_file
+    finally:
+        tmp_dir.cleanup()
 
 
 def test_cli_help_exit_code() -> None:
@@ -533,6 +571,40 @@ def test_cli_sandbox_run(temp_marimo_file: str) -> None:
     )
     contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode='read'", contents)
+
+
+@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+def test_cli_sandbox_run_with_python_version(temp_marimo_file_with_inline_metadata: str) -> None:
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            temp_marimo_file_with_inline_metadata,
+            "-p",
+            str(port),
+            "--headless",
+            "--sandbox",
+        ],
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+
+    time.sleep(2)  # Give the server time to start
+    contents = _try_fetch(port)
+
+    # If fetch fails, capture and print server output for debugging
+    if contents is None:
+        stdout, stderr = p.communicate(timeout=5)
+        raise AssertionError(
+            f"Server failed to start. stdout:\n{stdout}\nstderr:\n{stderr}"
+        )
+
+    _check_contents(p, b"marimo-mode data-mode='read'", contents)
+
+    p.terminate()
+    p.wait(timeout=5)
 
 
 @pytest.mark.xfail(condition=_is_win32(), reason="flaky on Windows")
