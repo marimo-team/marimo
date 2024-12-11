@@ -251,37 +251,39 @@ def run_in_sandbox(
     else:
         python_version = None
 
-    cmd = [
+    # Construct base UV command
+    uv_cmd = [
         "uv",
         "run",
         "--isolated",
         # sandboxed notebook shouldn't pick up existing pyproject.toml,
         # which may conflict with the sandbox requirements
         "--no-project",
+        "--with-requirements",
+        temp_file_path,
     ]
 
     # Add Python version if specified
     if python_version:
-        cmd.extend(["--python", python_version])
+        uv_cmd.extend(["--python", python_version])
 
-    cmd.extend(
-        [
-            "--with-requirements",
-            temp_file_path,
-            "python",
-            "-m",
-            "marimo",
-            "run",
-        ]
-        + ([name] if name is not None else [])
-    )
+    # Add marimo run command
+    uv_cmd.extend([
+        "python",
+        "-m",
+        "marimo",
+        "run",
+    ] + ([name] if name is not None else []))
 
-    echo(f"Running in a sandbox: {muted(' '.join(cmd))}")
+    # Final command assembly
+    final_cmd = uv_cmd
+
+    echo(f"Running in a sandbox: {muted(' '.join(final_cmd))}")
 
     env = os.environ.copy()
     env["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
 
-    process = subprocess.Popen(cmd, env=env)
+    process = subprocess.Popen(final_cmd, env=env)
 
     def handler(sig: int, frame: Any) -> None:
         del sig
