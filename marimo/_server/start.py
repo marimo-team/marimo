@@ -30,7 +30,7 @@ PROXY_REGEX = re.compile(r"^(.*):(\d+)$")
 def _print_network_access_message(host: str, port: int) -> None:
     """Print a message when the server is accessible on the local network."""
     if host == "0.0.0.0":
-        print(f"\nℹ️  Server is accessible on your local network at:")
+        print("\nℹ️  Server is accessible on your local network at:")
         print(f"   http://<your-ip-address>:{port}")
 
 
