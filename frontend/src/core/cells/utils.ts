@@ -16,11 +16,8 @@ export function notebookQueueOrRunningCount(state: NotebookState) {
   ).length;
 }
 
-export function notebookNeedsRun(
-  state: NotebookState,
-  autoInstantiate: boolean,
-) {
-  return staleCellIds(state, autoInstantiate).length > 0;
+export function notebookNeedsRun(state: NotebookState) {
+  return staleCellIds(state).length > 0;
 }
 
 export function notebookCells(state: NotebookState) {
@@ -92,12 +89,11 @@ export function getDescendantsStatus(state: NotebookState, cellId: CellId) {
 /**
  * Cells that are stale and can be run.
  */
-export function staleCellIds(state: NotebookState, autoInstantiate: boolean) {
+export function staleCellIds(state: NotebookState) {
   const { cellIds, cellData, cellRuntime } = state;
   return cellIds.inOrderIds.filter(
     (cellId) =>
       isUninstantiated({
-        autoInstantiate,
         // runElapstedTimeMs is what we've seen in this session
         executionTime:
           cellRuntime[cellId].runElapsedTimeMs ??
@@ -120,14 +116,12 @@ export function staleCellIds(state: NotebookState, autoInstantiate: boolean) {
 }
 
 export function isUninstantiated({
-  autoInstantiate,
   executionTime,
   status,
   errored,
   interrupted,
   stopped,
 }: {
-  autoInstantiate: boolean;
   executionTime: number | null;
   status: RuntimeState;
   errored: boolean;
@@ -135,8 +129,6 @@ export function isUninstantiated({
   stopped: boolean;
 }) {
   return (
-    // autorun on startup is off ...
-    !autoInstantiate &&
     // hasn't run ...
     executionTime === null &&
     // isn't currently queued/running &&

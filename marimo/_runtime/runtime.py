@@ -1292,12 +1292,17 @@ class Kernel:
 
         Cells may use top-level await, which is why this function is async.
         """
+        if self.last_interrupt_timestamp is None:
+            # No interruption has occurred, so we can run all requests
+            await self._run_cells(
+                self.mutate_graph(execution_requests, deletion_requests=[])
+            )
+            return
+
+        # Filter out requests that were created before the last interruption
         filtered_requests: list[ExecutionRequest] = []
         for request in execution_requests:
-            if (
-                self.last_interrupt_timestamp is not None
-                and request.timestamp < self.last_interrupt_timestamp
-            ):
+            if request.timestamp < self.last_interrupt_timestamp:
                 CellOp.broadcast_error(
                     data=[MarimoInterruptionError()],
                     clear_console=False,
@@ -1714,10 +1719,14 @@ class Kernel:
         During instantiation, UIElements can check for an initial value
         with `get_initial_value`
         """
+        # Already instantiated
         if self.graph.cells:
             del request
             LOGGER.debug("App already instantiated.")
-        else:
+            return
+
+        # Run cells if auto_run is True
+        if request.auto_run:
             self.reset_ui_initializers()
             for (
                 object_id,
@@ -1726,6 +1735,13 @@ class Kernel:
                 self.ui_initializers[object_id] = initial_value
             await self.run(request.execution_requests)
             self.reset_ui_initializers()
+            return
+
+        # Otherwise, just register the cells
+        self.mutate_graph(request.execution_requests, deletion_requests=[])
+        # and set everything to stale
+        for cell_id in self.graph.cells:
+            self.graph.cells[cell_id].set_stale(stale=True)
 
     async def install_missing_packages(
         self, request: InstallMissingPackagesRequest

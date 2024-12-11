@@ -133,8 +133,7 @@ export class DefaultWasmController implements WasmController {
       )
 
       def init(auto_instantiate=True):
-        if auto_instantiate:
-          instantiate(session)
+        instantiate(session, auto_instantiate)
         asyncio.create_task(session.start())
 
       # Find the packages to install

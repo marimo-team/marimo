@@ -337,9 +337,32 @@ class TestExecution:
                 set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
                     [(id_provider.take_id(), 2)]
                 ),
+                auto_run=True,
             )
         )
         assert k.globals["s"].value == 2
+
+    async def test_instantiate_autorun_false(self, any_kernel: Kernel) -> None:
+        k = any_kernel
+        await k.instantiate(
+            CreationRequest(
+                execution_requests=(
+                    ExecutionRequest(cell_id="0", code="x=0"),
+                    ExecutionRequest(cell_id="1", code="y=x+1"),
+                ),
+                set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
+                    []
+                ),
+                auto_run=False,
+            )
+        )
+        assert not k.errors
+        assert "x" not in k.globals
+        assert "y" not in k.globals
+
+        # Expect the first cell to implicitly be included in the run
+        await k.run([ExecutionRequest(cell_id="1", code="y=x+1")])
+        assert k.globals["y"] == 1
 
     # Test errors in marimo semantics
     async def test_kernel_simultaneous_multiple_definition_error(
