@@ -82,7 +82,7 @@ use them are automatically re-run with their latest values.
 
 **Interactive dataframes.** [Page through, search, filter, and
 sort](https://docs.marimo.io/guides/working_with_data/dataframes.html)
-millions of rows blazingly fast, no code required. 
+millions of rows blazingly fast, no code required.
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/docs-df.gif" width="700px" />
 
