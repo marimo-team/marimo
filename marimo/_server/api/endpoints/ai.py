@@ -56,7 +56,12 @@ router = APIRouter()
 
 def get_openai_client(config: MarimoConfig) -> "OpenAI":
     try:
-        from openai import OpenAI  # type: ignore[import-not-found]
+        from urllib.parse import parse_qs, urlparse
+
+        from openai import (  # type: ignore[import-not-found]
+            AzureOpenAI,
+            OpenAI,
+        )
     except ImportError:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
@@ -89,11 +94,27 @@ def get_openai_client(config: MarimoConfig) -> "OpenAI":
     if not base_url:
         base_url = None
 
-    return OpenAI(
-        default_headers={"api-key": key},
-        api_key=key,
-        base_url=base_url,
-    )
+    # Azure OpenAI clients are instantiated slightly differently
+    # To check if we're using Azure, we check the base_url for the format
+    # https://[subdomain].openai.azure.com/openai/deployments/[model]/chat/completions?api-version=[api_version]
+    parsed_base_url = urlparse(base_url)
+    if parsed_base_url.hostname and parsed_base_url.hostname.endswith(
+        "openai.azure.com"
+    ):
+        deployment_model = parsed_base_url.path.split("/")[3]
+        api_version = parse_qs(parsed_base_url.query)["api-version"][0]
+        return AzureOpenAI(
+            api_key=key,
+            api_version=api_version,
+            azure_deployment=deployment_model,
+            azure_endpoint=f"{parsed_base_url.scheme}://{parsed_base_url.hostname}",
+        )
+    else:
+        return OpenAI(
+            default_headers={"api-key": key},
+            api_key=key,
+            base_url=base_url,
+        )
 
 
 def get_anthropic_client(config: MarimoConfig) -> "Client":
@@ -146,7 +167,7 @@ def get_content(
     | ChatCompletionChunk
     | GenerateContentResponse,
 ) -> str | None:
-    if hasattr(response, "choices"):
+    if hasattr(response, "choices") and response.choices:
         return response.choices[0].delta.content  # type: ignore
 
     if hasattr(response, "text"):
