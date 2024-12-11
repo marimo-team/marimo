@@ -460,7 +460,30 @@ def test_form_in_dictionary_allowed() -> None:
     assert checkbox._id != d["form"].element._id
 
 
-# TODO(akshayka): test file
+def test_file_validation() -> None:
+    """Test file type validation in the file class."""
+    # Valid filetypes should be accepted
+    ui.file(filetypes=[".csv", ".txt"])
+    ui.file(filetypes=["audio/*"])
+    ui.file(filetypes=["video/*"])
+    ui.file(filetypes=["image/*"])
+    ui.file(filetypes=[".csv", "audio/*"])  # Mixed types are allowed
+
+    # Invalid filetypes should raise ValueError
+    with pytest.raises(ValueError) as e:
+        ui.file(filetypes=["csv"])
+    assert "must start with a dot" in str(e.value)
+    assert "csv" in str(e.value)
+
+    with pytest.raises(ValueError) as e:
+        ui.file(filetypes=["txt", ".csv"])
+    assert "must start with a dot" in str(e.value)
+    assert "txt" in str(e.value)
+
+    with pytest.raises(ValueError) as e:
+        ui.file(filetypes=["doc", "pdf"])
+    assert "must start with a dot" in str(e.value)
+    assert "doc, pdf" in str(e.value)
 
 
 @pytest.mark.skipif(not HAS_NUMPY, reason="numpy not installed")

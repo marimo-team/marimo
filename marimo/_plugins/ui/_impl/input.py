@@ -1308,6 +1308,18 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
             Callable[[Sequence[FileUploadResults]], None]
         ] = None,
     ) -> None:
+        # Validate filetypes have leading dots
+        if filetypes is not None:
+            invalid_types = [ft for ft in filetypes if not (
+                ft.startswith(".") or
+                ft in ("audio/*", "video/*", "image/*")
+            )]
+            if invalid_types:
+                raise ValueError(
+                    f"File types must start with a dot (e.g., '.csv' instead of 'csv'). "
+                    f"Invalid types: {', '.join(invalid_types)}"
+                )
+
         super().__init__(
             component_name=file._name,
             initial_value=[],
