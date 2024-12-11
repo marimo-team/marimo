@@ -262,10 +262,13 @@ def run_in_sandbox(
     if python_version:
         cmd.extend(["--python-version", python_version])
 
-    cmd.extend([
-        "--with-requirements",
-        temp_file_path,
-    ] + cmd)
+    cmd.extend(
+        [
+            "--with-requirements",
+            temp_file_path,
+        ]
+        + cmd
+    )
 
     echo(f"Running in a sandbox: {muted(' '.join(cmd))}")
 

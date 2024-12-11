@@ -4,8 +4,8 @@ import pytest
 
 from marimo._cli.sandbox import (
     _get_dependencies,
-    _pyproject_toml_to_requirements_txt,
     _get_python_version_requirement,
+    _pyproject_toml_to_requirements_txt,
     _read_pyproject,
 )
 
