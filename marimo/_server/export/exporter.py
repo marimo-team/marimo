@@ -422,7 +422,7 @@ def get_html_contents() -> str:
         )
         url = f"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{__version__}/dist/index.html"
         with urllib.request.urlopen(url) as response:
-            return response.read().decode("utf-8")
+            return cast(str, response.read().decode("utf-8"))
 
     with open(os.path.join(root, "index.html"), "r") as f:
         return f.read()
