@@ -1,3 +1,7 @@
 .xterm {
   padding: .5rem;
 }
+
+.xterm-rows {
+  font-family: var(--marimo-monospace-font) !important;
+}
