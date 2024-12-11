@@ -467,22 +467,28 @@ def test_file_validation() -> None:
     ui.file(filetypes=["audio/*"])
     ui.file(filetypes=["video/*"])
     ui.file(filetypes=["image/*"])
-    ui.file(filetypes=[".csv", "audio/*"])  # Mixed types are allowed
+    ui.file(filetypes=["application/json"])
+    ui.file(filetypes=["text/plain"])
+    ui.file(filetypes=[".csv", "application/json"])  # Mixed types are allowed
+    ui.file(filetypes=["text/html", "application/xml"])  # Multiple MIME types
 
     # Invalid filetypes should raise ValueError
     with pytest.raises(ValueError) as e:
         ui.file(filetypes=["csv"])
     assert "must start with a dot" in str(e.value)
+    assert "or contain a forward slash" in str(e.value)
     assert "csv" in str(e.value)
 
     with pytest.raises(ValueError) as e:
         ui.file(filetypes=["txt", ".csv"])
     assert "must start with a dot" in str(e.value)
+    assert "or contain a forward slash" in str(e.value)
     assert "txt" in str(e.value)
 
     with pytest.raises(ValueError) as e:
         ui.file(filetypes=["doc", "pdf"])
     assert "must start with a dot" in str(e.value)
+    assert "or contain a forward slash" in str(e.value)
     assert "doc, pdf" in str(e.value)
 
 
