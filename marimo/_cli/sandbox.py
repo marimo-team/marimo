@@ -140,6 +140,22 @@ def _read_pyproject(script: str) -> Dict[str, Any] | None:
         return None
 
 
+def _get_python_version_requirement(pyproject: Dict[str, Any]) -> str | None:
+    """Extract Python version requirement from pyproject metadata."""
+    if pyproject is None:
+        return None
+
+    try:
+        version = pyproject.get("requires-python")
+        # Only return string version requirements
+        if not isinstance(version, str):
+            return None
+        return version
+    except Exception as e:
+        LOGGER.warning(f"Failed to parse Python version requirement: {e}")
+        return None
+
+
 def prompt_run_in_sandbox(name: str | None) -> bool:
     if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
         return False
@@ -221,6 +237,18 @@ def run_in_sandbox(
     # Clean up the temporary file after the subprocess has run
     atexit.register(lambda: os.unlink(temp_file_path))
 
+    # Get Python version requirement if available
+    if name is not None:
+        contents, _ = FileContentReader().read_file(name)
+        pyproject = _read_pyproject(contents)
+        python_version = (
+            _get_python_version_requirement(pyproject)
+            if pyproject is not None
+            else None
+        )
+    else:
+        python_version = None
+
     cmd = [
         "uv",
         "run",
@@ -228,9 +256,16 @@ def run_in_sandbox(
         # sandboxed notebook shouldn't pick up existing pyproject.toml,
         # which may conflict with the sandbox requirements
         "--no-project",
+    ]
+
+    # Add Python version if specified
+    if python_version:
+        cmd.extend(["--python-version", python_version])
+
+    cmd.extend([
         "--with-requirements",
         temp_file_path,
-    ] + cmd
+    ] + cmd)
 
     echo(f"Running in a sandbox: {muted(' '.join(cmd))}")
 
