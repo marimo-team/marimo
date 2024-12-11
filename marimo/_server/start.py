@@ -9,6 +9,7 @@ import uvicorn
 
 import marimo._server.api.lifespans as lifespans
 from marimo._config.manager import get_default_config_manager
+from marimo._loggers import marimo_logger
 from marimo._runtime.requests import SerializedCLIArgs
 from marimo._server.file_router import AppFileRouter
 from marimo._server.main import create_starlette_app
@@ -26,6 +27,13 @@ from marimo._utils.paths import import_files
 DEFAULT_PORT = 2718
 PROXY_REGEX = re.compile(r"^(.*):(\d+)$")
 
+logger = marimo_logger()
+
+def _print_network_access_message(host: str, port: int) -> None:
+    """Print a message when the server is accessible on the local network."""
+    if host == "0.0.0.0":
+        logger.info("\nℹ️  Server is accessible on your local network at:")
+        logger.info(f"   http://<your-ip-address>:{port}")
 
 def _resolve_proxy(
     port: int, host: str, proxy: Optional[str]
@@ -118,6 +126,10 @@ def start(
     log_level = "info" if development_mode else "error"
 
     (external_port, external_host) = _resolve_proxy(port, host, proxy)
+
+    # Print network access message before starting server
+    _print_network_access_message(host, port)
+
     app = create_starlette_app(
         base_url=base_url,
         host=external_host,
