@@ -12,7 +12,7 @@ from marimo import __version__
 from marimo._ast.app import App, _AppConfig
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
-from marimo._ast.names import is_default_cell_name
+from marimo._ast.names import default_cell_name_from_code, is_default_cell_name
 from marimo._ast.visitor import Name
 
 if TYPE_CHECKING:
@@ -176,10 +176,10 @@ def generate_filecontents(
     unshadowed_builtins = set(builtins.__dict__.keys()) - defs
     fndefs: list[str] = []
 
-    # Update default names to be __{idx}
+    # Update default names to be __{4char_hash}
     for idx, name in enumerate(names):
         if is_default_cell_name(name):
-            names[idx] = f"__{idx + 1}"
+            names[idx] = default_cell_name_from_code(codes[idx])
 
     for data, name in zip(cell_data, names):
         if isinstance(data, CellImpl):

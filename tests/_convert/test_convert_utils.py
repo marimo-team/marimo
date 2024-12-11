@@ -37,13 +37,13 @@ app = marimo.App()
 
 
 @app.cell
-def __1():
+def __0d4b():
     print('Hello')
     return
 
 
 @app.cell
-def __2():
+def __b203():
     x = 5
     return (x,)
 

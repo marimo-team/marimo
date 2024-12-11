@@ -96,14 +96,10 @@ export function displayCellName(name: string, cellIndex: number): string {
   return name;
 }
 
-// Default cell names look like "__" or "__{idx}"
+// Default cell names look like "__" or "__{4char_hash}"
 function isDefaultCellName(name: string): boolean {
   return (
     name === DEFAULT_CELL_NAME ||
-    (name.startsWith(DEFAULT_CELL_NAME) && isInteger(name.slice(2)))
+    (name.startsWith(DEFAULT_CELL_NAME) && name.slice(2).length === 4)
   );
-}
-
-function isInteger(name: string): boolean {
-  return !Number.isNaN(Number.parseInt(name));
 }

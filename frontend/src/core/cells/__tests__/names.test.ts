@@ -57,7 +57,7 @@ describe("displayCellName", () => {
   it("should return the HTML cell ID if the name is the default cell name", () => {
     expect(displayCellName(DEFAULT_CELL_NAME, 0)).toBe("cell-0");
     expect(displayCellName(DEFAULT_CELL_NAME, 1)).toBe("cell-1");
-    expect(displayCellName("__1", 0)).toBe("cell-0");
-    expect(displayCellName("__2", 0)).toBe("cell-0");
+    expect(displayCellName("__abcd", 0)).toBe("cell-0");
+    expect(displayCellName("__1234", 0)).toBe("cell-0");
   });
 });

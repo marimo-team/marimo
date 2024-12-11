@@ -9,12 +9,12 @@ app._unparsable_cell(
 
     x = 0
     """,
-    name="__1"
+    name="__3675"
 )
 
 
 @app.cell
-def __2(x):
+def __2d71(x):
     x
     return
 

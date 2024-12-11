@@ -5,13 +5,13 @@ app = marimo.App(app_title="Test Notebook")
 
 
 @app.cell
-def __1():
+def __f649():
     import marimo as mo
     return (mo,)
 
 
 @app.cell
-def __2(mo):
+def __1bb6(mo):
     mo.md("""
         # Code blocks in code blocks
         Output code for Hello World!
@@ -27,7 +27,7 @@ def __2(mo):
 
 
 @app.cell
-def __3(mo):
+def __b4fd(mo):
     mo.md(f"""
         with f-string too!
         ```{{python}}
@@ -38,7 +38,7 @@ def __3(mo):
 
 
 @app.cell
-def __4(mo):
+def __d6c4(mo):
     mo.md(f"""
         Not markdown
         ```{{python}}
@@ -49,7 +49,7 @@ def __4(mo):
 
 
 @app.cell
-def __5(mo):
+def __893b(mo):
     mo.md(
         r"""
         Nested fence
@@ -63,7 +63,7 @@ def __5(mo):
 
 
 @app.cell
-def __6():
+def __a42b():
     """
     ```
     """
@@ -71,7 +71,7 @@ def __6():
 
 
 @app.cell
-def __7(mo):
+def __987c(mo):
     mo.md("""
         Cross cell injection
         ```python
@@ -80,13 +80,13 @@ def __7(mo):
 
 
 @app.cell
-def __8():
+def __72fc():
     1 + 1
     return
 
 
 @app.cell
-def __9():
+def __5370():
     # Actual print
     print("Hello World")
     return
