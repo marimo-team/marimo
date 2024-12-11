@@ -267,23 +267,15 @@ def run_in_sandbox(
     if python_version:
         uv_cmd.extend(["--python", python_version])
 
-    # Add marimo run command
-    uv_cmd.extend([
-        "python",
-        "-m",
-        "marimo",
-        "run",
-    ] + ([name] if name is not None else []))
-
     # Final command assembly
-    final_cmd = uv_cmd
+    uv_cmd = uv_cmd + cmd
 
-    echo(f"Running in a sandbox: {muted(' '.join(final_cmd))}")
+    echo(f"Running in a sandbox: {muted(' '.join(uv_cmd))}")
 
     env = os.environ.copy()
     env["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
 
-    process = subprocess.Popen(final_cmd, env=env)
+    process = subprocess.Popen(uv_cmd, env=env)
 
     def handler(sig: int, frame: Any) -> None:
         del sig
