@@ -380,6 +380,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
                 "C": [True, False, True],
                 "D": [["zz", "yyy"], [], []],
                 "E": [1.1, 2.2, 3.3],
+                "G": ["U", "T", "V"],
             }
         )
         manager = NarwhalsTableManager.from_dataframe(df)
@@ -387,6 +388,9 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
         assert manager.search("foo").get_num_rows() == 1
         # Contains
         assert manager.search("a").get_num_rows() == 2
+        # Case insensitive
+        assert manager.search("v").get_num_rows() == 1
+        assert manager.search("V").get_num_rows() == 1
         # Case insensitive / boolean
         assert manager.search("true").get_num_rows() == 2
         # Overmatch
