@@ -165,8 +165,7 @@ def prompt_run_in_sandbox(name: str | None) -> bool:
             "This notebook has inlined package dependencies.\n"
             + green(
                 "Run in a sandboxed venv containing this notebook's "
-                "dependencies?",
-                bold=True,
+                "dependencies?"
             ),
             default=True,
         )
