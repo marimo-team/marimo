@@ -2131,6 +2131,7 @@ export interface components {
       source: string;
     };
     CreationRequest: {
+      autoRun: boolean;
       executionRequests: components["schemas"]["ExecutionRequest"][];
       setUiElementValueRequest: components["schemas"]["SetUIElementValueRequest"];
     };
@@ -2341,6 +2342,7 @@ export interface components {
       };
     };
     InstantiateRequest: {
+      autoRun: boolean;
       objectIds: string[];
       values: unknown[];
     };

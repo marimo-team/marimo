@@ -183,6 +183,7 @@ def test_kernel_manager_interrupt(tmp_path) -> None:
             set_ui_element_value_request=SetUIElementValueRequest(
                 object_ids=[], values=[]
             ),
+            auto_run=True,
         )
     )
 

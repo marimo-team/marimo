@@ -193,7 +193,6 @@ const CellComponent = (
     cellConfig.disabled || status === "disabled-transitively";
 
   const uninstantiated = isUninstantiated({
-    autoInstantiate: userConfig.runtime.auto_instantiate,
     executionTime: runElapsedTimeMs,
     status,
     errored,
@@ -202,10 +201,7 @@ const CellComponent = (
   });
 
   const needsRun =
-    uninstantiated ||
-    edited ||
-    interrupted ||
-    (staleInputs && !disabledOrAncestorDisabled);
+    edited || interrupted || (staleInputs && !disabledOrAncestorDisabled);
   const loading = status === "running" || status === "queued";
 
   const outputStale = outputIsStale(

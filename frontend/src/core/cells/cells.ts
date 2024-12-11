@@ -51,7 +51,6 @@ import {
 } from "@/utils/id-tree";
 import { isEqual } from "lodash-es";
 import { isErrorMime } from "../mime";
-import { userConfigAtom } from "../config/config";
 
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
 
@@ -1175,12 +1174,7 @@ export const canUndoDeletesAtom = atom((get) =>
   canUndoDeletes(get(notebookAtom)),
 );
 
-export const needsRunAtom = atom((get) =>
-  notebookNeedsRun(
-    get(notebookAtom),
-    get(userConfigAtom).runtime.auto_instantiate,
-  ),
-);
+export const needsRunAtom = atom((get) => notebookNeedsRun(get(notebookAtom)));
 
 const cellErrorsAtom = atom((get) => {
   const { cellIds, cellRuntime, cellData } = get(notebookAtom);

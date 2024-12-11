@@ -150,6 +150,7 @@ def test_ui_values() -> None:
             set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
                 [("test_ui3", 101112)]
             ),
+            auto_run=True,
         )
     )
     assert "test_ui3" in session_view.ui_values
@@ -184,6 +185,7 @@ def test_last_run_code() -> None:
             set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
                 []
             ),
+            auto_run=True,
         )
     )
     assert session_view.last_executed_code[cell_id] == "print('hello')"

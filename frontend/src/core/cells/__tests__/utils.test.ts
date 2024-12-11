@@ -157,7 +157,7 @@ describe("staleCellIds", () => {
       },
     } as any;
 
-    const result = staleCellIds(state, false);
+    const result = staleCellIds(state);
 
     expect(result).toEqual(["cell1"]);
   });
@@ -197,7 +197,7 @@ describe("staleCellIds", () => {
       },
     } as any;
 
-    const result = staleCellIds(state, false);
+    const result = staleCellIds(state);
 
     expect(result).toEqual(["cell1"]);
   });
@@ -237,7 +237,7 @@ describe("staleCellIds", () => {
       },
     } as any;
 
-    const result = staleCellIds(state, true);
+    const result = staleCellIds(state);
 
     expect(result).toEqual(["cell1"]);
   });
@@ -277,7 +277,7 @@ describe("staleCellIds", () => {
       },
     } as any;
 
-    const result = staleCellIds(state, true);
+    const result = staleCellIds(state);
 
     expect(result).toEqual(["cell1"]);
   });
@@ -317,7 +317,7 @@ describe("staleCellIds", () => {
       },
     } as any;
 
-    const result = staleCellIds(state, true);
+    const result = staleCellIds(state);
 
     expect(result).toEqual([]);
   });
@@ -326,7 +326,6 @@ describe("staleCellIds", () => {
 describe("isUninstantiated", () => {
   it("should return true if autoInstantiate is false and cell has not run", () => {
     const result = isUninstantiated({
-      autoInstantiate: false,
       executionTime: null,
       status: "idle",
       errored: false,
@@ -336,21 +335,8 @@ describe("isUninstantiated", () => {
     expect(result).toBe(true);
   });
 
-  it("should return false if autoInstantiate is true", () => {
-    const result = isUninstantiated({
-      autoInstantiate: true,
-      executionTime: null,
-      status: "idle",
-      errored: false,
-      interrupted: false,
-      stopped: false,
-    });
-    expect(result).toBe(false);
-  });
-
   it("should return false if cell has run", () => {
     const result = isUninstantiated({
-      autoInstantiate: false,
       executionTime: 123,
       status: "idle",
       errored: false,
@@ -362,7 +348,6 @@ describe("isUninstantiated", () => {
 
   it("should return false if cell is currently queued or running", () => {
     let result = isUninstantiated({
-      autoInstantiate: false,
       executionTime: null,
       status: "queued",
       errored: false,
@@ -372,7 +357,6 @@ describe("isUninstantiated", () => {
     expect(result).toBe(false);
 
     result = isUninstantiated({
-      autoInstantiate: false,
       executionTime: null,
       status: "running",
       errored: false,
@@ -384,7 +368,6 @@ describe("isUninstantiated", () => {
 
   it("should return false if cell is in an error state", () => {
     let result = isUninstantiated({
-      autoInstantiate: false,
       executionTime: null,
       status: "idle",
       errored: true,
@@ -394,7 +377,6 @@ describe("isUninstantiated", () => {
     expect(result).toBe(false);
 
     result = isUninstantiated({
-      autoInstantiate: false,
       executionTime: null,
       status: "idle",
       errored: false,
@@ -404,7 +386,6 @@ describe("isUninstantiated", () => {
     expect(result).toBe(false);
 
     result = isUninstantiated({
-      autoInstantiate: false,
       executionTime: null,
       status: "idle",
       errored: false,

@@ -6,18 +6,13 @@ import useEvent from "react-use-event-hook";
 import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
 import { Logger } from "@/utils/Logger";
 import { staleCellIds } from "@/core/cells/utils";
-import { useAtomValue } from "jotai";
-import { autoInstantiateAtom } from "@/core/config/config";
 
 /**
  * Creates a function that runs all cells that have been edited or interrupted.
  */
 export function useRunStaleCells() {
-  const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const runCells = useRunCells();
-  const runStaleCells = useEvent(() =>
-    runCells(staleCellIds(getNotebook(), autoInstantiate)),
-  );
+  const runStaleCells = useEvent(() => runCells(staleCellIds(getNotebook())));
   return runStaleCells;
 }
 

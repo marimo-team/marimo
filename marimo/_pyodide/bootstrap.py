@@ -24,7 +24,9 @@ if TYPE_CHECKING:
     from marimo._pyodide.pyodide_session import PyodideBridge, PyodideSession
 
 
-def instantiate(session: PyodideSession) -> None:
+def instantiate(
+    session: PyodideSession, auto_instantiate: bool = True
+) -> None:
     """
     Instantiate the marimo app in the session.
 
@@ -43,6 +45,7 @@ def instantiate(session: PyodideSession) -> None:
             set_ui_element_value_request=SetUIElementValueRequest(
                 object_ids=[], values=[]
             ),
+            auto_run=auto_instantiate,
         )
     )
 
