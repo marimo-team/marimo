@@ -591,7 +591,6 @@ def test_cli_sandbox_run_with_python_version(temp_marimo_file_with_inline_metada
         text=True,
     )
 
-    time.sleep(2)  # Give the server time to start
     contents = _try_fetch(port)
 
     # If fetch fails, capture and print server output for debugging
