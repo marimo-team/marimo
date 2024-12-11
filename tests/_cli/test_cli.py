@@ -498,6 +498,31 @@ def test_cli_custom_host() -> None:
     _check_contents(p, b"marimo-mode data-mode='edit'", contents)
 
 
+def test_cli_network_host() -> None:
+    port = _get_port()
+    host = "0.0.0.0"
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+            "--host",
+            host,
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    contents = _try_fetch(port, "localhost")
+    _check_contents(p, b"marimo-mode data-mode='home'", contents)
+
+    # Check that network access message is printed
+    stdout, _ = p.communicate()
+    assert b"Server is accessible on your local network" in stdout
+
+
 @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
 def test_cli_sandbox_edit(temp_marimo_file: str) -> None:
     port = _get_port()
