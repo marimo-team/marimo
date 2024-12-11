@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
 from marimo import __version__
 from marimo._ast.cell import Cell, CellConfig, CellImpl
-from marimo._ast.names import is_default_cell_name
+from marimo._ast.names import DEFAULT_CELL_NAME, is_default_cell_name
 from marimo._config.config import (
     DEFAULT_CONFIG,
     DisplayConfig,
@@ -257,7 +257,7 @@ class Exporter:
             # Config values are opt in, so only include if they are set.
             attributes = cell_data.config.asdict()
             attributes = {k: "true" for k, v in attributes.items() if v}
-            if cell_data.name != "__":
+            if not is_default_cell_name(cell_data.name):
                 attributes["name"] = cell_data.name
             # No "cell" typically means not parseable. However newly added
             # cells require compilation before cell is set.
@@ -353,7 +353,7 @@ def _create_notebook_cell(
     import nbformat  # ignore
 
     markdown_string = get_markdown_from_cell(
-        Cell(_name="__", _cell=cell), cell.code
+        Cell(_name=DEFAULT_CELL_NAME, _cell=cell), cell.code
     )
     if markdown_string is not None:
         return nbformat.v4.new_markdown_cell(markdown_string, id=cell.cell_id)
