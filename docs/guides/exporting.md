@@ -94,7 +94,7 @@ marimo export ipynb notebook.py -o notebook.ipynb
 ## Exporting to PDF, slides, or rst
 
 If you export to a Jupyter notebook, you can leverage various Jupyter ecosystem tools. For PDFs, you will
-need to have [Pandoc](https://nbconvert.readthedocs.io/en/latest/install.html#installing-pandoc) and [Tex](https://nbconvert.readthedocs.io/en/latest/install.html#installing-tex) installed.
+need to have [Pandoc](https://nbconvert.readthedocs.io/en/latest/install.html#installing-pandoc) and [Tex](https://nbconvert.readthedocs.io/en/latest/install.html#installing-tex) installed. The examples below use `uvx`, which you can obtain by [installing `uv`](https://docs.astral.sh/uv/getting-started/installation/).
 
 ```bash
 NOTEBOOK=notebook.ipynb
