@@ -128,6 +128,7 @@ class SetUserConfigRequest:
 class CreationRequest:
     execution_requests: Tuple[ExecutionRequest, ...]
     set_ui_element_value_request: SetUIElementValueRequest
+    auto_run: bool
 
 
 @dataclass

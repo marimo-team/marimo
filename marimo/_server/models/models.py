@@ -35,7 +35,7 @@ class UpdateComponentValuesRequest:
 
 @dataclass
 class InstantiateRequest(UpdateComponentValuesRequest):
-    pass
+    auto_run: bool = True
 
 
 @dataclass

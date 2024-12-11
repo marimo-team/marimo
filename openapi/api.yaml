@@ -329,6 +329,8 @@ components:
       type: object
     CreationRequest:
       properties:
+        autoRun:
+          type: boolean
         executionRequests:
           items:
             $ref: '#/components/schemas/ExecutionRequest'
@@ -338,6 +340,7 @@ components:
       required:
       - executionRequests
       - setUiElementValueRequest
+      - autoRun
       type: object
     CycleError:
       properties:
@@ -851,6 +854,8 @@ components:
       type: object
     InstantiateRequest:
       properties:
+        autoRun:
+          type: boolean
         objectIds:
           items:
             type: string
@@ -861,6 +866,7 @@ components:
       required:
       - objectIds
       - values
+      - autoRun
       type: object
     Interrupted:
       properties:
@@ -1924,7 +1930,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.9.28
+  version: 0.9.34
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

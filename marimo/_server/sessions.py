@@ -623,6 +623,7 @@ class Session:
                     values=request.values,
                     token=str(uuid4()),
                 ),
+                auto_run=request.auto_run,
             )
         )
 
