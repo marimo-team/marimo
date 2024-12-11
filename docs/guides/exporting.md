@@ -2,7 +2,7 @@
 
 Export marimo notebooks to other file formats at the command line using
 
-```
+```bash
 marimo export
 ```
 
@@ -90,6 +90,47 @@ their dependency graph.
 ```bash
 marimo export ipynb notebook.py -o notebook.ipynb
 ```
+
+## Exporting to PDF, slides, or rst
+
+If you export to a Jupyter notebook, you can leverage various Jupyter ecosystem tools. For PDFs, you will
+need to have [Pandoc](https://nbconvert.readthedocs.io/en/latest/install.html#installing-pandoc) and [Tex](https://nbconvert.readthedocs.io/en/latest/install.html#installing-tex) installed.
+
+```bash
+NOTEBOOK=notebook.ipynb
+
+# Convert to PDF using nbconvert
+uvx --with nbconvert --from jupyter-core jupyter nbconvert --to pdf $NOTEBOOK
+
+# Convert to web PDF
+uvx --with "nbconvert[webpdf]" --from jupyter-core jupyter nbconvert --to webpdf $NOTEBOOK --allow-chromium-download
+
+# Convert to slides
+uvx --with nbconvert --from jupyter-core jupyter nbconvert --to slides $NOTEBOOK
+
+# Convert to rst with nbconvert
+uvx --with nbconvert --from jupyter-core jupyter nbconvert --to rst $NOTEBOOK
+
+# Generate PNG/PDF of specific cells using nbconvert
+uvx --with nbconvert --with jupyter --from jupyter-core jupyter nbconvert --to pdf --execute --stdout $NOTEBOOK \
+  --TemplateExporter.exclude_input=True
+
+# Use nbconvert programmatically for more control
+uv run --with nbconvert python -c "
+from nbconvert import PDFExporter
+import nbformat
+nb = nbformat.read('$NOTEBOOK', as_version=4)
+pdf_exporter = PDFExporter()
+pdf_data, resources = pdf_exporter.from_notebook_node(nb)
+with open('notebook.pdf', 'wb') as f:
+    f.write(pdf_data)
+"
+```
+
+You can also use other tools that work with Jupyter notebooks:
+
+- [Quarto](https://quarto.org) - Create beautiful documents, websites, presentations
+- [nbgrader](https://nbgrader.readthedocs.io/) - Grade notebook assignments
 
 ## 🏝️ Embed marimo outputs in HTML using Islands
 
