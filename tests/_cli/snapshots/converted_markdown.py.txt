@@ -4,7 +4,7 @@ app = marimo.App()
 
 
 @app.cell
-def __(mo):
+def __1(mo):
     mo.md(
         r"""
         # Hello, markdown
@@ -19,7 +19,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def __2(mo):
     mo.md(
         r"""
         Here is some math
@@ -31,7 +31,7 @@ def __(mo):
 
 
 @app.cell
-def __():
+def __3():
     import marimo as mo
     return (mo,)
 

@@ -5,7 +5,7 @@ app = marimo.App(app_title="Casually malicious md")
 
 
 @app.cell
-def __(mo):
+def __1(mo):
     mo.md(
         r"""
         What happens if I just leave a \"\"\"
@@ -20,13 +20,13 @@ def __(mo):
 
 
 @app.cell
-def __():
+def __2():
     print("Hello, World!")
     return
 
 
 @app.cell
-def __(mo):
+def __3(mo):
     mo.md(
         r"""
         -->
@@ -41,12 +41,12 @@ app._unparsable_cell(
     r"""
     it's an unparsable cell
     """,
-    name="__"
+    name="__4"
 )
 
 
 @app.cell
-def __(mo):
+def __5(mo):
     mo.md(
         r"""
         <!-- Actually markdown -->
@@ -60,13 +60,13 @@ def __(mo):
 
 
 @app.cell(disabled=True)
-def __():
+def __6():
     1 + 1
     return
 
 
 @app.cell
-def __(mo):
+def __7(mo):
     mo.md(
         r"""
         <!-- Hidden code block -->
@@ -76,13 +76,13 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __():
+def __8():
     1 + 1
     return
 
 
 @app.cell
-def __(mo):
+def __9(mo):
     mo.md(
         r"""
         <!-- Empty code block -->
@@ -92,12 +92,12 @@ def __(mo):
 
 
 @app.cell
-def __():
+def __10():
     return
 
 
 @app.cell
-def __(mo):
+def __11(mo):
     mo.md(
         r"""
         <!-- Improperly nested code block -->
@@ -112,12 +112,12 @@ app._unparsable_cell(
     ```{python}
     print(\"Hello, World!\")
     """,
-    name="__"
+    name="__12"
 )
 
 
 @app.cell
-def __(mo):
+def __13(mo):
     mo.md(
         r"""
         \"\"\"
@@ -139,7 +139,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def __14(mo):
     mo.md("""
       This is a markdown cell with an execution block in it
       ```{python}
@@ -150,7 +150,7 @@ def __(mo):
 
 
 @app.cell
-def __():
+def __15():
     return
 
 

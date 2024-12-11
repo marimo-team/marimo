@@ -4,7 +4,7 @@ app = marimo.App()
 
 
 @app.cell
-def __():
+def __1():
     return
 
 

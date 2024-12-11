@@ -90,8 +90,20 @@ export function getValidName(name: string, existingNames: string[]): string {
  * Print the cell name if differs from DEFAULT_CELL_NAME
  */
 export function displayCellName(name: string, cellIndex: number): string {
-  if (name !== DEFAULT_CELL_NAME) {
-    return name;
+  if (isDefaultCellName(name)) {
+    return `cell-${cellIndex}`;
   }
-  return `cell-${cellIndex}`;
+  return name;
+}
+
+// Default cell names look like "__" or "__{idx}"
+function isDefaultCellName(name: string): boolean {
+  return (
+    name === DEFAULT_CELL_NAME ||
+    (name.startsWith(DEFAULT_CELL_NAME) && isInteger(name.slice(2)))
+  );
+}
+
+function isInteger(name: string): boolean {
+  return !Number.isNaN(Number.parseInt(name));
 }

@@ -5,7 +5,7 @@ app = marimo.App()
 
 
 @app.cell
-def __(mo):
+def __1(mo):
     mo.md(
         r"""
         # Test Markdown

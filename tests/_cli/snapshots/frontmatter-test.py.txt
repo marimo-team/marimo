@@ -5,7 +5,7 @@ app = marimo.App(app_title="My Title")
 
 
 @app.cell
-def __(mo):
+def __1(mo):
     mo.md(
         r"""
         # Notebook
@@ -15,7 +15,7 @@ def __(mo):
 
 
 @app.cell
-def __():
+def __2():
     print("Hello, World!")
     return
 

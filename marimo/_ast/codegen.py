@@ -12,6 +12,7 @@ from marimo import __version__
 from marimo._ast.app import App, _AppConfig
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
+from marimo._ast.names import is_default_cell_name
 from marimo._ast.visitor import Name
 
 if TYPE_CHECKING:
@@ -174,6 +175,12 @@ def generate_filecontents(
 
     unshadowed_builtins = set(builtins.__dict__.keys()) - defs
     fndefs: list[str] = []
+
+    # Update default names to be __{idx}
+    for idx, name in enumerate(names):
+        if is_default_cell_name(name):
+            names[idx] = f"__{idx + 1}"
+
     for data, name in zip(cell_data, names):
         if isinstance(data, CellImpl):
             fndefs.append(to_functiondef(data, name, unshadowed_builtins))

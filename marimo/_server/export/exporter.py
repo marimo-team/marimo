@@ -8,8 +8,8 @@ import os
 from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
 from marimo import __version__
-from marimo._ast.app import is_default_cell_name
 from marimo._ast.cell import Cell, CellConfig, CellImpl
+from marimo._ast.names import is_default_cell_name
 from marimo._config.config import (
     DEFAULT_CONFIG,
     DisplayConfig,

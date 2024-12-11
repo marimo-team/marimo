@@ -16,6 +16,7 @@ from marimo import __version__
 from marimo._ast import codegen, compiler
 from marimo._ast.app import App, InternalApp, _AppConfig
 from marimo._ast.cell import CellConfig
+from marimo._ast.names import is_default_cell_name
 
 compile_cell = partial(compiler.compile_cell, cell_id="0")
 
@@ -263,6 +264,21 @@ class TestGeneration:
         result = codegen.generate_app_constructor(config)
         assert result == 'app = marimo.App(auto_download=["html"])'
 
+    @staticmethod
+    def test_generate_file_contents_overwrite_default_cell_names() -> None:
+        contents = wrap_generate_filecontents(
+            ["import numpy as np", "x = 0", "y = x + 1", "print(x)"],
+            ["is_named", "__9", "__10", "__foo"],
+        )
+        # __9 and __10 are overwritten by the default names
+        assert "is_named" in contents
+        assert "__foo" in contents
+        assert "__2" in contents
+        assert "__3" in contents
+
+        assert "__9" not in contents
+        assert "__10" not in contents
+
 
 class TestGetCodes:
     @staticmethod
@@ -394,7 +410,7 @@ class TestGetCodes:
         )
         assert app is not None
         cell_manager = app._cell_manager
-        assert list(cell_manager.names()) == ["one", "two", "__", "__"]
+        assert list(cell_manager.names()) == ["one", "two", "__3", "__4"]
         assert list(cell_manager.codes()) == [
             "import numpy as np",
             "_ error",
@@ -620,3 +636,10 @@ def test_sqls() -> None:
     cell = compile_cell(code)
     sqls = cell.sqls
     assert sqls == ["SELECT * FROM foo", "ATTACH TABLE bar"]
+
+
+def test_is_default_cell_name() -> None:
+    assert is_default_cell_name("__")
+    assert is_default_cell_name("__1")
+    assert not is_default_cell_name("__foo")
+    assert not is_default_cell_name("foo")
