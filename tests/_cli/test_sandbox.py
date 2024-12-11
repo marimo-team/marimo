@@ -4,7 +4,9 @@ import pytest
 
 from marimo._cli.sandbox import (
     _get_dependencies,
+    _get_python_version_requirement,
     _pyproject_toml_to_requirements_txt,
+    _read_pyproject,
 )
 
 
@@ -179,3 +181,44 @@ def test_pyproject_toml_to_requirements_txt_with_versioned_dependencies(
     assert _pyproject_toml_to_requirements_txt(pyproject) == [
         "marimo @ git+https://github.com/marimo-team/marimo.git@main",
     ]
+
+
+def test_get_python_version_requirement():
+    pyproject = {"requires-python": ">=3.11"}
+    assert _get_python_version_requirement(pyproject) == ">=3.11"
+
+    pyproject = {"dependencies": ["polars"]}
+    assert _get_python_version_requirement(pyproject) is None
+
+    assert _get_python_version_requirement(None) is None
+
+    pyproject = {"requires-python": {"invalid": "type"}}
+    assert _get_python_version_requirement(pyproject) is None
+
+
+def test_get_dependencies_with_python_version():
+    SCRIPT = """
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["polars"]
+# ///
+
+import marimo
+"""
+    assert _get_dependencies(SCRIPT) == ["polars"]
+
+    pyproject = _read_pyproject(SCRIPT)
+    assert pyproject is not None
+    assert _get_python_version_requirement(pyproject) == ">=3.11"
+
+    SCRIPT_NO_PYTHON = """
+# /// script
+# dependencies = ["polars"]
+# ///
+
+import marimo
+"""
+    pyproject_no_python = _read_pyproject(SCRIPT_NO_PYTHON)
+    assert pyproject_no_python is not None
+    assert _get_python_version_requirement(pyproject_no_python) is None
+    assert _get_dependencies(SCRIPT_NO_PYTHON) == ["polars"]
