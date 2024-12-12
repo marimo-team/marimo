@@ -86,9 +86,10 @@ class AltairFormatter(FormatterFactory):
             return ("application/vnd.vegalite.v5+json", chart.to_json())
 
     def apply_theme(self, theme: Theme) -> None:
-        import altair as alt  # type: ignore
-
-        alt.themes.enable("dark" if theme == "dark" else "default")  # type: ignore
+        del theme
+        # We don't need to apply this here because the theme is set in the
+        # vega-lite component
+        pass
 
 
 # This is only needed since it seems that altair does not
