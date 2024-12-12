@@ -157,7 +157,16 @@ def _resolve_values(values: Any, dtype: Any) -> List[Any]:
             return datetime.date.fromtimestamp(value / 1000)
         if nw.Datetime == dtype and isinstance(dtype, nw.Datetime):
             if isinstance(value, str):
-                return datetime.datetime.fromisoformat(value)
+                res = datetime.datetime.fromisoformat(value)
+                # If dtype has no timezone, shift by local timezone offset
+                if dtype.time_zone is None:
+                    local_tz = datetime.datetime.now().astimezone().tzinfo
+                    LOGGER.warning(
+                        f"Datetime was given with a timezone when not expected. "
+                        f"Shifting by local timezone offset {local_tz}."
+                    )
+                    return res.astimezone(local_tz).replace(tzinfo=None)
+                return res
 
             # Value is milliseconds since epoch
             # so we convert to seconds since epoch
