@@ -58,14 +58,14 @@ def _patch_signals_win32() -> Iterator[None]:
             signal.signal(signal.SIGINT, old_handler)
 
 
-def _interrupt(process: subprocess.Popen) -> None:
+def _interrupt(process: subprocess.Popen[Any]) -> None:
     if _is_win32():
         os.kill(process.pid, signal.CTRL_C_EVENT)
     else:
         os.kill(process.pid, signal.SIGINT)
 
 
-def _confirm_shutdown(process: subprocess.Popen) -> None:
+def _confirm_shutdown(process: subprocess.Popen[Any]) -> None:
     if _is_win32():
         process.stdin.write(b"y\r\n")
     else:
@@ -74,7 +74,8 @@ def _confirm_shutdown(process: subprocess.Popen) -> None:
 
 
 def _check_shutdown(
-    process: subprocess.Popen, check_fn: Optional[Callable[[int], bool]] = None
+    process: subprocess.Popen[Any],
+    check_fn: Optional[Callable[[int], bool]] = None,
 ) -> None:
     max_tries = 3
     tries = 0
@@ -90,24 +91,23 @@ def _check_shutdown(
 def _try_fetch(
     port: int, host: str = "localhost", token: Optional[str] = None
 ) -> Optional[bytes]:
-    contents = None
     for _ in range(10):
         try:
             url = f"http://{host}:{port}"
             if token is not None:
                 url = f"{url}?access_token={token}"
-            contents = urllib.request.urlopen(url).read()
-            break
+            return urllib.request.urlopen(url).read()
         except Exception:
             time.sleep(0.5)
-    return contents
+    print("Failed to fetch contents")
+    return None
 
 
 def _check_started(port: int, host: str = "localhost") -> Optional[bytes]:
     assert _try_fetch(port, host) is not None
 
 
-def _temp_run_file(directory: tempfile.TemporaryDirectory) -> str:
+def _temp_run_file(directory: tempfile.TemporaryDirectory[str]) -> str:
     filecontents = codegen.generate_filecontents(
         ["import marimo as mo"], ["one"], cell_configs=[CellConfig()]
     )
@@ -118,7 +118,7 @@ def _temp_run_file(directory: tempfile.TemporaryDirectory) -> str:
 
 
 def _check_contents(
-    p: subprocess.Popen,  # type: ignore
+    p: subprocess.Popen[Any],  # type: ignore
     phrase: bytes,
     contents: Optional[bytes],
 ) -> None:
@@ -142,7 +142,7 @@ def _get_port() -> int:
     raise OSError("Could not find an unused port.")
 
 
-def _read_toml(filepath: str) -> Optional[dict]:
+def _read_toml(filepath: str) -> Optional[dict[str, Any]]:
     import tomlkit
 
     if not os.path.exists(filepath):
@@ -191,8 +191,6 @@ def temp_marimo_file_with_inline_metadata() -> Generator[str, None, None]:
 def test_cli_help_exit_code() -> None:
     # smoke test: makes sure CLI starts
     # helpful for catching issues related to
-    # Python 3.8 compatibility, such as forgetting `from __future__` import
-    # annotations
     p = subprocess.run(["marimo", "--help"])
     assert p.returncode == 0
 
@@ -200,8 +198,6 @@ def test_cli_help_exit_code() -> None:
 def test_cli_edit_none() -> None:
     # smoke test: makes sure CLI starts and has basic things we expect
     # helpful for catching issues related to
-    # Python 3.8 compatibility, such as forgetting `from __future__` import
-    # annotations
     port = _get_port()
     p = subprocess.Popen(
         [
@@ -225,8 +221,6 @@ def test_cli_edit_none() -> None:
 def test_cli_edit_token() -> None:
     # smoke test: makes sure CLI starts and has basic things we expect
     # helpful for catching issues related to
-    # Python 3.8 compatibility, such as forgetting `from __future__` import
-    # annotations
     port = _get_port()
     p = subprocess.Popen(
         [

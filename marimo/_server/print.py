@@ -40,9 +40,12 @@ def print_startup(
     print_()
     print_tabbed(f"➜  {green('URL')}: {_colorized_url(url)}")
     if network:
-        print_tabbed(
-            f"➜  {green('Network')}: {_colorized_url(_get_network_url(url))}"
-        )
+        try:
+            print_tabbed(
+                f"➜  {green('Network')}: {_colorized_url(_get_network_url(url))}"
+            )
+        except Exception:
+            print_tabbed(f"➜  {green('Network')}: <unknown>")
     print_()
 
 
