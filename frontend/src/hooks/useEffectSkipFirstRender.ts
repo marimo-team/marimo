@@ -7,7 +7,10 @@ import { useEffect, useRef } from "react";
  * @param callback - Function to execute after first render
  * @param deps - Dependencies that trigger the callback when changed
  */
-export function useEffectSkipFirstRender(callback: () => void, deps: React.DependencyList) {
+export function useEffectSkipFirstRender(
+  callback: () => void,
+  deps: React.DependencyList,
+) {
   const hasRendered = useRef(false);
 
   useEffect(() => {

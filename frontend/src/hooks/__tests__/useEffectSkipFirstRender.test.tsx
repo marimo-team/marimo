@@ -7,7 +7,7 @@ describe("useEffectSkipFirstRender", () => {
     const callback = vi.fn();
     const { rerender } = renderHook(
       ({ deps }) => useEffectSkipFirstRender(callback, deps),
-      { initialProps: { deps: [1] } }
+      { initialProps: { deps: [1] } },
     );
 
     expect(callback).not.toHaveBeenCalled();
@@ -20,7 +20,7 @@ describe("useEffectSkipFirstRender", () => {
     const callback = vi.fn();
     const { rerender } = renderHook(
       ({ deps }) => useEffectSkipFirstRender(callback, deps),
-      { initialProps: { deps: [1] } }
+      { initialProps: { deps: [1] } },
     );
 
     rerender({ deps: [2] });
@@ -32,7 +32,7 @@ describe("useEffectSkipFirstRender", () => {
     const callback = vi.fn();
     const { rerender } = renderHook(
       ({ deps }) => useEffectSkipFirstRender(callback, deps),
-      { initialProps: { deps: [1] } }
+      { initialProps: { deps: [1] } },
     );
 
     rerender({ deps: [1] });
