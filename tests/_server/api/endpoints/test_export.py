@@ -4,7 +4,10 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
 
+import pytest
+
 from marimo import __version__
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.utils import uri_encode_component
 from tests._server.conftest import get_session_manager
 from tests._server.mocks import token_header, with_read_session, with_session
@@ -275,6 +278,9 @@ def test_auto_export_markdown(
     )
 
 
+@pytest.mark.skipif(
+    not DependencyManager.nbformat.has(), reason="nbformat not installed"
+)
 @with_session(SESSION_ID)
 def test_auto_export_ipynb(
     client: TestClient, *, temp_marimo_file: str
