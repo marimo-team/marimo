@@ -33,6 +33,7 @@ import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 import { SaveIcon } from "lucide-react";
 import { useHotkey } from "@/hooks/useHotkey";
 import { Button as ControlButton } from "@/components/editor/inputs/Inputs";
+import { useAutoExport } from "../export/hooks";
 
 interface SaveNotebookProps {
   kioskMode: boolean;
@@ -45,6 +46,8 @@ export const SaveComponent = ({ kioskMode, appConfig }: SaveNotebookProps) => {
     appConfig,
     kioskMode,
   });
+
+  useAutoExport();
 
   const handleSaveClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();

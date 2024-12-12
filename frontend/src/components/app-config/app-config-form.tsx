@@ -179,9 +179,12 @@ export const AppConfigForm: React.FC = () => {
           name="auto_download"
           render={({ field }) => (
             <div className="flex flex-col gap-y-1">
+              <div className="text-base font-bold text-muted-foreground">
+                Auto-download
+              </div>
               <FormItem className="flex flex-col gap-2">
                 <FormControl>
-                  <div className="flex gap-2">
+                  <div className="flex gap-4">
                     <div className="flex items-center space-x-2">
                       <Checkbox
                         id="html-checkbox"
@@ -190,9 +193,17 @@ export const AppConfigForm: React.FC = () => {
                           field.onChange(arrayToggle(field.value, "html"));
                         }}
                       />
-                      <FormLabel htmlFor="html-checkbox">
-                        Auto-download HTML
-                      </FormLabel>
+                      <FormLabel htmlFor="html-checkbox">HTML</FormLabel>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="ipynb-checkbox"
+                        checked={field.value.includes("ipynb")}
+                        onCheckedChange={() => {
+                          field.onChange(arrayToggle(field.value, "ipynb"));
+                        }}
+                      />
+                      <FormLabel htmlFor="ipynb-checkbox">IPYNB</FormLabel>
                     </div>
                     {/* Disable markdown until we save outputs in the exported markdown */}
                     {/* <div className="flex items-center space-x-2">
@@ -215,9 +226,10 @@ export const AppConfigForm: React.FC = () => {
                 <FormMessage />
               </FormItem>
               <FormDescription>
-                When enabled, marimo will periodically save this notebook as
-                HTML to a folder <Kbd className="inline">__marimo__</Kbd> in the
-                notebook's directory.
+                When enabled, marimo will automatically save this notebook in
+                your selected formats (HTML, IPYNB) to a folder named{" "}
+                <Kbd className="inline">__marimo__</Kbd> next to your notebook
+                file.
               </FormDescription>
             </div>
           )}

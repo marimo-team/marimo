@@ -23,9 +23,7 @@ export type ExecuteMultipleRequest = schemas["ExecuteMultipleRequest"];
 export type ExecutionRequest = schemas["ExecutionRequest"];
 export type ExportAsHTMLRequest = schemas["ExportAsHTMLRequest"];
 export type ExportAsMarkdownRequest = schemas["ExportAsMarkdownRequest"];
-export type ExportAsIPYNBRequest = {
-  download: boolean;
-};
+export type ExportAsIPYNBRequest = schemas["ExportAsIPYNBRequest"];
 export type ExportAsScriptRequest = schemas["ExportAsScriptRequest"];
 export type FileCreateRequest = schemas["FileCreateRequest"];
 export type FileCreateResponse = schemas["FileCreateResponse"];

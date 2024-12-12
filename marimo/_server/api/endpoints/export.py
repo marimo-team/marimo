@@ -286,7 +286,7 @@ async def auto_export_as_ipynb(
         content:
             application/json:
                 schema:
-                    $ref: "#/components/schemas/ExportAsHTMLRequest"
+                    $ref: "#/components/schemas/ExportAsIPYNBRequest"
     responses:
         200:
             description: Export the notebook as IPYNB

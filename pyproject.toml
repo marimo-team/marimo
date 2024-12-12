@@ -48,8 +48,6 @@ dependencies = [
     "ruff",
     # for packaging.version; not sure what the lower bound is.
     "packaging",
-    # for jupyter notebook export
-    "nbformat>=5.7.0",
 ]
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -81,11 +79,12 @@ sql = ["duckdb >= 1.0.0", "polars >= 1.9.0"]
 # List of deps that are recommended for most users
 # in order to unlock all features in marimo
 recommended = [
-    "duckdb>=1.1.0",  # SQL cells
-    "altair>=5.4.0",  # Plotting in datasource viewer
-    "polars>=1.9.0",  # SQL output back in Python
-    "openai>=1.41.1", # AI features
-    "ruff",           # Formatting
+    "duckdb>=1.1.0",   # SQL cells
+    "altair>=5.4.0",   # Plotting in datasource viewer
+    "polars>=1.9.0",   # SQL output back in Python
+    "openai>=1.41.1",  # AI features
+    "ruff",            # Formatting
+    "nbformat>=5.7.0", # Export as IPYNB
 ]
 
 dev = [

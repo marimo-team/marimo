@@ -211,6 +211,52 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/export/auto_export/ipynb": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["ExportAsIPYNBRequest"];
+        };
+      };
+      responses: {
+        /** @description Export the notebook as IPYNB */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+        /** @description File must be saved before downloading */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/export/auto_export/markdown": {
     parameters: {
       query?: never;
@@ -2223,6 +2269,9 @@ export interface components {
       download: boolean;
       files: string[];
       includeCode: boolean;
+    };
+    ExportAsIPYNBRequest: {
+      download: boolean;
     };
     ExportAsMarkdownRequest: {
       download: boolean;

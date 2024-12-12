@@ -120,6 +120,7 @@ def _generate_schema() -> dict[str, Any]:
         export.ExportAsHTMLRequest,
         export.ExportAsMarkdownRequest,
         export.ExportAsScriptRequest,
+        export.ExportAsIPYNBRequest,
         files.FileCreateRequest,
         files.FileCreateResponse,
         files.FileDeleteRequest,
