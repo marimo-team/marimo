@@ -257,7 +257,7 @@ class CellOp(Op):
 
         # In run mode, we don't want to broadcast the error. Instead we want to print the error to the console
         # and then broadcast a new error such that the data is hidden.
-        safe_errors: Sequence[Error] = []
+        safe_errors: list[Error] = []
         if get_mode() == "run":
             for error in data:
                 # Skip non-sensitive errors
@@ -272,7 +272,7 @@ class CellOp(Op):
                 )
                 safe_errors.append(MarimoInternalError(error_id=str(error_id)))
         else:
-            safe_errors = data
+            safe_errors = list(data)
 
         CellOp(
             cell_id=cell_id,
