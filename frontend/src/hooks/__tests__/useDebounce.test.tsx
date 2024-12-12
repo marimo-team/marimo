@@ -15,7 +15,7 @@ describe("useDebounce", () => {
   it("should update value after delay", () => {
     const { result, rerender } = renderHook(
       ({ value }) => useDebounce(value, 1000),
-      { initialProps: { value: "initial" } }
+      { initialProps: { value: "initial" } },
     );
 
     expect(result.current).toBe("initial");
@@ -36,7 +36,7 @@ describe("useDebounce", () => {
   it("should cleanup on unmount", () => {
     const { result, rerender, unmount } = renderHook(
       ({ value }) => useDebounce(value, 1000),
-      { initialProps: { value: "initial" } }
+      { initialProps: { value: "initial" } },
     );
 
     expect(result.current).toBe("initial");
@@ -68,8 +68,8 @@ describe("useDebounceControlledState", () => {
       useDebounceControlledState({
         initialValue: "initial",
         onChange,
-        delay: 1000
-      })
+        delay: 1000,
+      }),
     );
 
     expect(onChange).toHaveBeenCalledWith("initial");
@@ -81,8 +81,8 @@ describe("useDebounceControlledState", () => {
       useDebounceControlledState({
         initialValue: "initial",
         onChange,
-        delay: 1000
-      })
+        delay: 1000,
+      }),
     );
 
     onChange.mockClear();
@@ -109,8 +109,8 @@ describe("useDebounceControlledState", () => {
         initialValue: "initial",
         onChange,
         delay: 1000,
-        disabled: true
-      })
+        disabled: true,
+      }),
     );
 
     expect(onChange).not.toHaveBeenCalled();

@@ -14,7 +14,7 @@ describe("useInterval", () => {
   it("should call callback after delay", () => {
     const callback = vi.fn();
     renderHook(() =>
-      useInterval(callback, { delayMs: 1000, whenVisible: false })
+      useInterval(callback, { delayMs: 1000, whenVisible: false }),
     );
 
     expect(callback).not.toHaveBeenCalled();
@@ -25,7 +25,11 @@ describe("useInterval", () => {
   it("should not call callback when disabled", () => {
     const callback = vi.fn();
     renderHook(() =>
-      useInterval(callback, { delayMs: 1000, whenVisible: false, disabled: true })
+      useInterval(callback, {
+        delayMs: 1000,
+        whenVisible: false,
+        disabled: true,
+      }),
     );
 
     vi.advanceTimersByTime(1000);
@@ -36,11 +40,11 @@ describe("useInterval", () => {
     const callback = vi.fn();
     Object.defineProperty(document, "visibilityState", {
       value: "hidden",
-      writable: true
+      writable: true,
     });
 
     renderHook(() =>
-      useInterval(callback, { delayMs: 1000, whenVisible: true })
+      useInterval(callback, { delayMs: 1000, whenVisible: true }),
     );
 
     vi.advanceTimersByTime(1000);
@@ -54,7 +58,7 @@ describe("useInterval", () => {
   it("should cleanup on unmount", () => {
     const callback = vi.fn();
     const { unmount } = renderHook(() =>
-      useInterval(callback, { delayMs: 1000, whenVisible: false })
+      useInterval(callback, { delayMs: 1000, whenVisible: false }),
     );
 
     unmount();
