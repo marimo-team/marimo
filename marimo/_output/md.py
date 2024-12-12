@@ -56,12 +56,12 @@ class _md(Html):
         self._markdown_text = text
 
         # Lazily add mo.notebook_dir() as the bas64 base path
-        if "pymdownx.b64" not in extension_configs:
-            from marimo._runtime.runtime import notebook_dir
+        # if "pymdownx.b64" not in extension_configs:
+        #     from marimo._runtime.runtime import notebook_dir
 
-            extension_configs["pymdownx.b64"] = {
-                "base_path": str(notebook_dir()),
-            }
+        #     extension_configs["pymdownx.b64"] = {
+        #         "base_path": str(notebook_dir()),
+        #     }
 
         # markdown.markdown appends a newline, hence strip
         html_text = markdown.markdown(
@@ -73,8 +73,9 @@ class _md(Html):
                 "tables",
                 # LaTeX
                 "pymdownx.arithmatex",
-                # Base64 images - allows embedding images in markdown
-                "pymdownx.b64",
+                # Base64 is not enabled, since app users could potentially
+                # use it to grab files they shouldn't have access to.
+                # "pymdownx.b64",
                 # Subscripts and strikethrough
                 "pymdownx.tilde",
                 # Better code blocks

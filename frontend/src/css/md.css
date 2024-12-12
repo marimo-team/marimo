@@ -183,16 +183,16 @@ button .prose.prose {
   border-radius: 3px;
   border-style: solid;
   border-width: 1px;
-  padding-top: 0.1em;
-  padding-bottom: 0.1em;
+  padding-top: 0.1rem;
+  padding-bottom: 0.1rem;
   text-decoration: none;
 }
 
 .prose .critic:before,
 .prose .critic:after {
   content: "\00a0";
-  padding-top: 0.1em;
-  padding-bottom: 0.1em;
+  padding-top: 0.1rem;
+  padding-bottom: 0.1rem;
   font-size: initial;
 }
 
@@ -284,7 +284,7 @@ button .prose.prose {
 
 .prose .block {
   display: block;
-  padding: 0.02em;
+  padding: 0.02rem;
 }
 
 /* Keys */
