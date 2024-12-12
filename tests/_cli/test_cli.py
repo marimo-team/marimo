@@ -199,7 +199,7 @@ def test_cli_edit_none() -> None:
     # smoke test: makes sure CLI starts and has basic things we expect
     # helpful for catching issues related to
     port = _get_port()
-    with subprocess.Popen(
+    p = subprocess.Popen(
         [
             "marimo",
             "edit",
@@ -209,14 +209,13 @@ def test_cli_edit_none() -> None:
             "--no-token",
             "--skip-update-check",
         ]
-    ):
-        contents = _try_fetch(port)
-        assert contents is not None
-        assert b"marimo-mode data-mode='home'" in contents
-        assert (
-            f"marimo-version data-version='{__version__}'".encode() in contents
-        )
-        assert b"marimo-server-token" in contents
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b"marimo-mode data-mode='home'", contents)
+    _check_contents(
+        p, f"marimo-version data-version='{__version__}'".encode(), contents
+    )
+    _check_contents(p, b"marimo-server-token", contents)
 
 
 def test_cli_edit_token() -> None:
