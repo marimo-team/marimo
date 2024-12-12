@@ -226,7 +226,7 @@ export const AppConfigForm: React.FC = () => {
                 <FormMessage />
               </FormItem>
               <FormDescription>
-                When enabled, marimo will automatically save this notebook in
+                When enabled, marimo will periodically save this notebook in
                 your selected formats (HTML, IPYNB) to a folder named{" "}
                 <Kbd className="inline">__marimo__</Kbd> next to your notebook
                 file.
