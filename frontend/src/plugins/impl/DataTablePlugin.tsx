@@ -44,6 +44,7 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { DATA_TYPES } from "@/core/kernel/messages";
+import { useEffectSkipFirstRender } from "../../hooks/useEffectSkipFirstRender";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -234,7 +235,7 @@ export const LoadingDataTableComponent = memo(
     // Currently, our selection is index-based,
     // so we can't rely on the data to be the same when these change
     // We can remove this when we have a stable key for each row
-    useEffect(() => {
+    useEffectSkipFirstRender(() => {
       if (filters.length > 0 || searchQuery !== "" || sorting.length > 0) {
         setValue([]);
       }
