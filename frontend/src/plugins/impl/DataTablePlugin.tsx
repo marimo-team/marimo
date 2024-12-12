@@ -232,10 +232,12 @@ export const LoadingDataTableComponent = memo(
 
     // We need to clear the selection when sort, query, or filters change
     // Currently, our selection is index-based,
-    // so we can't rely on the data to be the same
+    // so we can't rely on the data to be the same when these change
     // We can remove this when we have a stable key for each row
     useEffect(() => {
-      setValue([]);
+      if (filters.length > 0 || searchQuery !== "" || sorting.length > 0) {
+        setValue([]);
+      }
     }, [setValue, filters, searchQuery, sorting]);
 
     // If pageSize changes, reset pagination state
