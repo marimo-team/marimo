@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import unittest
+from typing import Literal
 
 from marimo._ast.app import _AppConfig
 from marimo._ast.cell import CellConfig
@@ -360,5 +361,103 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             )
 
             snapshot("export5.txt", normalize_index_html(result))
+        finally:
+            os.remove(head_file)
+
+
+class TestWasmNotebookTemplate(unittest.TestCase):
+    def setUp(self) -> None:
+        root = os.path.realpath(
+            os.path.join(os.path.dirname(__file__), "data")
+        )
+        index_html = os.path.join(root, "index.html")
+        with open(index_html, "r") as f:
+            self.html = f.read()
+
+        self.version = "1.0.0"
+        self.filename = "notebook.py"
+        self.mode: Literal["edit", "run"] = "run"
+        self.user_config = DEFAULT_CONFIG
+        self.app_config = _AppConfig()
+        self.code = "print('Hello, World!')"
+        self.config_overrides: PartialMarimoConfig = {}
+
+    def test_wasm_notebook_template(self) -> None:
+        result = templates.wasm_notebook_template(
+            html=self.html,
+            version=self.version,
+            filename=self.filename,
+            mode=self.mode,
+            user_config=self.user_config,
+            config_overrides=self.config_overrides,
+            app_config=self.app_config,
+            code=self.code,
+        )
+
+        assert self.filename in result
+        assert self.mode in result
+        assert json.dumps(self.user_config) in result
+        assert '<marimo-wasm hidden="">' in result
+        assert '<marimo-code hidden="">' in result
+
+    def test_wasm_notebook_template_custom_css_and_assets(self) -> None:
+        # Create css file
+        css = "/* custom css */"
+
+        css_file = os.path.join(os.path.dirname(self.filename), "custom.css")
+        with open(css_file, "w") as f:
+            f.write(css)
+
+        try:
+            result = templates.wasm_notebook_template(
+                html=self.html,
+                version=self.version,
+                filename=self.filename,
+                mode=self.mode,
+                user_config=self.user_config,
+                config_overrides=self.config_overrides,
+                app_config=_AppConfig(css_file="custom.css"),
+                code=self.code,
+                asset_url="https://my.cdn.com",
+            )
+
+            assert css in result
+            assert '<marimo-wasm hidden="">' in result
+            assert "https://my.cdn.com/assets/" in result
+        finally:
+            os.remove(css_file)
+
+    def test_wasm_notebook_template_custom_head(self) -> None:
+        # Create html head file
+        head = """
+        <!-- Google tag (gtag.js) -->
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-XXXXXXXXXX');
+        </script>
+        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+        """
+
+        head_file = os.path.join(os.path.dirname(self.filename), "head.html")
+        with open(head_file, "w") as f:
+            f.write(head)
+
+        try:
+            result = templates.wasm_notebook_template(
+                html=self.html,
+                version=self.version,
+                filename=self.filename,
+                mode=self.mode,
+                user_config=self.user_config,
+                config_overrides=self.config_overrides,
+                app_config=_AppConfig(html_head_file="head.html"),
+                code=self.code,
+            )
+
+            assert head in result
+            assert '<marimo-wasm hidden="">' in result
         finally:
             os.remove(head_file)

@@ -352,6 +352,28 @@ class TestAltairChart:
             == 2
         )
 
+        # Datetimes with timezone given, get remove
+        assert (
+            get_len(
+                _filter_dataframe(
+                    df,
+                    {
+                        "select_interval": {
+                            "datetime_column": [
+                                datetime.datetime(
+                                    2019, 12, 29, tzinfo=datetime.timezone.utc
+                                ).isoformat(),
+                                datetime.datetime(
+                                    2020, 1, 1, tzinfo=datetime.timezone.utc
+                                ).isoformat(),
+                            ]
+                        }
+                    },
+                )
+            )
+            == 2
+        )
+
     @staticmethod
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"
@@ -452,6 +474,28 @@ class TestAltairChart:
                 )
             )
             == 2
+        )
+
+        # Datetimes with timezone given, get remove
+        assert (
+            get_len(
+                _filter_dataframe(
+                    df,
+                    {
+                        "select_interval": {
+                            "datetime_column": [
+                                datetime.datetime(
+                                    2019, 12, 29, tzinfo=datetime.timezone.utc
+                                ).isoformat(),
+                                datetime.datetime(
+                                    2020, 1, 1, tzinfo=datetime.timezone.utc
+                                ).isoformat(),
+                            ]
+                        }
+                    },
+                )
+            )
+            == 0
         )
 
     @staticmethod
