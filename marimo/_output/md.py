@@ -63,6 +63,8 @@ class _md(Html):
                 "pymdownx.tilde",
                 # Better code blocks
                 "pymdownx.superfences",
+                # Task lists
+                "pymdownx.tasklist",
                 # Table of contents
                 # This adds ids to the HTML headers
                 "toc",
