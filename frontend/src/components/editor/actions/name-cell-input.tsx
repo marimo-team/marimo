@@ -4,9 +4,9 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { getCellNames, useCellActions } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import {
-  DEFAULT_CELL_NAME,
   normalizeName,
   getValidName,
+  isInternalCellName,
 } from "@/core/cells/names";
 import { useOnMount } from "@/hooks/useLifecycle";
 import { cn } from "@/utils/cn";
@@ -69,7 +69,7 @@ export const NameCellContentEditable: React.FC<{
   );
 
   // If the name is the default, don't render the content editable
-  if (value === DEFAULT_CELL_NAME) {
+  if (isInternalCellName(value)) {
     return null;
   }
 
@@ -106,7 +106,7 @@ function useCellNameInput(value: string, onChange: (newName: string) => void) {
     }
 
     // Empty
-    if (!newValue || newValue === DEFAULT_CELL_NAME) {
+    if (!newValue || isInternalCellName(newValue)) {
       onChange(newValue);
       return;
     }
@@ -117,7 +117,7 @@ function useCellNameInput(value: string, onChange: (newName: string) => void) {
   };
 
   return {
-    value: internalValue === DEFAULT_CELL_NAME ? "" : internalValue,
+    value: isInternalCellName(internalValue) ? "" : internalValue,
     onChange: (evt: React.ChangeEvent<HTMLInputElement>) => {
       const newValue = evt.target.value;
       const normalized = normalizeName(newValue);

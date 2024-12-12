@@ -32,7 +32,7 @@ import { goToVariableDefinition } from "@/core/codemirror/go-to-definition/comma
 import { SearchInput } from "../ui/input";
 import { CellLinkList } from "../editor/links/cell-link-list";
 import { VariableName } from "./common";
-import { DEFAULT_CELL_NAME } from "@/core/cells/names";
+import { isInternalCellName } from "@/core/cells/names";
 
 interface Props {
   className?: string;
@@ -233,7 +233,7 @@ export const VariableTable: React.FC<Props> = memo(
     const resolvedVariables: ResolvedVariable[] = useMemo(() => {
       const getName = (id: CellId) => {
         const name = cellNames[id];
-        if (name === DEFAULT_CELL_NAME) {
+        if (isInternalCellName(name)) {
           return `cell-${cellIds.indexOf(id)}`;
         }
         return name ?? `cell-${cellIds.indexOf(id)}`;
