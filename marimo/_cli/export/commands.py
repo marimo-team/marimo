@@ -366,25 +366,14 @@ and cannot be opened directly from the file system (e.g. file://).
 @click.option(
     "--mode",
     type=click.Choice(["edit", "run"]),
-    help="Mode to run the notebook in.",
+    help="Whether the notebook code should be editable or readonly",
     required=True,
-)
-@click.option(
-    "--include-assets/--no-include-assets",
-    default=True,
-    show_default=True,
-    type=bool,
-    help="""
-    Include assets in the exported notebook.
-    These assets are required for the notebook to run in the browser.
-    """,
 )
 @click.argument("name", required=True, callback=validators.is_file_path)
 def html_wasm(
     name: str,
     output: str,
     mode: Literal["edit", "run"],
-    include_assets: bool,
 ) -> None:
     """Export a notebook as a WASM-powered standalone HTML file."""
 
@@ -398,11 +387,10 @@ def html_wasm(
         )
 
     # Export assets first
-    if include_assets:
-        Exporter().export_assets(output)
-        echo(
-            f"Assets copied to {green(output)}. These assets are required for the notebook to run in the browser."
-        )
+    Exporter().export_assets(output)
+    echo(
+        f"Assets copied to {green(output)}. These assets are required for the notebook to run in the browser."
+    )
 
     outfile = os.path.join(output, "index.html")
     return watch_and_export(MarimoPath(name), outfile, False, export_callback)

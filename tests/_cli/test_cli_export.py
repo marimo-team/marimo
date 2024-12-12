@@ -72,7 +72,6 @@ class TestExportHTML:
                 "edit",
                 "--output",
                 out_dir,
-                "--no-include-assets",
             ],
             capture_output=True,
         )
@@ -95,7 +94,6 @@ class TestExportHTML:
                 "run",
                 "--output",
                 out_dir,
-                "--no-include-assets",
             ],
             capture_output=True,
         )

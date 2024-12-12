@@ -24,7 +24,6 @@ from marimo._cli.print import red
 from marimo._cli.run_docker import (
     prompt_run_in_docker_container,
 )
-from marimo._cli.serve.commands import serve
 from marimo._cli.upgrade import check_for_updates, print_latest_version
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._server.file_router import AppFileRouter
@@ -763,7 +762,6 @@ def env() -> None:
 
 
 main.command()(convert)
-main.add_command(serve)
 main.add_command(export)
 main.add_command(config)
 main.add_command(development)

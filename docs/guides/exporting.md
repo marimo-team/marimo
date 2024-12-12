@@ -161,10 +161,49 @@ Your server must also serve the assets in the `assets` directory, next to the HT
 You can test the export by running the following command in the directory containing your notebook:
 
 ```bash
-marimo serve path/to/output_dir
+cd path/to/output_dir
+python -m http.server
 ```
 
-This spins up a local HTTP server that serves the HTML and assets. We do not recommend using this for production and instead recommend using a proper HTTP server.
+## Deploying to GitHub Pages
+
+You can deploy your marimo WebAssembly notebook to GitHub Pages by following these steps:
+
+```yaml
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ... checkout and install dependencies
+
+      - name: 📄 Export notebook
+        run: |
+          marimo export html-wasm notebook.py -o path/to/output --mode run
+
+      - name: 📦 Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: path/to/output
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    permissions:
+      pages: write
+      id-token: write
+
+    steps:
+      - name: 🌐 Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages
+```
 
 ## 🏝️ Embed marimo outputs in HTML using Islands
 
