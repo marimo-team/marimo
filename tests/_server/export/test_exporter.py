@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import pytest
 
@@ -8,8 +9,10 @@ from marimo._ast.app import App, InternalApp
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import CellOp
-from marimo._output.hypertext import patch_html_for_non_interactive_output
-from marimo._server.export import run_app_until_completion
+from marimo._server.export import (
+    run_app_then_export_as_ipynb,
+    run_app_until_completion,
+)
 from marimo._server.export.exporter import Exporter
 from marimo._server.file_manager import AppFileManager
 from tests.mocks import snapshotter
@@ -212,18 +215,14 @@ async def test_export_ipynb_with_outputs():
         file_manager, sort_mode="top-down", session_view=None
     )
     assert filename == "notebook.ipynb"
+    assert content is not None
 
-    # Create a session view with outputs
-    with patch_html_for_non_interactive_output():
-        session_view, did_error = await run_app_until_completion(
-            file_manager, cli_args={}
-        )
-    content, filename = exporter.export_as_ipynb(
-        file_manager, sort_mode="top-down", session_view=session_view
+    result = await run_app_then_export_as_ipynb(
+        file_manager, sort_mode="top-down", cli_args={}
     )
-    assert not did_error
-    assert filename == "notebook.ipynb"
-    snapshot("notebook_with_outputs.ipynb.txt", content)
+    assert not result.did_error
+    assert result.download_filename == "notebook.ipynb"
+    snapshot("notebook_with_outputs.ipynb.txt", result.contents)
 
 
 async def test_run_until_completion_with_stop():
@@ -253,13 +252,46 @@ async def test_run_until_completion_with_stop():
         file_manager, cli_args={}
     )
     assert did_error is False
-    output_data = [
-        op for op in session_view.operations if isinstance(op, CellOp)
-    ]
-    serialized_out = json.dumps(
-        [op.output.data for op in output_data if op.output is not None]
+    cell_ops = [op for op in session_view.operations if isinstance(op, CellOp)]
+    snapshot("run_until_completion_with_stop.txt", _print_messages(cell_ops))
+
+
+async def test_run_until_completion_with_stack_trace():
+    app = App()
+
+    @app.cell()
+    def _():
+        print("running internal tests")
+        return
+
+    @app.cell()
+    def _():
+        import sys
+
+        sys.stderr.write("internal error\n")
+        return
+
+    @app.cell()
+    def _():
+        given_password = "test"
+        if given_password != "s3cret":
+            raise ValueError(
+                "Failed to authenticate. The correct password is 's3cret'."
+            )
+        return
+
+    file_manager = AppFileManager.from_app(InternalApp(app))
+
+    # When not redirected, the stack trace is not included in the output
+    session_view, did_error = await run_app_until_completion(
+        file_manager, cli_args={}
     )
-    snapshot("run_until_completion_with_stop.txt", serialized_out)
+    assert did_error is True
+    cell_ops = [op for op in session_view.operations if isinstance(op, CellOp)]
+    snapshot(
+        "run_until_completion_with_stack_trace.txt",
+        _delete_lines_with_files(_print_messages(cell_ops)),
+    )
 
 
 async def test_export_wasm_edit():
@@ -306,3 +338,43 @@ async def test_export_wasm_run():
     assert filename == "notebook.wasm.html"
     assert "alert(" in content
     assert "mode='read'" in content
+
+
+def _print_messages(messages: list[CellOp]) -> str:
+    result: list[dict[str, Any]] = []
+    for message in messages:
+        result.append(
+            {
+                "output": (
+                    message.output.data if message.output is not None else None
+                ),
+                "console": (
+                    [
+                        output.data if output else None
+                        for output in _as_list(message.console)
+                    ]
+                    if message.console is not None
+                    else None
+                ),
+                "status": message.status,
+            }
+        )
+    return json.dumps(result, indent=2)
+
+
+def _as_list(data: Any) -> list[Any]:
+    if isinstance(data, list):
+        return data  # type: ignore
+    return [data]
+
+
+def _delete_lines_with_files(output: str) -> str:
+    # Remove any line that contains "File " up until a .py ending
+    def remove_file_name(line: str) -> str:
+        if "File " not in line:
+            return line
+        start = line.index("File ")
+        end = line.rindex(".py") + 3
+        return line[0:start] + line[end:]
+
+    return "\n".join(remove_file_name(line) for line in output.splitlines())

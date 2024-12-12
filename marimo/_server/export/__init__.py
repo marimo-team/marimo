@@ -4,14 +4,14 @@ from __future__ import annotations
 import asyncio
 import sys
 from dataclasses import dataclass
-from typing import Any, Callable, Literal, Optional, cast
+from typing import Any, Callable, Literal, Optional, Union, cast
 
 from marimo._cli.print import echo
 from marimo._config.manager import (
     get_default_config_manager,
 )
 from marimo._messaging.cell_output import CellChannel
-from marimo._messaging.errors import Error
+from marimo._messaging.errors import Error, is_unexpected_error
 from marimo._messaging.ops import MessageOperation
 from marimo._messaging.types import KernelMessage
 from marimo._output.hypertext import patch_html_for_non_interactive_output
@@ -109,18 +109,22 @@ def export_as_wasm(
 
 
 async def run_app_then_export_as_ipynb(
-    path: MarimoPath,
+    path_or_file_manager: Union[MarimoPath, AppFileManager],
     sort_mode: Literal["top-down", "topological"],
     cli_args: SerializedCLIArgs,
 ) -> ExportResult:
-    file_router = AppFileRouter.from_filename(path)
-    file_key = file_router.get_unique_file_key()
-    assert file_key is not None
-    file_manager = file_router.get_file_manager(file_key)
+    if isinstance(path_or_file_manager, AppFileManager):
+        file_manager = path_or_file_manager
+    else:
+        file_router = AppFileRouter.from_filename(path_or_file_manager)
+        file_key = file_router.get_unique_file_key()
+        assert file_key is not None
+        file_manager = file_router.get_file_manager(file_key)
 
     with patch_html_for_non_interactive_output():
         (session_view, did_error) = await run_app_until_completion(
-            file_manager, cli_args
+            file_manager,
+            cli_args,
         )
 
     result = Exporter().export_as_ipynb(
@@ -146,7 +150,8 @@ async def run_app_then_export_as_html(
 
     config = get_default_config_manager(current_path=file_manager.path)
     session_view, did_error = await run_app_until_completion(
-        file_manager, cli_args
+        file_manager,
+        cli_args,
     )
     # Export the session as HTML
     html, filename = Exporter().export_as_html(
@@ -222,10 +227,7 @@ async def run_app_until_completion(
                         for err in errors:
                             parsed = parse_raw({"error": err}, Container)
                             # Not all errors are fatal
-                            if parsed.error.type not in [
-                                "ancestor-prevented",
-                                "ancestor-stopped",
-                            ]:
+                            if is_unexpected_error(parsed.error):
                                 echo(
                                     f"{parsed.error.__class__.__name__}: {parsed.error.describe()}",
                                     file=sys.stderr,

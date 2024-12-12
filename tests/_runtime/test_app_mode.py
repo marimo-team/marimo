@@ -8,12 +8,13 @@ from marimo._runtime.context import (
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.context.script_context import ScriptRuntimeContext
 from marimo._runtime.context.utils import get_mode
+from marimo._server.model import SessionMode
 
 
 def test_get_mode_kernel_run():
     """Test get_mode() returns 'run' when in kernel run mode"""
     mock_context = Mock(spec=KernelRuntimeContext)
-    mock_context.session_mode = "run"
+    mock_context.session_mode = SessionMode.RUN
 
     with patch(
         "marimo._runtime.context.utils.get_context", return_value=mock_context
@@ -24,7 +25,7 @@ def test_get_mode_kernel_run():
 def test_get_mode_kernel_edit():
     """Test get_mode() returns 'edit' when in kernel edit mode"""
     mock_context = Mock(spec=KernelRuntimeContext)
-    mock_context.session_mode = "edit"
+    mock_context.session_mode = SessionMode.EDIT
 
     with patch(
         "marimo._runtime.context.utils.get_context", return_value=mock_context

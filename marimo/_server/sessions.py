@@ -164,7 +164,7 @@ class KernelManager:
         app_metadata: AppMetadata,
         user_config_manager: MarimoConfigReader,
         virtual_files_supported: bool,
-        redirect_console_to_browser: bool = False,
+        redirect_console_to_browser: bool,
     ) -> None:
         self.kernel_task: Optional[threading.Thread] | Optional[mp.Process]
         self.queue_manager = queue_manager
@@ -661,7 +661,7 @@ class SessionManager:
         user_config_manager: MarimoConfigReader,
         cli_args: SerializedCLIArgs,
         auth_token: Optional[AuthToken],
-        redirect_console_to_browser: bool = False,
+        redirect_console_to_browser: bool,
     ) -> None:
         self.file_router = file_router
         self.mode = mode

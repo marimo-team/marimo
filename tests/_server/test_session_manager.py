@@ -37,6 +37,7 @@ def session_manager():
         user_config_manager=get_default_config_manager(current_path=None),
         cli_args={},
         auth_token=None,
+        redirect_console_to_browser=False,
     )
 
 

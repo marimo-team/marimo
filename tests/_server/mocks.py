@@ -56,6 +56,7 @@ if __name__ == "__main__":
         user_config_manager=get_default_config_manager(current_path=None),
         cli_args={},
         auth_token=AuthToken("fake-token"),
+        redirect_console_to_browser=False,
     )
     sm.skew_protection_token = SkewProtectionToken("skew-id-1")
     return sm
