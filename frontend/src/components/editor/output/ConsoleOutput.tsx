@@ -3,7 +3,7 @@ import React, { useLayoutEffect } from "react";
 import type { OutputMessage } from "@/core/kernel/messages";
 import { OutputRenderer } from "../Output";
 import { cn } from "@/utils/cn";
-import { DEFAULT_CELL_NAME } from "@/core/cells/names";
+import { isInternalCellName } from "@/core/cells/names";
 import { NameCellContentEditable } from "../actions/name-cell-input";
 import type { CellId } from "@/core/cells/ids";
 import { Input } from "@/components/ui/input";
@@ -71,7 +71,7 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
     }
   });
 
-  if (!hasOutputs && cellName === DEFAULT_CELL_NAME) {
+  if (!hasOutputs && isInternalCellName(cellName)) {
     return null;
   }
 

@@ -97,6 +97,9 @@ export function displayCellName(name: string, cellIndex: number): string {
 }
 
 // Default cell names are "_" and "__" (for backwards compatibility)
-function isInternalCellName(name: string): boolean {
+export function isInternalCellName(name: string | undefined): boolean {
+  if (!name) {
+    return true;
+  }
   return name === DEFAULT_CELL_NAME || name === "__";
 }
