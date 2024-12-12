@@ -51,7 +51,6 @@ describe("getValidName", () => {
 describe("displayCellName", () => {
   it("should return the name if it is not the default cell name", () => {
     expect(displayCellName("custom_name", 1)).toBe("custom_name");
-    expect(displayCellName("__custom_name", 1)).toBe("__custom_name");
   });
 
   it("should return the HTML cell ID if the name is the default cell name", () => {
@@ -59,5 +58,6 @@ describe("displayCellName", () => {
     expect(displayCellName(DEFAULT_CELL_NAME, 1)).toBe("cell-1");
     expect(displayCellName("__abcd", 0)).toBe("cell-0");
     expect(displayCellName("__1234", 0)).toBe("cell-0");
+    expect(displayCellName("__custom_name", 1)).toBe("cell-1");
   });
 });

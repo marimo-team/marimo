@@ -16,7 +16,7 @@ from marimo import __version__
 from marimo._ast import codegen, compiler
 from marimo._ast.app import App, InternalApp, _AppConfig
 from marimo._ast.cell import CellConfig
-from marimo._ast.names import is_default_cell_name
+from marimo._ast.names import is_internal_cell_name
 
 compile_cell = partial(compiler.compile_cell, cell_id="0")
 
@@ -635,8 +635,8 @@ def test_sqls() -> None:
     assert sqls == ["SELECT * FROM foo", "ATTACH TABLE bar"]
 
 
-def test_is_default_cell_name() -> None:
-    assert is_default_cell_name("__")
-    assert is_default_cell_name("__1213")
-    assert not is_default_cell_name("__foo")
-    assert not is_default_cell_name("foo")
+def test_is_internal_cell_name() -> None:
+    assert is_internal_cell_name("__")
+    assert is_internal_cell_name("__1213123123")
+    assert is_internal_cell_name("__foo")
+    assert not is_internal_cell_name("foo")

@@ -90,16 +90,13 @@ export function getValidName(name: string, existingNames: string[]): string {
  * Print the cell name if differs from DEFAULT_CELL_NAME
  */
 export function displayCellName(name: string, cellIndex: number): string {
-  if (isDefaultCellName(name)) {
+  if (isInternalCellName(name)) {
     return `cell-${cellIndex}`;
   }
   return name;
 }
 
-// Default cell names look like "__" or "__{4char_hash}"
-function isDefaultCellName(name: string): boolean {
-  return (
-    name === DEFAULT_CELL_NAME ||
-    (name.startsWith(DEFAULT_CELL_NAME) && name.slice(2).length === 4)
-  );
+// Default cell names look like "__" or "__{some_hash}"
+function isInternalCellName(name: string): boolean {
+  return name.startsWith(DEFAULT_CELL_NAME);
 }

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
 from marimo import __version__
 from marimo._ast.cell import Cell, CellConfig, CellImpl
-from marimo._ast.names import DEFAULT_CELL_NAME, is_default_cell_name
+from marimo._ast.names import DEFAULT_CELL_NAME, is_internal_cell_name
 from marimo._config.config import (
     DEFAULT_CONFIG,
     DisplayConfig,
@@ -189,7 +189,7 @@ class Exporter:
                     cell.config.asdict_without_defaults()
                 )
             name = file_manager.app.cell_manager.cell_name(cid)
-            if not is_default_cell_name(name):
+            if not is_internal_cell_name(name):
                 marimo_metadata["name"] = name
             if marimo_metadata:
                 notebook_cell["metadata"]["marimo"] = marimo_metadata
@@ -257,7 +257,7 @@ class Exporter:
             # Config values are opt in, so only include if they are set.
             attributes = cell_data.config.asdict()
             attributes = {k: "true" for k, v in attributes.items() if v}
-            if not is_default_cell_name(cell_data.name):
+            if not is_internal_cell_name(cell_data.name):
                 attributes["name"] = cell_data.name
             # No "cell" typically means not parseable. However newly added
             # cells require compilation before cell is set.
