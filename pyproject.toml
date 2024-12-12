@@ -48,6 +48,8 @@ dependencies = [
     "ruff",
     # for packaging.version; not sure what the lower bound is.
     "packaging",
+    # for jupyter notebook export
+    "nbformat>=5.7.0",
 ]
 readme = "README.md"
 license = { file = "LICENSE" }

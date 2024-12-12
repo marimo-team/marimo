@@ -173,7 +173,7 @@ export const AppConfigSchema = z
     app_title: AppTitleSchema.nullish(),
     css_file: z.string().nullish(),
     html_head_file: z.string().nullish(),
-    auto_download: z.array(z.string()).default([]),
+    auto_download: z.array(z.enum(["html", "markdown", "ipynb"])).default([]),
   })
   .default({ width: "medium", auto_download: [] });
 export type AppConfig = z.infer<typeof AppConfigSchema>;

@@ -273,3 +273,37 @@ def test_auto_export_markdown(
     assert os.path.exists(
         os.path.join(os.path.dirname(temp_marimo_file), "__marimo__")
     )
+
+
+@with_session(SESSION_ID)
+def test_auto_export_ipynb(
+    client: TestClient, *, temp_marimo_file: str
+) -> None:
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.filename = temp_marimo_file
+
+    response = client.post(
+        "/api/export/auto_export/ipynb",
+        headers=HEADERS,
+        json={
+            "download": False,
+        },
+    )
+    assert response.status_code == 200
+    assert response.json() == {"success": True}
+
+    response = client.post(
+        "/api/export/auto_export/ipynb",
+        headers=HEADERS,
+        json={
+            "download": False,
+        },
+    )
+    # Not modified response
+    assert response.status_code == 304
+
+    # Assert __marimo__ file is created
+    assert os.path.exists(
+        os.path.join(os.path.dirname(temp_marimo_file), "__marimo__")
+    )

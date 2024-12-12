@@ -281,6 +281,13 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    autoExportAsIPYNB: async (request) => {
+      return marimoClient
+        .POST("/api/export/auto_export/ipynb", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
+    },
     addPackage: (request) => {
       return marimoClient
         .POST("/api/packages/add", {

@@ -23,6 +23,9 @@ export type ExecuteMultipleRequest = schemas["ExecuteMultipleRequest"];
 export type ExecutionRequest = schemas["ExecutionRequest"];
 export type ExportAsHTMLRequest = schemas["ExportAsHTMLRequest"];
 export type ExportAsMarkdownRequest = schemas["ExportAsMarkdownRequest"];
+export type ExportAsIPYNBRequest = {
+  download: boolean;
+};
 export type ExportAsScriptRequest = schemas["ExportAsScriptRequest"];
 export type FileCreateRequest = schemas["FileCreateRequest"];
 export type FileCreateResponse = schemas["FileCreateResponse"];
@@ -150,6 +153,7 @@ export interface EditRequests {
   exportAsMarkdown: (request: ExportAsMarkdownRequest) => Promise<string>;
   autoExportAsHTML: (request: ExportAsHTMLRequest) => Promise<null>;
   autoExportAsMarkdown: (request: ExportAsMarkdownRequest) => Promise<null>;
+  autoExportAsIPYNB: (request: ExportAsIPYNBRequest) => Promise<null>;
   // Package requests
   getPackageList: () => Promise<ListPackagesResponse>;
   addPackage: (request: AddPackageRequest) => Promise<PackageOperationResponse>;

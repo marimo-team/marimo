@@ -330,6 +330,19 @@ class AutoExporter:
         with open(filepath, "w") as f:
             f.write(markdown)
 
+    def save_ipynb(self, file_manager: AppFileManager, ipynb: str) -> None:
+        # get filename
+        directory = os.path.dirname(get_filename(file_manager))
+        filename = get_download_filename(file_manager, "ipynb")
+
+        # make directory if it doesn't exist
+        self._make_export_dir(directory)
+        filepath = os.path.join(directory, self.EXPORT_DIR, filename)
+
+        # save ipynb to .marimo directory
+        with open(filepath, "w") as f:
+            f.write(ipynb)
+
     def _make_export_dir(self, directory: str) -> None:
         # make .marimo dir if it doesn't exist
         # don't make the other directories

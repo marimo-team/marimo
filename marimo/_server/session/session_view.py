@@ -53,6 +53,7 @@ class SessionView:
         # Auto-saving
         self.has_auto_exported_html = False
         self.has_auto_exported_md = False
+        self.has_auto_exported_ipynb = False
 
     def _add_ui_value(self, name: str, value: Any) -> None:
         self.ui_values[name] = value
@@ -225,9 +226,13 @@ class SessionView:
     def mark_auto_export_md(self) -> None:
         self.has_auto_exported_md = True
 
+    def mark_auto_export_ipynb(self) -> None:
+        self.has_auto_exported_ipynb = True
+
     def _touch(self) -> None:
         self.has_auto_exported_html = False
         self.has_auto_exported_md = False
+        self.has_auto_exported_ipynb = False
 
 
 def merge_cell_operation(
