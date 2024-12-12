@@ -49,6 +49,7 @@ export function createErrorToastingRequests(
     exportAsMarkdown: "Failed to export Markdown",
     autoExportAsHTML: "", // No toast
     autoExportAsMarkdown: "", // No toast
+    autoExportAsIPYNB: "", // No toast
     addPackage: "Failed to add package",
     removePackage: "Failed to remove package",
     getPackageList: "Failed to get package list",

@@ -564,6 +564,13 @@ components:
       - files
       - includeCode
       type: object
+    ExportAsIPYNBRequest:
+      properties:
+        download:
+          type: boolean
+      required:
+      - download
+      type: object
     ExportAsMarkdownRequest:
       properties:
         download:
@@ -2005,6 +2012,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Export the notebook as HTML
+        400:
+          description: File must be saved before downloading
+  /api/export/auto_export/ipynb:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportAsIPYNBRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Export the notebook as IPYNB
         400:
           description: File must be saved before downloading
   /api/export/auto_export/markdown:
