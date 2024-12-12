@@ -5,7 +5,7 @@ import base64
 import io
 import mimetypes
 import os
-from typing import TYPE_CHECKING, Any, Literal, Optional, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Union, cast
 
 from marimo import __version__
 from marimo._ast.app import is_default_cell_name
@@ -38,7 +38,9 @@ from marimo._utils.paths import import_files
 root = os.path.realpath(str(import_files("marimo").joinpath("_static")))
 
 if TYPE_CHECKING:
-    import nbformat  # type:ignore
+    from nbformat.notebooknode import NotebookNode
+    import nbformat
+    from nbformat.v4 import new_notebook, new_code_cell, new_markdown_cell, new_output
 
 
 class Exporter:
@@ -154,8 +156,9 @@ class Exporter:
             "to convert marimo notebooks to ipynb"
         )
         import nbformat
+        from nbformat.notebooknode import NotebookNode
 
-        notebook = nbformat.v4.new_notebook()
+        notebook = nbformat.v4.new_notebook()  # type: ignore[no-untyped-call]
         graph = file_manager.app.graph
 
         # Sort cells based on sort_mode
@@ -167,7 +170,7 @@ class Exporter:
         notebook["cells"] = []
         for cid in cell_ids:
             cell = graph.cells[cid]
-            outputs: list[nbformat.NotebookNode] = []
+            outputs: list[NotebookNode] = []
 
             if session_view is not None:
                 # Get outputs for this cell and convert to IPython format
@@ -198,7 +201,7 @@ class Exporter:
         # notebook.metadata["marimo-version"] = __version__
 
         stream = io.StringIO()
-        nbformat.write(notebook, stream)
+        nbformat.write(notebook, stream)  # type: ignore[no-untyped-call]
         stream.seek(0)
         download_filename = get_download_filename(file_manager, "ipynb")
         return stream.read(), download_filename
@@ -361,17 +364,22 @@ def hash_code(code: str) -> str:
 
 
 def _create_notebook_cell(
-    cell: CellImpl, outputs: list["nbformat.NotebookNode"]
-) -> "nbformat.NotebookNode":
-    import nbformat  # ignore
+    cell: CellImpl, outputs: list[NotebookNode]
+) -> NotebookNode:
+    import nbformat
+    from nbformat.notebooknode import NotebookNode
 
     markdown_string = get_markdown_from_cell(
         Cell(_name="__", _cell=cell), cell.code
     )
     if markdown_string is not None:
-        return nbformat.v4.new_markdown_cell(markdown_string, id=cell.cell_id)
+        return cast(NotebookNode,
+            nbformat.v4.new_markdown_cell(markdown_string, id=cell.cell_id)  # type: ignore[no-untyped-call]
+        )
 
-    node = nbformat.v4.new_code_cell(cell.code, id=cell.cell_id)
+    node = cast(NotebookNode,
+        nbformat.v4.new_code_cell(cell.code, id=cell.cell_id)  # type: ignore[no-untyped-call]
+    )
     if outputs:
         node.outputs = outputs
     return node
@@ -379,28 +387,33 @@ def _create_notebook_cell(
 
 def _convert_marimo_output_to_ipynb(
     output: Optional[CellOutput], console_outputs: list[CellOutput]
-) -> list["nbformat.NotebookNode"]:
+) -> list[NotebookNode]:
     """Convert marimo output format to IPython notebook format."""
     import nbformat
+    from nbformat.notebooknode import NotebookNode
 
-    ipynb_outputs: list[nbformat.NotebookNode] = []
+    ipynb_outputs: list[NotebookNode] = []
 
     # Handle stdout/stderr
     for output in console_outputs:
         if output.channel == CellChannel.STDOUT:
             ipynb_outputs.append(
-                nbformat.v4.new_output(
-                    "stream",
-                    name="stdout",
-                    text=output.data,
+                cast(NotebookNode,
+                    nbformat.v4.new_output(  # type: ignore[no-untyped-call]
+                        "stream",
+                        name="stdout",
+                        text=output.data,
+                    )
                 )
             )
         if output.channel == CellChannel.STDERR:
             ipynb_outputs.append(
-                nbformat.v4.new_output(
-                    "stream",
-                    name="stderr",
-                    text=output.data,
+                cast(NotebookNode,
+                    nbformat.v4.new_output(  # type: ignore[no-untyped-call]
+                        "stream",
+                        name="stderr",
+                        text=output.data,
+                    )
                 )
             )
 
@@ -439,10 +452,12 @@ def _convert_marimo_output_to_ipynb(
 
     if data:
         ipynb_outputs.append(
-            nbformat.v4.new_output(
-                "display_data",
-                data=data,
-                metadata={},
+            cast(NotebookNode,
+                nbformat.v4.new_output(  # type: ignore[no-untyped-call]
+                    "display_data",
+                    data=data,
+                    metadata={},
+                )
             )
         )
 
