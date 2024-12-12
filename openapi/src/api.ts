@@ -2249,6 +2249,7 @@ export interface components {
       | components["schemas"]["MarimoStrictExecutionError"]
       | components["schemas"]["MarimoInterruptionError"]
       | components["schemas"]["MarimoSyntaxError"]
+      | components["schemas"]["MarimoInternalError"]
       | components["schemas"]["UnknownError"];
     ExecuteMultipleRequest: {
       cellIds: string[];
@@ -2554,6 +2555,12 @@ export interface components {
       name: string;
       path: string;
       sessionId?: string | null;
+    };
+    MarimoInternalError: {
+      error_id: string;
+      msg: string;
+      /** @enum {string} */
+      type: "internal";
     };
     MarimoInterruptionError: {
       /** @enum {string} */

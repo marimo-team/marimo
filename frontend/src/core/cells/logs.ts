@@ -60,14 +60,16 @@ export function getCellLogsForMessage(cell: CellMessage): CellLog[] {
       });
     });
 
-    if (!didAlreadyToastError) {
+    const shouldToast = cell.output.data.some(
+      (error) => error.type === "internal",
+    );
+    if (!didAlreadyToastError && shouldToast) {
       didAlreadyToastError = true;
       toast({
         title: "An internal error occurred",
         description: "See console for details.",
         className:
           "text-xs text-background bg-[var(--red-10)] py-2 pl-3 [&>*]:flex [&>*]:gap-3",
-        duration: 70_000,
       });
     }
   }
