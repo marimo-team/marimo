@@ -18,6 +18,7 @@ import { Events } from "@/utils/events";
 import { ErrorBanner } from "../common/error-banner";
 import { Tooltip } from "@/components/ui/tooltip";
 import { HelpCircleIcon } from "lucide-react";
+import { isValid } from "date-fns";
 
 export interface Data {
   spec: VegaLiteSpec;
@@ -121,11 +122,14 @@ const LoadedVegaComponent = ({
         acc[name] = debounce((signalName, signalValue) => {
           Logger.debug("[Vega signal]", signalName, signalValue);
 
+          let result = Objects.mapValues(
+            signalValue as object,
+            convertDatetimeToEpochMilliseconds,
+          );
+          result = Objects.mapValues(result, convertSetToList);
+
           handleUpdateValue({
-            [signalName]: Objects.mapValues(
-              signalValue as object,
-              convertSetToList,
-            ),
+            [signalName]: result,
           });
         }, 100);
         return acc;
@@ -241,6 +245,18 @@ const actions = {
 function convertSetToList(value: unknown): unknown {
   if (value instanceof Set) {
     return [...value];
+  }
+  return value;
+}
+
+function convertDatetimeToEpochMilliseconds(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((v) => {
+      if (v instanceof Date && isValid(v)) {
+        return new Date(v).getTime();
+      }
+      return v;
+    });
   }
   return value;
 }
