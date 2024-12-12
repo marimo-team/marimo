@@ -132,6 +132,80 @@ You can also use other tools that work with Jupyter notebooks:
 - [Quarto](https://quarto.org) - Create beautiful documents, websites, presentations
 - [nbgrader](https://nbgrader.readthedocs.io/) - Grade notebook assignments
 
+## Export to WASM-powered HTML
+
+Export your notebook to a self-contained HTML file that runs using WebAssembly:
+
+```bash
+# export as readonly, with code locked
+marimo export html-wasm notebook.py -o output_dir --mode run
+# export as an editable notebook
+marimo export html-wasm notebook.py -o output_dir --mode edit
+```
+
+The exported HTML file will run your notebook using WebAssembly, making it completely self-contained and executable in the browser. This means users can interact with your notebook without needing Python or marimo installed.
+
+Options:
+
+- `--mode`: Choose between `run` (read-only) or `edit` (allows editing)
+- `--output`: Directory to save the HTML and required assets
+
+```{admonition} Note
+:class: note
+
+The exported file must be served over HTTP to function correctly - it cannot be opened directly from the filesystem (file://).
+Your server must also serve the assets in the `assets` directory, next to the HTML file. For this reason, we recommend using the online playground if possible: <https://marimo.app>.
+```
+
+### Testing the export
+
+You can test the export by running the following command in the directory containing your notebook:
+
+```bash
+cd path/to/output_dir
+python -m http.server
+```
+
+## Deploying to GitHub Pages
+
+You can deploy your WebAssembly marimo notebook to GitHub Pages using the following GitHub Actions workflow:
+
+```yaml
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ... checkout and install dependencies
+
+      - name: 📄 Export notebook
+        run: |
+          marimo export html-wasm notebook.py -o path/to/output --mode run
+
+      - name: 📦 Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: path/to/output
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    permissions:
+      pages: write
+      id-token: write
+
+    steps:
+      - name: 🌐 Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages
+```
+
 ## 🏝️ Embed marimo outputs in HTML using Islands
 
 ```{admonition} Preview

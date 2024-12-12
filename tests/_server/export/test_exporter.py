@@ -5,6 +5,7 @@ import json
 import pytest
 
 from marimo._ast.app import App, InternalApp
+from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import CellOp
 from marimo._output.hypertext import patch_html_for_non_interactive_output
@@ -259,3 +260,49 @@ async def test_run_until_completion_with_stop():
         [op.output.data for op in output_data if op.output is not None]
     )
     snapshot("run_until_completion_with_stop.txt", serialized_out)
+
+
+async def test_export_wasm_edit():
+    app = App()
+
+    @app.cell()
+    def cell_1():
+        print("hello wasm")
+        return
+
+    file_manager = AppFileManager.from_app(InternalApp(app))
+    exporter = Exporter()
+
+    content, filename = exporter.export_as_wasm(
+        file_manager=file_manager,
+        display_config=DEFAULT_CONFIG["display"],
+        mode="edit",
+        code=file_manager.to_code(),
+    )
+
+    assert filename == "notebook.wasm.html"
+    assert "alert(" in content
+    assert "mode='edit'" in content
+
+
+async def test_export_wasm_run():
+    app = App()
+
+    @app.cell()
+    def cell_1():
+        print("hello wasm")
+        return
+
+    file_manager = AppFileManager.from_app(InternalApp(app))
+    exporter = Exporter()
+
+    content, filename = exporter.export_as_wasm(
+        file_manager=file_manager,
+        display_config=DEFAULT_CONFIG["display"],
+        mode="run",
+        code=file_manager.to_code(),
+    )
+
+    assert filename == "notebook.wasm.html"
+    assert "alert(" in content
+    assert "mode='read'" in content
