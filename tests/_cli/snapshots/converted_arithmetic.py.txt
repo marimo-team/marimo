@@ -4,14 +4,14 @@ app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     x = 0
     x
     return (x,)
 
 
 @app.cell
-def __(x):
+def _(x):
     x + 1
     return
 

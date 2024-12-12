@@ -27,6 +27,7 @@ from marimo._ast.errors import (
     MultipleDefinitionError,
     UnparsableError,
 )
+from marimo._ast.names import DEFAULT_CELL_NAME
 from marimo._config.config import WidthType
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.hypertext import Html
@@ -51,12 +52,6 @@ if TYPE_CHECKING:
     from marimo._runtime.context.types import ExecutionContext
 
 LOGGER = _loggers.marimo_logger()
-
-DEFAULT_CELL_NAME = "__"
-
-
-def is_default_cell_name(name: str) -> bool:
-    return name == DEFAULT_CELL_NAME
 
 
 @dataclass
