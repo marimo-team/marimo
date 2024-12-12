@@ -97,17 +97,17 @@ def get_openai_client(config: MarimoConfig) -> "OpenAI":
     # Azure OpenAI clients are instantiated slightly differently
     # To check if we're using Azure, we check the base_url for the format
     # https://[subdomain].openai.azure.com/openai/deployments/[model]/chat/completions?api-version=[api_version]
-    parsed_base_url = urlparse(base_url)
-    if parsed_base_url.hostname and parsed_base_url.hostname.endswith(
+    parsed_url = urlparse(base_url)
+    if parsed_url.hostname and cast(str, parsed_url.hostname).endswith(
         "openai.azure.com"
     ):
-        deployment_model = parsed_base_url.path.split("/")[3]
-        api_version = parse_qs(parsed_base_url.query)["api-version"][0]
+        deployment_model = cast(str, parsed_url.path).split("/")[3]
+        api_version = parse_qs(cast(str, parsed_url.query))["api-version"][0]
         return AzureOpenAI(
             api_key=key,
             api_version=api_version,
             azure_deployment=deployment_model,
-            azure_endpoint=f"{parsed_base_url.scheme}://{parsed_base_url.hostname}",
+            azure_endpoint=f"{cast(str,parsed_url.scheme)}://{cast(str,parsed_url.hostname)}",
         )
     else:
         return OpenAI(
