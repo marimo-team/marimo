@@ -104,15 +104,37 @@ class openai(ChatModel):
         DependencyManager.openai.require(
             "chat model requires openai. `pip install openai`"
         )
-        from openai import OpenAI  # type: ignore[import-not-found]
+        from urllib.parse import parse_qs, urlparse
+
+        from openai import (  # type: ignore[import-not-found]
+            AzureOpenAI,
+            OpenAI,
+        )
         from openai.types.chat import (  # type: ignore[import-not-found]
             ChatCompletionMessageParam,
         )
 
-        client = OpenAI(
-            api_key=self._require_api_key,
-            base_url=self.base_url,
-        )
+        # Azure OpenAI clients are instantiated slightly differently
+        # To check if we're using Azure, we check the base_url for the format
+        # https://[subdomain].openai.azure.com/openai/deployments/[model]/chat/completions?api-version=[api_version]
+        parsed_url = urlparse(self.base_url)
+        if parsed_url.hostname and cast(str, parsed_url.hostname).endswith(
+            "openai.azure.com"
+        ):
+            self.model = cast(str, parsed_url.path).split("/")[3]
+            api_version = parse_qs(cast(str, parsed_url.query))["api-version"][
+                0
+            ]
+            client: AzureOpenAI | OpenAI = AzureOpenAI(
+                api_key=self._require_api_key,
+                api_version=api_version,
+                azure_endpoint=f"{cast(str,parsed_url.scheme)}://{cast(str,parsed_url.hostname)}",
+            )
+        else:
+            client = OpenAI(
+                api_key=self._require_api_key,
+                base_url=self.base_url,
+            )
 
         openai_messages = convert_to_openai_messages(
             [ChatMessage(role="system", content=self.system_message)]
