@@ -236,9 +236,7 @@ export const LoadingDataTableComponent = memo(
     // so we can't rely on the data to be the same when these change
     // We can remove this when we have a stable key for each row
     useEffectSkipFirstRender(() => {
-      if (filters.length > 0 || searchQuery !== "" || sorting.length > 0) {
-        setValue([]);
-      }
+      setValue([]);
     }, [setValue, filters, searchQuery, sorting]);
 
     // If pageSize changes, reset pagination state
