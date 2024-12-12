@@ -4,46 +4,46 @@ app = marimo.App()
 
 
 @app.cell
-def __ec85():
+def __ec850d():
     _x = 0
     _x
     return
 
 
 @app.cell
-def __32a1():
+def __32a1ec():
     _x = 1
     _x
     return
 
 
 @app.cell
-def __b735():
+def __b73587():
     y = 0
     return (y,)
 
 
 @app.cell
-def __b39a():
+def __b39ab0():
     y_1 = 1
     return (y_1,)
 
 
 @app.cell
-def __c887(y_1):
+def __c887b3(y_1):
     y_1
     return
 
 
 @app.cell
-def __c331():
+def __c331ef():
     for _i in range(3):
         print(_i)
     return
 
 
 @app.cell
-def __742a():
+def __742ace():
     for _i in range(4):
         print(_i)
     return

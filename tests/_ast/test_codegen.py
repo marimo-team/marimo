@@ -17,10 +17,13 @@ from marimo._ast import codegen, compiler
 from marimo._ast.app import App, InternalApp, _AppConfig
 from marimo._ast.cell import CellConfig
 from marimo._ast.names import is_internal_cell_name
+from tests.mocks import snapshotter
 
 compile_cell = partial(compiler.compile_cell, cell_id="0")
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
+
+snapshot = snapshotter(__file__)
 
 
 def get_expected_filecontents(name: str) -> str:
@@ -407,7 +410,12 @@ class TestGetCodes:
         )
         assert app is not None
         cell_manager = app._cell_manager
-        assert list(cell_manager.names()) == ["one", "two", "__1f24", "__1d37"]
+        assert list(cell_manager.names()) == [
+            "one",
+            "two",
+            "__1f2440",
+            "__1d37f2",
+        ]
         assert list(cell_manager.codes()) == [
             "import numpy as np",
             "_ error",

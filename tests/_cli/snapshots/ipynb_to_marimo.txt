@@ -5,7 +5,7 @@ app = marimo.App()
 
 
 @app.cell
-def __2b33():
+def __2b3321():
     print('Hello, World!')
     return
 

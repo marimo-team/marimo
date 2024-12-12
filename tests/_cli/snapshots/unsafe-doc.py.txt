@@ -5,7 +5,7 @@ app = marimo.App(app_title="Casually malicious md")
 
 
 @app.cell
-def __4683(mo):
+def __468353(mo):
     mo.md(
         r"""
         What happens if I just leave a \"\"\"
@@ -20,13 +20,13 @@ def __4683(mo):
 
 
 @app.cell
-def __cf60():
+def __cf603e():
     print("Hello, World!")
     return
 
 
 @app.cell
-def __abfb(mo):
+def __abfb7a(mo):
     mo.md(
         r"""
         -->
@@ -41,12 +41,12 @@ app._unparsable_cell(
     r"""
     it's an unparsable cell
     """,
-    name="__b628"
+    name="__b62866"
 )
 
 
 @app.cell
-def __682f(mo):
+def __682fdb(mo):
     mo.md(
         r"""
         <!-- Actually markdown -->
@@ -60,13 +60,13 @@ def __682f(mo):
 
 
 @app.cell(disabled=True)
-def __72fc():
+def __72fce5():
     1 + 1
     return
 
 
 @app.cell
-def __8b85(mo):
+def __8b8517(mo):
     mo.md(
         r"""
         <!-- Hidden code block -->
@@ -76,13 +76,13 @@ def __8b85(mo):
 
 
 @app.cell(hide_code=True)
-def __72fc():
+def __72fce5():
     1 + 1
     return
 
 
 @app.cell
-def __86ad(mo):
+def __86ad6f(mo):
     mo.md(
         r"""
         <!-- Empty code block -->
@@ -92,12 +92,12 @@ def __86ad(mo):
 
 
 @app.cell
-def __e3b0():
+def __e3b0c4():
     return
 
 
 @app.cell
-def __2444(mo):
+def __2444f9(mo):
     mo.md(
         r"""
         <!-- Improperly nested code block -->
@@ -112,12 +112,12 @@ app._unparsable_cell(
     ```{python}
     print(\"Hello, World!\")
     """,
-    name="__e389"
+    name="__e38943"
 )
 
 
 @app.cell
-def __11e6(mo):
+def __11e62b(mo):
     mo.md(
         r"""
         \"\"\"
@@ -139,7 +139,7 @@ def __11e6(mo):
 
 
 @app.cell
-def __1c22(mo):
+def __1c2229(mo):
     mo.md("""
       This is a markdown cell with an execution block in it
       ```{python}
@@ -150,7 +150,7 @@ def __1c22(mo):
 
 
 @app.cell
-def __e3b0():
+def __e3b0c4():
     return
 
 

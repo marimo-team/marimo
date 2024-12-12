@@ -19,7 +19,7 @@ app._unparsable_cell(
 
 
 @app.cell
-def __1f24():
+def __1f2440():
     'all good'
     return
 
@@ -31,7 +31,7 @@ app._unparsable_cell(
 
         \t
     """,
-    name="__1d37"
+    name="__1d37f2"
 )
 
 

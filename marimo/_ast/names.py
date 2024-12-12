@@ -4,7 +4,7 @@ DEFAULT_CELL_NAME = "__"
 
 
 def is_internal_cell_name(name: str) -> bool:
-    return name.startswith("__") and (name == "__" or len(name) == 6)
+    return name.startswith(DEFAULT_CELL_NAME)
 
 
 NUMBER_OF_HASH_CHARS = 6

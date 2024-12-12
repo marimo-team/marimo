@@ -5,7 +5,7 @@ app = marimo.App(app_title="My Title")
 
 
 @app.cell
-def __b5b5(mo):
+def __b5b56f(mo):
     mo.md(
         r"""
         # Notebook
@@ -15,7 +15,7 @@ def __b5b5(mo):
 
 
 @app.cell
-def __cf60():
+def __cf603e():
     print("Hello, World!")
     return
 
