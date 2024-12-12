@@ -662,6 +662,7 @@ class SessionManager:
         cli_args: SerializedCLIArgs,
         auth_token: Optional[AuthToken],
         redirect_console_to_browser: bool = False,
+        global_session: bool = False,
     ) -> None:
         self.file_router = file_router
         self.mode = mode
@@ -675,6 +676,7 @@ class SessionManager:
         self.user_config_manager = user_config_manager
         self.cli_args = cli_args
         self.redirect_console_to_browser = redirect_console_to_browser
+        self.global_session = global_session
 
         # Auth token and Skew-protection token
         if auth_token is not None:
@@ -776,9 +778,10 @@ class SessionManager:
         If it is resumable, return the session and update the session id.
         """
 
-        # If in run mode, only resume the session if it is orphaned and has
-        # the same session id, otherwise we want to create a new session
-        if self.mode == SessionMode.RUN:
+        # If we dont have a global session, only resume the session if it
+        # is orphaned and has the same session id,
+        # otherwise we want to create a new session
+        if not self.global_session:
             maybe_session = self.get_session(new_session_id)
             if (
                 maybe_session

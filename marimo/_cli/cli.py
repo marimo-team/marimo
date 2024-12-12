@@ -370,6 +370,7 @@ def edit(
         base_url=base_url,
         allow_origins=allow_origins,
         redirect_console_to_browser=True,
+        global_session=True,
     )
 
 
@@ -567,6 +568,17 @@ Example:
     help="Redirect console logs to the browser console.",
 )
 @click.option(
+    "--global-session",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="""
+    Run a single session and reconnect when the connection is lost,
+    similar to edit mode
+    """,
+)
+@click.option(
     "--sandbox",
     is_flag=True,
     default=False,
@@ -591,6 +603,7 @@ def run(
     base_url: str,
     allow_origins: tuple[str, ...],
     redirect_console_to_browser: bool,
+    global_session: bool,
     sandbox: bool,
     name: str,
     args: tuple[str, ...],
@@ -641,6 +654,7 @@ def run(
         cli_args=parse_args(args),
         auth_token=_resolve_token(token, token_password),
         redirect_console_to_browser=redirect_console_to_browser,
+        global_session=global_session,
     )
 
 
