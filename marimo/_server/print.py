@@ -38,10 +38,10 @@ def print_startup(
             f"{green('Create or edit notebooks in your browser', bold=True)} {_utf8('📝')}"
         )
     print_()
-    print_tabbed(f"➜  {green('URL')}: {_colorized_url(url)}")
+    print_tabbed(f"{_utf8('➜')}  {green('URL')}: {_colorized_url(url)}")
     if network:
         print_tabbed(
-            f"➜  {green('Network')}: {_colorized_url(_get_network_url(url))}"
+            f"{_utf8('➜')}  {green('Network')}: {_colorized_url(_get_network_url(url))}"
         )
     print_()
 
