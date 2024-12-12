@@ -1,7 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { useAtomValue } from "jotai";
 import { useInterval } from "@/hooks/useInterval";
-import { autoExportAsHTML, autoExportAsMarkdown, autoExportAsIPYNB } from "../network/requests";
+import {
+  autoExportAsHTML,
+  autoExportAsMarkdown,
+  autoExportAsIPYNB,
+} from "../network/requests";
 import { VirtualFileTracker } from "../static/virtual-file-tracker";
 import { connectionAtom } from "../network/connection";
 import { WebSocketState } from "../websocket/types";
