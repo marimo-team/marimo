@@ -350,7 +350,13 @@ Example:
   * marimo export html-wasm notebook.py -o notebook.wasm.html
 
 The exported HTML file will run the notebook using WebAssembly, making it
-completely self-contained and executable in the browser.
+completely self-contained and executable in the browser. This lets you
+share interactive notebooks on the web without setting up
+infrastructure to run Python code.
+
+The exported notebook runs using Pyodide, which supports most
+but not all Python packages. To learn more, see the Pyodide
+documentation.
 
 In order for this file to be able to run, it must be served over HTTP,
 and cannot be opened directly from the file system (e.g. file://).

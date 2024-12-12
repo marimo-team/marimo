@@ -137,8 +137,9 @@ You can also use other tools that work with Jupyter notebooks:
 Export your notebook to a self-contained HTML file that runs using WebAssembly:
 
 ```bash
+# export as readonly, with code locked
 marimo export html-wasm notebook.py -o output_dir --mode run
-# Or edit mode
+# export as an editable notebook
 marimo export html-wasm notebook.py -o output_dir --mode edit
 ```
 
@@ -167,7 +168,7 @@ python -m http.server
 
 ## Deploying to GitHub Pages
 
-You can deploy your marimo WebAssembly notebook to GitHub Pages by following these steps:
+You can deploy your WebAssembly marimo notebook to GitHub Pages using the following GitHub Actions workflow:
 
 ```yaml
 jobs:
