@@ -11,7 +11,7 @@ app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     return
 
 
