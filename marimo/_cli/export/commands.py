@@ -395,7 +395,14 @@ def html_wasm(
     # Export assets first
     Exporter().export_assets(output)
     echo(
-        f"Assets copied to {green(output)}. These assets are required for the notebook to run in the browser."
+        f"Assets copied to {green(output)}. These assets are required for the "
+        "notebook to run in the browser."
+    )
+
+    echo(
+        "To run the exported notebook, use:\n"
+        f"  cd {output} && python -m http.server\n"
+        "Then open the URL that is printed to your terminal"
     )
 
     outfile = os.path.join(output, "index.html")
