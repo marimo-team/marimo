@@ -5,6 +5,7 @@ from inspect import cleandoc
 from typing import Literal, Optional
 
 import markdown  # type: ignore
+import pymdownx.emoji  # type: ignore
 
 from marimo._output.hypertext import Html
 from marimo._output.md_extensions.external_links import ExternalLinksExtension
@@ -28,6 +29,11 @@ extension_configs = {
         "disable_indented_code_blocks": True,
         "css_class": "codehilite",
     },
+    "pymdownx.emoji": {
+        # This uses native emoji characters,
+        # instead of loading from a CDN
+        "emoji_generator": pymdownx.emoji.to_alt,
+    },
     "footnotes": {
         "UNIQUE_IDS": True,
     },
@@ -49,6 +55,14 @@ class _md(Html):
         text = cleandoc(text)
         self._markdown_text = text
 
+        # Lazily add mo.notebook_dir() as the bas64 base path
+        # if "pymdownx.b64" not in extension_configs:
+        #     from marimo._runtime.runtime import notebook_dir
+
+        #     extension_configs["pymdownx.b64"] = {
+        #         "base_path": str(notebook_dir()),
+        #     }
+
         # markdown.markdown appends a newline, hence strip
         html_text = markdown.markdown(
             text,
@@ -59,12 +73,27 @@ class _md(Html):
                 "tables",
                 # LaTeX
                 "pymdownx.arithmatex",
+                # Base64 is not enabled, since app users could potentially
+                # use it to grab files they shouldn't have access to.
+                # "pymdownx.b64",
                 # Subscripts and strikethrough
                 "pymdownx.tilde",
                 # Better code blocks
                 "pymdownx.superfences",
                 # Task lists
                 "pymdownx.tasklist",
+                # Caption
+                "pymdownx.blocks.caption",
+                # Tabs
+                "pymdownx.blocks.tab",
+                # Critic - color-coded markup
+                "pymdownx.critic",
+                # Emoji - :emoji:
+                "pymdownx.emoji",
+                # Keys - <kbd> support
+                "pymdownx.keys",
+                # Magic links - auto-link URLs
+                "pymdownx.magiclink",
                 # Table of contents
                 # This adds ids to the HTML headers
                 "toc",
