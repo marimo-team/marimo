@@ -166,7 +166,7 @@ cd path/to/output_dir
 python -m http.server
 ```
 
-## Deploying to GitHub Pages
+### Deploying to GitHub Pages
 
 You can deploy your WebAssembly marimo notebook to GitHub Pages using the following GitHub Actions workflow:
 
