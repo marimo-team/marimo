@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 from pathlib import Path
 from typing import Any, Dict, Optional, Union, cast
 
