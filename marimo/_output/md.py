@@ -82,10 +82,11 @@ class _md(Html):
                 "pymdownx.superfences",
                 # Task lists
                 "pymdownx.tasklist",
-                # Caption
-                "pymdownx.blocks.caption",
-                # Tabs
-                "pymdownx.blocks.tab",
+                # Require 10.12, but go as low as 10.x
+                # # Caption
+                # "pymdownx.blocks.caption",
+                # # Tabs
+                # "pymdownx.blocks.tab",
                 # Critic - color-coded markup
                 "pymdownx.critic",
                 # Emoji - :emoji:
