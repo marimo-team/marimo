@@ -96,7 +96,7 @@ class run_button(UIElement[Any, Any]):
         else:
             return True
 
-    def _on_update_completion(self) -> None:
+    def _on_update_completion(self) -> bool:
         from marimo._runtime.context import get_context
         from marimo._runtime.context.kernel_context import KernelRuntimeContext
 
@@ -104,7 +104,7 @@ class run_button(UIElement[Any, Any]):
             ctx = get_context()
         except ContextNotInitializedError:
             self._value = False
-            return
+            return True
 
         if isinstance(ctx, KernelRuntimeContext) and ctx.lazy:
             # Resetting to False in lazy kernels makes the button pointless,
@@ -114,6 +114,7 @@ class run_button(UIElement[Any, Any]):
             # The right thing to do would be to somehow set to False after
             # all cells that were marked stale because of the update were run,
             # but that's too complicated.
-            return
-        else:
-            self._value = False
+            return False
+
+        self._value = False
+        return True

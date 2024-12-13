@@ -124,6 +124,12 @@ class array(UIElement[Dict[str, JSONType], Sequence[object]]):
                     element._update(v)
         return [e._value for e in self._elements]
 
+    def _on_update_completion(self) -> None:
+        any_updated = False
+        for element in self._elements:
+            any_updated |= element._on_update_completion()
+        self._value = [e._value for e in self._elements]
+
     def _clone(self) -> array:
         return array(
             elements=self.elements,

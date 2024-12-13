@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 from typing import Any, Dict, TypeVar, Union, cast
 
 from marimo._config.config import MarimoConfig, PartialMarimoConfig

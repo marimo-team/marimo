@@ -461,9 +461,12 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         if self._on_change is not None:
             self._on_change(self._value)
 
-    def _on_update_completion(self) -> None:
-        """Callback to run after the kernel has processed a value update."""
-        return
+    def _on_update_completion(self) -> bool:
+        """Callback to run after the kernel has processed a value update.
+
+        Return true if the value of the component has changed, false otherwise
+        """
+        return False
 
     def __deepcopy__(self, memo: dict[int, Any]) -> UIElement[S, T]:
         # Custom deepcopy that excludes elements that can't be deepcopied
