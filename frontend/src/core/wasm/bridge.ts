@@ -295,7 +295,12 @@ export class PyodideBridge implements RunRequests, EditRequests {
       "/kernel/save_user_config",
       request,
       { baseUrl: "/" },
-    );
+    ).catch((error) => {
+      // Just log to the console. It is likely a user who hosts their own web-assembly
+      // won't use this.
+      Logger.error(error);
+      return null;
+    });
   };
 
   saveAppConfig: EditRequests["saveAppConfig"] = async (request) => {
