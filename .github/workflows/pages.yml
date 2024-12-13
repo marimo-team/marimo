@@ -8,10 +8,6 @@ on:
   # Allow manual trigger
   workflow_dispatch: {}
 
-  # TODO: Remove this
-  # Trigger on PR (just for testing)
-  pull_request: {}
-
 env:
   UV_SYSTEM_PYTHON: 1
 
@@ -42,7 +38,7 @@ jobs:
 
       - name: 🛠️ Run export
         run: |
-          uv run marimo export html-wasm -o out --mode edit
+          marimo export html-wasm frontend/public/files/wasm-intro.py -o out --mode edit
 
       - name: 📄 List changed files
         continue-on-error: true
