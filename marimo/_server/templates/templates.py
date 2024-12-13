@@ -256,7 +256,8 @@ def wasm_notebook_template(
     body = body.replace("{{ config_overrides }}", json.dumps(config_overrides))
     body = body.replace("{{ server_token }}", "123")
     body = body.replace("{{ version }}", version)
-    body = body.replace("{{ filename }}", filename)
+    # WASM runtime currently expect this to be notebook.py instead of the actual filename
+    body = body.replace("{{ filename }}", "notebook.py")
     body = body.replace("{{ mode }}", "edit" if mode == "edit" else "read")
     body = body.replace(
         "</head>", '<marimo-wasm hidden=""></marimo-wasm></head>'

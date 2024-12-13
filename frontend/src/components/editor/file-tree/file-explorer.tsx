@@ -544,7 +544,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
       >
         {node.data.isMarimoFile ? (
           <img
-            src="/favicon.ico"
+            src="./favicon.ico"
             className="w-5 h-5 flex-shrink-0 mr-2 filter grayscale"
             alt="Marimo"
           />
