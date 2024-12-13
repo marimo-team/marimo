@@ -38,7 +38,7 @@ jobs:
 
       - name: 🛠️ Run export
         run: |
-          marimo export html-wasm frontend/public/files/wasm-intro.py -o out --mode edit
+          marimo export html-wasm frontend/public/files/wasm-intro.py -o out --mode run
 
       - name: 📄 List changed files
         continue-on-error: true
