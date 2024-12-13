@@ -90,3 +90,47 @@ async def test_run_buttons_in_array(
     assert count[0] == 2
     assert not arr.value[0]
     assert not arr.value[1]
+
+
+async def test_run_buttons_in_dict(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    await k.run(
+        [
+            exec_req.get("import marimo as mo"),
+            exec_req.get(
+                """
+                hoc = mo.ui.dictionary(
+                    {'0': mo.ui.run_button(), '1': mo.ui.run_button()}
+                )
+                """
+            ),
+            exec_req.get("count = [0]"),
+            exec_req.get(
+                """
+                for b in hoc.values():
+                    if b.value:
+                        count[0] += 1
+                """
+            ),
+        ]
+    )
+
+    hoc = k.globals["hoc"]
+    count = k.globals["count"]
+    assert not hoc.value["0"]
+    assert not hoc.value["1"]
+    # No buttons yet pushed
+    assert count[0] == 0
+
+    # Just one button pushed
+    await k.set_ui_element_value(SetUIElementValueRequest([hoc["0"]._id], [1]))
+    assert count[0] == 1
+    assert not hoc.value["0"]
+    assert not hoc.value["1"]
+    # Push another button, first button's value should be false, so just an
+    # increment by 1
+    await k.set_ui_element_value(SetUIElementValueRequest([hoc["1"]._id], [1]))
+    assert count[0] == 2
+    assert not hoc.value["0"]
+    assert not hoc.value["1"]
