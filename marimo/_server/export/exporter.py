@@ -20,6 +20,7 @@ from marimo._ast.names import DEFAULT_CELL_NAME, is_internal_cell_name
 from marimo._config.config import (
     DEFAULT_CONFIG,
     DisplayConfig,
+    MarimoConfig,
 )
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._config.utils import deep_copy
@@ -324,8 +325,10 @@ class Exporter:
         filename = get_filename(file_manager)
 
         # We only want to pass the display config in the static notebook
-        config = deep_copy(DEFAULT_CONFIG)
+        config: MarimoConfig = deep_copy(DEFAULT_CONFIG)
         config["display"] = display_config
+        # Remove autosave
+        config["save"]["autosave"] = "off"
 
         html = wasm_notebook_template(
             html=index_html,
