@@ -76,6 +76,7 @@ def test_kernel_manager_run_mode() -> None:
         app_metadata,
         get_default_config_manager(current_path=None),
         virtual_files_supported=True,
+        redirect_console_to_browser=False,
     )
 
     kernel_manager.start_kernel()
@@ -108,6 +109,7 @@ def test_kernel_manager_edit_mode() -> None:
         app_metadata,
         get_default_config_manager(current_path=None),
         virtual_files_supported=True,
+        redirect_console_to_browser=False,
     )
 
     kernel_manager.start_kernel()
@@ -139,6 +141,7 @@ def test_kernel_manager_interrupt(tmp_path) -> None:
         app_metadata,
         get_default_config_manager(current_path=None),
         virtual_files_supported=True,
+        redirect_console_to_browser=False,
     )
 
     # Assert startup
@@ -224,6 +227,7 @@ def test_session() -> None:
         app_metadata,
         get_default_config_manager(current_path=None),
         virtual_files_supported=True,
+        redirect_console_to_browser=False,
     )
 
     # Instantiate a Session
@@ -268,6 +272,7 @@ def test_session_disconnect_reconnect() -> None:
         AppMetadata(query_params={}, cli_args={}),
         get_default_config_manager(current_path=None),
         virtual_files_supported=True,
+        redirect_console_to_browser=False,
     )
 
     # Instantiate a Session
@@ -323,6 +328,7 @@ def test_session_with_kiosk_consumers() -> None:
         app_metadata,
         get_default_config_manager(current_path=None),
         virtual_files_supported=True,
+        redirect_console_to_browser=False,
     )
 
     # Instantiate a Session

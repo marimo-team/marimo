@@ -4,6 +4,7 @@ import type { CellMessage, OutputMessage } from "../kernel/messages";
 import type { CellId } from "./ids";
 import { fromUnixTime } from "date-fns";
 import { isErrorMime } from "../mime";
+import { toast } from "@/components/ui/use-toast";
 
 export interface CellLog {
   timestamp: number;
@@ -11,6 +12,8 @@ export interface CellLog {
   message: string;
   cellId: CellId;
 }
+
+let didAlreadyToastError = false;
 
 export function getCellLogsForMessage(cell: CellMessage): CellLog[] {
   const logs: CellLog[] = [];
@@ -56,6 +59,19 @@ export function getCellLogsForMessage(cell: CellMessage): CellLog[] {
         message: JSON.stringify(error),
       });
     });
+
+    const shouldToast = cell.output.data.some(
+      (error) => error.type === "internal",
+    );
+    if (!didAlreadyToastError && shouldToast) {
+      didAlreadyToastError = true;
+      toast({
+        title: "An internal error occurred",
+        description: "See console for details.",
+        className:
+          "text-xs text-background bg-[var(--red-10)] py-2 pl-3 [&>*]:flex [&>*]:gap-3",
+      });
+    }
   }
 
   return logs;

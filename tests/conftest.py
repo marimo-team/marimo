@@ -16,6 +16,7 @@ from marimo._ast.app import CellManager
 from marimo._ast.cell import CellId_t
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.ops import CellOp, MessageOperation
 from marimo._messaging.streams import (
     ThreadSafeStderr,
     ThreadSafeStdin,
@@ -31,6 +32,7 @@ from marimo._runtime.marimo_pdb import MarimoPdb
 from marimo._runtime.requests import AppMetadata, ExecutionRequest
 from marimo._runtime.runtime import Kernel
 from marimo._server.model import SessionMode
+from marimo._utils.parse_dataclass import parse_raw
 
 # register import hooks for third-party module formatters
 register_formatters()
@@ -46,6 +48,21 @@ class _MockStream(ThreadSafeStream):
 
     def write(self, op: str, data: dict[Any, Any]) -> None:
         self.messages.append((op, data))
+
+    @property
+    def operations(self) -> list[MessageOperation]:
+        @dataclasses.dataclass
+        class Container:
+            operation: MessageOperation
+
+        return [
+            parse_raw({"operation": op_data}, Container).operation
+            for _op_name, op_data in self.messages
+        ]
+
+    @property
+    def cell_ops(self) -> list[CellOp]:
+        return [op for op in self.operations if isinstance(op, CellOp)]
 
 
 class MockStdout(ThreadSafeStdout):
@@ -99,6 +116,7 @@ class MockedKernel:
     """Should only be created in fixtures b/c inits a runtime context"""
 
     stream: _MockStream = dataclasses.field(default_factory=_MockStream)
+    session_mode: SessionMode = SessionMode.EDIT
 
     def __post_init__(self) -> None:
         self.stdout = MockStdout(self.stream)
@@ -130,7 +148,7 @@ class MockedKernel:
             stdout=self.stdout,  # type: ignore
             stderr=self.stderr,  # type: ignore
             virtual_files_supported=True,
-            mode=SessionMode.EDIT,
+            mode=self.session_mode,
         )
 
     def teardown(self) -> None:
@@ -166,6 +184,14 @@ def strict_kernel() -> Generator[Kernel, None, None]:
     mocked.k.execution_type = "strict"
     mocked.k.reactive_execution_mode = "autorun"
     yield mocked.k
+    mocked.teardown()
+
+
+# kernel configured in SessionMode.RUN mode
+@pytest.fixture
+def run_mode_kernel() -> Generator[MockedKernel, None, None]:
+    mocked = MockedKernel(session_mode=SessionMode.RUN)
+    yield mocked
     mocked.teardown()
 
 

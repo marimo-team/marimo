@@ -23,6 +23,7 @@ from typing import (
     Union,
     cast,
 )
+from uuid import uuid4
 
 from marimo import _loggers as loggers
 from marimo._ast.app import _AppConfig
@@ -31,7 +32,11 @@ from marimo._data.models import ColumnSummary, DataTable, DataTableSource
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.completion_option import CompletionOption
-from marimo._messaging.errors import Error
+from marimo._messaging.errors import (
+    Error,
+    MarimoInternalError,
+    is_sensitive_error,
+)
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.streams import OUTPUT_MAX_BYTES
 from marimo._messaging.types import Stream
@@ -41,6 +46,7 @@ from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.tables.utils import get_table_manager_or_none
 from marimo._runtime.context import get_context
+from marimo._runtime.context.utils import get_mode
 from marimo._runtime.layout.layout import LayoutConfig
 from marimo._utils.platform import is_pyodide, is_windows
 
@@ -248,12 +254,32 @@ class CellOp(Op):
         cell_id: CellId_t,
     ) -> None:
         console: Optional[list[CellOutput]] = [] if clear_console else None
+
+        # In run mode, we don't want to broadcast the error. Instead we want to print the error to the console
+        # and then broadcast a new error such that the data is hidden.
+        safe_errors: list[Error] = []
+        if get_mode() == "run":
+            for error in data:
+                # Skip non-sensitive errors
+                if not is_sensitive_error(error):
+                    safe_errors.append(error)
+                    continue
+
+                error_id = uuid4()
+                LOGGER.error(
+                    f"(error_id={error_id}) {error.describe()}",
+                    extra={"error_id": error_id},
+                )
+                safe_errors.append(MarimoInternalError(error_id=str(error_id)))
+        else:
+            safe_errors = list(data)
+
         CellOp(
             cell_id=cell_id,
             output=CellOutput(
                 channel=CellChannel.MARIMO_ERROR,
                 mimetype="application/vnd.marimo+error",
-                data=data,
+                data=safe_errors,
             ),
             console=console,
             status=None,

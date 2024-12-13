@@ -156,6 +156,10 @@ export const MarimoErrorOutput = ({
             </Tip>
           </div>
         );
+      case "internal":
+        titleContents = "An internal error occurred";
+        return <p key={idx}>{error.msg}</p>;
+
       case "ancestor-prevented":
         titleContents = "Ancestor prevented from running";
         alertVariant = "default";

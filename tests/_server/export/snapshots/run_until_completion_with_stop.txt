@@ -1,1 +1,23 @@
-["", "", [{"msg": "This cell wasn't run because an ancestor was stopped with `mo.stop`: ", "raising_cell": "MJUe", "type": "ancestor-stopped"}]]
+[
+  {
+    "output": "",
+    "console": [],
+    "status": "idle"
+  },
+  {
+    "output": "",
+    "console": [],
+    "status": "idle"
+  },
+  {
+    "output": [
+      {
+        "msg": "This cell wasn't run because an ancestor was stopped with `mo.stop`: ",
+        "raising_cell": "MJUe",
+        "type": "ancestor-stopped"
+      }
+    ],
+    "console": [],
+    "status": "idle"
+  }
+]

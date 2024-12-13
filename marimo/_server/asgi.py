@@ -501,6 +501,7 @@ def create_asgi_app(
                 # to each application
                 cli_args={},
                 auth_token=auth_token,
+                redirect_console_to_browser=False,
             )
             app = create_starlette_app(
                 base_url="",

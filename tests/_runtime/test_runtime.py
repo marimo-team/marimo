@@ -3,12 +3,14 @@ from __future__ import annotations
 
 import sys
 import textwrap
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Sequence
 
 import pytest
 
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
     CycleError,
     DeleteNonlocalError,
@@ -2541,3 +2543,78 @@ class TestStateTransitions:
         stream.messages.clear()
         await k.delete_cell(DeleteCellRequest(cell_id=er_2.cell_id))
         assert sum(1 for m in stream.messages if m[0] == "variables") == 1
+
+
+class TestErrorHandling:
+    async def test_error_handling(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = mocked_kernel.k
+        await k.run([exec_req.get("raise ValueError('some secret error')")])
+        cell_ops = mocked_kernel.stream.cell_ops
+        error_cell_op = _filter_to_error_ops(cell_ops)
+        assert len(error_cell_op) == 1
+        errors = _parse_error_output(error_cell_op[0])
+
+        assert len(errors) == 1
+        assert errors[0].type == "exception"
+        assert (
+            errors[0].msg
+            == "This cell raised an exception: ValueError('some secret error')"
+        )
+
+    async def test_error_handling_in_run_mode(
+        self, run_mode_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = run_mode_kernel.k
+        await k.run([exec_req.get("raise ValueError('some secret error')")])
+        cell_ops = run_mode_kernel.stream.cell_ops
+        error_cell_op = _filter_to_error_ops(cell_ops)
+        assert len(error_cell_op) == 1
+        errors = _parse_error_output(error_cell_op[0])
+
+        assert len(errors) == 1
+        assert errors[0].type == "internal"
+        assert errors[0].msg.startswith("An internal error occurred: ")
+
+    async def test_error_handling_in_run_mode_stop(
+        self, run_mode_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = run_mode_kernel.k
+        await k.run(
+            [
+                exec_req.get("x = 10"),
+                exec_req.get("x = 20"),
+            ]
+        )
+        cell_ops = run_mode_kernel.stream.cell_ops
+        error_cell_op = _filter_to_error_ops(cell_ops)
+        assert len(error_cell_op) == 2
+        for op in error_cell_op:
+            errors = _parse_error_output(op)
+            assert len(errors) == 1
+            assert errors[0].type == "internal"
+            assert errors[0].msg.startswith("An internal error occurred: ")
+
+
+def _parse_error_output(cell_op: CellOp) -> list[Error]:
+    error_output = cell_op.output
+    assert error_output is not None
+    assert error_output.channel == CellChannel.MARIMO_ERROR
+    assert error_output.mimetype == "application/vnd.marimo+error"
+    data = error_output.data
+
+    @dataclass
+    class Container:
+        errors: list[Error]
+
+    return parse_raw({"errors": data}, Container).errors
+
+
+def _filter_to_error_ops(cell_ops: list[CellOp]) -> list[CellOp]:
+    return [
+        op
+        for op in cell_ops
+        if op.output is not None
+        and op.output.channel == CellChannel.MARIMO_ERROR
+    ]

@@ -505,6 +505,7 @@ components:
       - $ref: '#/components/schemas/MarimoStrictExecutionError'
       - $ref: '#/components/schemas/MarimoInterruptionError'
       - $ref: '#/components/schemas/MarimoSyntaxError'
+      - $ref: '#/components/schemas/MarimoInternalError'
       - $ref: '#/components/schemas/UnknownError'
     ExecuteMultipleRequest:
       properties:
@@ -1268,6 +1269,21 @@ components:
       required:
       - name
       - path
+      type: object
+    MarimoInternalError:
+      properties:
+        error_id:
+          type: string
+        msg:
+          type: string
+        type:
+          enum:
+          - internal
+          type: string
+      required:
+      - error_id
+      - type
+      - msg
       type: object
     MarimoInterruptionError:
       properties:
