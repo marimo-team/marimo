@@ -402,7 +402,7 @@ def html_wasm(
     echo(
         "To run the exported notebook, use:\n"
         f"  cd {output} && python -m http.server\n"
-        "Then open the URL that is printed to your terminal"
+        "Then open the URL that is printed to your terminal."
     )
 
     outfile = os.path.join(output, "index.html")
