@@ -101,7 +101,7 @@ class _batch_base(UIElement[Dict[str, JSONType], Dict[str, object]]):
         for element in self._elements.values():
             any_updated |= element._on_update_completion()
 
-        if any_updated or True:
+        if any_updated:
             self._value = {
                 key: wrapped_element._value
                 for key, wrapped_element in self._elements.items()
