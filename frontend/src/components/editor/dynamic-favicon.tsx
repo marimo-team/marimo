@@ -4,7 +4,7 @@ import { useEventListener } from "@/hooks/useEventListener";
 import { usePrevious } from "@dnd-kit/utilities";
 import { useEffect } from "react";
 
-const FAVICONS = {
+export const FAVICONS = {
   idle: "./favicon.ico",
   success: "./circle-check.ico",
   running: "./circle-play.ico",
