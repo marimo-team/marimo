@@ -322,6 +322,7 @@ for the better.
    GitHub <https://github.com/marimo-team/marimo>
    Gallery <https://marimo.io/gallery>
    Discord <https://marimo.io/discord?ref=docs>
+   Give Feedback <https://marimo.io/feedback>
    Newsletter <https://marimo.io/newsletter>
    Twitter <https://twitter.com/marimo_io>
    Bluesky <https://bsky.app/profile/marimo.io>
