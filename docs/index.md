@@ -267,8 +267,9 @@ We're building a community. Come hang out with us!
 - 📧 [Subscribe to our Newsletter](https://marimo.io/newsletter)
 - ☁️ [Join our Cloud Waitlist](https://marimo.io/cloud)
 - ✏️ [Start a GitHub Discussion](https://github.com/marimo-team/marimo/discussions)
+- 💬 [Follow us on Bluesky](https://bsky.app/profile/marimo.io)
 - 🐦 [Follow us on Twitter](https://twitter.com/marimo_io)
-- 💬 [Follow us on Mastodon[(https://mastodon.social/@marimo_io)
+- 💬 [Follow us on Mastodon](https://mastodon.social/@marimo_io)
 - 🕴️ [Follow us on LinkedIn](https://www.linkedin.com/company/marimo-io)
 
 ## Inspiration ✨
@@ -322,6 +323,7 @@ for the better.
    GitHub <https://github.com/marimo-team/marimo>
    Gallery <https://marimo.io/gallery>
    Discord <https://marimo.io/discord?ref=docs>
+   Give Feedback <https://marimo.io/feedback>
    Newsletter <https://marimo.io/newsletter>
    Twitter <https://twitter.com/marimo_io>
    Bluesky <https://bsky.app/profile/marimo.io>
