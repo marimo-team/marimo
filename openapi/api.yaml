@@ -184,6 +184,9 @@ components:
         output:
           $ref: '#/components/schemas/CellOutput'
           nullable: true
+        run_id:
+          nullable: true
+          type: string
         stale_inputs:
           nullable: true
           type: boolean
