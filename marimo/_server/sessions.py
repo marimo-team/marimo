@@ -907,6 +907,15 @@ class SessionManager:
         self.watcher.start()
         return Disposable(self.watcher.stop)
 
+    def get_connection_count(self) -> int:
+        return len(
+            [
+                session
+                for session in self.sessions.values()
+                if session.connection_state() == ConnectionState.OPEN
+            ]
+        )
+
 
 class LspServer:
     def __init__(self, port: int) -> None:
