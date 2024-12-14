@@ -31,6 +31,7 @@ from marimo._data.preview_column import (
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel
+from marimo._messaging.context import run_id_context
 from marimo._messaging.errors import (
     Error,
     MarimoInterruptionError,
@@ -1136,18 +1137,19 @@ class Kernel:
     async def _run_cells(self, cell_ids: set[CellId_t]) -> None:
         """Run cells and any state updates they trigger"""
 
-        # This patch is an attempt to mitigate problems caused by the fact
-        # that in run mode, kernels run in threads and share the same
-        # sys.modules. Races can still happen, but this should help in most
-        # common cases. We could also be more aggressive and run this before
-        # every cell, or even before pickle.dump/pickle.dumps()
-        with patches.patch_main_module_context(self._module):
-            while cell_ids := await self._run_cells_internal(cell_ids):
-                LOGGER.debug("Running state updates ...")
-                if self.lazy() and cell_ids:
-                    self.graph.set_stale(cell_ids, prune_imports=True)
-                    break
-            LOGGER.debug("Finished run.")
+        with run_id_context():
+            # This patch is an attempt to mitigate problems caused by the fact
+            # that in run mode, kernels run in threads and share the same
+            # sys.modules. Races can still happen, but this should help in most
+            # common cases. We could also be more aggressive and run this before
+            # every cell, or even before pickle.dump/pickle.dumps()
+            with patches.patch_main_module_context(self._module):
+                while cell_ids := await self._run_cells_internal(cell_ids):
+                    LOGGER.debug("Running state updates ...")
+                    if self.lazy() and cell_ids:
+                        self.graph.set_stale(cell_ids, prune_imports=True)
+                        break
+                LOGGER.debug("Finished run.")
 
     async def _if_autorun_then_run_cells(
         self, cell_ids: set[CellId_t]

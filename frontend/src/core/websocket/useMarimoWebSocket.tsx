@@ -4,7 +4,7 @@ import { useAtom, useSetAtom } from "jotai";
 import { connectionAtom } from "../network/connection";
 import { useWebSocket } from "@/core/websocket/useWebSocket";
 import { logNever } from "@/utils/assertNever";
-import { useCellActions } from "@/core/cells/cells";
+import { getNotebook, useCellActions } from "@/core/cells/cells";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
 import type { OperationMessage } from "@/core/kernel/messages";
 import type { CellData } from "../cells/types";
@@ -40,6 +40,7 @@ import { focusAndScrollCellOutputIntoView } from "../cells/scrollCellIntoView";
 import { capabilitiesAtom } from "../config/capabilities";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import { reloadSafe } from "@/utils/reload-safe";
+import { useRunsActions } from "../cells/runs";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -55,6 +56,7 @@ export function useMarimoWebSocket(opts: {
   const { showBoundary } = useErrorBoundary();
 
   const { handleCellMessage, setCellCodes, setCellIds } = useCellActions();
+  const { addCellOperation } = useRunsActions();
   const setAppConfig = useSetAppConfig();
   const { setVariables, setMetadata } = useVariablesActions();
   const { addColumnPreview } = useDatasetsActions();
@@ -110,9 +112,12 @@ export function useMarimoWebSocket(opts: {
           msg.data,
         );
         return;
-      case "cell-op":
+      case "cell-op": {
         handleCellOperation(msg.data, handleCellMessage);
+        const cellData = getNotebook().cellData[msg.data.cell_id as CellId];
+        addCellOperation({ cellOperation: msg.data, code: cellData.code });
         return;
+      }
 
       case "variables":
         setVariables(
