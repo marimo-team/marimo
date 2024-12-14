@@ -224,10 +224,10 @@ async def connections(request: Request) -> JSONResponse:
                     schema:
                         type: object
                         properties:
-                            connections:
+                            active:
                                 type: integer
     """
     app_state = AppState(request)
     return JSONResponse(
-        {"connections": app_state.session_manager.get_connection_count()}
+        {"active": app_state.session_manager.get_active_connection_count()}
     )

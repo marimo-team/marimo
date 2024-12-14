@@ -907,7 +907,7 @@ class SessionManager:
         self.watcher.start()
         return Disposable(self.watcher.stop)
 
-    def get_connection_count(self) -> int:
+    def get_active_connection_count(self) -> int:
         return len(
             [
                 session

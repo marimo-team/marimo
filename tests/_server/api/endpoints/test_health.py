@@ -72,11 +72,11 @@ def test_memory(client: TestClient) -> None:
 def test_connections(client: TestClient) -> None:
     response = client.get("/api/status/connections")
     assert response.status_code == 200
-    assert response.json()["connections"] == 0  # No connections in test
+    assert response.json()["active"] == 0
 
 
 @with_session(SESSION_ID)
 def test_read_code(client: TestClient) -> None:
     response = client.get("/api/status/connections", headers=HEADERS)
     assert response.status_code == 200, response.text
-    assert response.json()["connections"] == 1
+    assert response.json()["active"] == 1
