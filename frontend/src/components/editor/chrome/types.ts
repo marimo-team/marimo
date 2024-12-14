@@ -14,6 +14,7 @@ import {
   NotebookPenIcon,
   BoxIcon,
   BotMessageSquareIcon,
+  ActivityIcon,
 } from "lucide-react";
 
 export type PanelType =
@@ -22,6 +23,7 @@ export type PanelType =
   | "variables"
   | "outline"
   | "dependencies"
+  | "tracing"
   | "packages"
   | "documentation"
   | "snippets"
@@ -93,6 +95,13 @@ export const PANELS: PanelDescriptor[] = [
     Icon: FileTextIcon,
     tooltip: "Notebook logs",
     position: "sidebar",
+  },
+  {
+    type: "tracing",
+    Icon: ActivityIcon,
+    tooltip: "Tracing",
+    position: "sidebar",
+    hidden: !getFeatureFlag("tracing"),
   },
   {
     type: "snippets",
