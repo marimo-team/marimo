@@ -1900,6 +1900,43 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/status/connections": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Get the number of active websocket connections */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              active?: number;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/usage": {
     parameters: {
       query?: never;
@@ -2121,6 +2158,7 @@ export interface components {
       /** @enum {string} */
       name: "cell-op";
       output?: components["schemas"]["CellOutput"];
+      run_id?: string | null;
       stale_inputs?: boolean | null;
       status?: components["schemas"]["RuntimeState"];
       timestamp: number;
