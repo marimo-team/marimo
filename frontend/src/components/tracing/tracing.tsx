@@ -7,84 +7,25 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { type Config, type TopLevelSpec, compile } from "vega-lite";
 import { ChevronRight, ChevronDown, SettingsIcon } from "lucide-react";
 import type { VisualizationSpec } from "react-vega";
+import {
+  type RunId,
+  runsAtom,
+  type CellRun,
+  type Run,
+} from "@/core/cells/runs";
+import { useAtomValue } from "jotai";
+import { CellLink } from "../editor/links/cell-link";
+import { formatLogTimestamp } from "@/core/cells/logs";
+import { useCellIds } from "@/core/cells/cells";
 
+// TODO: There are a few components like this in the codebase, maybe remove the redundancy
 const LazyVegaLite = React.lazy(() =>
   import("react-vega").then((m) => ({ default: m.VegaLite })),
 );
 
-interface CellRun {
-  cellID: string;
-  code: string;
-  elapsedTime: number;
-  status: RunStatus;
-}
-
-export interface Run {
-  runId: string;
-  cellRuns: CellRun[];
-  runStartTime: string;
-}
-
-// assumes the cellRuns are ordered correctly
-const mockRuns: Run[] = [
-  {
-    runId: "7",
-    cellRuns: [
-      {
-        cellID: "1",
-        code: "import marimo as mo",
-        elapsedTime: 23_000,
-        status: "success",
-      },
-      {
-        cellID: "2",
-        code: "def generate_some()",
-        elapsedTime: 46,
-        status: "success",
-      },
-      {
-        cellID: "3",
-        code: "def generate_some()",
-        elapsedTime: 46,
-        status: "success",
-      },
-    ],
-    runStartTime: "Dec 7 2.03pm",
-  },
-  {
-    runId: "8",
-    cellRuns: [
-      {
-        cellID: "1",
-        code: "import marimo as mo",
-        elapsedTime: 25,
-        status: "success",
-      },
-      {
-        cellID: "2",
-        code: "def generate_some()",
-        elapsedTime: 100,
-        status: "success",
-      },
-      {
-        cellID: "3",
-        code: "def generate_some()",
-        elapsedTime: 4600,
-        status: "error",
-      },
-      {
-        cellID: "4",
-        code: "[print(i) for i in range(1, 100)]",
-        elapsedTime: 8,
-        status: "error", // should be disabled?
-      },
-    ],
-    runStartTime: "Dec 7 2.01pm",
-  },
-];
-
 interface Values {
-  cell: number;
+  cell: CellId;
+  cellNum: number;
   startTimestamp: string;
   endTimestamp: string;
   elapsedTime: string;
@@ -153,17 +94,17 @@ const baseSpec: TopLevelSpec = {
     },
     x2: { field: "endTimestamp", type: "temporal" },
     tooltip: [
-      { field: "cell", title: "Cell" },
+      { field: "cellNum", title: "Cell" },
       {
         field: "startTimestamp",
         type: "temporal",
-        timeUnit: "monthdatehoursminutessecondsmilliseconds",
+        timeUnit: "hoursminutessecondsmilliseconds",
         title: "Start",
       },
       {
         field: "endTimestamp",
         type: "temporal",
-        timeUnit: "monthdatehoursminutessecondsmilliseconds",
+        timeUnit: "hoursminutessecondsmilliseconds",
         title: "End",
       },
     ],
@@ -187,7 +128,7 @@ const config: Config = {
 };
 
 export const Tracing: React.FC = () => {
-  // TODO: Either we get the runs of cells from FE side or BE side
+  const { runIds: newestToOldestRunIds, runMap } = useAtomValue(runsAtom);
 
   const [chartPosition, setChartPosition] =
     useState<ChartPosition>("sideBySide");
@@ -213,9 +154,18 @@ export const Tracing: React.FC = () => {
       </Tooltip>
 
       <div className="pl-2 mt-7 flex flex-col gap-2">
-        {mockRuns.map((run) => (
-          <TraceBlock key={run.runId} run={run} chartPosition={chartPosition} />
-        ))}
+        {newestToOldestRunIds.map((runId: RunId) => {
+          const run = runMap.get(runId);
+          if (run) {
+            return (
+              <TraceBlock
+                key={run.runId}
+                run={run}
+                chartPosition={chartPosition}
+              />
+            );
+          }
+        })}
       </div>
     </div>
   );
@@ -251,14 +201,14 @@ const TraceBlock: React.FC<{ run: Run; chartPosition: ChartPosition }> = ({
 
   // Used to sync Vega charts and React components
   // Note that this will only work for the first chart for now, until we create unique input elements
-  const [hoveredCellID, setHoveredCellID] = useState<number>();
+  const [hoveredCellId, setHoveredCellId] = useState<CellId>();
   const hiddenInputRef = useRef<HTMLInputElement>(null);
 
-  const hoverOnCell = (cellID: number) => {
-    setHoveredCellID(cellID);
+  const hoverOnCell = (cellId: CellId) => {
+    setHoveredCellId(cellId);
     // dispatch input event to trigger vega's param to update
     if (hiddenInputRef.current) {
-      hiddenInputRef.current.value = String(cellID);
+      hiddenInputRef.current.value = String(cellId);
       hiddenInputRef.current.dispatchEvent(
         new Event("input", { bubbles: true }),
       );
@@ -275,12 +225,26 @@ const TraceBlock: React.FC<{ run: Run; chartPosition: ChartPosition }> = ({
       className="text-sm cursor-pointer"
       onClick={() => setCollapsed(!collapsed)}
     >
-      Run - {run.runStartTime}
+      Run - {formatLogTimestamp(run.runStartTime)}
       <ChevronComponent />
     </span>
   );
 
-  const vegaSpec = compile(createGanttVegaLiteSpec(sampleData), {
+  const cellIds = useCellIds();
+
+  const data: Data = {
+    values: run.cellRuns.map((cellRun) => {
+      return {
+        cell: cellRun.cellId,
+        cellNum: cellIds.inOrderIds.indexOf(cellRun.cellId),
+        startTimestamp: formatChartTime(cellRun.startTime),
+        endTimestamp: formatChartTime(cellRun.startTime + cellRun.elapsedTime),
+        elapsedTime: formatElapsedTime(cellRun.elapsedTime * 1000),
+      };
+    }),
+  };
+
+  const vegaSpec = compile(createGanttVegaLiteSpec(data), {
     config,
   }).spec;
 
@@ -289,18 +253,14 @@ const TraceBlock: React.FC<{ run: Run; chartPosition: ChartPosition }> = ({
       <input
         type="text"
         id="hiddenInputElement"
-        defaultValue={hoveredCellID}
+        defaultValue={hoveredCellId}
         hidden={true}
         ref={hiddenInputRef}
       />
       {run.cellRuns.map((cellRun) => (
         <TraceRow
-          key={cellRun.cellID}
-          timestamp="11:00:00 AM"
-          cellID={cellRun.cellID}
-          code={cellRun.code}
-          elapsedTime={cellRun.elapsedTime}
-          status={cellRun.status}
+          key={cellRun.cellId}
+          cellRun={cellRun}
           hoverOnCell={hoverOnCell}
         />
       ))}
@@ -337,19 +297,16 @@ const TraceBlock: React.FC<{ run: Run; chartPosition: ChartPosition }> = ({
   );
 };
 
-type RunStatus = "success" | "running" | "error";
-
 interface TraceRowProps {
-  timestamp: string;
-  cellID: CellId;
-  code: string;
-  elapsedTime: number;
-  status: RunStatus;
-  hoverOnCell: (cellID: number) => void;
+  cellRun: CellRun;
+  hoverOnCell: (cellId: CellId) => void;
 }
 
-const TraceRow: React.FC<TraceRowProps> = (props: TraceRowProps) => {
-  const elapsedTimeStr = formatElapsedTime(props.elapsedTime);
+const TraceRow: React.FC<TraceRowProps> = ({
+  cellRun,
+  hoverOnCell,
+}: TraceRowProps) => {
+  const elapsedTimeStr = formatElapsedTime(cellRun.elapsedTime * 1000);
   const elapsedTimeTooltip = (
     <span>
       This cell took <ElapsedTime elapsedTime={elapsedTimeStr} /> to run
@@ -357,7 +314,7 @@ const TraceRow: React.FC<TraceRowProps> = (props: TraceRowProps) => {
   );
 
   const handleMouseEnter = () => {
-    props.hoverOnCell(props.cellID);
+    hoverOnCell(cellRun.cellId);
   };
 
   return (
@@ -365,12 +322,13 @@ const TraceRow: React.FC<TraceRowProps> = (props: TraceRowProps) => {
       className="flex flex-row gap-2 py-1 px-1 opacity-70 hover:bg-[var(--gray-3)] hover:opacity-100"
       onMouseEnter={handleMouseEnter}
     >
-      <span className="text-[var(--gray-10)]">[{props.timestamp}]</span>
       <span className="text-[var(--gray-10)]">
-        {/* (<CellLink cellId={props.cellID} />) */}
-        (cell-1)
+        [{formatLogTimestamp(cellRun.startTime)}]
       </span>
-      <span className="w-40 truncate">{props.code}</span>
+      <span className="text-[var(--gray-10)]">
+        (<CellLink cellId={cellRun.cellId} />)
+      </span>
+      <span className="w-40 truncate">{cellRun.code}</span>
 
       <div className="flex flex-row gap-1 basis-12 justify-end">
         <Tooltip content={elapsedTimeTooltip}>
@@ -378,14 +336,40 @@ const TraceRow: React.FC<TraceRowProps> = (props: TraceRowProps) => {
         </Tooltip>
 
         {/* TODO: Shouldn't use favicon. */}
-        <Tooltip content={props.status}>
+        <Tooltip content={cellRun.status}>
           <img
             className="w-4"
-            src={FAVICONS[props.status]}
-            alt={`${props.status} icon`}
+            src={FAVICONS[cellRun.status]}
+            alt={`${cellRun.status} icon`}
           />
         </Tooltip>
       </div>
     </div>
   );
 };
+
+export function formatChartTime(timestamp: number): string {
+  try {
+    // Create a Date object from the timestamp
+    // Multiply by 1000 to convert seconds to milliseconds
+    const date = new Date(timestamp * 1000);
+
+    // Extract date components in local time
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0"); // getMonth() is 0-indexed
+    const day = String(date.getDate()).padStart(2, "0");
+
+    // Extract time components in local time
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const seconds = String(date.getSeconds()).padStart(2, "0");
+
+    // Extract milliseconds
+    const milliseconds = String(date.getMilliseconds()).padStart(3, "0");
+
+    // Combine into the desired format
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
+  } catch {
+    return "";
+  }
+}

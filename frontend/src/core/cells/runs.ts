@@ -50,45 +50,72 @@ const {
     if (!runId) {
       return state;
     }
+    let runIds: RunId[];
+
     let run = state.runMap.get(runId);
-    if (!run) {
+    if (run) {
+      runIds = state.runIds;
+    } else {
       run = {
         runId: runId,
         cellRuns: [],
         runStartTime: cellOperation.timestamp,
       };
+
+      runIds = [runId, ...state.runIds];
+      if (runIds.length > MAX_RUNS) {
+        const oldestRunId = runIds.pop();
+        if (oldestRunId) {
+          state.runMap.delete(oldestRunId);
+        }
+      }
     }
+
+    // TODO: is this ideal?
+    const erroredOutput =
+      cellOperation.output &&
+      (cellOperation.output.channel === "marimo-error" ||
+        cellOperation.output.channel === "stderr");
 
     const nextRuns: CellRun[] = [];
     let found = false;
-    for (const cellRun of run.cellRuns) {
-      if (cellRun.cellId === cellOperation.cell_id) {
+    for (const existingCellRun of run.cellRuns) {
+      if (existingCellRun.cellId === cellOperation.cell_id) {
+        const hasErroredPreviously = existingCellRun.status === "error";
+        const status: CellRun["status"] =
+          hasErroredPreviously || erroredOutput ? "error" : "success";
+
+        // TODO: Need to update the cell run in place, to maintain order
         nextRuns.push({
-          ...cellRun,
-          elapsedTime: cellOperation.timestamp - cellRun.startTime,
+          ...existingCellRun,
+          elapsedTime: cellOperation.timestamp - existingCellRun.startTime,
+          status: status,
         });
         found = true;
       } else {
-        nextRuns.push(cellRun);
+        nextRuns.push(existingCellRun);
       }
     }
     if (!found) {
+      const status: CellRun["status"] = erroredOutput ? "error" : "success";
+
       nextRuns.push({
         cellId: cellOperation.cell_id as CellId,
         code: code.slice(0, MAX_CODE_LENGTH),
         elapsedTime: 0,
-        // TODO: not actually correct logic
-        status: cellOperation.status === "idle" ? "success" : "error",
+        status: status,
         startTime: cellOperation.timestamp,
       });
     }
+
+    run.cellRuns = nextRuns;
 
     const nextRunMap = new Map(state.runMap);
     nextRunMap.set(runId, run);
 
     return {
       ...state,
-      runIds: [runId, ...state.runIds.slice(0, MAX_RUNS)],
+      runIds: runIds,
       runMap: nextRunMap,
     };
   },

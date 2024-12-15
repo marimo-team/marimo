@@ -107,13 +107,14 @@ class Op:
 class CellOp(Op):
     """Op to transition a cell.
 
-    A CellOp's data has three optional fields:
+    A CellOp's data has some optional fields:
 
     output       - a CellOutput
     console      - a CellOutput (console msg to append), or a list of
                    CellOutputs
     status       - execution status
     stale_inputs - whether the cell has stale inputs (variables, modules, ...)
+    run_id       - the run associated with this cell.
 
     Omitting a field means that its value should be unchanged!
 
