@@ -211,3 +211,23 @@ async def usage(request: Request) -> JSONResponse:
             },
         }
     )
+
+
+@router.get("/api/status/connections")
+async def connections(request: Request) -> JSONResponse:
+    """
+    responses:
+        200:
+            description: Get the number of active websocket connections
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        properties:
+                            active:
+                                type: integer
+    """
+    app_state = AppState(request)
+    return JSONResponse(
+        {"active": app_state.session_manager.get_active_connection_count()}
+    )

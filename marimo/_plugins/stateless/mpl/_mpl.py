@@ -34,7 +34,7 @@ from marimo._utils.signals import get_signals
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
     from matplotlib.backends.backend_webagg_core import FigureManagerWebAgg
-    from matplotlib.figure import Figure
+    from matplotlib.figure import Figure, SubFigure
     from starlette.applications import Starlette
     from starlette.requests import Request
     from starlette.websockets import WebSocket
@@ -302,7 +302,7 @@ def get_or_create_application(
 
 
 def new_figure_manager_given_figure(
-    num: int, figure: Union[Figure, Axes]
+    num: int, figure: Union[Figure, SubFigure, Axes]
 ) -> Any:
     from matplotlib.backends.backend_webagg_core import (
         FigureCanvasWebAggCore,
@@ -322,7 +322,7 @@ def new_figure_manager_given_figure(
 
 
 @mddoc
-def interactive(figure: Union[Figure, Axes]) -> Html:
+def interactive(figure: Union[Figure, SubFigure, Axes]) -> Html:
     """Render a matplotlib figure using an interactive viewer.
 
     The interactive viewer allows you to pan, zoom, and see plot coordinates

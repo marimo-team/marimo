@@ -1953,7 +1953,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.9.34
+  version: 0.10.2
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -2627,6 +2627,18 @@ paths:
                     type: string
                 type: object
           description: Get the status of the application
+  /api/status/connections:
+    get:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                properties:
+                  active:
+                    type: integer
+                type: object
+          description: Get the number of active websocket connections
   /api/usage:
     get:
       responses:
