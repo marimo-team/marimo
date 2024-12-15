@@ -9,6 +9,7 @@ export const FAVICONS = {
   success: "./circle-check.ico",
   running: "./circle-play.ico",
   error: "./circle-x.ico",
+  queued: "./favicon.ico",
 };
 
 interface Props {
