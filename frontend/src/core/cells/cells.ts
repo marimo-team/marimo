@@ -51,6 +51,7 @@ import {
 } from "@/utils/id-tree";
 import { isEqual } from "lodash-es";
 import { isErrorMime } from "../mime";
+import { areLogicallyDifferent } from "../codemirror/edited";
 
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
 
@@ -246,7 +247,7 @@ const {
           code,
           lastCodeRun,
           lastExecutionTime,
-          edited: Boolean(code) && code !== lastCodeRun,
+          edited: Boolean(code) && areLogicallyDifferent(code, lastCodeRun),
         }),
       },
       cellRuntime: {
@@ -640,7 +641,7 @@ const {
         : {
             ...cell,
             code: code,
-            edited: code.trim() !== cell.lastCodeRun,
+            edited: areLogicallyDifferent(code, cell.lastCodeRun),
           };
     });
   },
@@ -987,7 +988,7 @@ const {
           code: beforeCursorCode,
           edited:
             Boolean(beforeCursorCode) &&
-            beforeCursorCode.trim() !== cell.lastCodeRun?.trim(),
+            areLogicallyDifferent(beforeCursorCode, cell.lastCodeRun),
         },
         [newCellId]: createCell({
           id: newCellId,
@@ -1035,7 +1036,8 @@ const {
           ...cell,
           code: snapshot,
           edited:
-            Boolean(snapshot) && snapshot?.trim() !== cell.lastCodeRun?.trim(),
+            Boolean(snapshot) &&
+            areLogicallyDifferent(snapshot, cell.lastCodeRun),
         },
       },
       cellRuntime: {
