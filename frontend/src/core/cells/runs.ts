@@ -10,7 +10,7 @@ export interface CellRun {
   code: string;
   elapsedTime: number;
   startTime: number;
-  status: "success" | "error";
+  status: "success" | "error" | "queued" | "running";
 }
 
 export interface Run {
@@ -82,12 +82,23 @@ const {
     for (const existingCellRun of run.cellRuns) {
       if (existingCellRun.cellId === cellOperation.cell_id) {
         const hasErroredPreviously = existingCellRun.status === "error";
-        const status: CellRun["status"] =
-          hasErroredPreviously || erroredOutput ? "error" : "success";
+        let status: CellRun["status"];
+        let startTime = existingCellRun.startTime;
 
-        // TODO: Need to update the cell run in place, to maintain order
+        if (hasErroredPreviously || erroredOutput) {
+          status = "error";
+        } else if (cellOperation.status === "queued") {
+          status = "queued";
+        } else if (cellOperation.status === "running") {
+          status = "running";
+          startTime = cellOperation.timestamp;
+        } else {
+          status = "success";
+        }
+
         nextRuns.push({
           ...existingCellRun,
+          startTime: startTime,
           elapsedTime: cellOperation.timestamp - existingCellRun.startTime,
           status: status,
         });
@@ -97,7 +108,17 @@ const {
       }
     }
     if (!found) {
-      const status: CellRun["status"] = erroredOutput ? "error" : "success";
+      let status: CellRun["status"];
+
+      if (erroredOutput) {
+        status = "error";
+      } else if (cellOperation.status === "queued") {
+        status = "queued";
+      } else if (cellOperation.status === "running") {
+        status = "running";
+      } else {
+        status = "success";
+      }
 
       nextRuns.push({
         cellId: cellOperation.cell_id as CellId,

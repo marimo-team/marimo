@@ -35,29 +35,6 @@ export interface Data {
   values: Values[];
 }
 
-const sampleData: Data = {
-  values: [
-    {
-      cell: 1,
-      startTimestamp: "2024-12-01 11:00:00.000",
-      endTimestamp: "2024-12-01 11:00:00.230",
-      elapsedTime: "23ms",
-    },
-    {
-      cell: 2,
-      startTimestamp: "2024-12-01 11:00:00.230",
-      endTimestamp: "2024-12-01 11:00:00.466",
-      elapsedTime: "46ms",
-    },
-    {
-      cell: 3,
-      startTimestamp: "2024-12-01 11:00:00.466",
-      endTimestamp: "2024-12-01 11:00:00.636",
-      elapsedTime: "46ms",
-    },
-  ],
-};
-
 const baseSpec: TopLevelSpec = {
   $schema: "https://vega.github.io/schema/vega-lite/v5.json",
   mark: {
@@ -86,6 +63,7 @@ const baseSpec: TopLevelSpec = {
       field: "cell",
       axis: null,
       scale: { paddingInner: 0.2 },
+      sort: { field: "cellNum" },
     },
     x: {
       field: "startTimestamp",
@@ -109,7 +87,7 @@ const baseSpec: TopLevelSpec = {
       },
     ],
     size: {
-      value: { expr: "hoveredCellID == toString(datum.cell) ? 25 : 20" },
+      value: { expr: "hoveredCellID == toString(datum.cell) ? 22 : 20" },
     },
   },
 };
