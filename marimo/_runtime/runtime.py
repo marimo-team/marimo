@@ -1160,16 +1160,23 @@ class Kernel:
             self.graph.set_stale(cell_ids, prune_imports=True)
 
     def _broadcast_missing_packages(self, runner: cell_runner.Runner) -> None:
+        module_not_found_errors = [
+            e
+            for e in runner.exceptions.values()
+            if isinstance(e, ModuleNotFoundError)
+        ]
         if (
-            any(
-                isinstance(e, ModuleNotFoundError)
-                for e in runner.exceptions.values()
-            )
+            len(module_not_found_errors) > 0
             and self.package_manager is not None
         ):
+            # Grab missing modules from module registry and from module not found errors
+            missing_modules = self.module_registry.missing_modules() | set(
+                e.name for e in module_not_found_errors if e.name is not None
+            )
+
             missing_packages = [
                 pkg
-                for mod in self.module_registry.missing_modules()
+                for mod in missing_modules
                 # filter out packages that we already attempted to install
                 # to prevent an infinite loop
                 if not self.package_manager.attempted_to_install(
@@ -1759,18 +1766,15 @@ class Kernel:
             self.package_manager.alert_not_installed()
             return
 
-        # Package manager operates on module names
-        missing_modules = list(sorted(self.module_registry.missing_modules()))
+        missing_packages = list(sorted(request.versions.keys()))
 
         # Frontend shows package names, not module names
         package_statuses: PackageStatusType = {
-            self.package_manager.module_to_package(mod): "queued"
-            for mod in missing_modules
+            pkg: "queued" for pkg in missing_packages
         }
         InstallingPackageAlert(packages=package_statuses).broadcast()
 
-        for mod in missing_modules:
-            pkg = self.package_manager.module_to_package(mod)
+        for pkg in missing_packages:
             if self.package_manager.attempted_to_install(package=pkg):
                 # Already attempted an installation; it must have failed.
                 # Skip the installation.
@@ -1783,6 +1787,7 @@ class Kernel:
                 InstallingPackageAlert(packages=package_statuses).broadcast()
             else:
                 package_statuses[pkg] = "failed"
+                mod = self.package_manager.package_to_module(pkg)
                 self.module_registry.excluded_modules.add(mod)
                 InstallingPackageAlert(packages=package_statuses).broadcast()
 
