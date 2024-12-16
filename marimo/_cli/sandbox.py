@@ -106,6 +106,8 @@ def _pyproject_toml_to_requirements_txt(
 
 
 def get_dependencies_from_filename(name: str) -> List[str]:
+    if not name or not os.path.exists(name):
+        return []
     try:
         contents, _ = FileContentReader().read_file(name)
         return _get_dependencies(contents) or []
@@ -239,7 +241,7 @@ def run_in_sandbox(
     atexit.register(lambda: os.unlink(temp_file_path))
 
     # Get Python version requirement if available
-    if name is not None:
+    if name is not None and os.path.exists(name):
         contents, _ = FileContentReader().read_file(name)
         pyproject = _read_pyproject(contents)
         python_version = (

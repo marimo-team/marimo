@@ -550,6 +550,27 @@ def test_cli_sandbox_edit(temp_marimo_file: str) -> None:
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+def test_cli_sandbox_edit_new_file() -> None:
+    port = _get_port()
+    d = tempfile.TemporaryDirectory()
+    path = os.path.join(d.name, "new_sandbox_file.py")
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            path,
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+            "--sandbox",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b"marimo-mode data-mode='edit'", contents)
+
+
+@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
 def test_cli_sandbox_run(temp_marimo_file: str) -> None:
     port = _get_port()
     p = subprocess.Popen(
