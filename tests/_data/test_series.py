@@ -27,7 +27,7 @@ HAS_DEPS = (
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"A": [1, 2, 3], "B": ["a", "a", "a"]}, exclude=["ibis", "duckdb"]
+        {"A": [1, None, 3], "B": ["a", "a", "a"]}, exclude=["ibis", "duckdb"]
     ),
 )
 def test_number_series(
@@ -35,6 +35,7 @@ def test_number_series(
 ) -> None:
     response = get_number_series_info(df["A"])
 
+    # None/null values should be filtered out
     assert response.min == 1
     assert response.max == 3
     assert response.label == "A" or is_pyarrow_type(df)
@@ -56,12 +57,13 @@ def test_get_with_no_name(series: Any) -> None:
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"A": [1, 2, 3], "B": ["a", "b", "b"]}, exclude=["ibis", "duckdb"]
+        {"A": [1, 2, 3], "B": ["a", None, "b"]}, exclude=["ibis", "duckdb"]
     ),
 )
 def test_categorical_series(df: Any) -> None:
     response = get_category_series_info(df["B"])
 
+    # None/null values should be filtered out
     assert response.categories == ["a", "b"]
     assert response.label == "B" or is_pyarrow_type(df)
 
@@ -79,7 +81,7 @@ def test_categorical_series(df: Any) -> None:
             "B": ["a", "b", "b"],
             "C": [
                 datetime(2024, 1, 1),
-                datetime(2024, 1, 2),
+                None,
                 datetime(2024, 1, 3),
             ],
         },
@@ -89,6 +91,7 @@ def test_categorical_series(df: Any) -> None:
 def test_date_series(df: Any) -> None:
     response = get_date_series_info(df["C"])
 
+    # None/null values should be filtered out
     assert response.min == "2024-01-01"
     assert response.max == "2024-01-03"
     assert response.label == "C" or is_pyarrow_type(df)
@@ -109,7 +112,7 @@ def test_date_series(df: Any) -> None:
             "C": [
                 datetime(2024, 1, 1, 12, 0),
                 datetime(2024, 1, 2, 13, 30),
-                datetime(2024, 1, 3, 15, 45),
+                None,
             ],
         },
         exclude=["ibis", "duckdb"],
@@ -118,8 +121,9 @@ def test_date_series(df: Any) -> None:
 def test_datetime_series(df: Any) -> None:
     response = get_datetime_series_info(df["C"])
 
+    # None/null values should be filtered out
     assert response.min == "2024-01-01T12:00:00"
-    assert response.max == "2024-01-03T15:45:00"
+    assert response.max == "2024-01-02T13:30:00"
     assert response.label == "C" or is_pyarrow_type(df)
 
     with pytest.raises(ValueError):

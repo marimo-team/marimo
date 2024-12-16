@@ -62,6 +62,9 @@ def get_number_series_info(series: nw.Series) -> NumberSeriesInfo:
     """
     assert_narwhals_series(series)
 
+    # Filter out null values before computing statistics
+    series = series.dropna()
+
     def validate_number(value: Any) -> float:
         value = unwrap_py_scalar(value)
         value = float(value)
@@ -83,6 +86,9 @@ def get_category_series_info(series: nw.Series) -> CategorySeriesInfo:
     """
     assert_narwhals_series(series)
 
+    # Filter out null values before computing unique values
+    series = series.dropna()
+
     return CategorySeriesInfo(
         categories=sorted(series.unique().to_list()),
         label=_get_name(series),
@@ -95,6 +101,9 @@ def get_date_series_info(series: nw.Series) -> DateSeriesInfo:
     Get the summary of a date series.
     """
     assert_narwhals_series(series)
+
+    # Filter out null values before computing statistics
+    series = series.dropna()
 
     def validate_date(value: Any) -> str:
         value = unwrap_py_scalar(value)
@@ -117,6 +126,9 @@ def get_datetime_series_info(series: nw.Series) -> DateSeriesInfo:
     Get the summary of a datetime series.
     """
     assert_narwhals_series(series)
+
+    # Filter out null values before computing statistics
+    series = series.dropna()
 
     def validate_datetime(value: Any) -> str:
         value = unwrap_py_scalar(value)
