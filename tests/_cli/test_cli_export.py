@@ -78,7 +78,10 @@ class TestExportHTML:
         assert p.returncode == 0, p.stderr.decode()
         html = Path(out_dir / "index.html").read_text()
         assert "<marimo-mode data-mode='edit'" in html
-        assert '<marimo-code hidden=""></marimo-code>' not in html
+        assert (
+            '<marimo-code hidden="" data-show-code="false"></marimo-code>'
+            not in html
+        )
         assert "<marimo-wasm" in html
 
     @staticmethod
@@ -100,7 +103,10 @@ class TestExportHTML:
         assert p.returncode == 0, p.stderr.decode()
         html = Path(out_dir / "index.html").read_text()
         assert "<marimo-mode data-mode='read'" in html
-        assert '<marimo-code hidden=""></marimo-code>' not in html
+        assert (
+            '<marimo-code hidden="" data-show-code="false"></marimo-code>'
+            not in html
+        )
         assert "<marimo-wasm" in html
 
     @staticmethod

@@ -392,13 +392,14 @@ class TestWasmNotebookTemplate(unittest.TestCase):
             config_overrides=self.config_overrides,
             app_config=self.app_config,
             code=self.code,
+            show_code=False,
         )
 
         assert self.filename in result
         assert self.mode in result
         assert json.dumps(self.user_config) in result
         assert '<marimo-wasm hidden="">' in result
-        assert '<marimo-code hidden="">' in result
+        assert '<marimo-code hidden="" data-show-code="false">' in result
 
     def test_wasm_notebook_template_custom_css_and_assets(self) -> None:
         # Create css file
@@ -419,11 +420,13 @@ class TestWasmNotebookTemplate(unittest.TestCase):
                 app_config=_AppConfig(css_file="custom.css"),
                 code=self.code,
                 asset_url="https://my.cdn.com",
+                show_code=True,
             )
 
             assert css in result
             assert '<marimo-wasm hidden="">' in result
             assert "https://my.cdn.com/assets/" in result
+            assert '<marimo-code hidden="" data-show-code="true">' in result
         finally:
             os.remove(css_file)
 
@@ -455,9 +458,11 @@ class TestWasmNotebookTemplate(unittest.TestCase):
                 config_overrides=self.config_overrides,
                 app_config=_AppConfig(html_head_file="head.html"),
                 code=self.code,
+                show_code=False,
             )
 
             assert head in result
             assert '<marimo-wasm hidden="">' in result
+            assert '<marimo-code hidden="" data-show-code="false">' in result
         finally:
             os.remove(head_file)
