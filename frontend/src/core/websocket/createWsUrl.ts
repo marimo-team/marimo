@@ -13,8 +13,9 @@ export function resolveToWsUrl(relativeUrl: string): string {
   if (relativeUrl.startsWith("ws:") || relativeUrl.startsWith("wss:")) {
     return relativeUrl;
   }
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const host = window.location.host;
-  const pathname = new URL(document.baseURI).pathname;
-  return `${protocol}//${host}/${Strings.withoutTrailingSlash(pathname)}/${relativeUrl}`;
+  const baseUri = new URL(document.baseURI);
+  const protocol = baseUri.protocol === "https:" ? "wss:" : "ws:";
+  const host = baseUri.host;
+  const pathname = baseUri.pathname;
+  return `${protocol}//${host}${Strings.withoutTrailingSlash(pathname)}/${Strings.withoutLeadingSlash(relativeUrl)}`;
 }

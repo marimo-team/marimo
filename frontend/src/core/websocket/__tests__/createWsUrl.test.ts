@@ -15,7 +15,7 @@ describe("createWsUrl", () => {
     const sessionId = "1234";
     const result = createWsUrl(sessionId);
     const url = new URL(result, document.baseURI);
-    expect(url.toString()).toBe("https://marimo.app/ws?session_id=1234");
+    expect(url.toString()).toBe("wss://marimo.app/ws?session_id=1234");
     expect(url.searchParams.get(KnownQueryParams.sessionId)).toBe(sessionId);
   });
 
@@ -29,7 +29,7 @@ describe("createWsUrl", () => {
     const sessionId = "1234";
     const result = createWsUrl(sessionId);
     const url = new URL(result, document.baseURI);
-    expect(url.toString()).toBe("http://marimo.app/ws?session_id=1234");
+    expect(url.toString()).toBe("ws://marimo.app/ws?session_id=1234");
     expect(url.searchParams.get(KnownQueryParams.sessionId)).toBe(sessionId);
   });
 
@@ -43,7 +43,7 @@ describe("createWsUrl", () => {
     const sessionId = "1234";
     const result = createWsUrl(sessionId);
     const url = new URL(result, document.baseURI);
-    expect(url.toString()).toBe("http://marimo.app/nested/ws?session_id=1234");
+    expect(url.toString()).toBe("ws://marimo.app/nested/ws?session_id=1234");
     expect(url.searchParams.get(KnownQueryParams.sessionId)).toBe(sessionId);
   });
 
@@ -62,7 +62,7 @@ describe("createWsUrl", () => {
     const result = createWsUrl(sessionId);
     const url = new URL(result, document.baseURI);
     expect(url.toString()).toBe(
-      "http://marimo.app/nested/ws?foo=bar&session_id=1234",
+      "ws://marimo.app/nested/ws?foo=bar&session_id=1234",
     );
     expect(url.searchParams.get(KnownQueryParams.sessionId)).toBe(sessionId);
   });
