@@ -5,6 +5,7 @@ import { AttachAddon } from "@xterm/addon-attach";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import "./xterm.css";
+import { resolveToWsUrl } from "@/core/websocket/createWsUrl";
 
 const TerminalComponent: React.FC<{
   visible: boolean;
@@ -27,7 +28,7 @@ const TerminalComponent: React.FC<{
       return;
     }
 
-    const socket = new WebSocket("terminal/ws");
+    const socket = new WebSocket(resolveToWsUrl("terminal/ws"));
     const attachAddon = new AttachAddon(socket);
     terminal.loadAddon(attachAddon);
 

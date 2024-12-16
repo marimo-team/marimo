@@ -1,9 +1,20 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import { Strings } from "@/utils/strings";
 import { KnownQueryParams } from "../constants";
 
 export function createWsUrl(sessionId: string): string {
   const searchParams = new URLSearchParams(window.location.search);
   searchParams.set(KnownQueryParams.sessionId, sessionId);
 
-  return `ws?${searchParams.toString()}`;
+  return resolveToWsUrl(`ws?${searchParams.toString()}`);
+}
+
+export function resolveToWsUrl(relativeUrl: string): string {
+  if (relativeUrl.startsWith("ws:") || relativeUrl.startsWith("wss:")) {
+    return relativeUrl;
+  }
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const host = window.location.host;
+  const pathname = new URL(document.baseURI).pathname;
+  return `${protocol}//${host}/${Strings.withoutTrailingSlash(pathname)}/${relativeUrl}`;
 }

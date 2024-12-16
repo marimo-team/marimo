@@ -7,6 +7,7 @@ import { Transport } from "@open-rpc/client-js/build/transports/Transport";
 import type { JSONRPCRequestData } from "@open-rpc/client-js/build/Request";
 import { waitForEnabledCopilot } from "./state";
 import { waitForWs } from "@/utils/waitForWs";
+import { resolveToWsUrl } from "@/core/websocket/createWsUrl";
 
 // Dummy file for the copilot language server
 export const COPILOT_FILENAME = "/marimo.py";
@@ -80,5 +81,5 @@ export function copilotServer() {
 }
 
 export function createWsUrl(): string {
-  return "/lsp/copilot";
+  return resolveToWsUrl("lsp/copilot");
 }
