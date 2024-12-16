@@ -310,6 +310,7 @@ async def test_export_wasm_edit():
         display_config=DEFAULT_CONFIG["display"],
         mode="edit",
         code=file_manager.to_code(),
+        show_code=True,
     )
 
     assert filename == "notebook.wasm.html"
@@ -333,6 +334,7 @@ async def test_export_wasm_run():
         display_config=DEFAULT_CONFIG["display"],
         mode="run",
         code=file_manager.to_code(),
+        show_code=True,
     )
 
     assert filename == "notebook.wasm.html"
