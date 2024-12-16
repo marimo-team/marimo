@@ -95,6 +95,7 @@ NODE_OPTIONS=--max_old_space_size=8192 NODE_ENV=development make fe -B
 | `py`           | Setup     | Editable python install; only need to run once                 |
 | `install-all`  | Setup     | Install everything; takes a long time due to editable install  |
 | `fe`           | Build     | Package frontend into `marimo/`                                |
+| `fe-codegen`   | Build     | Build [openapi spec](./development_docs/openapi.md)            |
 | `wheel`        | Build     | Build wheel                                                    |
 | `check`        | Test      | Run all checks                                                 |
 | `check-test`   | Test      | Run all checks and tests                                       |
