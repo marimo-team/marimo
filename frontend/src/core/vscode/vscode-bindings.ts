@@ -121,7 +121,9 @@ function registerOpenExternalLink() {
 
 function registerContextMenu() {
   document.addEventListener("contextmenu", (event) => {
-    if (event.shiftKey) {
+    // Don't interfere with the browser's context menu when shift is pressed
+    // or when using a custom context menu component
+    if (event.shiftKey || event.defaultPrevented) {
       return;
     }
     event.preventDefault();
