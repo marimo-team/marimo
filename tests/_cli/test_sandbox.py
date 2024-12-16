@@ -7,6 +7,7 @@ from marimo._cli.sandbox import (
     _get_python_version_requirement,
     _pyproject_toml_to_requirements_txt,
     _read_pyproject,
+    get_dependencies_from_filename,
 )
 
 
@@ -222,3 +223,11 @@ import marimo
     assert pyproject_no_python is not None
     assert _get_python_version_requirement(pyproject_no_python) is None
     assert _get_dependencies(SCRIPT_NO_PYTHON) == ["polars"]
+
+
+def test_get_dependencies_with_nonexistent_file():
+    # Test with a non-existent file
+    assert get_dependencies_from_filename("nonexistent_file.py") == []
+
+    # Test with None
+    assert get_dependencies_from_filename(None) == []  # type: ignore
