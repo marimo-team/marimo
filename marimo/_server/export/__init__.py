@@ -86,6 +86,7 @@ def export_as_ipynb(
 def export_as_wasm(
     path: MarimoPath,
     mode: Literal["edit", "run"],
+    show_code: bool,
     asset_url: Optional[str] = None,
 ) -> ExportResult:
     file_router = AppFileRouter.from_filename(path)
@@ -100,6 +101,7 @@ def export_as_wasm(
         mode=mode,
         code=file_manager.to_code(),
         asset_url=asset_url,
+        show_code=show_code,
     )
     return ExportResult(
         contents=result[0],

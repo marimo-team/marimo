@@ -318,6 +318,7 @@ class Exporter:
         display_config: DisplayConfig,
         code: str,
         mode: Literal["edit", "run"],
+        show_code: bool,
         asset_url: Optional[str] = None,
     ) -> tuple[str, str]:
         """Export notebook as a WASM-powered standalone HTML file."""
@@ -340,6 +341,7 @@ class Exporter:
             app_config=file_manager.app.config,
             code=code,
             asset_url=asset_url,
+            show_code=show_code,
         )
 
         download_filename = get_download_filename(file_manager, "wasm.html")

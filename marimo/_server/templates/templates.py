@@ -237,6 +237,7 @@ def wasm_notebook_template(
     app_config: _AppConfig,
     mode: Literal["edit", "run"],
     code: str,
+    show_code: bool,
     asset_url: Optional[str] = None,
 ) -> str:
     """Template for WASM notebooks."""
@@ -291,7 +292,7 @@ def wasm_notebook_template(
 
     body = body.replace(
         "</head>",
-        f'<marimo-code hidden="">{uri_encode_component(code)}</marimo-code></head>',
+        f'<marimo-code hidden="" data-show-code="{json.dumps(show_code)}">{uri_encode_component(code)}</marimo-code></head>',
     )
 
     return body

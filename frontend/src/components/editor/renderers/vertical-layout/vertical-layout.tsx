@@ -39,6 +39,7 @@ import { KnownQueryParams } from "@/core/constants";
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
 import { isErrorMime } from "@/core/mime";
+import { getMarimoShowCode } from "@/core/dom/marimo-tag";
 
 type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;
@@ -53,12 +54,18 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
   const [userConfig] = useResolvedMarimoConfig();
 
   const urlParams = new URLSearchParams(window.location.search);
-  const showCodeDefault = urlParams.get(KnownQueryParams.showCode);
   const [showCode, setShowCode] = useState(() => {
-    // Default to showing code if the notebook is static or wasm
-    return showCodeDefault === null
+    // Check marimo-code tag setting first
+    const showCodePreference = getMarimoShowCode();
+    if (!showCodePreference) {
+      return false;
+    }
+    // If 'auto' or not found, use URL param
+    // If url param is not set, we default to true for static notebooks, wasm notebooks, and kiosk mode
+    const showCodeByQueryParam = urlParams.get(KnownQueryParams.showCode);
+    return showCodeByQueryParam === null
       ? isStaticNotebook() || isWasm() || kioskMode
-      : showCodeDefault === "true";
+      : showCodeByQueryParam === "true";
   });
 
   const evaluateCanShowCode = () => {

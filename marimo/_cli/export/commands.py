@@ -151,7 +151,9 @@ def html(
     def export_callback(file_path: MarimoPath) -> ExportResult:
         return asyncio_run(
             run_app_then_export_as_html(
-                file_path, include_code=include_code, cli_args=cli_args
+                file_path,
+                include_code=include_code,
+                cli_args=cli_args,
             )
         )
 
@@ -372,19 +374,28 @@ and cannot be opened directly from the file system (e.g. file://).
 @click.option(
     "--mode",
     type=click.Choice(["edit", "run"]),
+    default="run",
     help="Whether the notebook code should be editable or readonly",
+    show_default=True,
     required=True,
+)
+@click.option(
+    "--show-code/--no-show-code",
+    default=True,
+    show_default=True,
+    help="Whether to show code by default in the exported HTML file.",
 )
 @click.argument("name", required=True, callback=validators.is_file_path)
 def html_wasm(
     name: str,
     output: str,
     mode: Literal["edit", "run"],
+    show_code: bool,
 ) -> None:
     """Export a notebook as a WASM-powered standalone HTML file."""
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
-        return export_as_wasm(file_path, mode)
+        return export_as_wasm(file_path, mode, show_code=show_code)
 
     # Validate output is not a file
     if os.path.isfile(output):
