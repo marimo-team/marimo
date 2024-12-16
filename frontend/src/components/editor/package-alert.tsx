@@ -116,6 +116,7 @@ export const PackageAlert: React.FC = () => {
                 <>
                   <InstallPackagesButton
                     manager={userConfig.package_management.manager}
+                    packages={packageAlert.packages}
                     versions={desiredPackageVersions}
                     clearPackageAlert={() => clearPackageAlert(packageAlert.id)}
                   />
@@ -270,10 +271,12 @@ const ProgressIcon = ({
 
 const InstallPackagesButton = ({
   manager,
+  packages,
   versions,
   clearPackageAlert,
 }: {
   manager: PackageManagerName;
+  packages: string[];
   versions: Record<string, string>;
   clearPackageAlert: () => void;
 }) => {
@@ -284,11 +287,19 @@ const InstallPackagesButton = ({
       size="sm"
       onClick={async () => {
         clearPackageAlert();
-        await sendInstallMissingPackages({ manager, versions }).catch(
-          (error) => {
-            Logger.error(error);
-          },
-        );
+
+        // Empty version implies latest
+        const completePackages = { ...versions };
+        for (const pkg of packages) {
+          completePackages[pkg] = completePackages[pkg] ?? "";
+        }
+
+        await sendInstallMissingPackages({
+          manager,
+          versions: completePackages,
+        }).catch((error) => {
+          Logger.error(error);
+        });
       }}
     >
       <DownloadCloudIcon className="w-4 h-4 mr-2" />
