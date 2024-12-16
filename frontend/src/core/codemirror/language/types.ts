@@ -24,4 +24,4 @@ export interface LanguageAdapter {
   ): Extension[];
 }
 
-export type LanguageAdapterType = "python" | "markdown" | "sql";
+export type LanguageAdapterType = "python" | "markdown" | "sql" | "agent";

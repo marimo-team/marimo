@@ -6,11 +6,12 @@ import { MarkdownIcon, PythonIcon } from "./icons";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { LanguageAdapter } from "@/core/codemirror/language/types";
-import { DatabaseIcon } from "lucide-react";
+import { BotIcon, DatabaseIcon } from "lucide-react";
 import { useMemo } from "react";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
 import { Functions } from "@/utils/functions";
+import { AIAgentLanguageAdapter } from "@/core/codemirror/language/ai";
 
 interface LanguageTogglesProps {
   editorView: EditorView | null;
@@ -31,6 +32,10 @@ export const LanguageToggles: React.FC<LanguageTogglesProps> = ({
   );
   const canUseSQL = useMemo(
     () => new SQLLanguageAdapter().isSupported(code) || code.trim() === "",
+    [code],
+  );
+  const canUseAgent = useMemo(
+    () => new AIAgentLanguageAdapter().isSupported(code) || code.trim() === "",
     [code],
   );
 
@@ -82,6 +87,21 @@ export const LanguageToggles: React.FC<LanguageTogglesProps> = ({
         toType="python"
         displayName="Python"
         onAfterToggle={Functions.NOOP}
+      />
+      <LanguageToggle
+        editorView={editorView}
+        currentLanguageAdapter={currentLanguageAdapter}
+        canSwitchToLanguage={canUseAgent && currentLanguageAdapter === "python"}
+        icon={
+          <BotIcon
+            color={"var(--sky-11)"}
+            strokeWidth={2.5}
+            className="w-4 h-4"
+          />
+        }
+        toType="agent"
+        displayName="Agent"
+        onAfterToggle={onAfterToggle}
       />
     </div>
   );

@@ -27,6 +27,7 @@ import { useDeleteCellCallback } from "../cell/useDeleteCell";
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/ui/button";
 import {
+  BotIcon,
   DatabaseIcon,
   SparklesIcon,
   SquareCodeIcon,
@@ -37,6 +38,7 @@ import { aiEnabledAtom, autoInstantiateAtom } from "@/core/config/config";
 import { useAtomValue } from "jotai";
 import { useBoolean } from "@/hooks/useBoolean";
 import { AddCellWithAI } from "../ai/add-cell-with-ai";
+import { AIAgentLanguageAdapter } from "@/core/codemirror/language/ai";
 import type { Milliseconds } from "@/utils/time";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
@@ -341,6 +343,32 @@ const AddCellButtons: React.FC<{
           >
             <DatabaseIcon className="mr-2 size-4 flex-shrink-0" />
             SQL
+          </Button>
+        </Tooltip>
+        <Tooltip
+          content={
+            // aiEnabled ? null : <span>Enable via settings under AI Assist</span>
+            null
+          }
+          delayDuration={100}
+          asChild={false}
+        >
+          <Button
+            className={buttonClass}
+            variant="text"
+            size="sm"
+            // disabled={!aiEnabled}
+            onClick={() => {
+              maybeAddMarimoImport(autoInstantiate, createNewCell);
+              createNewCell({
+                cellId: { type: "__end__", columnId },
+                before: false,
+                code: new AIAgentLanguageAdapter().defaultCode,
+              });
+            }}
+          >
+            <BotIcon className="mr-2 size-4 flex-shrink-0" />
+            Chat
           </Button>
         </Tooltip>
         <Tooltip

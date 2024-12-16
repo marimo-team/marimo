@@ -3,6 +3,7 @@ import type { LanguageAdapter, LanguageAdapterType } from "./types";
 import { PythonLanguageAdapter } from "./python";
 import { MarkdownLanguageAdapter } from "./markdown";
 import { SQLLanguageAdapter } from "./sql";
+import { AIAgentLanguageAdapter } from "./ai";
 
 export const LanguageAdapters: Record<
   LanguageAdapterType,
@@ -11,6 +12,7 @@ export const LanguageAdapters: Record<
   python: () => new PythonLanguageAdapter(),
   markdown: () => new MarkdownLanguageAdapter(),
   sql: () => new SQLLanguageAdapter(),
+  agent: () => new AIAgentLanguageAdapter(),
 };
 
 export function getLanguageAdapters() {

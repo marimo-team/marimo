@@ -133,6 +133,7 @@ def create_kernel_context(
     parent: KernelRuntimeContext | None = None,
 ) -> KernelRuntimeContext:
     from marimo._plugins.ui._core.registry import UIElementRegistry
+    from marimo._runtime.agents import AgentRegistry
     from marimo._runtime.state import StateRegistry
     from marimo._runtime.virtual_file import VirtualFileRegistry
 
@@ -142,6 +143,7 @@ def create_kernel_context(
         _app=app,
         ui_element_registry=UIElementRegistry(),
         state_registry=StateRegistry(),
+        agent_registry=AgentRegistry(),
         function_registry=FunctionRegistry(),
         cell_lifecycle_registry=CellLifecycleRegistry(),
         virtual_file_registry=VirtualFileRegistry(),
