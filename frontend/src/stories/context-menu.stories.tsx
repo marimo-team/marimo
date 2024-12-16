@@ -14,7 +14,7 @@ const meta: Meta<typeof ContextMenu> = {
     docs: {
       description: {
         component:
-          "Context menu component with support for both custom and browser-native menus. Use Shift + Right Click to access the browser's native context menu.",
+          "Context menu component that shows a custom menu by default. Use Shift + Right Click to access the browser's native context menu instead.",
       },
     },
   },
@@ -27,7 +27,7 @@ export const Default: Story = {
   render: () => (
     <ContextMenu>
       <ContextMenuTrigger className="block w-48 h-12 border rounded text-center leading-[3rem]">
-        Right click or Shift + Right click
+        Right click for custom menu, Shift + Right click for browser menu
       </ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuItem>Custom Menu Item 1</ContextMenuItem>
@@ -44,8 +44,8 @@ export const WithLongContent: Story = {
       <ContextMenuTrigger className="block w-96 h-32 border rounded p-4">
         <p>This is a longer content area that you can right-click on.</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Try both regular right-click for the custom menu and Shift + Right
-          Click for the browser's native menu.
+          Right-click to show the custom menu, or use Shift + Right Click for
+          the browser's default menu.
         </p>
       </ContextMenuTrigger>
       <ContextMenuContent>

@@ -30,8 +30,10 @@ const ContextMenuTrigger = React.forwardRef<
     ref={ref}
     onContextMenu={(event) => {
       if (event.shiftKey) {
+        // Allow browser's default menu when shift is pressed
         return;
       }
+      // Show custom menu by default
       event.preventDefault();
       onContextMenu?.(event);
     }}
