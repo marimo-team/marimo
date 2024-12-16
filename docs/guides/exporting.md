@@ -149,6 +149,7 @@ Options:
 
 - `--mode`: Choose between `run` (read-only) or `edit` (allows editing)
 - `--output`: Directory to save the HTML and required assets
+- `--show-code/--no-show-code`: Whether to initially show or hide the code in the notebook
 
 ```{admonition} Note
 :class: note
