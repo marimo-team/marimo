@@ -121,6 +121,9 @@ function registerOpenExternalLink() {
 
 function registerContextMenu() {
   document.addEventListener("contextmenu", (event) => {
+    if (event.shiftKey) {
+      return;
+    }
     event.preventDefault();
     sendToPanelManager({
       command: "context_menu",
