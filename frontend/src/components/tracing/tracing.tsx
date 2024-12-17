@@ -284,7 +284,7 @@ const TraceRow: React.FC<TraceRowProps> = ({
           <span className="text-[var(--gray-10)]">{elapsedTimeStr}</span>
         </Tooltip>
 
-        {/* TODO: Shouldn't use favicon. */}
+        {/* TODO: Shouldn't use favicon and need to add an image for 'queued' state. */}
         <Tooltip content={cellRun.status}>
           <img
             className="w-4"
