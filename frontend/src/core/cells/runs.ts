@@ -8,7 +8,7 @@ export type RunId = TypedString<"RunId">;
 export interface CellRun {
   cellId: CellId;
   code: string;
-  elapsedTime: number;
+  elapsedTime?: number;
   startTime: number;
   status: "success" | "error" | "queued" | "running";
 }
@@ -96,10 +96,15 @@ const {
           status = "success";
         }
 
+        let elapsedTime: number | undefined = undefined;
+        if (status === "success" || status === "error") {
+          elapsedTime = cellOperation.timestamp - existingCellRun.startTime;
+        }
+
         nextRuns.push({
           ...existingCellRun,
           startTime: startTime,
-          elapsedTime: cellOperation.timestamp - existingCellRun.startTime,
+          elapsedTime: elapsedTime,
           status: status,
         });
         found = true;
