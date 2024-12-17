@@ -97,7 +97,7 @@ class QueueManager:
         # requests.
         self.set_ui_element_queue: QueueType[
             requests.SetUIElementValueRequest
-        ] = context.Queue() if context is not None else queue.Queue()
+        ] = (context.Queue() if context is not None else queue.Queue())
 
         # Code completion requests are sent through a separate queue
         self.completion_queue: QueueType[requests.CodeCompletionRequest] = (
@@ -488,12 +488,22 @@ class Session:
     def _start_heartbeat(self) -> None:
         def _check_alive() -> None:
             if not self.kernel_manager.is_alive():
-                LOGGER.debug("Closing session because kernel died")
+                LOGGER.debug(
+                    "Closing session %s because kernel died",
+                    self.initialization_id,
+                )
                 self.close()
                 print_()
-                print_tabbed(red("The Python kernel died unexpectedly."))
+                print_tabbed(
+                    red(
+                        "A Python kernel for file "
+                        f"{self.app_file_manager.filename} died unexpectedly."
+                    )
+                )
                 print_()
-                sys.exit()
+                print("calling close")
+                self.close()
+                #sys.exit()
 
         # Start a heartbeat task, which checks if the kernel is alive
         # every second
