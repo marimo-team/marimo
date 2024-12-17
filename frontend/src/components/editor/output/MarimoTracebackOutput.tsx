@@ -9,16 +9,29 @@ import {
   AccordionContent,
   AccordionItem,
 } from "@/components/ui/accordion";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 
-import { BugIcon, ChevronDown, ExternalLinkIcon } from "lucide-react";
+import {
+  BugIcon,
+  ChevronDown,
+  ExternalLinkIcon,
+  SearchIcon,
+  MessageCircleIcon,
+  HelpCircleIcon,
+} from "lucide-react";
 import { useState } from "react";
 import { useAtomValue } from "jotai";
 import { aiEnabledAtom } from "@/core/config/config";
 import { Element, Text, type DOMNode } from "html-react-parser";
 
 import { CellLinkTraceback } from "../links/cell-link";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Props {
   traceback: string;
@@ -82,15 +95,49 @@ export const MarimoTracebackOutput = ({
             Fix with AI
           </Button>
         )}
-        <a
-          className={buttonVariants({ size: "xs", variant: "text" })}
-          target="_blank"
-          href={`https://www.google.com/search?q=${encodeURIComponent(lastTracebackLine)}`}
-          rel="noreferrer"
-        >
-          Search on Google
-          <ExternalLinkIcon className="h-3 w-3 ml-1" />
-        </a>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild={true}>
+            <Button size="xs" variant="text">
+              Get help
+              <ChevronDown className="h-3 w-3 ml-1" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem asChild={true}>
+              <a
+                target="_blank"
+                href={`https://www.google.com/search?q=${encodeURIComponent(lastTracebackLine)}`}
+                rel="noreferrer"
+              >
+                <SearchIcon className="h-4 w-4 mr-2" />
+                Search on Google
+                <ExternalLinkIcon className="h-3 w-3 ml-auto" />
+              </a>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild={true}>
+              <a
+                target="_blank"
+                href="https://marimo.io/discord?ref=notebook"
+                rel="noreferrer"
+              >
+                <MessageCircleIcon className="h-4 w-4 mr-2" />
+                Ask in Discord
+                <ExternalLinkIcon className="h-3 w-3 ml-auto" />
+              </a>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild={true}>
+              <a
+                target="_blank"
+                href={`https://marimo.hall.community/search?q=${encodeURIComponent(lastTracebackLine)}`}
+                rel="noreferrer"
+              >
+                <HelpCircleIcon className="h-4 w-4 mr-2" />
+                Search Community Forum
+                <ExternalLinkIcon className="h-3 w-3 ml-auto" />
+              </a>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
