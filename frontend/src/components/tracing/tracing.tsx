@@ -4,19 +4,22 @@ import React, { useRef, useState } from "react";
 import type { CellId } from "@/core/cells/ids";
 import { ElapsedTime, formatElapsedTime } from "../editor/cell/CellStatus";
 import { Tooltip } from "@/components/ui/tooltip";
-import { type Config, type TopLevelSpec, compile } from "vega-lite";
-import { ChevronRight, ChevronDown, SettingsIcon } from "lucide-react";
+import { type TopLevelSpec, compile } from "vega-lite";
+import { ChevronRight, ChevronDown } from "lucide-react";
 import type { VisualizationSpec } from "react-vega";
 import {
   type RunId,
   runsAtom,
   type CellRun,
   type Run,
+  useRunsActions,
 } from "@/core/cells/runs";
 import { useAtomValue } from "jotai";
 import { CellLink } from "../editor/links/cell-link";
 import { formatLogTimestamp } from "@/core/cells/logs";
 import { useCellIds } from "@/core/cells/cells";
+import { createBaseSpec } from "./tracing-spec";
+import { ClearButton } from "../buttons/clear-button";
 
 // TODO: There are a few components like this in the codebase, maybe remove the redundancy
 const LazyVegaLite = React.lazy(() =>
@@ -35,78 +38,30 @@ export interface Data {
   values: Values[];
 }
 
-const baseSpec: TopLevelSpec = {
-  $schema: "https://vega.github.io/schema/vega-lite/v5.json",
-  mark: {
-    type: "bar",
-    cornerRadius: 2,
-    fill: "#37BE5F", // same colour as chrome's network tab
-  },
-  height: { step: 23 },
-  params: [
-    {
-      name: "zoomAndPan",
-      select: "interval",
-      bind: "scales",
-    },
-    {
-      name: "hoveredCellID",
-      bind: { element: "#hiddenInputElement" },
-    },
-    {
-      name: "cursor",
-      value: "grab",
-    },
-  ],
-  encoding: {
-    y: {
-      field: "cell",
-      axis: null,
-      scale: { paddingInner: 0.2 },
-      sort: { field: "cellNum" },
-    },
-    x: {
-      field: "startTimestamp",
-      type: "temporal",
-      axis: { orient: "top", title: null },
-    },
-    x2: { field: "endTimestamp", type: "temporal" },
-    tooltip: [
-      { field: "cellNum", title: "Cell" },
-      {
-        field: "startTimestamp",
-        type: "temporal",
-        timeUnit: "hoursminutessecondsmilliseconds",
-        title: "Start",
-      },
-      {
-        field: "endTimestamp",
-        type: "temporal",
-        timeUnit: "hoursminutessecondsmilliseconds",
-        title: "End",
-      },
-    ],
-    size: {
-      value: { expr: "hoveredCellID == toString(datum.cell) ? 22 : 20" },
-    },
-  },
-};
+function createGanttVegaLiteSpec(
+  data: Data,
+  hiddenInputElementId: string,
+  chartPosition: ChartPosition,
+): TopLevelSpec {
+  const hoverParam = {
+    name: "hoveredCellId",
+    bind: { element: `#${hiddenInputElementId}` },
+  };
 
-function createGanttVegaLiteSpec(data: Data): TopLevelSpec {
+  const showYAxis = chartPosition !== "sideBySide";
+  const baseSpec = createBaseSpec(showYAxis, hoverParam);
+
   return {
     ...baseSpec,
-    data,
+    data: data,
   };
 }
 
-const config: Config = {
-  view: {
-    stroke: "transparent",
-  },
-};
+type ChartPosition = "sideBySide" | "above";
 
 export const Tracing: React.FC = () => {
   const { runIds: newestToOldestRunIds, runMap } = useAtomValue(runsAtom);
+  const { clearRuns } = useRunsActions();
 
   const [chartPosition, setChartPosition] =
     useState<ChartPosition>("sideBySide");
@@ -119,19 +74,36 @@ export const Tracing: React.FC = () => {
     }
   };
 
-  return (
-    <div className="relative">
-      <Tooltip content="Configuration">
-        <button
-          className="absolute right-0 pr-2 pt-2"
-          type="button"
-          onClick={toggleConfig}
-        >
-          <SettingsIcon className="h-6" strokeWidth={1.2} />
-        </button>
-      </Tooltip>
+  //   {/* <Tooltip content="Chart position">
+  //   <button type="button" onClick={toggleConfig}>
+  //     <SettingsIcon className="h-5" strokeWidth={1.2} />
+  //   </button>
+  // </Tooltip> */}
 
-      <div className="pl-2 mt-7 flex flex-col gap-2">
+  return (
+    <div className="py-1 px-2">
+      <div className="flex flex-row mb-2">
+        <div className="flex flex-row gap-1 justify-center">
+          <label htmlFor="chartPosition" className="text-sm">
+            Inline chart
+          </label>
+          <input
+            type="checkbox"
+            name="chartPosition"
+            id="chartPosition"
+            onClick={toggleConfig}
+            defaultChecked={true}
+          />
+        </div>
+
+        <ClearButton
+          dataTestId="clear-traces-button"
+          className="ml-auto"
+          onClick={clearRuns}
+        />
+      </div>
+
+      <div className="flex flex-col gap-2">
         {newestToOldestRunIds.map((runId: RunId) => {
           const run = runMap.get(runId);
           if (run) {
@@ -148,8 +120,6 @@ export const Tracing: React.FC = () => {
     </div>
   );
 };
-
-type ChartPosition = "sideBySide" | "above";
 
 interface ChartProps {
   className?: string;
@@ -212,25 +182,27 @@ const TraceBlock: React.FC<{ run: Run; chartPosition: ChartPosition }> = ({
 
   const data: Data = {
     values: run.cellRuns.map((cellRun) => {
+      const elapsedTime = cellRun.elapsedTime ?? 0;
       return {
         cell: cellRun.cellId,
         cellNum: cellIds.inOrderIds.indexOf(cellRun.cellId),
         startTimestamp: formatChartTime(cellRun.startTime),
-        endTimestamp: formatChartTime(cellRun.startTime + cellRun.elapsedTime),
-        elapsedTime: formatElapsedTime(cellRun.elapsedTime * 1000),
+        endTimestamp: formatChartTime(cellRun.startTime + elapsedTime),
+        elapsedTime: formatElapsedTime(elapsedTime * 1000),
       };
     }),
   };
 
-  const vegaSpec = compile(createGanttVegaLiteSpec(data), {
-    config,
-  }).spec;
+  const hiddenInputElementId = `hiddenInputElement-${run.runId}`;
+  const vegaSpec = compile(
+    createGanttVegaLiteSpec(data, hiddenInputElementId, chartPosition),
+  ).spec;
 
   const TraceRows = (
     <div className="text-xs mt-0.5 ml-3 flex flex-col gap-0.5">
       <input
         type="text"
-        id="hiddenInputElement"
+        id={hiddenInputElementId}
         defaultValue={hoveredCellId}
         hidden={true}
         ref={hiddenInputRef}
@@ -250,7 +222,7 @@ const TraceBlock: React.FC<{ run: Run; chartPosition: ChartPosition }> = ({
       <div key={run.runId} className="flex flex-col">
         <pre className="font-mono font-semibold">
           {TraceTitle}
-          {!collapsed && <Chart vegaSpec={vegaSpec} width={350} height={120} />}
+          {!collapsed && <Chart vegaSpec={vegaSpec} width={320} height={120} />}
           {!collapsed && TraceRows}
         </pre>
       </div>
@@ -284,11 +256,16 @@ const TraceRow: React.FC<TraceRowProps> = ({
   cellRun,
   hoverOnCell,
 }: TraceRowProps) => {
-  const elapsedTimeStr = formatElapsedTime(cellRun.elapsedTime * 1000);
-  const elapsedTimeTooltip = (
+  const elapsedTimeStr = cellRun.elapsedTime
+    ? formatElapsedTime(cellRun.elapsedTime * 1000)
+    : "-";
+
+  const elapsedTimeTooltip = cellRun.elapsedTime ? (
     <span>
       This cell took <ElapsedTime elapsedTime={elapsedTimeStr} /> to run
     </span>
+  ) : (
+    <span>This cell has not been run</span>
   );
 
   const handleMouseEnter = () => {
