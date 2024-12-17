@@ -128,7 +128,7 @@ export const MarimoTracebackOutput = ({
             <DropdownMenuItem asChild={true}>
               <a
                 target="_blank"
-                href={`https://marimo.io/community/search?q=${encodeURIComponent(lastTracebackLine)}`}
+                href={`https://marimo.hall.community/search?q=${encodeURIComponent(lastTracebackLine)}`}
                 rel="noreferrer"
               >
                 <HelpCircleIcon className="h-4 w-4 mr-2" />
