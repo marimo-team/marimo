@@ -6,7 +6,7 @@ import { ElapsedTime, formatElapsedTime } from "../editor/cell/CellStatus";
 import { Tooltip } from "@/components/ui/tooltip";
 import { type TopLevelSpec, compile } from "vega-lite";
 import { ChevronRight, ChevronDown } from "lucide-react";
-import type { VisualizationSpec } from "react-vega";
+import type { SignalListeners, VisualizationSpec } from "react-vega";
 import {
   type RunId,
   runsAtom,
@@ -18,15 +18,20 @@ import { useAtomValue } from "jotai";
 import { CellLink } from "../editor/links/cell-link";
 import { formatLogTimestamp } from "@/core/cells/logs";
 import { useCellIds } from "@/core/cells/cells";
-import { createBaseSpec } from "./tracing-spec";
+import {
+  createBaseSpec,
+  REACT_HOVERED_CELLID,
+  VEGA_HOVER_SIGNAL,
+} from "./tracing-spec";
 import { ClearButton } from "../buttons/clear-button";
+import { cn } from "@/utils/cn";
 
 // TODO: There are a few components like this in the codebase, maybe remove the redundancy
 const LazyVegaLite = React.lazy(() =>
   import("react-vega").then((m) => ({ default: m.VegaLite })),
 );
 
-interface Values {
+interface ChartValues {
   cell: CellId;
   cellNum: number;
   startTimestamp: string;
@@ -34,17 +39,13 @@ interface Values {
   elapsedTime: string;
 }
 
-export interface Data {
-  values: Values[];
-}
-
 function createGanttVegaLiteSpec(
-  data: Data,
+  chartValues: ChartValues[],
   hiddenInputElementId: string,
   chartPosition: ChartPosition,
 ): TopLevelSpec {
   const hoverParam = {
-    name: "hoveredCellId",
+    name: REACT_HOVERED_CELLID,
     bind: { element: `#${hiddenInputElementId}` },
   };
 
@@ -53,7 +54,9 @@ function createGanttVegaLiteSpec(
 
   return {
     ...baseSpec,
-    data: data,
+    data: {
+      values: chartValues,
+    },
   };
 }
 
@@ -126,6 +129,7 @@ interface ChartProps {
   width: number;
   height: number;
   vegaSpec: VisualizationSpec;
+  signalListeners: SignalListeners;
 }
 
 const Chart: React.FC<ChartProps> = (props: ChartProps) => {
@@ -135,10 +139,16 @@ const Chart: React.FC<ChartProps> = (props: ChartProps) => {
         spec={props.vegaSpec}
         width={props.width}
         height={props.height}
+        signalListeners={props.signalListeners}
       />
     </div>
   );
 };
+
+interface VegaHoverCellSignal {
+  cell: string[];
+  vlPoint: unknown;
+}
 
 const TraceBlock: React.FC<{ run: Run; chartPosition: ChartPosition }> = ({
   run,
@@ -149,10 +159,10 @@ const TraceBlock: React.FC<{ run: Run; chartPosition: ChartPosition }> = ({
 
   // Used to sync Vega charts and React components
   // Note that this will only work for the first chart for now, until we create unique input elements
-  const [hoveredCellId, setHoveredCellId] = useState<CellId>();
+  const [hoveredCellId, setHoveredCellId] = useState<CellId | null>();
   const hiddenInputRef = useRef<HTMLInputElement>(null);
 
-  const hoverOnCell = (cellId: CellId) => {
+  const hoverOnCell = (cellId: CellId | null) => {
     setHoveredCellId(cellId);
     // dispatch input event to trigger vega's param to update
     if (hiddenInputRef.current) {
@@ -161,6 +171,17 @@ const TraceBlock: React.FC<{ run: Run; chartPosition: ChartPosition }> = ({
         new Event("input", { bubbles: true }),
       );
     }
+  };
+
+  const handleVegaSignal = {
+    [VEGA_HOVER_SIGNAL]: (name: string, value: unknown) => {
+      const signalValue = value as VegaHoverCellSignal;
+      if (signalValue.cell && signalValue.cell.length > 0) {
+        setHoveredCellId(signalValue.cell[0] as CellId);
+      } else {
+        setHoveredCellId(null);
+      }
+    },
   };
 
   const ChevronComponent = () => {
@@ -180,22 +201,20 @@ const TraceBlock: React.FC<{ run: Run; chartPosition: ChartPosition }> = ({
 
   const cellIds = useCellIds();
 
-  const data: Data = {
-    values: run.cellRuns.map((cellRun) => {
-      const elapsedTime = cellRun.elapsedTime ?? 0;
-      return {
-        cell: cellRun.cellId,
-        cellNum: cellIds.inOrderIds.indexOf(cellRun.cellId),
-        startTimestamp: formatChartTime(cellRun.startTime),
-        endTimestamp: formatChartTime(cellRun.startTime + elapsedTime),
-        elapsedTime: formatElapsedTime(elapsedTime * 1000),
-      };
-    }),
-  };
+  const chartValues: ChartValues[] = run.cellRuns.map((cellRun) => {
+    const elapsedTime = cellRun.elapsedTime ?? 0;
+    return {
+      cell: cellRun.cellId,
+      cellNum: cellIds.inOrderIds.indexOf(cellRun.cellId),
+      startTimestamp: formatChartTime(cellRun.startTime),
+      endTimestamp: formatChartTime(cellRun.startTime + elapsedTime),
+      elapsedTime: formatElapsedTime(elapsedTime * 1000),
+    };
+  });
 
   const hiddenInputElementId = `hiddenInputElement-${run.runId}`;
   const vegaSpec = compile(
-    createGanttVegaLiteSpec(data, hiddenInputElementId, chartPosition),
+    createGanttVegaLiteSpec(chartValues, hiddenInputElementId, chartPosition),
   ).spec;
 
   const TraceRows = (
@@ -203,7 +222,7 @@ const TraceBlock: React.FC<{ run: Run; chartPosition: ChartPosition }> = ({
       <input
         type="text"
         id={hiddenInputElementId}
-        defaultValue={hoveredCellId}
+        defaultValue={hoveredCellId || ""}
         hidden={true}
         ref={hiddenInputRef}
       />
@@ -211,6 +230,7 @@ const TraceBlock: React.FC<{ run: Run; chartPosition: ChartPosition }> = ({
         <TraceRow
           key={cellRun.cellId}
           cellRun={cellRun}
+          hovered={cellRun.cellId === hoveredCellId}
           hoverOnCell={hoverOnCell}
         />
       ))}
@@ -222,7 +242,14 @@ const TraceBlock: React.FC<{ run: Run; chartPosition: ChartPosition }> = ({
       <div key={run.runId} className="flex flex-col">
         <pre className="font-mono font-semibold">
           {TraceTitle}
-          {!collapsed && <Chart vegaSpec={vegaSpec} width={320} height={120} />}
+          {!collapsed && (
+            <Chart
+              vegaSpec={vegaSpec}
+              width={320}
+              height={120}
+              signalListeners={handleVegaSignal}
+            />
+          )}
           {!collapsed && TraceRows}
         </pre>
       </div>
@@ -241,6 +268,7 @@ const TraceBlock: React.FC<{ run: Run; chartPosition: ChartPosition }> = ({
           vegaSpec={vegaSpec}
           width={240}
           height={100}
+          signalListeners={handleVegaSignal}
         />
       )}
     </div>
@@ -249,11 +277,13 @@ const TraceBlock: React.FC<{ run: Run; chartPosition: ChartPosition }> = ({
 
 interface TraceRowProps {
   cellRun: CellRun;
-  hoverOnCell: (cellId: CellId) => void;
+  hovered: boolean;
+  hoverOnCell: (cellId: CellId | null) => void;
 }
 
 const TraceRow: React.FC<TraceRowProps> = ({
   cellRun,
+  hovered,
   hoverOnCell,
 }: TraceRowProps) => {
   const elapsedTimeStr = cellRun.elapsedTime
@@ -272,10 +302,18 @@ const TraceRow: React.FC<TraceRowProps> = ({
     hoverOnCell(cellRun.cellId);
   };
 
+  const handleMouseLeave = () => {
+    hoverOnCell(null);
+  };
+
   return (
     <div
-      className="flex flex-row gap-2 py-1 px-1 opacity-70 hover:bg-[var(--gray-3)] hover:opacity-100"
+      className={cn(
+        "flex flex-row gap-2 py-1 px-1 opacity-70",
+        hovered && "bg-[var(--gray-3)] opacity-100",
+      )}
       onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       <span className="text-[var(--gray-10)]">
         [{formatLogTimestamp(cellRun.startTime)}]
