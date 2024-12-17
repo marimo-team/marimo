@@ -496,14 +496,12 @@ class Session:
                 print_()
                 print_tabbed(
                     red(
-                        "A Python kernel for file "
+                        "The Python kernel for file "
                         f"{self.app_file_manager.filename} died unexpectedly."
                     )
                 )
                 print_()
-                print("calling close")
                 self.close()
-                #sys.exit()
 
         # Start a heartbeat task, which checks if the kernel is alive
         # every second
@@ -609,6 +607,9 @@ class Session:
 
         This will close the session consumer, kernel, and all kiosk consumers.
         """
+        if self._closed:
+            return
+
         self._closed = True
         # Close the room
         self.room.close()
@@ -801,6 +802,12 @@ class SessionManager:
                 )
                 return maybe_session
             return None
+
+        # Cleanup sessions with dead kernels
+        for session_id, session in list(self.sessions.items()):
+            task = session.kernel_manager.kernel_task
+            if task is not None and not task.is_alive():
+                self.close_session(session_id)
 
         # Should only return an orphaned session
         sessions_with_the_same_file: dict[SessionId, Session] = {
