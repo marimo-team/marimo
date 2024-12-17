@@ -102,17 +102,19 @@ dev = [
 ]
 
 docs = [
-    "pypandoc~=1.13",
-    "autoclasstoc~=1.6.0",
-    # furo raises an error during docs build when sphinx is upgraded
-    "sphinx~=7.0.1",
-    "sphinx-copybutton~=0.5.2",
-    "sphinx-new-tab-link~=0.5.3",
-    "sphinx-sitemap~=2.6.0",
-    "sphinx-design~=0.5.0",
-    "sphinx-autobuild~=2024.10.3",
-    "myst_parser~=3.0.1",
-    "furo==2024.8.6",
+    "mkdocs>=1.5.3",
+    "mkdocs-material>=9.5.13",
+    "mkdocstrings[python]>=0.24.1",
+    "mkdocs-material-extensions>=1.3.1",
+    "mkdocs-autorefs>=1.0.1",
+    "mkdocs-git-revision-date-localized-plugin>=1.2.4",
+    "mkdocs-minify-plugin>=0.8.0",
+    "mkdocs-glightbox>=0.3.7",
+    "mike>=2.0.0",  # for versioning
+    "pillow>=10.2.0",  # for social cards
+    "cairosvg>=2.7.1",  # for social cards
+    "mdx-include>=1.4.2",
+    "pymdown-extensions>=10.7",
 ]
 
 [tool.hatch]
@@ -244,9 +246,9 @@ python = ["3.9", "3.10", "3.11", "3.12"]
 features = ["docs"]
 
 [tool.hatch.envs.docs.scripts]
-build = "sphinx-build {args:docs/ docs/_build}"
-autobuild = "sphinx-autobuild {args:docs/ docs/_build}"
-clean = "cd docs && make clean"
+build = "mkdocs build"
+serve = "mkdocs serve"
+deploy = "mkdocs gh-deploy --force"
 
 [tool.ruff]
 line-length = 79
