@@ -14,7 +14,7 @@ import sys
 import threading
 import time
 import traceback
-from copy import copy
+from copy import copy, deepcopy
 from multiprocessing import connection
 from typing import TYPE_CHECKING, Any, Callable, Iterator, List, Optional, cast
 from uuid import uuid4
@@ -126,6 +126,7 @@ from marimo._runtime.utils.set_ui_element_request_manager import (
 )
 from marimo._runtime.validate_graph import check_for_errors
 from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
+from marimo._server.model import SessionMode
 from marimo._server.types import QueueType
 from marimo._tracer import kernel_tracer
 from marimo._utils.assert_never import assert_never
@@ -242,10 +243,25 @@ def query_params() -> QueryParams:
 def app_meta() -> AppMeta:
     """Get the metadata of a marimo app.
 
+    The `AppMeta` class provides access to runtime metadata about a marimo app,
+    such as its display theme and execution mode.
+
     **Examples**:
 
-    ```python3
-    theme = mo.app_meta().theme
+    Get the current theme and conditionally set a plotting library's theme:
+
+    ```python
+    import altair as alt
+
+    # Enable dark theme for Altair when marimo is in dark mode
+    alt.themes.enable("dark" if mo.app_meta().theme == "dark" else "default")
+    ```
+
+    Show content only in edit mode:
+
+    ```python
+    # Only show this content when editing the notebook
+    mo.md("# Developer Notes") if mo.app_meta().mode == "edit" else None
     ```
 
     **Returns**:
@@ -770,14 +786,14 @@ class Kernel:
                     duckdb.execute(f"DROP VIEW IF EXISTS memory.main.{name}")
                 except Exception as e:
                     LOGGER.warning("Failed to drop view %s: %s", name, str(e))
-            elif variable.kind == "schema" and DependencyManager.duckdb.has():
+            elif variable.kind == "catalog" and DependencyManager.duckdb.has():
                 import duckdb
 
                 try:
                     duckdb.execute(f"DETACH DATABASE IF EXISTS {name}")
                 except Exception as e:
                     LOGGER.warning(
-                        "Failed to detach schema %s: %s", name, str(e)
+                        "Failed to detach catalog %s: %s", name, str(e)
                     )
             else:
                 if name in self.globals:
@@ -919,6 +935,8 @@ class Kernel:
         LOGGER.debug("Current set of errors: %s", self.errors)
         cells_before_mutation = set(self.graph.cells.keys())
         cells_with_errors_before_mutation = set(self.errors.keys())
+        edges_before = deepcopy(self.graph.children)
+        definitions_before = set(self.graph.definitions.keys())
 
         # The set of cells that were successfully registered
         registered_cell_ids: set[CellId_t] = set()
@@ -1069,20 +1087,27 @@ class Kernel:
                 cell_id=cid,
             )
 
-        Variables(
-            variables=[
-                VariableDeclaration(
-                    name=variable,
-                    declared_by=list(declared_by),
-                    used_by=list(
-                        self.graph.get_referring_cells(
-                            variable, language="python"
-                        )
-                    ),
-                )
-                for variable, declared_by in self.graph.definitions.items()
-            ]
-        ).broadcast()
+        # Only broadcast Variables message if definitions changed
+        edges_after = self.graph.children
+        definitions_after = set(self.graph.definitions.keys())
+        if (
+            edges_before != edges_after
+            or definitions_before != definitions_after
+        ):
+            Variables(
+                variables=[
+                    VariableDeclaration(
+                        name=variable,
+                        declared_by=list(declared_by),
+                        used_by=list(
+                            self.graph.get_referring_cells(
+                                variable, language="python"
+                            )
+                        ),
+                    )
+                    for variable, declared_by in self.graph.definitions.items()
+                ]
+            ).broadcast()
 
         stale_cells = (
             set(
@@ -1135,16 +1160,23 @@ class Kernel:
             self.graph.set_stale(cell_ids, prune_imports=True)
 
     def _broadcast_missing_packages(self, runner: cell_runner.Runner) -> None:
+        module_not_found_errors = [
+            e
+            for e in runner.exceptions.values()
+            if isinstance(e, ModuleNotFoundError)
+        ]
         if (
-            any(
-                isinstance(e, ModuleNotFoundError)
-                for e in runner.exceptions.values()
-            )
+            len(module_not_found_errors) > 0
             and self.package_manager is not None
         ):
+            # Grab missing modules from module registry and from module not found errors
+            missing_modules = self.module_registry.missing_modules() | set(
+                e.name for e in module_not_found_errors if e.name is not None
+            )
+
             missing_packages = [
                 pkg
-                for mod in self.module_registry.missing_modules()
+                for mod in missing_modules
                 # filter out packages that we already attempted to install
                 # to prevent an infinite loop
                 if not self.package_manager.attempted_to_install(
@@ -1267,12 +1299,17 @@ class Kernel:
 
         Cells may use top-level await, which is why this function is async.
         """
+        if self.last_interrupt_timestamp is None:
+            # No interruption has occurred, so we can run all requests
+            await self._run_cells(
+                self.mutate_graph(execution_requests, deletion_requests=[])
+            )
+            return
+
+        # Filter out requests that were created before the last interruption
         filtered_requests: list[ExecutionRequest] = []
         for request in execution_requests:
-            if (
-                self.last_interrupt_timestamp is not None
-                and request.timestamp < self.last_interrupt_timestamp
-            ):
+            if request.timestamp < self.last_interrupt_timestamp:
                 CellOp.broadcast_error(
                     data=[MarimoInterruptionError()],
                     clear_console=False,
@@ -1689,10 +1726,14 @@ class Kernel:
         During instantiation, UIElements can check for an initial value
         with `get_initial_value`
         """
+        # Already instantiated
         if self.graph.cells:
             del request
             LOGGER.debug("App already instantiated.")
-        else:
+            return
+
+        # Run cells if auto_run is True
+        if request.auto_run:
             self.reset_ui_initializers()
             for (
                 object_id,
@@ -1701,6 +1742,13 @@ class Kernel:
                 self.ui_initializers[object_id] = initial_value
             await self.run(request.execution_requests)
             self.reset_ui_initializers()
+            return
+
+        # Otherwise, just register the cells
+        self.mutate_graph(request.execution_requests, deletion_requests=[])
+        # and set everything to stale
+        for cell_id in self.graph.cells:
+            self.graph.cells[cell_id].set_stale(stale=True)
 
     async def install_missing_packages(
         self, request: InstallMissingPackagesRequest
@@ -1718,18 +1766,15 @@ class Kernel:
             self.package_manager.alert_not_installed()
             return
 
-        # Package manager operates on module names
-        missing_modules = list(sorted(self.module_registry.missing_modules()))
+        missing_packages = list(sorted(request.versions.keys()))
 
         # Frontend shows package names, not module names
         package_statuses: PackageStatusType = {
-            self.package_manager.module_to_package(mod): "queued"
-            for mod in missing_modules
+            pkg: "queued" for pkg in missing_packages
         }
         InstallingPackageAlert(packages=package_statuses).broadcast()
 
-        for mod in missing_modules:
-            pkg = self.package_manager.module_to_package(mod)
+        for pkg in missing_packages:
             if self.package_manager.attempted_to_install(package=pkg):
                 # Already attempted an installation; it must have failed.
                 # Skip the installation.
@@ -1742,6 +1787,7 @@ class Kernel:
                 InstallingPackageAlert(packages=package_statuses).broadcast()
             else:
                 package_statuses[pkg] = "failed"
+                mod = self.package_manager.package_to_module(pkg)
                 self.module_registry.excluded_modules.add(mod)
                 InstallingPackageAlert(packages=package_statuses).broadcast()
 
@@ -1788,7 +1834,6 @@ class Kernel:
             self.package_manager.update_notebook_script_metadata(
                 filepath=filename,
                 import_namespaces_to_add=import_namespaces_to_add,
-                import_namespaces_to_remove=[],
             )
         except Exception as e:
             LOGGER.error("Failed to add script metadata to notebook: %s", e)
@@ -2001,6 +2046,7 @@ def launch_kernel(
         stdout=stdout,
         stderr=stderr,
         virtual_files_supported=virtual_files_supported,
+        mode=SessionMode.EDIT if is_edit_mode else SessionMode.RUN,
     )
 
     if is_edit_mode:

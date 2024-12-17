@@ -8,7 +8,7 @@ export function useAutoSave(opts: {
   codes: string[];
   cellConfigs: CellConfig[];
   cellNames: string[];
-  config: UserConfig;
+  config: UserConfig["save"];
   connStatus: ConnectionStatus;
   needsSave: boolean;
   kioskMode: boolean;
@@ -26,22 +26,25 @@ export function useAutoSave(opts: {
   } = opts;
   const autosaveTimeoutId = useRef<NodeJS.Timeout | null>(null);
 
+  const codesString = codes.join(":");
+  const cellConfigsString = cellConfigs
+    .map((config) => JSON.stringify(config))
+    .join(":");
+  const cellNamesString = cellNames.join(":");
+
   useEffect(() => {
     // If kiosk mode is enabled, do not autosave
     if (kioskMode) {
       return;
     }
 
-    if (config.save.autosave === "after_delay") {
+    if (config.autosave === "after_delay") {
       if (autosaveTimeoutId.current !== null) {
         clearTimeout(autosaveTimeoutId.current);
       }
 
       if (needsSave && connStatus.state === WebSocketState.OPEN) {
-        autosaveTimeoutId.current = setTimeout(
-          onSave,
-          config.save.autosave_delay,
-        );
+        autosaveTimeoutId.current = setTimeout(onSave, config.autosave_delay);
       }
     }
 
@@ -53,10 +56,10 @@ export function useAutoSave(opts: {
     // codes, cellConfigs, cellNames needed in deps array to prevent race condition
     // with needsSave when user changes state rapidly
   }, [
-    codes,
-    cellConfigs,
-    cellNames,
-    config.save,
+    codesString,
+    cellConfigsString,
+    cellNamesString,
+    config,
     connStatus.state,
     onSave,
     kioskMode,

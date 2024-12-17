@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from marimo._output.hypertext import Html, _js
+from marimo._output.hypertext import (
+    Html,
+    _js,
+    patch_html_for_non_interactive_output,
+)
 from marimo._plugins.ui._impl.batch import batch as batch_plugin
 from marimo._plugins.ui._impl.input import button
 
@@ -121,3 +125,42 @@ def test_js_multiple_lines():
     assert "console.log('Line 1');" in js_html.text
     assert "console.log('Line 2');" in js_html.text
     assert "</script>" in js_html.text
+
+
+def test_html_repr_html():
+    html = Html("<p>Hello</p>")
+    assert html._repr_html_() == "<p>Hello</p>"
+
+
+def test_html_patch_for_non_interactive_output():
+    class ReprMarkdown(Html):
+        def _repr_markdown_(self) -> str:
+            return "Hello"
+
+    class ReprPng(Html):
+        def _repr_png_(self) -> bytes:
+            return b"Hello"
+
+    html = ReprMarkdown("<web-component>Hello</web-component>")
+    png = ReprPng("<web-component>Hello</web-component>")
+
+    assert html._mime_() == (
+        "text/html",
+        "<web-component>Hello</web-component>",
+    )
+    assert png._mime_() == (
+        "text/html",
+        "<web-component>Hello</web-component>",
+    )
+    with patch_html_for_non_interactive_output():
+        assert html._mime_() == ("text/markdown", "Hello")
+        assert png._mime_() == ("image/png", "Hello")
+
+    assert html._mime_() == (
+        "text/html",
+        "<web-component>Hello</web-component>",
+    )
+    assert png._mime_() == (
+        "text/html",
+        "<web-component>Hello</web-component>",
+    )

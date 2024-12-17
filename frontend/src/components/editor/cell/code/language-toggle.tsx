@@ -6,11 +6,12 @@ import { MarkdownIcon, PythonIcon } from "./icons";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { LanguageAdapter } from "@/core/codemirror/language/types";
-import { DatabaseIcon } from "lucide-react";
+import { BotIcon, DatabaseIcon } from "lucide-react";
 import { useMemo } from "react";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
 import { Functions } from "@/utils/functions";
+import { AIAgentLanguageAdapter } from "@/core/codemirror/language/ai";
 
 interface LanguageTogglesProps {
   editorView: EditorView | null;
@@ -26,23 +27,24 @@ export const LanguageToggles: React.FC<LanguageTogglesProps> = ({
   onAfterToggle,
 }) => {
   const canUseMarkdown = useMemo(
-    () => new MarkdownLanguageAdapter().isSupported(code),
+    () => new MarkdownLanguageAdapter().isSupported(code) || code.trim() === "",
     [code],
   );
   const canUseSQL = useMemo(
-    () => new SQLLanguageAdapter().isSupported(code),
+    () => new SQLLanguageAdapter().isSupported(code) || code.trim() === "",
+    [code],
+  );
+  const canUseAgent = useMemo(
+    () => new AIAgentLanguageAdapter().isSupported(code) || code.trim() === "",
     [code],
   );
 
   return (
-    <div className="absolute right-2 top-2 z-20 flex hover-action">
+    <div className="absolute right-3 top-2 z-20 flex hover-action gap-1">
       <LanguageToggle
         editorView={editorView}
         currentLanguageAdapter={currentLanguageAdapter}
-        // Prefer showing markdown over SQL when both are supported
-        canSwitchToLanguage={
-          canUseSQL && currentLanguageAdapter === "python" && !canUseMarkdown
-        }
+        canSwitchToLanguage={canUseSQL && currentLanguageAdapter === "python"}
         icon={
           <DatabaseIcon
             color={"var(--sky-11)"}
@@ -85,6 +87,21 @@ export const LanguageToggles: React.FC<LanguageTogglesProps> = ({
         toType="python"
         displayName="Python"
         onAfterToggle={Functions.NOOP}
+      />
+      <LanguageToggle
+        editorView={editorView}
+        currentLanguageAdapter={currentLanguageAdapter}
+        canSwitchToLanguage={canUseAgent && currentLanguageAdapter === "python"}
+        icon={
+          <BotIcon
+            color={"var(--sky-11)"}
+            strokeWidth={2.5}
+            className="w-4 h-4"
+          />
+        }
+        toType="agent"
+        displayName="Agent"
+        onAfterToggle={onAfterToggle}
       />
     </div>
   );

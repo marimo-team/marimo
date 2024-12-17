@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import base64
 import sys
 from dataclasses import dataclass
 from typing import (
@@ -65,7 +66,8 @@ def _get_comm_class() -> Type[Any]:
         @classmethod
         def decode(cls, msg: SendToWidgetArgs) -> dict[str, Any]:
             buffers: Dict[int, Any] = {
-                i: v for i, v in enumerate(msg.buffers or [])
+                i: memoryview(base64.b64decode(v))
+                for i, v in enumerate(msg.buffers or [])
             }
             return dict(msg.message, _buffers=buffers)
 

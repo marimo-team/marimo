@@ -1,13 +1,19 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generator, Optional
+from typing import TYPE_CHECKING, Any, Generator, Optional, cast
 
 from starlette.authentication import requires
 from starlette.exceptions import HTTPException
 from starlette.responses import StreamingResponse
 
 from marimo import _loggers
+from marimo._ai.convert import (
+    convert_to_anthropic_messages,
+    convert_to_google_messages,
+    convert_to_openai_messages,
+)
+from marimo._ai.types import ChatMessage
 from marimo._config.config import MarimoConfig
 from marimo._server.ai.prompts import Prompter
 from marimo._server.api.deps import AppState
@@ -15,6 +21,7 @@ from marimo._server.api.status import HTTPStatus
 from marimo._server.api.utils import parse_request
 from marimo._server.models.completion import (
     AiCompletionRequest,
+    ChatRequest,
 )
 from marimo._server.router import APIRouter
 
@@ -49,7 +56,12 @@ router = APIRouter()
 
 def get_openai_client(config: MarimoConfig) -> "OpenAI":
     try:
-        from openai import OpenAI  # type: ignore[import-not-found]
+        from urllib.parse import parse_qs, urlparse
+
+        from openai import (  # type: ignore[import-not-found]
+            AzureOpenAI,
+            OpenAI,
+        )
     except ImportError:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
@@ -82,7 +94,27 @@ def get_openai_client(config: MarimoConfig) -> "OpenAI":
     if not base_url:
         base_url = None
 
-    return OpenAI(api_key=key, base_url=base_url)
+    # Azure OpenAI clients are instantiated slightly differently
+    # To check if we're using Azure, we check the base_url for the format
+    # https://[subdomain].openai.azure.com/openai/deployments/[model]/chat/completions?api-version=[api_version]
+    parsed_url = urlparse(base_url)
+    if parsed_url.hostname and cast(str, parsed_url.hostname).endswith(
+        "openai.azure.com"
+    ):
+        deployment_model = cast(str, parsed_url.path).split("/")[3]
+        api_version = parse_qs(cast(str, parsed_url.query))["api-version"][0]
+        return AzureOpenAI(
+            api_key=key,
+            api_version=api_version,
+            azure_deployment=deployment_model,
+            azure_endpoint=f"{cast(str,parsed_url.scheme)}://{cast(str,parsed_url.hostname)}",
+        )
+    else:
+        return OpenAI(
+            default_headers={"api-key": key},
+            api_key=key,
+            base_url=base_url,
+        )
 
 
 def get_anthropic_client(config: MarimoConfig) -> "Client":
@@ -135,7 +167,7 @@ def get_content(
     | ChatCompletionChunk
     | GenerateContentResponse,
 ) -> str | None:
-    if hasattr(response, "choices"):
+    if hasattr(response, "choices") and response.choices:
         return response.choices[0].delta.content  # type: ignore
 
     if hasattr(response, "text"):
@@ -202,6 +234,28 @@ def make_stream_response(
             buffer = ""
             in_code_fence = False
             continue
+
+        yield buffer
+        buffer = ""
+
+    LOGGER.debug(f"Completion content: {original_content}")
+
+
+def as_stream_response(
+    response: OpenAiStream[ChatCompletionChunk]
+    | AnthropicStream[RawMessageStreamEvent]
+    | GenerateContentResponse,
+) -> Generator[str, None, None]:
+    original_content = ""
+    buffer = ""
+
+    for chunk in response:
+        content = get_content(chunk)
+        if not content:
+            continue
+
+        buffer += content
+        original_content += content
 
         yield buffer
         buffer = ""
@@ -279,11 +333,13 @@ async def ai_completion(
     body = await parse_request(request, cls=AiCompletionRequest)
     custom_rules = config.get("ai", {}).get("rules", None)
 
-    prompter = Prompter(body.code, body.include_other_code, body.context)
+    prompter = Prompter(code=body.code)
     system_prompt = Prompter.get_system_prompt(
-        body.language, custom_rules=custom_rules
+        language=body.language, custom_rules=custom_rules
     )
-    prompt = prompter.get_prompt(body.prompt)
+    prompt = prompter.get_prompt(
+        user_prompt=body.prompt, include_other_code=body.include_other_code
+    )
 
     model = get_model(config)
 
@@ -342,5 +398,83 @@ async def ai_completion(
 
     return StreamingResponse(
         content=make_stream_response(response),
+        media_type="application/json",
+    )
+
+
+@router.post("/chat")
+@requires("edit")
+async def ai_chat(
+    *,
+    request: Request,
+) -> StreamingResponse:
+    """
+    Chat endpoint that handles ongoing conversations
+    """
+    app_state = AppState(request)
+    app_state.require_current_session()
+    config = app_state.config_manager.get_config(hide_secrets=False)
+    body = await parse_request(request, cls=ChatRequest)
+
+    # Get the model from request or fallback to config
+    model = body.model or get_model(config)
+    messages = body.messages
+
+    # Get the system prompt
+    system_prompt = Prompter.get_chat_system_prompt(
+        custom_rules=config.get("ai", {}).get("rules", None),
+        variables=body.variables,
+        context=body.context,
+        include_other_code=body.include_other_code,
+    )
+
+    # Handle different model providers
+    if model.startswith("claude"):
+        anthropic_client = get_anthropic_client(config)
+        response = anthropic_client.messages.create(
+            model=model,
+            max_tokens=1000,
+            messages=cast(Any, convert_to_anthropic_messages(messages)),
+            system=system_prompt,
+            stream=True,
+            temperature=0,
+        )
+
+        return StreamingResponse(
+            content=as_stream_response(response),
+            media_type="application/json",
+        )
+
+    if model.startswith("google") or model.startswith("gemini"):
+        google_client = get_google_client(config, model)
+        response = google_client.generate_content(
+            contents=convert_to_google_messages(
+                [ChatMessage(role="system", content=system_prompt)] + messages
+            ),
+            stream=True,
+        )
+
+        return StreamingResponse(
+            content=as_stream_response(response),
+            media_type="application/json",
+        )
+
+    # Default to OpenAI
+    openai_client = get_openai_client(config)
+    response = openai_client.chat.completions.create(
+        model=model,
+        messages=cast(
+            Any,
+            convert_to_openai_messages(
+                [ChatMessage(role="system", content=system_prompt)] + messages
+            ),
+        ),
+        temperature=0,
+        stream=True,
+        timeout=15,
+    )
+
+    return StreamingResponse(
+        content=as_stream_response(response),
         media_type="application/json",
     )

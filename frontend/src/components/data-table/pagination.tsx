@@ -1,4 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+"use no memo";
+
 import type { Table } from "@tanstack/react-table";
 import {
   ChevronLeft,
@@ -14,6 +16,7 @@ import { range } from "lodash-es";
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;
   selection?: "single" | "multi" | null;
+  totalColumns: number;
   onSelectAllRowsChange?: (value: boolean) => void;
 }
 
@@ -21,6 +24,7 @@ export const DataTablePagination = <TData,>({
   table,
   selection,
   onSelectAllRowsChange,
+  totalColumns,
 }: DataTablePaginationProps<TData>) => {
   const renderTotal = () => {
     const selected = Object.keys(table.getState().rowSelection).length;
@@ -74,13 +78,8 @@ export const DataTablePagination = <TData,>({
       );
     }
 
-    let numColumns = table.getAllColumns().length;
-    // If we have a selection column, subtract one from the total columns
-    if (selection != null) {
-      numColumns -= 1;
-    }
     const rowsLabel = `${prettyNumber(numRows)} ${new PluralWord("row").pluralize(numRows)}`;
-    const columnsLabel = `${prettyNumber(numColumns)} ${new PluralWord("column").pluralize(numColumns)}`;
+    const columnsLabel = `${prettyNumber(totalColumns)} ${new PluralWord("column").pluralize(totalColumns)}`;
 
     return <span>{[rowsLabel, columnsLabel].join(", ")}</span>;
   };

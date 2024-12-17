@@ -27,3 +27,8 @@
 .hover-actions-parent:has([data-state="open"]) .hover-action {
   display: inline-flex !important;
 }
+
+/* When any element is fullscreen, hide the element with this class */
+:root:has(:fullscreen) .hide-on-fullscreen {
+  display: none !important;
+}

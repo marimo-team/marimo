@@ -211,6 +211,52 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/export/auto_export/ipynb": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["ExportAsIPYNBRequest"];
+        };
+      };
+      responses: {
+        /** @description Export the notebook as IPYNB */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+        /** @description File must be saved before downloading */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/export/auto_export/markdown": {
     parameters: {
       query?: never;
@@ -1672,6 +1718,31 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/kernel/takeover": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: never;
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/packages/add": {
     parameters: {
       query?: never;
@@ -1816,6 +1887,43 @@ export interface paths {
               sessions?: number;
               status?: string;
               version?: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/status/connections": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Get the number of active websocket connections */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              active?: number;
             };
           };
         };
@@ -1980,6 +2088,7 @@ export interface components {
         schema: {
           columns: {
             name: string;
+            sampleValues: unknown[];
             type: string;
           }[];
           name: string;
@@ -2105,6 +2214,7 @@ export interface components {
       source: string;
     };
     CreationRequest: {
+      autoRun: boolean;
       executionRequests: components["schemas"]["ExecutionRequest"][];
       setUiElementValueRequest: components["schemas"]["SetUIElementValueRequest"];
     };
@@ -2137,6 +2247,7 @@ export interface components {
     DataTableColumn: {
       external_type: string;
       name: string;
+      sample_values: unknown[];
       type: components["schemas"]["DataType"];
     };
     /** @enum {string} */
@@ -2175,6 +2286,7 @@ export interface components {
       | components["schemas"]["MarimoStrictExecutionError"]
       | components["schemas"]["MarimoInterruptionError"]
       | components["schemas"]["MarimoSyntaxError"]
+      | components["schemas"]["MarimoInternalError"]
       | components["schemas"]["UnknownError"];
     ExecuteMultipleRequest: {
       cellIds: string[];
@@ -2195,6 +2307,9 @@ export interface components {
       download: boolean;
       files: string[];
       includeCode: boolean;
+    };
+    ExportAsIPYNBRequest: {
+      download: boolean;
     };
     ExportAsMarkdownRequest: {
       download: boolean;
@@ -2314,6 +2429,7 @@ export interface components {
       };
     };
     InstantiateRequest: {
+      autoRun: boolean;
       objectIds: string[];
       values: unknown[];
     };
@@ -2333,6 +2449,7 @@ export interface components {
         app_title?: string | null;
         auto_download: ("html" | "markdown")[];
         css_file?: string | null;
+        html_head_file?: string | null;
         layout_file?: string | null;
         /** @enum {string} */
         width: "normal" | "compact" | "medium" | "full";
@@ -2475,6 +2592,12 @@ export interface components {
       name: string;
       path: string;
       sessionId?: string | null;
+    };
+    MarimoInternalError: {
+      error_id: string;
+      msg: string;
+      /** @enum {string} */
+      type: "internal";
     };
     MarimoInterruptionError: {
       /** @enum {string} */

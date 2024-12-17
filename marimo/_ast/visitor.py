@@ -6,13 +6,14 @@ import itertools
 import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Callable, Literal, Optional, Union
+from typing import Callable, Literal, Optional, Set, Union
 from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast.sql_visitor import (
-    find_from_targets,
+    SQLDefs,
     find_sql_defs,
+    find_sql_refs,
     normalize_sql_f_string,
 )
 from marimo._dependencies.dependencies import DependencyManager
@@ -44,9 +45,16 @@ class ImportData:
 
 @dataclass
 class VariableData:
-    # "table", "view", and "schema" are SQL variables, not Python.
+    # "table", "view", "schema", and "catalog" are SQL variables, not Python.
     kind: Literal[
-        "function", "class", "import", "variable", "table", "view", "schema"
+        "function",
+        "class",
+        "import",
+        "variable",
+        "table",
+        "view",
+        "schema",
+        "catalog",
     ] = "variable"
 
     # If kind == function or class, it may be dependent on externally defined
@@ -72,6 +80,7 @@ class VariableData:
                 self.kind == "table"
                 or self.kind == "schema"
                 or self.kind == "view"
+                or self.kind == "catalog"
             )
             else "python"
         )
@@ -481,20 +490,28 @@ class ScopedVisitor(ast.NodeVisitor):
                     return node
 
                 for statement in statements:
+                    tables: Set[str] = set()
+                    from_targets: list[str] = []
                     # Parse the refs and defs of each statement
                     try:
                         tables = duckdb.get_table_names(statement.query)
+                    except (duckdb.ProgrammingError, duckdb.IOException):
+                        LOGGER.debug(
+                            "Error parsing SQL statement: %s", statement.query
+                        )
+                    except BaseException as e:
+                        LOGGER.warning("Unexpected duckdb error %s", e)
+                    try:
                         # TODO(akshayka): more comprehensive parsing
                         # of the statement -- schemas can show up in
                         # joins, queries, ...
-                        from_targets = find_from_targets(statement.query)
+                        from_targets = find_sql_refs(statement.query)
                     except (duckdb.ProgrammingError, duckdb.IOException):
-                        self.generic_visit(node)
-                        continue
+                        LOGGER.debug(
+                            "Error parsing SQL statement: %s", statement.query
+                        )
                     except BaseException as e:
                         LOGGER.warning("Unexpected duckdb error %s", e)
-                        self.generic_visit(node)
-                        continue
 
                     for name in itertools.chain(tables, from_targets):
                         # Name (table, db) may be a URL or something else that
@@ -506,12 +523,10 @@ class ScopedVisitor(ast.NodeVisitor):
                     try:
                         sql_defs = find_sql_defs(sql)
                     except duckdb.ProgrammingError:
-                        self.generic_visit(node)
-                        continue
+                        sql_defs = SQLDefs()
                     except BaseException as e:
                         LOGGER.warning("Unexpected duckdb error %s", e)
-                        self.generic_visit(node)
-                        continue
+                        sql_defs = SQLDefs()
 
                     for _table in sql_defs.tables:
                         self._define(None, _table, VariableData("table"))
@@ -519,6 +534,8 @@ class ScopedVisitor(ast.NodeVisitor):
                         self._define(None, _view, VariableData("view"))
                     for _schema in sql_defs.schemas:
                         self._define(None, _schema, VariableData("schema"))
+                    for _catalog in sql_defs.catalogs:
+                        self._define(None, _catalog, VariableData("catalog"))
 
         # Visit arguments, keyword args, etc.
         self.generic_visit(node)

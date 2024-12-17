@@ -12,6 +12,7 @@ from marimo import __version__
 from marimo._ast.app import App, _AppConfig
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
+from marimo._ast.names import DEFAULT_CELL_NAME
 from marimo._ast.visitor import Name
 
 if TYPE_CHECKING:
@@ -174,6 +175,12 @@ def generate_filecontents(
 
     unshadowed_builtins = set(builtins.__dict__.keys()) - defs
     fndefs: list[str] = []
+
+    # Update old internal cell names to the new ones
+    for idx, name in enumerate(names):
+        if name == "__":
+            names[idx] = DEFAULT_CELL_NAME
+
     for data, name in zip(cell_data, names):
         if isinstance(data, CellImpl):
             fndefs.append(to_functiondef(data, name, unshadowed_builtins))
@@ -222,6 +229,17 @@ def get_app(filename: Optional[str]) -> Optional[App]:
         from marimo._cli.convert.markdown import convert_from_md_to_app
 
         return convert_from_md_to_app(contents)
+
+    # Below assumes it's a Python file
+
+    # This means it could have only the package dependencies
+    # but no actual code yet.
+    has_only_comments = all(
+        not line.strip() or line.strip().startswith("#")
+        for line in contents.splitlines()
+    )
+    if has_only_comments:
+        return None
 
     spec = importlib.util.spec_from_file_location("marimo_app", filename)
     if spec is None:

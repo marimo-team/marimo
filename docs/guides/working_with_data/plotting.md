@@ -283,5 +283,5 @@ If you want to output the plot in the console area, use `plt.show()` or
 ### Interactive plots
 
 To make matplotlib plots interactive, use
-[mo.mpl.interactive](../api/plotting.md#marimo.mpl.interactive).
+[mo.mpl.interactive](/api/plotting.md#marimo.mpl.interactive).
 (Matplotlib plots are not yet reactive.)

@@ -152,7 +152,7 @@ class TestOpenAiEndpoints:
                 "messages"
             ][1]["content"]
             assert prompt == (
-                "Help me create a dataframe\n\nCurrent code:\nimport pandas as pd"  # noqa: E501
+                "Help me create a dataframe\n\n<current-code>\nimport pandas as pd\n</current-code>"
             )
 
     @staticmethod
@@ -279,7 +279,7 @@ class TestAnthropicAiEndpoints:
                 "messages"
             ][0]["content"]
             assert prompt == (
-                "Help me create a dataframe\n\nCurrent code:\nimport pandas as pd"  # noqa: E501
+                "Help me create a dataframe\n\n<current-code>\nimport pandas as pd\n</current-code>"
             )
 
 
@@ -318,7 +318,7 @@ class TestGoogleAiEndpoints:
                 "contents"
             ]
             assert prompt == (
-                "Help me create a dataframe\n\nCurrent code:\nimport pandas as pd"  # noqa: E501
+                "Help me create a dataframe\n\n<current-code>\nimport pandas as pd\n</current-code>"
             )
 
     @staticmethod
@@ -553,3 +553,82 @@ class TestStreamResponse(unittest.TestCase):
         )
         result = list(make_stream_response(response))
         assert result == ["print('```nested```')\n"]
+
+        @staticmethod
+        @with_session(SESSION_ID)
+        @patch("openai.OpenAI")
+        def test_chat_without_code(
+            client: TestClient, openai_mock: Any
+        ) -> None:
+            user_config_manager = get_user_config_manager(client)
+
+            oaiclient = MagicMock()
+            openai_mock.return_value = oaiclient
+
+            oaiclient.chat.completions.create.return_value = [
+                FakeChoices(
+                    choices=[
+                        Choice(
+                            delta=Delta(content="Hello, how can I help you?")
+                        )
+                    ]
+                )
+            ]
+
+            with openai_config(user_config_manager):
+                response = client.post(
+                    "/api/ai/chat",
+                    headers=HEADERS,
+                    json={
+                        "messages": [{"role": "user", "content": "Hello"}],
+                        "model": "gpt-4-turbo",
+                        "variables": [],
+                        "include_other_code": "",
+                    },
+                )
+                assert response.status_code == 200, response.text
+                # Assert the prompt it was called with
+                prompt = oaiclient.chat.completions.create.call_args.kwargs[
+                    "messages"
+                ][1]["content"]
+                assert prompt == "Hello"
+
+        @staticmethod
+        @with_session(SESSION_ID)
+        @patch("openai.OpenAI")
+        def test_chat_with_code(client: TestClient, openai_mock: Any) -> None:
+            user_config_manager = get_user_config_manager(client)
+
+            oaiclient = MagicMock()
+            openai_mock.return_value = oaiclient
+
+            oaiclient.chat.completions.create.return_value = [
+                FakeChoices(
+                    choices=[
+                        Choice(delta=Delta(content="import pandas as pd"))
+                    ]
+                )
+            ]
+
+            with openai_config(user_config_manager):
+                response = client.post(
+                    "/api/ai/chat",
+                    headers=HEADERS,
+                    json={
+                        "messages": [
+                            {
+                                "role": "user",
+                                "content": "Help me create a dataframe",
+                            }
+                        ],
+                        "model": "gpt-4-turbo",
+                        "variables": [],
+                        "include_other_code": "import pandas as pd",
+                    },
+                )
+                assert response.status_code == 200, response.text
+                # Assert the prompt it was called with
+                prompt = oaiclient.chat.completions.create.call_args.kwargs[
+                    "messages"
+                ][1]["content"]
+                assert prompt == "Help me create a dataframe"

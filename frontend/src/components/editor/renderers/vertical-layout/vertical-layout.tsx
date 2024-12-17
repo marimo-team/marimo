@@ -36,9 +36,10 @@ import type { CellConfig } from "@/core/network/types";
 import { useAtomValue } from "jotai";
 import { FloatingOutline } from "../../chrome/panels/outline/floating-outline";
 import { KnownQueryParams } from "@/core/constants";
-import { useUserConfig } from "@/core/config/config";
+import { useResolvedMarimoConfig } from "@/core/config/config";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
 import { isErrorMime } from "@/core/mime";
+import { getMarimoShowCode } from "@/core/dom/marimo-tag";
 
 type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;
@@ -50,15 +51,21 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
 }) => {
   const { invisible } = useDelayVisibility(cells.length, mode);
   const kioskMode = useAtomValue(kioskModeAtom);
-  const [userConfig] = useUserConfig();
+  const [userConfig] = useResolvedMarimoConfig();
 
   const urlParams = new URLSearchParams(window.location.search);
-  const showCodeDefault = urlParams.get(KnownQueryParams.showCode);
   const [showCode, setShowCode] = useState(() => {
-    // Default to showing code if the notebook is static or wasm
-    return showCodeDefault === null
+    // Check marimo-code tag setting first
+    const showCodePreference = getMarimoShowCode();
+    if (!showCodePreference) {
+      return false;
+    }
+    // If 'auto' or not found, use URL param
+    // If url param is not set, we default to true for static notebooks, wasm notebooks, and kiosk mode
+    const showCodeByQueryParam = urlParams.get(KnownQueryParams.showCode);
+    return showCodeByQueryParam === null
       ? isStaticNotebook() || isWasm() || kioskMode
-      : showCodeDefault === "true";
+      : showCodeByQueryParam === "true";
   });
 
   const evaluateCanShowCode = () => {
@@ -148,8 +155,11 @@ const ActionButtons: React.FC<{
     await downloadAsHTML({ filename: document.title, includeCode: true });
   };
 
+  // Don't change the id of this element
+  // as this may be used in custom css to hide/show the actions dropdown
   return (
     <div
+      id="notebook-actions-dropdown"
       className={cn(
         "right-0 top-0 z-50 m-4 no-print flex gap-2 print:hidden",
         // If the notebook is static, we have a banner at the top, so
@@ -167,7 +177,10 @@ const ActionButtons: React.FC<{
         <DropdownMenuContent align="end" className="no-print w-[220px]">
           {canShowCode && (
             <>
-              <DropdownMenuItem onSelect={onToggleShowCode}>
+              <DropdownMenuItem
+                onSelect={onToggleShowCode}
+                id="notebook-action-show-code"
+              >
                 <Code2Icon className="mr-2" size={14} strokeWidth={1.5} />
                 <span className="flex-1">Show code</span>
                 {showCode && <Check className="h-4 w-4" />}
@@ -175,11 +188,17 @@ const ActionButtons: React.FC<{
               <DropdownMenuSeparator />
             </>
           )}
-          <DropdownMenuItem onSelect={handleDownloadAsHTML}>
+          <DropdownMenuItem
+            onSelect={handleDownloadAsHTML}
+            id="notebook-action-download-html"
+          >
             <FolderDownIcon className="mr-2" size={14} strokeWidth={1.5} />
             Download as HTML
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={handleDownloadAsPNG}>
+          <DropdownMenuItem
+            onSelect={handleDownloadAsPNG}
+            id="notebook-action-download-png"
+          >
             <ImageIcon className="mr-2" size={14} strokeWidth={1.5} />
             Download as PNG
           </DropdownMenuItem>
@@ -246,11 +265,14 @@ const VerticalCell = memo(
     // Kiosk and not presenting
     const kioskFull = kiosk && mode !== "present";
 
-    const className = cn("Cell", "hover-actions-parent", {
-      published: !showCode && !kioskFull,
+    const isPureMarkdown = new MarkdownLanguageAdapter().isSupported(code);
+    const published = !showCode && !kioskFull;
+    const className = cn("Cell", "hover-actions-parent empty:invisible", {
+      published: published,
       interactive: mode === "edit",
       "has-error": errored,
       stopped: stopped,
+      borderless: isPureMarkdown && !published,
     });
 
     const HTMLId = HTMLCellId.create(cellId);
@@ -268,7 +290,6 @@ const VerticalCell = memo(
       );
 
       const isCodeEmpty = code.trim() === "";
-      const isPureMarkdown = new MarkdownLanguageAdapter().isSupported(code);
 
       return (
         <div tabIndex={-1} id={HTMLId} ref={cellRef} className={className}>

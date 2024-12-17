@@ -5,13 +5,22 @@ on:
     types: [created]
 
 env:
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: marimo
 
 jobs:
   # Various jobs that can be triggered by comments
   create-test-release:
-    if: contains(github.event.comment.body, '/marimo create-test-release') && github.event.issue.pull_request
+    if: >
+      (
+        github.event.issue.author_association == 'OWNER' ||
+        github.event.issue.author_association == 'COLLABORATOR' ||
+        github.event.issue.author_association == 'MEMBER' ||
+        github.event.comment.author_association == 'OWNER' ||
+        github.event.comment.author_association == 'COLLABORATOR' ||
+        github.event.comment.author_association == 'MEMBER'
+      ) &&
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '/marimo create-test-release')
     name: 📤 Publish test release
     runs-on: ubuntu-latest
     defaults:
@@ -22,11 +31,30 @@ jobs:
       - name: 🛑 Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.12.1
 
+      - name: 📝 Get PR Info
+        id: pr
+        env:
+          PR_NUMBER: ${{ github.event.issue.number }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          COMMENT_AT: ${{ github.event.comment.created_at }}
+        run: |
+          pr="$(gh api /repos/${GH_REPO}/pulls/${PR_NUMBER})"
+          head_sha="$(echo "$pr" | jq -r .head.sha)"
+          pushed_at="$(echo "$pr" | jq -r .pushed_at)"
+
+          if [[ $(date -d "$pushed_at" +%s) -gt $(date -d "$COMMENT_AT" +%s) ]]; then
+              echo "Updating is not allowed because the PR was pushed to (at $pushed_at) after the triggering comment was issued (at $COMMENT_AT)"
+              exit 1
+          fi
+
+          echo "head_sha=$head_sha" >> $GITHUB_OUTPUT
+
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: refs/pull/${{ github.event.issue.number }}/head
+          ref: ${{ steps.pr.outputs.head_sha }}
 
       - name: 📝 Initial Comment on PR
         uses: actions/github-script@v7
@@ -58,6 +86,8 @@ jobs:
 
       - name: 📦 Build frontend
         run: make fe
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
 
       - name: 🥚 Install Hatch
         uses: pypa/hatch@install
@@ -105,7 +135,13 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public
+        run: |
+          for i in {1..3}; do
+            npm publish --access public && break || {
+              echo "Publish attempt $i failed, retrying..."
+              sleep 10
+            }
+          done
 
       - name: 📝 Update PR Comment
         uses: actions/github-script@v7

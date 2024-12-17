@@ -108,40 +108,38 @@ jobs:
       - name: 🎭 Run Playwright tests
         working-directory: ./frontend
         run: pnpm playwright test
-        # TODO(msconick) remove continue-on-error when all tests pass
-        continue-on-error: true
         env:
           VITE_MARIMO_VERSION: ${{ env.MARIMO_VERSION }}
 
-      - name: ☁️ Google Auth
-        uses: google-github-actions/auth@v1
-        # Skip on forks
-        if: github.event.pull_request.head.repo.organization == 'marimo-team'
-        with:
-          credentials_json: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+      # - name: ☁️ Google Auth
+      #   uses: google-github-actions/auth@v2
+      #   # Skip on forks
+      #   if: github.event.pull_request.head.repo.organization == 'marimo-team'
+      #   with:
+      #     credentials_json: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
 
-      - name: 🌲 Get branch name
-        id: branch-name
-        uses: tj-actions/branch-names@v7
+      # - name: 🌲 Get branch name
+      #   id: branch-name
+      #   uses: tj-actions/branch-names@v7
 
-      - name: 📦 Upload to bucket (PR)
-        uses: google-github-actions/upload-cloud-storage@v1
-        # Only on PRs and not forks
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.organization == 'marimo-team'
-        with:
-          destination: marimo-oss-visual-snapshots/branches/${{ steps.branch-name.outputs.current_branch }}
-          path: frontend/e2e-tests/screenshots
+      # - name: 📦 Upload to bucket (PR)
+      #   uses: google-github-actions/upload-cloud-storage@v2
+      #   # Only on PRs and not forks
+      #   if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.organization == 'marimo-team'
+      #   with:
+      #     destination: marimo-oss-visual-snapshots/branches/${{ steps.branch-name.outputs.current_branch }}
+      #     path: frontend/e2e-tests/screenshots
 
-      - name: 📦 Upload to bucket (main)
-        uses: google-github-actions/upload-cloud-storage@v1
-        # Only on main branch and not forks
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.event.pull_request.head.repo.organization == 'marimo-team'
-        with:
-          destination: marimo-oss-visual-snapshots/main
-          path: frontend/e2e-tests/screenshots
+      # - name: 📦 Upload to bucket (main)
+      #   uses: google-github-actions/upload-cloud-storage@v2
+      #   # Only on main branch and not forks
+      #   if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.event.pull_request.head.repo.organization == 'marimo-team'
+      #   with:
+      #     destination: marimo-oss-visual-snapshots/main
+      #     path: frontend/e2e-tests/screenshots
 
       - name: 📊 Upload report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: playwright-report

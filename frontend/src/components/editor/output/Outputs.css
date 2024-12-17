@@ -55,22 +55,31 @@
 .marimo-json-output {
   padding-top: 2px;
   padding-bottom: 2px;
-
   /* content-visibility is set by material UI;
    * when set on an element that has overflow auto, causes abrupt jumps when
    * scrolling in Chrome */
   content-visibility: unset;
-
   /* Coarse hack to stop children from overflowing; doesn't seem to affect
    * margin collapse. */
   overflow: auto;
-
   @apply text-xs;
-}
 
-.marimo-json-output .data-key-pair:not(:last-child) {
-  margin-top: 0.2rem;
-  margin-bottom: 0.2rem;
+  .data-key-pair:not(:last-child) {
+    margin-top: 0.2rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .copy-button {
+    @apply invisible;
+  }
+
+  .data-key-pair:hover > .copy-button {
+    @apply visible;
+  }
+
+  .data-key-pair:hover > .data-key > .copy-button {
+    @apply visible;
+  }
 }
 
 .traceback-cell-link {

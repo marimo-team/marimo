@@ -21,7 +21,7 @@ LOGGER = _loggers.marimo_logger()
 
 
 def print_tabbed(string: str, n_tabs: int = 1) -> None:
-    print(f"{TAB * n_tabs}{string}")
+    print_(f"{TAB * n_tabs}{string}")
 
 
 def canonicalize_filename(filename: str) -> str:
@@ -36,6 +36,9 @@ def find_free_port(port: int, attempts: int = 100) -> int:
 
     import socket
 
+    # Valid port range is 1-65535
+    port = max(1, min(port, 65535))
+
     if attempts == 0:
         raise RuntimeError("Could not find a free port")
 
@@ -47,7 +50,13 @@ def find_free_port(port: int, attempts: int = 100) -> int:
         except OSError:
             LOGGER.debug(f"Port {port} is already in use")
             pass
-    return find_free_port(port + 1, attempts - 1)
+
+    # Ensure we don't exceed valid port range
+    next_port = min(port + 1, 65535)
+    if next_port == port:
+        raise RuntimeError("No more ports available")
+
+    return find_free_port(next_port, attempts - 1)
 
 
 def initialize_mimetypes() -> None:
@@ -100,3 +109,12 @@ def asyncio_run(coro: Coroutine[Any, Any, T], **kwargs: dict[Any, Any]) -> T:
     """
     initialize_asyncio()
     return asyncio.run(coro, **kwargs)  # type: ignore[arg-type]
+
+
+def print_(*args: Any, **kwargs: Any) -> None:
+    try:
+        import click
+
+        click.echo(*args, **kwargs)
+    except ImportError:
+        print(*args, **kwargs)  # noqa: T201

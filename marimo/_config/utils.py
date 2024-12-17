@@ -2,15 +2,9 @@
 from __future__ import annotations
 
 import os
-from typing import Optional, cast
+from typing import Any, Optional
 
 from marimo import _loggers
-from marimo._config.config import (
-    DEFAULT_CONFIG,
-    MarimoConfig,
-    PartialMarimoConfig,
-    merge_default_config,
-)
 
 LOGGER = _loggers.marimo_logger()
 
@@ -45,13 +39,13 @@ def _xdg_config_path() -> str:
     return os.path.join(xdg_config_home, "marimo", "marimo.toml")
 
 
-def get_or_create_config_path() -> str:
+def get_or_create_user_config_path() -> str:
     """Find path of config file, or create it
 
     If no config file is found, one will be created under the proper XDG path
     (i.e. `~/.config/marimo` or `$XDG_CONFIG_HOME/marimo`)
     """
-    current_config_path = get_config_path()
+    current_config_path = get_user_config_path()
     if current_config_path:
         return current_config_path
     else:
@@ -61,7 +55,7 @@ def get_or_create_config_path() -> str:
         return config_path
 
 
-def get_config_path() -> Optional[str]:
+def get_user_config_path() -> Optional[str]:
     """Find path of config file (.marimo.toml).
 
     Searches from current directory to home, return the first config file
@@ -120,27 +114,9 @@ def get_config_path() -> Optional[str]:
     return None
 
 
-def load_config() -> MarimoConfig:
-    """Load configuration, taking into account user config file, if any."""
-    try:
-        path = get_config_path()
-    except OSError as e:
-        path = None
-        msg = "Encountered error when searching for config: %s"
-        LOGGER.warning(msg, str(e))
-
-    if path is not None:
-        LOGGER.debug("Using config at %s", path)
-        try:
-            import tomlkit
-
-            with open(path, "rb") as f:
-                user_config = tomlkit.parse(f.read())
-        except Exception as e:
-            LOGGER.error("Failed to read user config at %s", path)
-            LOGGER.error(str(e))
-            return DEFAULT_CONFIG
-        return merge_default_config(cast(PartialMarimoConfig, user_config))
-    else:
-        LOGGER.debug("No config found; loading default settings.")
-    return DEFAULT_CONFIG
+def deep_copy(obj: Any) -> Any:
+    if isinstance(obj, dict):
+        return {k: deep_copy(v) for k, v in obj.items()}  # type: ignore
+    if isinstance(obj, list):
+        return [deep_copy(v) for v in obj]  # type: ignore
+    return obj

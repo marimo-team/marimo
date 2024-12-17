@@ -215,7 +215,6 @@ describe("makeSelectable", () => {
     expect(newSpec).toMatchSnapshot();
     expect(getSelectionParamNames(newSpec)).toEqual([
       "param_1",
-      "legend_selection_series",
       "select_point",
       "pan_zoom",
     ]);
@@ -379,5 +378,182 @@ describe("makeSelectable", () => {
     const newSpec = makeSelectable(spec, {});
     expect(newSpec).toMatchSnapshot();
     expect(getSelectionParamNames(newSpec)).toEqual([]);
+  });
+
+  it("should work for layered charts, with existing selection", () => {
+    const spec = {
+      data: {
+        name: "data-34c3e7380bd529c27667c64406db8bb8",
+      },
+      datasets: {
+        "data-34c3e7380bd529c27667c64406db8bb8": [
+          {
+            Level1: "a",
+            count: 1,
+            stage: "france",
+          },
+          {
+            Level1: "b",
+            count: 2,
+            stage: "france",
+          },
+          {
+            Level1: "c",
+            count: 3,
+            stage: "england",
+          },
+        ],
+      },
+      layer: [
+        {
+          encoding: {
+            color: {
+              condition: {
+                field: "stage",
+                param: "param_22",
+              },
+              value: "lightgray",
+            },
+            x: {
+              field: "Level1",
+              sort: {
+                order: "descending",
+              },
+              title: "Subpillar",
+              type: "nominal",
+            },
+            y: {
+              field: "count",
+              title: "Number of Companies",
+              type: "quantitative",
+            },
+          },
+          mark: {
+            type: "bar",
+          },
+          name: "view_21",
+        },
+        {
+          encoding: {
+            color: {
+              datum: "england",
+            },
+            y: {
+              datum: 2,
+            },
+          },
+          mark: {
+            strokeDash: [2, 2],
+            type: "rule",
+          },
+        },
+      ],
+      params: [
+        {
+          name: "param_22",
+          select: {
+            encodings: ["x"],
+            type: "point",
+          },
+          views: ["view_21"],
+        },
+      ],
+    } as VegaLiteSpec;
+    const newSpec = makeSelectable(spec, {});
+    expect(newSpec).toMatchSnapshot();
+    expect(getSelectionParamNames(newSpec)).toMatchInlineSnapshot(`
+      [
+        "param_22",
+      ]
+    `);
+  });
+
+  it("should work for layered charts, with existing legend selection", () => {
+    const spec = {
+      data: {
+        name: "data-34c3e7380bd529c27667c64406db8bb8",
+      },
+      datasets: {
+        "data-34c3e7380bd529c27667c64406db8bb8": [
+          {
+            Level1: "a",
+            count: 1,
+            stage: "france",
+          },
+          {
+            Level1: "b",
+            count: 2,
+            stage: "france",
+          },
+          {
+            Level1: "c",
+            count: 3,
+            stage: "england",
+          },
+        ],
+      },
+      layer: [
+        {
+          encoding: {
+            color: {
+              condition: {
+                field: "stage",
+                param: "param_22",
+              },
+              value: "lightgray",
+            },
+            x: {
+              field: "Level1",
+              sort: {
+                order: "descending",
+              },
+              title: "Subpillar",
+              type: "nominal",
+            },
+            y: {
+              field: "count",
+              title: "Number of Companies",
+              type: "quantitative",
+            },
+          },
+          mark: {
+            type: "bar",
+          },
+          name: "view_21",
+        },
+        {
+          encoding: {
+            color: {
+              datum: "england",
+            },
+            y: {
+              datum: 2,
+            },
+          },
+          mark: {
+            strokeDash: [2, 2],
+            type: "rule",
+          },
+        },
+      ],
+      params: [
+        {
+          name: "param_22",
+          bind: "legend",
+          select: {
+            fields: ["x"],
+            type: "point",
+          },
+          views: ["view_21"],
+        },
+      ],
+    } as VegaLiteSpec;
+    const newSpec = makeSelectable(spec, {});
+    expect(newSpec).toMatchSnapshot();
+    expect(getSelectionParamNames(newSpec)).toMatchInlineSnapshot(`
+      [
+        "param_22",
+      ]
+    `);
   });
 });

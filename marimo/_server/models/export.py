@@ -19,5 +19,10 @@ class ExportAsScriptRequest:
 
 
 @dataclass
+class ExportAsIPYNBRequest:
+    download: bool
+
+
+@dataclass
 class ExportAsMarkdownRequest:
     download: bool

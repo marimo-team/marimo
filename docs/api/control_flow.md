@@ -17,6 +17,7 @@ interval (or on click).
 ```{eval-rst}
 .. autoclass:: marimo.ui.refresh
   :members:
+  :noindex:
 
   .. autoclasstoc:: marimo._plugins.ui._impl.refresh.refresh
 ```

@@ -55,11 +55,11 @@ describe("SQLLanguageAdapter", () => {
       expect(offset).toBe(20);
     });
 
-    it("should throw if no sql is detected", () => {
+    it("should return as is if not sql", () => {
       const pythonCode = 'next_df = print("Hello, World!")';
-      expect(() =>
-        adapter.transformIn(pythonCode),
-      ).toThrowErrorMatchingInlineSnapshot("[Error: Not supported]");
+      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      expect(innerCode).toBe('next_df = print("Hello, World!")');
+      expect(offset).toBe(0);
     });
 
     it("should handle an empty string", () => {
@@ -140,7 +140,8 @@ describe("SQLLanguageAdapter", () => {
         "my_df = mo.sql(
             f"""
             SELECT * FROM table
-            """, output=False
+            """,
+            output=False,
         )"
       `);
       expect(offset).toBe(26);

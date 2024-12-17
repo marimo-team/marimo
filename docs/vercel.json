@@ -19,6 +19,11 @@
       "source": "/guides/theming.html",
       "destination": "/guides/configuration/theming.html",
       "permanent": true
+    },
+    {
+      "source": "/guides/overview.html",
+      "destination": "/getting_started/key_concepts.html",
+      "permanent": true
     }
   ]
 }

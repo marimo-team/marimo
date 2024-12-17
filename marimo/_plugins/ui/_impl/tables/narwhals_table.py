@@ -2,23 +2,25 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Optional, Union, cast
+from functools import cached_property
+from typing import Any, Optional, Tuple, Union, cast
 
 import narwhals.stable.v1 as nw
-from narwhals.typing import IntoFrameT
+from narwhals.stable.v1.typing import IntoFrameT
 
-from marimo._data.models import ColumnSummary
+from marimo._data.models import ColumnSummary, ExternalDataType
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_value,
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
-    FieldTypes,
+    FieldType,
     TableManager,
 )
 from marimo._utils.narwhals_utils import (
     can_narwhalify,
+    dataframe_to_csv,
     is_narwhals_integer_type,
     is_narwhals_string_type,
     is_narwhals_temporal_type,
@@ -54,13 +56,10 @@ class NarwhalsTableManager(
         format_mapping: Optional[FormatMapping] = None,
     ) -> bytes:
         _data = self.apply_formatting(format_mapping).as_frame()
-        csv_str = _data.write_csv()
-        if isinstance(csv_str, str):
-            return csv_str.encode("utf-8")
-        return cast(bytes, csv_str)
+        return dataframe_to_csv(_data).encode("utf-8")
 
     def to_json(self) -> bytes:
-        csv_str = self.as_frame().write_csv()
+        csv_str = self.to_csv().decode("utf-8")
         import csv
 
         csv_reader = csv.DictReader(csv_str.splitlines())
@@ -103,42 +102,46 @@ class NarwhalsTableManager(
     def is_type(value: Any) -> bool:
         return can_narwhalify(value)
 
-    def get_field_types(self) -> FieldTypes:
-        field_types: FieldTypes = {}
-        for column, dtype in self.data.schema.items():
-            dtype_string = str(dtype)
-            if is_narwhals_string_type(dtype):
-                field_types[column] = ("string", dtype_string)
-            elif dtype == nw.Boolean:
-                field_types[column] = ("boolean", dtype_string)
-            elif is_narwhals_integer_type(dtype):
-                field_types[column] = ("integer", dtype_string)
-            elif is_narwhals_temporal_type(dtype):
-                field_types[column] = ("date", dtype_string)
-            elif dtype.is_numeric():
-                field_types[column] = ("number", dtype_string)
-            else:
-                field_types[column] = ("unknown", dtype_string)
+    @cached_property
+    def nw_schema(self) -> nw.Schema:
+        return cast(nw.Schema, self.data.schema)
 
-        return field_types
+    def get_field_type(
+        self, column_name: str
+    ) -> Tuple[FieldType, ExternalDataType]:
+        dtype = self.nw_schema[column_name]
+        dtype_string = str(dtype)
+        if is_narwhals_string_type(dtype):
+            return ("string", dtype_string)
+        elif dtype == nw.Boolean:
+            return ("boolean", dtype_string)
+        elif is_narwhals_integer_type(dtype):
+            return ("integer", dtype_string)
+        elif is_narwhals_temporal_type(dtype):
+            return ("date", dtype_string)
+        elif dtype.is_numeric():
+            return ("number", dtype_string)
+        else:
+            return ("unknown", dtype_string)
 
     def take(self, count: int, offset: int) -> TableManager[Any]:
         if count < 0:
             raise ValueError("Count must be a positive integer")
         if offset < 0:
             raise ValueError("Offset must be a non-negative integer")
-        return self.with_new_data(self.data[offset:count])
+        return self.with_new_data(self.data[offset : offset + count])
 
     def search(self, query: str) -> TableManager[Any]:
         query = query.lower()
 
         expressions: list[Any] = []
-        for column, dtype in self.data.schema.items():
+        for column, dtype in self.nw_schema.items():
             if dtype == nw.String:
-                expressions.append(nw.col(column).str.contains(query))
+                expressions.append(nw.col(column).str.contains(f"(?i){query}"))
             elif dtype == nw.List(nw.String):
+                # TODO: Narwhals doesn't support list.contains
                 # expressions.append(
-                #     nw.col(column).cast(nw.String).sum().str.contains(query)
+                #     nw.col(column).list.contains(query)
                 # )
                 pass
             elif (
@@ -169,7 +172,7 @@ class NarwhalsTableManager(
 
     def _get_summary_internal(self, column: str) -> ColumnSummary:
         # If column is not in the dataframe, return an empty summary
-        if column not in self.data.schema:
+        if column not in self.nw_schema:
             return ColumnSummary()
         col = self.data[column]
         total = len(col)
@@ -227,9 +230,9 @@ class NarwhalsTableManager(
         return ColumnSummary(
             total=total,
             nulls=col.null_count(),
-            unique=col.n_unique()
-            if is_narwhals_integer_type(col.dtype)
-            else None,
+            unique=(
+                col.n_unique() if is_narwhals_integer_type(col.dtype) else None
+            ),
             min=col.min(),
             max=col.max(),
             mean=col.mean(),
@@ -258,13 +261,22 @@ class NarwhalsTableManager(
             return None
 
     def get_num_columns(self) -> int:
-        return len(self.data.schema.names())
+        return len(self.nw_schema.names())
 
     def get_column_names(self) -> list[str]:
-        return self.data.schema.names()
+        return self.nw_schema.names()
 
     def get_unique_column_values(self, column: str) -> list[str | int | float]:
         return self.data[column].unique().to_list()
+
+    def get_sample_values(self, column: str) -> list[Any]:
+        # Sample 3 values from the column
+        SAMPLE_SIZE = 3
+        try:
+            return self.data[column].head(SAMPLE_SIZE).to_list()
+        except Exception:
+            # May be metadata-only frame
+            return []
 
     def sort_values(
         self, by: ColumnName, descending: bool

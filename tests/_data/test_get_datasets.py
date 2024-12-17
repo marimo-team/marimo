@@ -66,84 +66,136 @@ def test_get_datasets() -> None:
             variable_name=None,
             columns=[
                 DataTableColumn(
-                    name="col_boolean", type="boolean", external_type="BOOLEAN"
+                    name="col_boolean",
+                    type="boolean",
+                    external_type="BOOLEAN",
+                    sample_values=[],
                 ),
                 DataTableColumn(
-                    name="col_tinyint", type="integer", external_type="TINYINT"
+                    name="col_tinyint",
+                    type="integer",
+                    external_type="TINYINT",
+                    sample_values=[],
                 ),
                 DataTableColumn(
                     name="col_smallint",
                     type="integer",
                     external_type="SMALLINT",
+                    sample_values=[],
                 ),
                 DataTableColumn(
-                    name="col_integer", type="integer", external_type="INTEGER"
+                    name="col_integer",
+                    type="integer",
+                    external_type="INTEGER",
+                    sample_values=[],
                 ),
                 DataTableColumn(
-                    name="col_bigint", type="integer", external_type="BIGINT"
+                    name="col_bigint",
+                    type="integer",
+                    external_type="BIGINT",
+                    sample_values=[],
                 ),
                 DataTableColumn(
-                    name="col_hugeint", type="integer", external_type="HUGEINT"
+                    name="col_hugeint",
+                    type="integer",
+                    external_type="HUGEINT",
+                    sample_values=[],
                 ),
                 DataTableColumn(
                     name="col_utinyint",
                     type="integer",
                     external_type="UTINYINT",
+                    sample_values=[],
                 ),
                 DataTableColumn(
                     name="col_usmallint",
                     type="integer",
                     external_type="USMALLINT",
+                    sample_values=[],
                 ),
                 DataTableColumn(
                     name="col_uinteger",
                     type="integer",
                     external_type="UINTEGER",
+                    sample_values=[],
                 ),
                 DataTableColumn(
-                    name="col_ubigint", type="integer", external_type="UBIGINT"
+                    name="col_ubigint",
+                    type="integer",
+                    external_type="UBIGINT",
+                    sample_values=[],
                 ),
                 DataTableColumn(
-                    name="col_float", type="number", external_type="FLOAT"
+                    name="col_float",
+                    type="number",
+                    external_type="FLOAT",
+                    sample_values=[],
                 ),
                 DataTableColumn(
-                    name="col_double", type="number", external_type="DOUBLE"
+                    name="col_double",
+                    type="number",
+                    external_type="DOUBLE",
+                    sample_values=[],
                 ),
                 DataTableColumn(
                     name="col_decimal",
                     type="number",
                     external_type="DECIMAL(18,3)",
+                    sample_values=[],
                 ),
                 DataTableColumn(
-                    name="col_varchar", type="string", external_type="VARCHAR"
+                    name="col_varchar",
+                    type="string",
+                    external_type="VARCHAR",
+                    sample_values=[],
                 ),
                 DataTableColumn(
-                    name="col_date", type="date", external_type="DATE"
+                    name="col_date",
+                    type="date",
+                    external_type="DATE",
+                    sample_values=[],
                 ),
                 DataTableColumn(
-                    name="col_time", type="time", external_type="TIME"
+                    name="col_time",
+                    type="time",
+                    external_type="TIME",
+                    sample_values=[],
                 ),
                 DataTableColumn(
                     name="col_timestamp",
                     type="datetime",
                     external_type="TIMESTAMP",
+                    sample_values=[],
                 ),
                 DataTableColumn(
                     name="col_interval",
                     type="datetime",
                     external_type="INTERVAL",
+                    sample_values=[],
                 ),
                 DataTableColumn(
-                    name="col_blob", type="string", external_type="BLOB"
+                    name="col_blob",
+                    type="string",
+                    external_type="BLOB",
+                    sample_values=[],
                 ),
                 DataTableColumn(
-                    name="col_bit", type="string", external_type="BIT"
+                    name="col_bit",
+                    type="string",
+                    external_type="BIT",
+                    sample_values=[],
                 ),
                 DataTableColumn(
-                    name="col_uuid", type="string", external_type="UUID"
+                    name="col_uuid",
+                    type="string",
+                    external_type="UUID",
+                    sample_values=[],
                 ),
                 DataTableColumn(
-                    name="col_json", type="unknown", external_type="JSON"
+                    name="col_json",
+                    type="unknown",
+                    external_type="JSON",
+                    sample_values=[],
                 ),
             ],
         )
@@ -163,6 +215,11 @@ def test_get_datasets_from_variables(df: Any) -> None:
     rows = datatests[0].num_rows
     assert rows is None or rows == 3
 
+    sample_values1 = datatests[0].columns[0].sample_values
+    sample_values2 = datatests[0].columns[1].sample_values
+    assert sample_values1 == [1, 2, 3] or sample_values1 == []
+    assert sample_values2 == ["a", "a", "a"] or sample_values2 == []
+
     assert datatests == [
         DataTable(
             name="my_df",
@@ -176,11 +233,13 @@ def test_get_datasets_from_variables(df: Any) -> None:
                     name="A",
                     type="integer",
                     external_type=external_type1,
+                    sample_values=sample_values1,
                 ),
                 DataTableColumn(
                     name="B",
                     type="string",
                     external_type=external_type2,
+                    sample_values=sample_values2,
                 ),
             ],
         )

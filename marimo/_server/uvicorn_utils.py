@@ -1,11 +1,12 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import asyncio
 import signal
 import sys
 from typing import Any
 
 import uvicorn
-from packaging import version
 
 from marimo import _loggers
 
@@ -13,6 +14,8 @@ LOGGER = _loggers.marimo_logger()
 
 
 def initialize_signals() -> None:
+    from packaging import version
+
     # 0.29.0 changed how uvicorn handles signals
     #
     # https://github.com/encode/uvicorn/pull/1600
@@ -33,6 +36,8 @@ def initialize_signals() -> None:
 
 
 def close_uvicorn(server: uvicorn.Server) -> None:
+    from packaging import version
+
     LOGGER.debug("Shutting down uvicorn")
 
     # Tried using sys.exit(0) to quit instead, but that ends up not being

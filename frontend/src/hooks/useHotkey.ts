@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useEffect } from "react";
+import { type RefObject, useEffect } from "react";
 
 import { parseShortcut } from "../core/hotkeys/shortcuts";
 import { useEventListener } from "./useEventListener";
@@ -49,15 +49,14 @@ export function useHotkey(shortcut: HotkeyAction, callback: HotkeyHandler) {
       registerAction(shortcut, memoizeCallback);
       return () => unregisterAction(shortcut);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [memoizeCallback, shortcut, isNOOP]);
+  }, [memoizeCallback, shortcut, isNOOP, registerAction, unregisterAction]);
 }
 
 /**
- * Registers a hotkey listener on a given element.
+ * Registers a hotkey listener on a given element or ref to an element.
  */
 export function useHotkeysOnElement<T extends HotkeyAction>(
-  element: HTMLElement | null,
+  element: RefObject<HTMLElement> | null,
   handlers: Record<T, HotkeyHandler>,
 ) {
   const hotkeys = useAtomValue(hotkeysAtom);
@@ -78,10 +77,10 @@ export function useHotkeysOnElement<T extends HotkeyAction>(
 }
 
 /**
- * Registers a hotkey listener on a given element.
+ * Registers a hotkey listener on a given element or ref to an element.
  */
 export function useKeydownOnElement(
-  element: HTMLElement | null,
+  element: RefObject<HTMLElement> | null,
   handlers: Record<string, HotkeyHandler>,
 ) {
   useEventListener(element, "keydown", (e) => {

@@ -1,6 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { expect, test } from "vitest";
-import { AppConfigSchema, UserConfigSchema } from "../config-schema";
+import { createStore } from "jotai";
+import {
+  AppConfigSchema,
+  type UserConfig,
+  UserConfigSchema,
+} from "../config-schema";
+import { resolvedMarimoConfigAtom } from "../config";
+import { userConfigAtom } from "../config";
+import { configOverridesAtom } from "../config";
 
 test("default AppConfig", () => {
   const defaultConfig = AppConfigSchema.parse({});
@@ -38,7 +46,7 @@ test("default UserConfig - empty", () => {
         "copilot": false,
       },
       "display": {
-        "cell_output": "above",
+        "cell_output": "below",
         "code_editor_font_size": 14,
         "dataframes": "rich",
         "default_width": "medium",
@@ -90,7 +98,7 @@ test("default UserConfig - one level", () => {
         "copilot": false,
       },
       "display": {
-        "cell_output": "above",
+        "cell_output": "below",
         "code_editor_font_size": 14,
         "dataframes": "rich",
         "default_width": "medium",
@@ -132,4 +140,49 @@ test("default UserConfig - one level", () => {
       experimental: {},
     }),
   ).toEqual(UserConfigSchema.parse({}));
+});
+
+test("resolvedMarimoConfigAtom overrides correctly and does not mutate the original array", () => {
+  const initialUserConfig = {
+    completion: { activate_on_typing: true, copilot: false },
+    save: {
+      autosave: "after_delay",
+      autosave_delay: 1000,
+      format_on_save: false,
+    },
+    formatting: { line_length: 79 },
+  };
+
+  const overrides = {
+    completion: { copilot: "github" },
+    display: { theme: "dark" },
+  };
+
+  const store = createStore();
+
+  store.set(userConfigAtom, initialUserConfig as UserConfig);
+  store.set(configOverridesAtom, overrides);
+
+  const result = store.get(resolvedMarimoConfigAtom);
+
+  expect(result).toEqual({
+    completion: { activate_on_typing: true, copilot: "github" },
+    save: {
+      autosave: "after_delay",
+      autosave_delay: 1000,
+      format_on_save: false,
+    },
+    formatting: { line_length: 79 },
+    display: { theme: "dark" },
+  });
+
+  expect(initialUserConfig).toEqual({
+    completion: { activate_on_typing: true, copilot: false },
+    save: {
+      autosave: "after_delay",
+      autosave_delay: 1000,
+      format_on_save: false,
+    },
+    formatting: { line_length: 79 },
+  });
 });

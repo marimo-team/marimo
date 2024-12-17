@@ -3,12 +3,14 @@ from __future__ import annotations
 
 import sys
 import textwrap
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Sequence
 
 import pytest
 
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
     CycleError,
     DeleteNonlocalError,
@@ -37,6 +39,7 @@ from marimo._runtime.requests import (
 )
 from marimo._runtime.runtime import Kernel
 from marimo._runtime.scratch import SCRATCH_CELL_ID
+from marimo._server.model import SessionMode
 from marimo._utils.parse_dataclass import parse_raw
 from tests.conftest import ExecReqProvider, MockedKernel
 
@@ -336,9 +339,32 @@ class TestExecution:
                 set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
                     [(id_provider.take_id(), 2)]
                 ),
+                auto_run=True,
             )
         )
         assert k.globals["s"].value == 2
+
+    async def test_instantiate_autorun_false(self, any_kernel: Kernel) -> None:
+        k = any_kernel
+        await k.instantiate(
+            CreationRequest(
+                execution_requests=(
+                    ExecutionRequest(cell_id="0", code="x=0"),
+                    ExecutionRequest(cell_id="1", code="y=x+1"),
+                ),
+                set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
+                    []
+                ),
+                auto_run=False,
+            )
+        )
+        assert not k.errors
+        assert "x" not in k.globals
+        assert "y" not in k.globals
+
+        # Expect the first cell to implicitly be included in the run
+        await k.run([ExecutionRequest(cell_id="1", code="y=x+1")])
+        assert k.globals["y"] == 1
 
     # Test errors in marimo semantics
     async def test_kernel_simultaneous_multiple_definition_error(
@@ -920,6 +946,8 @@ class TestExecution:
                 stream=k.stream,
                 stdout=k.stdout,
                 stderr=k.stderr,
+                virtual_files_supported=True,
+                mode=SessionMode.EDIT,
             )
 
             await k.run(
@@ -2473,3 +2501,120 @@ class TestStateTransitions:
 
         assert k.graph.cells[er_1.cell_id].runtime_state == "idle"
         assert k.graph.cells[er_2.cell_id].runtime_state == "idle"
+
+    @staticmethod
+    async def test_variables_broadcast_only_on_change(
+        mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        # Initial run defines x
+        er = exec_req.get("x = 1")
+        await k.run([er])
+        initial_messages = len(
+            [m for m in stream.messages if m[0] == "variables"]
+        )
+        assert initial_messages == 1
+
+        # Re-running same cell shouldn't broadcast Variables
+        stream.messages.clear()
+        await k.run([er])
+        assert not any(m[0] == "variables" for m in stream.messages)
+
+        # Adding a new variable should broadcast Variables
+        stream.messages.clear()
+        er_2 = exec_req.get("y = 1")
+        await k.run([er_2])
+        assert sum(1 for m in stream.messages if m[0] == "variables") == 1
+
+        # Adding a new edge should broadcast Variables
+        stream.messages.clear()
+        await k.run([exec_req.get("z = y")])
+        assert sum(1 for m in stream.messages if m[0] == "variables") == 1
+
+        # Modifying value without changing edges/defs shouldn't broadcast
+        stream.messages.clear()
+        er_2.code = "y = 2"
+        await k.run([exec_req.get_with_id(er_2.cell_id, er_2.code)])
+        assert not any(m[0] == "variables" for m in stream.messages)
+
+        # Deleting a cell should broadcast Variables
+        stream.messages.clear()
+        await k.delete_cell(DeleteCellRequest(cell_id=er_2.cell_id))
+        assert sum(1 for m in stream.messages if m[0] == "variables") == 1
+
+
+class TestErrorHandling:
+    async def test_error_handling(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = mocked_kernel.k
+        await k.run([exec_req.get("raise ValueError('some secret error')")])
+        cell_ops = mocked_kernel.stream.cell_ops
+        error_cell_op = _filter_to_error_ops(cell_ops)
+        assert len(error_cell_op) == 1
+        errors = _parse_error_output(error_cell_op[0])
+
+        assert len(errors) == 1
+        assert errors[0].type == "exception"
+        assert (
+            errors[0].msg
+            == "This cell raised an exception: ValueError('some secret error')"
+        )
+
+    async def test_error_handling_in_run_mode(
+        self, run_mode_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = run_mode_kernel.k
+        await k.run([exec_req.get("raise ValueError('some secret error')")])
+        cell_ops = run_mode_kernel.stream.cell_ops
+        error_cell_op = _filter_to_error_ops(cell_ops)
+        assert len(error_cell_op) == 1
+        errors = _parse_error_output(error_cell_op[0])
+
+        assert len(errors) == 1
+        assert errors[0].type == "internal"
+        assert errors[0].msg.startswith("An internal error occurred: ")
+
+    async def test_error_handling_in_run_mode_stop(
+        self, run_mode_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = run_mode_kernel.k
+        await k.run(
+            [
+                exec_req.get("x = 10"),
+                exec_req.get("x = 20"),
+            ]
+        )
+        cell_ops = run_mode_kernel.stream.cell_ops
+        error_cell_op = _filter_to_error_ops(cell_ops)
+        assert len(error_cell_op) == 2
+        for op in error_cell_op:
+            errors = _parse_error_output(op)
+            assert len(errors) == 1
+            assert errors[0].type == "internal"
+            assert errors[0].msg.startswith("An internal error occurred: ")
+
+
+def _parse_error_output(cell_op: CellOp) -> list[Error]:
+    error_output = cell_op.output
+    assert error_output is not None
+    assert error_output.channel == CellChannel.MARIMO_ERROR
+    assert error_output.mimetype == "application/vnd.marimo+error"
+    data = error_output.data
+
+    @dataclass
+    class Container:
+        errors: list[Error]
+
+    return parse_raw({"errors": data}, Container).errors
+
+
+def _filter_to_error_ops(cell_ops: list[CellOp]) -> list[CellOp]:
+    return [
+        op
+        for op in cell_ops
+        if op.output is not None
+        and op.output.channel == CellChannel.MARIMO_ERROR
+    ]

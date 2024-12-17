@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import Any, Optional, Tuple, Union
 
 import narwhals.stable.v1 as nw
@@ -15,7 +16,6 @@ from marimo._plugins.ui._impl.tables.format import (
 from marimo._plugins.ui._impl.tables.narwhals_table import NarwhalsTableManager
 from marimo._plugins.ui._impl.tables.table_manager import (
     FieldType,
-    FieldTypes,
     TableManager,
     TableManagerFactory,
 )
@@ -38,24 +38,20 @@ class PolarsTableManagerFactory(TableManagerFactory):
             def __init__(
                 self, data: Union[pl.DataFrame, pl.LazyFrame]
             ) -> None:
+                self._original_data = data
                 super().__init__(nw.from_native(data))
 
             def collect(self) -> pl.DataFrame:
-                native: Any = self.data.to_native()
+                native: Any = self._original_data
                 if isinstance(native, pl.LazyFrame):
                     return native.collect()
                 if isinstance(native, pl.DataFrame):
                     return native
                 raise ValueError(f"Unsupported native type: {type(native)}")
 
-            def as_polars_frame(self) -> Union[pl.DataFrame, pl.LazyFrame]:
-                native: Any = self.data.to_native()
-                if isinstance(native, (pl.LazyFrame, pl.DataFrame)):
-                    return native
-                raise ValueError(f"Unsupported native type: {type(native)}")
-
+            @cached_property
             def schema(self) -> dict[str, pl.DataType]:
-                return self.as_polars_frame().schema
+                return self._original_data.schema
 
             # We override narwhals's to_csv to handle polars
             # nested data types.
@@ -140,23 +136,15 @@ class PolarsTableManagerFactory(TableManagerFactory):
             def is_type(value: Any) -> bool:
                 return isinstance(value, pl.DataFrame)
 
-            # We override the default implementation to use polars's
-            # internal fields since they get displayed in the UI.
-            def get_field_types(self) -> FieldTypes:
-                return {
-                    column: PolarsTableManager._get_field_type(dtype)
-                    for column, dtype in self.schema().items()
-                }
-
-            # We override the default implementation since
-            # polars supports list expressions
             def search(self, query: str) -> PolarsTableManager:
                 query = query.lower()
 
                 expressions: list[pl.Expr] = []
-                for column, dtype in self.schema().items():
+                for column, dtype in self.schema.items():
                     if dtype == pl.String:
-                        expressions.append(pl.col(column).str.contains(query))
+                        expressions.append(
+                            pl.col(column).str.contains(f"(?i){query}")
+                        )
                     elif dtype == pl.List(pl.Utf8):
                         expressions.append(pl.col(column).list.contains(query))
                     elif (
@@ -177,13 +165,15 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 for expr in expressions[1:]:
                     or_expr = or_expr | expr
 
-                filtered = self.as_polars_frame().filter(or_expr)
+                filtered = self._original_data.filter(or_expr)
                 return PolarsTableManager(filtered)
 
-            @staticmethod
-            def _get_field_type(
-                dtype: pl.DataType,
+            # We override the default implementation to use polars's
+            # internal fields since they get displayed in the UI.
+            def get_field_type(
+                self, column_name: str
             ) -> Tuple[FieldType, ExternalDataType]:
+                dtype = self.schema[column_name]
                 try:
                     dtype_string = dtype._string_repr()
                 except (TypeError, AttributeError):

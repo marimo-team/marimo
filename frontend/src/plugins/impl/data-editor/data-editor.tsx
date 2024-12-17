@@ -71,8 +71,11 @@ const DataEditor: React.FC<DataEditorProps<object>> = ({
   const { theme } = useTheme();
   const gridRef = useRef<AgGridReact>(null);
   const headerKeys = useMemo(() => {
+    if (fieldTypes) {
+      return fieldTypes.map(([columnName]) => columnName);
+    }
     return getHeaderKeys(data);
-  }, [data]);
+  }, [data, fieldTypes]);
 
   const finalRowData = useMemo(() => {
     for (const edit of edits) {
@@ -98,12 +101,15 @@ const DataEditor: React.FC<DataEditorProps<object>> = ({
         filter: false,
         cellEditorSelector: (params) => {
           const colId = params.column.getColId();
-          const dataType = fieldTypes?.[colId];
+          const dataType: DataType =
+            fieldTypes?.find(
+              ([columnName]) => columnName === colId,
+            )?.[1]?.[0] || "string";
           if (dataType) {
             if (typeof params.value === "string" && params.value.length > 60) {
               return { component: "agLargeTextCellEditor", popup: true };
             }
-            return { component: cellEditorForDataType(dataType[0]) };
+            return { component: cellEditorForDataType(dataType) };
           }
           return;
         },
@@ -144,7 +150,9 @@ const DataEditor: React.FC<DataEditorProps<object>> = ({
   const handleAddRow = useCallback(() => {
     const newRow = Object.fromEntries(
       headerKeys.map((key) => {
-        const dataType = fieldTypes?.[key]?.[0] || "string";
+        const dataType: DataType =
+          fieldTypes?.find(([columnName]) => columnName === key)?.[1]?.[0] ||
+          "string";
         switch (dataType) {
           case "boolean":
             return [key, false];

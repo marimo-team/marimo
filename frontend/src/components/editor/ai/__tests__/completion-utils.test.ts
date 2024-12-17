@@ -63,7 +63,6 @@ describe("getAICompletionBody", () => {
           },
         ],
       },
-      code: "",
     });
   });
 
@@ -76,7 +75,6 @@ describe("getAICompletionBody", () => {
       context: {
         schema: [],
       },
-      code: "",
     });
   });
 
@@ -109,7 +107,6 @@ describe("getAICompletionBody", () => {
           },
         ],
       },
-      code: "",
     });
   });
 
@@ -150,7 +147,6 @@ describe("getAICompletionBody", () => {
           },
         ],
       },
-      code: "",
     });
   });
 });

@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.69"
+__generated_with = "0.9.30"
 app = marimo.App()
 
 
@@ -68,7 +69,7 @@ def __(mo):
         plots!).
         """
     )
-    return grid,
+    return (grid,)
 
 
 @app.cell(hide_code=True)
@@ -104,7 +105,7 @@ def __(mo):
 def __(mo):
     size = mo.ui.slider(label="box size", start=60, stop=500)
     mo.hstack([size], justify="center")
-    return size,
+    return (size,)
 
 
 @app.cell
@@ -168,7 +169,7 @@ def __(mo):
 
 @app.cell
 def __(mo):
-    mo.md("This markdown is left-justified.")
+    mo.md("""This markdown is left-justified.""")
     return
 
 
@@ -210,11 +211,7 @@ def __(mo):
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.md(
-        """
-        An accordion can contain multiple items:
-        """
-    )
+    mo.md("""An accordion can contain multiple items:""")
     return
 
 
@@ -324,7 +321,7 @@ def __(mo):
     callout_kind = mo.ui.dropdown(
         ["neutral", "warn", "success", "info", "danger"], value="neutral"
     )
-    return callout_kind,
+    return (callout_kind,)
 
 
 @app.cell
@@ -350,7 +347,7 @@ def __(mo):
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 if __name__ == "__main__":

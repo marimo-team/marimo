@@ -2,14 +2,7 @@
 import { historyField } from "@codemirror/commands";
 import { EditorState, StateEffect } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
-import React, {
-  memo,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useMemo,
-} from "react";
+import React, { memo, useCallback, useEffect, useRef, useMemo } from "react";
 
 import { setupCodeMirror } from "@/core/codemirror/cm";
 import useEvent from "react-use-event-hook";
@@ -37,6 +30,7 @@ import { autoInstantiateAtom, isAiEnabled } from "@/core/config/config";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { useSplitCellCallback } from "../useSplitCell";
+import { invariant } from "@/utils/invariant";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -56,6 +50,7 @@ export interface CellEditorProps
   theme: Theme;
   showPlaceholder: boolean;
   editorViewRef: React.MutableRefObject<EditorView | null>;
+  setEditorView: (view: EditorView) => void;
   /**
    * If true, the cell is allowed to be focus on.
    * This is false when the app is initially loading.
@@ -67,10 +62,14 @@ export interface CellEditorProps
    * This is different from cellConfig.hide_code, since it may be temporarily shown.
    */
   hidden?: boolean;
-  /**
-   * Not used by scratchpad.
-   */
-  setTemporarilyVisible?: (value: boolean) => void;
+  languageAdapter: LanguageAdapterType | undefined;
+  setLanguageAdapter: React.Dispatch<
+    React.SetStateAction<LanguageAdapterType | undefined>
+  >;
+  // Props below are not used by scratchpad.
+  // DOM node where the editorView will be mounted
+  editorViewParentRef?: React.MutableRefObject<HTMLDivElement | null>;
+  temporarilyShowCode: () => void;
 }
 
 const CellEditorInternal = ({
@@ -82,6 +81,7 @@ const CellEditorInternal = ({
   code,
   status,
   serializedEditorState,
+  setEditorView,
   runCell,
   updateCellCode,
   createNewCell,
@@ -93,18 +93,20 @@ const CellEditorInternal = ({
   clearSerializedEditorState,
   userConfig,
   editorViewRef,
+  editorViewParentRef,
   hidden,
-  setTemporarilyVisible,
+  temporarilyShowCode,
+  languageAdapter,
+  setLanguageAdapter,
 }: CellEditorProps) => {
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
-  const [languageAdapter, setLanguageAdapter] = useState<LanguageAdapterType>();
   const setLastFocusedCellId = useSetLastFocusedCellId();
-  // DOM node where the editorView will be mounted
-  const editorViewParentRef = useRef<HTMLDivElement>(null);
 
   const loading = status === "running" || status === "queued";
   const { sendToTop, sendToBottom } = useCellActions();
   const splitCell = useSplitCellCallback();
+
+  const isMarkdown = languageAdapter === "markdown";
 
   const handleDelete = useEvent(() => {
     // Cannot delete running cells, since we're waiting for their output.
@@ -240,70 +242,90 @@ const CellEditorInternal = ({
     runCell,
     setAiCompletionCell,
     afterToggleMarkdown,
+    setLanguageAdapter,
   ]);
 
-  useEffect(() => {
-    // Should focus will be true if its a newly created editor
-    let shouldFocus: boolean;
-    if (serializedEditorState === null) {
-      // If the editor already exists, reconfigure it with the new extensions.
-      // Triggered when, e.g., placeholder changes.
-      if (editorViewRef.current === null) {
-        // Otherwise, create a new editor.
-        editorViewRef.current = new EditorView({
-          state: EditorState.create({
-            doc: code,
-            extensions: extensions,
-          }),
-        });
-        shouldFocus = true;
-        // Initialize the language adapter
-        switchLanguage(
+  const handleInitializeEditor = useEvent(() => {
+    // Create a new editor
+    const ev = new EditorView({
+      state: EditorState.create({
+        doc: code,
+        extensions: extensions,
+      }),
+    });
+    setEditorView(ev);
+    // Initialize the language adapter
+    switchLanguage(ev, getInitialLanguageAdapter(ev.state).type);
+  });
+
+  const handleReconfigureEditor = useEvent(() => {
+    invariant(editorViewRef.current !== null, "Editor view is not initialized");
+    editorViewRef.current.dispatch({
+      effects: [
+        StateEffect.reconfigure.of([extensions]),
+        reconfigureLanguageEffect(
           editorViewRef.current,
-          getInitialLanguageAdapter(editorViewRef.current.state).type,
-        );
+          userConfig.completion,
+          new OverridingHotkeyProvider(userConfig.keymap.overrides ?? {}),
+        ),
+      ],
+    });
+  });
+
+  const handleDeserializeEditor = useEvent(() => {
+    invariant(serializedEditorState, "Editor view is not initialized");
+    const ev = new EditorView({
+      state: EditorState.fromJSON(
+        serializedEditorState,
+        {
+          doc: code,
+          extensions: extensions,
+        },
+        { history: historyField },
+      ),
+    });
+    // Initialize the language adapter
+    switchLanguage(ev, getInitialLanguageAdapter(ev.state).type);
+    setEditorView(ev);
+    // Clear the serialized state so that we don't re-create the editor next time
+    clearSerializedEditorState({ cellId });
+  });
+
+  useEffect(() => {
+    if (serializedEditorState === null) {
+      if (editorViewRef.current === null) {
+        handleInitializeEditor();
       } else {
-        editorViewRef.current.dispatch({
-          effects: [
-            StateEffect.reconfigure.of([extensions]),
-            reconfigureLanguageEffect(
-              editorViewRef.current,
-              userConfig.completion,
-              new OverridingHotkeyProvider(userConfig.keymap.overrides ?? {}),
-            ),
-          ],
-        });
-        shouldFocus = false;
+        // If the editor already exists, reconfigure it with the new extensions.
+        handleReconfigureEditor();
       }
     } else {
-      editorViewRef.current = new EditorView({
-        state: EditorState.fromJSON(
-          serializedEditorState,
-          {
-            doc: code,
-            extensions: extensions,
-          },
-          { history: historyField },
-        ),
-      });
-      // Initialize the language adapter
-      switchLanguage(
-        editorViewRef.current,
-        getInitialLanguageAdapter(editorViewRef.current.state).type,
-      );
-      shouldFocus = true;
-      // Clear the serialized state so that we don't re-create the editor next time
-      clearSerializedEditorState({ cellId });
+      handleDeserializeEditor();
     }
 
     if (
       editorViewRef.current !== null &&
+      editorViewParentRef &&
       editorViewParentRef.current !== null
     ) {
       // Always replace the children in case the editor view was re-created.
       editorViewParentRef.current.replaceChildren(editorViewRef.current.dom);
     }
+  }, [
+    handleInitializeEditor,
+    handleReconfigureEditor,
+    handleDeserializeEditor,
+    editorViewRef,
+    editorViewParentRef,
+    serializedEditorState,
+    // Props to trigger reconfiguration
+    extensions,
+  ]);
 
+  // Auto-focus. Should focus newly created editors.
+  const shouldFocus =
+    editorViewRef.current === null || serializedEditorState !== null;
+  useEffect(() => {
     if (shouldFocus && allowFocus) {
       // Focus and scroll into view; request an animation frame to
       // avoid a race condition when new editors are created
@@ -316,52 +338,15 @@ const CellEditorInternal = ({
         });
       });
     }
-
-    // We don't want to re-run this effect when `allowFocus` or `code` changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    editorViewRef,
-    extensions,
-    userConfig.completion,
-    userConfig.keymap,
-    clearSerializedEditorState,
-    cellId,
-    serializedEditorState,
-  ]);
+  }, [shouldFocus, allowFocus, editorViewRef]);
 
   // Destroy the editor when the component is unmounted
   useEffect(() => {
+    const ev = editorViewRef.current;
     return () => {
-      editorViewRef.current?.destroy();
+      ev?.destroy();
     };
   }, [editorViewRef]);
-
-  const temporarilyShowCode = useCallback(async () => {
-    if (hidden && setTemporarilyVisible !== undefined) {
-      setTemporarilyVisible(true);
-      editorViewRef.current?.focus();
-      // Reach one parent up
-      const parent = editorViewParentRef.current?.parentElement;
-      const abortController = new AbortController();
-      parent?.addEventListener(
-        "focusout",
-        () => {
-          requestAnimationFrame(() => {
-            // Skip closing if the focus is still in the parent element
-            const focusedElement = document.activeElement;
-            if (parent?.contains(focusedElement)) {
-              return;
-            }
-            // Hide the code editor
-            setTemporarilyVisible(false);
-            editorViewRef.current?.dom.blur();
-            abortController.abort();
-          });
-        },
-        { signal: abortController.signal },
-      );
-    }
-  }, [hidden, setTemporarilyVisible, editorViewRef, editorViewParentRef]);
 
   return (
     <AiCompletionEditor
@@ -369,11 +354,11 @@ const CellEditorInternal = ({
       initialPrompt={aiCompletionCell?.initialPrompt}
       currentCode={editorViewRef.current?.state.doc.toString() ?? code}
       currentLanguageAdapter={languageAdapter}
-      declineChange={() => {
+      declineChange={useEvent(() => {
         setAiCompletionCell(null);
         editorViewRef.current?.focus();
-      }}
-      onChange={(newCode) => {
+      })}
+      onChange={useEvent((newCode) => {
         editorViewRef.current?.dispatch({
           changes: {
             from: 0,
@@ -381,8 +366,8 @@ const CellEditorInternal = ({
             insert: newCode,
           },
         });
-      }}
-      acceptChange={(newCode) => {
+      })}
+      acceptChange={useEvent((newCode) => {
         editorViewRef.current?.dispatch({
           changes: {
             from: 0,
@@ -392,15 +377,26 @@ const CellEditorInternal = ({
         });
         editorViewRef.current?.focus();
         setAiCompletionCell(null);
-      }}
+      })}
     >
       <div
         className="relative w-full"
         onFocus={() => setLastFocusedCellId(cellId)}
       >
-        {hidden && <HideCodeButton onClick={temporarilyShowCode} />}
+        {/* Completely hide the editor and icons when markdown is hidden. If just hidden, display. */}
+        {!isMarkdown && hidden && (
+          <HideCodeButton
+            tooltip="Edit code"
+            className="absolute inset-0 z-10"
+            onClick={temporarilyShowCode}
+          />
+        )}
         <CellCodeMirrorEditor
-          className={cn(hidden && "opacity-20 h-8 overflow-hidden")}
+          className={cn(
+            isMarkdown && hidden
+              ? "h-0 overflow-hidden"
+              : hidden && "opacity-20 h-8 overflow-hidden",
+          )}
           editorView={editorViewRef.current}
           ref={editorViewParentRef}
         />
@@ -425,7 +421,7 @@ const CellCodeMirrorEditor = React.forwardRef(
       className?: string;
       editorView: EditorView | null;
     },
-    ref: React.Ref<HTMLDivElement>,
+    ref?: React.Ref<HTMLDivElement>,
   ) => {
     const { className, editorView } = props;
     const internalRef = useRef<HTMLDivElement>(null);
@@ -447,7 +443,13 @@ const CellCodeMirrorEditor = React.forwardRef(
     return (
       <div
         className={cn("cm", className)}
-        ref={mergeRefs(ref, internalRef)}
+        ref={(r) => {
+          if (ref) {
+            mergeRefs(ref, internalRef)(r);
+          } else {
+            mergeRefs(internalRef)(r);
+          }
+        }}
         data-testid="cell-editor"
       />
     );

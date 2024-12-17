@@ -1,4 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+"use no memo";
 
 import type { DataType } from "@/core/kernel/messages";
 import type { ConditionType } from "@/plugins/impl/data-frames/schema";
@@ -9,7 +10,6 @@ import type { RowData } from "@tanstack/react-table";
 declare module "@tanstack/react-table" {
   //allows us to define custom properties for our columns
   interface ColumnMeta<TData extends RowData, TValue> {
-    type?: "primitive" | "mime";
     rowHeader?: boolean;
     dtype?: string;
     dataType?: DataType;

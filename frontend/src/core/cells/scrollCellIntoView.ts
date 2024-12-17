@@ -31,7 +31,9 @@ export function focusAndScrollCellIntoView({
 
   // If the cell's code is hidden, just focus the cell and not the editor.
   if (config.hide_code) {
-    element.focus();
+    // Focus the parent element, as this is the one with the event handlers.
+    // https://github.com/marimo-team/marimo/issues/2940
+    element.parentElement?.focus();
   } else {
     const editor = cell.current?.editorView;
     if (!editor) {

@@ -370,8 +370,6 @@ def test_print_code_result_matches_actual_transform_pandas(
         loc = {"pd": pd, "my_df": my_df.copy()}
         exec(pandas_code, {}, loc)
         code_result = loc.get("my_df_next")
-        print("---")
-        print(pandas_code)
     except Exception as code_error:
         code_result = code_error
 
@@ -384,8 +382,6 @@ def test_print_code_result_matches_actual_transform_pandas(
     except Exception as real_error:
         real_result = real_error
 
-    print("code_result", code_result)
-    print("real_result", real_result)
     if isinstance(code_result, Exception) or isinstance(
         real_result, Exception
     ):
@@ -475,8 +471,6 @@ def test_print_code_result_matches_actual_transform_polars(
     polars_code = python_print_transforms(
         "my_df", my_df.columns, transformations.transforms, python_print_polars
     )
-    print("---")
-    print(polars_code)
     assert polars_code
 
     try:

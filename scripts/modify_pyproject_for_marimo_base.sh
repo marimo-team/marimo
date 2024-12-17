@@ -10,5 +10,6 @@
 # Mac has a different syntax for sed -i, this works across oses
 sed -i.bak -e 's/name = "marimo"/name = "marimo-base"/g' pyproject.toml
 # Replace static artifacts with just index.html
+# TODO: this should be a more robust by handling new lines
 sed -i.bak 's/artifacts = \[.*\]/artifacts = ["marimo\/_static\/index.html"]/' pyproject.toml
 rm -rf pyproject.toml.bak

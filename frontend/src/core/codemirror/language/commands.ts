@@ -29,6 +29,11 @@ export function canToggleToLanguage(
     return false;
   }
 
+  // If there is no code, we can always toggle to any language
+  if (editorView.state.doc.toString().trim() === "") {
+    return true;
+  }
+
   return LanguageAdapters[language]().isSupported(
     getEditorCodeAsPython(editorView),
   );

@@ -1,7 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import {
-  DialogFooter,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -9,8 +8,6 @@ import {
 } from "@/components/ui/dialog";
 import { Slot } from "@radix-ui/react-slot";
 import React, { type PropsWithChildren } from "react";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import { Constants } from "@/core/constants";
 
@@ -22,14 +19,6 @@ export const FeedbackButton: React.FC<PropsWithChildren> = ({ children }) => {
       {children}
     </Slot>
   );
-};
-
-const EmojiToRating: Record<string, number> = {
-  "😡": 1,
-  "🙁": 2,
-  "😐": 3,
-  "🙂": 4,
-  "😍": 5,
 };
 
 const FeedbackModal: React.FC<{
@@ -66,71 +55,52 @@ const FeedbackModal: React.FC<{
         <DialogHeader>
           <DialogTitle>Send Feedback</DialogTitle>
           <DialogDescription>
-            Let us know what you think about marimo! If you have a bug that you
-            would like to report, please use the{" "}
-            <a
-              href={Constants.issuesPage}
-              target="_blank"
-              rel="noreferrer"
-              className="underline"
-            >
-              GitHub issue tracker
-            </a>
-            .
-          </DialogDescription>
-          <DialogDescription>
-            Your feedback is anonymous and will help us improve marimo. Thank
-            you!
+            <p className="my-2 prose dark:prose-invert">
+              We want to hear from you — from minor bug reports to wishlist
+              features and everything in between. Here are some ways you can get
+              in touch:
+            </p>
+            <ul className="list-disc ml-8 my-2 prose dark:prose-invert">
+              <li className="my-0">
+                Take our{" "}
+                <a
+                  href={Constants.feedbackForm}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline"
+                >
+                  two-minute survey.
+                </a>
+              </li>
+              <li className="my-0">
+                File a{" "}
+                <a
+                  href={Constants.issuesPage}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline"
+                >
+                  GitHub issue.
+                </a>
+              </li>
+              <li className="my-0">
+                Chat with us on{" "}
+                <a
+                  href={Constants.discordLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline"
+                >
+                  Discord.
+                </a>
+              </li>
+            </ul>
+            <p className="my-2 prose dark:prose-invert">
+              We're excited you're here as we build the future of Python data
+              tooling. Thanks for being part of our community!
+            </p>
           </DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col gap-6 py-4">
-          <div className="flex gap-5 justify-center">
-            {Object.entries(EmojiToRating).map(([emoji, rating]) => (
-              <label
-                key={emoji}
-                className="flex flex-col items-center select-none"
-              >
-                <input
-                  key={emoji}
-                  type="radio"
-                  className="peer hidden"
-                  name="rating"
-                  value={rating}
-                  aria-label={emoji}
-                />
-                <span className="text-4xl peer-checked:opacity-100 opacity-40 cursor-pointer">
-                  {emoji}
-                </span>
-              </label>
-            ))}
-          </div>
-          <Textarea
-            id="message"
-            name="message"
-            autoFocus={true}
-            placeholder="Your feedback; if you'd like us to respond, please include your email!"
-            rows={5}
-            required={true}
-            autoComplete="off"
-          />
-        </div>
-        <DialogFooter>
-          <Button
-            data-testid="feedback-cancel-button"
-            variant="secondary"
-            onClick={onClose}
-          >
-            Cancel
-          </Button>
-          <Button
-            data-testid="feedback-send-button"
-            aria-label="Save"
-            variant="default"
-            type="submit"
-          >
-            Send
-          </Button>
-        </DialogFooter>
       </form>
     </DialogContent>
   );

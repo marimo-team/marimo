@@ -106,6 +106,8 @@ def _pyproject_toml_to_requirements_txt(
 
 
 def get_dependencies_from_filename(name: str) -> List[str]:
+    if not name or not os.path.exists(name):
+        return []
     try:
         contents, _ = FileContentReader().read_file(name)
         return _get_dependencies(contents) or []
@@ -135,8 +137,26 @@ def _read_pyproject(script: str) -> Dict[str, Any] | None:
         )
         import tomlkit
 
-        return tomlkit.parse(content)
+        pyproject = tomlkit.parse(content)
+
+        return pyproject
     else:
+        return None
+
+
+def _get_python_version_requirement(pyproject: Dict[str, Any]) -> str | None:
+    """Extract Python version requirement from pyproject metadata."""
+    if pyproject is None:
+        return None
+
+    try:
+        version = pyproject.get("requires-python")
+        # Only return string version requirements
+        if not isinstance(version, str):
+            return None
+        return version
+    except Exception as e:
+        LOGGER.warning(f"Failed to parse Python version requirement: {e}")
         return None
 
 
@@ -156,12 +176,16 @@ def prompt_run_in_sandbox(name: str | None) -> bool:
         if GLOBAL_SETTINGS.YES:
             return True
 
+        # Check if not in an interactive terminal (i.e. Docker)
+        # default to False
+        if not sys.stdin.isatty():
+            return False
+
         return click.confirm(
             "This notebook has inlined package dependencies.\n"
             + green(
                 "Run in a sandboxed venv containing this notebook's "
-                "dependencies?",
-                bold=True,
+                "dependencies?"
             ),
             default=True,
         )
@@ -216,7 +240,20 @@ def run_in_sandbox(
     # Clean up the temporary file after the subprocess has run
     atexit.register(lambda: os.unlink(temp_file_path))
 
-    cmd = [
+    # Get Python version requirement if available
+    if name is not None and os.path.exists(name):
+        contents, _ = FileContentReader().read_file(name)
+        pyproject = _read_pyproject(contents)
+        python_version = (
+            _get_python_version_requirement(pyproject)
+            if pyproject is not None
+            else None
+        )
+    else:
+        python_version = None
+
+    # Construct base UV command
+    uv_cmd = [
         "uv",
         "run",
         "--isolated",
@@ -225,14 +262,21 @@ def run_in_sandbox(
         "--no-project",
         "--with-requirements",
         temp_file_path,
-    ] + cmd
+    ]
 
-    echo(f"Running in a sandbox: {muted(' '.join(cmd))}")
+    # Add Python version if specified
+    if python_version:
+        uv_cmd.extend(["--python", python_version])
+
+    # Final command assembly
+    uv_cmd = uv_cmd + cmd
+
+    echo(f"Running in a sandbox: {muted(' '.join(uv_cmd))}")
 
     env = os.environ.copy()
     env["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
 
-    process = subprocess.Popen(cmd, env=env)
+    process = subprocess.Popen(uv_cmd, env=env)
 
     def handler(sig: int, frame: Any) -> None:
         del sig

@@ -2,7 +2,10 @@
 import { memo, useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { DataTable } from "../../components/data-table/data-table";
-import { generateColumns } from "../../components/data-table/columns";
+import {
+  generateColumns,
+  inferFieldTypes,
+} from "../../components/data-table/columns";
 import { Labeled } from "./common/labeled";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { rpc } from "../core/rpc";
@@ -14,9 +17,10 @@ import { ColumnChartSpecModel } from "@/components/data-table/chart-spec-model";
 import { ColumnChartContext } from "@/components/data-table/column-summary";
 import { Logger } from "@/utils/Logger";
 
-import type {
-  ColumnHeaderSummary,
-  FieldTypesWithExternalType,
+import {
+  toFieldTypes,
+  type ColumnHeaderSummary,
+  type FieldTypesWithExternalType,
 } from "@/components/data-table/types";
 import type {
   ColumnFiltersState,
@@ -32,7 +36,6 @@ import {
   type ColumnFilterValue,
   filterToFilterCondition,
 } from "@/components/data-table/filters";
-import { Objects } from "@/utils/objects";
 import React from "react";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { Arrays } from "@/utils/arrays";
@@ -41,6 +44,7 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { DATA_TYPES } from "@/core/kernel/messages";
+import { useEffectSkipFirstRender } from "../../hooks/useEffectSkipFirstRender";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -72,6 +76,7 @@ interface Data<T> {
   freezeColumnsRight?: string[];
   textJustifyColumns?: Record<string, "left" | "center" | "right">;
   wrappedColumns?: string[];
+  totalColumns: number;
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -115,7 +120,15 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         .record(z.enum(["left", "center", "right"]))
         .optional(),
       wrappedColumns: z.array(z.string()).optional(),
-      fieldTypes: z.record(z.tuple([z.enum(DATA_TYPES), z.string()])).nullish(),
+      fieldTypes: z
+        .array(
+          z.tuple([
+            z.coerce.string(),
+            z.tuple([z.enum(DATA_TYPES), z.string()]),
+          ]),
+        )
+        .nullish(),
+      totalColumns: z.number(),
     }),
   )
   .withFunctions<Functions>({
@@ -207,6 +220,7 @@ export const LoadingDataTableComponent = memo(
     props: Omit<DataTableProps<T>, "sorting"> & { data: TableData<T> },
   ) => {
     const search = props.search;
+    const setValue = props.setValue;
     // Sorting/searching state
     const [sorting, setSorting] = useState<SortingState>([]);
     const [paginationState, setPaginationState] =
@@ -219,12 +233,11 @@ export const LoadingDataTableComponent = memo(
 
     // We need to clear the selection when sort, query, or filters change
     // Currently, our selection is index-based,
-    // so we can't rely on the data to be the same
+    // so we can't rely on the data to be the same when these change
     // We can remove this when we have a stable key for each row
-    useEffect(() => {
-      props.setValue([]);
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [props.setValue, filters, searchQuery, sorting]);
+    useEffectSkipFirstRender(() => {
+      setValue([]);
+    }, [setValue, filters, searchQuery, sorting]);
 
     // If pageSize changes, reset pagination state
     useEffect(() => {
@@ -235,11 +248,6 @@ export const LoadingDataTableComponent = memo(
         });
       }
     }, [props.pageSize, paginationState.pageSize]);
-
-    // If total rows change, reset pageIndex
-    useEffect(() => {
-      setPaginationState((state) => ({ ...state, pageIndex: 0 }));
-    }, [props.totalRows]);
 
     // Data loading
     const { data, loading, error } = useAsyncData<{
@@ -306,10 +314,7 @@ export const LoadingDataTableComponent = memo(
         };
       }
 
-      const withoutExternalTypes = Objects.mapValues(
-        props.fieldTypes ?? {},
-        ([type]) => type,
-      );
+      const withoutExternalTypes = toFieldTypes(props.fieldTypes ?? []);
 
       // Otherwise, load the data from the URL
       tableData = await vegaLoadData(
@@ -327,11 +332,18 @@ export const LoadingDataTableComponent = memo(
       search,
       filters,
       searchQuery,
-      props.fieldTypes,
+      useDeepCompareMemoize(props.fieldTypes),
       props.data,
       paginationState.pageSize,
       paginationState.pageIndex,
     ]);
+
+    // If total rows change, reset pageIndex
+    useEffect(() => {
+      setPaginationState((state) =>
+        state.pageIndex === 0 ? state : { ...state, pageIndex: 0 },
+      );
+    }, [data?.totalRows]);
 
     // Column summaries
     const { data: columnSummaries, error: columnSummariesError } = useAsyncData<
@@ -436,6 +448,7 @@ const DataTableComponent = ({
   freezeColumnsRight,
   textJustifyColumns,
   wrappedColumns,
+  totalColumns,
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
@@ -448,10 +461,7 @@ const DataTableComponent = ({
     if (!fieldTypes || !columnSummaries.summaries) {
       return ColumnChartSpecModel.EMPTY;
     }
-    const fieldTypesWithoutExternalTypes = Objects.mapValues(
-      fieldTypes,
-      ([type]) => type,
-    );
+    const fieldTypesWithoutExternalTypes = toFieldTypes(fieldTypes);
     return new ColumnChartSpecModel(
       columnSummaries.data || [],
       fieldTypesWithoutExternalTypes,
@@ -462,28 +472,30 @@ const DataTableComponent = ({
     );
   }, [fieldTypes, columnSummaries]);
 
+  const fieldTypesOrInferred = fieldTypes ?? inferFieldTypes(data);
+  const shownColumns = fieldTypesOrInferred.length;
+
   const columns = useMemo(
     () =>
       generateColumns({
-        items: data,
         rowHeaders: rowHeaders,
         selection,
-        fieldTypes: fieldTypes ?? {},
+        fieldTypes: fieldTypesOrInferred,
         textJustifyColumns,
         wrappedColumns,
+        // Only show data types if they are explicitly set
+        showDataTypes: Boolean(fieldTypes),
       }),
     /* eslint-disable react-hooks/exhaustive-deps */
     [
-      data,
       useDeepCompareMemoize([
         selection,
-        fieldTypes,
+        fieldTypesOrInferred,
         rowHeaders,
         textJustifyColumns,
         wrappedColumns,
       ]),
     ],
-    /* eslint-enable react-hooks/exhaustive-deps */
   );
 
   const rowSelection = useMemo(
@@ -513,6 +525,11 @@ const DataTableComponent = ({
           Result clipped. If no LIMIT is given, we only show the first 300 rows.
         </Banner>
       )}
+      {shownColumns < totalColumns && (
+        <Banner className="mb-2 rounded">
+          Result clipped. Showing {shownColumns} of {totalColumns} columns.
+        </Banner>
+      )}
       {columnSummaries?.is_disabled && (
         // Note: Keep the text in sync with the constant defined in table_manager.py
         //       This hard-code can be removed when Functions can pass structural
@@ -530,6 +547,7 @@ const DataTableComponent = ({
             className={className}
             sorting={sorting}
             totalRows={totalRows}
+            totalColumns={totalColumns}
             manualSorting={true}
             setSorting={setSorting}
             pagination={pagination}

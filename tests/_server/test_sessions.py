@@ -12,7 +12,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 from marimo._ast.app import App, InternalApp
-from marimo._config.manager import UserConfigManager
+from marimo._config.manager import get_default_config_manager
 from marimo._runtime.requests import (
     AppMetadata,
     CreationRequest,
@@ -74,8 +74,9 @@ def test_kernel_manager_run_mode() -> None:
         mode,
         {},
         app_metadata,
-        UserConfigManager(),
+        get_default_config_manager(current_path=None),
         virtual_files_supported=True,
+        redirect_console_to_browser=False,
     )
 
     kernel_manager.start_kernel()
@@ -106,8 +107,9 @@ def test_kernel_manager_edit_mode() -> None:
         mode,
         {},
         app_metadata,
-        UserConfigManager(),
+        get_default_config_manager(current_path=None),
         virtual_files_supported=True,
+        redirect_console_to_browser=False,
     )
 
     kernel_manager.start_kernel()
@@ -137,8 +139,9 @@ def test_kernel_manager_interrupt(tmp_path) -> None:
         mode,
         {},
         app_metadata,
-        UserConfigManager(),
+        get_default_config_manager(current_path=None),
         virtual_files_supported=True,
+        redirect_console_to_browser=False,
     )
 
     # Assert startup
@@ -183,6 +186,7 @@ def test_kernel_manager_interrupt(tmp_path) -> None:
             set_ui_element_value_request=SetUIElementValueRequest(
                 object_ids=[], values=[]
             ),
+            auto_run=True,
         )
     )
 
@@ -221,8 +225,9 @@ def test_session() -> None:
         SessionMode.RUN,
         {},
         app_metadata,
-        UserConfigManager(),
+        get_default_config_manager(current_path=None),
         virtual_files_supported=True,
+        redirect_console_to_browser=False,
     )
 
     # Instantiate a Session
@@ -265,8 +270,9 @@ def test_session_disconnect_reconnect() -> None:
         SessionMode.RUN,
         {},
         AppMetadata(query_params={}, cli_args={}),
-        UserConfigManager(),
+        get_default_config_manager(current_path=None),
         virtual_files_supported=True,
+        redirect_console_to_browser=False,
     )
 
     # Instantiate a Session
@@ -320,8 +326,9 @@ def test_session_with_kiosk_consumers() -> None:
         SessionMode.RUN,
         {},
         app_metadata,
-        UserConfigManager(),
+        get_default_config_manager(current_path=None),
         virtual_files_supported=True,
+        redirect_console_to_browser=False,
     )
 
     # Instantiate a Session

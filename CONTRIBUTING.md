@@ -16,7 +16,7 @@ Before sending a pull request, make sure to do the following:
 _Please reach out to the marimo team before starting work on a large
 contribution._ Get in touch at
 [GitHub issues](https://github.com/marimo-team/marimo/issues)
-or [on Discord](https://discord.gg/JE7nhX6mD8).
+or [on Discord](https://marimo.io/discord?ref=contributing).
 
 ## Prerequisites
 
@@ -138,6 +138,7 @@ Using Hatch:
 
 ```bash
 hatch run lint
+hatch run format
 hatch run typecheck:check
 ```
 
@@ -212,6 +213,8 @@ dependencies; follow those instructions.)
 
 For best practices on writing end-to-end tests, check out the [Best Practices
 doc](https://playwright.dev/docs/best-practices).
+
+For frontend tests, you want to build the frontend first with `make fe` so that Playwright works on your latest changes.
 
 **Run end-to-end tests.**
 

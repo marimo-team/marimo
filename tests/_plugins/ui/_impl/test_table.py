@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._output.data.data import from_data_uri
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.dataframes.transforms.types import Condition
 from marimo._plugins.ui._impl.table import SearchTableArgs, SortArgs
@@ -14,6 +15,7 @@ from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
 from marimo._plugins.ui._impl.utils.dataframe import TableData
 from marimo._runtime.functions import EmptyArgs
 from marimo._runtime.runtime import Kernel
+from tests._data.mocks import create_dataframes
 
 
 @pytest.fixture
@@ -211,24 +213,18 @@ def test_sort_dict_of_tuples(dtm: DefaultTableManager) -> None:
 
 def test_value() -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
-    data = _normalize_data(data)
     table = ui.table(data)
     assert list(table.value) == []
 
 
 def test_value_with_selection() -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
-    data = _normalize_data(data)
     table = ui.table(data)
-    assert list(table._convert_value(["0", "2"])) == [
-        {"value": "banana"},
-        {"value": "cherry"},
-    ]
+    assert list(table._convert_value(["0", "2"])) == ["banana", "cherry"]
 
 
 def test_value_with_sorting_then_selection() -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
-    data = _normalize_data(data)
     table = ui.table(data)
 
     table.search(
@@ -257,9 +253,41 @@ def test_value_with_sorting_then_selection() -> None:
     ]
 
 
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"a": ["x", "z", "y"]}, exclude=["ibis", "duckdb", "pyarrow"]
+    ),
+)
+def test_value_with_sorting_then_selection_dfs(df: Any) -> None:
+    import narwhals as nw
+
+    table = ui.table(df)
+    table.search(
+        SearchTableArgs(
+            sort=SortArgs("a", descending=True),
+            page_size=10,
+            page_number=0,
+        )
+    )
+    value = table._convert_value(["0"])
+    assert not isinstance(value, nw.DataFrame)
+    assert nw.from_native(value)["a"][0] == "z"
+
+    table.search(
+        SearchTableArgs(
+            sort=SortArgs("a", descending=False),
+            page_size=10,
+            page_number=0,
+        )
+    )
+    value = table._convert_value(["0"])
+    assert not isinstance(value, nw.DataFrame)
+    assert nw.from_native(value)["a"][0] == "x"
+
+
 def test_value_with_search_then_selection() -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
-    data = _normalize_data(data)
     table = ui.table(data)
 
     table.search(
@@ -291,7 +319,67 @@ def test_value_with_search_then_selection() -> None:
             page_number=0,
         )
     )
-    assert list(table._convert_value(["2"])) == [{"value": "cherry"}]
+    assert list(table._convert_value(["2"])) == ["cherry"]
+
+
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"a": ["foo", "bar", "baz"]}, exclude=["ibis", "duckdb", "pyarrow"]
+    ),
+)
+def test_value_with_search_then_selection_dfs(df: Any) -> None:
+    import narwhals as nw
+
+    table = ui.table(df)
+    table.search(
+        SearchTableArgs(
+            query="bar",
+            page_size=10,
+            page_number=0,
+        )
+    )
+    value = table._convert_value(["0"])
+    assert not isinstance(value, nw.DataFrame)
+    assert nw.from_native(value)["a"][0] == "bar"
+
+    table.search(
+        SearchTableArgs(
+            query="foo",
+            page_size=10,
+            page_number=0,
+        )
+    )
+    value = table._convert_value(["0"])
+    assert not isinstance(value, nw.DataFrame)
+    assert nw.from_native(value)["a"][0] == "foo"
+
+    # empty search
+    table.search(
+        SearchTableArgs(
+            page_size=10,
+            page_number=0,
+        )
+    )
+    value = table._convert_value(["2"])
+    assert not isinstance(value, nw.DataFrame)
+    assert nw.from_native(value)["a"][0] == "baz"
+
+
+def test_search_sort_nonexistent_columns() -> None:
+    data = ["banana", "apple", "cherry", "date", "elderberry"]
+    table = ui.table(data)
+
+    # no error raised
+    table.search(
+        SearchTableArgs(
+            sort=SortArgs("missing_column", descending=False),
+            page_size=10,
+            page_number=0,
+        )
+    )
+
+    assert table._convert_value(["0"]) == ["banana"]
 
 
 def test_table_with_too_many_columns_passes() -> None:
@@ -335,6 +423,29 @@ def test_can_get_second_page_with_search() -> None:
     assert len(result.data) == 5
     assert result.data[0]["a"] == 23
     assert result.data[-1]["a"] == 27
+
+
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes({"a": list(range(40))}, ["ibis"]),
+)
+def test_can_get_second_page_with_search_df(df: Any) -> None:
+    import polars as pl
+
+    table = ui.table(df)
+    result = table.search(
+        SearchTableArgs(
+            query="2",
+            page_size=5,
+            page_number=1,
+        )
+    )
+    mime_type, data = from_data_uri(result.data)
+    assert mime_type == "text/csv"
+    data = pl.read_csv(data)
+    assert len(data) == 5
+    assert int(data["a"][0]) == 23
+    assert int(data["a"][-1]) == 27
 
 
 def test_with_no_pagination() -> None:
@@ -573,3 +684,205 @@ def test_show_download():
 
     table_false = ui.table(data, show_download=False)
     assert table_false._component_args["show-download"] is False
+
+
+def test_pagination_behavior() -> None:
+    # Test with default page_size=10
+    data = {"a": list(range(8))}
+    table = ui.table(data)
+    assert table._component_args["pagination"] is False
+    assert table._component_args["page-size"] == 10
+    assert len(table._component_args["data"]) == 8
+
+    # Test with custom page_size=5 and data <= page_size
+    data = {"a": list(range(5))}
+    table = ui.table(data, page_size=5)
+    assert table._component_args["pagination"] is False
+    assert table._component_args["page-size"] == 5
+    assert len(table._component_args["data"]) == 5
+
+    # Test with custom page_size=5 and data > page_size
+    data = {"a": list(range(8))}
+    table = ui.table(data, page_size=5)
+    assert table._component_args["pagination"] is True
+    assert table._component_args["page-size"] == 5
+    assert len(table._component_args["data"]) == 5
+
+    # Test with explicit pagination=True
+    data = {"a": list(range(5))}
+    table = ui.table(data, pagination=True, page_size=5)
+    assert table._component_args["pagination"] is True
+    assert table._component_args["page-size"] == 5
+    assert len(table._component_args["data"]) == 5
+
+
+def test_column_clamping():
+    # Create data with many columns
+    data = {f"col{i}": [1, 2, 3] for i in range(100)}
+
+    # Test default max_columns
+    table = ui.table(data)
+    assert len(table._manager.get_column_names()) == 100
+    assert table._component_args["total-columns"] == 100
+    assert len(table._component_args["data"][0].keys()) == 50
+    assert table._component_args["field-types"] is None
+
+    # Test custom max_columns
+    table = ui.table(data, max_columns=20)
+    assert len(table._manager.get_column_names()) == 100
+    assert table._component_args["total-columns"] == 100
+    assert len(table._component_args["data"][0].keys()) == 20
+    assert table._component_args["field-types"] is None
+
+    # Test no clamping
+    table = ui.table(data, max_columns=None)
+    assert len(table._manager.get_column_names()) == 100
+    assert table._component_args["total-columns"] == 100
+    assert len(table._component_args["data"][0].keys()) == 100
+    assert table._component_args["field-types"] is None
+
+
+def test_column_clamping_with_small_data():
+    data = {f"col{i}": [1, 2, 3] for i in range(10)}
+
+    # Should not clamp when under max_columns
+    table = ui.table(data)
+    assert len(table._manager.get_column_names()) == 10
+    assert table._component_args["total-columns"] == 10
+    assert len(table._component_args["data"][0].keys()) == 10
+    assert table._component_args["field-types"] is None
+
+
+def test_search_clamping_columns():
+    data = {f"col{i}": [1, 2, 3] for i in range(100)}
+    table = ui.table(data, max_columns=20)
+
+    # Perform a search
+    search_args = SearchTableArgs(page_size=10, page_number=0, query="1")
+    response = table.search(search_args)
+
+    # Check that the search result is clamped
+    assert len(response.data[0].keys()) == 20
+
+    # Check that selection is not clamped
+    table._selected_manager = table._searched_manager.select_rows([0])
+    selected_data = table._selected_manager.data
+    assert len(selected_data) == 100
+
+
+def test_search_no_clamping_columns():
+    data = {f"col{i}": [1, 2, 3] for i in range(100)}
+    table = ui.table(data, max_columns=None)
+
+    # Perform a search
+    search_args = SearchTableArgs(page_size=10, page_number=0, query="1")
+    response = table.search(search_args)
+
+    # Check that the search result is not clamped
+    assert len(response.data[0].keys()) == 100
+
+    # Check that selection is not clamped
+    table._selected_manager = table._searched_manager.select_rows([0])
+    selected_data = table._selected_manager.data
+    assert len(selected_data) == 100
+
+
+def test_column_clamping_with_exact_max_columns():
+    data = {f"col{i}": [1, 2, 3] for i in range(50)}
+    table = ui.table(data, max_columns=50)
+
+    # Check that the table is not clamped
+    assert len(table._manager.get_column_names()) == 50
+    assert table._component_args["total-columns"] == 50
+    assert len(table._component_args["data"][0].keys()) == 50
+    assert table._component_args["field-types"] is None
+
+
+def test_column_clamping_with_more_than_max_columns():
+    data = {f"col{i}": [1, 2, 3] for i in range(60)}
+    table = ui.table(data, max_columns=50)
+
+    # Check that the table is clamped
+    assert len(table._manager.get_column_names()) == 60
+    assert table._component_args["total-columns"] == 60
+    assert len(table._component_args["data"][0].keys()) == 50
+    assert table._component_args["field-types"] is None
+
+
+def test_column_clamping_with_no_columns():
+    table = ui.table([], max_columns=50)
+
+    # Check that the table handles no columns gracefully
+    assert len(table._manager.get_column_names()) == 1
+    assert table._component_args["total-columns"] == 1
+    assert len(table._component_args["data"]) == 0
+    assert table._component_args["field-types"] is None
+
+
+def test_column_clamping_with_single_column():
+    data = {"col1": [1, 2, 3]}
+    table = ui.table(data, max_columns=50)
+
+    # Check that the table handles a single column gracefully
+    assert len(table._manager.get_column_names()) == 1
+    assert table._component_args["total-columns"] == 1
+    assert len(table._component_args["data"][0].keys()) == 1
+    assert table._component_args["field-types"] is None
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
+def test_column_clamping_with_polars():
+    import polars as pl
+
+    data = pl.DataFrame({f"col{i}": [1, 2, 3] for i in range(60)})
+    table = ui.table(data)
+
+    # Check that the table is clamped
+    assert len(table._manager.get_column_names()) == 60
+    assert table._component_args["total-columns"] == 60
+    csv = from_data_uri(table._component_args["data"])[1].decode("utf-8")
+    headers = csv.split("\n")[0].split(",")
+    assert len(headers) == 50  # 50 columns
+    assert len(table._component_args["field-types"]) == 50
+
+    table = ui.table(data, max_columns=40)
+
+    # Check that the table is clamped
+    assert len(table._manager.get_column_names()) == 60
+    assert table._component_args["total-columns"] == 60
+    csv = from_data_uri(table._component_args["data"])[1].decode("utf-8")
+    headers = csv.split("\n")[0].split(",")
+    assert len(headers) == 40  # 40 columns
+    assert len(table._component_args["field-types"]) == 40
+
+    table = ui.table(data, max_columns=None)
+
+    # Check that the table is not clamped
+    assert len(table._manager.get_column_names()) == 60
+    assert table._component_args["total-columns"] == 60
+    csv = from_data_uri(table._component_args["data"])[1].decode("utf-8")
+    headers = csv.split("\n")[0].split(",")
+    assert len(headers) == 60  # 60 columns
+    assert len(table._component_args["field-types"]) == 60
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(), reason="Pandas not installed"
+)
+def test_dataframe_with_int_column_names():
+    import warnings
+
+    import pandas as pd
+
+    data = pd.DataFrame([[1, 2, 3], [4, 5, 6]], columns=[0, 1, 2])
+    with warnings.catch_warnings(record=True) as w:
+        table = ui.table(data)
+        # Check that warnings were made
+        assert len(w) > 0
+        assert "DataFrame has integer column names" in str(w[0].message)
+
+    # Check that the table handles integer column names correctly
+    assert table._manager.get_column_names() == [0, 1, 2]
+    assert table._component_args["total-columns"] == 3

@@ -3,7 +3,7 @@
 import { repl } from "@/utils/repl";
 import type { UserConfig } from "vite";
 import { saveUserConfig } from "../network/requests";
-import { getUserConfig } from "./config";
+import { getResolvedMarimoConfig } from "./config";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface ExperimentalFeatures {
@@ -11,6 +11,7 @@ export interface ExperimentalFeatures {
   wasm_layouts: boolean;
   scratchpad: boolean;
   multi_column: boolean;
+  chat_sidebar: boolean;
   // Add new feature flags here
 }
 
@@ -19,14 +20,16 @@ const defaultValues: ExperimentalFeatures = {
   wasm_layouts: false,
   scratchpad: true,
   multi_column: import.meta.env.DEV,
+  chat_sidebar: import.meta.env.DEV,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(
   feature: T,
 ): ExperimentalFeatures[T] {
   return (
-    (getUserConfig().experimental?.[feature] as ExperimentalFeatures[T]) ??
-    defaultValues[feature]
+    (getResolvedMarimoConfig().experimental?.[
+      feature
+    ] as ExperimentalFeatures[T]) ?? defaultValues[feature]
   );
 }
 
@@ -34,7 +37,7 @@ function setFeatureFlag(
   feature: keyof UserConfig["experimental"],
   value: boolean,
 ) {
-  const userConfig = getUserConfig();
+  const userConfig = getResolvedMarimoConfig();
   userConfig.experimental = userConfig.experimental ?? {};
   userConfig.experimental[feature] = value;
   saveUserConfig({ config: userConfig });

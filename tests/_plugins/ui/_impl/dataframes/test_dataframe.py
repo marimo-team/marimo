@@ -294,3 +294,21 @@ def test_ibis_with_polars_backend() -> None:
     assert dataframe.get_dataframe(EmptyArgs()).total_rows == 3
     assert dataframe.get_dataframe(EmptyArgs()).sql_code is None
     ibis.set_backend(prev_backend)
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(), reason="Pandas not installed"
+)
+def test_dataframe_with_int_column_names():
+    import warnings
+
+    import pandas as pd
+
+    data = pd.DataFrame([[1, 2, 3], [4, 5, 6]], columns=[0, 1, 2])
+    with warnings.catch_warnings(record=True) as w:
+        dataframe = ui.dataframe(data)
+        # Check that warnings were made
+        assert len(w) > 0
+        assert "DataFrame has integer column names" in str(w[0].message)
+
+    assert dataframe.value is not None

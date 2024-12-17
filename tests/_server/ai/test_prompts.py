@@ -23,19 +23,43 @@ def test_system_prompts():
     result = ""
     for language in ("python", "markdown", "sql", "idk"):
         result += _header(language)
-        result += Prompter.get_system_prompt(cast(Language, language))
+        result += Prompter.get_system_prompt(language=cast(Language, language))
 
     result += _header("with custom rules")
     result += Prompter.get_system_prompt(
-        "python", custom_rules="Always use type hints."
+        language="python", custom_rules="Always use type hints."
+    )
+
+    result += _header("with context")
+    result += Prompter.get_system_prompt(
+        language="python",
+        context=AiCompletionContext(
+            schema=[
+                SchemaTable(
+                    name="df_1",
+                    columns=[
+                        SchemaColumn(
+                            "age", "int", sample_values=["1", "2", "3"]
+                        ),
+                        SchemaColumn(
+                            "name",
+                            "str",
+                            sample_values=["Alice", "Bob", "Charlie"],
+                        ),
+                    ],
+                )
+            ]
+        ),
     )
 
     snapshot("system_prompts.txt", result)
 
 
 def test_empty_rules():
-    assert Prompter.get_system_prompt("python") == Prompter.get_system_prompt(
-        "python",
+    assert Prompter.get_system_prompt(
+        language="python"
+    ) == Prompter.get_system_prompt(
+        language="python",
         custom_rules="  ",
     )
 
@@ -43,55 +67,111 @@ def test_empty_rules():
 def test_user_prompts():
     prompt = "Create a pandas dataframe"
 
-    result = ""
+    result: str = ""
     result += _header("no code")
-    result += Prompter(
-        code="", include_other_code="", context=AiCompletionContext()
-    ).get_prompt(prompt)
+    result += Prompter(code="").get_prompt(
+        user_prompt=prompt, include_other_code=""
+    )
 
     result += _header("with code")
     result += Prompter(
         code="df = pd.DataFrame({'a': [1, 2, 3], 'b': [4, 5, 6]})",
-        include_other_code="",
-        context=AiCompletionContext(),
-    ).get_prompt(prompt)
+    ).get_prompt(user_prompt=prompt, include_other_code="")
 
     result += _header("with code and other code")
     result += Prompter(
         code="df = pd.DataFrame({'a': [1, 2, 3], 'b': [4, 5, 6]})",
+    ).get_prompt(
+        user_prompt=prompt,
         include_other_code="import pandas as pd\nimport numpy as np\n",
-        context=AiCompletionContext(),
-    ).get_prompt(prompt)
+    )
 
     result += _header("with just other code")
     result += Prompter(
         code="",
+    ).get_prompt(
+        user_prompt=prompt,
         include_other_code="import pandas as pd\nimport numpy as np\n",
-        context=AiCompletionContext(),
-    ).get_prompt(prompt)
+    )
 
     result += _header("with context")
-    result += Prompter(
-        code="import pandas as pd",
-        include_other_code="import marimo as mo",
+    result += Prompter(code="import pandas as pd").get_prompt(
+        user_prompt=prompt, include_other_code="import marimo as mo"
+    )
+
+    snapshot("user_prompts.txt", result)
+
+
+def test_chat_system_prompts():
+    result: str = ""
+    result += _header("no custom rules")
+    result += Prompter.get_chat_system_prompt()
+
+    result += _header("with custom rules")
+    result += Prompter.get_chat_system_prompt(custom_rules="Always be polite.")
+
+    result += _header("with variables")
+    result += Prompter.get_chat_system_prompt(variables=["var1", "var2"])
+
+    result += _header("with context")
+    result += Prompter.get_chat_system_prompt(
         context=AiCompletionContext(
             schema=[
                 SchemaTable(
                     name="df_1",
                     columns=[
-                        SchemaColumn("age", "int"),
-                        SchemaColumn("name", "str"),
+                        SchemaColumn(
+                            "age", "int", sample_values=["1", "2", "3"]
+                        ),
+                        SchemaColumn(
+                            "name",
+                            "str",
+                            sample_values=["Alice", "Bob", "Charlie"],
+                        ),
                     ],
                 ),
                 SchemaTable(
                     name="d2_2",
                     columns=[
-                        SchemaColumn("a", "int"),
-                        SchemaColumn("b", "int"),
+                        SchemaColumn(
+                            "a", "int", sample_values=["1", "2", "3"]
+                        ),
+                        SchemaColumn(
+                            "b", "int", sample_values=["4", "5", "6"]
+                        ),
+                    ],
+                ),
+            ],
+        )
+    )
+
+    result += _header("with other code")
+    result += Prompter.get_chat_system_prompt(
+        include_other_code="import pandas as pd\nimport numpy as np\n"
+    )
+
+    result += _header("kitchen sink")
+    result += Prompter.get_chat_system_prompt(
+        custom_rules="Always be polite.",
+        variables=["var1", "var2"],
+        include_other_code="import pandas as pd\nimport numpy as np\n",
+        context=AiCompletionContext(
+            schema=[
+                SchemaTable(
+                    name="df_1",
+                    columns=[
+                        SchemaColumn(
+                            "age", "int", sample_values=["1", "2", "3"]
+                        ),
+                        SchemaColumn(
+                            "name",
+                            "str",
+                            sample_values=["Alice", "Bob", "Charlie"],
+                        ),
                     ],
                 ),
             ],
         ),
-    ).get_prompt(prompt)
+    )
 
-    snapshot("user_prompts.txt", result)
+    snapshot("chat_system_prompts.txt", result)

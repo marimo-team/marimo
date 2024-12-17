@@ -121,13 +121,13 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         assert not self.manager.is_type("not a table")
 
     def test_get_field_types(self) -> None:
-        expected_field_types = {
-            "A": ("integer", "int64"),
-            "B": ("string", "string"),
-            "C": ("number", "float64"),
-            "D": ("boolean", "boolean"),
-            "E": ("datetime", "timestamp"),
-        }
+        expected_field_types = [
+            ("A", ("integer", "int64")),
+            ("B", ("string", "string")),
+            ("C", ("number", "float64")),
+            ("D", ("boolean", "boolean")),
+            ("E", ("datetime", "timestamp")),
+        ]
         assert self.manager.get_field_types() == expected_field_types
 
     def test_limit(self) -> None:
@@ -136,6 +136,44 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         assert limited_manager.data.to_pandas().equals(
             expected_data.to_pandas()
         )
+
+    def test_take(self) -> None:
+        assert (
+            self.manager.take(1, 0).select_columns(["A"]).to_json()
+            == b'[{"A":1}]'
+        )
+        assert (
+            self.manager.take(2, 0).select_columns(["A"]).to_json()
+            == b'[{"A":1},{"A":2}]'
+        )
+        assert (
+            self.manager.take(2, 1).select_columns(["A"]).to_json()
+            == b'[{"A":2},{"A":3}]'
+        )
+        assert (
+            self.manager.take(2, 2).select_columns(["A"]).to_json()
+            == b'[{"A":3}]'
+        )
+
+    def test_take_zero(self) -> None:
+        limited_manager = self.manager.take(0, 0)
+        assert limited_manager.data.count().execute() == 0
+
+    def test_take_negative(self) -> None:
+        with pytest.raises(ValueError):
+            self.manager.take(-1, 0)
+
+    def test_take_negative_offset(self) -> None:
+        with pytest.raises(ValueError):
+            self.manager.take(1, -1)
+
+    def test_take_out_of_bounds(self) -> None:
+        # Too large of page
+        assert self.manager.take(10, 0).data.count().execute() == 3
+        assert self.data.count().execute() == 3
+
+        # Too large of page and offset
+        assert self.manager.take(10, 10).data.count().execute() == 0
 
     def test_summary_integer(self) -> None:
         column = "A"
@@ -169,6 +207,10 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         column = "A"
         unique_values = self.manager.get_unique_column_values(column)
         assert sorted(unique_values) == [1, 2, 3]
+
+    def test_get_sample_values(self) -> None:
+        sample_values = self.manager.get_sample_values("A")
+        assert sample_values == []
 
     def test_search(self) -> None:
         import ibis
@@ -235,8 +277,7 @@ class TestIbisTableManagerFactory(unittest.TestCase):
 
         table = ibis.memtable({"A": [1, "two", 3.0, True]})
         manager = self.factory.create()(table)
-        field_types = manager.get_field_types()
-        assert field_types["A"] == ("unknown", "unknown")
+        assert manager.get_field_type("A") == ("unknown", "unknown")
 
     def test_search_with_regex(self) -> None:
         import ibis

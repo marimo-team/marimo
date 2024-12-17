@@ -1,10 +1,10 @@
 # /// script
 # requires-python = ">=3.12"
 # dependencies = [
-#     "altair",
-#     "polars",
+#     "altair==5.5.0",
+#     "polars==1.17.1",
 #     "marimo",
-#     "quak",
+#     "quak==0.2.1",
 #     "pandas",
 # ]
 # ///

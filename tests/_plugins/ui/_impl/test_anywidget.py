@@ -1,6 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from hashlib import md5
+
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
@@ -181,6 +183,7 @@ x = as_marimo_element.count
             "buffer-paths": [],
             "css": "",
             "js-url": "",
+            "js-hash": md5(b"").hexdigest(),
         }
 
     @staticmethod
@@ -197,6 +200,7 @@ x = as_marimo_element.count
             "buffer-paths": [["arr", "bytes"]],
             "css": "",
             "js-url": "",
+            "js-hash": md5(b"").hexdigest(),
         }
 
     @staticmethod
@@ -308,3 +312,22 @@ x = as_marimo_element.count
 
         wrapped = anywidget(CSSWidget())
         assert wrapped._component_args["css"] == "button { color: red; }"
+
+    @staticmethod
+    async def test_js_hash() -> None:
+        class JSWidget(_anywidget.AnyWidget):
+            _esm = ""
+            value = traitlets.Int(0).tag(sync=True)
+
+        wrapped = anywidget(JSWidget())
+        assert wrapped._component_args["js-hash"] == md5(b"").hexdigest()
+
+        class JSWidget2(_anywidget.AnyWidget):
+            _esm = "function render({ model, el }) { el.innerHTML = 'hello'; }"
+            value = traitlets.Int(0).tag(sync=True)
+
+        wrapped2 = anywidget(JSWidget2())
+        assert (
+            wrapped2._component_args["js-hash"]
+            != wrapped._component_args["js-hash"]
+        )

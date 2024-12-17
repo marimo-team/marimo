@@ -8,6 +8,7 @@ from typing import Callable
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._server.utils import (
     TAB,
+    print_,
 )
 
 
@@ -66,7 +67,7 @@ class InterruptHandler:
                 self.shutdown()
                 return
         except (KeyboardInterrupt, EOFError, asyncio.CancelledError):
-            print()
+            print_()
             self.shutdown()
             return
 

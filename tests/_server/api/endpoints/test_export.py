@@ -4,7 +4,10 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
 
+import pytest
+
 from marimo import __version__
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.utils import uri_encode_component
 from tests._server.conftest import get_session_manager
 from tests._server.mocks import token_header, with_read_session, with_session
@@ -261,6 +264,43 @@ def test_auto_export_markdown(
 
     response = client.post(
         "/api/export/auto_export/markdown",
+        headers=HEADERS,
+        json={
+            "download": False,
+        },
+    )
+    # Not modified response
+    assert response.status_code == 304
+
+    # Assert __marimo__ file is created
+    assert os.path.exists(
+        os.path.join(os.path.dirname(temp_marimo_file), "__marimo__")
+    )
+
+
+@pytest.mark.skipif(
+    not DependencyManager.nbformat.has(), reason="nbformat not installed"
+)
+@with_session(SESSION_ID)
+def test_auto_export_ipynb(
+    client: TestClient, *, temp_marimo_file: str
+) -> None:
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.filename = temp_marimo_file
+
+    response = client.post(
+        "/api/export/auto_export/ipynb",
+        headers=HEADERS,
+        json={
+            "download": False,
+        },
+    )
+    assert response.status_code == 200
+    assert response.json() == {"success": True}
+
+    response = client.post(
+        "/api/export/auto_export/ipynb",
         headers=HEADERS,
         json={
             "download": False,

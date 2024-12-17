@@ -1,0 +1,48 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "Hbol",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "control_dep = None\n",
+    "mo.md(\"markdown\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "MJUe",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "control_dep\n",
+    "mo.md(f\"parameterized markdown {123}\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "vblA",
+   "metadata": {},
+   "source": [
+    "plain markdown"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "bkHC",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import marimo as mo"
+   ]
+  }
+ ],
+ "metadata": {},
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
+

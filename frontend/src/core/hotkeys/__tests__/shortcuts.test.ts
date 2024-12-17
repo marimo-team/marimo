@@ -27,6 +27,12 @@ describe("parseShortcut", () => {
     expect(shortcut(event)).toBe(true);
   });
 
+  it("should recognize Arrow key shortcuts", () => {
+    const shortcut = parseShortcut("ArrowRight");
+    const event = new KeyboardEvent("keydown", { key: "ArrowRight" });
+    expect(shortcut(event)).toBe(true);
+  });
+
   it("should recognize Space key shortcuts", () => {
     const shortcut = parseShortcut("Space");
     const event = new KeyboardEvent("keydown", { code: "Space" });
@@ -98,5 +104,43 @@ describe("parseShortcut", () => {
 
     expect(parseShortcut("Shift-Enter")(event)).toBe(false);
     expect(parseShortcut("Alt-Shift-Enter")(event)).toBe(true);
+  });
+
+  it("should not recognize shortcuts when one part is missing", () => {
+    const missingShift = new KeyboardEvent("keydown", {
+      key: "a",
+      ctrlKey: true,
+    });
+    const missingCtrl = new KeyboardEvent("keydown", {
+      key: "a",
+      shiftKey: true,
+    });
+    const missingSpecial = new KeyboardEvent("keydown", { key: "a" });
+    const missingLetter = new KeyboardEvent("keydown", {
+      ctrlKey: true,
+      shiftKey: true,
+    });
+    const correctEvent = new KeyboardEvent("keydown", {
+      key: "a",
+      ctrlKey: true,
+      shiftKey: true,
+    });
+
+    expect(parseShortcut("Ctrl-Shift-A")(missingShift)).toBe(false);
+    expect(parseShortcut("Ctrl-Shift-A")(missingCtrl)).toBe(false);
+    expect(parseShortcut("Ctrl-Shift-A")(missingSpecial)).toBe(false);
+    expect(parseShortcut("Ctrl-Shift-A")(missingLetter)).toBe(false);
+    expect(parseShortcut("Ctrl-Shift-A")(correctEvent)).toBe(true);
+  });
+
+  it("should recognize + as a separator", () => {
+    const event = new KeyboardEvent("keydown", {
+      key: "a",
+      ctrlKey: true,
+      shiftKey: true,
+    });
+
+    expect(parseShortcut("Ctrl+Shift+a")(event)).toBe(true);
+    expect(parseShortcut("Ctrl+A")(event)).toBe(false);
   });
 });

@@ -50,6 +50,16 @@ export const Objects = {
     return result;
   },
   /**
+   * Collect
+   */
+  collect<T, V, K extends string | number = string>(
+    items: T[],
+    key: (item: NoInfer<T>) => K,
+    mapper: (item: NoInfer<T>) => V,
+  ): Record<K, V> {
+    return Objects.mapValues(Objects.keyBy(items, key), mapper);
+  },
+  /**
    * Type-safe groupBy
    */
   groupBy<T, K extends string | number, V>(

@@ -4,7 +4,6 @@ import { createPlugin } from "../core/builder";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import type { DataEditorProps } from "./data-editor/data-editor";
 import { useAsyncData } from "@/hooks/useAsyncData";
-import { Objects } from "@/utils/objects";
 import { vegaLoadData } from "./vega/loader";
 import { getVegaFieldTypes } from "./vega/utils";
 import type { Setter } from "../types";
@@ -16,6 +15,7 @@ import "./data-editor/grid.css";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-quartz.css";
 import { DATA_TYPES } from "@/core/kernel/messages";
+import { toFieldTypes } from "@/components/data-table/types";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -47,7 +47,14 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor")
       data: z.union([z.string(), z.array(z.object({}).passthrough())]),
       pagination: z.boolean().default(false),
       pageSize: z.number().default(10),
-      fieldTypes: z.record(z.tuple([z.enum(DATA_TYPES), z.string()])).nullish(),
+      fieldTypes: z
+        .array(
+          z.tuple([
+            z.coerce.string(),
+            z.tuple([z.enum(DATA_TYPES), z.string()]),
+          ]),
+        )
+        .nullish(),
     }),
   )
   .withFunctions({})
@@ -81,11 +88,7 @@ const LoadingDataEditor = (props: Props) => {
       return props.data;
     }
 
-    const withoutExternalTypes = Objects.mapValues(
-      props.fieldTypes ?? {},
-      ([type]) => type,
-    );
-
+    const withoutExternalTypes = toFieldTypes(props.fieldTypes ?? []);
     // Otherwise, load the data from the URL
     return await vegaLoadData(
       props.data,

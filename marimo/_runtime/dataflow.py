@@ -489,18 +489,36 @@ def get_cycles(
 def topological_sort(
     graph: DirectedGraph, cell_ids: Collection[CellId_t]
 ) -> list[CellId_t]:
-    """Sort `cell_ids` in a topological order."""
+    """Sort `cell_ids` in a topological order using a heap queue.
+
+    When multiple cells have the same parents (including no parents), the tie is broken by
+    registration order - cells registered earlier are processed first.
+    """
+    from heapq import heappop, heappush
+
     parents, children = induced_subgraph(graph, cell_ids)
-    roots = [cid for cid in cell_ids if not parents[cid]]
-    sorted_cell_ids = []
-    while roots:
-        cid = roots.pop(0)
+    # Use registration order as tiebreaker
+    top_down_keys = {
+        key: index for index, key in enumerate(graph.cells.keys())
+    }
+
+    # Initialize heap with roots (nodes with no parents)
+    heap: list[tuple[int, CellId_t]] = []
+    for cid in cell_ids:
+        if not parents[cid]:
+            # Use tuple with registration order as first element for heap ordering
+            heappush(heap, (top_down_keys[cid], cid))
+
+    sorted_cell_ids: list[CellId_t] = []
+    while heap:
+        _, cid = heappop(heap)
         sorted_cell_ids.append(cid)
+
         for child in children[cid]:
             parents[child].remove(cid)
             if not parents[child]:
-                roots.append(child)
-    # TODO make sure parents for each id is empty, otherwise cycle
+                heappush(heap, (top_down_keys[child], child))
+
     return sorted_cell_ids
 
 

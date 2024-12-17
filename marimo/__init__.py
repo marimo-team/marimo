@@ -26,6 +26,7 @@ __all__ = [
     "Thread",
     # Other namespaces
     "ai",
+    "editor",
     "ui",
     "islands",
     # Application elements
@@ -81,8 +82,9 @@ __all__ = [
     "video",
     "vstack",
 ]
-__version__ = "0.9.14"
+__version__ = "0.0.1"
 
+import marimo._ai as ai
 import marimo._islands as islands
 from marimo._ast.app import App
 from marimo._ast.cell import Cell
@@ -93,7 +95,7 @@ from marimo._output.hypertext import Html
 from marimo._output.justify import center, left, right
 from marimo._output.md import md
 from marimo._output.show_code import show_code
-from marimo._plugins import ai, ui
+from marimo._plugins import ui
 from marimo._plugins.stateless import mpl, status
 from marimo._plugins.stateless.accordion import accordion
 from marimo._plugins.stateless.audio import audio
@@ -115,7 +117,7 @@ from marimo._plugins.stateless.style import style
 from marimo._plugins.stateless.tabs import tabs
 from marimo._plugins.stateless.tree import tree
 from marimo._plugins.stateless.video import video
-from marimo._runtime import output
+from marimo._runtime import editor, output
 from marimo._runtime.capture import (
     capture_stderr,
     capture_stdout,

@@ -13,6 +13,7 @@ import {
   DatabaseIcon,
   NotebookPenIcon,
   BoxIcon,
+  BotMessageSquareIcon,
 } from "lucide-react";
 
 export type PanelType =
@@ -26,6 +27,7 @@ export type PanelType =
   | "snippets"
   | "datasources"
   | "scratchpad"
+  | "chat"
   | "logs";
 
 export interface PanelDescriptor {
@@ -72,6 +74,13 @@ export const PANELS: PanelDescriptor[] = [
     Icon: ScrollTextIcon,
     tooltip: "View outline",
     position: "sidebar",
+  },
+  {
+    type: "chat",
+    Icon: BotMessageSquareIcon,
+    tooltip: "Chat with AI",
+    position: "sidebar",
+    hidden: !getFeatureFlag("chat_sidebar"),
   },
   {
     type: "documentation",

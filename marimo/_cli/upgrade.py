@@ -8,8 +8,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Callable, Dict, Optional
 
-from packaging import version
-
 from marimo import __version__ as current_version
 from marimo._cli.print import echo, green, orange
 from marimo._server.api.status import HTTPException
@@ -43,6 +41,8 @@ def check_for_updates(on_update: Callable[[str, str], None]) -> None:
 
 
 def _check_for_updates_internal(on_update: Callable[[str, str], None]) -> None:
+    from packaging import version
+
     config_reader = ConfigReader.for_filename("state.toml")
     if not config_reader:
         # Couldn't find home directory, so do nothing

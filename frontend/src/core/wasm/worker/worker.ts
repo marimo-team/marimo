@@ -19,7 +19,7 @@ import { invariant } from "../../../utils/invariant";
 import type { OperationMessage } from "@/core/kernel/messages";
 import type { JsonString } from "@/utils/json/base64";
 import type { UserConfig } from "@/core/config/config-schema";
-import { getPyodideVersion, importPyodide } from "./getPyodideVersion";
+import { getPyodideVersion } from "./getPyodideVersion";
 import { t } from "./tracer";
 import { once } from "@/utils/once";
 import { getController } from "./getController";
@@ -44,7 +44,6 @@ async function loadPyodideAndPackages() {
   try {
     const marimoVersion = getMarimoVersion();
     const pyodideVersion = getPyodideVersion(marimoVersion);
-    await t.wrapAsync(importPyodide)(marimoVersion);
     const controller = await t.wrapAsync(getController)(marimoVersion);
     self.controller = controller;
     rpc.send.initializingMessage({
@@ -258,7 +257,7 @@ const requestHandler = createRPCRequestHandler({
         `);
     }
 
-    // Special case to lazily install pyaml on export_markdown
+    // Special case to lazily install PyYAML on export_markdown
     if (functionName === "export_markdown") {
       await self.pyodide.runPythonAsync(`
         import micropip

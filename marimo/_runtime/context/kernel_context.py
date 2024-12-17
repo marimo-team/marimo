@@ -17,6 +17,7 @@ from marimo._runtime.context.types import (
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._runtime.functions import FunctionRegistry
 from marimo._runtime.params import CLIArgs, QueryParams
+from marimo._server.model import SessionMode
 
 if TYPE_CHECKING:
     from marimo._ast.app import InternalApp
@@ -31,6 +32,7 @@ class KernelRuntimeContext(RuntimeContext):
     """Encapsulates runtime state for a session."""
 
     _kernel: Kernel
+    _session_mode: SessionMode
     # app that owns this context; None for top-level contexts
     _app: Optional[InternalApp] = None
     _id_provider: Optional[IDProvider] = None
@@ -48,7 +50,7 @@ class KernelRuntimeContext(RuntimeContext):
         return self._kernel.execution_context
 
     @property
-    def user_config(self) -> MarimoConfig:
+    def marimo_config(self) -> MarimoConfig:
         return self._kernel.user_config
 
     @property
@@ -71,6 +73,11 @@ class KernelRuntimeContext(RuntimeContext):
     def query_params(self) -> QueryParams:
         """Get the query params."""
         return self._kernel.query_params
+
+    @property
+    def session_mode(self) -> SessionMode:
+        """Get the session mode."""
+        return self._session_mode
 
     @contextmanager
     def provide_ui_ids(self, prefix: str) -> Iterator[None]:
@@ -115,23 +122,28 @@ class KernelRuntimeContext(RuntimeContext):
 
 
 def create_kernel_context(
+    *,
     kernel: Kernel,
     stream: Stream,
     stdout: Stdout | None,
     stderr: Stderr | None,
-    virtual_files_supported: bool = True,
+    virtual_files_supported: bool,
+    mode: SessionMode,
     app: InternalApp | None = None,
     parent: KernelRuntimeContext | None = None,
 ) -> KernelRuntimeContext:
     from marimo._plugins.ui._core.registry import UIElementRegistry
+    from marimo._runtime.agents import AgentRegistry
     from marimo._runtime.state import StateRegistry
     from marimo._runtime.virtual_file import VirtualFileRegistry
 
     return KernelRuntimeContext(
         _kernel=kernel,
+        _session_mode=mode,
         _app=app,
         ui_element_registry=UIElementRegistry(),
         state_registry=StateRegistry(),
+        agent_registry=AgentRegistry(),
         function_registry=FunctionRegistry(),
         cell_lifecycle_registry=CellLifecycleRegistry(),
         virtual_file_registry=VirtualFileRegistry(),
@@ -146,11 +158,13 @@ def create_kernel_context(
 
 
 def initialize_kernel_context(
+    *,
     kernel: Kernel,
     stream: Stream,
     stdout: Stdout | None,
     stderr: Stderr | None,
-    virtual_files_supported: bool = True,
+    virtual_files_supported: bool,
+    mode: SessionMode,
 ) -> None:
     """Initializes thread-local/session-specific context.
 
@@ -158,6 +172,11 @@ def initialize_kernel_context(
     """
     initialize_context(
         runtime_context=create_kernel_context(
-            kernel, stream, stdout, stderr, virtual_files_supported
+            kernel=kernel,
+            stream=stream,
+            stdout=stdout,
+            stderr=stderr,
+            virtual_files_supported=virtual_files_supported,
+            mode=mode,
         )
     )

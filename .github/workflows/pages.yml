@@ -1,0 +1,71 @@
+name: GitHub Pages
+
+on:
+  # Weekly
+  schedule:
+    - cron: '0 0 * * 0' # Run at midnight UTC on Sunday
+
+  # Allow manual trigger
+  workflow_dispatch: {}
+
+env:
+  UV_SYSTEM_PYTHON: 1
+
+jobs:
+  export-notebooks:
+    runs-on: ubuntu-latest
+
+    permissions:
+      pull-requests: write
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🚀 Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+
+      - name: 📦 Install marimo
+        run: |
+          uv pip install marimo
+
+      - name: 🛠️ Run export
+        run: |
+          marimo export html-wasm frontend/public/files/wasm-intro.py -o out --mode run
+          sed -i -e "s/after_delay/off/g" out/index.html
+
+      - name: 📄 List changed files
+        continue-on-error: true
+        run: |
+          echo "Changed files:"
+          git diff --name-only HEAD^ HEAD
+
+      - name: 📦 Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+
+  deploy:
+    needs: export-notebooks
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    permissions:
+      pages: write
+      id-token: write
+
+    steps:
+      - name: 🌐 Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages

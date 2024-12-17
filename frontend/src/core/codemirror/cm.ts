@@ -56,6 +56,7 @@ import { historyCompartment } from "./editing/extensions";
 import { goToDefinitionBundle } from "./go-to-definition/extension";
 import type { HotkeyProvider } from "../hotkeys/hotkeys";
 import { lightTheme } from "./theme/light";
+import { dndBundle } from "./dnd/extension";
 
 export interface CodeMirrorSetupOpts {
   cellId: CellId;
@@ -84,6 +85,7 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
   return [
     // Editor keymaps (vim or defaults) based on user config
     keymapBundle(keymapConfig, cellMovementCallbacks),
+    dndBundle(),
     // Cell editing
     cellMovementBundle(cellId, cellMovementCallbacks, hotkeys),
     cellCodeEditingBundle(cellId, cellCodeCallbacks, hotkeys),

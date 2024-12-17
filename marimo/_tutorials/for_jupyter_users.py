@@ -1,14 +1,16 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.3.12"
+__generated_with = "0.9.30"
 app = marimo.App(app_title="marimo for Jupyter users")
 
 
 @app.cell(hide_code=True)
 def __(mo):
     mo.md(
-        """# marimo for Jupyter users
+        r"""
+        # marimo for Jupyter users
 
         This notebook explains important differences between Jupyter and marimo. If you're
         familiar with Jupyter and are trying out marimo for the first time, read on!
@@ -20,7 +22,7 @@ def __(mo):
 @app.cell(hide_code=True)
 def __(mo):
     mo.md(
-        """
+        r"""
         ## Reactive execution
 
         The biggest difference between marimo and Jupyter is *reactive execution*.
@@ -34,19 +36,19 @@ def __(mo):
 @app.cell
 def __():
     x = 0; x
-    return x,
+    return (x,)
 
 
 @app.cell
 def __(x):
     y = x + 1; y
-    return y,
+    return (y,)
 
 
 @app.cell(hide_code=True)
 def __(mo):
     mo.md(
-        """
+        r"""
         marimo 'reacts' to the change in `x` and automatically recalculates `y`!
 
         **Explanation.** marimo reads the code in your cells and understands the
@@ -63,17 +65,17 @@ def __(mo):
 @app.cell(hide_code=True)
 def __(mo):
     mo.md(
-        rf"""
+        r"""
         ### Why?
 
         Reactive execution frees you from the tedious task of manually re-running cells.
 
         It also ensures that your code and outputs remain in sync:
-        
+
         - You don't have to worry about whether you forgot to re-run a cell.
         - When you delete a cell, its variables are automatically removed from
         program memory. Affected cells are automatically invalidated.
-        
+
         This makes marimo notebooks as reproducible as regular Python scripts.
         """
     )
@@ -96,14 +98,14 @@ def __(mo):
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
 def __(mo):
     slider = mo.ui.slider(start=1, stop=10, label="$x$")
     slider
-    return slider,
+    return (slider,)
 
 
 @app.cell
@@ -132,7 +134,7 @@ def __(mo):
 @app.cell(hide_code=True)
 def __(mo):
     mo.md(
-        rf"""
+        r"""
         ## Shareable as apps
 
         marimo notebooks can be shared as read-only web apps: just serve it with
@@ -152,10 +154,10 @@ def __(mo):
 @app.cell(hide_code=True)
 def __(mo):
     mo.md(
-        rf"""
+        r"""
         ## Cell order
 
-        In marimo, cells can be arranged in any order — marimo figures out the one true way to execute them based on variable declarations and references (in a ["topologically sorted"](https://en.wikipedia.org/wiki/Topological_sorting#:~:text=In%20computer%20science%2C%20a%20topological,before%20v%20in%20the%20ordering.) order)
+        In marimo, cells can be arranged in any order — marimo figures out the one true way to execute them based on variable declarations and references (in a ["topologically sorted"](https://en.wikipedia.org/wiki/Topological_sorting#:~:text=In%20computer%20science%2C%20a%20topological,before%20v%20in%20the%20ordering.) order)
         """
     )
     return
@@ -170,13 +172,13 @@ def __(z):
 @app.cell
 def __(mo):
     z = mo.ui.slider(1, 10, label="$z$"); z
-    return z,
+    return (z,)
 
 
 @app.cell(hide_code=True)
 def __(mo):
     mo.md(
-        rf"""
+        r"""
         This lets you arrange your cells in the way that makes the most sense to you. For example, put helper functions and imports at the bottom of a notebook, like an appendix.
 
         In contrast, Jupyter notebooks implicitly assume a top-to-bottom execution order.
@@ -185,10 +187,10 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
-        rf"""
+        r"""
         ## Re-assigning variables
 
         marimo disallows variable re-assignment. Here is something commonly done in Jupyter notebooks that cannot be done in marimo:
@@ -200,25 +202,25 @@ def __(mo):
 @app.cell
 def __():
     df = 0
-    return df,
+    return (df,)
 
 
 @app.cell
 def __():
     df = 1
-    return df,
+    return (df,)
 
 
 @app.cell
 def __(df):
     results = df.groupby(["my_column"]).sum()
-    return results,
+    return (results,)
 
 
 @app.cell(hide_code=True)
 def __(mo):
     mo.md(
-        rf"""
+        r"""
         **Explanation.** `results` depends on `df`, but which value of `df` should it use? Reactivity makes it impossible to answer this question in a sensible way, so marimo disallows variable reassignment.
 
         If you run into this error, here are your options:
@@ -256,9 +258,9 @@ def __(mo, slider):
 @app.cell(hide_code=True)
 def __(mo):
     mo.md(
-        rf"""
+        r"""
         **Explanation.** By lifting Markdown into Python, marimo lets you construct
-        dynamic Markdown parametrized by arbitrary Python elements. marimo knows
+        dynamic Markdown parameterized by arbitrary Python elements. marimo knows
         how to render its own elements, and you can use `mo.as_html` to render other
         objects, like plots.
 
@@ -271,7 +273,7 @@ def __(mo):
 @app.cell(hide_code=True)
 def __(mo):
     mo.md(
-        rf"""
+        r"""
         ## Notebook files
 
         Jupyter saves notebooks as JSON files, with outputs serialized in them. This is helpful as a record of your plots and other results, but makes notebooks difficult to version and reuse.
@@ -293,7 +295,7 @@ def __(mo):
 @app.cell(hide_code=True)
 def __(mo):
     mo.md(
-        rf"""
+        r"""
         ## Parting thoughts
 
         marimo is a **reinvention** of the Python notebook as a reproducible, interactive, and shareable Python program, instead of an error-prone scratchpad.
@@ -302,7 +304,7 @@ def __(mo):
 
         The marimo editor and library have many features not discussed here.
         Check out [our docs](https://docs.marimo.io/) to learn more!
-        
+
         _This guide was adapted from [Pluto for Jupyter
         users](https://featured.plutojl.org/basic/pluto%20for%20jupyter%20users).
         We ❤️ Pluto.jl!_

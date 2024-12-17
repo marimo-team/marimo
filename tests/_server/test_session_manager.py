@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import asyncio
 from unittest.mock import MagicMock, Mock
 
 import pytest
 
-from marimo._config.manager import UserConfigManager
+from marimo._config.manager import get_default_config_manager
 from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
@@ -35,20 +34,19 @@ def session_manager():
         quiet=False,
         include_code=True,
         lsp_server=MagicMock(spec=LspServer),
-        user_config_manager=UserConfigManager(),
+        user_config_manager=get_default_config_manager(current_path=None),
         cli_args={},
         auth_token=None,
+        redirect_console_to_browser=False,
     )
 
 
-def test_start_lsp_server(session_manager: SessionManager) -> None:
-    asyncio.get_event_loop().run_until_complete(
-        session_manager.start_lsp_server()
-    )
+async def test_start_lsp_server(session_manager: SessionManager) -> None:
+    await session_manager.start_lsp_server()
     session_manager.lsp_server.start.assert_called_once()
 
 
-def test_create_session_new(
+async def test_create_session_new(
     session_manager: SessionManager, mock_session_consumer: SessionConsumer
 ) -> None:
     session_id = "test_session_id"
@@ -64,7 +62,7 @@ def test_create_session_new(
     session.close()
 
 
-def test_create_session_absolute_url(
+async def test_create_session_absolute_url(
     session_manager: SessionManager,
     mock_session_consumer: SessionConsumer,
     temp_marimo_file: str,

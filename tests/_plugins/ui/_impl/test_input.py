@@ -9,6 +9,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
 
 HAS_PANDAS = DependencyManager.pandas.has()
+HAS_NUMPY = DependencyManager.numpy.has()
 
 
 def test_number_init() -> None:
@@ -459,4 +460,88 @@ def test_form_in_dictionary_allowed() -> None:
     assert checkbox._id != d["form"].element._id
 
 
-# TODO(akshayka): test file
+def test_file_validation() -> None:
+    """Test file type validation in the file class."""
+    # Valid filetypes should be accepted
+    ui.file(filetypes=[".csv", ".txt"])
+    ui.file(filetypes=["audio/*"])
+    ui.file(filetypes=["video/*"])
+    ui.file(filetypes=["image/*"])
+    ui.file(filetypes=["application/json"])
+    ui.file(filetypes=["text/plain"])
+    ui.file(filetypes=[".csv", "application/json"])  # Mixed types are allowed
+    ui.file(filetypes=["text/html", "application/xml"])  # Multiple MIME types
+
+    # Invalid filetypes should raise ValueError
+    with pytest.raises(ValueError) as e:
+        ui.file(filetypes=["csv"])
+    assert "must start with a dot" in str(e.value)
+    assert "or contain a forward slash" in str(e.value)
+    assert "csv" in str(e.value)
+
+    with pytest.raises(ValueError) as e:
+        ui.file(filetypes=["txt", ".csv"])
+    assert "must start with a dot" in str(e.value)
+    assert "or contain a forward slash" in str(e.value)
+    assert "txt" in str(e.value)
+
+    with pytest.raises(ValueError) as e:
+        ui.file(filetypes=["doc", "pdf"])
+    assert "must start with a dot" in str(e.value)
+    assert "or contain a forward slash" in str(e.value)
+    assert "doc, pdf" in str(e.value)
+
+
+@pytest.mark.skipif(not HAS_NUMPY, reason="numpy not installed")
+def test_numpy_steps() -> None:
+    import numpy as np
+
+    steps = np.array([1, 2, 3, 4, 5])
+    slider = ui.slider(steps=steps)
+    assert slider.steps == [1, 2, 3, 4, 5]
+    assert slider.start == 1
+    assert slider.stop == 5
+    assert slider.step is None
+
+    range_slider = ui.range_slider(steps=steps)
+    assert range_slider.steps == [1, 2, 3, 4, 5]
+    assert range_slider.start == 1
+    assert range_slider.stop == 5
+    assert range_slider.step is None
+
+
+@pytest.mark.skipif(not HAS_NUMPY, reason="numpy not installed")
+def test_log_scale() -> None:
+    import numpy as np
+
+    steps = np.logspace(0, 3, 4)
+    slider = ui.slider(steps=steps)
+
+    assert slider.steps == [1, 10, 100, 1000]
+    assert slider.start == 1
+    assert slider.stop == 1000
+    assert slider.step is None
+
+    range_slider = ui.range_slider(steps=steps)
+    assert range_slider.steps == [1, 10, 100, 1000]
+    assert range_slider.start == 1
+    assert range_slider.stop == 1000
+    assert range_slider.step is None
+
+
+@pytest.mark.skipif(not HAS_NUMPY, reason="numpy not installed")
+def test_power_scale() -> None:
+    import numpy as np
+
+    steps = np.power([1, 2, 3], 2)
+    slider = ui.slider(steps=steps)
+    assert slider.steps == [1, 4, 9]
+    assert slider.start == 1
+    assert slider.stop == 9
+    assert slider.step is None
+
+    range_slider = ui.range_slider(steps=steps)
+    assert range_slider.steps == [1, 4, 9]
+    assert range_slider.start == 1
+    assert range_slider.stop == 9
+    assert range_slider.step is None

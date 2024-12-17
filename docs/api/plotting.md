@@ -110,6 +110,10 @@ selection, consider using [`mo.ui.altair_chart`](#marimo.ui.altair_chart).
 .. autofunction:: marimo.mpl.interactive
 ```
 
+## Leafmap support
+
+marimo supports rendering [Leafmap](https://leafmap.org/) maps using the `folium` and `plotly` backends.
+
 ## Other plotting libraries
 
 You can use all the popular plotting libraries with marimo. Such as:
@@ -122,3 +126,4 @@ You can use all the popular plotting libraries with marimo. Such as:
 - [HoloViews](http://holoviews.org/)
 - [hvPlot](https://hvplot.holoviz.org/)
 - [Leafmap](https://leafmap.org/)
+- [Pygwalker](https://kanaries.net/pygwalker)

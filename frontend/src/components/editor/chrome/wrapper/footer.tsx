@@ -7,7 +7,7 @@ import { useAtomValue } from "jotai";
 import { cellErrorCount } from "@/core/cells/cells";
 import { type PanelDescriptor, PANELS } from "../types";
 import { MachineStats } from "./machine-stats";
-import { useUserConfig } from "@/core/config/config";
+import { useResolvedMarimoConfig } from "@/core/config/config";
 import {
   PowerOffIcon,
   TerminalSquareIcon,
@@ -33,7 +33,7 @@ import { isWasm } from "@/core/wasm/utils";
 export const Footer: React.FC = () => {
   const { selectedPanel, isTerminalOpen } = useChromeState();
   const { openApplication, toggleTerminal } = useChromeActions();
-  const [config, setConfig] = useUserConfig();
+  const [config, setConfig] = useResolvedMarimoConfig();
   const errorCount = useAtomValue(cellErrorCount);
 
   const renderIcon = ({ Icon }: PanelDescriptor, className?: string) => {
@@ -48,7 +48,7 @@ export const Footer: React.FC = () => {
   });
 
   return (
-    <footer className="h-10 py-2 bg-background flex items-center text-muted-foreground text-md pl-1 pr-4 border-t border-border select-none no-print text-sm shadow-[0_0_4px_1px_rgba(0,0,0,0.1)] z-50 print:hidden">
+    <footer className="h-10 py-2 bg-background flex items-center text-muted-foreground text-md pl-1 pr-4 border-t border-border select-none no-print text-sm shadow-[0_0_4px_1px_rgba(0,0,0,0.1)] z-50 print:hidden hide-on-fullscreen">
       <FooterItem
         tooltip={errorPanel.tooltip}
         selected={selectedPanel === errorPanel.type}

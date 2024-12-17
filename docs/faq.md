@@ -22,6 +22,7 @@
   - [How do I create an output with a dynamic number of UI elements?](#faq-dynamic-ui-elements)
   - [Why aren't my `on_change` handlers being called?](#faq-on-change-called)
   - [Why are my `on_change` handlers in an array all referencing the last element?](#faq-on-change-last)
+  - [Why aren't my brackets in SQL working?](#faq-sql-brackets)
   - [How do I restart a notebook?](#faq-restart)
   - [How do I reload modules?](#faq-reload)
   - [How does marimo treat type annotations?](#faq-annotations)
@@ -30,6 +31,7 @@
   - [How do I use marimo on a remote server?](#faq-remote)
   - [How do I make marimo accessible on all network interfaces?](#faq-interfaces)
   - [How do I use marimo behind JupyterHub?](#faq-jupyter-hub)
+  - [How do I use marimo with JupyterBook?](#faq-jupyter-book)
   - [How do I deploy apps?](#faq-app-deploy)
   - [Is marimo free?](#faq-marimo-free)
 
@@ -56,7 +58,7 @@ latest value.
 
 **Pure Python programs.** Unlike Jupyter notebooks, marimo notebooks are stored
 as pure Python files that can be executed as scripts, deployed as interactive
-web apps, and versioned easily with git.
+web apps, and versioned easily with Git.
 
 <a name="faq-problems"></a>
 
@@ -78,9 +80,13 @@ consistent, eliminating hidden state and making your notebook reproducible.
 marimo achieves this by intelligently analyzing your code and understanding the
 relationships between cells, and automatically re-running cells as needed.
 
+In addition, marimo notebooks can serialize package requirements inline;
+marimo runs these "sandboxed" notebooks in temporary virtual environments,
+making them [reproducible down to the packages](/guides/editor_features/package_management.md).
+
 **Maintainability.**
 marimo notebooks are stored as pure Python programs (`.py` files). This lets you
-version them with git; in contrast, Jupyter notebooks are stored as JSON and
+version them with Git; in contrast, Jupyter notebooks are stored as JSON and
 require extra steps to version.
 
 **Interactivity.**
@@ -220,10 +226,8 @@ your notebook state and automatically marks cells as stale when appropriate.
 
 Interactive UI elements like sliders are available in `marimo.ui`.
 
-- Assign the UI element to a global variable (`slider = mo.ui.slider(0,
-  100)`)
-- Include it in the last expression of a cell to display
-it (`slider` or `mo.md(f"Choose a value: {slider}")`)
+- Assign the UI element to a global variable (`slider = mo.ui.slider(0, 100)`)
+- Include it in the last expression of a cell to display it (`slider` or `mo.md(f"Choose a value: {slider}")`)
 - Read its current value in another cell via its `value` attribute (`slider.value`)
 
 _When a UI element bound to a global variable is interacted with, all cells
@@ -253,7 +257,7 @@ example,
 form = marimo.ui.text_area().form()
 ```
 
- When wrapped in a form, the
+When wrapped in a form, the
 text area's value will only be sent to Python when you click the submit button.
 Access the last submitted value of the text area with `form.value`.
 
@@ -402,6 +406,18 @@ array
 
 This is necessary because [in Python, closures are late-binding](https://docs.python-guide.org/writing/gotchas/#late-binding-closures).
 
+<a name="faq-sql-brackets"></a>
+
+### Why aren't my SQL brackets working?
+
+Our "SQL" cells are really just Python under the hood to keep notebooks as pure Python scripts. By default, we use `f-strings` for SQL strings, which allows for parameterized SQL like `SELECT * from table where value < {min}`.
+
+To escape real `{`/`}` that you don't want parameterized, use double `{{...}}`:
+
+```sql
+SELECT unnest([{{'a': 42, 'b': 84}}, {{'a': 100, 'b': NULL}}]);
+```
+
 <a name="faq-annotations"></a>
 
 ### How does marimo treat type annotations?
@@ -475,6 +491,19 @@ marimo edit --host 0.0.0.0
 
 JupyterHub can be configured to launch marimo using the [`jupyter-marimo-proxy`
 package](https://github.com/jyio/jupyter-marimo-proxy).
+
+<a name="faq-jupyter-hub"></a>
+
+### How do I use marimo with JupyterBook?
+
+[JupyterBook](https://jupyterbook.org/en/stable/intro.html) makes it easy
+to create static websites with markdown and Jupyter notebooks.
+
+To include a marimo notebook in a JupyterBook, you can either export your
+notebook to an `ipynb` file, or export to `HTML`:
+
+1. export to ipynb: `marimo export ipynb my_notebook.py -o my_notebook.ipynb --include-outputs`
+2. export to HTML: `marimo export ipynb my_notebook.py -o my_notebook.html`
 
 <a name="faq-app-deploy"></a>
 

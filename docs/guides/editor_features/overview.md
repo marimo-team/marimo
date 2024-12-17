@@ -4,7 +4,6 @@ This guide introduces some of marimo editor's features, including
 a variables panel, dependency graph viewer, table of contents, HTML export,
 GitHub copilot, code formatting, a feedback form, and more.
 
-
 ## Configuration
 
 The editor exposes of a number of settings for the current notebook,
@@ -31,7 +30,7 @@ A non-exhaustive list of settings:
 - Code formatting with ruff/black
 - [GitHub Copilot](/guides/editor_features/ai_completion.md)
 - [LLM coding assistant](/guides/editor_features/ai_completion.md)
-- [Module autoreloading](/guides/reactivity.md#module-change)
+- [Module autoreloading](/guides/configuration/runtime_configuration.md#on-module-change)
 
 ### Vim keybindings
 
@@ -45,7 +44,6 @@ marimo supports vim keybindings.
 ## Overview panels
 
 marimo ships with the IDE panels that provide an overview of your notebook
-
 
 - **file explorer**: view the file tree, open other notebooks
 - **variables**: explore variable values, see where they are defined and used, with go-to-definition
@@ -156,5 +154,5 @@ tiniest quibbles to the biggest blue-sky dreams.
 If you'd like your feedback to start a conversation (we'd love to talk with
 you!), please consider posting in our [GitHub
 issues](https://github.com/marimo-team/marimo/issues) or
-[Discord](https://discord.gg/JE7nhX6mD8). But if you're in a flow state and
+[Discord](https://marimo.io/discord?ref=docs). But if you're in a flow state and
 can't context switch out, the feedback form has your back.

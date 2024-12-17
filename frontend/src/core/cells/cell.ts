@@ -39,6 +39,8 @@ export function transitionCell(
       }
       nextCell.stopped = false;
       nextCell.runStartTimestamp = message.timestamp as Seconds;
+      // Store the last run timestamp, since this gets cleared once idle
+      nextCell.lastRunStartTimestamp = message.timestamp as Seconds;
       break;
     case "idle":
       if (cell.runStartTimestamp) {
@@ -47,6 +49,11 @@ export function transitionCell(
         ).toMilliseconds();
         nextCell.runStartTimestamp = null;
         nextCell.staleInputs = false;
+      }
+      // If last run start timestamp is not set, set it to the current timestamp
+      // This happens on a resumed session
+      if (!cell.lastRunStartTimestamp && message.timestamp) {
+        nextCell.lastRunStartTimestamp = message.timestamp as Seconds;
       }
       nextCell.debuggerActive = false;
       break;

@@ -4,10 +4,16 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from marimo import __version__
-from tests._server.mocks import token_header
+from tests._server.mocks import token_header, with_session
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
+
+SESSION_ID = "session-123"
+HEADERS = {
+    "Marimo-Session-Id": SESSION_ID,
+    **token_header("fake-token"),
+}
 
 
 def test_health(client: TestClient) -> None:
@@ -33,6 +39,7 @@ def test_status(client: TestClient) -> None:
     assert content["sessions"] == 0
     assert content["version"] == __version__
     assert content["lsp_running"] is False
+    assert content["python_version"] is not None
 
 
 def test_version(client: TestClient) -> None:
@@ -60,3 +67,16 @@ def test_memory(client: TestClient) -> None:
     # None, no active session
     computer = response.json()["kernel"]
     assert computer["memory"] is None
+
+
+def test_connections(client: TestClient) -> None:
+    response = client.get("/api/status/connections")
+    assert response.status_code == 200
+    assert response.json()["active"] == 0
+
+
+@with_session(SESSION_ID)
+def test_read_code(client: TestClient) -> None:
+    response = client.get("/api/status/connections", headers=HEADERS)
+    assert response.status_code == 200, response.text
+    assert response.json()["active"] == 1

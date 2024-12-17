@@ -41,9 +41,7 @@ def mock_package_manager(monkeypatch: pytest.MonkeyPatch) -> PackageManager:
     return mock_manager
 
 
-def test_install_package(
-    client: TestClient, mock_package_manager: Mock
-) -> None:
+def test_add_package(client: TestClient, mock_package_manager: Mock) -> None:
     assert isinstance(mock_package_manager, MagicMock)
     response = client.post(
         "/api/packages/add",
@@ -57,7 +55,7 @@ def test_install_package(
     )
 
 
-def test_install_package_no_name(
+def test_add_package_no_name(
     client: TestClient, mock_package_manager: Mock
 ) -> None:
     with pytest.raises(TypeError):
@@ -69,7 +67,7 @@ def test_install_package_no_name(
     mock_package_manager.install.assert_not_called()
 
 
-def test_uninstall_package(
+def test_remove_package(
     client: TestClient, mock_package_manager: Mock
 ) -> None:
     response = client.post(
@@ -82,7 +80,7 @@ def test_uninstall_package(
     mock_package_manager.uninstall.assert_called_once_with("test-package")
 
 
-def test_uninstall_package_no_name(
+def test_remove_package_no_name(
     client: TestClient, mock_package_manager: Mock
 ) -> None:
     with pytest.raises(TypeError):
@@ -106,7 +104,7 @@ def test_list_packages(client: TestClient, mock_package_manager: Mock) -> None:
     mock_package_manager.list_packages.assert_called_once()
 
 
-def test_install_package_failure(
+def test_add_package_failure(
     client: TestClient, mock_package_manager: Mock
 ) -> None:
     mock_package_manager.install.return_value = False
@@ -122,7 +120,7 @@ def test_install_package_failure(
     }
 
 
-def test_uninstall_package_failure(
+def test_remove_package_failure(
     client: TestClient, mock_package_manager: Mock
 ) -> None:
     mock_package_manager.uninstall.return_value = False

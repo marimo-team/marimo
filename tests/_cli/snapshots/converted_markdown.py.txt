@@ -1,0 +1,40 @@
+import marimo
+
+app = marimo.App()
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+        # Hello, markdown
+
+        \"\"\"
+        'hello"
+        '''
+        \"\"\"
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+        Here is some math
+
+        $x \approx 0$
+        """
+    )
+    return
+
+
+@app.cell
+def _():
+    import marimo as mo
+    return (mo,)
+
+
+if __name__ == "__main__":
+    app.run()

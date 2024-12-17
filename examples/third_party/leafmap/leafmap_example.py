@@ -1,30 +1,33 @@
 # /// script
 # requires-python = ">=3.9"
 # dependencies = [
-#     "leafmap==0.38.0",
+#     "leafmap==0.41.0",
 #     "marimo",
 # ]
 # ///
+
 import marimo
 
-__generated_with = "0.1.59"
+__generated_with = "0.9.20"
 app = marimo.App()
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
-        f"""
-    # Leafmap + marimo
+        """
+        # Using Leafmap
 
-    To get started, install **[leafmap](https://leafmap.org/)**:
-
-    ```
-    pip install leafmap marimo
-    ```
-    """
+        This example shows how to render a `leafmap.Map` in marimo; just output it like any other object.
+        """
     )
     return
+
+
+@app.cell
+def __():
+    import leafmap
+    return (leafmap,)
 
 
 @app.cell
@@ -38,14 +41,13 @@ def __(leafmap):
         attribution="Google",
     )
     m
-    return m,
+    return (m,)
 
 
 @app.cell
 def __():
     import marimo as mo
-    import leafmap
-    return leafmap, mo
+    return (mo,)
 
 
 if __name__ == "__main__":

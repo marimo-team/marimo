@@ -207,14 +207,14 @@ class TestPandasTableManager(unittest.TestCase):
         assert not self.manager.is_type("not a dataframe")
 
     def test_get_field_types(self) -> None:
-        expected_field_types = {
-            "A": ("integer", "int64"),
-            "B": ("string", "object"),
-            "C": ("number", "float64"),
-            "D": ("boolean", "bool"),
-            "E": ("datetime", "datetime64[ns]"),
-            "F": ("string", "object"),
-        }
+        expected_field_types = [
+            ("A", ("integer", "int64")),
+            ("B", ("string", "object")),
+            ("C", ("number", "float64")),
+            ("D", ("boolean", "bool")),
+            ("E", ("datetime", "datetime64[ns]")),
+            ("F", ("string", "object")),
+        ]
         assert self.manager.get_field_types() == expected_field_types
 
         complex_data = pd.DataFrame(
@@ -243,18 +243,18 @@ class TestPandasTableManager(unittest.TestCase):
                 ],
             }
         )
-        expected_field_types = {
-            "A": ("integer", "int64"),
-            "B": ("string", "object"),
-            "C": ("number", "float64"),
-            "D": ("boolean", "bool"),
-            "E": ("unknown", "complex128"),
-            "F": ("string", "object"),
-            "G": ("string", "object"),
-            "H": ("datetime", "datetime64[ns]"),
-            "I": ("string", "timedelta64[ns]"),
-            "J": ("string", "interval[int64, right]"),
-        }
+        expected_field_types = [
+            ("A", ("integer", "int64")),
+            ("B", ("string", "object")),
+            ("C", ("number", "float64")),
+            ("D", ("boolean", "bool")),
+            ("E", ("unknown", "complex128")),
+            ("F", ("string", "object")),
+            ("G", ("string", "object")),
+            ("H", ("datetime", "datetime64[ns]")),
+            ("I", ("string", "timedelta64[ns]")),
+            ("J", ("string", "interval[int64, right]")),
+        ]
         assert (
             self.factory.create()(complex_data).get_field_types()
             == expected_field_types
@@ -272,9 +272,9 @@ class TestPandasTableManager(unittest.TestCase):
             }
         )
         data = data.rename(columns={"A": "B"})
-        expected_field_types = {
-            "B": ("string", "object"),
-        }
+        expected_field_types = [
+            ("B", ("string", "object")),
+        ]
         assert (
             self.factory.create()(data).get_field_types()
             == expected_field_types
@@ -288,9 +288,9 @@ class TestPandasTableManager(unittest.TestCase):
             }
         )
         data = data.rename(columns={"A": "B"})
-        expected_field_types = {
-            "B": ("string", "object"),
-        }
+        expected_field_types = [
+            ("B", ("string", "object")),
+        ]
         assert (
             self.factory.create()(data).get_field_types()
             == expected_field_types
@@ -304,9 +304,9 @@ class TestPandasTableManager(unittest.TestCase):
             }
         )
         data = data.rename(columns={"A": "B"})
-        expected_field_types = {
-            "B": ("string", "object"),
-        }
+        expected_field_types = [
+            ("B", ("string", "object")),
+        ]
         assert (
             self.factory.create()(data).get_field_types()
             == expected_field_types
@@ -317,6 +317,24 @@ class TestPandasTableManager(unittest.TestCase):
         limited_manager = self.manager.take(limit, 0)
         expected_data = self.data.head(limit)
         assert_frame_equal(limited_manager.data, expected_data)
+
+    def test_take(self) -> None:
+        assert self.manager.take(1, 0).data["A"].to_list() == [1]
+        assert self.manager.take(2, 0).data["A"].to_list() == [1, 2]
+        assert self.manager.take(2, 1).data["A"].to_list() == [2, 3]
+        assert self.manager.take(2, 2).data["A"].to_list() == [3]
+
+    def test_take_zero(self) -> None:
+        limited_manager = self.manager.take(0, 0)
+        assert limited_manager.data.is_empty()
+
+    def test_take_negative(self) -> None:
+        with pytest.raises(ValueError):
+            self.manager.take(-1, 0)
+
+    def test_take_negative_offset(self) -> None:
+        with pytest.raises(ValueError):
+            self.manager.take(1, -1)
 
     def test_take_out_of_bounds(self) -> None:
         # Too large of page
@@ -450,13 +468,30 @@ class TestPandasTableManager(unittest.TestCase):
                 "A": [1, 2, 3],
                 "B": ["foo", "bar", "baz"],
                 "C": [True, False, True],
+                "D": [["zz", "yyy"], [], []],
+                "E": [1.1, 2.2, 3.3],
+                "G": ["U", "T", "V"],
             }
         )
         manager = self.factory.create()(df)
+        # Exact match
         assert manager.search("foo").get_num_rows() == 1
+        # Contains
         assert manager.search("a").get_num_rows() == 2
+        # Case insensitive
+        assert manager.search("v").get_num_rows() == 1
+        assert manager.search("V").get_num_rows() == 1
+        # Case insensitive / boolean
         assert manager.search("true").get_num_rows() == 2
+        # Overmatch
         assert manager.search("food").get_num_rows() == 0
+        # Int (exact match)
+        assert manager.search("1").get_num_rows() == 1
+        # Float (exact match)
+        assert manager.search("1.1").get_num_rows() == 1
+        # List (exact match)
+        assert manager.search("yyy").get_num_rows() == 0
+        assert manager.search("y").get_num_rows() == 0
 
     def test_apply_formatting_does_not_modify_original_data(self) -> None:
         original_data = self.data.copy()
@@ -730,7 +765,7 @@ class TestPandasTableManager(unittest.TestCase):
         assert empty_manager.get_num_rows() == 0
         assert empty_manager.get_num_columns() == 0
         assert empty_manager.get_column_names() == []
-        assert empty_manager.get_field_types() == {}
+        assert empty_manager.get_field_types() == []
 
     def test_dataframe_with_all_null_column(self) -> None:
         df = pd.DataFrame({"A": [1, 2, 3], "B": [None, None, None]})
@@ -743,8 +778,7 @@ class TestPandasTableManager(unittest.TestCase):
     def test_dataframe_with_mixed_types(self) -> None:
         df = pd.DataFrame({"A": [1, "two", 3.0, True]})
         manager = self.factory.create()(df)
-        field_types = manager.get_field_types()
-        assert field_types["A"] == ("string", "object")
+        assert manager.get_field_type("A") == ("string", "object")
 
     def test_search_with_regex(self) -> None:
         df = pd.DataFrame({"A": ["apple", "banana", "cherry"]})
@@ -794,8 +828,18 @@ class TestPandasTableManager(unittest.TestCase):
             }
         )
         manager = self.factory.create()(data)
-        field_types = manager.get_field_types()
 
-        assert field_types["date_col"] == ("string", "object")
-        assert field_types["datetime_col"] == ("datetime", "datetime64[ns]")
-        assert field_types["time_col"] == ("string", "object")
+        assert manager.get_field_type("date_col") == ("string", "object")
+        assert manager.get_field_type("datetime_col") == (
+            "datetime",
+            "datetime64[ns]",
+        )
+        assert manager.get_field_type("time_col") == ("string", "object")
+
+    def test_get_sample_values(self) -> None:
+        df = pd.DataFrame({"A": [1, 2, 3, 4], "B": ["a", "b", "c", "d"]})
+        manager = self.factory.create()(df)
+        sample_values = manager.get_sample_values("A")
+        assert sample_values == [1, 2, 3]
+        sample_values = manager.get_sample_values("B")
+        assert sample_values == ["a", "b", "c"]

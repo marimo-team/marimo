@@ -395,6 +395,64 @@ form
 form.value
 ```
 
+### Populating form with pre-defined examples
+
+**Use cases.** To give examples of how a filled form looks like.  Useful for illustrating complex API requests or database queries.
+The form can also be populated from [URL query parameters](https://docs.marimo.io/api/query_params.html) (<a href="https://marimo.app/l/w21a3x?t1=query&t2=params">notebook example</a>).
+
+**Recipe.**
+
+1. Import packages
+
+```python
+import marimo as mo
+```
+
+2. Create dropdown of examples
+
+```python
+examples = mo.ui.dropdown(
+    options={
+        "ex 1": {"t1": "hello", "t2": "world"},
+        "ex 2": {"t1": "marimo", "t2": "notebook"},
+    },
+    value="ex 1",
+    label="examples",
+)
+```
+3. Create form from examples.
+
+```
+form = (
+    mo.md(
+        """
+    ### Your form
+
+    {t1}
+    {t2}
+"""
+    )
+    .batch(
+        t1=mo.ui.text(label="enter text", value=examples.value.get("t1", "")),
+        t2=mo.ui.text(label="more text", value=examples.value.get("t2", "")),
+    )
+    .form(
+        submit_button_label="go"
+    )
+)
+```
+
+4. Run pre-populated from or recompute with new input.
+
+```python
+output = (
+    " ".join(form.value.values()).upper()
+    if form.value is not None
+    else " ".join(examples.value.values()).upper()
+)
+examples, form, output
+```
+
 ## Working with buttons
 
 ### Create a button that triggers computation when clicked

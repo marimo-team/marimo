@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type React from "react";
-import { useUserConfig } from "@/core/config/config";
-import { useRef } from "react";
+import { useResolvedMarimoConfig } from "@/core/config/config";
+import { useRef, useState } from "react";
 import { useTheme } from "@/theme/useTheme";
 import { CellEditor } from "../editor/cell/code/cell-editor";
 import { HTMLCellId } from "@/core/cells/ids";
@@ -35,9 +35,10 @@ import {
   scratchpadHistoryAtom,
   historyVisibleAtom,
 } from "./scratchpad-history";
-import AnyLanguageCodeMirror from "@/plugins/impl/code/any-language-editor";
 import { cn } from "@/utils/cn";
 import type { CellConfig } from "@/core/network/types";
+import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
+import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 
 const scratchpadCellConfig: CellConfig = {
   hide_code: false,
@@ -46,9 +47,9 @@ const scratchpadCellConfig: CellConfig = {
 
 export const ScratchPad: React.FC = () => {
   const notebookState = useNotebook();
-  const [userConfig] = useUserConfig();
+  const [userConfig] = useResolvedMarimoConfig();
   const { theme } = useTheme();
-  const ref = useRef<EditorView>(null);
+  const ref = useRef<EditorView | null>(null);
   const lastFocusedCellId = useLastFocusedCellId();
   const { createNewCell, updateCellCode } = useCellActions();
 
@@ -118,6 +119,8 @@ export const ScratchPad: React.FC = () => {
     }
   });
 
+  const [languageAdapter, setLanguageAdapter] = useState<LanguageAdapterType>();
+
   const renderBody = () => {
     // We overlay the history on top of the body, instead of removing it,
     // so we don't have to re-render the entire editor and outputs.
@@ -144,7 +147,13 @@ export const ScratchPad: React.FC = () => {
             clearSerializedEditorState={Functions.NOOP}
             userConfig={userConfig}
             editorViewRef={ref}
+            setEditorView={(ev) => {
+              ref.current = ev;
+            }}
             hidden={false}
+            temporarilyShowCode={Functions.NOOP}
+            languageAdapter={languageAdapter}
+            setLanguageAdapter={setLanguageAdapter}
           />
         </div>
         <div className="flex-1 overflow-auto flex-shrink-0">
@@ -184,7 +193,7 @@ export const ScratchPad: React.FC = () => {
               className="border rounded-md hover:shadow-sm cursor-pointer hover:border-input overflow-hidden"
               onClick={() => handleSelectHistoryItem(item)}
             >
-              <AnyLanguageCodeMirror
+              <LazyAnyLanguageCodeMirror
                 language="python"
                 theme={theme}
                 basicSetup={{
@@ -260,7 +269,7 @@ export const ScratchPad: React.FC = () => {
           </Button>
         </Tooltip>
       </div>
-      <div className="flex-1 divide-y relative">
+      <div className="flex-1 divide-y relative overflow-hidden flex flex-col">
         {renderBody()}
         {renderHistory()}
       </div>

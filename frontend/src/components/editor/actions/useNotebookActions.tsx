@@ -27,14 +27,18 @@ import {
   LayoutTemplateIcon,
   Files,
   SettingsIcon,
+  XCircleIcon,
+  FilePlus2Icon,
 } from "lucide-react";
 import { commandPaletteAtom } from "../controls/command-palette";
-import { useCellActions, useNotebook } from "@/core/cells/cells";
 import {
-  canUndoDeletes,
-  disabledCellIds,
-  enabledCellIds,
-} from "@/core/cells/utils";
+  canUndoDeletesAtom,
+  getNotebook,
+  hasDisabledCellsAtom,
+  hasEnabledCellsAtom,
+  useCellActions,
+} from "@/core/cells/cells";
+import { disabledCellIds, enabledCellIds } from "@/core/cells/utils";
 import {
   exportAsMarkdown,
   readCode,
@@ -64,6 +68,7 @@ import { isWasm } from "@/core/wasm/utils";
 import { settingDialogAtom } from "@/components/app-config/app-config-button";
 import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 import { copyToClipboard } from "@/utils/copy";
+import { newNotebookURL } from "@/utils/urls";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -71,23 +76,24 @@ const NOOP_HANDLER = (event?: Event) => {
 };
 
 export function useNotebookActions() {
-  const [filename] = useFilename();
+  const filename = useFilename();
   const { openModal, closeModal } = useImperativeModal();
   const { openApplication } = useChromeActions();
   const { selectedPanel } = useChromeState();
   const [viewState] = useAtom(viewStateAtom);
   const kioskMode = useAtomValue(kioskModeAtom);
 
-  const notebook = useNotebook();
-  const { updateCellConfig, undoDeleteCell } = useCellActions();
+  const { updateCellConfig, undoDeleteCell, clearAllCellOutputs } =
+    useCellActions();
   const restartKernel = useRestartKernel();
   const copyNotebook = useCopyNotebook(filename);
   const setCommandPaletteOpen = useSetAtom(commandPaletteAtom);
   const setSettingsDialogOpen = useSetAtom(settingDialogAtom);
   const setKeyboardShortcutsOpen = useSetAtom(keyboardShortcutsAtom);
 
-  const disabledCells = disabledCellIds(notebook);
-  const enabledCells = enabledCellIds(notebook);
+  const hasDisabledCells = useAtomValue(hasDisabledCellsAtom);
+  const hasEnabledCells = useAtomValue(hasEnabledCellsAtom);
+  const canUndoDeletes = useAtomValue(canUndoDeletesAtom);
   const { selectedLayout } = useLayoutState();
   const { setLayoutView } = useLayoutActions();
   const togglePresenting = useTogglePresenting();
@@ -311,9 +317,10 @@ export function useNotebookActions() {
     {
       icon: <ZapIcon size={14} strokeWidth={1.5} />,
       label: "Enable all cells",
-      hidden: disabledCells.length === 0 || kioskMode,
+      hidden: !hasDisabledCells || kioskMode,
       handle: async () => {
-        const ids = disabledCells.map((cell) => cell.id);
+        const notebook = getNotebook();
+        const ids = disabledCellIds(notebook);
         const newConfigs = Objects.fromEntries(
           ids.map((cellId) => [cellId, { disabled: false }]),
         );
@@ -328,9 +335,10 @@ export function useNotebookActions() {
     {
       icon: <ZapOffIcon size={14} strokeWidth={1.5} />,
       label: "Disable all cells",
-      hidden: enabledCells.length === 0 || kioskMode,
+      hidden: !hasEnabledCells || kioskMode,
       handle: async () => {
-        const ids = enabledCells.map((cell) => cell.id);
+        const notebook = getNotebook();
+        const ids = enabledCellIds(notebook);
         const newConfigs = Objects.fromEntries(
           ids.map((cellId) => [cellId, { disabled: true }]),
         );
@@ -343,9 +351,16 @@ export function useNotebookActions() {
       },
     },
     {
+      icon: <XCircleIcon size={14} strokeWidth={1.5} />,
+      label: "Clear all outputs",
+      handle: () => {
+        clearAllCellOutputs();
+      },
+    },
+    {
       icon: <Undo2Icon size={14} strokeWidth={1.5} />,
       label: "Undo cell deletion",
-      hidden: !canUndoDeletes(notebook) || kioskMode,
+      hidden: !canUndoDeletes || kioskMode,
       handle: () => {
         undoDeleteCell();
       },
@@ -384,9 +399,24 @@ export function useNotebookActions() {
       divider: true,
       icon: <Home size={14} strokeWidth={1.5} />,
       label: "Return home",
+      // If file is in the url, then we ran `marimo edit`
+      // without a specific file
       hidden: !location.search.includes("file"),
       handle: () => {
-        window.location.href = document.baseURI;
+        const withoutSearch = document.baseURI.split("?")[0];
+        window.open(withoutSearch, "_self");
+      },
+    },
+
+    {
+      icon: <FilePlus2Icon size={14} strokeWidth={1.5} />,
+      label: "New notebook",
+      // If file is in the url, then we ran `marimo edit`
+      // without a specific file
+      hidden: !location.search.includes("file"),
+      handle: () => {
+        const url = newNotebookURL();
+        window.open(url, "_blank");
       },
     },
 

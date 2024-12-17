@@ -27,7 +27,7 @@ def __(mo):
         including [duckdb](https://duckdb.org/). Obtain these dependencies with
 
         ```bash
-        pip install marimo[sql]
+        pip install 'marimo[sql]'
         ```
         """
     )

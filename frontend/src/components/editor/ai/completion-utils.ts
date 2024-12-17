@@ -12,7 +12,7 @@ import { Maps } from "@/utils/maps";
  */
 export function getAICompletionBody(
   input: string,
-): Omit<AiCompletionRequest, "language" | "prompt"> {
+): Omit<AiCompletionRequest, "language" | "prompt" | "code"> {
   const datasets = extractDatasets(input);
   Logger.debug("Included datasets", datasets);
 
@@ -24,10 +24,10 @@ export function getAICompletionBody(
         columns: dataset.columns.map((column) => ({
           name: column.name,
           type: column.type,
+          sampleValues: column.sample_values,
         })),
       })),
     },
-    code: "",
   };
 }
 

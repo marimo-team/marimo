@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <base href='/' />
     <meta charset="utf-8" />
     <link rel="icon" crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist/favicon.ico" />
     <!-- Preload is necessary because we show these images when we disconnect from the server,
@@ -25,7 +24,7 @@
     <script data-marimo="true">
       function __resizeIframe(obj) {
         var scrollbarHeight = 20; // Max between windows, mac, and linux
-        
+
         function setHeight() {
           var element = obj.contentWindow.document.documentElement;
           // If there is no vertical scrollbar, we don't need to resize the iframe
@@ -45,7 +44,7 @@
 
         // Resize the iframe to the height of the content and bottom scrollbar height
         setHeight();
-        
+
         // Resize the iframe when the content changes
         const resizeObserver = new ResizeObserver((entries) => {
           setHeight();
@@ -56,7 +55,7 @@
     <marimo-filename hidden></marimo-filename>
     <marimo-mode data-mode='read' hidden></marimo-mode>
     <marimo-version data-version='0.0.0' hidden></marimo-version>
-    <marimo-user-config data-config='{"completion": {"activate_on_typing": true, "copilot": false}, "display": {"cell_output": "above", "code_editor_font_size": 14, "dataframes": "rich", "default_width": "medium", "theme": "light"}, "formatting": {"line_length": 79}, "keymap": {"overrides": {}, "preset": "default"}, "package_management": {"manager": "pip"}, "runtime": {"auto_instantiate": true, "auto_reload": "off", "on_cell_change": "autorun"}, "save": {"autosave": "after_delay", "autosave_delay": 1000, "format_on_save": false}, "server": {"browser": "default", "follow_symlink": false}}' hidden></marimo-user-config>
+    <marimo-user-config data-config='{"completion": {"activate_on_typing": true, "copilot": false}, "display": {"cell_output": "below", "code_editor_font_size": 14, "dataframes": "rich", "default_width": "medium", "theme": "light"}, "formatting": {"line_length": 79}, "keymap": {"overrides": {}, "preset": "default"}, "package_management": {"manager": "pip"}, "runtime": {"auto_instantiate": true, "auto_reload": "off", "on_cell_change": "autorun"}, "save": {"autosave": "after_delay", "autosave_delay": 1000, "format_on_save": false}, "server": {"browser": "default", "follow_symlink": false}}' hidden></marimo-user-config>
     <marimo-app-config data-config='{"width": "compact"}' hidden></marimo-app-config>
     <marimo-server-token data-token='token' hidden></marimo-server-token>
     <title>marimo</title>

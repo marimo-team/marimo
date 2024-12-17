@@ -11,7 +11,7 @@ import { ImageOutput } from "./output/ImageOutput";
 import { MarimoErrorOutput } from "./output/MarimoErrorOutput";
 import { TextOutput } from "./output/TextOutput";
 import { VideoOutput } from "./output/VideoOutput";
-import type { CellId } from "@/core/cells/ids";
+import { CellOutputId, type CellId } from "@/core/cells/ids";
 import { cn } from "@/utils/cn";
 import { ErrorBoundary } from "./boundary/ErrorBoundary";
 
@@ -153,6 +153,8 @@ export const OutputRenderer: React.FC<{
         <LazyAnyLanguageCodeMirror
           theme={theme === "dark" ? "dark" : "light"}
           value={data}
+          readOnly={true}
+          editable={false}
           language="markdown"
         />
       );
@@ -210,11 +212,20 @@ const MimeBundleOutputRenderer: React.FC<{
     );
   }
 
+  const mimeEntries = Objects.entries(mimebundle);
+  // Sort HTML first
+  mimeEntries.sort(([mimeA], [mimeB]) => {
+    if (mimeA === "text/html") {
+      return -1;
+    }
+    return 0;
+  });
+
   return (
     <Tabs defaultValue={first} orientation="vertical">
       <div className="flex">
         <TabsList className="self-start max-h-none flex flex-col gap-2 mr-4 flex-shrink-0">
-          {Object.keys(mimebundle).map((mime) => (
+          {mimeEntries.map(([mime]) => (
             <TabsTrigger
               key={mime}
               value={mime}
@@ -227,7 +238,7 @@ const MimeBundleOutputRenderer: React.FC<{
           ))}
         </TabsList>
         <div className="flex-1">
-          {Objects.entries(mimebundle).map(([mime, output]) => (
+          {mimeEntries.map(([mime, output]) => (
             <TabsContent key={mime} value={mime}>
               <ErrorBoundary>
                 <OutputRenderer
@@ -251,12 +262,28 @@ interface OutputAreaProps {
   output: OutputMessage | null;
   cellId: CellId;
   stale: boolean;
+  /**
+   * Whether to allow expanding the output
+   * This shows the expand button and allows the user to expand the output
+   */
   allowExpand: boolean;
+  /**
+   * Whether to force expand the output
+   * When true, there will be no expand button and the output will be expanded.
+   */
+  forceExpand?: boolean;
   className?: string;
 }
 
 export const OutputArea = React.memo(
-  ({ output, cellId, stale, allowExpand, className }: OutputAreaProps) => {
+  ({
+    output,
+    cellId,
+    stale,
+    allowExpand,
+    forceExpand,
+    className,
+  }: OutputAreaProps) => {
     if (output === null) {
       return null;
     }
@@ -276,7 +303,8 @@ export const OutputArea = React.memo(
         <Container
           title={title}
           cellId={cellId}
-          id={`output-${cellId}`}
+          forceExpand={forceExpand}
+          id={CellOutputId.create(cellId)}
           className={cn(stale && "marimo-output-stale", className)}
         >
           <OutputRenderer message={output} />
@@ -300,9 +328,11 @@ const ExpandableOutput = React.memo(
   ({
     cellId,
     children,
+    forceExpand,
     ...props
   }: React.HTMLProps<HTMLDivElement> & {
     cellId: CellId;
+    forceExpand?: boolean;
   }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [isExpanded, setIsExpanded] = useExpandedOutput(cellId);
@@ -346,12 +376,13 @@ const ExpandableOutput = React.memo(
                   <ExpandIcon className="size-4" strokeWidth={1.25} />
                 </Button>
               </Tooltip>
-              {(isOverflowing || isExpanded) && (
+              {(isOverflowing || isExpanded) && !forceExpand && (
                 <Button
                   data-testid="expand-output-button"
                   className={cn(
+                    "hover:border-border border border-transparent hover:bg-muted",
                     // Force show button if expanded
-                    !isExpanded && "hover-action hover:bg-muted",
+                    !isExpanded && "hover-action",
                   )}
                   onClick={() => setIsExpanded(!isExpanded)}
                   size="xs"
@@ -377,7 +408,9 @@ const ExpandableOutput = React.memo(
               props.className,
             )}
             ref={containerRef}
-            style={isExpanded ? { maxHeight: "none" } : undefined}
+            style={
+              isExpanded || forceExpand ? { maxHeight: "none" } : undefined
+            }
           >
             {children}
           </div>

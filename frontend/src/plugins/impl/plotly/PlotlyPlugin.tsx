@@ -16,6 +16,7 @@ import { isEqual, pick, set } from "lodash-es";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { usePrevious } from "@uidotdev/usehooks";
 import { Arrays } from "@/utils/arrays";
+import { useScript } from "@/hooks/useScript";
 
 interface Data {
   figure: Figure;
@@ -109,15 +110,20 @@ export const PlotlyComponent = memo(
       return structuredClone(originalFigure);
     });
 
+    // Used for rendering LaTeX. TODO: Serve this library from Marimo
+    const scriptStatus = useScript(
+      "https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-MML-AM_CHTML",
+    );
+    const isScriptLoaded = scriptStatus === "ready";
+
     useEffect(() => {
       const nextFigure = structuredClone(originalFigure);
       setFigure(nextFigure);
-      setLayout({
+      setLayout((prev) => ({
         ...initialLayout(nextFigure),
-        ...value,
-      });
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [originalFigure]);
+        ...prev,
+      }));
+    }, [originalFigure, isScriptLoaded]);
 
     const [layout, setLayout] = useState<Partial<Plotly.Layout>>(() => {
       return {
@@ -134,6 +140,7 @@ export const PlotlyComponent = memo(
       setValue({});
     });
 
+    const configMemo = useDeepCompareMemoize(config);
     const plotlyConfig = useMemo((): Partial<Plotly.Config> => {
       return {
         displaylogo: false,
@@ -154,10 +161,9 @@ export const PlotlyComponent = memo(
           },
         ],
         // Prioritize user's config
-        ...config,
+        ...configMemo,
       };
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [handleReset, useDeepCompareMemoize(config)]);
+    }, [handleReset, configMemo]);
 
     const prevFigure = usePrevious(figure) ?? figure;
 

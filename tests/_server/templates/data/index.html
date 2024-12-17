@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <base href='{{ base_url }}/' />
     <meta charset="utf-8" />
     <link rel="icon" href="./favicon.ico" />
     <!-- Preload is necessary because we show these images when we disconnect from the server,
@@ -25,7 +24,7 @@
     <script data-marimo="true">
       function __resizeIframe(obj) {
         var scrollbarHeight = 20; // Max between windows, mac, and linux
-        
+
         function setHeight() {
           var element = obj.contentWindow.document.documentElement;
           // If there is no vertical scrollbar, we don't need to resize the iframe
@@ -45,7 +44,7 @@
 
         // Resize the iframe to the height of the content and bottom scrollbar height
         setHeight();
-        
+
         // Resize the iframe when the content changes
         const resizeObserver = new ResizeObserver((entries) => {
           setHeight();
@@ -56,7 +55,7 @@
     <marimo-filename hidden>{{ filename }}</marimo-filename>
     <marimo-mode data-mode='{{ mode }}' hidden></marimo-mode>
     <marimo-version data-version='{{ version }}' hidden></marimo-version>
-    <marimo-user-config data-config='{{ user_config }}' hidden></marimo-user-config>
+    <marimo-user-config data-config='{{ user_config }}' data-overrides='{{ config_overrides }}' hidden></marimo-user-config>
     <marimo-app-config data-config='{{ app_config }}' hidden></marimo-app-config>
     <marimo-server-token data-token='{{ server_token }}' hidden></marimo-server-token>
     <title>{{ title }}</title>

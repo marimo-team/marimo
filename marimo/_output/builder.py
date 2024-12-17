@@ -149,6 +149,44 @@ class _HTMLBuilder:
                 f"<{component_name} {_join_params(params)}></{component_name}>"
             )
 
+    @staticmethod
+    def figure(
+        children: Union[str, List[str]], *, style: Optional[str] = None
+    ) -> str:
+        resolved_children = (
+            [children] if isinstance(children, str) else children
+        )
+
+        params: List[Tuple[str, Union[str, None]]] = []
+        if style:
+            params.append(("style", style))
+
+        children_html = "".join(resolved_children)
+
+        if len(params) == 0:
+            return f"<figure>{children_html}</figure>"
+        else:
+            return f"<figure {_join_params(params)}>{children_html}</figure>"
+
+    @staticmethod
+    def figcaption(
+        children: Union[str, List[str]], *, style: Optional[str] = None
+    ) -> str:
+        resolved_children = (
+            [children] if isinstance(children, str) else children
+        )
+
+        params: List[Tuple[str, Union[str, None]]] = []
+        if style:
+            params.append(("style", style))
+
+        children_html = "".join(resolved_children)
+
+        if len(params) == 0:
+            return f"<figcaption>{children_html}</figcaption>"
+        else:
+            return f"<figcaption {_join_params(params)}>{children_html}</figcaption>"
+
 
 def _join_params(params: List[Tuple[str, Union[str, None]]]) -> str:
     # Filter None

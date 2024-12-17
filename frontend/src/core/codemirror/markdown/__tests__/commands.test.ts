@@ -5,9 +5,11 @@ import {
   insertBlockquote,
   insertBoldMarker,
   insertCodeMarker,
+  insertImage,
   insertItalicMarker,
   insertLink,
   insertOL,
+  insertTextFile,
   insertUL,
 } from "../commands";
 
@@ -149,6 +151,76 @@ describe("insertLink", () => {
     insertLink(view);
 
     expect(view.state.doc.toString()).toBe("Hello, [world](http://)!");
+  });
+});
+
+describe("insertImage", () => {
+  test("inserts image at cursor position", async () => {
+    view = createEditor("Hello, world!");
+    view.dispatch({
+      selection: { anchor: 7, head: 7 },
+    });
+
+    const png = new Uint8Array([1, 2, 3]);
+    await insertImage(
+      view,
+      new File([png], "hello.png", { type: "image/png" }),
+    );
+
+    expect(view.state.doc.toString()).toMatchInlineSnapshot(
+      `"Hello, ![](data:image/png;base64,AQID)world!"`,
+    );
+  });
+
+  test("inserts image at cursor position with selected text", async () => {
+    view = createEditor("Hello, world!");
+    view.dispatch({
+      selection: { anchor: 7, head: 13 },
+    });
+
+    const png = new Uint8Array([1, 2, 3]);
+    await insertImage(
+      view,
+      new File([png], "hello.png", { type: "image/png" }),
+    );
+
+    expect(view.state.doc.toString()).toMatchInlineSnapshot(
+      `"Hello, ![world!](data:image/png;base64,AQID)"`,
+    );
+  });
+});
+
+describe("insertTextFile", () => {
+  test("inserts text file at cursor position", async () => {
+    view = createEditor("Hello, world!");
+    view.dispatch({
+      selection: { anchor: 7, head: 7 },
+    });
+
+    await insertTextFile(
+      view,
+      new File(["csvcsvcsv"], "my.csv", { type: "text/csv" }),
+    );
+
+    expect(view.state.doc.toString()).toMatchInlineSnapshot(
+      `"Hello, csvcsvcsvworld!"`,
+    );
+  });
+
+  test("inserts text file at cursor position with selected text", async () => {
+    view = createEditor("Hello, world!");
+    view.dispatch({
+      selection: { anchor: 7, head: 13 },
+    });
+
+    await insertTextFile(
+      view,
+      new File(["csvcsvcsv"], "my.csv", { type: "text/csv" }),
+    );
+
+    expect(view.state.doc.toString()).toMatchInlineSnapshot(
+      `"Hello, csvcsvcsvworld!"`,
+    );
   });
 });
 

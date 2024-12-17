@@ -16,6 +16,7 @@ from marimo._ast.app import CellManager
 from marimo._ast.cell import CellId_t
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.ops import CellOp, MessageOperation
 from marimo._messaging.streams import (
     ThreadSafeStderr,
     ThreadSafeStdin,
@@ -30,6 +31,8 @@ from marimo._runtime.input_override import input_override
 from marimo._runtime.marimo_pdb import MarimoPdb
 from marimo._runtime.requests import AppMetadata, ExecutionRequest
 from marimo._runtime.runtime import Kernel
+from marimo._server.model import SessionMode
+from marimo._utils.parse_dataclass import parse_raw
 
 # register import hooks for third-party module formatters
 register_formatters()
@@ -45,6 +48,21 @@ class _MockStream(ThreadSafeStream):
 
     def write(self, op: str, data: dict[Any, Any]) -> None:
         self.messages.append((op, data))
+
+    @property
+    def operations(self) -> list[MessageOperation]:
+        @dataclasses.dataclass
+        class Container:
+            operation: MessageOperation
+
+        return [
+            parse_raw({"operation": op_data}, Container).operation
+            for _op_name, op_data in self.messages
+        ]
+
+    @property
+    def cell_ops(self) -> list[CellOp]:
+        return [op for op in self.operations if isinstance(op, CellOp)]
 
 
 class MockStdout(ThreadSafeStdout):
@@ -98,6 +116,7 @@ class MockedKernel:
     """Should only be created in fixtures b/c inits a runtime context"""
 
     stream: _MockStream = dataclasses.field(default_factory=_MockStream)
+    session_mode: SessionMode = SessionMode.EDIT
 
     def __post_init__(self) -> None:
         self.stdout = MockStdout(self.stream)
@@ -128,6 +147,8 @@ class MockedKernel:
             stream=self.stream,  # type: ignore
             stdout=self.stdout,  # type: ignore
             stderr=self.stderr,  # type: ignore
+            virtual_files_supported=True,
+            mode=self.session_mode,
         )
 
     def teardown(self) -> None:
@@ -135,6 +156,8 @@ class MockedKernel:
         teardown_context()
         self.stdout._watcher.stop()
         self.stderr._watcher.stop()
+        if self.k.module_watcher is not None:
+            self.k.module_watcher.stop()
         sys.modules["__main__"] = self._main
 
 
@@ -161,6 +184,14 @@ def strict_kernel() -> Generator[Kernel, None, None]:
     mocked.k.execution_type = "strict"
     mocked.k.reactive_execution_mode = "autorun"
     yield mocked.k
+    mocked.teardown()
+
+
+# kernel configured in SessionMode.RUN mode
+@pytest.fixture
+def run_mode_kernel() -> Generator[MockedKernel, None, None]:
+    mocked = MockedKernel(session_mode=SessionMode.RUN)
+    yield mocked
     mocked.teardown()
 
 
@@ -307,11 +338,6 @@ def temp_marimo_file_with_md() -> Generator[str, None, None]:
         app = marimo.App()
 
         @app.cell
-        def __():
-            import marimo as mo
-            return mo,
-
-        @app.cell
         def __(mo):
             control_dep = None
             mo.md("markdown")
@@ -320,9 +346,18 @@ def temp_marimo_file_with_md() -> Generator[str, None, None]:
         @app.cell
         def __(mo, control_dep):
             control_dep
-            mo.md(f"parametrized markdown {123}")
+            mo.md(f"parameterized markdown {123}")
             return
 
+        @app.cell
+        def __():
+            mo.md("plain markdown")
+            return mo,
+
+        @app.cell
+        def __():
+            import marimo as mo
+            return mo,
 
         if __name__ == "__main__":
             app.run()
@@ -359,6 +394,75 @@ def temp_md_marimo_file() -> Generator[str, None, None]:
         ```{.python.marimo}
         slider = mo.ui.slider(0, 10)
         ```
+        """
+    )
+
+    try:
+        with open(tmp_file, "w") as f:
+            f.write(content)
+        yield tmp_file
+    finally:
+        tmp_dir.cleanup()
+
+
+@pytest.fixture
+def temp_marimo_file_with_errors() -> Generator[str, None, None]:
+    tmp_dir = TemporaryDirectory()
+    tmp_file = os.path.join(tmp_dir.name, "notebook.py")
+    content = inspect.cleandoc(
+        """
+        import marimo
+        app = marimo.App()
+
+        @app.cell
+        def __():
+            import marimo as mo
+            return mo,
+
+        @app.cell
+        def __(mo):
+            slider = mo.ui.slider(0, 10)
+            return slider,
+
+        @app.cell
+        def __():
+            1 / 0
+            return
+
+        if __name__ == "__main__":
+            app.run()
+        """
+    )
+
+    try:
+        with open(tmp_file, "w") as f:
+            f.write(content)
+        yield tmp_file
+    finally:
+        tmp_dir.cleanup()
+
+
+@pytest.fixture
+def temp_marimo_file_with_multiple_definitions() -> Generator[str, None, None]:
+    tmp_dir = TemporaryDirectory()
+    tmp_file = os.path.join(tmp_dir.name, "notebook.py")
+    content = inspect.cleandoc(
+        """
+        import marimo
+        app = marimo.App()
+
+        @app.cell
+        def __():
+            x = 1
+            return x,
+
+        @app.cell
+        def __():
+            x = 2
+            return x,
+
+        if __name__ == "__main__":
+            app.run()
         """
     )
 

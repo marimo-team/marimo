@@ -8,7 +8,9 @@ interface MarimoSettings {
   getMarimoServerToken: () => string;
   getMarimoAppConfig: () => unknown;
   getMarimoUserConfig: () => unknown;
+  getMarimoConfigOverrides: () => unknown;
   getMarimoCode: () => string;
+  getMarimoShowCode: () => boolean;
 }
 
 const domBasedMarimoSettings: MarimoSettings = {
@@ -24,11 +26,31 @@ const domBasedMarimoSettings: MarimoSettings = {
   getMarimoUserConfig: () => {
     return JSON.parse(getMarimoDOMValue("marimo-user-config", "config"));
   },
+  getMarimoConfigOverrides: () => {
+    try {
+      return JSON.parse(getMarimoDOMValue("marimo-user-config", "overrides"));
+    } catch {
+      return {};
+    }
+  },
   getMarimoCode: () => {
     const tag = document.querySelector("marimo-code");
     invariant(tag, "internal-error: marimo-code not tag not found");
     const inner = tag.innerHTML;
     return decodeURIComponent(inner).trim();
+  },
+  getMarimoShowCode: () => {
+    try {
+      const tag = document.querySelector<HTMLElement>("marimo-code");
+      invariant(tag, "internal-error: marimo-code not tag not found");
+      const showCode = tag.dataset.showCode;
+      if (showCode === "false") {
+        return false;
+      }
+      return true;
+    } catch {
+      return true;
+    }
   },
 };
 
@@ -40,6 +62,9 @@ const islandsBasedMarimoSettings: MarimoSettings = {
   getMarimoServerToken: () => {
     return "";
   },
+  getMarimoConfigOverrides: () => {
+    return {};
+  },
   getMarimoAppConfig: () => {
     return {};
   },
@@ -49,6 +74,9 @@ const islandsBasedMarimoSettings: MarimoSettings = {
   getMarimoCode: () => {
     return "";
   },
+  getMarimoShowCode: () => {
+    return true;
+  },
 };
 
 export const {
@@ -56,7 +84,9 @@ export const {
   getMarimoServerToken,
   getMarimoAppConfig,
   getMarimoUserConfig,
+  getMarimoConfigOverrides,
   getMarimoCode,
+  getMarimoShowCode,
 } = isIslands() ? islandsBasedMarimoSettings : domBasedMarimoSettings;
 
 function getMarimoDOMValue(tagName: string, key: string) {

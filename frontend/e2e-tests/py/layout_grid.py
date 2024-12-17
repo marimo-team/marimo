@@ -1,12 +1,12 @@
 import marimo
 
-__generated_with = "0.1.2"
+__generated_with = "0.9.14"
 app = marimo.App(layout_file="layouts/layout_grid.grid.json")
 
 
 @app.cell
 def __(mo):
-    mo.md("# Grid Layout")
+    mo.md("""# Grid Layout""")
     return
 
 
@@ -20,25 +20,25 @@ def __(mo, search):
 def __(mo):
     search = mo.ui.text(label="Search")
     search
-    return search,
+    return (search,)
 
 
 @app.cell
 def __(mo):
-    mo.md("text 1")
+    mo.md("""text 1""")
     return
 
 
 @app.cell
 def __(mo):
-    mo.md("text 2")
+    mo.md("""text 2""")
     return
 
 
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 if __name__ == "__main__":

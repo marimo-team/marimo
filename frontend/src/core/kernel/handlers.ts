@@ -66,13 +66,9 @@ export function handleKernelReady(
     // A cell is stale if we did not auto-instantiate (i.e. nothing has run yet)
     // or if the code has changed since the last time it was run.
     let edited = false;
-    if (autoInstantiate || resumed) {
-      const lastCodeRun = lastExecutedCode[cellId];
-      if (lastCodeRun) {
-        edited = lastCodeRun !== code;
-      }
-    } else {
-      edited = true;
+    const lastCodeRun = lastExecutedCode[cellId];
+    if (lastCodeRun) {
+      edited = lastCodeRun !== code;
     }
 
     return createCell({
@@ -125,13 +121,14 @@ export function handleKernelReady(
     objectIds.push(objectId);
     values.push(entry.value);
   });
-  // Send the instantiate message
-  if (autoInstantiate) {
-    // Start the run
-    sendInstantiate({ objectIds: objectIds, values }).catch((error) => {
-      onError(new Error("Failed to instantiate", { cause: error }));
-    });
-  }
+  // Start the run
+  sendInstantiate({
+    objectIds: objectIds,
+    values,
+    autoRun: autoInstantiate,
+  }).catch((error) => {
+    onError(new Error("Failed to instantiate", { cause: error }));
+  });
 }
 
 export function handleRemoveUIElements(

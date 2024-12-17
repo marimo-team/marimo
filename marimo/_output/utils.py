@@ -30,3 +30,25 @@ def create_style(
 def uri_encode_component(code: str) -> str:
     """Equivalent to `encodeURIComponent` in JavaScript."""
     return urllib.parse.quote(code, safe="~()*!.'")
+
+
+def normalize_dimension(value: Union[int, float, str, None]) -> Optional[str]:
+    """Normalize dimension value to CSS string.
+
+    Handles:
+    - Integers (converted to px)
+    - Strings (passed through if they have units, converted to px if just number)
+    - None (returns None)
+    """
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return f"{value}px"
+    if isinstance(value, float):
+        return f"{value}px"
+    if isinstance(value, str):
+        # If string is just a number, treat as percentage
+        if value.isdigit():
+            return f"{value}px"
+        return value
+    raise ValueError(f"Invalid dimension value: {value}")

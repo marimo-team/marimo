@@ -36,6 +36,7 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 from marimo._plugins.ui._impl.tables.utils import (
     get_table_manager,
 )
+from marimo._plugins.validators import validate_no_integer_columns
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._utils.memoize import memoize_last_value
 from marimo._utils.parse_dataclass import parse_raw
@@ -110,6 +111,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
         page_size: Optional[int] = 5,
         limit: Optional[int] = None,
     ) -> None:
+        validate_no_integer_columns(df)
         # This will raise an error if the dataframe type is not supported.
         handler = get_handler_for_dataframe(df)
 
@@ -175,7 +177,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
     def _get_column_types(self) -> List[List[Union[str, int]]]:
         return [
             [name, dtype[0], dtype[1]]
-            for name, dtype in self._manager.get_field_types().items()
+            for name, dtype in self._manager.get_field_types()
         ]
 
     def get_dataframe(self, _args: EmptyArgs) -> GetDataFrameResponse:
@@ -266,7 +268,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
         if query:
             result = result.search(query)
 
-        if sort:
+        if sort and sort.by in result.get_column_names():
             result = result.sort_values(sort.by, sort.descending)
 
         return result

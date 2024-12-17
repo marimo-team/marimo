@@ -4,21 +4,23 @@ from __future__ import annotations
 import datetime
 import json
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock
 
 import narwhals.stable.v1 as nw
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._plugins.ui._impl import altair_chart
 from marimo._plugins.ui._impl.altair_chart import (
     ChartDataType,
     ChartSelection,
     _filter_dataframe,
     _has_binning,
     _has_geoshape,
+    _has_legend_param,
+    _has_selection_param,
     _parse_spec,
+    altair_chart,
 )
 from marimo._runtime.runtime import Kernel
 from tests._data.mocks import create_dataframes
@@ -42,6 +44,10 @@ if HAS_DEPS:
     import pandas as pd
 else:
     pd = Mock()
+
+
+def get_len(df: IntoDataFrame) -> int:
+    return nw.from_native(df).shape[0]
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -114,6 +120,20 @@ class TestAltairChart:
                     datetime.date(2020, 1, 8),
                     datetime.date(2020, 1, 10),
                 ],
+                "date_column_utc": [
+                    datetime.datetime(
+                        2019, 12, 29, tzinfo=datetime.timezone.utc
+                    ),
+                    datetime.datetime(
+                        2020, 1, 1, tzinfo=datetime.timezone.utc
+                    ),
+                    datetime.datetime(
+                        2020, 1, 8, tzinfo=datetime.timezone.utc
+                    ),
+                    datetime.datetime(
+                        2020, 1, 10, tzinfo=datetime.timezone.utc
+                    ),
+                ],
                 "datetime_column": [
                     datetime.datetime(2019, 12, 29),
                     datetime.datetime(2020, 1, 1),
@@ -143,7 +163,41 @@ class TestAltairChart:
             }
         }
         # Filter the DataFrame with the interval selection
-        assert len(_filter_dataframe(df, interval_selection)) == 2
+        assert get_len(_filter_dataframe(df, interval_selection)) == 2
+        first, second = _filter_dataframe(df, interval_selection)["field"]
+        assert str(first) == "value1"
+        assert str(second) == "value2"
+
+        # Date interface from isoformat
+        interval_selection = {
+            "signal_channel_2": {
+                "date_column": [
+                    datetime.date(2019, 12, 29).isoformat(),
+                    datetime.date(2020, 1, 1).isoformat(),
+                ]
+            }
+        }
+        assert get_len(_filter_dataframe(df, interval_selection)) == 2
+        first, second = _filter_dataframe(df, interval_selection)["field"]
+        assert str(first) == "value1"
+        assert str(second) == "value2"
+
+        # Date with utc
+        interval_selection = {
+            "signal_channel_2": {
+                "date_column_utc": [
+                    datetime.datetime(
+                        2019, 12, 29, tzinfo=datetime.timezone.utc
+                    ).timestamp()
+                    * 1000,
+                    datetime.datetime(
+                        2020, 1, 1, tzinfo=datetime.timezone.utc
+                    ).timestamp()
+                    * 1000,
+                ]
+            }
+        }
+        assert get_len(_filter_dataframe(df, interval_selection)) == 2
         first, second = _filter_dataframe(df, interval_selection)["field"]
         assert str(first) == "value1"
         assert str(second) == "value2"
@@ -163,6 +217,286 @@ class TestAltairChart:
         first, second = _filter_dataframe(df, interval_selection)["field"]
         assert str(first) == "value1"
         assert str(second) == "value2"
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    @pytest.mark.parametrize(
+        "df",
+        create_dataframes(
+            {
+                "datetime_column_utc": [
+                    datetime.datetime.fromtimestamp(
+                        10000, datetime.timezone.utc
+                    ),
+                    datetime.datetime.fromtimestamp(
+                        20000, datetime.timezone.utc
+                    ),
+                ],
+                "datetime_column": [
+                    datetime.datetime(2019, 12, 29),
+                    datetime.datetime(2020, 1, 1),
+                ],
+            },
+            exclude=["ibis", "duckdb"],
+        ),
+    )
+    def test_filter_dataframe_with_datetimes_as_strings(
+        df: IntoDataFrame,
+    ) -> None:
+        assert (
+            get_len(
+                _filter_dataframe(
+                    df,
+                    {
+                        "select_point": {
+                            "datetime_column_utc": [
+                                datetime.datetime(
+                                    1970,
+                                    1,
+                                    1,
+                                    2,
+                                    46,
+                                    40,
+                                    tzinfo=datetime.timezone.utc,
+                                ).isoformat()
+                            ],
+                            "vlPoint": [1],
+                        }
+                    },
+                )
+            )
+            == 1
+        )
+        assert (
+            get_len(
+                _filter_dataframe(
+                    df,
+                    {
+                        "select_interval": {
+                            "datetime_column_utc": [
+                                datetime.datetime(
+                                    1970,
+                                    1,
+                                    1,
+                                    1,
+                                    46,
+                                    40,
+                                    tzinfo=datetime.timezone.utc,
+                                ).isoformat(),
+                                datetime.datetime(
+                                    1970,
+                                    2,
+                                    1,
+                                    1,
+                                    46,
+                                    40,
+                                    tzinfo=datetime.timezone.utc,
+                                ).isoformat(),
+                            ]
+                        }
+                    },
+                )
+            )
+            == 2
+        )
+        assert (
+            get_len(
+                _filter_dataframe(
+                    df,
+                    {
+                        "select_interval": {
+                            "datetime_column_utc": [
+                                datetime.datetime(
+                                    1970,
+                                    1,
+                                    1,
+                                    1,
+                                    0,
+                                    40,
+                                    tzinfo=datetime.timezone.utc,
+                                ).isoformat(),
+                                datetime.datetime(
+                                    1970,
+                                    1,
+                                    1,
+                                    1,
+                                    1,
+                                    40,
+                                    tzinfo=datetime.timezone.utc,
+                                ).isoformat(),
+                            ]
+                        }
+                    },
+                )
+            )
+            == 0
+        )
+
+        # Non-UTC datetimes
+        assert (
+            get_len(
+                _filter_dataframe(
+                    df,
+                    {
+                        "select_interval": {
+                            "datetime_column": [
+                                datetime.datetime(2019, 12, 29).isoformat(),
+                                datetime.datetime(2020, 1, 1).isoformat(),
+                            ]
+                        }
+                    },
+                )
+            )
+            == 2
+        )
+
+        # Datetimes with timezone given, get remove
+        assert (
+            get_len(
+                _filter_dataframe(
+                    df,
+                    {
+                        "select_interval": {
+                            "datetime_column": [
+                                datetime.datetime(
+                                    2019, 12, 29, tzinfo=datetime.timezone.utc
+                                ).isoformat(),
+                                datetime.datetime(
+                                    2020, 1, 1, tzinfo=datetime.timezone.utc
+                                ).isoformat(),
+                            ]
+                        }
+                    },
+                )
+            )
+            == 2
+        )
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    @pytest.mark.parametrize(
+        "df",
+        create_dataframes(
+            {
+                "datetime_column_utc": [
+                    datetime.datetime.fromtimestamp(
+                        10000, datetime.timezone.utc
+                    ),
+                    datetime.datetime.fromtimestamp(
+                        20000, datetime.timezone.utc
+                    ),
+                ],
+                "datetime_column": [
+                    datetime.datetime.fromtimestamp(10000),
+                    datetime.datetime.fromtimestamp(20000),
+                ],
+            },
+            exclude=["ibis", "duckdb"],
+        ),
+    )
+    def test_filter_dataframe_with_datetimes_as_numbers(
+        df: Any,
+    ) -> None:
+        def to_milliseconds(seconds: int) -> int:
+            return int(seconds * 1000)
+
+        milliseconds_since_epoch = to_milliseconds(10000)
+        assert (
+            get_len(
+                _filter_dataframe(
+                    df,
+                    {
+                        "select_interval": {
+                            "datetime_column_utc": [
+                                0,
+                                milliseconds_since_epoch - 1,
+                            ]
+                        }
+                    },
+                )
+            )
+            == 0
+        )
+        assert (
+            get_len(
+                _filter_dataframe(
+                    df,
+                    {
+                        "select_interval": {
+                            "datetime_column_utc": [
+                                milliseconds_since_epoch,
+                                milliseconds_since_epoch
+                                + to_milliseconds(9000),
+                            ]
+                        }
+                    },
+                )
+            )
+            == 1
+        )
+        assert (
+            get_len(
+                _filter_dataframe(
+                    df,
+                    {
+                        "select_interval": {
+                            "datetime_column_utc": [
+                                milliseconds_since_epoch,
+                                milliseconds_since_epoch
+                                + to_milliseconds(20000),
+                            ]
+                        }
+                    },
+                )
+            )
+            == 2
+        )
+
+        # non-UTC datetimes
+        assert (
+            get_len(
+                _filter_dataframe(
+                    df,
+                    {
+                        "select_interval": {
+                            "datetime_column": [
+                                0,
+                                datetime.datetime(2020, 1, 1)
+                                .now()
+                                .timestamp(),
+                            ]
+                        }
+                    },
+                )
+            )
+            == 2
+        )
+
+        # Datetimes with timezone given, get remove
+        assert (
+            get_len(
+                _filter_dataframe(
+                    df,
+                    {
+                        "select_interval": {
+                            "datetime_column": [
+                                datetime.datetime(
+                                    2019, 12, 29, tzinfo=datetime.timezone.utc
+                                ).isoformat(),
+                                datetime.datetime(
+                                    2020, 1, 1, tzinfo=datetime.timezone.utc
+                                ).isoformat(),
+                            ]
+                        }
+                    },
+                )
+            )
+            == 0
+        )
 
     @staticmethod
     async def test_altair_settings_when_set(
@@ -202,9 +536,7 @@ class TestAltairChart:
         # smoke test; this shouldn't error, even though it's larger than
         # altair's default of 5000 data points.
         df = pd.DataFrame({"a": [10000], "b": [10000]})
-        altair_chart.altair_chart(
-            alt.Chart(df).mark_circle().encode(x="a", y="b")
-        )
+        altair_chart(alt.Chart(df).mark_circle().encode(x="a", y="b"))
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -215,10 +547,8 @@ def test_can_add_altair_chart() -> None:
     unwrapped = (
         alt.Chart(data).mark_point().encode(x="values:Q").properties(width=200)
     )
-    chart1 = altair_chart.altair_chart(unwrapped)
-    chart2 = altair_chart.altair_chart(
-        alt.Chart(data).mark_bar().encode(x="values:Q")
-    )
+    chart1 = altair_chart(unwrapped)
+    chart2 = altair_chart(alt.Chart(data).mark_bar().encode(x="values:Q"))
 
     assert chart1 + chart2 is not None
     assert chart2 + chart1 is not None
@@ -235,10 +565,8 @@ def test_can_or_altair_chart() -> None:
     unwrapped = (
         alt.Chart(data).mark_point().encode(x="values:Q").properties(width=200)
     )
-    chart1 = altair_chart.altair_chart(unwrapped)
-    chart2 = altair_chart.altair_chart(
-        alt.Chart(data).mark_bar().encode(x="values:Q")
-    )
+    chart1 = altair_chart(unwrapped)
+    chart2 = altair_chart(alt.Chart(data).mark_bar().encode(x="values:Q"))
 
     assert chart1 | chart2 is not None
     assert chart2 | chart1 is not None
@@ -255,10 +583,8 @@ def test_can_and_altair_chart() -> None:
     unwrapped = (
         alt.Chart(data).mark_point().encode(x="values:Q").properties(width=200)
     )
-    chart1 = altair_chart.altair_chart(unwrapped)
-    chart2 = altair_chart.altair_chart(
-        alt.Chart(data).mark_bar().encode(x="values:Q")
-    )
+    chart1 = altair_chart(unwrapped)
+    chart2 = altair_chart(alt.Chart(data).mark_bar().encode(x="values:Q"))
 
     assert chart1 & chart2 is not None
     assert chart2 & chart1 is not None
@@ -277,9 +603,7 @@ def test_does_not_modify_original() -> None:
     )
     alt2 = alt.Chart(data).mark_bar().encode(x="values:Q").properties()
     combined1 = alt1 | alt2
-    combined2 = altair_chart.altair_chart(alt1) | altair_chart.altair_chart(
-        alt2
-    )
+    combined2 = altair_chart(alt1) | altair_chart(alt2)
 
     assert combined1 == combined2._chart
 
@@ -289,9 +613,7 @@ def test_get_dataframe() -> None:
     import altair as alt
 
     data = {"values": [1, 2, 3]}
-    chart = altair_chart.altair_chart(
-        alt.Chart(data).mark_point().encode(x="values:Q")
-    )
+    chart = altair_chart(alt.Chart(data).mark_point().encode(x="values:Q"))
     assert chart.dataframe == data
 
 
@@ -302,9 +624,7 @@ def test_get_dataframe_csv() -> None:
     import polars as pl
 
     data = "https://cdn.jsdelivr.net/npm/vega-datasets@v1.29.0/data/stocks.csv"
-    chart = altair_chart.altair_chart(
-        alt.Chart(data).mark_point().encode(x="values:Q")
-    )
+    chart = altair_chart(alt.Chart(data).mark_point().encode(x="values:Q"))
     assert isinstance(chart.dataframe, (pd.DataFrame, pl.DataFrame))
 
 
@@ -317,9 +637,7 @@ def test_get_dataframe_json() -> None:
     data = (
         "https://cdn.jsdelivr.net/npm/vega-datasets@v1.29.0/data/barley.json"
     )
-    chart = altair_chart.altair_chart(
-        alt.Chart(data).mark_point().encode(x="values:Q")
-    )
+    chart = altair_chart(alt.Chart(data).mark_point().encode(x="values:Q"))
     assert isinstance(chart.dataframe, (pd.DataFrame, pl.DataFrame))
 
 
@@ -394,9 +712,7 @@ def test_no_selection_pandas() -> None:
     import pandas as pd
 
     data = pd.DataFrame({"values": [1, 2, 3]})
-    chart = altair_chart.altair_chart(
-        alt.Chart(data).mark_point().encode(x="values:Q")
-    )
+    chart = altair_chart(alt.Chart(data).mark_point().encode(x="values:Q"))
     assert isinstance(chart._value, pd.DataFrame)
     assert len(chart._value) == 0
     selected_value = chart._convert_value({})
@@ -411,9 +727,7 @@ def test_no_selection_polars() -> None:
     import polars as pl
 
     data = pl.DataFrame({"values": [1, 2, 3]})
-    chart = altair_chart.altair_chart(
-        alt.Chart(data).mark_point().encode(x="values:Q")
-    )
+    chart = altair_chart(alt.Chart(data).mark_point().encode(x="values:Q"))
     assert isinstance(chart._value, pl.DataFrame)
     assert len(chart._value) == 0
     selected_value = chart._convert_value({})
@@ -437,7 +751,7 @@ def test_layered_chart(df: IntoDataFrame):
     chart2 = base.mark_line().encode(y="y2")
     layered = alt.layer(chart1, chart2)
 
-    marimo_chart = altair_chart.altair_chart(layered)
+    marimo_chart = altair_chart(layered)
     assert isinstance(marimo_chart._chart, alt.LayerChart)
     assert marimo_chart.dataframe is not None
 
@@ -456,7 +770,7 @@ def test_chart_with_binning(df: IntoDataFrame):
         .encode(x=alt.X("values", bin=True), y="count()")
     )
 
-    marimo_chart = altair_chart.altair_chart(chart)
+    marimo_chart = altair_chart(chart)
     assert _has_binning(marimo_chart._spec)
     # Test that selection is disabled for binned charts
     assert marimo_chart._component_args["chart-selection"] is False
@@ -479,7 +793,7 @@ def test_apply_selection(df: IntoDataFrame):
 
     chart = alt.Chart(df).mark_point().encode(x="x", y="y", color="category")
 
-    marimo_chart = altair_chart.altair_chart(chart)
+    marimo_chart = altair_chart(chart)
     marimo_chart._chart_selection = {"signal_channel": {"category": ["A"]}}
 
     filtered_data = marimo_chart.apply_selection(df)
@@ -499,7 +813,7 @@ def test_chart_with_url_data():
         .encode(x="Horsepower:Q", y="Miles_per_Gallon:Q")
     )
 
-    marimo_chart = altair_chart.altair_chart(chart)
+    marimo_chart = altair_chart(chart)
     assert isinstance(marimo_chart.dataframe, pl.DataFrame)
     assert len(marimo_chart.dataframe) > 0
 
@@ -515,17 +829,89 @@ def test_chart_operations(df: IntoDataFrame):
     chart1 = alt.Chart(df).mark_point().encode(x="x", y="y")
     chart2 = alt.Chart(df).mark_line().encode(x="x", y="y")
 
-    marimo_chart1 = altair_chart.altair_chart(chart1)
-    marimo_chart2 = altair_chart.altair_chart(chart2)
+    marimo_chart1 = altair_chart(chart1)
+    marimo_chart2 = altair_chart(chart2)
 
     combined_chart = marimo_chart1 + marimo_chart2
-    assert isinstance(combined_chart, altair_chart.altair_chart)
+    assert isinstance(combined_chart, altair_chart)
     assert isinstance(combined_chart._chart, alt.LayerChart)
 
     concat_chart = marimo_chart1 | marimo_chart2
-    assert isinstance(concat_chart, altair_chart.altair_chart)
+    assert isinstance(concat_chart, altair_chart)
     assert isinstance(concat_chart._chart, alt.HConcatChart)
 
     facet_chart = marimo_chart1 & marimo_chart2
-    assert isinstance(facet_chart, altair_chart.altair_chart)
+    assert isinstance(facet_chart, altair_chart)
     assert isinstance(facet_chart._chart, alt.VConcatChart)
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_has_selection_param() -> None:
+    import altair as alt
+
+    # Chart with no selection param
+    chart = alt.Chart().mark_point()
+    assert _has_selection_param(chart) is False
+
+    # Chart with selection param but bound to input
+    chart = (
+        alt.Chart()
+        .mark_point()
+        .add_params(
+            alt.selection_point(
+                name="my_selection", encodings=["x"], bind="legend"
+            )
+        )
+    )
+    assert _has_selection_param(chart) is False
+
+    # Chart with unbound selection param
+    chart = (
+        alt.Chart()
+        .mark_point()
+        .add_params(alt.selection_point(name="my_selection"))
+    )
+    assert chart.params[0].bind is alt.Undefined
+    assert _has_selection_param(chart) is True
+
+    # Layer chart
+    rule = alt.Chart().mark_rule(strokeDash=[2, 2]).encode(y=alt.datum(2))
+    layered = alt.layer(chart, rule)
+    assert _has_selection_param(layered) is True
+
+    # Invalid chart
+    chart = None
+    assert _has_selection_param(chart) is False
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_has_legend_param() -> None:
+    import altair as alt
+
+    # Chart with no legend param
+    chart = alt.Chart().mark_point()
+    assert _has_legend_param(chart) is False
+
+    # Chart with legend binding
+    chart = (
+        alt.Chart()
+        .mark_point()
+        .add_params(alt.selection_point(fields=["color"], bind="legend"))
+    )
+    assert _has_legend_param(chart) is True
+
+    # Layer chart
+    rule = alt.Chart().mark_rule(strokeDash=[2, 2]).encode(y=alt.datum(2))
+    layered = alt.layer(chart, rule)
+    assert _has_legend_param(layered) is True
+
+    # Chart with non-legend binding
+    chart = alt.Chart().mark_point().add_params(alt.selection_point())
+    assert _has_legend_param(chart) is False
+
+    layered = alt.layer(chart, rule)
+    assert _has_legend_param(layered) is False
+
+    # Invalid chart
+    chart = None
+    assert _has_legend_param(chart) is False

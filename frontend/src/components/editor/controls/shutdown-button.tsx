@@ -6,6 +6,7 @@ import { Tooltip } from "../../ui/tooltip";
 import { useImperativeModal } from "../../modal/ImperativeModal";
 import { XIcon } from "lucide-react";
 import { sendShutdown } from "@/core/network/requests";
+import { isWasm } from "@/core/wasm/utils";
 
 export const ShutdownButton: React.FC<{ description: string }> = (props) => {
   const { openConfirm, closeModal } = useImperativeModal();
@@ -16,6 +17,10 @@ export const ShutdownButton: React.FC<{ description: string }> = (props) => {
       window.close();
     }, 200);
   };
+
+  if (isWasm()) {
+    return null;
+  }
 
   return (
     <Tooltip content="Shutdown">

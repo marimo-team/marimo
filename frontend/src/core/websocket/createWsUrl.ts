@@ -1,21 +1,21 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import { Strings } from "@/utils/strings";
 import { KnownQueryParams } from "../constants";
 
 export function createWsUrl(sessionId: string): string {
-  const baseURI = document.baseURI;
-
-  const url = new URL(baseURI);
-  const protocol = url.protocol === "https:" ? "wss" : "ws";
-  url.protocol = protocol;
-  url.pathname = `${withoutTrailingSlash(url.pathname)}/ws`;
-
   const searchParams = new URLSearchParams(window.location.search);
   searchParams.set(KnownQueryParams.sessionId, sessionId);
-  url.search = searchParams.toString();
 
-  return url.toString();
+  return resolveToWsUrl(`ws?${searchParams.toString()}`);
 }
 
-function withoutTrailingSlash(url: string): string {
-  return url.endsWith("/") ? url.slice(0, -1) : url;
+export function resolveToWsUrl(relativeUrl: string): string {
+  if (relativeUrl.startsWith("ws:") || relativeUrl.startsWith("wss:")) {
+    return relativeUrl;
+  }
+  const baseUri = new URL(document.baseURI);
+  const protocol = baseUri.protocol === "https:" ? "wss:" : "ws:";
+  const host = baseUri.host;
+  const pathname = baseUri.pathname;
+  return `${protocol}//${host}${Strings.withoutTrailingSlash(pathname)}/${Strings.withoutLeadingSlash(relativeUrl)}`;
 }

@@ -1,8 +1,8 @@
-# Exporting
+# Exporting to HTML and other formats
 
 Export marimo notebooks to other file formats at the command line using
 
-```
+```bash
 marimo export
 ```
 
@@ -40,6 +40,13 @@ marimo export html notebook.py -o notebook.html --watch
 
 When you export from the command line, marimo runs your notebook to produce
 its visual outputs before saving as HTML.
+
+```{admonition} Note
+:class: note
+
+If any cells error during the export process, the status code will be non-zero. However, the export result may still be generated, with the error included in the output.
+Errors can be ignored by appending `|| true` to the command, e.g. `marimo export html notebook.py || true`.
+```
 
 ## Export to a Python script
 
@@ -82,6 +89,122 @@ their dependency graph.
 
 ```bash
 marimo export ipynb notebook.py -o notebook.ipynb
+```
+
+## Exporting to PDF, slides, or rst
+
+If you export to a Jupyter notebook, you can leverage various Jupyter ecosystem tools. For PDFs, you will
+need to have [Pandoc](https://nbconvert.readthedocs.io/en/latest/install.html#installing-pandoc) and [Tex](https://nbconvert.readthedocs.io/en/latest/install.html#installing-tex) installed. The examples below use `uvx`, which you can obtain by [installing `uv`](https://docs.astral.sh/uv/getting-started/installation/).
+
+```bash
+NOTEBOOK=notebook.ipynb
+
+# Convert to PDF using nbconvert
+uvx --with nbconvert --from jupyter-core jupyter nbconvert --to pdf $NOTEBOOK
+
+# Convert to web PDF
+uvx --with "nbconvert[webpdf]" --from jupyter-core jupyter nbconvert --to webpdf $NOTEBOOK --allow-chromium-download
+
+# Convert to slides
+uvx --with nbconvert --from jupyter-core jupyter nbconvert --to slides $NOTEBOOK
+
+# Convert to rst with nbconvert
+uvx --with nbconvert --from jupyter-core jupyter nbconvert --to rst $NOTEBOOK
+
+# Generate PNG/PDF of specific cells using nbconvert
+uvx --with nbconvert --with jupyter --from jupyter-core jupyter nbconvert --to pdf --execute --stdout $NOTEBOOK \
+  --TemplateExporter.exclude_input=True
+
+# Use nbconvert programmatically for more control
+uv run --with nbconvert python -c "
+from nbconvert import PDFExporter
+import nbformat
+nb = nbformat.read('$NOTEBOOK', as_version=4)
+pdf_exporter = PDFExporter()
+pdf_data, resources = pdf_exporter.from_notebook_node(nb)
+with open('notebook.pdf', 'wb') as f:
+    f.write(pdf_data)
+"
+```
+
+You can also use other tools that work with Jupyter notebooks:
+
+- [Quarto](https://quarto.org) - Create beautiful documents, websites, presentations
+- [nbgrader](https://nbgrader.readthedocs.io/) - Grade notebook assignments
+
+## Export to WASM-powered HTML
+
+Export your notebook to a self-contained HTML file that runs using WebAssembly:
+
+```bash
+# export as readonly, with code locked
+marimo export html-wasm notebook.py -o output_dir --mode run
+# export as an editable notebook
+marimo export html-wasm notebook.py -o output_dir --mode edit
+```
+
+The exported HTML file will run your notebook using WebAssembly, making it completely self-contained and executable in the browser. This means users can interact with your notebook without needing Python or marimo installed.
+
+Options:
+
+- `--mode`: Choose between `run` (read-only) or `edit` (allows editing)
+- `--output`: Directory to save the HTML and required assets
+- `--show-code/--no-show-code`: Whether to initially show or hide the code in the notebook
+
+```{admonition} Note
+:class: note
+
+The exported file must be served over HTTP to function correctly - it cannot be opened directly from the filesystem (file://).
+Your server must also serve the assets in the `assets` directory, next to the HTML file. For this reason, we recommend using the online playground if possible: <https://marimo.app>.
+```
+
+### Testing the export
+
+You can test the export by running the following command in the directory containing your notebook:
+
+```bash
+cd path/to/output_dir
+python -m http.server
+```
+
+### Deploying to GitHub Pages
+
+You can deploy your WebAssembly marimo notebook to GitHub Pages using the following GitHub Actions workflow:
+
+```yaml
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ... checkout and install dependencies
+
+      - name: 📄 Export notebook
+        run: |
+          marimo export html-wasm notebook.py -o path/to/output --mode run
+
+      - name: 📦 Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: path/to/output
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    permissions:
+      pages: write
+      id-token: write
+
+    steps:
+      - name: 🌐 Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages
 ```
 
 ## 🏝️ Embed marimo outputs in HTML using Islands

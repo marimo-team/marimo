@@ -4,7 +4,7 @@ import { BoxIcon, HelpCircleIcon } from "lucide-react";
 import { PanelEmptyState } from "./empty-state";
 
 import { useAsyncData } from "@/hooks/useAsyncData";
-import { useUserConfig } from "@/core/config/config";
+import { useResolvedMarimoConfig } from "@/core/config/config";
 import {
   addPackage,
   getPackageList,
@@ -29,7 +29,7 @@ import { Events } from "@/utils/events";
 import { copyToClipboard } from "@/utils/copy";
 
 export const PackagesPanel: React.FC = () => {
-  const [config] = useUserConfig();
+  const [config] = useResolvedMarimoConfig();
   const packageManager = config.package_management.manager;
   const { data, loading, error, reload } = useAsyncData(
     () => getPackageList(),

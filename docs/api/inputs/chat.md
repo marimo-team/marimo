@@ -49,7 +49,7 @@ chat = mo.ui.chat(echo_model, prompts=["Hello", "How are you?"])
 chat
 ```
 
-Here, `messages` is a list of [`ChatMessage`](#marimo.ui.ChatMessage) objects,
+Here, `messages` is a list of [`ChatMessage`](#marimo.ai.ChatMessage) objects,
 which has `role` (`"user"`, `"assistant"`, or `"system"`) and `content` (the
 message string) attributes; `config` is a
 [`ChatModelConfig`](#marimo.ai.ChatModelConfig) object with various
@@ -87,7 +87,7 @@ containing `role`, `content`, and optional `attachments` attributes.
 .. autoclass:: ChatMessage
   :members:
 
-  .. autoclasstoc:: marimo._plugins.ui._impl.chat.types.ChatMessage
+  .. autoclasstoc:: marimo._ai.types.types.ChatMessage
 ```
 
 ## Custom Model with Additional Context
@@ -167,7 +167,7 @@ mo.ui.chat(
 .. autoclass:: marimo.ai.llm.openai
   :members:
 
-  .. autoclasstoc:: marimo._plugins.ui._impl.chat.llm.openai
+  .. autoclasstoc:: marimo._ai.llm.openai
 ```
 
 ### Anthropic
@@ -189,7 +189,7 @@ mo.ui.chat(
 .. autoclass:: marimo.ai.llm.anthropic
   :members:
 
-  .. autoclasstoc:: marimo._plugins.ui._impl.chat.llm.anthropic
+  .. autoclasstoc:: marimo._ai.llm.anthropic
 ```
 
 ### Google AI
@@ -211,7 +211,7 @@ mo.ui.chat(
 .. autoclass:: marimo.ai.llm.google
   :members:
 
-  .. autoclasstoc:: marimo._plugins.ui._impl.chat.llm.google
+  .. autoclasstoc:: marimo._ai.llm.google
 ```
 
 ### Groq
@@ -233,7 +233,7 @@ mo.ui.chat(
 .. autoclass:: marimo.ai.llm.groq
   :members:
 
-  .. autoclasstoc:: marimo._plugins.ui._impl.chat.llm.groq
+  .. autoclasstoc:: marimo._ai.llm.groq
 ```
 
 ## Types
@@ -257,4 +257,59 @@ configuration with a dictionary conforming to the config.
 
 ```{eval-rst}
 .. autoclass:: marimo.ai.ChatAttachment
+```
+
+## Supported Model Providers
+
+We support any OpenAI-compatible endpoint. If you want any specific provider added explicitly (ones that don't abide by the standard OpenAI API format), you can file a [feature request](https://github.com/marimo-team/marimo/issues/new?template=feature_request.yaml).
+
+Normally, overriding the `base_url` parameter should work. Here are some examples:
+
+::::{tab-set}
+:::{tab-item} Cerebras
+
+```python
+chatbot = mo.ui.chat(
+   mo.ai.llm.openai(
+       model="llama3.1-8b",
+       api_key="csk-...", # insert your key here
+       base_url="https://api.cerebras.ai/v1/",
+   ),
+)
+chatbot
+```
+
+:::
+:::{tab-item} Groq
+
+```python
+chatbot = mo.ui.chat(
+   mo.ai.llm.openai(
+       model="llama-3.1-70b-versatile",
+       api_key="gsk_...", # insert your key here
+       base_url="https://api.groq.com/openai/v1/",
+   ),
+)
+chatbot
+```
+
+:::
+:::{tab-item} xAI
+
+```python
+chatbot = mo.ui.chat(
+   mo.ai.llm.openai(
+       model="grok-beta",
+       api_key=key, # insert your key here
+       base_url="https://api.x.ai/v1",
+   ),
+)
+chatbot
+```
+
+:::
+::::
+
+```{note}
+We have added examples for GROQ and Cerebras. These providers offer free API keys and are great for trying out Llama models (from Meta). You can sign up on their platforms and integrate with various AI integrations in marimo easily. For more information, refer to the [AI completion documentation in marimo](/guides/editor_features/ai_completion).
 ```

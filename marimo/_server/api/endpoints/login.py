@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from urllib.parse import parse_qsl
+from urllib.parse import parse_qsl, urlparse
 
 from starlette.responses import (
     HTMLResponse,
@@ -99,6 +99,11 @@ async def login_submit(request: Request) -> Response:
     """
     error = ""
     redirect_url = request.query_params.get("next", "/")
+
+    # Ensure redirect URL uses same protocol as request
+    parsed = urlparse(redirect_url)
+    if parsed.scheme:
+        redirect_url = parsed._replace(scheme=request.url.scheme).geturl()
 
     if request.user.is_authenticated:
         return RedirectResponse("/", 302)

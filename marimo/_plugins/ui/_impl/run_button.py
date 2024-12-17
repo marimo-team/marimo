@@ -55,6 +55,7 @@ class run_button(UIElement[Any, Any]):
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
+    - `keyboard_shortcut`: keyboard shortcut to trigger the button (e.g. 'Ctrl-L')
     """
 
     # We reuse the button plugin on the frontend, UI/logic are the same
@@ -69,6 +70,7 @@ class run_button(UIElement[Any, Any]):
         label: str = "click to run",
         on_change: Optional[Callable[[Any], None]] = None,
         full_width: bool = False,
+        keyboard_shortcut: Optional[str] = None,
     ) -> None:
         self._initial_value = False
         super().__init__(
@@ -81,6 +83,7 @@ class run_button(UIElement[Any, Any]):
                 "disabled": disabled,
                 "tooltip": tooltip,
                 "full-width": full_width,
+                "keyboard-shortcut": keyboard_shortcut,
             },
             on_change=on_change,
         )
@@ -93,7 +96,7 @@ class run_button(UIElement[Any, Any]):
         else:
             return True
 
-    def _on_update_completion(self) -> None:
+    def _on_update_completion(self) -> bool:
         from marimo._runtime.context import get_context
         from marimo._runtime.context.kernel_context import KernelRuntimeContext
 
@@ -101,7 +104,7 @@ class run_button(UIElement[Any, Any]):
             ctx = get_context()
         except ContextNotInitializedError:
             self._value = False
-            return
+            return True
 
         if isinstance(ctx, KernelRuntimeContext) and ctx.lazy:
             # Resetting to False in lazy kernels makes the button pointless,
@@ -111,6 +114,7 @@ class run_button(UIElement[Any, Any]):
             # The right thing to do would be to somehow set to False after
             # all cells that were marked stale because of the update were run,
             # but that's too complicated.
-            return
-        else:
-            self._value = False
+            return False
+
+        self._value = False
+        return True

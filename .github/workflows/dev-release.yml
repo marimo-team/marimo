@@ -90,7 +90,13 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public
+        run: |
+          for i in {1..3}; do
+            npm publish --access public && break || {
+              echo "Publish attempt $i failed, retrying..."
+              sleep 10
+            }
+          done
 
       - name: 📦 Update package.json name to @marimo-team/islands
         working-directory: frontend
@@ -112,7 +118,13 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public
+        run: |
+          for i in {1..3}; do
+            npm publish --access public && break || {
+              echo "Publish attempt $i failed, retrying..."
+              sleep 10
+            }
+          done
 
       - name: 📝 Comment PR
         uses: actions/github-script@v7

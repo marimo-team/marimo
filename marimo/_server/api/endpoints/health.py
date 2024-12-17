@@ -10,7 +10,11 @@ from starlette.responses import JSONResponse, PlainTextResponse
 from marimo import __version__, _loggers
 from marimo._server.api.deps import AppState
 from marimo._server.router import APIRouter
-from marimo._utils.health import get_node_version, get_required_modules_list
+from marimo._utils.health import (
+    get_node_version,
+    get_python_version,
+    get_required_modules_list,
+)
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -76,6 +80,7 @@ async def status(request: Request) -> JSONResponse:
             "mode": app_state.mode,
             "sessions": len(app_state.session_manager.sessions),
             "version": __version__,
+            "python_version": get_python_version(),
             "requirements": get_required_modules_list(),
             "node_version": get_node_version(),
             "lsp_running": app_state.session_manager.lsp_server.is_running(),
@@ -205,4 +210,24 @@ async def usage(request: Request) -> JSONResponse:
                 "percent": cpu,
             },
         }
+    )
+
+
+@router.get("/api/status/connections")
+async def connections(request: Request) -> JSONResponse:
+    """
+    responses:
+        200:
+            description: Get the number of active websocket connections
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        properties:
+                            active:
+                                type: integer
+    """
+    app_state = AppState(request)
+    return JSONResponse(
+        {"active": app_state.session_manager.get_active_connection_count()}
     )

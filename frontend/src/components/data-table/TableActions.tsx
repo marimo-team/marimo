@@ -1,4 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+"use no memo";
+
 import React from "react";
 import { Tooltip } from "../ui/tooltip";
 import { Button } from "../ui/button";
@@ -13,6 +15,7 @@ interface TableActionsProps<TData> {
   isSearchEnabled: boolean;
   setIsSearchEnabled: React.Dispatch<React.SetStateAction<boolean>>;
   pagination: boolean;
+  totalColumns: number;
   selection?: "single" | "multi" | null;
   onRowSelectionChange?: (value: RowSelectionState) => void;
   table: Table<TData>;
@@ -25,6 +28,7 @@ export const TableActions = <TData,>({
   isSearchEnabled,
   setIsSearchEnabled,
   pagination,
+  totalColumns,
   selection,
   onRowSelectionChange,
   table,
@@ -46,6 +50,7 @@ export const TableActions = <TData,>({
       )}
       {pagination ? (
         <DataTablePagination
+          totalColumns={totalColumns}
           selection={selection}
           onSelectAllRowsChange={
             onRowSelectionChange

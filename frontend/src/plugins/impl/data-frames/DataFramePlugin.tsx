@@ -96,9 +96,9 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
         url: z.string(),
         total_rows: z.number(),
         row_headers: z.array(z.string()),
-        field_types: z
-          .record(z.tuple([z.enum(DATA_TYPES), z.string()]))
-          .nullable(),
+        field_types: z.array(
+          z.tuple([z.string(), z.tuple([z.enum(DATA_TYPES), z.string()])]),
+        ),
         python_code: z.string().nullish(),
         sql_code: z.string().nullish(),
       }),
@@ -263,6 +263,7 @@ export const DataFrameComponent = memo(
           className="rounded-b border-x border-b"
           data={url || ""}
           totalRows={total_rows ?? 0}
+          totalColumns={Object.keys(columns).length}
           pageSize={pageSize}
           pagination={true}
           fieldTypes={field_types}

@@ -1,0 +1,23 @@
+import marimo
+
+app = marimo.App()
+
+
+app._unparsable_cell(
+    r"""
+    !echo hello, world
+
+    x = 0
+    """,
+    name="_"
+)
+
+
+@app.cell
+def _(x):
+    x
+    return
+
+
+if __name__ == "__main__":
+    app.run()

@@ -27,8 +27,8 @@ from marimo._ast.errors import (
     MultipleDefinitionError,
     UnparsableError,
 )
-from marimo._config.config import MarimoConfig, WidthType
-from marimo._config.utils import load_config
+from marimo._ast.names import DEFAULT_CELL_NAME
+from marimo._config.config import WidthType
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
@@ -70,6 +70,9 @@ class _AppConfig:
 
     # CSS file, relative to the app file
     css_file: Optional[str] = None
+
+    # HTML head file, relative to the app file
+    html_head_file: Optional[str] = None
 
     # Whether to automatically download the app as HTML and Markdown
     auto_download: List[Literal["html", "markdown"]] = field(
@@ -156,8 +159,7 @@ class App:
         # Take `AppConfig` as kwargs for forward/backward compatibility;
         # unrecognized settings will just be dropped, instead of raising
         # a TypeError.
-        self._config = _AppConfig.from_untrusted_dict(kwargs)
-        self._user_config = load_config()
+        self._config: _AppConfig = _AppConfig.from_untrusted_dict(kwargs)
 
         if runtime_context_installed():
             # nested applications get a unique cell prefix to disambiguate
@@ -350,7 +352,8 @@ class App:
         ```
 
         ```python
-        # execute the notebook
+        # execute the notebook; app.embed() can't be called in the cell
+        # that imported it!
         result = await app.embed()
         ```
 
@@ -369,9 +372,10 @@ class App:
 
         Embedded notebook outputs are interactive: when you interact with
         UI elements in an embedded notebook's output, any cell referring
-        to the `app` object is marked for execution, and its internal state
-        is automatically updated. This lets you use notebooks as building
-        blocks or components to create higher-level notebooks.
+        to the `app` object other than the one that imported it is marked for
+        execution, and its internal state is automatically updated. This lets
+        you use notebooks as building blocks or components to create
+        higher-level notebooks.
 
         Multiple levels of nesting are supported: it's possible to embed a
         notebook that in turn embeds another notebook, and marimo will do the
@@ -389,6 +393,8 @@ class App:
         self._maybe_initialize()
 
         if running_in_notebook():
+            # TODO(akshayka): raise a RuntimeError if called in the cell
+            # that defined the name bound to this App, if any
             app_kernel_runner = self._get_kernel_runner()
 
             if not app_kernel_runner.outputs:
@@ -490,7 +496,7 @@ class CellManager:
         cell_id: Optional[CellId_t],
         code: str,
         config: Optional[CellConfig],
-        name: str = "__",
+        name: str = DEFAULT_CELL_NAME,
         cell: Optional[Cell] = None,
     ) -> None:
         if cell_id is None:
@@ -523,9 +529,21 @@ class CellManager:
             cell_id=self.create_cell_id(),
             code=code,
             config=cell_config,
-            name=name or "__",
+            name=name or DEFAULT_CELL_NAME,
             cell=None,
         )
+
+    def ensure_one_cell(self) -> None:
+        if not self._cell_data:
+            cell_id = self.create_cell_id()
+            self.register_cell(
+                cell_id=cell_id,
+                code="",
+                config=CellConfig(),
+            )
+
+    def cell_name(self, cell_id: CellId_t) -> str:
+        return self._cell_data[cell_id].name
 
     def names(self) -> Iterable[str]:
         for cell_data in self._cell_data.values():
@@ -595,10 +613,6 @@ class InternalApp:
     @property
     def config(self) -> _AppConfig:
         return self._app._config
-
-    @property
-    def user_config(self) -> MarimoConfig:
-        return self._app._user_config
 
     @property
     def cell_manager(self) -> CellManager:

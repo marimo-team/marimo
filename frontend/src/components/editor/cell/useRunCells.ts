@@ -1,18 +1,18 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { CellId } from "@/core/cells/ids";
 import { sendRun } from "@/core/network/requests";
-import { staleCellIds, useCellActions, useNotebook } from "@/core/cells/cells";
+import { getNotebook, useCellActions } from "@/core/cells/cells";
 import useEvent from "react-use-event-hook";
 import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
 import { Logger } from "@/utils/Logger";
+import { staleCellIds } from "@/core/cells/utils";
 
 /**
  * Creates a function that runs all cells that have been edited or interrupted.
  */
 export function useRunStaleCells() {
-  const notebook = useNotebook();
   const runCells = useRunCells();
-  const runStaleCells = useEvent(() => runCells(staleCellIds(notebook)));
+  const runStaleCells = useEvent(() => runCells(staleCellIds(getNotebook())));
   return runStaleCells;
 }
 
@@ -34,7 +34,6 @@ export function useRunCell(cellId: CellId | undefined) {
  * Creates a function that runs the given cells.
  */
 function useRunCells() {
-  const notebook = useNotebook();
   const { prepareForRun } = useCellActions();
 
   const runCells = useEvent(async (cellIds: CellId[]) => {
@@ -42,7 +41,7 @@ function useRunCells() {
       return;
     }
 
-    const { cellHandles, cellData } = notebook;
+    const { cellHandles, cellData } = getNotebook();
 
     const codes: string[] = [];
     for (const cellId of cellIds) {

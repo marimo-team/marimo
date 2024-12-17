@@ -50,6 +50,7 @@ export function createCellRuntimeState(
     stopped: false,
     runElapsedTimeMs: null,
     runStartTimestamp: null,
+    lastRunStartTimestamp: null,
     debuggerActive: false,
     ...state,
   };
@@ -100,6 +101,8 @@ export interface CellRuntimeState {
   runStartTimestamp: Seconds | null;
   /** run elapsed time, in milliseconds */
   runElapsedTimeMs: Milliseconds | null;
+  /** last run timestamp, as seconds since epoch */
+  lastRunStartTimestamp: Seconds | null;
   /** debugger active */
   debuggerActive: boolean;
 }

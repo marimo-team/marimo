@@ -5,9 +5,10 @@
 # ]
 # ///
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.69"
+__generated_with = "0.9.17"
 app = marimo.App()
 
 
@@ -18,6 +19,12 @@ def __():
     penguins = sns.load_dataset("penguins")
     tips = sns.load_dataset("tips")
     return penguins, sns, tips
+
+
+@app.cell
+def __(sns):
+    sns.color_palette("pastel")
+    return
 
 
 @app.cell

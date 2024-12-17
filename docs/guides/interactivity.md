@@ -1,4 +1,4 @@
-# Interactivity
+# Interactive elements
 
 One of marimo's most powerful features is its first-class support for
 interactive, stateful user interface (UI) elements, or "widgets": create them using
@@ -19,7 +19,7 @@ variable, its value is sent back to Python. A single rule determines what
 happens next:
 
 ```{admonition} Interaction rule
-:class: tip
+:class: important
 
 When a UI element assigned to a global variable is interacted with, marimo
 automatically runs all cells that reference the variable (but don't define it).

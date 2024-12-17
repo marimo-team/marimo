@@ -96,3 +96,188 @@ This change includes accordions https://github.com/marimo-team/marimo/issues/221
 button .prose.prose {
   max-width: none;
 }
+
+/* Task list */
+
+.prose .task-list-item {
+  list-style-type: none !important;
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.prose .task-list-item input[type="checkbox"] {
+  margin: 0 0.5rem 0.25rem -1.6rem;
+  vertical-align: middle;
+}
+
+/* Tabs */
+
+.tabbed-set {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  border-radius: var(--radius);
+}
+
+.tabbed-set > input {
+  display: none;
+}
+
+.tabbed-set label {
+  width: auto;
+  padding: 0.2rem 1rem;
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  border-top-left-radius: var(--radius);
+  border-top-right-radius: var(--radius);
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition);
+  color: var(--muted-foreground);
+}
+
+.tabbed-set .tabbed-content {
+  width: 100%;
+  display: none;
+  box-shadow: 0 -1px var(--border);
+  background-color: var(--background);
+  padding: 0.5rem 1rem;
+}
+
+.tabbed-set input {
+  position: absolute;
+  opacity: 0;
+}
+
+.tabbed-set input:checked:nth-child(n + 1) + label {
+  color: var(--foreground);
+  border-color: var(--primary);
+  background-color: var(--background);
+}
+
+.tabbed-set label:hover {
+  color: var(--foreground);
+  background-color: var(--accent);
+}
+
+@media screen {
+  .tabbed-set input:nth-child(n + 1):checked + label + .tabbed-content {
+    order: 99;
+    display: block;
+  }
+}
+
+@media print {
+  .tabbed-content {
+    display: contents;
+  }
+}
+
+/* Critic Markup */
+
+.prose .critic {
+  font-family: inherit;
+  border-radius: 3px;
+  border-style: solid;
+  border-width: 1px;
+  padding-top: 0.1rem;
+  padding-bottom: 0.1rem;
+  text-decoration: none;
+}
+
+.prose .critic::before,
+.prose .critic::after {
+  content: "\00a0";
+  padding-top: 0.1rem;
+  padding-bottom: 0.1rem;
+  font-size: initial;
+}
+
+.prose .block::before,
+.prose .block::after {
+  content: "";
+}
+
+.prose mark.critic {
+  border-color: var(--orange-9);
+  background: var(--orange-3);
+}
+
+.prose ins.critic {
+  border-color: var(--grass-9);
+  background: var(--grass-3);
+}
+
+.prose del.critic {
+  border-color: var(--red-9);
+  background: var(--red-3);
+}
+
+.prose ins.break,
+.prose del.break {
+  font-size: 0;
+  border: none;
+}
+
+.prose ins.break::before,
+.prose del.break::before {
+  content: "\00a0\b6\00a0";
+  border-radius: 3px;
+}
+
+.prose ins.after,
+.prose del.after {
+  content: "";
+}
+
+.prose ins.break::before {
+  color: var(--green-9);
+  border: 1px solid var(--green-9);
+  background: var(--green-3);
+}
+
+.prose del.break::before {
+  color: var(--red-9);
+  border: 1px solid var(--red-9);
+  background: var(--red-3);
+}
+
+.prose span.critic {
+  background: var(--blue-3);
+  border: 0;
+  border-top: 1px solid var(--blue-9);
+  border-bottom: 1px solid var(--blue-9);
+}
+
+.prose span.critic::before,
+.prose span.critic::after {
+  font-size: inherit;
+  background: var(--blue-3);
+  border: 1px solid var(--blue-9);
+}
+
+.prose span.critic::before {
+  content: "\00a0\bb";
+  border-right: none;
+  border-top-left-radius: 3px;
+  border-bottom-left-radius: 3px;
+}
+
+.prose span.critic::after {
+  content: "\ab\00a0";
+  border-left: none;
+  border-top-right-radius: 3px;
+  border-bottom-right-radius: 3px;
+}
+
+.prose .block {
+  display: block;
+  padding: 0.02rem;
+}
+
+/* Keys */
+
+.prose .keys {
+  @apply space-x-1;
+}

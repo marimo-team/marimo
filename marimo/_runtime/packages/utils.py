@@ -23,9 +23,18 @@ def in_conda_env() -> bool:
     return "CONDA_DEFAULT_ENV" in os.environ
 
 
+def is_dockerized() -> bool:
+    return os.path.exists("/.dockerenv")
+
+
 def is_python_isolated() -> bool:
     """Returns True if not using system Python"""
-    return in_virtual_environment() or in_conda_env() or is_pyodide()
+    return (
+        in_virtual_environment()
+        or in_conda_env()
+        or is_pyodide()
+        or is_dockerized()
+    )
 
 
 def append_version(pkg_name: str, version: Optional[str]) -> str:
@@ -46,6 +55,7 @@ def split_packages(package: str) -> List[str]:
     This can handle editable packages (i.e. local directories)
 
     e.g.
+    "package1[extra1,extra2]==1.0.0" -> ["package1[extra1,extra2]==1.0.0"]
     "package1 package2" -> ["package1", "package2"]
     "package1==1.0.0 package2==2.0.0" -> ["package1==1.0.0", "package2==2.0.0"]
     "package1 -e /path/to/package1" -> ["package1 -e /path/to/package1"]

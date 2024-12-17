@@ -18,7 +18,7 @@ import { atom, useAtom, useAtomValue } from "jotai";
 import { useState } from "react";
 import { EditIcon, XIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { hotkeysAtom, useUserConfig } from "@/core/config/config";
+import { hotkeysAtom, useResolvedMarimoConfig } from "@/core/config/config";
 import { saveUserConfig } from "@/core/network/requests";
 import { isPlatformMac } from "@/core/hotkeys/shortcuts";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,7 @@ export const KeyboardShortcuts: React.FC = () => {
     null,
   );
   const [newShortcut, setNewShortcut] = useState<string[]>([]);
-  const [config, setConfig] = useUserConfig();
+  const [config, setConfig] = useResolvedMarimoConfig();
   const hotkeys = useAtomValue(hotkeysAtom);
 
   useHotkey("global.showHelp", () => setIsOpen((v) => !v));
@@ -233,7 +233,7 @@ export const KeyboardShortcuts: React.FC = () => {
   const renderGroup = (group: HotkeyGroup) => {
     const items = groups[group];
     return (
-      <div className="keyboard-shortcut-group gap-2 flex flex-col">
+      <div className="mb-[40px] gap-2 flex flex-col">
         <h3 className="text-lg font-medium">{group}</h3>
 
         {items.map((item) => renderItem(item))}

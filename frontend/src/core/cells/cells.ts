@@ -15,7 +15,7 @@ import {
 } from "./scrollCellIntoView";
 import { CellId } from "./ids";
 import { prepareCellForExecution, transitionCell } from "./cell";
-import { store } from "../state/jotai";
+import { createDeepEqualAtom, store } from "../state/jotai";
 import { createReducerAndAtoms } from "../../utils/createReducer";
 import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
 import { findCollapseRange, mergeOutlines, parseOutline } from "../dom/outline";
@@ -28,19 +28,20 @@ import { type CellLog, getCellLogsForMessage } from "./logs";
 import { deserializeBase64, deserializeJson } from "@/utils/json/base64";
 import { historyField } from "@codemirror/commands";
 import { clamp } from "@/utils/math";
-import type { LayoutState } from "../layout/layout";
-import { notebookIsRunning, notebookQueueOrRunningCount } from "./utils";
+import {
+  canUndoDeletes,
+  disabledCellIds,
+  enabledCellIds,
+  notebookIsRunning,
+  notebookNeedsRun,
+  notebookQueueOrRunningCount,
+} from "./utils";
 import {
   splitEditor,
   updateEditorCodeFromPython,
 } from "../codemirror/language/utils";
 import { invariant } from "@/utils/invariant";
-import type {
-  CellConfig,
-  RuntimeState,
-  UpdateCellIdsRequest,
-} from "../network/types";
-import { getUserConfig } from "@/core/config/config";
+import type { CellConfig, UpdateCellIdsRequest } from "../network/types";
 import { syncCellIds } from "../network/requests";
 import { kioskModeAtom } from "../mode";
 import {
@@ -95,13 +96,6 @@ export interface NotebookState {
    * Logs of all cell messages
    */
   cellLogs: CellLog[];
-}
-
-export interface LastSavedNotebook {
-  codes: string[];
-  configs: CellConfig[];
-  names: string[];
-  layout: LayoutState;
 }
 
 function withScratchCell(notebookState: NotebookState): NotebookState {
@@ -1057,6 +1051,28 @@ const {
       },
     };
   },
+  clearCellOutput: (state, action: { cellId: CellId }) => {
+    const { cellId } = action;
+    return updateCellRuntimeState(state, cellId, (cell) => ({
+      ...cell,
+      output: null,
+      consoleOutputs: [],
+    }));
+  },
+  clearAllCellOutputs: (state) => {
+    const newCellRuntime = { ...state.cellRuntime };
+    for (const cellId of state.cellIds.inOrderIds) {
+      newCellRuntime[cellId] = {
+        ...newCellRuntime[cellId],
+        output: null,
+        consoleOutputs: [],
+      };
+    }
+    return {
+      ...state,
+      cellRuntime: newCellRuntime,
+    };
+  },
 });
 
 // Helper function to update a cell in the array
@@ -1124,12 +1140,12 @@ export function getCellConfigs(state: NotebookState): CellConfig[] {
         config.column = columnIndex;
       }
 
-      cells[cellId].config = {
+      const newConfig = {
         ...cells[cellId].config,
         ...config,
       };
 
-      return cells[cellId].config;
+      return newConfig;
     });
   });
 }
@@ -1147,6 +1163,18 @@ export const cellIdsAtom = atom((get) => get(notebookAtom).cellIds);
 export const hasOnlyOneCellAtom = atom((get) =>
   get(cellIdsAtom).hasOnlyOneId(),
 );
+
+export const hasDisabledCellsAtom = atom(
+  (get) => disabledCellIds(get(notebookAtom)).length > 0,
+);
+export const hasEnabledCellsAtom = atom(
+  (get) => enabledCellIds(get(notebookAtom)).length > 0,
+);
+export const canUndoDeletesAtom = atom((get) =>
+  canUndoDeletes(get(notebookAtom)),
+);
+
+export const needsRunAtom = atom((get) => notebookNeedsRun(get(notebookAtom)));
 
 const cellErrorsAtom = atom((get) => {
   const { cellIds, cellRuntime, cellData } = get(notebookAtom);
@@ -1188,13 +1216,15 @@ export const notebookOutline = atom((get) => {
 
 export const cellErrorCount = atom((get) => get(cellErrorsAtom).length);
 
-export const cellIdToNamesMap = atom((get) => {
-  const { cellIds, cellData } = get(notebookAtom);
-  const names: Record<CellId, string | undefined> = Objects.fromEntries(
-    cellIds.inOrderIds.map((cellId) => [cellId, cellData[cellId]?.name]),
-  );
-  return names;
-});
+export const cellIdToNamesMap = createDeepEqualAtom(
+  atom((get) => {
+    const { cellIds, cellData } = get(notebookAtom);
+    const names: Record<CellId, string | undefined> = Objects.fromEntries(
+      cellIds.inOrderIds.map((cellId) => [cellId, cellData[cellId]?.name]),
+    );
+    return names;
+  }),
+);
 
 /// HOOKS
 
@@ -1257,6 +1287,16 @@ export const notebookQueuedOrRunningCountAtom = atom((get) =>
   notebookQueueOrRunningCount(get(notebookAtom)),
 );
 
+export const numColumnsAtom = atom(
+  (get) => get(notebookAtom).cellIds.colLength,
+);
+export const hasCellsAtom = atom(
+  (get) => get(notebookAtom).cellIds.idLength > 0,
+);
+export const columnIdsAtom = atom((get) =>
+  get(notebookAtom).cellIds.getColumnIds(),
+);
+
 /**
  * Get the editor views for all cells.
  */
@@ -1271,58 +1311,6 @@ export const getCellEditorView = (cellId: CellId) => {
   const { cellHandles } = store.get(notebookAtom);
   return cellHandles[cellId].current?.editorView;
 };
-
-export function isUninstantiated(
-  autoInstantiate: boolean,
-  executionTime: number | null,
-  status: RuntimeState,
-  errored: boolean,
-  interrupted: boolean,
-  stopped: boolean,
-) {
-  return (
-    // autorun on startup is off ...
-    !autoInstantiate &&
-    // hasn't run ...
-    executionTime === null &&
-    // isn't currently queued/running &&
-    status !== "queued" &&
-    status !== "running" &&
-    // and isn't in an error state.
-    !(errored || interrupted || stopped)
-  );
-}
-
-/**
- * Cells that are stale and can be run.
- */
-export function staleCellIds(state: NotebookState) {
-  const autoInstantiate = getUserConfig().runtime.auto_instantiate;
-
-  const { cellIds, cellData, cellRuntime } = state;
-  return cellIds.inOrderIds.filter(
-    (cellId) =>
-      isUninstantiated(
-        autoInstantiate,
-        // runElapstedTimeMs is what we've seen in this session
-        cellRuntime[cellId].runElapsedTimeMs ??
-          // lastExecutionTime is what was seen on session start/resume
-          cellData[cellId].lastExecutionTime,
-        cellRuntime[cellId].status,
-        cellRuntime[cellId].errored,
-        cellRuntime[cellId].interrupted,
-        cellRuntime[cellId].stopped,
-      ) ||
-      cellData[cellId].edited ||
-      cellRuntime[cellId].interrupted ||
-      (cellRuntime[cellId].staleInputs &&
-        // if a cell is disabled, it can't be run ...
-        !(
-          cellRuntime[cellId].status === "disabled-transitively" ||
-          cellData[cellId].config.disabled
-        )),
-  );
-}
 
 export function flattenTopLevelNotebookCells(
   state: NotebookState,

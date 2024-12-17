@@ -172,9 +172,7 @@ def _get_altair_chart(
         MaxRowsError,
     )
 
-    (column_type, _external_type) = table.get_field_types()[
-        request.column_name
-    ]
+    (column_type, _external_type) = table.get_field_type(request.column_name)
 
     if summary.total == 0:
         return None, None, False

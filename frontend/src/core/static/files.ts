@@ -46,7 +46,6 @@ export function patchVegaLoader(
   },
   files: StaticVirtualFiles = getStaticVirtualFiles(),
 ) {
-  // const originalHttp = loader.http.bind(loader);
   const originalHttp = loader.http.bind(loader);
 
   loader.http = async (url: string) => {

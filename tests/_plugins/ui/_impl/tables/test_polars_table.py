@@ -195,13 +195,13 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
     def test_get_field_types(self) -> None:
         import polars as pl
 
-        expected_field_types = {
-            "A": ("integer", "i64"),
-            "B": ("string", "str"),
-            "C": ("number", "f64"),
-            "D": ("boolean", "bool"),
-            "E": ("datetime", "datetime[μs]"),
-        }
+        expected_field_types = [
+            ("A", ("integer", "i64")),
+            ("B", ("string", "str")),
+            ("C", ("number", "f64")),
+            ("D", ("boolean", "bool")),
+            ("E", ("datetime", "datetime[μs]")),
+        ]
         assert self.manager.get_field_types() == expected_field_types
 
         complex_data = pl.DataFrame(
@@ -240,20 +240,20 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                 ],
             }
         )
-        expected_field_types = {
-            "A": ("integer", "i64"),
-            "B": ("string", "str"),
-            "C": ("number", "f64"),
-            "D": ("boolean", "bool"),
-            "E": ("unknown", "object"),
-            "F": ("unknown", "null"),
-            "G": ("unknown", "object"),
-            "H": ("datetime", "datetime[μs]"),
-            "I": ("string", "str"),
-            "J": ("string", "str"),
-            "K": ("date", "date"),
-            "L": ("time", "Time"),
-        }
+        expected_field_types = [
+            ("A", ("integer", "i64")),
+            ("B", ("string", "str")),
+            ("C", ("number", "f64")),
+            ("D", ("boolean", "bool")),
+            ("E", ("unknown", "object")),
+            ("F", ("unknown", "null")),
+            ("G", ("unknown", "object")),
+            ("H", ("datetime", "datetime[μs]")),
+            ("I", ("string", "str")),
+            ("J", ("string", "str")),
+            ("K", ("date", "date")),
+            ("L", ("time", "Time")),
+        ]
         assert (
             self.factory.create()(complex_data).get_field_types()
             == expected_field_types
@@ -264,6 +264,24 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         expected_data = self.data.head(1)
         assert "PolarsTableManager" in str(type(limited_manager))
         assert assert_frame_equal(limited_manager.data, expected_data)
+
+    def test_take(self) -> None:
+        assert self.manager.take(1, 0).data["A"].to_list() == [1]
+        assert self.manager.take(2, 0).data["A"].to_list() == [1, 2]
+        assert self.manager.take(2, 1).data["A"].to_list() == [2, 3]
+        assert self.manager.take(2, 2).data["A"].to_list() == [3]
+
+    def test_take_zero(self) -> None:
+        limited_manager = self.manager.take(0, 0)
+        assert limited_manager.data.is_empty()
+
+    def test_take_negative(self) -> None:
+        with pytest.raises(ValueError):
+            self.manager.take(-1, 0)
+
+    def test_take_negative_offset(self) -> None:
+        with pytest.raises(ValueError):
+            self.manager.take(1, -1)
 
     def test_take_out_of_bounds(self) -> None:
         # Too large of page
@@ -377,6 +395,12 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         unique_values = self.manager.get_unique_column_values(column)
         assert unique_values == [1, 2, 3]
 
+    def test_get_sample_values(self) -> None:
+        sample_values = self.manager.get_sample_values("A")
+        assert sample_values == [1, 2, 3]
+        sample_values = self.manager.get_sample_values("B")
+        assert sample_values == ["a", "b", "c"]
+
     def test_search(self) -> None:
         import polars as pl
 
@@ -387,6 +411,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                 "C": [True, False, True],
                 "D": [["zz", "yyy"], [], []],
                 "E": [1.1, 2.2, 3.3],
+                "G": ["U", "T", "V"],
             }
         )
         manager = self.factory.create()(df)
@@ -394,6 +419,9 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         assert manager.search("foo").get_num_rows() == 1
         # Contains
         assert manager.search("a").get_num_rows() == 2
+        # Case insensitive
+        assert manager.search("v").get_num_rows() == 1
+        assert manager.search("V").get_num_rows() == 1
         # Case insensitive / boolean
         assert manager.search("true").get_num_rows() == 2
         # Overmatch
@@ -656,7 +684,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         assert empty_manager.get_num_rows() == 0
         assert empty_manager.get_num_columns() == 0
         assert empty_manager.get_column_names() == []
-        assert empty_manager.get_field_types() == {}
+        assert empty_manager.get_field_types() == []
 
     def test_dataframe_with_all_null_column(self) -> None:
         import polars as pl
@@ -672,8 +700,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
         df = pl.DataFrame({"A": [1, "two", 3.0, True]}, strict=False)
         manager = self.factory.create()(df)
-        field_types = manager.get_field_types()
-        assert field_types["A"] == ("string", "str")
+        assert manager.get_field_type("A") == ("string", "str")
 
     def test_search_with_regex(self) -> None:
         import polars as pl
@@ -711,8 +738,10 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             }
         )
         manager = self.factory.create()(data)
-        field_types = manager.get_field_types()
 
-        assert field_types["date_col"] == ("date", "date")
-        assert field_types["datetime_col"] == ("datetime", "datetime[μs]")
-        assert field_types["time_col"] == ("time", "Time")
+        assert manager.get_field_type("date_col") == ("date", "date")
+        assert manager.get_field_type("datetime_col") == (
+            "datetime",
+            "datetime[μs]",
+        )
+        assert manager.get_field_type("time_col") == ("time", "Time")

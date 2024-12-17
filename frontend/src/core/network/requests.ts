@@ -66,6 +66,7 @@ export const {
   exportAsMarkdown,
   autoExportAsHTML,
   autoExportAsMarkdown,
+  autoExportAsIPYNB,
   addPackage,
   removePackage,
   getPackageList,

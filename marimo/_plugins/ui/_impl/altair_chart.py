@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import datetime
 import sys
 from typing import (
     TYPE_CHECKING,
@@ -118,13 +119,14 @@ def _filter_dataframe(
 
             dtype = df[field].dtype
             resolved_values = _resolve_values(values, dtype)
-
             if is_point_selection:
                 df = df.filter(nw.col(field).is_in(resolved_values))
             elif len(resolved_values) == 1:
                 df = df.filter(nw.col(field) == resolved_values[0])
             # Range selection
-            elif len(resolved_values) == 2 and _is_numeric(values[0]):
+            elif len(resolved_values) == 2 and _is_numeric_or_date(
+                resolved_values[0]
+            ):
                 left_value, right_value = resolved_values
                 df = df.filter(
                     (nw.col(field) >= left_value)
@@ -145,14 +147,37 @@ def _filter_dataframe(
 
 def _resolve_values(values: Any, dtype: Any) -> List[Any]:
     def _coerce_value(value: Any, dtype: Any) -> Any:
-        import datetime
+        import zoneinfo
 
         if nw.Date == dtype:
+            if isinstance(value, str):
+                return datetime.date.fromisoformat(value)
             # Value is milliseconds since epoch
+            # so we convert to seconds since epoch
             return datetime.date.fromtimestamp(value / 1000)
-        if nw.Datetime == dtype:
+        if nw.Datetime == dtype and isinstance(dtype, nw.Datetime):
+            if isinstance(value, str):
+                res = datetime.datetime.fromisoformat(value)
+                # If dtype has no timezone, shift by local timezone offset
+                if dtype.time_zone is None:
+                    local_tz = datetime.datetime.now().astimezone().tzinfo
+                    LOGGER.warning(
+                        f"Datetime was given with a timezone when not expected. "
+                        f"Shifting by local timezone offset {local_tz}."
+                    )
+                    return res.astimezone(local_tz).replace(tzinfo=None)
+                return res
+
             # Value is milliseconds since epoch
-            return datetime.datetime.fromtimestamp(value / 1000)
+            # so we convert to seconds since epoch
+            return datetime.datetime.fromtimestamp(
+                value / 1000,
+                tz=(
+                    zoneinfo.ZoneInfo(dtype.time_zone)
+                    if dtype.time_zone
+                    else None
+                ),
+            )
         return value
 
     if isinstance(values, list):
@@ -160,11 +185,11 @@ def _resolve_values(values: Any, dtype: Any) -> List[Any]:
     return [_coerce_value(values, dtype)]
 
 
-def _is_numeric(value: Any) -> bool:
-    if isinstance(value, (int, float)):
+def _is_numeric_or_date(value: Any) -> bool:
+    if isinstance(value, (int, float, datetime.date, datetime.datetime)):
         return True
 
-    if DependencyManager.numpy.has():
+    if DependencyManager.numpy.imported():
         import numpy as np
 
         if isinstance(value, np.number):
@@ -242,10 +267,12 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
     - `chart`: An `altair.Chart`
     - `chart_selection`: optional selection type,
         `"point"`, `"interval"`, or a bool; defaults to `True` which will
-        automatically detect the best selection type
+        automatically detect the best selection type.
+        This is ignored if the chart already has a point/interval selection param.
     - `legend_selection`: optional list of legend fields (columns) for which to
         enable selection, `True` to enable selection for all fields, or
-        `False` to disable selection entirely
+        `False` to disable selection entirely.
+        This is ignored if the chart already has a legend selection param.
     - `label`: optional markdown label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
@@ -297,6 +324,30 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         if chart_selection is None:  # type: ignore
             chart_selection = False
         if legend_selection is None:  # type: ignore
+            legend_selection = False
+
+        # If the chart already has a selection param,
+        # we don't add any more
+        if _has_selection_param(chart):
+            # Log a warning if the user has set chart_selection
+            # but the chart already has a selection param
+            if isinstance(chart_selection, str):
+                sys.stderr.write(
+                    f"Warning: chart already has a selection param. "
+                    f"Ignoring chart_selection={chart_selection}"
+                )
+            chart_selection = False
+        if _has_legend_param(chart):
+            # Log a warning if the user has set legend_selection
+            # but the chart already has a legend param
+            if (
+                isinstance(legend_selection, list)
+                and len(legend_selection) > 0
+            ):
+                sys.stderr.write(
+                    f"Warning: chart already has a legend param. "
+                    f"Ignoring legend_selection={legend_selection}"
+                )
             legend_selection = False
 
         # Selection for binned charts is not yet implemented
@@ -523,3 +574,41 @@ def maybe_make_full_width(chart: altair.Chart) -> altair.Chart:
             "This is likely due to a missing dependency or an invalid chart."
         )
         return chart
+
+
+def _has_selection_param(chart: altair.Chart) -> bool:
+    import altair as alt
+
+    try:
+        for param in chart.params:
+            try:
+                if isinstance(
+                    param,
+                    (alt.SelectionParameter, alt.TopLevelSelectionParameter),
+                ):
+                    if param.bind is alt.Undefined:
+                        return True
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return False
+
+
+def _has_legend_param(chart: altair.Chart) -> bool:
+    import altair as alt
+
+    try:
+        for param in chart.params:
+            try:
+                if isinstance(
+                    param,
+                    (alt.SelectionParameter, alt.TopLevelSelectionParameter),
+                ):
+                    if param.bind == "legend":
+                        return True
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return False

@@ -273,3 +273,53 @@ async def auto_export_as_markdown(
     session_view.mark_auto_export_md()
 
     return SuccessResponse()
+
+
+@router.post("/auto_export/ipynb")
+@requires("edit")
+async def auto_export_as_ipynb(
+    *,
+    request: Request,
+) -> SuccessResponse | PlainTextResponse:
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/ExportAsIPYNBRequest"
+    responses:
+        200:
+            description: Export the notebook as IPYNB
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+        400:
+            description: File must be saved before downloading
+    """
+    app_state = AppState(request)
+    session = app_state.require_current_session()
+    session_view = session.session_view
+
+    # If we have already exported to IPYNB, don't do it again
+    if session_view.has_auto_exported_ipynb:
+        LOGGER.debug("Already auto-exported to IPYNB")
+        return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
+
+    # Reload the file manager to get the latest state
+    session.app_file_manager.reload()
+
+    ipynb, _filename = Exporter().export_as_ipynb(
+        file_manager=session.app_file_manager,
+        sort_mode="top-down",
+        session_view=session_view,
+    )
+
+    # Save the IPYNB file to disk, at `.marimo/<filename>.ipynb`
+    AutoExporter().save_ipynb(
+        file_manager=session.app_file_manager,
+        ipynb=ipynb,
+    )
+    session_view.mark_auto_export_ipynb()
+
+    return SuccessResponse()

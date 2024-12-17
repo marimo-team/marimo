@@ -18,7 +18,7 @@ import {
 } from "@dnd-kit/core";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { useCellActions, useNotebook } from "../../core/cells/cells";
+import { getNotebook, useCellActions } from "../../core/cells/cells";
 import { useEvent } from "../../hooks/useEvent";
 import type { CellId } from "@/core/cells/ids";
 import { useAppConfig } from "@/core/config/config";
@@ -42,7 +42,6 @@ const SortableCellsProviderInternal = ({
   children,
   multiColumn,
 }: SortableCellsProviderProps) => {
-  const { cellIds } = useNotebook();
   const { dropCellOverCell, dropCellOverColumn, moveColumn, compactColumns } =
     useCellActions();
 
@@ -73,7 +72,8 @@ const SortableCellsProviderInternal = ({
 
   const handleDragStart = useEvent((event: DragStartEvent) => {
     setActiveId(event.active.id);
-    setClonedItems(cellIds);
+    const notebook = getNotebook();
+    setClonedItems(notebook.cellIds);
   });
 
   const handleDragCancel = useEvent(() => {
@@ -134,7 +134,8 @@ const SortableCellsProviderInternal = ({
       invariant(isColumnId(overId), `Expected column id. Got: ${overId}`);
 
       // If column is empty, we can drop on it
-      const column = cellIds.get(overId);
+      const notebook = getNotebook();
+      const column = notebook.cellIds.get(overId);
       invariant(column, `Expected column. Got: ${overId}`);
       if (column && column.topLevelIds.length === 0) {
         // Return the column
@@ -160,7 +161,7 @@ const SortableCellsProviderInternal = ({
 
       return [];
     },
-    [activeId, cellIds],
+    [activeId],
   );
 
   const handleDragOver = useEvent(({ active, over }) => {

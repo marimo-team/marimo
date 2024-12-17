@@ -33,7 +33,7 @@ from uuid import uuid4
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t
 from marimo._cli.print import red
-from marimo._config.manager import UserConfigManager
+from marimo._config.manager import MarimoConfigReader
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.ops import (
     Alert,
@@ -64,7 +64,7 @@ from marimo._server.recents import RecentFilesManager
 from marimo._server.session.session_view import SessionView
 from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._server.types import QueueType
-from marimo._server.utils import print_tabbed
+from marimo._server.utils import print_, print_tabbed
 from marimo._tracer import server_tracer
 from marimo._utils.disposable import Disposable
 from marimo._utils.distributor import (
@@ -119,9 +119,9 @@ class QueueManager:
             if context is not None
             else queue.Queue(maxsize=1)
         )
-        self.stream_queue: (
-            "queue.Queue[Union[KernelMessage , None]]" | None
-        ) = None
+        self.stream_queue: Optional[
+            queue.Queue[Union[KernelMessage, None]]
+        ] = None
         if not use_multiprocessing:
             self.stream_queue = queue.Queue()
 
@@ -162,9 +162,9 @@ class KernelManager:
         mode: SessionMode,
         configs: dict[CellId_t, CellConfig],
         app_metadata: AppMetadata,
-        user_config_manager: UserConfigManager,
+        user_config_manager: MarimoConfigReader,
         virtual_files_supported: bool,
-        redirect_console_to_browser: bool = False,
+        redirect_console_to_browser: bool,
     ) -> None:
         self.kernel_task: Optional[threading.Thread] | Optional[mp.Process]
         self.queue_manager = queue_manager
@@ -200,7 +200,7 @@ class KernelManager:
                     is_edit_mode,
                     self.configs,
                     self.app_metadata,
-                    self.user_config_manager.config,
+                    self.user_config_manager.get_config(hide_secrets=False),
                     self._virtual_files_supported,
                     self.redirect_console_to_browser,
                     self.queue_manager.win32_interrupt_queue,
@@ -226,7 +226,7 @@ class KernelManager:
             # threads (in edit mode, the single kernel process installs
             # formatters ...)
             register_formatters(
-                theme=self.user_config_manager.config["display"]["theme"]
+                theme=self.user_config_manager.get_config()["display"]["theme"]
             )
 
             assert self.queue_manager.stream_queue is not None
@@ -245,7 +245,7 @@ class KernelManager:
                     is_edit_mode,
                     self.configs,
                     self.app_metadata,
-                    self.user_config_manager.config,
+                    self.user_config_manager.get_config(hide_secrets=False),
                     self._virtual_files_supported,
                     self.redirect_console_to_browser,
                     # win32 interrupt queue
@@ -313,7 +313,7 @@ class KernelManager:
                 self.queue_manager.control_queue.put(requests.StopRequest())
                 # Hack: Wait for kernel to exit and write out profile;
                 # joining the process hangs, but not sure why.
-                print(
+                print_(
                     "\tWriting profile statistics to",
                     self.profile_path,
                     " ...",
@@ -413,9 +413,9 @@ class Session:
         mode: SessionMode,
         app_metadata: AppMetadata,
         app_file_manager: AppFileManager,
-        user_config_manager: UserConfigManager,
+        user_config_manager: MarimoConfigReader,
         virtual_files_supported: bool,
-        redirect_console_to_browser: bool = False,
+        redirect_console_to_browser: bool,
     ) -> Session:
         """
         Create a new session.
@@ -490,9 +490,9 @@ class Session:
             if not self.kernel_manager.is_alive():
                 LOGGER.debug("Closing session because kernel died")
                 self.close()
-                print()
+                print_()
                 print_tabbed(red("The Python kernel died unexpectedly."))
-                print()
+                print_()
                 sys.exit()
 
         # Start a heartbeat task, which checks if the kernel is alive
@@ -623,6 +623,7 @@ class Session:
                     values=request.values,
                     token=str(uuid4()),
                 ),
+                auto_run=request.auto_run,
             )
         )
 
@@ -657,10 +658,10 @@ class SessionManager:
         quiet: bool,
         include_code: bool,
         lsp_server: LspServer,
-        user_config_manager: UserConfigManager,
+        user_config_manager: MarimoConfigReader,
         cli_args: SerializedCLIArgs,
         auth_token: Optional[AuthToken],
-        redirect_console_to_browser: bool = False,
+        redirect_console_to_browser: bool,
     ) -> None:
         self.file_router = file_router
         self.mode = mode
@@ -760,7 +761,10 @@ class SessionManager:
         self, file_key: MarimoFileKey
     ) -> Optional[Session]:
         for session in self.sessions.values():
-            if session.initialization_id == file_key:
+            if (
+                session.initialization_id == file_key
+                or session.app_file_manager.path == os.path.abspath(file_key)
+            ):
                 return session
         return None
 
@@ -833,15 +837,6 @@ class SessionManager:
                 return True
         return False
 
-    def get_session_for_key(self, key: MarimoFileKey) -> Optional[Session]:
-        for session in self.sessions.values():
-            if (
-                session.app_file_manager.path == os.path.abspath(key)
-                or session.initialization_id == key
-            ) and session.connection_state() == ConnectionState.OPEN:
-                return session
-        return None
-
     async def start_lsp_server(self) -> None:
         """Starts the lsp server if it is not already started.
 
@@ -911,6 +906,15 @@ class SessionManager:
         self.watcher = FileWatcher.create(Path(file_path), on_file_changed)
         self.watcher.start()
         return Disposable(self.watcher.stop)
+
+    def get_active_connection_count(self) -> int:
+        return len(
+            [
+                session
+                for session in self.sessions.values()
+                if session.connection_state() == ConnectionState.OPEN
+            ]
+        )
 
 
 class LspServer:

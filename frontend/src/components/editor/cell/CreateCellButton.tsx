@@ -66,7 +66,7 @@ const CreateCellButtonContextMenu = (props: {
             onClick({ code: "" });
           }}
         >
-          <div className="mr-3">
+          <div className="mr-3 text-muted-foreground">
             <PythonIcon />
           </div>
           Python cell
@@ -79,7 +79,7 @@ const CreateCellButtonContextMenu = (props: {
             onClick({ code: new MarkdownLanguageAdapter().defaultCode });
           }}
         >
-          <div className="mr-3">
+          <div className="mr-3 text-muted-foreground">
             <MarkdownIcon />
           </div>
           Markdown cell
@@ -91,7 +91,7 @@ const CreateCellButtonContextMenu = (props: {
             onClick({ code: new SQLLanguageAdapter().defaultCode });
           }}
         >
-          <div className="mr-3">
+          <div className="mr-3 text-muted-foreground">
             <DatabaseIcon size={13} strokeWidth={1.5} />
           </div>
           SQL cell

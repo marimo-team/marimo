@@ -7,7 +7,7 @@ from typing import Optional, Union
 from marimo._output.builder import h
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
-from marimo._output.utils import create_style
+from marimo._output.utils import create_style, normalize_dimension
 from marimo._plugins.core.media import io_to_data_url
 
 
@@ -18,8 +18,8 @@ def video(
     muted: bool = False,
     autoplay: bool = False,
     loop: bool = False,
-    width: Optional[int] = None,
-    height: Optional[int] = None,
+    width: Optional[Union[int, str]] = None,
+    height: Optional[Union[int, str]] = None,
     rounded: bool = False,
 ) -> Html:
     """Render an video as HTML.
@@ -41,8 +41,8 @@ def video(
     - `autoplay`: whether to autoplay the video.
         the video will only autoplay if `muted` is `True`
     - `loop`: whether to loop the video
-    - `width`: the width of the video
-    - `height`: the height of the video
+    - `width`: the width of the video in pixels or a string with units
+    - `height`: the height of the video in pixels or a string with units
     - `rounded`: whether to round the corners of the video
 
     **Returns.**
@@ -57,8 +57,8 @@ def video(
     resolved_src = io_to_data_url(src, fallback_mime_type="video/mp4")
     styles = create_style(
         {
-            "width": f"{width}px" if width is not None else None,
-            "height": f"{height}px" if height is not None else None,
+            "width": normalize_dimension(width),
+            "height": normalize_dimension(height),
             "border-radius": "4px" if rounded else None,
         }
     )

@@ -3,6 +3,7 @@ import type { DataFormat } from "./types";
 import { isNumber } from "lodash-es";
 import { typeParsers, createLoader, read, type DataType } from "./vega-loader";
 import { Objects } from "@/utils/objects";
+import { Logger } from "@/utils/Logger";
 
 type Unsubscribe = () => void;
 type Middleware = () => Unsubscribe;
@@ -62,7 +63,20 @@ const BIG_INT_MIDDLEWARE: Middleware = () => {
 };
 
 const DATE_MIDDLEWARE: Middleware = () => {
-  typeParsers.date = (value: string) => new Date(value).toISOString();
+  typeParsers.date = (value: string) => {
+    if (value === "") {
+      return "";
+    }
+    if (value == null) {
+      return null;
+    }
+    try {
+      return new Date(value);
+    } catch {
+      Logger.warn(`Failed to parse date: ${value}`);
+      return value;
+    }
+  };
   return () => {
     typeParsers.date = previousDateParser;
   };
@@ -108,8 +122,7 @@ export async function vegaLoadData<T = object>(
     middleware.push(BIG_INT_MIDDLEWARE);
   }
 
-  // Apply middleware
-  const unsubscribes = middleware.map((m) => m());
+  let unsubscribes: Unsubscribe[] = [];
 
   // Load the data
   try {
@@ -162,6 +175,8 @@ export async function vegaLoadData<T = object>(
       });
     }
 
+    // Apply middleware
+    unsubscribes = middleware.map((m) => m());
     // Always set parse to auto for csv data, to be able to parse dates and floats
     const results = isCsv
       ? // csv -> json

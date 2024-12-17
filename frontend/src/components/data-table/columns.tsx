@@ -1,4 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+"use no memo";
+
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   DataTableColumnHeader,
@@ -6,32 +8,49 @@ import {
 } from "./column-header";
 import { Checkbox } from "../ui/checkbox";
 import { MimeCell } from "./mime-cell";
-import { uniformSample } from "./uniformSample";
 import type { DataType } from "@/core/kernel/messages";
 import { TableColumnSummary } from "./column-summary";
 import type { FilterType } from "./filters";
 import type { FieldTypesWithExternalType } from "./types";
 import { UrlDetector } from "./url-detector";
-import { Arrays } from "@/utils/arrays";
 import { cn } from "@/utils/cn";
+import { uniformSample } from "./uniformSample";
+import { DatePopover } from "./date-popover";
+import { Objects } from "@/utils/objects";
+import { Maps } from "@/utils/maps";
+import { exactDateTime } from "@/utils/dates";
 
-interface ColumnInfo {
-  key: string;
-  type: "primitive" | "mime";
+function inferDataType(value: unknown): [type: DataType, displayType: string] {
+  if (typeof value === "string") {
+    return ["string", "string"];
+  }
+  if (typeof value === "number") {
+    return ["number", "number"];
+  }
+  if (value instanceof Date) {
+    return ["datetime", "datetime"];
+  }
+  if (typeof value === "boolean") {
+    return ["boolean", "boolean"];
+  }
+  if (value == null) {
+    return ["unknown", "object"];
+  }
+  return ["unknown", "object"];
 }
 
-function getColumnInfo<T>(items: T[]): ColumnInfo[] {
+export function inferFieldTypes<T>(items: T[]): FieldTypesWithExternalType {
   // No items
   if (items.length === 0) {
-    return Arrays.EMPTY;
+    return [];
   }
 
   // Not an object
   if (typeof items[0] !== "object") {
-    return Arrays.EMPTY;
+    return [];
   }
 
-  const keys = new Map<string, ColumnInfo>();
+  const fieldTypes: Record<string, [DataType, string]> = {};
 
   // This can be slow for large datasets,
   // so only sample 10 evenly distributed rows
@@ -42,75 +61,90 @@ function getColumnInfo<T>(items: T[]): ColumnInfo[] {
     // We will be a bit defensive and assume values are not homogeneous.
     // If any is a mimetype, then we will treat it as a mimetype (i.e. not sortable)
     Object.entries(item as object).forEach(([key, value], idx) => {
-      const currentValue = keys.get(key);
+      const currentValue = fieldTypes[key];
       if (!currentValue) {
         // Set for the first time
-        keys.set(key, {
-          key,
-          type: isPrimitiveOrNullish(value) ? "primitive" : "mime",
-        });
+        fieldTypes[key] = inferDataType(value);
       }
-      // If we have a value, and it is a primitive, we could possibly upgrade it to a mime
-      if (
-        currentValue &&
-        currentValue.type === "primitive" &&
-        !isPrimitiveOrNullish(value)
-      ) {
-        keys.set(key, {
-          key,
-          type: "mime",
-        });
+
+      // If its not null, override the type
+      if (value != null) {
+        // This can be lossy as we infer take the last seen type
+        fieldTypes[key] = inferDataType(value);
       }
     });
   });
 
-  return [...keys.values()];
+  return Objects.entries(fieldTypes);
 }
 
 export const NAMELESS_COLUMN_PREFIX = "__m_column__";
 
 export function generateColumns<T>({
-  items,
   rowHeaders,
   selection,
   fieldTypes,
   textJustifyColumns,
   wrappedColumns,
+  showDataTypes,
 }: {
-  items: T[];
   rowHeaders: string[];
   selection: "single" | "multi" | null;
-  fieldTypes?: FieldTypesWithExternalType;
+  fieldTypes: FieldTypesWithExternalType;
   textJustifyColumns?: Record<string, "left" | "center" | "right">;
   wrappedColumns?: string[];
+  showDataTypes?: boolean;
 }): Array<ColumnDef<T>> {
-  const columnInfo = getColumnInfo(items);
   const rowHeadersSet = new Set(rowHeaders);
 
-  const columns = columnInfo.map(
-    (info, idx): ColumnDef<T> => ({
-      id: info.key || `${NAMELESS_COLUMN_PREFIX}${idx}`,
+  const typesByColumn = Maps.keyBy(fieldTypes, (entry) => entry[0]);
+
+  const getMeta = (key: string) => {
+    const types = typesByColumn.get(key)?.[1];
+    const isRowHeader = rowHeadersSet.has(key);
+
+    if (isRowHeader || !types) {
+      return {
+        rowHeader: isRowHeader,
+      };
+    }
+
+    return {
+      rowHeader: isRowHeader,
+      filterType: getFilterTypeForFieldType(types[0]),
+      dtype: types[1],
+      dataType: types[0],
+    };
+  };
+
+  const columnKeys = [
+    ...rowHeaders,
+    ...fieldTypes.map(([columnName]) => columnName),
+  ];
+  const columns = columnKeys.map(
+    (key, idx): ColumnDef<T> => ({
+      id: key || `${NAMELESS_COLUMN_PREFIX}${idx}`,
       // Use an accessorFn instead of an accessorKey because column names
       // may have periods in them ...
       // https://github.com/TanStack/table/issues/1671
       accessorFn: (row) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return (row as any)[info.key];
+        return (row as any)[key];
       },
 
       header: ({ column }) => {
         const dtype = column.columnDef.meta?.dtype;
         const headerWithType = (
           <div className="flex flex-col">
-            <span className="font-bold">{info.key}</span>
-            {dtype && (
+            <span className="font-bold">{key}</span>
+            {showDataTypes && dtype && (
               <span className="text-xs text-muted-foreground">{dtype}</span>
             )}
           </div>
         );
 
         // Row headers have no summaries
-        if (rowHeadersSet.has(info.key)) {
+        if (rowHeadersSet.has(key)) {
           return (
             <DataTableColumnHeader header={headerWithType} column={column} />
           );
@@ -118,22 +152,23 @@ export function generateColumns<T>({
 
         return (
           <DataTableColumnHeaderWithSummary
+            key={key}
             header={headerWithType}
             column={column}
-            summary={<TableColumnSummary columnId={info.key} />}
+            summary={<TableColumnSummary columnId={key} />}
           />
         );
       },
 
       cell: ({ column, renderValue, getValue }) => {
         // Row headers are bold
-        if (rowHeadersSet.has(info.key)) {
+        if (rowHeadersSet.has(key)) {
           return <b>{String(renderValue())}</b>;
         }
 
         const value = getValue();
-        const justify = textJustifyColumns?.[info.key];
-        const wrapped = wrappedColumns?.includes(info.key);
+        const justify = textJustifyColumns?.[key];
+        const wrapped = wrappedColumns?.includes(key);
 
         const format = column.getColumnFormatting?.();
         if (format) {
@@ -158,23 +193,32 @@ export function generateColumns<T>({
             </div>
           );
         }
+
+        if (value instanceof Date) {
+          // e.g. 2010-10-07 17:15:00
+          const type =
+            column.columnDef.meta?.dataType === "date" ? "date" : "datetime";
+          return (
+            <div className={getCellStyleClass(justify, wrapped)}>
+              <DatePopover date={value} type={type}>
+                {exactDateTime(value)}
+              </DatePopover>
+            </div>
+          );
+        }
+
         return (
           <div className={getCellStyleClass(justify, wrapped)}>
             <MimeCell value={value} />
           </div>
         );
       },
-      // Only enable sorting for primitive types and non-row headers
-      enableSorting: info.type === "primitive" && !rowHeadersSet.has(info.key),
       // Remove any default filtering
       filterFn: undefined,
-      meta: {
-        type: info.type,
-        rowHeader: rowHeadersSet.has(info.key),
-        filterType: getFilterTypeForFieldType(fieldTypes?.[info.key]?.[0]),
-        dtype: fieldTypes?.[info.key]?.[1],
-        dataType: fieldTypes?.[info.key]?.[0],
-      },
+      // Can only sort if key is defined
+      // For example, unnamed index columns, won't be sortable
+      enableSorting: !!key,
+      meta: getMeta(key),
     }),
   );
 
@@ -254,6 +298,6 @@ function getCellStyleClass(
     "text-left",
     justify === "center" && "text-center",
     justify === "right" && "text-right",
-    wrapped && "whitespace-pre-wrap min-w-[200px]",
+    wrapped && "whitespace-pre-wrap min-w-[200px] break-words",
   );
 }

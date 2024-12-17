@@ -41,6 +41,23 @@ class TestExecutionRoutes_EditMode:
             json={
                 "object_ids": ["ui-element-1", "ui-element-2"],
                 "values": ["value1", "value2"],
+                "auto_run": True,
+            },
+        )
+        assert response.status_code == 200, response.text
+        assert response.headers["content-type"] == "application/json"
+        assert "success" in response.json()
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_instantiate_autorun_false(client: TestClient) -> None:
+        response = client.post(
+            "/api/kernel/instantiate",
+            headers=HEADERS,
+            json={
+                "object_ids": ["ui-element-1", "ui-element-2"],
+                "values": ["value1", "value2"],
+                "auto_run": False,
             },
         )
         assert response.status_code == 200, response.text
@@ -116,6 +133,28 @@ class TestExecutionRoutes_EditMode:
         assert response.headers["content-type"] == "application/json"
         assert "success" in response.json()
 
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_takeover_no_file_key(client: TestClient) -> None:
+        response = client.post(
+            "/api/kernel/takeover",
+            headers=HEADERS,
+        )
+        assert response.status_code == 200, response.text
+        assert response.headers["content-type"] == "application/json"
+        assert response.json()["status"] == "ok"
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_takeover_file_key(client: TestClient) -> None:
+        response = client.post(
+            "/api/kernel/takeover?file=test.py",
+            headers=HEADERS,
+        )
+        assert response.status_code == 200, response.text
+        assert response.headers["content-type"] == "application/json"
+        assert response.json()["status"] == "ok"
+
 
 class TestExecutionRoutes_RunMode:
     @staticmethod
@@ -142,6 +181,23 @@ class TestExecutionRoutes_RunMode:
             json={
                 "object_ids": ["ui-element-1", "ui-element-2"],
                 "values": ["value1", "value2"],
+                "auto_run": True,
+            },
+        )
+        assert response.status_code == 200, response.text
+        assert response.headers["content-type"] == "application/json"
+        assert "success" in response.json()
+
+    @staticmethod
+    @with_read_session(SESSION_ID)
+    def test_instantiate_autorun_false(client: TestClient) -> None:
+        response = client.post(
+            "/api/kernel/instantiate",
+            headers=HEADERS,
+            json={
+                "object_ids": ["ui-element-1", "ui-element-2"],
+                "values": ["value1", "value2"],
+                "auto_run": False,
             },
         )
         assert response.status_code == 200, response.text
@@ -198,4 +254,10 @@ class TestExecutionRoutes_RunMode:
             headers=HEADERS,
             json={"code": "print('Hello, scratchpad')"},
         )
+        assert response.status_code == 401, response.text
+
+    @staticmethod
+    @with_read_session(SESSION_ID)
+    def test_takeover_no_file_key(client: TestClient) -> None:
+        response = client.post("/api/kernel/takeover", headers=HEADERS)
         assert response.status_code == 401, response.text

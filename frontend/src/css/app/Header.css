@@ -1,11 +1,3 @@
-#Disconnected {
-  font-family: var(--monospace-font);
-  text-align: center;
-  font-size: 1rem;
-  font-weight: 400;
-  color: var(--red-11);
-}
-
 @keyframes running-app-animation {
   0% {
     transform: rotate(0turn);
@@ -30,14 +22,4 @@
   animation-timing-function: cubic-bezier(0.61, -0.01, 0.47, 0.99);
   animation-iteration-count: infinite;
   animation-delay: 1000ms;
-}
-
-.closed-app-icon {
-  width: 25px;
-  height: 25px;
-  color: var(--red-11);
-}
-
-.keyboard-shortcut-group {
-  margin-bottom: 40px;
 }

@@ -3,12 +3,12 @@ import { saveAppConfig, saveUserConfig } from "@/core/network/requests";
 import type { ActionButton } from "./types";
 import type { AppConfig, UserConfig } from "@/core/config/config-schema";
 import { getAppWidths } from "@/core/config/widths";
-import { useAppConfig, useUserConfig } from "@/core/config/config";
+import { useAppConfig, useResolvedMarimoConfig } from "@/core/config/config";
 import { useTheme } from "@/theme/useTheme";
 
 export function useConfigActions() {
   const { theme } = useTheme();
-  const [config, setConfig] = useUserConfig();
+  const [config, setConfig] = useResolvedMarimoConfig();
   const [appConfig, setAppConfig] = useAppConfig();
 
   const handleUserConfig = async (values: UserConfig) => {

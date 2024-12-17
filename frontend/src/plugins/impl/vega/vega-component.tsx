@@ -6,7 +6,6 @@ import { getSelectionParamNames, ParamNames } from "./params";
 import type { VegaLiteSpec } from "./types";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
-import { useDebugMounting, usePropsDidChange } from "@/hooks/debug";
 import { debounce } from "lodash-es";
 import useEvent from "react-use-event-hook";
 import { Logger } from "@/utils/Logger";
@@ -19,6 +18,7 @@ import { Events } from "@/utils/events";
 import { ErrorBanner } from "../common/error-banner";
 import { Tooltip } from "@/components/ui/tooltip";
 import { HelpCircleIcon } from "lucide-react";
+import { isValid } from "date-fns";
 
 export interface Data {
   spec: VegaLiteSpec;
@@ -90,24 +90,14 @@ const LoadedVegaComponent = ({
   const vegaView = useRef<View>();
   const [error, setError] = useState<Error>();
 
-  // Debug
-  useDebugMounting("VegaComponent");
-  usePropsDidChange("VegaComponent", {
-    value,
-    setValue,
-    chartSelection,
-    fieldSelection,
-    spec,
-  });
-
   // Aggressively memoize the spec, so Vega doesn't re-render/re-mount the component
+  const specMemo = useDeepCompareMemoize(spec);
   const selectableSpec = useMemo(() => {
-    return makeSelectable(fixRelativeUrl(spec), {
+    return makeSelectable(fixRelativeUrl(specMemo), {
       chartSelection,
       fieldSelection,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [useDeepCompareMemoize(spec), chartSelection, fieldSelection]);
+  }, [specMemo, chartSelection, fieldSelection]);
   const names = useMemo(
     () => getSelectionParamNames(selectableSpec),
     [selectableSpec],
@@ -119,9 +109,10 @@ const LoadedVegaComponent = ({
     setValue({ ...value, ...newValue });
   });
 
+  const namesMemo = useDeepCompareMemoize(names);
   const signalListeners = useMemo(
     () =>
-      names.reduce<SignalListeners>((acc, name) => {
+      namesMemo.reduce<SignalListeners>((acc, name) => {
         // pan/zoom does not count towards selection
         if (ParamNames.PAN_ZOOM === name) {
           return acc;
@@ -131,17 +122,19 @@ const LoadedVegaComponent = ({
         acc[name] = debounce((signalName, signalValue) => {
           Logger.debug("[Vega signal]", signalName, signalValue);
 
+          let result = Objects.mapValues(
+            signalValue as object,
+            convertDatetimeToEpochMilliseconds,
+          );
+          result = Objects.mapValues(result, convertSetToList);
+
           handleUpdateValue({
-            [signalName]: Objects.mapValues(
-              signalValue as object,
-              convertSetToList,
-            ),
+            [signalName]: result,
           });
         }, 100);
         return acc;
       }, {}),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [useDeepCompareMemoize(names), setValue],
+    [namesMemo, handleUpdateValue],
   );
 
   const handleError = useEvent((error) => {
@@ -252,6 +245,18 @@ const actions = {
 function convertSetToList(value: unknown): unknown {
   if (value instanceof Set) {
     return [...value];
+  }
+  return value;
+}
+
+function convertDatetimeToEpochMilliseconds(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((v) => {
+      if (v instanceof Date && isValid(v)) {
+        return new Date(v).getTime();
+      }
+      return v;
+    });
   }
   return value;
 }

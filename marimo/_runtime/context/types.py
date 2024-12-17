@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from marimo._messaging.types import Stream
     from marimo._output.hypertext import Html
     from marimo._plugins.ui._core.registry import UIElementRegistry
+    from marimo._runtime.agents import AgentRegistry
     from marimo._runtime.params import CLIArgs, QueryParams
     from marimo._runtime.state import State, StateRegistry
     from marimo._runtime.virtual_file import VirtualFileRegistry
@@ -65,6 +66,7 @@ class ExecutionContext:
 class RuntimeContext(abc.ABC):
     ui_element_registry: UIElementRegistry
     state_registry: StateRegistry
+    agent_registry: AgentRegistry
     function_registry: FunctionRegistry
     cell_lifecycle_registry: CellLifecycleRegistry
     virtual_file_registry: VirtualFileRegistry
@@ -93,7 +95,11 @@ class RuntimeContext(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def user_config(self) -> MarimoConfig:
+    def marimo_config(self) -> MarimoConfig:
+        """
+        Get the marimo configuration.
+        This is a merged configuration from the user config and project config.
+        """
         pass
 
     @property

@@ -19,14 +19,16 @@ export const PyodideLoader: React.FC<PropsWithChildren> = ({ children }) => {
     return children;
   }
 
+  return <PyodideLoaderInner>{children}</PyodideLoaderInner>;
+};
+
+const PyodideLoaderInner: React.FC<PropsWithChildren> = ({ children }) => {
   // isPyodide() is constant, so this is safe
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   const { loading, error } = useAsyncData(async () => {
     await PyodideBridge.INSTANCE.initialized.promise;
     return true;
   }, []);
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   const hasOutput = useAtomValue(hasAnyOutputAtom);
 
   if (loading) {

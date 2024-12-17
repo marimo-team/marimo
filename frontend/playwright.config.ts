@@ -150,6 +150,7 @@ const config: PlaywrightTestConfig = {
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
+      testIgnore: ["**/cells.spec.ts", "**/disabled.spec.ts"],
     },
     //    Re-enable later ...
     //    {

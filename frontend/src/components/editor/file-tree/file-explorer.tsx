@@ -30,6 +30,7 @@ import {
   Trash2Icon,
   UploadIcon,
   ViewIcon,
+  DownloadIcon,
 } from "lucide-react";
 import type { FileInfo } from "@/core/network/types";
 import {
@@ -64,6 +65,8 @@ import type { RequestingTree } from "./requesting-tree";
 import type { FilePath } from "@/utils/paths";
 import useEvent from "react-use-event-hook";
 import { copyToClipboard } from "@/utils/copy";
+import { sendFileDetails } from "@/core/network/requests";
+import { downloadBlob } from "@/utils/download";
 
 const RequestingTreeContext = React.createContext<RequestingTree | null>(null);
 
@@ -492,6 +495,21 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
           </>
         )}
         <DropdownMenuSeparator />
+        {!node.data.isDirectory && (
+          <>
+            <DropdownMenuItem
+              onSelect={async () => {
+                const details = await sendFileDetails({ path: node.data.path });
+                const contents = details.contents || "";
+                downloadBlob(new Blob([contents]), node.data.name);
+              }}
+            >
+              <DownloadIcon {...iconProps} />
+              Download
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        )}
         <DropdownMenuItem onSelect={handleDeleteFile} variant="danger">
           <Trash2Icon {...iconProps} />
           Delete
@@ -526,7 +544,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
       >
         {node.data.isMarimoFile ? (
           <img
-            src="/favicon.ico"
+            src="./favicon.ico"
             className="w-5 h-5 flex-shrink-0 mr-2 filter grayscale"
             alt="Marimo"
           />

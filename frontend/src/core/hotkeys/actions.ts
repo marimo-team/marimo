@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { atom, useAtomValue, useSetAtom } from "jotai";
 import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
+import useEvent from "react-use-event-hook";
 
 /**
  * Map of registered keyboard shortcuts and their callbacks.
@@ -22,14 +23,14 @@ export function useRegisteredActions() {
 export function useSetRegisteredAction() {
   const set = useSetAtom(registeredActionsAtom);
   return {
-    registerAction: (shortcut: HotkeyAction, callback: () => void) => {
+    registerAction: useEvent((shortcut: HotkeyAction, callback: () => void) => {
       set((actions) => ({ ...actions, [shortcut]: callback }));
-    },
-    unregisterAction: (shortcut: HotkeyAction) => {
+    }),
+    unregisterAction: useEvent((shortcut: HotkeyAction) => {
       set((actions) => {
         const { [shortcut]: unused, ...rest } = actions;
         return rest;
       });
-    },
+    }),
   };
 }

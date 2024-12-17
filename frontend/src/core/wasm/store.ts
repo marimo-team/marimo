@@ -54,8 +54,12 @@ const remoteDefaultFileStore: FileStore = {
     // Do nothing
   },
   readFile() {
-    const baseURI = document.baseURI;
-    return fetch(`${baseURI}files/wasm-intro.py`)
+    // Only do this on the marimo playground (https://marimo.app)
+    if (window.location.hostname !== "marimo.app") {
+      return null;
+    }
+    const url = new URL("files/wasm-intro.py", document.baseURI);
+    return fetch(url.toString())
       .then((res) => (res.ok ? res.text() : null))
       .catch(() => null);
   },

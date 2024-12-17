@@ -7,8 +7,6 @@ import shutil
 import sys
 from dataclasses import dataclass
 
-from packaging import version
-
 
 @dataclass
 class Dependency:
@@ -54,9 +52,9 @@ class Dependency:
 
         """
         if not self.has():
-            raise ModuleNotFoundError(
-                f"{self.pkg} is required {why}."
-            ) from None
+            message = f"{self.pkg} is required {why}."
+            sys.stderr.write(message + "\n\n")
+            raise ModuleNotFoundError(message) from None
 
     def require_at_version(
         self,
@@ -115,6 +113,8 @@ def _version_check(
 ) -> bool:
     if min_v is None and max_v is None:
         return True
+
+    from packaging import version
 
     parsed_min_version = version.parse(min_v) if min_v else None
     parsed_max_version = version.parse(max_v) if max_v else None

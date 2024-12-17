@@ -4,7 +4,6 @@ from __future__ import annotations
 import abc
 from typing import (
     Any,
-    Dict,
     Generic,
     Optional,
     Tuple,
@@ -20,7 +19,7 @@ T = TypeVar("T")
 
 ColumnName = str
 FieldType = DataType
-FieldTypes = Dict[ColumnName, Tuple[FieldType, ExternalDataType]]
+FieldTypes = list[Tuple[ColumnName, Tuple[FieldType, ExternalDataType]]]
 
 
 class TableManager(abc.ABC, Generic[T]):
@@ -100,10 +99,17 @@ class TableManager(abc.ABC, Generic[T]):
     def get_row_headers(self) -> list[str]:
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def get_field_type(
+        self, column_name: str
+    ) -> Tuple[FieldType, ExternalDataType]:
+        raise NotImplementedError
+
     def get_field_types(self) -> FieldTypes:
-        # By default, don't provide any field types
-        # so the frontend can infer them
-        return {}
+        return [
+            (column_name, self.get_field_type(column_name))
+            for column_name in self.get_column_names()
+        ]
 
     @abc.abstractmethod
     def take(self, count: int, offset: int) -> TableManager[Any]:
@@ -138,6 +144,10 @@ class TableManager(abc.ABC, Generic[T]):
 
     @abc.abstractmethod
     def get_unique_column_values(self, column: str) -> list[str | int | float]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_sample_values(self, column: str) -> list[Any]:
         raise NotImplementedError
 
     def __repr__(self) -> str:

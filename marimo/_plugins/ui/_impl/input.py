@@ -29,6 +29,7 @@ from marimo._data.series import (
     get_category_series_info,
     get_number_series_info,
 )
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import S as JSONTypeBound, UIElement
@@ -55,6 +56,12 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
 
     ```python
     number = mo.ui.number(start=1, stop=10, step=2)
+    ```
+
+    Or for integer-only values:
+
+    ```python
+    number = mo.ui.number(step=1)
     ```
 
     Or from a dataframe series:
@@ -160,6 +167,20 @@ class slider(UIElement[Numeric, Numeric]):
     slider = mo.ui.slider.from_series(df["column_name"])
     ```
 
+    Or using numpy arrays:
+
+    ```python
+    import numpy as np
+
+    # linear steps
+    steps = np.array([1, 2, 3, 4, 5])
+    slider = mo.ui.slider(steps=steps)
+    # log steps
+    log_slider = mo.ui.slider(steps=np.logspace(0, 3, 4))
+    # power steps
+    power_slider = mo.ui.slider(steps=np.power([1, 2, 3], 2))
+    ```
+
     **Attributes.**
 
     - `value`: the current numeric value of the slider
@@ -226,6 +247,9 @@ class slider(UIElement[Numeric, Numeric]):
             )
         # If steps are provided
         if steps is not None:
+            # Cast to a list in case user passes a numpy array
+            if not isinstance(steps, list):
+                steps = _convert_numpy_array(steps)
             self._dtype = _infer_dtype(steps)
             self._mapping = dict(enumerate(steps))
             try:
@@ -344,6 +368,20 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
     range_slider = mo.ui.range_slider.from_series(df["column_name"])
     ```
 
+    Or using numpy arrays:
+
+    ```python
+    import numpy as np
+
+    steps = np.array([1, 2, 3, 4, 5])
+    # linear steps
+    range_slider = mo.ui.range_slider(steps=steps)
+    # log steps
+    log_range_slider = mo.ui.range_slider(steps=np.logspace(0, 3, 4))
+    # power steps
+    power_range_slider = mo.ui.range_slider(steps=np.power([1, 2, 3], 2))
+    ```
+
     **Attributes.**
 
     - `value`: the current range value of the slider
@@ -409,6 +447,9 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
             )
 
         if steps is not None:
+            # Cast to a list in case user passes a numpy array
+            if not isinstance(steps, list):
+                steps = _convert_numpy_array(steps)
             self._dtype = _infer_dtype(steps)
             self._mapping = dict(enumerate(steps))
 
@@ -1117,6 +1158,7 @@ class button(UIElement[Any, Any]):
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
+    - `keyboard_shortcut`: keyboard shortcut to trigger the button (e.g. 'Ctrl-L')
     """
 
     _name: Final[str] = "marimo-button"
@@ -1132,6 +1174,7 @@ class button(UIElement[Any, Any]):
         label: str = "click here",
         on_change: Optional[Callable[[Any], None]] = None,
         full_width: bool = False,
+        keyboard_shortcut: Optional[str] = None,
     ) -> None:
         self._on_click = (lambda _: value) if on_click is None else on_click
         self._initial_value = value
@@ -1146,6 +1189,7 @@ class button(UIElement[Any, Any]):
                 "disabled": disabled,
                 "tooltip": tooltip,
                 "full-width": full_width,
+                "keyboard-shortcut": keyboard_shortcut,
             },
             on_change=on_change,
         )
@@ -1264,6 +1308,18 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
             Callable[[Sequence[FileUploadResults]], None]
         ] = None,
     ) -> None:
+        # Validate filetypes have leading dots or contain a forward slash
+        if filetypes is not None:
+            invalid_types = [
+                ft for ft in filetypes if not (ft.startswith(".") or "/" in ft)
+            ]
+            if invalid_types:
+                raise ValueError(
+                    f"File types must start with a dot (e.g., '.csv' instead of 'csv') "
+                    f"or contain a forward slash (e.g., 'application/json'). "
+                    f"Invalid types: {', '.join(invalid_types)}"
+                )
+
         super().__init__(
             component_name=file._name,
             initial_value=[],
@@ -1602,3 +1658,13 @@ class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
             return None
         self.element._update(value)
         return self.element.value
+
+
+def _convert_numpy_array(steps: Any) -> list[Numeric]:
+    """Convert numpy array to list if needed."""
+    if DependencyManager.numpy.imported():
+        import numpy as np
+
+        if isinstance(steps, np.ndarray):
+            return steps.tolist()  # type: ignore[return-value,no-any-return]
+    return steps  # type: ignore[no-any-return]

@@ -1,9 +1,11 @@
 # Coming from Streamlit
 
 If you're familiar with Streamlit and looking to transition to marimo, read on.
+
 The biggest difference between Streamlit and marimo is that
 Streamlit can only be used for data apps, whereas marimo is a notebook-first
 programming environment that makes it effortless to run notebooks as apps.
+In addition, marimo is much more performant than streamlit.
 
 ## Key Differences
 
@@ -16,7 +18,7 @@ programming environment that makes it effortless to run notebooks as apps.
    notebooks, then migrate and refactor them into streamlit apps. With marimo,
    every notebook is automatically an app; there's no migration step needed.
 
-2. **Execution Model**:
+2. **Performance.**
    - marimo uses a reactive execution model that, on interaction or code
      change, runs the minimal subset of notebook code needed to keep your
      notebook up-to-date.

@@ -31,6 +31,7 @@ export default defineConfig({
     dedupe: ["react", "react-dom", "@emotion/react", "@emotion/cache"],
   },
   worker: {
+    format: "es",
     plugins: () => [tsconfigPaths()],
   },
   define: {

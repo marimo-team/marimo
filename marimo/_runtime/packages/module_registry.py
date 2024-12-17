@@ -30,7 +30,7 @@ class ModuleRegistry:
     ) -> None:
         self.graph = graph
         # modules that do not have corresponding packages on package index
-        self.excluded_modules = (
+        self.excluded_modules: set[str] = (
             excluded_modules if excluded_modules is not None else set()
         )
 

@@ -18,8 +18,8 @@ def __():
     chat = mo.ui.chat(
         mo.ai.llm.openai(
             "gpt-4o",
-            system_message="""You are a helpful assistant that can 
-            parse my recipe and summarize them for me. 
+            system_message="""You are a helpful assistant that can
+            parse my recipe and summarize them for me.
             Give me a title in the first line.""",
         ),
         allow_attachments=["image/png", "image/jpeg"],

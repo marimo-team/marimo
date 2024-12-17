@@ -8,7 +8,7 @@ from typing import Optional
 import uvicorn
 
 import marimo._server.api.lifespans as lifespans
-from marimo._config.manager import UserConfigManager
+from marimo._config.manager import get_default_config_manager
 from marimo._runtime.requests import SerializedCLIArgs
 from marimo._server.file_router import AppFileRouter
 from marimo._server.main import create_starlette_app
@@ -89,7 +89,18 @@ def start(
     # Find a free port if none is specified
     # if the user specifies a port, we don't try to find a free one
     port = port or find_free_port(DEFAULT_PORT)
-    user_config_mgr = UserConfigManager()
+    lsp_port = find_free_port(DEFAULT_PORT + 200)  # Add 200 to avoid conflicts
+
+    # This is the path that will be used to read the project configuration
+    start_path: Optional[str] = None
+    if (single_file := file_router.maybe_get_single_file()) is not None:
+        start_path = single_file.path
+    elif (directory := file_router.directory) is not None:
+        start_path = directory
+    else:
+        start_path = os.getcwd()
+
+    config_reader = get_default_config_manager(current_path=start_path)
 
     session_manager = SessionManager(
         file_router=file_router,
@@ -97,8 +108,8 @@ def start(
         development_mode=development_mode,
         quiet=quiet,
         include_code=include_code,
-        lsp_server=LspServer(port * 10),
-        user_config_manager=user_config_mgr,
+        lsp_server=LspServer(lsp_port),
+        user_config_manager=config_reader,
         cli_args=cli_args,
         auth_token=auth_token,
         redirect_console_to_browser=redirect_console_to_browser,
@@ -122,16 +133,18 @@ def start(
         ),
         allow_origins=allow_origins,
         enable_auth=not AuthToken.is_empty(session_manager.auth_token),
+        lsp_port=lsp_port,
     )
 
     app.state.port = external_port
+    app.state.lsp_port = lsp_port
     app.state.host = external_host
 
     app.state.headless = headless
     app.state.watch = watch
     app.state.session_manager = session_manager
     app.state.base_url = base_url
-    app.state.config_manager = user_config_mgr
+    app.state.config_manager = config_reader
 
     # Resource initialization
     # Increase the limit on open file descriptors to prevent resource

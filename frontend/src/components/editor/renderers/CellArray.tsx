@@ -5,12 +5,18 @@ import {
   type ConnectionStatus,
   WebSocketState,
 } from "../../../core/websocket/types";
-import { type NotebookState, useCellActions } from "../../../core/cells/cells";
+import {
+  useNotebook,
+  type CellActions,
+  columnIdsAtom,
+  type NotebookState,
+  useCellActions,
+} from "../../../core/cells/cells";
 import type { AppConfig, UserConfig } from "../../../core/config/config-schema";
 import type { AppMode } from "../../../core/mode";
 import { useHotkey } from "../../../hooks/useHotkey";
 import { formatAll } from "../../../core/codemirror/format";
-import { useTheme } from "../../../theme/useTheme";
+import { type Theme, useTheme } from "../../../theme/useTheme";
 import { VerticalLayoutWrapper } from "./vertical-layout/vertical-layout-wrapper";
 import { useDelayVisibility } from "./vertical-layout/useDelayVisibility";
 import { useChromeActions } from "../chrome/state";
@@ -21,6 +27,7 @@ import { useDeleteCellCallback } from "../cell/useDeleteCell";
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/ui/button";
 import {
+  BotIcon,
   DatabaseIcon,
   SparklesIcon,
   SquareCodeIcon,
@@ -31,6 +38,7 @@ import { aiEnabledAtom, autoInstantiateAtom } from "@/core/config/config";
 import { useAtomValue } from "jotai";
 import { useBoolean } from "@/hooks/useBoolean";
 import { AddCellWithAI } from "../ai/add-cell-with-ai";
+import { AIAgentLanguageAdapter } from "@/core/codemirror/language/ai";
 import type { Milliseconds } from "@/utils/time";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
@@ -45,27 +53,41 @@ import {
 } from "@dnd-kit/sortable";
 import { SortableCellsProvider } from "@/components/sort/SortableCellsProvider";
 import { Column } from "../columns/cell-column";
-import type { CellColumnId } from "@/utils/id-tree";
+import type { CellColumnId, CollapsibleTree } from "@/utils/id-tree";
+import type { CellId } from "@/core/cells/ids";
 
 interface CellArrayProps {
-  notebook: NotebookState;
   mode: AppMode;
   userConfig: UserConfig;
   appConfig: AppConfig;
   connStatus: ConnectionStatus;
 }
 
-export const CellArray: React.FC<CellArrayProps> = ({
-  notebook,
+export const CellArray: React.FC<CellArrayProps> = (props) => {
+  const columnIds = useAtomValue(columnIdsAtom);
+  return (
+    <SortableCellsProvider multiColumn={props.appConfig.width === "columns"}>
+      <SortableContext
+        id="column-container"
+        items={columnIds}
+        strategy={horizontalListSortingStrategy}
+      >
+        <CellArrayInternal {...props} />
+      </SortableContext>
+    </SortableCellsProvider>
+  );
+};
+
+const CellArrayInternal: React.FC<CellArrayProps> = ({
   mode,
   userConfig,
   appConfig,
   connStatus,
 }) => {
+  const notebook = useNotebook();
   const actions = useCellActions();
   const { theme } = useTheme();
   const { toggleSidebarPanel } = useChromeActions();
-
   const { invisible } = useDelayVisibility(notebook.cellIds.idLength, mode);
 
   // HOTKEYS
@@ -105,93 +127,132 @@ export const CellArray: React.FC<CellArrayProps> = ({
     >
       <PackageAlert />
       <NotebookBanner width={appConfig.width} />
-      <SortableCellsProvider multiColumn={appConfig.width === "columns"}>
-        <SortableContext
-          id="column-container"
-          items={columns.map((column) => column.id)}
-          strategy={horizontalListSortingStrategy}
-        >
-          <div
-            className={cn(
-              appConfig.width === "columns" &&
-                "grid grid-flow-col auto-cols-min gap-6",
-            )}
-          >
-            {columns.map((column, index) => {
-              return (
-                <Column
-                  key={column.id}
-                  columnId={column.id}
-                  canMoveLeft={index > 0}
-                  canMoveRight={index < columns.length - 1}
-                  width={appConfig.width}
-                  canDelete={columns.length > 1}
-                  footer={
-                    <AddCellButtons
-                      columnId={column.id}
-                      className={cn(
-                        appConfig.width === "columns" &&
-                          "opacity-0 group-hover/column:opacity-100",
-                      )}
-                    />
-                  }
-                >
-                  <SortableContext
-                    id={`column-${index + 1}`}
-                    items={column.topLevelIds}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {column.topLevelIds.map((cellId) => {
-                      const cellData = notebook.cellData[cellId];
-                      const cellRuntime = notebook.cellRuntime[cellId];
-                      return (
-                        <Cell
-                          key={cellData.id.toString()}
-                          theme={theme}
-                          showPlaceholder={hasOnlyOneCell}
-                          allowFocus={!invisible && !notebook.scrollKey}
-                          id={cellData.id}
-                          code={cellData.code}
-                          outline={cellRuntime.outline}
-                          output={cellRuntime.output}
-                          consoleOutputs={cellRuntime.consoleOutputs}
-                          status={cellRuntime.status}
-                          edited={cellData.edited}
-                          interrupted={cellRuntime.interrupted}
-                          errored={cellRuntime.errored}
-                          stopped={cellRuntime.stopped}
-                          staleInputs={cellRuntime.staleInputs}
-                          runStartTimestamp={cellRuntime.runStartTimestamp}
-                          runElapsedTimeMs={
-                            cellRuntime.runElapsedTimeMs ??
-                            (cellData.lastExecutionTime as Milliseconds)
-                          }
-                          serializedEditorState={cellData.serializedEditorState}
-                          canDelete={!hasOnlyOneCell}
-                          mode={mode}
-                          appClosed={connStatus.state !== WebSocketState.OPEN}
-                          ref={notebook.cellHandles[cellId]}
-                          userConfig={userConfig}
-                          debuggerActive={cellRuntime.debuggerActive}
-                          config={cellData.config}
-                          name={cellData.name}
-                          isCollapsed={column.isCollapsed(cellId)}
-                          collapseCount={column.getCount(cellId)}
-                          canMoveX={appConfig.width === "columns"}
-                          {...actions}
-                          deleteCell={onDeleteCell}
-                        />
-                      );
-                    })}
-                  </SortableContext>
-                </Column>
-              );
-            })}
-          </div>
-        </SortableContext>
-      </SortableCellsProvider>
+      <div
+        className={cn(
+          appConfig.width === "columns" &&
+            "grid grid-flow-col auto-cols-min gap-6",
+        )}
+      >
+        {columns.map((column, index) => (
+          <SortableColumn
+            key={column.id}
+            column={column}
+            index={index}
+            columnsLength={columns.length}
+            appConfig={appConfig}
+            notebook={notebook}
+            mode={mode}
+            userConfig={userConfig}
+            connStatus={connStatus}
+            actions={actions}
+            theme={theme}
+            hasOnlyOneCell={hasOnlyOneCell}
+            invisible={invisible}
+            onDeleteCell={onDeleteCell}
+          />
+        ))}
+      </div>
       <FloatingOutline />
     </VerticalLayoutWrapper>
+  );
+};
+
+const SortableColumn: React.FC<{
+  column: CollapsibleTree<CellId>;
+  index: number;
+  columnsLength: number;
+  appConfig: AppConfig;
+  notebook: NotebookState;
+  mode: AppMode;
+  userConfig: UserConfig;
+  connStatus: ConnectionStatus;
+  actions: CellActions;
+  theme: Theme;
+  hasOnlyOneCell: boolean;
+  invisible: boolean;
+  onDeleteCell: (payload: { cellId: CellId }) => void;
+}> = ({
+  column,
+  index,
+  columnsLength,
+  appConfig,
+  notebook,
+  mode,
+  userConfig,
+  connStatus,
+  actions,
+  theme,
+  hasOnlyOneCell,
+  invisible,
+  onDeleteCell,
+}) => {
+  return (
+    <Column
+      columnId={column.id}
+      canMoveLeft={index > 0}
+      canMoveRight={index < columnsLength - 1}
+      width={appConfig.width}
+      canDelete={columnsLength > 1}
+      footer={
+        <AddCellButtons
+          columnId={column.id}
+          className={cn(
+            appConfig.width === "columns" &&
+              "opacity-0 group-hover/column:opacity-100",
+          )}
+        />
+      }
+    >
+      <SortableContext
+        id={`column-${index + 1}`}
+        items={column.topLevelIds}
+        strategy={verticalListSortingStrategy}
+      >
+        {column.topLevelIds.map((cellId) => {
+          const cellData = notebook.cellData[cellId];
+          const cellRuntime = notebook.cellRuntime[cellId];
+          return (
+            <Cell
+              key={cellData.id.toString()}
+              theme={theme}
+              showPlaceholder={hasOnlyOneCell}
+              allowFocus={!invisible && !notebook.scrollKey}
+              id={cellData.id}
+              code={cellData.code}
+              outline={cellRuntime.outline}
+              output={cellRuntime.output}
+              consoleOutputs={cellRuntime.consoleOutputs}
+              status={cellRuntime.status}
+              edited={cellData.edited}
+              interrupted={cellRuntime.interrupted}
+              errored={cellRuntime.errored}
+              stopped={cellRuntime.stopped}
+              staleInputs={cellRuntime.staleInputs}
+              runStartTimestamp={cellRuntime.runStartTimestamp}
+              lastRunStartTimestamp={cellRuntime.lastRunStartTimestamp}
+              runElapsedTimeMs={
+                cellRuntime.runElapsedTimeMs ??
+                (cellData.lastExecutionTime as Milliseconds)
+              }
+              serializedEditorState={cellData.serializedEditorState}
+              canDelete={!hasOnlyOneCell}
+              mode={mode}
+              appClosed={connStatus.state !== WebSocketState.OPEN}
+              ref={notebook.cellHandles[cellId]}
+              userConfig={userConfig}
+              debuggerActive={cellRuntime.debuggerActive}
+              config={cellData.config}
+              name={cellData.name}
+              isCollapsed={column.isCollapsed(cellId)}
+              collapseCount={column.getCount(cellId)}
+              canMoveX={appConfig.width === "columns"}
+              {...actions}
+              deleteCell={onDeleteCell}
+            />
+          );
+        })}
+      </SortableContext>
+    </Column>
   );
 };
 
@@ -254,7 +315,7 @@ const AddCellButtons: React.FC<{
               <div className="flex flex-col">
                 <span>
                   Additional dependencies required:
-                  <Kbd className="inline">pip install marimo[sql]</Kbd>.
+                  <Kbd className="inline">pip install 'marimo[sql]'</Kbd>.
                 </span>
                 <span>
                   You will need to restart the notebook after installing.
@@ -282,6 +343,32 @@ const AddCellButtons: React.FC<{
           >
             <DatabaseIcon className="mr-2 size-4 flex-shrink-0" />
             SQL
+          </Button>
+        </Tooltip>
+        <Tooltip
+          content={
+            // aiEnabled ? null : <span>Enable via settings under AI Assist</span>
+            null
+          }
+          delayDuration={100}
+          asChild={false}
+        >
+          <Button
+            className={buttonClass}
+            variant="text"
+            size="sm"
+            // disabled={!aiEnabled}
+            onClick={() => {
+              maybeAddMarimoImport(autoInstantiate, createNewCell);
+              createNewCell({
+                cellId: { type: "__end__", columnId },
+                before: false,
+                code: new AIAgentLanguageAdapter().defaultCode,
+              });
+            }}
+          >
+            <BotIcon className="mr-2 size-4 flex-shrink-0" />
+            Chat
           </Button>
         </Tooltip>
         <Tooltip

@@ -35,22 +35,22 @@ class WheelBuilderHandler(PatternMatchingEventHandler):
     patterns = ["*.py"]  # Watch for changes in Python files
 
     def on_any_event(self, event) -> None:
-        print(f"Change detected: {event.src_path}")
-        print("Building wheel...")
+        print(f"Change detected: {event.src_path}")  # noqa: T201
+        print("Building wheel...")  # noqa: T201
         subprocess.run(["hatch", "build"])
-        print("Wheel built successfully.")
+        print("Wheel built successfully.")  # noqa: T201
 
 
 def serve() -> None:
     with socketserver.TCPServer(("", 8000), CORSHTTPRequestHandler) as httpd:
         httpd.allow_reuse_address = True
-        print("Serving at http://localhost:8000")
+        print("Serving at http://localhost:8000")  # noqa: T201
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
             pass
         httpd.server_close()
-        print("Server stopped.")
+        print("Server stopped.")  # noqa: T201
 
 
 cwd = os.getcwd()
@@ -65,8 +65,8 @@ if __name__ == "__main__":
     observer.schedule(WheelBuilderHandler(), path=path, recursive=True)
     observer.start()
 
-    print("Watching for changes. Press Ctrl+C to stop.")
-    print(f"Watching directory: {path}")
+    print("Watching for changes. Press Ctrl+C to stop.")  # noqa: T201
+    print(f"Watching directory: {path}")  # noqa: T201
     try:
         while True:
             observer.join(1)

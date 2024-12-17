@@ -11,6 +11,11 @@ server = (
     .with_app(path="/dataframes", root="../dataframe.py")
     # Mount the ansi app at /ansi
     .with_app(path="/ansi", root="../ansi.py")
+    # Mount directory at /data
+    # You can visit /charts/altair_brush/
+    # You can visit /charts/altair_polars/
+    .with_dynamic_directory(path="/chart", directory="../altair")
+    .with_dynamic_directory(path="/smoke_tests", directory="../")
     # Mount the buttons app at the root
     .with_app(path="", root="../buttons.py")
 )

@@ -1,19 +1,24 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { Tooltip } from "@/components/ui/tooltip";
 import { notebookScrollToRunning } from "@/core/cells/actions";
-import { WebSocketState } from "@/core/websocket/types";
-import { UnlinkIcon, HourglassIcon } from "lucide-react";
+import { type ConnectionStatus, WebSocketState } from "@/core/websocket/types";
+import { UnlinkIcon, HourglassIcon, LockIcon } from "lucide-react";
 import React from "react";
 
 export const StatusOverlay: React.FC<{
-  state: WebSocketState;
+  connection: ConnectionStatus;
   isRunning: boolean;
-}> = ({ state, isRunning }) => {
+}> = ({ connection, isRunning }) => {
   return (
     <>
-      {state === WebSocketState.OPEN && isRunning && <RunningIcon />}
-      {state === WebSocketState.CLOSED && <NoiseBackground />}
-      {state === WebSocketState.CLOSED && <DisconnectedIcon />}
+      {connection.state === WebSocketState.OPEN && isRunning && <RunningIcon />}
+      {connection.state === WebSocketState.CLOSED &&
+        !connection.canTakeover && <NoiseBackground />}
+      {connection.state === WebSocketState.CLOSED &&
+        !connection.canTakeover && <DisconnectedIcon />}
+      {connection.state === WebSocketState.CLOSED && connection.canTakeover && (
+        <LockedIcon />
+      )}
     </>
   );
 };
@@ -24,7 +29,15 @@ const topLeftStatus =
 const DisconnectedIcon = () => (
   <Tooltip content="App disconnected">
     <div className={topLeftStatus}>
-      <UnlinkIcon className="closed-app-icon" />
+      <UnlinkIcon className="w-[25px] h-[25px] text-[var(--red-11)]" />
+    </div>
+  </Tooltip>
+);
+
+const LockedIcon = () => (
+  <Tooltip content="Notebook locked">
+    <div className={topLeftStatus}>
+      <LockIcon className="w-[25px] h-[25px] text-[var(--blue-11)]" />
     </div>
   </Tooltip>
 );
