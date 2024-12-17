@@ -2,7 +2,7 @@
 
 marimo has built-in rich representations of many objects, including native
 Python objects like lists and dicts as well as marimo objects like [UI
-elements](/guides/interactivity.md) and libraries, including matplotlib,
+elements](../guides/interactivity.md) and libraries, including matplotlib,
 seaborn, Plotly, altair pandas, and more. These rich representations are
 displayed for the last expression of a cell, or when using
 [`mo.output.append`](#marimo.output.append).
@@ -27,13 +27,12 @@ to visualize the object as an output.
 
 For example:
 
-```
+````
 class Dice:
     def _display_(self):
         import random
 
         return f"You rolled {random.randint(0, 7)}"
-```
 
 The return value of `_display_` can be any Python object, for example a
 a matplotlib plot, a dataframe, a list, `mo.Html`, or a `mo.ui` element, and
@@ -62,7 +61,6 @@ class Shout:
 
     def _repr_html_(self):
         return "<h1>" + self.text + "</h1>"
-```
 
 We support the following methods:
 
@@ -84,17 +82,14 @@ a tuple of two strings, the [mime type](https://developer.mozilla.org/en-US/docs
 
 **Examples.**
 
-```{eval-rst}
-.. marimo-embed::
-  :size: medium
-  :mode: edit
-
-  @app.cell(hide_code=True)
-  def __():
+{{ create_marimo_embed("""
+```python
+@app.cell(hide_code=True)
+def __():
     mo.md("**JSON**")
 
-  @app.cell
-  def __():
+@app.cell
+def __():
     import json
 
     class MyJSONObject(object):
@@ -106,12 +101,12 @@ a tuple of two strings, the [mime type](https://developer.mozilla.org/en-US/docs
 
     MyJSONObject({"hello": "world"})
 
-  @app.cell(hide_code=True)
-  def __():
+@app.cell(hide_code=True)
+def __():
     mo.md("**HTML**")
 
-  @app.cell
-  def __():
+@app.cell
+def __():
     class Colorize(object):
         def __init__(self, text: str) -> None:
             self.text = text
@@ -124,12 +119,12 @@ a tuple of two strings, the [mime type](https://developer.mozilla.org/en-US/docs
 
     Colorize("Hello!")
 
-  @app.cell(hide_code=True)
-  def __():
+@app.cell(hide_code=True)
+def __():
     mo.md("**Image**")
 
-  @app.cell
-  def __():
+@app.cell
+def __():
     class Image(object):
         def __init__(self, url: str) -> None:
             self.url = url
@@ -139,6 +134,7 @@ a tuple of two strings, the [mime type](https://developer.mozilla.org/en-US/docs
 
     Image("https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/marimo-logotype-thick.svg")
 ```
+""", size="medium", mode="edit") }}
 
 ## Option 4: Add a formatter to the marimo repo
 
@@ -153,3 +149,4 @@ you want displayed, we will consider contributions to add formatters to the
 marimo codebase. [Look at our codebase for
 examples](https://github.com/marimo-team/marimo/tree/main/marimo/_output/formatters),
 then open a pull request.
+````

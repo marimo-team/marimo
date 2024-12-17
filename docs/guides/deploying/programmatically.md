@@ -34,7 +34,6 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(app, host="localhost", port=8000)
-```
 
 For a more complete example, see the [FastAPI example](https://github.com/marimo-team/marimo/tree/main/examples/frameworks/fastapi).
 
@@ -47,7 +46,6 @@ server = (
     marimo.create_asgi_app()
     .with_dynamic_directory(path="/dashboard", directory="./notebooks")
 )
-```
 
 If the notebooks in the directory are expected to be static, it is better to use the `with_app` method and loop through the directory contents.
 
@@ -63,4 +61,3 @@ for filename in sorted(notebooks_dir.iterdir()):
         app_name = filename.stem
         server = server.with_app(path=f"/{app_name}", root=filename)
         app_names.append(app_name)
-```

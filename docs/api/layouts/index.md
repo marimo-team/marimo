@@ -1,23 +1,5 @@
 # Layouts
 
-```{eval-rst}
-.. toctree::
-  :maxdepth: 1
-  :hidden:
-
-  accordion
-  carousel
-  callout
-  justify
-  lazy
-  nav_menu
-  plain
-  routes
-  sidebar
-  stacks
-  tree
-```
-
 marimo has higher-order layout functions that you can use to arrange outputs
 in rows, columns, tables, tabs, and more.
 
@@ -26,25 +8,22 @@ in rows, columns, tables, tabs, and more.
 Unlike elements in `marimo.ui`, these don't have any values associated with
 them but just render their children in a certain way.
 
-```{eval-rst}
-.. autosummary::
-  :nosignatures:
-
-  marimo.accordion
-  marimo.carousel
-  marimo.callout
-  marimo.center
-  marimo.hstack
-  marimo.lazy
-  marimo.left
-  marimo.nav_menu
-  marimo.plain
-  marimo.right
-  marimo.routes
-  marimo.sidebar
-  marimo.tree
-  marimo.vstack
-```
+| Function | Description |
+|----------|-------------|
+| [`marimo.accordion`](accordion.md) | Create collapsible sections |
+| [`marimo.carousel`](carousel.md) | Create a slideshow |
+| [`marimo.callout`](callout.md) | Create highlighted sections |
+| [`marimo.center`](center.md) | Center content |
+| [`marimo.hstack`](hstack.md) | Stack elements horizontally |
+| [`marimo.lazy`](lazy.md) | Lazy load content |
+| [`marimo.left`](left.md) | Left-align content |
+| [`marimo.nav_menu`](nav_menu.md) | Create navigation menus |
+| [`marimo.plain`](plain.md) | Display content without styling |
+| [`marimo.right`](right.md) | Right-align content |
+| [`marimo.routes`](routes.md) | Create page routing |
+| [`marimo.sidebar`](sidebar.md) | Create sidebars |
+| [`marimo.tree`](tree.md) | Create tree structures |
+| [`marimo.vstack`](vstack.md) | Stack elements vertically |
 
 ## Stateful
 
@@ -52,10 +31,7 @@ Some elements in `marimo.ui` are also helpful for layout. These elements
 do have values associated with them: for example, `tabs` tracks the
 selected tab name, and `table` tracks the selected rows.
 
-```{eval-rst}
-.. autosummary::
-  :nosignatures:
-
-  marimo.ui.tabs
-  marimo.ui.table
-```
+| Function | Description |
+|----------|-------------|
+| [`marimo.ui.tabs`](../inputs/tabs.md) | Create tabbed interfaces |
+| [`marimo.ui.table`](../inputs/table.md) | Create interactive tables |

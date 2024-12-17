@@ -20,7 +20,6 @@ To run the container locally, you can use the following command:
 
 ```bash
 docker run -p 8080:8080 -it ghcr.io/marimo-team/marimo:latest-sql
-```
 
 ## Use in a Dockerfile
 
@@ -32,4 +31,3 @@ FROM ghcr.io/marimo-team/marimo:latest-sql
 # Install any additional dependencies here
 
 CMD ["marimo", "edit", "--no-token", "-p", "8080", "--host", "0.0.0.0"]
-```

@@ -6,7 +6,6 @@ To use Google Cloud Storage as a data source, you will need to install the `goog
 
 ```bash
 pip install google-cloud-storage
-```
 
 ## Authentication
 
@@ -17,7 +16,6 @@ If you are running marimo locally, you can authenticate with Application Default
 
 ```bash
 gcloud auth application-default login
-```
 
 ### Service Account Key File
 
@@ -27,7 +25,6 @@ Once you have downloaded the key file, you can authenticate with Google Cloud St
 
 ```bash
 export GOOGLE_APPLICATION_CREDENTIALS=/path/to/key/file.json
-```
 
 ## Reading Data
 
@@ -60,7 +57,6 @@ items = [
 ]
 file_table = mo.ui.table(items, selection="single")
 file_table if items else mo.md("No files found").callout()
-```
 
 ## Example
 
@@ -70,4 +66,3 @@ Or run it yourself:
 
 ```bash
 marimo run https://raw.githubusercontent.com/marimo-team/marimo/main/examples/cloud/gcp/google_cloud_storage.py
-```

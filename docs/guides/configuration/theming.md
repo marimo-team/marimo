@@ -6,7 +6,6 @@ To include a custom CSS file, in the configuration dropdown, add the relative fi
 
 ```python
 app = marimo.App(css_file="custom.css")
-```
 
 ## CSS Variables
 
@@ -16,13 +15,10 @@ We support only a few CSS variables as part of the "public API" for theming. The
 --marimo-monospace-font
 --marimo-text-font
 --marimo-heading-font
-```
 
-```{admonition} Other CSS Variables
-:class: warning
+!!! warning "Other CSS Variables"
 
 We cannot guarantee that other CSS variables or classnames will be stable across versions.
-```
 
 ## Example
 
@@ -41,13 +37,12 @@ Here is an example of a custom CSS file that changes the font of the notebook:
   font-size: 1.2rem;
   color: light-dark(navy, pink);
 }
-```
 
 ## Custom HTML Head
 
 You can further customize your notebook by adding custom HTML in the `<head>` section of your notebook. This allows you to add additional functionality to your notebook, such as analytics, custom fonts, meta tags, or external scripts.
 
-See the [Custom HTML Head](/guides/configuration/html_head.md) guide for more details.
+See the [Custom HTML Head](../guides/configuration/html_head.md) guide for more details.
 
 ## Community Themes
 

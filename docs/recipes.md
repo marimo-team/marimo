@@ -21,7 +21,6 @@ element or some other Python object
 # condition is a boolean, True of False
 condition = True
 "condition is True" if condition else None
-```
 
 ### Run a cell on a timer
 
@@ -38,7 +37,6 @@ condition = True
 
 ```python
 import marimo as mo
-```
 
 2. Create a [`mo.ui.refresh`](api/inputs/refresh.md#marimo.ui.refresh) timer that fires once a second:
 
@@ -46,7 +44,6 @@ import marimo as mo
 refresh = mo.ui.refresh(default_interval="1s")
 # This outputs a timer that fires once a second
 refresh
-```
 
 3. Reference the timer by name to make this cell run once a second
 
@@ -57,14 +54,11 @@ import random
 refresh
 
 mo.md("#" + "🍃" * random.randint(1, 10))
-```
 
-```{admonition} Requires "on cell change" autorun
-:class: note
+!!! note "Requires "on cell change" autorun"
 
-For this to work, the [runtime configuration's](/guides/configuration/runtime_configuration.md) `on cell change` should be
+For this to work, the [runtime configuration's](../guides/configuration/runtime_configuration.md) `on cell change` should be
 set to `autorun`
-```
 
 
 
@@ -84,20 +78,17 @@ button press.
 
 ```python
 import marimo as mo
-```
 
 2. Create a submittable form.
 
 ```python
 form = mo.ui.text(label="Your name").form()
 form
-```
 
 3. Get the value of the form.
 
 ```python
 form.value
-```
 
 ### Stop execution of a cell and its descendants
 
@@ -110,14 +101,12 @@ unsubmitted.
 
 ```python
 import marimo as mo
-```
 
 2. Create a submittable form.
 
 ```python
 form = mo.ui.text(label="Your name").form()
 form
-```
 
 3. Use [`mo.stop`](api/control_flow.md#marimo.stop) to stop execution when
 the form is unsubmitted.
@@ -126,7 +115,6 @@ the form is unsubmitted.
 mo.stop(form.value is None, mo.md("Submit the form to continue"))
 
 mo.md(f"Hello, {form.value}!")
-```
 
 ## Grouping UI elements together
 
@@ -158,7 +146,6 @@ by name (in this case, "`l`") will run automatically.
 
 ```python
 import marimo as mo
-```
 
 2. Use [`mo.ui.array`](api/inputs/array.md#marimo.ui.array) to group together
    many UI elements into a list.
@@ -170,13 +157,11 @@ import random
 # an upstream UI element or other Python object
 array = mo.ui.array([mo.ui.text() for i in range(random.randint(1, 10))])
 array
-```
 
 3. Get the value of the UI elements using `array.value`
 
 ```python
 array.value
-```
 
 ### Create a dictionary of UI elements
 
@@ -189,7 +174,6 @@ name each of the wrapped elements with a string key.
 
 ```python
 import marimo as mo
-```
 
 2. Use [`mo.ui.dictionary`](api/inputs/dictionary.md#marimo.ui.dictionary) to
    group together many UI elements into a list.
@@ -201,13 +185,11 @@ import random
 # an upstream UI element or other Python object
 dictionary = mo.ui.dictionary({str(i): mo.ui.text() for i in range(random.randint(1, 10))})
 dictionary
-```
 
 3. Get the value of the UI elements using `dictionary.value`
 
 ```python
 dictionary.value
-```
 
 ### Embed a dynamic number of UI elements in another output
 
@@ -220,7 +202,6 @@ in other outputs (like tables or markdown).
 
 ```python
 import marimo as mo
-```
 
 2. Group the elements with
 [`mo.ui.dictionary`](#marimo.ui.dictionary) or
@@ -257,13 +238,11 @@ mo.md(
         ]
     )
 )
-```
 
 3. Get the value of the elements
 
 ```python
 elements.value
-```
 
 ### Create a hstack (or vstack) of UI elements with `on_change` handlers
 
@@ -277,7 +256,6 @@ element is interacted with, e.g. when a button is clicked.
 
 ```python
 import marimo as mo
-```
 
 2. Create buttons in `mo.ui.array` and pass them to hstack -- a regular
 Python list won't work. Make sure to assign the array to a global variable.
@@ -301,13 +279,11 @@ buttons = mo.ui.array(
 )
 
 mo.hstack(buttons)
-```
 
 3. Get the state value
 
 ```python
 get_state()
-```
 
 ### Create a table column of buttons with `on_change` handlers
 
@@ -321,7 +297,6 @@ when a button is clicked.
 
 ```python
 import marimo as mo
-```
 
 2. Create buttons in `mo.ui.array` and pass them to `mo.ui.table`.
 Make sure to assign the table and array to global variables
@@ -352,13 +327,11 @@ table = mo.ui.table(
     }
 )
 table
-```
 
 3. Get the state value
 
 ```python
 get_state()
-```
 
 ### Create a form with multiple UI elements
 
@@ -371,7 +344,6 @@ of the form sends all its elements to Python.
 
 ```python
 import marimo as mo
-```
 
 2. Use [`mo.ui.form`](api/inputs/form.md#marimo.ui.form) and
 [`Html.batch`](api/html.md#marimo.Html.batch) to create a form with
@@ -387,13 +359,11 @@ form = mo.md(
    """
 ).batch(epsilon=mo.ui.slider(0.1, 1, step=0.1), delta=mo.ui.number(1, 10)).form()
 form
-```
 
 3. Get the submitted form value.
 
 ```python
 form.value
-```
 
 ### Populating form with pre-defined examples
 
@@ -406,7 +376,6 @@ The form can also be populated from [URL query parameters](https://docs.marimo.i
 
 ```python
 import marimo as mo
-```
 
 2. Create dropdown of examples
 
@@ -440,7 +409,6 @@ form = (
         submit_button_label="go"
     )
 )
-```
 
 4. Run pre-populated from or recompute with new input.
 
@@ -451,14 +419,13 @@ output = (
     else " ".join(examples.value.values()).upper()
 )
 examples, form, output
-```
 
 ## Working with buttons
 
 ### Create a button that triggers computation when clicked
 
 **Use cases.** To trigger a computation on button click and only on button
-click, use [`mo.ui.run_button()`](/api/inputs/run_button.md).
+click, use [`mo.ui.run_button()`](../api/inputs/run_button.md).
 
 **Recipe.**
 
@@ -466,14 +433,12 @@ click, use [`mo.ui.run_button()`](/api/inputs/run_button.md).
 
 ```python
 import marimo as mo
-```
 
 2. Create a run button
 
 ```python
 button = mo.ui.run_button()
 button
-```
 
 3. Run something only if the button has been clicked.
 
@@ -482,7 +447,6 @@ mo.stop(not button.value, "Click 'run' to generate a random number")
 
 import random
 random.randint(0, 1000)
-```
 
 ### Create a counter button
 
@@ -496,7 +460,6 @@ it has been clicked, is a helpful building block for reacting to button clicks
 
 ```python
 import marimo as mo
-```
 
 2. Use [`mo.ui.button`](api/inputs/button.md#marimo.ui.button) and its
    `on_click` argument to create a counter button.
@@ -505,13 +468,11 @@ import marimo as mo
 # Initialize the button value to 0, increment it on every click
 button = mo.ui.button(value=0, on_click=lambda count: count + 1)
 button
-```
 
 3. Get the button value
 
 ```python
 button.value
-```
 
 ### Create a toggle button
 
@@ -525,7 +486,6 @@ that toggles between `True` and `False`. (Tip: you can also just use
 
 ```python
 import marimo as mo
-```
 
 2. Use [`mo.ui.button`](api/inputs/button.md#marimo.ui.button) and its
    `on_click` argument to create a toggle button.
@@ -534,13 +494,11 @@ import marimo as mo
 # Initialize the button value to False, flip its value on every click.
 button = mo.ui.button(value=False, on_click=lambda value: not value)
 button
-```
 
 3. Toggle between two outputs using the button value.
 
 ```python
 mo.md("True!") if button.value else mo.md("False!")
-```
 
 ### Re-run a cell when a button is pressed
 
@@ -553,14 +511,12 @@ and you want to resample on button press.
 
 ```python
 import marimo as mo
-```
 
 2. Create a button without a value, to function as a _trigger_.
 
 ```python
 button = mo.ui.button()
 button
-```
 
 3. Reference the button in another cell.
 
@@ -571,7 +527,6 @@ button
 # Replace with your custom logic
 import random
 random.randint(0, 100)
-```
 
 ### Run a cell when a button is pressed, but not before
 
@@ -584,14 +539,12 @@ random.randint(0, 100)
 
 ```python
 import marimo as mo
-```
 
 2. Create a counter button.
 
 ```python
 button = mo.ui.button(value=0, on_click=lambda count: count + 1)
 button
-```
 
 3. Only execute when the count is greater than 0.
 
@@ -601,7 +554,6 @@ button
 mo.stop(button.value == 0)
 
 mo.md(f"The button was clicked {button.value} times")
-```
 
 ### Reveal an output when a button is pressed
 
@@ -613,20 +565,17 @@ mo.md(f"The button was clicked {button.value} times")
 
 ```python
 import marimo as mo
-```
 
 2. Create a counter button.
 
 ```python
 button = mo.ui.button(value=0, on_click=lambda count: count + 1)
 button
-```
 
 3. Show an output after the button is clicked.
 
 ```python
 mo.md("#" + "🍃" * button.value) if button.value > 0 else None
-```
 
 ## Caching
 
@@ -649,7 +598,6 @@ import marimo as mo
 def compute_predictions(problem_parameters):
    # replace with your own function/parameters
    ...
-```
 
 Whenever `compute_predictions` is called with a value of `problem_parameters`
 it has not seen, it will compute the predictions and store them in a cache. The
@@ -675,7 +623,6 @@ import marimo as mo
 with mo.persistent_cache("my_cache"):
     # This block of code, and results will be cached to disk
     ...
-```
 
 If the execution conditions are the same, then cache will load results from
 disk, and populate variable definitions.

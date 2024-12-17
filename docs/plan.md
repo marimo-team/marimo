@@ -6,8 +6,7 @@
 
    ```bash
    mkdir -p docs/{assets,stylesheets,overrides}
-   ```
-
+   
 2. Started theme customization:
    - Created `docs/stylesheets/extra.css` with initial styles
 3. Created overrides directory:
@@ -70,14 +69,12 @@
 
    ```bash
    hatch run docs:serve
-   ```
-
+   
 2. Build Test:
 
    ```bash
    hatch run docs:build
-   ```
-
+   
 ## 6. Cleanup
 
 1. Remove old Sphinx files:

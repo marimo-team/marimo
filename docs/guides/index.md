@@ -1,10 +1,8 @@
 # Guides
 
-```{eval-rst}
-.. toctree::
+```.. toctree::
   :maxdepth: 2
   :hidden:
-
   reactivity
   interactivity
   outputs
@@ -23,16 +21,13 @@
   deploying/index
   best_practices
   troubleshooting
-```
 
 These guides cover marimo's core concepts.
 
-```{admonition} Learn by doing!
-:class: tip
+!!! tip "Learn by doing!"
 
 Prefer a hands-on learning experience? marimo comes packaged with interactive
 tutorials that you can launch with `marimo tutorial` at the command line.
-```
 
 | Guide                                | Description                                                  |
 | :----------------------------------- | :----------------------------------------------------------- |

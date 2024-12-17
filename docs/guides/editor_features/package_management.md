@@ -4,11 +4,9 @@ marimo supports package management for `pip, rye, uv, poetry, pixi`. When marimo
 
 Once the module is installed, all cells that depend on the module will be rerun.
 
-```{admonition} Package Installation
-:class: note
+!!! note "Package Installation"
 
 We use some heuristic for guessing the package name in your registry (e.g. PyPI) from the module name. It is possible that the package name is different from the module name. If you encounter an error, please file an issue or help us by adding your mapping [directly to the codebase](https://github.com/marimo-team/marimo/blob/main/marimo/_runtime/packages/module_name_to_pypi_name.py).
-```
 
 ## Running `marimo` in a sandbox environment (`uv` only)
 
@@ -18,7 +16,6 @@ This is useful when you want to run marimo in a clean environment without affect
 
 ```bash
 marimo edit --sandbox notebook.py
-```
 
 ### Auto-tracking inline script metadata
 
@@ -34,7 +31,6 @@ For example, whenever you add or remove a package, marimo will automatically upd
 #     "altair==<version>",
 # ]
 # ///
-```
 
 This means your notebook file is a completely self-contained artifact with all the necessary information to run.
 
@@ -48,7 +44,6 @@ For example, you can specify the Python version using the `UV_PYTHON` environmen
 
 ```bash
 UV_PYTHON=3.13 marimo edit --sandbox notebook.py
-```
 
 #### Other common configuration
 
@@ -56,4 +51,3 @@ or you can use `uv`'s link mode:
 
 ```bash
 UV_LINK_MODE="copy" marimo edit --sandbox notebook.py
-```

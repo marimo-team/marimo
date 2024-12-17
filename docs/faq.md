@@ -51,7 +51,7 @@ running the cells that reference its variables. Delete a cell and marimo scrubs
 its variables from program memory, eliminating hidden state.
 
 **Built-in interactivity.** marimo also comes with [UI
-elements](/guides/interactivity) like sliders, a dataframe transformer, and
+elements](guides/interactivity) like sliders, a dataframe transformer, and
 interactive plots that are automatically synchronized with Python. Interact
 with an element and the cells that use it are automatically re-run with its
 latest value.
@@ -82,7 +82,7 @@ relationships between cells, and automatically re-running cells as needed.
 
 In addition, marimo notebooks can serialize package requirements inline;
 marimo runs these "sandboxed" notebooks in temporary virtual environments,
-making them [reproducible down to the packages](/guides/editor_features/package_management.md).
+making them [reproducible down to the packages](../guides/editor_features/package_management.md).
 
 **Maintainability.**
 marimo notebooks are stored as pure Python programs (`.py` files). This lets you
@@ -90,7 +90,7 @@ version them with Git; in contrast, Jupyter notebooks are stored as JSON and
 require extra steps to version.
 
 **Interactivity.**
-marimo notebooks come with [UI elements](/guides/interacivity) that are
+marimo notebooks come with [UI elements](../guides/interactivity) that are
 automatically synchronized with Python (like sliders, dropdowns); _eg_, scrub a
 slider and all cells that reference it are automatically re-run with the new
 value. This is difficult to get working in Jupyter notebooks.
@@ -208,14 +208,14 @@ _Here are some tips to avoid accidental execution of expensive cells:_
 - Use [`mo.persistent_cache`](#marimo.persistent_cache) to cache variables to
   disk; on re-run, marimo will read values from disk instead of recalculating
   them as long as the cell is not stale.
-- Disable automatic execution in the [runtime configuration](/guides/runtime_configuration.md).
+- Disable automatic execution in the [runtime configuration](../guides/runtime_configuration.md).
 
 <a name="faq-lazy"></a>
 
 ### How do I disable automatic execution?
 
 You can disable automatic execution through the notebook runtime settings;
-see the [guide on runtime configuration](/guides/runtime_configuration.md).
+see the [guide on runtime configuration](../guides/runtime_configuration.md).
 
 When automatic execution is disabled, marimo still gives you guarantees on
 your notebook state and automatically marks cells as stale when appropriate.
@@ -242,7 +242,6 @@ All this and more is explained in the UI tutorial. Run it with
 
 ```bash
 marimo tutorial ui
-```
 
 at the command line.
 
@@ -255,7 +254,6 @@ example,
 
 ```python
 form = marimo.ui.text_area().form()
-```
 
 When wrapped in a form, the
 text area's value will only be sent to Python when you click the submit button.
@@ -266,7 +264,7 @@ Access the last submitted value of the text area with `form.value`.
 ### How do I write markdown?
 
 Import `marimo` (as `mo`) in a notebook, and use the `mo.md` function.
-Learn more in the [outputs guide](/guides/outputs.md#markdown)
+Learn more in the [outputs guide](../guides/outputs.md#markdown)
 or by running `marimo tutorial markdown`.
 
 <a name="faq-plots"></a>
@@ -279,7 +277,6 @@ other outputs. If you're using matplotlib, you can display the `Figure` object
 
 ```bash
 marimo tutorial plots
-```
 
 Also see the <a href="/api/plotting.html">plotting API reference</a>.
 
@@ -297,7 +294,6 @@ plt.plot([-8, 8])
 plt.ylabel("my variable")
 plt.tight_layout()
 plt.gca()
-```
 
 <a name="faq-interactive-plots"></a>
 
@@ -309,7 +305,6 @@ Use <a href="/api/plotting.html#marimo.mpl.interactive">`marimo.mpl.interactive`
 fig, ax = plt.subplots()
 ax.plot([1, 2])
 mo.mpl.interactive(ax)
-```
 
 <a name="faq-rows-columns"></a>
 
@@ -319,30 +314,29 @@ Use `marimo.hstack` and `marimo.vstack`. See the layout tutorial for details:
 
 ```bash
 marimo tutorial layout
-```
 
 <a name="faq-show-code"></a>
 
 ### How do I show cell code in the app view?(#faq-show-code)
 
-Use [`mo.show_code`](/api/outputs.md#marimo.show_code).
+Use [`mo.show_code`](../api/outputs.md#marimo.show_code).
 
 <a name="faq-dynamic-ui-elements"></a>
 
 ### How do I create an output with a dynamic number of UI elements?
 
-Use [`mo.ui.array`](/api/inputs/array.md#marimo.ui.array),
-[`mo.ui.dictionary`](/api/inputs/dictionary.md#marimo.ui.dictionary), or
-[`mo.ui.batch`](/api/inputs/batch.md#marimo.ui.batch) to create a UI element
+Use [`mo.ui.array`](../api/inputs/array.md#marimo.ui.array),
+[`mo.ui.dictionary`](../api/inputs/dictionary.md#marimo.ui.dictionary), or
+[`mo.ui.batch`](../api/inputs/batch.md#marimo.ui.batch) to create a UI element
 that wraps a dynamic number of other UI elements.
 
 If you need custom
-formatting, use [`mo.ui.batch`](/api/inputs/batch.md#marimo.ui.batch), otherwise
-use [`mo.ui.array`](/api/inputs/array.md#marimo.ui.array) or
-[`mo.ui.dictionary`](/api/inputs/dictionary.md#marimo.ui.dictionary).
+formatting, use [`mo.ui.batch`](../api/inputs/batch.md#marimo.ui.batch), otherwise
+use [`mo.ui.array`](../api/inputs/array.md#marimo.ui.array) or
+[`mo.ui.dictionary`](../api/inputs/dictionary.md#marimo.ui.dictionary).
 
 For usage examples, see the
-[recipes for grouping UI elements together](/recipes.md#grouping-ui-elements-together).
+[recipes for grouping UI elements together](../recipes.md#grouping-ui-elements-together).
 
 <a name="faq-restart"></a>
 
@@ -371,16 +365,15 @@ called if the element is bound to a global variable. For example, this won't wor
 
 ```python
 mo.vstack([mo.ui.button(on_change=lambda _: print("I was called")) for _ in range(10)])
-```
 
 In such cases (when you want to output a dynamic number of UI elements),
 you need to use
-[`mo.ui.array`](/api/inputs/array.md#marimo.ui.array),
-[`mo.ui.dictionary`](/api/inputs/dictionary.md#marimo.ui.dictionary), or
-[`mo.ui.batch`](/api/inputs/batch.md#marimo.ui.batch).
+[`mo.ui.array`](../api/inputs/array.md#marimo.ui.array),
+[`mo.ui.dictionary`](../api/inputs/dictionary.md#marimo.ui.dictionary), or
+[`mo.ui.batch`](../api/inputs/batch.md#marimo.ui.batch).
 
 See the
-[recipes for grouping UI elements together](/recipes.md#grouping-ui-elements-together)
+[recipes for grouping UI elements together](../recipes.md#grouping-ui-elements-together)
 for example code.
 
 <a name="faq-on-change-last"></a>
@@ -393,7 +386,6 @@ for example code.
 array = mo.ui.array(
   [mo.ui.button(on_change=lambda value: print(i)) for i in range(10)
 ])
-```
 
 **Instead, do this**: Explicitly bind `i` to the current loop value:
 
@@ -402,7 +394,6 @@ array = mo.ui.array(
     [mo.ui.button(on_change=lambda value, i=i: print(i)) for i in range(10)]
 )
 array
-```
 
 This is necessary because [in Python, closures are late-binding](https://docs.python-guide.org/writing/gotchas/#late-binding-closures).
 
@@ -412,10 +403,10 @@ This is necessary because [in Python, closures are late-binding](https://docs.py
 
 Our "SQL" cells are really just Python under the hood to keep notebooks as pure Python scripts. By default, we use `f-strings` for SQL strings, which allows for parameterized SQL like `SELECT * from table where value < {min}`.
 
-To escape real `{`/`}` that you don't want parameterized, use double `{{...}}`:
+To escape real `{`/`}` that you don't want parameterized, use double braces:
 
 ```sql
-SELECT unnest([{{'a': 42, 'b': 84}}, {{'a': 100, 'b': NULL}}]);
+SELECT unnest([{{ "{'a': 42, 'b': 84}" }}, {{ "{'a': 100, 'b': NULL}" }}]);
 ```
 
 <a name="faq-annotations"></a>
@@ -431,14 +422,12 @@ For example, in
 
 ```python
 x: A = ...
-```
 
 `A` is treated as a reference, used in determining the dataflow graph, but
 in
 
 ```python
 x: "A" = ...
-```
 
 `A` isn't made a reference.
 
@@ -467,13 +456,11 @@ to pass the `--headless` flag when starting marimo on remote:
 
 ```bash
 marimo edit --headless
-```
 
 You may also want to set a custom host and port:
 
 ```bash
 marimo edit --headless --host 0.0.0.0 --port 8080
-```
 
 <a name="faq-interfaces"></a>
 
@@ -483,7 +470,6 @@ Use `--host 0.0.0.0` with `marimo edit`, `marimo run`, or `marimo tutorial`:
 
 ```bash
 marimo edit --host 0.0.0.0
-```
 
 <a name="faq-jupyter-hub"></a>
 
@@ -513,13 +499,11 @@ Use the marimo CLI's `run` command to serve a notebook as an app:
 
 ```bash
 marimo run notebook.py
-```
 
 If you are running marimo inside a Docker container, you may want to run under a different host and port:
 
 ```bash
 marimo run notebook.py --host 0.0.0.0 --port 8080
-```
 
 <a name="faq-marimo-free"></a>
 

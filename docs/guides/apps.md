@@ -49,7 +49,6 @@ Options:
                                  environment using 'uv run --isolated'.
                                  Requires `uv`.
   --help                         Show this message and exit.
-```
 
 ## Layout
 

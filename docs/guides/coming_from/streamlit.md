@@ -47,7 +47,7 @@ you reuse widgets that were originally developed for the Jupyter ecosystem,
 
 5. **Built-in Editor**:
 
-- marimo includes a [built-in editor](/guides/editor_features/index.md) for notebooks, designed specifically
+- marimo includes a [built-in editor](../guides/editor_features/index.md) for notebooks, designed specifically
 for working with data.
 - Streamlit relies on external editors.
 - Both approaches have their pros and cons.
@@ -56,7 +56,7 @@ for working with data.
 
 - marimo's notebook environment allows for iterative and interactive
   development and exploration, letting it serve as your daily driver for
-  working with data. marimo even has native support for [SQL](/guides/working_with_data/sql.md).
+  working with data. marimo even has native support for [SQL](../guides/working_with_data/sql.md).
 - Streamlit is exclusively used for building standalone data apps.
 
 ## Common Streamlit Features in marimo
@@ -73,7 +73,6 @@ st.markdown(
     Hello world
     """
 )
-```
 
 marimo:
 
@@ -85,7 +84,6 @@ mo.md(
     Hello world
     """
 )
-```
 
 ### 2. Displaying Data
 
@@ -93,13 +91,11 @@ Streamlit:
 
 ```python
 st.dataframe(df)
-```
 
 marimo:
 
 ```python
 df  # Last expression in a cell is automatically displayed
-```
 
 ### 3. Input Widgets
 
@@ -107,14 +103,12 @@ Streamlit:
 
 ```python
 age = st.slider("How old are you?", 0, 130, 25)
-```
 
 marimo:
 
 ```python
 age = mo.ui.slider(label="How old are you?", start=0, stop=130, value=25)
 mo.md(f"One more question: {age}") # marimo can achieve more advanced composition
-```
 
 ### 4. Buttons
 
@@ -123,24 +117,20 @@ Streamlit:
 ```python
 if st.button("Click me"):
     st.write("Button clicked!")
-```
 
 marimo:
 
 ```python
 button = mo.ui.run_button("Click me")
-```
 
 ```python
 # In another cell
 if button.value:
     mo.output.replace(mo.md("Button clicked!"))
-```
 
 ```
 # Or
 mo.md("Button clicked!") if button.value else None
-```
 
 ### 5. Layouts
 
@@ -152,7 +142,6 @@ with col1:
     st.write("Column 1")
 with col2:
     st.write("Column 2")
-```
 
 marimo:
 
@@ -161,7 +150,6 @@ mo.hstack([
     mo.md("Column 1"),
     mo.md("Column 2")
 ])
-```
 
 ### 6. Advanced Layouts (tabs, accordions)
 
@@ -170,13 +158,11 @@ Streamlit:
 ```python
 with st.expander("Expand me"):
     st.write("Hello from the expander!")
-```
 
 marimo:
 
 ```python
 mo.accordion({"Expand me": "Hello from the expander!"})
-```
 
 marimo's unique approach to composition allows for more flexible layouts with
 unlimited nesting.
@@ -191,7 +177,6 @@ import matplotlib.pyplot as plt
 fig, ax = plt.subplots()
 ax.plot([1, 2, 3, 4])
 st.pyplot(fig)
-```
 
 marimo:
 
@@ -200,7 +185,6 @@ import matplotlib.pyplot as plt
 
 plt.plot([1, 2, 3, 4])
 plt.gca()  # Last expression is displayed
-```
 
 ### 7. Caching
 
@@ -210,7 +194,6 @@ Streamlit:
 @st.cache_data
 def expensive_computation(args):
     # ...
-```
 
 marimo:
 
@@ -218,7 +201,6 @@ marimo:
 @functools.cache
 def expensive_computation(args):
     # ...
-```
 
 ### 8. Session State
 
@@ -232,13 +214,11 @@ Streamlit:
 
 ```bash
 streamlit run your_app.py
-```
 
 marimo:
 
 ```bash
 marimo run your_notebook.py
-```
 
 ## Key Concepts to Remember
 

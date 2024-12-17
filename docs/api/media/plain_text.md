@@ -1,5 +1,3 @@
 # Plain text
 
-```{eval-rst}
-.. autofunction:: marimo.plain_text
-```
+::: marimo.plain_text

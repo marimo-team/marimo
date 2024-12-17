@@ -2,17 +2,6 @@
 
 All marimo elements extend the HTML element class.
 
-```{eval-rst}
-.. autofunction:: marimo.as_html
-```
+::: marimo.as_html
 
-```{eval-rst}
-.. autoclass:: marimo.Html
-  :members:
-
-  .. autoclasstoc::
-```
-
-```{eval-rst}
-.. autofunction:: marimo.iframe
-```
+::: marimo.iframe

@@ -2,12 +2,10 @@
 
 The dataframe UI element outputs a visual editor to apply "transforms" to a dataframe, such as filtering rows, applying group-bys and aggregations, and more. The transformed dataframe is shown below the transform editor. The UI output also includes the generated Python used to generate the resulting dataframe, which you can copy paste into a cell. You can programmatically access the resulting dataframe by accessing the element's `.value` attribute.
 
-```{admonition} Pandas Required
-:class: note
+!!! note "Pandas or Polars Required"
 
-In order to use the dataframe UI element, you must have the `pandas` package installed.
-You can install it with `pip install pandas`.
-```
+  In order to use the dataframe UI element, you must have the `pandas` or `polars` package installed.
+  You can install it with `pip install pandas` or `pip install polars`.
 
 Supported transforms are:
 
@@ -18,11 +16,7 @@ Supported transforms are:
 - Group By
 - Aggregate
 
-```{eval-rst}
-.. marimo-embed::
-    :size: large
-    :app_width: full
-
+```python
     @app.cell
     def __():
         import pandas as pd
@@ -33,9 +27,4 @@ Supported transforms are:
         return
 ```
 
-```{eval-rst}
-.. autoclass:: marimo.ui.dataframe
-  :members:
-
-  .. autoclasstoc:: marimo._plugins.ui._impl.dataframes.dataframe.dataframe
-```
+<!-- ::: marimo.ui.dataframe -->

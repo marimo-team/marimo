@@ -3,7 +3,7 @@
 We have a large [library of
 examples](https://github.com/marimo-team/marimo/tree/main/examples) in our
 repo. Each example [encapsulates its own Python dependencies in a package
-sandbox](/guides/editor_features/package_management.md), making it easy to run.
+sandbox](../guides/editor_features/package_management.md), making it easy to run.
 We've deployed some of these examples at our [public
 gallery](https://marimo.io/@public).
 

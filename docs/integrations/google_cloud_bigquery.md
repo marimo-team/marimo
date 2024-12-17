@@ -6,7 +6,6 @@ To use Google Cloud BigQuery as a data source, you will need to install the `goo
 
 ```bash
 pip install google-cloud-bigquery db-dtypes
-```
 
 ## Authentication
 
@@ -17,7 +16,6 @@ If you are running marimo locally, you can authenticate with Application Default
 
 ```bash
 gcloud auth application-default login
-```
 
 ### Service Account Key File
 
@@ -27,7 +25,6 @@ Once you have downloaded the key file, you can authenticate with Google Cloud Bi
 
 ```bash
 export GOOGLE_APPLICATION_CREDENTIALS=/path/to/key/file.json
-```
 
 ## Reading Data
 
@@ -59,7 +56,6 @@ selected_table
 # Cell 5 - Load table data
 results = client.list_rows(dataset.table(selected_table.value), max_results=10)
 mo.ui.table(results.to_dataframe(), selection=None)
-```
 
 ## Example
 
@@ -69,4 +65,3 @@ Or run it yourself:
 
 ```bash
 marimo run https://raw.githubusercontent.com/marimo-team/marimo/main/examples/cloud/gcp/google_cloud_bigquery.py
-```

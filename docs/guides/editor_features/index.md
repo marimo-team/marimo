@@ -1,27 +1,16 @@
 # Editor features
 
-```{eval-rst}
-.. toctree::
-  :maxdepth: 2
-  :hidden:
-
-  overview
-  package_management
-  ai_completion
-  hotkeys
-```
-
 The **marimo editor** is the browser-based IDE in which you write marimo
 notebooks. We've taken a batteries-included approach to designing the editor:
 it comes _packed_ with features to make you productive when working
 with code and data.
 
-| Guide                     | Description                                      |
-| :------------------------ | :----------------------------------------------- |
-| {doc}`overview`           | An overview of editor features and configuration |
-| {doc}`package_management` | Using package managers in marimo                 |
-| {doc}`ai_completion`      | Code with the help of a language model           |
-| {doc}`hotkeys`            | Our hotkeys                                      |
+| Guide | Description |
+|-------|-------------|
+| [Overview](overview.md) | An overview of editor features and configuration |
+| [Package Management](package_management.md) | Using package managers in marimo |
+| [AI Completion](ai_completion.md) | Code with the help of a language model |
+| [Hotkeys](hotkeys.md) | Our hotkeys |
 
 Highlights include:
 

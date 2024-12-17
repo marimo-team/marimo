@@ -6,7 +6,6 @@ To use Google Sheets as a data source, you will need to install the `gspread` an
 
 ```bash
 pip install gspread oauth2client
-```
 
 ## Authentication
 
@@ -17,7 +16,6 @@ If you are running marimo locally, you can authenticate with Application Default
 
 ```bash
 gcloud auth application-default login
-```
 
 ### Service Account Key File
 
@@ -27,7 +25,6 @@ Once you have downloaded the key file, you can authenticate with Google Sheets b
 
 ```bash
 export GOOGLE_APPLICATION_CREDENTIALS=/path/to/key/file.json
-```
 
 ## Reading Data
 
@@ -54,7 +51,6 @@ gc = gspread.authorize(credentials)
 # Cell 2 - Load the sheet
 wks = gc.open("marimo").sheet1
 mo.ui.table(pd.DataFrame(wks.get_all_records()))
-```
 
 ## Example
 
@@ -64,4 +60,3 @@ Or run it yourself:
 
 ```bash
 marimo run https://raw.githubusercontent.com/marimo-team/marimo/main/examples/cloud/gcp/google_sheets.py
-```

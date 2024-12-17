@@ -6,30 +6,18 @@
 
 To use MotherDuck as a data source, you'll need to install the `marimo[sql]` Python package.
 
-::::{tab-set}
-:::{tab-item} install with pip
-
-```bash
-pip install "marimo[sql]"
-```
-
-:::
-:::{tab-item} install with uv
-
-```bash
-uv pip install "marimo[sql]"
-```
-
-:::
-:::{tab-item} install with conda
-
-```bash
-conda install -c conda-forge marimo duckdb polars
-```
-
-:::
-::::
-
+=== "install with pip"
+    ```bash
+    pip install "marimo[sql]"
+    
+=== "install with uv"
+    ```bash
+    uv pip install "marimo[sql]"
+    
+=== "install with conda"
+    ```bash
+    conda install -c conda-forge marimo duckdb polars
+    
 To connect to MotherDuck, import `duckdb` and `ATTACH` your MotherDuck database.
 
 ```python
@@ -37,14 +25,12 @@ import duckdb
 
 # Connect to MotherDuck
 duckdb.sql("ATTACH IF NOT EXISTS 'md:my_db'")
-```
 
 You will be prompted to authenticate with MotherDuck when you run the above cell. This will open a browser window where you can log in and authorize marimo to access your MotherDuck database. In order to avoid being prompted each time you open a notebook, you can set the `motherduck_token` environment variable:
 
 ```bash
 export motherduck_token="your_motherduck_token_here"
 marimo edit
-```
 
 You can obtain this token from your MotherDuck account settings.
 
@@ -91,4 +77,3 @@ For a full example of using MotherDuck with marimo, check out our [MotherDuck ex
 
 ```bash
 marimo edit https://github.com/marimo-team/marimo/blob/main/examples/sql/connect_to_motherduck.py
-```

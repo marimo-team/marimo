@@ -8,7 +8,6 @@ Authentication is enabled by default when running `marimo edit/tutorial/new`. To
 
 ```bash
 marimo run my_notebook.py --token --token-password="sup3rs3cr3t"
-```
 
 ### Ways to Authenticate
 
@@ -66,6 +65,5 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(app, host="localhost", port=8000)
-```
 
 or for a full example on implementing OAuth2 with FastAPI, see the [FastAPI OAuth2 example](https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/).

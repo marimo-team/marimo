@@ -102,14 +102,15 @@ dev = [
 ]
 
 docs = [
-    "mkdocs>=1.5.3",
-    "mkdocs-material>=9.5.13",
-    "mkdocstrings[python]>=0.24.1",
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.5.49",
+    "mkdocstrings[python]>=0.27.0",
     "mkdocs-material-extensions>=1.3.1",
     "mkdocs-autorefs>=1.0.1",
     "mkdocs-git-revision-date-localized-plugin>=1.2.4",
     "mkdocs-minify-plugin>=0.8.0",
     "mkdocs-glightbox>=0.3.7",
+    "mkdocs-macros-plugin>=1.3.0",
     "mike>=2.0.0",  # for versioning
     "pillow>=10.2.0",  # for social cards
     "cairosvg>=2.7.1",  # for social cards
@@ -243,11 +244,11 @@ extra-dependencies = [
 python = ["3.9", "3.10", "3.11", "3.12"]
 
 [tool.hatch.envs.docs]
-features = ["docs"]
+features = ["dev", "docs"]
 
 [tool.hatch.envs.docs.scripts]
 build = "mkdocs build"
-serve = "mkdocs serve"
+serve = "mkdocs serve --verbose"
 deploy = "mkdocs gh-deploy --force"
 
 [tool.ruff]

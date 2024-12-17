@@ -1,10 +1,8 @@
 # API Reference
 
-```{eval-rst}
-.. toctree::
+```.. toctree::
   :maxdepth: 1
   :hidden:
-
   markdown
   inputs/index
   layouts/index
@@ -22,7 +20,6 @@
   app
   cell
   miscellaneous
-```
 
 Use the marimo library in marimo notebooks (`import marimo as mo`) to
 

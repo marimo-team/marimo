@@ -1,73 +1,12 @@
-site_name: Marimo
-site_description: A library for making reactive notebooks and apps
-site_url: https://marimo.io
-repo_name: marimo-team/marimo
-repo_url: https://github.com/marimo-team/marimo
 edit_uri: edit/main/docs/
-
-theme:
-  name: material
-  custom_dir: docs/overrides
-  features:
-    - announce.dismiss
-    - content.action.edit
-    - content.action.view
-    - content.code.annotate
-    - content.code.copy
-    - content.tooltips
-    - navigation.footer
-    - navigation.indexes
-    - navigation.sections
-    - navigation.tabs
-    - navigation.top
-    - navigation.tracking
-    - search.highlight
-    - search.share
-    - search.suggest
-    - toc.follow
-  palette:
-    - media: '(prefers-color-scheme)'
-      toggle:
-        icon: material/link
-        name: Switch to light mode
-    - media: '(prefers-color-scheme: light)'
-      scheme: default
-      primary: indigo
-      accent: indigo
-      toggle:
-        icon: material/toggle-switch
-        name: Switch to dark mode
-    - media: '(prefers-color-scheme: dark)'
-      scheme: slate
-      primary: black
-      accent: indigo
-      toggle:
-        icon: material/toggle-switch-off
-        name: Switch to system preference
-  font:
-    text: Roboto
-    code: Roboto Mono
-  favicon: assets/favicon.png
-  logo: assets/logo.png
-
-plugins:
-  - search
-  - mkdocstrings:
-      handlers:
-        python:
-          options:
-            show_root_heading: true
-            show_source: true
-            show_bases: true
-            heading_level: 2
-  - git-revision-date-localized:
-      enable_creation_date: true
-      type: date
-  - minify:
-      minify_html: true
-  - glightbox
-  - autorefs
-
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/marimo-team/marimo
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/marimo/
+extra_css:
+  - stylesheets/extra.css
 markdown_extensions:
   - admonition
   - attr_list
@@ -82,9 +21,7 @@ markdown_extensions:
       smart_enable: all
   - pymdownx.caret
   - pymdownx.details
-  - pymdownx.emoji:
-      # emoji_index: !!python/name:material.extensions.emoji.twemoji
-      # emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.emoji: null
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span
@@ -96,34 +33,226 @@ markdown_extensions:
   - pymdownx.smartsymbols
   - pymdownx.superfences:
       custom_fences:
-        - name: mermaid
-          class: mermaid
-          # format: !!python/name:pymdownx.superfences.fence_code_format
+        - class: mermaid
+          name: mermaid
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.tasklist:
       custom_checkbox: true
   - pymdownx.tilde
-
-extra:
-  social:
-    - icon: fontawesome/brands/github
-      link: https://github.com/marimo-team/marimo
-    - icon: fontawesome/brands/python
-      link: https://pypi.org/project/marimo/
-
-extra_css:
-  - stylesheets/extra.css
-
 nav:
   - Home: index.md
   - Getting Started:
-      - Installation: installation.md
-      - Quick Start: quickstart.md
+      - Overview: getting_started/index.md
+      - Installation: getting_started/installation.md
+      - Quick Start: getting_started/quickstart.md
+      - Key Concepts: getting_started/key_concepts.md
   - User Guide:
-      - guide/index.md
+      - Overview: guides/index.md
+      - Reactivity: guides/reactivity.md
+      - Interactivity: guides/interactivity.md
+      - State Management: guides/state.md
+      - Best Practices: guides/best_practices.md
+      - Apps: guides/apps.md
+      - Scripts: guides/scripts.md
+      - Outputs: guides/outputs.md
+      - Expensive Notebooks: guides/expensive_notebooks.md
+      - WebAssembly: guides/wasm.md
+      - Working with Data:
+          - Overview: guides/working_with_data/index.md
+          - DataFrames: guides/working_with_data/dataframes.md
+          - SQL: guides/working_with_data/sql.md
+          - Plotting: guides/working_with_data/plotting.md
+      - Coming from:
+          - Overview: guides/coming_from/index.md
+          - Jupyter: guides/coming_from/jupyter.md
+          - Jupytext: guides/coming_from/jupytext.md
+          - Papermill: guides/coming_from/papermill.md
+          - Streamlit: guides/coming_from/streamlit.md
+      - Configuration:
+          - Overview: guides/configuration/index.md
+          - HTML Head: guides/configuration/html_head.md
+          - Runtime Configuration: guides/configuration/runtime_configuration.md
+          - Theming: guides/configuration/theming.md
+      - Deployment:
+          - Overview: guides/deploying/index.md
+          - Authentication: guides/deploying/authentication.md
+          - Docker: guides/deploying/deploying_docker.md
+          - Hugging Face: guides/deploying/deploying_hugging_face.md
+          - Ploomber: guides/deploying/deploying_ploomber.md
+          - Public Gallery: guides/deploying/deploying_public_gallery.md
+          - Railway: guides/deploying/deploying_railway.md
+          - Prebuilt Containers: guides/deploying/prebuilt_containers.md
+          - Programmatic: guides/deploying/programmatically.md
+      - Editor Features:
+          - Overview: guides/editor_features/index.md
+          - AI Completion: guides/editor_features/ai_completion.md
+          - Hotkeys: guides/editor_features/hotkeys.md
+          - Package Management: guides/editor_features/package_management.md
+      - Integrating with Marimo:
+          - Overview: guides/integrating_with_marimo/index.md
+          - Custom UI Plugins: guides/integrating_with_marimo/custom_ui_plugins.md
+          - Displaying Objects: guides/integrating_with_marimo/displaying_objects.md
   - API Reference:
-      - api/index.md
+      - Overview: api/index.md
+      - App: api/app.md
+      - Caching: api/caching.md
+      - Cell: api/cell.md
+      - CLI Arguments: api/cli_args.md
+      - Control Flow: api/control_flow.md
+      - Diagrams: api/diagrams.md
+      - HTML: api/html.md
+      - Markdown: api/markdown.md
+      - Outputs: api/outputs.md
+      - Plotting: api/plotting.md
+      - Query Parameters: api/query_params.md
+      - State: api/state.md
+      - Status: api/status.md
+      - Inputs:
+          - Overview: api/inputs/index.md
+          - AnyWidget: api/inputs/anywidget.md
+          - Array: api/inputs/array.md
+          - Batch: api/inputs/batch.md
+          - Button: api/inputs/button.md
+          - Chat: api/inputs/chat.md
+          - Checkbox: api/inputs/checkbox.md
+          - Code Editor: api/inputs/code_editor.md
+          - Data Explorer: api/inputs/data_explorer.md
+          - DataFrame: api/inputs/dataframe.md
+          - Dates: api/inputs/dates.md
+          - Dictionary: api/inputs/dictionary.md
+          - Dropdown: api/inputs/dropdown.md
+          - File: api/inputs/file.md
+          - File Browser: api/inputs/file_browser.md
+          - Form: api/inputs/form.md
+          - Microphone: api/inputs/microphone.md
+          - Multiselect: api/inputs/multiselect.md
+          - Navigation Menu: api/inputs/nav_menu.md
+          - Number: api/inputs/number.md
+          - Radio: api/inputs/radio.md
+          - Range Slider: api/inputs/range_slider.md
+          - Refresh: api/inputs/refresh.md
+          - Run Button: api/inputs/run_button.md
+          - Slider: api/inputs/slider.md
+          - Switch: api/inputs/switch.md
+          - Table: api/inputs/table.md
+          - Tabs: api/inputs/tabs.md
+          - Text: api/inputs/text.md
+          - Text Area: api/inputs/text_area.md
+      - Layouts:
+          - Overview: api/layouts/index.md
+          - Accordion: api/layouts/accordion.md
+          - Callout: api/layouts/callout.md
+          - Carousel: api/layouts/carousel.md
+          - Justify: api/layouts/justify.md
+          - Lazy: api/layouts/lazy.md
+          - Plain: api/layouts/plain.md
+          - Routes: api/layouts/routes.md
+          - Sidebar: api/layouts/sidebar.md
+          - Stacks: api/layouts/stacks.md
+          - Tree: api/layouts/tree.md
+      - Media:
+          - Overview: api/media/index.md
+          - Audio: api/media/audio.md
+          - Download: api/media/download.md
+          - Image: api/media/image.md
+          - PDF: api/media/pdf.md
+          - Plain Text: api/media/plain_text.md
+          - Video: api/media/video.md
+  - Integrations:
+      - Overview: integrations/index.md
+      - BigQuery: integrations/google_cloud_bigquery.md
+      - Google Cloud Storage: integrations/google_cloud_storage.md
+      - Google Sheets: integrations/google_sheets.md
+      - MotherDuck: integrations/motherduck.md
+  - Community:
+      - Overview: community.md
+      - FAQ: faq.md
+      - Examples: examples.md
+      - Recipes: recipes.md
+      - Contributing: https://github.com/marimo-team/marimo/blob/main/CONTRIBUTING.md
+      - Code of Conduct: https://github.com/marimo-team/marimo/blob/main/CODE_OF_CONDUCT.md
   - Development:
-      - Contributing: contributing.md
-      - Code of Conduct: code_of_conduct.md
+      - Migration Plan: plan.md
+      - Miscellaneous: api/miscellaneous.md
+      - Editor Features:
+          - Overview: guides/editor_features/overview.md
+      - Apps:
+          - Overview: apps/README.md
+      - Troubleshooting: guides/troubleshooting.md
+      - Exporting: guides/exporting.md
+      - Island Example: guides/island_example.md
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [.]
+          load_external_modules: true
+          import:
+            - url: https://docs.python.org/3/objects.inv
+              domains: [py, std]
+          options:
+            allow_inspection: true
+            docstring_section_style: spacy
+            docstring_style: google
+            heading_level: 2
+            inherited_members: true
+            members: true
+            merge_init_into_class: true
+            show_bases: true
+            show_if_no_docstring: true
+            show_root_heading: true
+            show_root_members: true
+            show_source: false
+            show_submodules: true
+            find_stubs_package: true
+          selection:
+            filters:
+              value:
+                - '^[^_].*' # Only include members that don't start with underscore
+  - autorefs
+  - macros:
+      include_dir: docs
+      module_name: docs/macros
+      on_error_fail: false
+      on_undefined: keep
+repo_name: marimo-team/marimo
+repo_url: https://github.com/marimo-team/marimo
+site_description: A library for making reactive notebooks and apps
+site_name: Marimo
+site_url: https://marimo.io
+theme:
+  favicon: assets/favicon.png
+  features:
+    - content.code.copy
+    - navigation.sections
+    - navigation.tabs
+    - search.highlight
+  font:
+    code:
+      - Roboto Mono
+    text:
+      - Inter
+      - Roboto
+  logo: assets/logo.png
+  name: material
+  palette:
+    - media: (prefers-color-scheme)
+      toggle:
+        icon: material/link
+        name: Switch to light mode
+    - accent: indigo
+      media: '(prefers-color-scheme: light)'
+      primary: indigo
+      scheme: default
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to dark mode
+    - accent: indigo
+      media: '(prefers-color-scheme: dark)'
+      primary: black
+      scheme: slate
+      toggle:
+        icon: material/toggle-switch-off
+        name: Switch to system preference

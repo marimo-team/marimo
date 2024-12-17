@@ -7,36 +7,22 @@ the query result back as a Python dataframe.
 To create a SQL cell, you first need to install additional dependencies,
 including [duckdb](https://duckdb.org/):
 
-::::{tab-set}
-:::{tab-item} install with pip
-
-```bash
-pip install "marimo[sql]"
-```
-
-:::
-:::{tab-item} install with uv
-
-```bash
-uv pip install "marimo[sql]"
-```
-
-:::
-:::{tab-item} install with conda
-
-```bash
-conda install -c conda-forge marimo duckdb polars
-```
-
-:::
-::::
-
-```{admonition} Examples
-:class: tip
+=== "install with pip"
+    ```bash
+    pip install "marimo[sql]"
+    
+=== "install with uv"
+    ```bash
+    uv pip install "marimo[sql]"
+    
+=== "install with conda"
+    ```bash
+    conda install -c conda-forge marimo duckdb polars
+    
+!!! tip "Examples"
 
 For example notebooks, check out
 [`examples/sql/` on GitHub](https://github.com/marimo-team/marimo/tree/main/examples/sql/).
-```
 
 ## Example
 
@@ -67,7 +53,6 @@ The underlying code looks like:
 
 ```python
 output_df = mo.sql(f"SELECT * FROM my_table LIMIT {max_rows.value}")
-```
 
 Notice that we have an **`output_df`** variable in the cell. This contains
 the query result, and is a Polars DataFrame (if you have `polars` installed) or
@@ -118,7 +103,6 @@ SELECT * FROM 's3://my-bucket/file.parquet';
 SELECT * FROM read_csv('path/to/example.csv');
 -- or
 SELECT * FROM read_parquet('path/to/example.parquet');
-```
 
 For a full list you can check out the [duckdb extensions](https://duckdb.org/docs/extensions/overview).
 You can also check out our [examples on GitHub](https://github.com/marimo-team/marimo/tree/main/examples/sql).
@@ -131,7 +115,6 @@ To escape real `{`/`}` that you don't want parameterized, use double `{{...}}`:
 
 ```sql
 SELECT unnest([{{'a': 42, 'b': 84}}, {{'a': 100, 'b': NULL}}]);
-```
 
 ## Interactive tutorial
 
@@ -139,7 +122,6 @@ For an interactive tutorial, run
 
 ```bash
 marimo tutorial sql
-```
 
 at your command-line.
 

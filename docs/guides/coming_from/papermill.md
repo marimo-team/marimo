@@ -16,7 +16,7 @@ and injecting values at runtime.
 marimo offers two main ways to parameterize notebooks:
 
 1. **Command Line Arguments**:
-   Use [`mo.cli_args`](/api/cli_args.md) to access command-line arguments passed to your notebook.
+   Use [`mo.cli_args`](../api/cli_args.md) to access command-line arguments passed to your notebook.
 
    ```python
    import marimo as mo
@@ -24,20 +24,17 @@ marimo offers two main ways to parameterize notebooks:
    # Access CLI args
    args = mo.cli_args()
    param1 = args.get("param1", "default_value")
-   ```
-
+   
    Run your notebook as a script with:
 
    ```bash
    python notebook.py -- --param1 value1
-   ```
-
+   
    Run your notebook as an app with:
 
    ```bash
    marimo run notebook.py -- --param1 value1
-   ```
-
+   
 2. **Query Parameters**:
    For web apps, use `mo.query_params` to access URL query parameters.
 
@@ -47,20 +44,17 @@ marimo offers two main ways to parameterize notebooks:
    # Access query params
    params = mo.query_params()
    param1 = params.get("param1", "default_value")
-   ```
-
+   
    Access your app with:
 
    ```bash
    marimo run notebook.py
-   ```
-
+   
    Then visit:
 
    ```bash
    http://your-app-url/?param1=value1
-   ```
-
+   
 ## Executing Notebooks
 
 **Papermill**
@@ -75,7 +69,7 @@ programmatically.
 1. **Running a named cell**:
 
    After naming a cell in your file, you can run it using the
-   [cell execution API](/api/cell.md#marimo.Cell.run).
+   [cell execution API](../api/cell.md#marimo.Cell.run).
 
    ```python
    from my_notebook import my_cell
@@ -83,8 +77,7 @@ programmatically.
    # last_expression is the visual output of the cell
    # definitions is a dictionary of the variables defined by the cell
    last_expression, definitions = my_cell.run()
-   ```
-
+   
    This API also allows for parametrizing the inputs to the cell; to learn more,
    make sure to checkout [the example](#marimo.Cell.run) in our API reference.
 
@@ -94,8 +87,7 @@ programmatically.
    import subprocess
 
    subprocess.run(["python", "notebook.py", "--", "--param1", "value1"])
-   ```
-
+   
 ## Storing or Sharing Artifacts
 
 **Papermill**
@@ -110,14 +102,12 @@ marimo offers several options for storing and sharing outputs:
 
    ```bash
    marimo export html notebook.py -o notebook.html -- -arg1 foo --arg2 bar
-   ```
-
+   
 2. **Deploy as Web App**:
 
    ```bash
    marimo run notebook.py
-   ```
-
+   
 3. **Auto-export HTML**:
    You can configure marimo to automatically export to HTML during the editing process.
    This is configured in the marimo application settings directly in the editor.

@@ -16,11 +16,9 @@ _Get started with Copilot_:
 1. Install [Node.js](https://nodejs.org/en/download).
 2. Enable Copilot via the settings menu in the marimo editor.
 
-```{admonition} Installation Requirement
-:class: note
+!!! note "Installation Requirement"
    Copilot is not yet available in our conda distribution; please install
    marimo using ``pip`` if you need Copilot.
-```
 
 ## Codeium Copilot
 
@@ -36,7 +34,6 @@ _Get started with Copilot_:
 [completion]
 copilot = "codeium"
 codeium_api_key = ""
-```
 
 ### Alternative: Obtain Codeium API key using VS Code
 
@@ -70,7 +67,6 @@ codeium_api_key = ""
 codeium_api_key = "a1e8..."  # <-- paste your API key here
 copilot = "codeium"
 activate_on_typing = true
-```
 
 ## Generate code with our AI assistant
 
@@ -110,13 +106,12 @@ For plotting:
 - Use px.line for time series
 - Include proper axis labels and titles
 - Set appropriate color schemes
-```
 
 To locate your configuration file, run:
 ```bash
 marimo config show
 ```
-At the top, the path to your `marimo.toml` file will be shown. You can Ctrl/Cmd+click the path to open it in your editor. For more information about configuration, see the [Configuration Guide](/guides/configuration/index).
+At the top, the path to your `marimo.toml` file will be shown. You can Ctrl/Cmd+click the path to open it in your editor. For more information about configuration, see the [Configuration Guide](../guides/configuration/index).
 
 Below we describe how to connect marimo to your AI provider. Once enabled, you can generate entirely new cells by clicking the "Generate with AI" button at the bottom of your notebook. You can also refactor existing cells by inputting `Ctrl/Cmd-Shift-e` in a cell, opening an input to modify the cell using AI.
 
@@ -144,7 +139,6 @@ model = "gpt-4-turbo"
 
 # Change the base_url if you are using a different OpenAI-compatible API
 base_url = "https://api.openai.com/v1"
-```
 
 ### Using Anthropic
 
@@ -160,7 +154,6 @@ model = "claude-3-5-sonnet-20240620"
 
 [ai.anthropic]
 api_key = "sk-ant-..."
-```
 
 ### Using Google AI
 
@@ -177,7 +170,6 @@ model = "gemini-1.5-flash"
 
 [ai.google]
 api_key = "AI..."
-```
 
 ### Using local models with Ollama
 
@@ -206,8 +198,7 @@ Ollama allows you to run open-source LLMs on your local machine. To integrate Ol
 5. Open a new terminal and start marimo:
    ```bash
    marimo edit notebook.py
-   ```
-
+   
 6. Add the following to your `marimo.toml`:
 
 ```toml
@@ -215,7 +206,6 @@ Ollama allows you to run open-source LLMs on your local machine. To integrate Ol
 api_key = "ollama" # This is not used, but required
 model = "codellama" # or another model from `ollama ls`
 base_url = "http://127.0.0.1:11434/v1"
-```
 
 ### Using other AI providers
 

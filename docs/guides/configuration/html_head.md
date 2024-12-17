@@ -8,7 +8,6 @@ This will be reflected in your notebook file:
 
 ```python
 app = marimo.App(html_head_file="head.html")
-```
 
 ## Example Use Cases
 
@@ -28,7 +27,6 @@ Here are some common use cases for custom HTML head content:
   gtag('js', new Date());
   gtag('config', 'G-XXXXXXXXXX');
 </script>
-```
 
 2. **Custom Fonts**
 
@@ -37,7 +35,6 @@ Here are some common use cases for custom HTML head content:
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet" />
-```
 
 3. **Meta Tags**
 
@@ -49,7 +46,6 @@ Here are some common use cases for custom HTML head content:
 <meta property="og:title" content="My Notebook" />
 <meta property="og:description" content="Interactive data analysis with marimo" />
 <meta property="og:image" content="https://example.com/thumbnail.jpg" />
-```
 
 4. **External Scripts and Libraries**
 
@@ -61,4 +57,3 @@ Here are some common use cases for custom HTML head content:
 
 <!-- Load external CSS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
-```

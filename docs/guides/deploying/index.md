@@ -9,28 +9,25 @@ You can deploy marimo in three ways:
 3. programmatically, which allows you serve **read-only** marimo apps
    as part of other ASGI applications, for example using FastAPI.
 
-```{admonition} Sharing lightweight notebooks on the web
-:class: tip
+!!! tip "Sharing lightweight notebooks on the web"
+    To share notebooks on the public web, try using [our online playground
+    ](https://marimo.new). Our playground runs entirely in the browser -- no
+    backend required, via [WASM](../guides/wasm.md).
 
-To share notebooks on the public web, try using [our online playground
-](https://marimo.new). Our playground runs entirely in the browser -- no
-backend required, via [WASM](/guides/wasm.md).
+    Or, to share notebooks with email-based authorization, you can also
+    try our free [community cloud](https://marimo.io/sign-up), which is
+    also powered by WASM.
 
-Or, to share notebooks with email-based authorization, you can also
-try our free [community cloud](https://marimo.io/sign-up), which is
-also powered by WASM.
-
-WASM notebooks support most but not all Python features and packages.
-```
+    WASM notebooks support most but not all Python features and packages.
 
 ## Deploying an edit server
 
 Here are a few ways to deploy an edit server on a remote instance:
 
-1. With [ssh-port forwarding](/faq.md#faq-remote), using `marimo edit --headless`.
-2. Via docker and our [prebuilt containers](/guides/prebuilt_containers.md).
-3. Via a deployment service [such as Railway](/guides/deploying/deploying_railway.md).
-4. [Behind JupyterHub](/faq.md#faq-jupyter-hub).
+1. With [ssh-port forwarding](../faq.md#faq-remote), using `marimo edit --headless`.
+2. Via docker and our [prebuilt containers](../guides/prebuilt_containers.md).
+3. Via a deployment service [such as Railway](../guides/deploying/deploying_railway.md).
+4. [Behind JupyterHub](../faq.md#faq-jupyter-hub).
 
 ## Deploying as read-only apps
 
@@ -59,7 +56,6 @@ If you would like to deploy your application at a subpath, you can set the `--ba
 
 ```bash
 marimo run app.py --base-url /subpath
-```
 
 ### Including code in your application
 
@@ -67,4 +63,3 @@ You can include code in your application by using the `--include-code` flag when
 
 ```bash
 marimo run app.py --include-code
-```

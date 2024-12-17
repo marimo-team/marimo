@@ -6,60 +6,45 @@
 
 marimo is a reactive Python notebook: run a cell or interact with a UI
 element, and marimo automatically runs dependent cells (or [marks them as
-stale](/guides/reactivity.md#runtime-configuration)), keeping code and outputs
+stale](guides/reactivity.md#runtime-configuration)), keeping code and outputs
 consistent and preventing bugs before they happen. Every marimo notebook is
 stored as pure Python, executable as a script, and deployable as an app.
 
-```{admonition} Built from the ground up
-:class: tip
+!!! tip "Built from the ground up"
+    marimo was built from the ground up to solve <a
+    href="faq.html#faq-jupyter">well-known problems associated with traditional
+    notebooks</a>.
 
-marimo was built from the ground up to solve <a
-href="/faq.html#faq-jupyter">well-known problems associated with traditional
-notebooks</a>.
-```
-
-::::{tab-set}
-:::{tab-item} install with pip
-
-```bash
-pip install marimo && marimo tutorial intro
-```
-
-:::
-:::{tab-item} install with uv
-
-```bash
-uv pip install marimo && marimo tutorial intro
-```
-
-:::
-:::{tab-item} install with conda
-
-```bash
-conda install -c conda-forge marimo && marimo tutorial intro
-```
-
-:::
-::::
-
+=== "install with pip"
+    ```bash
+    pip install marimo && marimo tutorial intro
+    
+=== "install with uv"
+    ```bash
+    uv pip install marimo && marimo tutorial intro
+    
+=== "install with conda"
+    ```bash
+    conda install -c conda-forge marimo && marimo tutorial intro
+    
 Developer experience is core to marimo, with an emphasis on
 reproducibility, maintainability, composability, and shareability.
 
 ## Highlights
 
 - 🚀 **batteries-included:** replaces `jupyter`, `streamlit`, `jupytext`, `ipywidgets`, `papermill`, and more
-- ⚡️ **reactive**: run a cell, and marimo reactively [runs all dependent cells](/guides/reactivity.md) or <a href="#expensive-notebooks">marks them as stale</a>
-- 🖐️ **interactive:** [bind sliders, tables, plots, and more](/guides/interactivity.md) to Python — no callbacks required
-- 🔬 **reproducible:** [no hidden state](/guides/reactivity.md#no-hidden-state), deterministic execution, [built-in package management](/guides/editor_features/package_management.md)
-- 🏃 **executable:** [execute as a Python script](/guides/scripts.md), parameterized by CLI args
-- 🛜 **shareable**: [deploy as an interactive web app](guides/apps.md) or [slides](/guides/apps.md#slides-layout), [run in the browser via WASM](/guides/wasm.md)
-- 🛢️ **designed for data**: query dataframes and databases [with SQL](/guides/working_with_data/sql.md), filter and search [dataframes](/guides/working_with_data/dataframes.md)
+- ⚡️ **reactive**: run a cell, and marimo reactively [runs all dependent cells](guides/reactivity.md) or <a href="#expensive-notebooks">marks them as stale</a>
+- 🖐️ **interactive:** [bind sliders, tables, plots, and more](guides/interactivity.md) to Python — no callbacks required
+- 🔬 **reproducible:** [no hidden state](guides/reactivity.md#no-hidden-state), deterministic execution, [built-in package management](guides/editor_features/package_management.md)
+- 🏃 **executable:** [execute as a Python script](guides/scripts.md), parameterized by CLI args
+- 🛜 **shareable**: [deploy as an interactive web app](guides/apps.md) or [slides](guides/apps.md#slides-layout), [run in the browser via WASM](guides/wasm.md)
+- 🛢️ **designed for data**: query dataframes and databases [with SQL](guides/working_with_data/sql.md), filter and search [dataframes](guides/working_with_data/dataframes.md)
 - 🐍 **git-friendly:** notebooks are stored as `.py` files
-- ⌨️ **a modern editor**: [GitHub Copilot](/guides/editor_features/ai_completion.md#github-copilot), [AI assistants](/guides/editor_features/ai_completion.md#using-ollama), vim keybindings, variable explorer, and [more](/guides/editor_features/index.md)
+- ⌨️ **a modern editor**: [GitHub Copilot](guides/editor_features/ai_completion.md#github-copilot), [AI assistants](guides/editor_features/ai_completion.md#using-ollama), vim keybindings, variable explorer, and [more](guides/editor_features/index.md)
 
 ## A reactive programming environment
 
-marimo guarantees your notebook code, outputs, and program state are consistent. This [solves many problems](/faq.md#faq-problems) associated with traditional notebooks like Jupyter.
+marimo guarantees your notebook code, outputs, and program state are consistent. This [solves many problems](faq.md#faq-problems) associated with traditional notebooks like Jupyter.
 
 **A reactive programming environment.**
 Run a cell and marimo _reacts_ by automatically running the cells that
@@ -73,16 +58,16 @@ memory, eliminating hidden state.
 
 **Compatible with expensive notebooks.** marimo lets you [configure the runtime
 to be
-lazy](/guides/configuration/runtime_configuration.md),
+lazy](guides/configuration/runtime_configuration.md),
 marking affected cells as stale instead of automatically running them. This
 gives you guarantees on program state while preventing accidental execution of
 expensive cells.
 
 **Synchronized UI elements.** Interact with [UI
-elements](/guides/interactivity.md) like [sliders](/api/inputs/slider.md#slider),
-[dropdowns](/api/inputs/dropdown.md), [dataframe
-transformers](/api/inputs/dataframe.md), and [chat
-interfaces](/api/inputs/chat.md), and the cells that
+elements](guides/interactivity.md) like [sliders](api/inputs/slider.md#slider),
+[dropdowns](api/inputs/dropdown.md), [dataframe
+transformers](api/inputs/dataframe.md), and [chat
+interfaces](api/inputs/chat.md), and the cells that
 use them are automatically re-run with their latest values.
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-ui.gif" width="700px" />
@@ -91,13 +76,13 @@ use them are automatically re-run with their latest values.
 sort](https://docs.marimo.io/guides/working_with_data/dataframes.html)
 millions of rows blazingly fast, no code required.
 
-<img src="/_static/docs-df.gif">
+<img src="_static/docs-df.gif">
 
 **Performant runtime.** marimo runs only those cells that need to be run by
 statically analyzing your code.
 
 **Dynamic markdown and SQL.** Use markdown to tell dynamic stories that depend on
-Python data. Or build [SQL](/guides/working_with_data/sql.md) queries
+Python data. Or build [SQL](guides/working_with_data/sql.md) queries
 that depend on Python values and execute them against dataframes, databases,
 CSVs, Google Sheets, or anything else using our built-in SQL engine, which
 returns the result as a Python dataframe.
@@ -113,14 +98,14 @@ Organize your notebooks to best fit the stories you'd like to tell.
 **Built-in package management.** marimo has built-in support for all major
 package managers, letting you install packages on import. marimo can even
 [serialize package
-requirements](/guides/editor_features/package_management.md#auto-add-inline-script-metadata-uv-only)
+requirements](guides/editor_features/package_management.md#auto-add-inline-script-metadata-uv-only)
 in notebook files, and auto install them in
-[isolated venv sandboxes](/guides/editor_features/package_management.md#running-marimo-in-a-sandbox-environment-uv-only).
+[isolated venv sandboxes](guides/editor_features/package_management.md#running-marimo-in-a-sandbox-environment-uv-only).
 
 **Batteries-included.** marimo comes with GitHub Copilot, AI assistants, Ruff
 code formatting, HTML export, fast code completion, a [VS Code
 extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo),
-an interactive dataframe viewer, and [many more](/guides/editor_features/index.md)
+an interactive dataframe viewer, and [many more](guides/editor_features/index.md)
 quality-of-life features.
 
 ## Quickstart
@@ -130,7 +115,6 @@ quality-of-life features.
 ```bash
 pip install marimo  # or conda install -c conda-forge marimo
 marimo tutorial intro
-```
 
 **Create notebooks.**
 
@@ -138,14 +122,12 @@ Create or edit notebooks with
 
 ```bash
 marimo edit
-```
 
 **Run apps.** Run your notebook as a web app, with Python
 code hidden and uneditable:
 
 ```bash
 marimo run your_notebook.py
-```
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/docs-model-comparison.gif" style="border-radius: 8px" width="450px" />
 
@@ -154,14 +136,12 @@ command line:
 
 ```bash
 python your_notebook.py
-```
 
 **Automatically convert Jupyter notebooks.** Automatically convert Jupyter
 notebooks to marimo notebooks with the CLI
 
 ```bash
 marimo convert your_notebook.ipynb > your_notebook.py
-```
 
 or use our [web interface](https://marimo.io/convert).
 
@@ -170,11 +150,10 @@ List all tutorials:
 
 ```bash
 marimo tutorial --help
-```
 
 ## Questions?
 
-See our [FAQ](/faq.md).
+See our [FAQ](faq.md).
 
 ## Learn more
 
@@ -184,7 +163,7 @@ For example, here's an embedding visualizer made in marimo
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/embedding.gif" width="700px" />
 
-Check out our [guides](/guides/index.md), our [example
+Check out our [guides](guides/index.md), our [example
 gallery](https://marimo.io/gallery), and our
 [`examples/`](https://github.com/marimo-team/marimo/tree/main/examples) on
 GitHub to learn more.
@@ -192,38 +171,38 @@ GitHub to learn more.
 <table border="0">
   <tr>
     <td>
-      <a target="_blank" href="/getting_started/key_concepts.md">
-        <img src="/_static/reactive.gif" style="max-height: 150px; width: auto; display: block" />
+      <a target="_blank" href="getting_started/key_concepts.md">
+        <img src="_static/reactive.gif" style="max-height: 150px; width: auto; display: block" />
       </a>
     </td>
     <td>
-      <a target="_blank" href="/api/inputs/index.md">
+      <a target="_blank" href="api/inputs/index.md">
         <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-ui.gif" style="max-height: 150px; width: auto; display: block" />
       </a>
     </td>
     <td>
-      <a target="_blank" href="/guides/working_with_data/plotting.md">
+      <a target="_blank" href="guides/working_with_data/plotting.md">
         <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/docs-intro.gif" style="max-height: 150px; width: auto; display: block" />
       </a>
     </td>
     <td>
-      <a target="_blank" href="/api/layouts/index.md">
+      <a target="_blank" href="api/layouts/index.md">
         <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/outputs.gif" style="max-height: 150px; width: auto; display: block" />
       </a>
     </td>
   </tr>
   <tr>
     <td>
-      <a target="_blank" href="/getting_started/key_concepts.md"> Tutorial </a>
+      <a target="_blank" href="getting_started/key_concepts.md"> Tutorial </a>
     </td>
     <td>
-      <a target="_blank" href="/api/inputs/index.md"> Inputs </a>
+      <a target="_blank" href="api/inputs/index.md"> Inputs </a>
     </td>
     <td>
-      <a target="_blank" href="/guides/working_with_data/plotting.md"> Plots </a>
+      <a target="_blank" href="guides/working_with_data/plotting.md"> Plots </a>
     </td>
     <td>
-      <a target="_blank" href="/api/layouts/index.md"> Layout </a>
+      <a target="_blank" href="api/layouts/index.md"> Layout </a>
     </td>
   </tr>
   <tr>
@@ -301,7 +280,6 @@ for the better.
 
 <h3>Table of Contents</h3>
 
-```{eval-rst}
 .. toctree::
    :maxdepth: 2
 
@@ -313,13 +291,10 @@ for the better.
    examples
    integrations/index
    community
-```
 
-```{eval-rst}
 .. toctree::
    :caption: Links
    :maxdepth: 2
-
    GitHub <https://github.com/marimo-team/marimo>
    Gallery <https://marimo.io/gallery>
    Discord <https://marimo.io/discord?ref=docs>
@@ -330,10 +305,7 @@ for the better.
    Awesome marimo <https://github.com/marimo-team/awesome-marimo>
    Marimo Cloud Waitlist <https://marimo.io/cloud>
    Blog <https://marimo.io/blog>
-```
 
 <h3>Index</h3>
 
-```{eval-rst}
-* :ref:`genindex`
-```
+```* :ref:`genindex`

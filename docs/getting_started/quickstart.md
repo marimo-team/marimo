@@ -9,7 +9,6 @@ point to all things marimo.
 
 ```bash
 marimo tutorial --help
-```
 
 ## Edit notebooks
 
@@ -20,13 +19,11 @@ Create and edit notebooks with `marimo edit`.
 
 ```bash
 marimo edit
-```
 
 - create or edit a single notebook with
 
 ```bash
 marimo edit your_notebook.py
-```
 
 (If `your_notebook.py` doesn't exist, marimo will create a blank notebook
 named `your_notebook.py`.)
@@ -38,7 +35,6 @@ uneditable.
 
 ```bash
 marimo run your_notebook.py
-```
 
 ## Convert from Jupyter to marimo
 
@@ -46,35 +42,28 @@ Automatically convert Jupyter notebooks to marimo notebooks with `marimo convert
 
 ```bash
 marimo convert your_notebook.ipynb -o your_notebook.py
-```
 
 Then open the notebook with `marimo edit your_notebook.py`
 
-:::{admonition} Disable autorun on startup
-:class: tip
+!!! tip "Disable autorun on startup"
+    marimo automatically runs notebooks when they are opened. If this
+    is a problem for you (not all Jupyter notebooks are designed to be run on
+    startup), you can disable autorun on startup via [user configuration](../guides/configuration/runtime_configuration.md).
 
-marimo automatically runs notebooks when they are opened. If this
-is a problem for you (not all Jupyter notebooks are designed to be run on
-startup), you can disable autorun on startup via [user configuration](/guides/configuration/runtime_configuration.md).
+    1. Type `marimo config show` to get the location of your config file.
+    2. If no config file exists, create it at `~/.marimo.toml` or `$XDG_CONFIG_HOME/marimo/marimo.toml`.
+    3. Update your config to include the following:
 
-1. Type `marimo config show` to get the location of your config file.
-2. If no config file exists, create it at `~/.marimo.toml` or `$XDG_CONFIG_HOME/marimo/marimo.toml`.
-3. Update your config to include the following:
-
-```toml
-[runtime]
-auto_instantiate = false
-```
-
-:::
-
+    ```toml
+    [runtime]
+    auto_instantiate = false
+    
 ## Export marimo notebooks to other file formats
 
 Use
 
 ```bash
 marimo export
-```
 
 to convert marimo notebooks to other file formats, including HTML, IPYNB,
 and markdown.
@@ -83,37 +72,25 @@ and markdown.
 
 Some features require additional dependencies, which are not installed by default. This includes:
 
-- [SQL cells](/guides/working_with_data/sql.md)
+- [SQL cells](../guides/working_with_data/sql.md)
 - Charts in the datasource viewer
-- [AI features](/guides/editor_features/ai_completion.md)
+- [AI features](../guides/editor_features/ai_completion.md)
 - Format on save
 
 To install the optional dependencies, run:
 
-::::{tab-set}
-:::{tab-item} install with pip
-
-```bash
-pip install "marimo[recommended]"
-```
-
-:::
-:::{tab-item} install with uv
-
-```bash
-uv pip install "marimo[recommended]"
-```
-
-:::
-:::{tab-item} install with conda
-
-```bash
-conda install -c conda-forge marimo duckdb altair polars openai ruff
-```
-
-:::
-::::
-
+=== "install with pip"
+    ```bash
+    pip install "marimo[recommended]"
+    
+=== "install with uv"
+    ```bash
+    uv pip install "marimo[recommended]"
+    
+=== "install with conda"
+    ```bash
+    conda install -c conda-forge marimo duckdb altair polars openai ruff
+    
 This will install: `duckdb`, `altair`, `polars`, `openai`, and `ruff`.
 
 ## Enable GitHub Copilot and AI Assistant
@@ -129,8 +106,8 @@ _Get started with Copilot_:
 _Note_: Copilot is not yet available in our conda distribution; please install
 marimo from `PyPI` if you need Copilot.
 
-marimo also comes with support for [other copilots](/guides/editor_features/ai_completion.md#codeium-copilot),
-and a built-in [AI assistant](/guides/editor_features/ai_completion.md#generate-code-with-our-ai-assistant) that helps you write code.
+marimo also comes with support for [other copilots](../guides/editor_features/ai_completion.md#codeium-copilot),
+and a built-in [AI assistant](../guides/editor_features/ai_completion.md#generate-code-with-our-ai-assistant) that helps you write code.
 
 ## Try our VS Code extension
 
@@ -142,6 +119,6 @@ all marimo notebooks in your current directory.
 
 <div align="center">
 <figure>
-<img src="/_static/vscode-marimo.png"/>
+<img src="../assets/vscode-marimo.png" alt="VS Code extension for marimo"/>
 </figure>
 </div>

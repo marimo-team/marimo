@@ -39,7 +39,6 @@ RUN useradd -m app_user
 USER app_user
 
 CMD [ "marimo", "run", "app.py", "--host", "0.0.0.0", "-p", "8080" ]
-```
 
 ## Breaking it down
 
@@ -71,7 +70,6 @@ docker build -t my_app .
 docker run -p 8080:8080 -it my_app
 
 # Visit http://localhost:8080
-```
 
 After verifying that your application runs without errors, you can use these files to deploy your application on your preferred cloud provider that supports dockerized applications.
 
@@ -82,7 +80,6 @@ You can add a health check to your Dockerfile to ensure that your application is
 ```Dockerfile
 HEALTHCHECK --interval=30s --timeout=3s \
   CMD curl -f http://localhost:8080/health || exit 1
-```
 
 The following endpoints may be useful when deploying your application:
 
