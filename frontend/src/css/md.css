@@ -178,8 +178,6 @@ button .prose.prose {
 
 .prose .critic {
   font-family: inherit;
-  -webkit-border-radius: 3px;
-  -moz-border-radius: 3px;
   border-radius: 3px;
   border-style: solid;
   border-width: 1px;
@@ -188,18 +186,19 @@ button .prose.prose {
   text-decoration: none;
 }
 
-.prose .critic:before,
-.prose .critic:after {
+.prose .critic::before,
+.prose .critic::after {
   content: "\00a0";
   padding-top: 0.1rem;
   padding-bottom: 0.1rem;
   font-size: initial;
 }
 
-.prose .block:before,
-.prose .block:after {
+.prose .block::before,
+.prose .block::after {
   content: "";
 }
+
 .prose mark.critic {
   border-color: var(--orange-9);
   background: var(--orange-3);
@@ -221,11 +220,9 @@ button .prose.prose {
   border: none;
 }
 
-.prose ins.break:before,
-.prose del.break:before {
+.prose ins.break::before,
+.prose del.break::before {
   content: "\00a0\b6\00a0";
-  -webkit-border-radius: 3px;
-  -moz-border-radius: 3px;
   border-radius: 3px;
 }
 
@@ -234,13 +231,13 @@ button .prose.prose {
   content: "";
 }
 
-.prose ins.break:before {
+.prose ins.break::before {
   color: var(--green-9);
   border: 1px solid var(--green-9);
   background: var(--green-3);
 }
 
-.prose del.break:before {
+.prose del.break::before {
   color: var(--red-9);
   border: 1px solid var(--red-9);
   background: var(--red-3);
@@ -253,32 +250,24 @@ button .prose.prose {
   border-bottom: 1px solid var(--blue-9);
 }
 
-.prose span.critic:before,
-.prose span.critic:after {
+.prose span.critic::before,
+.prose span.critic::after {
   font-size: inherit;
   background: var(--blue-3);
   border: 1px solid var(--blue-9);
 }
 
-.prose span.critic:before {
+.prose span.critic::before {
   content: "\00a0\bb";
   border-right: none;
-  -webkit-border-top-left-radius: 3px;
-  -moz-border-top-left-radius: 3px;
   border-top-left-radius: 3px;
-  -webkit-border-bottom-left-radius: 3px;
-  -moz-border-bottom-left-radius: 3px;
   border-bottom-left-radius: 3px;
 }
 
-.prose span.critic:after {
+.prose span.critic::after {
   content: "\ab\00a0";
   border-left: none;
-  -webkit-border-top-right-radius: 3px;
-  -moz-border-top-right-radius: 3px;
   border-top-right-radius: 3px;
-  -webkit-border-bottom-right-radius: 3px;
-  -moz-border-bottom-right-radius: 3px;
   border-bottom-right-radius: 3px;
 }
 

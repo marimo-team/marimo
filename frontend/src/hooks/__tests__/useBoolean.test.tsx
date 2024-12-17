@@ -1,3 +1,4 @@
+/* Copyright 2024 Marimo. All rights reserved. */
 import { expect, describe, it, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useBoolean } from "../useBoolean";

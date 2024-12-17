@@ -3,8 +3,8 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "marimo"
-description = "A library for making reactive notebooks and apps"
+name = "marimo-agents"
+description = "A Marimo concept fork with some support for LLM execution as cells"
 dynamic = ["version"]
 # We try to keep dependencies to a minimum, to avoid conflicts with
 # user environments;we need a very compelling reason for each dependency added.

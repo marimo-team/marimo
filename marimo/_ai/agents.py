@@ -8,7 +8,7 @@ from marimo._runtime.context import ContextNotInitializedError, get_context
 
 
 @mddoc
-def register_agent(run_fn: Callable, name: str = "default") -> None:
+def register_agent(run_fn: Callable[..., Any], name: str = "default") -> None:
     """Register an LLM agent."""
     try:
         _registry = get_context().agent_registry
