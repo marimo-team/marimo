@@ -69,7 +69,7 @@ export const Tracing: React.FC = () => {
   const [chartPosition, setChartPosition] =
     useState<ChartPosition>("sideBySide");
 
-  const toggleConfig = () => {
+  const toggleChartPosition = () => {
     if (chartPosition === "above") {
       setChartPosition("sideBySide");
     } else {
@@ -77,33 +77,24 @@ export const Tracing: React.FC = () => {
     }
   };
 
-  //   {/* <Tooltip content="Chart position">
-  //   <button type="button" onClick={toggleConfig}>
-  //     <SettingsIcon className="h-5" strokeWidth={1.2} />
-  //   </button>
-  // </Tooltip> */}
-
   return (
     <div className="py-1 px-2">
-      <div className="flex flex-row mb-2">
-        <div className="flex flex-row gap-1 justify-center">
-          <label htmlFor="chartPosition" className="text-sm">
+      <div className="flex flex-row justify-end gap-3">
+        <div className="flex flex-row gap-1 items-center">
+          <label htmlFor="chartPosition" className="text-xs">
             Inline chart
           </label>
           <input
             type="checkbox"
             name="chartPosition"
             id="chartPosition"
-            onClick={toggleConfig}
+            onClick={toggleChartPosition}
             defaultChecked={true}
+            className="h-3"
           />
         </div>
 
-        <ClearButton
-          dataTestId="clear-traces-button"
-          className="ml-auto"
-          onClick={clearRuns}
-        />
+        <ClearButton dataTestId="clear-traces-button" onClick={clearRuns} />
       </div>
 
       <div className="flex flex-col gap-2">
@@ -150,15 +141,13 @@ interface VegaHoverCellSignal {
   vlPoint: unknown;
 }
 
-const TraceBlock: React.FC<{ run: Run; chartPosition: ChartPosition }> = ({
-  run,
-  chartPosition,
-}) => {
-  // TODO: Initial one should be false, all the others are true
+const TraceBlock: React.FC<{
+  run: Run;
+  chartPosition: ChartPosition;
+}> = ({ run, chartPosition }) => {
   const [collapsed, setCollapsed] = useState(false);
 
-  // Used to sync Vega charts and React components
-  // Note that this will only work for the first chart for now, until we create unique input elements
+  // To send signals to Vega from React, we bind a hidden input element
   const [hoveredCellId, setHoveredCellId] = useState<CellId | null>();
   const hiddenInputRef = useRef<HTMLInputElement>(null);
 
@@ -176,11 +165,8 @@ const TraceBlock: React.FC<{ run: Run; chartPosition: ChartPosition }> = ({
   const handleVegaSignal = {
     [VEGA_HOVER_SIGNAL]: (name: string, value: unknown) => {
       const signalValue = value as VegaHoverCellSignal;
-      if (signalValue.cell && signalValue.cell.length > 0) {
-        setHoveredCellId(signalValue.cell[0] as CellId);
-      } else {
-        setHoveredCellId(null);
-      }
+      const hoveredCell = signalValue.cell?.[0] as CellId | undefined;
+      setHoveredCellId(hoveredCell ?? null);
     },
   };
 
