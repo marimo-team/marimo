@@ -21,14 +21,15 @@ export function createGanttBaseSpec(
   hiddenInputElementId: string,
   chartPosition: ChartPosition,
 ): TopLevelSpec {
-  const showYAxis = chartPosition !== "sideBySide";
   const yAxis: PositionDef<Field> | Partial<PositionDef<Field>> = {
     field: "cellNum",
     scale: { paddingInner: 0.2 },
     sort: { field: "cellNum" },
     title: "cell",
   };
-  if (!showYAxis) {
+
+  const hideYAxisLine = chartPosition === "sideBySide";
+  if (hideYAxisLine) {
     yAxis.axis = null;
   }
 

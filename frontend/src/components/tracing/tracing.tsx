@@ -67,7 +67,7 @@ export const Tracing: React.FC = () => {
         <ClearButton dataTestId="clear-traces-button" onClick={clearRuns} />
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-3">
         {newestToOldestRunIds.map((runId: RunId) => {
           const run = runMap.get(runId);
           if (run) {
