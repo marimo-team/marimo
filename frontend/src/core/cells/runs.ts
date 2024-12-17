@@ -44,7 +44,6 @@ const {
     state,
     opts: { cellOperation: CellMessage; code: string },
   ) => {
-    console.log("addCellOperation", opts);
     const { cellOperation, code } = opts;
     const runId = cellOperation.run_id as RunId | undefined;
     if (!runId) {

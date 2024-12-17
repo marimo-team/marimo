@@ -74,7 +74,7 @@ export function createBaseSpec(
       ],
       size: {
         value: {
-          expr: `${REACT_HOVERED_CELLID} == toString(datum.cell) ? 20 : 18`,
+          expr: `${REACT_HOVERED_CELLID} == toString(datum.cell) ? 19.5 : 18`,
         },
       },
     },
