@@ -4,7 +4,7 @@ import React, { useRef, useState } from "react";
 import type { CellId } from "@/core/cells/ids";
 import { ElapsedTime, formatElapsedTime } from "../editor/cell/CellStatus";
 import { Tooltip } from "@/components/ui/tooltip";
-import { type TopLevelSpec, compile } from "vega-lite";
+import { compile } from "vega-lite";
 import { ChevronRight, ChevronDown } from "lucide-react";
 import type { SignalListeners, VisualizationSpec } from "react-vega";
 import {
@@ -19,8 +19,9 @@ import { CellLink } from "../editor/links/cell-link";
 import { formatLogTimestamp } from "@/core/cells/logs";
 import { useCellIds } from "@/core/cells/cells";
 import {
-  createBaseSpec,
-  REACT_HOVERED_CELLID,
+  type ChartPosition,
+  type ChartValues,
+  createGanttBaseSpec,
   VEGA_HOVER_SIGNAL,
 } from "./tracing-spec";
 import { ClearButton } from "../buttons/clear-button";
@@ -30,37 +31,6 @@ import { cn } from "@/utils/cn";
 const LazyVegaLite = React.lazy(() =>
   import("react-vega").then((m) => ({ default: m.VegaLite })),
 );
-
-interface ChartValues {
-  cell: CellId;
-  cellNum: number;
-  startTimestamp: string;
-  endTimestamp: string;
-  elapsedTime: string;
-}
-
-function createGanttVegaLiteSpec(
-  chartValues: ChartValues[],
-  hiddenInputElementId: string,
-  chartPosition: ChartPosition,
-): TopLevelSpec {
-  const hoverParam = {
-    name: REACT_HOVERED_CELLID,
-    bind: { element: `#${hiddenInputElementId}` },
-  };
-
-  const showYAxis = chartPosition !== "sideBySide";
-  const baseSpec = createBaseSpec(showYAxis, hoverParam);
-
-  return {
-    ...baseSpec,
-    data: {
-      values: chartValues,
-    },
-  };
-}
-
-type ChartPosition = "sideBySide" | "above";
 
 export const Tracing: React.FC = () => {
   const { runIds: newestToOldestRunIds, runMap } = useAtomValue(runsAtom);
@@ -200,7 +170,7 @@ const TraceBlock: React.FC<{
 
   const hiddenInputElementId = `hiddenInputElement-${run.runId}`;
   const vegaSpec = compile(
-    createGanttVegaLiteSpec(chartValues, hiddenInputElementId, chartPosition),
+    createGanttBaseSpec(chartValues, hiddenInputElementId, chartPosition),
   ).spec;
 
   const TraceRows = (
