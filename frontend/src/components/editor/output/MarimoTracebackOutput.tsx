@@ -115,7 +115,11 @@ export const MarimoTracebackOutput = ({
               </a>
             </DropdownMenuItem>
             <DropdownMenuItem asChild={true}>
-              <a target="_blank" href="DISCORD_URL_HERE" rel="noreferrer">
+              <a
+                target="_blank"
+                href="https://marimo.io/discord?ref=notebook"
+                rel="noreferrer"
+              >
                 <MessageCircleIcon className="h-4 w-4 mr-2" />
                 Ask in Discord
                 <ExternalLinkIcon className="h-3 w-3 ml-auto" />
@@ -124,7 +128,7 @@ export const MarimoTracebackOutput = ({
             <DropdownMenuItem asChild={true}>
               <a
                 target="_blank"
-                href={`https://marimo.hall.community/search?q=${encodeURIComponent(lastTracebackLine)}`}
+                href={`https://marimo.io/community/search?q=${encodeURIComponent(lastTracebackLine)}`}
                 rel="noreferrer"
               >
                 <HelpCircleIcon className="h-4 w-4 mr-2" />

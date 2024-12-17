@@ -40,8 +40,8 @@ describe("traceback component", () => {
     const traceback = <MarimoTracebackOutput traceback={rawTraceback} />;
     const { unmount, getAllByRole } = render(traceback);
 
-    // Has traceback links and google search link
-    expect(getAllByRole("link")).toHaveLength(3);
+    // Has traceback links
+    expect(getAllByRole("link")).toHaveLength(2);
     // Check that the traceback links are parsed
     expect(getAllByRole("link")[0].textContent).toContain(
       "marimo://untitled#cell=",
