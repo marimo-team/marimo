@@ -72,7 +72,6 @@ export function createGanttBaseSpec(
       },
       x2: { field: "endTimestamp", type: "temporal" },
       tooltip: [
-        { field: "cellNum", title: "Cell" },
         {
           field: "startTimestamp",
           type: "temporal",
