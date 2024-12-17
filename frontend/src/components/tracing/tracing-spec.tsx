@@ -4,6 +4,9 @@ import type { TopLevelSpec } from "vega-lite";
 import type { PositionDef } from "vega-lite/build/src/channeldef";
 import type { TopLevelParameter } from "vega-lite/build/src/spec/toplevel";
 
+export const REACT_HOVERED_CELLID = "hoveredCellId";
+export const VEGA_HOVER_SIGNAL = "cellHover";
+
 export function createBaseSpec(
   showYAxis: boolean,
   ...additionalParams: TopLevelParameter[]
@@ -36,6 +39,14 @@ export function createBaseSpec(
         name: "cursor",
         value: "grab",
       },
+      {
+        name: VEGA_HOVER_SIGNAL,
+        select: {
+          type: "point",
+          on: "pointerover",
+          fields: ["cell"],
+        },
+      },
     ],
     height: { step: 23 },
     encoding: {
@@ -62,7 +73,9 @@ export function createBaseSpec(
         },
       ],
       size: {
-        value: { expr: "hoveredCellId == toString(datum.cell) ? 20 : 18" },
+        value: {
+          expr: `${REACT_HOVERED_CELLID} == toString(datum.cell) ? 20 : 18`,
+        },
       },
     },
     config: {
