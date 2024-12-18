@@ -234,33 +234,30 @@ def try_format(obj: Any, include_opinionated: bool = True) -> FormattedOutput:
 
 @mddoc
 def as_html(value: object) -> Html:
-    """Convert a value to HTML that can be embedded into markdown
+    """Convert a value to HTML that can be embedded into markdown.
 
     This function returns an `Html` object representing `value`. Use it to
     embed values into Markdown or other HTML strings.
 
-    **Example.**
+    Args:
+        value: An object
 
-    ```python3
-    import matplotlib.pyplot as plt
-    plt.plot([1, 2])
-    axis = plt.gca()
-    mo.md(
-        f\"\"\"
-        Here is a plot:
+    Returns:
+        An `Html` object
 
-        {mo.as_html(axis)}
-        \"\"\"
-    )
-    ```
+    Example:
+        ```python3
+        import matplotlib.pyplot as plt
+        plt.plot([1, 2])
+        axis = plt.gca()
+        mo.md(
+            f\"\"\"
+            Here is a plot:
 
-    **Args.**
-
-    - `value`: An object
-
-    **Returns.**
-
-    - An `Html` object
+            {mo.as_html(axis)}
+            \"\"\"
+        )
+        ```
     """
     if isinstance(value, Html):
         return value

@@ -8,33 +8,29 @@ from marimo._plugins.core.web_component import build_stateless_plugin
 
 @mddoc
 def mermaid(diagram: str) -> Html:
-    """
-    Render a diagram with Mermaid.
-
-    **Examples.**
-
-    ```python
-    diagram = '''
-    graph LR
-        A[Square Rect] -- Link text --> B((Circle))
-        A --> C(Round Rect)
-        B --> D{Rhombus}
-        C --> D
-    '''
-    mo.mermaid(diagram)
-    ```
+    """Render a diagram with Mermaid.
 
     Mermaid is a tool for making diagrams such as flow charts and graphs. See
     the [Mermaid documentation](https://github.com/mermaid-js/mermaid#readme)
     for details.
 
-    **Args.**
+    Args:
+        diagram: a string containing a Mermaid diagram
 
-    - `diagram`: a string containing a Mermaid diagram
+    Returns:
+        An `Html` object.
 
-    **Returns.**
-
-    - An `Html` object.
+    Example:
+        ```python
+        diagram = '''
+        graph LR
+            A[Square Rect] -- Link text --> B((Circle))
+            A --> C(Round Rect)
+            B --> D{Rhombus}
+            C --> D
+        '''
+        mo.mermaid(diagram)
+        ```
     """
     return Html(
         build_stateless_plugin(
