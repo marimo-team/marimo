@@ -22,8 +22,7 @@ def icon(
     rotate: Optional[Literal["90deg", "180deg", "270deg"]] = None,
     style: Optional[dict[str, Union[str, int, float, None]]] = None,
 ) -> Html:
-    """
-    Displays an icon. These icons are referenced by name from the
+    """Displays an icon. These icons are referenced by name from the
     [Iconify](https://iconify.design/) library.
 
     They are named in the format `icon-set:icon-name`, e.g.
@@ -34,29 +33,26 @@ def icon(
 
     These can be used in buttons, tabs, and other UI elements.
 
-    **Examples.**
+    Examples:
+        ```python
+        mo.md(f"# {mo.icon('lucide:leaf')} Leaf")
 
-    ```python
-    mo.md(f"# {mo.icon('lucide:leaf')} Leaf")
+        mo.ui.button(
+            label=f"{mo.icon('lucide:rocket')} Submit",
+        )
+        ```
 
-    mo.ui.button(
-        label=f"{mo.icon('lucide:rocket')} Submit",
-    )
-    ```
+    Args:
+        icon_name: the name of the icon to display
+        size: the size of the icon in pixels
+        color: the color of the icon
+        inline: whether to display the icon inline or as a block element
+        flip: whether to flip the icon horizontally, vertically, or both
+        rotate: whether to rotate the icon 90, 180, or 270 degrees
+        style: a dictionary of CSS styles to apply to the icon
 
-    **Args.**
-
-    - `icon_name`: the name of the icon to display
-    - `size`: the size of the icon in pixels
-    - `color`: the color of the icon
-    - `inline`: whether to display the icon inline or as a block element
-    - `flip`: whether to flip the icon horizontally, vertically, or both
-    - `rotate`: whether to rotate the icon 90, 180, or 270 degrees
-    - `style`: a dictionary of CSS styles to apply to the icon
-
-    **Returns.**
-
-    - An `Html` object.
+    Returns:
+        Html: An `Html` object.
     """
 
     if style is None:

@@ -18,18 +18,17 @@ def tree(
 ) -> Html:
     """Render a nested structure of lists, tuples, or dicts as a tree.
 
-    **Example.**
-    ```python3
-    mo.tree(["entry", "another entry", {"key": [0, 1, 2]}], label="A tree.")
-    ```
-    **Args.**
+    Example:
+        ```python3
+        mo.tree(["entry", "another entry", {"key": [0, 1, 2]}], label="A tree.")
+        ```
 
-    - `items`: nested structure of lists, tuples, or dicts
-    - `label`: optional text label for the tree
+    Args:
+        items: nested structure of lists, tuples, or dicts
+        label: optional text label for the tree
 
-    **Returns.**
-
-    `Html` object
+    Returns:
+        Html: `Html` object
     """
     if not isinstance(items, (list, tuple, dict)):
         raise ValueError(
