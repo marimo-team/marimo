@@ -332,21 +332,18 @@ def interactive(figure: Union[Figure, SubFigure, Axes]) -> Html:
     The interactive viewer allows you to pan, zoom, and see plot coordinates
     on mouse hover.
 
-    **Example**:
+    Example:
+        ```python
+        plt.plot([1, 2])
+        # plt.gcf() gets the current figure
+        mo.mpl.interactive(plt.gcf())
+        ```
 
-    ```python
-    plt.plot([1, 2])
-    # plt.gcf() gets the current figure
-    mo.mpl.interactive(plt.gcf())
-    ```
+    Args:
+        figure (matplotlib Figure or Axes): A matplotlib `Figure` or `Axes` object.
 
-    **Args**:
-
-    - figure: a matplotlib `Figure` or `Axes` object
-
-    **Returns**:
-
-    - An interactive matplotlib figure as an `Html` object
+    Returns:
+        Html: An interactive matplotlib figure as an `Html` object.
     """
     # We can't support interactive plots in Pyodide
     # since they require a WebSocket connection

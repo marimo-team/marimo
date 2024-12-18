@@ -1,5 +1,8 @@
 edit_uri: edit/main/docs/
 copyright: '© marimo 2024'
+watch:
+  - docs/
+  - marimo/
 extra:
   generator: false
   social:

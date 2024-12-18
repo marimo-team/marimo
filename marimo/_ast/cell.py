@@ -186,6 +186,16 @@ class CellImpl:
 
     @property
     def runtime_state(self) -> Optional[RuntimeStateType]:
+        """Gets the current runtime state of the cell.
+
+        Returns:
+            Optional[RuntimeStateType]: The current state, one of:
+                - "idle": cell has run with latest inputs
+                - "queued": cell is queued to run
+                - "running": cell is running
+                - "disabled-transitively": cell is disabled because a parent is disabled
+                - None: state not set
+        """
         return self._status.state
 
     @property
@@ -194,7 +204,11 @@ class CellImpl:
 
     @property
     def sqls(self) -> list[str]:
-        """Return a list of SQL statements for this cell."""
+        """Returns parsed SQL statements from this cell.
+
+        Returns:
+            list[str]: List of SQL statement strings parsed from the cell code.
+        """
         if self._sqls.parsed is not None:
             return self._sqls.parsed
 
@@ -257,7 +271,12 @@ class CellImpl:
     def set_runtime_state(
         self, status: RuntimeStateType, stream: Stream | None = None
     ) -> None:
-        """Set execution status and broadcast to frontends."""
+        """Sets the cell's execution status and broadcasts to frontends.
+
+        Args:
+            status (RuntimeStateType): New runtime state to set
+            stream (Stream | None, optional): Stream to broadcast on. Defaults to None.
+        """
         from marimo._messaging.ops import CellOp
         from marimo._runtime.context import (
             ContextNotInitializedError,
@@ -405,103 +424,104 @@ class Cell:
         tuple[Any, Mapping[str, Any]]
         | Awaitable[tuple[Any, Mapping[str, Any]]]
     ):
-        """Run this cell and return its visual output and definitions
+        """
+        Run this cell and return its visual output and definitions.
 
         Use this method to run **named cells** and retrieve their output and
-        definitions.
-
-        This lets you use reuse cells defined in one notebook in another
+        definitions. This lets you reuse cells defined in one notebook in another
         notebook or Python file. It also makes it possible to write and execute
         unit tests for notebook cells using a test framework like `pytest`.
 
-        **Example.** marimo cells can be given names either through the
-        editor cell menu or by manually changing the function name in the
-        notebook file. For example, consider a notebook `notebook.py`:
+        Examples:
+            marimo cells can be given names either through the editor cell menu
+            or by manually changing the function name in the notebook file. For
+            example, consider a notebook `notebook.py`:
 
-        ```python
-        import marimo
+            ```python
+            import marimo
 
-        app = marimo.App()
-
-
-        @app.cell
-        def __():
-            import marimo as mo
-
-            return (mo,)
+            app = marimo.App()
 
 
-        @app.cell
-        def __():
-            x = 0
-            y = 1
-            return (x, y)
+            @app.cell
+            def __():
+                import marimo as mo
+
+                return (mo,)
 
 
-        @app.cell
-        def add(mo, x, y):
-            z = x + y
-            mo.md(f"The value of z is {z}")
-            return (z,)
+            @app.cell
+            def __():
+                x = 0
+                y = 1
+                return (x, y)
 
 
-        if __name__ == "__main__":
-            app.run()
-        ```
+            @app.cell
+            def add(mo, x, y):
+                z = x + y
+                mo.md(f"The value of z is {z}")
+                return (z,)
 
-        To reuse the `add` cell in another notebook, you'd simply write
 
-        ```python
-        from notebook import add
+            if __name__ == "__main__":
+                app.run()
+            ```
 
-        # `output` is the markdown rendered by `add`
-        # defs["z"] == `1`
-        output, defs = add.run()
-        ```
+            To reuse the `add` cell in another notebook, you'd simply write:
 
-        When `run` is called without arguments, it automatically computes the
-        values that the cell depends on (in this case, `mo`, `x`, and `y`). You
-        can override these values by providing any subset of them as keyword
-        arguments. For example,
+            ```python
+            from notebook import add
 
-        ```python
-        # defs["z"] == 4
-        output, defs = add.run(x=2, y=2)
-        ```
+            # `output` is the markdown rendered by `add`
+            # defs["z"] == `1`
+            output, defs = add.run()
+            ```
 
-        **Defined UI Elements.** If the cell's `output` has UI elements
-        that are in `defs`, interacting with the output in the frontend will
-        trigger reactive execution of cells that reference the `defs` object.
-        For example, if `output` has a slider defined by the cell, then
-        scrubbing the slider will cause cells that reference `defs` to run.
+            When `run` is called without arguments, it automatically computes
+            the values that the cell depends on (in this case, `mo`, `x`, and
+            `y`). You can override these values by providing any subset of them
+            as keyword arguments. For example,
 
-        **Async cells.** If this cell is a coroutine function (starting with
-        `async`), or if any of its ancestors are coroutine functions, then
-        you'll need to `await` the result: `output, defs = await cell.run()`.
-        You can check whether the result is an awaitable using:
+            ```python
+            # defs["z"] == 4
+            output, defs = add.run(x=2, y=2)
+            ```
 
-        ```python
-        from collections.abc import Awaitable
+        Defined UI Elements:
+            If the cell's `output` has UI elements that are in `defs`, interacting
+            with the output in the frontend will trigger reactive execution of
+            cells that reference the `defs` object. For example, if `output` has
+            a slider defined by the cell, then scrubbing the slider will cause
+            cells that reference `defs` to run.
 
-        ret = cell.run()
-        if isinstance(ret, Awaitable):
-            output, defs = await ret
-        else:
-            output, defs = ret
-        ```
+        Async cells:
+            If this cell is a coroutine function (starting with `async`), or if
+            any of its ancestors are coroutine functions, then you'll need to
+            `await` the result: `output, defs = await cell.run()`. You can check
+            whether the result is an awaitable using:
 
-        **Arguments**:
+            ```python
+            from collections.abc import Awaitable
 
-        - You may pass values for any of this cell's references as keyword
-          arguments. marimo will automatically compute values for any refs
-          that are not provided by executing the parent cells that compute
-          them.
+            ret = cell.run()
+            if isinstance(ret, Awaitable):
+                output, defs = await ret
+            else:
+                output, defs = ret
+            ```
 
-        **Returns**:
+        Args:
+            **kwargs (Any):
+                You may pass values for any of this cell's references as keyword
+                arguments. marimo will automatically compute values for any refs
+                that are not provided by executing the parent cells that compute
+                them.
 
-        - a tuple `(output, defs)`, or an awaitable of the same, where `output`
-          is the cell's last expression and `defs` is a `Mapping` from the
-          cell's defined names to their values.
+        Returns:
+            tuple `(output, defs)`, or an awaitable of the same:
+                `output` is the cell's last expression and `defs` is a `Mapping`
+                from the cell's defined names to their values.
         """
         assert self._app is not None
         if self._is_coroutine():
