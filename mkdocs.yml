@@ -58,73 +58,64 @@ markdown_extensions:
   - pymdownx.tilde
   - blocks:MarimoBlocksExtension
 nav:
+  - Marimo: index.md
   - Getting Started:
-      - Getting Started: index.md
       - Overview: getting_started/index.md
       - Installation: getting_started/installation.md
-      - Quick Start: getting_started/quickstart.md
+      - Quickstart: getting_started/quickstart.md
       - Key Concepts: getting_started/key_concepts.md
+
   - User Guide:
       - Overview: guides/index.md
-      - Reactivity: guides/reactivity.md
-      - Interactivity: guides/interactivity.md
-      - State Management: guides/state.md
-      - Best Practices: guides/best_practices.md
-      - Apps: guides/apps.md
-      - Scripts: guides/scripts.md
-      - Outputs: guides/outputs.md
-      - Expensive Notebooks: guides/expensive_notebooks.md
-      - WebAssembly: guides/wasm.md
-      - Working with Data:
+      - Reactive execution: guides/reactivity.md
+      - Interactive elements: guides/interactivity.md
+      - Visualizing outputs: guides/outputs.md
+      - Migrating from Jupyter: guides/coming_from/jupyter.md
+      - Expensive notebooks: guides/expensive_notebooks.md
+      - SQL, dataframes, and plots:
           - Overview: guides/working_with_data/index.md
           - DataFrames: guides/working_with_data/dataframes.md
           - SQL: guides/working_with_data/sql.md
           - Plotting: guides/working_with_data/plotting.md
-      - Coming from:
-          - Overview: guides/coming_from/index.md
-          - Jupyter: guides/coming_from/jupyter.md
-          - Jupytext: guides/coming_from/jupytext.md
-          - Papermill: guides/coming_from/papermill.md
-          - Streamlit: guides/coming_from/streamlit.md
-      - Configuration:
-          - Overview: guides/configuration/index.md
-          - HTML Head: guides/configuration/html_head.md
-          - Runtime Configuration: guides/configuration/runtime_configuration.md
-          - Theming: guides/configuration/theming.md
-      - Deployment:
+      - Run notebooks as apps: guides/apps.md
+      - Run notebooks as scripts: guides/scripts.md
+      - Export to HTML and other formats: guides/exporting.md
+      - Run notebooks with WebAssembly: guides/wasm.md
+      - Deploy notebooks:
           - Overview: guides/deploying/index.md
           - Authentication: guides/deploying/authentication.md
           - Docker: guides/deploying/deploying_docker.md
-          - Hugging Face: guides/deploying/deploying_hugging_face.md
+          - HuggingFace: guides/deploying/deploying_hugging_face.md
           - Ploomber: guides/deploying/deploying_ploomber.md
-          - Public Gallery: guides/deploying/deploying_public_gallery.md
+          - Public gallery: guides/deploying/deploying_public_gallery.md
           - Railway: guides/deploying/deploying_railway.md
-          - Prebuilt Containers: guides/deploying/prebuilt_containers.md
+          - Prebuilt containers: guides/deploying/prebuilt_containers.md
           - Programmatic: guides/deploying/programmatically.md
-      - Editor Features:
+      - Editor features:
           - Overview: guides/editor_features/index.md
           - AI Completion: guides/editor_features/ai_completion.md
           - Hotkeys: guides/editor_features/hotkeys.md
           - Package Management: guides/editor_features/package_management.md
-      - Integrating with marimo:
+      - Configuration:
+          - Overview: guides/configuration/index.md
+          - Runtime configuration: guides/configuration/runtime_configuration.md
+          - HTML head: guides/configuration/html_head.md
+          - Theming: guides/configuration/theming.md
+      - Coming from other tools:
+          - Overview: guides/coming_from/index.md
+          - Jupytext: guides/coming_from/jupytext.md
+          - Papermill: guides/coming_from/papermill.md
+          - Streamlit: guides/coming_from/streamlit.md
+      - Extending marimo:
           - Overview: guides/integrating_with_marimo/index.md
-          - Custom UI Plugins: guides/integrating_with_marimo/custom_ui_plugins.md
-          - Displaying Objects: guides/integrating_with_marimo/displaying_objects.md
+          - Custom UI plugins: guides/integrating_with_marimo/custom_ui_plugins.md
+          - Displaying objects: guides/integrating_with_marimo/displaying_objects.md
+      - State management: guides/state.md
+      - Best practices: guides/best_practices.md
+      - Troubleshooting: guides/troubleshooting.md
   - API Reference:
       - Overview: api/index.md
-      - App: api/app.md
-      - Caching: api/caching.md
-      - Cell: api/cell.md
-      - CLI Arguments: api/cli_args.md
-      - Control Flow: api/control_flow.md
-      - Diagrams: api/diagrams.md
-      - HTML: api/html.md
       - Markdown: api/markdown.md
-      - Outputs: api/outputs.md
-      - Plotting: api/plotting.md
-      - Query Parameters: api/query_params.md
-      - State: api/state.md
-      - Status: api/status.md
       - Inputs:
           - Overview: api/inputs/index.md
           - AnyWidget: api/inputs/anywidget.md
@@ -156,6 +147,7 @@ nav:
           - Tabs: api/inputs/tabs.md
           - Text: api/inputs/text.md
           - Text Area: api/inputs/text_area.md
+      - Control Flow: api/control_flow.md
       - Layouts:
           - Overview: api/layouts/index.md
           - Accordion: api/layouts/accordion.md
@@ -168,6 +160,7 @@ nav:
           - Sidebar: api/layouts/sidebar.md
           - Stacks: api/layouts/stacks.md
           - Tree: api/layouts/tree.md
+      - Plotting: api/plotting.md
       - Media:
           - Overview: api/media/index.md
           - Audio: api/media/audio.md
@@ -176,28 +169,32 @@ nav:
           - PDF: api/media/pdf.md
           - Plain Text: api/media/plain_text.md
           - Video: api/media/video.md
+      - Progress Bars and Status: api/status.md
+      - Outputs: api/outputs.md
+      - Diagrams: api/diagrams.md
+      - HTML: api/html.md
+      - Query Parameters: api/query_params.md
+      - Command Line Arguments: api/cli_args.md
+      - Caching: api/caching.md
+      - State: api/state.md
+      - App: api/app.md
+      - Cell: api/cell.md
+      - Miscellaneous: api/miscellaneous.md
+  - Examples:
+      - Notebooks: examples.md
+      - Recipes: recipes.md
+      - Islands: guides/island_example.md
+  - Community:
+      - Overview: community.md
+      - FAQ: faq.md
+      - Contributing: https://github.com/marimo-team/marimo/blob/main/CONTRIBUTING.md
+      - Code of Conduct: https://github.com/marimo-team/marimo/blob/main/CODE_OF_CONDUCT.md
   - Integrations:
       - Overview: integrations/index.md
       - BigQuery: integrations/google_cloud_bigquery.md
       - Google Cloud Storage: integrations/google_cloud_storage.md
       - Google Sheets: integrations/google_sheets.md
       - MotherDuck: integrations/motherduck.md
-  - Community:
-      - Overview: community.md
-      - FAQ: faq.md
-      - Examples: examples.md
-      - Recipes: recipes.md
-      - Contributing: https://github.com/marimo-team/marimo/blob/main/CONTRIBUTING.md
-      - Code of Conduct: https://github.com/marimo-team/marimo/blob/main/CODE_OF_CONDUCT.md
-  - Development:
-      - Miscellaneous: api/miscellaneous.md
-      - Editor Features:
-          - Overview: guides/editor_features/overview.md
-      - Apps:
-          - Overview: apps/README.md
-      - Troubleshooting: guides/troubleshooting.md
-      - Exporting: guides/exporting.md
-      - Island Example: guides/island_example.md
 plugins:
   - search
   - social:
@@ -260,10 +257,12 @@ theme:
     - header.autohide # auto-hide header on scroll
     - navigation.indexes # section index pages
     - navigation.instant # faster page loads
-    - navigation.sections # group docs into sections
+    - navigation.path # show navigation breadcrumb path
     - navigation.tabs # show navigation as tabs
+    - navigation.tabs.sticky # keep navigation tabs visible when scrolling
     - navigation.top # back to top button
     - navigation.tracking # updates URL as you scroll
+    - navigation.footer # links to previous/next page, helpful for small screens
     - search.highlight # highlight search results
     - search.share # shareable search links
     - search.suggest # search suggestions
