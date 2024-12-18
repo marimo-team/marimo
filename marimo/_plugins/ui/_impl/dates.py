@@ -330,8 +330,7 @@ class date_range(UIElement[Tuple[str, str], Tuple[dt.date, dt.date]]):
     Examples:
         ```python
         date_range = mo.ui.date_range(
-            start=dt.date(2023, 1, 1),
-            stop=dt.date(2023, 12, 31)
+            start=dt.date(2023, 1, 1), stop=dt.date(2023, 12, 31)
         )
         ```
 

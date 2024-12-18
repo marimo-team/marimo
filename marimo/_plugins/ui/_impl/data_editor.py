@@ -39,6 +39,7 @@ class DataEditorValue:
     Attributes:
         data (List[Dict[str, Any]]): Row-oriented data as a list of dictionaries.
     """
+
     data: List[Dict[str, Any]]
 
 
@@ -50,6 +51,7 @@ class PositionalEdit(TypedDict):
         columnId (str): The ID of the column being edited.
         value (Any): The new value for the cell.
     """
+
     rowIdx: int
     columnId: str
     value: Any
@@ -61,6 +63,7 @@ class DataEdits(TypedDict):
     Attributes:
         edits (List[PositionalEdit]): List of individual cell edits.
     """
+
     edits: List[PositionalEdit]
 
 
