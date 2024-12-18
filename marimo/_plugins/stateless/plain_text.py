@@ -11,11 +11,11 @@ from marimo._output.utils import create_style
 def plain_text(text: str) -> Html:
     """Text that's fixed-width, with spaces and newlines preserved.
 
-    **Args.**
+    Args:
 
     - `text`: text to output
 
-    **Returns.**
+    Returns:
 
     An `Html` object representing the text.
     """

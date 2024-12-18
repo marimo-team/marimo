@@ -16,17 +16,17 @@ def carousel(
 ) -> Html:
     """Create a carousel of items.
 
-    **Example.**
+    Example:
 
     ```python3
     mo.carousel([mo.md("..."), mo.ui.text_area()])
     ```
 
-    **Args.**
+    Args:
 
     - `items`: A list of items.
 
-    **Returns.**
+    Returns:
 
     - An `Html` object.
     """

@@ -18,7 +18,7 @@ def audio(
 ) -> Html:
     """Render an audio file as HTML.
 
-    **Example.**
+    Example:
 
     ```python3
     mo.audio(
@@ -28,12 +28,12 @@ def audio(
     mo.audio(src="path/to/local/file.wav")
     ```
 
-    **Args.**
+    Args:
 
     - `src`: a path or URL to an audio file, bytes,
         or a file-like object opened in binary mode
 
-    **Returns.**
+    Returns:
 
     An audio player as an `Html` object.
     """

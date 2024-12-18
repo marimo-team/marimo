@@ -16,7 +16,7 @@ def accordion(
     """
     Accordion of one or more items.
 
-    **Example.**
+    Example:
 
     ```python3
     mo.accordion(
@@ -33,7 +33,7 @@ def accordion(
     where `expensive_item` is the item to render, or a callable that
     returns the item to render.
 
-    **Args.**
+    Args:
 
     - `items`: a dictionary of item names to item content; strings are
       interpreted as markdown
@@ -42,7 +42,7 @@ def accordion(
               This is a convenience that wraps each accordion in a `mo.lazy`
               component.
 
-    **Returns.**
+    Returns:
 
     - An `Html` object.
     """

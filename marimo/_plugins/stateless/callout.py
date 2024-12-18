@@ -16,12 +16,12 @@ def callout(
 ) -> Html:
     """Build a callout output.
 
-    **Args.**
+    Args:
 
     - `value`: A value to render in the callout
     - `kind`: The kind of callout (affects styling).
 
-    **Returns.**
+    Returns:
 
     - An HTML object.
     """

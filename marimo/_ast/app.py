@@ -345,7 +345,7 @@ class App:
         The `embed` method lets you embed the output of a notebook
         into another notebook and access the values of its variables.
 
-        **Example.**
+        Example:
 
         ```python
         from my_notebook import app
@@ -381,7 +381,7 @@ class App:
         notebook that in turn embeds another notebook, and marimo will do the
         right thing.
 
-        **Returns.**
+        Returns:
 
         - An object `result` with two attributes: `result.output` (visual
           output of the notebook) and `result.defs` (a dictionary mapping

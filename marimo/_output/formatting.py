@@ -239,7 +239,7 @@ def as_html(value: object) -> Html:
     This function returns an `Html` object representing `value`. Use it to
     embed values into Markdown or other HTML strings.
 
-    **Example.**
+    Example:
 
     ```python3
     import matplotlib.pyplot as plt
@@ -254,11 +254,11 @@ def as_html(value: object) -> Html:
     )
     ```
 
-    **Args.**
+    Args:
 
     - `value`: An object
 
-    **Returns.**
+    Returns:
 
     - An `Html` object
     """
@@ -320,14 +320,14 @@ def plain(value: Any) -> Plain:
     This is the best way to opt out of marimo's
     default dataframe rendering.
 
-    **Example.**
+    Example:
 
     ```python
     df = data.cars()
     mo.plain(df)
     ```
 
-    **Args.**
+    Args:
 
     - `value`: Any value
     """
@@ -357,14 +357,14 @@ def iframe(html: str, *, width: str = "100%", height: str = "400px") -> Html:
     that may contain styles that could interfere with the rest of the
     page.
 
-    **Example.**
+    Example:
 
     ```python
     html = "<h1>Hello, world!</h1>"
     mo.iframe(html)
     ```
 
-    **Args.**
+    Args:
 
     - `html`: An HTML string
     """

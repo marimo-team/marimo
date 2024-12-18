@@ -27,7 +27,7 @@ def download(
     """
     Show a download button for a url, bytes, or file-like object.
 
-    **Examples.**
+    Examples:
 
     ```python
     download_txt = mo.download(
@@ -41,7 +41,7 @@ def download(
     )
     ```
 
-    **Args.**
+    Args:
 
     - `data`: The data to download. Can be a string (interpreted as
         a URL), bytes, or a file opened in binary mode.
@@ -51,7 +51,7 @@ def download(
         (e.g. "text/csv", "image/png"). If not provided,
         the mimetype will be guessed from the filename.
 
-    **Returns.**
+    Returns:
 
     An `Html` object for a download button.
     """
