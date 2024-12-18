@@ -9,24 +9,21 @@ from marimo._plugins.ui._core.ui_element import UIElement
 
 @mddoc
 class switch(UIElement[bool, bool]):
-    """
-    A boolean switch.
+    """A boolean switch.
 
-    **Example.**
+    Examples:
+        ```python
+        switch = mo.ui.switch()
+        ```
 
-    ```python
-    switch = mo.ui.switch()
-    ```
+    Attributes:
+        value (bool): A boolean, `True` if checked.
 
-    **Attributes.**
-
-    - `value`: A boolean, `True` if checked.
-
-    **Initialization Args.**
-
-    - `value`: default value, True or False
-    - `label`: markdown label for the element
-    - `on_change`: optional callback to run when this element's value changes
+    Args:
+        value (bool, optional): Default value, True or False. Defaults to False.
+        label (str, optional): Markdown label for the element. Defaults to "".
+        on_change (Optional[Callable[[bool], None]], optional): Optional callback to run
+            when this element's value changes.
     """
 
     _name: Final[str] = "marimo-switch"
