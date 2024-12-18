@@ -213,7 +213,6 @@ class panel(UIElement[T, T]):
     def __init__(self, obj: Any):
         from panel.models.comm_manager import CommManager as PanelCommManager
         from panel.pane import panel as panel_func
-        from panel.viewable import Viewable
 
         self.obj: Viewable = panel_func(obj)  # type: ignore[assignment]
         # This gets set to True in super().__init__()
