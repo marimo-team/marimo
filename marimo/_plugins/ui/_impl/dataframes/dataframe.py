@@ -79,27 +79,27 @@ class GetDataFrameError(Exception):
 
 @mddoc
 class dataframe(UIElement[Dict[str, Any], DataFrameType]):
-    """
-    Run transformations on a DataFrame or series.
+    """Run transformations on a DataFrame or series.
+
     Currently only Pandas or Polars DataFrames are supported.
 
-    **Example.**
+    Examples:
+        ```python
+        dataframe = mo.ui.dataframe(data)
+        ```
 
-    ```python
-    dataframe = mo.ui.dataframe(data)
-    ```
+    Attributes:
+        value (DataFrameType): The transformed DataFrame or series.
 
-    **Attributes.**
-
-    - `value`: the transformed DataFrame or series
-
-    **Initialization Args.**
-
-    - `df`: the DataFrame or series to transform
-    - `page_size`: the number of rows to show in the table
-    - `limit`: the number of items to load into memory, in case
-        the data is remote and lazily fetched. This is likely true
-        for SQL-backed dataframes via Ibis.
+    Args:
+        df (DataFrameType): The DataFrame or series to transform.
+        page_size (Optional[int], optional): The number of rows to show in the table.
+            Defaults to 5.
+        limit (Optional[int], optional): The number of items to load into memory, in case
+            the data is remote and lazily fetched. This is likely true for SQL-backed
+            dataframes via Ibis.
+        on_change (Optional[Callable[[DataFrameType], None]], optional): Optional callback
+            to run when this element's value changes.
     """
 
     _name: Final[str] = "marimo-dataframe"

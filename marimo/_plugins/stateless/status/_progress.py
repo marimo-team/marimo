@@ -61,21 +61,23 @@ class _Progress(Html):
     ) -> None:
         """Update the progress indicator.
 
-        **Example.**
+        Examples:
+            Increment by 1:
+            ```python
+            # Increment by 1
+            progress.update()
+            ```
 
-        ```python
-        # Increment by 1
-        progress.update()
+            Increment by 10 and update title and subtitle:
+            ```python
+            # Increment by 10 and update title and subtitle
+            progress.update(10, title="Loading", subtitle="Still going...")
+            ```
 
-        # Increment by 10 and update title and subtitle
-        progress.update(10, title="Loading", subtitle="Still going...")
-        ```
-
-        **Args.**
-
-        - increment: amount to increment by. Defaults to 1.
-        - title: new title. Defaults to None.
-        - subtitle: new subtitle. Defaults to None.
+        Args:
+            increment (int, optional): Amount to increment by. Defaults to 1.
+            title (str, optional): New title. Defaults to None.
+            subtitle (str, optional): New subtitle. Defaults to None.
         """
         if self.closed:
             raise RuntimeError(
@@ -93,7 +95,7 @@ class _Progress(Html):
 
     @debounce(0.15)
     def debounced_flush(self) -> None:
-        """Flush the output to the UI"""
+        """Flush the output to the UI."""
         output.flush()
 
     def clear(self) -> None:
@@ -194,53 +196,54 @@ class Spinner(_Progress):
     def update(
         self, title: str | None = None, subtitle: str | None = None
     ) -> None:
-        """Update the title and subtitle of the spinner
+        """Update the title and subtitle of the spinner.
 
         This method updates a spinner output in-place. Must be used
         in the cell the spinner was created.
 
-        **Example.**
+        Examples:
+            ```python
+            with mo.status.spinner("Hang tight!") as _spinner:
+                ...
+                _spinner.update(title="Almost done!")
+            # Optionally, remove the spinner from the output
+            # _spinner.clear()
+            ```
 
-        ```python
-        with mo.status.spinner("Hang tight!") as _spinner:
-            ...
-            _spinner.update(title="Almost done!")
-        # Optionally, remove the spinner from the output
-        # _spinner.clear()
-        ```
+        Args:
+            title (str, optional): New title. Defaults to None.
+            subtitle (str, optional): New subtitle. Defaults to None.
         """
         super().update_progress(increment=1, title=title, subtitle=subtitle)
 
 
 @mddoc
 class spinner:
-    """Show a loading spinner
+    """Show a loading spinner.
 
     Use `mo.status.spinner()` as a context manager to show a loading spinner.
     You can optionally pass a title and subtitle.
 
-    **Example.**
+    Examples:
+        ```python
+        with mo.status.spinner(subtitle="Loading data ...") as _spinner:
+            data = expensive_function()
+            _spinner.update(subtitle="Crunching numbers ...")
+            ...
 
-    ```python
-    with mo.status.spinner(subtitle="Loading data ...") as _spinner:
-        data = expensive_function()
-        _spinner.update(subtitle="Crunching numbers ...")
-        ...
+        mo.ui.table(data)
+        ```
 
-    mo.ui.table(data)
-    ```
+        You can also show the spinner without a context manager:
+        ```python
+        mo.status.spinner(title="Loading ...") if condition else mo.md("Done!")
+        ```
 
-    You can also show the spinner without a context manager:
-
-    ```python
-    mo.status.spinner(title="Loading ...") if condition else mo.md("Done!")
-    ```
-
-    **Args:**
-
-    - `title`: optional title
-    - `subtitle`: optional subtitle
-    - `remove_on_exit`: if True, the spinner is removed from output on exit
+    Args:
+        title (str, optional): Optional title.
+        subtitle (str, optional): Optional subtitle.
+        remove_on_exit (bool, optional): If True, the spinner is removed from output on exit.
+            Defaults to True.
     """
 
     def __init__(
@@ -269,47 +272,41 @@ class spinner:
 
 
 class progress_bar:
-    """Iterate over a collection and show a progress bar
+    """Iterate over a collection and show a progress bar.
 
-    **Example.**
-
-    ```python
-    for i in mo.status.progress_bar(range(10)):
-        ...
-    ```
-
-    You can optionally provide a title and subtitle to show
-    during iteration, and a title/subtitle to show upon completion.
-
-    You can also use progress_bar with a context manager and manually update
-    the bar:
-
-    ```python
-    with mo.status.progress_bar(total=10) as bar:
-        for i in range(10):
+    Examples:
+        ```python
+        for i in mo.status.progress_bar(range(10)):
             ...
-            bar.update()
-    ```
+        ```
 
-    The `update` method accepts the optional keyword
-    arguments `increment` (defaults to `1`), `title`,
-    and `subtitle`.
+        You can optionally provide a title and subtitle to show
+        during iteration, and a title/subtitle to show upon completion:
+        ```python
+        with mo.status.progress_bar(total=10) as bar:
+            for i in range(10):
+                ...
+                bar.update()
+        ```
 
-    For performance reasons, the progress bar is only updated in the UI
-    every 150ms.
+        The `update` method accepts the optional keyword
+        arguments `increment` (defaults to `1`), `title`,
+        and `subtitle`.
 
-    **Args.**
+        For performance reasons, the progress bar is only updated in the UI
+        every 150ms.
 
-    - `collection`: optional collection to iterate over
-    - `title`: optional title
-    - `subtitle`: optional subtitle
-    - `completion_title`: optional title to show during completion
-    - `completion_subtitle`: optional subtitle to show during completion
-    - `total`: optional total number of items to iterate over
-    - `show_rate`: if True, show the rate of progress (items per second)
-    - `show_eta`: if True, show the estimated time of completion
-    - `remove_on_exit`: if True, remove the progress bar from output on exit
-    - `disabled`: if True, disable the progress bar
+    Args:
+        collection (Collection[Union[S, int]], optional): Optional collection to iterate over.
+        title (str, optional): Optional title.
+        subtitle (str, optional): Optional subtitle.
+        completion_title (str, optional): Optional title to show during completion.
+        completion_subtitle (str, optional): Optional subtitle to show during completion.
+        total (int, optional): Optional total number of items to iterate over.
+        show_rate (bool, optional): If True, show the rate of progress (items per second).
+        show_eta (bool, optional): If True, show the estimated time of completion.
+        remove_on_exit (bool, optional): If True, remove the progress bar from output on exit.
+        disabled (bool, optional): If True, disable the progress bar.
     """
 
     def __init__(
@@ -390,23 +387,23 @@ def toast(
     description: str = "",
     kind: Optional[Literal["danger"]] = None,
 ) -> None:
-    """Show a toast notification
+    """Show a toast notification.
 
     Use `mo.status.toast()` to display a brief notification.
 
-    **Example.**
+    Examples:
+        ```python
+        mo.status.toast(
+            "Operation completed",
+            "Your task has finished successfully",
+        )
+        ```
 
-    ```python
-    mo.status.toast(
-        "Operation completed",
-        "Your task has finished successfully",
-    )
-    ```
-
-    **Args:**
-
-    - `title`: The main message of the toast
-    - `description`: Optional additional details (can include HTML)
-    - `kind`: Optional kind, use "danger" for error toasts
+    Args:
+        title (str): The main message of the toast.
+        description (str, optional): Optional additional details (can include HTML).
+            Defaults to "".
+        kind (Literal["danger"], optional): Optional kind, use "danger" for error toasts.
+            Defaults to None.
     """
     Alert(title=title, description=description, variant=kind).broadcast()

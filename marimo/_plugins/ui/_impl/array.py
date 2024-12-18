@@ -16,11 +16,9 @@ from marimo._plugins.ui._core.ui_element import UIElement
 # Python type is a sequence of values, one for each UI element
 @mddoc
 class array(UIElement[Dict[str, JSONType], Sequence[object]]):
-    """
-    An array of UI elements.
+    """An array of UI elements.
 
-    Use an array to
-
+    Use an array to:
     - create a dynamic number of UI elements at runtime
     - group together logically related UI elements
     - keep the number of global variables in your program small
@@ -37,44 +35,42 @@ class array(UIElement[Dict[str, JSONType], Sequence[object]]):
     interacting with the array will _not_ update the original elements, and
     vice versa.
 
-    **Examples.**
+    Examples:
+        A heterogeneous collection of UI elements:
 
-    A heterogeneous collection of UI elements:
+        ```python
+        array = mo.ui.array([mo.ui.slider(1, 10), mo.ui.text(), mo.ui.date()])
+        ```
 
-    ```python
-    array = mo.ui.array([mo.ui.slider(1, 10), mo.ui.text(), mo.ui.date()])
-    ```
+        Get the values of the `slider`, `text`, and `date` elements via
+        `array.value`:
 
-    Get the values of the `slider`, `text`, and `date` elements via
-    `array.value`:
+        ```python
+        # array.value returns a list with the values of the elements
+        array.value
+        ```
 
-    ```python
-    # array.value returns a list with the values of the elements
-    array.value
-    ```
+        Access and output a UI element in the array:
 
-    Access and output a UI element in the array:
+        ```python
+        mo.md(f"This is a slider: array[0]")
+        ```
 
-    ```python
-    mo.md(f"This is a slider: array[0]")
-    ```
+        Some number of UI elements, determined at runtime:
 
-    Some number of UI elements, determined at runtime:
+        ```python
+        mo.ui.array([mo.ui.slider(1, 10) for _ in range random.randint(4, 8)])
+        ```
 
-    ```python
-    mo.ui.array([mo.ui.slider(1, 10) for _ in range random.randint(4, 8)])
-    ```
+    Attributes:
+        value (list): A list containing the values of the array's entries.
+        elements (list): A list of the wrapped elements (clones of the originals).
 
-    **Attributes.**
-
-    - `value`: a list containing the values of the array's entries
-    - `elements`: a list of the wrapped elements (clones of the originals)
-
-    **Initialization Args.**
-
-    - `elements`: the UI elements to include
-    - `label`: a descriptive name for the array
-    - `on_change`: optional callback to run when this element's value changes
+    Args:
+        elements (Sequence[UIElement]): The UI elements to include.
+        label (str, optional): A descriptive name for the array. Defaults to "".
+        on_change (Optional[Callable[[Sequence[object]], None]], optional): Optional callback
+            to run when this element's value changes.
     """
 
     _name: Final[str] = "marimo-dict"
@@ -155,17 +151,23 @@ class array(UIElement[Dict[str, JSONType], Sequence[object]]):
         return item in self.elements
 
     def hstack(self, **kwargs: Any) -> Html:
-        """
-        Stack the elements horizontally.
+        """Stack the elements horizontally.
 
-        For kwargs, see `marimo.hstack`.
+        Args:
+            **kwargs: Additional arguments passed to `marimo.hstack`.
+
+        Returns:
+            Html: HTML representation of horizontally stacked elements.
         """
         return hstack(items=self.elements, **kwargs)
 
     def vstack(self, **kwargs: Any) -> Html:
-        """
-        Stack the elements vertically.
+        """Stack the elements vertically.
 
-        For kwargs, see `marimo.vstack`.
+        Args:
+            **kwargs: Additional arguments passed to `marimo.vstack`.
+
+        Returns:
+            Html: HTML representation of vertically stacked elements.
         """
         return vstack(items=self.elements, **kwargs)

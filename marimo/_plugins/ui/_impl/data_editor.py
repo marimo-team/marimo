@@ -34,17 +34,36 @@ if TYPE_CHECKING:
 
 @dataclass
 class DataEditorValue:
-    # Row-oriented data
+    """A dataclass representing the value of a data editor.
+
+    Attributes:
+        data (List[Dict[str, Any]]): Row-oriented data as a list of dictionaries.
+    """
+
     data: List[Dict[str, Any]]
 
 
 class PositionalEdit(TypedDict):
+    """A typed dictionary representing a single edit in the data editor.
+
+    Attributes:
+        rowIdx (int): The index of the row being edited.
+        columnId (str): The ID of the column being edited.
+        value (Any): The new value for the cell.
+    """
+
     rowIdx: int
     columnId: str
     value: Any
 
 
 class DataEdits(TypedDict):
+    """A typed dictionary containing a list of positional edits.
+
+    Attributes:
+        edits (List[PositionalEdit]): List of individual cell edits.
+    """
+
     edits: List[PositionalEdit]
 
 
@@ -59,56 +78,50 @@ class data_editor(
         Union[RowOrientedData, ColumnOrientedData, IntoDataFrame],
     ]
 ):
-    """
-    **[EXPERIMENTAL]**
+    """[EXPERIMENTAL] A data editor component for editing tabular data.
 
     This component is experimental and intentionally limited in features,
     if you have any feature requests, please file an issue at
     https://github.com/marimo-team/marimo/issues.
-
-    A data editor component for editing tabular data.
 
     The data can be supplied as:
     1. a Pandas, Polars, or Pyarrow DataFrame
     2. a list of dicts, with one dict for each row, keyed by column names
     3. a dict of lists, with each list representing a column
 
-    **Examples.**
+    Examples:
+        Create a data editor from a Pandas dataframe:
 
-    Create a data editor from a Pandas dataframe:
+        ```python
+        import pandas as pd
 
-    ```python
-    import pandas as pd
+        df = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
+        editor = mo.ui.experimental_data_editor(data=df, label="Edit Data")
+        ```
 
-    df = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
-    editor = mo.ui.experimental_data_editor(data=df, label="Edit Data")
-    ```
+        Create a data editor from a list of dicts:
 
-    Create a data editor from a list of dicts:
+        ```python
+        data = [{"A": 1, "B": "a"}, {"A": 2, "B": "a"}, {"A": 3, "B": "c"}]
+        editor = mo.ui.experimental_data_editor(data=data, label="Edit Data")
+        ```
 
-    ```python
-    data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
-    editor = mo.ui.experimental_data_editor(data=data, label="Edit Data")
-    ```
+        Create a data editor from a dict of lists:
 
-    Create a data editor from a dict of lists:
+        ```python
+        data = {"A": [1, 2, 3], "B": ["a", "b", "c"]}
+        editor = mo.ui.experimental_data_editor(data=data, label="Edit Data")
+        ```
 
-    ```python
-    data = {"A": [1, 2, 3], "B": ["a", "b", "c"]}
-    editor = mo.ui.experimental_data_editor(data=data, label="Edit Data")
-    ```
+    Attributes:
+        value (Union[RowOrientedData, ColumnOrientedData, IntoDataFrame]): The current state of the edited data.
+        data (Union[RowOrientedData, ColumnOrientedData, IntoDataFrame]): The original data passed to the editor.
 
-    **Attributes.**
-
-    - `value`: the current state of the edited data
-    - `data`: the original data passed to the editor
-
-    **Initialization Args.**
-
-    - `data`: The data to be edited. Can be a Pandas dataframe,
-        a list of dicts, or a dict of lists.
-    - `label`: markdown label for the element
-    - `on_change`: optional callback to run when this element's value changes
+    Args:
+        data (Union[RowOrientedData, ColumnOrientedData, IntoDataFrame]): The data to be edited.
+            Can be a Pandas dataframe, a list of dicts, or a dict of lists.
+        label (str): Markdown label for the element.
+        on_change (Optional[Callable]): Optional callback to run when this element's value changes.
     """
 
     _name: Final[str] = "marimo-data-editor"

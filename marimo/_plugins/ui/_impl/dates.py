@@ -28,55 +28,49 @@ Numeric = Union[int, float]
 
 @mddoc
 class date(UIElement[str, dt.date]):
-    """
-    A date picker with an optional start and stop date.
+    """A date picker with an optional start and stop date.
 
-    **Example.**
+    Examples:
+        ```python
+        # initialize the date picker at a given date
+        date = mo.ui.date(value="2022-01-01")
+        ```
 
-    ```python
-    # initialize the date picker at a given date
-    date = mo.ui.date(value="2022-01-01")
-    ```
+        ```python
+        # when value is omitted, date picker initializes with today's date
+        date = mo.ui.date()
+        ```
 
-    ```python
-    # when value is omitted, date picker initializes with today's date
-    date = mo.ui.date()
-    ```
+        ```python
+        # create a date picker with bounds
+        date = mo.ui.date(
+            value="2022-06-01",
+            start="2022-01-01",
+            stop="2022-12-31",
+        )
+        ```
 
-    ```python
-    # create a date picker with bounds
-    date = mo.ui.date(
-        value="2022-06-01",
-        start="2022-01-01",
-        stop="2022-12-31",
-    )
-    ```
+        Or from a dataframe series:
 
-    Or from a dataframe series:
+        ```python
+        date = mo.ui.date.from_series(df["column_name"])
+        ```
 
-    ```python
-    date = mo.ui.date.from_series(df["column_name"])
-    ```
+    Attributes:
+        value (str | datetime.date): A str (YYYY-MM-DD) or `datetime.date` object of the chosen date.
+        start (datetime.date): The start date.
+        stop (datetime.date): The stop date.
 
-    **Attributes.**
-
-    - `value`: a str (YYYY-MM-DD) or `datetime.date` object of the chosen date
-    - `start`: the start date
-    - `stop`: the stop date
-
-    **Initialization Args.**
-
-    - `start`: minimum date selectable; if None, defaults to 01-01-0001
-    - `stop`: maximum date selectable; if None, defaults to 12-31-9999
-    - `value`: default date
-        - if `None` and `start` and `stop` are `None`, defaults to the
-          current day;
-        - else if `None` and `start` is not `None`, defaults to `start`;
-        - else if `None` and `stop` is not `None`, defaults to `stop`
-    - `label`: markdown label for the element
-    - `on_change`: optional callback to run when this element's value changes
-    - `full_width`: whether the input should take up the full width of its
-        container
+    Args:
+        start (datetime.date | str, optional): Minimum date selectable. If None, defaults to 01-01-0001.
+        stop (datetime.date | str, optional): Maximum date selectable. If None, defaults to 12-31-9999.
+        value (datetime.date | str, optional): Default date.
+            If None and start and stop are None, defaults to the current day.
+            If None and start is not None, defaults to start.
+            If None and stop is not None, defaults to stop.
+        label (str, optional): Markdown label for the element.
+        on_change (Callable[[datetime.date], None], optional): Optional callback to run when this element's value changes.
+        full_width (bool, optional): Whether the input should take up the full width of its container.
     """
 
     _name: Final[str] = "marimo-date"
@@ -138,7 +132,16 @@ class date(UIElement[str, dt.date]):
 
     @staticmethod
     def from_series(series: DataFrameSeries, **kwargs: Any) -> "date":
-        """Create a date picker from a dataframe series."""
+        """Create a date picker from a dataframe series.
+
+        Args:
+            series (DataFrameSeries): A pandas Series containing datetime values.
+            **kwargs: Additional keyword arguments passed to the date picker constructor.
+                Supported arguments: start, stop, label, and any other date picker parameters.
+
+        Returns:
+            date: A date picker initialized with the series' min and max dates as bounds.
+        """
         info = get_date_series_info(series)
         start = kwargs.pop("start", info.min)
         stop = kwargs.pop("stop", info.max)
@@ -155,48 +158,55 @@ class date(UIElement[str, dt.date]):
 
     @property
     def start(self) -> dt.date:
+        """Get the minimum selectable date.
+
+        Returns:
+            datetime.date: The start date, which is either the user-specified minimum date
+                or 01-01-0001 if no start date was specified.
+        """
         return self._start
 
     @property
     def stop(self) -> dt.date:
+        """Get the maximum selectable date.
+
+        Returns:
+            datetime.date: The stop date, which is either the user-specified maximum date
+                or 12-31-9999 if no stop date was specified.
+        """
         return self._stop
 
 
 @mddoc
 class datetime(UIElement[Optional[str], Optional[dt.datetime]]):
-    """
-    A datetime picker over an interval.
+    """A datetime picker over an interval.
 
-    **Example.**
+    Examples:
+        ```python
+        datetime_picker = mo.ui.datetime(
+            start=dt.datetime(2023, 1, 1),
+            stop=dt.datetime(2023, 12, 31, 23, 59, 59),
+        )
+        ```
 
-    ```python
-    datetime_picker = mo.ui.datetime(
-        start=dt.datetime(2023, 1, 1),
-        stop=dt.datetime(2023, 12, 31, 23, 59, 59),
-    )
-    ```
+        Or from a dataframe series:
 
-    Or from a dataframe series:
+        ```python
+        datetime_picker = mo.ui.datetime.from_series(df["datetime_column"])
+        ```
 
-    ```python
-    datetime_picker = mo.ui.datetime.from_series(df["datetime_column"])
-    ```
+    Attributes:
+        value (datetime.datetime, optional): The selected datetime, possibly None.
+        start (datetime.datetime): The minimum selectable datetime.
+        stop (datetime.datetime): The maximum selectable datetime.
 
-    **Attributes.**
-
-    - `value`: the selected datetime, possibly `None`
-    - `start`: the minimum selectable datetime
-    - `stop`: the maximum selectable datetime
-
-    **Initialization Args.**
-
-    - `start`: the minimum selectable datetime (default: minimum datetime)
-    - `stop`: the maximum selectable datetime (default: maximum datetime)
-    - `value`: default value
-    - `label`: markdown label for the element
-    - `on_change`: optional callback to run when this element's value changes
-    - `full_width`: whether the input should take up the full width of
-      its container
+    Args:
+        start (datetime.datetime | str, optional): The minimum selectable datetime. Defaults to minimum datetime.
+        stop (datetime.datetime | str, optional): The maximum selectable datetime. Defaults to maximum datetime.
+        value (datetime.datetime | str, optional): Default value.
+        label (str, optional): Markdown label for the element.
+        on_change (Callable[[Optional[datetime.datetime]], None], optional): Optional callback to run when this element's value changes.
+        full_width (bool, optional): Whether the input should take up the full width of its container.
     """
 
     _name: Final[str] = "marimo-datetime"
@@ -258,7 +268,16 @@ class datetime(UIElement[Optional[str], Optional[dt.datetime]]):
 
     @staticmethod
     def from_series(series: DataFrameSeries, **kwargs: Any) -> "datetime":
-        """Create a datetime picker from a dataframe series."""
+        """Create a datetime picker from a dataframe series.
+
+        Args:
+            series (DataFrameSeries): A pandas Series containing datetime values.
+            **kwargs: Additional keyword arguments passed to the datetime picker constructor.
+                Supported arguments: start, stop, label, and any other datetime picker parameters.
+
+        Returns:
+            datetime: A datetime picker initialized with the series' min and max datetimes as bounds.
+        """
         info = get_datetime_series_info(series)
         start = kwargs.pop("start", info.min)
         stop = kwargs.pop("stop", info.max)
@@ -285,47 +304,55 @@ class datetime(UIElement[Optional[str], Optional[dt.datetime]]):
 
     @property
     def start(self) -> dt.datetime:
+        """Get the minimum selectable datetime.
+
+        Returns:
+            datetime.datetime: The start datetime, which is either the user-specified minimum
+                datetime or datetime.min if no start datetime was specified.
+        """
         return self._start
 
     @property
     def stop(self) -> dt.datetime:
+        """Get the maximum selectable datetime.
+
+        Returns:
+            datetime.datetime: The stop datetime, which is either the user-specified maximum
+                datetime or datetime.max if no stop datetime was specified.
+        """
         return self._stop
 
 
 @mddoc
 class date_range(UIElement[Tuple[str, str], Tuple[dt.date, dt.date]]):
-    """
-    A date range picker over an interval.
+    """A date range picker over an interval.
 
-    **Example.**
+    Examples:
+        ```python
+        date_range = mo.ui.date_range(
+            start=dt.date(2023, 1, 1), stop=dt.date(2023, 12, 31)
+        )
+        ```
 
-    ```python
-    date_range = mo.ui.date_range(
-        start=dt.date(2023, 1, 1), stop=dt.date(2023, 12, 31)
-    )
-    ```
+        Or from a dataframe series:
 
-    Or from a dataframe series:
+        ```python
+        date_range = mo.ui.date_range.from_series(df["date_column"])
+        ```
 
-    ```python
-    date_range = mo.ui.date_range.from_series(df["date_column"])
-    ```
+    Attributes:
+        value (Tuple[datetime.date, datetime.date]): A tuple of (start_date, end_date) representing the selected range.
+        start (datetime.date): The minimum selectable date.
+        stop (datetime.date): The maximum selectable date.
 
-    **Attributes.**
-
-    - `value`: a tuple of two dates representing the selected range
-    - `start`: the minimum selectable date
-    - `stop`: the maximum selectable date
-
-    **Initialization Args.**
-
-    - `start`: the minimum selectable date (default: minimum date)
-    - `stop`: the maximum selectable date (default: maximum date)
-    - `value`: default value (tuple of two dates)
-    - `label`: markdown label for the element
-    - `on_change`: optional callback to run when this element's value changes
-    - `full_width`: whether the input should take up the full width of its
-      container
+    Args:
+        start (datetime.date | str, optional): Minimum date selectable. If None, defaults to 01-01-0001.
+        stop (datetime.date | str, optional): Maximum date selectable. If None, defaults to 12-31-9999.
+        value (Tuple[datetime.date | str, datetime.date | str], optional): Default value as (start_date, end_date).
+            If None, defaults to (start, stop) if provided, otherwise today's date for both.
+        label (str, optional): Markdown label for the element.
+        on_change (Callable[[Tuple[datetime.date, datetime.date]], None], optional): Optional callback to run when this element's value changes.
+        full_width (bool, optional): Whether the input should take up the full width of its container.
     """
 
     _name: Final[str] = "marimo-date-range"
@@ -384,7 +411,16 @@ class date_range(UIElement[Tuple[str, str], Tuple[dt.date, dt.date]]):
 
     @staticmethod
     def from_series(series: DataFrameSeries, **kwargs: Any) -> "date_range":
-        """Create a date range picker from a dataframe series."""
+        """Create a date range picker from a dataframe series.
+
+        Args:
+            series (DataFrameSeries): A pandas Series containing datetime values.
+            **kwargs: Additional keyword arguments passed to the date range picker constructor.
+                Supported arguments: start, stop, label, and any other date range picker parameters.
+
+        Returns:
+            date_range: A date range picker initialized with the series' min and max dates as bounds.
+        """
         info = get_date_series_info(series)
         start = kwargs.pop("start", info.min)
         stop = kwargs.pop("stop", info.max)
@@ -408,8 +444,20 @@ class date_range(UIElement[Tuple[str, str], Tuple[dt.date, dt.date]]):
 
     @property
     def start(self) -> dt.date:
+        """Get the minimum selectable date.
+
+        Returns:
+            datetime.date: The start date, which is either the user-specified minimum date
+                or 01-01-0001 if no start date was specified.
+        """
         return self._start
 
     @property
     def stop(self) -> dt.date:
+        """Get the maximum selectable date.
+
+        Returns:
+            datetime.date: The stop date, which is either the user-specified maximum date
+                or 12-31-9999 if no stop date was specified.
+        """
         return self._stop

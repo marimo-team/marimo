@@ -16,25 +16,23 @@ class microphone(UIElement[str, io.BytesIO]):
     Use `mo.ui.microphone` to record audio via the user's browser. The
     user must grant permission to use the microphone.
 
-    **Example.**
+    Examples:
+        ```python
+        mic = mo.ui.microphone()
+        mic
+        ```
 
-    ```python
-    mic = mo.ui.microphone()
-    mic
-    ```
+        ```python
+        mo.audio(mic.value)
+        ```
 
-    ```python
-    mo.audio(mic.value)
-    ```
+    Attributes:
+        value (io.BytesIO): The blob of the recorded audio, as an `io.BytesIO` object.
 
-    **Attributes.**
-
-    - `value`: The blob of the recorded audio, as an `io.BytesIO` object.
-
-    **Initialization Args.**
-
-    - `label`: optional markdown label for the element
-    - `on_change`: optional callback to run when this element's value changes
+    Args:
+        label (str, optional): Markdown label for the element. Defaults to "".
+        on_change (Optional[Callable[[io.BytesIO], None]], optional): Optional callback
+            to run when this element's value changes.
     """
 
     name: Final[str] = "marimo-microphone"

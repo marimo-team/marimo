@@ -45,36 +45,34 @@ class SendToWidgetArgs:
 
 @mddoc
 class anywidget(UIElement[T, T]):
-    """
-    Create a UIElement from an AnyWidget.
-    This proxies all the widget's attributes and methods.
+    """Create a UIElement from an AnyWidget.
 
-    **Example.**
+    This proxies all the widget's attributes and methods, allowing seamless
+    integration of AnyWidget instances with Marimo's UI system.
 
-    ```python
-    from drawdata import ScatterWidget
-    import marimo as mo
+    Examples:
+        ```python
+        from drawdata import ScatterWidget
+        import marimo as mo
 
-    scatter = ScatterWidget()
-    scatter = mo.ui.anywidget(scatter)
+        scatter = ScatterWidget()
+        scatter = mo.ui.anywidget(scatter)
 
-    # In another cell, access its value
-    # This works for all widgets
-    scatter.value
+        # In another cell, access its value
+        # This works for all widgets
+        scatter.value
 
-    # Or attributes specifically on the ScatterWidget
-    scatter.data_as_pandas
-    scatter.data_as_polars
-    ```
+        # Or attributes specifically on the ScatterWidget
+        scatter.data_as_pandas
+        scatter.data_as_polars
+        ```
 
-    **Attributes.**
+    Attributes:
+        value (Dict[str, Any]): The value of the widget's traits as a dictionary.
+        widget (AnyWidget): The widget being wrapped.
 
-    - `value`: The value of the widget's traits as a dictionary.
-    - `widget`: The widget being wrapped.
-
-    **Initialization Args.**
-
-    - `widget`: The widget to wrap.
+    Args:
+        widget (AnyWidget): The widget to wrap.
     """
 
     def __init__(self, widget: "AnyWidget"):

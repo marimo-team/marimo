@@ -81,37 +81,40 @@ def vstack(
 
     Combine with `hstack` to build a grid of items.
 
-    **Example.**
+    Examples:
+        Build a column of items:
+        ```python
+        # Build a column of items
+        mo.vstack([mo.md("..."), mo.ui.text_area()])
+        ```
 
-    ```python3
-    # Build a column of items
-    mo.vstack([mo.md("..."), mo.ui.text_area()])
-    ```
+        Build a grid:
+        ```python
+        # Build a grid.
+        mo.vstack(
+            [
+                mo.hstack([mo.md("..."), mo.ui.text_area()]),
+                mo.hstack([mo.ui.checkbox(), mo.ui.text(), mo.ui.date()]),
+            ]
+        )
+        ```
 
-    ```python3
-    # Build a grid.
-    mo.vstack(
-        [
-            mo.hstack([mo.md("..."), mo.ui.text_area()]),
-            mo.hstack([mo.ui.checkbox(), mo.ui.text(), mo.ui.date()]),
-        ]
-    )
-    ```
+    Args:
+        items (Sequence[object]): A list of items.
+        align (Literal["start", "end", "center", "stretch"], optional): Align items
+            horizontally: start, end, center, or stretch.
+        justify (Literal["start", "center", "end", "space-between", "space-around"]):
+            Justify items vertically: start, center, end, space-between, or space-around.
+            Defaults to "start".
+        gap (float, optional): Gap between items as a float in rem. 1rem is 16px by default.
+            Defaults to 0.5.
+        heights (Union[Literal["equal"], Sequence[float]], optional): "equal" to give items
+            equal height; or a list of relative heights with same length as `items`,
+            eg, [1, 2] means the second item is twice as tall as the first;
+            or None for a sensible default.
 
-    **Args.**
-
-    - `items`: A list of items.
-    - `align`: Align items horizontally: start, end, center, or stretch.
-    - `justify`: Justify items vertically: start, center, end,
-    - `gap`: Gap between items as a float in rem. 1rem is 16px by default.
-    - `heights`: "equal" to give items equal height;
-        or a list of relative heights with same length as `items`,
-        eg, [1, 2] means the second item is twice as tall
-        as the first; or `None` for a sensible default
-
-    **Returns.**
-
-    - An `Html` object.
+    Returns:
+        Html: An Html object.
     """
     return _flex(
         items,
@@ -142,38 +145,41 @@ def hstack(
 
     Combine with `vstack` to build a grid.
 
-    **Example.**
+    Examples:
+        Build a row of items:
+        ```python
+        # Build a row of items
+        mo.hstack([mo.md("..."), mo.ui.text_area()])
+        ```
 
-    ```python3
-    # Build a row of items
-    mo.hstack([mo.md("..."), mo.ui.text_area()])
-    ```
+        Build a grid:
+        ```python
+        # Build a grid.
+        mo.hstack(
+            [
+                mo.vstack([mo.md("..."), mo.ui.text_area()]),
+                mo.vstack([mo.ui.checkbox(), mo.ui.text(), mo.ui.date()]),
+            ]
+        )
+        ```
 
-    ```python3
-    # Build a grid.
-    mo.hstack(
-        [
-            mo.vstack([mo.md("..."), mo.ui.text_area()]),
-            mo.vstack([mo.ui.checkbox(), mo.ui.text(), mo.ui.date()]),
-        ]
-    )
-    ```
+    Args:
+        items (Sequence[object]): A list of items.
+        justify (Literal["start", "center", "end", "space-between", "space-around"]):
+            Justify items horizontally: start, center, end, space-between, or space-around.
+            Defaults to "space-between".
+        align (Literal["start", "end", "center", "stretch"], optional): Align items
+            vertically: start, end, center, or stretch.
+        wrap (bool, optional): Wrap items or not. Defaults to False.
+        gap (float, optional): Gap between items as a float in rem. 1rem is 16px by default.
+            Defaults to 0.5.
+        widths (Union[Literal["equal"], Sequence[float]], optional): "equal" to give items
+            equal width; or a list of relative widths with same length as `items`,
+            eg, [1, 2] means the second item is twice as wide as the first;
+            or None for a sensible default.
 
-    **Args.**
-
-    - `items`: A list of items.
-    - `justify`: Justify items horizontally: start, center, end,
-        space-between, or space-around.
-    - `align`: Align items vertically: start, end, center, or stretch.
-    - `wrap`: Wrap items or not.
-    - `gap`: Gap between items as a float in rem. 1rem is 16px by default.
-    - `widths`: "equal" to give items equal width; or a list of relative widths
-      with same length as `items`, eg, [1, 2] means the second item is twice as
-      wide as the first; or `None` for a sensible default
-
-    **Returns.**
-
-    - An `Html` object.
+    Returns:
+        Html: An Html object.
     """
     return _flex(
         items,

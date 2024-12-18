@@ -185,38 +185,36 @@ def render_component(
 
 @mddoc
 class panel(UIElement[T, T]):
-    """
-    Create a UIElement from a Panel component.
-    This proxies all the widget's attributes and methods.
+    """Create a UIElement from a Panel component.
 
-    **Example.**
+    This proxies all the widget's attributes and methods, allowing seamless
+    integration of Panel components with Marimo's UI system.
 
-    ```python
-    import marimo as mo
-    import panel as pn
+    Examples:
+        ```python
+        import marimo as mo
+        import panel as pn
 
-    slider = pn.widgets.IntSlider(start=0, end=10, value=5)
-    rx_stars = mo.ui.panel(slider.rx() * "*")
+        slider = pn.widgets.IntSlider(start=0, end=10, value=5)
+        rx_stars = mo.ui.panel(slider.rx() * "*")
 
-    # In another cell, access its value
-    # This works for all widgets
-    slider.value
-    ```
+        # In another cell, access its value
+        # This works for all widgets
+        slider.value
+        ```
 
-    **Attributes.**
+    Attributes:
+        obj (Viewable): The widget being wrapped.
 
-    - `obj`: The widget being wrapped.
-
-    **Initialization Args.**
-
-    - `obj`: The widget to wrap.
+    Args:
+        obj (Viewable): The widget to wrap.
     """
 
     def __init__(self, obj: Any):
         from panel.models.comm_manager import CommManager as PanelCommManager
         from panel.pane import panel as panel_func
 
-        self.obj = obj = panel_func(obj)
+        self.obj: Viewable = panel_func(obj)  # type: ignore[assignment]
         # This gets set to True in super().__init__()
         self._initialized = False
 

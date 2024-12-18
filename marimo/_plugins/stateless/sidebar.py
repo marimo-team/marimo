@@ -13,10 +13,10 @@ from marimo._plugins.stateless.flex import vstack
 
 @mddoc
 class sidebar(Html):
-    """
-    Displays content in a sidebar. This is a special layout component that
-    will display the content in a sidebar layout, rather than below/above
-    the cell.
+    """Displays content in a sidebar.
+
+    This is a special layout component that will display the content in a sidebar
+    layout, rather than below/above the cell.
 
     This component still needs to be the last expression in the cell,
     in order to display correctly.
@@ -24,36 +24,33 @@ class sidebar(Html):
     You may use more than one `mo.sidebar` - they will be displayed in the
     order they are called.
 
-    **Examples.**
-
-    ```python
-    mo.sidebar(
-        [
-            mo.md("# marimo"),
-            mo.nav_menu(
-                {
-                    "#home": f"{mo.icon('lucide:home')} Home",
-                    "#about": f"{mo.icon('lucide:user')} About",
-                    "#contact": f"{mo.icon('lucide:phone')} Contact",
-                    "Links": {
-                        "https://twitter.com/marimo_io": "Twitter",
-                        "https://github.com/marimo-team/marimo": "GitHub",
+    Examples:
+        ```python
+        mo.sidebar(
+            [
+                mo.md("# marimo"),
+                mo.nav_menu(
+                    {
+                        "#home": f"{mo.icon('lucide:home')} Home",
+                        "#about": f"{mo.icon('lucide:user')} About",
+                        "#contact": f"{mo.icon('lucide:phone')} Contact",
+                        "Links": {
+                            "https://twitter.com/marimo_io": "Twitter",
+                            "https://github.com/marimo-team/marimo": "GitHub",
+                        },
                     },
-                },
-                orientation="vertical",
-            ),
-        ]
-    )
-    ```
+                    orientation="vertical",
+                ),
+            ]
+        )
+        ```
 
-    **Args.**
+    Args:
+        item (object): The content to display in the sidebar.
+        footer (object, optional): The content to display at the bottom of the sidebar.
 
-    - `item`: the content to display in the sidebar
-    - `footer`: the content to display at the bottom of the sidebar
-
-    **Returns.**
-
-    - An `Html` object.
+    Returns:
+        Html: An Html object.
     """
 
     def __init__(self, item: object, footer: Optional[object] = None) -> None:

@@ -15,22 +15,18 @@ if TYPE_CHECKING:
 
 @mddoc
 class data_explorer(UIElement[Dict[str, Any], Dict[str, Any]]):
-    """
-    Quickly explore a DataFrame with automatically suggested visualizations.
+    """Quickly explore a DataFrame with automatically suggested visualizations.
 
-    **Example.**
+    Examples:
+        ```python
+        mo.ui.data_explorer(data)
+        ```
 
-    ```python
-    mo.ui.data_explorer(data)
-    ```
+    Attributes:
+        value (Dict[str, Any]): The resulting DataFrame chart spec.
 
-    **Attributes.**
-
-    - `value`: the resulting DataFrame chart spec
-
-    **Initialization Args.**
-
-    - `df`: the DataFrame to visualize
+    Args:
+        df (IntoDataFrame): The DataFrame to visualize.
     """
 
     _name: Final[str] = "marimo-data-explorer"

@@ -35,98 +35,92 @@ class GetChatHistoryResponse:
 
 @mddoc
 class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
-    """
-    A chatbot UI element for interactive conversations.
+    """A chatbot UI element for interactive conversations.
 
-    **Example: Using a custom model.**
+    Define a chatbot by implementing a function that takes a list of ChatMessages and
+    optionally a config object as input, and returns the chat response. The response
+    can be any object, including text, plots, or marimo UI elements.
 
-    Define a chatbot by implementing a function that takes a list of
-    `ChatMessage`s and optionally a config object as input, and returns the
-    chat response. The response can be any object, including text, plots, or
-    marimo UI elements.
-
-    ```python
-    def my_rag_model(messages, config):
-        # Each message has a `content` attribute, as well as a `role`
-        # attribute ("user", "system", "assistant");
-        question = messages[-1].content
-        docs = find_docs(question)
-        prompt = template(question, docs, messages)
-        response = query(prompt)
-        if is_dataset(response):
-            return dataset_to_chart(response)
-        return response
+    Examples:
+        Using a custom model:
+        ```python
+        def my_rag_model(messages, config):
+            # Each message has a `content` attribute, as well as a `role`
+            # attribute ("user", "system", "assistant");
+            question = messages[-1].content
+            docs = find_docs(question)
+            prompt = template(question, docs, messages)
+            response = query(prompt)
+            if is_dataset(response):
+                return dataset_to_chart(response)
+            return response
 
 
-    chat = mo.ui.chat(my_rag_model)
-    ```
+        chat = mo.ui.chat(my_rag_model)
+        ```
 
-    Async functions and async generators are also supported, meaning these
-    are both valid chat functions:
+        Async functions and async generators are also supported:
+        ```python
+        async def my_rag_model(messages):
+            return await my_async_function(messages)
+        ```
 
-    ```python
-    async def my_rag_model(messages):
-        return await my_async_function(messages)
-    ```
+        ```python
+        async def my_rag_model(messages):
+            for response in my_async_iterator(messages):
+                yield response
+        ```
 
-    ```python
-    async def my_rag_model(messages):
-        for response in my_async_iterator(messages):
-            yield response
-    ```
+        The last value yielded by the async generator is treated as the model
+        response. ui.chat does not yet support streaming responses to the frontend.
+        Please file a GitHub issue if this is important to you:
+        https://github.com/marimo-team/marimo/issues
 
-    The last value yielded by the async generator is treated as the model
-    response. ui.chat does not yet support streaming responses to the frontend.
-    Please file a GitHub issue if this is important to you:
-    https://github.com/marimo-team/marimo/issues
+        Using a built-in model:
+        ```python
+        chat = mo.ui.chat(
+            mo.ai.llm.openai(
+                "gpt-4o",
+                system_message="You are a helpful assistant.",
+            ),
+        )
+        ```
 
-    **Example: Using a built-in model.**
+        Using attachments:
+        ```python
+        chat = mo.ui.chat(
+            mo.ai.llm.openai(
+                "gpt-4o",
+            ),
+            allow_attachments=["image/png", "image/jpeg"],
+        )
+        ```
 
-    Instead of defining a chatbot function, you can use a built-in model from
-    the `mo.ai.llm` module.
+    Attributes:
+        value (List[ChatMessage]): The current chat history, a list of ChatMessage objects.
 
-    ```python
-    chat = mo.ui.chat(
-        mo.ai.llm.openai(
-            "gpt-4o",
-            system_message="You are a helpful assistant.",
-        ),
-    )
-    ```
-
-    You can also allow the user to include attachments in their messages.
-
-    ```python
-    chat = mo.ui.chat(
-        mo.ai.llm.openai(
-            "gpt-4o",
-        ),
-        allow_attachments=["image/png", "image/jpeg"],
-    )
-    ```
-
-    **Attributes.**
-
-    - `value`: the current chat history, a list of `ChatMessage` objects.
-
-    **Initialization Args.**
-
-    - `model`: `(Callable[[List[ChatMessage], ChatModelConfig], object])` a
-        callable that takes in the chat history and returns a response
-    - `prompts`: optional list of initial prompts to present to the user
-    - `on_message`: optional callback function to handle new messages
-    - `show_configuration_controls`: whether to show the configuration controls
-    - `config`: optional `ChatModelConfigDict` to override the default
-        configuration. Keys include:
-        - `max_tokens`
-        - `temperature`
-        - `top_p`
-        - `top_k`
-        - `frequency_penalty`
-        - `presence_penalty`
-    - `allow_attachments`: (bool | List[str]) allow attachments. True for any
-        attachments types, or pass a list of mime types
-    - `max_height`: optional maximum height for the chat element
+    Args:
+        model (Callable[[List[ChatMessage], ChatModelConfig], object]): A callable that
+            takes in the chat history and returns a response.
+        prompts (List[str], optional): Optional list of initial prompts to present to
+            the user. Defaults to None.
+        on_message (Callable[[List[ChatMessage]], None], optional): Optional callback
+            function to handle new messages. Defaults to None.
+        show_configuration_controls (bool, optional): Whether to show the configuration
+            controls. Defaults to False.
+        config (ChatModelConfigDict, optional): Optional configuration to override the
+            default configuration. Keys include:
+            - max_tokens
+            - temperature
+            - top_p
+            - top_k
+            - frequency_penalty
+            - presence_penalty
+            Defaults to None.
+        allow_attachments (bool | List[str], optional): Allow attachments. True for any
+            attachments types, or pass a list of mime types. Defaults to False.
+        max_height (int, optional): Optional maximum height for the chat element.
+            Defaults to None.
     """
 
     _name: Final[str] = "marimo-chatbot"
