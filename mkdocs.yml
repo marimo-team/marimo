@@ -217,6 +217,8 @@ plugins:
             - url: https://docs.python.org/3/objects.inv
               domains: [py, std]
           options:
+            preload_modules:
+              - starlette
             filters:
               - '!^_'
             # General
@@ -228,16 +230,21 @@ plugins:
             heading_level: 2
             show_root_heading: true
             # Members
-            inherited_members: false
+            inherited_members: true
             # Docstrings
             merge_init_into_class: true
             show_if_no_docstring: true
-            docstring_section_style: table
+            docstring_section_style: spacy
             docstring_style: google
             # Signatures
+            separate_signature: true
+            unwrap_annotated: true
             annotations_path: brief
             line_length: 60
             modernize_annotations: true
+            signature_crossrefs: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
             show_signature_annotations: true
   - autorefs
 repo_name: marimo-team/marimo
