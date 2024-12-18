@@ -1,7 +1,7 @@
 # Reactive state
 
 !!! warning "Advanced topic!"
-This guide covers reactive state (`mo.state`), an advanced topic.
+    This guide covers reactive state (`mo.state`), an advanced topic.
 
     **You likely don't need reactive state**. UI elements already have built-in
     state, their associated value, which you can access with their `value` attribute.
@@ -57,7 +57,7 @@ But sometimes, you might want interactions to mutate state:
 </figure>
 </div>
 
-For cases like these, marimo provides the function [`mo.state()`](../api/state),
+For cases like these, marimo provides the function [`mo.state()`](../api/state.md),
 which creates a state object and returns a getter and setter function. When you
 call the setter function in one cell, all other cells that reference the getter
 function **via a global variable** are automatically run (similar to UI
@@ -73,7 +73,7 @@ a global variable run automatically with the new value.
     State is particularly useful when used in conjunction with a `UIElement`'s
     `on_change` callback to run side effects based on user input.
 
-[`mo.state()`](../api/state) takes an initial state value as its argument, creates
+[`mo.state()`](../api/state.md) takes an initial state value as its argument, creates
 a state object, and returns
 
 - a getter function for reading the state
@@ -81,8 +81,9 @@ a state object, and returns
 
 For exaxmple,
 
-````python
+```python
 get_counter, set_counter = mo.state(0)
+```
 
 !!! attention "Assign state to global variables!"
     When using `mo.state()`, **you must assign the state getter to a global
@@ -94,6 +95,7 @@ Access the state's latest value via the getter:
 
 ```python
 get_counter()
+```
 
 ## Updating state
 
@@ -109,6 +111,7 @@ the current state value as an argument and returns a new value
 
 ```python
 set_counter(lambda count: count + 1)
+```
 
 A single rule determines what happens next:
 
@@ -305,4 +308,3 @@ mo.hstack(
     [task_entry_box, add_task_button, clear_tasks_button], justify="start"
 )
 ```
-````

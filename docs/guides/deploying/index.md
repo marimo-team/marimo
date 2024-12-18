@@ -11,7 +11,7 @@ You can deploy marimo in three ways:
 
 !!! tip "Sharing lightweight notebooks on the web"
     To share notebooks on the public web, try using [our online playground](https://marimo.new). Our playground runs entirely in the browser -- no
-    backend required, via [WASM](guides/wasm.md).
+    backend required, via [WASM](../../guides/wasm.md).
 
     Or, to share notebooks with email-based authorization, you can also
     try our free [community cloud](https://marimo.io/sign-up), which is
@@ -23,10 +23,10 @@ You can deploy marimo in three ways:
 
 Here are a few ways to deploy an edit server on a remote instance:
 
-1. With [ssh-port forwarding](faq.md#faq-remote), using `marimo edit --headless`.
-2. Via docker and our [prebuilt containers](guides/prebuilt_containers.md).
-3. Via a deployment service [such as Railway](guides/deploying/deploying_railway.md).
-4. [Behind JupyterHub](faq.md#faq-jupyter-hub).
+1. With [ssh-port forwarding](../../faq.md#faq-remote), using `marimo edit --headless`.
+2. Via docker and our [prebuilt containers](../../guides/prebuilt_containers.md).
+3. Via a deployment service [such as Railway](deploying_railway.md).
+4. [Behind JupyterHub](../../faq.md#faq-jupyter-hub).
 
 ## Deploying as read-only apps
 

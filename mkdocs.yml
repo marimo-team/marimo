@@ -1,5 +1,7 @@
 edit_uri: edit/main/docs/
+copyright: '© marimo 2024'
 extra:
+  generator: false
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/marimo-team/marimo
@@ -25,6 +27,7 @@ markdown_extensions:
   - def_list
   - footnotes
   - md_in_html
+  - meta
   - toc:
       permalink: true
   - pymdownx.arithmatex:
@@ -56,7 +59,7 @@ markdown_extensions:
   - blocks:MarimoBlocksExtension
 nav:
   - Getting Started:
-      - Home: index.md
+      - Getting Started: index.md
       - Overview: getting_started/index.md
       - Installation: getting_started/installation.md
       - Quick Start: getting_started/quickstart.md
@@ -103,7 +106,7 @@ nav:
           - AI Completion: guides/editor_features/ai_completion.md
           - Hotkeys: guides/editor_features/hotkeys.md
           - Package Management: guides/editor_features/package_management.md
-      - Integrating with Marimo:
+      - Integrating with marimo:
           - Overview: guides/integrating_with_marimo/index.md
           - Custom UI Plugins: guides/integrating_with_marimo/custom_ui_plugins.md
           - Displaying Objects: guides/integrating_with_marimo/displaying_objects.md
@@ -187,7 +190,6 @@ nav:
       - Contributing: https://github.com/marimo-team/marimo/blob/main/CONTRIBUTING.md
       - Code of Conduct: https://github.com/marimo-team/marimo/blob/main/CODE_OF_CONDUCT.md
   - Development:
-      - Migration Plan: plan.md
       - Miscellaneous: api/miscellaneous.md
       - Editor Features:
           - Overview: guides/editor_features/overview.md
@@ -198,6 +200,14 @@ nav:
       - Island Example: guides/island_example.md
 plugins:
   - search
+  - social:
+      cards_layout_options:
+        background_color: '#FFFFFF'
+        color: '#000000'
+        font_family: Roboto
+  - tags
+  - redirects:
+      redirect_maps: {}
   - mkdocstrings:
       handlers:
         python:
@@ -207,22 +217,28 @@ plugins:
             - url: https://docs.python.org/3/objects.inv
               domains: [py, std]
           options:
-            allow_inspection: true
-            docstring_section_style: spacy
-            docstring_style: google
-            heading_level: 2
-            inherited_members: true
-            members: true
-            merge_init_into_class: true
-            show_bases: true
-            show_if_no_docstring: true
-            show_root_heading: true
-            show_root_members: true
-            show_source: false
-            show_submodules: true
-            find_stubs_package: true
             filters:
               - '!^_'
+            # General
+            allow_inspection: false
+            show_bases: true
+            show_source: false
+            find_stubs_package: true
+            # Headings
+            heading_level: 2
+            show_root_heading: true
+            # Members
+            inherited_members: false
+            # Docstrings
+            merge_init_into_class: true
+            show_if_no_docstring: true
+            docstring_section_style: table
+            docstring_style: google
+            # Signatures
+            annotations_path: brief
+            line_length: 60
+            modernize_annotations: true
+            show_signature_annotations: true
   - autorefs
 repo_name: marimo-team/marimo
 repo_url: https://github.com/marimo-team/marimo
@@ -232,34 +248,43 @@ site_url: https://docs.marimo.io
 theme:
   favicon: _static/favicon-32x32.png
   features:
-    - content.code.copy
-    - navigation.sections
-    - navigation.tabs
-    - search.highlight
+    - announce.dismiss # dismissible announcements
+    - content.code.copy # add copy button to code blocks
+    - header.autohide # auto-hide header on scroll
+    - navigation.indexes # section index pages
+    - navigation.instant # faster page loads
+    - navigation.sections # group docs into sections
+    - navigation.tabs # show navigation as tabs
+    - navigation.top # back to top button
+    - navigation.tracking # updates URL as you scroll
+    - search.highlight # highlight search results
+    - search.share # shareable search links
+    - search.suggest # search suggestions
+    - toc.follow # auto-scroll TOC
   font:
     code:
       - Roboto Mono
     text:
       - Inter
       - Roboto
-  logo: _static/marimo-logotype-thick.svg
+  logo: _static/marimo-logotype-horizontal.png
   name: material
   palette:
     - media: (prefers-color-scheme)
       toggle:
-        icon: material/link
+        icon: material/brightness-7
         name: Switch to light mode
-    - accent: indigo
-      media: '(prefers-color-scheme: light)'
-      primary: indigo
+    - media: '(prefers-color-scheme: light)'
+      primary: white
+      accent: teal
       scheme: default
       toggle:
-        icon: material/toggle-switch
+        icon: material/brightness-4
         name: Switch to dark mode
-    - accent: indigo
-      media: '(prefers-color-scheme: dark)'
+    - media: '(prefers-color-scheme: dark)'
       primary: black
+      accent: teal
       scheme: slate
       toggle:
-        icon: material/toggle-switch-off
+        icon: material/brightness-7
         name: Switch to system preference

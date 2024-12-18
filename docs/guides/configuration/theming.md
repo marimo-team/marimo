@@ -45,7 +45,7 @@ Here is an example of a custom CSS file that changes the font of the notebook:
 
 You can further customize your notebook by adding custom HTML in the `<head>` section of your notebook. This allows you to add additional functionality to your notebook, such as analytics, custom fonts, meta tags, or external scripts.
 
-See the [Custom HTML Head](guides/configuration/html_head.md) guide for more details.
+See the [Custom HTML Head](html_head.md) guide for more details.
 
 ## Community Themes
 

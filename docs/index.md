@@ -170,7 +170,7 @@ marimo tutorial --help
 
 ## Questions?
 
-See our [FAQ](/faq.md).
+See our [FAQ](faq.md).
 
 ## Learn more
 
@@ -180,7 +180,7 @@ For example, here's an embedding visualizer made in marimo
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/embedding.gif" width="700px" />
 
-Check out our [guides](/guides/index.md), our [example
+Check out our [guides](guides/index.md), our [example
 gallery](https://marimo.io/gallery), and our
 [`examples/`](https://github.com/marimo-team/marimo/tree/main/examples) on
 GitHub to learn more.
@@ -188,38 +188,38 @@ GitHub to learn more.
 <table border="0">
   <tr>
     <td>
-      <a target="_blank" href="/getting_started/key_concepts.md">
-        <img src="/_static/reactive.gif" style="max-height: 150px; width: auto; display: block" />
+      <a target="_blank" href="getting_started/key_concepts.md">
+        <img src="_static/reactive.gif" style="max-height: 150px; width: auto; display: block" />
       </a>
     </td>
     <td>
-      <a target="_blank" href="/api/inputs/index.md">
+      <a target="_blank" href="api/inputs/index.md">
         <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-ui.gif" style="max-height: 150px; width: auto; display: block" />
       </a>
     </td>
     <td>
-      <a target="_blank" href="/guides/working_with_data/plotting.md">
+      <a target="_blank" href="guides/working_with_data/plotting.md">
         <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/docs-intro.gif" style="max-height: 150px; width: auto; display: block" />
       </a>
     </td>
     <td>
-      <a target="_blank" href="/api/layouts/index.md">
+      <a target="_blank" href="api/layouts/index.md">
         <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/outputs.gif" style="max-height: 150px; width: auto; display: block" />
       </a>
     </td>
   </tr>
   <tr>
     <td>
-      <a target="_blank" href="/getting_started/key_concepts.md"> Tutorial </a>
+      <a target="_blank" href="getting_started/key_concepts.md"> Tutorial </a>
     </td>
     <td>
-      <a target="_blank" href="/api/inputs/index.md"> Inputs </a>
+      <a target="_blank" href="api/inputs/index.md"> Inputs </a>
     </td>
     <td>
-      <a target="_blank" href="/guides/working_with_data/plotting.md"> Plots </a>
+      <a target="_blank" href="guides/working_with_data/plotting.md"> Plots </a>
     </td>
     <td>
-      <a target="_blank" href="/api/layouts/index.md"> Layout </a>
+      <a target="_blank" href="api/layouts/index.md"> Layout </a>
     </td>
   </tr>
   <tr>
@@ -228,7 +228,6 @@ GitHub to learn more.
         <img src="https://marimo.io/shield.svg"/>
       </a>
     </td>
-    <td>
       <a target="_blank" href="https://marimo.app/l/0ue871">
         <img src="https://marimo.io/shield.svg"/>
       </a>

@@ -1,7 +1,8 @@
 # State
 
 !!! warning "Advanced topic!"
-This API doc covers reactive state (`mo.state`), an advanced topic.
+
+    This API doc covers reactive state (`mo.state`), an advanced topic.
 
     **You likely don't need reactive state**. UI elements already have built-in
     state, their associated value, which you can access with their `value` attribute.

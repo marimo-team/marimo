@@ -29,7 +29,7 @@ help you adapt to marimo's execution model.**
 
 ### Configure marimo's runtime
 
-[Configure marimo's runtime](../guides/configuration/runtime_configuration.md) to
+[Configure marimo's runtime](../configuration/runtime_configuration.md) to
 not autorun on startup or on cell execution.
 
 Even when autorun is disabled, marimo still tracks dependencies across cells,
@@ -38,7 +38,7 @@ button to run all your stale cells and bring your notebook back up-to-date.
 
 ### Stop execution with `mo.stop`
 
-Use [`mo.stop`](#marimo.stop) to stop a cell from executing if a condition
+Use [`mo.stop`](../../api/control_flow.md#marimo.stop) to stop a cell from executing if a condition
 is met:
 
 ```python
@@ -48,8 +48,8 @@ mo.stop(condition)
 expensive_function_call()
 ```
 
-Use [`mo.stop()`](#marimo.stop) in conjunction with
-[`mo.ui.run_button()`](#marimo.ui.run_button) to require a button press for
+Use [`mo.stop()`](../../api/control_flow.md#marimo.stop) in conjunction with
+[`mo.ui.run_button()`](../../api/inputs/run_button.md) to require a button press for
 expensive cells:
 
 /// marimo-embed
@@ -74,7 +74,7 @@ def __():
 ### Working with expensive notebooks
 
 For more tips on adapting to marimo's execution model, see our guide
-on [working with expensive notebooks](../guides/expensive_notebooks).
+on [working with expensive notebooks](expensive_notebooks.md).
 
 ## Adapting to marimo's restriction on redefining variables
 
@@ -128,12 +128,12 @@ augmented_df["another_column"] = [3, 4]
 ## Adapting to marimo's file format
 
 marimo stores notebooks as Python, not JSON. This lets you version notebooks
-with git, [execute them as scripts](../guides/scripts.md), and import named
+with git, [execute them as scripts](scripts.md), and import named
 cells into other Python files. However, it does mean that your notebook outputs
 (e.g., plots) are not stored in the file.
 
 If you'd like to keep a visual record of your notebook work, [enable
-the "Auto-download as HTML" setting](../guides/configuration), which will
+the "Auto-download as HTML" setting](configuration/index.md), which will
 periodically snapshot your notebook as HTML to a `__marimo__` folder in the
 notebook directory.
 
@@ -166,7 +166,7 @@ subprocess.run(["ls", "-l"])
 
 Use marimo's package management sidebar panel to install packages to your current
 environment. Learn more in our [package management
-guide](../guides/editor_features/package_management.md).
+guide](../editor_features/package_management.md).
 
 ## Interactive guide
 

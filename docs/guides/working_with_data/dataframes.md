@@ -51,7 +51,7 @@ df
 
 ///
 
-To opt out of the rich dataframe viewer, use [`mo.plain`](marimo.plain):
+To opt out of the rich dataframe viewer, use [`mo.plain`](../../api/outputs.md#marimo.plain):
 
 /// tab | pandas
 
@@ -79,7 +79,7 @@ mo.plain(df)
 
 ### No-code transformations
 
-Use [`mo.ui.dataframe`](../api/inputs/dataframe/) to interactively
+Use [`mo.ui.dataframe`](../../api/inputs/dataframe.md) to interactively
 transform a dataframe with a GUI, no coding required. When you're done, you
 can copy the code that the GUI generated for you and paste it into your
 notebook.
@@ -191,12 +191,12 @@ mo.ui.table(filtered_df)
 
 ///
 
-## Select dataframe rows
+## Select dataframe rows {#selecting-dataframes}
 
-Display dataframes as interactive, [selectable charts](../guides/working_with_data/plotting) using
-[`mo.ui.altair_chart`](marimo.ui.altair_chart) or
-[`mo.ui.plotly`](marimo.ui.plotly), or as a row-selectable table with
-(`mo.ui.table`)(marimo.ui.table). Select points in the chart, or select a table
+Display dataframes as interactive, [selectable charts](plotting.md) using
+[`mo.ui.altair_chart`](../../api/plotting.md#marimo.ui.altair_chart) or
+[`mo.ui.plotly`](../../api/plotting.md#marimo.ui.plotly), or as a row-selectable table with
+[`mo.ui.table`](../../api/inputs/table.md). Select points in the chart, or select a table
 row, and your selection is _automatically sent to Python as a subset of the original
 dataframe_.
 

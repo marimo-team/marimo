@@ -46,7 +46,7 @@ on IPython/Jupyter. Here's a comparison to help you transition smoothly.
 
 | Jupytext | marimo |
 |----------|--------|
-| Use Jupyter to edit notebooks interactively, or Papermill to execute notebooks from the command line. | In addition to running notebooks interactively (`marimo notebook.py`), you can run notebooks as scripts (`python notebook.py`) or as apps (`marimo run notebook.py`), passing values to them with marimo's built-in support for [CLI args](../api/cli_args.md). |
+| Use Jupyter to edit notebooks interactively, or Papermill to execute notebooks from the command line. | In addition to running notebooks interactively (`marimo notebook.py`), you can run notebooks as scripts (`python notebook.py`) or as apps (`marimo run notebook.py`), passing values to them with marimo's built-in support for [CLI args](../../api/cli_args.md). |
 
 ## Version Control
 
