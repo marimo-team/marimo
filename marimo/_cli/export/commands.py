@@ -412,7 +412,7 @@ def html_wasm(
 
     echo(
         "To run the exported notebook, use:\n"
-        f"  cd {output} && python -m http.server\n"
+        f"  python -m http.server --directory {output}\n"
         "Then open the URL that is printed to your terminal."
     )
 
