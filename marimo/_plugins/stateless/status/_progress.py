@@ -61,21 +61,23 @@ class _Progress(Html):
     ) -> None:
         """Update the progress indicator.
 
-        **Example.**
+        Examples:
+            Increment by 1:
+            ```python
+            # Increment by 1
+            progress.update()
+            ```
 
-        ```python
-        # Increment by 1
-        progress.update()
+            Increment by 10 and update title and subtitle:
+            ```python
+            # Increment by 10 and update title and subtitle
+            progress.update(10, title="Loading", subtitle="Still going...")
+            ```
 
-        # Increment by 10 and update title and subtitle
-        progress.update(10, title="Loading", subtitle="Still going...")
-        ```
-
-        **Args.**
-
-        - increment: amount to increment by. Defaults to 1.
-        - title: new title. Defaults to None.
-        - subtitle: new subtitle. Defaults to None.
+        Args:
+            increment (int, optional): Amount to increment by. Defaults to 1.
+            title (str, optional): New title. Defaults to None.
+            subtitle (str, optional): New subtitle. Defaults to None.
         """
         if self.closed:
             raise RuntimeError(
@@ -93,7 +95,7 @@ class _Progress(Html):
 
     @debounce(0.15)
     def debounced_flush(self) -> None:
-        """Flush the output to the UI"""
+        """Flush the output to the UI."""
         output.flush()
 
     def clear(self) -> None:
@@ -194,20 +196,23 @@ class Spinner(_Progress):
     def update(
         self, title: str | None = None, subtitle: str | None = None
     ) -> None:
-        """Update the title and subtitle of the spinner
+        """Update the title and subtitle of the spinner.
 
         This method updates a spinner output in-place. Must be used
         in the cell the spinner was created.
 
-        **Example.**
+        Examples:
+            ```python
+            with mo.status.spinner("Hang tight!") as _spinner:
+                ...
+                _spinner.update(title="Almost done!")
+            # Optionally, remove the spinner from the output
+            # _spinner.clear()
+            ```
 
-        ```python
-        with mo.status.spinner("Hang tight!") as _spinner:
-            ...
-            _spinner.update(title="Almost done!")
-        # Optionally, remove the spinner from the output
-        # _spinner.clear()
-        ```
+        Args:
+            title (str, optional): New title. Defaults to None.
+            subtitle (str, optional): New subtitle. Defaults to None.
         """
         super().update_progress(increment=1, title=title, subtitle=subtitle)
 
@@ -382,23 +387,23 @@ def toast(
     description: str = "",
     kind: Optional[Literal["danger"]] = None,
 ) -> None:
-    """Show a toast notification
+    """Show a toast notification.
 
     Use `mo.status.toast()` to display a brief notification.
 
-    **Example.**
+    Examples:
+        ```python
+        mo.status.toast(
+            "Operation completed",
+            "Your task has finished successfully",
+        )
+        ```
 
-    ```python
-    mo.status.toast(
-        "Operation completed",
-        "Your task has finished successfully",
-    )
-    ```
-
-    **Args:**
-
-    - `title`: The main message of the toast
-    - `description`: Optional additional details (can include HTML)
-    - `kind`: Optional kind, use "danger" for error toasts
+    Args:
+        title (str): The main message of the toast.
+        description (str, optional): Optional additional details (can include HTML).
+            Defaults to "".
+        kind (Literal["danger"], optional): Optional kind, use "danger" for error toasts.
+            Defaults to None.
     """
     Alert(title=title, description=description, variant=kind).broadcast()
