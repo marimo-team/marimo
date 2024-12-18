@@ -28,7 +28,7 @@ a larger class of plots for selections.
 ### Altair
 
 /// marimo-embed
-    size: large
+    size: xlarge
 
 ```python
 @app.cell
@@ -215,7 +215,7 @@ conda install -c conda-forge "vegafusion-python-embed>=1.4.0" "vegafusion>=1.4.0
     selection, consider using [`mo.ui.altair_chart`][marimo.ui.altair_chart].
 
 /// marimo-embed
-    size: large
+    size: xlarge
 
 ```python
 @app.cell(hide_code=True)

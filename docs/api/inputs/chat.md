@@ -5,7 +5,7 @@
     GitHub](https://github.com/marimo-team/marimo/tree/main/examples/ai/chat).
 
 /// marimo-embed
-    size: large
+    size: xlarge
 
 ```python
 @app.cell

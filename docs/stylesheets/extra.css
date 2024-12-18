@@ -77,3 +77,8 @@ iframe.demo.xlarge {
 iframe.demo.xxlarge {
   height: 1200px;
 }
+
+img {
+  border: 1px solid #ebebeb;
+  border-radius: 5px;
+}
