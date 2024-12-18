@@ -125,11 +125,11 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
 
         ```python
         table = mo.ui.table(
-          data=[
-            {'first_name': 'Michael', 'last_name': 'Scott'},
-            {'first_name': 'Dwight', 'last_name': 'Schrute'}
-          ],
-          label='Users'
+            data=[
+                {"first_name": "Michael", "last_name": "Scott"},
+                {"first_name": "Dwight", "last_name": "Schrute"},
+            ],
+            label="Users",
         )
         ```
 
