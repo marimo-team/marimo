@@ -8,9 +8,8 @@ from marimo._output.rich_help import mddoc
 def center(item: object) -> Html:
     """Center an item.
 
-    **Returns.**
-
-    A centered `Html` object.
+    Returns:
+        A centered `Html` object.
     """
     return as_html(item).center()
 
@@ -19,9 +18,8 @@ def center(item: object) -> Html:
 def left(item: object) -> Html:
     """Left-justify an item.
 
-    **Returns.**
-
-    A left-justified `Html` object.
+    Returns:
+        A left-justified `Html` object.
     """
     return as_html(item).left()
 
@@ -30,8 +28,7 @@ def left(item: object) -> Html:
 def right(item: object) -> Html:
     """Right-justify an item.
 
-    **Returns.**
-
-    A right-justified `Html` object.
+    Returns:
+        A right-justified `Html` object.
     """
     return as_html(item).right()
