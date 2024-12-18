@@ -1,3 +1,4 @@
+
 # Building custom UI elements
 
 Build custom UI plugins that hook into marimo's reactive
@@ -86,9 +87,4 @@ widget.count
 
 ---
 
-```{eval-rst}
-.. autoclass:: marimo.ui.anywidget
-  :members:
-
-  .. autoclasstoc:: marimo._plugins.ui._impl.from_anywidget.anywidget
-```
+::: marimo.ui.anywidget

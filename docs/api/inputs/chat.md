@@ -1,39 +1,33 @@
 # Chat
 
-```{admonition} Looking for example notebooks?
-:class: tip
+!!! tip "Looking for example notebooks?"
+    For example notebooks, check out [`examples/ai/chat` on our
+    GitHub](https://github.com/marimo-team/marimo/tree/main/examples/ai/chat).
 
-For example notebooks, check out [`examples/ai/chat` on our
-GitHub](https://github.com/marimo-team/marimo/tree/main/examples/ai/chat).
+/// marimo-embed
+    size: large
+
+```python
+@app.cell
+def __():
+    def simple_echo_model(messages, config):
+        return f"You said: {messages[-1].content}"
+
+    mo.ui.chat(
+        simple_echo_model,
+        prompts=["Hello", "How are you?"],
+        show_configuration_controls=True
+    )
+    return
 ```
 
-```{eval-rst}
-.. marimo-embed::
-    :size: large
-
-    @app.cell
-    def __():
-        def simple_echo_model(messages, config):
-            return f"You said: {messages[-1].content}"
-
-        mo.ui.chat(
-            simple_echo_model,
-            prompts=["Hello", "How are you?"],
-            show_configuration_controls=True
-        )
-        return
-```
+///
 
 The chat UI element provides an interactive chatbot interface for
 conversations. It can be customized with different models, including built-in
 AI models from popular providers or custom functions.
 
-```{eval-rst}
-.. autoclass:: marimo.ui.chat
-  :members:
-
-  .. autoclasstoc:: marimo._plugins.ui._impl.chat.chat.chat
-```
+::: marimo.ui.chat
 
 ## Basic Usage
 
@@ -83,12 +77,7 @@ chat.value
 This returns a list of [`ChatMessage`](#marimo.ai.ChatMessage) objects, each
 containing `role`, `content`, and optional `attachments` attributes.
 
-```{eval-rst}
-.. autoclass:: ChatMessage
-  :members:
-
-  .. autoclasstoc:: marimo._ai.types.types.ChatMessage
-```
+::: marimo.ai.ChatMessage
 
 ## Custom Model with Additional Context
 
@@ -163,12 +152,7 @@ mo.ui.chat(
 )
 ```
 
-```{eval-rst}
-.. autoclass:: marimo.ai.llm.openai
-  :members:
-
-  .. autoclasstoc:: marimo._ai.llm.openai
-```
+::: marimo.ai.llm.openai
 
 ### Anthropic
 
@@ -185,12 +169,7 @@ mo.ui.chat(
 )
 ```
 
-```{eval-rst}
-.. autoclass:: marimo.ai.llm.anthropic
-  :members:
-
-  .. autoclasstoc:: marimo._ai.llm.anthropic
-```
+::: marimo.ai.llm.anthropic
 
 ### Google AI
 
@@ -205,14 +184,10 @@ mo.ui.chat(
     ),
     show_configuration_controls=True
 )
+
 ```
 
-```{eval-rst}
-.. autoclass:: marimo.ai.llm.google
-  :members:
-
-  .. autoclasstoc:: marimo._ai.llm.google
-```
+::: marimo.ai.llm.google
 
 ### Groq
 
@@ -229,12 +204,7 @@ mo.ui.chat(
 )
 ```
 
-```{eval-rst}
-.. autoclass:: marimo.ai.llm.groq
-  :members:
-
-  .. autoclasstoc:: marimo._ai.llm.groq
-```
+::: marimo.ai.llm.groq
 
 ## Types
 
@@ -242,22 +212,16 @@ Chatbots can be implemented with a function that receives a list of
 [`ChatMessage`](#marimo.ai.ChatMessage) objects and a
 [`ChatModelConfig`](#marimo.ai.ChatModelConfig).
 
-```{eval-rst}
-.. autoclass:: marimo.ai.ChatMessage
-```
+::: marimo.ai.ChatMessage
 
-```{eval-rst}
-.. autoclass:: marimo.ai.ChatModelConfig
-```
+::: marimo.ai.ChatModelConfig
 
 [`mo.ui.chat`](#marimo.ui.chat) can be instantiated with an initial
 configuration with a dictionary conforming to the config.
 
 `ChatMessage`s can also include attachments.
 
-```{eval-rst}
-.. autoclass:: marimo.ai.ChatAttachment
-```
+::: marimo.ai.ChatAttachment
 
 ## Supported Model Providers
 
@@ -265,51 +229,51 @@ We support any OpenAI-compatible endpoint. If you want any specific provider add
 
 Normally, overriding the `base_url` parameter should work. Here are some examples:
 
-::::{tab-set}
-:::{tab-item} Cerebras
+/// tab | Cerebras
 
 ```python
 chatbot = mo.ui.chat(
-   mo.ai.llm.openai(
-       model="llama3.1-8b",
-       api_key="csk-...", # insert your key here
-       base_url="https://api.cerebras.ai/v1/",
-   ),
+    mo.ai.llm.openai(
+        model="llama3.1-8b",
+        api_key="csk-...", # insert your key here
+        base_url="https://api.cerebras.ai/v1/",
+    ),
 )
 chatbot
 ```
 
-:::
-:::{tab-item} Groq
+///
+
+/// tab | Groq
 
 ```python
 chatbot = mo.ui.chat(
-   mo.ai.llm.openai(
-       model="llama-3.1-70b-versatile",
-       api_key="gsk_...", # insert your key here
-       base_url="https://api.groq.com/openai/v1/",
-   ),
+    mo.ai.llm.openai(
+        model="llama-3.1-70b-versatile",
+        api_key="gsk_...", # insert your key here
+        base_url="https://api.groq.com/openai/v1/",
+    ),
 )
 chatbot
 ```
 
-:::
-:::{tab-item} xAI
+///
+
+/// tab | xAI
 
 ```python
 chatbot = mo.ui.chat(
-   mo.ai.llm.openai(
-       model="grok-beta",
-       api_key=key, # insert your key here
-       base_url="https://api.x.ai/v1",
-   ),
+    mo.ai.llm.openai(
+        model="grok-beta",
+        api_key=key, # insert your key here
+        base_url="https://api.x.ai/v1",
+    ),
 )
 chatbot
 ```
 
-:::
-::::
+///
 
-```{note}
-We have added examples for GROQ and Cerebras. These providers offer free API keys and are great for trying out Llama models (from Meta). You can sign up on their platforms and integrate with various AI integrations in marimo easily. For more information, refer to the [AI completion documentation in marimo](/guides/editor_features/ai_completion).
-```
+!!! note
+
+    We have added examples for GROQ and Cerebras. These providers offer free API keys and are great for trying out Llama models (from Meta). You can sign up on their platforms and integrate with various AI integrations in marimo easily. For more information, refer to the [AI completion documentation in marimo](../guides/editor_features/ai_completion).

@@ -16,11 +16,9 @@ _Get started with Copilot_:
 1. Install [Node.js](https://nodejs.org/en/download).
 2. Enable Copilot via the settings menu in the marimo editor.
 
-```{admonition} Installation Requirement
-:class: note
+!!! note "Installation Requirement"
    Copilot is not yet available in our conda distribution; please install
    marimo using ``pip`` if you need Copilot.
-```
 
 ## Codeium Copilot
 
@@ -88,12 +86,14 @@ You can customize how the AI assistant behaves by adding rules in the marimo set
 </div>
 
 For example, you can add rules about:
+
 - Preferred plotting libraries (matplotlib, plotly, altair)
 - Data handling practices
 - Code style conventions
 - Error handling preferences
 
 Example custom rules:
+
 ```
 Use plotly for interactive visualizations and matplotlib for static plots
 Prefer polars over pandas for data manipulation due to better performance
@@ -113,10 +113,12 @@ For plotting:
 ```
 
 To locate your configuration file, run:
+
 ```bash
 marimo config show
 ```
-At the top, the path to your `marimo.toml` file will be shown. You can Ctrl/Cmd+click the path to open it in your editor. For more information about configuration, see the [Configuration Guide](/guides/configuration/index).
+
+At the top, the path to your `marimo.toml` file will be shown. You can Ctrl/Cmd+click the path to open it in your editor. For more information about configuration, see the [Configuration Guide](../guides/configuration/index).
 
 Below we describe how to connect marimo to your AI provider. Once enabled, you can generate entirely new cells by clicking the "Generate with AI" button at the bottom of your notebook. You can also refactor existing cells by inputting `Ctrl/Cmd-Shift-e` in a cell, opening an input to modify the cell using AI.
 
@@ -185,25 +187,30 @@ Ollama allows you to run open-source LLMs on your local machine. To integrate Ol
 
 1. Download and install [Ollama](https://ollama.com/).
 2. Download the model you want to use:
+
    ```bash
    # View available models at https://ollama.com/library
    ollama pull llama3.1
    ollama pull codellama  # recommended for code generation
-   
+
    # View your installed models
    ollama ls
    ```
+
 3. Start the Ollama server in a terminal:
+
    ```bash
    ollama serve
    # In a new terminal
    ollama run codellama  # or any model from ollama ls
    ```
-4. Visit http://127.0.0.1:11434 to confirm that the server is running.
+
+4. Visit <http://127.0.0.1:11434> to confirm that the server is running.
 
    > **Note**: If you get a "port already in use" error, you may need to close an existing Ollama instance. On Windows, click the up arrow in the taskbar, find the Ollama icon, and select "Quit". This is a known issue (see [Ollama Issue #3575](https://github.com/ollama/ollama/issues/3575)). Once you've closed the existing Ollama instance, you should be able to run `ollama serve` successfully.
 
 5. Open a new terminal and start marimo:
+
    ```bash
    marimo edit notebook.py
    ```

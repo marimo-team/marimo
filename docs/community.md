@@ -1,8 +1,15 @@
 # Community
 
-```{eval-rst}
-.. readmepart:: Community
-```
+We're building a community. Come hang out with us!
+
+- 🌟 [Star us on GitHub](https://github.com/marimo-team/marimo)
+- 💬 [Chat with us on Discord](https://marimo.io/discord?ref=readme)
+- 📧 [Subscribe to our Newsletter](https://marimo.io/newsletter)
+- ☁️ [Join our Cloud Waitlist](https://marimo.io/cloud)
+- ✏️ [Start a GitHub Discussion](https://github.com/marimo-team/marimo/discussions)
+- 🦋 [Follow us on Bluesky](https://bsky.app/profile/marimo.io)
+- 🐦 [Follow us on Twitter](https://twitter.com/marimo_io)
+- 🕴️ [Follow us on LinkedIn](https://www.linkedin.com/company/marimo-io)
 
 ## Shields
 

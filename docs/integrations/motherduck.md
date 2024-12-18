@@ -6,29 +6,27 @@
 
 To use MotherDuck as a data source, you'll need to install the `marimo[sql]` Python package.
 
-::::{tab-set}
-:::{tab-item} install with pip
+/// tab | install with pip
 
 ```bash
 pip install "marimo[sql]"
 ```
 
-:::
-:::{tab-item} install with uv
+///
+
+/// tab | install with uv
 
 ```bash
 uv pip install "marimo[sql]"
 ```
 
-:::
-:::{tab-item} install with conda
+///
+
+/// tab | install with conda
 
 ```bash
 conda install -c conda-forge marimo duckdb polars
 ```
-
-:::
-::::
 
 To connect to MotherDuck, import `duckdb` and `ATTACH` your MotherDuck database.
 

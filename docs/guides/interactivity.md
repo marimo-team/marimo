@@ -2,7 +2,7 @@
 
 One of marimo's most powerful features is its first-class support for
 interactive, stateful user interface (UI) elements, or "widgets": create them using
-[`marimo.ui`](/api/inputs/index/). **Interacting with a UI element bound to a
+[`marimo.ui`](../api/inputs/index/). **Interacting with a UI element bound to a
 global variable automatically runs all cells that reference it.**
 
 <div align="center">
@@ -18,12 +18,9 @@ Every UI element you make using `marimo.ui` has a value, accessible via its
 variable, its value is sent back to Python. A single rule determines what
 happens next:
 
-```{admonition} Interaction rule
-:class: important
-
-When a UI element assigned to a global variable is interacted with, marimo
-automatically runs all cells that reference the variable (but don't define it).
-```
+!!! important "Interaction rule"
+    When a UI element assigned to a global variable is interacted with, marimo
+    automatically runs all cells that reference the variable (but don't define it).
 
 In the clip at the top of this page, interacting with the slider in the
 second cell re-runs the third cell (which outputs markdown) because it
@@ -42,7 +39,6 @@ in [markdown](#marimo.md) using Python f-strings, like so:
 ```python3
 slider = mo.ui.slider(1, 10)
 mo.md(f"Choose a value: {slider})")
-```
 
 ## Composite elements
 
@@ -88,4 +84,4 @@ value on form submission.
 
 You can build your own reactive and interactive UI elements using
 [anywidget](https://github.com/manzt/anywidget)! See [our docs on
-building custom UI elements](/guides/integrating_with_marimo/custom_ui_plugins.md) to learn more.
+building custom UI elements](../guides/integrating_with_marimo/custom_ui_plugins.md) to learn more.

@@ -1,6 +1,6 @@
 # Troubleshooting
 
-This guide covers common issues and unexpected behaviors you might encounter when using marimo notebooks, along with ways to debug and resolve them. If your issue isn't covered here, try checking our [FAQ](/guides/faq.md).
+This guide covers common issues and unexpected behaviors you might encounter when using marimo notebooks, along with ways to debug and resolve them. If your issue isn't covered here, try checking our [FAQ](../faq.md).
 
 ## Why aren't my cells running?
 
@@ -12,7 +12,7 @@ marimo doesn't track mutations to objects. If you're modifying an object in one 
 
 Instead of mutating objects across cells, try creating new objects or performing all mutations within the same cell.
 
-[Read more about reactivity](/guides/reactivity.md).
+[Read more about reactivity](../guides/reactivity.md).
 
 ### Verify cell connections
 

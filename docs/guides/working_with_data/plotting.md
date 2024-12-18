@@ -5,66 +5,64 @@ Plotly, Altair, and HoloViews. Just import your plotting library of choice and
 use it as you normally would.
 
 For Altair and Plotly plots, marimo does something special: use
-[`mo.ui.altair_chart`](../api/plotting.md#marimo.ui.altair_chart) or
-[`mo.ui.plotly`](../api/plotting.md#marimo.ui.plotly) to connect frontend
+[`mo.ui.altair_chart`](../../api/plotting.md#marimo.ui.altair_chart) or
+[`mo.ui.plotly`](../../api/plotting.md#marimo.ui.plotly) to connect frontend
 selections to Python!
 
-```{admonition} Reactive plots!
-:class: important
+!!! important "Reactive plots!"
 
-marimo supports reactive plots via
-[`mo.ui.altair_chart`](../api/plotting.md#marimo.ui.altair_chart) and
-[`mo.ui.plotly`](../api/plotting.md#marimo.ui.plotly)! Select and
-filter with your mouse, and marimo _automatically makes the selected data
-available in Python as a Pandas dataframe_!
-```
+    marimo supports reactive plots via
+    [`mo.ui.altair_chart`](../../api/plotting.md#marimo.ui.altair_chart) and
+    [`mo.ui.plotly`](../../api/plotting.md#marimo.ui.plotly)! Select and
+    filter with your mouse, and marimo _automatically makes the selected data
+    available in Python as a Pandas dataframe_!
 
 ## Reactive plots! ⚡
 
-```{admonition} Requirements
-:class: warning
+!!! warning "Requirements"
 Reactive plots currently require Altair or Plotly. Install with `pip install
 altair` or `pip install plotly`, depending on which library you are using.
 Selections in plotly are limited to scatter plots, treemaps charts, and sunbursts charts, while Altair supports
 a larger class of plots for selections.
-```
 
 ### Altair
 
-```{eval-rst}
-.. marimo-embed::
-    :size: large
+/// marimo-embed
+    size: large
 
-    @app.cell
-    async def __():
-        import pandas as pd
-        import pyodide
-        import micropip
-        import json
-        await micropip.install('altair')
-        import altair as alt
-        return
+```python
+@app.cell
+async def __():
+    import pandas as pd
+    import pyodide
+    import micropip
+    import json
+    await micropip.install('altair')
+    import altair as alt
+    return
 
-    @app.cell
-    def __():
-        cars = pd.DataFrame(json.loads(
-          pyodide.http.open_url('https://vega.github.io/vega-datasets/data/cars.json').read()
-        ))
+@app.cell
+def __():
+    cars = pd.DataFrame(json.loads(
+      pyodide.http.open_url('https://vega.github.io/vega-datasets/data/cars.json').read()
+    ))
 
-        chart = mo.ui.altair_chart(alt.Chart(cars).mark_point().encode(
-            x='Horsepower',
-            y='Miles_per_Gallon',
-            color='Origin'
-        ))
-        return
+    chart = mo.ui.altair_chart(alt.Chart(cars).mark_point().encode(
+        x='Horsepower',
+        y='Miles_per_Gallon',
+        color='Origin'
+    ))
+    return
 
-    @app.cell
-    def __():
-        mo.vstack([chart, mo.ui.table(chart.value)])
-        return
+@app.cell
+def __():
+    mo.vstack([chart, mo.ui.table(chart.value)])
+    return
 ```
 
-Use [`mo.ui.altair_chart`](../api/plotting.md#marimo.ui.altair_chart) to easily
+///
+
+Use [`mo.ui.altair_chart`](../../api/plotting.md#marimo.ui.altair_chart) to easily
 create interactive, selectable plots: _selections you make on the frontend are
 automatically made available as Pandas dataframes in Python._
 
@@ -74,7 +72,7 @@ automatically made available as Pandas dataframes in Python._
 </figure>
 </div>
 
-Wrap an Altair chart in [`mo.ui.altair_chart`](../api/plotting.md#marimo.ui.altair_chart)
+Wrap an Altair chart in [`mo.ui.altair_chart`](../../api/plotting.md#marimo.ui.altair_chart)
 to make it **reactive**: select data on the frontend, access it via the chart's
 `value` attribute (`chart.value`).
 
@@ -143,12 +141,9 @@ for marimo's reactive charting capabilities.
 
 ##### Concepts
 
-```{admonition} Learn by doing? Skip this section!
-:class: warning
-
-This section summarizes the main concepts used by Altair (and Vega-Lite).
-Feel free to skip this section and return later.
-```
+!!! warning "Learn by doing? Skip this section!"
+    This section summarizes the main concepts used by Altair (and Vega-Lite).
+    Feel free to skip this section and return later.
 
 Our choice to use the Vega-Lite specification was driven by its robust data
 model, which is well-suited for data analysis. Some key concepts are summarized
@@ -183,21 +178,20 @@ encoding, marimo will add a legend and a click selection.
 
 #### Automatic Selections
 
-By default [`mo.ui.altair_chart`](../api/plotting.md#marimo.ui.altair_chart)
+By default [`mo.ui.altair_chart`](../../api/plotting.md#marimo.ui.altair_chart)
 will make the chart and legend selectable. Depending on the mark type, the
 chart will either have a `point` or `interval` ("brush") selection. When using
 non-positional encodings (color, size, etc),
-[`mo.ui.altair_chart`](../api/plotting.md#marimo.ui.altair_chart) will also
+[`mo.ui.altair_chart`](../../api/plotting.md#marimo.ui.altair_chart) will also
 make the legend selectable.
 
 Selection configurable through `*_selection` params in
-[`mo.ui.altair_chart`](../api/plotting.md#marimo.ui.altair_chart). See the [API
-docs](../api/plotting.md#marimo.ui.altair_chart) for details.
+[`mo.ui.altair_chart`](../../api/plotting.md#marimo.ui.altair_chart). See the [API
+docs](../../api/plotting.md#marimo.ui.altair_chart) for details.
 
-```{admonition} Note
-You may still add your own selection parameters via Altair or Vega-Lite.
-marimo will not override your selections.
-```
+!!! note
+    You may still add your own selection parameters via Altair or Vega-Lite.
+    marimo will not override your selections.
 
 #### Altair transformations
 
@@ -214,48 +208,46 @@ conda install -c conda-forge "vegafusion-python-embed>=1.4.0" "vegafusion>=1.4.0
 
 ### Plotly
 
-```{admonition} mo.ui.plotly only supports scatter plots, treemaps charts, and sunbursts charts
-:class: warning
+!!! warning "mo.ui.plotly only supports scatter plots, treemaps charts, and sunbursts charts"
 
-marimo can render any Plotly plot, but [`mo.ui.plotly`](#marimo.ui.plotly) only
-supports reactive selections for scatter plots, treemaps charts, and sunbursts charts. If you require other kinds of
-selection, consider using [`mo.ui.altair_chart`](#marimo.ui.altair_chart).
+    marimo can render any Plotly plot, but [`mo.ui.plotly`](../../api/plotting.md#marimo.ui.plotly) only
+    supports reactive selections for scatter plots, treemaps charts, and sunbursts charts. If you require other kinds of
+    selection, consider using [`mo.ui.altair_chart`](../../api/plotting.md#marimo.ui.altair_chart).
+
+/// marimo-embed
+    size: large
+
+```python
+@app.cell(hide_code=True)
+async def __():
+    import micropip
+    await micropip.install("pandas")
+    await micropip.install("plotly")
+    import plotly.express as px
+    return micropip, px
+
+
+@app.cell
+def __(px):
+    plot = mo.ui.plotly(
+      px.scatter(x=[0, 1, 4, 9, 16], y=[0, 1, 2, 3, 4], width=600, height=300)
+    )
+    plot
+    return plot
+
+
+@app.cell
+def __(plot):
+    plot.value
+    return
 ```
 
-```{eval-rst}
-.. marimo-embed::
-    :size: large
+///
 
-    @app.cell(hide_code=True)
-    async def __():
-        import micropip
-        await micropip.install("pandas")
-        await micropip.install("plotly")
-        import plotly.express as px
-        return micropip, px
-
-
-    @app.cell
-    def __(px):
-        plot = mo.ui.plotly(
-          px.scatter(x=[0, 1, 4, 9, 16], y=[0, 1, 2, 3, 4], width=600, height=300)
-        )
-        plot
-        return plot
-
-
-    @app.cell
-    def __(plot):
-        plot.value
-        return
-```
-
-Use [`mo.ui.plotly`](../api/plotting.md#marimo.ui.plotly) to create
+Use [`mo.ui.plotly`](../../api/plotting.md#marimo.ui.plotly) to create
 selectable Plotly plots whose values are sent back to Python on selection.
 
-```{eval-rst}
-.. autofunction:: marimo.ui.plotly
-```
+::: marimo.ui.plotly
 
 ## matplotlib
 
@@ -283,5 +275,5 @@ If you want to output the plot in the console area, use `plt.show()` or
 ### Interactive plots
 
 To make matplotlib plots interactive, use
-[mo.mpl.interactive](/api/plotting.md#marimo.mpl.interactive).
+[mo.mpl.interactive](../../api/plotting.md#marimo.mpl.interactive).
 (Matplotlib plots are not yet reactive.)

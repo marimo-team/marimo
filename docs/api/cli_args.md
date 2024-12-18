@@ -23,13 +23,8 @@ python notebook.py -- --arg1 10.5 --arg2 hello --arg2 world
 In each example, `python` can be replaced as `marimo run` (for running as
 an app) or `marimo edit` (for running as a notebook).
 
-```{eval-rst}
-.. autofunction:: marimo.cli_args
-```
+::: marimo.cli_args
 
-```{admonition} Query Parameters
-:class: note
-
-You can also access query parameters passed to the notebook using
-`mo.query_params`. This allows you to pass arguments to the notebook that can be controlled by the user.
-```
+!!! note "Query Parameters"
+    You can also access query parameters passed to the notebook using
+    `mo.query_params`. This allows you to pass arguments to the notebook that can be controlled by the user.

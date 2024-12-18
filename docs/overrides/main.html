@@ -1,0 +1,15 @@
+{% extends "base.html" %} {% block announce %}
+<!-- Add your announcement here -->
+<span class="twemoji"> {% include ".icons/material/new-box.svg" %} </span>
+<strong>New:</strong> Check out our latest features in the <a href="/latest">documentation</a>! {% endblock %} {% block
+extrahead %} {{ super() }}
+<!-- Add any custom head elements here -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Marimo Documentation" />
+<meta
+  property="og:title"
+  content="{% if page.meta and page.meta.title %}{{ page.meta.title }}{% elif page.title %}{{ page.title }}{% else %}{{ config.site_name }}{% endif %}"
+/>
+{% endblock %} {% block scripts %} {{ super() }}
+<!-- Add any custom scripts here -->
+{% endblock %}

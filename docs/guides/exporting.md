@@ -41,12 +41,10 @@ marimo export html notebook.py -o notebook.html --watch
 When you export from the command line, marimo runs your notebook to produce
 its visual outputs before saving as HTML.
 
-```{admonition} Note
-:class: note
+!!! note "Note"
 
 If any cells error during the export process, the status code will be non-zero. However, the export result may still be generated, with the error included in the output.
 Errors can be ignored by appending `|| true` to the command, e.g. `marimo export html notebook.py || true`.
-```
 
 ## Export to a Python script
 
@@ -57,13 +55,11 @@ their dependency graph.
 marimo export script notebook.py -o notebook.script.py
 ```
 
-```{admonition} Top-level await not supported
-:class: warning
+!!! warning "Top-level await not supported"
 
 Exporting to a flat Python script does not support top-level await. If you have
 top-level await in your notebook, you can still execute the notebook as a
 script with `python notebook.py`.
-```
 
 ## Export to markdown
 
@@ -151,12 +147,10 @@ Options:
 - `--output`: Directory to save the HTML and required assets
 - `--show-code/--no-show-code`: Whether to initially show or hide the code in the notebook
 
-```{admonition} Note
-:class: note
+!!! note "Note"
 
 The exported file must be served over HTTP to function correctly - it cannot be opened directly from the filesystem (file://).
 Your server must also serve the assets in the `assets` directory, next to the HTML file. For this reason, we recommend using the online playground if possible: <https://marimo.app>.
-```
 
 ### Testing the export
 
@@ -209,12 +203,10 @@ jobs:
 
 ## 🏝️ Embed marimo outputs in HTML using Islands
 
-```{admonition} Preview
-:class: note
+!!! note "Preview"
 
 Islands are an early feature. While the API likely won't change, there are some improvements we'd like to make before we consider them stable.
 Please let us know on [GitHub](https://github.com/marimo-team/marimo/issues) if you run into any issues or have any feedback!
-```
 
 marimo islands are a way to embed marimo outputs and/or python code in your HTML that will become interactive when the page is loaded. This is useful for creating interactive blog posts, tutorials, and educational materials, all powered by marimo's reactive runtime.
 
@@ -222,17 +214,15 @@ Check out an [example island-powered document](./island_example.md).
 
 ### Islands in action
 
-```{admonition} Advanced topic!
-:class: warning
+!!! warning "Advanced topic!"
 
 Islands are an advanced concept that is meant to be a building block for creating integrations with existing tools such as static site generators or documentation tools.
-```
 
 In order to use marimo islands, you need to import the necessary JS/CSS headers in your HTML file, and use our custom HTML tags to define the islands.
 
 ```html
 <head>
-  <!-- marimo js/ccs -->
+  <!-- marimo js/ccs --
   <script type="module" src="https://cdn.jsdelivr.net/npm/@marimo-team/islands@<version>/dist/main.js"></script>
   <link
     href="https://cdn.jsdelivr.net/npm/@marimo-team/islands@<version>/dist/style.css"
@@ -270,9 +260,4 @@ In order to use marimo islands, you need to import the necessary JS/CSS headers 
 
 While you can generate the HTML code for islands yourself, it it recommend to use our `MarimoIslandGenerator` class to generate the HTML code for you.
 
-```{eval-rst}
-.. autoclass:: marimo.MarimoIslandGenerator
-  :members:
-
-  .. autoclasstoc::
-```
+::: marimo.MarimoIslandGenerator

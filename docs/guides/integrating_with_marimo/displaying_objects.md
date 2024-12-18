@@ -2,7 +2,7 @@
 
 marimo has built-in rich representations of many objects, including native
 Python objects like lists and dicts as well as marimo objects like [UI
-elements](/guides/interactivity.md) and libraries, including matplotlib,
+elements](../interactivity.md) and libraries, including matplotlib,
 seaborn, Plotly, altair pandas, and more. These rich representations are
 displayed for the last expression of a cell, or when using
 [`mo.output.append`](#marimo.output.append).
@@ -27,7 +27,7 @@ to visualize the object as an output.
 
 For example:
 
-```
+```python
 class Dice:
     def _display_(self):
         import random
@@ -84,17 +84,17 @@ a tuple of two strings, the [mime type](https://developer.mozilla.org/en-US/docs
 
 **Examples.**
 
-```{eval-rst}
-.. marimo-embed::
-  :size: medium
-  :mode: edit
+/// marimo-embed
+    size: medium
+    mode: edit
 
-  @app.cell(hide_code=True)
-  def __():
+```python
+@app.cell(hide_code=True)
+def __():
     mo.md("**JSON**")
 
-  @app.cell
-  def __():
+@app.cell
+def __():
     import json
 
     class MyJSONObject(object):
@@ -106,12 +106,12 @@ a tuple of two strings, the [mime type](https://developer.mozilla.org/en-US/docs
 
     MyJSONObject({"hello": "world"})
 
-  @app.cell(hide_code=True)
-  def __():
+@app.cell(hide_code=True)
+def __():
     mo.md("**HTML**")
 
-  @app.cell
-  def __():
+@app.cell
+def __():
     class Colorize(object):
         def __init__(self, text: str) -> None:
             self.text = text
@@ -124,12 +124,12 @@ a tuple of two strings, the [mime type](https://developer.mozilla.org/en-US/docs
 
     Colorize("Hello!")
 
-  @app.cell(hide_code=True)
-  def __():
+@app.cell(hide_code=True)
+def __():
     mo.md("**Image**")
 
-  @app.cell
-  def __():
+@app.cell
+def __():
     class Image(object):
         def __init__(self, url: str) -> None:
             self.url = url
@@ -139,6 +139,8 @@ a tuple of two strings, the [mime type](https://developer.mozilla.org/en-US/docs
 
     Image("https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/marimo-logotype-thick.svg")
 ```
+
+///
 
 ## Option 4: Add a formatter to the marimo repo
 

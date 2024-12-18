@@ -30,7 +30,7 @@ In addition, marimo is much more performant than streamlit.
     - marimo's structure allows for more fine-grained reactivity.
     - Unlike streamlit files, marimo files can be executed as Python scripts from the
       command-line, and can be imported and used as a module by other Python
-      programs. For example, other programs can [reuse cells](#marimo.Cell.run) from
+      programs. For example, other programs can [reuse cells](../../api/cell.md#marimo.Cell.run) from
       a marimo notebook.
 
 4. **UI Elements**:
@@ -47,7 +47,7 @@ you reuse widgets that were originally developed for the Jupyter ecosystem,
 
 5. **Built-in Editor**:
 
-- marimo includes a [built-in editor](/guides/editor_features/index.md) for notebooks, designed specifically
+- marimo includes a [built-in editor](../editor_features/index.md) for notebooks, designed specifically
 for working with data.
 - Streamlit relies on external editors.
 - Both approaches have their pros and cons.
@@ -56,7 +56,7 @@ for working with data.
 
 - marimo's notebook environment allows for iterative and interactive
   development and exploration, letting it serve as your daily driver for
-  working with data. marimo even has native support for [SQL](/guides/working_with_data/sql.md).
+  working with data. marimo even has native support for [SQL](../working_with_data/sql.md).
 - Streamlit is exclusively used for building standalone data apps.
 
 ## Common Streamlit Features in marimo

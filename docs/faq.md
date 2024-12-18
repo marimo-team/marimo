@@ -331,15 +331,15 @@ Use [`mo.show_code`](/api/outputs.md#marimo.show_code).
 
 ### How do I create an output with a dynamic number of UI elements?
 
-Use [`mo.ui.array`](/api/inputs/array.md#marimo.ui.array),
-[`mo.ui.dictionary`](/api/inputs/dictionary.md#marimo.ui.dictionary), or
-[`mo.ui.batch`](/api/inputs/batch.md#marimo.ui.batch) to create a UI element
+Use [`mo.ui.array`](api/inputs/array.md#marimo.ui.array),
+[`mo.ui.dictionary`](api/inputs/dictionary.md#marimo.ui.dictionary), or
+[`mo.ui.batch`](api/inputs/batch.md#marimo.ui.batch) to create a UI element
 that wraps a dynamic number of other UI elements.
 
 If you need custom
-formatting, use [`mo.ui.batch`](/api/inputs/batch.md#marimo.ui.batch), otherwise
-use [`mo.ui.array`](/api/inputs/array.md#marimo.ui.array) or
-[`mo.ui.dictionary`](/api/inputs/dictionary.md#marimo.ui.dictionary).
+formatting, use [`mo.ui.batch`](api/inputs/batch.md#marimo.ui.batch), otherwise
+use [`mo.ui.array`](api/inputs/array.md#marimo.ui.array) or
+[`mo.ui.dictionary`](api/inputs/dictionary.md#marimo.ui.dictionary).
 
 For usage examples, see the
 [recipes for grouping UI elements together](/recipes.md#grouping-ui-elements-together).
@@ -375,9 +375,9 @@ mo.vstack([mo.ui.button(on_change=lambda _: print("I was called")) for _ in rang
 
 In such cases (when you want to output a dynamic number of UI elements),
 you need to use
-[`mo.ui.array`](/api/inputs/array.md#marimo.ui.array),
-[`mo.ui.dictionary`](/api/inputs/dictionary.md#marimo.ui.dictionary), or
-[`mo.ui.batch`](/api/inputs/batch.md#marimo.ui.batch).
+[`mo.ui.array`](api/inputs/array.md#marimo.ui.array),
+[`mo.ui.dictionary`](api/inputs/dictionary.md#marimo.ui.dictionary), or
+[`mo.ui.batch`](api/inputs/batch.md#marimo.ui.batch).
 
 See the
 [recipes for grouping UI elements together](/recipes.md#grouping-ui-elements-together)
@@ -412,10 +412,10 @@ This is necessary because [in Python, closures are late-binding](https://docs.py
 
 Our "SQL" cells are really just Python under the hood to keep notebooks as pure Python scripts. By default, we use `f-strings` for SQL strings, which allows for parameterized SQL like `SELECT * from table where value < {min}`.
 
-To escape real `{`/`}` that you don't want parameterized, use double `{{...}}`:
+To escape real `{` / `}` that you don't want parameterized, use double `\{\{...\}\}`:
 
 ```sql
-SELECT unnest([{{'a': 42, 'b': 84}}, {{'a': 100, 'b': NULL}}]);
+SELECT unnest([\{\{'a': 42, 'b': 84\}\}, \{\{'a': 100, 'b': NULL\}\}]);
 ```
 
 <a name="faq-annotations"></a>
