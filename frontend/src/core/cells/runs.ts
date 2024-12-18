@@ -31,8 +31,8 @@ function initialState(): RunsState {
   };
 }
 
-const MAX_RUNS = 100;
-const MAX_CODE_LENGTH = 200;
+export const MAX_RUNS = 20;
+export const MAX_CODE_LENGTH = 200;
 
 const {
   reducer,
@@ -41,9 +41,9 @@ const {
   useActions: useRunsActions,
 } = createReducerAndAtoms(initialState, {
   addCellOperation: (
-    state,
+    state: RunsState,
     opts: { cellOperation: CellMessage; code: string },
-  ) => {
+  ): RunsState => {
     const { cellOperation, code } = opts;
     const runId = cellOperation.run_id as RunId | undefined;
     if (!runId) {
@@ -70,7 +70,6 @@ const {
       }
     }
 
-    // TODO: is this ideal?
     const erroredOutput =
       cellOperation.output &&
       (cellOperation.output.channel === "marimo-error" ||
@@ -144,12 +143,12 @@ const {
       runMap: nextRunMap,
     };
   },
-  clearRuns: (state) => ({
+  clearRuns: (state: RunsState): RunsState => ({
     ...state,
     runIds: [],
     runMap: new Map(),
   }),
-  removeRun: (state, runId: RunId) => {
+  removeRun: (state: RunsState, runId: RunId): RunsState => {
     const nextRunIds = state.runIds.filter((id) => id !== runId);
     const nextRunMap = new Map(state.runMap);
     nextRunMap.delete(runId);
