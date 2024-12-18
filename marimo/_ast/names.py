@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 DEFAULT_CELL_NAME = "_"
 
 
