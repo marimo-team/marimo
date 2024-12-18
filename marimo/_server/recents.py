@@ -48,17 +48,24 @@ class RecentFilesManager:
                 RecentFilesState, fallback=RecentFilesState()
             )
         except Exception as e:
-            LOGGER.error(
-                "Failed to read recents notebooks at %s", self.LOCATION
-            )
+            LOGGER.error("Failed to read recent notebook at %s", self.LOCATION)
             LOGGER.error(str(e))
-            return
+            # On error we overwrite the corrupted recents file; nothing
+            # of significance is lost
+            state = RecentFilesState()
 
         if filename in state.files:
             state.files.remove(filename)
         state.files.insert(0, filename)
         state.files = state.files[: self.MAX_FILES]
-        self.config.write_toml(state)
+
+        try:
+            self.config.write_toml(state)
+        except Exception as e:
+            LOGGER.error(
+                "Failed to write recent notebook at %s", self.LOCATION
+            )
+            LOGGER.error(str(e))
 
     def rename(self, old_filename: str, new_filename: str) -> None:
         if not self.config:
