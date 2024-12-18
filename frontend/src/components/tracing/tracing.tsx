@@ -115,13 +115,11 @@ const TraceBlock: React.FC<{
   chartPosition: ChartPosition;
 }> = ({ run, chartPosition }) => {
   const [collapsed, setCollapsed] = useState(false);
+  const [hoveredCellId, setHoveredCellId] = useState<CellId | null>();
 
   // To send signals to Vega from React, we bind a hidden input element
-  const [hoveredCellId, setHoveredCellId] = useState<CellId | null>();
   const hiddenInputRef = useRef<HTMLInputElement>(null);
-
-  const hoverOnCell = (cellId: CellId | null) => {
-    setHoveredCellId(cellId);
+  const dispatchHoverEvent = (cellId: CellId | null) => {
     // dispatch input event to trigger vega's param to update
     if (hiddenInputRef.current) {
       hiddenInputRef.current.value = String(cellId);
@@ -186,7 +184,7 @@ const TraceBlock: React.FC<{
           key={cellRun.cellId}
           cellRun={cellRun}
           hovered={cellRun.cellId === hoveredCellId}
-          hoverOnCell={hoverOnCell}
+          dispatchHoverEvent={dispatchHoverEvent}
         />
       ))}
     </div>
@@ -233,13 +231,13 @@ const TraceBlock: React.FC<{
 interface TraceRowProps {
   cellRun: CellRun;
   hovered: boolean;
-  hoverOnCell: (cellId: CellId | null) => void;
+  dispatchHoverEvent: (cellId: CellId | null) => void;
 }
 
 const TraceRow: React.FC<TraceRowProps> = ({
   cellRun,
   hovered,
-  hoverOnCell,
+  dispatchHoverEvent,
 }: TraceRowProps) => {
   const elapsedTimeStr = cellRun.elapsedTime
     ? formatElapsedTime(cellRun.elapsedTime * 1000)
@@ -254,17 +252,17 @@ const TraceRow: React.FC<TraceRowProps> = ({
   );
 
   const handleMouseEnter = () => {
-    hoverOnCell(cellRun.cellId);
+    dispatchHoverEvent(cellRun.cellId);
   };
 
   const handleMouseLeave = () => {
-    hoverOnCell(null);
+    dispatchHoverEvent(null);
   };
 
   return (
     <div
       className={cn(
-        "flex flex-row gap-2 py-1 px-1 opacity-70",
+        "flex flex-row gap-2 py-1 px-1 opacity-70 hover:bg-[var(--gray-3)] hover:opacity-100",
         hovered && "bg-[var(--gray-3)] opacity-100",
       )}
       onMouseEnter={handleMouseEnter}
