@@ -1,7 +1,7 @@
 # Navigation Menu
 
 /// marimo-embed
-    size: xlarge
+    size: large
 
 ```python
 @app.cell

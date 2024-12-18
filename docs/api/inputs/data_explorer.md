@@ -8,7 +8,7 @@ The data explorer UI element outputs a visual editor explore your data via plott
     You can install it with `pip install pandas`.
 
 /// marimo-embed
-    size: xlarge
+    size: large
     app_width: full
 
 ```python

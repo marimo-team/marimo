@@ -9,7 +9,7 @@ For more information about plotting, see the [plotting guide](../guides/working_
 ## Reactive charts with Altair
 
 /// marimo-embed
-    size: xlarge
+    size: large
 
 ```python
 @app.cell
