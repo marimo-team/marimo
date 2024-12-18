@@ -255,6 +255,28 @@ class TestDefaultTable(unittest.TestCase):
         ]
         assert formatted_manager == expected_data
 
+    def test_apply_formatting_with_none_values(self) -> None:
+        data = [
+            {"name": "Alice", "score": None, "grade": "A"},
+            {"name": "Bob", "score": 85, "grade": None},
+            {"name": "Charlie", "score": None, "grade": None},
+        ]
+        manager = DefaultTableManager(data)
+
+        format_mapping = {
+            "name": lambda x: x.upper(),
+            "score": lambda x: "No Score" if x is None else f"{x}%",
+            "grade": lambda x: "Pending" if x is None else x,
+        }
+
+        formatted_manager = manager.apply_formatting(format_mapping).data
+        expected_data = [
+            {"name": "ALICE", "score": "No Score", "grade": "A"},
+            {"name": "BOB", "score": "85%", "grade": "Pending"},
+            {"name": "CHARLIE", "score": "No Score", "grade": "Pending"},
+        ]
+        assert formatted_manager == expected_data
+
 
 class TestColumnarDefaultTable(unittest.TestCase):
     def setUp(self) -> None:
@@ -489,6 +511,28 @@ class TestColumnarDefaultTable(unittest.TestCase):
         }
         assert formatted_manager == expected_data
 
+    def test_apply_formatting_with_none_values(self) -> None:
+        data_with_none = {
+            "name": ["Alice", None, "Charlie"],
+            "age": [30, 25, None],
+            "score": [None, 85.5, 90.0],
+        }
+        manager = DefaultTableManager(data_with_none)
+
+        format_mapping = {
+            "name": lambda x: "UNKNOWN" if x is None else x.upper(),
+            "age": lambda x: "N/A" if x is None else f"Age: {x}",
+            "score": lambda x: "Missing" if x is None else f"{x:.1f}%",
+        }
+
+        formatted_manager = manager.apply_formatting(format_mapping).data
+        expected_data = {
+            "name": ["ALICE", "UNKNOWN", "CHARLIE"],
+            "age": ["Age: 30", "Age: 25", "N/A"],
+            "score": ["Missing", "85.5%", "90.0%"],
+        }
+        assert formatted_manager == expected_data
+
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"
     )
@@ -592,6 +636,40 @@ class TestDictionaryDefaultTable(unittest.TestCase):
             {"invalid_column": lambda x: x * 2}
         )
         assert formatted_manager.data == self.manager.data
+
+    def test_apply_formatting_with_none_values(self) -> None:
+        manager = DefaultTableManager(
+            {
+                "a": None,
+                "b": 2,
+                "c": None,
+            }
+        )
+
+        # Test raw dictionary formatting
+        assert manager.apply_formatting(
+            {"value": lambda x: "N/A" if x is None else x * 2}
+        ).data == {
+            "a": None,
+            "b": 2,
+            "c": None,
+        }
+
+        # Test converted to rows formatting
+        formatted_data = (
+            DefaultTableManager(manager.to_data())
+            .apply_formatting(
+                {"value": lambda x: "N/A" if x is None else x * 2}
+            )
+            .data
+        )
+
+        expected_data = [
+            {"key": "a", "value": "N/A"},
+            {"key": "b", "value": 4},
+            {"key": "c", "value": "N/A"},
+        ]
+        assert formatted_data == expected_data
 
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"

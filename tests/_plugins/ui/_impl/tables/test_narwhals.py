@@ -648,6 +648,50 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
         )
         assert_frame_equal(formatted_data, expected_data)
 
+    def test_apply_formatting_with_none_values(self) -> None:
+        import polars as pl
+
+        # Create test data with None values in different types of columns
+        data = pl.DataFrame(
+            {
+                "strings": ["a", None, "c"],
+                "integers": [1, None, 3],
+                "floats": [1.5, None, 3.5],
+                "booleans": [True, None, False],
+                "dates": [
+                    datetime.date(2021, 1, 1),
+                    None,
+                    datetime.date(2021, 1, 3),
+                ],
+                "lists": [[1, 2], None, [5, 6]],
+            }
+        )
+        manager = NarwhalsTableManager.from_dataframe(data)
+
+        format_mapping: FormatMapping = {
+            "strings": lambda x: "MISSING" if x is None else x.upper(),
+            "integers": lambda x: -100 if x is None else x * 2,
+            "floats": lambda x: "---" if x is None else f"{x:.1f}",
+            "booleans": lambda x: "MISSING" if x is None else str(x).upper(),
+            "dates": lambda x: "No Date"
+            if x is None
+            else x.strftime("%Y-%m-%d"),
+            "lists": lambda x: "Empty" if x is None else f"List({len(x)})",
+        }
+
+        formatted_data = manager.apply_formatting(format_mapping).data
+        expected_data = pl.DataFrame(
+            {
+                "strings": ["A", "MISSING", "C"],
+                "integers": [2, -100, 6],
+                "floats": ["1.5", "---", "3.5"],
+                "booleans": ["TRUE", "MISSING", "FALSE"],
+                "dates": ["2021-01-01", "No Date", "2021-01-03"],
+                "lists": ["List(2)", "Empty", "List(2)"],
+            }
+        )
+        assert_frame_equal(formatted_data, expected_data)
+
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(

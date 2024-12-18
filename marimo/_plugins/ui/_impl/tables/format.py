@@ -14,16 +14,21 @@ def format_value(
     # Return None if the format mapping is None
     if format_mapping is None:
         return value
-    # Return None if the value is None
-    if value is None:
-        return None
-    # Apply formatting logic based on column and value
+
     if col in format_mapping:
         formatter = format_mapping[col]
-        if isinstance(formatter, str):
-            return formatter.format(value)
-        if callable(formatter):
-            return formatter(value)
+        try:
+            if isinstance(formatter, str):
+                return formatter.format(value)
+            if callable(formatter):
+                return formatter(value)
+        except Exception as e:
+            import logging
+
+            logging.warning(
+                f"Error formatting for value {value} in column {col}: {str(e)}"
+            )
+            return value
     return value
 
 
