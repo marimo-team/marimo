@@ -8,7 +8,12 @@ from marimo._config.manager import get_default_config_manager
 from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
-from marimo._server.sessions import LspServer, Session, SessionManager
+from marimo._server.sessions import (
+    KernelManager,
+    LspServer,
+    Session,
+    SessionManager,
+)
 
 
 @pytest.fixture
@@ -22,6 +27,8 @@ def mock_session_consumer():
 def mock_session():
     session = Mock(spec=Session)
     session.connection_state.return_value = ConnectionState.OPEN
+    session.kernel_manager = Mock(spec=KernelManager)
+    session.kernel_manager.kernel_task = None
     return session
 
 
@@ -81,7 +88,8 @@ async def test_create_session_absolute_url(
 
 
 def test_maybe_resume_session_for_new_file(
-    session_manager: SessionManager, mock_session: Session
+    session_manager: SessionManager,
+    mock_session: Session,
 ) -> None:
     session_id = "test_session_id"
     mock_session.connection_state.return_value = ConnectionState.ORPHANED
