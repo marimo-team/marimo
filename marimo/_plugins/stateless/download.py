@@ -27,33 +27,30 @@ def download(
     """
     Show a download button for a url, bytes, or file-like object.
 
-    **Examples.**
+    Args:
+        data: The data to download. Can be a string (interpreted as
+            a URL), bytes, or a file opened in binary mode.
+        filename: The name of the file to download.
+            If not provided, the name will be guessed from the data.
+        mimetype: The mimetype of the file to download, for example,
+            (e.g. "text/csv", "image/png"). If not provided,
+            the mimetype will be guessed from the filename.
 
-    ```python
-    download_txt = mo.download(
-        data="Hello, world!".encode("utf-8"),
-        filename="hello.txt",
-        mimetype="text/plain",
-    )
+    Returns:
+        An `Html` object for a download button.
 
-    download_image = mo.download(
-        data=open("hello.png", "rb"),
-    )
-    ```
+    Example:
+        ```python
+        download_txt = mo.download(
+            data="Hello, world!".encode("utf-8"),
+            filename="hello.txt",
+            mimetype="text/plain",
+        )
 
-    **Args.**
-
-    - `data`: The data to download. Can be a string (interpreted as
-        a URL), bytes, or a file opened in binary mode.
-    - `filename`: The name of the file to download.
-        If not provided, the name will be guessed from the data.
-    - `mimetype`: The mimetype of the file to download, for example,
-        (e.g. "text/csv", "image/png"). If not provided,
-        the mimetype will be guessed from the filename.
-
-    **Returns.**
-
-    An `Html` object for a download button.
+        download_image = mo.download(
+            data=open("hello.png", "rb"),
+        )
+        ```
     """
 
     # Convert to bytes right away since can only be read once

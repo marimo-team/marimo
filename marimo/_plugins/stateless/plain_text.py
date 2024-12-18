@@ -11,13 +11,11 @@ from marimo._output.utils import create_style
 def plain_text(text: str) -> Html:
     """Text that's fixed-width, with spaces and newlines preserved.
 
-    **Args.**
+    Args:
+        text: text to output
 
-    - `text`: text to output
-
-    **Returns.**
-
-    An `Html` object representing the text.
+    Returns:
+        An `Html` object representing the text.
     """
     styles = create_style({"font-size": "12px"})
     img = h.pre(child=text, style=styles)

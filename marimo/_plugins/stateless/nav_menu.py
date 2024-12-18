@@ -16,54 +16,50 @@ def nav_menu(
     *,
     orientation: Literal["horizontal", "vertical"] = "horizontal",
 ) -> Html:
-    """
-    Navigation menu component.
+    """Navigation menu component.
 
     This is useful for creating a navigation menu with hyperlinks,
     most used when creating multi-page applications, with
     `marimo.create_asgi_app` ([docs](https://docs.marimo.io/guides/deploying/programmatically.html)).
 
-    **Examples.**
+    Args:
+        menu: a dictionary of tab names to tab content;
+            the content can also be nested dictionaries (one level deep)
+            strings are interpreted as markdown
 
-    ```python
-    nav_menu = mo.nav_menu(
-        {
-            "/overview": "Overview",
-            "/sales": f"{mo.icon('lucide:shopping-cart')} Sales",
-            "/products": f"{mo.icon('lucide:package')} Products",
-        }
-    )
-    ```
+    Returns:
+        An `Html` object.
 
-    # You can also nest dictionaries to create submenus
-    ```python
-    nav_menu = mo.nav_menu(
-        {
-            "/overview": "Overview",
-            "Sales": {
-                "/sales": "Overview",
-                "/sales/invoices": {
-                    "label": "Invoices",
-                    "description": "View invoices",
+    Example:
+        ```python
+        nav_menu = mo.nav_menu(
+            {
+                "/overview": "Overview",
+                "/sales": f"{mo.icon('lucide:shopping-cart')} Sales",
+                "/products": f"{mo.icon('lucide:package')} Products",
+            }
+        )
+        ```
+
+        # You can also nest dictionaries to create submenus
+        ```python
+        nav_menu = mo.nav_menu(
+            {
+                "/overview": "Overview",
+                "Sales": {
+                    "/sales": "Overview",
+                    "/sales/invoices": {
+                        "label": "Invoices",
+                        "description": "View invoices",
+                    },
+                    "/sales/customers": {
+                        "label": "Customers",
+                        "description": "View customers",
+                    },
                 },
-                "/sales/customers": {
-                    "label": "Customers",
-                    "description": "View customers",
-                },
-            },
-        }
-    )
-    ```
-
-    **Args.**
-
-    - `menu`: a dictionary of tab names to tab content;
-        the content can also be nested dictionaries (one level deep)
-        strings are interpreted as markdown
-
-    **Returns.**
-
-    - An `Html` object.
+            }
+        )
+        ```
     """
 
     menu_items = _build_and_validate_menu(menu)

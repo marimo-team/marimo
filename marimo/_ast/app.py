@@ -345,47 +345,45 @@ class App:
         The `embed` method lets you embed the output of a notebook
         into another notebook and access the values of its variables.
 
-        **Example.**
+        Returns:
+            An object `result` with two attributes: `result.output` (visual
+            output of the notebook) and `result.defs` (a dictionary mapping
+            variable names defined by the notebook to their values).
 
-        ```python
-        from my_notebook import app
-        ```
+        Example:
+            ```python
+            from my_notebook import app
+            ```
 
-        ```python
-        # execute the notebook; app.embed() can't be called in the cell
-        # that imported it!
-        result = await app.embed()
-        ```
+            ```python
+            # execute the notebook; app.embed() can't be called in the cell
+            # that imported it!
+            result = await app.embed()
+            ```
 
-        ```python
-        # view the notebook's visual output
-        result.output
-        ```
+            ```python
+            # view the notebook's visual output
+            result.output
+            ```
 
-        ```python
-        # access the notebook's defined variables
-        result.defs
-        ```
+            ```python
+            # access the notebook's defined variables
+            result.defs
+            ```
 
-        Running `await app.embed()` executes the notebook and results an object
-        encapsulating the notebook visual output and its definitions.
+            Running `await app.embed()` executes the notebook and results an object
+            encapsulating the notebook visual output and its definitions.
 
-        Embedded notebook outputs are interactive: when you interact with
-        UI elements in an embedded notebook's output, any cell referring
-        to the `app` object other than the one that imported it is marked for
-        execution, and its internal state is automatically updated. This lets
-        you use notebooks as building blocks or components to create
-        higher-level notebooks.
+            Embedded notebook outputs are interactive: when you interact with
+            UI elements in an embedded notebook's output, any cell referring
+            to the `app` object other than the one that imported it is marked for
+            execution, and its internal state is automatically updated. This lets
+            you use notebooks as building blocks or components to create
+            higher-level notebooks.
 
-        Multiple levels of nesting are supported: it's possible to embed a
-        notebook that in turn embeds another notebook, and marimo will do the
-        right thing.
-
-        **Returns.**
-
-        - An object `result` with two attributes: `result.output` (visual
-          output of the notebook) and `result.defs` (a dictionary mapping
-          variable names defined by the notebook to their values).
+            Multiple levels of nesting are supported: it's possible to embed a
+            notebook that in turn embeds another notebook, and marimo will do the
+            right thing.
         """
         from marimo._plugins.stateless.flex import vstack
         from marimo._runtime.context.utils import running_in_notebook

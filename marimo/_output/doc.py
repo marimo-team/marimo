@@ -15,14 +15,12 @@ def doc(obj: Any) -> Optional[Html]:
     If the object implements the `RichHelp` protocol, the documentation will be
     rendered as markdown.
 
-    **Args.**
+    Args:
+        obj: The object to get documentation about.
 
-    - `obj`: The object to get documentation about.
-
-    **Returns.**
-
-    - Documentation as an `Html` object if the object implements `RichHelp`;
-      otherwise, documentation is printed to console (and nothing is returned)
+    Returns:
+        Documentation as an `Html` object if the object implements `RichHelp`;
+        otherwise, documentation is printed to console (and nothing is returned)
     """
     if hasattr(obj, "_rich_help_"):
         msg = obj._rich_help_()

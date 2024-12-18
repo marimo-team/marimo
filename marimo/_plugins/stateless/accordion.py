@@ -13,38 +13,34 @@ from marimo._plugins.stateless.lazy import lazy as lazy_ui
 def accordion(
     items: dict[str, object], multiple: bool = False, lazy: bool = False
 ) -> Html:
-    """
-    Accordion of one or more items.
+    """Accordion of one or more items.
 
-    **Example.**
+    Args:
+        items: a dictionary of item names to item content; strings are
+            interpreted as markdown
+        multiple: whether to allow multiple items to be open simultaneously
+        lazy: a boolean, whether to lazily load the accordion content.
+            This is a convenience that wraps each accordion in a `mo.lazy`
+            component.
 
-    ```python3
-    mo.accordion(
-        {"Tip": "Use accordions to let users reveal and hide content."}
-    )
-    ```
+    Returns:
+        An `Html` object.
 
-    Accordion content can be lazily loaded:
+    Example:
+        ```python3
+        mo.accordion(
+            {"Tip": "Use accordions to let users reveal and hide content."}
+        )
+        ```
 
-    ```python3
-    mo.accordion({"View total": expensive_item}, lazy=True)
-    ```
+        Accordion content can be lazily loaded:
 
-    where `expensive_item` is the item to render, or a callable that
-    returns the item to render.
+        ```python3
+        mo.accordion({"View total": expensive_item}, lazy=True)
+        ```
 
-    **Args.**
-
-    - `items`: a dictionary of item names to item content; strings are
-      interpreted as markdown
-    - `multiple`: whether to allow multiple items to be open simultaneously
-    - `lazy`: a boolean, whether to lazily load the accordion content.
-              This is a convenience that wraps each accordion in a `mo.lazy`
-              component.
-
-    **Returns.**
-
-    - An `Html` object.
+        where `expensive_item` is the item to render, or a callable that
+        returns the item to render.
     """
 
     def render_content(tab: object) -> str:

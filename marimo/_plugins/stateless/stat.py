@@ -21,18 +21,16 @@ def stat(
 
     Optionally include a label, caption, and direction.
 
-    **Args.**
+    Args:
+        value: the value to display
+        label: the label to display
+        caption: the caption to display
+        direction: the direction of the statistic,
+            either `increase` or `decrease`
+        bordered: whether to display a border around the statistic
 
-    - `value`: the value to display
-    - `label`: the label to display
-    - `caption`: the caption to display
-    - `direction`: the direction of the statistic,
-        either `increase` or `decrease`
-    - `bordered`: whether to display a border around the statistic
-
-    **Returns.**
-
-    An `Html` object representing the statistic.
+    Returns:
+        An `Html` object representing the statistic.
     """
     return Html(
         build_stateless_plugin(

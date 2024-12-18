@@ -38,8 +38,7 @@ class MiddlewareFactory(Protocol):
 
 
 class ASGIAppBuilder(abc.ABC):
-    """
-    Class for building ASGI applications.
+    """Class for building ASGI applications.
 
     Methods:
         with_app(
@@ -336,89 +335,85 @@ def create_asgi_app(
     include_code: bool = False,
     token: Optional[str] = None,
 ) -> ASGIAppBuilder:
-    """
-    Public API to create an ASGI app that can serve multiple notebooks.
+    """Public API to create an ASGI app that can serve multiple notebooks.
     This only works for application that are in Run mode.
 
-    **Examples.**
+    Args:
+        quiet (bool, optional): Suppress standard out
+        include_code (bool, optional): Include notebook code in the app
+        token (str, optional): Auth token to use for the app.
+            If not provided, an empty token is used.
 
-    You can create an ASGI app, and serve the application with a
-    server like `uvicorn`:
+    Returns:
+        ASGIAppBuilder: A builder object to create multiple ASGI apps
 
-    ```python
-    import uvicorn
+    Example:
+        You can create an ASGI app, and serve the application with a
+        server like `uvicorn`:
 
-    builder = (
-        create_asgi_app()
-        .with_app(path="/app", root="app.py")
-        .with_app(path="/app2", root="app2.py")
-        .with_app(path="/", root="home.py")
-    )
-    app = builder.build()
+        ```python
+        import uvicorn
 
-    if __name__ == "__main__":
-        uvicorn.run(app, port=8000)
-    ```
+        builder = (
+            create_asgi_app()
+            .with_app(path="/app", root="app.py")
+            .with_app(path="/app2", root="app2.py")
+            .with_app(path="/", root="home.py")
+        )
+        app = builder.build()
 
-    Or you can further integrate it with a FastAPI app:
+        if __name__ == "__main__":
+            uvicorn.run(app, port=8000)
+        ```
 
-    ```python
-    import uvicorn
-    from fastapi import FastAPI
-    import my_middlewares
-    import my_routes
+        Or you can further integrate it with a FastAPI app:
 
-    app = FastAPI()
+        ```python
+        import uvicorn
+        from fastapi import FastAPI
+        import my_middlewares
+        import my_routes
 
-    builder = (
-        create_asgi_app()
-        .with_app(path="/app", root="app.py")
-        .with_app(path="/app2", root="app2.py")
-    )
+        app = FastAPI()
 
-    # Add middlewares
-    app.add_middleware(my_middlewares.auth_middleware)
+        builder = (
+            create_asgi_app()
+            .with_app(path="/app", root="app.py")
+            .with_app(path="/app2", root="app2.py")
+        )
 
-
-    # Add routes
-    @app.get("/login")
-    async def root():
-        pass
+        # Add middlewares
+        app.add_middleware(my_middlewares.auth_middleware)
 
 
-    # Add the marimo app
-    app.mount("/", builder.build())
+        # Add routes
+        @app.get("/login")
+        async def root():
+            pass
 
-    if __name__ == "__main__":
-        uvicorn.run(app, port=8000)
-    ```
 
-    You may also want to dynamically load notebooks from a directory. To do
-    this, use the `with_dynamic_directory` method. This is useful if the
-    contents of the directory change often without requiring a server restart.
+        # Add the marimo app
+        app.mount("/", builder.build())
 
-    ```python
-    import uvicorn
+        if __name__ == "__main__":
+            uvicorn.run(app, port=8000)
+        ```
 
-    builder = create_asgi_app().with_dynamic_directory(
-        path="/notebooks", directory="./notebooks"
-    )
-    app = builder.build()
+        You may also want to dynamically load notebooks from a directory. To do
+        this, use the `with_dynamic_directory` method. This is useful if the
+        contents of the directory change often without requiring a server restart.
 
-    if __name__ == "__main__":
-        uvicorn.run(app, port=8000)
-    ```
+        ```python
+        import uvicorn
 
-    **Args.**
+        builder = create_asgi_app().with_dynamic_directory(
+            path="/notebooks", directory="./notebooks"
+        )
+        app = builder.build()
 
-    - quiet (bool, optional): Suppress standard out
-    - include_code (bool, optional): Include notebook code in the app
-    - token (str, optional): Auth token to use for the app.
-        If not provided, an empty token is used.
-
-    **Returns.**
-
-    - ASGIAppBuilder: A builder object to create multiple ASGI apps
+        if __name__ == "__main__":
+            uvicorn.run(app, port=8000)
+        ```
     """
     from starlette.applications import Starlette
     from starlette.responses import RedirectResponse
