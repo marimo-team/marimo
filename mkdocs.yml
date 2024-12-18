@@ -31,6 +31,7 @@ markdown_extensions:
   - footnotes
   - md_in_html
   - meta
+  - sane_lists # lists separated by paragraphs
   - toc:
       permalink: true
   - pymdownx.arithmatex:

@@ -40,7 +40,7 @@ condition = True
 import marimo as mo
 ```
 
-1. Create a [`mo.ui.refresh`][marimo.ui.refresh] timer that fires once a second:
+2. Create a [`mo.ui.refresh`][marimo.ui.refresh] timer that fires once a second:
 
 ```python
 refresh = mo.ui.refresh(default_interval="1s")
@@ -156,7 +156,7 @@ by name (in this case, "`l`") will run automatically.
 import marimo as mo
 ```
 
-1. Use [`mo.ui.array`][marimo.ui.array] to group together
+2. Use [`mo.ui.array`][marimo.ui.array] to group together
    many UI elements into a list.
 
 ```python
@@ -219,6 +219,7 @@ import marimo as mo
 ```
 
 2. Group the elements with
+
 [`mo.ui.dictionary`][marimo.ui.dictionary] or
 [`mo.ui.array`][marimo.ui.array], then retrieve them from the container
 and display them elsewhere.
@@ -369,9 +370,8 @@ of the form sends all its elements to Python.
 import marimo as mo
 ```
 
-1. Use [`mo.ui.form`][marimo.ui.form] and
-[`Html.batch`][marimo.Html.batch] to create a form with
-multiple elements.
+2. Use [`mo.ui.form`][marimo.ui.form] and [`Html.batch`][marimo.Html.batch] to
+   create a form with multiple elements.
 
 ```python
 form = mo.md(

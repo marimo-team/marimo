@@ -142,8 +142,6 @@ transformed_df.value
 
 Create custom filters with marimo UI elements, like sliders and dropdowns.
 
-///
-
 /// tab | pandas
 
 ```python
@@ -206,8 +204,6 @@ dataframe_.
 <figcaption>Select rows in a table, get them back as a dataframe</figcaption>
 </figure>
 </div>
-
-///
 
 /// tab | pandas
 
