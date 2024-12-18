@@ -568,24 +568,21 @@ def _infer_dtype(
 
 @mddoc
 class checkbox(UIElement[bool, bool]):
-    """
-    A boolean checkbox.
+    """A boolean checkbox.
 
-    **Example.**
+    Examples:
+        ```python
+        checkbox = mo.ui.checkbox()
+        ```
 
-    ```python
-    checkbox = mo.ui.checkbox()
-    ```
+    Attributes:
+        value (bool): A boolean, True if checked.
 
-    **Attributes.**
-
-    - `value`: a boolean, `True` if checked
-
-    **Initialization Args.**
-
-    - `value`: default value, True or False
-    - `label`: markdown label for the element
-    - `on_change`: optional callback to run when this element's value changes
+    Args:
+        value (bool, optional): Default value, True or False. Defaults to False.
+        label (str, optional): Markdown label for the element. Defaults to "".
+        on_change (Callable[[bool], None], optional): Optional callback to run when
+            this element's value changes. Defaults to None.
     """
 
     _name: Final[str] = "marimo-checkbox"
@@ -611,43 +608,41 @@ class checkbox(UIElement[bool, bool]):
 
 @mddoc
 class radio(UIElement[Optional[str], Any]):
-    """
-    A radio group.
+    """A radio group.
 
-    **Example.**
+    Examples:
+        ```python
+        radiogroup = mo.ui.radio(
+            options=["a", "b", "c"], value="a", label="choose one"
+        )
+        ```
 
-    ```python
-    radiogroup = mo.ui.radio(
-        options=["a", "b", "c"], value="a", label="choose one"
-    )
-    ```
+        ```python
+        radiogroup = mo.ui.radio(
+            options={"one": 1, "two": 2, "three": 3},
+            value="one",
+            label="pick a number",
+        )
+        ```
 
-    ```python
-    radiogroup = mo.ui.radio(
-        options={"one": 1, "two": 2, "three": 3},
-        value="one",
-        label="pick a number",
-    )
-    ```
+        Or from a dataframe series:
+        ```python
+        radiogroup = mo.ui.radio.from_series(df["column_name"])
+        ```
 
-    Or from a dataframe series:
+    Attributes:
+        value (Any): The value of the selected radio option.
+        options (dict): A dict mapping option name to option value.
 
-    ```python
-    radiogroup = mo.ui.radio.from_series(df["column_name"])
-    ```
-
-    **Attributes.**
-
-    - `value`: the value of the selected radio option
-    - `options`: a dict mapping option name to option value
-
-    **Initialization Args.**
-
-    - `options`: sequence of text options, or dict mapping option name
-                 to option value
-    - `value`: default option name, if None, starts with nothing checked
-    - `label`: optional markdown label for the element
-    - `on_change`: optional callback to run when this element's value changes
+    Args:
+        options (Sequence[str] | dict[str, Any]): Sequence of text options, or dict
+            mapping option name to option value.
+        value (str, optional): Default option name, if None, starts with nothing
+            checked. Defaults to None.
+        inline (bool, optional): Whether to display options inline. Defaults to False.
+        label (str, optional): Optional markdown label for the element. Defaults to "".
+        on_change (Callable[[Any], None], optional): Optional callback to run when
+            this element's value changes. Defaults to None.
     """
 
     _name: Final[str] = "marimo-radio"
@@ -691,34 +686,32 @@ class radio(UIElement[Optional[str], Any]):
 
 @mddoc
 class text(UIElement[str, str]):
-    """
-    A text input.
+    """A text input.
 
-    **Example.**
+    Examples:
+        ```python
+        text = mo.ui.text(value="Hello, World!")
+        ```
 
-    ```python
-    text = mo.ui.text(value="Hello, World!")
-    ```
+    Attributes:
+        value (str): A string of the input's contents.
 
-    **Attributes.**
-
-    - `value`: a string of the input's contents
-
-    **Initialization Args.**
-
-    - `value`: default value of text box
-    - `placeholder`: placeholder text to display when the text area is empty
-    - `kind`: input kind, one of `"text"`, `"password"`, `"email"`, or `"url"`
-        defaults to `"text"`
-    - `max_length`: maximum length of input
-    - `disabled`: whether the input is disabled
-    - `debounce`: whether the input is debounced. If number, debounce by
-        that many milliseconds. If True, then value is only emitted on Enter
-        or when the input loses focus.
-    - `label`: markdown label for the element
-    - `on_change`: optional callback to run when this element's value changes
-    - `full_width`: whether the input should take up the full width of its
-        container
+    Args:
+        value (str, optional): Default value of text box. Defaults to "".
+        placeholder (str, optional): Placeholder text to display when the text area
+            is empty. Defaults to "".
+        kind (Literal["text", "password", "email", "url"], optional): Input kind.
+            Defaults to "text".
+        max_length (int, optional): Maximum length of input. Defaults to None.
+        disabled (bool, optional): Whether the input is disabled. Defaults to False.
+        debounce (bool | int, optional): Whether the input is debounced. If number,
+            debounce by that many milliseconds. If True, then value is only emitted
+            on Enter or when the input loses focus. Defaults to True.
+        label (str, optional): Markdown label for the element. Defaults to "".
+        on_change (Callable[[str], None], optional): Optional callback to run when
+            this element's value changes. Defaults to None.
+        full_width (bool, optional): Whether the input should take up the full width
+            of its container. Defaults to False.
     """
 
     _name: Final[str] = "marimo-text"
@@ -757,33 +750,31 @@ class text(UIElement[str, str]):
 
 @mddoc
 class text_area(UIElement[str, str]):
-    """
-    A text area that is larger than `ui.text`.
+    """A text area that is larger than `ui.text`.
 
-    **Example.**
+    Examples:
+        ```python
+        text_area = mo.ui.text_area()
+        ```
 
-    ```python
-    text_area = mo.ui.text_area()
-    ```
+    Attributes:
+        value (str): A string of the text area contents.
 
-    **Attributes.**
-
-    - `value`: a string of the text area contents
-
-    **Initialization Args.**
-
-    - `value`: initial value of the text area
-    - `placeholder`: placeholder text to display when the text area is empty
-    - `max_length`: maximum length of input
-    - `disabled`: whether the input is disabled
-    - `debounce`: whether the input is debounced. If number, debounce by that
-        many milliseconds. If True, then value is only emitted on Ctrl+Enter
-        or when the input loses focus.
-    - `rows`: number of rows of text to display
-    - `label`: markdown label for the element
-    - `on_change`: optional callback to run when this element's value changes
-    - `full_width`: whether the input should take up the full width of its
-        container
+    Args:
+        value (str, optional): Initial value of the text area. Defaults to "".
+        placeholder (str, optional): Placeholder text to display when the text area
+            is empty. Defaults to "".
+        max_length (int, optional): Maximum length of input. Defaults to None.
+        disabled (bool, optional): Whether the input is disabled. Defaults to False.
+        debounce (bool | int, optional): Whether the input is debounced. If number,
+            debounce by that many milliseconds. If True, then value is only emitted
+            on Ctrl+Enter or when the input loses focus. Defaults to True.
+        rows (int, optional): Number of rows of text to display. Defaults to None.
+        label (str, optional): Markdown label for the element. Defaults to "".
+        on_change (Callable[[str], None], optional): Optional callback to run when
+            this element's value changes. Defaults to None.
+        full_width (bool, optional): Whether the input should take up the full width
+            of its container. Defaults to False.
     """
 
     _name: Final[str] = "marimo-text-area"
@@ -825,29 +816,31 @@ class code_editor(UIElement[str, str]):
     """
     A code editor.
 
-    **Example.**
+    Examples:
+        ```python
+        code_editor = mo.ui.code_editor()
+        ```
 
-    ```python
-    code_editor = mo.ui.code_editor()
-    ```
+    Attributes:
+        value (str): A string of the code editor contents.
 
-    **Attributes.**
-
-    - `value`: a string of the code editor contents
-
-    **Initialization Args.**
-
-    - `value`: initial value of the code editor
-    - `language`: language of the code editor, defaults to `"python"`; most
-        major languages are supported, including "sql", "javascript",
-        "typescript", "html", "css", "c", "cpp", "rust", and more
-    - `placeholder`: placeholder text to display when the code editor is empty
-    - `theme`: theme of the code editor, defaults to the editor's default
-    - `disabled`: whether the input is disabled
-    - `min_height`: minimum height of the code editor in pixels
-    - `max_height`: maximum height of the code editor in pixels
-    - `label`: markdown label for the element
-    - `on_change`: optional callback to run when this element's value changes
+    Args:
+        value (str, optional): Initial value of the code editor. Defaults to "".
+        language (str, optional): Language of the code editor. Most major languages
+            are supported, including "sql", "javascript", "typescript", "html",
+            "css", "c", "cpp", "rust", and more. Defaults to "python".
+        placeholder (str, optional): Placeholder text to display when the code editor
+            is empty. Defaults to "".
+        theme (Literal["light", "dark"], optional): Theme of the code editor.
+            Defaults to the editor's default.
+        disabled (bool, optional): Whether the input is disabled. Defaults to False.
+        min_height (int, optional): Minimum height of the code editor in pixels.
+            Defaults to None.
+        max_height (int, optional): Maximum height of the code editor in pixels.
+            Defaults to None.
+        label (str, optional): Markdown label for the element. Defaults to "".
+        on_change (Callable[[str], None], optional): Optional callback to run when
+            this element's value changes. Defaults to None.
     """
 
     _name: Final[str] = "marimo-code-editor"
@@ -895,49 +888,45 @@ class code_editor(UIElement[str, str]):
 
 @mddoc
 class dropdown(UIElement[List[str], Any]):
-    """
-    A dropdown menu.
+    """A dropdown selector.
 
-    **Example.**
+    Examples:
+        ```python
+        dropdown = mo.ui.dropdown(
+            options=["a", "b", "c"], value="a", label="choose one"
+        )
+        ```
 
-    ```python
-    dropdown = mo.ui.dropdown(
-        options=["a", "b", "c"], value="a", label="choose one"
-    )
-    ```
+        ```python
+        dropdown = mo.ui.dropdown(
+            options={"one": 1, "two": 2, "three": 3},
+            value="one",
+            label="pick a number",
+        )
+        ```
 
-    ```python
-    dropdown = mo.ui.dropdown(
-        options={"one": 1, "two": 2, "three": 3},
-        value="one",
-        label="pick a number",
-    )
-    ```
+        Or from a dataframe series:
+        ```python
+        dropdown = mo.ui.dropdown.from_series(df["column_name"])
+        ```
 
-    Or from a dataframe series:
+    Attributes:
+        value (Any): The selected value, or None if no selection.
+        options (dict): A dict mapping option name to option value.
+        selected_key (str, optional): The selected option's key, or None if no selection.
 
-    ```python
-    dropdown = mo.ui.dropdown.from_series(df["column_name"])
-    ```
-
-    **Attributes.**
-
-    - `value`: the selected value, or `None` if no selection
-    - `options`: a dict mapping option name to option value
-    - `selected_key`: the selected option's key, or `None` if no selection
-
-    **Initialization Args.**
-
-    - `options`: sequence of text options, or dict mapping option name
-                 to option value
-    - `value`: default option name
-    - `allow_select_none`: whether to include special option (`"--"`) for a
-                           `None` value; when `None`, defaults to `True` when
-                           `value` is `None`
-    - `label`: markdown label for the element
-    - `on_change`: optional callback to run when this element's value changes
-    - `full_width`: whether the input should take up the full width of its
-        container
+    Args:
+        options (Sequence[str] | dict[str, Any]): Sequence of text options, or dict
+            mapping option name to option value.
+        value (str, optional): Default option name. Defaults to None.
+        allow_select_none (bool, optional): Whether to include special option ("--")
+            for a None value; when None, defaults to True when value is None.
+            Defaults to None.
+        label (str, optional): Markdown label for the element. Defaults to "".
+        on_change (Callable[[Any], None], optional): Optional callback to run when
+            this element's value changes. Defaults to None.
+        full_width (bool, optional): Whether the input should take up the full width
+            of its container. Defaults to False.
     """
 
     _MAX_OPTIONS: Final[int] = 1000
@@ -1021,38 +1010,36 @@ class dropdown(UIElement[List[str], Any]):
 
 @mddoc
 class multiselect(UIElement[List[str], List[object]]):
-    """
-    A multiselect input.
+    """A multiselect input.
 
-    **Example.**
+    Examples:
+        ```python
+        multiselect = mo.ui.multiselect(
+            options=["a", "b", "c"], label="choose some options"
+        )
+        ```
 
-    ```python
-    multiselect = mo.ui.multiselect(
-        options=["a", "b", "c"], label="choose some options"
-    )
-    ```
+        Or from a dataframe series:
+        ```python
+        multiselect = mo.ui.multiselect.from_series(df["column_name"])
+        ```
 
-    Or from a dataframe series:
+    Attributes:
+        value (List[object]): The selected values, or None if no selection.
+        options (dict): A dict mapping option name to option value.
 
-    ```python
-    multiselect = mo.ui.multiselect.from_series(df["column_name"])
-    ```
-
-    **Attributes.**
-
-    - `value`: the selected values, or `None` if no selection
-    - `options`: a dict mapping option name to option value
-
-    **Initialization Args.**
-
-    - `options`: sequence of text options, or dict mapping option name
-                 to option value
-    - `value`: a list of initially selected options
-    - `label`: markdown label for the element
-    - `on_change`: optional callback to run when this element's value changes
-    - `full_width`: whether the input should take up the full width of its
-        container
-    - `max_selections`: maximum number of items that can be selected
+    Args:
+        options (Sequence[str] | dict[str, Any]): Sequence of text options, or dict
+            mapping option name to option value.
+        value (Sequence[str], optional): A list of initially selected options.
+            Defaults to None.
+        label (str, optional): Markdown label for the element. Defaults to "".
+        on_change (Callable[[List[object]], None], optional): Optional callback to run
+            when this element's value changes. Defaults to None.
+        full_width (bool, optional): Whether the input should take up the full width
+            of its container. Defaults to False.
+        max_selections (int, optional): Maximum number of items that can be selected.
+            Defaults to None.
     """
 
     _MAX_OPTIONS: Final[int] = 100000
@@ -1119,46 +1106,47 @@ class multiselect(UIElement[List[str], List[object]]):
 
 @mddoc
 class button(UIElement[Any, Any]):
-    """
-    A button with an optional callback and optional value.
+    """A button with an optional callback and optional value.
 
-    **Example.**
+    Examples:
+        ```python
+        # a button that when clicked will execute
+        # any cells referencing that button
+        button = mo.ui.button()
+        ```
 
-    ```python
-    # a button that when clicked will execute
-    # any cells referencing that button
-    button = mo.ui.button()
-    ```
+        ```python
+        # a counter implementation
+        counter_button = mo.ui.button(
+            value=0, on_click=lambda value: value + 1, label="increment"
+        )
 
-    ```python
-    # a counter implementation
-    counter_button = mo.ui.button(
-        value=0, on_click=lambda value: value + 1, label="increment"
-    )
+        # adding intent
+        delete_button = mo.ui.button(
+            label="Do not click",
+            kind="danger",
+        )
+        ```
 
-    # adding intent
-    delete_button = mo.ui.button(
-        label="Do not click",
-        kind="danger",
-    )
-    ```
+    Attributes:
+        value (Any): The value of the button.
 
-    **Attributes.**
-
-    - `value`: the value of the button
-
-    **Initialization Args.**
-
-    - `on_click`: a callable called on click that takes the current
-       value of the button and returns a new value
-    - `value`: an initial value for the button
-    - `kind`: 'neutral', 'success', 'warn', or 'danger'
-    - `disabled`: whether the button is disabled
-    - `label`: markdown label for the element
-    - `on_change`: optional callback to run when this element's value changes
-    - `full_width`: whether the input should take up the full width of its
-        container
-    - `keyboard_shortcut`: keyboard shortcut to trigger the button (e.g. 'Ctrl-L')
+    Args:
+        on_click (Callable[[Any], Any], optional): A callable called on click that
+            takes the current value of the button and returns a new value.
+            Defaults to None.
+        value (Any, optional): An initial value for the button. Defaults to None.
+        kind (Literal["neutral", "success", "warn", "danger"], optional): Button
+            style. Defaults to "neutral".
+        disabled (bool, optional): Whether the button is disabled. Defaults to False.
+        tooltip (str, optional): Tooltip text for the button. Defaults to None.
+        label (str, optional): Markdown label for the element. Defaults to "click here".
+        on_change (Callable[[Any], None], optional): Optional callback to run when
+            this element's value changes. Defaults to None.
+        full_width (bool, optional): Whether the input should take up the full width
+            of its container. Defaults to False.
+        keyboard_shortcut (str, optional): Keyboard shortcut to trigger the button
+            (e.g. 'Ctrl-L'). Defaults to None.
     """
 
     _name: Final[str] = "marimo-button"
@@ -1223,76 +1211,73 @@ class FileUploadResults:
 
 @mddoc
 class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
-    """
-    A button or drag-and-drop area to upload a file.
+    """A button or drag-and-drop area to upload a file.
 
-    Once a file is uploaded, the UI element's value is a list of
-    `namedtuples (name, contents)`, where `name` is the filename and
-    `contents` is the contents of the file. Alternatively, use the methods
-    `name(index: int = 0)` and `contents(index: int = 0)` to retrieve the
-    name or contents of the file at a specified index.
+    Once a file is uploaded, the UI element's value is a list of namedtuples
+    (name, contents), where name is the filename and contents is the contents
+    of the file. Alternatively, use the methods name(index: int = 0) and
+    contents(index: int = 0) to retrieve the name or contents of the file at a
+    specified index.
 
-    Use the `kind` argument to switch between a button and a drag-and-drop
-    area.
+    Use the kind argument to switch between a button and a drag-and-drop area.
 
     The maximum file size is 100MB.
 
-    **Examples.**
+    Examples:
+        Uploading a single file:
+        ```python
+        f = mo.ui.file()
 
-    Uploading a single file:
+        # access the uploaded file's name
+        f.value[0].name
+        # or
+        f.name()
 
-    ```python
-    f = mo.ui.file()
+        # access the uploaded file's contents
+        f.value[0].contents
+        # or
+        f.contents()
+        ```
 
-    # access the uploaded file's name
-    f.value[0].name
-    # or
-    f.name()
+        Uploading multiple files, accepting only .png and .jpg extensions:
+        ```python
+        f = mo.ui.file(filetypes=[".png", ".jpg"], multiple=True)
 
-    # access the uploaded file's contents
-    f.value[0].contents
-    # or
-    f.contents()
-    ```
+        # access an uploaded file's name
+        f.value[index].name
+        # or
+        f.name(index)
 
-    Uploading multiple files, accepting only .png and .jpg extensions:
+        # access the uploaded file's contents
+        f.value[index].contents
+        # or
+        f.contents(index)
+        ```
 
-    ```python
-    f = mo.ui.file(filetypes=[".png", ".jpg"], multiple=True)
+    Attributes:
+        value (Sequence[FileUploadResults]): A sequence of FileUploadResults,
+            which have string name and bytes contents fields.
 
-    # access an uploaded file's name
-    f.value[index].name
-    # or
-    f.name(index)
+    Methods:
+        name(index: int = 0) -> Optional[str]: Get the name of the uploaded file
+            at index.
+        contents(index: int = 0) -> Optional[bytes]: Get the contents of the
+            uploaded file at index.
 
-    # access the uploaded file's contents
-    f.value[index].contents
-    # or
-    f.contents(index)
-    ```
-
-    **Attributes.**
-
-    - `value`: a sequence of `FileUploadResults`, which have string `name` and
-               `bytes` `contents` fields
-
-    **Methods.**
-
-    - `name(self, index: int = 0) -> Optional[str]`: Get the name of the
-      uploaded file at `index`.
-    - `contents(self, index: int = 0) -> Optional[bytes]`: Get the contents of
-      the uploaded file at `index`.
-
-    **Initialization Args.**
-
-    - `filetypes`: the file types accepted; for example,
-       `filetypes=[".png", ".jpg"]`. If `None`, all files are accepted.
-       In addition to extensions, you may provide `"audio/*"`, `"video/*"`,
-       or `"image/*"` to accept any audio, video, or image file.
-    - `multiple`: if True, allow the user to upload multiple files
-    - `kind`: `"button"` or `"area"`
-    - `label`: markdown label for the element
-    - `on_change`: optional callback to run when this element's value changes
+    Args:
+        filetypes (Sequence[str], optional): The file types accepted; for example,
+            filetypes=[".png", ".jpg"]. If None, all files are accepted.
+            In addition to extensions, you may provide "audio/*", "video/*",
+            or "image/*" to accept any audio, video, or image file.
+            Defaults to None.
+        multiple (bool, optional): If True, allow the user to upload multiple
+            files. Defaults to False.
+        kind (Literal["button", "area"], optional): Type of upload interface.
+            Defaults to "button".
+        label (str, optional): Markdown label for the element. Defaults to "".
+        on_change (Callable[[Sequence[FileUploadResults]], None], optional):
+            Optional callback to run when this element's value changes.
+            Defaults to None.
     """
 
     _name: Final[str] = "marimo-file"
@@ -1367,40 +1352,41 @@ class ListDirectoryResponse:
 
 @mddoc
 class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
-    """
-    File browser for browsing and selecting server-side files.
+    """File browser for browsing and selecting server-side files.
 
-    **Examples.**
+    Examples:
+        Selecting multiple files:
+        ```python
+        file_browser = mo.ui.file_browser(
+            initial_path="path/to/dir", multiple=True
+        )
 
-    Selecting multiple files:
+        # Access the selected file path(s):
+        file_browser.path(index)
 
-    ```python
-    file_browser = mo.ui.file_browser(
-        initial_path="path/to/dir", multiple=True
-    )
+        # Get name of selected file(s)
+        file_browser.name(index)
+        ```
 
-    # Access the selected file path(s):
-    file_browser.path(index)
+    Attributes:
+        value (Sequence[FileInfo]): A sequence of file paths representing selected
+            files.
 
-    # Get name of selected file(s)
-    file_browser.name(index)
-    ```
-
-    **Attributes.**
-
-    - `value`: a sequence of file paths representing selected files.
-
-    **Initialization Args.**
-
-    - `initial_path`: starting directory, default current working directory.
-    - `filetypes`: the file types to display in each directory; for example,
-       `filetypes=[".txt", ".csv"]`. If `None`, all files are displayed.
-    - `selection_mode`: either "file" or "directory".
-    - `multiple`: if True, allow the user to select multiple files.
-    - `restrict_navigation`: if True, prevent the user from navigating
-       any level above the given path.
-    - `label`: markdown label for the element
-    - `on_change`: optional callback to run when this element's value changes
+    Args:
+        initial_path (str, optional): Starting directory. Defaults to current
+            working directory.
+        filetypes (Sequence[str], optional): The file types to display in each
+            directory; for example, filetypes=[".txt", ".csv"]. If None, all
+            files are displayed. Defaults to None.
+        selection_mode (str, optional): Either "file" or "directory". Defaults to
+            "file".
+        multiple (bool, optional): If True, allow the user to select multiple
+            files. Defaults to True.
+        restrict_navigation (bool, optional): If True, prevent the user from
+            navigating any level above the given path. Defaults to False.
+        label (str, optional): Markdown label for the element. Defaults to "".
+        on_change (Callable[[Sequence[FileInfo]], None], optional): Optional
+            callback to run when this element's value changes. Defaults to None.
     """
 
     _name: Final[str] = "marimo-file-browser"
@@ -1533,68 +1519,77 @@ class ValueArgs:
 
 @mddoc
 class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
-    """
-    A submittable form linked to a UIElement.
+    """A submittable form linked to a UIElement.
 
-    Use a `form` to prevent sending UI element values to Python until a button
+    Use a form to prevent sending UI element values to Python until a button
     is clicked.
 
-    The value of a `form` is the value of the underlying
-    element the last time the form was submitted.
+    The value of a form is the value of the underlying element the last time
+    the form was submitted.
 
-    **Example.**
+    Examples:
+        Create a form with chaining:
+        ```python
+        # Create a form with chaining
+        form = mo.ui.slider(1, 100).form()
+        ```
 
-    ```python
-    # Create a form with chaining
-    form = mo.ui.slider(1, 100).form()
-    ```
+        Create a form with multiple elements:
+        ```python
+        # Create a form with multiple elements
+        form = (
+            mo.md('''
+            **Your form.**
 
-    ```python
-    # Create a form with multiple elements
-    form = (
-        mo.md('''
-        **Your form.**
+            {name}
 
-        {name}
-
-        {date}
-    ''')
-        .batch(
-            name=mo.ui.text(label="name"),
-            date=mo.ui.date(label="date"),
+            {date}
+        ''')
+            .batch(
+                name=mo.ui.text(label="name"),
+                date=mo.ui.date(label="date"),
+            )
+            .form(show_clear_button=True, bordered=False)
         )
-        .form(show_clear_button=True, bordered=False)
-    )
-    ```
+        ```
 
-    ```python
-    # Instantiate a form directly
-    form = mo.ui.form(element=mo.ui.slider(1, 100))
-    ```
+        Instantiate a form directly:
+        ```python
+        # Instantiate a form directly
+        form = mo.ui.form(element=mo.ui.slider(1, 100))
+        ```
 
-    **Attributes.**
+    Attributes:
+        value (Any): The value of the wrapped element when the form's submit
+            button was last clicked.
+        element (UIElement): A copy of the wrapped element.
 
-    - `value`: the value of the wrapped element when the form's submit button
-      was last clicked
-    - `element`: a copy of the wrapped element
-
-    **Initialization Args.**
-
-    - `element`: the element to wrap
-    - `bordered`: whether the form should have a border
-    - `loading`: whether the form should be in a loading state
-    - `submit_button_label`: the label of the submit button
-    - `submit_button_tooltip`: the tooltip of the submit button
-    - `submit_button_disabled`: whether the submit button should be disabled
-    - `clear_on_submit`: whether the form should clear its contents after
-        submitting
-    - `show_clear_button`: whether the form should show a clear button
-    - `clear_button_label`: the label of the clear button
-    - `clear_button_tooltip`: the tooltip of the clear button
-    - `validate`: a function that takes the form's value and returns an error
-        message if the value is invalid, or `None` if the value is valid
-    - `label`: markdown label for the form
-    - `on_change`: optional callback to run when this element's value changes
+    Args:
+        element (UIElement[JSONTypeBound, T]): The element to wrap.
+        bordered (bool, optional): Whether the form should have a border.
+            Defaults to True.
+        loading (bool, optional): Whether the form should be in a loading state.
+            Defaults to False.
+        submit_button_label (str, optional): The label of the submit button.
+            Defaults to "Submit".
+        submit_button_tooltip (str, optional): The tooltip of the submit button.
+            Defaults to None.
+        submit_button_disabled (bool, optional): Whether the submit button should
+            be disabled. Defaults to False.
+        clear_on_submit (bool, optional): Whether the form should clear its
+            contents after submitting. Defaults to False.
+        show_clear_button (bool, optional): Whether the form should show a clear
+            button. Defaults to False.
+        clear_button_label (str, optional): The label of the clear button.
+            Defaults to "Clear".
+        clear_button_tooltip (str, optional): The tooltip of the clear button.
+            Defaults to None.
+        validate (Callable[[Optional[JSONType]], Optional[str]], optional): A
+            function that takes the form's value and returns an error message if
+            the value is invalid, or None if the value is valid. Defaults to None.
+        label (str, optional): Markdown label for the form. Defaults to "".
+        on_change (Callable[[Optional[T]], None], optional): Optional callback to
+            run when this element's value changes. Defaults to None.
     """
 
     _name: Final[str] = "marimo-form"
