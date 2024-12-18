@@ -1,6 +1,6 @@
 # Marimo Islands
 
-marimo islands are a way to render HTML "islands" each with static outputs and code. This differs from the normal "app mode" int that there is no top-level app. In "island mode", we do not have access to the HTML of the parent page.
+marimo islands are a way to render HTML "islands" each with static outputs and code. This differs from the normal "app mode" in the sense that there is no top-level app. In "island mode", we do not have access to the HTML of the parent page.
 
 ## Development
 
