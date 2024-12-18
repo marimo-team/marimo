@@ -17,7 +17,6 @@ def accordion(
     Accordion of one or more items.
 
     Example:
-
     ```python3
     mo.accordion(
         {"Tip": "Use accordions to let users reveal and hide content."}
@@ -34,7 +33,6 @@ def accordion(
     returns the item to render.
 
     Args:
-
     - `items`: a dictionary of item names to item content; strings are
       interpreted as markdown
     - `multiple`: whether to allow multiple items to be open simultaneously
@@ -43,7 +41,6 @@ def accordion(
               component.
 
     Returns:
-
     - An `Html` object.
     """
 

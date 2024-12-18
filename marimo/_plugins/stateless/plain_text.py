@@ -12,11 +12,9 @@ def plain_text(text: str) -> Html:
     """Text that's fixed-width, with spaces and newlines preserved.
 
     Args:
-
     - `text`: text to output
 
     Returns:
-
     An `Html` object representing the text.
     """
     styles = create_style({"font-size": "12px"})

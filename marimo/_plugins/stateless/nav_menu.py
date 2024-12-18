@@ -24,7 +24,6 @@ def nav_menu(
     `marimo.create_asgi_app` ([docs](https://docs.marimo.io/guides/deploying/programmatically.html)).
 
     Examples:
-
     ```python
     nav_menu = mo.nav_menu(
         {
@@ -56,13 +55,11 @@ def nav_menu(
     ```
 
     Args:
-
     - `menu`: a dictionary of tab names to tab content;
         the content can also be nested dictionaries (one level deep)
         strings are interpreted as markdown
 
     Returns:
-
     - An `Html` object.
     """
 

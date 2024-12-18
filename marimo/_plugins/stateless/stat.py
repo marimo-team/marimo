@@ -22,7 +22,6 @@ def stat(
     Optionally include a label, caption, and direction.
 
     Args:
-
     - `value`: the value to display
     - `label`: the label to display
     - `caption`: the caption to display
@@ -31,7 +30,6 @@ def stat(
     - `bordered`: whether to display a border around the statistic
 
     Returns:
-
     An `Html` object representing the statistic.
     """
     return Html(

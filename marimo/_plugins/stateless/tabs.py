@@ -16,7 +16,6 @@ def tabs(tabs: dict[str, object]) -> Html:
     Tabs of UI elements.
 
     Examples:
-
     ```python
     tab1 = mo.vstack([
         mo.ui.slider(1, 10),
@@ -35,12 +34,10 @@ def tabs(tabs: dict[str, object]) -> Html:
     ```
 
     Args:
-
     - `tabs`: a dictionary of tab names to tab content; strings are interpreted
     as markdown
 
     Returns:
-
     - An `Html` object.
     """
     return tabs_impl(tabs)

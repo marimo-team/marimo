@@ -12,7 +12,6 @@ def mermaid(diagram: str) -> Html:
     Render a diagram with Mermaid.
 
     Examples:
-
     ```python
     diagram = '''
     graph LR
@@ -29,11 +28,9 @@ def mermaid(diagram: str) -> Html:
     for details.
 
     Args:
-
     - `diagram`: a string containing a Mermaid diagram
 
     Returns:
-
     - An `Html` object.
     """
     return Html(

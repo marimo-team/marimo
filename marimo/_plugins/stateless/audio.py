@@ -19,7 +19,6 @@ def audio(
     """Render an audio file as HTML.
 
     Example:
-
     ```python3
     mo.audio(
         src="https://upload.wikimedia.org/wikipedia/commons/8/8c/Ivan_Ili%C4%87-Chopin_-_Prelude_no._1_in_C_major.ogg"
@@ -29,12 +28,10 @@ def audio(
     ```
 
     Args:
-
     - `src`: a path or URL to an audio file, bytes,
         or a file-like object opened in binary mode
 
     Returns:
-
     An audio player as an `Html` object.
     """
     resolved_src: Optional[str]

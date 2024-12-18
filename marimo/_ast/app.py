@@ -346,7 +346,6 @@ class App:
         into another notebook and access the values of its variables.
 
         Example:
-
         ```python
         from my_notebook import app
         ```
@@ -382,7 +381,6 @@ class App:
         right thing.
 
         Returns:
-
         - An object `result` with two attributes: `result.output` (visual
           output of the notebook) and `result.defs` (a dictionary mapping
           variable names defined by the notebook to their values).

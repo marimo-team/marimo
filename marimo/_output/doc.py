@@ -16,11 +16,9 @@ def doc(obj: Any) -> Optional[Html]:
     rendered as markdown.
 
     Args:
-
     - `obj`: The object to get documentation about.
 
     Returns:
-
     - Documentation as an `Html` object if the object implements `RichHelp`;
       otherwise, documentation is printed to console (and nothing is returned)
     """

@@ -240,7 +240,6 @@ def as_html(value: object) -> Html:
     embed values into Markdown or other HTML strings.
 
     Example:
-
     ```python3
     import matplotlib.pyplot as plt
     plt.plot([1, 2])
@@ -255,11 +254,9 @@ def as_html(value: object) -> Html:
     ```
 
     Args:
-
     - `value`: An object
 
     Returns:
-
     - An `Html` object
     """
     if isinstance(value, Html):
@@ -321,14 +318,12 @@ def plain(value: Any) -> Plain:
     default dataframe rendering.
 
     Example:
-
     ```python
     df = data.cars()
     mo.plain(df)
     ```
 
     Args:
-
     - `value`: Any value
     """
     return Plain(value)
@@ -358,14 +353,12 @@ def iframe(html: str, *, width: str = "100%", height: str = "400px") -> Html:
     page.
 
     Example:
-
     ```python
     html = "<h1>Hello, world!</h1>"
     mo.iframe(html)
     ```
 
     Args:
-
     - `html`: An HTML string
     """
 
