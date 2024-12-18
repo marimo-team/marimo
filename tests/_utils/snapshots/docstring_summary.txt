@@ -5,18 +5,18 @@ This is the summary.
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `foo` | `str` | Lorem ipsum |
-| `bar` | `int` | Dolor sit amet  |
+| `bar` | `int` | Dolor sit amet |
 
 # Returns
 | Type | Description |
 |------|-------------|
-| `bool` | Return description  |
+| `bool` | Return description |
 
 # Raises
 - **ValueError**: Something about the value
 
 # Examples
-    ```python
-    print('Hello, world!')
-    print(foo, bar)
-    ```
+```python
+print('Hello, world!')
+print(foo, bar)
+```

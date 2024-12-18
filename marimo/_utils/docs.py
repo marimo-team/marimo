@@ -15,7 +15,11 @@ def google_docstring_to_markdown(docstring: str) -> str:
     if not docstring:
         return ""
 
-    docstring = dedent(docstring)
+    docstring_lines = docstring.splitlines()
+    if len(docstring_lines) > 1:
+        first_line = docstring_lines[0]
+        dedented_lines = dedent("\n".join(docstring_lines[1:]))
+        docstring = first_line + "\n" + dedented_lines
 
     # Simple approach: split and parse line by line
     lines = docstring.strip().splitlines()
