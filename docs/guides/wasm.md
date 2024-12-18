@@ -158,6 +158,7 @@ providing your users with an interactive code playground.
   height="300"
   frameborder="0"
 ></iframe>
+```
 
 <iframe src="https://marimo.app/l/aojjhb?embed=true" width="100%" height="300" class="demo" frameBorder="0"></iframe>
 
@@ -173,6 +174,7 @@ URL to your notebook](#creating-and-sharing-wasm-notebooks), then put it in an i
   height="300"
   frameborder="0"
 ></iframe>
+```
 
 <iframe src="https://marimo.app/l/c7h6pz?embed=true" width="100%" height="600" class="demo" frameBorder="0"></iframe>
 
@@ -191,6 +193,7 @@ You can optionally render embedded notebooks in read-only mode by appending
   height="300"
   frameborder="0"
 ></iframe>
+```
 
 <iframe src="https://marimo.app/l/c7h6pz?mode=read&embed=true" width="100%" height="600" class="demo" frameBorder="0"></iframe>
 

@@ -106,17 +106,21 @@ _Don't_ do this:
 
 ```python
 l = [1]
+```
 
 ```python
 l.append(2)
+```
 
 _Instead_, do this:
 
 ```python
 l = [1]
+```
 
 ```python
 extended_list = l + [2]
+```
 
 **Mutate variables in the cells that define them.**
 
@@ -124,15 +128,18 @@ _Don't_ do this:
 
 ```python
 df = pd.DataFrame({"my_column": [1, 2]})
+```
 
 ```python
 df["another_column"] = [3, 4]
+```
 
 _Instead_, do this:
 
 ```python
 df = pd.DataFrame({"my_column": [1, 2]})
 df["another_column"] = [3, 4]
+```
 
 !!! note "Why not track mutations?"
     Tracking mutations reliably is a fundamentally impossible task in Python; marimo

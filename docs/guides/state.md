@@ -64,14 +64,11 @@ function **via a global variable** are automatically run (similar to UI
 elements).
 
 !!! note "State and UI elements are similar"
-State is analogous to UI elements. When you interact
-with a UI element, all cells that reference that element via a global variable
-run automatically with the new value. In the same way, when you update state
-via the setter, all other cells that reference the getter via
-a global variable run automatically with the new value.
-
-    State is particularly useful when used in conjunction with a `UIElement`'s
-    `on_change` callback to run side effects based on user input.
+    State is analogous to UI elements. When you interact
+    with a UI element, all cells that reference that element via a global variable
+    run automatically with the new value. In the same way, when you update state
+    via the setter, all other cells that reference the getter via
+    a global variable run automatically with the new value.
 
 [`mo.state()`](../api/state.md) takes an initial state value as its argument, creates
 a state object, and returns
