@@ -59,6 +59,7 @@ import { getCurrentLanguageAdapter } from "@/core/codemirror/language/commands";
 import { HideCodeButton } from "./code/readonly-python-code";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
+import { Events } from "@/utils/events";
 
 /**
  * Imperative interface of the cell.
@@ -495,11 +496,17 @@ const CellComponent = (
     // interfere with editing
     ...(userConfig.keymap.preset === "vim" && !isCellCodeShown
       ? {
-          j: () => {
+          j: (evt) => {
+            if (evt && Events.fromInput(evt)) {
+              return false;
+            }
             moveToNextCell({ cellId, before: false, noCreate: true });
             return true;
           },
-          k: () => {
+          k: (evt) => {
+            if (evt && Events.fromInput(evt)) {
+              return false;
+            }
             moveToNextCell({ cellId, before: true, noCreate: true });
             return true;
           },

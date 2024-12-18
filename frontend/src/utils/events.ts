@@ -32,4 +32,16 @@ export const Events = {
     // Prevent focus moving to the button on click
     e.preventDefault();
   },
+
+  /**
+   * Returns true if the event is coming from a text input
+   */
+  fromInput: (e: KeyboardEvent) => {
+    const target = e.target as HTMLElement;
+    return (
+      target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.tagName.startsWith("MARIMO")
+    );
+  },
 };

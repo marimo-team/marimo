@@ -12,8 +12,10 @@ import { Functions } from "@/utils/functions";
 import { hotkeysAtom } from "@/core/config/config";
 import { useAtomValue } from "jotai";
 
-// eslint-disable-next-line @typescript-eslint/no-invalid-void-type
-type HotkeyHandler = () => boolean | void | undefined | Promise<void>;
+type HotkeyHandler = (
+  evt?: KeyboardEvent,
+  // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
+) => boolean | void | undefined | Promise<void>;
 
 /**
  * Registers a hotkey listener for the given shortcut.
@@ -26,12 +28,12 @@ export function useHotkey(shortcut: HotkeyAction, callback: HotkeyHandler) {
   const hotkeys = useAtomValue(hotkeysAtom);
 
   const isNOOP = callback === Functions.NOOP;
-  const memoizeCallback = useEvent(() => callback());
+  const memoizeCallback = useEvent((evt?: KeyboardEvent) => callback(evt));
 
   const listener = useEvent((e: KeyboardEvent) => {
     const key = hotkeys.getHotkey(shortcut).key;
     if (parseShortcut(key)(e)) {
-      const response = callback();
+      const response = callback(e);
       // Prevent default if the callback does not return false
       if (response !== false) {
         e.preventDefault();
@@ -65,7 +67,7 @@ export function useHotkeysOnElement<T extends HotkeyAction>(
       const key = hotkeys.getHotkey(shortcut).key;
       if (parseShortcut(key)(e)) {
         Logger.debug("Satisfied", key, e);
-        const response = callback();
+        const response = callback(e);
         // Prevent default if the callback does not return false
         if (response !== false) {
           e.preventDefault();
@@ -87,7 +89,7 @@ export function useKeydownOnElement(
     for (const [key, callback] of Objects.entries(handlers)) {
       if (parseShortcut(key)(e)) {
         Logger.debug("Satisfied", key, e);
-        const response = callback();
+        const response = callback(e);
         // Prevent default if the callback does not return false
         if (response !== false) {
           e.preventDefault();
