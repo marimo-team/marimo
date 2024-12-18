@@ -16,7 +16,7 @@ and injecting values at runtime.
 marimo offers two main ways to parameterize notebooks:
 
 1. **Command Line Arguments**:
-   Use [`mo.cli_args`](/api/cli_args.md) to access command-line arguments passed to your notebook.
+   Use [`mo.cli_args`](api/cli_args.md) to access command-line arguments passed to your notebook.
 
    ```python
    import marimo as mo

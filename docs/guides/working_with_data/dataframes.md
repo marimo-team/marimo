@@ -17,16 +17,15 @@ marimo lets you page through, search, sort, and filter dataframes, making it
 extremely easy to get a feel for your data.
 
 <figure>
-<video autoplay controls loop width="100%" height="100%" align="center" src="/_static/docs-df.mp4"> 
-</video> 
+<video autoplay controls loop width="100%" height="100%" align="center" src="/_static/docs-df.mp4">
+</video>
 <figcaption>marimo brings dataframes to life.</figcaption>
 </figure>
 
 Display dataframes by including them in the last expression of the
 cell, just like any other object.
 
-::::{tab-set}
-:::{tab-item} pandas
+/// tab | pandas
 
 ```python
 import pandas as pd
@@ -36,8 +35,11 @@ df = pd.read_json(
 )
 df
 ```
-:::
-:::{tab-item} polars
+
+///
+
+/// tab | polars
+
 ```python
 import polars as pl
 
@@ -46,35 +48,38 @@ df = pl.read_json(
 )
 df
 ```
-:::
-::::
+
+///
 
 To opt out of the rich dataframe viewer, use [`mo.plain`](marimo.plain):
 
-::::{tab-set}
-:::{tab-item} pandas
+/// tab | pandas
+
 ```python
 df = pd.read_json(
-    "https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json"
+"https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json"
 )
 mo.plain(df)
 ```
-:::
-:::{tab-item} polars
+
+///
+
+/// tab | polars
+
 ```python
 df = pl.read_json(
-    "https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json"
+"https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json"
 )
 mo.plain(df)
 ```
-:::
-::::
+
+///
 
 ## Transforming dataframes
 
 ### No-code transformations
 
-Use [`mo.ui.dataframe`](/api/inputs/dataframe/) to interactively
+Use [`mo.ui.dataframe`](../api/inputs/dataframe/) to interactively
 transform a dataframe with a GUI, no coding required. When you're done, you
 can copy the code that the GUI generated for you and paste it into your
 notebook.
@@ -86,9 +91,8 @@ notebook.
 </figure>
 </div>
 
+/// tab | pandas
 
-::::{tab-set}
-:::{tab-item} pandas
 ```python
 # Cell 1
 import marimo as mo
@@ -104,8 +108,11 @@ transformed_df
 # transformed_df.value holds the transformed dataframe
 transformed_df.value
 ```
-:::
-:::{tab-item} polars
+
+///
+
+/// tab | polars
+
 ```python
 # Cell 1
 import marimo as mo
@@ -121,8 +128,8 @@ transformed_df
 # transformed_df.value holds the transformed dataframe
 transformed_df.value
 ```
-:::
-::::
+
+///
 
 <div align="center">
 <figure>
@@ -135,8 +142,10 @@ transformed_df.value
 
 Create custom filters with marimo UI elements, like sliders and dropdowns.
 
-::::{tab-set}
-:::{tab-item} pandas
+///
+
+/// tab | pandas
+
 ```python
 # Cell 1 - create a dataframe
 df = pd.DataFrame({"person": ["Alice", "Bob", "Charlie"], "age": [20, 30, 40]})
@@ -153,8 +162,11 @@ age_filter
 filtered_df = df[df["age"] < age_filter.value]
 mo.ui.table(filtered_df)
 ```
-:::
-:::{tab-item} polars
+
+///
+
+/// tab | polars
+
 ```python
 import marimo as mo
 import polars as pl
@@ -176,14 +188,12 @@ mo.hstack([age_filter, city_filter])
 filtered_df = df.filter((pl.col("age") <= age_filter.value) & (pl.col("city") == city_filter.value))
 mo.ui.table(filtered_df)
 ```
-:::
-::::
 
+///
 
 ## Select dataframe rows
 
-Display dataframes as interactive, [selectable
-charts](/guides/working_with_data/plotting) using
+Display dataframes as interactive, [selectable charts](../guides/working_with_data/plotting) using
 [`mo.ui.altair_chart`](marimo.ui.altair_chart) or
 [`mo.ui.plotly`](marimo.ui.plotly), or as a row-selectable table with
 (`mo.ui.table`)(marimo.ui.table). Select points in the chart, or select a table
@@ -197,9 +207,10 @@ dataframe_.
 </figure>
 </div>
 
+///
 
-::::{tab-set}
-:::{tab-item} pandas
+/// tab | pandas
+
 ```python
 # Cell 1 - display a dataframe
 import marimo as mo
@@ -214,8 +225,11 @@ table
 # Cell 2 - display the selection
 table.value
 ```
-:::
-:::{tab-item} polars
+
+///
+
+/// tab | polars
+
 ```python
 # Cell 1 - display a dataframe
 import marimo as mo
@@ -230,8 +244,8 @@ table
 # Cell 2 - display the selection
 table.value
 ```
-:::
-::::
+
+///
 
 ## Example notebook
 

@@ -1,56 +1,29 @@
 # Guides
 
-```{eval-rst}
-.. toctree::
-  :maxdepth: 2
-  :hidden:
-
-  reactivity
-  interactivity
-  outputs
-  coming_from/jupyter
-  expensive_notebooks
-  working_with_data/index
-  editor_features/index
-  configuration/index
-  apps
-  scripts
-  coming_from/index
-  integrating_with_marimo/index
-  state
-  wasm
-  exporting
-  deploying/index
-  best_practices
-  troubleshooting
-```
-
 These guides cover marimo's core concepts.
 
-```{admonition} Learn by doing!
-:class: tip
+!!! tip "Learn by doing!"
 
-Prefer a hands-on learning experience? marimo comes packaged with interactive
-tutorials that you can launch with `marimo tutorial` at the command line.
-```
+    Prefer a hands-on learning experience? marimo comes packaged with interactive
+    tutorials that you can launch with `marimo tutorial` at the command line.
 
 | Guide                                | Description                                                  |
 | :----------------------------------- | :----------------------------------------------------------- |
-| {doc}`reactivity`                    | How marimo runs cells                                        |
-| {doc}`interactivity`                 | Using interactive UI elements                                |
-| {doc}`outputs`                       | Creating markdown, plots, and other visual outputs           |
-| {doc}`/guides/coming_from/jupyter`   | Tips for transitioning from Jupyter                          |
-| {doc}`expensive_notebooks`           | Tips for working with expensive notebooks                    |
-| {doc}`working_with_data/index`       | Using SQL cells, no-code dataframe tools, and reactive plots |
-| {doc}`editor_features/index`         | View variables, dataframe schemas, docstrings, and more      |
-| {doc}`configuration/index`           | Configure various settings                                   |
-| {doc}`apps`                          | Running notebooks as apps                                    |
-| {doc}`scripts`                       | Running notebooks as scripts                                 |
-| {doc}`coming_from/index`             | Transitioning from Jupyter and other tools                   |
-| {doc}`integrating_with_marimo/index` | Rich displays of objects, custom UI plugins                  |
-| {doc}`state`                         | Advanced: mutable reactive state                             |
-| {doc}`wasm`                          | Create notebooks in our online playground                    |
-| {doc}`exporting`                     | Exporting notebooks to HTML and flat scripts                 |
-| {doc}`deploying/index`               | Deploying marimo notebooks and apps                          |
-| {doc}`best_practices`                | Best practices to help you get the most out of marimo        |
-| {doc}`troubleshooting`               | Troubleshooting notebooks                                    |
+| [reactivity](reactivity.md)                    | How marimo runs cells                                        |
+| [interactivity](interactivity.md)                 | Using interactive UI elements                                |
+| [outputs](outputs.md)                       | Creating markdown, plots, and other visual outputs           |
+| [coming_from/jupyter](coming_from/jupyter.md)   | Tips for transitioning from Jupyter                          |
+| [expensive_notebooks](expensive_notebooks.md)           | Tips for working with expensive notebooks                    |
+| [working_with_data/index](working_with_data/index.md)       | Using SQL cells, no-code dataframe tools, and reactive plots |
+| [editor_features/index](editor_features/index.md)         | View variables, dataframe schemas, docstrings, and more      |
+| [configuration/index](configuration/index.md)           | Configure various settings                                   |
+| [apps](apps.md)                          | Running notebooks as apps                                    |
+| [scripts](scripts.md)                       | Running notebooks as scripts                                 |
+| [coming_from/index](coming_from/index.md)             | Transitioning from Jupyter and other tools                   |
+| [integrating_with_marimo/index](integrating_with_marimo/index.md) | Rich displays of objects, custom UI plugins                  |
+| [state](state.md)                         | Advanced: mutable reactive state                             |
+| [wasm](wasm.md)                          | Create notebooks in our online playground                    |
+| [exporting](exporting.md)                     | Exporting notebooks to HTML and flat scripts                 |
+| [deploying/index](deploying/index.md)               | Deploying marimo notebooks and apps                          |
+| [best_practices](best_practices.md)                | Best practices to help you get the most out of marimo        |
+| [troubleshooting](troubleshooting.md)               | Troubleshooting notebooks                                    |

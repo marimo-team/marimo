@@ -20,7 +20,7 @@ To access these settings, click the gear icon in the top-right of the editor:
 A non-exhaustive list of settings:
 
 - Outputs above or below code cells
-- [Disable/enable autorun](/guides/reactivity.md#runtime-configuration)
+- [Disable/enable autorun](../guides/reactivity.md#runtime-configuration)
 - Package installation
 - Vim keybindings
 - Dark mode
@@ -28,9 +28,9 @@ A non-exhaustive list of settings:
 - Auto-complete
 - Editor font-size
 - Code formatting with ruff/black
-- [GitHub Copilot](/guides/editor_features/ai_completion.md)
-- [LLM coding assistant](/guides/editor_features/ai_completion.md)
-- [Module autoreloading](/guides/configuration/runtime_configuration.md#on-module-change)
+- [GitHub Copilot](../guides/editor_features/ai_completion.md)
+- [LLM coding assistant](../guides/editor_features/ai_completion.md)
+- [Module autoreloading](../guides/configuration/runtime_configuration.md#on-module-change)
 
 ### Vim keybindings
 
@@ -83,9 +83,7 @@ create.
 ## Keyboard shortcuts
 
 We've kept some well-known [keyboard
-shortcuts](/guides/editor_features/hotkeys.md) for notebooks (`Ctrl-Enter`,
-`Shift-Enter`), dropped others, and added a few of our own. Hit
-`Ctrl/Cmd-Shift-H` to pull up the shortcuts.
+shortcuts](../guides/editor_features/hotkeys.md) for notebooks (`Ctrl-Enter`, `Shift-Enter`), dropped others, and added a few of our own. Hit `Ctrl/Cmd-Shift-H` to pull up the shortcuts.
 
 We know keyboard shortcuts are very personal; you can remap them in the
 configuration.
@@ -109,7 +107,7 @@ _Missing a command? File a
 
 ## Share on our online playground
 
-Get a link to share your notebook via our [online playground](/guides/wasm.md):
+Get a link to share your notebook via our [online playground](../guides/wasm.md):
 
 <div align="center">
 <figure>

@@ -1,5 +1,3 @@
 # PDF
 
-```{eval-rst}
-.. autofunction:: marimo.pdf
-```
+::: marimo.pdf

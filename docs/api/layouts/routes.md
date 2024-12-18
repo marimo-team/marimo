@@ -1,14 +1,7 @@
 # Routes
 
-```{eval-rst}
-.. autofunction:: marimo.routes
-```
-
-## Full example with a sidebar
-
-Here is a marimo program that uses routes with a sidebar.
-
-```python
+::: marimo.routes
+python
 import marimo
 
 app = marimo.App()
@@ -49,4 +42,3 @@ def __():
         mo.routes.CATCH_ALL: mo.md("# Home"),
     })
     return
-```

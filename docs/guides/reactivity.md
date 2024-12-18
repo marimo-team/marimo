@@ -9,23 +9,17 @@ the page.
 
 Reactive execution is based on a single rule:
 
-```{admonition} Runtime Rule
-:class: important
+!!! important "Runtime Rule"
+    When a cell is run, marimo automatically runs all other cells that
+    **reference** any of the global variables it **defines**.
 
-When a cell is run, marimo automatically runs all other cells that
-**reference** any of the global variables it **defines**.
-```
-
-```{admonition} Working with expensive notebooks
-:class: tip
-
-marimo gives you tools that make it easy to work with expensive notebooks. For
-example, the [runtime can be
-configured](#/guides/configuration/runtime_configuration.md) to be lazy, only
-running cells when you ask for them to be run and marking affected cells as
-stale instead of auto-running them. **See our guide on working with [expensive
-notebooks](/guides/expensive_notebooks.md) for more tips.**
-```
+!!! tip "Working with expensive notebooks"
+    marimo gives you tools that make it easy to work with expensive notebooks. For
+    example, the [runtime can be
+    configured](guides/configuration/runtime_configuration.md) to be lazy, only
+    running cells when you ask for them to be run and marking affected cells as
+    stale instead of auto-running them. **See our guide on working with [expensive
+    notebooks](../guides/expensive_notebooks.md) for more tips.**
 
 ## References and definitions
 
@@ -36,12 +30,9 @@ dependencies. marimo creates this graph by statically analyzing each cell
 - references, the global variables it reads but doesn't define;
 - definitions, the global variables it defines.
 
-```{admonition} Global variables
-:class: tip
-
-A variable can refer to any Python object. Functions, classes, and imported
-names are all variables.
-```
+!!! tip "Global variables"
+    A variable can refer to any Python object. Functions, classes, and imported
+    names are all variables.
 
 There is an edge from one cell to another if the latter cell references any
 global variables defined by the former cell. The rule for reactive execution
@@ -53,13 +44,10 @@ run automatically.
 To make sure your notebook is DAG, marimo requires that every global
 variable be defined by only one cell.
 
-```{admonition} Local variables
-:class: important
-
-Variables prefixed with an underscore are local to a cell (_.e.g._, `_x`). You
-can use this in a pinch to fix multiple definition errors, but try instead to
-refactor your code.
-```
+!!! important "Local variables"
+    Variables prefixed with an underscore are local to a cell (_.e.g._, `_x`). You
+    can use this in a pinch to fix multiple definition errors, but try instead to
+    refactor your code.
 
 This rule encourages you to keep the number of global variables in your
 program small, which is generally considered good practice.
@@ -118,21 +106,17 @@ _Don't_ do this:
 
 ```python
 l = [1]
-```
 
 ```python
 l.append(2)
-```
 
 _Instead_, do this:
 
 ```python
 l = [1]
-```
 
 ```python
 extended_list = l + [2]
-```
 
 **Mutate variables in the cells that define them.**
 
@@ -140,35 +124,29 @@ _Don't_ do this:
 
 ```python
 df = pd.DataFrame({"my_column": [1, 2]})
-```
 
 ```python
 df["another_column"] = [3, 4]
-```
 
 _Instead_, do this:
 
 ```python
 df = pd.DataFrame({"my_column": [1, 2]})
 df["another_column"] = [3, 4]
-```
 
-```{admonition} Why not track mutations?
-:class: note
-
-Tracking mutations reliably is a fundamentally impossible task in Python; marimo
-could never detect all mutations, and even if we could, reacting to mutations could
-result in surprising re-runs of notebook cells. The simplicity of marimo's
-static analysis approach, based only on variable definitions and references,
-makes marimo easy to understand and encourages well-organized notebook code.
-```
+!!! note "Why not track mutations?"
+    Tracking mutations reliably is a fundamentally impossible task in Python; marimo
+    could never detect all mutations, and even if we could, reacting to mutations could
+    result in surprising re-runs of notebook cells. The simplicity of marimo's
+    static analysis approach, based only on variable definitions and references,
+    makes marimo easy to understand and encourages well-organized notebook code.
 
 ## Runtime configuration
 
 Through the notebook settings menu, you can configure how and when marimo runs
 cells. In particular, you can disable autorun on startup, disable autorun
 on cell execution, and enable a powerful module autoreloader. Read our
-[runtime configuration guide](/guides/configuration/runtime_configuration.md) to learn more.
+[runtime configuration guide](../guides/configuration/runtime_configuration.md) to learn more.
 
 ## Disabling cells
 

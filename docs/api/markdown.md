@@ -4,9 +4,7 @@ Write markdown with `mo.md`; make your markdown **interactive**, **dynamic**,
 and **visually rich** by interpolating arbitrary Python values and marimo
 elements.
 
-```{eval-rst}
-.. autofunction:: marimo.md
-```
+::: marimo.md
 
 ## Icons
 
@@ -16,9 +14,7 @@ When is inside markdown, you can render an icon with the syntax `::iconset:icon-
 
 For other advanced features, use `mo.icon()` such as `mo.icon("lucide:rocket", size=20)` or `mo.icon("mdi:home", color="blue")`.
 
-```{eval-rst}
-.. autofunction:: marimo.icon
-```
+::: marimo.icon
 
 ## Tooltips
 

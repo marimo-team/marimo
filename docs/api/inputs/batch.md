@@ -1,7 +1,8 @@
 # Batch
 
-```{eval-rst}
-.. marimo-embed::
+/// marimo-embed
+
+```python
     @app.cell
     def __():
         el = mo.md("{start} → {end}").batch(
@@ -17,9 +18,6 @@
         return
 ```
 
-```{eval-rst}
-.. autoclass:: marimo.ui.batch
-  :members:
+///
 
-  .. autoclasstoc:: marimo._plugins.ui._impl.batch.batch
-```
+::: marimo.ui.batch

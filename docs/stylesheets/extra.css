@@ -1,0 +1,43 @@
+/* Custom styles for Marimo docs */
+
+/* Adjust the max width of the content */
+.md-grid {
+  max-width: 1440px;
+}
+
+/* Custom styling for code blocks */
+.highlight {
+  background-color: var(--md-code-bg-color);
+  border-radius: 4px;
+}
+
+/* Custom styling for admonitions */
+.admonition {
+  border-left-width: 4px !important;
+}
+
+/* Custom font sizes for better readability */
+.md-typeset {
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+
+.md-typeset h1 {
+  font-size: 2em;
+  font-weight: 600;
+}
+
+/* Custom styling for tables */
+.md-typeset table:not([class]) {
+  font-size: 0.75rem;
+}
+
+/* Custom styling for navigation */
+.md-nav {
+  font-size: 0.7rem;
+}
+
+/* Custom styling for code annotations */
+.md-annotation__index {
+  font-family: var(--md-code-font-family);
+}

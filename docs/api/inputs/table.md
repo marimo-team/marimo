@@ -1,9 +1,9 @@
 # Table
 
-```{eval-rst}
-.. marimo-embed::
-    :size: large
+/// marimo-embed
+    size: large
 
+```python
     @app.cell
     def __():
         table = mo.ui.table(data=office_characters, pagination=True)
@@ -41,9 +41,6 @@
         return
 ```
 
-```{eval-rst}
-.. autoclass:: marimo.ui.table
-  :members:
+///
 
-  .. autoclasstoc:: marimo._plugins.ui._impl.table.table
-```
+::: marimo.ui.table

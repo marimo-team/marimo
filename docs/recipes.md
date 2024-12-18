@@ -458,7 +458,7 @@ examples, form, output
 ### Create a button that triggers computation when clicked
 
 **Use cases.** To trigger a computation on button click and only on button
-click, use [`mo.ui.run_button()`](/api/inputs/run_button.md).
+click, use [`mo.ui.run_button()`](api/inputs/run_button.md).
 
 **Recipe.**
 

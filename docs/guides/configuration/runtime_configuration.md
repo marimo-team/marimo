@@ -5,19 +5,17 @@ runs cells.
 
 <video controls width="100%" height="100%" align="center" src="/_static/docs-runtime-config.mp4"> </video>
 
-
-
 ## On startup
 
 By default, marimo notebooks run automatically on startup; just how the command
 
-```
+```bash
 python main.py
 ```
 
 executes a script,
 
-```
+```bash
 marimo edit notebook.py
 ```
 
@@ -45,16 +43,14 @@ all stale cells.
 **When should I use lazy evaluation?** Choosing the lazy runtime can be helpful
 when working on notebooks with expensive cells.
 
-:::{admonition} Tip: speed up expensive notebooks with marimo's smart caching
-:class: tip
+!!! tip "Tip: speed up expensive notebooks with marimo's smart caching"
 
-In addition to runtime configuration, marimo also provides [opt-in caching](/guides/caching.md)
+In addition to runtime configuration, marimo also provides [opt-in caching](../guides/caching.md)
 to help you work with expensive or side-effectful notebooks. marimo's
 can cache expensive functions in memory and expensive blocks of code to disk,
 letting you skip entire sections of your code and automatically loading
 variables in memory on notebook startup. Read our [caching
-guide](/api/caching.md) to learn more.
-:::
+guide](../api/caching.md) to learn more.
 
 _When sharing a notebook as an app with `marimo run`, this setting has
 no effect._
@@ -66,27 +62,22 @@ edit Python files. Based on static analysis, the reloader only runs cells
 affected by your edits. The reloader is recursive, meaning that marimo tracks
 modifications for modules imported by your notebook's imported modules too.
 
-:::{admonition} Why autoreload?
-:class: tip
+!!! tip "Why autoreload?"
 
 Autoreloading enables a workflow that many developers find
 productive: develop complex logic in Python modules, and use the marimo
 notebook as a DAG or main script that orchestrates your logic.
-:::
 
 Autoreloading comes in two types:
 
 1. **autorun**: automatically re-runs cells affected by module modification.
-
 
 <figure>
 <video controls loop width="100%" height="100%" align="center" src="/_static/docs-module-reloading.mp4"> </video>
 <figcaption align="center">When set to autorun, marimo's reloader automatically run cells when you edit Python files.</figcaption>
 </figure>
 
-
-2. **lazy**: marks cells affected by module
-  modifications as stale, letting you know which cells need to be re-run.
+2. **lazy**: marks cells affected by module modifications as stale, letting you know which cells need to be re-run.
 
 <figure>
 <video controls loop width="100%" height="100%" align="center" src="/_static/docs-module-reloading-lazy.mp4"> </video>

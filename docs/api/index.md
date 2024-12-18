@@ -1,29 +1,5 @@
 # API Reference
 
-```{eval-rst}
-.. toctree::
-  :maxdepth: 1
-  :hidden:
-
-  markdown
-  inputs/index
-  layouts/index
-  plotting
-  media/index
-  diagrams
-  status
-  outputs
-  control_flow
-  html
-  query_params
-  cli_args
-  caching
-  state
-  app
-  cell
-  miscellaneous
-```
-
 Use the marimo library in marimo notebooks (`import marimo as mo`) to
 
 - connect interactive inputs like sliders, dropdowns, and tables to Python,
@@ -34,20 +10,20 @@ Use the marimo library in marimo notebooks (`import marimo as mo`) to
 
 |                      |                                                           |
 | :------------------- | :-------------------------------------------------------- |
-| {doc}`markdown`      | Write markdown with `mo.md`                               |
-| {doc}`inputs/index`  | Connect sliders, dropdowns, tables, and more to Python    |
-| {doc}`layouts/index` | Customize outputs with accordions, tabs, stacks, and more |
-| {doc}`plotting`      | Output interactive plots                                  |
-| {doc}`media/index`   | Output media like images, audio, PDFs, and plain text     |
-| {doc}`diagrams`      | Flow charts, graphs, statistic cards, and more            |
-| {doc}`status`        | Display progress indicators                               |
-| {doc}`outputs`       | Modify cell outputs, redirect console output              |
-| {doc}`control_flow`  | Control how cells execute                                 |
-| {doc}`html`          | Manipulate HTML objects                                   |
-| {doc}`query_params`  | Access and set query parameters with `mo.query_params`    |
-| {doc}`cli_args`      | Access command-line arguments with `mo.cli_args`          |
-| {doc}`caching`       | Cache expensive computations in memory or on disk         |
-| {doc}`state`         | Synchronize multiple UI elements with `mo.state`          |
-| {doc}`app`           | Embed notebooks in other notebooks                        |
-| {doc}`cell`          | Run cells defined in another notebook                     |
-| {doc}`miscellaneous` | Miscellaneous utilities                                   |
+| [markdown](markdown.md)      | Write markdown with `mo.md`                               |
+| [inputs](inputs/index.md)  | Connect sliders, dropdowns, tables, and more to Python    |
+| [layouts](layouts/index.md) | Customize outputs with accordions, tabs, stacks, and more |
+| [plotting](plotting.md)      | Output interactive plots                                  |
+| [media](media/index.md)   | Output media like images, audio, PDFs, and plain text     |
+| [diagrams](diagrams.md)      | Flow charts, graphs, statistic cards, and more            |
+| [status](status.md)        | Display progress indicators                               |
+| [outputs](outputs.md)       | Modify cell outputs, redirect console output              |
+| [control_flow](control_flow.md)  | Control how cells execute                                 |
+| [html](html.md)          | Manipulate HTML objects                                   |
+| [query_params](query_params.md)  | Access and set query parameters with `mo.query_params`    |
+| [cli_args](cli_args.md)      | Access command-line arguments with `mo.cli_args`          |
+| [caching](caching.md)       | Cache expensive computations in memory or on disk         |
+| [state](state.md)         | Synchronize multiple UI elements with `mo.state`          |
+| [app](app.md)           | Embed notebooks in other notebooks                        |
+| [cell](cell.md)          | Run cells defined in another notebook                     |
+| [miscellaneous](miscellaneous.md) | Miscellaneous utilities                                   |

@@ -1,6 +1,6 @@
 # Troubleshooting
 
-This guide covers common issues and unexpected behaviors you might encounter when using marimo notebooks, along with ways to debug and resolve them. If your issue isn't covered here, try checking our [FAQ](/guides/faq.md).
+This guide covers common issues and unexpected behaviors you might encounter when using marimo notebooks, along with ways to debug and resolve them. If your issue isn't covered here, try checking our [FAQ](../guides/faq.md).
 
 ## Why aren't my cells running?
 
@@ -12,7 +12,7 @@ marimo doesn't track mutations to objects. If you're modifying an object in one 
 
 Instead of mutating objects across cells, try creating new objects or performing all mutations within the same cell.
 
-[Read more about reactivity](/guides/reactivity.md).
+[Read more about reactivity](../guides/reactivity.md).
 
 ### Verify cell connections
 
@@ -65,11 +65,9 @@ If you need to maintain UI element values across cell runs, consider using `mo.s
 ```python
 # Declare state in a separate cell
 get_value, set_value = mo.state(initial_value)
-```
 
 ```python
 element = mo.ui.slider(0, 10, value=get_value(), on_change=set_value)
-```
 
 This way, the value persists even if the cell defining the element reruns.
 
@@ -84,13 +82,11 @@ Create an explicit dependency by using a variable from the first cell in the sec
 ```python
 # Cell 1
 result = some_computation()
-```
 
 ```python
 # Cell 2
 _ = result  # This creates a dependency on Cell 1
 further_computation()
-```
 
 ### Consider refactoring
 
@@ -121,7 +117,6 @@ Locate your `marimo.toml` configuration file with `marimo config show`, and edit
 ```toml
 [server]
 follow_symlink = true
-```
 
 ### Check proxy settings
 
@@ -131,4 +126,3 @@ If you are using a proxy server, you need to include the `--proxy` flag when run
 marimo edit --proxy example.com:8080
 # or
 marimo run --proxy example.com:8080
-```

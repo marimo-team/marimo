@@ -1,0 +1,11 @@
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
+
+[project]
+dependencies = []
+name = "docs"
+version = "0.0.1"
+
+[tool.hatch.build.targets.wheel]
+include = ["blocks.py"]

@@ -1,15 +1,5 @@
 # Configuration
 
-```{eval-rst}
-.. toctree::
-  :maxdepth: 2
-  :hidden:
-
-  runtime_configuration
-  theming
-  html_head
-```
-
 marimo offers two types of configuration: User Configuration and App
 Configuration. Both can be easily managed through the Settings menu in the
 marimo editor.
@@ -22,8 +12,8 @@ App Configuration is specific to each notebook and is stored in the `notebook.py
 
 - Notebook width
 - Notebook title
-- [Custom CSS](/guides/configuration/theming.md)
-- [Custom HTML Head](/guides/configuration/html_head.md)
+- [Custom CSS](../guides/configuration/theming.md)
+- [Custom HTML Head](../guides/configuration/html_head.md)
 - Automatically download HTML snapshots
 
 Configure these settings through the notebook menu (⚙️) in the top-right corner.
@@ -42,16 +32,16 @@ marimo UI for a more user-friendly experience.
 
 You can customize the following settings:
 
-- [Runtime](/guides/configuration/runtime_configuration.md), including whether notebooks autorun
-- [Hotkeys](/guides/editor_features/hotkeys.md)
+- [Runtime](../guides/configuration/runtime_configuration.md), including whether notebooks autorun
+- [Hotkeys](../guides/editor_features/hotkeys.md)
 - Completion (auto-completion, AI copilot, etc.)
 - Display (theme, font size, output placement, etc.)
 - Autosave
-- [Package management](/guides/editor_features/package_management.md#package-management)
+- [Package management](../guides/editor_features/package_management.md#package-management)
 - Server settings
-- [VIM keybindings](/guides/editor_features/overview.md#vim-keybindings)
+- [VIM keybindings](../guides/editor_features/overview.md#vim-keybindings)
 - Formatting settings
-- [AI assistance](/guides/editor_features/ai_completion.md)
+- [AI assistance](../guides/editor_features/ai_completion.md)
 - Experimental features
 
 ### User configuration file

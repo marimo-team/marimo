@@ -15,29 +15,23 @@ having to install Python on your machine.
 **Try our playground!** Just navigate to
 [https://marimo.new](https://marimo.new).
 
-```{admonition} WASM?
-:class: note
+!!! note "WASM?"
 
-marimo-in-the-browser is powered by a technology called
-[WebAssembly](https://webassembly.org/), or "WASM" for short. Hence the
-name "WASM notebook".
-```
+  marimo-in-the-browser is powered by a technology called
+  [WebAssembly](https://webassembly.org/), or "WASM" for short. Hence the
+  name "WASM notebook".
 
-```{admonition} When should I use WASM notebooks?
-:class: note
+!!! note "When should I use WASM notebooks?"
 
-WASM notebooks are excellent for sharing your work, quickly experimenting with
-code and models, doing lightweight data exploration, authoring blog posts,
-tutorials, and educational materials, and even building tools. They are
-not well-suited for notebooks that do heavy computation.
-```
+  WASM notebooks are excellent for sharing your work, quickly experimenting with
+  code and models, doing lightweight data exploration, authoring blog posts,
+  tutorials, and educational materials, and even building tools. They are
+  not well-suited for notebooks that do heavy computation.
 
-```{admonition} Issues?
-:class: warning
+!!! warning "Issues?"
 
-WASM notebooks are a new feature. If you run into
-problems, please open a [GitHub issue](https://github.com/marimo-team/marimo/issues).
-```
+  WASM notebooks are a new feature. If you run into
+  problems, please open a [GitHub issue](https://github.com/marimo-team/marimo/issues).
 
 ## Creating and sharing WASM notebooks
 
@@ -52,13 +46,11 @@ Think of [marimo.new](https://marimo.new) as your own personal
 scratchpad for experimenting with code, data, and models and for prototyping
 tools, available to you at all times and on all devices.
 
-```{admonition} Saving WASM notebooks
-:class: tip
+!!! tip "Saving WASM notebooks"
 
 When you save a WASM notebook, a copy of your code is saved to your
 web browser's local storage. When you return to [marimo.app](https://marimo.app),
 the last notebook you worked on will be re-opened.
-```
 
 ### Creating shareable permalinks
 
@@ -99,14 +91,12 @@ In one cell, import micropip:
 
 ```python
 import micropip
-```
 
 In the next one, install packages:
 
 ```python
 await micropip.install("plotly")
 import plotly
-```
 
 **Try it!** A WASM notebook is embedded below. Try installing a package.
 
@@ -168,7 +158,6 @@ providing your users with an interactive code playground.
   height="300"
   frameborder="0"
 ></iframe>
-```
 
 <iframe src="https://marimo.app/l/aojjhb?embed=true" width="100%" height="300" class="demo" frameBorder="0"></iframe>
 
@@ -184,7 +173,6 @@ URL to your notebook](#creating-and-sharing-wasm-notebooks), then put it in an i
   height="300"
   frameborder="0"
 ></iframe>
-```
 
 <iframe src="https://marimo.app/l/c7h6pz?embed=true" width="100%" height="600" class="demo" frameBorder="0"></iframe>
 
@@ -203,7 +191,6 @@ You can optionally render embedded notebooks in read-only mode by appending
   height="300"
   frameborder="0"
 ></iframe>
-```
 
 <iframe src="https://marimo.app/l/c7h6pz?mode=read&embed=true" width="100%" height="600" class="demo" frameBorder="0"></iframe>
 
