@@ -23,9 +23,11 @@ export function useRegisteredActions() {
 export function useSetRegisteredAction() {
   const set = useSetAtom(registeredActionsAtom);
   return {
-    registerAction: useEvent((shortcut: HotkeyAction, callback: () => void) => {
-      set((actions) => ({ ...actions, [shortcut]: callback }));
-    }),
+    registerAction: useEvent(
+      (shortcut: HotkeyAction, callback: (evt?: KeyboardEvent) => void) => {
+        set((actions) => ({ ...actions, [shortcut]: callback }));
+      },
+    ),
     unregisterAction: useEvent((shortcut: HotkeyAction) => {
       set((actions) => {
         const { [shortcut]: unused, ...rest } = actions;
