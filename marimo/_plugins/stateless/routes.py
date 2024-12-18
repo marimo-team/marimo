@@ -12,44 +12,37 @@ from marimo._plugins.ui._core.ui_element import UIElement
 
 @mddoc
 class routes(UIElement[str, str]):
-    """
-    Renders a list of routes that are switched based on the
-    URL path.
+    """Renders a list of routes that are switched based on the URL path.
 
-    Routes currently don't support nested routes, or
-    dynamic routes (e.g. `#/user/:id`). If you'd like to
-    see these features, please let us know on GitHub:
+    Routes currently don't support nested routes, or dynamic routes (e.g. `#/user/:id`).
+    If you'd like to see these features, please let us know on GitHub:
     https://github.com/marimo-team/marimo/issues
 
-    For a simple-page-application (SPA) experience, you
-    should use hash-based routing. For example, prefix
-    your routes with `#/`.
+    For a simple-page-application (SPA) experience, you should use hash-based routing.
+    For example, prefix your routes with `#/`.
 
-    If you are using a multi-page-application (MPA) with
-    `marimo.create_asgi_app`, you should use path-based routing.
-    For example, prefix your routes with `/`.
+    If you are using a multi-page-application (MPA) with `marimo.create_asgi_app`,
+    you should use path-based routing. For example, prefix your routes with `/`.
 
-    **Examples.**
+    Examples:
+        ```python
+        mo.routes(
+            {
+                "#/": render_home,
+                "#/about": render_about,
+                "#/contact": render_contact,
+                mo.routes.CATCH_ALL: render_home,
+            }
+        )
+        ```
 
-    ```python
-    mo.routes(
-        {
-            "#/": render_home,
-            "#/about": render_about,
-            "#/contact": render_contact,
-            mo.routes.CATCH_ALL: render_home,
-        }
-    )
-    ```
+    Args:
+        routes (dict[str, Union[Callable[[], object], Callable[[], Coroutine[None, None, object]], object]]):
+            A dictionary of routes, where the key is the URL path and the value is a function
+            that returns the content to display.
 
-    **Args.**
-
-    - `routes`: a dictionary of routes, where the key is the URL path
-      and the value is a function that returns the content to display.
-
-    **Returns.**
-
-    - An `Html` object.
+    Returns:
+        Html: An Html object.
     """
 
     _name: Final[str] = "marimo-routes"
