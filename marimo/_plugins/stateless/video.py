@@ -24,30 +24,27 @@ def video(
 ) -> Html:
     """Render an video as HTML.
 
-    **Example.**
+    Example:
+        ```python3
+        mo.video(
+            src="https://v3.cdnpk.net/videvo_files/video/free/2013-08/large_watermarked/hd0992_preview.mp4",
+            controls=False,
+        )
+        ```
 
-    ```python3
-    mo.video(
-        src="https://v3.cdnpk.net/videvo_files/video/free/2013-08/large_watermarked/hd0992_preview.mp4",
-        controls=False,
-    )
-    ```
+    Args:
+        src: the URL of the video or a file-like object
+        controls: whether to show the controls
+        muted: whether to mute the video
+        autoplay: whether to autoplay the video.
+            the video will only autoplay if `muted` is `True`
+        loop: whether to loop the video
+        width: the width of the video in pixels or a string with units
+        height: the height of the video in pixels or a string with units
+        rounded: whether to round the corners of the video
 
-    **Args.**
-
-    - `src`: the URL of the video or a file-like object
-    - `controls`: whether to show the controls
-    - `muted`: whether to mute the video
-    - `autoplay`: whether to autoplay the video.
-        the video will only autoplay if `muted` is `True`
-    - `loop`: whether to loop the video
-    - `width`: the width of the video in pixels or a string with units
-    - `height`: the height of the video in pixels or a string with units
-    - `rounded`: whether to round the corners of the video
-
-    **Returns.**
-
-    `Html` object
+    Returns:
+        `Html` object
     """
     # Convert to bytes right away since can only be read once
     if isinstance(src, io.BufferedReader):

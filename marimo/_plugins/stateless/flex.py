@@ -101,17 +101,17 @@ def vstack(
 
     Args:
         items (Sequence[object]): A list of items.
-        align (Literal["start", "end", "center", "stretch"], optional): Align items
+        align (Optional[Literal["start", "end", "center", "stretch"]]): Align items
             horizontally: start, end, center, or stretch.
         justify (Literal["start", "center", "end", "space-between", "space-around"]):
             Justify items vertically: start, center, end, space-between, or space-around.
             Defaults to "start".
-        gap (float, optional): Gap between items as a float in rem. 1rem is 16px by default.
+        gap (float): Gap between items as a float in rem. 1rem is 16px by default.
             Defaults to 0.5.
-        heights (Union[Literal["equal"], Sequence[float]], optional): "equal" to give items
+        heights (Optional[Literal["equal"] | Sequence[float]]): "equal" to give items
             equal height; or a list of relative heights with same length as `items`,
-            eg, [1, 2] means the second item is twice as tall as the first;
-            or None for a sensible default.
+            eg, [1, 2] means the second item is twice as tall as the first; or None
+            for a sensible default.
 
     Returns:
         Html: An Html object.
@@ -168,15 +168,15 @@ def hstack(
         justify (Literal["start", "center", "end", "space-between", "space-around"]):
             Justify items horizontally: start, center, end, space-between, or space-around.
             Defaults to "space-between".
-        align (Literal["start", "end", "center", "stretch"], optional): Align items
+        align (Optional[Literal["start", "end", "center", "stretch"]]): Align items
             vertically: start, end, center, or stretch.
-        wrap (bool, optional): Wrap items or not. Defaults to False.
-        gap (float, optional): Gap between items as a float in rem. 1rem is 16px by default.
+        wrap (bool): Wrap items or not. Defaults to False.
+        gap (float): Gap between items as a float in rem. 1rem is 16px by default.
             Defaults to 0.5.
-        widths (Union[Literal["equal"], Sequence[float]], optional): "equal" to give items
+        widths (Optional[Literal["equal"] | Sequence[float]]): "equal" to give items
             equal width; or a list of relative widths with same length as `items`,
-            eg, [1, 2] means the second item is twice as wide as the first;
-            or None for a sensible default.
+            eg, [1, 2] means the second item is twice as wide as the first; or None
+            for a sensible default.
 
     Returns:
         Html: An Html object.
@@ -208,17 +208,16 @@ def _spaced(
     A grid built with this function has a fixed number of items per row.
     For more flexibility, use `hstack` and `vstack`.
 
-    **Args.**
+    Args:
+        items (Sequence[object]): Items to arrange
+        justify (Literal["left", "right", "center", "normal"]): Justify items normally,
+            left, right, or center.
+        items_per_row (Optional[int]): Number of items to place in each row
+        column_gap (float): Minimum gap in rem between columns
+        row_gap (float): Minimum gap in rem between rows
 
-    - `items`: Items to arrange
-    - `justify`: Justify items normally, left, right, or center.
-    - `items_per_row`: Number of items to place in each row
-    - `column_gap`: Minimum gap in rem between columns
-    - `row_gap`: Minimum gap in rem between rows
-
-    **Returns.**
-
-    - An `Html` object.
+    Returns:
+        Html: An `Html` object.
     """
     items_per_row = len(items) if items_per_row is None else items_per_row
     style = create_style(

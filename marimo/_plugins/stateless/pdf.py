@@ -26,32 +26,29 @@ def pdf(
     This currently uses the native browser PDF viewer,
     but may be replaced with a custom viewer.
 
-    **Example.**
+    Example:
+        ```python3
+        mo.pdf(
+            src="https://arxiv.org/pdf/2104.00282.pdf",
+            width="100%",
+            height="50vh",
+        )
 
-    ```python3
-    mo.pdf(
-        src="https://arxiv.org/pdf/2104.00282.pdf",
-        width="100%",
-        height="50vh",
-    )
+        with open("paper.pdf", "rb") as file:
+            mo.pdf(src=file)
+        ```
 
-    with open("paper.pdf", "rb") as file:
-        mo.pdf(src=file)
-    ```
+    Args:
+        src: the URL of the pdf or a file-like object
+        initial_page: the page to open the pdf to.
+            only works if `src` is a URL
+        width: the width of the pdf
+        height: the height of the pdf. for a percentage
+            of the user's viewport, use a string like `"50vh"`
+        style: a dictionary of CSS styles to apply to the pdf
 
-    **Args.**
-
-    - `src`: the URL of the pdf or a file-like object
-    - `initial_page`: the page to open the pdf to.
-        only works if `src` is a URL
-    - `width`: the width of the pdf
-    - `height`: the height of the pdf. for a percentage
-        of the user's viewport, use a string like `"50vh"`
-    - `style`: a dictionary of CSS styles to apply to the pdf
-
-    **Returns.**
-
-    `Html` object
+    Returns:
+        `Html` object
     """
     resolved_src = src if isinstance(src, str) else mo_data.pdf(src.read()).url
     if initial_page is not None and isinstance(src, str):
