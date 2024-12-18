@@ -47,6 +47,7 @@ class lazy(UIElement[bool, bool]):
         ```python
         async def expensive_component(): ...
 
+
         mo.lazy(expensive_component)
         ```
 
