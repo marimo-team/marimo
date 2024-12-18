@@ -77,8 +77,13 @@ def _colorized_url(url_string: str) -> str:
     else:
         query = ""
 
+    url_string = f"{url.scheme}://{url.hostname}"
+    # raw https and http urls do not have a port to parse
+    if url.port:
+        url_string += f":{url.port}"
+
     return bold(
-        f"{url.scheme}://{url.hostname}:{url.port}{url.path}{query}",
+        f"{url_string}{url.path}{query}",
     )
 
 
