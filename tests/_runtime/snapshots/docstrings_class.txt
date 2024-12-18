@@ -1,0 +1,8 @@
+<div class="codehilite"><pre><span></span><code><span class="k">class</span> <span class="nc">MyClass</span><span class="p">()</span>
+</code></pre></div>
+
+<span class="paragraph">Some docstring for the class.</span>
+
+__init__ docstring:
+
+Class init details.

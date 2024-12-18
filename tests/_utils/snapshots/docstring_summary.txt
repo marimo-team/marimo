@@ -1,0 +1,22 @@
+# Summary
+This is the summary.
+
+# Arguments
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `foo` | `str` | Lorem ipsum |
+| `bar` | `int` | Dolor sit amet |
+
+# Returns
+| Type | Description |
+|------|-------------|
+| `bool` | Return description |
+
+# Raises
+- **ValueError**: Something about the value
+
+# Examples
+```python
+print('Hello, world!')
+print(foo, bar)
+```

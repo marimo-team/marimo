@@ -4,6 +4,7 @@ from __future__ import annotations
 import html
 import threading
 import time
+from functools import lru_cache
 from typing import TYPE_CHECKING, Any, cast
 
 import jedi  # type: ignore # noqa: F401
@@ -17,6 +18,7 @@ from marimo._output.md import _md
 from marimo._runtime import dataflow
 from marimo._runtime.requests import CodeCompletionRequest
 from marimo._server.types import QueueType
+from marimo._utils.docs import google_docstring_to_markdown
 from marimo._utils.format_signature import format_signature
 from marimo._utils.rst_to_html import convert_rst_to_html
 
@@ -52,94 +54,144 @@ def _should_include_name(name: str, prefix: str) -> bool:
         return True
 
 
+DOC_CACHE_SIZE = 200
+
+
+@lru_cache(maxsize=DOC_CACHE_SIZE)
+def _build_docstring_cached(
+    completion_type: str,
+    completion_name: str,
+    module_name: str,
+    signature_strings: tuple[str, ...],
+    raw_body: str | None,
+    init_docstring: str | None,
+) -> str:
+    """Builds the docstring that includes signatures and body."""
+    if not signature_strings:
+        # handle modules, keywords, etc.
+        if completion_type == "module":
+            signature_text = "module " + completion_name
+        elif completion_type == "keyword":
+            signature_text = "keyword " + completion_name
+        else:
+            signature_text = ""
+    else:
+        merged_sig = "\n\n".join(
+            [
+                format_signature(
+                    (
+                        "def "
+                        if completion_type == "function"
+                        else "class "
+                        if completion_type == "class"
+                        else ""
+                    ),
+                    s,
+                )
+                for s in signature_strings
+            ]
+        )
+        signature_text = _md(
+            f"```python3\n{merged_sig}\n```",
+            apply_markdown_class=False,
+        ).text
+
+    body_converted = (
+        _convert_docstring_to_markdown(module_name, raw_body)
+        if raw_body
+        else ""
+    )
+
+    if signature_text and body_converted:
+        docstring = signature_text + "\n\n" + body_converted
+    else:
+        docstring = signature_text + body_converted
+
+    if init_docstring:
+        docstring += "\n\n" + init_docstring
+
+    return docstring
+
+
+def _convert_docstring_to_markdown(
+    module_name: str,
+    raw_docstring: str,
+) -> str:
+    """
+    Convert raw docstring to markdown or HTML, depending on module origin.
+    """
+    # for marimo docstrings, treat them as markdown
+    # for other modules, treat them as plain text
+    if module_name.startswith("marimo"):
+        # Convert Google-style docstrings to markdown, if applicable
+        if "Returns:" in raw_docstring or "Args:" in raw_docstring:
+            return _md(
+                google_docstring_to_markdown(raw_docstring),
+                apply_markdown_class=False,
+            ).text
+        else:
+            return _md(raw_docstring, apply_markdown_class=False).text
+    else:
+        # Possibly RST -> HTML
+        try:
+            return (
+                "<div class='external-docs'>"
+                + convert_rst_to_html(raw_docstring)
+                + "</div>"
+            )
+        except Exception:
+            # if docutils chokes, we don't want to crash the completion
+            # worker
+            return (
+                "<pre class='external-docs'>"
+                + html.escape(raw_docstring)
+                + "</pre>"
+            )
+
+
 def _get_docstring(completion: jedi.api.classes.BaseName) -> str:
     try:
-        body = cast(str, completion.docstring(raw=True))
+        raw_body = cast(str, completion.docstring(raw=True))
     except Exception:
         LOGGER.debug("Failed to get docstring for %s", completion.name)
         return ""
 
-    if completion.type == "function":
-        prefix = "def "
-    elif completion.type == "class":
-        prefix = "class "
-    else:
-        prefix = ""
-
+    # Glean raw signatures
     try:
-        signature_text = "\n\n".join(
-            [
-                format_signature(prefix, s.to_string())
-                for s in completion.get_signatures()
-            ]
+        signature_strings = tuple(
+            s.to_string() for s in completion.get_signatures()
         )
     except Exception:
         LOGGER.debug("Maybe failed getting signature for %s", completion.name)
         return ""
 
-    if completion.type == "module" and not signature_text:
-        signature_text = "module " + completion.name
-    elif completion.type == "keyword" and not signature_text:
-        signature_text = "keyword " + completion.name
-
-    if signature_text:
-        signature_text = _md(
-            "```python3\n" + signature_text + "\n```",
-            apply_markdown_class=False,
-        ).text
-
-    if body:
-        # for marimo docstrings, treat them as markdown
-        # for other modules, treat them as plain text
-        if completion.module_name.startswith("marimo"):
-            body = _md(body, apply_markdown_class=False).text
-        else:
-            try:
-                body = (
-                    "<div class='external-docs'>"
-                    + convert_rst_to_html(body)
-                    + "</div>"
-                )
-            except Exception as e:
-                # if docutils chokes, we don't want to crash the completion
-                # worker
-                LOGGER.debug("Converting RST to HTML failed: ", e)
-                body = (
-                    "<pre class='external-docs'>"
-                    + html.escape(body)
-                    + "</pre>"
-                )
-
-    if signature_text and body:
-        docstring = signature_text + "\n\n" + body
-    else:
-        docstring = signature_text + body
-
+    init_docstring = ""
     if completion.type == "class":
-        # Append the __init__ docstring.
-        definitions = completion.goto()
+        # Possibly append the __init__ docstring, if it exists
+        definitions: list[jedi.api.classes.Name] = completion.goto()
         if (
             definitions
             and len(definitions) == 1
             and isinstance(definitions[0], jedi.api.classes.Name)
         ):
-            name = definitions[0]
-            for subname in name.defined_names():
+            for subname in definitions[0].defined_names():
                 if subname.name.endswith("__init__"):
-                    init_docstring = subname.docstring(raw=True)
-                    if init_docstring:
+                    raw_init = subname.docstring(raw=True)
+                    if raw_init:
                         init_docstring = (
                             "__init__ docstring:\n\n"
-                            + _md(
-                                init_docstring, apply_markdown_class=False
-                            ).text
+                            + _md(raw_init, apply_markdown_class=False).text
                         )
-                    if docstring and init_docstring:
-                        docstring += "\n\n" + init_docstring
-                    else:
-                        docstring += init_docstring
 
-    return docstring
+    # Build final docstring
+    return _build_docstring_cached(
+        completion.type,
+        completion.name,
+        str(completion.module_name),
+        signature_strings,
+        raw_body,
+        init_docstring or None,
+    )
 
 
 def _get_type_hint(completion: jedi.api.classes.BaseName) -> str:
