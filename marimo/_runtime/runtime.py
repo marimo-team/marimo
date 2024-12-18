@@ -921,7 +921,7 @@ class Kernel:
         absent-mindedly redefine an existing name when creating a new cell:
         such a mistake shouldn't invalidate the program state.
 
-        Returns
+        Returns:
         - set of cells that must be run to return kernel to consistent state
         """
         LOGGER.debug("Mutating graph.")

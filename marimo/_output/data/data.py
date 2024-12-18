@@ -31,7 +31,8 @@ def image(data: bytes, ext: str = "png") -> VirtualFile:
     """Create a virtual file from an image.
 
     Args:
-        data: Image data in bytes
+        data (bytes): Image data in bytes
+        ext (str): File extension
 
     Returns:
         A `VirtualFile` object.
@@ -45,7 +46,8 @@ def audio(data: bytes, ext: str = "wav") -> VirtualFile:
     """Create a virtual file from audio.
 
     Args:
-        data: Audio data in bytes
+        data (bytes): Audio data in bytes
+        ext (str): File extension
 
     Returns:
         A `VirtualFile` object.

@@ -28,13 +28,15 @@ def download(
     Show a download button for a url, bytes, or file-like object.
 
     Args:
-        data: The data to download. Can be a string (interpreted as
+        data (Union[str, bytes, io.BytesIO]): The data to download. Can be a string (interpreted as
             a URL), bytes, or a file opened in binary mode.
-        filename: The name of the file to download.
+        filename (str): The name of the file to download.
             If not provided, the name will be guessed from the data.
-        mimetype: The mimetype of the file to download, for example,
+        mimetype (str): The mimetype of the file to download, for example,
             (e.g. "text/csv", "image/png"). If not provided,
             the mimetype will be guessed from the filename.
+        disabled (bool): Whether to disable the download button.
+        label (str): The label of the download button.
 
     Returns:
         An `Html` object for a download button.

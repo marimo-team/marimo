@@ -310,23 +310,18 @@ def mime_to_html(mimetype: KnownMimeType, data: Any) -> Html:
 
 @mddoc
 def plain(value: Any) -> Plain:
-    """
-    Wrap a value to indicate that it should be displayed
-    without any opinionated formatting.
+    """Wrap a value to indicate that it should be displayed without any opinionated formatting.
 
-    This is the best way to opt out of marimo's
-    default dataframe rendering.
+    This is the best way to opt out of marimo's default dataframe rendering.
 
-    **Example.**
+    Example:
+        ```python
+        df = data.cars()
+        mo.plain(df)
+        ```
 
-    ```python
-    df = data.cars()
-    mo.plain(df)
-    ```
-
-    **Args.**
-
-    - `value`: Any value
+    Args:
+        value: Any value
     """
     return Plain(value)
 
@@ -343,8 +338,7 @@ class Plain:
 
 @mddoc
 def iframe(html: str, *, width: str = "100%", height: str = "400px") -> Html:
-    """
-    Embed an HTML string in an iframe.
+    """Embed an HTML string in an iframe.
 
     Scripts by default are not executed using `mo.as_html` or `mo.Html`,
     so if you have a script tag (written as `<script></script>`),
@@ -354,16 +348,16 @@ def iframe(html: str, *, width: str = "100%", height: str = "400px") -> Html:
     that may contain styles that could interfere with the rest of the
     page.
 
-    **Example.**
+    Example:
+        ```python
+        html = "<h1>Hello, world!</h1>"
+        mo.iframe(html)
+        ```
 
-    ```python
-    html = "<h1>Hello, world!</h1>"
-    mo.iframe(html)
-    ```
-
-    **Args.**
-
-    - `html`: An HTML string
+    Args:
+        html (str): An HTML string
+        width (str): The width of the iframe
+        height (str): The height of the iframe
     """
 
     return Html(
