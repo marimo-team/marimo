@@ -12,9 +12,9 @@ import { Functions } from "@/utils/functions";
 import { hotkeysAtom } from "@/core/config/config";
 import { useAtomValue } from "jotai";
 
-// eslint-disable-next-line @typescript-eslint/no-invalid-void-type
 type HotkeyHandler = (
   evt?: KeyboardEvent,
+  // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
 ) => boolean | void | undefined | Promise<void>;
 
 /**
