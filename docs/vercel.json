@@ -24,6 +24,611 @@
       "source": "/guides/overview.html",
       "destination": "/getting_started/key_concepts.html",
       "permanent": true
+    },
+    {
+      "source": "/api/app.html",
+      "destination": "/api/app",
+      "permanent": true
+    },
+    {
+      "source": "/api/caching.html",
+      "destination": "/api/caching",
+      "permanent": true
+    },
+    {
+      "source": "/api/cell.html",
+      "destination": "/api/cell",
+      "permanent": true
+    },
+    {
+      "source": "/api/cli_args.html",
+      "destination": "/api/cli_args",
+      "permanent": true
+    },
+    {
+      "source": "/api/control_flow.html",
+      "destination": "/api/control_flow",
+      "permanent": true
+    },
+    {
+      "source": "/api/diagrams.html",
+      "destination": "/api/diagrams",
+      "permanent": true
+    },
+    {
+      "source": "/api/html.html",
+      "destination": "/api/html",
+      "permanent": true
+    },
+    {
+      "source": "/api/index.html",
+      "destination": "/api",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/anywidget.html",
+      "destination": "/api/inputs/anywidget",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/array.html",
+      "destination": "/api/inputs/array",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/batch.html",
+      "destination": "/api/inputs/batch",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/button.html",
+      "destination": "/api/inputs/button",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/chat.html",
+      "destination": "/api/inputs/chat",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/checkbox.html",
+      "destination": "/api/inputs/checkbox",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/code_editor.html",
+      "destination": "/api/inputs/code_editor",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/data_explorer.html",
+      "destination": "/api/inputs/data_explorer",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/dataframe.html",
+      "destination": "/api/inputs/dataframe",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/dates.html",
+      "destination": "/api/inputs/dates",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/dictionary.html",
+      "destination": "/api/inputs/dictionary",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/dropdown.html",
+      "destination": "/api/inputs/dropdown",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/file.html",
+      "destination": "/api/inputs/file",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/file_browser.html",
+      "destination": "/api/inputs/file_browser",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/form.html",
+      "destination": "/api/inputs/form",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/index.html",
+      "destination": "/api/inputs",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/microphone.html",
+      "destination": "/api/inputs/microphone",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/multiselect.html",
+      "destination": "/api/inputs/multiselect",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/nav_menu.html",
+      "destination": "/api/inputs/nav_menu",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/number.html",
+      "destination": "/api/inputs/number",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/radio.html",
+      "destination": "/api/inputs/radio",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/range_slider.html",
+      "destination": "/api/inputs/range_slider",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/refresh.html",
+      "destination": "/api/inputs/refresh",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/run_button.html",
+      "destination": "/api/inputs/run_button",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/slider.html",
+      "destination": "/api/inputs/slider",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/switch.html",
+      "destination": "/api/inputs/switch",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/table.html",
+      "destination": "/api/inputs/table",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/tabs.html",
+      "destination": "/api/inputs/tabs",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/text.html",
+      "destination": "/api/inputs/text",
+      "permanent": true
+    },
+    {
+      "source": "/api/inputs/text_area.html",
+      "destination": "/api/inputs/text_area",
+      "permanent": true
+    },
+    {
+      "source": "/api/layouts/accordion.html",
+      "destination": "/api/layouts/accordion",
+      "permanent": true
+    },
+    {
+      "source": "/api/layouts/callout.html",
+      "destination": "/api/layouts/callout",
+      "permanent": true
+    },
+    {
+      "source": "/api/layouts/carousel.html",
+      "destination": "/api/layouts/carousel",
+      "permanent": true
+    },
+    {
+      "source": "/api/layouts/index.html",
+      "destination": "/api/layouts",
+      "permanent": true
+    },
+    {
+      "source": "/api/layouts/justify.html",
+      "destination": "/api/layouts/justify",
+      "permanent": true
+    },
+    {
+      "source": "/api/layouts/lazy.html",
+      "destination": "/api/layouts/lazy",
+      "permanent": true
+    },
+    {
+      "source": "/api/layouts/plain.html",
+      "destination": "/api/layouts/plain",
+      "permanent": true
+    },
+    {
+      "source": "/api/layouts/routes.html",
+      "destination": "/api/layouts/routes",
+      "permanent": true
+    },
+    {
+      "source": "/api/layouts/sidebar.html",
+      "destination": "/api/layouts/sidebar",
+      "permanent": true
+    },
+    {
+      "source": "/api/layouts/stacks.html",
+      "destination": "/api/layouts/stacks",
+      "permanent": true
+    },
+    {
+      "source": "/api/layouts/tree.html",
+      "destination": "/api/layouts/tree",
+      "permanent": true
+    },
+    {
+      "source": "/api/markdown.html",
+      "destination": "/api/markdown",
+      "permanent": true
+    },
+    {
+      "source": "/api/media/audio.html",
+      "destination": "/api/media/audio",
+      "permanent": true
+    },
+    {
+      "source": "/api/media/download.html",
+      "destination": "/api/media/download",
+      "permanent": true
+    },
+    {
+      "source": "/api/media/image.html",
+      "destination": "/api/media/image",
+      "permanent": true
+    },
+    {
+      "source": "/api/media/index.html",
+      "destination": "/api/media",
+      "permanent": true
+    },
+    {
+      "source": "/api/media/pdf.html",
+      "destination": "/api/media/pdf",
+      "permanent": true
+    },
+    {
+      "source": "/api/media/plain_text.html",
+      "destination": "/api/media/plain_text",
+      "permanent": true
+    },
+    {
+      "source": "/api/media/video.html",
+      "destination": "/api/media/video",
+      "permanent": true
+    },
+    {
+      "source": "/api/miscellaneous.html",
+      "destination": "/api/miscellaneous",
+      "permanent": true
+    },
+    {
+      "source": "/api/outputs.html",
+      "destination": "/api/outputs",
+      "permanent": true
+    },
+    {
+      "source": "/api/plotting.html",
+      "destination": "/api/plotting",
+      "permanent": true
+    },
+    {
+      "source": "/api/query_params.html",
+      "destination": "/api/query_params",
+      "permanent": true
+    },
+    {
+      "source": "/api/state.html",
+      "destination": "/api/state",
+      "permanent": true
+    },
+    {
+      "source": "/api/status.html",
+      "destination": "/api/status",
+      "permanent": true
+    },
+    {
+      "source": "/apps/README.html",
+      "destination": "/apps",
+      "permanent": true
+    },
+    {
+      "source": "/community.html",
+      "destination": "/community",
+      "permanent": true
+    },
+    {
+      "source": "/examples.html",
+      "destination": "/examples",
+      "permanent": true
+    },
+    {
+      "source": "/faq.html",
+      "destination": "/faq",
+      "permanent": true
+    },
+    {
+      "source": "/getting_started/index.html",
+      "destination": "/getting_started",
+      "permanent": true
+    },
+    {
+      "source": "/getting_started/installation.html",
+      "destination": "/getting_started/installation",
+      "permanent": true
+    },
+    {
+      "source": "/getting_started/key_concepts.html",
+      "destination": "/getting_started/key_concepts",
+      "permanent": true
+    },
+    {
+      "source": "/getting_started/quickstart.html",
+      "destination": "/getting_started/quickstart",
+      "permanent": true
+    },
+    {
+      "source": "/guides/apps.html",
+      "destination": "/guides/apps",
+      "permanent": true
+    },
+    {
+      "source": "/guides/best_practices.html",
+      "destination": "/guides/best_practices",
+      "permanent": true
+    },
+    {
+      "source": "/guides/coming_from/index.html",
+      "destination": "/guides/coming_from",
+      "permanent": true
+    },
+    {
+      "source": "/guides/coming_from/jupyter.html",
+      "destination": "/guides/coming_from/jupyter",
+      "permanent": true
+    },
+    {
+      "source": "/guides/coming_from/jupytext.html",
+      "destination": "/guides/coming_from/jupytext",
+      "permanent": true
+    },
+    {
+      "source": "/guides/coming_from/papermill.html",
+      "destination": "/guides/coming_from/papermill",
+      "permanent": true
+    },
+    {
+      "source": "/guides/coming_from/streamlit.html",
+      "destination": "/guides/coming_from/streamlit",
+      "permanent": true
+    },
+    {
+      "source": "/guides/configuration/html_head.html",
+      "destination": "/guides/configuration/html_head",
+      "permanent": true
+    },
+    {
+      "source": "/guides/configuration/index.html",
+      "destination": "/guides/configuration",
+      "permanent": true
+    },
+    {
+      "source": "/guides/configuration/runtime_configuration.html",
+      "destination": "/guides/configuration/runtime_configuration",
+      "permanent": true
+    },
+    {
+      "source": "/guides/configuration/theming.html",
+      "destination": "/guides/configuration/theming",
+      "permanent": true
+    },
+    {
+      "source": "/guides/deploying/authentication.html",
+      "destination": "/guides/deploying/authentication",
+      "permanent": true
+    },
+    {
+      "source": "/guides/deploying/deploying_docker.html",
+      "destination": "/guides/deploying/deploying_docker",
+      "permanent": true
+    },
+    {
+      "source": "/guides/deploying/deploying_hugging_face.html",
+      "destination": "/guides/deploying/deploying_hugging_face",
+      "permanent": true
+    },
+    {
+      "source": "/guides/deploying/deploying_ploomber.html",
+      "destination": "/guides/deploying/deploying_ploomber",
+      "permanent": true
+    },
+    {
+      "source": "/guides/deploying/deploying_public_gallery.html",
+      "destination": "/guides/deploying/deploying_public_gallery",
+      "permanent": true
+    },
+    {
+      "source": "/guides/deploying/deploying_railway.html",
+      "destination": "/guides/deploying/deploying_railway",
+      "permanent": true
+    },
+    {
+      "source": "/guides/deploying/index.html",
+      "destination": "/guides/deploying",
+      "permanent": true
+    },
+    {
+      "source": "/guides/deploying/prebuilt_containers.html",
+      "destination": "/guides/deploying/prebuilt_containers",
+      "permanent": true
+    },
+    {
+      "source": "/guides/deploying/programmatically.html",
+      "destination": "/guides/deploying/programmatically",
+      "permanent": true
+    },
+    {
+      "source": "/guides/editor_features/ai_completion.html",
+      "destination": "/guides/editor_features/ai_completion",
+      "permanent": true
+    },
+    {
+      "source": "/guides/editor_features/hotkeys.html",
+      "destination": "/guides/editor_features/hotkeys",
+      "permanent": true
+    },
+    {
+      "source": "/guides/editor_features/index.html",
+      "destination": "/guides/editor_features",
+      "permanent": true
+    },
+    {
+      "source": "/guides/editor_features/overview.html",
+      "destination": "/guides/editor_features/overview",
+      "permanent": true
+    },
+    {
+      "source": "/guides/editor_features/package_management.html",
+      "destination": "/guides/editor_features/package_management",
+      "permanent": true
+    },
+    {
+      "source": "/guides/expensive_notebooks.html",
+      "destination": "/guides/expensive_notebooks",
+      "permanent": true
+    },
+    {
+      "source": "/guides/exporting.html",
+      "destination": "/guides/exporting",
+      "permanent": true
+    },
+    {
+      "source": "/guides/index.html",
+      "destination": "/guides",
+      "permanent": true
+    },
+    {
+      "source": "/guides/integrating_with_marimo/custom_ui_plugins.html",
+      "destination": "/guides/integrating_with_marimo/custom_ui_plugins",
+      "permanent": true
+    },
+    {
+      "source": "/guides/integrating_with_marimo/displaying_objects.html",
+      "destination": "/guides/integrating_with_marimo/displaying_objects",
+      "permanent": true
+    },
+    {
+      "source": "/guides/integrating_with_marimo/index.html",
+      "destination": "/guides/integrating_with_marimo",
+      "permanent": true
+    },
+    {
+      "source": "/guides/interactivity.html",
+      "destination": "/guides/interactivity",
+      "permanent": true
+    },
+    {
+      "source": "/guides/island_example.html",
+      "destination": "/guides/island_example",
+      "permanent": true
+    },
+    {
+      "source": "/guides/outputs.html",
+      "destination": "/guides/outputs",
+      "permanent": true
+    },
+    {
+      "source": "/guides/reactivity.html",
+      "destination": "/guides/reactivity",
+      "permanent": true
+    },
+    {
+      "source": "/guides/scripts.html",
+      "destination": "/guides/scripts",
+      "permanent": true
+    },
+    {
+      "source": "/guides/state.html",
+      "destination": "/guides/state",
+      "permanent": true
+    },
+    {
+      "source": "/guides/troubleshooting.html",
+      "destination": "/guides/troubleshooting",
+      "permanent": true
+    },
+    {
+      "source": "/guides/wasm.html",
+      "destination": "/guides/wasm",
+      "permanent": true
+    },
+    {
+      "source": "/guides/working_with_data/dataframes.html",
+      "destination": "/guides/working_with_data/dataframes",
+      "permanent": true
+    },
+    {
+      "source": "/guides/working_with_data/index.html",
+      "destination": "/guides/working_with_data",
+      "permanent": true
+    },
+    {
+      "source": "/guides/working_with_data/plotting.html",
+      "destination": "/guides/working_with_data/plotting",
+      "permanent": true
+    },
+    {
+      "source": "/guides/working_with_data/sql.html",
+      "destination": "/guides/working_with_data/sql",
+      "permanent": true
+    },
+    {
+      "source": "/index.html",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/integrations/google_cloud_bigquery.html",
+      "destination": "/integrations/google_cloud_bigquery",
+      "permanent": true
+    },
+    {
+      "source": "/integrations/google_cloud_storage.html",
+      "destination": "/integrations/google_cloud_storage",
+      "permanent": true
+    },
+    {
+      "source": "/integrations/google_sheets.html",
+      "destination": "/integrations/google_sheets",
+      "permanent": true
+    },
+    {
+      "source": "/integrations/index.html",
+      "destination": "/integrations",
+      "permanent": true
+    },
+    {
+      "source": "/integrations/motherduck.html",
+      "destination": "/integrations/motherduck",
+      "permanent": true
+    },
+    {
+      "source": "/recipes.html",
+      "destination": "/recipes",
+      "permanent": true
     }
   ]
 }
