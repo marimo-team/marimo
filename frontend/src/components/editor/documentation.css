@@ -53,7 +53,7 @@
   }
 
   code {
-    @apply border px-1 rounded font-mono bg-[var(--slate-1)] text-sm;
+    @apply border px-1 rounded font-mono bg-[var(--slate-1)] text-sm mb-4 mt-2;
   }
 
   h1 {

@@ -17,6 +17,7 @@ from marimo._output.md import _md
 from marimo._runtime import dataflow
 from marimo._runtime.requests import CodeCompletionRequest
 from marimo._server.types import QueueType
+from marimo._utils.docs import google_docstring_to_markdown
 from marimo._utils.format_signature import format_signature
 from marimo._utils.rst_to_html import convert_rst_to_html
 
@@ -92,6 +93,9 @@ def _get_docstring(completion: jedi.api.classes.BaseName) -> str:
         # for marimo docstrings, treat them as markdown
         # for other modules, treat them as plain text
         if completion.module_name.startswith("marimo"):
+            # Convert Google-style docstrings to markdown
+            if "Returns:" in body or "Args:" in body:
+                body = google_docstring_to_markdown(body)
             body = _md(body, apply_markdown_class=False).text
         else:
             try:
