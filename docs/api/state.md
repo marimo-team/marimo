@@ -10,7 +10,7 @@
     interval, while `mo.ui.button()` has a value that can be configured to
     count the number of times it has been clicked, or to toggle between `True` and
     `False`. Additionally, interacting with UI elements bound to global variables
-    [automatically executes cells](guides/interactivity) that reference those
+    [automatically executes cells](../guides/interactivity.md) that reference those
     variables, letting you react to changes by just reading their
     `value` attributes. This functional paradigm is the preferred way of
     reacting to UI interactions in marimo. So if you

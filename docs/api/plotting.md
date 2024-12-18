@@ -11,7 +11,7 @@ For more information about plotting, see the [plotting guide](../guides/working_
 /// marimo-embed
     size: large
 
-````python
+```python
 @app.cell
 async def __():
     import pandas as pd
@@ -40,6 +40,7 @@ def __():
     mo.vstack([chart, mo.ui.table(chart.value)])
     return
 ```
+
 ///
 
 ### Disabling automatic selection
@@ -68,7 +69,6 @@ chart # You can now access chart.value to get the selected data
 
 ::: marimo.ui.altair_chart
 
-
 ### Performance and Data Transformers
 
 Altair has a concept of [data](https://altair-viz.github.io/user_guide/data_transformers.html) transformers, which can be used to improve performance.
@@ -93,14 +93,14 @@ alt.data_transformers.enable('marimo_csv')
 ## Reactive plots with Plotly
 
 !!! warning "mo.ui.plotly only supports scatter plots, treemaps charts, and sunbursts charts."
-    marimo can render any Plotly plot, but [`mo.ui.plotly`](#marimo.ui.plotly) only
+    marimo can render any Plotly plot, but [`mo.ui.plotly`][marimo.ui.plotly] only
     supports reactive selections for scatter plots, treemaps charts, and sunbursts charts. If you require other kinds of
-    selection, consider using [`mo.ui.altair_chart`](#marimo.ui.altair_chart).
+    selection, consider using [`mo.ui.altair_chart`][marimo.ui.altair_chart].
 
 ::: marimo.ui.plotly
 
-
 ## Interactive matplotlib
+
 ::: marimo.mpl.interactive
     options:
       show_root_heading: true

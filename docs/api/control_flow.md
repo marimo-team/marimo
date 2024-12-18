@@ -5,7 +5,5 @@ This function is useful for validating user input.
 
 ::: marimo.stop
 
-Use `mo.ui.refresh` to trigger other cells to run periodically, on a configurable
+Use [`mo.ui.refresh`][marimo.ui.refresh] to trigger other cells to run periodically, on a configurable
 interval (or on click).
-
-::: marimo.ui.refresh

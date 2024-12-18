@@ -51,7 +51,7 @@ running the cells that reference its variables. Delete a cell and marimo scrubs
 its variables from program memory, eliminating hidden state.
 
 **Built-in interactivity.** marimo also comes with [UI
-elements](/guides/interactivity) like sliders, a dataframe transformer, and
+elements](guides/interactivity.md) like sliders, a dataframe transformer, and
 interactive plots that are automatically synchronized with Python. Interact
 with an element and the cells that use it are automatically re-run with its
 latest value.
@@ -82,7 +82,7 @@ relationships between cells, and automatically re-running cells as needed.
 
 In addition, marimo notebooks can serialize package requirements inline;
 marimo runs these "sandboxed" notebooks in temporary virtual environments,
-making them [reproducible down to the packages](/guides/editor_features/package_management.md).
+making them [reproducible down to the packages]guides/editor_features/package_management.md).
 
 **Maintainability.**
 marimo notebooks are stored as pure Python programs (`.py` files). This lets you
@@ -90,7 +90,7 @@ version them with Git; in contrast, Jupyter notebooks are stored as JSON and
 require extra steps to version.
 
 **Interactivity.**
-marimo notebooks come with [UI elements](/guides/interacivity) that are
+marimo notebooks come with [UI elements](guides/interactivity.md) that are
 automatically synchronized with Python (like sliders, dropdowns); _eg_, scrub a
 slider and all cells that reference it are automatically re-run with the new
 value. This is difficult to get working in Jupyter notebooks.
@@ -200,22 +200,22 @@ _Here are some tips to avoid accidental execution of expensive cells:_
 
 - [Disable expensive cells](guides/reactivity.md#disabling-cells). When a cell
   is disabled, it and its descendants are blocked from running.
-- Wrap UI elements in a [form](api/inputs/form.md#marimo.ui.form).
-- Use [`mo.stop`](api/control_flow.md#marimo.stop) to conditionally stop
+- Wrap UI elements in a [form][marimo.ui.form].
+- Use [`mo.stop`][marimo.stop] to conditionally stop
   execution of a cell and its descendants.
-- Decorate functions with marimo's [`mo.cache`](#marimo.cache) to cache
+- Decorate functions with marimo's [`mo.cache`][marimo.cache] to cache
   expensive intermediate computations.
-- Use [`mo.persistent_cache`](#marimo.persistent_cache) to cache variables to
+- Use [`mo.persistent_cache`][marimo.persistent_cache] to cache variables to
   disk; on re-run, marimo will read values from disk instead of recalculating
   them as long as the cell is not stale.
-- Disable automatic execution in the [runtime configuration](/guides/runtime_configuration.md).
+- Disable automatic execution in the [runtime configuration](guides/configuration/runtime_configuration.md).
 
 <a name="faq-lazy"></a>
 
 ### How do I disable automatic execution?
 
 You can disable automatic execution through the notebook runtime settings;
-see the [guide on runtime configuration](/guides/runtime_configuration.md).
+see the [guide on runtime configuration](guides/configuration/runtime_configuration.md).
 
 When automatic execution is disabled, marimo still gives you guarantees on
 your notebook state and automatically marks cells as stale when appropriate.
@@ -266,7 +266,7 @@ Access the last submitted value of the text area with `form.value`.
 ### How do I write markdown?
 
 Import `marimo` (as `mo`) in a notebook, and use the `mo.md` function.
-Learn more in the [outputs guide](/guides/outputs.md#markdown)
+Learn more in the [outputs guide](guides/outputs.md#markdown)
 or by running `marimo tutorial markdown`.
 
 <a name="faq-plots"></a>
@@ -303,7 +303,7 @@ plt.gca()
 
 ### How do I display interactive matplotlib plots?
 
-Use <a href="/api/plotting.html#marimo.mpl.interactive">`marimo.mpl.interactive`</a>.
+Use [`marimo.mpl.interactive`][marimo.mpl.interactive].
 
 ```bash
 fig, ax = plt.subplots()
@@ -325,24 +325,24 @@ marimo tutorial layout
 
 ### How do I show cell code in the app view?(#faq-show-code)
 
-Use [`mo.show_code`](/api/outputs.md#marimo.show_code).
+Use [`mo.show_code`][marimo.show_code].
 
 <a name="faq-dynamic-ui-elements"></a>
 
 ### How do I create an output with a dynamic number of UI elements?
 
-Use [`mo.ui.array`](api/inputs/array.md#marimo.ui.array),
-[`mo.ui.dictionary`](api/inputs/dictionary.md#marimo.ui.dictionary), or
-[`mo.ui.batch`](api/inputs/batch.md#marimo.ui.batch) to create a UI element
+Use [`mo.ui.array`][marimo.ui.array],
+[`mo.ui.dictionary`][marimo.ui.dictionary], or
+[`mo.ui.batch`][marimo.ui.batch] to create a UI element
 that wraps a dynamic number of other UI elements.
 
 If you need custom
-formatting, use [`mo.ui.batch`](api/inputs/batch.md#marimo.ui.batch), otherwise
-use [`mo.ui.array`](api/inputs/array.md#marimo.ui.array) or
-[`mo.ui.dictionary`](api/inputs/dictionary.md#marimo.ui.dictionary).
+formatting, use [`mo.ui.batch`][marimo.ui.batch], otherwise
+use [`mo.ui.array`][marimo.ui.array] or
+[`mo.ui.dictionary`][marimo.ui.dictionary].
 
 For usage examples, see the
-[recipes for grouping UI elements together](/recipes.md#grouping-ui-elements-together).
+[recipes for grouping UI elements together](recipes.md#grouping-ui-elements-together).
 
 <a name="faq-restart"></a>
 
@@ -375,12 +375,12 @@ mo.vstack([mo.ui.button(on_change=lambda _: print("I was called")) for _ in rang
 
 In such cases (when you want to output a dynamic number of UI elements),
 you need to use
-[`mo.ui.array`](api/inputs/array.md#marimo.ui.array),
-[`mo.ui.dictionary`](api/inputs/dictionary.md#marimo.ui.dictionary), or
-[`mo.ui.batch`](api/inputs/batch.md#marimo.ui.batch).
+[`mo.ui.array`][marimo.ui.array],
+[`mo.ui.dictionary`][marimo.ui.dictionary], or
+[`mo.ui.batch`][marimo.ui.batch].
 
 See the
-[recipes for grouping UI elements together](/recipes.md#grouping-ui-elements-together)
+[recipes for grouping UI elements together](recipes.md#grouping-ui-elements-together)
 for example code.
 
 <a name="faq-on-change-last"></a>

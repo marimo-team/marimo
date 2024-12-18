@@ -6,7 +6,7 @@ accidentally running.
 
 ## Stop execution with `mo.stop`
 
-Use [`mo.stop`](#marimo.stop) to stop a cell from executing if a condition
+Use [`mo.stop`][marimo.stop] to stop a cell from executing if a condition
 is met:
 
 ```python
@@ -16,8 +16,8 @@ mo.stop(condition)
 expensive_function_call()
 ```
 
-Use [`mo.stop()`](#marimo.stop) in conjunction with
-[`mo.ui.run_button()`](#marimo.ui.run_button) to require a button press for
+Use [`mo.stop()`][marimo.stop] in conjunction with
+[`mo.ui.run_button()`][marimo.ui.run_button] to require a button press for
 expensive cells:
 
 /// marimo-embed
@@ -36,6 +36,7 @@ def __():
     mo.md("You clicked the button! 🎉")
     return
 ```
+
 ///
 
 ## Configure how marimo runs cells
@@ -65,7 +66,7 @@ execution of other parts. See the
 
 ### Cache computations with `@mo.cache`
 
-Use [`mo.cache`](#marimo.cache) to cache the return values of
+Use [`mo.cache`][marimo.cache] to cache the return values of
 expensive functions, based on their arguments:
 
 ```python
@@ -105,7 +106,7 @@ previously computed value from the cache.
 
 ### Save and load from disk with `mo.persistent_cache`
 
-Use [`mo.persistent_cache`](#marimo.persistent_cache) to cache variables to
+Use [`mo.persistent_cache`][marimo.persistent_cache] to cache variables to
 disk. The next time your run your notebook, the cached variables will be loaded
 from disk instead of being recomputed, letting you pick up where you left off.
 

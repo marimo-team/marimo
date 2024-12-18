@@ -109,7 +109,7 @@ NODE_OPTIONS=--max_old_space_size=8192 NODE_ENV=development make fe -B
 | `py-snapshots` | Test      | Update HTML snapshots                                          |
 | `storybook`    | Docs      | Run Storybook                                                  |
 | `docs`         | Docs      | Build docs. Use `make ARGS="-a" docs` to force docs to rebuild |
-| `docs-auto`    | Docs      | Autobuild docs                                                 |
+| `docs-serve`   | Docs      | Serve docs                                                     |
 | `docs-clean`   | Docs      | Remove built docs                                              |
 
 ## Lint, Typecheck, Format

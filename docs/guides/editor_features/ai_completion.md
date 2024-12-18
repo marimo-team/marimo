@@ -118,7 +118,7 @@ To locate your configuration file, run:
 marimo config show
 ```
 
-At the top, the path to your `marimo.toml` file will be shown. You can Ctrl/Cmd+click the path to open it in your editor. For more information about configuration, see the [Configuration Guide](../guides/configuration/index).
+At the top, the path to your `marimo.toml` file will be shown. You can Ctrl/Cmd+click the path to open it in your editor. For more information about configuration, see the [Configuration Guide](../configuration/index.md).
 
 Below we describe how to connect marimo to your AI provider. Once enabled, you can generate entirely new cells by clicking the "Generate with AI" button at the bottom of your notebook. You can also refactor existing cells by inputting `Ctrl/Cmd-Shift-e` in a cell, opening an input to modify the cell using AI.
 
@@ -181,7 +181,7 @@ model = "gemini-1.5-flash"
 api_key = "AI..."
 ```
 
-### Using local models with Ollama
+### Using local models with Ollama { #using-ollama }
 
 Ollama allows you to run open-source LLMs on your local machine. To integrate Ollama with marimo:
 

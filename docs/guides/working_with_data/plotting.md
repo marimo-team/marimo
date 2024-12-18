@@ -5,15 +5,15 @@ Plotly, Altair, and HoloViews. Just import your plotting library of choice and
 use it as you normally would.
 
 For Altair and Plotly plots, marimo does something special: use
-[`mo.ui.altair_chart`](../../api/plotting.md#marimo.ui.altair_chart) or
-[`mo.ui.plotly`](../../api/plotting.md#marimo.ui.plotly) to connect frontend
+[`mo.ui.altair_chart`][marimo.ui.altair_chart] or
+[`mo.ui.plotly`][marimo.ui.plotly] to connect frontend
 selections to Python!
 
 !!! important "Reactive plots!"
 
     marimo supports reactive plots via
-    [`mo.ui.altair_chart`](../../api/plotting.md#marimo.ui.altair_chart) and
-    [`mo.ui.plotly`](../../api/plotting.md#marimo.ui.plotly)! Select and
+    [`mo.ui.altair_chart`][marimo.ui.altair_chart] and
+    [`mo.ui.plotly`][marimo.ui.plotly]! Select and
     filter with your mouse, and marimo _automatically makes the selected data
     available in Python as a Pandas dataframe_!
 
@@ -62,7 +62,7 @@ def __():
 
 ///
 
-Use [`mo.ui.altair_chart`](../../api/plotting.md#marimo.ui.altair_chart) to easily
+Use [`mo.ui.altair_chart`][marimo.ui.altair_chart] to easily
 create interactive, selectable plots: _selections you make on the frontend are
 automatically made available as Pandas dataframes in Python._
 
@@ -72,7 +72,7 @@ automatically made available as Pandas dataframes in Python._
 </figure>
 </div>
 
-Wrap an Altair chart in [`mo.ui.altair_chart`](../../api/plotting.md#marimo.ui.altair_chart)
+Wrap an Altair chart in [`mo.ui.altair_chart`][marimo.ui.altair_chart]
 to make it **reactive**: select data on the frontend, access it via the chart's
 `value` attribute (`chart.value`).
 
@@ -178,16 +178,16 @@ encoding, marimo will add a legend and a click selection.
 
 #### Automatic Selections
 
-By default [`mo.ui.altair_chart`](../../api/plotting.md#marimo.ui.altair_chart)
+By default [`mo.ui.altair_chart`][marimo.ui.altair_chart]
 will make the chart and legend selectable. Depending on the mark type, the
 chart will either have a `point` or `interval` ("brush") selection. When using
 non-positional encodings (color, size, etc),
-[`mo.ui.altair_chart`](../../api/plotting.md#marimo.ui.altair_chart) will also
+[`mo.ui.altair_chart`][marimo.ui.altair_chart] will also
 make the legend selectable.
 
 Selection configurable through `*_selection` params in
-[`mo.ui.altair_chart`](../../api/plotting.md#marimo.ui.altair_chart). See the [API
-docs](../../api/plotting.md#marimo.ui.altair_chart) for details.
+[`mo.ui.altair_chart`][marimo.ui.altair_chart]. See the [API
+docs][marimo.ui.altair_chart] for details.
 
 !!! note
     You may still add your own selection parameters via Altair or Vega-Lite.
@@ -210,9 +210,9 @@ conda install -c conda-forge "vegafusion-python-embed>=1.4.0" "vegafusion>=1.4.0
 
 !!! warning "mo.ui.plotly only supports scatter plots, treemaps charts, and sunbursts charts"
 
-    marimo can render any Plotly plot, but [`mo.ui.plotly`](../../api/plotting.md#marimo.ui.plotly) only
+    marimo can render any Plotly plot, but [`mo.ui.plotly`][marimo.ui.plotly] only
     supports reactive selections for scatter plots, treemaps charts, and sunbursts charts. If you require other kinds of
-    selection, consider using [`mo.ui.altair_chart`](../../api/plotting.md#marimo.ui.altair_chart).
+    selection, consider using [`mo.ui.altair_chart`][marimo.ui.altair_chart].
 
 /// marimo-embed
     size: large
@@ -244,10 +244,8 @@ def __(plot):
 
 ///
 
-Use [`mo.ui.plotly`](../../api/plotting.md#marimo.ui.plotly) to create
+Use [`mo.ui.plotly`][marimo.ui.plotly] to create
 selectable Plotly plots whose values are sent back to Python on selection.
-
-::: marimo.ui.plotly
 
 ## matplotlib
 
@@ -275,5 +273,5 @@ If you want to output the plot in the console area, use `plt.show()` or
 ### Interactive plots
 
 To make matplotlib plots interactive, use
-[mo.mpl.interactive](../../api/plotting.md#marimo.mpl.interactive).
+[mo.mpl.interactive][marimo.mpl.interactive].
 (Matplotlib plots are not yet reactive.)

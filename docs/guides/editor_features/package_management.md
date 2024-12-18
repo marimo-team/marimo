@@ -18,7 +18,7 @@ This is useful when you want to run marimo in a clean environment without affect
 marimo edit --sandbox notebook.py
 ```
 
-### Auto-tracking inline script metadata
+### Auto-tracking inline script metadata { #auto-tracking-inline-script-metadata }
 
 When running with `--sandbox`, marimo will automatically track the package name metadata in your notebook file, per [PEP 723](https://peps.python.org/pep-0723/). This metadata is used to manage the notebook's dependencies and Python version.
 

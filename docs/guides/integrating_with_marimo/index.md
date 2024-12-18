@@ -9,7 +9,7 @@ Still need help? Reach out to us on [Discord](https://marimo.io/discord?ref=docs
 !!! tip "Checking if running in a marimo notebook"
 
     You can check if Python is running in a marimo notebook with
-    [`mo.running_in_notebook`](#marimo.running_in_notebook). This can be helpful
+    [`mo.running_in_notebook`][marimo.running_in_notebook]. This can be helpful
     when developing library code that integrates with marimo.
 
 | Guide | Description |

@@ -15,11 +15,11 @@ result in better code.
 global namespace with
 temporary or intermediate variables, and to avoid code duplication.
 
-**Use [`mo.stop`](#marimo.stop) to stop execution.** Use [`mo.stop`](#marimo.stop)
+**Use [`mo.stop`][marimo.stop] to stop execution.** Use [`mo.stop`][marimo.stop]
 to stop a cell from running when a condition is true; this is helpful
 when working with expensive notebooks. For example, prevent a cell from running
-until a button is clicked using [`mo.ui.run_button`](#marimo.ui.run_button) and
-[`mo.stop`](#marimo.stop).
+until a button is clicked using [`mo.ui.run_button`][marimo.ui.run_button] and
+[`mo.stop`][marimo.stop].
 
 !!! caution "Expensive notebooks"
     For more tips on working with expensive notebooks, see the

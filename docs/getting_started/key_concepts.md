@@ -100,7 +100,7 @@ or read the [reactivity guide](../guides/reactivity.md).
 
 marimo visualizes the last expression of each cell as its **output**. Outputs
 can be any Python value, including markdown and interactive elements created
-with the marimo library, (_e.g._, [`mo.md`](marimo.md), [`mo.ui.slider`](marimo.ui.slider)).
+with the marimo library, (_e.g._, [`mo.md`][marimo.md], [`mo.ui.slider`][marimo.ui.slider]).
 You can even interpolate Python values into markdown (using `mo.md(f"...")`) and
 other marimo elements to build rich composite outputs:
 
@@ -113,9 +113,9 @@ other marimo elements to build rich composite outputs:
 > Thanks to reactive execution, running a cell refreshes all the relevant outputs in your notebook.
 
 The marimo library also comes with elements for laying out outputs, including
-[`mo.hstack`](#marimo.hstack), [`mo.vstack`](#marimo.vstack),
-[`mo.accordion`](#marimo.accordion), [`mo.ui.tabs`](#marimo.ui.tabs), [`mo.sidebar`](#sidebar),
-[`mo.nav_menu`](#marimo.nav_menu), [`mo.ui.table`](#marimo.ui.table),
+[`mo.hstack`][marimo.hstack], [`mo.vstack`][marimo.vstack],
+[`mo.accordion`][marimo.accordion], [`mo.ui.tabs`][marimo.ui.tabs], [`mo.sidebar`][marimo.sidebar],
+[`mo.nav_menu`][marimo.nav_menu], [`mo.ui.table`][marimo.ui.table],
 and [many more](https://docs.marimo.io/api/layouts/index.html).
 
 For more on outputs, try these tutorials:
@@ -131,7 +131,7 @@ or read the [visualizing outputs guide](../guides/outputs.md).
 ### Creating interactive elements
 
 The marimo library comes with many interactive stateful elements in
-[`marimo.ui`](../api/inputs/index), including simple ones like sliders, dropdowns, text fields, and file
+[`marimo.ui`](../api/inputs/index.md), including simple ones like sliders, dropdowns, text fields, and file
 upload areas, as well as composite ones like forms, arrays, and dictionaries
 that can wrap other UI elements.
 
@@ -153,14 +153,14 @@ attribute.
 > and apps.
 
 _marimo can only synchronize UI elements that are assigned to
-global variables._ Use composite elements like [`mo.ui.array`](marimo.ui.array) and
-[`mo.ui.dictionary`](marimo.ui.dictionary) if the set of UI elements is not
+global variables._ Use composite elements like [`mo.ui.array`][marimo.ui.array] and
+[`mo.ui.dictionary`][marimo.ui.dictionary] if the set of UI elements is not
 known until runtime.
 
 !!! tip "Using buttons to execute cells"
 
-    Use [`mo.ui.run_button`](marimo.ui.run_button) to create a button that
-    triggers computation when clicked; see our recipes for [an example](../recipes#create-a-button-that-triggers-computation-when-clicked).
+    Use [`mo.ui.run_button`][marimo.ui.run_button] to create a button that
+    triggers computation when clicked; see our recipes for [an example](../recipes.md#create-a-button-that-triggers-computation-when-clicked).
 
 For more on interactive elements, run the UI tutorial
 
