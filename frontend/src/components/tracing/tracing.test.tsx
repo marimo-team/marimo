@@ -1,29 +1,66 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { formatChartTime } from "./tracing";
 
 describe("formatChartTime", () => {
-  it("should format a valid timestamp correctly", () => {
-    const timestamp = 1_700_000_000; // Example timestamp
-    const formattedTime = formatChartTime(timestamp);
-    expect(formattedTime).toBe("2023-11-15 06:13:20.000");
+  beforeAll(() => {
+    // Mock Date to always use UTC
+    vi.spyOn(global.Date.prototype, "getFullYear").mockImplementation(function (
+      this: Date,
+    ) {
+      return this.getUTCFullYear();
+    });
+    vi.spyOn(global.Date.prototype, "getMonth").mockImplementation(function (
+      this: Date,
+    ) {
+      return this.getUTCMonth();
+    });
+    vi.spyOn(global.Date.prototype, "getDate").mockImplementation(function (
+      this: Date,
+    ) {
+      return this.getUTCDate();
+    });
+    vi.spyOn(global.Date.prototype, "getHours").mockImplementation(function (
+      this: Date,
+    ) {
+      return this.getUTCHours();
+    });
+    vi.spyOn(global.Date.prototype, "getMinutes").mockImplementation(function (
+      this: Date,
+    ) {
+      return this.getUTCMinutes();
+    });
+    vi.spyOn(global.Date.prototype, "getSeconds").mockImplementation(function (
+      this: Date,
+    ) {
+      return this.getUTCSeconds();
+    });
+    vi.spyOn(global.Date.prototype, "getMilliseconds").mockImplementation(
+      function (this: Date) {
+        return this.getUTCMilliseconds();
+      },
+    );
+  });
+
+  afterAll(() => {
+    vi.restoreAllMocks();
   });
 
   it("should handle a timestamp with milliseconds correctly", () => {
-    const timestamp = 1_700_000_000.123;
+    const timestamp = 1_704_067_200.123;
     const formattedTime = formatChartTime(timestamp);
-    expect(formattedTime).toBe("2023-11-15 06:13:20.123");
+    expect(formattedTime).toBe("2024-01-01 00:00:00.123");
   });
 
   it("should handle a timestamp at the start of the year correctly", () => {
-    const timestamp = 1_640_966_400;
+    const timestamp = 1_704_067_200;
     const formattedTime = formatChartTime(timestamp);
-    expect(formattedTime).toBe("2022-01-01 00:00:00.000");
+    expect(formattedTime).toBe("2024-01-01 00:00:00.000");
   });
 
   it("should handle a timestamp at the end of the year correctly", () => {
-    const timestamp = 1_640_966_399;
+    const timestamp = 1_704_067_199;
     const formattedTime = formatChartTime(timestamp);
-    expect(formattedTime).toBe("2021-12-31 23:59:59.000");
+    expect(formattedTime).toBe("2023-12-31 23:59:59.000");
   });
 });
