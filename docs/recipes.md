@@ -40,7 +40,7 @@ condition = True
 import marimo as mo
 ```
 
-2. Create a [`mo.ui.refresh`](api/inputs/refresh.md#marimo.ui.refresh) timer that fires once a second:
+1. Create a [`mo.ui.refresh`][marimo.ui.refresh] timer that fires once a second:
 
 ```python
 refresh = mo.ui.refresh(default_interval="1s")
@@ -59,14 +59,10 @@ refresh
 mo.md("#" + "🍃" * random.randint(1, 10))
 ```
 
-```{admonition} Requires "on cell change" autorun
-:class: note
-
-For this to work, the [runtime configuration's](/guides/configuration/runtime_configuration.md) `on cell change` should be
-set to `autorun`
-```
-
-
+!!! note "Requires 'on cell change' autorun"
+    For this to work, the [runtime
+    configuration's](guides/configuration/runtime_configuration.md) `on cell
+    change` should be set to `autorun`
 
 ### Require form submission before sending UI value
 
@@ -119,7 +115,7 @@ form = mo.ui.text(label="Your name").form()
 form
 ```
 
-3. Use [`mo.stop`](api/control_flow.md#marimo.stop) to stop execution when
+3. Use [`mo.stop`][marimo.stop] to stop execution when
 the form is unsubmitted.
 
 ```python
@@ -144,7 +140,7 @@ such as `l = [mo.ui.slider(1, 10) for i in range(number.value)]`: _however,
 this won't work, because the sliders are not bound to global variables_.
 
 For such cases, marimo provides the "higher-order" UI element
-[`mo.ui.array`](api/inputs/array.md#marimo.ui.array), which lets you make
+[`mo.ui.array`][marimo.ui.array], which lets you make
 a new UI element out of a list of UI elements:
 `l = mo.ui.array([mo.ui.slider(1, 10) for i in range(number.value)])`.
 The value of an `array` element is a list of the values of the elements
@@ -160,7 +156,7 @@ by name (in this case, "`l`") will run automatically.
 import marimo as mo
 ```
 
-2. Use [`mo.ui.array`](api/inputs/array.md#marimo.ui.array) to group together
+1. Use [`mo.ui.array`][marimo.ui.array] to group together
    many UI elements into a list.
 
 ```python
@@ -191,7 +187,7 @@ name each of the wrapped elements with a string key.
 import marimo as mo
 ```
 
-2. Use [`mo.ui.dictionary`](api/inputs/dictionary.md#marimo.ui.dictionary) to
+2. Use [`mo.ui.dictionary`][marimo.ui.dictionary] to
    group together many UI elements into a list.
 
 ```python
@@ -223,8 +219,8 @@ import marimo as mo
 ```
 
 2. Group the elements with
-[`mo.ui.dictionary`](#marimo.ui.dictionary) or
-[`mo.ui.array`](#marimo.ui.array), then retrieve them from the container
+[`mo.ui.dictionary`][marimo.ui.dictionary] or
+[`mo.ui.array`][marimo.ui.array], then retrieve them from the container
 and display them elsewhere.
 
 ```python
@@ -373,8 +369,8 @@ of the form sends all its elements to Python.
 import marimo as mo
 ```
 
-2. Use [`mo.ui.form`](api/inputs/form.md#marimo.ui.form) and
-[`Html.batch`](api/html.md#marimo.Html.batch) to create a form with
+1. Use [`mo.ui.form`][marimo.ui.form] and
+[`Html.batch`][marimo.Html.batch] to create a form with
 multiple elements.
 
 ```python
@@ -420,6 +416,7 @@ examples = mo.ui.dropdown(
     label="examples",
 )
 ```
+
 3. Create form from examples.
 
 ```
@@ -498,7 +495,7 @@ it has been clicked, is a helpful building block for reacting to button clicks
 import marimo as mo
 ```
 
-2. Use [`mo.ui.button`](api/inputs/button.md#marimo.ui.button) and its
+2. Use [`mo.ui.button`][marimo.ui.button] and its
    `on_click` argument to create a counter button.
 
 ```python
@@ -517,7 +514,7 @@ button.value
 
 **Use cases.** Toggle between two states using a button with a button
 that toggles between `True` and `False`. (Tip: you can also just use
-[`mo.ui.switch`](api/inputs/switch.md#marimo.ui.switch).)
+[`mo.ui.switch`][marimo.ui.switch].)
 
 **Recipe.**
 
@@ -527,7 +524,7 @@ that toggles between `True` and `False`. (Tip: you can also just use
 import marimo as mo
 ```
 
-2. Use [`mo.ui.button`](api/inputs/button.md#marimo.ui.button) and its
+2. Use [`mo.ui.button`][marimo.ui.button] and its
    `on_click` argument to create a toggle button.
 
 ```python
@@ -640,7 +637,7 @@ for different configurations of the elements would greatly speed up your noteboo
 
 **Recipe.**
 
-1. Use [`mo.cache`](#marimo.cache) to cache function outputs given inputs.
+1. Use [`mo.cache`][marimo.cache] to cache function outputs given inputs.
 
 ```python
 import marimo as mo
@@ -663,7 +660,7 @@ results, you may want to save the state of your computations to disk. Ideally,
 if you update your code, then this save should be invalidated. It may also be
 advantageous to add UI elements to explore your results, without having to
 recompute expensive computations. You can achieve this with
-[`mo.persistent_cache`](#marimo.persistent_cache).
+[`mo.persistent_cache`][marimo.persistent_cache].
 
 **Recipe.**
 

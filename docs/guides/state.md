@@ -9,7 +9,7 @@
     interval, while `mo.ui.button()` has a value that can be configured to
     count the number of times it has been clicked, or to toggle between `True` and
     `False`. Additionally, interacting with UI elements bound to global variables
-    [automatically executes cells](guides/interactivity) that reference those
+    [automatically executes cells](../guides/interactivity.md) that reference those
     variables, letting you react to changes by just reading their
     `value` attributes. This functional paradigm is the preferred way of
     reacting to UI interactions in marimo. So if you
@@ -64,14 +64,11 @@ function **via a global variable** are automatically run (similar to UI
 elements).
 
 !!! note "State and UI elements are similar"
-State is analogous to UI elements. When you interact
-with a UI element, all cells that reference that element via a global variable
-run automatically with the new value. In the same way, when you update state
-via the setter, all other cells that reference the getter via
-a global variable run automatically with the new value.
-
-    State is particularly useful when used in conjunction with a `UIElement`'s
-    `on_change` callback to run side effects based on user input.
+    State is analogous to UI elements. When you interact
+    with a UI element, all cells that reference that element via a global variable
+    run automatically with the new value. In the same way, when you update state
+    via the setter, all other cells that reference the getter via
+    a global variable run automatically with the new value.
 
 [`mo.state()`](../api/state.md) takes an initial state value as its argument, creates
 a state object, and returns

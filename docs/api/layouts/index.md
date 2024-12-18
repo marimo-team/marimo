@@ -10,20 +10,20 @@ them but just render their children in a certain way.
 
 | Function | Description |
 |----------|-------------|
-| [`marimo.accordion`](accordion.md) | Create collapsible sections |
-| [`marimo.carousel`](carousel.md) | Create a slideshow |
-| [`marimo.callout`](callout.md) | Create highlighted sections |
-| [`marimo.center`](center.md) | Center content |
-| [`marimo.hstack`](hstack.md) | Stack elements horizontally |
-| [`marimo.lazy`](lazy.md) | Lazy load content |
-| [`marimo.left`](left.md) | Left-align content |
-| [`marimo.nav_menu`](nav_menu.md) | Create navigation menus |
-| [`marimo.plain`](plain.md) | Display content without styling |
-| [`marimo.right`](right.md) | Right-align content |
-| [`marimo.routes`](routes.md) | Create page routing |
-| [`marimo.sidebar`](sidebar.md) | Create sidebars |
-| [`marimo.tree`](tree.md) | Create tree structures |
-| [`marimo.vstack`](vstack.md) | Stack elements vertically |
+| [`marimo.accordion`][marimo.accordion] | Create collapsible sections |
+| [`marimo.carousel`][marimo.carousel] | Create a slideshow |
+| [`marimo.callout`][marimo.callout] | Create highlighted sections |
+| [`marimo.center`][marimo.center] | Center content |
+| [`marimo.hstack`][marimo.hstack] | Stack elements horizontally |
+| [`marimo.lazy`][marimo.lazy] | Lazy load content |
+| [`marimo.left`][marimo.left] | Left-align content |
+| [`marimo.nav_menu`][marimo.nav_menu] | Create navigation menus |
+| [`marimo.plain`][marimo.plain] | Display content without styling |
+| [`marimo.right`][marimo.right] | Right-align content |
+| [`marimo.routes`][marimo.routes] | Create page routing |
+| [`marimo.sidebar`][marimo.sidebar] | Create sidebars |
+| [`marimo.tree`][marimo.tree] | Create tree structures |
+| [`marimo.vstack`][marimo.vstack] | Stack elements vertically |
 
 ## Stateful
 
@@ -33,5 +33,5 @@ selected tab name, and `table` tracks the selected rows.
 
 | Function | Description |
 |----------|-------------|
-| [`marimo.ui.tabs`](../inputs/tabs.md) | Create tabbed interfaces |
-| [`marimo.ui.table`](../inputs/table.md) | Create interactive tables |
+| [`marimo.ui.tabs`][marimo.ui.tabs] | Create tabbed interfaces |
+| [`marimo.ui.table`][marimo.ui.table] | Create interactive tables |

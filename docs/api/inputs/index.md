@@ -5,35 +5,35 @@ powerful notebooks and apps. These elements are available in `marimo.ui`.
 
 | Element | Description |
 |---------|-------------|
-| [`marimo.ui.array`](array.md) | Create array inputs |
-| [`marimo.ui.batch`](batch.md) | Batch operations |
-| [`marimo.ui.button`](button.md) | Create buttons |
-| [`marimo.ui.chat`](chat.md) | Create chat interfaces |
-| [`marimo.ui.checkbox`](checkbox.md) | Create checkboxes |
-| [`marimo.ui.code_editor`](code_editor.md) | Create code editors |
-| [`marimo.ui.dataframe`](dataframe.md) | Interactive dataframes |
-| [`marimo.ui.data_explorer`](data_explorer.md) | Explore data |
-| [`marimo.ui.date`](dates.md) | Date picker |
-| [`marimo.ui.datetime`](dates.md) | Date and time picker |
-| [`marimo.ui.date_range`](dates.md) | Date range picker |
-| [`marimo.ui.dictionary`](dictionary.md) | Dictionary inputs |
-| [`marimo.ui.dropdown`](dropdown.md) | Create dropdowns |
-| [`marimo.ui.file`](file.md) | File uploads |
-| [`marimo.ui.file_browser`](file_browser.md) | Browse files |
-| [`marimo.ui.form`](form.md) | Create forms |
-| [`marimo.ui.microphone`](microphone.md) | Record audio |
-| [`marimo.ui.multiselect`](multiselect.md) | Multiple selection |
-| [`marimo.ui.number`](number.md) | Number inputs |
-| [`marimo.ui.radio`](radio.md) | Radio buttons |
-| [`marimo.ui.range_slider`](range_slider.md) | Range sliders |
-| [`marimo.ui.refresh`](refresh.md) | Refresh buttons |
-| [`marimo.ui.run_button`](run_button.md) | Run buttons |
-| [`marimo.ui.slider`](slider.md) | Create sliders |
-| [`marimo.ui.switch`](switch.md) | Toggle switches |
-| [`marimo.ui.tabs`](tabs.md) | Tabbed interfaces |
-| [`marimo.ui.table`](table.md) | Interactive tables |
-| [`marimo.ui.text`](text.md) | Text inputs |
-| [`marimo.ui.text_area`](text_area.md) | Multiline text inputs |
+| [`marimo.ui.array`][marimo.ui.array] | Create array inputs |
+| [`marimo.ui.batch`][marimo.ui.batch] | Batch operations |
+| [`marimo.ui.button`][marimo.ui.button] | Create buttons |
+| [`marimo.ui.chat`][marimo.ui.chat] | Create chat interfaces |
+| [`marimo.ui.checkbox`][marimo.ui.checkbox] | Create checkboxes |
+| [`marimo.ui.code_editor`][marimo.ui.code_editor] | Create code editors |
+| [`marimo.ui.dataframe`][marimo.ui.dataframe] | Interactive dataframes |
+| [`marimo.ui.data_explorer`][marimo.ui.data_explorer] | Explore data |
+| [`marimo.ui.date`][marimo.ui.date] | Date picker |
+| [`marimo.ui.datetime`][marimo.ui.datetime] | Date and time picker |
+| [`marimo.ui.date_range`][marimo.ui.date_range] | Date range picker |
+| [`marimo.ui.dictionary`][marimo.ui.dictionary] | Dictionary inputs |
+| [`marimo.ui.dropdown`][marimo.ui.dropdown] | Create dropdowns |
+| [`marimo.ui.file`][marimo.ui.file] | File uploads |
+| [`marimo.ui.file_browser`][marimo.ui.file_browser] | Browse files |
+| [`marimo.ui.form`][marimo.ui.form] | Create forms |
+| [`marimo.ui.microphone`][marimo.ui.microphone] | Record audio |
+| [`marimo.ui.multiselect`][marimo.ui.multiselect] | Multiple selection |
+| [`marimo.ui.number`][marimo.ui.number] | Number inputs |
+| [`marimo.ui.radio`][marimo.ui.radio] | Radio buttons |
+| [`marimo.ui.range_slider`][marimo.ui.range_slider] | Range sliders |
+| [`marimo.ui.refresh`][marimo.ui.refresh] | Refresh buttons |
+| [`marimo.ui.run_button`][marimo.ui.run_button] | Run buttons |
+| [`marimo.ui.slider`][marimo.ui.slider] | Create sliders |
+| [`marimo.ui.switch`][marimo.ui.switch] | Toggle switches |
+| [`marimo.ui.tabs`][marimo.ui.tabs] | Tabbed interfaces |
+| [`marimo.ui.table`][marimo.ui.table] | Interactive tables |
+| [`marimo.ui.text`][marimo.ui.text] | Text inputs |
+| [`marimo.ui.text_area`][marimo.ui.text_area] | Multiline text inputs |
 
 To use a UI element, assign it to a global variable and output it in a cell.
 When you interact with the frontend element, the Python object's `value`
@@ -44,7 +44,7 @@ automatically run with the element's latest value.
 
 | Integration | Description |
 |-------------|-------------|
-| [`marimo.ui.altair_chart`](altair_chart.md) | Interactive Altair charts |
-| [`marimo.ui.plotly`](plotly.md) | Interactive Plotly charts |
-| [`marimo.mpl.interactive`](mpl.md) | Interactive Matplotlib plots |
-| [`marimo.ui.anywidget`](anywidget.md) | Custom widgets |
+| [`marimo.ui.altair_chart`][marimo.ui.altair_chart] | Interactive Altair charts |
+| [`marimo.ui.plotly`][marimo.ui.plotly] | Interactive Plotly charts |
+| [`marimo.mpl.interactive`][marimo.mpl.interactive] | Interactive Matplotlib plots |
+| [`marimo.ui.anywidget`][marimo.ui.anywidget] | Custom widgets |

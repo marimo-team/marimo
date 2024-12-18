@@ -43,10 +43,10 @@ chat = mo.ui.chat(echo_model, prompts=["Hello", "How are you?"])
 chat
 ```
 
-Here, `messages` is a list of [`ChatMessage`](#marimo.ai.ChatMessage) objects,
+Here, `messages` is a list of [`ChatMessage`][marimo.ai.ChatMessage] objects,
 which has `role` (`"user"`, `"assistant"`, or `"system"`) and `content` (the
 message string) attributes; `config` is a
-[`ChatModelConfig`](#marimo.ai.ChatModelConfig) object with various
+[`ChatModelConfig`][marimo.ai.ChatModelConfig] object with various
 configuration parameters, which you are free to ignore.
 
 ## Using a Built-in AI Model
@@ -74,7 +74,7 @@ You can access the chat history using the `value` attribute:
 chat.value
 ```
 
-This returns a list of [`ChatMessage`](#marimo.ai.ChatMessage) objects, each
+This returns a list of [`ChatMessage`][marimo.ai.ChatMessage] objects, each
 containing `role`, `content`, and optional `attachments` attributes.
 
 ::: marimo.ai.ChatMessage
@@ -209,14 +209,14 @@ mo.ui.chat(
 ## Types
 
 Chatbots can be implemented with a function that receives a list of
-[`ChatMessage`](#marimo.ai.ChatMessage) objects and a
-[`ChatModelConfig`](#marimo.ai.ChatModelConfig).
+[`ChatMessage`][marimo.ai.ChatMessage] objects and a
+[`ChatModelConfig`][marimo.ai.ChatModelConfig].
 
 ::: marimo.ai.ChatMessage
 
 ::: marimo.ai.ChatModelConfig
 
-[`mo.ui.chat`](#marimo.ui.chat) can be instantiated with an initial
+[`mo.ui.chat`][marimo.ui.chat] can be instantiated with an initial
 configuration with a dictionary conforming to the config.
 
 `ChatMessage`s can also include attachments.
@@ -276,4 +276,4 @@ chatbot
 
 !!! note
 
-    We have added examples for GROQ and Cerebras. These providers offer free API keys and are great for trying out Llama models (from Meta). You can sign up on their platforms and integrate with various AI integrations in marimo easily. For more information, refer to the [AI completion documentation in marimo](../guides/editor_features/ai_completion).
+    We have added examples for GROQ and Cerebras. These providers offer free API keys and are great for trying out Llama models (from Meta). You can sign up on their platforms and integrate with various AI integrations in marimo easily. For more information, refer to the [AI completion documentation in marimo](../../guides/editor_features/ai_completion.md).

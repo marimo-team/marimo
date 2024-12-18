@@ -13,5 +13,8 @@ def __():
     mo.hstack([text_area, mo.md(f"Has value: {text_area.value}")])
     return///
 
-::: marimo.ui.text_area
 ```
+
+///
+
+::: marimo.ui.text_area

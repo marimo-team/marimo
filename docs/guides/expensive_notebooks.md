@@ -6,17 +6,18 @@ accidentally running.
 
 ## Stop execution with `mo.stop`
 
-Use [`mo.stop`](#marimo.stop) to stop a cell from executing if a condition
+Use [`mo.stop`][marimo.stop] to stop a cell from executing if a condition
 is met:
 
-````
+```python
 # if condition is True, the cell will stop executing after mo.stop() returns
 mo.stop(condition)
 # this won't be called if condition is True
 expensive_function_call()
+```
 
-Use [`mo.stop()`](#marimo.stop) in conjunction with
-[`mo.ui.run_button()`](#marimo.ui.run_button) to require a button press for
+Use [`mo.stop()`][marimo.stop] in conjunction with
+[`mo.ui.run_button()`][marimo.ui.run_button] to require a button press for
 expensive cells:
 
 /// marimo-embed
@@ -35,6 +36,7 @@ def __():
     mo.md("You clicked the button! 🎉")
     return
 ```
+
 ///
 
 ## Configure how marimo runs cells
@@ -64,7 +66,7 @@ execution of other parts. See the
 
 ### Cache computations with `@mo.cache`
 
-Use [`mo.cache`](#marimo.cache) to cache the return values of
+Use [`mo.cache`][marimo.cache] to cache the return values of
 expensive functions, based on their arguments:
 
 ```python
@@ -74,6 +76,7 @@ import mo
 def compute_predictions(problem_parameters):
   # do some expensive computations and return a value
   ...
+```
 
 When `compute_predictions` is called with a value of
 `problem_parameters` it hasn't seen, it will compute the predictions and store
@@ -103,7 +106,7 @@ previously computed value from the cache.
 
 ### Save and load from disk with `mo.persistent_cache`
 
-Use [`mo.persistent_cache`](#marimo.persistent_cache) to cache variables to
+Use [`mo.persistent_cache`][marimo.persistent_cache] to cache variables to
 disk. The next time your run your notebook, the cached variables will be loaded
 from disk instead of being recomputed, letting you pick up where you left off.
 
@@ -121,6 +124,7 @@ with mo.persistent_cache(name="my_cache"):
     # will be loaded from disk.
     my_variable = some_expensive_function()
     ...
+```
 
 Roughly speaking, `mo.persistent_cache` registers a cache hit when the cell
 is not stale, meaning its code hasn't changed and neither have its ancestors.
@@ -139,6 +143,7 @@ import marimo as mo
 
 data = db.query("SELECT * FROM data")
 mo.lazy(mo.ui.table(data))
+```
 
 In this example, `mo.ui.table(data)` will not be rendered on the frontend until is it in the viewport.
 For example, an element can be out of the viewport due to scroll, inside a tab that is not selected, or inside an accordion that is not open.
@@ -157,10 +162,10 @@ def expensive_component():
 accordion = mo.ui.accordion({
     "Charts": mo.lazy(expensive_component)
 })
+```
 
 In this example, we pass a function to `mo.lazy` instead of a component. This
 function will only be called when the user opens the accordion. In this way,
 `expensive_component` lazily computed and we only query the database when the
 user needs to see the data. This can be useful when the data is expensive to
 compute and the user may not need to see it immediately.
-````

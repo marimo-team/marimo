@@ -75,7 +75,7 @@ programmatically.
 1. **Running a named cell**:
 
    After naming a cell in your file, you can run it using the
-   [cell execution API](../../api/cell.md#marimo.Cell.run).
+   [cell execution API][marimo.Cell.run].
 
    ```python
    from my_notebook import my_cell
@@ -86,7 +86,7 @@ programmatically.
    ```
 
    This API also allows for parametrizing the inputs to the cell; to learn more,
-   make sure to checkout [the example](../../api/cell.md#marimo.Cell.run) in our API reference.
+   make sure to checkout [the example][marimo.Cell.run] in our API reference.
 
 2. **Using subprocess**:
 

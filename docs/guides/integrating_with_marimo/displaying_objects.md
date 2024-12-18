@@ -5,7 +5,7 @@ Python objects like lists and dicts as well as marimo objects like [UI
 elements](../interactivity.md) and libraries, including matplotlib,
 seaborn, Plotly, altair pandas, and more. These rich representations are
 displayed for the last expression of a cell, or when using
-[`mo.output.append`](#marimo.output.append).
+[`mo.output.append`][marimo.output.append].
 
 You can register rich displays with marimo for your own objects. You have
 three options:

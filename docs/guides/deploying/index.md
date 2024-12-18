@@ -24,7 +24,7 @@ You can deploy marimo in three ways:
 Here are a few ways to deploy an edit server on a remote instance:
 
 1. With [ssh-port forwarding](../../faq.md#faq-remote), using `marimo edit --headless`.
-2. Via docker and our [prebuilt containers](../../guides/prebuilt_containers.md).
+2. Via docker and our [prebuilt containers](prebuilt_containers.md).
 3. Via a deployment service [such as Railway](deploying_railway.md).
 4. [Behind JupyterHub](../../faq.md#faq-jupyter-hub).
 

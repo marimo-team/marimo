@@ -92,7 +92,8 @@ nav:
           - Prebuilt containers: guides/deploying/prebuilt_containers.md
           - Programmatic: guides/deploying/programmatically.md
       - Editor features:
-          - Overview: guides/editor_features/index.md
+          - TODO: guides/editor_features/index.md
+          - Overview: guides/editor_features/overview.md
           - AI Completion: guides/editor_features/ai_completion.md
           - Hotkeys: guides/editor_features/hotkeys.md
           - Package Management: guides/editor_features/package_management.md

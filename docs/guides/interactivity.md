@@ -2,7 +2,7 @@
 
 One of marimo's most powerful features is its first-class support for
 interactive, stateful user interface (UI) elements, or "widgets": create them using
-[`marimo.ui`](../api/inputs/index/). **Interacting with a UI element bound to a
+[`marimo.ui`](../api/inputs/index.md). **Interacting with a UI element bound to a
 global variable automatically runs all cells that reference it.**
 
 <div align="center">
@@ -34,25 +34,26 @@ assigned to a global variable.**
 
 Display UI elements in the output area above a cell by including them in the
 last expression, just like any other object. You can also embed elements
-in [markdown](#marimo.md) using Python f-strings, like so:
+in [markdown][marimo.md]using Python f-strings, like so:
 
 ```python3
 slider = mo.ui.slider(1, 10)
 mo.md(f"Choose a value: {slider})")
+```
 
 ## Composite elements
 
 Composite elements are advanced elements let you build UI elements out of other
 UI elements. The following composite elements are available:
 
-- [`mo.ui.array`](#marimo.ui.array)
-- [`mo.ui.dictionary`](#marimo.ui.dictionary)
-- [`mo.ui.batch`](#marimo.ui.batch)
-- [`mo.ui.form`](#marimo.ui.form)
+- [`mo.ui.array`][marimo.ui.array]
+- [`mo.ui.dictionary`][marimo.ui.dictionary]
+- [`mo.ui.batch`][marimo.ui.batch]
+- [`mo.ui.form`][marimo.ui.form]
 
 **Arrays and dictionaries.**
-Use [`mo.ui.array`](#marimo.ui.array) and
-[`mo.ui.dictionary`](#marimo.ui.dictionary) to logically group together related
+Use [`mo.ui.array`][marimo.ui.array] and
+[`mo.ui.dictionary`][marimo.ui.dictionary] to logically group together related
 elements. These elements are especially useful when a set of UI elements is
 only known at runtime (so you can't assign each to a global variable
 individually, but can assign them to an array or dictionary).

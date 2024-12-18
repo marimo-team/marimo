@@ -98,10 +98,9 @@ storybook:
 docs:
 	hatch run docs:build $(ARGS)
 
-.PHONY: docs-auto
-# autobuild docs
-docs-auto:
-	hatch run docs:autobuild $(ARGS)
+.PHONY: docs-serve
+docs-serve:
+	hatch run docs:serve $(ARGS)
 
 .PHONY: docs-clean
 # remove built docs

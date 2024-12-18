@@ -16,7 +16,7 @@ Reactive execution is based on a single rule:
 !!! tip "Working with expensive notebooks"
     marimo gives you tools that make it easy to work with expensive notebooks. For
     example, the [runtime can be
-    configured](../configuration/runtime_configuration.md) to be lazy, only
+    configured](configuration/runtime_configuration.md) to be lazy, only
     running cells when you ask for them to be run and marking affected cells as
     stale instead of auto-running them. **See our guide on working with [expensive
     notebooks](expensive_notebooks.md) for more tips.**
@@ -106,17 +106,21 @@ _Don't_ do this:
 
 ```python
 l = [1]
+```
 
 ```python
 l.append(2)
+```
 
 _Instead_, do this:
 
 ```python
 l = [1]
+```
 
 ```python
 extended_list = l + [2]
+```
 
 **Mutate variables in the cells that define them.**
 
@@ -124,15 +128,18 @@ _Don't_ do this:
 
 ```python
 df = pd.DataFrame({"my_column": [1, 2]})
+```
 
 ```python
 df["another_column"] = [3, 4]
+```
 
 _Instead_, do this:
 
 ```python
 df = pd.DataFrame({"my_column": [1, 2]})
 df["another_column"] = [3, 4]
+```
 
 !!! note "Why not track mutations?"
     Tracking mutations reliably is a fundamentally impossible task in Python; marimo
@@ -146,7 +153,7 @@ df["another_column"] = [3, 4]
 Through the notebook settings menu, you can configure how and when marimo runs
 cells. In particular, you can disable autorun on startup, disable autorun
 on cell execution, and enable a powerful module autoreloader. Read our
-[runtime configuration guide](../configuration/runtime_configuration.md) to learn more.
+[runtime configuration guide](configuration/runtime_configuration.md) to learn more.
 
 ## Disabling cells
 

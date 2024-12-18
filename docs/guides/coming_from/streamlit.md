@@ -30,7 +30,7 @@ In addition, marimo is much more performant than streamlit.
     - marimo's structure allows for more fine-grained reactivity.
     - Unlike streamlit files, marimo files can be executed as Python scripts from the
       command-line, and can be imported and used as a module by other Python
-      programs. For example, other programs can [reuse cells](../../api/cell.md#marimo.Cell.run) from
+      programs. For example, other programs can [reuse cells][marimo.Cell.run] from
       a marimo notebook.
 
 4. **UI Elements**:

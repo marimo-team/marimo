@@ -10,6 +10,4 @@ marimo is a **single tool** that replaces  `jupyter`, `streamlit`, `jupytext`,
 | [Papermill](papermill.md) | Transitioning from Papermill |
 
 !!! important "Coming from Jupyter?"
-    See our [coming from Jupyter guide](../guides/coming_from/jupyter.md).
-
-
+    See our [coming from Jupyter guide](../coming_from/jupyter.md).
