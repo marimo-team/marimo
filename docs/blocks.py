@@ -10,7 +10,10 @@ from pymdownx.blocks.block import Block, type_string_in  # type: ignore
 class MarimoEmbedBlock(Block):
     NAME: str = "marimo-embed"
     OPTIONS: Dict[str, List[Union[str, Any]]] = {
-        "size": ["medium", type_string_in(["small", "medium", "large"])],
+        "size": [
+            "medium",
+            type_string_in(["small", "medium", "large", "xlarge", "xxlarge"]),
+        ],
         "app_width": ["wide", type_string_in(["wide", "full", "compact"])],
         "mode": ["read", type_string_in(["read", "edit"])],
     }
