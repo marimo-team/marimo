@@ -16,13 +16,11 @@ from marimo._runtime.virtual_file import (
 def pdf(data: bytes) -> VirtualFile:
     """Create a virtual file from a PDF.
 
-    **Args.**
+    Args:
+        data: PDF data in bytes
 
-    - data: PDF data in bytes
-
-    **Returns.**
-
-    A `VirtualFile` object.
+    Returns:
+        A `VirtualFile` object.
     """
     item = VirtualFileLifecycleItem(ext="pdf", buffer=data)
     item.add_to_cell_lifecycle_registry()
@@ -32,13 +30,11 @@ def pdf(data: bytes) -> VirtualFile:
 def image(data: bytes, ext: str = "png") -> VirtualFile:
     """Create a virtual file from an image.
 
-    **Args.**
+    Args:
+        data: Image data in bytes
 
-    - data: Image data in bytes
-
-    **Returns.**
-
-    A `VirtualFile` object.
+    Returns:
+        A `VirtualFile` object.
     """
     item = VirtualFileLifecycleItem(ext=ext, buffer=data)
     item.add_to_cell_lifecycle_registry()
@@ -48,13 +44,11 @@ def image(data: bytes, ext: str = "png") -> VirtualFile:
 def audio(data: bytes, ext: str = "wav") -> VirtualFile:
     """Create a virtual file from audio.
 
-    **Args.**
+    Args:
+        data: Audio data in bytes
 
-    - data: Audio data in bytes
-
-    **Returns.**
-
-    A `VirtualFile` object.
+    Returns:
+        A `VirtualFile` object.
     """
     item = VirtualFileLifecycleItem(ext=ext, buffer=data)
     item.add_to_cell_lifecycle_registry()
@@ -64,14 +58,12 @@ def audio(data: bytes, ext: str = "wav") -> VirtualFile:
 def csv(data: Union[str, bytes, io.BytesIO]) -> VirtualFile:
     """Create a virtual file for CSV data.
 
-    **Args.**
+    Args:
+        data: CSV data in bytes, or string representing a data URL, external URL
+            or a Pandas DataFrame
 
-    - data: CSV data in bytes, or string representing a data URL, external URL
-        or a Pandas DataFrame
-
-    **Returns.**
-
-    A `VirtualFile` object.
+    Returns:
+        A `VirtualFile` object.
     """
     return any_data(data, ext="csv")  # type: ignore
 
@@ -79,14 +71,12 @@ def csv(data: Union[str, bytes, io.BytesIO]) -> VirtualFile:
 def json(data: Union[str, bytes, io.BytesIO]) -> VirtualFile:
     """Create a virtual file for JSON data.
 
-    **Args.**
+    Args:
+        data: JSON data in bytes, or string representing a data URL, external URL
+            or a Pandas DataFrame
 
-    - data: JSON data in bytes, or string representing a data URL, external URL
-        or a Pandas DataFrame
-
-    **Returns.**
-
-    A `VirtualFile` object.
+    Returns:
+        A `VirtualFile` object.
     """
     return any_data(data, ext="json")  # type: ignore
 
@@ -94,13 +84,11 @@ def json(data: Union[str, bytes, io.BytesIO]) -> VirtualFile:
 def js(data: str) -> VirtualFile:
     """Create a virtual file for JavaScript data.
 
-    **Args.**
+    Args:
+        data: JavaScript data as a string
 
-    - data: JavaScript data as a string
-
-    **Returns.**
-
-    A `VirtualFile` object.
+    Returns:
+        A `VirtualFile` object.
     """
     return any_data(data, ext="js")
 
@@ -108,13 +96,11 @@ def js(data: str) -> VirtualFile:
 def html(data: str) -> VirtualFile:
     """Create a virtual file for HTML data.
 
-    **Args.**
+    Args:
+        data: HTML data as a string
 
-    - data: HTML data as a string
-
-    **Returns.**
-
-    A `VirtualFile` object.
+    Returns:
+        A `VirtualFile` object.
     """
     return any_data(data, ext="html")
 
@@ -125,14 +111,12 @@ def any_data(data: Union[str, bytes, io.BytesIO], ext: str) -> VirtualFile:
     It can be a string, bytes, or a file-like object.
     For external URLs, these are passed through as-is.
 
-    **Args.**
+    Args:
+        data: Data in bytes, or string representing a data URL or external URL
+        ext: File extension
 
-    - data: Data in bytes, or string representing a data URL or external URL
-    - ext: File extension
-
-    **Returns.**
-
-    A `VirtualFile` object.
+    Returns:
+        A `VirtualFile` object.
     """
     if data is None:
         return EMPTY_VIRTUAL_FILE

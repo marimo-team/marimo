@@ -54,20 +54,17 @@ class Html(MIME):
     )
     ```
 
-    **Attributes.**
+    Attributes:
+        text: a string of HTML
 
-    - `text`: a string of HTML
+    Args:
+        text: a string of HTML
 
-    **Initialization Args.**
-
-    - `text`: a string of HTML
-
-    **Methods.**
-
-    - `batch`: convert this HTML element into a batched UI element
-    - `callout`: wrap this element in a callout
-    - `center`: center this element in the output area
-    - `right`: right-justify this element in the output area
+    Methods:
+        batch: convert this HTML element into a batched UI element
+        callout: wrap this element in a callout
+        center: center this element in the output area
+        right: right-justify this element in the output area
     """
 
     def __init__(self, text: str) -> None:
@@ -145,24 +142,22 @@ class Html(MIME):
         This method lets you create custom UI elements that are represented
         by arbitrary HTML.
 
-        **Example.**
+        Example:
+            ```python3
+            user_info = mo.md(
+                '''
+                - What's your name?: {name}
+                - When were you born?: {birthday}
+                '''
+            ).batch(name=mo.ui.text(), birthday=mo.ui.date())
+            ```
 
-        ```python3
-        user_info = mo.md(
-            '''
-            - What's your name?: {name}
-            - When were you born?: {birthday}
-            '''
-        ).batch(name=mo.ui.text(), birthday=mo.ui.date())
-        ```
+            In this example, `user_info` is a UI Element whose output is markdown
+            and whose value is a dict with keys `'name'` and '`birthday`'
+            (and values equal to the values of their corresponding elements).
 
-        In this example, `user_info` is a UI Element whose output is markdown
-        and whose value is a dict with keys `'name'` and '`birthday`'
-        (and values equal to the values of their corresponding elements).
-
-        **Args.**
-
-        - elements: the UI elements to interpolate into the HTML template.
+        Args:
+            elements: the UI elements to interpolate into the HTML template.
         """
         from marimo._plugins.ui._impl.batch import batch as batch_plugin
 
@@ -172,15 +167,13 @@ class Html(MIME):
     def center(self) -> Html:
         """Center an item.
 
-        **Example.**
+        Example:
+            ```python3
+            mo.md("# Hello, world").center()
+            ```
 
-        ```python3
-        mo.md("# Hello, world").center()
-        ```
-
-        **Returns.**
-
-        An `Html` object.
+        Returns:
+            An `Html` object.
         """
         from marimo._plugins.stateless import flex
 
@@ -190,15 +183,13 @@ class Html(MIME):
     def right(self) -> Html:
         """Right-justify.
 
-        **Example.**
+        Example:
+            ```python3
+            mo.md("# Hello, world").right()
+            ```
 
-        ```python3
-        mo.md("# Hello, world").right()
-        ```
-
-        **Returns.**
-
-        An `Html` object.
+        Returns:
+            An `Html` object.
         """
         from marimo._plugins.stateless import flex
 
@@ -208,15 +199,13 @@ class Html(MIME):
     def left(self) -> Html:
         """Left-justify.
 
-        **Example.**
+        Example:
+            ```python3
+            mo.md("# Hello, world").left()
+            ```
 
-        ```python3
-        mo.md("# Hello, world").left()
-        ```
-
-        **Returns.**
-
-        An `Html` object.
+        Returns:
+            An `Html` object.
         """
         from marimo._plugins.stateless import flex
 
@@ -235,15 +224,14 @@ class Html(MIME):
         importance. You can style the callout for different situations with the
         `kind` argument.
 
-        **Examples.**
+        Examples:
+            ```python3
+            mo.md("Hooray, you did it!").callout(kind="success")
+            ```
 
-        ```python3
-        mo.md("Hooray, you did it!").callout(kind="success")
-        ```
-
-        ```python3
-        mo.md("It's dangerous to go alone!").callout(kind="warn")
-        ```
+            ```python3
+            mo.md("It's dangerous to go alone!").callout(kind="warn")
+            ```
         """
 
         from marimo._plugins.stateless.callout import callout as _callout
@@ -256,17 +244,15 @@ class Html(MIME):
     ) -> Html:
         """Wrap an object in a styled container.
 
-        **Example.**
+        Example:
+            ```python
+            mo.md("...").style({"max-height": "300px", "overflow": "auto"})
+            mo.md("...").style(max_height="300px", overflow="auto")
+            ```
 
-        ```python
-        mo.md("...").style({"max-height": "300px", "overflow": "auto"})
-        mo.md("...").style(max_height="300px", overflow="auto")
-        ```
-
-        **Args.**
-
-        - `style`: an optional dict of CSS styles, keyed by property name
-        - `**kwargs`: CSS styles as keyword arguments
+        Args:
+            style: an optional dict of CSS styles, keyed by property name
+            **kwargs: CSS styles as keyword arguments
         """
         from marimo._plugins.stateless import style as _style
 
