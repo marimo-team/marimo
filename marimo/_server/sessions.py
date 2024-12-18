@@ -803,7 +803,8 @@ class SessionManager:
                 return maybe_session
             return None
 
-        # Cleanup sessions with dead kernels
+        # Cleanup sessions with dead kernels; materializing as a list because
+        # close_sessions mutates self.sessions
         for session_id, session in list(self.sessions.items()):
             task = session.kernel_manager.kernel_task
             if task is not None and not task.is_alive():
