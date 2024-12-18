@@ -46,15 +46,6 @@ export function createGanttBaseSpec(
         bind: { element: `#${hiddenInputElementId}` },
       },
       {
-        name: "zoomAndPan",
-        select: "interval",
-        bind: "scales",
-      },
-      {
-        name: "cursor",
-        value: "grab",
-      },
-      {
         name: VEGA_HOVER_SIGNAL,
         select: {
           type: "point",
