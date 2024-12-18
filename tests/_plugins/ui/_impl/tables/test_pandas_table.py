@@ -629,7 +629,7 @@ class TestPandasTableManager(unittest.TestCase):
                     [4, 5, 6],
                     [7, 8, 9],
                 ],  # No formatting applied
-                "G": [None, "text", "3.14"],
+                "G": ["None", "text", "3.14"],
             }
         )
         assert_frame_equal(formatted_data, expected_data)
@@ -753,8 +753,34 @@ class TestPandasTableManager(unittest.TestCase):
                     [4, 5, 6],
                     [7, 8, 9],
                 ],  # No formatting applied
-                "G": [None, "text", "3.14"],
+                "G": ["None", "text", "3.14"],
                 "H": [2.23606797749979, 5.0, 7.810249675906654],
+            }
+        )
+        assert_frame_equal(formatted_data, expected_data)
+
+    def test_apply_formatting_with_none_values(self) -> None:
+        data = pd.DataFrame(
+            {
+                "A": [1, None, 3],
+                "B": [None, "text", None],
+                "C": [1.0, 2.0, None],
+            }
+        )
+        manager = self.factory.create()(data)
+
+        format_mapping: FormatMapping = {
+            "A": lambda x: "N/A" if pd.isna(x) else x * 2,
+            "B": lambda x: "Missing" if pd.isna(x) else x.upper(),
+            "C": lambda x: "---" if pd.isna(x) else f"{x:.2f}",
+        }
+
+        formatted_data = manager.apply_formatting(format_mapping).data
+        expected_data = pd.DataFrame(
+            {
+                "A": [2, "N/A", 6],
+                "B": ["Missing", "TEXT", "Missing"],
+                "C": ["1.00", "2.00", "---"],
             }
         )
         assert_frame_equal(formatted_data, expected_data)
