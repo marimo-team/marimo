@@ -250,9 +250,9 @@ class panel(UIElement[T, T]):
 
     def _handle_msg(self, msg: SendToWidgetArgs) -> None:
         ref = self._ref
-        comm = self.obj._comms[ref][0]
+        comm = self.obj._comms[ref][0]  # type: ignore[attr-defined]
         msg = comm.decode(msg)
-        self.obj._on_msg(ref, self._manager, msg)
+        self.obj._on_msg(ref, self._manager, msg)  # type: ignore[attr-defined]
         comm.send(data={"type": "ACK"})
 
     def _initialize(
@@ -260,7 +260,7 @@ class panel(UIElement[T, T]):
         initialization_args: InitializationArgs[T, T],
     ) -> None:
         super()._initialize(initialization_args)
-        for comm, _ in self.obj._comms.values():
+        for comm, _ in self.obj._comms.values():  # type: ignore[attr-defined]
             if isinstance(comm.comm, MarimoComm):
                 comm.comm.ui_element_id = self._id
 
