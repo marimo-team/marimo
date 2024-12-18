@@ -20,7 +20,7 @@
 <a href="https://pypi.org/project/marimo/"><img src="https://img.shields.io/pypi/v/marimo?color=%2334D058&label=pypi" /></a>
 <a href="https://anaconda.org/conda-forge/marimo"><img src="https://img.shields.io/conda/vn/conda-forge/marimo.svg"/></a>
 <a href="https://marimo.io/discord?ref=readme"><img src="https://shields.io/discord/1059888774789730424" alt="discord" /></a>
-<a href="https://doi.org/10.5281/zenodo.14058595"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.14058595.svg" alt="DOI"/></a>
+<a href="https://doi.org/10.5281/zenodo.12735329"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.14511438.svg" alt="DOI"/></a>
 <img alt="Pepy Total Downloads" src="https://img.shields.io/pepy/dt/marimo?label=pypi%20%7C%20downloads"/>
 <img alt="Conda Downloads" src="https://img.shields.io/conda/d/conda-forge/marimo" />
 <a href="https://github.com/marimo-team/marimo/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/marimo" /></a>
