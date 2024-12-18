@@ -70,61 +70,58 @@ def google_docstring_to_markdown(docstring: str) -> str:
 
         # If within Args:
         if in_args:
-            stripped = stripped.strip()
             # Typically: "    arg_name (arg_type): description"
             match = re.match(r"^(\w+)\s*\(([^)]+)\):\s*(.*)", stripped)
             if match:
                 arg_name, arg_type, description = match.groups()
-                arg_table.append((arg_name, arg_type, description))
+                arg_table.append((arg_name, arg_type, description.strip()))
             else:
                 # Fallback to "    arg_name: description"
                 match = re.match(r"^(\w+)\s*:\s*(.*)", stripped)
                 if match:
                     arg_name, description = match.groups()
-                    arg_table.append((arg_name, "", description))
+                    arg_table.append((arg_name, "", description.strip()))
                 else:
                     # Possibly just an indented line continuing the description
                     if arg_table:
                         arg_table[-1] = (
                             arg_table[-1][0],
                             arg_table[-1][1],
-                            arg_table[-1][2] + " " + stripped,
+                            arg_table[-1][2] + " " + stripped.strip(),
                         )
             continue
 
         # If within Returns:
         if in_returns:
-            stripped = stripped.strip()
             # Typically: "    ReturnType: the big description"
             match = re.match(r"^([^:]+):\s*(.*)", stripped)
             if match:
                 ret_type, description = match.groups()
-                returns_table.append((ret_type.strip(), description))
+                returns_table.append((ret_type.strip(), description.strip()))
             else:
                 # Possibly just an indented line continuing
                 if returns_table:
                     returns_table[-1] = (
                         returns_table[-1][0],
-                        returns_table[-1][1] + " " + stripped,
+                        returns_table[-1][1] + " " + stripped.strip(),
                     )
             continue
 
         # If within Raises:
         if in_raises:
-            stripped = stripped.strip()
             # Google style typically: "    ErrorType: explanation"
             match = re.match(r"^([^:]+):\s*(.*)", stripped)
             if match:
                 err_type, explanation = match.groups()
                 # We'll just turn it into a "# Raises" heading
                 # and bullet lines for each raise
-                raises_table.append((err_type.strip(), explanation))
+                raises_table.append((err_type.strip(), explanation.strip()))
             else:
                 # Possibly just an indented line continuing
                 if raises_table and raises_table[-1][1].startswith("- **"):
                     raises_table[-1] = (
                         raises_table[-1][0],
-                        raises_table[-1][1] + " " + stripped,
+                        raises_table[-1][1] + " " + stripped.strip(),
                     )
             continue
 
@@ -142,19 +139,19 @@ def google_docstring_to_markdown(docstring: str) -> str:
         output.append("| Parameter | Type | Description |")
         output.append("|-----------|------|-------------|")
         for arg_name, arg_type, desc in arg_table:
-            output.append(f"| `{arg_name}` | `{arg_type}` | {desc} |")
+            output.append(f"| `{arg_name}` | `{arg_type}` | {desc.strip()} |")
 
     if returns_table:
         output.append("\n# Returns")
         output.append("| Type | Description |")
         output.append("|------|-------------|")
         for ret_type, desc in returns_table:
-            output.append(f"| `{ret_type}` | {desc} |")
+            output.append(f"| `{ret_type}` | {desc.strip()} |")
 
     if raises_table:
         output.append("\n# Raises")
         for err_type, explanation in raises_table:
-            output.append(f"- **{err_type}**: {explanation}")
+            output.append(f"- **{err_type}**: {explanation.strip()}")
 
     if examples_lines:
         output.append("\n# Examples")

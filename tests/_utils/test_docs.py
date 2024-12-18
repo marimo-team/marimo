@@ -67,8 +67,7 @@ def test_google_docstring_to_markdown_complex():
 
     Args:
         items (Sequence[object]): A list of items.
-        align (Literal["start", "end", "center", "stretch"], optional): Align items
-            horizontally: start, end, center, or stretch.
+        align (Literal["start", "end", "center", "stretch"], optional): Align items horizontally: start, end, center, or stretch.
         justify (Literal["start", "center", "end", "space-between", "space-around"]):
             Justify items vertically: start, center, end, space-between, or space-around.
             Defaults to "start".
