@@ -158,10 +158,22 @@ class date(UIElement[str, dt.date]):
 
     @property
     def start(self) -> dt.date:
+        """Get the minimum selectable date.
+
+        Returns:
+            datetime.date: The start date, which is either the user-specified minimum date
+                or 01-01-0001 if no start date was specified.
+        """
         return self._start
 
     @property
     def stop(self) -> dt.date:
+        """Get the maximum selectable date.
+
+        Returns:
+            datetime.date: The stop date, which is either the user-specified maximum date
+                or 12-31-9999 if no stop date was specified.
+        """
         return self._stop
 
 
@@ -292,10 +304,22 @@ class datetime(UIElement[Optional[str], Optional[dt.datetime]]):
 
     @property
     def start(self) -> dt.datetime:
+        """Get the minimum selectable datetime.
+
+        Returns:
+            datetime.datetime: The start datetime, which is either the user-specified minimum
+                datetime or datetime.min if no start datetime was specified.
+        """
         return self._start
 
     @property
     def stop(self) -> dt.datetime:
+        """Get the maximum selectable datetime.
+
+        Returns:
+            datetime.datetime: The stop datetime, which is either the user-specified maximum
+                datetime or datetime.max if no stop datetime was specified.
+        """
         return self._stop
 
 
@@ -421,8 +445,20 @@ class date_range(UIElement[Tuple[str, str], Tuple[dt.date, dt.date]]):
 
     @property
     def start(self) -> dt.date:
+        """Get the minimum selectable date.
+
+        Returns:
+            datetime.date: The start date, which is either the user-specified minimum date
+                or 01-01-0001 if no start date was specified.
+        """
         return self._start
 
     @property
     def stop(self) -> dt.date:
+        """Get the maximum selectable date.
+
+        Returns:
+            datetime.date: The stop date, which is either the user-specified maximum date
+                or 12-31-9999 if no stop date was specified.
+        """
         return self._stop

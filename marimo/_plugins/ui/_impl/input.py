@@ -1326,14 +1326,32 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
         )
 
     def name(self, index: int = 0) -> Optional[str]:
-        """Get file name at index."""
+        """Get file name at index.
+
+        Args:
+            index (int, optional): Index of the file to get the name from.
+                Defaults to 0.
+
+        Returns:
+            Optional[str]: The name of the file at the specified index,
+                or None if index is out of range.
+        """
         if not self.value or index >= len(self.value):
             return None
         else:
             return self.value[index].name
 
     def contents(self, index: int = 0) -> Optional[bytes]:
-        """Get file contents at index."""
+        """Get file contents at index.
+
+        Args:
+            index (int, optional): Index of the file to get the contents from.
+                Defaults to 0.
+
+        Returns:
+            Optional[bytes]: The contents of the file at the specified index,
+                or None if index is out of range.
+        """
         if not self.value or index >= len(self.value):
             return None
         else:
@@ -1495,14 +1513,32 @@ class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
         )
 
     def name(self, index: int = 0) -> Optional[str]:
-        """Get file name at index."""
+        """Get file name at index.
+
+        Args:
+            index (int, optional): Index of the file to get the name from.
+                Defaults to 0.
+
+        Returns:
+            Optional[str]: The name of the file at the specified index,
+                or None if index is out of range.
+        """
         if not self.value or index >= len(self.value):
             return None
         else:
             return self.value[index].name
 
     def path(self, index: int = 0) -> Optional[str]:
-        """Get file path at index."""
+        """Get file path at index.
+
+        Args:
+            index (int, optional): Index of the file to get the path from.
+                Defaults to 0.
+
+        Returns:
+            Optional[str]: The path of the file at the specified index,
+                or None if index is out of range.
+        """
         if not self.value or index >= len(self.value):
             return None
         else:
