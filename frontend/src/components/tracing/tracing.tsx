@@ -27,9 +27,8 @@ import {
 import { ClearButton } from "../buttons/clear-button";
 import { cn } from "@/utils/cn";
 
-// TODO: There are a few components like this in the codebase, maybe remove the redundancy
-const LazyVegaLite = React.lazy(() =>
-  import("react-vega").then((m) => ({ default: m.VegaLite })),
+const LazyVega = React.lazy(() =>
+  import("react-vega").then((m) => ({ default: m.Vega })),
 );
 
 export const Tracing: React.FC = () => {
@@ -48,7 +47,7 @@ export const Tracing: React.FC = () => {
   };
 
   return (
-    <div className="py-1 px-2">
+    <div className="py-1 px-2 overflow-y-scroll">
       <div className="flex flex-row justify-end gap-3">
         <div className="flex flex-row gap-1 items-center">
           <label htmlFor="chartPosition" className="text-xs">
@@ -96,7 +95,7 @@ interface ChartProps {
 const Chart: React.FC<ChartProps> = (props: ChartProps) => {
   return (
     <div className={props.className}>
-      <LazyVegaLite
+      <LazyVega
         spec={props.vegaSpec}
         width={props.width}
         height={props.height}
