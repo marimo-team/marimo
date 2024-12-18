@@ -223,58 +223,56 @@ def _has_transforms(spec: VegaSpec) -> bool:
 
 @mddoc
 class altair_chart(UIElement[ChartSelection, ChartDataType]):
-    """Make reactive charts with Altair
+    """Make reactive charts with Altair.
 
     Use `mo.ui.altair_chart` to make Altair charts reactive: select chart data
     with your cursor on the frontend, get them as a dataframe in Python!
 
     Supports polars, pandas, and arrow DataFrames.
 
-    **Example.**
+    Examples:
+        ```python
+        import altair as alt
+        import marimo as mo
+        from vega_datasets import data
 
-    ```python
-    import altair as alt
-    import marimo as mo
-    from vega_datasets import data
-
-    chart = (
-        alt.Chart(data.cars())
-        .mark_point()
-        .encode(
-            x="Horsepower",
-            y="Miles_per_Gallon",
-            color="Origin",
+        chart = (
+            alt.Chart(data.cars())
+            .mark_point()
+            .encode(
+                x="Horsepower",
+                y="Miles_per_Gallon",
+                color="Origin",
+            )
         )
-    )
 
-    chart = mo.ui.altair_chart(chart)
-    ```
+        chart = mo.ui.altair_chart(chart)
+        ```
 
-    ```
-    # View the chart and selected data as a dataframe
-    mo.hstack([chart, chart.value])
-    ```
+        ```python
+        # View the chart and selected data as a dataframe
+        mo.hstack([chart, chart.value])
+        ```
 
-    **Attributes.**
+    Attributes:
+        value (ChartDataType): A dataframe of the plot data filtered by the selections.
+        dataframe (ChartDataType): A dataframe of the unfiltered chart data.
+        selections (ChartSelection): The selection of the chart; this may be an interval
+            along the name of an axis or a selection of points.
 
-    - `value`: a dataframe of the plot data filtered by the selections
-    - `dataframe`: a dataframe of the unfiltered chart data
-    - `selections`: the selection of the chart; this may be an interval along
-       the name of an axis or a selection of points
-
-    **Initialization Args.**
-
-    - `chart`: An `altair.Chart`
-    - `chart_selection`: optional selection type,
-        `"point"`, `"interval"`, or a bool; defaults to `True` which will
-        automatically detect the best selection type.
-        This is ignored if the chart already has a point/interval selection param.
-    - `legend_selection`: optional list of legend fields (columns) for which to
-        enable selection, `True` to enable selection for all fields, or
-        `False` to disable selection entirely.
-        This is ignored if the chart already has a legend selection param.
-    - `label`: optional markdown label for the element
-    - `on_change`: optional callback to run when this element's value changes
+    Args:
+        chart (altair.Chart): An Altair Chart object.
+        chart_selection (Union[Literal["point"], Literal["interval"], bool], optional):
+            Selection type, "point", "interval", or a bool. Defaults to True which will
+            automatically detect the best selection type. This is ignored if the chart
+            already has a point/interval selection param.
+        legend_selection (Union[list[str], bool], optional): List of legend fields
+            (columns) for which to enable selection, True to enable selection for all
+            fields, or False to disable selection entirely. This is ignored if the chart
+            already has a legend selection param. Defaults to True.
+        label (str, optional): Markdown label for the element. Defaults to "".
+        on_change (Optional[Callable[[ChartDataType], None]], optional): Optional
+            callback to run when this element's value changes. Defaults to None.
     """
 
     name: Final[str] = "marimo-vega"
@@ -472,39 +470,36 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         This method is useful when you have a layered chart and you want to
         apply the selection to a DataFrame.
 
-        **Example.**
+        Args:
+            df (ChartDataType): A DataFrame to apply the selection to.
 
-        ```python
-        import altair as alt
-        import marimo as mo
-        from vega_datasets import data
+        Returns:
+            ChartDataType: A DataFrame of the plot data filtered by the selections.
 
-        cars = data.cars()
+        Examples:
+            ```python
+            import altair as alt
+            import marimo as mo
+            from vega_datasets import data
 
-        _chart = (
-            alt.Chart(cars)
-            .mark_point()
-            .encode(
-                x="Horsepower",
-                y="Miles_per_Gallon",
-                color="Origin",
+            cars = data.cars()
+
+            _chart = (
+                alt.Chart(cars)
+                .mark_point()
+                .encode(
+                    x="Horsepower",
+                    y="Miles_per_Gallon",
+                    color="Origin",
+                )
             )
-        )
 
-        chart = mo.ui.altair_chart(_chart)
-        chart
+            chart = mo.ui.altair_chart(_chart)
+            chart
 
-        # In another cell
-        selected_df = chart.apply_selection(cars)
-        ```
-
-        **Args.**
-
-        - `df`: a DataFrame to apply the selection to
-
-        **Returns.**
-
-        - a DataFrame of the plot data filtered by the selections
+            # In another cell
+            selected_df = chart.apply_selection(cars)
+            ```
         """
         assert assert_can_narwhalify(df)
         return _filter_dataframe(df, self.selections)

@@ -97,11 +97,9 @@ class SortArgs:
 
 @mddoc
 class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
-    """
-    A table component with selectable rows. Get the selected rows with
-    `table.value`.
+    """A table component with selectable rows.
 
-    The table data can be supplied a:
+    Get the selected rows with `table.value`. The table data can be supplied as:
 
     1. a list of dicts, with one dict for each row, keyed by column names;
     2. a list of values, representing a table with a single column;
@@ -110,104 +108,101 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
     5. an Ibis dataframe; or
     6. a PyArrow table.
 
-    **Examples.**
+    Examples:
+        Create a table from a list of dicts, one for each row:
 
-    Create a table from a list of dicts, one for each row.
+        ```python
+        table = mo.ui.table(
+            data=[
+                {"first_name": "Michael", "last_name": "Scott"},
+                {"first_name": "Dwight", "last_name": "Schrute"},
+            ],
+            label="Users",
+        )
+        ```
 
-    ```python
-    table = mo.ui.table(
-        data=[
-            {"first_name": "Michael", "last_name": "Scott"},
-            {"first_name": "Dwight", "last_name": "Schrute"},
-        ],
-        label="Users",
-    )
-    ```
+        Create a table from a single column of data:
 
-    Create a table from a single column of data:
+        ```python
+        table = mo.ui.table(
+          data=[
+            {'first_name': 'Michael', 'last_name': 'Scott'},
+            {'first_name': 'Dwight', 'last_name': 'Schrute'}
+          ],
+          label='Users'
+        )
+        ```
 
-    table = mo.ui.table(
-      data=[
-        {'first_name': 'Michael', 'last_name': 'Scott'},
-        {'first_name': 'Dwight', 'last_name': 'Schrute'}
-      ],
-      label='Users'
-    )
+        Create a table from a dataframe:
 
-    Create a table from a dataframe:
+        ```python
+        # df is a Pandas or Polars dataframe
+        table = mo.ui.table(
+            data=df,
+            # use pagination when your table has many rows
+            pagination=True,
+            label="Dataframe",
+        )
+        ```
 
-    ```python
-    # df is a Pandas or Polars dataframe
-    table = mo.ui.table(
-        data=df,
-        # use pagination when your table has many rows
-        pagination=True,
-        label="Dataframe",
-    )
-    ```
+        Create a table with format mapping:
 
-    Create a table with format mapping:
-
-    ```python
-    # format_mapping is a dict keyed by column names,
-    # with values as formatting functions or strings
-    def format_name(name):
-        return name.upper()
+        ```python
+        # format_mapping is a dict keyed by column names,
+        # with values as formatting functions or strings
+        def format_name(name):
+            return name.upper()
 
 
-    table = mo.ui.table(
-        data=[
-            {"first_name": "Michael", "last_name": "Scott", "age": 45},
-            {"first_name": "Dwight", "last_name": "Schrute", "age": 40},
-        ],
-        format_mapping={
-            "first_name": format_name,  # Use callable to format first names
-            "age": "{:.1f}".format,  # Use string format for age
-        },
-        label="Format Mapping",
-    )
-    ```
-    In each case, access the table data with `table.value`.
+        table = mo.ui.table(
+            data=[
+                {"first_name": "Michael", "last_name": "Scott", "age": 45},
+                {"first_name": "Dwight", "last_name": "Schrute", "age": 40},
+            ],
+            format_mapping={
+                "first_name": format_name,  # Use callable to format first names
+                "age": "{:.1f}".format,  # Use string format for age
+            },
+            label="Format Mapping",
+        )
+        ```
 
-    **Attributes.**
+        In each case, access the table data with `table.value`.
 
-    - `value`: the selected rows, in the same format as the original data,
-       or `None` if no selection
-    - `data`: the original table data
+    Attributes:
+        value (Union[List[JSONType], IntoDataFrame]): The selected rows, in the same format
+            as the original data, or None if no selection.
+        data (Union[List[JSONType], IntoDataFrame]): The original table data.
 
-    **Initialization Args.**
-
-    - `data`: Values can be primitives (`str`,
-      `int`, `float`, `bool`, or `None`) or marimo elements: e.g.
-      `mo.ui.button(...)`, `mo.md(...)`, `mo.as_html(...)`, etc. Data can be
-      passed in many ways:
-        - as dataframes: a pandas dataframe, a polars dataframe
-        - as rows: a list of dicts, where each dict represents a row in the
-          table
-        - as columns: a dict keyed by column names, where the value of each
-          entry is a list representing a column
-        - as a single column: a list of values
-    - `pagination`: whether to paginate; if `False`, all rows will be shown
-      defaults to `True` when above 10 rows, `False` otherwise
-    - `selection`: 'single' or 'multi' to enable row selection, or `None` to
-        disable
-    - `page_size`: the number of rows to show per page.
-      defaults to 10
-    - `show_column_summaries`: whether to show column summaries
-      defaults to `True` when the table has less than 40 columns, `False` otherwise
-    - `show_download`: whether to show the download button
-      defaults to `True` for dataframes, `False` otherwise
-    - `format_mapping`: a mapping from column names to formatting strings
-    or functions
-    - `freeze_columns_left`: list of column names to freeze on the left
-    - `freeze_columns_right`: list of column names to freeze on the right
-    - `text_justify_columns`: dictionary of column names to text justification
-      options: `left`, `center`, `right`
-    - `wrapped_columns`: list of column names to wrap
-    - `label`: markdown label for the element
-    - `on_change`: optional callback to run when this element's value changes
-    - `max_columns`: maximum number of columns to display, defaults to 50.
-      Set to None to show all columns.
+    Args:
+        data (Union[List[Union[str, int, float, bool, MIME, None]], List[Dict[str, JSONType]], Dict[str, List[JSONType]], IntoDataFrame]):
+            Values can be primitives (`str`, `int`, `float`, `bool`, or `None`) or marimo elements:
+            e.g. `mo.ui.button(...)`, `mo.md(...)`, `mo.as_html(...)`, etc. Data can be passed in many ways:
+            - as dataframes: a pandas dataframe, a polars dataframe
+            - as rows: a list of dicts, where each dict represents a row in the table
+            - as columns: a dict keyed by column names, where the value of each entry is a list representing a column
+            - as a single column: a list of values
+        pagination (bool, optional): Whether to paginate; if False, all rows will be shown.
+            Defaults to True when above 10 rows, False otherwise.
+        selection (Literal["single", "multi"], optional): 'single' or 'multi' to enable row selection,
+            or None to disable. Defaults to "multi".
+        page_size (int, optional): The number of rows to show per page. Defaults to 10.
+        show_column_summaries (bool, optional): Whether to show column summaries.
+            Defaults to True when the table has less than 40 columns, False otherwise.
+        show_download (bool, optional): Whether to show the download button.
+            Defaults to True for dataframes, False otherwise.
+        format_mapping (Dict[str, Union[str, Callable[..., Any]]], optional): A mapping from
+            column names to formatting strings or functions.
+        freeze_columns_left (Sequence[str], optional): List of column names to freeze on the left.
+        freeze_columns_right (Sequence[str], optional): List of column names to freeze on the right.
+        text_justify_columns (Dict[str, Literal["left", "center", "right"]], optional):
+            Dictionary of column names to text justification options: left, center, right.
+        wrapped_columns (List[str], optional): List of column names to wrap.
+        label (str, optional): Markdown label for the element. Defaults to "".
+        on_change (Callable[[Union[List[JSONType], Dict[str, List[JSONType]], IntoDataFrame]], None], optional):
+            Optional callback to run when this element's value changes.
+        max_columns (int, optional): Maximum number of columns to display. Defaults to 50.
+            Set to None to show all columns.
     """
 
     _name: Final[str] = "marimo-table"
@@ -426,6 +421,12 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
     def data(
         self,
     ) -> TableData:
+        """Get the original table data.
+
+        Returns:
+            TableData: The original data passed to the table constructor, in its
+                original format (list, dict, dataframe, etc.).
+        """
         return self._data
 
     def _get_banner_text(self) -> str:
@@ -445,12 +446,24 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         return unwrap_narwhals_dataframe(self._selected_manager.data)  # type: ignore[no-any-return]
 
     def download_as(self, args: DownloadAsArgs) -> str:
-        # download selected rows if there are any, otherwise use all rows
-        # not apply formatting here, raw data is downloaded
+        """Download the table data in the specified format.
+
+        Downloads selected rows if there are any, otherwise downloads all rows.
+        Raw data is downloaded without any formatting applied.
+
+        Args:
+            args (DownloadAsArgs): Arguments specifying the download format.
+                format must be one of 'csv' or 'json'.
+
+        Returns:
+            str: URL to download the data file.
+
+        Raises:
+            ValueError: If format is not 'csv' or 'json'.
+        """
         manager = (
             self._selected_manager
             if self._selected_manager and self._has_any_selection
-            # use _searched_manager here to download the full data
             else self._searched_manager
         )
 
@@ -463,6 +476,20 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
             raise ValueError("format must be one of 'csv' or 'json'.")
 
     def get_column_summaries(self, args: EmptyArgs) -> ColumnSummaries:
+        """Get statistical summaries for each column in the table.
+
+        Calculates summaries like null counts, min/max values, unique counts, etc.
+        for each column. Summaries are only calculated if the total number of rows
+        is below the column summary row limit.
+
+        Args:
+            args (EmptyArgs): Empty arguments object (unused).
+
+        Returns:
+            ColumnSummaries: Object containing column summaries and chart data.
+                If summaries are disabled or row limit is exceeded, returns empty
+                summaries with is_disabled flag set appropriately.
+        """
         del args
         if not self._show_column_summaries:
             return ColumnSummaries(
@@ -553,6 +580,25 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         return result
 
     def search(self, args: SearchTableArgs) -> SearchTableResponse:
+        """Search and filter the table data.
+
+        Applies filters, search query, and sorting to the table data. Returns
+        paginated results based on the specified page size and number.
+
+        Args:
+            args (SearchTableArgs): Search arguments containing:
+                - page_size: Number of rows per page
+                - page_number: Zero-based page index
+                - query: Optional search query string
+                - sort: Optional sorting configuration
+                - filters: Optional list of filter conditions
+                - limit: Optional row limit
+
+        Returns:
+            SearchTableResponse: Response containing:
+                - data: Filtered and formatted table data for the requested page
+                - total_rows: Total number of rows after applying filters
+        """
         offset = args.page_number * args.page_size
 
         def clamp_rows_and_columns(manager: TableManager[Any]) -> JSONType:
@@ -591,9 +637,14 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         )
 
     def _repr_markdown_(self) -> str:
-        """
-        Return a markdown representation of the table.
-        Useful for rendering in the GitHub viewer.
+        """Return a markdown representation of the table.
+
+        Generates a markdown or HTML representation of the table data,
+        useful for rendering in the GitHub viewer.
+
+        Returns:
+            str: HTML representation of the table if available,
+                otherwise string representation.
         """
         df = self.data
         if hasattr(df, "_repr_html_"):

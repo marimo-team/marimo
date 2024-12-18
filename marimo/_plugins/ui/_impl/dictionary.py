@@ -31,9 +31,9 @@ class dictionary(_batch_base):
         elements: interacting with the dictionary will _not_ update the original
         elements, and vice versa.
 
-        The main reason to use mo.ui.dictionary is for reactive execution — when you
-        interact with an element in a mo.ui.dictionary, all cells that reference the
-        mo.ui.dictionary run automatically, just like all other ui elements. When you
+        The main reason to use `mo.ui.dictionary` is for reactive execution — when you
+        interact with an element in a `mo.ui.dictionary`, all cells that reference the
+        `mo.ui.dictionary` run automatically, just like all other ui elements. When you
         use a regular dictionary, you don't get this reactivity.
 
     Examples:

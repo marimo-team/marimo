@@ -49,53 +49,54 @@ class plotly(UIElement[PlotlySelection, List[Dict[str, Any]]]):
     This function currently only supports scatter plots, treemaps charts,
     and sunbursts charts.
 
-    **Example.**
+    Examples:
+        ```python
+        import plotly.express as px
+        import marimo as mo
+        from vega_datasets import data
 
-    ```python
-    import plotly.express as px
-    import marimo as mo
-    from vega_datasets import data
+        _plot = px.scatter(
+            data.cars(), x="Horsepower", y="Miles_per_Gallon", color="Origin"
+        )
 
-    _plot = px.scatter(
-        data.cars(), x="Horsepower", y="Miles_per_Gallon", color="Origin"
-    )
+        plot = mo.ui.plotly(_plot)
+        ```
 
-    plot = mo.ui.plotly(_plot)
-    ```
+        ```python
+        # View the plot and selected data
+        mo.hstack([plot, plot.value])
+        ```
 
-    ```
-    # View the plot and selected data
-    mo.hstack([plot, plot.value])
-    ```
+        Or with custom configuration:
 
-    Or with custom configuration:
+        ```python
+        plot = mo.ui.plotly(
+            _plot,
+            config={"staticPlot": True},
+        )
+        ```
 
-    ```python
-    plot = mo.ui.plotly(
-        _plot,
-        config={"staticPlot": True},
-    )
-    ```
+    Attributes:
+        value (Dict[str, Any]): A dict of the plot data.
+        ranges (Dict[str, List[float]]): The selection of the plot; this may be an
+            interval along the name of an axis.
+        points (List[Dict[str, Any]]): The selected points data.
+        indices (List[int]): The indices of selected points.
 
-    **Attributes.**
-
-    - `value`: a dict of the plot data
-    - `ranges`: the selection of the plot; this may be an interval along
-       the name of an axis
-
-    **Initialization Args.**
-
-    - `figure`: A `plotly.graph_objects.Figure`
-    - `config`: optional configuration for the plot.
-        This is a dictionary that is passed directly to the plotly.
-        See the plotly documentation for more information:
-        https://plotly.com/javascript/configuration-options/
-        This takes precedence over the default configuration of the renderer.
-    - `renderer_name`: optional renderer to use for the plot.
-        If this is not provided, the default renderer (pio.renderers.default)
-        is used.
-    - `label`: optional markdown label for the element
-    - `on_change`: optional callback to run when this element's value changes
+    Args:
+        figure (plotly.graph_objects.Figure): A plotly Figure object.
+        config (Optional[Dict[str, Any]], optional): Configuration for the plot.
+            This is a dictionary that is passed directly to plotly.
+            See the plotly documentation for more information:
+            https://plotly.com/javascript/configuration-options/
+            This takes precedence over the default configuration of the renderer.
+            Defaults to None.
+        renderer_name (Optional[str], optional): Renderer to use for the plot.
+            If this is not provided, the default renderer (`pio.renderers.default`)
+            is used. Defaults to None.
+        label (str, optional): Markdown label for the element. Defaults to "".
+        on_change (Optional[Callable[[JSONType], None]], optional): Callback to run
+            when this element's value changes. Defaults to None.
     """
 
     name: Final[str] = "marimo-plotly"
@@ -149,6 +150,13 @@ class plotly(UIElement[PlotlySelection, List[Dict[str, Any]]]):
 
     @property
     def ranges(self) -> Dict[str, List[float]]:
+        """Get the range selection of the plot.
+
+        Returns:
+            Dict[str, List[float]]: A dictionary mapping field names to their
+                selected ranges, where each range is a list of [min, max] values.
+                Returns an empty dict if no range selection exists.
+        """
         if not self._selection_data:
             return {}
         if "range" not in self._selection_data:
@@ -157,6 +165,12 @@ class plotly(UIElement[PlotlySelection, List[Dict[str, Any]]]):
 
     @property
     def points(self) -> List[Dict[str, Any]]:
+        """Get the selected points data from the plot.
+
+        Returns:
+            List[Dict[str, Any]]: A list of dictionaries containing the data for
+                each selected point. Returns an empty list if no points are selected.
+        """
         if not self._selection_data:
             return []
         if "points" not in self._selection_data:
@@ -165,6 +179,12 @@ class plotly(UIElement[PlotlySelection, List[Dict[str, Any]]]):
 
     @property
     def indices(self) -> List[int]:
+        """Get the indices of selected points in the plot.
+
+        Returns:
+            List[int]: A list of indices corresponding to the selected points.
+                Returns an empty list if no points are selected.
+        """
         if not self._selection_data:
             return []
         if "indices" not in self._selection_data:

@@ -1557,10 +1557,10 @@ class ValueArgs:
 class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
     """A submittable form linked to a UIElement.
 
-    Use a form to prevent sending UI element values to Python until a button
+    Use a `form` to prevent sending UI element values to Python until a button
     is clicked.
 
-    The value of a form is the value of the underlying element the last time
+    The value of a `form` is the value of the underlying element the last time
     the form was submitted.
 
     Examples:
