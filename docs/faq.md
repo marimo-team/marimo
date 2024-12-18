@@ -492,7 +492,7 @@ marimo edit --host 0.0.0.0
 JupyterHub can be configured to launch marimo using the [`jupyter-marimo-proxy`
 package](https://github.com/jyio/jupyter-marimo-proxy).
 
-<a name="faq-jupyter-hub"></a>
+<a name="faq-jupyter-book"></a>
 
 ### How do I use marimo with JupyterBook?
 
