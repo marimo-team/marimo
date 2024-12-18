@@ -1,4 +1,5 @@
 import re
+from textwrap import dedent
 
 
 def google_docstring_to_markdown(docstring: str) -> str:
@@ -13,6 +14,8 @@ def google_docstring_to_markdown(docstring: str) -> str:
     """
     if not docstring:
         return ""
+
+    docstring = dedent(docstring)
 
     # Simple approach: split and parse line by line
     lines = docstring.strip().splitlines()
@@ -74,13 +77,19 @@ def google_docstring_to_markdown(docstring: str) -> str:
                 arg_name, arg_type, description = match.groups()
                 arg_table.append((arg_name, arg_type, description))
             else:
-                # Possibly just an indented line continuing the description
-                if arg_table:
-                    arg_table[-1] = (
-                        arg_table[-1][0],
-                        arg_table[-1][1],
-                        arg_table[-1][2] + " " + stripped,
-                    )
+                # Fallback to "    arg_name: description"
+                match = re.match(r"^(\w+)\s*:\s*(.*)", stripped)
+                if match:
+                    arg_name, description = match.groups()
+                    arg_table.append((arg_name, "", description))
+                else:
+                    # Possibly just an indented line continuing the description
+                    if arg_table:
+                        arg_table[-1] = (
+                            arg_table[-1][0],
+                            arg_table[-1][1],
+                            arg_table[-1][2] + " " + stripped,
+                        )
             continue
 
         # If within Returns:
