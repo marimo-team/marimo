@@ -18,6 +18,7 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
 
+from marimo import _loggers
 from marimo._output.builder import h
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html
@@ -29,7 +30,10 @@ from marimo._runtime.context import (
 )
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._server.utils import find_free_port
+from marimo._utils.platform import is_pyodide
 from marimo._utils.signals import get_signals
+
+LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
@@ -344,6 +348,14 @@ def interactive(figure: Union[Figure, SubFigure, Axes]) -> Html:
 
     - An interactive matplotlib figure as an `Html` object
     """
+    # We can't support interactive plots in Pyodide
+    # since they require a WebSocket connection
+    if is_pyodide():
+        LOGGER.error(
+            "Interactive plots are not supported in Pyodide/WebAssembly"
+        )
+        return as_html(figure)
+
     # No top-level imports of matplotlib, since it isn't a required
     # dependency
     from matplotlib.axes import Axes
