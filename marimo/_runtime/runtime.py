@@ -149,9 +149,8 @@ LOGGER = _loggers.marimo_logger()
 def defs() -> tuple[str, ...]:
     """Get the definitions of the currently executing cell.
 
-    **Returns**:
-
-    - tuple of the currently executing cell's defs.
+    Returns:
+        tuple[str, ...]: A tuple of the currently executing cell's defs.
     """
     try:
         ctx = get_context()
@@ -172,9 +171,8 @@ def defs() -> tuple[str, ...]:
 def refs() -> tuple[str, ...]:
     """Get the references of the currently executing cell.
 
-    **Returns**:
-
-    - tuple of the currently executing cell's refs.
+    Returns:
+        tuple[str, ...]: A tuple of the currently executing cell's refs.
     """
     try:
         ctx = get_context()
@@ -202,39 +200,37 @@ def refs() -> tuple[str, ...]:
 def query_params() -> QueryParams:
     """Get the query parameters of a marimo app.
 
-    **Examples**:
+    Examples:
+        Keep the text input in sync with the URL query parameters:
 
-    Keep the text input in sync with the URL query parameters.
+        ```python3
+        # In it's own cell
+        query_params = mo.query_params()
 
-    ```python3
-    # In it's own cell
-    query_params = mo.query_params()
+        # In another cell
+        search = mo.ui.text(
+            value=query_params["search"] or "",
+            on_change=lambda value: query_params.set("search", value),
+        )
+        search
+        ```
 
-    # In another cell
-    search = mo.ui.text(
-        value=query_params["search"] or "",
-        on_change=lambda value: query_params.set("search", value),
-    )
-    search
-    ```
+        You can also set the query parameters reactively:
 
-    You can also set the query parameters reactively:
+        ```python3
+        toggle = mo.ui.switch(label="Toggle me")
+        toggle
 
-    ```python3
-    toggle = mo.ui.switch(label="Toggle me")
-    toggle
+        # In another cell
+        query_params["is_enabled"] = toggle.value
+        ```
 
-    # In another cell
-    query_params["is_enabled"] = toggle.value
-    ```
-
-    **Returns**:
-
-    - A `QueryParams` object containing the query parameters.
-      You can directly interact with this object like a dictionary.
-      If you mutate this object, changes will be persisted to the frontend
-      query parameters and any other cells referencing the query parameters
-      will automatically re-run.
+    Returns:
+        QueryParams: A QueryParams object containing the query parameters.
+            You can directly interact with this object like a dictionary.
+            If you mutate this object, changes will be persisted to the frontend
+            query parameters and any other cells referencing the query parameters
+            will automatically re-run.
     """
     return get_context().query_params
 
@@ -246,27 +242,25 @@ def app_meta() -> AppMeta:
     The `AppMeta` class provides access to runtime metadata about a marimo app,
     such as its display theme and execution mode.
 
-    **Examples**:
+    Examples:
+        Get the current theme and conditionally set a plotting library's theme:
 
-    Get the current theme and conditionally set a plotting library's theme:
+        ```python
+        import altair as alt
 
-    ```python
-    import altair as alt
+        # Enable dark theme for Altair when marimo is in dark mode
+        alt.themes.enable("dark" if mo.app_meta().theme == "dark" else "default")
+        ```
 
-    # Enable dark theme for Altair when marimo is in dark mode
-    alt.themes.enable("dark" if mo.app_meta().theme == "dark" else "default")
-    ```
+        Show content only in edit mode:
 
-    Show content only in edit mode:
+        ```python
+        # Only show this content when editing the notebook
+        mo.md("# Developer Notes") if mo.app_meta().mode == "edit" else None
+        ```
 
-    ```python
-    # Only show this content when editing the notebook
-    mo.md("# Developer Notes") if mo.app_meta().mode == "edit" else None
-    ```
-
-    **Returns**:
-
-    - An `AppMeta` object containing the app's metadata.
+    Returns:
+        AppMeta: An AppMeta object containing the app's metadata.
     """
     return AppMeta()
 
@@ -275,9 +269,8 @@ def app_meta() -> AppMeta:
 def cli_args() -> CLIArgs:
     """Get the command line arguments of a marimo notebook.
 
-        **Examples**:
-
-    `marimo edit notebook.py -- -size 10`
+    Examples:
+        `marimo edit notebook.py -- -size 10`
 
         ```python3
         # Access the command line arguments
@@ -287,10 +280,9 @@ def cli_args() -> CLIArgs:
             print(i)
         ```
 
-        **Returns**:
-
-        - A dictionary containing the command line arguments.
-          This dictionary is read-only and cannot be mutated.
+    Returns:
+        CLIArgs: A dictionary containing the command line arguments.
+            This dictionary is read-only and cannot be mutated.
     """
     return get_context().cli_args
 
@@ -299,21 +291,19 @@ def cli_args() -> CLIArgs:
 def notebook_dir() -> pathlib.Path | None:
     """Get the directory of the currently executing notebook.
 
-    **Returns**:
+    Returns:
+        pathlib.Path | None: A pathlib.Path object representing the directory of the current
+            notebook, or None if the notebook's directory cannot be determined.
 
-    - A `pathlib.Path` object representing the directory of the current
-      notebook, or `None` if the notebook's directory cannot be determined.
-
-    **Examples**:
-
-    ```python
-    data_file = mo.notebook_dir() / "data" / "example.csv"
-    # Use the directory to read a file
-    if data_file.exists():
-        print(f"Found data file: {data_file}")
-    else:
-        print("No data file found")
-    ```
+    Examples:
+        ```python
+        data_file = mo.notebook_dir() / "data" / "example.csv"
+        # Use the directory to read a file
+        if data_file.exists():
+            print(f"Found data file: {data_file}")
+        else:
+            print("No data file found")
+        ```
     """
     try:
         ctx = get_context()
@@ -328,11 +318,14 @@ def notebook_dir() -> pathlib.Path | None:
 
 @dataclasses.dataclass
 class CellMetadata:
-    """CellMetadata
+    """CellMetadata class for storing cell metadata.
 
     Metadata the kernel needs to persist, even when a cell is removed
     from the graph or when a cell can't be formed from user code due to syntax
     errors.
+
+    Attributes:
+        config (CellConfig): Configuration for the cell.
     """
 
     config: CellConfig = dataclasses.field(default_factory=CellConfig)
@@ -342,16 +335,16 @@ class Kernel:
     """Kernel that manages the dependency graph and its execution.
 
     Args:
-    - cell_configs: initial configuration for each cell
-    - app_metadata: metadata about the notebook
-    - user_config: the initial user configuration
-    - stream: object used to communicate with the server/outside world
-    - stdout: replacement for sys.stdout
-    - stderr: replacement for sys.stderr
-    - stdin: replacement for sys.stdin
-    - module: module in which to execute code
-    - enqueue_control_request: callback to enqueue control requests
-    - debugger_override: a replacement for the built-in Pdb
+        cell_configs (dict[CellId_t, CellConfig]): Initial configuration for each cell.
+        app_metadata (AppMetadata): Metadata about the notebook.
+        user_config (MarimoConfig): The initial user configuration.
+        stream (Stream): Object used to communicate with the server/outside world.
+        stdout (Stdout | None): Replacement for sys.stdout.
+        stderr (Stderr | None): Replacement for sys.stderr.
+        stdin (Stdin | None): Replacement for sys.stdin.
+        module (ModuleType): Module in which to execute code.
+        enqueue_control_request (Callable[[ControlRequest], None]): Callback to enqueue control requests.
+        debugger_override (marimo_pdb.MarimoPdb | None): A replacement for the built-in Pdb.
     """
 
     def __init__(
@@ -1603,21 +1596,18 @@ class Kernel:
         return bool(updated_components) or bool(referring_cells)
 
     def get_ui_initial_value(self, object_id: str) -> Any:
-        """Get an initial value for a UIElement, if any
+        """Get an initial value for a UIElement, if any.
 
-        Initial values are optionally populated during instantiation
+        Initial values are optionally populated during instantiation.
 
         Args:
-        ----
-        object_id: ID of UIElement
+            object_id (str): ID of UIElement.
 
         Returns:
-        -------
-        initial value of UI element, if any
+            Any: Initial value of UI element, if any.
 
         Raises:
-        ------
-        KeyError if object_id not found
+            KeyError: If object_id not found.
         """
         return self.ui_initializers[object_id]
 
@@ -1631,8 +1621,15 @@ class Kernel:
         """Execute a function call.
 
         If the function is not found, children contexts are also searched.
-        Returns a status, payload, and a bool which is True if the function was
-        found, False otherwise.
+
+        Args:
+            request (FunctionCallRequest): The function call request.
+
+        Returns:
+            tuple[HumanReadableStatus, JSONType, bool]: A tuple containing:
+                - status: Human readable status of the function call
+                - payload: The function return value
+                - found: True if the function was found, False otherwise
         """
         ctx = get_context()
         function = ctx.function_registry.get_function(
@@ -1845,6 +1842,12 @@ class Kernel:
         """Preview a column of a dataset.
 
         The dataset is loaded, and the column is displayed in the frontend.
+
+        Args:
+            request (PreviewDatasetColumnRequest): The preview request containing:
+                - table_name: Name of the table
+                - column_name: Name of the column
+                - source_type: Type of data source ("duckdb" or "local")
         """
         table_name = request.table_name
         column_name = request.column_name

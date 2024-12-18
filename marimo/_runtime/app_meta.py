@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Literal, Optional
 
 from marimo._config.config import DEFAULT_CONFIG
+from marimo._output.rich_help import mddoc
 from marimo._runtime.context.types import (
     ContextNotInitializedError,
     get_context,
@@ -11,9 +12,9 @@ from marimo._runtime.context.types import (
 from marimo._runtime.context.utils import get_mode
 
 
+@mddoc
 class AppMeta:
-    """
-    Metadata about the app.
+    """Metadata about the app.
 
     This class provides access to runtime metadata about a marimo app, such as
     its display theme and execution mode.
@@ -23,25 +24,21 @@ class AppMeta:
     def theme(self) -> str:
         """The display theme of the app.
 
-        Returns either "light" or "dark". If the user's configuration is set to
-        "system", currently returns "light".
+        Returns:
+            str: Either "light" or "dark". If the user's configuration is set to
+                "system", currently returns "light".
 
-        **Examples**:
+        Examples:
+            Get the current theme and conditionally set a plotting library's theme:
 
-        Get the current theme and conditionally set a plotting library's theme:
+            ```python
+            import altair as alt
 
-        ```python
-        import altair as alt
-
-        # Enable dark theme for Altair when marimo is in dark mode
-        alt.themes.enable(
-            "dark" if mo.app_meta().theme == "dark" else "default"
-        )
-        ```
-
-        **Returns**:
-
-        - "light" or "dark", indicating the app's display theme
+            # Enable dark theme for Altair when marimo is in dark mode
+            alt.themes.enable(
+                "dark" if mo.app_meta().theme == "dark" else "default"
+            )
+            ```
         """
         try:
             context = get_context()
@@ -57,22 +54,21 @@ class AppMeta:
 
     @property
     def mode(self) -> Optional[Literal["edit", "run", "script"]]:
-        """The execution mode of the app.
+        """
+        The execution mode of the app.
 
-         **Examples**:
+        Examples:
+            Show content only in edit mode:
 
-        Show content only in edit mode:
+            ```python
+            # Only show this content when editing the notebook
+            mo.md("# Developer Notes") if mo.app_meta().mode == "edit" else None
+            ```
 
-        ```python
-        # Only show this content when editing the notebook
-        mo.md("# Developer Notes") if mo.app_meta().mode == "edit" else None
-        ```
-
-        **Returns**:
-
-        - "edit": The notebook is being edited in the marimo editor
-        - "run": The notebook is being run as an app
-        - "script": The notebook is being run as a script
-        - None: The mode could not be determined
+        Returns:
+            - "edit": The notebook is being edited in the marimo editor
+            - "run": The notebook is being run as an app
+            - "script": The notebook is being run as a script
+            - None: The mode could not be determined
         """
         return get_mode()
