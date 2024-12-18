@@ -36,6 +36,10 @@ def test_format_value():
     format_mapping = {"col1": lambda x: f"{x:.2f} units"}
     assert format_value("col1", 123.456, format_mapping) == "123.46 units"
 
+    # Test with None formatter
+    format_mapping = {"col1": lambda x: "None value" if x is None else x}
+    assert format_value("col1", None, format_mapping) == "None value"
+
 
 def test_format_row():
     # Test with string formatter
@@ -77,6 +81,15 @@ def test_format_row():
     expected = {"col1": None, "col2": "78.9"}
     assert format_row(row, format_mapping) == expected
 
+    # Test with None formatter
+    format_mapping = {
+        "col1": lambda x: "None value" if x is None else x,
+        "col2": lambda x: "N/A" if x is None else x,
+    }
+    row = {"col1": None, "col2": None}
+    expected = {"col1": "None value", "col2": "N/A"}
+    assert format_row(row, format_mapping) == expected
+
 
 def test_format_column():
     # Test with string formatter
@@ -113,4 +126,10 @@ def test_format_column():
     format_mapping = {"col1": "{:.2f}"}
     values = []
     expected = []
+    assert format_column("col1", values, format_mapping) == expected
+
+    # Test with None formatter
+    format_mapping = {"col1": lambda x: "Missing" if x is None else x}
+    values = [123.456, None, 78.9]
+    expected = [123.456, "Missing", 78.9]
     assert format_column("col1", values, format_mapping) == expected
