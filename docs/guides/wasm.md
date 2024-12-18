@@ -91,12 +91,14 @@ In one cell, import micropip:
 
 ```python
 import micropip
+```
 
 In the next one, install packages:
 
 ```python
 await micropip.install("plotly")
 import plotly
+```
 
 **Try it!** A WASM notebook is embedded below. Try installing a package.
 
