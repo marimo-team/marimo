@@ -86,6 +86,24 @@ def test_export_html_no_code(client: TestClient) -> None:
     assert CODE not in body
 
 
+@with_session(SESSION_ID)
+def test_export_html_file_not_found(client: TestClient) -> None:
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.filename = "test.py"
+    response = client.post(
+        "/api/export/html",
+        headers=HEADERS,
+        json={
+            "download": False,
+            "files": ["/test-10.csv"],
+            "include_code": True,
+        },
+    )
+    assert response.status_code == 200
+    assert "<marimo-code hidden=" in response.text
+
+
 # Read session forces empty code
 @with_read_session(SESSION_ID)
 def test_export_html_no_code_in_read(client: TestClient) -> None:
