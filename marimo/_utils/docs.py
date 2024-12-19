@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 import re
 from textwrap import dedent
 
@@ -25,13 +26,38 @@ def google_docstring_to_markdown(docstring: str) -> str:
     lines = docstring.strip().splitlines()
     parsed_lines: list[str] = []
     arg_table: list[tuple[str, str, str]] = []
+    attribute_table: list[tuple[str, str, str]] = []
     returns_table: list[tuple[str, str]] = []
     raises_table: list[tuple[str, str]] = []
     in_args = False
+    in_attributes = False
     in_returns = False
     in_raises = False
     in_examples = False
     examples_lines: list[str] = []
+
+    def _handle_arg_or_attribute(
+        table: list[tuple[str, str, str]], stripped: str
+    ) -> None:
+        # Typically: "    arg_name (arg_type): description"
+        match = re.match(r"^(\w+)\s*\(([^)]+)\):\s*(.*)", stripped)
+        if match:
+            arg_name, arg_type, description = match.groups()
+            table.append((arg_name, arg_type, description.strip()))
+        else:
+            # Fallback to "    arg_name: description"
+            match = re.match(r"^(\w+)\s*:\s*(.*)", stripped)
+            if match:
+                arg_name, description = match.groups()
+                table.append((arg_name, "", description.strip()))
+            else:
+                # Possibly just an indented line continuing the description
+                if table:
+                    table[-1] = (
+                        table[-1][0],
+                        table[-1][1],
+                        table[-1][2] + " " + stripped.strip(),
+                    )
 
     # We'll store a simple summary until we see "Args:" or "Returns:" or "Raises:"
     for line in lines:
@@ -44,24 +70,35 @@ def google_docstring_to_markdown(docstring: str) -> str:
         # Check for control keywords
         if re.match(r"^Args:\s*$", stripped):
             in_args = True
+            in_attributes = False
+            in_returns = False
+            in_raises = False
+            in_examples = False
+            continue
+        elif re.match(r"^Attributes:\s*$", stripped):
+            in_args = False
+            in_attributes = True
             in_returns = False
             in_raises = False
             in_examples = False
             continue
         elif re.match(r"^Returns?:\s*$", stripped):
             in_args = False
+            in_attributes = False
             in_returns = True
             in_raises = False
             in_examples = False
             continue
         elif re.match(r"^Raises:\s*$", stripped):
             in_args = False
+            in_attributes = False
             in_returns = False
             in_raises = True
             in_examples = False
             continue
         elif re.match(r"^Examples?:\s*$", stripped):
             in_args = False
+            in_attributes = False
             in_returns = False
             in_raises = False
             in_examples = True
@@ -74,25 +111,12 @@ def google_docstring_to_markdown(docstring: str) -> str:
 
         # If within Args:
         if in_args:
-            # Typically: "    arg_name (arg_type): description"
-            match = re.match(r"^(\w+)\s*\(([^)]+)\):\s*(.*)", stripped)
-            if match:
-                arg_name, arg_type, description = match.groups()
-                arg_table.append((arg_name, arg_type, description.strip()))
-            else:
-                # Fallback to "    arg_name: description"
-                match = re.match(r"^(\w+)\s*:\s*(.*)", stripped)
-                if match:
-                    arg_name, description = match.groups()
-                    arg_table.append((arg_name, "", description.strip()))
-                else:
-                    # Possibly just an indented line continuing the description
-                    if arg_table:
-                        arg_table[-1] = (
-                            arg_table[-1][0],
-                            arg_table[-1][1],
-                            arg_table[-1][2] + " " + stripped.strip(),
-                        )
+            _handle_arg_or_attribute(arg_table, stripped)
+            continue
+
+        # If within Attributes:
+        if in_attributes:
+            _handle_arg_or_attribute(attribute_table, stripped)
             continue
 
         # If within Returns:
@@ -138,11 +162,22 @@ def google_docstring_to_markdown(docstring: str) -> str:
         output.append("# Summary")
         output.append("\n".join(parsed_lines).strip())
 
+    if examples_lines:
+        output.append("\n# Examples")
+        output.append("\n".join(examples_lines))
+
     if arg_table:
         output.append("\n# Arguments")
         output.append("| Parameter | Type | Description |")
         output.append("|-----------|------|-------------|")
         for arg_name, arg_type, desc in arg_table:
+            output.append(f"| `{arg_name}` | `{arg_type}` | {desc.strip()} |")
+
+    if attribute_table:
+        output.append("\n# Attributes")
+        output.append("| Attribute | Type | Description |")
+        output.append("|-----------|------|-------------|")
+        for arg_name, arg_type, desc in attribute_table:
             output.append(f"| `{arg_name}` | `{arg_type}` | {desc.strip()} |")
 
     if returns_table:
@@ -156,9 +191,5 @@ def google_docstring_to_markdown(docstring: str) -> str:
         output.append("\n# Raises")
         for err_type, explanation in raises_table:
             output.append(f"- **{err_type}**: {explanation.strip()}")
-
-    if examples_lines:
-        output.append("\n# Examples")
-        output.append("\n".join(examples_lines))
 
     return "\n".join(output)
