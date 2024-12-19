@@ -25,7 +25,7 @@ extra:
 extra_css:
   - stylesheets/extra.css
 extra_javascript:
-  - js/analytics.js
+  - _static/js/analytics.js
 markdown_extensions:
   - admonition
   - attr_list
