@@ -29,6 +29,12 @@ from marimo._utils.paths import maybe_make_dirs
 if TYPE_CHECKING:
     from pathlib import Path
 
+_watch_message = (
+    "Watch notebook for changes and regenerate the output on modification. "
+    "If watchdog is installed, it will be used to watch the file. "
+    "Otherwise, file watcher will poll the file every 1s."
+)
+
 
 @click.group(help="""Export a notebook to various formats.""")
 def export() -> None:
@@ -96,13 +102,11 @@ def watch_and_export(
 
 Example:
 
-  \b
-  * marimo export html notebook.py -o notebook.html
+    marimo export html notebook.py -o notebook.html
 
 Optionally pass CLI args to the notebook:
 
-  \b
-  * marimo export html notebook.py -o notebook.html -- -arg1 foo -arg2 bar
+    marimo export html notebook.py -o notebook.html -- -arg1 foo -arg2 bar
 """
 )
 @click.option(
@@ -117,21 +121,17 @@ Optionally pass CLI args to the notebook:
     default=False,
     show_default=True,
     type=bool,
-    help="""
-    Watch notebook for changes and regenerate HTML on modification.
-    If watchdog is installed, it will be used to watch the file.
-    Otherwise, file watcher will poll the file every 1s.
-    """,
+    help=_watch_message,
 )
 @click.option(
     "-o",
     "--output",
     type=str,
     default=None,
-    help="""
-    Output file to save the HTML to.
-    If not provided, the HTML will be printed to stdout.
-    """,
+    help=(
+        "Output file to save the HTML to. "
+        "If not provided, the HTML will be printed to stdout."
+    ),
 )
 @click.argument("name", required=True, callback=validators.is_file_path)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
@@ -166,13 +166,11 @@ Export a marimo notebook as a flat script, in topological order.
 
 Example:
 
-    \b
-    * marimo export script notebook.py -o notebook.script.py
+    marimo export script notebook.py -o notebook.script.py
 
 Watch for changes and regenerate the script on modification:
 
-    \b
-    * marimo export script notebook.py -o notebook.script.py --watch
+    marimo export script notebook.py -o notebook.script.py --watch
 """
 )
 @click.option(
@@ -180,21 +178,17 @@ Watch for changes and regenerate the script on modification:
     default=False,
     show_default=True,
     type=bool,
-    help="""
-    Watch notebook for changes and regenerate the script on modification.
-    If watchdog is installed, it will be used to watch the file.
-    Otherwise, file watcher will poll the file every 1s.
-    """,
+    help=_watch_message,
 )
 @click.option(
     "-o",
     "--output",
     type=str,
     default=None,
-    help="""
-    Output file to save the script to.
-    If not provided, the script will be printed to stdout.
-    """,
+    help=(
+        "Output file to save the script to. "
+        "If not provided, the script will be printed to stdout."
+    ),
 )
 @click.argument("name", required=True, callback=validators.is_file_path)
 def script(
@@ -218,13 +212,11 @@ Export a marimo notebook as a code fenced Markdown file.
 
 Example:
 
-    \b
-    * marimo export md notebook.py -o notebook.md
+    marimo export md notebook.py -o notebook.md
 
 Watch for changes and regenerate the script on modification:
 
-    \b
-    * marimo export md notebook.py -o notebook.md --watch
+    marimo export md notebook.py -o notebook.md --watch
 """
 )
 @click.option(
@@ -232,21 +224,17 @@ Watch for changes and regenerate the script on modification:
     default=False,
     show_default=True,
     type=bool,
-    help="""
-    Watch notebook for changes and regenerate the script on modification.
-    If watchdog is installed, it will be used to watch the file.
-    Otherwise, file watcher will poll the file every 1s.
-    """,
+    help=_watch_message,
 )
 @click.option(
     "-o",
     "--output",
     type=str,
     default=None,
-    help="""
-    Output file to save the script to.
-    If not provided, markdown will be printed to stdout.
-    """,
+    help=(
+        "Output file to save the markdown to. "
+        "If not provided, markdown will be printed to stdout."
+    ),
 )
 @click.argument("name", required=True, callback=validators.is_file_path)
 def md(
@@ -270,13 +258,11 @@ Export a marimo notebook as a Jupyter notebook in topological order.
 
 Example:
 
-    \b
-    * marimo export ipynb notebook.py -o notebook.ipynb
+    marimo export ipynb notebook.py -o notebook.ipynb
 
 Watch for changes and regenerate the script on modification:
 
-    \b
-    * marimo export ipynb notebook.py -o notebook.ipynb --watch
+    marimo export ipynb notebook.py -o notebook.ipynb --watch
 
 Requires nbformat to be installed.
 """
@@ -293,21 +279,17 @@ Requires nbformat to be installed.
     default=False,
     show_default=True,
     type=bool,
-    help="""
-    Watch notebook for changes and regenerate the ipynb on modification.
-    If watchdog is installed, it will be used to watch the file.
-    Otherwise, file watcher will poll the file every 1s.
-    """,
+    help=_watch_message,
 )
 @click.option(
     "-o",
     "--output",
     type=str,
     default=None,
-    help="""
-    Output file to save the ipynb file to. If not provided, the ipynb contents
-    will be printed to stdout.
-    """,
+    help=(
+        "Output file to save the ipynb file to. "
+        "If not provided, the ipynb contents will be printed to stdout."
+    ),
 )
 @click.option(
     "--include-outputs/--no-include-outputs",
@@ -348,8 +330,7 @@ def ipynb(
 
 Example:
 
-  \b
-  * marimo export html-wasm notebook.py -o notebook.wasm.html
+    marimo export html-wasm notebook.py -o notebook.wasm.html
 
 The exported HTML file will run the notebook using WebAssembly, making it
 completely self-contained and executable in the browser. This lets you
@@ -369,7 +350,7 @@ and cannot be opened directly from the file system (e.g. file://).
     "--output",
     type=str,
     required=True,
-    help="""Output directory to save the HTML to.""",
+    help="Output directory to save the HTML to.",
 )
 @click.option(
     "--mode",

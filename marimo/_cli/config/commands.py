@@ -19,7 +19,7 @@ def config() -> None:
     pass
 
 
-@click.command(help="""Show the marimo config""")
+@click.command(help="""Show the marimo config.""")
 def show() -> None:
     """
     Print out marimo config information.
@@ -51,7 +51,7 @@ def show() -> None:
     echo(highlight_toml_headers(tomlkit.dumps(user_config)))
 
 
-@click.command(help="""Describe the marimo config""")
+@click.command(help="""Describe the marimo config.""")
 def describe() -> None:
     """Print documentation for all config options."""
     import inspect
