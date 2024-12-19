@@ -22,7 +22,25 @@ import { withFullScreenAsRoot } from "./fullscreen";
 import { StyleNamespace } from "@/theme/namespace";
 
 const ContextMenu = ContextMenuPrimitive.Root;
-const ContextMenuTrigger = ContextMenuPrimitive.Trigger;
+const ContextMenuTrigger = React.forwardRef<
+  React.ElementRef<typeof ContextMenuPrimitive.Trigger>,
+  React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.Trigger>
+>(({ onContextMenu, ...props }, ref) => (
+  <ContextMenuPrimitive.Trigger
+    ref={ref}
+    onContextMenu={(event) => {
+      if (event.shiftKey) {
+        // Allow browser's default menu when shift is pressed
+        return;
+      }
+      // Show custom menu by default
+      event.preventDefault();
+      onContextMenu?.(event);
+    }}
+    {...props}
+  />
+));
+ContextMenuTrigger.displayName = ContextMenuPrimitive.Trigger.displayName;
 const ContextMenuGroup = ContextMenuPrimitive.Group;
 const ContextMenuPortal = withFullScreenAsRoot(ContextMenuPrimitive.Portal);
 const ContextMenuSub = ContextMenuPrimitive.Sub;

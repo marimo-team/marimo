@@ -121,6 +121,12 @@ function registerOpenExternalLink() {
 
 function registerContextMenu() {
   document.addEventListener("contextmenu", (event) => {
+    // Show browser's default menu when shift is pressed
+    // or when using a custom context menu component
+    if (event.shiftKey || event.defaultPrevented) {
+      return;
+    }
+    // Show custom menu by default
     event.preventDefault();
     sendToPanelManager({
       command: "context_menu",
