@@ -9,7 +9,13 @@ grid editor; you can also choose to include code in the app view.
 
 ## CLI
 
-View the CLI [documentation here](../api/cli.md#marimo-run).
+Run marimo notebooks as apps with
+
+```
+marimo run notebook.py
+```
+
+View the [CLI documentation](../cli.md#marimo-run) for more details.
 
 ## Layout
 
