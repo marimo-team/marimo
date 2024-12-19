@@ -188,7 +188,7 @@ nav:
       - App: api/app.md
       - Cell: api/cell.md
       - Miscellaneous: api/miscellaneous.md
-      - CLI: api/cli.md
+  - Commands: cli.md
   - Examples:
       - Notebooks: examples.md
       - Recipes: recipes.md
