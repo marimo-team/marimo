@@ -137,7 +137,7 @@ class Exporter:
         for cell in file_manager.app.cell_manager.cells():
             if not cell:
                 continue
-            if cell._is_coroutine():
+            if cell._is_coroutine:
                 from click import UsageError
 
                 raise UsageError(

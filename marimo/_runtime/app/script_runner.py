@@ -50,7 +50,7 @@ class AppScriptRunner:
                     "please raise an issue."
                 )
 
-            if cell._is_coroutine():
+            if cell._is_coroutine:
                 is_async = True
                 break
 
