@@ -30,7 +30,7 @@ _Get started with Copilot_:
 6. This action will log a new API request in the **Network** tab. Click on "Preview" to get the API key.
 7. Paste the API key in the marimo settings in the UI, or add it to your `marimo.toml` file as follows:
 
-```toml
+```toml title="marimo.toml"
 [completion]
 copilot = "codeium"
 codeium_api_key = ""
@@ -63,7 +63,7 @@ codeium_api_key = ""
 
 8. Copy the value of the `apiKey` to `.marimo.toml` in your home directory
 
-```toml
+```toml title="marimo.toml"
 [completion]
 codeium_api_key = "a1e8..."  # <-- paste your API key here
 copilot = "codeium"
@@ -135,7 +135,7 @@ Below we describe how to connect marimo to your AI provider. Once enabled, you c
 
 2. Add the following to your `marimo.toml`:
 
-```toml
+```toml title="marimo.toml"
 [ai.open_ai]
 # Get your API key from https://platform.openai.com/account/api-keys
 api_key = "sk-proj-..."
@@ -155,7 +155,7 @@ To use Anthropic with marimo:
 1. Sign up for an account at [Anthropic](https://console.anthropic.com/) and grab your [Anthropic Key](https://console.anthropic.com/settings/keys).
 2. Add the following to your `marimo.toml`:
 
-```toml
+```toml title="marimo.toml"
 [ai.open_ai]
 model = "claude-3-5-sonnet-20240620"
 # or any model from https://docs.anthropic.com/en/docs/about-claude/models
@@ -172,7 +172,7 @@ To use Google AI with marimo:
 2. Install the Google AI Python client: `pip install google-generativeai`
 3. Add the following to your `marimo.toml`:
 
-```toml
+```toml title="marimo.toml"
 [ai.open_ai]
 model = "gemini-1.5-flash"
 # or any model from https://ai.google.dev/gemini-api/docs/models/gemini
@@ -217,7 +217,7 @@ Ollama allows you to run open-source LLMs on your local machine. To integrate Ol
 
 6. Add the following to your `marimo.toml`:
 
-```toml
+```toml title="marimo.toml"
 [ai.open_ai]
 api_key = "ollama" # This is not used, but required
 model = "codellama" # or another model from `ollama ls`

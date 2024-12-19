@@ -59,7 +59,7 @@ Then open the notebook with `marimo edit your_notebook.py`
     2. If no config file exists, create it at `~/.marimo.toml` or `$XDG_CONFIG_HOME/marimo/marimo.toml`.
     3. Update your config to include the following:
 
-    ```toml
+    ```toml title="marimo.toml"
     [runtime]
     auto_instantiate = false
     ```

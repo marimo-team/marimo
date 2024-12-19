@@ -629,6 +629,11 @@
       "source": "/recipes.html",
       "destination": "/recipes",
       "permanent": true
+    },
+    {
+      "source": "/:path*.html",
+      "destination": "/:path*",
+      "permanent": true
     }
   ]
 }

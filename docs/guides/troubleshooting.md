@@ -118,7 +118,7 @@ If you are using `bazel` or `uv`'s [**link-mode: symlink**](https://docs.astral.
 
 Locate your `marimo.toml` configuration file with `marimo config show`, and edit the `follow_symlink` flag:
 
-```toml
+```toml title="marimo.toml"
 [server]
 follow_symlink = true
 ```
