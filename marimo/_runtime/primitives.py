@@ -6,8 +6,8 @@ import numbers
 import weakref
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
-from marimo._ast.visitor import Name, VariableData
 from marimo._ast.cell import Cell
+from marimo._ast.visitor import Name, VariableData
 
 if TYPE_CHECKING:
     from marimo._runtime.dataflow import DirectedGraph

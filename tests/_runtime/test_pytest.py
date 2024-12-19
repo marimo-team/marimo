@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+
 import marimo
 
 app = marimo.App()
