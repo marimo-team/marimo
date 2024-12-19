@@ -21,7 +21,7 @@ def callout(
         kind: The kind of callout (affects styling).
 
     Returns:
-        An HTML object.
+        Html (marimo.Html): An HTML object.
     """
     return Html(
         build_stateless_plugin(

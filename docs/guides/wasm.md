@@ -17,21 +17,21 @@ having to install Python on your machine.
 
 !!! note "WASM?"
 
-  marimo-in-the-browser is powered by a technology called
-  [WebAssembly](https://webassembly.org/), or "WASM" for short. Hence the
-  name "WASM notebook".
+    marimo-in-the-browser is powered by a technology called
+    [WebAssembly](https://webassembly.org/), or "WASM" for short. Hence the
+    name "WASM notebook".
 
 !!! note "When should I use WASM notebooks?"
 
-  WASM notebooks are excellent for sharing your work, quickly experimenting with
-  code and models, doing lightweight data exploration, authoring blog posts,
-  tutorials, and educational materials, and even building tools. They are
-  not well-suited for notebooks that do heavy computation.
+    WASM notebooks are excellent for sharing your work, quickly experimenting with
+    code and models, doing lightweight data exploration, authoring blog posts,
+    tutorials, and educational materials, and even building tools. They are
+    not well-suited for notebooks that do heavy computation.
 
 !!! warning "Issues?"
 
-  WASM notebooks are a new feature. If you run into
-  problems, please open a [GitHub issue](https://github.com/marimo-team/marimo/issues).
+    WASM notebooks are a new feature. If you run into
+    problems, please open a [GitHub issue](https://github.com/marimo-team/marimo/issues).
 
 ## Creating and sharing WASM notebooks
 
@@ -48,9 +48,9 @@ tools, available to you at all times and on all devices.
 
 !!! tip "Saving WASM notebooks"
 
-When you save a WASM notebook, a copy of your code is saved to your
-web browser's local storage. When you return to [marimo.app](https://marimo.app),
-the last notebook you worked on will be re-opened.
+    When you save a WASM notebook, a copy of your code is saved to your
+    web browser's local storage. When you return to [marimo.app](https://marimo.app),
+    the last notebook you worked on will be re-opened.
 
 ### Creating shareable permalinks
 
