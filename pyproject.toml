@@ -343,6 +343,12 @@ extend-select = [
     "T201",   # No print statements
     "D3",  # pydocstyle Quotes Issues
     "D4",  # pydocstyle Docstring Content Issues
+    "D207",  # Docstring is under-indented
+    "D208",  # Docstring is over-indented
+    "D210",  # No whitespaces allowed surrounding docstring text
+    "D211",  # No blank lines allowed before class docstring
+    "D214",  # Section is over-indented
+    "D215",  # Section underline is over-indented
 ]
 
 # Never try to fix `F401` (unused imports).
