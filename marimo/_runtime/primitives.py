@@ -7,6 +7,7 @@ import weakref
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 from marimo._ast.visitor import Name, VariableData
+from marimo._ast.cell import Cell
 
 if TYPE_CHECKING:
     from marimo._runtime.dataflow import DirectedGraph
@@ -130,6 +131,9 @@ def is_instance_by_name(obj: object, name: str) -> bool:
 
 
 def is_unclonable_type(obj: object) -> bool:
+    # Cell objects in particular are hidden by functools.wraps.
+    if isinstance(obj, Cell):
+        return True
     return any([is_instance_by_name(obj, name) for name in UNCLONABLE_TYPES])
 
 
