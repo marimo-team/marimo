@@ -3,11 +3,14 @@ from __future__ import annotations
 
 from typing import Any
 
+from marimo._loggers import marimo_logger
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.df_formatters import include_opinionated
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._output.utils import flatten_string
 from marimo._plugins.ui._impl.table import table
+
+LOGGER = marimo_logger()
 
 
 class PandasFormatter(FormatterFactory):
@@ -31,6 +34,21 @@ class PandasFormatter(FormatterFactory):
                 df: pd.DataFrame,
             ) -> tuple[KnownMimeType, str]:
                 return table(df, selection=None, pagination=True)._mime_()
+
+            @formatting.opinionated_formatter(pd.Series)
+            def _show_marimo_series(
+                series: pd.Series[Any],
+            ) -> tuple[KnownMimeType, str]:
+                try:
+                    # Table need a column name for operations
+                    if series.name is None:
+                        series = series.rename("value")
+                    return table(
+                        series.to_frame(), selection=None, pagination=True
+                    )._mime_()
+                except Exception as e:
+                    LOGGER.warning("Failed to format Series: %s", e)
+                    return ("text/html", series._repr_html_())
 
         @formatting.formatter(pd.DataFrame)
         def _show_dataframe(df: pd.DataFrame) -> tuple[KnownMimeType, str]:
