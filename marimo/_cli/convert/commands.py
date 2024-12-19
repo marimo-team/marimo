@@ -18,10 +18,10 @@ from marimo._utils.paths import maybe_make_dirs
     "--output",
     type=str,
     default=None,
-    help="""
-    Output file to save the converted notebook to.
-    If not provided, the converted notebook will be printed to stdout.
-    """,
+    help=(
+        "Output file to save the converted notebook to. "
+        "If not provided, the converted notebook will be printed to stdout."
+    ),
 )
 def convert(
     filename: str,
@@ -41,7 +41,7 @@ def convert(
         marimo convert your_nb.md -o your_nb.py
 
     Jupyter notebook conversion will strip out all outputs. Markdown cell
-    conversion with occur on the presence of `\`\`\`{python}` code blocks.
+    conversion with occur on the presence of `{python}` code fences.
     After conversion, you can open the notebook in the editor:
 
         marimo edit your_nb.py

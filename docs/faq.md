@@ -1,3 +1,8 @@
+---
+hide:
+  - navigation
+---
+
 # FAQ
 
 - [Choosing marimo](#choosing-marimo)

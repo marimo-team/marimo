@@ -57,7 +57,7 @@ click.exceptions.UsageError.show = helpful_usage_error  # type: ignore
 
 def _key_value_bullets(items: list[tuple[str, str]]) -> str:
     max_length = max(len(item[0]) for item in items)
-    lines = []
+    lines: list[str] = []
 
     def _sep(desc: str) -> str:
         return ":" if desc else ""
@@ -93,13 +93,16 @@ main_help_msg = "\n".join(
         "Welcome to marimo!",
         "\b",
         "Getting started:",
+        "",
         _key_value_bullets(
             [
                 ("marimo tutorial intro", ""),
             ]
         ),
         "\b",
+        "",
         "Example usage:",
+        "",
         _key_value_bullets(
             [
                 (
@@ -123,19 +126,23 @@ main_help_msg = "\n".join(
     ]
 )
 
-token_message = """
-    Use a token for authentication.
-    This enables session-based authentication.
-    A random token will be generated if --token-password is not set.
+token_message = (
+    "Use a token for authentication. "
+    "This enables session-based authentication. "
+    "A random token will be generated if --token-password is not set. "
+    "If --no-token is set, session-based authentication will not be used. "
+)
 
-    If --no-token is set, session-based authentication will not be used.
-    """
+token_password_message = (
+    "Use a specific token for authentication. "
+    "This enables session-based authentication. "
+    "A random token will be generated if not set. "
+)
 
-token_password_message = """
-    Use a specific token for authentication.
-    This enables session-based authentication.
-    A random token will be generated if not set.
-    """
+sandbox_message = (
+    "Run the command in an isolated virtual environment using "
+    "`uv run --isolated`. Requires `uv`."
+)
 
 
 @click.group(help=main_help_msg)
@@ -190,6 +197,7 @@ edit_help_msg = "\n".join(
     [
         "\b",
         "Create or edit notebooks.",
+        "",
         _key_value_bullets(
             [
                 (
@@ -275,10 +283,7 @@ edit_help_msg = "\n".join(
     default=False,
     show_default=True,
     type=bool,
-    help="""
-    Run the command in an isolated virtual environment using
-    'uv run --isolated'. Requires 'uv'.
-    """,
+    help=sandbox_message,
 )
 @click.option("--profile-dir", default=None, type=str, hidden=True)
 @click.argument("name", required=False)
@@ -431,10 +436,7 @@ def edit(
     default=False,
     show_default=True,
     type=bool,
-    help="""
-    Run the command in an isolated virtual environment using
-    'uv run --isolated'. Requires `uv`.
-    """,
+    help=sandbox_message,
 )
 def new(
     port: Optional[int],
@@ -477,8 +479,7 @@ If NAME is a url, the notebook will be downloaded to a temporary file.
 
 Example:
 
-  \b
-  * marimo run notebook.py
+    marimo run notebook.py
 """
 )
 @click.option(
@@ -538,11 +539,11 @@ Example:
     default=False,
     show_default=True,
     type=bool,
-    help="""
-    Watch the file for changes and reload the app.
-    If watchdog is installed, it will be used to watch the file.
-    Otherwise, file watcher will poll the file every 1s.
-    """,
+    help=(
+        "Watch the file for changes and reload the app. "
+        "If watchdog is installed, it will be used to watch the file. "
+        "Otherwise, file watcher will poll the file every 1s."
+    ),
 )
 @click.option(
     "--base-url",
@@ -572,10 +573,7 @@ Example:
     default=False,
     show_default=True,
     type=bool,
-    help="""
-    Run the command in an isolated virtual environment using
-    'uv run --isolated'. Requires `uv`.
-    """,
+    help=sandbox_message,
 )
 @click.argument("name", required=True)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
@@ -752,12 +750,7 @@ def tutorial(
 
 @main.command()
 def env() -> None:
-    """Print out environment information for debugging purposes.
-
-    Example usage:
-
-        marimo env
-    """
+    """Print out environment information for debugging purposes."""
     click.echo(json.dumps(get_system_info(), indent=2))
 
 

@@ -63,6 +63,7 @@ markdown_extensions:
       custom_checkbox: true
   - pymdownx.tilde
   - blocks:MarimoBlocksExtension
+  - mkdocs-click
 nav:
   - Marimo: index.md
   - Getting Started:
@@ -187,6 +188,7 @@ nav:
       - App: api/app.md
       - Cell: api/cell.md
       - Miscellaneous: api/miscellaneous.md
+      - CLI: api/cli.md
   - Examples:
       - Notebooks: examples.md
       - Recipes: recipes.md
