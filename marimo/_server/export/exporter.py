@@ -73,8 +73,16 @@ class Exporter:
         for filename_and_length in request.files:
             if filename_and_length.startswith("/@file/"):
                 filename = filename_and_length[7:]
-            byte_length, basename = filename.split("-", 1)
-            buffer_contents = read_virtual_file(basename, int(byte_length))
+            try:
+                byte_length, basename = filename.split("-", 1)
+                buffer_contents = read_virtual_file(basename, int(byte_length))
+            except Exception as e:
+                LOGGER.warning(
+                    "File not found in export: %s. Error: %s",
+                    filename_and_length,
+                    e,
+                )
+                continue
             mime_type, _ = mimetypes.guess_type(basename) or (
                 "text/plain",
                 None,
