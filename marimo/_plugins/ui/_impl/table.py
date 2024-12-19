@@ -187,9 +187,9 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         selection (Literal["single", "multi"], optional): 'single' or 'multi' to enable row selection,
             or None to disable. Defaults to "multi".
         page_size (int, optional): The number of rows to show per page. Defaults to 10.
-        show_column_summaries (Union[bool, Literal["stats", "charts"]], optional): Whether to show column summaries.
+        show_column_summaries (Union[bool, Literal["stats", "chart"]], optional): Whether to show column summaries.
             Defaults to True when the table has less than 40 columns, False otherwise.
-            If "stats", only show stats. If "charts", only show charts.
+            If "stats", only show stats. If "chart", only show charts.
         show_download (bool, optional): Whether to show the download button.
             Defaults to True for dataframes, False otherwise.
         format_mapping (Dict[str, Union[str, Callable[..., Any]]], optional): A mapping from
