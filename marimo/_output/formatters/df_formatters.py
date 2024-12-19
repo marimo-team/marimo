@@ -43,6 +43,21 @@ class PolarsFormatter(FormatterFactory):
                     LOGGER.warning("Failed to format DataFrame: %s", e)
                     return ("text/html", df._repr_html_())
 
+            @formatting.opinionated_formatter(pl.Series)
+            def _show_marimo_series(
+                series: pl.Series,
+            ) -> tuple[KnownMimeType, str]:
+                try:
+                    # Table need a column name for operations
+                    if series.name is None or series.name == "":
+                        df = pl.DataFrame({"value": series})
+                    else:
+                        df = series.to_frame()
+                    return table(df, selection=None, pagination=True)._mime_()
+                except Exception as e:
+                    LOGGER.warning("Failed to format Series: %s", e)
+                    return ("text/html", series._repr_html_())
+
 
 class PyArrowFormatter(FormatterFactory):
     @staticmethod
