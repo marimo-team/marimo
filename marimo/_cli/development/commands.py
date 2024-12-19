@@ -340,10 +340,12 @@ def killall() -> None:
 @click.command(
     help="Inline packages according to PEP 723", name="inline-packages"
 )
-@click.argument("name", required=True)
-def inline_packages(
-    name: str,
-) -> None:
+@click.argument(
+    "name",
+    required=True,
+    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+)
+def inline_packages(name: str) -> None:
     """
     Example usage:
 
