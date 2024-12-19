@@ -26,6 +26,7 @@ def nav_menu(
         menu: a dictionary of tab names to tab content;
             the content can also be nested dictionaries (one level deep)
             strings are interpreted as markdown
+        orientation (Literal["horizontal", "vertical"]): The orientation of the menu.
 
     Returns:
         An `Html` object.

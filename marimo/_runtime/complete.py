@@ -380,18 +380,17 @@ def complete(
     and more comprehensive, but can only be carried out when the kernel
     isn't executing or otherwise handling a request.
 
-    **Args.**
-
-    - `request`: the completion request
-    - `graph`: dataflow graph backing the marimo program
-    - `glbls`: global namespace
-    - `glbls_lock`: lock protecting the global namespace, for interpreter-based
-         completion
-    - `stream`: Stream through which to communicate completion results
-    - `docstrings_limit`: limit past which we won't attempt to fetch type hints
-          and docstrings
-    - `timeout`: timeout after which we'll stop fetching type hints/docstrings
-    - `prefer_interpreter_completion`: whether to prefer interpreter completion
+    Args:
+        request: The completion request
+        graph: Dataflow graph backing the marimo program
+        glbls: Global namespace
+        glbls_lock: Lock protecting the global namespace, for interpreter-based
+            completion
+        stream: Stream through which to communicate completion results
+        docstrings_limit: Limit past which we won't attempt to fetch type hints
+            and docstrings
+        timeout: Timeout after which we'll stop fetching type hints/docstrings
+        prefer_interpreter_completion: Whether to prefer interpreter completion
     """
     if not request.document.strip():
         _write_no_completions(stream, request.id)

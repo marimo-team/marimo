@@ -198,7 +198,7 @@ class App:
         hide_code: bool = False,
         **kwargs: Any,
     ) -> Cell | Callable[[Callable[..., Any]], Cell]:
-        """A decorator to add a cell to the app
+        """A decorator to add a cell to the app.
 
         This decorator can be called with or without parentheses. Each of the
         following is valid:
@@ -218,9 +218,11 @@ class App:
         ```
 
         Args:
-        - func: The decorated function
-        - disabled: Whether to disable the cell
-        - kwargs: For forward-compatibility with future arguments
+            func: The decorated function.
+            column: The column number to place this cell in.
+            disabled: Whether to disable the cell.
+            hide_code: Whether to hide the cell's code.
+            **kwargs: For forward-compatibility with future arguments.
         """
         del kwargs
 

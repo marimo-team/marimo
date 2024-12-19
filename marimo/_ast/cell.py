@@ -512,7 +512,7 @@ class Cell:
             ```
 
         Args:
-            **kwargs (Any):
+            **refs (Any):
                 You may pass values for any of this cell's references as keyword
                 arguments. marimo will automatically compute values for any refs
                 that are not provided by executing the parent cells that compute

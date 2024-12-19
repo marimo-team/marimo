@@ -274,50 +274,45 @@ class BlockHasher:
     ) -> None:
         """Hash the context of the module, and return a cache object.
 
-        Hashing uses 3 combined methods: pure hashing, content addressed, and
-        execution path:
+        Hashing uses 3 combined methods: pure hashing, content addressed, and execution path:
 
-        1) "Pure" hashing is used when a block has no references. The hash is
-        computed from the code itself.
+        1) "Pure" hashing is used when a block has no references. The hash is computed from the code
+           itself.
 
-        2) "Content Addressed" hashing is used when all references are known
-        and are shown to be primitive types (like a "pure" function).
+        2) "Content Addressed" hashing is used when all references are known and are shown to be
+           primitive types (like a "pure" function).
 
-        3) "Execution Path" hashing is when objects may contain state or other
-        hidden values that are difficult to hash deterministically. For this,
-        the code used to produce the object is used as the basis of the hash.
-        It follows that code which does not change, will produce the same
-        output. This draws inspiration from hashing methods in Nix. One notable
-        difference between these methods is that Nix sandboxes all execution,
-        preventing external file access, and internet. Sources of
-        non-determinism are not accounted for in this implementation, and are
-        left to the user.
+        3) "Execution Path" hashing is when objects may contain state or other hidden values that are
+           difficult to hash deterministically. For this, the code used to produce the object is used
+           as the basis of the hash. It follows that code which does not change, will produce the same
+           output. This draws inspiration from hashing methods in Nix. One notable difference between
+           these methods is that Nix sandboxes all execution, preventing external file access, and
+           internet. Sources of non-determinism are not accounted for in this implementation, and are
+           left to the user.
 
-        In both cases, as long as the module is deterministic, the output will
-        be deterministic. NB. The ContextExecutionPath is an extended case of
-        ExecutionPath hashing, just utilizing additional context.
+        In both cases, as long as the module is deterministic, the output will be deterministic. NB.
+        The ContextExecutionPath is an extended case of ExecutionPath hashing, just utilizing
+        additional context.
 
-        For optimization, the content hash is performed after the execution
-        cache- however the content references are collected first. This
-        deferred content hash is useful in cases like repeated calls to a
-        cached function.
+        For optimization, the content hash is performed after the execution cache- however the content
+        references are collected first. This deferred content hash is useful in cases like repeated
+        calls to a cached function.
 
         Args:
-          - module: The code content to create a hash for (e.g.
-            for persistent_cache, the body of the `With` statement).
-          - graph: The dataflow graph of the notebook.
-          - cell_id: The cell id attached to the module.
-          - scope: The definitions of (globals) available in execution context.
-          - context: The "context" of the module, is a module corresponding
-            additional execution context for the cell. For instance, in
-            persistent_cache case, this applies to the code prior to
-            invocation, but still in the same cell.
-          - pin_modules: If True, then the module will be pinned to the version
-          - hash_type: The type of hash to use.
-          - apply_content_hash: If True, then the content hash will be
-            attempted, otherwise only use execution path hash.
-          - scoped_refs: A set of references that cannot be traced via
-            execution path, and must be accounted for via content hashing.
+            module: The code content to create a hash for (e.g. for persistent_cache, the body of the
+                `With` statement).
+            graph: The dataflow graph of the notebook.
+            cell_id: The cell id attached to the module.
+            scope: The definitions of (globals) available in execution context.
+            context: The "context" of the module, is a module corresponding additional execution
+                context for the cell. For instance, in persistent_cache case, this applies to the code
+                prior to invocation, but still in the same cell.
+            pin_modules: If True, then the module will be pinned to the version
+            hash_type: The type of hash to use.
+            apply_content_hash: If True, then the content hash will be attempted, otherwise only use
+                execution path hash.
+            scoped_refs: A set of references that cannot be traced via execution path, and must be
+                accounted for via content hashing.
         """
 
         # Hash should not be pinned to cell id
@@ -903,20 +898,22 @@ def content_cache_attempt_from_base(
     as_fn: bool = False,
     sensitive: bool = False,
 ) -> Cache:
-    """Hash a code block with context from the same cell, and attempt a cache
-    lookup.
+    """Hash a code block with context from the same cell, and attempt a cache lookup.
 
     Args:
-      - previous_block: The block to base the new block on.
-      - scope: The scope of the new block.
-      - loader: The loader to use for cache operations.
-      - scoped_refs: A set of references that cannot be traced via
-        execution path, and must be accounted for via content hashing.
-      - as_fn: If True, then the block is treated as a function, and will not
-        cache definitions in scope.
-      - sensitive: If True, then the cache hash will to rehash references
-        resolved with path execution. This will invalidate the cache more
-        frequently.
+        previous_block: The block to base the new block on.
+        scope: The scope of the new block.
+        loader: The loader to use for cache operations.
+        scoped_refs: A set of references that cannot be traced via execution path, and must be
+            accounted for via content hashing.
+        required_refs: A set of references that must be present in the scope.
+        as_fn: If True, then the block is treated as a function, and will not cache definitions
+            in scope.
+        sensitive: If True, then the cache hash will to rehash references resolved with path
+            execution. This will invalidate the cache more frequently.
+
+    Returns:
+        A cache object that may, or may not be fully populated.
     """
     if scoped_refs is None:
         scoped_refs = set()

@@ -139,19 +139,21 @@ def parse_raw(
 ) -> T:
     """Utility to parse a message as JSON, and instantiate into supplied type.
 
-    `cls` must be a dataclass.
-
-    Supported collection types in the dataclass:
-    - List, Tuple, Set, Dict
-    - for Python 3.8 compatibility, must use collection types from
-      the typing module (e.g., typing.List[int] instead of list[int])
-
-    Transforms all fields in the parsed JSON from camel case to snake case.
-
     Args:
-    ----
-    message: the message to parse
-    cls: the type to instantiate
+        message: The message to parse
+        cls: The type to instantiate. Must be a dataclass.
+        allow_unknown_keys: Whether to allow unknown keys in the message.
+
+    Returns:
+        An instance of the supplied dataclass type.
+
+    Notes:
+        Supported collection types in the dataclass:
+        - List, Tuple, Set, Dict
+        - for Python 3.8 compatibility, must use collection types from
+          the typing module (e.g., `typing.List[int]` instead of `list[int]`)
+
+        Transforms all fields in the parsed JSON from camel case to snake case.
     """
     # If it is a dict, it is already parsed and we can just build the
     # dataclass.

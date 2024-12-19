@@ -38,42 +38,7 @@ class MiddlewareFactory(Protocol):
 
 
 class ASGIAppBuilder(abc.ABC):
-    """Class for building ASGI applications.
-
-    Methods:
-        with_app(
-            path: str,
-            root: str,
-            middleware: Optional[list[MiddlewareFactory]] = None,
-        ) -> ASGIAppBuilder:
-            Adds a static application to the ASGI app at the specified path.
-
-            Args:
-                path (str): The URL path where the application will be mounted.
-                root (str): The root directory of the application.
-                middleware (Optional[list[MiddlewareFactory]]): Middleware to apply to the application.
-
-        with_dynamic_directory(
-            path: str,
-            directory: str,
-            validate_callback: Optional[ValidateCallback] = None,
-            middleware: Optional[list[MiddlewareFactory]] = None,
-        ) -> ASGIAppBuilder:
-            Adds a dynamic directory to the ASGI app, allowing for dynamic loading of applications from the specified directory.
-
-            Args:
-                path (str): The URL path where the dynamic directory will be mounted.
-                directory (str): The directory containing the applications.
-                validate_callback (Optional[ValidateCallback]): A callback function to validate the application path.
-                    This is useful to plug in authentication or authorization checks.
-                    The validate_callback receives the application path and the scope,
-                    and returns a boolean indicating whether the application is valid.
-                    You may also raise an exception for a custom error message.
-                middleware (Optional[list[MiddlewareFactory]]): Middleware to apply to sub app.
-
-        build() -> ASGIApp:
-            Builds and returns the final ASGI application.
-    """
+    """Class for building ASGI applications."""
 
     @abc.abstractmethod
     def with_app(

@@ -24,7 +24,7 @@ def forward_os_stream(stream_object: Stdout | Stderr, fd: int) -> None:
 def dup2newfd(fd: int) -> tuple[int, int, int]:
     """Create a pipe, with `fd` at the write end of it.
 
-    Returns
+    Returns:
     - duplicate (os.dup) of `fd`
     - read end of pipe
     - fd (which now points to the file referenced by the write end of the pipe)

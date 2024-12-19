@@ -222,6 +222,7 @@ class PythonTypeToOpenAPI:
 
         Args:
             cls (Type[Any]): The dataclass to convert.
+            processed_classes (Dict[Any, str]): A dictionary of processed classes.
 
         Raises:
             ValueError: If cls is not a dataclass.
