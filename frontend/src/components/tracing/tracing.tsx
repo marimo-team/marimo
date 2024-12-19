@@ -5,7 +5,7 @@ import type { CellId } from "@/core/cells/ids";
 import { ElapsedTime, formatElapsedTime } from "../editor/cell/CellStatus";
 import { Tooltip } from "@/components/ui/tooltip";
 import { compile } from "vega-lite";
-import { ChevronRight, ChevronDown } from "lucide-react";
+import { ChevronRight, ChevronDown, ActivityIcon } from "lucide-react";
 import type { SignalListeners, VisualizationSpec } from "react-vega";
 import {
   type RunId,
@@ -26,6 +26,7 @@ import {
 } from "./tracing-spec";
 import { ClearButton } from "../buttons/clear-button";
 import { cn } from "@/utils/cn";
+import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 
 const LazyVega = React.lazy(() =>
   import("react-vega").then((m) => ({ default: m.Vega })),
@@ -45,6 +46,16 @@ export const Tracing: React.FC = () => {
       setChartPosition("above");
     }
   };
+
+  if (newestToOldestRunIds.length === 0) {
+    return (
+      <PanelEmptyState
+        title="No traces"
+        description={<span>Cells that have ran will appear here.</span>}
+        icon={<ActivityIcon />}
+      />
+    );
+  }
 
   return (
     <div className="py-1 px-2 overflow-y-scroll">
