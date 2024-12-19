@@ -218,10 +218,9 @@ for file in "${files[@]}"; do
 done
 ```
 
-Optionally, create an `index.html` file in the public directory:
+Optionally, you can create an `index.html` file in the public directory:
 
 ```bash
-# Optionally, create an index.html file in the public directory
 echo "<html><body><ul>" > public/index.html
 for file in "${files[@]}"; do
   without_extension="${file%.*}"
