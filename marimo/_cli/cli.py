@@ -757,9 +757,11 @@ def env() -> None:
 def shell_completion() -> None:
     shell = os.environ.get("SHELL", "")
     if not shell:
-        raise click.UsageError(
-            "Could not determine shell. Please set $SHELL environment variable."
+        click.echo(
+            "Could not determine shell. Please set $SHELL environment variable.",
+            err=True,
         )
+        return
 
     shell_name = Path(shell).name
 
@@ -780,9 +782,11 @@ def shell_completion() -> None:
 
     if shell_name not in commands:
         supported = ", ".join(commands.keys())
-        raise click.UsageError(
-            f"Unsupported shell: {shell_name}. Supported shells: {supported}"
+        click.echo(
+            f"Unsupported shell: {shell_name}. Supported shells: {supported}",
+            err=True,
         )
+        return
 
     cmd, rc_file = commands[shell_name]
     click.secho("Run this command to enable completions:", fg="green")

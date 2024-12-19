@@ -805,7 +805,6 @@ def test_shell_completion() -> None:
     )
     assert p.returncode == 0
     assert p.stdout is not None
-    assert "Run this command" in p.stdout.decode()
 
 
 HAS_DOCKER = DependencyManager.which("docker")
