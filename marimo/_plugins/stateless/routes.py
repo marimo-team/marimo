@@ -42,7 +42,7 @@ class routes(UIElement[str, str]):
             that returns the content to display.
 
     Returns:
-        Html: An Html object.
+        Html (marimo.Html): An Html object.
     """
 
     _name: Final[str] = "marimo-routes"

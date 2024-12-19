@@ -281,7 +281,7 @@ other outputs. If you're using matplotlib, you can display the `Figure` object
 marimo tutorial plots
 ```
 
-Also see the <a href="/api/plotting.html">plotting API reference</a>.
+Also see the [plotting API reference](api/plotting.md).
 
 <a name="faq-mpl-cutoff"></a>
 

@@ -20,10 +20,11 @@ selections to Python!
 ## Reactive plots! ⚡
 
 !!! warning "Requirements"
-Reactive plots currently require Altair or Plotly. Install with `pip install
-altair` or `pip install plotly`, depending on which library you are using.
-Selections in plotly are limited to scatter plots, treemaps charts, and sunbursts charts, while Altair supports
-a larger class of plots for selections.
+
+    Reactive plots currently require Altair or Plotly. Install with `pip install
+    altair` or `pip install plotly`, depending on which library you are using.
+    Selections in plotly are limited to scatter plots, treemaps charts, and sunbursts charts, while Altair supports
+    a larger class of plots for selections.
 
 ### Altair
 

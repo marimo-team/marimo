@@ -16,8 +16,8 @@ the [docs page on CLI args](../api/cli_args.md) to learn more.
 
 !!! note "Producing notebook outputs"
 
-To run as a script while also producing HTML of the notebook outputs, use
+    To run as a script while also producing HTML of the notebook outputs, use
 
-```bash
-marimo export html notebook.py -o notebook.html
-```
+    ```bash
+    marimo export html notebook.py -o notebook.html
+    ```

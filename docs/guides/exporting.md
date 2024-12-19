@@ -43,8 +43,8 @@ its visual outputs before saving as HTML.
 
 !!! note "Note"
 
-If any cells error during the export process, the status code will be non-zero. However, the export result may still be generated, with the error included in the output.
-Errors can be ignored by appending `|| true` to the command, e.g. `marimo export html notebook.py || true`.
+    If any cells error during the export process, the status code will be non-zero. However, the export result may still be generated, with the error included in the output.
+    Errors can be ignored by appending `|| true` to the command, e.g. `marimo export html notebook.py || true`.
 
 ## Export to a Python script
 
@@ -57,9 +57,9 @@ marimo export script notebook.py -o notebook.script.py
 
 !!! warning "Top-level await not supported"
 
-Exporting to a flat Python script does not support top-level await. If you have
-top-level await in your notebook, you can still execute the notebook as a
-script with `python notebook.py`.
+    Exporting to a flat Python script does not support top-level await. If you have
+    top-level await in your notebook, you can still execute the notebook as a
+    script with `python notebook.py`.
 
 ## Export to markdown
 
@@ -149,8 +149,8 @@ Options:
 
 !!! note "Note"
 
-The exported file must be served over HTTP to function correctly - it cannot be opened directly from the filesystem (file://).
-Your server must also serve the assets in the `assets` directory, next to the HTML file. For this reason, we recommend using the online playground if possible: <https://marimo.app>.
+  The exported file must be served over HTTP to function correctly - it cannot be opened directly from the filesystem (file://).
+  Your server must also serve the assets in the `assets` directory, next to the HTML file. For this reason, we recommend using the online playground if possible: <https://marimo.app>.
 
 ### Testing the export
 
@@ -205,8 +205,8 @@ jobs:
 
 !!! note "Preview"
 
-Islands are an early feature. While the API likely won't change, there are some improvements we'd like to make before we consider them stable.
-Please let us know on [GitHub](https://github.com/marimo-team/marimo/issues) if you run into any issues or have any feedback!
+    Islands are an early feature. While the API likely won't change, there are some improvements we'd like to make before we consider them stable.
+    Please let us know on [GitHub](https://github.com/marimo-team/marimo/issues) if you run into any issues or have any feedback!
 
 marimo islands are a way to embed marimo outputs and/or python code in your HTML that will become interactive when the page is loaded. This is useful for creating interactive blog posts, tutorials, and educational materials, all powered by marimo's reactive runtime.
 
@@ -216,7 +216,7 @@ Check out an [example island-powered document](./island_example.md).
 
 !!! warning "Advanced topic!"
 
-Islands are an advanced concept that is meant to be a building block for creating integrations with existing tools such as static site generators or documentation tools.
+    Islands are an advanced concept that is meant to be a building block for creating integrations with existing tools such as static site generators or documentation tools.
 
 In order to use marimo islands, you need to import the necessary JS/CSS headers in your HTML file, and use our custom HTML tags to define the islands.
 

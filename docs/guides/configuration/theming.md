@@ -20,7 +20,7 @@ We support only a few CSS variables as part of the "public API" for theming. The
 
 !!! warning "Other CSS Variables"
 
-We cannot guarantee that other CSS variables or classnames will be stable across versions.
+    We cannot guarantee that other CSS variables or classnames will be stable across versions.
 
 ## Example
 

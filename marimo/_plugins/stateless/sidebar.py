@@ -50,7 +50,7 @@ class sidebar(Html):
         footer (object, optional): The content to display at the bottom of the sidebar.
 
     Returns:
-        Html: An Html object.
+        Html (marimo.Html): An Html object.
     """
 
     def __init__(self, item: object, footer: Optional[object] = None) -> None:
