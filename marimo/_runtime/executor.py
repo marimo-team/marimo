@@ -246,9 +246,9 @@ class StrictExecutor(Executor):
                     except TypeError as e:
                         raise CloneError(
                             f"Could not clone reference `{ref}` of type "
-                            f"{getattr(glbls[ref], '__module__', '<module>')}."
-                            f"{glbls[ref].__class__.__name__}"
-                            " try wrapping the object in a `zero_copy`"
+                            f"{getattr(glbls[ref], '__module__', '<module>')}. "
+                            f"{glbls[ref].__class__.__name__} "
+                            "try wrapping the object in a `zero_copy` "
                             "call. If this is a common object type, consider "
                             "making an issue on the marimo GitHub "
                             "repository to never deepcopy."

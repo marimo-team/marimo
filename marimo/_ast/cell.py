@@ -362,6 +362,7 @@ class Cell:
         """The definitions made by this cell"""
         return self._cell.defs
 
+    @property
     def _is_coroutine(self) -> bool:
         """Whether this cell is a coroutine function.
 
@@ -379,15 +380,15 @@ class Cell:
         from marimo._output.formatting import as_html
         from marimo._output.md import md
 
-        signature_prefix = "Async " if self._is_coroutine() else ""
+        signature_prefix = "Async " if self._is_coroutine else ""
         execute_str_refs = (
             f"output, defs = await {self.name}.run(**refs)"
-            if self._is_coroutine()
+            if self._is_coroutine
             else f"output, defs = {self.name}.run(**refs)"
         )
         execute_str_no_refs = (
             f"output, defs = await {self.name}.run()"
-            if self._is_coroutine()
+            if self._is_coroutine
             else f"output, defs = {self.name}.run()"
         )
 
@@ -524,7 +525,7 @@ class Cell:
                 from the cell's defined names to their values.
         """
         assert self._app is not None
-        if self._is_coroutine():
+        if self._is_coroutine:
             return self._app.run_cell_async(cell=self, kwargs=refs)
         else:
             return self._app.run_cell_sync(cell=self, kwargs=refs)
@@ -532,7 +533,7 @@ class Cell:
     def __call__(self, *args: Any, **kwargs: Any) -> None:
         del args
         del kwargs
-        if self._is_coroutine():
+        if self._is_coroutine:
             call_str = f"`outputs, defs = await {self.name}.run()`"
         else:
             call_str = f"`outputs, defs = {self.name}.run()`"

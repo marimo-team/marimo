@@ -22,7 +22,7 @@ class TestCellRun:
         assert cell.name == "f"
         assert not cell.refs
         assert cell.defs == set(["x"])
-        assert not cell._is_coroutine()
+        assert not cell._is_coroutine
         assert cell.run() == ("output", {"x": 4})
 
     @staticmethod
@@ -39,7 +39,7 @@ class TestCellRun:
         assert cell.name == "f"
         assert cell.refs == {"asyncio"}
         assert cell.defs == {"x"}
-        assert cell._is_coroutine()
+        assert cell._is_coroutine
 
         import asyncio
 
@@ -118,10 +118,10 @@ class TestCellRun:
             y = x
             return (y,)
 
-        assert g._is_coroutine()
+        assert g._is_coroutine
         # h is a coroutine because it depends on the execution of an async
         # function
-        assert h._is_coroutine()
+        assert h._is_coroutine
 
     @staticmethod
     def test_async_chain() -> None:
@@ -143,9 +143,9 @@ class TestCellRun:
             z = y
             return (z,)
 
-        assert f._is_coroutine()
-        assert g._is_coroutine()
-        assert h._is_coroutine()
+        assert f._is_coroutine
+        assert g._is_coroutine
+        assert h._is_coroutine
 
     @staticmethod
     def test_empty_cell() -> None:
