@@ -24,6 +24,8 @@ extra:
       link: https://pypi.org/project/marimo/
 extra_css:
   - stylesheets/extra.css
+extra_javascript:
+  - js/analytics.js
 markdown_extensions:
   - admonition
   - attr_list

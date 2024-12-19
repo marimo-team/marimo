@@ -1,6 +1,5 @@
-"""Marimo documentation package."""
+"""marimo documentation package."""
 
-from . import macros  # noqa: F401
-from . import blocks  # noqa: F401
+from . import blocks
 
-__all__ = ["macros", "blocks"]
+__all__ = ["blocks"]

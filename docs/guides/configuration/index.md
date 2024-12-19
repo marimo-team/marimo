@@ -77,7 +77,7 @@ notebooks. You must edit the `pyproject.toml` file directly to override settings
 For example, the following `pyproject.toml` file overrides the `autosave` setting
 in the user configuration:
 
-```toml
+```toml title="pyproject.toml"
 [tool.marimo.format]
 line_length = 120
 
