@@ -1,3 +1,14 @@
+---
+hide:
+  - navigation
+---
+<style>
+  .md-typeset h1,
+  .md-content__button {
+    display: none;
+  }
+</style>
+
 <p align="center" style="margin-top: 40px; margin-bottom: 40px;">
   <img src="_static/marimo-logotype-thick.svg" width="210px">
 </p>
