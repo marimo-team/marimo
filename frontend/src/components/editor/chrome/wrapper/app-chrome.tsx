@@ -30,6 +30,7 @@ import { IfCapability } from "@/core/config/if-capability";
 import { PackagesPanel } from "../panels/packages-panel";
 import { ChatPanel } from "@/components/chat/chat-panel";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
+import { TracingPanel } from "../panels/tracing-panel";
 
 const LazyTerminal = React.lazy(() => import("@/components/terminal/terminal"));
 
@@ -153,6 +154,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
             {selectedPanel === "scratchpad" && <ScratchpadPanel />}
             {selectedPanel === "chat" && <ChatPanel />}
             {selectedPanel === "logs" && <LogsPanel />}
+            {selectedPanel === "tracing" && <TracingPanel />}
           </TooltipProvider>
         </div>
       </Suspense>
