@@ -10,7 +10,7 @@ app = marimo.App()
     reason=(
         "Invoking a cell is not directly supported, and as such should fail "
         "until #2293. However, the decorated function _should_ be picked up "
-        "by pytest. A hook in conftest.py should esnure this."
+        "by pytest. The hook in conftest.py ensures this."
     ),
     raises=RuntimeError,
     strict=True,
