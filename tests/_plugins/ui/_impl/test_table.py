@@ -577,6 +577,45 @@ def test_get_column_summaries_after_search_df() -> None:
     assert summaries.summaries[0].nulls == 0
 
 
+def test_show_column_summaries_modes():
+    data = {"a": list(range(20))}
+
+    # Test stats-only mode
+    table_stats = ui.table(data, show_column_summaries="stats")
+    summaries_stats = table_stats.get_column_summaries(EmptyArgs())
+    assert summaries_stats.is_disabled is False
+    assert summaries_stats.data is None
+    assert len(summaries_stats.summaries) > 0
+
+    # Test chart-only mode
+    table_chart = ui.table(data, show_column_summaries="chart")
+    summaries_chart = table_chart.get_column_summaries(EmptyArgs())
+    assert summaries_chart.is_disabled is False
+    assert summaries_chart.data is not None
+    assert len(summaries_chart.summaries) == 0
+
+    # Test default mode (both stats and chart)
+    table_both = ui.table(data, show_column_summaries=True)
+    summaries_both = table_both.get_column_summaries(EmptyArgs())
+    assert summaries_both.is_disabled is False
+    assert summaries_both.data is not None
+    assert len(summaries_both.summaries) > 0
+
+    # Test disabled mode
+    table_disabled = ui.table(data, show_column_summaries=False)
+    summaries_disabled = table_disabled.get_column_summaries(EmptyArgs())
+    assert summaries_disabled.is_disabled is False
+    assert summaries_disabled.data is None
+    assert len(summaries_disabled.summaries) == 0
+
+    # Test Default behavior
+    table_default = ui.table(data)
+    summaries_default = table_default.get_column_summaries(EmptyArgs())
+    assert summaries_default.is_disabled is False
+    assert summaries_default.data is not None
+    assert len(summaries_default.summaries) > 0
+
+
 def test_table_with_frozen_columns() -> None:
     data = {
         "a": list(range(20)),

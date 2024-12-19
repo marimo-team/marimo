@@ -187,8 +187,9 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         selection (Literal["single", "multi"], optional): 'single' or 'multi' to enable row selection,
             or None to disable. Defaults to "multi".
         page_size (int, optional): The number of rows to show per page. Defaults to 10.
-        show_column_summaries (bool, optional): Whether to show column summaries.
+        show_column_summaries (Union[bool, Literal["stats", "charts"]], optional): Whether to show column summaries.
             Defaults to True when the table has less than 40 columns, False otherwise.
+            If "stats", only show stats. If "charts", only show charts.
         show_download (bool, optional): Whether to show the download button.
             Defaults to True for dataframes, False otherwise.
         format_mapping (Dict[str, Union[str, Callable[..., Any]]], optional): A mapping from
@@ -218,7 +219,9 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         pagination: Optional[bool] = None,
         selection: Optional[Literal["single", "multi"]] = "multi",
         page_size: int = 10,
-        show_column_summaries: Optional[bool] = None,
+        show_column_summaries: Optional[
+            Union[bool, Literal["stats", "chart"]]
+        ] = None,
         format_mapping: Optional[
             Dict[str, Union[str, Callable[..., Any]]]
         ] = None,
@@ -511,40 +514,42 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
                 is_disabled=True,
             )
 
-        # Get column summaries
+        # Get column summaries if not chart-only mode
         summaries: List[ColumnSummary] = []
-        for column in self._manager.get_column_names():
-            try:
-                summary = self._searched_manager.get_summary(column)
-                summaries.append(
-                    ColumnSummary(
-                        column=column,
-                        nulls=summary.nulls,
-                        min=summary.min,
-                        max=summary.max,
-                        unique=summary.unique,
-                        true=summary.true,
-                        false=summary.false,
+        if self._show_column_summaries != "chart":
+            for column in self._manager.get_column_names():
+                try:
+                    summary = self._searched_manager.get_summary(column)
+                    summaries.append(
+                        ColumnSummary(
+                            column=column,
+                            nulls=summary.nulls,
+                            min=summary.min,
+                            max=summary.max,
+                            unique=summary.unique,
+                            true=summary.true,
+                            false=summary.false,
+                        )
                     )
-                )
-            except BaseException:
-                # Catch-all: some libraries like Polars have bugs and raise
-                # BaseExceptions, which shouldn't crash the kernel
-                LOGGER.warning("Failed to get summary for column %s", column)
+                except BaseException:
+                    # Catch-all: some libraries like Polars have bugs and raise
+                    # BaseExceptions, which shouldn't crash the kernel
+                    LOGGER.warning(
+                        "Failed to get summary for column %s", column
+                    )
 
         # If we are above the limit to show charts,
+        # or if we are in stats-only mode,
         # we don't return the chart data
-        if total_rows > self._column_charts_row_limit:
-            return ColumnSummaries(
-                data=None,
-                summaries=summaries,
-                # We are still showing summaries,
-                # so we don't want to display the banner
-                is_disabled=False,
-            )
+        chart_data = None
+        if (
+            self._show_column_summaries != "stats"
+            and total_rows <= self._column_charts_row_limit
+        ):
+            chart_data = self._searched_manager.to_data({})
 
         return ColumnSummaries(
-            data=self._searched_manager.to_data({}),
+            data=chart_data,
             summaries=summaries,
             is_disabled=False,
         )
