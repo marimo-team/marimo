@@ -85,6 +85,28 @@ class TestExportHTML:
         assert "<marimo-wasm" in html
 
     @staticmethod
+    def test_cli_export_html_wasm_output_is_file(
+        temp_marimo_file: str,
+    ) -> None:
+        out_dir = Path(temp_marimo_file).parent / "out_file"
+        p = subprocess.run(
+            [
+                "marimo",
+                "export",
+                "html-wasm",
+                temp_marimo_file,
+                "--output",
+                str(out_dir / "foo.html"),
+            ],
+            capture_output=True,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+        assert Path(out_dir / "foo.html").exists()
+        assert not Path(out_dir / "index.html").exists()
+        html = Path(out_dir / "foo.html").read_text()
+        assert "<marimo-wasm" in html
+
+    @staticmethod
     def test_cli_export_html_wasm_read(temp_marimo_file: str) -> None:
         out_dir = Path(temp_marimo_file).parent / "out"
         p = subprocess.run(

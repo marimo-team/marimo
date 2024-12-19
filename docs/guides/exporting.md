@@ -163,6 +163,10 @@ python -m http.server
 
 ### Deploying to GitHub Pages
 
+::: tip "Template repository"
+
+    You can fork our [template repository](https://github.com/marimo-team/marimo-gh-pages-template) for deploying multiple notebooks to GitHub Pages. Once you have forked the repository, add your notebooks to the `notebooks`/`apps` directory.
+
 You can deploy your WebAssembly marimo notebook to GitHub Pages using the following GitHub Actions workflow:
 
 ```yaml
@@ -199,6 +203,31 @@ jobs:
         uses: actions/deploy-pages@v4
         with:
           artifact_name: github-pages
+```
+
+### Exporting multiple notebooks
+
+In order to export multiple notebooks under the same folder, you can use the following snippet:
+
+```bash
+files=("batch_and_form.py" "data_explorer.py")
+
+for file in "${files[@]}"; do
+  without_extension="${file%.*}"
+  marimo export html-wasm "$file" -o public/"$without_extension".html --mode run
+done
+```
+
+Optionally, create an `index.html` file in the public directory:
+
+```bash
+# Optionally, create an index.html file in the public directory
+echo "<html><body><ul>" > public/index.html
+for file in "${files[@]}"; do
+  without_extension="${file%.*}"
+  echo "<li><a href=\"$without_extension.html\">$without_extension</a></li>" >> public/index.html
+done
+echo "</ul></body></html>" >> public/index.html
 ```
 
 ## 🏝️ Embed marimo outputs in HTML using Islands

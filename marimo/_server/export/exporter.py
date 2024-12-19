@@ -356,7 +356,9 @@ class Exporter:
 
         return html, download_filename
 
-    def export_assets(self, directory: str) -> None:
+    def export_assets(
+        self, directory: str, ignore_index_html: bool = False
+    ) -> None:
         # Copy assets to the same directory as the notebook
         dirpath = Path(directory)
         LOGGER.debug(f"Copying assets to {dirpath}")
@@ -365,7 +367,16 @@ class Exporter:
 
         import shutil
 
-        shutil.copytree(root, dirpath, dirs_exist_ok=True)
+        shutil.copytree(
+            root,
+            dirpath,
+            dirs_exist_ok=True,
+            ignore=(
+                shutil.ignore_patterns("index.html")
+                if ignore_index_html
+                else None
+            ),
+        )
 
 
 class AutoExporter:
