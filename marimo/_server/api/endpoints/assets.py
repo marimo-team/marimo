@@ -39,14 +39,17 @@ config = (
     .get("server", {})
 )
 
-router.mount(
-    "/assets",
-    app=StaticFiles(
-        directory=os.path.join(root, "assets"),
-        follow_symlink=config.get("follow_symlink", False),
-    ),
-    name="assets",
-)
+try:
+    router.mount(
+        "/assets",
+        app=StaticFiles(
+            directory=os.path.join(root, "assets"),
+            follow_symlink=config.get("follow_symlink", False),
+        ),
+        name="assets",
+    )
+except RuntimeError:
+    LOGGER.error("Static files not found, skipping mount")
 
 FILE_QUERY_PARAM_KEY = "file"
 
