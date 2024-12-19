@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Callable, Literal, Optional
 
 import click
 
-import marimo._cli.cli_validators as validators
 from marimo._cli.parse_args import parse_args
 from marimo._cli.print import echo, green
 from marimo._dependencies.dependencies import DependencyManager
@@ -126,14 +125,18 @@ Optionally pass CLI args to the notebook:
 @click.option(
     "-o",
     "--output",
-    type=str,
+    type=click.Path(),
     default=None,
     help=(
         "Output file to save the HTML to. "
         "If not provided, the HTML will be printed to stdout."
     ),
 )
-@click.argument("name", required=True, callback=validators.is_file_path)
+@click.argument(
+    "name",
+    required=True,
+    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def html(
     name: str,
@@ -183,14 +186,18 @@ Watch for changes and regenerate the script on modification:
 @click.option(
     "-o",
     "--output",
-    type=str,
+    type=click.Path(),
     default=None,
     help=(
         "Output file to save the script to. "
         "If not provided, the script will be printed to stdout."
     ),
 )
-@click.argument("name", required=True, callback=validators.is_file_path)
+@click.argument(
+    "name",
+    required=True,
+    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+)
 def script(
     name: str,
     output: str,
@@ -229,14 +236,18 @@ Watch for changes and regenerate the script on modification:
 @click.option(
     "-o",
     "--output",
-    type=str,
+    type=click.Path(),
     default=None,
     help=(
         "Output file to save the markdown to. "
         "If not provided, markdown will be printed to stdout."
     ),
 )
-@click.argument("name", required=True, callback=validators.is_file_path)
+@click.argument(
+    "name",
+    required=True,
+    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+)
 def md(
     name: str,
     output: str,
@@ -284,7 +295,7 @@ Requires nbformat to be installed.
 @click.option(
     "-o",
     "--output",
-    type=str,
+    type=click.Path(),
     default=None,
     help=(
         "Output file to save the ipynb file to. "
@@ -298,7 +309,11 @@ Requires nbformat to be installed.
     type=bool,
     help="Run the notebook and include outputs in the exported ipynb file.",
 )
-@click.argument("name", required=True, callback=validators.is_file_path)
+@click.argument(
+    "name",
+    required=True,
+    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+)
 def ipynb(
     name: str,
     output: str,
@@ -348,7 +363,7 @@ and cannot be opened directly from the file system (e.g. file://).
 @click.option(
     "-o",
     "--output",
-    type=str,
+    type=click.Path(),
     required=True,
     help="Output directory to save the HTML to.",
 )
@@ -366,7 +381,11 @@ and cannot be opened directly from the file system (e.g. file://).
     show_default=True,
     help="Whether to show code by default in the exported HTML file.",
 )
-@click.argument("name", required=True, callback=validators.is_file_path)
+@click.argument(
+    "name",
+    required=True,
+    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+)
 def html_wasm(
     name: str,
     output: str,

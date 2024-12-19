@@ -16,7 +16,7 @@ from marimo._utils.paths import maybe_make_dirs
 @click.option(
     "-o",
     "--output",
-    type=str,
+    type=click.Path(),
     default=None,
     help=(
         "Output file to save the converted notebook to. "
