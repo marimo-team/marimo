@@ -163,9 +163,11 @@ python -m http.server
 
 ### Deploying to GitHub Pages
 
-::: tip "Template repository"
+/// admonition | Template repository
+    type: tip
 
-    You can fork our [template repository](https://github.com/marimo-team/marimo-gh-pages-template) for deploying multiple notebooks to GitHub Pages. Once you have forked the repository, add your notebooks to the `notebooks`/`apps` directory.
+You can fork our [template repository](https://github.com/marimo-team/marimo-gh-pages-template) for deploying multiple notebooks to GitHub Pages. Once you have forked the repository, add your notebooks to the `notebooks`/`apps` directory.
+///
 
 You can deploy your WebAssembly marimo notebook to GitHub Pages using the following GitHub Actions workflow:
 
