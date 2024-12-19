@@ -28,16 +28,11 @@ import { ClearButton } from "../buttons/clear-button";
 import { cn } from "@/utils/cn";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 
-const LazyVega = React.lazy(() =>
-  import("react-vega").then((m) => ({ default: m.Vega })),
-);
-
 export const Tracing: React.FC = () => {
   const { runIds: newestToOldestRunIds, runMap } = useAtomValue(runsAtom);
   const { clearRuns } = useRunsActions();
 
-  const [chartPosition, setChartPosition] =
-    useState<ChartPosition>("sideBySide");
+  const [chartPosition, setChartPosition] = useState<ChartPosition>("above");
 
   const toggleChartPosition = () => {
     if (chartPosition === "above") {
@@ -69,8 +64,8 @@ export const Tracing: React.FC = () => {
             name="chartPosition"
             id="chartPosition"
             onClick={toggleChartPosition}
-            defaultChecked={true}
-            className="h-3"
+            defaultChecked={chartPosition === "sideBySide"}
+            className="h-3 cursor-pointer"
           />
         </div>
 
@@ -95,6 +90,9 @@ export const Tracing: React.FC = () => {
   );
 };
 
+const LazyVega = React.lazy(() =>
+  import("react-vega").then((m) => ({ default: m.Vega })),
+);
 interface ChartProps {
   className?: string;
   width: number;
