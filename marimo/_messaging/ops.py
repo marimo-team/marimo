@@ -135,8 +135,7 @@ class CellOp(Op):
     def __post_init__(self) -> None:
         try:
             # run_id context is only set during a run
-            # TODO: is this correct
-            if self.status is not None and self.run_id is None:
+            if self.status is not None:
                 self.run_id = RUN_ID_CTX.get()
         except LookupError:
             # Be specific about the exception we're catching
