@@ -16,6 +16,11 @@ Supported transforms are:
 - Group By
 - Aggregate
 
+/// marimo-embed
+    size: large
+    app_width: full
+
+
 ```python
     @app.cell
     def __():
@@ -26,5 +31,7 @@ Supported transforms are:
         mo.ui.dataframe(df)
         return
 ```
+
+///
 
 ::: marimo.ui.dataframe
