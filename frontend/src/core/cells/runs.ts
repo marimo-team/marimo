@@ -70,6 +70,7 @@ const {
       }
     }
 
+    // We determine if the cell operation errored by looking at the output
     const erroredOutput =
       cellOperation.output &&
       (cellOperation.output.channel === "marimo-error" ||
