@@ -153,7 +153,7 @@ class MarimoIslandGenerator:
     # Example
 
     ```python
-    from marimo.islands import MarimoIslandGenerator
+    from marimo._islands import MarimoIslandGenerator
 
     generator = MarimoIslandGenerator()
     block1 = generator.add_code("import marimo as mo")
