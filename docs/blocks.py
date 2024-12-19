@@ -83,8 +83,7 @@ def create_marimo_iframe(
             f'app = marimo.App(width="{app_width}")',
             "",
         ]
-    )
-    footer = "\n".join(
+    ) + "\n".join(
         [
             "",
             "@app.cell",
@@ -93,7 +92,7 @@ def create_marimo_iframe(
             "    return",
         ]
     )
-    body = header + code + footer
+    body = header + code
     encoded_code = uri_encode_component(body)
     return f"https://marimo.app/?code={encoded_code}&embed=true&mode={mode}"
 
