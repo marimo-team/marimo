@@ -139,7 +139,10 @@ Optionally pass CLI args to the notebook:
     default=False,
     show_default=True,
     type=bool,
-    help="Run the command in an isolated virtual environment using `uv run --isolated`. Requires `uv`.",
+    help=(
+        "Run the command in an isolated virtual environment using "
+        "`uv run --isolated`. Requires `uv`."
+    ),
 )
 @click.argument("name", required=True, callback=validators.is_file_path)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
