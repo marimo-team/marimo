@@ -639,6 +639,7 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "pyutilib": "PyUtilib",
         "pyximport": "Cython",
         "qs": "qserve",
+        "quaternion": "numpy-quaternion",
         "quickapi": "django-quickapi",
         "quickunit": "nose-quickunit",
         "radical": "radical.utils",
