@@ -106,8 +106,9 @@ def _pyproject_toml_to_requirements_txt(
 
 
 def get_dependencies_from_filename(name: str) -> List[str]:
-    if not name or not os.path.exists(name):
+    if not name:
         return []
+
     try:
         contents, _ = FileContentReader().read_file(name)
         return _get_dependencies(contents) or []
@@ -185,7 +186,8 @@ def prompt_run_in_sandbox(name: str | None) -> bool:
             "This notebook has inlined package dependencies.\n"
             + green(
                 "Run in a sandboxed venv containing this notebook's "
-                "dependencies?"
+                "dependencies?",
+                bold=True,
             ),
             default=True,
         )
