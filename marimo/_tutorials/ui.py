@@ -2,12 +2,12 @@
 
 import marimo
 
-__generated_with = "0.9.14"
+__generated_with = "0.10.6"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         # UI Elements
@@ -21,13 +21,13 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""## marimo.ui""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     slider = mo.ui.slider(start=1, stop=10, step=1)
     slider
 
@@ -42,13 +42,13 @@ def __(mo):
 
 
 @app.cell
-def __(mo, slider):
+def _(mo, slider):
     mo.md(f"and here's its value: **{slider.value}**.")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ### How interactions run cells
@@ -66,7 +66,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo, slider):
+def _(mo, slider):
     mo.accordion(
         {
             "Tip: assign UI elements to global variables": (
@@ -95,135 +95,146 @@ def __(mo, slider):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""### Simple elements""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""marimo has a [large library of simple UI elements](https://docs.marimo.io/api/inputs/index.html). Here are a just few examples:""")
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        """
+        See our [examples folder](https://github.com/marimo-team/marimo/tree/main/examples/ui) on GitHub for bite-sized notebooks showcasing all our UI elements. For
+        a more detailed reference, see our [API docs](https://docs.marimo.io/api/inputs/).
+        """
+    ).callout()
+    return
+
+
 @app.cell
-def __(mo):
+def _(mo):
     number = mo.ui.number(start=1, stop=10, step=1)
     number
     return (number,)
 
 
 @app.cell
-def __(number):
+def _(number):
     number.value
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     checkbox = mo.ui.checkbox(label="checkbox")
     checkbox
     return (checkbox,)
 
 
 @app.cell
-def __(checkbox):
+def _(checkbox):
     checkbox.value
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     text = mo.ui.text(placeholder="type some text ...")
     text
     return (text,)
 
 
 @app.cell
-def __(text):
+def _(text):
     text.value
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     text_area = mo.ui.text_area(placeholder="type some text ...")
     text_area
     return (text_area,)
 
 
 @app.cell
-def __(text_area):
+def _(text_area):
     text_area.value
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     dropdown = mo.ui.dropdown(["a", "b", "c"])
     dropdown
     return (dropdown,)
 
 
 @app.cell
-def __(dropdown):
+def _(dropdown):
     dropdown.value
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     run_button = mo.ui.run_button(label="click me")
     run_button
     return (run_button,)
 
 
 @app.cell
-def __(run_button):
+def _(run_button):
     "Run button was clicked!" if run_button.value else "Click the run button!"
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     file_upload = mo.ui.file(kind="area")
     file_upload
     return (file_upload,)
 
 
 @app.cell
-def __(file_upload):
+def _(file_upload):
     file_upload.value
     return
 
 
 @app.cell
-def __(basic_ui_elements, mo):
+def _(basic_ui_elements, mo):
     mo.md(f"To see more examples, use this dropdown: {basic_ui_elements}")
     return
 
 
 @app.cell
-def __(basic_ui_elements, construct_element, show_element):
+def _(basic_ui_elements, construct_element, show_element):
     selected_element = construct_element(basic_ui_elements.value)
     show_element(selected_element)
     return (selected_element,)
 
 
 @app.cell
-def __(selected_element, value):
+def _(selected_element, value):
     value(selected_element)
     return
 
 
 @app.cell
-def __(basic_ui_elements, documentation):
+def _(basic_ui_elements, documentation):
     documentation(basic_ui_elements.value)
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ### Composite elements
@@ -240,7 +251,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         This first example shows how to create an array of UI elements using `mo.ui.array`.
@@ -252,7 +263,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     array = mo.ui.array(
         [mo.ui.text(), mo.ui.slider(start=1, stop=10), mo.ui.date()]
     )
@@ -261,19 +272,19 @@ def __(mo):
 
 
 @app.cell
-def __(array):
+def _(array):
     array.value
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""marimo also comes with `mo.ui.dictionary`, which is analogous to `mo.ui.array`""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     dictionary = mo.ui.dictionary(
         {
             "text": mo.ui.text(),
@@ -286,13 +297,13 @@ def __(mo):
 
 
 @app.cell
-def __(dictionary):
+def _(dictionary):
     dictionary.value
     return
 
 
 @app.cell(hide_code=True)
-def __(composite_elements, mo):
+def _(composite_elements, mo):
     mo.md(
         f"To see additional composite elements, use this dropdown: {composite_elements}"
     )
@@ -300,26 +311,26 @@ def __(composite_elements, mo):
 
 
 @app.cell
-def __(composite_elements, construct_element, show_element):
+def _(composite_elements, construct_element, show_element):
     composite_element = construct_element(composite_elements.value)
     show_element(composite_element)
     return (composite_element,)
 
 
 @app.cell
-def __(composite_element, value):
+def _(composite_element, value):
     value(composite_element)
     return
 
 
 @app.cell
-def __(composite_elements, documentation):
+def _(composite_elements, documentation):
     documentation(composite_elements.value)
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         ### Building custom elements
@@ -334,7 +345,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ## Appendix
@@ -347,7 +358,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     composite_elements = mo.ui.dropdown(
         options=dict(
             sorted(
@@ -365,7 +376,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     basic_ui_elements = mo.ui.dropdown(
         options=dict(
             sorted(
@@ -393,7 +404,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     def construct_element(value):
         if value == mo.ui.array:
             return mo.ui.array(
@@ -476,7 +487,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     def show_element(element):
         if element is not None:
             return mo.hstack([element], justify="center")
@@ -484,7 +495,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     def value(element):
         if element is not None:
             v = (
@@ -501,7 +512,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     def documentation(element):
         if element is not None:
             return mo.accordion(
@@ -515,7 +526,7 @@ def __(mo):
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 
