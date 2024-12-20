@@ -347,7 +347,7 @@ class persistent_cache(object):
     - `name`: the name of the cache, used to set saving path- to manually
       invalidate the cache, change the name.
     - `save_path`: the folder in which to save the cache, defaults to
-      "__marimo__/cache" in the directory of the notebook file
+      `__marimo__/cache` in the directory of the notebook file
     - `pin_modules`: if True, the cache will be invalidated if module versions
       differ between runs, defaults to False.
     """
