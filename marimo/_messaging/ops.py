@@ -32,6 +32,7 @@ from marimo._data.models import ColumnSummary, DataTable, DataTableSource
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.completion_option import CompletionOption
+from marimo._messaging.context import RUN_ID_CTX, RunId_t
 from marimo._messaging.errors import (
     Error,
     MarimoInternalError,
@@ -106,13 +107,14 @@ class Op:
 class CellOp(Op):
     """Op to transition a cell.
 
-    A CellOp's data has three optional fields:
+    A CellOp's data has some optional fields:
 
     output       - a CellOutput
     console      - a CellOutput (console msg to append), or a list of
                    CellOutputs
     status       - execution status
     stale_inputs - whether the cell has stale inputs (variables, modules, ...)
+    run_id       - the run associated with this cell.
 
     Omitting a field means that its value should be unchanged!
 
@@ -127,7 +129,24 @@ class CellOp(Op):
     console: Optional[Union[CellOutput, List[CellOutput]]] = None
     status: Optional[RuntimeStateType] = None
     stale_inputs: Optional[bool] = None
+    run_id: Optional[RunId_t] = None
     timestamp: float = field(default_factory=lambda: time.time())
+
+    def __post_init__(self) -> None:
+        try:
+            # run_id context is only set during a run
+            if self.status is not None:
+                self.run_id = RUN_ID_CTX.get()
+        except LookupError:
+            # Be specific about the exception we're catching
+            # The context variable hasn't been set yet
+            # TODO: where are these warnings coming from?
+            # good enough to silence for now?
+            LOGGER.warning("No run_id context found, setting to None")
+            self.run_id = None
+        except Exception as e:
+            LOGGER.error("Error getting run id: %s", str(e))
+            self.run_id = None
 
     @staticmethod
     def maybe_truncate_output(
