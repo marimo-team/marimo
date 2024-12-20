@@ -12,14 +12,14 @@ def _():
 
 @app.cell
 def _(mo):
-    refresh = mo.ui.refresh(default_interval=1)
-    refresh
-    return (refresh,)
+    number = mo.ui.number(start=1, stop=10)
+    number
+    return (number,)
 
 
 @app.cell
-def _(refresh):
-    print(refresh.value)
+def _(number):
+    number.value
     return
 
 

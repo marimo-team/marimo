@@ -12,14 +12,14 @@ def _():
 
 @app.cell
 def _(mo):
-    refresh = mo.ui.refresh(default_interval=1)
-    refresh
-    return (refresh,)
+    range_slider = mo.ui.range_slider(start=1, stop=10)
+    range_slider
+    return (range_slider,)
 
 
 @app.cell
-def _(refresh):
-    print(refresh.value)
+def _(range_slider):
+    range_slider.value
     return
 
 

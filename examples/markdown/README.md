@@ -1,13 +1,10 @@
-# UI 🖱️
+# Markdown
 
-These basic examples show how to use marimo's built-in UI elements.
+These basic examples show how to use write markdown in marimo.
 
 > [!TIP]
-> New to marimo? Run `marimo tutorial intro` and `marimo tutorial ui`
+> New to marimo? Run `marimo tutorial intro` and `marimo tutorial markdown`
 > at the command line first!
-
-_Looking for examples on making chatbots? Check out the [`ai/chat`](../ai/chat)
-examples folder_.
 
 ## Running examples
 

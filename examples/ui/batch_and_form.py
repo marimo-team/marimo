@@ -7,18 +7,24 @@
 
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.10.6"
 app = marimo.App()
 
 
 @app.cell
-def __(mo):
+def _():
+    import marimo as mo
+    return (mo,)
+
+
+@app.cell
+def _(mo):
     mo.md("""# Batch and Form""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         """
         Make custom UI elements using `batch()`, and turn any UI element
@@ -29,7 +35,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo, reset):
+def _(mo, reset):
     reset
 
     variables = (
@@ -54,7 +60,7 @@ def __(mo, reset):
 
 
 @app.cell
-def __(mo, reset, submitted_values, variables):
+def _(mo, reset, submitted_values, variables):
     if variables.value is not None:
         submitted_values["x"].add(variables.value["x"])
         submitted_values["y"].add(variables.value["y"])
@@ -77,7 +83,7 @@ def __(mo, reset, submitted_values, variables):
 
 
 @app.cell
-def __(reset):
+def _(reset):
     reset
 
     submitted_values = {"x": set(), "y": set()}
@@ -85,15 +91,9 @@ def __(reset):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     reset = mo.ui.button(label="reset history")
     return (reset,)
-
-
-@app.cell
-def __():
-    import marimo as mo
-    return (mo,)
 
 
 if __name__ == "__main__":

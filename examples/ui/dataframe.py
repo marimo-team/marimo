@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.12"
 # dependencies = [
-#     "polars==1.17.1",
+#     "marimo",
 #     "vega-datasets==0.9.0",
 # ]
 # ///
@@ -26,14 +26,14 @@ def _():
 
 @app.cell
 def _(data, mo):
-    explorer = mo.ui.data_explorer(data.iris())
-    explorer
-    return (explorer,)
+    dataframe_transformer = mo.ui.dataframe(data.iris())
+    dataframe_transformer
+    return (dataframe_transformer,)
 
 
 @app.cell
-def _(explorer):
-    explorer.value
+def _(dataframe_transformer):
+    dataframe_transformer.value
     return
 
 

@@ -12,14 +12,14 @@ def _():
 
 @app.cell
 def _(mo):
-    refresh = mo.ui.refresh(default_interval=1)
-    refresh
-    return (refresh,)
+    radio = mo.ui.radio(["A", "B", "C"])
+    radio
+    return (radio,)
 
 
 @app.cell
-def _(refresh):
-    print(refresh.value)
+def _(radio):
+    radio.value
     return
 
 

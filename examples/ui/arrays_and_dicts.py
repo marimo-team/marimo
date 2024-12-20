@@ -7,18 +7,25 @@
 
 import marimo
 
-__generated_with = "0.9.14"
+__generated_with = "0.10.6"
 app = marimo.App()
 
 
+@app.cell
+def _():
+    import marimo as mo
+    import random
+    return mo, random
+
+
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""# Arrays and Dictionaries""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         Use `mo.ui.array` and `mo.ui.dictionary` to create UI elements that wrap 
@@ -33,25 +40,25 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     create = mo.ui.button(label="Create new collections")
     return (create,)
 
 
 @app.cell
-def __(create):
+def _(create):
     create.center()
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""UI Elements ...""")
     return
 
 
 @app.cell
-def __(create, mo, random):
+def _(create, mo, random):
     create
 
     array = mo.ui.array(
@@ -67,19 +74,19 @@ def __(create, mo, random):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""... and their values""")
     return
 
 
 @app.cell
-def __(array, dictionary, mo):
+def _(array, dictionary, mo):
     mo.hstack([array.value, dictionary.value], justify="space-around")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         Key difference between marimo dict and standard python dict:
@@ -91,7 +98,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(create, mo):
+def _(create, mo):
     create
 
     slider = mo.ui.slider(1, 10, show_value=True)
@@ -124,7 +131,7 @@ def __(create, mo):
 
 
 @app.cell(hide_code=True)
-def __(mo, mo_d, py_d):
+def _(mo, mo_d, py_d):
     mo_d_ref = {k: mo_d[k].value for k in mo_d.value.keys()}
     py_d_ref = {k: py_d[k].value for k in py_d.keys()}
     mo.hstack(
@@ -138,16 +145,9 @@ def __(mo, mo_d, py_d):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""Notice that when you interact with the UI elements in the marimo dict, the reference of marimo dict updates automatically. However, when you interact with the elements in the python dict, you need to manually re-run the cell to see the updated values.""")
     return
-
-
-@app.cell
-def __():
-    import marimo as mo
-    import random
-    return mo, random
 
 
 if __name__ == "__main__":

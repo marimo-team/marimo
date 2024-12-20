@@ -12,14 +12,14 @@ def _():
 
 @app.cell
 def _(mo):
-    refresh = mo.ui.refresh(default_interval=1)
-    refresh
-    return (refresh,)
+    switch = mo.ui.switch()
+    switch
+    return (switch,)
 
 
 @app.cell
-def _(refresh):
-    print(refresh.value)
+def _(switch):
+    switch.value
     return
 
 

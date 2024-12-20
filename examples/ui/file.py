@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.10.6"
-app = marimo.App()
+app = marimo.App(width="medium")
 
 
 @app.cell
@@ -12,14 +12,14 @@ def _():
 
 @app.cell
 def _(mo):
-    refresh = mo.ui.refresh(default_interval=1)
-    refresh
-    return (refresh,)
+    file = mo.ui.file()
+    file
+    return (file,)
 
 
 @app.cell
-def _(refresh):
-    print(refresh.value)
+def _(file):
+    file.value
     return
 
 

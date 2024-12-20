@@ -12,14 +12,14 @@ def _():
 
 @app.cell
 def _(mo):
-    refresh = mo.ui.refresh(default_interval=1)
-    refresh
-    return (refresh,)
+    text_area = mo.ui.text_area(placeholder="type some text ...")
+    text_area
+    return (text_area,)
 
 
 @app.cell
-def _(refresh):
-    print(refresh.value)
+def _(text_area):
+    text_area.value
     return
 
 

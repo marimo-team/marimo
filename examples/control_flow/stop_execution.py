@@ -12,14 +12,16 @@ def _():
 
 @app.cell
 def _(mo):
-    refresh = mo.ui.refresh(default_interval=1)
-    refresh
-    return (refresh,)
+    button = mo.ui.run_button()
+    button
+    return (button,)
 
 
 @app.cell
-def _(refresh):
-    print(refresh.value)
+def _(button, mo):
+    mo.stop(not button.value, "Click the button to continue")
+
+    mo.md("# :tada:")
     return
 
 
