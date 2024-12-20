@@ -54,11 +54,14 @@ const DateTimePickerComponent = (props: DateTimePickerProps): JSX.Element => {
     props.setValue(isoStr);
   };
 
+  // Add null check and default to undefined when no value is provided
+  const parsedValue = props.value ? parseDateTime(props.value) : undefined;
+
   return (
     <Labeled label={props.label} fullWidth={props.fullWidth}>
       <DatePicker
         granularity="minute"
-        value={parseDateTime(props.value)}
+        value={parsedValue}
         onChange={handleInput}
         aria-label={props.label ?? "date time picker"}
         minValue={parseDateTime(props.start)}

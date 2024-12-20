@@ -1,3 +1,4 @@
+/* Copyright 2024 Marimo. All rights reserved. */
 import { render } from "@testing-library/react";
 import { DataTable } from "../data-table";
 import { describe, expect, it } from "vitest";
