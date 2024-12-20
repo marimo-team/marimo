@@ -313,7 +313,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
                 pagination = False
 
         # Search first page
-        search_result = self.search(
+        search_result = self._search(
             SearchTableArgs(
                 page_size=page_size,
                 page_number=0,
@@ -403,19 +403,19 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
             on_change=on_change,
             functions=(
                 Function(
-                    name=self.download_as.__name__,
+                    name="download_as",
                     arg_cls=DownloadAsArgs,
-                    function=self.download_as,
+                    function=self._download_as,
                 ),
                 Function(
-                    name=self.get_column_summaries.__name__,
+                    name="get_column_summaries",
                     arg_cls=EmptyArgs,
-                    function=self.get_column_summaries,
+                    function=self._get_column_summaries,
                 ),
                 Function(
-                    name=self.search.__name__,
+                    name="search",
                     arg_cls=SearchTableArgs,
-                    function=self.search,
+                    function=self._search,
                 ),
             ),
         )
@@ -448,7 +448,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         self._has_any_selection = len(indices) > 0
         return unwrap_narwhals_dataframe(self._selected_manager.data)  # type: ignore[no-any-return]
 
-    def download_as(self, args: DownloadAsArgs) -> str:
+    def _download_as(self, args: DownloadAsArgs) -> str:
         """Download the table data in the specified format.
 
         Downloads selected rows if there are any, otherwise downloads all rows.
@@ -478,7 +478,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         else:
             raise ValueError("format must be one of 'csv' or 'json'.")
 
-    def get_column_summaries(self, args: EmptyArgs) -> ColumnSummaries:
+    def _get_column_summaries(self, args: EmptyArgs) -> ColumnSummaries:
         """Get statistical summaries for each column in the table.
 
         Calculates summaries like null counts, min/max values, unique counts, etc.
@@ -584,7 +584,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
 
         return result
 
-    def search(self, args: SearchTableArgs) -> SearchTableResponse:
+    def _search(self, args: SearchTableArgs) -> SearchTableResponse:
         """Search and filter the table data.
 
         Applies filters, search query, and sorting to the table data. Returns
