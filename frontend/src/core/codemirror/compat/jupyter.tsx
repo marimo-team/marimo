@@ -120,7 +120,7 @@ export function jupyterHelpExtension(): Extension {
       ),
     },
     {
-      match: "!ls",
+      match: "!ls ",
       onMatch: () => {
         // noop
       },
@@ -129,7 +129,7 @@ export function jupyterHelpExtension(): Extension {
         <>
           Shell commands are not directly supported.
           <br />
-          Use <code>sys.subprocess(['ls'])</code> instead.
+          Use <code>import subprocess; subprocess.run(['ls'])</code> instead.
         </>
       ),
     },
