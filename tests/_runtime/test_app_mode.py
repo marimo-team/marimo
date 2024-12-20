@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from unittest.mock import Mock, patch
 
 from marimo._runtime.context import (
@@ -43,10 +44,21 @@ def test_get_mode_script():
         assert get_mode() == "script"
 
 
+def test_get_mode_test():
+    """Test get_mode() returns 'test' when testing with no context"""
+    with patch(
+        "marimo._runtime.context.utils.get_context",
+        side_effect=ContextNotInitializedError,
+    ):
+        assert get_mode() == "test"
+
+
 def test_get_mode_no_context():
-    """Test get_mode() returns None when context is not initialized"""
+    """Test get_mode() returns 'test' when testing with no context"""
+    previous = os.environ.pop("PYTEST_CURRENT_TEST", None)
     with patch(
         "marimo._runtime.context.utils.get_context",
         side_effect=ContextNotInitializedError,
     ):
         assert get_mode() is None
+    os.environ["PYTEST_CURRENT_TEST"] = previous
