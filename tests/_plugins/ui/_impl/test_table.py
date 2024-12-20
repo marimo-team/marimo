@@ -227,7 +227,7 @@ def test_value_with_sorting_then_selection() -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
     table = ui.table(data)
 
-    table.search(
+    table._search(
         SearchTableArgs(
             sort=SortArgs("value", descending=True),
             page_size=10,
@@ -238,7 +238,7 @@ def test_value_with_sorting_then_selection() -> None:
         {"value": "elderberry"},
     ]
 
-    table.search(
+    table._search(
         SearchTableArgs(
             sort=SortArgs(
                 "value",
@@ -263,7 +263,7 @@ def test_value_with_sorting_then_selection_dfs(df: Any) -> None:
     import narwhals as nw
 
     table = ui.table(df)
-    table.search(
+    table._search(
         SearchTableArgs(
             sort=SortArgs("a", descending=True),
             page_size=10,
@@ -274,7 +274,7 @@ def test_value_with_sorting_then_selection_dfs(df: Any) -> None:
     assert not isinstance(value, nw.DataFrame)
     assert nw.from_native(value)["a"][0] == "z"
 
-    table.search(
+    table._search(
         SearchTableArgs(
             sort=SortArgs("a", descending=False),
             page_size=10,
@@ -290,7 +290,7 @@ def test_value_with_search_then_selection() -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
     table = ui.table(data)
 
-    table.search(
+    table._search(
         SearchTableArgs(
             query="apple",
             page_size=10,
@@ -301,7 +301,7 @@ def test_value_with_search_then_selection() -> None:
         {"value": "apple"},
     ]
 
-    table.search(
+    table._search(
         SearchTableArgs(
             query="banana",
             page_size=10,
@@ -313,7 +313,7 @@ def test_value_with_search_then_selection() -> None:
     ]
 
     # empty search
-    table.search(
+    table._search(
         SearchTableArgs(
             page_size=10,
             page_number=0,
@@ -332,7 +332,7 @@ def test_value_with_search_then_selection_dfs(df: Any) -> None:
     import narwhals as nw
 
     table = ui.table(df)
-    table.search(
+    table._search(
         SearchTableArgs(
             query="bar",
             page_size=10,
@@ -343,7 +343,7 @@ def test_value_with_search_then_selection_dfs(df: Any) -> None:
     assert not isinstance(value, nw.DataFrame)
     assert nw.from_native(value)["a"][0] == "bar"
 
-    table.search(
+    table._search(
         SearchTableArgs(
             query="foo",
             page_size=10,
@@ -355,7 +355,7 @@ def test_value_with_search_then_selection_dfs(df: Any) -> None:
     assert nw.from_native(value)["a"][0] == "foo"
 
     # empty search
-    table.search(
+    table._search(
         SearchTableArgs(
             page_size=10,
             page_number=0,
@@ -371,7 +371,7 @@ def test_search_sort_nonexistent_columns() -> None:
     table = ui.table(data)
 
     # no error raised
-    table.search(
+    table._search(
         SearchTableArgs(
             sort=SortArgs("missing_column", descending=False),
             page_size=10,
@@ -399,7 +399,7 @@ def test_table_with_too_many_rows_gets_clamped() -> None:
 def test_can_get_second_page() -> None:
     data = {"a": list(range(40))}
     table = ui.table(data)
-    result = table.search(
+    result = table._search(
         SearchTableArgs(
             page_size=10,
             page_number=1,
@@ -413,7 +413,7 @@ def test_can_get_second_page() -> None:
 def test_can_get_second_page_with_search() -> None:
     data = {"a": list(range(40))}
     table = ui.table(data)
-    result = table.search(
+    result = table._search(
         SearchTableArgs(
             query="2",
             page_size=5,
@@ -433,7 +433,7 @@ def test_can_get_second_page_with_search_df(df: Any) -> None:
     import polars as pl
 
     table = ui.table(df)
-    result = table.search(
+    result = table._search(
         SearchTableArgs(
             query="2",
             page_size=5,
@@ -490,18 +490,18 @@ def test_table_with_too_many_rows_column_summaries_disabled() -> None:
     data = {"a": list(range(20))}
     table = ui.table(data, _internal_summary_row_limit=10)
 
-    summaries_disabled = table.get_column_summaries(EmptyArgs())
+    summaries_disabled = table._get_column_summaries(EmptyArgs())
     assert summaries_disabled.is_disabled is True
 
     # search results are 2 and 12
-    table.search(
+    table._search(
         SearchTableArgs(
             query="2",
             page_size=10,
             page_number=0,
         )
     )
-    summaries_enabled = table.get_column_summaries(EmptyArgs())
+    summaries_enabled = table._get_column_summaries(EmptyArgs())
     assert summaries_enabled.is_disabled is False
 
 
@@ -509,35 +509,35 @@ def test_with_too_many_rows_column_charts_disabled() -> None:
     data = {"a": list(range(20))}
     table = ui.table(data, _internal_column_charts_row_limit=10)
 
-    charts_disabled = table.get_column_summaries(EmptyArgs())
+    charts_disabled = table._get_column_summaries(EmptyArgs())
     assert charts_disabled.is_disabled is False
     assert charts_disabled.data is None
 
     # search results are 2 and 12
-    table.search(
+    table._search(
         SearchTableArgs(
             query="2",
             page_size=10,
             page_number=0,
         )
     )
-    charts_enabled = table.get_column_summaries(EmptyArgs())
+    charts_enabled = table._get_column_summaries(EmptyArgs())
     assert charts_enabled.is_disabled is False
 
 
-def test_get_column_summaries_after_search() -> None:
+def test__get_column_summaries_after_search() -> None:
     data = {"a": list(range(20))}
     table = ui.table(data)
 
     # search results are 2 and 12
-    table.search(
+    table._search(
         SearchTableArgs(
             query="2",
             page_size=10,
             page_number=0,
         )
     )
-    summaries = table.get_column_summaries(EmptyArgs())
+    summaries = table._get_column_summaries(EmptyArgs())
     assert summaries.is_disabled is False
     assert summaries.data == [{"a": 2}, {"a": 12}]
     # We don't have column summaries for non-dataframe data
@@ -548,11 +548,11 @@ def test_get_column_summaries_after_search() -> None:
 @pytest.mark.skipif(
     not DependencyManager.pandas.has(), reason="Pandas not installed"
 )
-def test_get_column_summaries_after_search_df() -> None:
+def test__get_column_summaries_after_search_df() -> None:
     import pandas as pd
 
     table = ui.table(pd.DataFrame({"a": list(range(20))}))
-    summaries = table.get_column_summaries(EmptyArgs())
+    summaries = table._get_column_summaries(EmptyArgs())
     assert summaries.is_disabled is False
     assert isinstance(summaries.data, str)
     assert summaries.data.startswith("data:text/csv;base64,")
@@ -560,14 +560,14 @@ def test_get_column_summaries_after_search_df() -> None:
     assert summaries.summaries[0].max == 19
 
     # search results are 2 and 12
-    table.search(
+    table._search(
         SearchTableArgs(
             query="2",
             page_size=10,
             page_number=0,
         )
     )
-    summaries = table.get_column_summaries(EmptyArgs())
+    summaries = table._get_column_summaries(EmptyArgs())
     assert summaries.is_disabled is False
     assert isinstance(summaries.data, str)
     assert summaries.data.startswith("data:text/csv;base64,")
@@ -582,35 +582,35 @@ def test_show_column_summaries_modes():
 
     # Test stats-only mode
     table_stats = ui.table(data, show_column_summaries="stats")
-    summaries_stats = table_stats.get_column_summaries(EmptyArgs())
+    summaries_stats = table_stats._get_column_summaries(EmptyArgs())
     assert summaries_stats.is_disabled is False
     assert summaries_stats.data is None
     assert len(summaries_stats.summaries) > 0
 
     # Test chart-only mode
     table_chart = ui.table(data, show_column_summaries="chart")
-    summaries_chart = table_chart.get_column_summaries(EmptyArgs())
+    summaries_chart = table_chart._get_column_summaries(EmptyArgs())
     assert summaries_chart.is_disabled is False
     assert summaries_chart.data is not None
     assert len(summaries_chart.summaries) == 0
 
     # Test default mode (both stats and chart)
     table_both = ui.table(data, show_column_summaries=True)
-    summaries_both = table_both.get_column_summaries(EmptyArgs())
+    summaries_both = table_both._get_column_summaries(EmptyArgs())
     assert summaries_both.is_disabled is False
     assert summaries_both.data is not None
     assert len(summaries_both.summaries) > 0
 
     # Test disabled mode
     table_disabled = ui.table(data, show_column_summaries=False)
-    summaries_disabled = table_disabled.get_column_summaries(EmptyArgs())
+    summaries_disabled = table_disabled._get_column_summaries(EmptyArgs())
     assert summaries_disabled.is_disabled is False
     assert summaries_disabled.data is None
     assert len(summaries_disabled.summaries) == 0
 
     # Test Default behavior
     table_default = ui.table(data)
-    summaries_default = table_default.get_column_summaries(EmptyArgs())
+    summaries_default = table_default._get_column_summaries(EmptyArgs())
     assert summaries_default.is_disabled is False
     assert summaries_default.data is not None
     assert len(summaries_default.summaries) > 0
@@ -638,7 +638,7 @@ def test_table_with_filtered_columns_pandas() -> None:
     import pandas as pd
 
     table = ui.table(pd.DataFrame({"a": [1, 2, 3], "b": ["abc", "def", None]}))
-    result = table.search(
+    result = table._search(
         SearchTableArgs(
             filters=[Condition(column_id="b", operator="contains", value="f")],
             page_size=10,
@@ -655,7 +655,7 @@ def test_table_with_filtered_columns_polars() -> None:
     import polars as pl
 
     table = ui.table(pl.DataFrame({"a": [1, 2, 3], "b": ["abc", "def", None]}))
-    result = table.search(
+    result = table._search(
         SearchTableArgs(
             filters=[Condition(column_id="b", operator="contains", value="a")],
             page_size=10,
@@ -702,7 +702,7 @@ def test_show_column_summaries_disabled():
         {"a": [1, 2, 3], "b": [4, 5, 6]}, show_column_summaries=False
     )
 
-    summaries = table.get_column_summaries(EmptyArgs())
+    summaries = table._get_column_summaries(EmptyArgs())
     assert summaries.is_disabled is False
     assert summaries.data is None
     assert len(summaries.summaries) == 0
@@ -798,7 +798,7 @@ def test_search_clamping_columns():
 
     # Perform a search
     search_args = SearchTableArgs(page_size=10, page_number=0, query="1")
-    response = table.search(search_args)
+    response = table._search(search_args)
 
     # Check that the search result is clamped
     assert len(response.data[0].keys()) == 20
@@ -815,7 +815,7 @@ def test_search_no_clamping_columns():
 
     # Perform a search
     search_args = SearchTableArgs(page_size=10, page_number=0, query="1")
-    response = table.search(search_args)
+    response = table._search(search_args)
 
     # Check that the search result is not clamped
     assert len(response.data[0].keys()) == 100

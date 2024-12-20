@@ -81,9 +81,9 @@ class lazy(UIElement[bool, bool]):
             on_change=None,
             functions=(
                 Function(
-                    name=self.load.__name__,
+                    name="load",
                     arg_cls=EmptyArgs,
-                    function=self.load,
+                    function=self._load,
                 ),
             ),
         )
@@ -91,7 +91,7 @@ class lazy(UIElement[bool, bool]):
     def _convert_value(self, value: bool) -> bool:
         return value
 
-    async def load(self, _args: EmptyArgs) -> LoadResponse:
+    async def _load(self, _args: EmptyArgs) -> LoadResponse:
         if callable(self._element) and not isinstance(
             self._element, UIElement
         ):

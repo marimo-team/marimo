@@ -77,15 +77,15 @@ class TestDataframes:
                 ["B", "string", "string"],
             ]
         )
-        assert subject.get_column_values(
+        assert subject._get_column_values(
             GetColumnValuesArgs(column="A")
         ) == GetColumnValuesResponse(values=[1, 2, 3], too_many_values=False)
-        assert subject.get_column_values(
+        assert subject._get_column_values(
             GetColumnValuesArgs(column="B")
         ) == GetColumnValuesResponse(values=["a"], too_many_values=False)
 
         with pytest.raises(ColumnNotFound):
-            subject.get_column_values(GetColumnValuesArgs(column="idk"))
+            subject._get_column_values(GetColumnValuesArgs(column="idk"))
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -109,14 +109,14 @@ class TestDataframes:
             [2, "string", "object"],
         ]
 
-        assert subject.get_column_values(
+        assert subject._get_column_values(
             GetColumnValuesArgs(column=1)
         ) == GetColumnValuesResponse(values=[1, 2, 3], too_many_values=False)
 
         with pytest.raises(ColumnNotFound):
-            subject.get_column_values(GetColumnValuesArgs(column="idk"))
+            subject._get_column_values(GetColumnValuesArgs(column="idk"))
         with pytest.raises(ColumnNotFound):
-            subject.get_column_values(GetColumnValuesArgs(column="1"))
+            subject._get_column_values(GetColumnValuesArgs(column="1"))
 
     @staticmethod
     @pytest.mark.skipif(
@@ -134,12 +134,12 @@ class TestDataframes:
     ) -> None:
         # size 1
         subject = ui.dataframe(df, page_size=1)
-        result = subject.get_dataframe(EmptyArgs())
+        result = subject._get_dataframe(EmptyArgs())
         assert result.total_rows == 3
         assert result.url == "data:text/csv;base64,MSwyCjEsYQo="
 
         # search
-        search_result = subject.search(
+        search_result = subject._search(
             SearchTableArgs(page_size=1, page_number=0)
         )
         assert search_result.total_rows == 3
@@ -147,12 +147,12 @@ class TestDataframes:
 
         # size 2
         subject = ui.dataframe(df, page_size=2)
-        result = subject.get_dataframe(EmptyArgs())
+        result = subject._get_dataframe(EmptyArgs())
         assert result.total_rows == 3
         assert result.url == "data:text/csv;base64,MSwyCjEsYQoyLGEK"
 
         # search
-        search_result = subject.search(
+        search_result = subject._search(
             SearchTableArgs(page_size=2, page_number=0)
         )
         assert search_result.total_rows == 3
@@ -183,16 +183,16 @@ class TestDataframes:
         assert subject.value is df
         assert len(subject._component_args["columns"]) == 2
 
-        result = subject.get_dataframe(EmptyArgs())
+        result = subject._get_dataframe(EmptyArgs())
         assert result.total_rows == df_length(df)
 
-        # Test get_column_values for empty and large DataFrames
+        # Test _get_column_values for empty and large DataFrames
         if df_length(df) == 0:
-            assert subject.get_column_values(
+            assert subject._get_column_values(
                 GetColumnValuesArgs(column="A")
             ) == GetColumnValuesResponse(values=[], too_many_values=False)
         elif df_length(df) >= 1000:
-            response = subject.get_column_values(
+            response = subject._get_column_values(
                 GetColumnValuesArgs(column="A")
             )
             assert response.too_many_values is True
@@ -208,10 +208,10 @@ class TestDataframes:
     def test_dataframe_with_custom_page_size(df: Any) -> None:
         subject = ui.dataframe(df, page_size=10)
 
-        result = subject.get_dataframe(EmptyArgs())
+        result = subject._get_dataframe(EmptyArgs())
         assert result.total_rows == 100
 
-        search_result = subject.search(
+        search_result = subject._search(
             SearchTableArgs(page_size=10, page_number=0)
         )
         assert search_result.total_rows == 100
@@ -228,10 +228,10 @@ class TestDataframes:
         assert len(subject._component_args["columns"]) == 3
 
         # Test that we can get column values for non-string column names
-        assert subject.get_column_values(
+        assert subject._get_column_values(
             GetColumnValuesArgs(column=0)
         ) == GetColumnValuesResponse(values=[1, 2, 3], too_many_values=False)
-        assert subject.get_column_values(
+        assert subject._get_column_values(
             GetColumnValuesArgs(column=1.5)
         ) == GetColumnValuesResponse(
             values=["a", "b", "c"], too_many_values=False
@@ -248,10 +248,10 @@ class TestDataframes:
     def test_dataframe_with_limit(df: Any) -> None:
         subject = ui.dataframe(df, limit=100)
 
-        result = subject.get_dataframe(EmptyArgs())
+        result = subject._get_dataframe(EmptyArgs())
         assert result.total_rows == 100
 
-        search_result = subject.search(
+        search_result = subject._search(
             SearchTableArgs(page_size=10, page_number=0)
         )
         assert search_result.total_rows == 100
@@ -269,7 +269,7 @@ class TestDataframes:
 
         # Test ColumnNotFound error
         with pytest.raises(ColumnNotFound):
-            subject.get_column_values(GetColumnValuesArgs(column="C"))
+            subject._get_column_values(GetColumnValuesArgs(column="C"))
 
 
 @pytest.mark.skipif(
@@ -291,8 +291,8 @@ def test_ibis_with_polars_backend() -> None:
     memtable = ibis.memtable(data)
     dataframe = mo.ui.dataframe(memtable)
     assert dataframe is not None
-    assert dataframe.get_dataframe(EmptyArgs()).total_rows == 3
-    assert dataframe.get_dataframe(EmptyArgs()).sql_code is None
+    assert dataframe._get_dataframe(EmptyArgs()).total_rows == 3
+    assert dataframe._get_dataframe(EmptyArgs()).sql_code is None
     ibis.set_backend(prev_backend)
 
 

@@ -157,19 +157,19 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
             },
             functions=(
                 Function(
-                    name=self.get_dataframe.__name__,
+                    name="get_dataframe",
                     arg_cls=EmptyArgs,
-                    function=self.get_dataframe,
+                    function=self._get_dataframe,
                 ),
                 Function(
-                    name=self.get_column_values.__name__,
+                    name="get_column_values",
                     arg_cls=GetColumnValuesArgs,
-                    function=self.get_column_values,
+                    function=self._get_column_values,
                 ),
                 Function(
-                    name=self.search.__name__,
+                    name="search",
                     arg_cls=SearchTableArgs,
-                    function=self.search,
+                    function=self._search,
                 ),
             ),
         )
@@ -180,12 +180,12 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
             for name, dtype in self._manager.get_field_types()
         ]
 
-    def get_dataframe(self, _args: EmptyArgs) -> GetDataFrameResponse:
+    def _get_dataframe(self, _args: EmptyArgs) -> GetDataFrameResponse:
         if self._error is not None:
             raise GetDataFrameError(self._error)
 
         manager = self._get_cached_table_manager(self._value, self._limit)
-        response = self.search(
+        response = self._search(
             SearchTableArgs(page_size=self._page_size, page_number=0)
         )
         return GetDataFrameResponse(
@@ -201,7 +201,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
             sql_code=self._handler.as_sql_code(manager.data),
         )
 
-    def get_column_values(
+    def _get_column_values(
         self, args: GetColumnValuesArgs
     ) -> GetColumnValuesResponse:
         """Get all the unique values in a column."""
@@ -242,7 +242,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
             self._error = error
             return self._data
 
-    def search(self, args: SearchTableArgs) -> SearchTableResponse:
+    def _search(self, args: SearchTableArgs) -> SearchTableResponse:
         offset = args.page_number * args.page_size
 
         # Apply filters, query, and functools.sort using the cached method

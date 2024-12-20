@@ -1460,15 +1460,17 @@ class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
             },
             functions=(
                 Function(
-                    name=self.list_directory.__name__,
+                    name="list_directory",
                     arg_cls=ListDirectoryArgs,
-                    function=self.list_directory,
+                    function=self._list_directory,
                 ),
             ),
             on_change=on_change,
         )
 
-    def list_directory(self, args: ListDirectoryArgs) -> ListDirectoryResponse:
+    def _list_directory(
+        self, args: ListDirectoryArgs
+    ) -> ListDirectoryResponse:
         # When navigation is restricted, the navigated-to path cannot be
         # be a parent of the initial path
         if (
