@@ -4,8 +4,8 @@ requires = ["hatchling"]
 
 [project]
 dependencies = []
-name = "docs"
-version = "0.0.1"
+name = "marimo_docs"
+version = "0.1.0"
 
 [tool.hatch.build.targets.wheel]
 include = ["blocks.py"]

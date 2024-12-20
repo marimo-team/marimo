@@ -27,6 +27,7 @@ extra_css:
 extra_javascript:
   - _static/js/analytics.js
 markdown_extensions:
+  - blocks:MarimoBlocksExtension
   - admonition
   - attr_list
   - def_list
@@ -62,7 +63,6 @@ markdown_extensions:
   - pymdownx.tasklist:
       custom_checkbox: true
   - pymdownx.tilde
-  - blocks:MarimoBlocksExtension
   - mkdocs-click
 nav:
   - Marimo: index.md
