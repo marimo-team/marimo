@@ -11,9 +11,8 @@ A hodgepodge of examples!
 The requirements of each notebook are serialized in them as a top-level
 comment. Here are the steps to open an example notebook:
 
-1. [Install marimo](https://docs.marimo.io/getting_started/index.html#installation)
-2. [Install `uv`](https://github.com/astral-sh/uv/?tab=readme-ov-file#installation)
-3. Open an example with `marimo edit --sandbox <notebook.py>`.
+1. [Install `uv`](https://github.com/astral-sh/uv/?tab=readme-ov-file#installation)
+2. Open an example with `uvx marimo edit --sandbox <notebook.py>`.
 
 > [!TIP]
 > The [`--sandbox` flag](https://docs.marimo.io/guides/editor_features/package_management.html) opens the notebook in an isolated virtual environment,
