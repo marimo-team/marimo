@@ -9,10 +9,12 @@ app = marimo.App()
 
 @app.cell
 def imports():
-    # These have corresponding fixtures in conftest.py
-    import marimo as mo_lib
+    import marimo as mo
 
-    return mo_lib
+    # Suffixed with _fixture should have corresponding definitions in conftest.py
+    mo_fixture = None
+
+    return mo, mo_fixture
 
 
 @app.cell
@@ -42,8 +44,13 @@ def test_cell_fails_correctly():
 
 
 @app.cell
-def test_cell_fixtures_work(mo_lib):
-    assert mo_lib.app_meta().mode == "test"
+def test_cell_deps_work(mo):
+    assert mo.app_meta().mode == "test"
+
+
+@app.cell
+def test_cell_fixtures_work(mo_fixture):
+    assert mo_fixture.app_meta().mode == "test"
 
 
 @pytest.mark.xfail(
@@ -53,7 +60,7 @@ def test_cell_fixtures_work(mo_lib):
 )
 @app.cell
 def test_cell_missing_refs_fail():
-    assert mo_lib.app_meta().mode == "test"  # noqa: F821
+    assert mo.app_meta().mode == "test"  # noqa: F821
 
 
 @pytest.mark.xfail(
@@ -62,5 +69,5 @@ def test_cell_missing_refs_fail():
     strict=True,
 )
 @app.cell
-def test_cell_extra_refs_fail(mo_lib):  # noqa: ARG001
+def test_cell_extra_refs_fail(mo):  # noqa: ARG001
     assert True

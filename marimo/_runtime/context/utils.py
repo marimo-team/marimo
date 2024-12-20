@@ -33,9 +33,6 @@ def get_mode() -> Optional[RunMode]:
         Optional[Literal["run", "edit", "script", "test"]]: The current mode,
         or None if marimo has no context initialized.
     """
-    if "PYTEST_CURRENT_TEST" in os.environ:
-        return "test"
-
     try:
         from marimo._runtime.context.kernel_context import KernelRuntimeContext
         from marimo._runtime.context.script_context import ScriptRuntimeContext
@@ -53,4 +50,10 @@ def get_mode() -> Optional[RunMode]:
             return "script"
     except ContextNotInitializedError:
         pass
+
+    # This is a fallback, it's possible to be in pytest mode and have a context,
+    # as in native marimo tests.
+    if "PYTEST_CURRENT_TEST" in os.environ:
+        return "test"
+
     return None

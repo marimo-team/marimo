@@ -499,7 +499,7 @@ def exec_req() -> ExecReqProvider:
 
 # Library fixtures for direct marimo integration with pytest.
 @pytest.fixture
-def mo_lib() -> ModuleType:
+def mo_fixture() -> ModuleType:
     import marimo as mo
 
     return mo

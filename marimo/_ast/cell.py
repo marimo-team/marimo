@@ -4,6 +4,7 @@ from __future__ import annotations
 import ast
 import dataclasses
 import inspect
+import os
 from collections.abc import Awaitable
 from typing import TYPE_CHECKING, Any, Literal, Mapping, Optional
 
@@ -350,6 +351,9 @@ class Cell:
     # App to which this cell belongs
     _app: InternalApp | None = None
 
+    # Number of reserved arguments for pytest
+    _pytest_reserved: int = 0
+
     @property
     def name(self) -> str:
         return self._name
@@ -545,8 +549,11 @@ class Cell:
 
         call_args = {name: arg for name, arg in zip(arg_names, args)}
         call_args.update(kwargs)
-        call_argc = len(call_args)
-        if argc == call_argc and all(name in call_args for name in arg_names):
+        call_argc = len(call_args) + self._pytest_reserved
+        is_pytest = "PYTEST_CURRENT_TEST" in os.environ
+        if argc == call_argc and (
+            is_pytest or all(name in call_args for name in arg_names)
+        ):
             ret = self.run(**call_args)
             if isinstance(ret, Awaitable):
 
@@ -559,14 +566,21 @@ class Cell:
                 output, _ = ret
             return output
 
-        if self._is_coroutine:
-            call_str = f"`outputs, defs = await {self.name}.run()`"
+        if is_pytest:
+            call_str = (
+                "A mismatch in arguments, likely means you should "
+                "resave the notebook in the marimo editor."
+            )
         else:
-            call_str = f"`outputs, defs = {self.name}.run()`"
+            await_str = "await " if self._is_coroutine else ""
+            call_str = (
+                "Consider calling with `outputs, defs = "
+                f"{await_str}{self.name}.run()`"
+            )
 
         raise TypeError(
             f"{self.name}() takes {argc} positional arguments but "
-            f"{call_argc} were given. Consider calling with {call_str}"
+            f"{call_argc} were given. {call_str}"
         )
 
 
