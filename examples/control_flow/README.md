@@ -1,9 +1,9 @@
-# UI 🖱️
+# Control Flow
 
-These basic examples show how to use marimo's built-in UI elements.
+These basic examples show how to control execution of cells.
 
 > [!TIP]
-> New to marimo? Run `marimo tutorial intro` and `marimo tutorial ui`
+> New to marimo? Run `marimo tutorial intro` and `marimo tutorial dataflow`
 > at the command line first!
 
 _Looking for examples on making chatbots? Check out the [`ai/chat`](../ai/chat)
