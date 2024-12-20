@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 import re
 from textwrap import dedent
 
