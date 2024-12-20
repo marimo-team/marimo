@@ -513,7 +513,7 @@ def pytest_make_collect_report(collector):
     # for the test_pytest specific file here.
     if "test_pytest" in str(collector.path):
         collected = {fn.name: fn for fn in collector.collect()}
-        from tests._runtime.test_pytest import app
+        from tests._ast.test_pytest import app
 
         invalid = []
         for name in app._cell_manager.names():
