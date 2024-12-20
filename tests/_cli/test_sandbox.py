@@ -37,6 +37,14 @@ app = marimo.App(width="medium")
     ]
 
 
+def test_get_dependencies_github():
+    url = "https://github.com/marimo-team/marimo/blob/a1e1be3190023a86650904249f911b2e6ffb8fac/examples/third_party/leafmap/leafmap_example.py"
+    assert get_dependencies_from_filename(url) == [
+        "leafmap==0.41.0",
+        "marimo",
+    ]
+
+
 def test_no_dependencies():
     SCRIPT = """
 import marimo
