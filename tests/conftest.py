@@ -8,7 +8,7 @@ import re
 import sys
 import textwrap
 from tempfile import TemporaryDirectory
-from typing import Any, Generator
+from typing import Any, Generator, Module
 
 import pytest
 from _pytest import runner
@@ -494,7 +494,15 @@ def exec_req() -> ExecReqProvider:
     return ExecReqProvider()
 
 
-# # A pytest hook to fail when raw marimo cells are not collected.
+# Library fixtures for direct marimo integration with pytest.
+@pytest.fixture
+def mo_lib() -> Module:
+    import marimo as mo
+
+    return mo
+
+
+# A pytest hook to fail when raw marimo cells are not collected.
 @pytest.hookimpl
 def pytest_make_collect_report(collector):
     report = runner.pytest_make_collect_report(collector)

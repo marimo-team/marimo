@@ -4,16 +4,18 @@ from __future__ import annotations
 import ast
 import dataclasses
 import inspect
+from collections.abc import Awaitable
 from typing import TYPE_CHECKING, Any, Literal, Mapping, Optional
 
 from marimo._ast.sql_visitor import SQLVisitor
 from marimo._ast.visitor import ImportData, Language, Name, VariableData
+from marimo._runtime.exceptions import MarimoRuntimeException
 from marimo._utils.deep_merge import deep_merge
 
 CellId_t = str
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Iterable
+    from collections.abc import Iterable
     from types import CodeType
 
     from marimo._ast.app import InternalApp
@@ -525,22 +527,46 @@ class Cell:
                 from the cell's defined names to their values.
         """
         assert self._app is not None
-        if self._is_coroutine:
-            return self._app.run_cell_async(cell=self, kwargs=refs)
-        else:
-            return self._app.run_cell_sync(cell=self, kwargs=refs)
 
-    def __call__(self, *args: Any, **kwargs: Any) -> None:
-        del args
-        del kwargs
+        try:
+            if self._is_coroutine:
+                return self._app.run_cell_async(cell=self, kwargs=refs)
+            else:
+                return self._app.run_cell_sync(cell=self, kwargs=refs)
+        except MarimoRuntimeException as e:
+            raise e.__cause__ from None  # type: ignore
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        # TODO: Expand for top level modules when/ if the time comes.
+        arg_names = sorted(
+            self._cell.refs - set(globals()["__builtins__"].keys())
+        )
+        argc = len(arg_names)
+
+        call_args = {name: arg for name, arg in zip(arg_names, args)}
+        call_args.update(kwargs)
+        call_argc = len(call_args)
+        if argc == call_argc and all(name in call_args for name in arg_names):
+            ret = self.run(**call_args)
+            if isinstance(ret, Awaitable):
+
+                async def await_and_return() -> Any:
+                    output, _ = await ret
+                    return output
+
+                return await_and_return()
+            else:
+                output, _ = ret
+            return output
+
         if self._is_coroutine:
             call_str = f"`outputs, defs = await {self.name}.run()`"
         else:
             call_str = f"`outputs, defs = {self.name}.run()`"
 
-        raise RuntimeError(
-            f"Calling marimo cells using `{self.name}()` is not supported. "
-            f"Use {call_str} instead. "
+        raise TypeError(
+            f"{self.name}() takes {argc} positional arguments but "
+            f"{call_argc} were given. Consider calling with {call_str}"
         )
 
 
