@@ -120,7 +120,7 @@ export function jupyterHelpExtension(): Extension {
       ),
     },
     {
-      match: "!ls ",
+      match: "!ls",
       onMatch: () => {
         // noop
       },
