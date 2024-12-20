@@ -1,7 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import json
+import sys
 from textwrap import dedent
 from typing import TYPE_CHECKING, List, Optional, Union, cast
 
@@ -17,6 +19,9 @@ from marimo._server.export import run_app_until_completion
 from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter
 from marimo._utils.marimo_path import MarimoPath
+
+if sys.platform == "win32":  # handling for windows
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 if TYPE_CHECKING:
     from marimo._server.session.session_view import SessionView
