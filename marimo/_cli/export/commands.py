@@ -393,30 +393,32 @@ def html_wasm(
     show_code: bool,
 ) -> None:
     """Export a notebook as a WASM-powered standalone HTML file."""
+    out_dir = output
+    filename = "index.html"
+    ignore_index_html = False
+    # If ends with .html, get the directory
+    if output.endswith(".html"):
+        out_dir = os.path.dirname(output)
+        filename = os.path.basename(output)
+        ignore_index_html = True
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
         return export_as_wasm(file_path, mode, show_code=show_code)
 
-    # Validate output is not a file
-    if os.path.isfile(output):
-        raise click.UsageError(
-            f"Output {output} is a file, but must be a directory."
-        )
-
     # Export assets first
-    Exporter().export_assets(output)
+    Exporter().export_assets(out_dir, ignore_index_html=ignore_index_html)
     echo(
-        f"Assets copied to {green(output)}. These assets are required for the "
+        f"Assets copied to {green(out_dir)}. These assets are required for the "
         "notebook to run in the browser."
     )
 
     echo(
         "To run the exported notebook, use:\n"
-        f"  python -m http.server --directory {output}\n"
+        f"  python -m http.server --directory {out_dir}\n"
         "Then open the URL that is printed to your terminal."
     )
 
-    outfile = os.path.join(output, "index.html")
+    outfile = os.path.join(out_dir, filename)
     return watch_and_export(MarimoPath(name), outfile, False, export_callback)
 
 
