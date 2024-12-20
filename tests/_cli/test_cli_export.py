@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import json
 import subprocess
 import sys
 from os import path
@@ -19,6 +20,7 @@ from tests.mocks import snapshotter
 if TYPE_CHECKING:
     import pathlib
 
+HAS_UV = DependencyManager.which("uv")
 snapshot = snapshotter(__file__)
 
 
@@ -247,6 +249,30 @@ class TestExportHTML:
                     in line
                 )
                 break
+
+    @staticmethod
+    @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+    def test_cli_export_html_sandbox(temp_marimo_file: str) -> None:
+        p = subprocess.run(
+            [
+                "marimo",
+                "export",
+                "html",
+                temp_marimo_file,
+                "--sandbox",
+            ],
+            capture_output=True,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+        output = p.stdout.decode()
+        # Check for sandbox message
+        assert "Running in a sandbox" in output
+        assert "uv run --isolated" in output
+        html = normalize_index_html(output)
+        # Remove folder path
+        dirname = path.dirname(temp_marimo_file)
+        html = html.replace(dirname, "path")
+        assert '<marimo-code hidden=""></marimo-code>' not in html
 
 
 class TestExportHtmlSmokeTests:
@@ -739,6 +765,56 @@ class TestExportIpynb:
         output = p.stdout.decode()
         output = _delete_lines_with_files(output.replace(__version__, "0.0.0"))
         snapshot("ipynb_with_errors.txt", output)
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_UV or not DependencyManager.nbformat.has(),
+        reason="This test requires both uv and nbformat.",
+    )
+    def test_cli_export_ipynb_sandbox(temp_marimo_file: str) -> None:
+        p = subprocess.run(
+            [
+                "marimo",
+                "export",
+                "ipynb",
+                temp_marimo_file,
+                "--sandbox",
+                "--include-outputs",
+            ],
+            capture_output=True,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+        output = p.stdout.decode()
+        # Check for sandbox message
+        assert "Running in a sandbox" in output
+        assert "uv run --isolated" in output
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_UV or not DependencyManager.nbformat.has(),
+        reason="This test requires both uv and nbformat.",
+    )
+    def test_cli_export_ipynb_sandbox_no_outputs(
+        temp_marimo_file: str,
+    ) -> None:
+        # Should not use sandbox when not including outputs
+        p = subprocess.run(
+            [
+                "marimo",
+                "export",
+                "ipynb",
+                temp_marimo_file,
+                "--sandbox",
+                "--no-include-outputs",
+            ],
+            capture_output=True,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+        output = p.stdout.decode()
+        # Should be valid JSON since sandbox is not used
+        notebook = json.loads(output)
+        assert "cells" in notebook
+        assert "nbformat" in notebook
 
 
 def _delete_lines_with_files(output: str) -> str:

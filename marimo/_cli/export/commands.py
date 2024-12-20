@@ -132,6 +132,17 @@ Optionally pass CLI args to the notebook:
         "If not provided, the HTML will be printed to stdout."
     ),
 )
+@click.option(
+    "--sandbox",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help=(
+        "Run the command in an isolated virtual environment using "
+        "`uv run --isolated`. Requires `uv`."
+    ),
+)
 @click.argument(
     "name",
     required=True,
@@ -143,11 +154,19 @@ def html(
     include_code: bool,
     output: str,
     watch: bool,
+    sandbox: bool,
     args: tuple[str],
 ) -> None:
-    """
-    Run a notebook and export it as an HTML file.
-    """
+    """Run a notebook and export it as an HTML file."""
+    import sys
+
+    from marimo._cli.sandbox import prompt_run_in_sandbox
+
+    if sandbox or prompt_run_in_sandbox(name):
+        from marimo._cli.sandbox import run_in_sandbox
+
+        run_in_sandbox(sys.argv[1:], name)
+        return
 
     cli_args = parse_args(args)
 
@@ -309,6 +328,17 @@ Requires nbformat to be installed.
     type=bool,
     help="Run the notebook and include outputs in the exported ipynb file.",
 )
+@click.option(
+    "--sandbox",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help=(
+        "Run the command in an isolated virtual environment using "
+        "`uv run --isolated`. Requires `uv`."
+    ),
+)
 @click.argument(
     "name",
     required=True,
@@ -320,6 +350,7 @@ def ipynb(
     watch: bool,
     sort: Literal["top-down", "topological"],
     include_outputs: bool,
+    sandbox: bool,
 ) -> None:
     """
     Export a marimo notebook as a Jupyter notebook in topological order.
@@ -327,6 +358,16 @@ def ipynb(
     DependencyManager.nbformat.require(
         why="to convert marimo notebooks to ipynb"
     )
+
+    import sys
+
+    from marimo._cli.sandbox import prompt_run_in_sandbox
+
+    if include_outputs and (sandbox or prompt_run_in_sandbox(name)):
+        from marimo._cli.sandbox import run_in_sandbox
+
+        run_in_sandbox(sys.argv[1:], name)
+        return
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
         if include_outputs:
