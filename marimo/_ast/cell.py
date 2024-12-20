@@ -352,7 +352,7 @@ class Cell:
     _app: InternalApp | None = None
 
     # Number of reserved arguments for pytest
-    _pytest_reserved: int = 0
+    _pytest_reserved: set[str] = dataclasses.field(default_factory=set)
 
     @property
     def name(self) -> str:
@@ -549,11 +549,27 @@ class Cell:
 
         call_args = {name: arg for name, arg in zip(arg_names, args)}
         call_args.update(kwargs)
-        call_argc = len(call_args) + self._pytest_reserved
+        call_argc = len(call_args.keys()) + len(self._pytest_reserved)
+
         is_pytest = "PYTEST_CURRENT_TEST" in os.environ
+        # Capture pytest case, where arguments don't match the references.
+        if self._pytest_reserved - set(arg_names):
+            raise TypeError(
+                "A mismatch in expected argument names likely means you should "
+                "resave the notebook in the marimo editor."
+            )
+
+        # If all the arguments are provided, then run as if it were a normal
+        # function call. An incorrect number of arguments will raise a
+        # TypeError (the same as a normal function call).
+        #
+        # pytest is an exception here, since it enables testing directly on
+        # notebooks, and the graph will be executed if needed.
         if argc == call_argc and (
             is_pytest or all(name in call_args for name in arg_names)
         ):
+            # Note, run returns a tuple of (output, defs)-
+            # so stripped defs is required.
             ret = self.run(**call_args)
             if isinstance(ret, Awaitable):
 
@@ -568,7 +584,7 @@ class Cell:
 
         if is_pytest:
             call_str = (
-                "A mismatch in arguments, likely means you should "
+                "A mismatch in arguments likely means you should "
                 "resave the notebook in the marimo editor."
             )
         else:

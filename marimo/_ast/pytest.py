@@ -27,7 +27,7 @@ def wrap_fn_for_pytest(
 
     args = {arg.arg: arg for arg in func_body.args.args}
     fixtures = [arg for arg in args.keys() if arg.endswith("_fixture")]
-    reserved = len(args) - len(fixtures)
+    reserved = set(args.keys()) - set(fixtures)
     name = func.__name__
 
     # Typing checks for mypy
@@ -39,6 +39,15 @@ def wrap_fn_for_pytest(
     call = returned.value
     assert isinstance(call, ast.Call)
 
+    # Using _pytest_scaffold as a template, the resultant function will look
+    # like:
+    #
+    # ```python
+    # def name_of_fn_passed(vars_ending_in_fixture, ...) -> Any:
+    #     return cell(vars_ending_in_fixture=vars_ending_in_fixture)
+    # ```
+    #
+    # Which is sufficient to fool pytest.
     body.args.args[:] = [
         ast.arg(arg, lineno=args[arg].lineno, col_offset=args[arg].col_offset)
         for arg in fixtures
@@ -61,6 +70,9 @@ def wrap_fn_for_pytest(
     body.name = name
     local = {"stub": cell.__call__, "Any": Any}
     eval(compile(fn, inspect.getfile(func), "exec"), local)
+
+    # The remaining expected attributes is needed to ensure attribute count
+    # matches.
     cell._pytest_reserved = reserved
 
     response = cast(Callable[..., Any], local[name])

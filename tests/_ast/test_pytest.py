@@ -71,3 +71,13 @@ def test_cell_missing_refs_fail():
 @app.cell
 def test_cell_extra_refs_fail(mo):  # noqa: ARG001
     assert True
+
+
+@pytest.mark.xfail(
+    reason="Provided argument is not the expected argument.",
+    raises=TypeError,
+    strict=True,
+)
+@app.cell
+def test_cell_args_resolved_by_name(mo):  # noqa: ARG001
+    assert x  # noqa: F821
