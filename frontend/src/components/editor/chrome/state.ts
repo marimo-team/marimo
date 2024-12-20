@@ -84,6 +84,8 @@ export function useChromeActions() {
   return useActions();
 }
 
+export { chromeAtom };
+
 /**
  * This is exported for testing purposes only.
  */

@@ -27,6 +27,7 @@ import { cn } from "@/utils/cn";
 import { Kbd } from "@/components/ui/kbd";
 import { Events } from "@/utils/events";
 import { copyToClipboard } from "@/utils/copy";
+import { PACKAGES_INPUT_ID } from "./constants";
 
 export const PackagesPanel: React.FC = () => {
   const [config] = useResolvedMarimoConfig();
@@ -94,6 +95,7 @@ const InstallPackageForm: React.FC<{
     <div className="flex items-center w-full border-b">
       <SearchInput
         placeholder={`Install packages with ${packageManager}...`}
+        id={PACKAGES_INPUT_ID}
         icon={
           loading ? (
             <Spinner
