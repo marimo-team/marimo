@@ -470,7 +470,10 @@ class CellManager:
             # Manually set the signature for pytest.
             # Use PYTEST_VERSION here, opposed to PYTEST_CURRENT_TEST, in
             # order to allow execution during test collection.
-            if "PYTEST_VERSION" in os.environ:
+            if (
+                "PYTEST_VERSION" in os.environ
+                and "PYTEST_CURRENT_TEST" not in os.environ
+            ):
                 func = wrap_fn_for_pytest(func, cell)
             # NB. in place metadata update.
             functools.wraps(func)(cell)
