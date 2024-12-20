@@ -20,6 +20,7 @@ import {
 import { CopyIcon, DownloadIcon } from "lucide-react";
 import { createShareableLink } from "@/core/wasm/share";
 import { copyToClipboard } from "@/utils/copy";
+import { Constants } from "@/core/constants";
 
 export const StaticBanner: React.FC = () => {
   if (!isStaticNotebook()) {
@@ -36,7 +37,7 @@ export const StaticBanner: React.FC = () => {
       <span>
         This is a static Python notebook built using{" "}
         <a
-          href="https://github.com/marimo-team/marimo"
+          href={Constants.githubPage}
           target="_blank"
           className="underline"
           rel="noreferrer"
@@ -81,7 +82,7 @@ const StaticBannerDialog = ({ code }: { code: string }) => {
           <DialogDescription className="pt-4 text-md text-left">
             This is a static notebook built using{" "}
             <a
-              href="https://github.com/marimo-team/marimo"
+              href={Constants.githubPage}
               target="_blank"
               className="text-link hover:underline"
               rel="noreferrer"
