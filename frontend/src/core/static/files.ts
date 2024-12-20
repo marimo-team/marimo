@@ -1,9 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { StaticVirtualFiles } from "./types";
-import { deserializeBlob } from "@/utils/blob";
 import { getStaticVirtualFiles } from "./static-state";
-import type { DataURLString } from "@/utils/json/base64";
+import { Logger } from "@/utils/Logger";
 
 /**
  * Patch fetch to resolve virtual files
@@ -19,25 +18,55 @@ export function patchFetch(
     // eslint-disable-next-line @typescript-eslint/no-base-to-string
     const urlString = input instanceof Request ? input.url : input.toString();
 
-    const url =
-      urlString.startsWith("/") || urlString.startsWith("./")
-        ? new URL(urlString, window.location.origin)
-        : new URL(urlString);
-
-    if (files[url.pathname]) {
-      const base64 = files[url.pathname];
-      const blob = await deserializeBlob(base64);
-      return new Response(blob);
+    if (urlString.startsWith("data:")) {
+      return originalFetch(input, init);
     }
 
-    // Fallback to the original fetch
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (originalFetch as any)(input, init);
+    try {
+      const url =
+        urlString.startsWith("/") || urlString.startsWith("./")
+          ? new URL(urlString, window.location.origin)
+          : new URL(urlString);
+
+      const filePath = url.pathname;
+      if (files[filePath]) {
+        const base64 = files[filePath];
+        // Convert data URL to blob
+        const response = await originalFetch(base64);
+        const blob = await response.blob();
+        return new Response(blob, {
+          headers: {
+            "Content-Type": getContentType(filePath),
+          },
+        });
+      }
+
+      // Fallback to the original fetch
+      return originalFetch(input, init);
+    } catch (error) {
+      Logger.error("Error parsing URL", error);
+      // If the URL is invalid, just fallback to the original fetch
+      return originalFetch(input, init);
+    }
   };
 
   return () => {
     window.fetch = originalFetch;
   };
+}
+
+function getContentType(fileName: string): string {
+  if (fileName.endsWith(".csv")) {
+    return "text/csv";
+  }
+  if (fileName.endsWith(".json")) {
+    return "application/json";
+  }
+  if (fileName.endsWith(".txt")) {
+    return "text/plain";
+  }
+  // Default to octet-stream if unknown
+  return "application/octet-stream";
 }
 
 export function patchVegaLoader(
@@ -52,8 +81,7 @@ export function patchVegaLoader(
     const pathname = new URL(url, document.baseURI).pathname;
     if (files[url] || files[pathname]) {
       const base64 = files[url] || files[pathname];
-      const blob = await deserializeBlob(base64);
-      return blob.text();
+      return await window.fetch(base64).then((r) => r.text());
     }
 
     try {
@@ -61,9 +89,7 @@ export function patchVegaLoader(
     } catch (error) {
       // If its a data URL, just return the data
       if (url.startsWith("data:")) {
-        return deserializeBlob(url as DataURLString).then((blob) =>
-          blob.text(),
-        );
+        return await window.fetch(url).then((r) => r.text());
       }
       // Re-throw the error
       throw error;

@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Callable, Literal, Optional
 
 import click
 
-import marimo._cli.cli_validators as validators
 from marimo._cli.parse_args import parse_args
 from marimo._cli.print import echo, green
 from marimo._dependencies.dependencies import DependencyManager
@@ -126,7 +125,7 @@ Optionally pass CLI args to the notebook:
 @click.option(
     "-o",
     "--output",
-    type=str,
+    type=click.Path(),
     default=None,
     help=(
         "Output file to save the HTML to. "
@@ -144,7 +143,11 @@ Optionally pass CLI args to the notebook:
         "`uv run --isolated`. Requires `uv`."
     ),
 )
-@click.argument("name", required=True, callback=validators.is_file_path)
+@click.argument(
+    "name",
+    required=True,
+    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def html(
     name: str,
@@ -202,14 +205,18 @@ Watch for changes and regenerate the script on modification:
 @click.option(
     "-o",
     "--output",
-    type=str,
+    type=click.Path(),
     default=None,
     help=(
         "Output file to save the script to. "
         "If not provided, the script will be printed to stdout."
     ),
 )
-@click.argument("name", required=True, callback=validators.is_file_path)
+@click.argument(
+    "name",
+    required=True,
+    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+)
 def script(
     name: str,
     output: str,
@@ -248,14 +255,18 @@ Watch for changes and regenerate the script on modification:
 @click.option(
     "-o",
     "--output",
-    type=str,
+    type=click.Path(),
     default=None,
     help=(
         "Output file to save the markdown to. "
         "If not provided, markdown will be printed to stdout."
     ),
 )
-@click.argument("name", required=True, callback=validators.is_file_path)
+@click.argument(
+    "name",
+    required=True,
+    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+)
 def md(
     name: str,
     output: str,
@@ -303,7 +314,7 @@ Requires nbformat to be installed.
 @click.option(
     "-o",
     "--output",
-    type=str,
+    type=click.Path(),
     default=None,
     help=(
         "Output file to save the ipynb file to. "
@@ -317,7 +328,11 @@ Requires nbformat to be installed.
     type=bool,
     help="Run the notebook and include outputs in the exported ipynb file.",
 )
-@click.argument("name", required=True, callback=validators.is_file_path)
+@click.argument(
+    "name",
+    required=True,
+    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+)
 def ipynb(
     name: str,
     output: str,
@@ -367,7 +382,7 @@ and cannot be opened directly from the file system (e.g. file://).
 @click.option(
     "-o",
     "--output",
-    type=str,
+    type=click.Path(),
     required=True,
     help="Output directory to save the HTML to.",
 )
@@ -385,7 +400,11 @@ and cannot be opened directly from the file system (e.g. file://).
     show_default=True,
     help="Whether to show code by default in the exported HTML file.",
 )
-@click.argument("name", required=True, callback=validators.is_file_path)
+@click.argument(
+    "name",
+    required=True,
+    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+)
 def html_wasm(
     name: str,
     output: str,
@@ -393,30 +412,32 @@ def html_wasm(
     show_code: bool,
 ) -> None:
     """Export a notebook as a WASM-powered standalone HTML file."""
+    out_dir = output
+    filename = "index.html"
+    ignore_index_html = False
+    # If ends with .html, get the directory
+    if output.endswith(".html"):
+        out_dir = os.path.dirname(output)
+        filename = os.path.basename(output)
+        ignore_index_html = True
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
         return export_as_wasm(file_path, mode, show_code=show_code)
 
-    # Validate output is not a file
-    if os.path.isfile(output):
-        raise click.UsageError(
-            f"Output {output} is a file, but must be a directory."
-        )
-
     # Export assets first
-    Exporter().export_assets(output)
+    Exporter().export_assets(out_dir, ignore_index_html=ignore_index_html)
     echo(
-        f"Assets copied to {green(output)}. These assets are required for the "
+        f"Assets copied to {green(out_dir)}. These assets are required for the "
         "notebook to run in the browser."
     )
 
     echo(
         "To run the exported notebook, use:\n"
-        f"  python -m http.server --directory {output}\n"
+        f"  python -m http.server --directory {out_dir}\n"
         "Then open the URL that is printed to your terminal."
     )
 
-    outfile = os.path.join(output, "index.html")
+    outfile = os.path.join(out_dir, filename)
     return watch_and_export(MarimoPath(name), outfile, False, export_callback)
 
 

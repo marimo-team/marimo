@@ -60,6 +60,28 @@ describe("patchFetch", () => {
     );
     expect(text).toBe("Remote content");
   });
+
+  it("should handle @file/ URLs and set content type", async () => {
+    const virtualFiles = {
+      "/@file/data.csv":
+        "data:text/csv;base64,aGVsbG8sd29ybGQK" as DataURLString,
+    };
+
+    patchFetch(virtualFiles);
+
+    // Test with both formats of @file URLs
+    const responses = await Promise.all([
+      window.fetch("/@file/data.csv"),
+      window.fetch("./@file/data.csv"),
+      window.fetch("http://example.com/@file/data.csv"),
+    ]);
+
+    for (const response of responses) {
+      expect(response.headers.get("Content-Type")).toBe("text/csv");
+      const text = await response.text();
+      expect(text).toBe("hello,world\n");
+    }
+  });
 });
 
 describe("patchVegaLoader", () => {

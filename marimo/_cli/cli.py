@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import json
 import os
-import pathlib
 import sys
 import tempfile
+from pathlib import Path
 from typing import Any, Optional
 
 import click
@@ -286,7 +286,7 @@ edit_help_msg = "\n".join(
     help=sandbox_message,
 )
 @click.option("--profile-dir", default=None, type=str, hidden=True)
-@click.argument("name", required=False)
+@click.argument("name", required=False, type=click.Path())
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def edit(
     port: Optional[int],
@@ -575,7 +575,7 @@ Example:
     type=bool,
     help=sandbox_message,
 )
-@click.argument("name", required=True)
+@click.argument("name", required=True, type=click.Path())
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def run(
     port: Optional[int],
@@ -643,15 +643,12 @@ def run(
 
 
 @main.command(help="Recover a marimo notebook from JSON.")
-@click.argument("name", required=True)
+@click.argument(
+    "name",
+    required=True,
+    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+)
 def recover(name: str) -> None:
-    path = pathlib.Path(name)
-    if not os.path.exists(name):
-        raise click.UsageError("Invalid NAME - %s does not exist" % name)
-
-    if not path.is_file():
-        raise click.UsageError("Invalid NAME - %s is not a file" % name)
-
     click.echo(codegen.recover(name))
 
 
@@ -752,6 +749,54 @@ def tutorial(
 def env() -> None:
     """Print out environment information for debugging purposes."""
     click.echo(json.dumps(get_system_info(), indent=2))
+
+
+@main.command(
+    help="Install shell completions for marimo. Supports bash, zsh, fish, and elvish."
+)
+def shell_completion() -> None:
+    shell = os.environ.get("SHELL", "")
+    if not shell:
+        click.echo(
+            "Could not determine shell. Please set $SHELL environment variable.",
+            err=True,
+        )
+        return
+
+    shell_name = Path(shell).name
+
+    commands = {
+        "bash": (
+            'eval "$(_MARIMO_COMPLETE=bash_source marimo)"',
+            ".bashrc",
+        ),
+        "zsh": (
+            'eval "$(_MARIMO_COMPLETE=zsh_source marimo)"',
+            ".zshrc",
+        ),
+        "fish": (
+            "_MARIMO_COMPLETE=fish_source marimo | source",
+            ".config/fish/completions/marimo.fish",
+        ),
+    }
+
+    if shell_name not in commands:
+        supported = ", ".join(commands.keys())
+        click.echo(
+            f"Unsupported shell: {shell_name}. Supported shells: {supported}",
+            err=True,
+        )
+        return
+
+    cmd, rc_file = commands[shell_name]
+    click.secho("Run this command to enable completions:", fg="green")
+    click.secho(f"\n    echo '{cmd}' >> ~/{rc_file}\n", fg="yellow")
+    click.secho(
+        "\nThen restart your shell or run 'source ~/"
+        + rc_file
+        + "' to enable completions",
+        fg="green",
+    )
 
 
 main.command()(convert)

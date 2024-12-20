@@ -480,11 +480,17 @@ const CellComponent = (
   });
 
   useKeydownOnElement(editing ? cellRef : null, {
-    ArrowDown: () => {
+    ArrowDown: (evt) => {
+      if (evt && Events.fromInput(evt)) {
+        return false;
+      }
       moveToNextCell({ cellId, before: false, noCreate: true });
       return true;
     },
-    ArrowUp: () => {
+    ArrowUp: (evt) => {
+      if (evt && Events.fromInput(evt)) {
+        return false;
+      }
       moveToNextCell({ cellId, before: true, noCreate: true });
       return true;
     },

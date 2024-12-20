@@ -11,6 +11,7 @@ from tempfile import TemporaryDirectory
 from typing import Any, Generator
 
 import pytest
+from _pytest import runner
 
 from marimo._ast.app import CellManager
 from marimo._ast.cell import CellId_t
@@ -491,3 +492,26 @@ class ExecReqProvider:
 @pytest.fixture
 def exec_req() -> ExecReqProvider:
     return ExecReqProvider()
+
+
+# # A pytest hook to fail when raw marimo cells are not collected.
+@pytest.hookimpl
+def pytest_make_collect_report(collector):
+    report = runner.pytest_make_collect_report(collector)
+    # Defined within the file does not seem to hook correctly, as such filter
+    # for the test_pytest specific file here.
+    if "test_pytest" in str(collector.path):
+        collected = {fn.name: fn for fn in collector.collect()}
+        from tests._runtime.test_pytest import app
+
+        invalid = []
+        for name in app._cell_manager.names():
+            if name.startswith("test_") and name not in collected:
+                invalid.append(f"'{name}'")
+        if invalid:
+            tests = ", ".join([f"'{test}'" for test in collected.keys()])
+            report.outcome = "failed"
+            report.longrepr = (
+                f"Cannot collect test(s) {', '.join(invalid)} from {tests}"
+            )
+    return report

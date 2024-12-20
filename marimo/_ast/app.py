@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import functools
 import inspect
 import random
 import string
@@ -464,6 +465,8 @@ class CellManager:
             )
             cell._cell.configure(cell_config)
             self._register_cell(cell, app=app)
+            # NB. in place metadata update.
+            functools.wraps(func)(cell)
             return cell
 
         if func is None:

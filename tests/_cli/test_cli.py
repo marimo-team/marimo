@@ -798,6 +798,15 @@ def test_cli_run_sandbox_prompt_yes() -> None:
     p.kill()
 
 
+def test_shell_completion() -> None:
+    p = subprocess.run(
+        ["marimo", "shell-completion"],
+        capture_output=True,
+    )
+    assert p.returncode == 0
+    assert p.stdout is not None
+
+
 HAS_DOCKER = DependencyManager.which("docker")
 
 

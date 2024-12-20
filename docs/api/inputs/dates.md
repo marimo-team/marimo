@@ -2,6 +2,8 @@
 
 ## Single date
 
+/// marimo-embed
+
 ```python
     @app.cell
     def __():
@@ -14,6 +16,8 @@
         return
 
 ```
+
+///
 
 ::: marimo.ui.date
   :members:
@@ -37,6 +41,8 @@
 
 ## Date range
 
+/// marimo-embed
+
 ```python
     @app.cell
     def __():
@@ -48,6 +54,8 @@
         mo.hstack([date_range, mo.md(f"Has value: {date_range.value}")])
         return
 ```
+
+///
 
 ::: marimo.ui.date_range
   :members:

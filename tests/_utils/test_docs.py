@@ -11,6 +11,10 @@ def test_google_docstring_to_markdown_summary():
         foo (str): Lorem ipsum
         bar (int): Dolor sit amet
 
+    Attributes:
+        baz (str): Lorem ipsum
+        boo (int): Dolor sit amet
+
     Returns:
         bool: Return description
 
@@ -32,6 +36,9 @@ def test_google_docstring_to_markdown_summary():
         "# Arguments",
         "`foo`",
         "`bar`",
+        "# Attributes",
+        "`baz`",
+        "`boo`",
         "# Returns",
         "`bool`",
         "# Raises",

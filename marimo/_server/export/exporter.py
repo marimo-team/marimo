@@ -73,8 +73,16 @@ class Exporter:
         for filename_and_length in request.files:
             if filename_and_length.startswith("/@file/"):
                 filename = filename_and_length[7:]
-            byte_length, basename = filename.split("-", 1)
-            buffer_contents = read_virtual_file(basename, int(byte_length))
+            try:
+                byte_length, basename = filename.split("-", 1)
+                buffer_contents = read_virtual_file(basename, int(byte_length))
+            except Exception as e:
+                LOGGER.warning(
+                    "File not found in export: %s. Error: %s",
+                    filename_and_length,
+                    e,
+                )
+                continue
             mime_type, _ = mimetypes.guess_type(basename) or (
                 "text/plain",
                 None,
@@ -137,7 +145,7 @@ class Exporter:
         for cell in file_manager.app.cell_manager.cells():
             if not cell:
                 continue
-            if cell._is_coroutine():
+            if cell._is_coroutine:
                 from click import UsageError
 
                 raise UsageError(
@@ -348,7 +356,9 @@ class Exporter:
 
         return html, download_filename
 
-    def export_assets(self, directory: str) -> None:
+    def export_assets(
+        self, directory: str, ignore_index_html: bool = False
+    ) -> None:
         # Copy assets to the same directory as the notebook
         dirpath = Path(directory)
         LOGGER.debug(f"Copying assets to {dirpath}")
@@ -357,7 +367,16 @@ class Exporter:
 
         import shutil
 
-        shutil.copytree(root, dirpath, dirs_exist_ok=True)
+        shutil.copytree(
+            root,
+            dirpath,
+            dirs_exist_ok=True,
+            ignore=(
+                shutil.ignore_patterns("index.html")
+                if ignore_index_html
+                else None
+            ),
+        )
 
 
 class AutoExporter:
