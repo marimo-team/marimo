@@ -28,6 +28,8 @@ uv pip install "marimo[sql]"
 conda install -c conda-forge marimo duckdb polars
 ```
 
+///
+
 To connect to MotherDuck, import `duckdb` and `ATTACH` your MotherDuck database.
 
 ```python
