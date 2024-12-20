@@ -57,6 +57,7 @@ import { goToDefinitionBundle } from "./go-to-definition/extension";
 import type { HotkeyProvider } from "../hotkeys/hotkeys";
 import { lightTheme } from "./theme/light";
 import { dndBundle } from "./dnd/extension";
+import { jupyterHelpExtension } from "./compat/jupyter";
 
 export interface CodeMirrorSetupOpts {
   cellId: CellId;
@@ -86,6 +87,7 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
     // Editor keymaps (vim or defaults) based on user config
     keymapBundle(keymapConfig, cellMovementCallbacks),
     dndBundle(),
+    jupyterHelpExtension(),
     // Cell editing
     cellMovementBundle(cellId, cellMovementCallbacks, hotkeys),
     cellCodeEditingBundle(cellId, cellCodeCallbacks, hotkeys),
