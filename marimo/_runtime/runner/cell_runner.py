@@ -23,10 +23,12 @@ from marimo._messaging.errors import (
 from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime import dataflow
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
-from marimo._runtime.executor import (
+from marimo._runtime.exceptions import (
     MarimoMissingRefError,
     MarimoNameError,
     MarimoRuntimeException,
+)
+from marimo._runtime.executor import (
     execute_cell,
     execute_cell_async,
 )

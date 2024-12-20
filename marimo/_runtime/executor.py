@@ -14,6 +14,11 @@ from marimo._runtime.copy import (
     ZeroCopy,
     shallow_copy,
 )
+from marimo._runtime.exceptions import (
+    MarimoMissingRefError,
+    MarimoNameError,
+    MarimoRuntimeException,
+)
 from marimo._runtime.primitives import (
     CLONE_PRIMITIVES,
     build_ref_predicate_for_primitives,
@@ -27,27 +32,6 @@ if TYPE_CHECKING:
 
 
 EXECUTION_TYPES: dict[str, Type[Executor]] = {}
-
-
-class MarimoRuntimeException(BaseException):
-    """Wrapper for all marimo runtime exceptions."""
-
-
-class MarimoNameError(NameError):
-    """Wrap a name error to rethrow later."""
-
-    def __init__(self, msg: str, ref: str) -> None:
-        super().__init__(msg)
-        self.ref = ref
-
-
-class MarimoMissingRefError(BaseException):
-    def __init__(
-        self, ref: str, name_error: Optional[NameError] = None
-    ) -> None:
-        super(MarimoMissingRefError, self).__init__(ref)
-        self.ref = ref
-        self.name_error = name_error
 
 
 def raise_name_error(

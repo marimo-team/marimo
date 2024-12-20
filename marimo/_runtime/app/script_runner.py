@@ -13,9 +13,11 @@ from marimo._runtime.context.types import (
     runtime_context_installed,
     teardown_context,
 )
-from marimo._runtime.executor import (
+from marimo._runtime.exceptions import (
     MarimoMissingRefError,
     MarimoRuntimeException,
+)
+from marimo._runtime.executor import (
     execute_cell,
     execute_cell_async,
 )
