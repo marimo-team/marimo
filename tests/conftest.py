@@ -8,7 +8,7 @@ import re
 import sys
 import textwrap
 from tempfile import TemporaryDirectory
-from typing import Any, Generator, Module
+from typing import TYPE_CHECKING, Any, Generator
 
 import pytest
 from _pytest import runner
@@ -34,6 +34,9 @@ from marimo._runtime.requests import AppMetadata, ExecutionRequest
 from marimo._runtime.runtime import Kernel
 from marimo._server.model import SessionMode
 from marimo._utils.parse_dataclass import parse_raw
+
+if TYPE_CHECKING:
+    from types import ModuleType
 
 # register import hooks for third-party module formatters
 register_formatters()
@@ -496,7 +499,7 @@ def exec_req() -> ExecReqProvider:
 
 # Library fixtures for direct marimo integration with pytest.
 @pytest.fixture
-def mo_lib() -> Module:
+def mo_lib() -> ModuleType:
     import marimo as mo
 
     return mo
