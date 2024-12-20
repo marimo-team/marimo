@@ -4,22 +4,21 @@ from typing import Any, Dict, List, Union, cast
 import urllib.parse
 
 from pymdownx.blocks import BlocksExtension  # type: ignore
-from pymdownx.blocks.block import Block, type_string_in  # type: ignore
+from pymdownx.blocks.block import Block, type_string, type_string_in  # type: ignore
 
 
-class MarimoEmbedBlock(Block):
-    NAME: str = "marimo-embed"
+class BaseMarimoBlock(Block):
+    """Base class for marimo embed blocks"""
+
     OPTIONS: Dict[str, List[Union[str, Any]]] = {
         "size": [
             "medium",
             type_string_in(["small", "medium", "large", "xlarge", "xxlarge"]),
         ],
-        "app_width": ["wide", type_string_in(["wide", "full", "compact"])],
         "mode": ["read", type_string_in(["read", "edit"])],
     }
 
     def on_create(self, parent: etree.Element) -> etree.Element:
-        # Create container div
         container = etree.SubElement(parent, "div")
         container.set("class", "marimo-embed-container")
         return container
@@ -27,30 +26,14 @@ class MarimoEmbedBlock(Block):
     def on_add(self, block: etree.Element) -> etree.Element:
         return block
 
-    def on_end(self, block: etree.Element) -> None:
-        # Extract the Python code
-        code = block.text.strip() if block.text else ""
-
-        # Remove ```python if present
-        if code.startswith("```python"):
-            code = code[9:]  # first 9 characters are ```python
-            code = code[:-3]  # last 3 characters are ```
-
-        # Dedent the code
-        code = textwrap.dedent(code)
-
-        # Create iframe element
-        size: str = cast(str, self.options["size"])
-        app_width: str = cast(str, self.options["app_width"])
-        mode: str = cast(str, self.options["mode"])
-        url = create_marimo_iframe(code=code, app_width=app_width, mode=mode)
-
+    def _create_iframe(self, block: etree.Element, url: str) -> None:
         # Clear existing content
         block.text = None
         for child in block:
             block.remove(child)
 
         # Add iframe
+        size: str = cast(str, self.options["size"])
         iframe = etree.SubElement(block, "iframe")
         iframe.set("class", f"demo {size}")
         iframe.set("src", url)
@@ -67,14 +50,79 @@ class MarimoEmbedBlock(Block):
         return "raw"
 
 
+class MarimoEmbedBlock(BaseMarimoBlock):
+    NAME: str = "marimo-embed"
+    OPTIONS: Dict[str, List[Union[str, Any]]] = {
+        **BaseMarimoBlock.OPTIONS,
+        "app_width": ["wide", type_string_in(["wide", "full", "compact"])],
+    }
+
+    def on_end(self, block: etree.Element) -> None:
+        code = block.text.strip() if block.text else ""
+        if code.startswith("```python"):
+            code = code[9:]
+            code = code[:-3]
+        code = textwrap.dedent(code)
+
+        app_width: str = cast(str, self.options["app_width"])
+        mode: str = cast(str, self.options["mode"])
+        url = create_marimo_app_url(
+            code=create_marimo_app_code(code=code, app_width=app_width),
+            mode=mode,
+        )
+        self._create_iframe(block, url)
+
+
+class MarimoEmbedFileBlock(BaseMarimoBlock):
+    NAME: str = "marimo-embed-file"
+    OPTIONS: Dict[str, List[Union[str, Any]]] = {
+        **BaseMarimoBlock.OPTIONS,
+        "filepath": ["", type_string],
+        "show_source": ["true", type_string_in(["true", "false"])],
+    }
+
+    def on_end(self, block: etree.Element) -> None:
+        filepath = cast(str, self.options["filepath"])
+        if not filepath:
+            raise ValueError("File path must be provided")
+
+        # Read from project root
+        try:
+            with open(filepath, "r") as f:
+                code = f.read()
+        except FileNotFoundError:
+            raise ValueError(f"File not found: {filepath}")
+
+        mode: str = cast(str, self.options["mode"])
+        url = create_marimo_app_url(code=code, mode=mode)
+        self._create_iframe(block, url)
+
+        # Add source code section if enabled
+        show_source: str = cast(str, self.options.get("show_source", "true"))
+        if show_source == "true":
+            details = etree.SubElement(block, "details")
+            summary = etree.SubElement(details, "summary")
+            summary.text = f"Source code for `{filepath}`"
+
+            # TODO: figure out syntax highlighting
+            # md_text = f"\n\n```python\n{code}\n```\n\n"
+            # result = self.md.htmlStash.store(self.md.convert(md_text))
+            # container.text = result
+
+            container = etree.SubElement(details, "pre")
+            container.set("class", "marimo-source-code")
+            code_block = etree.SubElement(container, "code")
+            code_block.set("class", "language-python")
+            code_block.text = code
+
+
 def uri_encode_component(code: str) -> str:
     return urllib.parse.quote(code, safe="~()*!.'")
 
 
-def create_marimo_iframe(
+def create_marimo_app_code(
     *,
     code: str,
-    mode: str = "read",
     app_width: str = "wide",
 ) -> str:
     header = "\n".join(
@@ -92,14 +140,18 @@ def create_marimo_iframe(
             "    return",
         ]
     )
-    body = header + code
-    encoded_code = uri_encode_component(body)
+    return header + code
+
+
+def create_marimo_app_url(code: str, mode: str = "read") -> str:
+    encoded_code = uri_encode_component(code)
     return f"https://marimo.app/?code={encoded_code}&embed=true&mode={mode}"
 
 
 class MarimoBlocksExtension(BlocksExtension):
     def extendMarkdownBlocks(self, md: Any, block_mgr: Any) -> None:
         block_mgr.register(MarimoEmbedBlock, self.getConfigs())
+        block_mgr.register(MarimoEmbedFileBlock, self.getConfigs())
 
 
 def makeExtension(*args: Any, **kwargs: Any) -> MarimoBlocksExtension:

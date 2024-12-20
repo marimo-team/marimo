@@ -248,8 +248,11 @@ python = ["3.9", "3.10", "3.11", "3.12"]
 [tool.hatch.envs.docs]
 features = ["dev", "docs"]
 dependencies = [
-    "docs @ file://docs",
+    "marimo_docs @ file://docs",
 ]
+
+[tool.uv.sources]
+marimo_docs = { path = "./docs", editable = true }
 
 [tool.hatch.envs.docs.scripts]
 build = "mkdocs build {args}"
