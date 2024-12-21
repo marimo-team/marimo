@@ -181,7 +181,7 @@ make py-test
 hatch run test:test tests/_ast/
 ```
 
-**Run a specific tests with optional dependencies.**
+**Run a specific test with optional dependencies.**
 
 ```bash
 hatch run test-optional:test tests/_ast/
@@ -261,7 +261,7 @@ pnpm storybook
 
 You can develop on marimo with hot reloading on the frontend and/or development
 mode on the server (which automatically restarts the server on code changes).
-These modes especially helpful when you're making many small changes and
+These modes are especially helpful when you're making many small changes and
 want to see changes end-to-end very quickly.
 
 For the frontend, you can run either
@@ -312,7 +312,7 @@ marimo server. This means that:
 
 ## Editor settings
 
-If use use vscode, you might find the following `settings.json` useful:
+If you use vscode, you might find the following `settings.json` useful:
 
 ```json
 {
