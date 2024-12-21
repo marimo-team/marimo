@@ -4,7 +4,7 @@
     **Read the guide on [creating interactive
     elements](../guides/interactivity.md)** before reading this one!
 
-!!! warning "Advanced and dangerous topic!"
+!!! warning "Advanced topic!"
     This guide covers reactive state (`mo.state`), an advanced topic.
 
     **You likely don't need `mo.state`**. UI elements already have built-in
@@ -30,6 +30,6 @@
     - you need to introduce cycles across cells
 
     **In over 99% of cases, you don't need and shouldn't use `mo.state`.** This
-    feature can introduce dangerous and hard-to-find bugs.
+    feature can introduce hard-to-find bugs.
 
 ::: marimo.state

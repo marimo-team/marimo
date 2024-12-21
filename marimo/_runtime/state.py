@@ -171,11 +171,12 @@ def state(
     value: T, allow_self_loops: bool = False
 ) -> tuple[State[T], Callable[[T], None]]:
     """
-    Dangerously set mutable reactive state.
+    Mutable reactive state.
 
-    This function is dangerous because it breaks out of marimo's dataflow
-    graph, and makes it possible to introduce cycles and difficult to
-    debug code execution paths. **Prefer using marimo's built-in [reactive
+    Warning: using reactive state is error-prone because it breaks out of
+    marimo's dataflow graph, making it possible to introduce cycles and
+    difficult-to-debug code execution paths. **In almost all cases, you should
+    prefer using marimo's built-in [reactive
     execution](https://docs.marimo.io/guides/reactivity) and
     [interactivity](https://docs.marimo.io/guides/interactivity).**
 
