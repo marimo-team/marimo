@@ -111,13 +111,11 @@ def is_narwhals_integer_type(
 
 def is_narwhals_temporal_type(
     dtype: Any,
-) -> TypeGuard[nw.Datetime | nw.Date | nw.Duration | nw.Duration]:
+) -> TypeGuard[nw.Datetime | nw.Date]:
     """
     Check if the given dtype is temporal type.
     """
-    return bool(
-        dtype == nw.Datetime or dtype == nw.Date or dtype == nw.Duration
-    )
+    return bool(dtype == nw.Datetime or dtype == nw.Date)
 
 
 def is_narwhals_string_type(

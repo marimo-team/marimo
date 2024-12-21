@@ -90,6 +90,7 @@ def test_narwhals_type_checks():
     assert is_narwhals_temporal_type(nw.Datetime)
     assert is_narwhals_temporal_type(nw.Date)
     assert not is_narwhals_temporal_type(nw.Int64)
+    assert not is_narwhals_temporal_type(nw.Duration)
 
     assert is_narwhals_string_type(nw.String)
     assert is_narwhals_string_type(nw.Categorical)
