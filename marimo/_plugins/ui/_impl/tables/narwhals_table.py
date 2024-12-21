@@ -119,6 +119,8 @@ class NarwhalsTableManager(
             return ("integer", dtype_string)
         elif is_narwhals_temporal_type(dtype):
             return ("date", dtype_string)
+        elif dtype == nw.Duration:
+            return ("number", dtype_string)
         elif dtype.is_numeric():
             return ("number", dtype_string)
         else:
@@ -147,6 +149,7 @@ class NarwhalsTableManager(
             elif (
                 dtype.is_numeric()
                 or is_narwhals_temporal_type(dtype)
+                or dtype == nw.Duration
                 or dtype == nw.Boolean
             ):
                 expressions.append(
@@ -211,6 +214,19 @@ class NarwhalsTableManager(
                 p25=col.quantile(0.25, interpolation="nearest"),
                 p75=col.quantile(0.75, interpolation="nearest"),
                 p95=col.quantile(0.95, interpolation="nearest"),
+            )
+        if col.dtype == nw.Duration:
+            unit_map = {
+                "ms": col.dt.total_milliseconds,
+                "ns": col.dt.total_nanoseconds,
+                "us": col.dt.total_microseconds,
+            }
+            return ColumnSummary(
+                total=total,
+                nulls=col.null_count(),
+                min=str(unit_map["us"]().min()) + "μs",
+                max=str(unit_map["us"]().max()) + "μs",
+                mean=str(unit_map["us"]().mean()) + "μs",
             )
         if (
             col.dtype == nw.List

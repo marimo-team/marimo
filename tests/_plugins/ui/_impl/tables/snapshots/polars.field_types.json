@@ -13,6 +13,6 @@
   ["set", ["unknown", "object"]],
   ["imaginary", ["unknown", "object"]],
   ["time", ["time", "Time"]],
-  ["duration", ["datetime", "duration[\u03bcs]"]],
+  ["duration", ["number", "duration[\u03bcs]"]],
   ["mixed_list", ["unknown", "list[str]"]]
 ]

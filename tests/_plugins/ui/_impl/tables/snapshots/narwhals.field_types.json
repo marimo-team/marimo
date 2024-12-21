@@ -13,6 +13,6 @@
   ["set", ["unknown", "Object"]],
   ["imaginary", ["unknown", "Object"]],
   ["time", ["unknown", "Unknown"]],
-  ["duration", ["date", "Duration(time_unit='us')"]],
+  ["duration", ["number", "Duration(time_unit='us')"]],
   ["mixed_list", ["unknown", "List(String)"]]
 ]
