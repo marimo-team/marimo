@@ -20,7 +20,7 @@ Before installing marimo, we recommend creating and activating a Python
     _Make sure the environment is activated before installing marimo and when
     using marimo._ Install other packages you may need, such as numpy, pandas, matplotlib,
     and altair, in this environment. When you're done, deactivate the environment
-    with `deactivate` in the terimnal.
+    with `deactivate` in the terminal.
 
     Learn more from the [official Python tutorial](https://docs.python.org/3/tutorial/venv.html#creating-virtual-environments).
 
