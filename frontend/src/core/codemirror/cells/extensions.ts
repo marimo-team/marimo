@@ -18,6 +18,7 @@ export interface MovementCallbacks
   deleteCell: () => void;
   createAbove: () => void;
   createBelow: () => void;
+  createManyBelow: (content: string[]) => void;
   moveUp: () => void;
   moveDown: () => void;
   focusUp: () => void;

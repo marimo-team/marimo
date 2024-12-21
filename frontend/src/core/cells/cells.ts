@@ -195,13 +195,26 @@ const {
   createNewCell: (
     state,
     action: {
+      /** The target cell ID to create a new cell relative to. Can be:
+       * - A CellId string for an existing cell
+       * - "__end__" to append at the end of the first column
+       * - {type: "__end__", columnId} to append at the end of a specific column
+       */
       cellId: CellId | "__end__" | { type: "__end__"; columnId: CellColumnId };
+      /** Whether to insert before (true) or after (false) the target cell */
       before: boolean;
+      /** Initial code content for the new cell */
       code?: string;
+      /** The last executed code for the new cell */
       lastCodeRun?: string;
+      /** Timestamp of the last execution */
       lastExecutionTime?: number;
+      /** Optional custom ID for the new cell. Auto-generated if not provided */
       newCellId?: CellId;
+      /** Whether to focus the new cell after creation */
       autoFocus?: boolean;
+      /** If true, skip creation if code already exists */
+      skipIfCodeExists?: boolean;
     },
   ) => {
     const {
@@ -211,10 +224,20 @@ const {
       lastCodeRun = null,
       lastExecutionTime = null,
       autoFocus = true,
+      skipIfCodeExists = false,
     } = action;
 
     let columnId: CellColumnId;
     let cellIndex: number;
+
+    // If skipIfCodeExists is true, check if the code already exists in the notebook
+    if (skipIfCodeExists) {
+      for (const cellId of state.cellIds.inOrderIds) {
+        if (state.cellData[cellId]?.code === code) {
+          return state;
+        }
+      }
+    }
 
     if (cellId === "__end__") {
       const column = state.cellIds.atOrThrow(0);

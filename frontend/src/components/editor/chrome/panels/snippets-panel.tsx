@@ -108,6 +108,8 @@ const SnippetViewer: React.FC<{ snippet: Snippet }> = ({ snippet }) => {
           code: section.code,
           before: false,
           cellId: lastFocusedCellId ?? "__end__",
+          // If the code already exists, skip creation
+          skipIfCodeExists: true,
         });
       }
     }
