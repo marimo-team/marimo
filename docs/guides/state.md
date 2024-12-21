@@ -140,9 +140,10 @@ the new value of the element and does anything with it. You can use the setter
 function in an `on_change` callback to mutate state.
 
 !!! note "Use state sparingly"
-    You can get far using just `mo.ui`, without state. But judiciously using
-    state can simplify the implementation of highly interactive notebooks/apps, and
-    also enables new use cases. The next few examples showcase good uses of state.
+    You can get far using just `mo.ui`, without state, because marimo
+    automatically runs cells that reference UI elements on interaction
+    (see the [interactivity guide](../guides/interactivity.md)). Only
+    use `on_change` callbacks as a last resort!
 
 ### Example: counter
 
