@@ -1,11 +1,18 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { FAVICONS } from "@/components/editor/dynamic-favicon";
 import React, { useRef, useState } from "react";
 import type { CellId } from "@/core/cells/ids";
 import { ElapsedTime, formatElapsedTime } from "../editor/cell/CellStatus";
 import { Tooltip } from "@/components/ui/tooltip";
 import { compile } from "vega-lite";
-import { ChevronRight, ChevronDown, ActivityIcon } from "lucide-react";
+import {
+  ChevronRight,
+  ChevronDown,
+  ActivityIcon,
+  CirclePlayIcon,
+  CircleCheck,
+  CircleEllipsis,
+  CircleX,
+} from "lucide-react";
 import type { SignalListeners, VisualizationSpec } from "react-vega";
 import {
   type RunId,
@@ -146,10 +153,8 @@ const TraceBlock: React.FC<{
     },
   };
 
-  const ChevronComponent = () => {
-    const Icon = collapsed ? ChevronRight : ChevronDown;
-    return <Icon height={16} className="inline" />;
-  };
+  const Icon = collapsed ? ChevronRight : ChevronDown;
+  const chevron = <Icon height={16} className="inline" />;
 
   const TraceTitle = (
     <span
@@ -157,7 +162,7 @@ const TraceBlock: React.FC<{
       onClick={() => setCollapsed(!collapsed)}
     >
       Run - {formatLogTimestamp(run.runStartTime)}
-      <ChevronComponent />
+      {chevron}
     </span>
   );
 
@@ -237,6 +242,13 @@ const TraceBlock: React.FC<{
   );
 };
 
+const StatusIcons: Record<CellRun["status"], JSX.Element> = {
+  success: <CircleCheck color="green" size={14} />,
+  running: <CirclePlayIcon color="var(--blue-10)" size={14} />,
+  error: <CircleX color="red" size={14} />,
+  queued: <CircleEllipsis color="grey" size={14} />,
+};
+
 interface TraceRowProps {
   cellRun: CellRun;
   hovered: boolean;
@@ -280,23 +292,18 @@ const TraceRow: React.FC<TraceRowProps> = ({
       <span className="text-[var(--gray-10)]">
         [{formatLogTimestamp(cellRun.startTime)}]
       </span>
-      <span className="text-[var(--gray-10)]">
+      <span className="text-[var(--gray-10)] w-16">
         (<CellLink cellId={cellRun.cellId} />)
       </span>
-      <span className="w-40 truncate">{cellRun.code}</span>
+      <span className="w-40 truncate -ml-1">{cellRun.code}</span>
 
-      <div className="flex flex-row gap-1 basis-12 justify-end">
+      <div className="flex flex-row gap-1 w-16 justify-end -ml-2">
         <Tooltip content={elapsedTimeTooltip}>
           <span className="text-[var(--gray-10)]">{elapsedTimeStr}</span>
         </Tooltip>
 
-        {/* TODO: Shouldn't use favicon and need to add an image for 'queued' state. */}
         <Tooltip content={cellRun.status}>
-          <img
-            className="w-4"
-            src={FAVICONS[cellRun.status]}
-            alt={`${cellRun.status} icon`}
-          />
+          {StatusIcons[cellRun.status]}
         </Tooltip>
       </div>
     </div>
