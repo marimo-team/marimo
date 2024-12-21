@@ -62,7 +62,7 @@
     },
     {
       "source": "/api/index.html",
-      "destination": "/api",
+      "destination": "/api/",
       "permanent": true
     },
     {
