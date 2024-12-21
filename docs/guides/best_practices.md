@@ -66,6 +66,9 @@ instead of mutating existing ones.
     ```python
     extended_list = l + [new_item()]
     ```
+**Don't use state and `on_change` handlers.** Don't use `on_change` handlers
+to react to UI interactions. Instead, use marimo's built-in [reactive execution
+for interactive elements](../guides/interactivity.md).
 
 **Write idempotent cells.**
 Write cells whose outputs and behavior are the same

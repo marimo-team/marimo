@@ -34,7 +34,7 @@ assigned to a global variable.**
 
 Display UI elements in the output area above a cell by including them in the
 last expression, just like any other object. You can also embed elements
-in [markdown][marimo.md]using Python f-strings, like so:
+in [markdown][marimo.md] using Python f-strings, like so:
 
 ```python3
 slider = mo.ui.slider(1, 10)

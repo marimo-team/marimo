@@ -173,9 +173,16 @@ def state(
     """
     Mutable reactive state.
 
+    Warning: reactive state is an advanced feature that you likely don't need;
+    it makes it possible to introduce cycles and hard-to-debug code execution
+    paths. **In almost all cases, you should prefer using marimo's built-in
+    [reactive execution](https://docs.marimo.io/guides/reactivity) and
+    [interactivity](https://docs.marimo.io/guides/interactivity).**
+
     This function takes an initial value and returns:
-      - a getter function that reads the state value
-      - a setter function to set the state's value
+
+    - a getter function that reads the state value
+    - a setter function to set the state's value
 
     When you call the setter function and update the state value in one cell,
     all *other* cells that read any global variables assigned to the getter
@@ -185,10 +192,14 @@ def state(
     `allow_self_loops=True`.
 
     You can use this function with `UIElement` `on_change` handlers to trigger
-    side-effects when an element's value is updated. For example, you can tie
-    multiple UI elements to derive their values from shared state.
+    side-effects when an element's value is updated; however, you should
+    prefer using marimo's built-in [reactive execution for interactive
+    elements](https://docs.marimo.io/guides/interactivity).
 
-    Example usage:
+    For example, you can tie multiple UI elements to derive their values from
+    shared state.
+
+    Examples:
       Create state:
       ```python
       get_count, set_count = mo.state(0)
@@ -206,7 +217,8 @@ def state(
       set_count(lambda value: value + 1)
       ```
 
-    Never mutate the state directly. You should only change its value through its setter.
+    Never mutate the state directly. You should only change its value through
+    its setter.
 
     **Synchronizing multiple UI elements:**
       ```python
