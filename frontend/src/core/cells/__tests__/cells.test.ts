@@ -1710,4 +1710,46 @@ describe("cell reducer", () => {
     expect(state.cellRuntime[secondCellId].output).toBeNull();
     expect(state.cellRuntime[secondCellId].consoleOutputs).toEqual([]);
   });
+
+  it("skips creating new cell if code exists and skipIfCodeExists is true", () => {
+    // Add initial cell with code
+    actions.updateCellCode({
+      cellId: firstCellId,
+      code: "import numpy as np",
+      formattingChange: false,
+    });
+
+    // Try to create new cell with same code and skipIfCodeExists
+    actions.createNewCell({
+      cellId: "__end__",
+      code: "import numpy as np",
+      before: false,
+      skipIfCodeExists: true,
+    });
+
+    // Should still only have one cell
+    expect(state.cellIds.inOrderIds.length).toBe(1);
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [0] 'import numpy as np'
+      "
+    `);
+
+    // Verify we can still add cell with different code
+    actions.createNewCell({
+      cellId: "__end__",
+      code: "import pandas as pd",
+      before: false,
+      skipIfCodeExists: true,
+    });
+
+    expect(state.cellIds.inOrderIds.length).toBe(2);
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [0] 'import numpy as np'
+
+      [1] 'import pandas as pd'
+      "
+    `);
+  });
 });
