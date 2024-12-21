@@ -17,6 +17,12 @@ export interface ChartValues {
   status: CellRun["status"];
 }
 
+const cellNumField = "cellNum" satisfies keyof ChartValues;
+const cellField = "cell" satisfies keyof ChartValues;
+const startTimestampField = "startTimestamp" satisfies keyof ChartValues;
+const endTimestampField = "endTimestamp" satisfies keyof ChartValues;
+const statusField = "status" satisfies keyof ChartValues;
+
 export function createGanttBaseSpec(
   chartValues: ChartValues[],
   hiddenInputElementId: string,
@@ -40,34 +46,37 @@ export function createGanttBaseSpec(
         select: {
           type: "point",
           on: "pointerover",
-          fields: ["cell"],
+          fields: [cellField],
         },
       },
     ],
     height: { step: 23 },
     encoding: {
       y: {
-        field: "cellNum",
+        field: cellNumField,
         scale: { paddingInner: 0.2 },
-        sort: { field: "cellNum" },
+        sort: { field: cellNumField },
         title: "cell",
         axis: chartPosition === "sideBySide" ? null : undefined,
       },
       x: {
-        field: "startTimestamp",
+        field: startTimestampField,
         type: "temporal",
         axis: { orient: "top", title: null },
       },
-      x2: { field: "endTimestamp", type: "temporal" },
+      x2: {
+        field: endTimestampField,
+        type: "temporal",
+      },
       tooltip: [
         {
-          field: "startTimestamp",
+          field: startTimestampField,
           type: "temporal",
           timeUnit: "dayhoursminutesseconds",
           title: "Start",
         },
         {
-          field: "endTimestamp",
+          field: endTimestampField,
           type: "temporal",
           timeUnit: "dayhoursminutesseconds",
           title: "End",
@@ -79,8 +88,8 @@ export function createGanttBaseSpec(
         },
       },
       color: {
-        field: "status",
-        scale: { domain: ["success", "error"], range: ["#37BE5F", "red"] }, // green is the same colour as chrome's network tab
+        field: statusField,
+        scale: { domain: ["success", "error"], range: ["#37BE5F", "red"] },
         legend: null,
       },
     },
