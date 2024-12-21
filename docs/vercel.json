@@ -62,7 +62,7 @@
     },
     {
       "source": "/api/index.html",
-      "destination": "/api",
+      "destination": "/api/",
       "permanent": true
     },
     {
@@ -142,7 +142,7 @@
     },
     {
       "source": "/api/inputs/index.html",
-      "destination": "/api/inputs",
+      "destination": "/api/inputs/",
       "permanent": true
     },
     {
@@ -232,7 +232,7 @@
     },
     {
       "source": "/api/layouts/index.html",
-      "destination": "/api/layouts",
+      "destination": "/api/layouts/",
       "permanent": true
     },
     {
@@ -292,7 +292,7 @@
     },
     {
       "source": "/api/media/index.html",
-      "destination": "/api/media",
+      "destination": "/api/media/",
       "permanent": true
     },
     {
@@ -362,7 +362,7 @@
     },
     {
       "source": "/getting_started/index.html",
-      "destination": "/getting_started",
+      "destination": "/getting_started/",
       "permanent": true
     },
     {
@@ -392,7 +392,7 @@
     },
     {
       "source": "/guides/coming_from/index.html",
-      "destination": "/guides/coming_from",
+      "destination": "/guides/coming_from/",
       "permanent": true
     },
     {
@@ -422,7 +422,7 @@
     },
     {
       "source": "/guides/configuration/index.html",
-      "destination": "/guides/configuration",
+      "destination": "/guides/configuration/",
       "permanent": true
     },
     {
@@ -467,7 +467,7 @@
     },
     {
       "source": "/guides/deploying/index.html",
-      "destination": "/guides/deploying",
+      "destination": "/guides/deploying/",
       "permanent": true
     },
     {
@@ -492,7 +492,7 @@
     },
     {
       "source": "/guides/editor_features/index.html",
-      "destination": "/guides/editor_features",
+      "destination": "/guides/editor_features/",
       "permanent": true
     },
     {
@@ -517,7 +517,7 @@
     },
     {
       "source": "/guides/index.html",
-      "destination": "/guides",
+      "destination": "/guides/",
       "permanent": true
     },
     {
@@ -532,7 +532,7 @@
     },
     {
       "source": "/guides/integrating_with_marimo/index.html",
-      "destination": "/guides/integrating_with_marimo",
+      "destination": "/guides/integrating_with_marimo/",
       "permanent": true
     },
     {
@@ -582,7 +582,7 @@
     },
     {
       "source": "/guides/working_with_data/index.html",
-      "destination": "/guides/working_with_data",
+      "destination": "/guides/working_with_data/",
       "permanent": true
     },
     {
@@ -617,7 +617,7 @@
     },
     {
       "source": "/integrations/index.html",
-      "destination": "/integrations",
+      "destination": "/integrations/",
       "permanent": true
     },
     {
