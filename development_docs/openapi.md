@@ -24,3 +24,10 @@ marimo development openapi | openapi-spec-validator -
 ```bash
 make fe-codegen
 ```
+
+You will then need to reinstall the package in `/frontend`:
+
+```bash
+cd frontend
+pnpm update @marimo-team/marimo-api
+```

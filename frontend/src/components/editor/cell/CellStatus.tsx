@@ -321,7 +321,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
   return null;
 };
 
-const ElapsedTime = (props: { elapsedTime: string }) => {
+export const ElapsedTime = (props: { elapsedTime: string }) => {
   return (
     <span className="tracking-wide font-semibold">{props.elapsedTime}</span>
   );
@@ -346,7 +346,7 @@ const LastRanTime = (props: { lastRanTime: number }) => {
   );
 };
 
-function formatElapsedTime(elapsedTime: number | null) {
+export function formatElapsedTime(elapsedTime: number | null) {
   if (elapsedTime === null) {
     return "";
   }

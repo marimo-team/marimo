@@ -1227,6 +1227,22 @@ class TestExecution:
         await k.run([ExecutionRequest(er.cell_id, "None")])
         assert f"_cell_{er.cell_id}_x" not in k.globals
 
+    async def test_has_run_id(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = mocked_kernel.k
+        await k.run([exec_req.get("print(2)")])
+
+        cell_ops = [
+            parse_raw(op_data, CellOp)
+            for op_name, op_data in mocked_kernel.stream.messages
+            if op_name == "cell-op"
+        ]
+
+        assert len(cell_ops) == 4  # queued -> running -> output -> idle
+        for cell_op in cell_ops:
+            assert cell_op.run_id is not None
+
 
 class TestStrictExecution:
     @staticmethod
