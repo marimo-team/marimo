@@ -45,8 +45,9 @@ export function createGanttBaseSpec(
         name: VEGA_HOVER_SIGNAL,
         select: {
           type: "point",
-          on: "pointerover",
+          on: "mouseover",
           fields: [cellField],
+          clear: "mouseout",
         },
       },
     ],
