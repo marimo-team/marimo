@@ -1,12 +1,15 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 from typing import Literal, Optional
 
 from marimo._output.rich_help import mddoc
 from marimo._runtime.context import ContextNotInitializedError, get_context
 from marimo._server.model import SessionMode
 from marimo._utils.assert_never import assert_never
+
+RunMode = Literal["run", "edit", "script", "test"]
 
 
 @mddoc
@@ -23,11 +26,11 @@ def running_in_notebook() -> bool:
         return isinstance(ctx, KernelRuntimeContext)
 
 
-def get_mode() -> Optional[Literal["run", "edit", "script"]]:
+def get_mode() -> Optional[RunMode]:
     """Returns the current mode of the marimo app.
 
     Returns:
-        Optional[Literal["run", "edit", "script"]]: The current mode,
+        Optional[Literal["run", "edit", "script", "test"]]: The current mode,
         or None if marimo has no context initialized.
     """
     try:
@@ -47,4 +50,10 @@ def get_mode() -> Optional[Literal["run", "edit", "script"]]:
             return "script"
     except ContextNotInitializedError:
         pass
+
+    # This is a fallback, it's possible to be in pytest mode and have a context,
+    # as in native marimo tests.
+    if "PYTEST_CURRENT_TEST" in os.environ:
+        return "test"
+
     return None

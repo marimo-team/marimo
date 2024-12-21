@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Literal, Optional
+from typing import Optional
 
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._output.rich_help import mddoc
@@ -9,7 +9,7 @@ from marimo._runtime.context.types import (
     ContextNotInitializedError,
     get_context,
 )
-from marimo._runtime.context.utils import get_mode
+from marimo._runtime.context.utils import RunMode, get_mode
 
 
 @mddoc
@@ -53,7 +53,7 @@ class AppMeta:
         return theme
 
     @property
-    def mode(self) -> Optional[Literal["edit", "run", "script"]]:
+    def mode(self) -> Optional[RunMode]:
         """
         The execution mode of the app.
 
@@ -69,6 +69,7 @@ class AppMeta:
             - "edit": The notebook is being edited in the marimo editor
             - "run": The notebook is being run as an app
             - "script": The notebook is being run as a script
+            - "test": The cell has been invoked by a test
             - None: The mode could not be determined
         """
         return get_mode()

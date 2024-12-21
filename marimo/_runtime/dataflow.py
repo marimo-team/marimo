@@ -617,7 +617,7 @@ class Runner:
         for argname in kwargs:
             if argname not in cell_impl.refs:
                 raise ValueError(
-                    f"Cell got unexpected argument {argname}"
+                    f"Cell got unexpected argument {argname}; "
                     f"The allowed arguments are {cell_impl.refs}."
                 )
 

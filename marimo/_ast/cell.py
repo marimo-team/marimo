@@ -4,16 +4,19 @@ from __future__ import annotations
 import ast
 import dataclasses
 import inspect
+import os
+from collections.abc import Awaitable
 from typing import TYPE_CHECKING, Any, Literal, Mapping, Optional
 
 from marimo._ast.sql_visitor import SQLVisitor
 from marimo._ast.visitor import ImportData, Language, Name, VariableData
+from marimo._runtime.exceptions import MarimoRuntimeException
 from marimo._utils.deep_merge import deep_merge
 
 CellId_t = str
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Iterable
+    from collections.abc import Iterable
     from types import CodeType
 
     from marimo._ast.app import InternalApp
@@ -348,6 +351,9 @@ class Cell:
     # App to which this cell belongs
     _app: InternalApp | None = None
 
+    # Number of reserved arguments for pytest
+    _pytest_reserved: set[str] = dataclasses.field(default_factory=set)
+
     @property
     def name(self) -> str:
         return self._name
@@ -525,22 +531,72 @@ class Cell:
                 from the cell's defined names to their values.
         """
         assert self._app is not None
-        if self._is_coroutine:
-            return self._app.run_cell_async(cell=self, kwargs=refs)
-        else:
-            return self._app.run_cell_sync(cell=self, kwargs=refs)
 
-    def __call__(self, *args: Any, **kwargs: Any) -> None:
-        del args
-        del kwargs
-        if self._is_coroutine:
-            call_str = f"`outputs, defs = await {self.name}.run()`"
-        else:
-            call_str = f"`outputs, defs = {self.name}.run()`"
+        try:
+            if self._is_coroutine:
+                return self._app.run_cell_async(cell=self, kwargs=refs)
+            else:
+                return self._app.run_cell_sync(cell=self, kwargs=refs)
+        except MarimoRuntimeException as e:
+            raise e.__cause__ from None  # type: ignore
 
-        raise RuntimeError(
-            f"Calling marimo cells using `{self.name}()` is not supported. "
-            f"Use {call_str} instead. "
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        # TODO: Expand for top level modules when/ if the time comes.
+        arg_names = sorted(
+            self._cell.refs - set(globals()["__builtins__"].keys())
+        )
+        argc = len(arg_names)
+
+        call_args = {name: arg for name, arg in zip(arg_names, args)}
+        call_args.update(kwargs)
+        call_argc = len(call_args.keys()) + len(self._pytest_reserved)
+
+        is_pytest = "PYTEST_CURRENT_TEST" in os.environ
+        # Capture pytest case, where arguments don't match the references.
+        if self._pytest_reserved - set(arg_names):
+            raise TypeError(
+                "A mismatch in expected argument names likely means you should "
+                "resave the notebook in the marimo editor."
+            )
+
+        # If all the arguments are provided, then run as if it were a normal
+        # function call. An incorrect number of arguments will raise a
+        # TypeError (the same as a normal function call).
+        #
+        # pytest is an exception here, since it enables testing directly on
+        # notebooks, and the graph will be executed if needed.
+        if argc == call_argc and (
+            is_pytest or all(name in call_args for name in arg_names)
+        ):
+            # Note, run returns a tuple of (output, defs)-
+            # so stripped defs is required.
+            ret = self.run(**call_args)
+            if isinstance(ret, Awaitable):
+
+                async def await_and_return() -> Any:
+                    output, _ = await ret
+                    return output
+
+                return await_and_return()
+            else:
+                output, _ = ret
+            return output
+
+        if is_pytest:
+            call_str = (
+                "A mismatch in arguments likely means you should "
+                "resave the notebook in the marimo editor."
+            )
+        else:
+            await_str = "await " if self._is_coroutine else ""
+            call_str = (
+                "Consider calling with `outputs, defs = "
+                f"{await_str}{self.name}.run()`"
+            )
+
+        raise TypeError(
+            f"{self.name}() takes {argc} positional arguments but "
+            f"{call_argc} were given. {call_str}"
         )
 
 

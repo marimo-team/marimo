@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import functools
 import inspect
+import os
 import random
 import string
 from dataclasses import asdict, dataclass, field
@@ -29,6 +30,7 @@ from marimo._ast.errors import (
     UnparsableError,
 )
 from marimo._ast.names import DEFAULT_CELL_NAME
+from marimo._ast.pytest import wrap_fn_for_pytest
 from marimo._config.config import WidthType
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.hypertext import Html
@@ -465,6 +467,14 @@ class CellManager:
             )
             cell._cell.configure(cell_config)
             self._register_cell(cell, app=app)
+            # Manually set the signature for pytest.
+            # Use PYTEST_VERSION here, opposed to PYTEST_CURRENT_TEST, in
+            # order to allow execution during test collection.
+            if (
+                "PYTEST_VERSION" in os.environ
+                and "PYTEST_CURRENT_TEST" not in os.environ
+            ):
+                func = wrap_fn_for_pytest(func, cell)
             # NB. in place metadata update.
             functools.wraps(func)(cell)
             return cell
