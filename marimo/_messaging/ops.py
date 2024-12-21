@@ -134,15 +134,11 @@ class CellOp(Op):
 
     def __post_init__(self) -> None:
         try:
-            # run_id context is only set during a run
-            if self.status is not None:
-                self.run_id = RUN_ID_CTX.get()
+            self.run_id = RUN_ID_CTX.get()
         except LookupError:
             # Be specific about the exception we're catching
             # The context variable hasn't been set yet
-            # TODO: where are these warnings coming from?
-            # good enough to silence for now?
-            LOGGER.warning("No run_id context found, setting to None")
+            # may want to explore why this is happening in the future
             self.run_id = None
         except Exception as e:
             LOGGER.error("Error getting run id: %s", str(e))
