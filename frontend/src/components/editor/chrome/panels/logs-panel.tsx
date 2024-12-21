@@ -79,7 +79,9 @@ function formatLog(log: CellLog) {
 
   return (
     <>
-      <span className="flex-shrink-0 text-[var(--gray-10)]">[{timestamp}]</span>
+      <span className="flex-shrink-0 text-[var(--gray-10)] dark:text-[var(--gray-11)]">
+        [{timestamp}]
+      </span>
       <span className={cn("flex-shrink-0", color)}>{level}</span>
       <span className="flex-shrink-0 text-[var(--gray-10)]">
         (<CellLink cellId={log.cellId} />)

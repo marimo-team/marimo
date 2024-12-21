@@ -34,11 +34,13 @@ import {
 import { ClearButton } from "../buttons/clear-button";
 import { cn } from "@/utils/cn";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
+import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
 
 export const Tracing: React.FC = () => {
   const { runIds: newestToOldestRunIds, runMap } = useAtomValue(runsAtom);
   const { clearRuns } = useRunsActions();
 
+  const { theme } = useTheme();
   const [chartPosition, setChartPosition] = useState<ChartPosition>("above");
 
   const toggleChartPosition = () => {
@@ -88,6 +90,7 @@ export const Tracing: React.FC = () => {
                 key={run.runId}
                 run={run}
                 chartPosition={chartPosition}
+                theme={theme}
               />
             );
           }
@@ -106,6 +109,7 @@ interface ChartProps {
   height: number;
   vegaSpec: VisualizationSpec;
   signalListeners: SignalListeners;
+  theme: ResolvedTheme;
 }
 
 const Chart: React.FC<ChartProps> = (props: ChartProps) => {
@@ -113,6 +117,7 @@ const Chart: React.FC<ChartProps> = (props: ChartProps) => {
     <div className={props.className}>
       <LazyVega
         spec={props.vegaSpec}
+        theme={props.theme === "dark" ? "dark" : undefined}
         width={props.width}
         height={props.height}
         signalListeners={props.signalListeners}
@@ -129,7 +134,8 @@ interface VegaHoverCellSignal {
 const TraceBlock: React.FC<{
   run: Run;
   chartPosition: ChartPosition;
-}> = ({ run, chartPosition }) => {
+  theme: ResolvedTheme;
+}> = ({ run, chartPosition, theme }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [hoveredCellId, setHoveredCellId] = useState<CellId | null>();
 
@@ -176,12 +182,18 @@ const TraceBlock: React.FC<{
       startTimestamp: formatChartTime(cellRun.startTime),
       endTimestamp: formatChartTime(cellRun.startTime + elapsedTime),
       elapsedTime: formatElapsedTime(elapsedTime * 1000),
+      status: cellRun.status,
     };
   });
 
   const hiddenInputElementId = `hiddenInputElement-${run.runId}`;
   const vegaSpec = compile(
-    createGanttBaseSpec(chartValues, hiddenInputElementId, chartPosition),
+    createGanttBaseSpec(
+      chartValues,
+      hiddenInputElementId,
+      chartPosition,
+      theme,
+    ),
   ).spec;
 
   const TraceRows = (
@@ -215,6 +227,7 @@ const TraceBlock: React.FC<{
               width={320}
               height={120}
               signalListeners={handleVegaSignal}
+              theme={theme}
             />
           )}
           {!collapsed && TraceRows}
@@ -236,6 +249,7 @@ const TraceBlock: React.FC<{
           width={240}
           height={100}
           signalListeners={handleVegaSignal}
+          theme={theme}
         />
       )}
     </div>
@@ -289,7 +303,7 @@ const TraceRow: React.FC<TraceRowProps> = ({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <span className="text-[var(--gray-10)]">
+      <span className="text-[var(--gray-10)] dark:text-[var(--gray-11)]">
         [{formatLogTimestamp(cellRun.startTime)}]
       </span>
       <span className="text-[var(--gray-10)] w-16">
@@ -299,7 +313,9 @@ const TraceRow: React.FC<TraceRowProps> = ({
 
       <div className="flex flex-row gap-1 w-16 justify-end -ml-2">
         <Tooltip content={elapsedTimeTooltip}>
-          <span className="text-[var(--gray-10)]">{elapsedTimeStr}</span>
+          <span className="text-[var(--gray-10)] dark:text-[var(--gray-11)]">
+            {elapsedTimeStr}
+          </span>
         </Tooltip>
 
         <Tooltip content={cellRun.status}>

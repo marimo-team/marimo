@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { CellId } from "@/core/cells/ids";
-import type { Field } from "@/plugins/impl/vega/types";
+import type { CellRun } from "@/core/cells/runs";
+import type { ResolvedTheme } from "@/theme/useTheme";
 import type { TopLevelSpec } from "vega-lite";
-import type { PositionDef } from "vega-lite/build/src/channeldef";
 
 export const REACT_HOVERED_CELLID = "hoveredCellId";
 export const VEGA_HOVER_SIGNAL = "cellHover";
@@ -14,31 +14,21 @@ export interface ChartValues {
   startTimestamp: string;
   endTimestamp: string;
   elapsedTime: string;
+  status: CellRun["status"];
 }
 
 export function createGanttBaseSpec(
   chartValues: ChartValues[],
   hiddenInputElementId: string,
   chartPosition: ChartPosition,
+  theme: ResolvedTheme,
 ): TopLevelSpec {
-  const yAxis: PositionDef<Field> | Partial<PositionDef<Field>> = {
-    field: "cellNum",
-    scale: { paddingInner: 0.2 },
-    sort: { field: "cellNum" },
-    title: "cell",
-  };
-
-  const hideYAxisLine = chartPosition === "sideBySide";
-  if (hideYAxisLine) {
-    yAxis.axis = null;
-  }
-
   return {
     $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+    background: theme === "dark" ? "black" : undefined,
     mark: {
       type: "bar",
       cornerRadius: 2,
-      fill: "#37BE5F", // same colour as chrome's network tab
     },
     params: [
       {
@@ -56,7 +46,13 @@ export function createGanttBaseSpec(
     ],
     height: { step: 23 },
     encoding: {
-      y: yAxis,
+      y: {
+        field: "cellNum",
+        scale: { paddingInner: 0.2 },
+        sort: { field: "cellNum" },
+        title: "cell",
+        axis: chartPosition === "sideBySide" ? null : undefined,
+      },
       x: {
         field: "startTimestamp",
         type: "temporal",
@@ -81,6 +77,11 @@ export function createGanttBaseSpec(
         value: {
           expr: `${REACT_HOVERED_CELLID} == toString(datum.cell) ? 19.5 : 18`,
         },
+      },
+      color: {
+        field: "status",
+        scale: { domain: ["success", "error"], range: ["#37BE5F", "red"] }, // green is the same colour as chrome's network tab
+        legend: null,
       },
     },
     data: {
