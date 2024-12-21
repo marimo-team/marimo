@@ -118,9 +118,9 @@ nav:
           - Overview: guides/integrating_with_marimo/index.md
           - Custom UI plugins: guides/integrating_with_marimo/custom_ui_plugins.md
           - Displaying objects: guides/integrating_with_marimo/displaying_objects.md
-      - State management: guides/state.md
       - Best practices: guides/best_practices.md
       - Troubleshooting: guides/troubleshooting.md
+      - Dangerously set state: guides/state.md
   - API Reference:
       - Overview: api/index.md
       - Markdown: api/markdown.md
