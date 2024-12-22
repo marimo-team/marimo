@@ -3,7 +3,7 @@ import type { Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { insertImage, insertTextFile } from "../markdown/commands";
 
-export function dndBundle(): Extension {
+export function dndBundle(): Extension[] {
   return [
     EditorView.domEventHandlers({
       drop: (event: DragEvent, view: EditorView) => {

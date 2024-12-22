@@ -172,6 +172,17 @@ const CellEditorInternal = ({
         deleteCell: handleDelete,
         createAbove,
         createBelow,
+        createManyBelow: (cells) => {
+          for (const code of [...cells].reverse()) {
+            createNewCell({
+              code,
+              before: false,
+              cellId: cellId,
+              // If the code already exists, skip creation
+              skipIfCodeExists: true,
+            });
+          }
+        },
         moveUp,
         moveDown,
         focusUp,

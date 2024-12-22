@@ -30,6 +30,7 @@ function getOpts() {
       deleteCell: namedFunction("deleteCell"),
       createAbove: namedFunction("createAbove"),
       createBelow: namedFunction("createBelow"),
+      createManyBelow: namedFunction("createManyBelow"),
       moveUp: namedFunction("moveUp"),
       moveDown: namedFunction("moveDown"),
       focusUp: namedFunction("focusUp"),
