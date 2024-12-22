@@ -138,7 +138,6 @@ class CellOp(Op):
 
         # We currently don't support tracing for replayed cell ops (previous session runs)
         if self.status == "idle":
-            LOGGER.debug("self %s", self)
             self.run_id = None
             return
 
