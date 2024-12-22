@@ -133,6 +133,8 @@ class CellOp(Op):
     timestamp: float = field(default_factory=lambda: time.time())
 
     def __post_init__(self) -> None:
+        if self.run_id is not None:
+            return
         try:
             self.run_id = RUN_ID_CTX.get()
         except LookupError:

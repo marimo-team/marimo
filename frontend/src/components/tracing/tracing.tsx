@@ -121,6 +121,7 @@ const Chart: React.FC<ChartProps> = (props: ChartProps) => {
         width={props.width}
         height={props.height}
         signalListeners={props.signalListeners}
+        actions={false}
       />
     </div>
   );
