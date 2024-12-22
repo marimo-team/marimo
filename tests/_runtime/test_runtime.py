@@ -1241,7 +1241,10 @@ class TestExecution:
 
         assert len(cell_ops) == 4  # queued -> running -> output -> idle
         for cell_op in cell_ops:
-            assert cell_op.run_id is not None
+            if cell_op.status == "idle":
+                assert cell_op.run_id is None
+            else:
+                assert cell_op.run_id is not None
 
 
 class TestStrictExecution:
