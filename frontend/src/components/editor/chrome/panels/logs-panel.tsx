@@ -6,6 +6,7 @@ import React from "react";
 import { FileTextIcon } from "lucide-react";
 import { CellLink } from "../../links/cell-link";
 import { PanelEmptyState } from "./empty-state";
+import { ClearButton } from "@/components/buttons/clear-button";
 
 interface Props {
   className?: string;
@@ -35,13 +36,7 @@ export const LogsPanel: React.FC = () => {
   return (
     <>
       <div className="flex flex-row justify-end px-2 py-1">
-        <button
-          data-testid="clear-logs-button"
-          className="text-xs font-semibold text-accent-foreground"
-          onClick={clearLogs}
-        >
-          Clear
-        </button>
+        <ClearButton dataTestId="clear-logs-button" onClick={clearLogs} />
       </div>
       <div className="overflow-auto flex-1">
         <LogViewer logs={logs} className="min-w-[300px]" />
@@ -84,7 +79,9 @@ function formatLog(log: CellLog) {
 
   return (
     <>
-      <span className="flex-shrink-0 text-[var(--gray-10)]">[{timestamp}]</span>
+      <span className="flex-shrink-0 text-[var(--gray-10)] dark:text-[var(--gray-11)]">
+        [{timestamp}]
+      </span>
       <span className={cn("flex-shrink-0", color)}>{level}</span>
       <span className="flex-shrink-0 text-[var(--gray-10)]">
         (<CellLink cellId={log.cellId} />)
