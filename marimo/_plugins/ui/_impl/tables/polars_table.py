@@ -98,6 +98,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
                                 "ms": column.dt.total_milliseconds,
                                 "ns": column.dt.total_nanoseconds,
                                 "us": column.dt.total_microseconds,
+                                "s": column.dt.total_seconds,
                             }
                             if dtype.time_unit in unit_map:
                                 method = unit_map[dtype.time_unit]
