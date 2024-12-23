@@ -31,7 +31,7 @@ function initialState(): RunsState {
   };
 }
 
-export const MAX_RUNS = 20;
+export const MAX_RUNS = 50;
 export const MAX_CODE_LENGTH = 200;
 
 const {
@@ -54,7 +54,16 @@ const {
     let run = state.runMap.get(runId);
     if (run) {
       runIds = state.runIds;
+      // Shallow copy the run to avoid mutating the existing run
+      run = { ...run };
     } else {
+      // If it is a brand new run and the cell code is "pure markdown",
+      // we don't want to show the trace since it's not helpful.
+      // This spams the tracing because we re-render pure markdown on keystrokes.
+      if (isPureMarkdown(code)) {
+        return state;
+      }
+
       run = {
         runId: runId,
         cellRuns: [],
@@ -161,10 +170,16 @@ const {
   },
 });
 
+const MARKDOWN_REGEX = /mo\.md\(\s*r?('''|""")/;
+function isPureMarkdown(code: string): boolean {
+  return code.startsWith("mo.md(") && MARKDOWN_REGEX.test(code);
+}
+
 export { runsAtom, useRunsActions };
 
 export const exportedForTesting = {
   reducer,
   createActions,
   initialState,
+  isPureMarkdown,
 };

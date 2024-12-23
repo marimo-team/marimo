@@ -1096,7 +1096,7 @@ export const UserConfigForm: React.FC = () => {
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">
                   <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">Chat Sidebar</FormLabel>
+                    <FormLabel className="font-normal">Chat sidebar</FormLabel>
                     <FormControl>
                       <Checkbox
                         data-testid="chat-sidebar-checkbox"
@@ -1108,6 +1108,30 @@ export const UserConfigForm: React.FC = () => {
                   <FormDescription>
                     Enable experimental chat sidebar to ask questions with an AI
                     assistant.
+                  </FormDescription>
+                </div>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="experimental.tracing"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">
+                      Tracing sidebar
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="tracing-sidebar-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <FormDescription>
+                    Enable experimental tracing sidebar to debug cell execution
+                    times and dependencies.
                   </FormDescription>
                 </div>
               )}
