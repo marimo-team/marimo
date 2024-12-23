@@ -179,8 +179,6 @@ button .prose.prose {
 .prose .critic {
   font-family: inherit;
   border-radius: 3px;
-  border-radius: 3px;
-  border-radius: 3px;
   border-style: solid;
   border-width: 1px;
   padding-top: 0.1rem;
@@ -226,8 +224,6 @@ button .prose.prose {
 .prose del.break::before {
   content: "\00a0\b6\00a0";
   border-radius: 3px;
-  border-radius: 3px;
-  border-radius: 3px;
 }
 
 .prose ins.after,
@@ -265,10 +261,6 @@ button .prose.prose {
   content: "\00a0\bb";
   border-right: none;
   border-top-left-radius: 3px;
-  border-top-left-radius: 3px;
-  border-top-left-radius: 3px;
-  border-bottom-left-radius: 3px;
-  border-bottom-left-radius: 3px;
   border-bottom-left-radius: 3px;
 }
 
@@ -276,10 +268,6 @@ button .prose.prose {
   content: "\ab\00a0";
   border-left: none;
   border-top-right-radius: 3px;
-  border-top-right-radius: 3px;
-  border-top-right-radius: 3px;
-  border-bottom-right-radius: 3px;
-  border-bottom-right-radius: 3px;
   border-bottom-right-radius: 3px;
 }
 
