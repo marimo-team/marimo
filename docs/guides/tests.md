@@ -8,7 +8,9 @@ pytest test_notebook.py
 
 [`pytest`](https://docs.pytest.org/en/stable/), a popular testing framework
 for Python, will run all the tests in `test_notebook.py` and show you the
-results. For example the following notebook:
+results. pytest detects tests by looking for functions that start with `test_`,
+so renaming your cell `test_*`, will automatically make it testable. For
+example, the following notebook:
 
 ```python
 # content of test_notebook.py
@@ -50,18 +52,18 @@ examples.py F.                                                           [100%]
 __________________________________ test_fails __________________________________
 
     import marimo
-    
+
     __generated_with = "0.10.6"
     app = marimo.App(width="medium")
-    
-    
+
+
     @app.cell
     def _():
         def inc(x):
             return x + 1
         return (inc,)
-    
-    
+
+
     @app.cell
     def test_fails(inc):
 >       assert inc(3) == 5, "This test fails"
