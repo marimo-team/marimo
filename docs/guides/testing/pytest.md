@@ -16,7 +16,7 @@ runs and tests all notebook cells whose names start with `test_`.
 
 !!! tip "Naming cells"
 
-    Name a cell by giving its function a name in the file format, or using
+    Name a cell by giving its function a name in the notebook file, or using
     the cell action menu in the notebook editor.
 
 !!! note "Use marimo notebooks just like normal pytest tests"
@@ -28,7 +28,7 @@ runs and tests all notebook cells whose names start with `test_`.
 
 ## Example
 
-Running `pytest` on the the following notebook
+Running `pytest` on
 
 ```python
 # content of test_notebook.py
@@ -55,7 +55,7 @@ def test_sanity(inc):
     assert inc(3) == 4, "This test passes"
 ```
 
-produces the following output:
+prints
 
 ```pytest
 ============================= test session starts ==============================
@@ -64,7 +64,7 @@ rootdir: /notebooks
 configfile: pyproject.toml
 collected 2 items
 
-examples.py F.                                                           [100%]
+test_notebook.py F.                                                       [100%]
 
 =================================== FAILURES ===================================
 __________________________________ test_fails __________________________________
@@ -83,12 +83,12 @@ __________________________________ test_fails __________________________________
 
 
     @app.cell
-    def test_fails(inc):
+    def test_answser(inc):
 >       assert inc(3) == 5, "This test fails"
 E       AssertionError: This test fails
 
-examples.py:16: AssertionError
+test_notebook.py:16: AssertionError
 =========================== short test summary info ============================
-FAILED examples.py::test_fails - AssertionError: This test fails
+FAILED test_notebook.py::test_fails - AssertionError: This test fails
 ========================= 1 failed, 1 passed in 0.20s ===========================
 ```
