@@ -1,7 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { expect, describe, it, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { useDebounce, useDebounceControlledState } from "../useDebounce";
+import {
+  useDebounce,
+  useDebounceControlledState,
+  useDebouncedCallback,
+} from "../useDebounce";
 
 describe("useDebounce", () => {
   beforeEach(() => {
@@ -115,5 +119,63 @@ describe("useDebounceControlledState", () => {
     );
 
     expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+describe("useDebouncedCallback", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("should debounce the callback", () => {
+    const callback = vi.fn();
+    const { result } = renderHook(() => useDebouncedCallback(callback, 1000));
+
+    act(() => {
+      result.current("test");
+      result.current("test2");
+      result.current("test3");
+    });
+
+    expect(callback).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.runAllTimers();
+    });
+
+    expect(callback).toHaveBeenCalledTimes(1);
+    expect(callback).toHaveBeenCalledWith("test3");
+  });
+
+  it("should maintain the same reference when deps don't change", () => {
+    const callback = vi.fn();
+    const { result, rerender } = renderHook(() =>
+      useDebouncedCallback(callback, 1000),
+    );
+
+    const firstRef = result.current;
+    rerender();
+    const secondRef = result.current;
+
+    expect(firstRef).toBe(secondRef);
+  });
+
+  it("should create new debounced function when delay changes", () => {
+    const callback = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ delay }) => useDebouncedCallback(callback, delay),
+      { initialProps: { delay: 1000 } },
+    );
+
+    const firstRef = result.current;
+    rerender({ delay: 2000 });
+    const secondRef = result.current;
+
+    expect(firstRef).not.toBe(secondRef);
   });
 });

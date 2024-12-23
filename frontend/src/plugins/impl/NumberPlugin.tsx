@@ -56,7 +56,9 @@ const NumberComponent = (props: NumberComponentProps): JSX.Element => {
     initialValue: props.value,
     delay: 200,
     disabled: !props.debounce,
-    onChange: props.setValue,
+    onChange: (v) => {
+      props.setValue(v);
+    },
   });
 
   return (
@@ -70,6 +72,7 @@ const NumberComponent = (props: NumberComponentProps): JSX.Element => {
         step={props.step}
         onChange={onChange}
         id={id}
+        aria-label={props.label || "Number input"}
       />
     </Labeled>
   );
