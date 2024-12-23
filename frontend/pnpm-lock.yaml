@@ -77,7 +77,7 @@ importers:
         version: 3.9.0(react-hook-form@7.52.2(react@18.3.1))
       '@internationalized/date':
         specifier: ^3.5.5
-        version: 3.5.5
+        version: 3.6.0
       '@lezer/common':
         specifier: ^1.2.1
         version: 1.2.1
@@ -1376,9 +1376,6 @@ packages:
 
   '@iconify/utils@2.1.33':
     resolution: {integrity: sha512-jP9h6v/g0BIZx0p7XGJJVtkVnydtbgTgt9mVNcGDYwaa7UhdHdI9dvoq+gKj9sijMSJKxUPEG2JyjsgXjxL7Kw==}
-
-  '@internationalized/date@3.5.5':
-    resolution: {integrity: sha512-H+CfYvOZ0LTJeeLOqm19E3uj/4YjrmOFtBufDHPfvtI80hFAMqtrp7oCACpe4Cil5l8S0Qu/9dYfZc/5lY8WQQ==}
 
   '@internationalized/date@3.6.0':
     resolution: {integrity: sha512-+z6ti+CcJnRlLHok/emGEsWQhe7kfSmEW+/6qCzvKY67YPh7YOBfvc7+/+NXq+zJlbArg30tYpqLjNgcAYv2YQ==}
@@ -9952,10 +9949,6 @@ snapshots:
       mlly: 1.7.2
     transitivePeerDependencies:
       - supports-color
-
-  '@internationalized/date@3.5.5':
-    dependencies:
-      '@swc/helpers': 0.5.1
 
   '@internationalized/date@3.6.0':
     dependencies:
