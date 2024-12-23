@@ -904,6 +904,7 @@ exports[`renderZodSchema > should render a form 8`] = `
                 aria-label="Increase"
                 class="px-0.5 cursor-default text-muted-foreground pressed:bg-muted-foreground group-disabled:text-disabled-foreground outline-none focus-visible:text-primary disabled:cursor-not-allowed disabled:opacity-50 hover:text-primary hover:bg-muted"
                 data-rac=""
+                id="react-aria-:r2h:"
                 slot="increment"
                 tabindex="-1"
                 type="button"
@@ -934,6 +935,7 @@ exports[`renderZodSchema > should render a form 8`] = `
                 aria-label="Decrease"
                 class="px-0.5 cursor-default text-muted-foreground pressed:bg-muted-foreground group-disabled:text-disabled-foreground outline-none focus-visible:text-primary disabled:cursor-not-allowed disabled:opacity-50 hover:text-primary hover:bg-muted"
                 data-rac=""
+                id="react-aria-:r2i:"
                 slot="decrement"
                 tabindex="-1"
                 type="button"
@@ -1012,18 +1014,18 @@ exports[`renderZodSchema > should render a form 8`] = `
         >
           <label
             class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            for=":r2j:-form-item"
+            for=":r2n:-form-item"
           >
             Sample with replacement
           </label>
           <button
             aria-checked="false"
-            aria-describedby=":r2j:-form-item-description"
+            aria-describedby=":r2n:-form-item-description"
             aria-invalid="false"
             class="flex items-center justify-center peer h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
             data-state="unchecked"
             data-testid="marimo-plugin-data-frames-boolean-checkbox"
-            id=":r2j:-form-item"
+            id=":r2n:-form-item"
             role="checkbox"
             type="button"
             value="on"
@@ -1102,7 +1104,7 @@ exports[`renderZodSchema > should render a form 10`] = `
       >
         <label
           class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-          for=":r2k:-form-item"
+          for=":r2o:-form-item"
         >
           Columns
         </label>
@@ -1110,7 +1112,7 @@ exports[`renderZodSchema > should render a form 10`] = `
           class="relative"
         >
           <div
-            aria-controls="radix-:r2l:"
+            aria-controls="radix-:r2p:"
             aria-expanded="false"
             aria-haspopup="dialog"
             class="flex h-6 w-fit mb-1 shadow-xsSolid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-smSolid focus:outline-none focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-mdSolid disabled:cursor-not-allowed disabled:opacity-50 min-w-[180px]"
@@ -1163,13 +1165,13 @@ exports[`renderZodSchema > should render a form 11`] = `
       >
         <label
           class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-          for=":r2m:-form-item"
+          for=":r2q:-form-item"
         >
           Column
         </label>
         <button
           aria-autocomplete="none"
-          aria-controls="radix-:r2n:"
+          aria-controls="radix-:r2r:"
           aria-expanded="false"
           class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer shadow-xsSolid border border-input hover:shadow-smSolid focus:border-primary focus:shadow-mdSolid disabled:hover:shadow-xsSolid mb-0 min-w-[180px]"
           data-placeholder=""

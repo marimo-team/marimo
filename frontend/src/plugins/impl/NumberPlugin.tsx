@@ -49,7 +49,10 @@ interface NumberComponentProps extends Data {
 }
 
 const NumberComponent = (props: NumberComponentProps): JSX.Element => {
-  const id = useId();
+  let id = useId();
+  if (import.meta.env.VITEST) {
+    id = "test-id";
+  }
 
   // Create a debounced value of 200
   const { value, onChange } = useDebounceControlledState({
