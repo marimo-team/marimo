@@ -149,16 +149,17 @@ const TraceBlock: React.FC<{
   theme: ResolvedTheme;
 }> = ({ run, isMostRecentRun, chartPosition, isExpanded, theme }) => {
   const setExpandedRuns = useSetAtom(expandedRunsAtom);
-  const onToggleExpanded = () => {
-    setExpandedRuns((prev) => {
-      const newMap = new Map(prev);
-      newMap.set(run.runId, !newMap.get(run.runId));
-      return newMap;
-    });
-  };
   // We prefer the user's last click, but if they haven't clicked on this run,
   // we expand the most recent run by default, otherwise we collapse it.
   isExpanded = isExpanded ?? isMostRecentRun;
+
+  const onToggleExpanded = () => {
+    setExpandedRuns((prev) => {
+      const newMap = new Map(prev);
+      newMap.set(run.runId, !isExpanded);
+      return newMap;
+    });
+  };
 
   const Icon = isExpanded ? ChevronDown : ChevronRight;
   const chevron = <Icon height={16} className="inline" />;
