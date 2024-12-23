@@ -10,9 +10,9 @@ import {
 } from "../runs";
 import type { CellMessage } from "@/core/kernel/messages";
 
-describe("RunsState Reducer", () => {
-  const { reducer, initialState } = exportedForTesting;
+const { reducer, initialState, isPureMarkdown } = exportedForTesting;
 
+describe("RunsState Reducer", () => {
   let state: RunsState;
 
   const runId = "run1" as RunId;
@@ -129,7 +129,7 @@ describe("RunsState Reducer", () => {
       runStartTimestamp,
     );
 
-    const successState = reducer(state, {
+    const successState = reducer(updatedState, {
       type: "addCellOperation",
       payload: {
         cellOperation: {
@@ -317,5 +317,120 @@ describe("RunsState Reducer", () => {
     });
 
     expect(finalState.runIds).toEqual([runId3, runId2, runId]);
+  });
+
+  it("should create a new run object when adding a cell operation", () => {
+    const state1 = addQueuedCell();
+    const run1 = state1.runMap.get(runId);
+
+    const state2 = reducer(state1, {
+      type: "addCellOperation",
+      payload: {
+        cellOperation: {
+          run_id: runId,
+          cell_id: "cell2",
+          timestamp: timestamp + 1000,
+          status: "queued",
+        },
+        code: "print('Another cell')",
+      },
+    });
+
+    const run2 = state2.runMap.get(runId);
+    expect(run2).not.toBe(run1);
+    expect(run2?.cellRuns).not.toBe(run1?.cellRuns);
+  });
+
+  it("should create new run object when updating cell status", () => {
+    const state1 = addQueuedCell();
+    const run1 = state1.runMap.get(runId);
+
+    const state2 = reducer(state1, {
+      type: "addCellOperation",
+      payload: {
+        cellOperation: {
+          run_id: runId,
+          cell_id: cellId,
+          timestamp: timestamp + 1000,
+          status: "running",
+        },
+        code: code,
+      },
+    });
+
+    const run2 = state2.runMap.get(runId);
+    expect(run2).not.toBe(run1);
+    expect(run2?.cellRuns).not.toBe(run1?.cellRuns);
+  });
+
+  it("should skip markdown for first run", () => {
+    const markdownState = reducer(state, {
+      type: "addCellOperation",
+      payload: {
+        cellOperation: {
+          run_id: runId,
+          cell_id: cellId,
+          timestamp,
+          status: "queued",
+        },
+        code: 'mo.md("""# Hello""")',
+      },
+    });
+
+    expect(markdownState.runIds).toEqual([]);
+    expect(markdownState.runMap.size).toBe(0);
+  });
+
+  it("should not skip markdown if first run was not markdown", () => {
+    // Add non-markdown run first
+    let nextState = reducer(state, {
+      type: "addCellOperation",
+      payload: {
+        cellOperation: {
+          run_id: runId,
+          cell_id: cellId,
+          timestamp,
+          status: "queued",
+        },
+        code: "print('hello')",
+      },
+    });
+
+    // Add markdown run second
+    nextState = reducer(nextState, {
+      type: "addCellOperation",
+      payload: {
+        cellOperation: {
+          run_id: runId,
+          cell_id: "cell2",
+          timestamp: timestamp + 1000,
+          status: "queued",
+        },
+        code: 'mo.md("""# Hello""")',
+      },
+    });
+
+    expect(nextState.runIds).toEqual([runId]);
+    expect(nextState.runMap.size).toBe(1);
+    expect(nextState.runMap.get(runId)?.cellRuns.length).toBe(2);
+  });
+});
+
+describe("isPureMarkdown", () => {
+  it("should return true for pure markdown", () => {
+    expect(isPureMarkdown("mo.md(r'''")).toBe(true);
+    expect(isPureMarkdown('mo.md(r"""')).toBe(true);
+    expect(isPureMarkdown("mo.md('''")).toBe(true);
+    expect(isPureMarkdown('mo.md("""')).toBe(true);
+
+    expect(isPureMarkdown("mo.md(\nr'''")).toBe(true);
+    expect(isPureMarkdown('mo.md(\nr"""')).toBe(true);
+    expect(isPureMarkdown("mo.md(\n'''")).toBe(true);
+    expect(isPureMarkdown('mo.md(\n"""')).toBe(true);
+  });
+
+  it("should return false for non-markdown", () => {
+    expect(isPureMarkdown("mo.md(f'''")).toBe(false);
+    expect(isPureMarkdown('mo.md(f"""')).toBe(false);
   });
 });

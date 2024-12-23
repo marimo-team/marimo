@@ -21,7 +21,7 @@ import {
   type Run,
   useRunsActions,
 } from "@/core/cells/runs";
-import { useAtomValue } from "jotai";
+import { atom, useAtomValue, useSetAtom } from "jotai";
 import { CellLink } from "../editor/links/cell-link";
 import { formatLogTimestamp } from "@/core/cells/logs";
 import { useCellIds } from "@/core/cells/cells";
@@ -35,9 +35,13 @@ import { ClearButton } from "../buttons/clear-button";
 import { cn } from "@/utils/cn";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
+import useResizeObserver from "use-resize-observer";
+
+const expandedRunsAtom = atom<Map<RunId, boolean>>(new Map<RunId, boolean>());
 
 export const Tracing: React.FC = () => {
   const { runIds: newestToOldestRunIds, runMap } = useAtomValue(runsAtom);
+  const expandedRuns = useAtomValue(expandedRunsAtom);
   const { clearRuns } = useRunsActions();
 
   const { theme } = useTheme();
@@ -82,13 +86,15 @@ export const Tracing: React.FC = () => {
       </div>
 
       <div className="flex flex-col gap-3">
-        {newestToOldestRunIds.map((runId: RunId) => {
+        {newestToOldestRunIds.map((runId: RunId, index: number) => {
           const run = runMap.get(runId);
           if (run) {
             return (
               <TraceBlock
                 key={run.runId}
                 run={run}
+                isExpanded={expandedRuns.get(run.runId)}
+                isMostRecentRun={index === 0}
                 chartPosition={chartPosition}
                 theme={theme}
               />
@@ -101,11 +107,10 @@ export const Tracing: React.FC = () => {
 };
 
 const LazyVega = React.lazy(() =>
-  import("react-vega").then((m) => ({ default: m.Vega })),
+  import("react-vega").then((m) => ({ default: m.VegaLite })),
 );
 interface ChartProps {
   className?: string;
-  width: number;
   height: number;
   vegaSpec: VisualizationSpec;
   signalListeners: SignalListeners;
@@ -113,12 +118,13 @@ interface ChartProps {
 }
 
 const Chart: React.FC<ChartProps> = (props: ChartProps) => {
+  const { ref, width = 300 } = useResizeObserver<HTMLDivElement>();
   return (
-    <div className={props.className}>
+    <div className={props.className} ref={ref}>
       <LazyVega
         spec={props.vegaSpec}
         theme={props.theme === "dark" ? "dark" : undefined}
-        width={props.width}
+        width={width - 50}
         height={props.height}
         signalListeners={props.signalListeners}
         actions={false}
@@ -134,23 +140,62 @@ interface VegaHoverCellSignal {
 
 const TraceBlock: React.FC<{
   run: Run;
+  /**
+   * undefined means the user hasn't clicked on this run yet
+   */
+  isExpanded: boolean | undefined;
+  isMostRecentRun: boolean;
   chartPosition: ChartPosition;
   theme: ResolvedTheme;
-}> = ({ run, chartPosition, theme }) => {
-  const [collapsed, setCollapsed] = useState(false);
-  const [hoveredCellId, setHoveredCellId] = useState<CellId | null>();
-
-  // To send signals to Vega from React, we bind a hidden input element
-  const hiddenInputRef = useRef<HTMLInputElement>(null);
-  const dispatchHoverEvent = (cellId: CellId | null) => {
-    // dispatch input event to trigger vega's param to update
-    if (hiddenInputRef.current) {
-      hiddenInputRef.current.value = String(cellId);
-      hiddenInputRef.current.dispatchEvent(
-        new Event("input", { bubbles: true }),
-      );
-    }
+}> = ({ run, isMostRecentRun, chartPosition, isExpanded, theme }) => {
+  const setExpandedRuns = useSetAtom(expandedRunsAtom);
+  const onToggleExpanded = () => {
+    setExpandedRuns((prev) => {
+      const newMap = new Map(prev);
+      newMap.set(run.runId, !newMap.get(run.runId));
+      return newMap;
+    });
   };
+  // We prefer the user's last click, but if they haven't clicked on this run,
+  // we expand the most recent run by default, otherwise we collapse it.
+  isExpanded = isExpanded ?? isMostRecentRun;
+
+  const Icon = isExpanded ? ChevronDown : ChevronRight;
+  const chevron = <Icon height={16} className="inline" />;
+
+  const traceTitle = (
+    <span className="text-sm cursor-pointer" onClick={onToggleExpanded}>
+      Run - {formatLogTimestamp(run.runStartTime)}
+      {chevron}
+    </span>
+  );
+
+  if (!isExpanded) {
+    return (
+      <div key={run.runId} className="flex flex-col">
+        <pre className="font-mono font-semibold">{traceTitle}</pre>
+      </div>
+    );
+  }
+
+  return (
+    <TraceBlockBody
+      key={run.runId}
+      run={run}
+      chartPosition={chartPosition}
+      theme={theme}
+      title={traceTitle}
+    />
+  );
+};
+
+const TraceBlockBody: React.FC<{
+  run: Run;
+  chartPosition: ChartPosition;
+  theme: ResolvedTheme;
+  title: React.ReactNode;
+}> = ({ run, chartPosition, theme, title }) => {
+  const [hoveredCellId, setHoveredCellId] = useState<CellId | null>();
 
   const handleVegaSignal = {
     [VEGA_HOVER_SIGNAL]: (name: string, value: unknown) => {
@@ -159,19 +204,6 @@ const TraceBlock: React.FC<{
       setHoveredCellId(hoveredCell ?? null);
     },
   };
-
-  const Icon = collapsed ? ChevronRight : ChevronDown;
-  const chevron = <Icon height={16} className="inline" />;
-
-  const TraceTitle = (
-    <span
-      className="text-sm cursor-pointer"
-      onClick={() => setCollapsed(!collapsed)}
-    >
-      Run - {formatLogTimestamp(run.runStartTime)}
-      {chevron}
-    </span>
-  );
 
   const cellIds = useCellIds();
 
@@ -197,7 +229,68 @@ const TraceBlock: React.FC<{
     ),
   ).spec;
 
-  const TraceRows = (
+  const traceRows = (
+    <TraceRows
+      run={run}
+      hoveredCellId={hoveredCellId}
+      hiddenInputElementId={hiddenInputElementId}
+    />
+  );
+
+  if (chartPosition === "above") {
+    return (
+      <div key={run.runId} className="flex flex-col">
+        <pre className="font-mono font-semibold">
+          {title}
+          <Chart
+            vegaSpec={vegaSpec}
+            height={120}
+            signalListeners={handleVegaSignal}
+            theme={theme}
+          />
+          {traceRows}
+        </pre>
+      </div>
+    );
+  }
+
+  return (
+    <div key={run.runId} className="flex flex-row">
+      <pre className="font-mono font-semibold">
+        {title}
+        {traceRows}
+      </pre>
+      <Chart
+        className="-mt-0.5 flex-1"
+        vegaSpec={vegaSpec}
+        height={100}
+        signalListeners={handleVegaSignal}
+        theme={theme}
+      />
+    </div>
+  );
+};
+
+const TraceRows = (props: {
+  run: Run;
+  hoveredCellId: CellId | null | undefined;
+  hiddenInputElementId: string;
+}) => {
+  const { run, hoveredCellId, hiddenInputElementId } = props;
+
+  // To send signals to Vega from React, we bind a hidden input element
+  const hiddenInputRef = useRef<HTMLInputElement>(null);
+  const dispatchHoverEvent = (cellId: CellId | null) => {
+    // dispatch input event to trigger vega's param to update
+    if (hiddenInputRef.current) {
+      hiddenInputRef.current.value = String(cellId);
+      hiddenInputRef.current.dispatchEvent(
+        new Event("input", { bubbles: true }),
+      );
+    }
+  };
+
+  return (
     <div className="text-xs mt-0.5 ml-3 flex flex-col gap-0.5">
       <input
         type="text"
@@ -214,45 +307,6 @@ const TraceBlock: React.FC<{
           dispatchHoverEvent={dispatchHoverEvent}
         />
       ))}
-    </div>
-  );
-
-  if (chartPosition === "above") {
-    return (
-      <div key={run.runId} className="flex flex-col">
-        <pre className="font-mono font-semibold">
-          {TraceTitle}
-          {!collapsed && (
-            <Chart
-              vegaSpec={vegaSpec}
-              width={320}
-              height={120}
-              signalListeners={handleVegaSignal}
-              theme={theme}
-            />
-          )}
-          {!collapsed && TraceRows}
-        </pre>
-      </div>
-    );
-  }
-
-  return (
-    <div key={run.runId} className="flex flex-row">
-      <pre className="font-mono font-semibold">
-        {TraceTitle}
-        {!collapsed && TraceRows}
-      </pre>
-      {!collapsed && (
-        <Chart
-          className="-mt-0.5"
-          vegaSpec={vegaSpec}
-          width={240}
-          height={100}
-          signalListeners={handleVegaSignal}
-          theme={theme}
-        />
-      )}
     </div>
   );
 };
