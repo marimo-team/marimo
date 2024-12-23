@@ -1,3 +1,4 @@
+/* Copyright 2024 Marimo. All rights reserved. */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { EditorView } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
@@ -74,23 +75,19 @@ describe("clickablePlaceholderExtension", () => {
     });
 
     // Get the placeholder element
-    const placeholder = view.dom.querySelector(
-      ".cm-placeholder",
-    ) as HTMLElement;
+    const placeholder = view.dom.querySelector(".cm-placeholder")!;
     expect(placeholder).toBeTruthy();
 
     // Check text content
     expect(placeholder.textContent).toBe("Click here to continue");
 
     // Find and check the clickable link
-    const link = placeholder.querySelector(
-      ".cm-clickable-placeholder",
-    ) as HTMLElement;
+    const link = placeholder.querySelector(".cm-clickable-placeholder")!;
     expect(link).toBeTruthy();
     expect(link.textContent).toBe("here");
 
     // Simulate click
-    link.click();
+    (link as HTMLElement).click();
     expect(onClick).toHaveBeenCalled();
 
     // Check theme classes
@@ -117,9 +114,7 @@ describe("clickablePlaceholderExtension", () => {
     });
 
     // Get the link element
-    const link = view.dom.querySelector(
-      ".cm-clickable-placeholder",
-    ) as HTMLElement;
+    const link = view.dom.querySelector(".cm-clickable-placeholder")!;
 
     // Create a mock event
     const event = new MouseEvent("click");
