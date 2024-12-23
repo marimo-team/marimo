@@ -8,32 +8,14 @@
     "lineEnding": "lf",
     "lineWidth": 80,
     "attributePosition": "auto",
-    "ignore": [
-      "dist",
-      "lib",
-      "pnpm-lock.yaml",
-      "storybook-static",
-      "package.json"
-    ]
+    "ignore": ["pnpm-lock.yaml", "storybook-static", "package.json"]
   },
   "organizeImports": {
-    "ignore": [
-      "dist",
-      "lib",
-      "pnpm-lock.yaml",
-      "storybook-static",
-      "package.json"
-    ],
+    "ignore": ["pnpm-lock.yaml", "storybook-static", "package.json"],
     "enabled": false
   },
   "linter": {
-    "ignore": [
-      "dist",
-      "lib",
-      "pnpm-lock.yaml",
-      "storybook-static",
-      "package.json"
-    ],
+    "ignore": ["pnpm-lock.yaml", "storybook-static", "package.json"],
     "enabled": true,
     "rules": {
       "recommended": true,
@@ -129,5 +111,10 @@
       "quoteStyle": "double",
       "attributePosition": "auto"
     }
+  },
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
   }
 }
