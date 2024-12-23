@@ -89,7 +89,7 @@ nav:
       - Testing notebooks:
           - Overview: guides/testing/index.md
           - pytest: guides/testing/pytest.md
-          - doctest: guides/testing/doctests.md
+          - doctest: guides/testing/doctest.md
       - Export to HTML and other formats: guides/exporting.md
       - Run notebooks with WebAssembly: guides/wasm.md
       - Deploy notebooks:
