@@ -59,6 +59,7 @@ reproducibility, maintainability, composability, and shareability.
 - 🖐️ **interactive:** [bind sliders, tables, plots, and more](guides/interactivity.md) to Python — no callbacks required
 - 🔬 **reproducible:** [no hidden state](guides/reactivity.md#no-hidden-state), deterministic execution, [built-in package management](guides/editor_features/package_management.md)
 - 🏃 **executable:** [execute as a Python script](guides/scripts.md), parameterized by CLI args
+- 🧪 **testable:** [run your favorite test suite](guides/testing/index.md), verify your notebook's correctness
 - 🛜 **shareable**: [deploy as an interactive web app](guides/apps.md) or [slides](guides/apps.md#slides-layout), [run in the browser via WASM](guides/wasm.md)
 - 🛢️ **designed for data**: query dataframes and databases [with SQL](guides/working_with_data/sql.md), filter and search [dataframes](guides/working_with_data/dataframes.md)
 - 🐍 **git-friendly:** notebooks are stored as `.py` files

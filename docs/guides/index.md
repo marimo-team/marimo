@@ -9,7 +9,7 @@ These guides cover marimo's core concepts.
 
 | Guide                                                | Description                                                  |
 | :--------------------------------------------------- | :----------------------------------------------------------- |
-| [Reactive execution](reactivity.md)                  | Understanding how marimo runs cells                                        |
+| [Reactive execution](reactivity.md)                  | Understanding how marimo runs cells                          |
 | [Interactive elements](interactivity.md)             | Using interactive UI elements                                |
 | [Visualizing outputs](outputs.md)                    | Creating markdown, plots, and other visual outputs           |
 | [Migrating from Jupyter](coming_from/jupyter.md)     | Tips for transitioning from Jupyter                          |
@@ -17,6 +17,7 @@ These guides cover marimo's core concepts.
 | [Working with data](working_with_data/index.md)      | Using SQL cells, no-code dataframe tools, and reactive plots |
 | [Apps](apps.md)                                      | Running notebooks as apps                                    |
 | [Scripts](scripts.md)                                | Running notebooks as scripts                                 |
+| [Tests](testing/index.md)                            | Running unit tests in notebooks                              |
 | [Export to HTML and other formats](exporting.md)     | Exporting notebooks to HTML and flat scripts                 |
 | [Run notebooks with WebAssembly](wasm.md)            | Create notebooks in our online playground                    |
 | [Deploying](deploying/index.md)                      | Deploying marimo notebooks and apps                          |
