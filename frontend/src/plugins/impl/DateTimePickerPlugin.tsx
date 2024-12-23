@@ -45,7 +45,7 @@ interface DateTimePickerProps extends Data {
 }
 
 const DateTimePickerComponent = (props: DateTimePickerProps): JSX.Element => {
-  const handleInput = (valueAsDateTime: CalendarDateTime) => {
+  const handleInput = (valueAsDateTime: CalendarDateTime | null) => {
     if (!valueAsDateTime) {
       return;
     }

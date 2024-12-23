@@ -46,18 +46,25 @@ export function useDebounceControlledState<T>(opts: {
 
   const onUpdate = useEvent(onChange);
 
-  // If the initialValue changes, update the internal value
+  // If the initialValue changes, update the internal value and trigger onChange immediately
   useEffect(() => {
     setInternalValue(initialValue);
-  }, [initialValue]);
+    // When initialValue changes (like during reset), update immediately
+    if (!disabled) {
+      onUpdate(initialValue);
+    }
+  }, [initialValue, disabled, onUpdate]);
 
+  // Handle debounced updates for user input
   useEffect(() => {
     if (disabled) {
       return;
     }
-
-    onUpdate(debouncedValue);
-  }, [debouncedValue, disabled, onUpdate]);
+    // Only trigger debounced update if the value is different from initialValue
+    if (debouncedValue !== initialValue) {
+      onUpdate(debouncedValue);
+    }
+  }, [debouncedValue, initialValue, disabled, onUpdate]);
 
   // If disabled, just pass through the initialValue and onChange
   if (disabled) {
