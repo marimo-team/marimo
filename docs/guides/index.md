@@ -17,7 +17,7 @@ These guides cover marimo's core concepts.
 | [Working with data](working_with_data/index.md)      | Using SQL cells, no-code dataframe tools, and reactive plots |
 | [Apps](apps.md)                                      | Running notebooks as apps                                    |
 | [Scripts](scripts.md)                                | Running notebooks as scripts                                 |
-| [Test](test.md)                                      | Running unit tests in notebooks                              |
+| [Tests](tests.md)                                    | Running unit tests in notebooks                              |
 | [Export to HTML and other formats](exporting.md)     | Exporting notebooks to HTML and flat scripts                 |
 | [Run notebooks with WebAssembly](wasm.md)            | Create notebooks in our online playground                    |
 | [Deploying](deploying/index.md)                      | Deploying marimo notebooks and apps                          |
