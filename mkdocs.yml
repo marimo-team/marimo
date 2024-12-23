@@ -86,7 +86,7 @@ nav:
           - Plotting: guides/working_with_data/plotting.md
       - Run notebooks as apps: guides/apps.md
       - Run notebooks as scripts: guides/scripts.md
-      - Run notebook tests: guides/test.md
+      - Run notebook tests: guides/tests.md
       - Export to HTML and other formats: guides/exporting.md
       - Run notebooks with WebAssembly: guides/wasm.md
       - Deploy notebooks:
