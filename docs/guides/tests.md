@@ -1,16 +1,34 @@
 # Running unit tests with pytest
 
-Since marimo notebooks are just Python scripts, you can test them with
+Since marimo notebooks are Python programs, you can test them using
+[`pytest`](https://docs.pytest.org/en/stable/), a popular testing framework
+for Python.
+
+
+
+For example,
 
 ```bash
 pytest test_notebook.py
 ```
 
-[`pytest`](https://docs.pytest.org/en/stable/), a popular testing framework
-for Python, will run all the tests in `test_notebook.py` and show you the
-results. pytest detects tests by looking for functions that start with `test_`,
-so renaming your cell `test_*`, will automatically make it testable. For
-example, the following notebook:
+runs and tests all notebook cells whose names start with `test_`.
+
+!!! tip "Naming cells"
+
+    Name a cell by giving its function a name in the file format, or using
+    the cell action menu in the notebook editor.
+
+!!! note "Use marimo notebooks just like normal pytest tests"
+
+    Include test notebooks (notebooks whose names start with `test_`) in your
+    standard test suite, and `pytest` will discover them automatically.
+    In addition, you can write self-contained notebooks that contain their own
+    unit tests, and run `pytest` on them directly (`pytest my_notebook.py`).
+
+## Example
+
+Running `pytest` on the the following notebook
 
 ```python
 # content of test_notebook.py
@@ -37,7 +55,7 @@ def test_sanity(inc):
     assert inc(3) == 4, "This test passes"
 ```
 
-will produce the following output:
+produces the following output:
 
 ```pytest
 ============================= test session starts ==============================
@@ -72,68 +90,5 @@ E       AssertionError: This test fails
 examples.py:16: AssertionError
 =========================== short test summary info ============================
 FAILED examples.py::test_fails - AssertionError: This test fails
-========================= 1 failed, 1 passedin 0.20s ===========================
-```
-
-!!! note "You can use marimo notebooks just like normal pytest tests"
-
-    You can include these notebooks in your standard test suite and
-    `pytest` just like any other python script.
-
-
-## pytest fixtures
-
-A powerful feature of `pytest` is the ability to define
-[fixtures](https://docs.pytest.org/en/stable/explanation/fixtures.html#about-fixtures).
-Fixtures and are reliable ways to set up, tear down or mock resources for your
-tests. marimo uses function arguments to denote variable dependencies, but
-variables ending in `_fixture` will be treated as fixtures in `pytest`.
-For example:
-
-```python
-# content of conftest.py
-import pytest
-
-@pytest.fixture
-def working_requests_fixture():
-    def pass_request():
-        return "apple"
-    return request_fixture
-
-
-@pytest.fixture
-def failing_requests_fixture():
-    def fail_request():
-        raise Exception("Request failed")
-    return request_fixture
-
-
-@pytest.fixture(params=["working_request_fixture", "failing_request_fixture"])
-def requests_fixture(request: Any) -> Kernel:
-    return request.getfixturevalue(request.param)
-```
-
-```python
-# content of test_notebook.py
-import marimo
-
-__generated_with = "0.10.6"
-app = marimo.App()
-
-
-@app.cell
-def _():
-    import requests
-    requests_fixture = requests.get
-    return requests, requests_fixture
-
-# ... normal usage
-
-@app.cell
-def test_sanity(my_obj, requests_fixture):
-    my_obj.get = requests_fixture
-    assert (
-        my_obj.execute(),
-        f"Test issue with {requests_fixture.__name__}"
-    )
+========================= 1 failed, 1 passed in 0.20s ===========================
 ```
