@@ -73,7 +73,7 @@ FAILED examples.py::test_fails - AssertionError: This test fails
 ========================= 1 failed, 1 passedin 0.20s ===========================
 ```
 
-!!! note "marimo notebooks just like normal pytest tests"
+!!! note "You can use marimo notebooks just like normal pytest tests"
 
     You can include these notebooks in your standard test suite and
     `pytest` just like any other python script.
