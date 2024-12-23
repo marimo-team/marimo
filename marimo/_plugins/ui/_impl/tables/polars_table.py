@@ -94,19 +94,15 @@ class PolarsTableManagerFactory(TableManagerFactory):
                                     )
                                 )
                         elif isinstance(dtype, pl.Duration):
-                            if dtype.time_unit == "ms":
-                                result = result.with_columns(
-                                    column.dt.total_milliseconds()
-                                )
-
-                            elif dtype.time_unit == "ns":
-                                result = result.with_columns(
-                                    column.dt.total_nanoseconds()
-                                )
-                            elif dtype.time_unit == "us":
-                                result = result.with_columns(
-                                    column.dt.total_microseconds()
-                                )
+                            unit_map = {
+                                "ms": column.dt.total_milliseconds,
+                                "ns": column.dt.total_nanoseconds,
+                                "us": column.dt.total_microseconds,
+                                "s": column.dt.total_seconds,
+                            }
+                            if dtype.time_unit in unit_map:
+                                method = unit_map[dtype.time_unit]
+                                result = result.with_columns(method())
                     return result.write_csv().encode("utf-8")
 
             def to_json(self) -> bytes:
@@ -198,6 +194,8 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     return ("date", dtype_string)
                 elif dtype == pl.Time:
                     return ("time", dtype_string)
+                elif dtype == pl.Duration:
+                    return ("number", dtype_string)
                 elif dtype == pl.Datetime:
                     return ("datetime", dtype_string)
                 elif dtype.is_temporal():
