@@ -45,10 +45,12 @@ interface DateRangePickerProps extends Data {
 }
 
 const DateRangePickerComponent = (props: DateRangePickerProps): JSX.Element => {
-  const handleInput = (valueAsDateRange: {
-    start: CalendarDate;
-    end: CalendarDate;
-  }) => {
+  const handleInput = (
+    valueAsDateRange: {
+      start: CalendarDate;
+      end: CalendarDate;
+    } | null,
+  ) => {
     if (!valueAsDateRange) {
       return;
     }
