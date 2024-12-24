@@ -140,7 +140,7 @@ class TestMicropip:
             global_ns: dict[str, Any] | None = None,  # noqa: ARG001
             local_ns: dict[str, Any] | None = None,  # noqa: ARG001
             fromlist: tuple[str, ...] = (),  # noqa: ARG001
-            level: int = 0  # noqa: ARG001
+            level: int = 0,  # noqa: ARG001
         ) -> Any:
             nonlocal import_attempts
             import_attempts += 1
