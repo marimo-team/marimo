@@ -1765,7 +1765,15 @@ class Kernel:
             self.package_manager.alert_not_installed()
             return
 
-        missing_packages = list(sorted(request.versions.keys()))
+        missing_packages_set = set(request.versions.keys())
+        # Append missing modules
+        missing_packages_set.update(
+            [
+                self.package_manager.package_to_module(pkg)
+                for pkg in self.module_registry.missing_modules()
+            ]
+        )
+        missing_packages = list(sorted(missing_packages_set))
 
         # Frontend shows package names, not module names
         package_statuses: PackageStatusType = {

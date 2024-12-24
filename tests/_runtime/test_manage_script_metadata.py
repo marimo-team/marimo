@@ -1,7 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from types import ModuleType
 from typing import TYPE_CHECKING
+from unittest.mock import AsyncMock, call, patch
 
 import pytest
 
@@ -10,6 +12,7 @@ from marimo._config.config import (
 )
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._runtime.requests import InstallMissingPackagesRequest
 from tests.conftest import MockedKernel
 
 if TYPE_CHECKING:
@@ -208,3 +211,86 @@ async def test_manage_script_metadata_pip_noop(
 
     with open(filename) as f:  # noqa: ASYNC230
         assert "" == f.read()
+
+
+async def test_install_missing_packages_micropip(
+    mocked_kernel: MockedKernel,
+) -> None:
+    k = mocked_kernel.k
+    # Fake put pyodide in sys.modules
+    import sys
+
+    sys.modules["pyodide"] = ModuleType("pyodide")
+
+    with patch("micropip.install", new_callable=AsyncMock) as mock_install:
+        await k.install_missing_packages(
+            InstallMissingPackagesRequest(
+                manager="micropip",
+                versions={"barbaz": "", "foobar": ""},
+            )
+        )
+        assert mock_install.call_count == 2
+        assert mock_install.call_args_list == [
+            call(["barbaz"]),
+            call(["foobar"]),
+        ]
+
+    # Remove pyodide from sys.modules
+    del sys.modules["pyodide"]
+
+
+async def test_install_missing_packages_micropip_with_versions(
+    mocked_kernel: MockedKernel,
+) -> None:
+    k = mocked_kernel.k
+    # Fake put pyodide in sys.modules
+    import sys
+
+    sys.modules["pyodide"] = ModuleType("pyodide")
+
+    with patch("micropip.install", new_callable=AsyncMock) as mock_install:
+        await k.install_missing_packages(
+            InstallMissingPackagesRequest(
+                manager="micropip",
+                versions={"numpy": "1.22.0", "pandas": "1.5.0"},
+            )
+        )
+        assert mock_install.call_count == 2
+        assert mock_install.call_args_list == [
+            call(["numpy==1.22.0"]),
+            call(["pandas==1.5.0"]),
+        ]
+
+    # Remove pyodide from sys.modules
+    del sys.modules["pyodide"]
+
+
+async def test_install_missing_packages_micropip_other_modules(
+    mocked_kernel: MockedKernel,
+) -> None:
+    k = mocked_kernel.k
+
+    k.module_registry.modules = lambda: set(
+        {"idk", "done", "already_installed"}
+    )
+    import sys
+
+    sys.modules["pyodide"] = ModuleType("pyodide")
+    sys.modules["already_installed"] = ModuleType("already_installed")
+
+    with patch("micropip.install", new_callable=AsyncMock) as mock_install:
+        await k.install_missing_packages(
+            InstallMissingPackagesRequest(
+                manager="micropip",
+                versions={},
+            )
+        )
+        assert mock_install.call_count == 2
+        assert mock_install.call_args_list == [
+            call(["done"]),
+            call(["idk"]),
+        ]
+
+    # Remove pyodide from sys.modules
+    del sys.modules["pyodide"]
+    del sys.modules["already_installed"]
