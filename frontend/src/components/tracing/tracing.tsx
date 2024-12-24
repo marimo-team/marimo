@@ -106,6 +106,7 @@ export const Tracing: React.FC = () => {
   );
 };
 
+// Using vega as some parts of the spec get interpreted as vega & will throw warnings
 const LazyVega = React.lazy(() =>
   import("react-vega").then((m) => ({ default: m.Vega })),
 );
