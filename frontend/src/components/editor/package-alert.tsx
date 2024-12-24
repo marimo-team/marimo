@@ -297,7 +297,6 @@ const InstallPackagesButton = ({
           completePackages[pkg] = completePackages[pkg] ?? "";
         }
 
-
         await sendInstallMissingPackages({
           manager,
           versions: completePackages,
