@@ -2,7 +2,10 @@
 # requires-python = ">=3.9"
 # dependencies = [
 #     "altair==5.4.1",
+#     "duckdb==1.1.3",
 #     "marimo",
+#     "polars==1.18.0",
+#     "pyarrow==18.1.0",
 # ]
 # ///
 

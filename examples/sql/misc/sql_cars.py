@@ -4,7 +4,8 @@
 #     "altair==5.4.1",
 #     "duckdb==1.1.1",
 #     "marimo",
-#     "pandas==2.2.3",
+#     "polars==1.18.0",
+#     "pyarrow==18.1.0",
 #     "vega-datasets==0.9.0",
 # ]
 # ///
@@ -233,11 +234,10 @@ def __(cars, mo, selected_cars):
 @app.cell
 def __():
     import marimo as mo
-    import pandas as pd
     import duckdb
     import altair as alt
     from vega_datasets import data
-    return alt, data, duckdb, mo, pd
+    return alt, data, duckdb, mo
 
 
 if __name__ == "__main__":
