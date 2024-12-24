@@ -181,6 +181,22 @@ const requestHandler = createRPCRequestHandler({
       try:
         await micropip.install("${packageName}")
         response = {"success": True}
+        # After successful installation, refresh package list
+        packages = micropip.list()
+        packages_list = [
+          {"name": p.name, "version": p.version}
+          for p in packages.values()
+        ]
+        # Send status update with package list
+        rpc.send.kernelMessage({
+          "message": json.dumps({
+            "op": "status-update",
+            "data": {
+              "type": "package-list",
+              "packages": sorted(packages_list, key=lambda pkg: pkg["name"])
+            }
+          })
+        })
       except Exception as e:
         response = {"success": False, "error": str(e)}
       json.dumps(response)

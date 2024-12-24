@@ -118,3 +118,49 @@ class TestMicropip:
                     ]
                 )
             TestMicropip._assert_micropip_warning_printed(buf.getvalue())
+
+    @staticmethod
+    async def test_micropip_auto_install(
+        executing_kernel: Kernel, exec_req: ExecReqProvider, monkeypatch
+    ) -> None:
+        # Track micropip.install calls and import attempts
+        install_called = False
+        import_attempts = 0
+        test_package = "requests"
+
+        async def mock_install(package):
+            nonlocal install_called
+            install_called = True
+            return True
+
+        def mock_import(name, *args):
+            nonlocal import_attempts
+            import_attempts += 1
+            if import_attempts == 1:
+                # First attempt fails to trigger auto-install
+                raise ModuleNotFoundError(f"No module named '{name}'")
+            # Subsequent attempts succeed
+            return type(name, (), {})()
+
+        # Mock micropip, is_pyodide, and __import__
+        monkeypatch.setattr("marimo._utils.platform.is_pyodide", lambda: True)
+        monkeypatch.setattr("micropip.install", mock_install)
+        monkeypatch.setattr("builtins.__import__", mock_import)
+        
+        # First attempt should trigger ModuleNotFoundError and auto-installation
+        with capture_stderr() as buf:
+            result = await executing_kernel.run([
+                exec_req.get(f"import {test_package}")
+            ])
+        
+        # Verify the error was handled and installation was triggered
+        assert install_called, "micropip.install should have been called"
+        assert import_attempts == 1, "First import attempt should have failed"
+        assert not buf.getvalue(), "No error should be printed to stderr"
+        
+        # Second attempt should succeed since package is now "installed"
+        result = await executing_kernel.run([
+            exec_req.get(f"import {test_package}")
+        ])
+        assert not result.error, f"Import should succeed after installation"
+        assert import_attempts == 2, "Second import attempt should succeed"

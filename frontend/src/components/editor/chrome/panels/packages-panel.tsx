@@ -68,7 +68,10 @@ const InstallPackageForm: React.FC<{
       setLoading(true);
       const response = await addPackage({ package: input });
       if (response.success) {
+        // Trigger an immediate reload
         onSuccess();
+        // Schedule another reload after a short delay to catch any delayed updates
+        setTimeout(onSuccess, 1000);
         toast({
           title: "Package added",
           description: (
@@ -245,7 +248,10 @@ const RemoveButton: React.FC<{
       setLoading(true);
       const response = await removePackage({ package: packageName });
       if (response.success) {
+        // Trigger an immediate reload
         onSuccess();
+        // Schedule another reload after a short delay to catch any delayed updates
+        setTimeout(onSuccess, 1000);
         toast({
           title: "Package removed",
           description: (
@@ -257,7 +263,7 @@ const RemoveButton: React.FC<{
         });
       } else {
         toast({
-          title: "Failed to add package",
+          title: "Failed to remove package",
           description: response.error,
           variant: "danger",
         });

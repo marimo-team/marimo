@@ -153,7 +153,11 @@ export const PackageAlert: React.FC = () => {
     const { status, title, titleIcon, description } =
       getInstallationStatusElements(packageAlert.packages);
     if (status === "installed") {
-      setTimeout(() => clearPackageAlert(packageAlert.id), 10_000);
+      console.log("[Package Installation] All packages installed successfully");
+      setTimeout(() => {
+        console.log("[Package Installation] Clearing success alert");
+        clearPackageAlert(packageAlert.id);
+      }, 10_000);
     }
 
     return (
@@ -241,6 +245,7 @@ function getInstallationStatusElements(packages: PackageInstallationStatus) {
       description: "Installed packages:",
     };
   }
+  console.log("[Package Installation] Some packages failed to install");
   return {
     status: "failed",
     title: "Some packages failed to install",
@@ -294,6 +299,10 @@ const InstallPackagesButton = ({
           completePackages[pkg] = completePackages[pkg] ?? "";
         }
 
+        console.log("[Package Installation] Starting installation with:", {
+          manager,
+          versions: completePackages,
+        });
         await sendInstallMissingPackages({
           manager,
           versions: completePackages,
