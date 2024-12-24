@@ -107,7 +107,7 @@ export const Tracing: React.FC = () => {
 };
 
 const LazyVega = React.lazy(() =>
-  import("react-vega").then((m) => ({ default: m.VegaLite })),
+  import("react-vega").then((m) => ({ default: m.Vega })),
 );
 interface ChartProps {
   className?: string;
