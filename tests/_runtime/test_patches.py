@@ -135,7 +135,13 @@ class TestMicropip:
             install_called = True
             return True
 
-        def mock_import(name: str, globals=None, locals=None, fromlist=(), level=0) -> Any:
+        def mock_import(
+            name: str,
+            globals: dict[str, Any] | None = None,
+            locals: dict[str, Any] | None = None,
+            fromlist: tuple[str, ...] = (),
+            level: int = 0
+        ) -> Any:
             nonlocal import_attempts
             import_attempts += 1
             if import_attempts == 1:
