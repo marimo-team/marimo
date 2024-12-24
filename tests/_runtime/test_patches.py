@@ -130,12 +130,12 @@ class TestMicropip:
         import_attempts = 0
         test_package = "requests"
 
-        async def mock_install(_package: str) -> bool:
+        async def mock_install(_: str) -> bool:
             nonlocal install_called
             install_called = True
             return True
 
-        def mock_import(name: str, *_args: Any) -> Any:
+        def mock_import(name: str, *, __: Any = None) -> Any:
             nonlocal import_attempts
             import_attempts += 1
             if import_attempts == 1:
