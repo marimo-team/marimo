@@ -1,6 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import Any
+
 from marimo._runtime.capture import capture_stderr
 from marimo._runtime.runtime import Kernel
 from marimo._utils.platform import is_pyodide
@@ -128,12 +130,12 @@ class TestMicropip:
         import_attempts = 0
         test_package = "requests"
 
-        async def mock_install(package):
+        async def mock_install(_package: str) -> bool:
             nonlocal install_called
             install_called = True
             return True
 
-        def mock_import(name, *args):
+        def mock_import(name: str, *_args: Any) -> Any:
             nonlocal import_attempts
             import_attempts += 1
             if import_attempts == 1:
