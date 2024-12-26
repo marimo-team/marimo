@@ -58,6 +58,8 @@ markdown_extensions:
       custom_fences:
         - class: mermaid
           name: mermaid
+  - pymdownx.tabbed:
+      alternate_style: true
   - pymdownx.blocks.tab:
       alternate_style: true
   - pymdownx.tasklist:
@@ -74,7 +76,7 @@ nav:
 
   - User Guide:
       - Overview: guides/index.md
-      - Reactive execution: guides/reactivity.md
+      - Running cells: guides/reactivity.md
       - Interactive elements: guides/interactivity.md
       - Visualizing outputs: guides/outputs.md
       - Migrating from Jupyter: guides/coming_from/jupyter.md

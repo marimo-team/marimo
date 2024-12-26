@@ -3,43 +3,6 @@ hide:
   - navigation
 ---
 
-# FAQ
-
-- [Choosing marimo](#choosing-marimo)
-  - [How is marimo different from Jupyter?](#faq-jupyter)
-  - [What problems does marimo solve?](#faq-problems)
-  - [How is marimo.ui different from Jupyter widgets?](#faq-widgets)
-- [Using marimo](#using-marimo)
-  - [Is marimo a notebook or a library?](#faq-notebook-or-library)
-  - [What's the difference between a marimo notebook and a marimo app?](#faq-notebook-app)
-  - [How does marimo know what cells to run?](#faq-reactivity)
-  - [Does marimo slow my code down](#faq-overhead)
-  - [How do I prevent automatic execution from running expensive cells?](#faq-expensive)
-  - [How do I disable automatic execution?](#faq-lazy)
-  - [How do I use sliders and other interactive elements?](#faq-interactivity)
-  - [How do I add a submit button to UI elements?](#faq-form)
-  - [How do I write markdown?](#faq-markdown)
-  - [How do I display plots?](#faq-plots)
-  - [How do I prevent matplotlib plots from being cut off?](#faq-mpl-cutoff)
-  - [How do I display interactive matplotlib plots?](#faq-interactive-plots)
-  - [How do I display objects in rows and columns?](#faq-rows-columns)
-  - [How do I show cell code in the app view?](#faq-show-code)
-  - [How do I create an output with a dynamic number of UI elements?](#faq-dynamic-ui-elements)
-  - [Why aren't my `on_change` handlers being called?](#faq-on-change-called)
-  - [Why are my `on_change` handlers in an array all referencing the last element?](#faq-on-change-last)
-  - [Why aren't my brackets in SQL working?](#faq-sql-brackets)
-  - [How do I restart a notebook?](#faq-restart)
-  - [How do I reload modules?](#faq-reload)
-  - [How does marimo treat type annotations?](#faq-annotations)
-  - [How do I use dotenv?](#faq-dotenv)
-  - [What packages can I use?](#faq-packages)
-  - [How do I use marimo on a remote server?](#faq-remote)
-  - [How do I make marimo accessible on all network interfaces?](#faq-interfaces)
-  - [How do I use marimo behind JupyterHub?](#faq-jupyter-hub)
-  - [How do I use marimo with JupyterBook?](#faq-jupyter-book)
-  - [How do I deploy apps?](#faq-app-deploy)
-  - [Is marimo free?](#faq-marimo-free)
-
 ## Choosing marimo
 
 <a name="faq-jupyter"></a>
