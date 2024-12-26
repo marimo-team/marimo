@@ -176,7 +176,8 @@ def compile_cell(
             )
 
             rewrite_asserts(module, code.encode("utf-8"), module_path=filename)
-        except ImportError:
+        # general catch-all, in case of internal pytest API changes
+        except Exception:
             LOGGER.warning(
                 "pytest is not installed, skipping assertion rewriting"
             )
