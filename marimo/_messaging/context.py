@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 import uuid
 from contextvars import ContextVar
 from dataclasses import dataclass

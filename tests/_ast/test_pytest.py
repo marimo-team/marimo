@@ -81,3 +81,18 @@ def test_cell_extra_refs_fail(mo):  # noqa: ARG001
 @app.cell
 def test_cell_args_resolved_by_name(mo):  # noqa: ARG001
     assert x  # noqa: F821
+
+
+@app.cell
+def test_cell_assert_rewritten():
+    import pytest
+
+    a = 1
+    b = 2
+
+    with pytest.raises(AssertionError) as exc_info:
+        assert a + b == a * b
+
+    # Check expansion works. Without rewrite, this just produces
+    # "AssertionError", without showing the expanded expression.
+    assert "assert (1 + 2) == (1 * 2)" in str(exc_info.value)

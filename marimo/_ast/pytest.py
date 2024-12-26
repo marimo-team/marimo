@@ -71,7 +71,7 @@ def wrap_fn_for_pytest(
     local = {"stub": cell.__call__, "Any": Any}
     eval(compile(fn, inspect.getfile(func), "exec"), local)
 
-    # The remaining expected attributes is needed to ensure attribute count
+    # The remaining expected attributes are needed to ensure attribute count
     # matches.
     cell._pytest_reserved = reserved
 
