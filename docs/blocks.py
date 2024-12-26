@@ -109,9 +109,13 @@ class MarimoEmbedFileBlock(BaseMarimoBlock):
             # result = self.md.htmlStash.store(self.md.convert(md_text))
             # container.text = result
 
-            container = etree.SubElement(details, "pre")
-            container.set("class", "marimo-source-code")
-            code_block = etree.SubElement(container, "code")
+            copy_paste_container = etree.SubElement(details, "p")
+            copy_paste_container.set("class",
+            copy_paste_container.text = "Tip: paste this code into an empty cell, and the marimo editor will create cells for you"
+
+            code_container = etree.SubElement(details, "pre")
+            code_container.set("class", "marimo-source-code")
+            code_block = etree.SubElement(code_container, "code")
             code_block.set("class", "language-python")
             code_block.text = code
 

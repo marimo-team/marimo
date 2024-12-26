@@ -16,7 +16,7 @@ mo.stop(condition)
 expensive_function_call()
 ```
 
-Use [`mo.stop()`][marimo.stop] in conjunction with
+Use [`mo.stop`][marimo.stop] with
 [`mo.ui.run_button()`][marimo.ui.run_button] to require a button press for
 expensive cells:
 
