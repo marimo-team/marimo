@@ -44,7 +44,7 @@ former. When a cell is run, its descendants are marked for execution.
     When a cell is run, marimo automatically runs all other cells that
     **reference** any of the global variables it **defines**.
 
-marimo [does not track mutations](#variable mutations are not tracked) to
+marimo [does not track mutations](#variable-mutations-are-not-tracked) to
 variables, nor assignments to attributes. That means that if you assign an
 attribute like `foo.bar = 10`, other cells referencing `foo.bar` will _not_ be
 run.
