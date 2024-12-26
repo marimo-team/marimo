@@ -110,7 +110,6 @@ class MarimoEmbedFileBlock(BaseMarimoBlock):
             # container.text = result
 
             copy_paste_container = etree.SubElement(details, "p")
-            copy_paste_container.set("class",
             copy_paste_container.text = "Tip: paste this code into an empty cell, and the marimo editor will create cells for you"
 
             code_container = etree.SubElement(details, "pre")
