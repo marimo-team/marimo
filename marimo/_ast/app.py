@@ -460,20 +460,22 @@ class CellManager:
         )
 
         def _register(func: Callable[..., Any]) -> Cell:
+            # Use PYTEST_VERSION here, opposed to PYTEST_CURRENT_TEST, in
+            # order to allow execution during test collection.
+            is_top_level_pytest = (
+                "PYTEST_VERSION" in os.environ
+                and "PYTEST_CURRENT_TEST" not in os.environ
+            )
             cell = cell_factory(
                 func,
                 cell_id=self.create_cell_id(),
                 anonymous_file=app._app._anonymous_file if app else False,
+                test_rewrite=is_top_level_pytest,
             )
             cell._cell.configure(cell_config)
             self._register_cell(cell, app=app)
             # Manually set the signature for pytest.
-            # Use PYTEST_VERSION here, opposed to PYTEST_CURRENT_TEST, in
-            # order to allow execution during test collection.
-            if (
-                "PYTEST_VERSION" in os.environ
-                and "PYTEST_CURRENT_TEST" not in os.environ
-            ):
+            if is_top_level_pytest:
                 func = wrap_fn_for_pytest(func, cell)
             # NB. in place metadata update.
             functools.wraps(func)(cell)
