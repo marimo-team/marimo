@@ -23,5 +23,25 @@ def h(y):
     return (z,)
 
 
+@app.cell
+def unhashable_defined():
+    unhashable = {0, 1, 2}
+    unhashable
+    return (unhashable,)
+
+
+@app.cell
+def unhashable_required(unhashable):
+    assert unhashable == {0, 1}
+    return
+
+
+@app.cell
+def multiple():
+    A = 0
+    B = 1
+    (A, B)
+    return (A, B)
+
 if __name__ == "__main__":
     app.run()
