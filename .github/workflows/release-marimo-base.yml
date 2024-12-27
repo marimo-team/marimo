@@ -45,3 +45,9 @@ jobs:
           HATCH_INDEX_USER: ${{ secrets.PYPI_USER }}
           HATCH_INDEX_AUTH: ${{ secrets.PYPI_MARIMO_BASE_PASSWORD }}
         run: hatch publish
+
+      - name: 📤 Upload to TestPyPI
+        env:
+          HATCH_INDEX_USER: ${{ secrets.TEST_PYPI_USER }}
+          HATCH_INDEX_AUTH: ${{ secrets.TEST_PYPI_MARIMO_BASE_PASSWORD }}
+        run: hatch publish --repo test
