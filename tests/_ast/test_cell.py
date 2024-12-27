@@ -191,13 +191,18 @@ class TestCellRun:
     def test_unhashable_import() -> None:
         from cell_data.named_cells import (
             unhashable_defined,
-            unhashable_required,
+            unhashable_override_required,
         )
 
         assert unhashable_defined.name == "unhashable_defined"
-        assert unhashable_required.name == "unhashable_required"
+        assert (
+            unhashable_override_required.name == "unhashable_override_required"
+        )
 
-        unhashable_required.run(unhashable={0, 1})
+        assert unhashable_override_required.run(unhashable={0, 1}) == (
+            {0, 1},
+            {},
+        )
         assert unhashable_defined.run() == (
             {0, 1, 2},
             {"unhashable": {0, 1, 2}},

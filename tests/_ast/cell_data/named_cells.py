@@ -31,8 +31,9 @@ def unhashable_defined():
 
 
 @app.cell
-def unhashable_required(unhashable):
+def unhashable_override_required(unhashable):
     assert unhashable == {0, 1}
+    unhashable
     return
 
 
