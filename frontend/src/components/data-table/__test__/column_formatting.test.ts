@@ -1,7 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
 import { applyFormat } from "../column-formatting/feature";
-import { prettyScientificNumber } from "@/utils/numbers";
+import {
+  prettyScientificNumber,
+  prettyEngineeringNumber,
+} from "@/utils/numbers";
 
 describe("applyFormat", () => {
   it("should return an empty string for null, undefined, or empty string values", () => {
@@ -39,6 +42,9 @@ describe("applyFormat", () => {
       expect(applyFormat(number, "Percent", "number")).toBe("123,456.7%");
       expect(applyFormat(number, "Scientific", "number")).toBe(
         prettyScientificNumber(1234.567),
+      );
+      expect(applyFormat(number, "Engineering", "number")).toBe(
+        prettyEngineeringNumber(1234.567),
       );
       expect(applyFormat(number, "Integer", "number")).toBe("1,235");
     });

@@ -25,7 +25,7 @@ export function prettyNumber(
   });
 }
 
-export function scientificSpecialCase(value: number): string | null {
+function scientificSpecialCase(value: number): string | null {
   if (value === 0) {
     return "0";
   } // Avoid displaying -0

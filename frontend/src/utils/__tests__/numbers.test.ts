@@ -1,6 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
-import { prettyNumber, prettyScientificNumber } from "../numbers";
+import {
+  prettyNumber,
+  prettyScientificNumber,
+  prettyEngineeringNumber,
+} from "../numbers";
 
 describe("prettyNumber", () => {
   it("should format numbers", () => {
@@ -32,5 +36,31 @@ describe("prettyScientificNumber", () => {
     expect(prettyScientificNumber(-0.12)).toBe("-0.12");
     expect(prettyScientificNumber(-0.1234)).toBe("-0.12");
     expect(prettyScientificNumber(-0.000_123_4)).toBe("-1.2e-4");
+  });
+});
+
+describe("prettyEngineeringNumber", () => {
+  it("should handle special cases", () => {
+    expect(prettyEngineeringNumber(0)).toBe("0");
+    expect(prettyEngineeringNumber(-0)).toBe("0"); // Test with negative zero
+    expect(prettyEngineeringNumber(Number.NaN)).toBe("NaN");
+    expect(prettyEngineeringNumber(Number.POSITIVE_INFINITY)).toBe("Infinity");
+    expect(prettyEngineeringNumber(Number.NEGATIVE_INFINITY)).toBe("-Infinity");
+  });
+
+  it("should format decimals with engineering notation, ignoring integer part", () => {
+    expect(prettyEngineeringNumber(123_456)).toBe("123k");
+    expect(prettyEngineeringNumber(123_456.7)).toBe("123k");
+    expect(prettyEngineeringNumber(12_345.6789)).toBe("12.3k");
+    expect(prettyEngineeringNumber(1.2345)).toBe("1.23");
+    expect(prettyEngineeringNumber(1.000_001_234)).toBe("1");
+    expect(prettyEngineeringNumber(0.12)).toBe("120m");
+    expect(prettyEngineeringNumber(0.1234)).toBe("123m");
+    expect(prettyEngineeringNumber(0.000_123_4)).toBe("123µ");
+    expect(prettyEngineeringNumber(-1.2345)).toBe("-1.23"); // Test with negative numbers
+    expect(prettyEngineeringNumber(-1.000_001_234)).toBe("-1");
+    expect(prettyEngineeringNumber(-0.12)).toBe("-120m");
+    expect(prettyEngineeringNumber(-0.1234)).toBe("-123m");
+    expect(prettyEngineeringNumber(-0.000_123_4)).toBe("-123µ");
   });
 });
