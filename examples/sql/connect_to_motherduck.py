@@ -3,8 +3,9 @@
 # dependencies = [
 #     "altair==5.4.1",
 #     "duckdb==1.1.0",
+#     "polars==1.18.0",
+#     "pyarrow==18.1.0",
 #     "marimo",
-#     "pandas==2.2.3",
 # ]
 # ///
 

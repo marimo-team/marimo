@@ -3,19 +3,20 @@
 # dependencies = [
 #     "duckdb==1.1.1",
 #     "marimo",
-#     "pandas==2.2.3",
+#     "polars==1.18.0",
+#     "pyarrow==18.1.0",
 #     "requests==2.32.3",
 # ]
 # ///
 
 import marimo
 
-__generated_with = "0.9.1"
+__generated_with = "0.10.7"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         # Connect to SQLite
@@ -31,7 +32,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __():
+def _():
     import marimo as mo
 
 
@@ -53,7 +54,7 @@ def __():
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.accordion(
         {
             "Tip: Creating SQL Cells": mo.md(
@@ -73,7 +74,7 @@ def __(mo):
 
 
 @app.cell
-def __(INFORMATION_SCHEMA, mo):
+def _(INFORMATION_SCHEMA, TABLES, mo):
     _df = mo.sql(
         f"""
         -- Boilerplate: detach the database so this cell works when you re-run it
@@ -90,13 +91,13 @@ def __(INFORMATION_SCHEMA, mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""Once the database is attached, you can query it with SQL. For example, the next cell computes the average track length of each composer in the chinook database.""")
     return
 
 
 @app.cell
-def __(chinook, mo, track):
+def _(chinook, mo, track):
     _df = mo.sql(
         f"""
         SELECT composer, MEAN(Milliseconds) as avg_track_ms from chinook.track GROUP BY composer ORDER BY avg_track_ms DESC;
@@ -106,7 +107,7 @@ def __(chinook, mo, track):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         f"""
         You can explore the schemas of all your tables at a glance in the **data sources panel**: click

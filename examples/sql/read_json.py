@@ -3,20 +3,20 @@
 # dependencies = [
 #     "duckdb==1.1.1",
 #     "marimo",
-#     "pandas==2.2.3",
-#     "pyarrow==17.0.0",
+#     "polars==1.18.0",
+#     "pyarrow==18.1.0",
 #     "vega-datasets==0.9.0",
 # ]
 # ///
 
 import marimo
 
-__generated_with = "0.9.1"
+__generated_with = "0.10.7"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         # Read JSON
@@ -28,16 +28,16 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __():
+def _():
     import marimo as mo
-    import pandas as pd
+    import polars as pl
 
-    pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]}).to_json("data.json", orient="records")
-    return mo, pd
+    pl.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]}).write_json("data.json")
+    return mo, pl
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         Reading from a JSON file is as easy as
@@ -53,7 +53,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.accordion(
         {
             "Tip: Creating SQL Cells": mo.md(
@@ -73,19 +73,20 @@ def __(mo):
 
 
 @app.cell
-def __(data, mo):
+def _(mo):
     result = mo.sql(
         f"""
         -- Tip: you can also specify the data files using a glob, such as '/path/to/*.json'
         -- or '/path/**/to/*.json'
         SELECT * FROM 'data.json'
-        """, output=False
+        """,
+        output=False,
     )
     return (result,)
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.accordion(
         {
             "Tip: Query output": mo.md(
@@ -103,13 +104,13 @@ def __(mo):
 
 
 @app.cell
-def __(result):
+def _(result):
     result
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         ## Create an in-memory table from a JSON file
@@ -121,7 +122,7 @@ def __(mo):
 
 
 @app.cell
-def __(data, mo):
+def _(mo):
     _df = mo.sql(
         f"""
         CREATE OR REPLACE TABLE myTable AS SELECT * FROM 'data.json'
@@ -131,7 +132,7 @@ def __(data, mo):
 
 
 @app.cell
-def __(mo, myTable):
+def _(mo, myTable):
     _df = mo.sql(
         f"""
         SELECT * FROM myTable
@@ -141,13 +142,13 @@ def __(mo, myTable):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""## Advanced usage""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""To customize how your json file is read, use [duckdb's `read_json` function](https://duckdb.org/docs/data/json/overview.html).""")
     return
 

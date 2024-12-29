@@ -3,8 +3,8 @@
 # dependencies = [
 #     "duckdb==1.1.1",
 #     "marimo",
-#     "pandas==2.2.3",
-#     "pyarrow==17.0.0",
+#     "polars==1.18.0",
+#     "pyarrow==18.1.0",
 #     "vega-datasets==0.9.0",
 # ]
 # ///
@@ -30,10 +30,10 @@ def __(mo):
 @app.cell(hide_code=True)
 def __():
     import marimo as mo
-    import pandas as pd
+    import polars as pl
 
-    pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]}).to_parquet("data.parquet")
-    return mo, pd
+    pl.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]}).write_parquet("data.parquet")
+    return mo, pl
 
 
 @app.cell(hide_code=True)

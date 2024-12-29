@@ -3,7 +3,8 @@
 # dependencies = [
 #     "duckdb==1.1.1",
 #     "marimo",
-#     "pandas==2.2.3",
+#     "polars==1.18.0",
+#     "pyarrow==18.1.0",
 # ]
 # ///
 
