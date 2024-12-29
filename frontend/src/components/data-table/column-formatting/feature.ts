@@ -16,7 +16,11 @@ import type {
 } from "./types";
 import type { DataType } from "@/core/kernel/messages";
 import type { FormatOption } from "./types";
-import { prettyNumber, prettyScientificNumber } from "@/utils/numbers";
+import {
+  prettyNumber,
+  prettyScientificNumber,
+  prettyEngineeringNumber,
+} from "@/utils/numbers";
 import { logNever } from "@/utils/assertNever";
 
 export const ColumnFormattingFeature: TableFeature = {
@@ -141,6 +145,8 @@ export const applyFormat = (
           return percentFormatter.format(num);
         case "Scientific":
           return prettyScientificNumber(num);
+        case "Engineering":
+          return prettyEngineeringNumber(num);
         case "Integer":
           return integerFormatter.format(num);
         default:
@@ -201,6 +207,8 @@ export function formattingExample(
       return String(applyFormat(0.1234, "Percent", "number"));
     case "Scientific":
       return String(applyFormat(12_345_678_910, "Scientific", "number"));
+    case "Engineering":
+      return String(applyFormat(12_345_678_910, "Engineering", "number"));
     case "Integer":
       return String(applyFormat(1234.567, "Integer", "number"));
     case "Auto":
