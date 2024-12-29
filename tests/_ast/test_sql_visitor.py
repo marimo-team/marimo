@@ -14,6 +14,7 @@ from marimo._ast.sql_visitor import (
 from marimo._dependencies.dependencies import DependencyManager
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
+HAS_SQLGLOT = DependencyManager.sqlglot.has()
 
 
 def test_execute_with_string_literal() -> None:
@@ -461,6 +462,8 @@ class TestFindSQLDefs:
             tables=["my_table"],
         )
 
+    # add sql with table & view in the same query
+
 
 @pytest.mark.skipif(
     HAS_DUCKDB, reason="Test requires DuckDB to be unavailable"
@@ -469,7 +472,7 @@ def test_find_sql_defs_duckdb_not_available() -> None:
     assert find_sql_defs("CREATE TABLE test (id INT);") == SQLDefs()
 
 
-@pytest.mark.skipif(not HAS_DUCKDB, reason="Missing DuckDB")
+@pytest.mark.skipif(not HAS_SQLGLOT, reason="Missing sqlglot")
 class TestFindSQLRefs:
     @staticmethod
     def test_find_sql_refs_simple() -> None:
@@ -509,8 +512,6 @@ class TestFindSQLRefs:
     @staticmethod
     def test_find_sql_refs_with_catalog() -> None:
         # Skip the schema if it's coming from a catalog
-        # Why? Because it may be called "public" or "main" across all catalogs
-        # and they aren't referenced in the code
         sql = "SELECT * FROM my_catalog.my_schema.my_table;"
         assert find_sql_refs(sql) == ["my_catalog", "my_table"]
 
@@ -566,7 +567,6 @@ class TestFindSQLRefs:
         assert find_sql_refs(sql) == ["My Table", "Weird.Name"]
 
     @staticmethod
-    @pytest.mark.xfail(reason="Multiple CTEs are not supported")
     def test_find_sql_refs_with_multiple_ctes() -> None:
         sql = """
         WITH
@@ -578,7 +578,6 @@ class TestFindSQLRefs:
         assert find_sql_refs(sql) == ["table1", "table2"]
 
     @staticmethod
-    @pytest.mark.xfail(reason="Nested joins are not supported")
     def test_find_sql_refs_with_nested_joins() -> None:
         sql = """
         SELECT * FROM t1
@@ -593,7 +592,7 @@ class TestFindSQLRefs:
         SELECT * FROM employees,
         LATERAL (SELECT * FROM departments WHERE departments.id = employees.dept_id) dept;
         """
-        assert find_sql_refs(sql) == ["employees", "departments"]
+        assert find_sql_refs(sql) == ["departments", "employees"]
 
     @staticmethod
     def test_find_sql_refs_with_schema_switching() -> None:
@@ -614,3 +613,22 @@ class TestFindSQLRefs:
         ) t2;
         """
         assert find_sql_refs(sql) == ["deeply", "table", "another_table"]
+
+    @staticmethod
+    def test_find_sql_refs_with_alias() -> None:
+        sql = "SELECT * FROM employees AS e;"
+        assert find_sql_refs(sql) == ["employees"]
+
+    @staticmethod
+    def test_find_sql_refs_invalid() -> None:
+        sql = "CREATE TABLE t1 (id int);"
+        assert find_sql_refs(sql) == []
+
+    @staticmethod
+    def test_find_sql_refs_comment() -> None:
+        sql = """
+        -- comment
+        SELECT * FROM table1;
+        -- comment
+        """
+        assert find_sql_refs(sql) == ["table1"]
