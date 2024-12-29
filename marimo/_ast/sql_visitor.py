@@ -325,8 +325,8 @@ def find_sql_refs(
     asts = parse(sql_statement)
     for sql_ast in asts:
         root = build_scope(sql_ast)
-        if not root:  # likely not a query
-            return []
+        if root is None:  # Skip ddl's and comments
+            continue
 
         for scope in root.traverse():
             for _alias, (_node, source) in scope.selected_sources.items():
