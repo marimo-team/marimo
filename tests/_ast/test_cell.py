@@ -187,6 +187,35 @@ class TestCellRun:
         assert g.run(x=1) == (None, {"y": 2})
         assert h.run(y=2) == (3, {"z": 3})
 
+    @staticmethod
+    def test_unhashable_import() -> None:
+        from cell_data.named_cells import (
+            unhashable_defined,
+            unhashable_override_required,
+        )
+
+        assert unhashable_defined.name == "unhashable_defined"
+        assert (
+            unhashable_override_required.name == "unhashable_override_required"
+        )
+
+        assert unhashable_override_required.run(unhashable={0, 1}) == (
+            {0, 1},
+            {},
+        )
+        assert unhashable_defined.run() == (
+            {0, 1, 2},
+            {"unhashable": {0, 1, 2}},
+        )
+
+    @staticmethod
+    def test_direct_call() -> None:
+        from cell_data.named_cells import h, multiple, unhashable_defined
+
+        assert h(1) == 2
+        assert multiple() == (0, 1)
+        assert unhashable_defined() == {0, 1, 2}
+
 
 def help_smoke() -> None:
     app = App()

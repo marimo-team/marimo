@@ -601,7 +601,7 @@ class Runner:
     ) -> set[CellId_t]:
         # Get the transitive closure of parents defining unsubstituted refs
         graph = self._graph
-        substitutions = set(kwargs.values())
+        substitutions = set(kwargs.keys())
         unsubstituted_refs = cell_impl.refs - substitutions
         parent_ids = set(
             [
