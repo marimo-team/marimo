@@ -30,8 +30,13 @@ const importKatex = once(async () => {
   return (await import("katex")).default;
 });
 
+const importMhChem = once(async () => {
+  // @ts-ignore : type is not exported by katex
+  await import("katex/contrib/mhchem");
+});
+
 async function renderLatex(mount: HTMLElement, tex: string): Promise<void> {
-  const katex = await importKatex();
+  const [katex] = await Promise.all([importKatex(), importMhChem()]);
   if (tex.startsWith("||(||(") && tex.endsWith("||)||)")) {
     // when $$...$$ is used without newlines before/after the $$.
     katex.render(tex.slice(6, -6), mount, {
