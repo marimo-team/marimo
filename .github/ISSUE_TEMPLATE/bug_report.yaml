@@ -22,8 +22,15 @@ body:
     id: env
     attributes:
       label: Environment
-      description: Please paste the output of `marimo env`
-      placeholder: marimo env
+      description: Paste the output of `marimo env`
+      value: |
+        <details>
+
+        ```
+        Replace this line with the output of marimo env. Leave the backticks in place.
+        ```
+
+        </details>
     validations:
       required: true
   - type: textarea
