@@ -112,7 +112,9 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       selection: z.enum(["single", "multi"]).nullable().default(null),
       showDownload: z.boolean().default(false),
       showFilters: z.boolean().default(false),
-      showColumnSummaries: z.union([z.boolean(), z.enum(["stats", "chart"])]).default(true),
+      showColumnSummaries: z
+        .union([z.boolean(), z.enum(["stats", "chart"])])
+        .default(true),
       rowHeaders: z.array(z.string()),
       freezeColumnsLeft: z.array(z.string()).optional(),
       freezeColumnsRight: z.array(z.string()).optional(),
