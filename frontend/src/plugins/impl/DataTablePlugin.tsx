@@ -69,7 +69,7 @@ interface Data<T> {
   selection: "single" | "multi" | null;
   showDownload: boolean;
   showFilters: boolean;
-  showColumnSummaries: boolean;
+  showColumnSummaries: boolean | "stats" | "chart";
   rowHeaders: string[];
   fieldTypes?: FieldTypesWithExternalType | null;
   freezeColumnsLeft?: string[];
@@ -112,7 +112,9 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       selection: z.enum(["single", "multi"]).nullable().default(null),
       showDownload: z.boolean().default(false),
       showFilters: z.boolean().default(false),
-      showColumnSummaries: z.boolean().default(true),
+      showColumnSummaries: z
+        .union([z.boolean(), z.enum(["stats", "chart"])])
+        .default(true),
       rowHeaders: z.array(z.string()),
       freezeColumnsLeft: z.array(z.string()).optional(),
       freezeColumnsRight: z.array(z.string()).optional(),
