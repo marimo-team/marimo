@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Literal, Optional
+from typing import Callable, Literal, Optional
 
 import click
 
