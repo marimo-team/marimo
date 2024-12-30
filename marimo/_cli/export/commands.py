@@ -412,15 +412,18 @@ and cannot be opened directly from the file system (e.g. file://).
     "--mode",
     type=click.Choice(["edit", "run"]),
     default="run",
-    help="Whether the notebook code should be editable or readonly",
+    help="Whether the notebook code should be editable or readonly.",
     show_default=True,
     required=True,
 )
 @click.option(
     "--show-code/--no-show-code",
-    default=True,
+    default=False,
     show_default=True,
-    help="Whether to show code by default in the exported HTML file.",
+    help=(
+        "Whether to show code by default in the exported HTML file; "
+        "only relevant for run mode."
+    ),
 )
 @click.argument(
     "name",
