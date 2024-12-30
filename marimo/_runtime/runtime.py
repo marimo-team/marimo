@@ -1307,7 +1307,7 @@ class Kernel:
 
         async def _run_with_uninstantiated_requests(
             execution_requests: Sequence[ExecutionRequest],
-        ):
+        ) -> None:
             if not self._uninstantiated_execution_requests:
                 await self._run_cells(
                     self.mutate_graph(execution_requests, deletion_requests=[])
