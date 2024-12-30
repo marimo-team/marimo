@@ -348,19 +348,17 @@ def find_sql_refs(
             for table in expression.find_all(exp.Table):
                 append_refs_from_table(table)
 
-        # this traversal is only available for select statements
-        root = build_scope(expression)
-        if root is None:
-            continue
-        if is_dml:
-            LOGGER.warning(
-                "Scopes should not exist for dml's, may need rework if this occurs"
-            )
+        # build_scope only works for select statements
+        if root := build_scope(expression):
+            if is_dml:
+                LOGGER.warning(
+                    "Scopes should not exist for dml's, may need rework if this occurs"
+                )
 
-        for scope in root.traverse():  # type: ignore
-            for _alias, (_node, source) in scope.selected_sources.items():
-                if isinstance(source, exp.Table):
-                    append_refs_from_table(source)
+            for scope in root.traverse():  # type: ignore
+                for _alias, (_node, source) in scope.selected_sources.items():
+                    if isinstance(source, exp.Table):
+                        append_refs_from_table(source)
 
     # remove duplicates while preserving order
     return list(dict.fromkeys(refs))
