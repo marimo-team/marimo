@@ -341,6 +341,9 @@ def find_sql_refs(
 
     expression_list = parse(sql_statement)
     for expression in expression_list:
+        if expression is None:
+            continue
+
         if is_dml := bool(expression.find(exp.Update, exp.Insert, exp.Delete)):
             for table in expression.find_all(exp.Table):
                 append_refs_from_table(table)
@@ -354,7 +357,7 @@ def find_sql_refs(
                 "Scopes should not exist for dml's, may need rework if this occurs"
             )
 
-        for scope in root.traverse():
+        for scope in root.traverse():  # type: ignore
             for _alias, (_node, source) in scope.selected_sources.items():
                 if isinstance(source, exp.Table):
                     append_refs_from_table(source)
