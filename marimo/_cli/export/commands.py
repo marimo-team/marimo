@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Literal, Optional
 
 import click
@@ -24,9 +25,6 @@ from marimo._server.utils import asyncio_run
 from marimo._utils.file_watcher import FileWatcher
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.paths import maybe_make_dirs
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 _watch_message = (
     "Watch notebook for changes and regenerate the output on modification. "
@@ -451,6 +449,11 @@ def html_wasm(
 
     # Export assets first
     Exporter().export_assets(out_dir, ignore_index_html=ignore_index_html)
+
+    # Create .nojekyll file to prevent GitHub Pages from interfering with asset
+    # resolution
+    (Path(out_dir) / ".nojekyll").touch()
+
     echo(
         f"Assets copied to {green(out_dir)}. These assets are required for the "
         "notebook to run in the browser."
