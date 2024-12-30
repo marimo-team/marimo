@@ -85,6 +85,7 @@ class TestExportHTML:
             not in html
         )
         assert "<marimo-wasm" in html
+        assert Path(out_dir / ".nojekyll").exists()
 
     @staticmethod
     def test_cli_export_html_wasm_output_is_file(
