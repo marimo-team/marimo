@@ -1330,8 +1330,7 @@ class Kernel:
                 try:
                     cell = compile_cell(er.code, cell_id=er.cell_id)
                 except Exception:
-                    # a syntax error the cell's code
-                    del self._uninstantiated_execution_requests[cid]
+                    # The cell was not parsable.
                     continue
                 graph.register_cell(cell_id=cid, cell=cell)
 
