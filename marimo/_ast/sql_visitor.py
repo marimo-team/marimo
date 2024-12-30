@@ -322,29 +322,44 @@ def find_sql_refs(
     from sqlglot.optimizer.scope import build_scope
 
     refs: list[str] = []
-    asts = parse(sql_statement)
-    for sql_ast in asts:
-        root = build_scope(sql_ast)
-        if root is None:  # Skip ddl's and comments
+
+    def append_refs_from_table(table_expr: exp.Table) -> None:
+        if table_expr.catalog == "memory":
+            # Default in-memory catalog, only include table name
+            refs.append(table_expr.name)
+        else:
+            # We skip schema if there is a catalog
+            # Because it may be called "public" or "main" across all catalogs
+            # and they aren't referenced in the code
+            if table_expr.catalog:
+                refs.append(table_expr.catalog)
+            elif table_expr.db:
+                refs.append(table_expr.db)  # schema
+
+            if table_expr.name:
+                refs.append(table_expr.name)  # table name
+
+    expression_list = parse(sql_statement)
+    for expression in expression_list:
+        dml_expression = False
+        if expression.find(exp.Update, exp.Insert, exp.Delete):
+            dml_expression = True
+            for table_expr in expression.find_all(exp.Table):
+                append_refs_from_table(table_expr)
+
+        # this traversal is only available for select statements
+        root = build_scope(expression)
+        if root is None:
             continue
+        if dml_expression:
+            LOGGER.warning(
+                "Scopes should not exist for dml's, may need rework"
+            )
 
         for scope in root.traverse():
             for _alias, (_node, source) in scope.selected_sources.items():
                 if isinstance(source, exp.Table):
-                    if source.catalog == "memory":
-                        # Default in-memory catalog, only include table name
-                        refs.append(source.name)
-                    else:
-                        # We skip schema if there is a catalog
-                        # Because it may be called "public" or "main" across all catalogs
-                        # and they aren't referenced in the code
-                        if source.catalog:
-                            refs.append(source.catalog)
-                        elif source.db:
-                            refs.append(source.db)  # schema
-
-                        if source.name:
-                            refs.append(source.name)  # table name
+                    append_refs_from_table(source)
 
     # removes duplicates while preserving order
     return list(dict.fromkeys(refs))

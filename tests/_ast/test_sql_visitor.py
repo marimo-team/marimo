@@ -395,6 +395,17 @@ class TestFindSQLDefs:
         )
 
     @staticmethod
+    def test_find_sql_defs_with_create_as() -> None:
+        sql = """
+        CREATE TABLE t2 AS
+        WITH t3 AS (
+            SELECT * from t1
+        )
+        SELECT * FROM t3;
+        """
+        assert find_sql_defs(sql) == SQLDefs(tables=["t2"])
+
+    @staticmethod
     def test_find_sql_defs_with_catalog_and_schema() -> None:
         sql = """
         CREATE TABLE my_catalog.my_schema.my_table (id INT);
@@ -461,8 +472,6 @@ class TestFindSQLDefs:
         assert find_sql_defs(sql) == SQLDefs(
             tables=["my_table"],
         )
-
-    # add sql with table & view in the same query
 
 
 @pytest.mark.skipif(
@@ -615,14 +624,23 @@ class TestFindSQLRefs:
         assert find_sql_refs(sql) == ["deeply", "table", "another_table"]
 
     @staticmethod
+    def test_find_sql_refs_nested_intersect() -> None:
+        sql = """
+        SELECT * FROM table1
+        WHERE id IN (
+            SELECT id FROM table2
+            UNION
+            SELECT id FROM table3
+            INTERSECT
+            SELECT id FROM table4
+        );
+        """
+        assert find_sql_refs(sql) == ["table2", "table3", "table4", "table1"]
+
+    @staticmethod
     def test_find_sql_refs_with_alias() -> None:
         sql = "SELECT * FROM employees AS e;"
         assert find_sql_refs(sql) == ["employees"]
-
-    @staticmethod
-    def test_find_sql_refs_invalid() -> None:
-        sql = "CREATE TABLE t1 (id int);"
-        assert find_sql_refs(sql) == []
 
     @staticmethod
     def test_find_sql_refs_comment() -> None:
@@ -632,3 +650,83 @@ class TestFindSQLRefs:
         -- comment
         """
         assert find_sql_refs(sql) == ["table1"]
+
+    @staticmethod
+    def test_find_sql_refs_ddl() -> None:
+        # we are not referencing any table hence no refs
+        sql = "CREATE TABLE t1 (id int);"
+        assert find_sql_refs(sql) == []
+
+    @staticmethod
+    def test_find_sql_refs_ddl_with_reference() -> None:
+        sql = """
+        CREATE TABLE table2 AS
+        WITH x AS (
+            SELECT * from my_catalog.my_schema.table1
+        )
+        SELECT * FROM x;
+        """
+        assert find_sql_refs(sql) == ["my_catalog", "table1"]
+
+    @staticmethod
+    def test_find_sql_refs_update() -> None:
+        sql = "UPDATE my_schema.table1 SET id = 1"
+        assert find_sql_refs(sql) == ["my_schema", "table1"]
+
+    @staticmethod
+    def test_find_sql_refs_update_with_catalog() -> None:
+        sql = "UPDATE my_catalog.my_schema.table1 SET id = 1"
+        assert find_sql_refs(sql) == ["my_catalog", "table1"]
+
+    @staticmethod
+    def test_find_sql_refs_insert() -> None:
+        sql = "INSERT INTO my_schema.table1 (id INT) VALUES (1,2);"
+        assert find_sql_refs(sql) == ["my_schema", "table1"]
+
+    @staticmethod
+    def test_find_sql_refs_delete() -> None:
+        sql = "DELETE FROM my_schema.table1 WHERE true;"
+        assert find_sql_refs(sql) == ["my_schema", "table1"]
+
+    @staticmethod
+    def test_find_sql_refs_multi_dml() -> None:
+        sql = """
+        INSERT INTO table1 (id INT) VALUES (1,2);
+        DELETE FROM table2 WHERE true;
+        UPDATE table3 SET id = 1;
+        """
+        assert find_sql_refs(sql) == ["table1", "table2", "table3"]
+
+    @staticmethod
+    def test_find_sql_refs_dml_with_query() -> None:
+        sql = """
+        INSERT INTO table1 (id INT) VALUES (1);
+        SELECT * FROM table2;
+        """
+        assert find_sql_refs(sql) == ["table1", "table2"]
+
+    @staticmethod
+    def test_find_sql_refs_multi_selects_in_update() -> None:
+        sql = """
+        UPDATE schema1.table1
+        SET table1.column1 = (
+            SELECT table2.column2 FROM schema2.table2
+        ),
+        table1.column3 = (
+            SELECT table3.column3 FROM table3
+        )
+        WHERE EXISTS (
+            SELECT 1 FROM table2
+        )
+        AND table1.column4 IN (
+            SELECT table4.column4 FROM table4
+        );
+        """
+        assert find_sql_refs(sql) == [
+            "schema1",
+            "table1",
+            "schema2",
+            "table2",
+            "table3",
+            "table4",
+        ]
