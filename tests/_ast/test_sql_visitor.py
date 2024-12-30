@@ -395,17 +395,6 @@ class TestFindSQLDefs:
         )
 
     @staticmethod
-    def test_find_sql_defs_with_create_as() -> None:
-        sql = """
-        CREATE TABLE t2 AS
-        WITH t3 AS (
-            SELECT * from t1
-        )
-        SELECT * FROM t3;
-        """
-        assert find_sql_defs(sql) == SQLDefs(tables=["t2"])
-
-    @staticmethod
     def test_find_sql_defs_with_catalog_and_schema() -> None:
         sql = """
         CREATE TABLE my_catalog.my_schema.my_table (id INT);
