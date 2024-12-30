@@ -323,29 +323,29 @@ def find_sql_refs(
 
     refs: list[str] = []
 
-    def append_refs_from_table(table_expr: exp.Table) -> None:
-        if table_expr.catalog == "memory":
+    def append_refs_from_table(table: exp.Table) -> None:
+        if table.catalog == "memory":
             # Default in-memory catalog, only include table name
-            refs.append(table_expr.name)
+            refs.append(table.name)
         else:
             # We skip schema if there is a catalog
             # Because it may be called "public" or "main" across all catalogs
             # and they aren't referenced in the code
-            if table_expr.catalog:
-                refs.append(table_expr.catalog)
-            elif table_expr.db:
-                refs.append(table_expr.db)  # schema
+            if table.catalog:
+                refs.append(table.catalog)
+            elif table.db:
+                refs.append(table.db)  # schema
 
-            if table_expr.name:
-                refs.append(table_expr.name)  # table name
+            if table.name:
+                refs.append(table.name)
 
     expression_list = parse(sql_statement)
     for expression in expression_list:
         dml_expression = False
         if expression.find(exp.Update, exp.Insert, exp.Delete):
             dml_expression = True
-            for table_expr in expression.find_all(exp.Table):
-                append_refs_from_table(table_expr)
+            for table in expression.find_all(exp.Table):
+                append_refs_from_table(table)
 
         # this traversal is only available for select statements
         root = build_scope(expression)
@@ -353,7 +353,7 @@ def find_sql_refs(
             continue
         if dml_expression:
             LOGGER.warning(
-                "Scopes should not exist for dml's, may need rework"
+                "Scopes should not exist for dml's, may need rework if this occurs"
             )
 
         for scope in root.traverse():
@@ -361,5 +361,5 @@ def find_sql_refs(
                 if isinstance(source, exp.Table):
                     append_refs_from_table(source)
 
-    # removes duplicates while preserving order
+    # remove duplicates while preserving order
     return list(dict.fromkeys(refs))
