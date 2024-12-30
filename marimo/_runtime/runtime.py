@@ -494,8 +494,7 @@ class Kernel:
             self.package_manager = create_package_manager(package_manager)
 
         if (
-            autoreload_mode == "lazy"
-            or autoreload_mode == "autorun"
+            autoreload_mode == "lazy" or autoreload_mode == "autorun"
             # Pyodide doesn't support hot module reloading
         ) and not is_pyodide():
             if self.module_reloader is None:
@@ -1300,12 +1299,15 @@ class Kernel:
 
         The cells may be cells already existing in the graph or new cells.
         Adds the cells in `execution_requests` to the graph before running
-        them.
+        them. If the cells have uninstantiated ancestors, these are also run,
+        allowing frontends to incrementally instantiate a notebook.
 
         Cells may use top-level await, which is why this function is async.
         """
 
-        async def _handle_run():
+        async def _run_with_uninstantiated_requests(
+            execution_requests: Sequence[ExecutionRequest],
+        ):
             if not self._uninstantiated_execution_requests:
                 await self._run_cells(
                     self.mutate_graph(execution_requests, deletion_requests=[])
@@ -1319,7 +1321,6 @@ class Kernel:
             for cid, er in list(
                 self._uninstantiated_execution_requests.items()
             ):
-
                 if cid in execution_requests_cell_ids:
                     # Running a previously uninstantiated cell; just remove
                     # it from our cache of uninstantiated execution requests.
@@ -1363,7 +1364,7 @@ class Kernel:
 
         if self.last_interrupt_timestamp is None:
             # No interruption has occurred, so we can run all requests
-            await _handle_run()
+            await _run_with_uninstantiated_requests(execution_requests)
             return
 
         # Filter out requests that were created before the last interruption
@@ -1390,7 +1391,7 @@ class Kernel:
             else:
                 filtered_requests.append(request)
 
-        await _handle_run()
+        await _run_with_uninstantiated_requests(execution_requests)
 
     @kernel_tracer.start_as_current_span("rename_file")
     async def rename_file(self, filename: str) -> None:
