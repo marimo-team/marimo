@@ -100,7 +100,8 @@ dev = [
     "opentelemetry-api~=1.26.0",
     "opentelemetry-sdk~=1.26.0",
     # For SQL
-    "duckdb>=1.0.0",
+    "duckdb>=1.1.0",
+    "sqlglot>=26.0.1",
     # For linting
     "ruff~=0.6.1",
     # For AI
