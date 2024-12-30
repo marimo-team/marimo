@@ -427,6 +427,12 @@ class Kernel:
             sys.path.insert(0, "")
 
         self.graph = dataflow.DirectedGraph()
+        # When autorun on startup is disabled, this holds cells that have
+        # not yet been run; these cells are removed when they or their
+        # descendants are run
+        self._uninstantiated_execution_requests: dict[
+            CellId_t, ExecutionRequest
+        ] = {}
         self.cell_metadata: dict[CellId_t, CellMetadata] = {
             cell_id: CellMetadata(config=config)
             for cell_id, config in cell_configs.items()
@@ -488,7 +494,8 @@ class Kernel:
             self.package_manager = create_package_manager(package_manager)
 
         if (
-            autoreload_mode == "lazy" or autoreload_mode == "autorun"
+            autoreload_mode == "lazy"
+            or autoreload_mode == "autorun"
             # Pyodide doesn't support hot module reloading
         ) and not is_pyodide():
             if self.module_reloader is None:
@@ -1274,6 +1281,9 @@ class Kernel:
     async def delete_cell(self, request: DeleteCellRequest) -> None:
         """Delete a cell from kernel and graph."""
         cell_id = request.cell_id
+        if cell_id in self._uninstantiated_execution_requests:
+            del self._uninstantiated_execution_requests[cell_id]
+
         if cell_id in self.graph.cells:
             await self._run_cells(
                 self.mutate_graph(
@@ -1294,11 +1304,66 @@ class Kernel:
 
         Cells may use top-level await, which is why this function is async.
         """
+
+        async def _handle_run():
+            if not self._uninstantiated_execution_requests:
+                await self._run_cells(
+                    self.mutate_graph(execution_requests, deletion_requests=[])
+                )
+                return
+
+            execution_requests_cell_ids = {
+                er.cell_id for er in execution_requests
+            }
+            graph = dataflow.DirectedGraph()
+            for cid, er in list(
+                self._uninstantiated_execution_requests.items()
+            ):
+
+                if cid in execution_requests_cell_ids:
+                    # Running a previously uninstantiated cell; just remove
+                    # it from our cache of uninstantiated execution requests.
+                    del self._uninstantiated_execution_requests[cid]
+                    continue
+
+                try:
+                    cell = compile_cell(er.code, cell_id=er.cell_id)
+                except Exception:
+                    # a syntax error the cell's code
+                    del self._uninstantiated_execution_requests[cid]
+                    continue
+                graph.register_cell(cell_id=cid, cell=cell)
+
+            # Collect uninstantiated ancestors
+            ancestors: set[CellId_t] = set()
+            for er in execution_requests:
+                try:
+                    cell = compile_cell(er.code, cell_id=er.cell_id)
+                except Exception:
+                    continue
+                graph.register_cell(cell_id=er.cell_id, cell=cell)
+                ancestors |= graph.ancestors(er.cell_id)
+
+            # We run all uninstantiated ancestors of the requested cells
+            previously_uninstantiated_requests: list[ExecutionRequest] = []
+            for ancestor_cid in ancestors:
+                if ancestor_cid in self._uninstantiated_execution_requests:
+                    previously_uninstantiated_requests.append(
+                        self._uninstantiated_execution_requests[ancestor_cid]
+                    )
+                    del self._uninstantiated_execution_requests[ancestor_cid]
+
+            await self._run_cells(
+                self.mutate_graph(
+                    list(execution_requests)
+                    + previously_uninstantiated_requests,
+                    deletion_requests=[],
+                )
+            )
+
         if self.last_interrupt_timestamp is None:
             # No interruption has occurred, so we can run all requests
-            await self._run_cells(
-                self.mutate_graph(execution_requests, deletion_requests=[])
-            )
+            await _handle_run()
             return
 
         # Filter out requests that were created before the last interruption
@@ -1325,9 +1390,7 @@ class Kernel:
             else:
                 filtered_requests.append(request)
 
-        await self._run_cells(
-            self.mutate_graph(filtered_requests, deletion_requests=[])
-        )
+        await _handle_run()
 
     @kernel_tracer.start_as_current_span("rename_file")
     async def rename_file(self, filename: str) -> None:
@@ -1383,9 +1446,18 @@ class Kernel:
     @kernel_tracer.start_as_current_span("run_stale_cells")
     async def run_stale_cells(self) -> None:
         cells_to_run: set[CellId_t] = set()
+        if self._uninstantiated_execution_requests:
+            cells_to_run |= set(self._uninstantiated_execution_requests.keys())
+            self.mutate_graph(
+                list(self._uninstantiated_execution_requests.values()),
+                deletion_requests=[],
+            )
+            self._uninstantiated_execution_requests = {}
+
         for cid, cell_impl in self.graph.cells.items():
             if cell_impl.stale and not self.graph.is_disabled(cid):
                 cells_to_run.add(cid)
+
         await self._run_cells(
             dataflow.transitive_closure(
                 self.graph,
@@ -1725,14 +1797,10 @@ class Kernel:
         During instantiation, UIElements can check for an initial value
         with `get_initial_value`
         """
-        # Already instantiated
         if self.graph.cells:
             del request
             LOGGER.debug("App already instantiated.")
-            return
-
-        # Run cells if auto_run is True
-        if request.auto_run:
+        elif request.auto_run:
             self.reset_ui_initializers()
             for (
                 object_id,
@@ -1741,13 +1809,12 @@ class Kernel:
                 self.ui_initializers[object_id] = initial_value
             await self.run(request.execution_requests)
             self.reset_ui_initializers()
-            return
-
-        # Otherwise, just register the cells
-        self.mutate_graph(request.execution_requests, deletion_requests=[])
-        # and set everything to stale
-        for cell_id in self.graph.cells:
-            self.graph.cells[cell_id].set_stale(stale=True)
+        else:
+            self._uninstantiated_execution_requests = {
+                er.cell_id: er for er in request.execution_requests
+            }
+            for cid in self._uninstantiated_execution_requests:
+                CellOp.broadcast_stale(cell_id=cid, stale=True)
 
     async def install_missing_packages(
         self, request: InstallMissingPackagesRequest
