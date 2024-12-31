@@ -1,4 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import { WebsocketProvider } from "y-websocket";
+import { yCollab } from "y-codemirror.next";
+import * as Y from "yjs";
+import { getSessionId } from "../../../../core/kernel/session";
 import { historyField } from "@codemirror/commands";
 import { EditorState, StateEffect } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
@@ -72,6 +76,8 @@ export interface CellEditorProps
    */
   setTemporarilyVisible?: (value: boolean) => void;
 }
+
+const cellProviders = new Map<string, WebsocketProvider>();
 
 const CellEditorInternal = ({
   theme,
@@ -250,6 +256,22 @@ const CellEditorInternal = ({
       // Triggered when, e.g., placeholder changes.
       if (editorViewRef.current === null) {
         // Otherwise, create a new editor.
+
+        let wsProvider = cellProviders.get(cellId);
+        let ytext: Y.Text;
+        if (wsProvider) {
+          ytext = wsProvider.doc.getText("code");
+        } else {
+          const ydoc = new Y.Doc();
+          ytext = ydoc.getText("code");
+          extensions.push(yCollab(ytext, null));
+          wsProvider = new WebsocketProvider("ws", cellId, ydoc, {
+            params: { session_id: getSessionId() },
+          });
+          cellProviders.set(cellId, wsProvider);
+        }
+        const code = ytext.toJSON();
+
         editorViewRef.current = new EditorView({
           state: EditorState.create({
             doc: code,
@@ -280,7 +302,6 @@ const CellEditorInternal = ({
         state: EditorState.fromJSON(
           serializedEditorState,
           {
-            doc: code,
             extensions: extensions,
           },
           { history: historyField },
