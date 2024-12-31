@@ -350,7 +350,8 @@ class TestExecution:
             CreationRequest(
                 execution_requests=(
                     ExecutionRequest(cell_id="0", code="x=0"),
-                    ExecutionRequest(cell_id="1", code="y=x+1"),
+                    er1 := ExecutionRequest(cell_id="1", code="y=x+1"),
+                    er2 := ExecutionRequest(cell_id="2", code="z=x+2"),
                 ),
                 set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
                     []
@@ -361,10 +362,108 @@ class TestExecution:
         assert not k.errors
         assert "x" not in k.globals
         assert "y" not in k.globals
+        assert len(k._uninstantiated_execution_requests) == 3
 
-        # Expect the first cell to implicitly be included in the run
-        await k.run([ExecutionRequest(cell_id="1", code="y=x+1")])
+        # Expect the first cell to implicitly be included in the run ...
+        await k.run([er1])
         assert k.globals["y"] == 1
+
+        # But z should still not be defined
+        assert "z" not in k.globals
+        assert len(k._uninstantiated_execution_requests) == 1
+
+        # After running er2, no cells should be left uninstantiated
+        await k.run([er2])
+        assert k.globals["z"] == 2
+        assert not k._uninstantiated_execution_requests
+
+    async def test_instantiate_autorun_false_run_stale(
+        self, any_kernel: Kernel
+    ) -> None:
+        k = any_kernel
+        await k.instantiate(
+            CreationRequest(
+                execution_requests=(
+                    ExecutionRequest(cell_id="0", code="x=0"),
+                    ExecutionRequest(cell_id="1", code="y=x+1"),
+                    ExecutionRequest(cell_id="2", code="z=x+2"),
+                ),
+                set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
+                    []
+                ),
+                auto_run=False,
+            )
+        )
+        assert not k.errors
+        assert "x" not in k.globals
+        assert "y" not in k.globals
+        assert len(k._uninstantiated_execution_requests) == 3
+
+        await k.run_stale_cells()
+        assert k.globals["y"] == 1
+        assert k.globals["z"] == 2
+        assert not k._uninstantiated_execution_requests
+
+    async def test_instantiate_autorun_false_delete_cells(
+        self, any_kernel: Kernel
+    ) -> None:
+        k = any_kernel
+        await k.instantiate(
+            CreationRequest(
+                execution_requests=(
+                    ExecutionRequest(cell_id="0", code="x=0"),
+                    ExecutionRequest(cell_id="1", code="y=x+1"),
+                    ExecutionRequest(cell_id="2", code="z=x+2"),
+                ),
+                set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
+                    []
+                ),
+                auto_run=False,
+            )
+        )
+        assert len(k._uninstantiated_execution_requests) == 3
+
+        await k.delete_cell(DeleteCellRequest(cell_id="0"))
+        assert len(k._uninstantiated_execution_requests) == 2
+
+        await k.delete_cell(DeleteCellRequest(cell_id="1"))
+        assert len(k._uninstantiated_execution_requests) == 1
+
+        await k.delete_cell(DeleteCellRequest(cell_id="2"))
+        assert not k._uninstantiated_execution_requests
+
+    async def test_instantiate_autorun_false_run_different_code(
+        self, any_kernel: Kernel
+    ) -> None:
+        k = any_kernel
+        await k.instantiate(
+            CreationRequest(
+                execution_requests=(
+                    ExecutionRequest(cell_id="0", code="x=0"),
+                    er1 := ExecutionRequest(cell_id="1", code="y=x+1"),
+                    er2 := ExecutionRequest(cell_id="2", code="z=x+2"),
+                ),
+                set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
+                    []
+                ),
+                auto_run=False,
+            )
+        )
+        assert len(k._uninstantiated_execution_requests) == 3
+
+        # modify an uninstantiated cell before running it; make sure the old
+        # er gets evicted.
+        await k.run([ExecutionRequest(cell_id="0", code="x = 1")])
+        assert len(k._uninstantiated_execution_requests) == 2
+        assert k.globals["x"] == 1
+
+        await k.run([er1])
+        assert len(k._uninstantiated_execution_requests) == 1
+        assert k.globals["y"] == 2
+
+        await k.run([er2])
+        assert not k._uninstantiated_execution_requests
+        assert k.globals["z"] == 3
 
     # Test errors in marimo semantics
     async def test_kernel_simultaneous_multiple_definition_error(
