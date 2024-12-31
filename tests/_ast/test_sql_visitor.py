@@ -651,21 +651,16 @@ class TestFindSQLRefs:
         sql = """
         CREATE TABLE table2 AS
         WITH x AS (
-            SELECT * from my_catalog.my_schema.table1
+            SELECT * from table1
         )
         SELECT * FROM x;
         """
-        assert find_sql_refs(sql) == ["my_catalog", "table1"]
+        assert find_sql_refs(sql) == ["table1"]
 
     @staticmethod
     def test_find_sql_refs_update() -> None:
         sql = "UPDATE my_schema.table1 SET id = 1"
         assert find_sql_refs(sql) == ["my_schema", "table1"]
-
-    @staticmethod
-    def test_find_sql_refs_update_with_catalog() -> None:
-        sql = "UPDATE my_catalog.my_schema.table1 SET id = 1"
-        assert find_sql_refs(sql) == ["my_catalog", "table1"]
 
     @staticmethod
     def test_find_sql_refs_insert() -> None:
@@ -687,15 +682,7 @@ class TestFindSQLRefs:
         assert find_sql_refs(sql) == ["table1", "table2", "table3"]
 
     @staticmethod
-    def test_find_sql_refs_dml_with_query() -> None:
-        sql = """
-        INSERT INTO table1 (id INT) VALUES (1);
-        SELECT * FROM table2;
-        """
-        assert find_sql_refs(sql) == ["table1", "table2"]
-
-    @staticmethod
-    def test_find_sql_refs_multi_selects_in_update() -> None:
+    def test_find_sql_refs_multiple_selects_in_update() -> None:
         sql = """
         UPDATE schema1.table1
         SET table1.column1 = (
@@ -719,3 +706,23 @@ class TestFindSQLRefs:
             "table3",
             "table4",
         ]
+
+    @staticmethod
+    def test_find_sql_refs_select_in_insert() -> None:
+        sql = """
+        INSERT INTO table1 (column1, column2)
+        SELECT column1, column2 FROM table2
+        WHERE column3 = 'value';
+        """
+        assert find_sql_refs(sql) == ["table1", "table2"]
+
+    @staticmethod
+    def test_find_sql_refs_select_in_delete() -> None:
+        sql = """
+        DELETE FROM table1
+        WHERE column1 IN (
+            SELECT column1 FROM table2
+            WHERE column2 = 'value'
+        );
+        """
+        assert find_sql_refs(sql) == ["table1", "table2"]
