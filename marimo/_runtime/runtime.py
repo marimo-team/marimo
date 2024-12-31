@@ -1077,9 +1077,12 @@ class Kernel:
                 # status
                 cell.set_runtime_state("disabled-transitively")
 
+            # The error is up-to-date, since we just processed the graph
             if cell is not None:
-                # The error is up-to-date, since we just processed the graph
                 cell.set_stale(False)
+            else:
+                # On syntax errors, we don't have a cell object.
+                CellOp.broadcast_stale(cell_id=cid, stale=False)
 
             CellOp.broadcast_error(
                 data=self.errors[cid],
