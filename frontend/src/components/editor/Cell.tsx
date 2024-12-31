@@ -419,7 +419,7 @@ const CellComponent = (
     stopped: stopped,
     disabled: cellConfig.disabled,
     stale: status === "disabled-transitively",
-    borderless: isMarkdownCodeHidden && editing,
+    borderless: isMarkdownCodeHidden && hasOutput && editing,
   });
 
   const HTMLId = HTMLCellId.create(cellId);
@@ -567,6 +567,9 @@ const CellComponent = (
 
   const cellOutput = userConfig.display.cell_output;
 
+  const hasOutputAbove = hasOutput && cellOutput === "above";
+  const hasOutputBelow = hasOutput && cellOutput === "below";
+
   return (
     <CellActionsContextMenu
       cellId={cellId}
@@ -607,8 +610,8 @@ const CellComponent = (
             <div
               className={cn(
                 "absolute flex flex-col gap-[2px] justify-center h-full left-[-34px] z-20",
-                isMarkdownCodeHidden && cellOutput === "above" && "-top-7",
-                isMarkdownCodeHidden && cellOutput === "below" && "-bottom-8",
+                isMarkdownCodeHidden && hasOutputAbove && "-top-7",
+                isMarkdownCodeHidden && hasOutputBelow && "-bottom-8",
                 isMarkdownCodeHidden && isCellButtonsInline && "-left-[3.8rem]",
               )}
             >
@@ -649,6 +652,7 @@ const CellComponent = (
               editorViewRef={editorView}
               editorViewParentRef={editorViewParentRef}
               hidden={!isCellCodeShown}
+              hasOutput={hasOutput}
               temporarilyShowCode={temporarilyShowCode}
               languageAdapter={languageAdapter}
               setLanguageAdapter={setLanguageAdapter}
