@@ -107,14 +107,14 @@ async def websocket_endpoint(
 
 
 @dataclass
-class Cell:
+class YCell:
     ydoc: Doc
     clients: int
     cleaner: asyncio.Task[None] | None = None
 
 
-cells: dict[str, Cell] = {}
-cell_lock = asyncio.Lock()
+ycells: dict[str, YCell] = {}
+ycell_lock = asyncio.Lock()
 
 
 def put_updates(
@@ -125,7 +125,9 @@ def put_updates(
 
 
 async def send_updates(
-    websocket: WebSocket, update_queue: asyncio.Queue[bytes]
+    websocket: WebSocket,
+    update_queue: asyncio.Queue[bytes],
+    cell_id: str,
 ) -> None:
     try:
         while True:
@@ -133,15 +135,22 @@ async def send_updates(
             message = create_update_message(update)
             await websocket.send_bytes(message)
     except Exception:
-        return
+        LOGGER.debug(
+            f"Could not send Y update to client for cell with ID {cell_id}",
+        )
 
 
 async def clean_cell(cell_id: str) -> None:
+    # Clients disconnect/reconnect to keep the WebSocket connection alive,
+    # or because of network issues.
+    # Keep the ycell in memory for one minute after client disconnects,
+    # so that it can be synchronized and to prevent content duplication.
+    # This task will be cancelled when any client reconnets.
     await asyncio.sleep(60)
-    async with cell_lock:
-        cell = cells[cell_id]
-        if not cell.clients:
-            del cells[cell_id]
+    async with ycell_lock:
+        ycell = ycells[cell_id]
+        if not ycell.clients:
+            del ycells[cell_id]
 
 
 @router.websocket("/ws/{cell_id}")
@@ -162,14 +171,14 @@ async def ycell_provider(
         return
     await websocket.accept()
     cell_id = websocket.path_params["cell_id"]
-    async with cell_lock:
-        if cell_id in cells:
-            cell = cells[cell_id]
-            ydoc = cell.ydoc
-            cell.clients += 1
-            if cell.cleaner is not None:
-                cell.cleaner.cancel()
-                cell.cleaner = None
+    async with ycell_lock:
+        if cell_id in ycells:
+            ycell = ycells[cell_id]
+            ydoc = ycell.ydoc
+            ycell.clients += 1
+            if ycell.cleaner is not None:
+                ycell.cleaner.cancel()
+                ycell.cleaner = None
         else:
             file_manager = session.app_file_manager
             mgr = file_manager.app.cell_manager
@@ -180,10 +189,10 @@ async def ycell_provider(
             ydoc = Doc()
             ytext = ydoc.get("code", type=Text)
             ytext += code
-            cell = Cell(ydoc=ydoc, clients=1)
-            cells[cell_id] = cell
+            ycell = YCell(ydoc=ydoc, clients=1)
+            ycells[cell_id] = ycell
     update_queue: asyncio.Queue[bytes] = asyncio.Queue()
-    task = asyncio.create_task(send_updates(websocket, update_queue))
+    task = asyncio.create_task(send_updates(websocket, update_queue, cell_id))
     subscription = ydoc.observe(partial(put_updates, update_queue))
     sync_message = create_sync_message(ydoc)
     try:
@@ -200,13 +209,13 @@ async def ycell_provider(
     finally:
         task.cancel()
         ydoc.unobserve(subscription)
-        async with cell_lock:
-            cell.clients -= 1
-            if not cell.clients:
-                if cell.cleaner is not None:
-                    cell.cleaner.cancel()
-                    cell.cleaner = None
-                cell.cleaner = asyncio.create_task(clean_cell(cell_id))
+        async with ycell_lock:
+            ycell.clients -= 1
+            if not ycell.clients:
+                if ycell.cleaner is not None:
+                    ycell.cleaner.cancel()
+                    ycell.cleaner = None
+                ycell.cleaner = asyncio.create_task(clean_cell(cell_id))
 
 
 KIOSK_ONLY_OPERATIONS = {
