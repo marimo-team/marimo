@@ -14,6 +14,7 @@ from marimo._ast.sql_visitor import (
 from marimo._dependencies.dependencies import DependencyManager
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
+HAS_SQLGLOT = DependencyManager.sqlglot.has()
 
 
 def test_execute_with_string_literal() -> None:
@@ -469,7 +470,7 @@ def test_find_sql_defs_duckdb_not_available() -> None:
     assert find_sql_defs("CREATE TABLE test (id INT);") == SQLDefs()
 
 
-@pytest.mark.skipif(not HAS_DUCKDB, reason="Missing DuckDB")
+@pytest.mark.skipif(not HAS_SQLGLOT, reason="Missing sqlglot")
 class TestFindSQLRefs:
     @staticmethod
     def test_find_sql_refs_simple() -> None:
@@ -509,8 +510,6 @@ class TestFindSQLRefs:
     @staticmethod
     def test_find_sql_refs_with_catalog() -> None:
         # Skip the schema if it's coming from a catalog
-        # Why? Because it may be called "public" or "main" across all catalogs
-        # and they aren't referenced in the code
         sql = "SELECT * FROM my_catalog.my_schema.my_table;"
         assert find_sql_refs(sql) == ["my_catalog", "my_table"]
 
@@ -566,7 +565,6 @@ class TestFindSQLRefs:
         assert find_sql_refs(sql) == ["My Table", "Weird.Name"]
 
     @staticmethod
-    @pytest.mark.xfail(reason="Multiple CTEs are not supported")
     def test_find_sql_refs_with_multiple_ctes() -> None:
         sql = """
         WITH
@@ -578,7 +576,6 @@ class TestFindSQLRefs:
         assert find_sql_refs(sql) == ["table1", "table2"]
 
     @staticmethod
-    @pytest.mark.xfail(reason="Nested joins are not supported")
     def test_find_sql_refs_with_nested_joins() -> None:
         sql = """
         SELECT * FROM t1
@@ -593,7 +590,7 @@ class TestFindSQLRefs:
         SELECT * FROM employees,
         LATERAL (SELECT * FROM departments WHERE departments.id = employees.dept_id) dept;
         """
-        assert find_sql_refs(sql) == ["employees", "departments"]
+        assert find_sql_refs(sql) == ["departments", "employees"]
 
     @staticmethod
     def test_find_sql_refs_with_schema_switching() -> None:
@@ -614,3 +611,123 @@ class TestFindSQLRefs:
         ) t2;
         """
         assert find_sql_refs(sql) == ["deeply", "table", "another_table"]
+
+    @staticmethod
+    def test_find_sql_refs_nested_intersect() -> None:
+        sql = """
+        SELECT * FROM table1
+        WHERE id IN (
+            SELECT id FROM table2
+            UNION
+            SELECT id FROM table3
+            INTERSECT
+            SELECT id FROM table4
+        );
+        """
+        assert find_sql_refs(sql) == ["table2", "table3", "table4", "table1"]
+
+    @staticmethod
+    def test_find_sql_refs_with_alias() -> None:
+        sql = "SELECT * FROM employees AS e;"
+        assert find_sql_refs(sql) == ["employees"]
+
+    @staticmethod
+    def test_find_sql_refs_comment() -> None:
+        sql = """
+        -- comment
+        SELECT * FROM table1;
+        -- comment
+        """
+        assert find_sql_refs(sql) == ["table1"]
+
+    @staticmethod
+    def test_find_sql_refs_ddl() -> None:
+        # we are not referencing any table hence no refs
+        sql = "CREATE TABLE t1 (id int);"
+        assert find_sql_refs(sql) == []
+
+    @staticmethod
+    def test_find_sql_refs_ddl_with_reference() -> None:
+        sql = """
+        CREATE TABLE table2 AS
+        WITH x AS (
+            SELECT * from table1
+        )
+        SELECT * FROM x;
+        """
+        assert find_sql_refs(sql) == ["table1"]
+
+    @staticmethod
+    def test_find_sql_refs_update() -> None:
+        sql = "UPDATE my_schema.table1 SET id = 1"
+        assert find_sql_refs(sql) == ["my_schema", "table1"]
+
+    @staticmethod
+    def test_find_sql_refs_insert() -> None:
+        sql = "INSERT INTO my_schema.table1 (id INT) VALUES (1,2);"
+        assert find_sql_refs(sql) == ["my_schema", "table1"]
+
+    @staticmethod
+    def test_find_sql_refs_delete() -> None:
+        sql = "DELETE FROM my_schema.table1 WHERE true;"
+        assert find_sql_refs(sql) == ["my_schema", "table1"]
+
+    @staticmethod
+    def test_find_sql_refs_multi_dml() -> None:
+        sql = """
+        INSERT INTO table1 (id INT) VALUES (1,2);
+        DELETE FROM table2 WHERE true;
+        UPDATE table3 SET id = 1;
+        """
+        assert find_sql_refs(sql) == ["table1", "table2", "table3"]
+
+    @staticmethod
+    def test_find_sql_refs_multiple_selects_in_update() -> None:
+        sql = """
+        UPDATE schema1.table1
+        SET table1.column1 = (
+            SELECT table2.column2 FROM schema2.table2
+        ),
+        table1.column3 = (
+            SELECT table3.column3 FROM table3
+        )
+        WHERE EXISTS (
+            SELECT 1 FROM table2
+        )
+        AND table1.column4 IN (
+            SELECT table4.column4 FROM table4
+        );
+        """
+        assert find_sql_refs(sql) == [
+            "schema1",
+            "table1",
+            "schema2",
+            "table2",
+            "table3",
+            "table4",
+        ]
+
+    @staticmethod
+    def test_find_sql_refs_select_in_insert() -> None:
+        sql = """
+        INSERT INTO table1 (column1, column2)
+        SELECT column1, column2 FROM table2
+        WHERE column3 = 'value';
+        """
+        assert find_sql_refs(sql) == ["table1", "table2"]
+
+    @staticmethod
+    def test_find_sql_refs_select_in_delete() -> None:
+        sql = """
+        DELETE FROM table1
+        WHERE column1 IN (
+            SELECT column1 FROM table2
+            WHERE column2 = 'value'
+        );
+        """
+        assert find_sql_refs(sql) == ["table1", "table2"]
+
+    @staticmethod
+    def test_find_sql_refs_invalid_sql() -> None:
+        sql = "SELECT * FROM"
+        assert find_sql_refs(sql) == []

@@ -301,8 +301,6 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
     )
 
 
-# TODO(akshayka): there are other kinds of refs to find; this should be
-# find_sql_refs
 def find_sql_refs(
     sql_statement: str,
 ) -> list[str]:
@@ -315,109 +313,58 @@ def find_sql_refs(
     Returns:
         A list of table and schema names referenced in the statement.
     """
-    if not DependencyManager.duckdb.has():
+
+    # Use sqlglot to parse ast (https://github.com/tobymao/sqlglot/blob/main/posts/ast_primer.md)
+    if not DependencyManager.sqlglot.has():
         return []
 
-    import duckdb
+    from sqlglot import exp, parse
+    from sqlglot.errors import ParseError
+    from sqlglot.optimizer.scope import build_scope
 
-    tokens = duckdb.tokenize(sql_statement)
-    token_extractor = TokenExtractor(
-        sql_statement=sql_statement, tokens=tokens
-    )
     refs: list[str] = []
-    cte_names: set[str] = set()
-    i = 0
 
-    # First pass - collect CTE names
-    while i < len(tokens):
-        if token_extractor.is_keyword(i, "with"):
-            i += 1
-            # Handle optional parenthesis after WITH
-            if token_extractor.token_str(i) == "(":
-                i += 1
-            while i < len(tokens):
-                if token_extractor.is_keyword(i, "select"):
-                    break
-                if (
-                    token_extractor.token_str(i) == ","
-                    or token_extractor.token_str(i) == "("
-                ):
-                    i += 1
-                    continue
-                cte_name = token_extractor.strip_quotes(
-                    token_extractor.token_str(i)
+    def append_refs_from_table(table: exp.Table) -> None:
+        if table.catalog == "memory":
+            # Default in-memory catalog, only include table name
+            refs.append(table.name)
+        else:
+            # We skip schema if there is a catalog
+            # Because it may be called "public" or "main" across all catalogs
+            # and they aren't referenced in the code
+            if table.catalog:
+                refs.append(table.catalog)
+            elif table.db:
+                refs.append(table.db)  # schema
+
+            if table.name:
+                refs.append(table.name)
+
+    try:
+        expression_list = parse(sql_statement, dialect="duckdb")
+    except ParseError as e:
+        LOGGER.error(f"Unable to parse SQL. Error: {e}")
+        return []
+
+    for expression in expression_list:
+        if expression is None:
+            continue
+
+        if is_dml := bool(expression.find(exp.Update, exp.Insert, exp.Delete)):
+            for table in expression.find_all(exp.Table):
+                append_refs_from_table(table)
+
+        # build_scope only works for select statements
+        if root := build_scope(expression):
+            if is_dml:
+                LOGGER.warning(
+                    "Scopes should not exist for dml's, may need rework if this occurs"
                 )
-                if not token_extractor.is_keyword(i, "as"):
-                    cte_names.add(cte_name)
-                i += 1
-                if token_extractor.is_keyword(i, "as"):
-                    break
-        i += 1
 
-    # Second pass - collect references excluding CTEs
-    i = 0
-    while i < len(tokens):
-        if token_extractor.is_keyword(i, "from") or token_extractor.is_keyword(
-            i, "join"
-        ):
-            i += 1
-            if i < len(tokens):
-                # Skip over opening parenthesis for subqueries
-                if token_extractor.token_str(i) == "(":
-                    continue
+            for scope in root.traverse():  # type: ignore
+                for _alias, (_node, source) in scope.selected_sources.items():
+                    if isinstance(source, exp.Table):
+                        append_refs_from_table(source)
 
-                # Get table name parts, this could be:
-                # - catalog.schema.table
-                # - catalog.table (this is shorthand for catalog.main.table)
-                # - table
-
-                parts: List[str] = []
-                while i < len(tokens):
-                    part = token_extractor.strip_quotes(
-                        token_extractor.token_str(i)
-                    )
-                    parts.append(part)
-                    # next token is a dot, so we continue getting parts
-                    if (
-                        i + 1 < len(tokens)
-                        and token_extractor.token_str(i + 1) == "."
-                    ):
-                        i += 2
-                        continue
-                    break
-
-                if len(parts) == 3:
-                    # If its the default in-memory catalog,
-                    # only add the table name
-                    if parts[0] == "memory":
-                        refs.append(parts[2])
-                    else:
-                        # Just add the catalog and table, skip schema
-                        refs.extend([parts[0], parts[2]])
-                elif len(parts) == 2:
-                    # If its the default in-memory catalog, only add the table
-                    if parts[0] == "memory":
-                        refs.append(parts[1])
-                    else:
-                        # It's a catalog and table, add both
-                        refs.extend(parts)
-                elif len(parts) == 1:
-                    # It's a table, make sure it's not a CTE
-                    if parts[0] not in cte_names:
-                        refs.append(parts[0])
-                else:
-                    LOGGER.warning(
-                        "Unexpected number of parts in SQL reference: %s",
-                        parts,
-                    )
-
-                i -= 1  # Compensate for outer loop increment
-        i += 1
-
-    # Re-use find_sql_defs to find referenced schemas and catalogs during creation.
-    defs = find_sql_defs(sql_statement)
-    refs.extend(defs.reffed_schemas)
-    refs.extend(defs.reffed_catalogs)
-
-    # Remove duplicates while preserving order
+    # remove duplicates while preserving order
     return list(dict.fromkeys(refs))
