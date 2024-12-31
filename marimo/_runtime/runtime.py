@@ -1393,7 +1393,7 @@ class Kernel:
             else:
                 filtered_requests.append(request)
 
-        await _run_with_uninstantiated_requests(execution_requests)
+        await _run_with_uninstantiated_requests(filtered_requests)
 
     @kernel_tracer.start_as_current_span("rename_file")
     async def rename_file(self, filename: str) -> None:
