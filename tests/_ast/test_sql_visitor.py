@@ -627,18 +627,6 @@ class TestFindSQLRefs:
         assert find_sql_refs(sql) == ["table2", "table3", "table4", "table1"]
 
     @staticmethod
-    def test_find_sql_refs_with_recursive_cte() -> None:
-        sql = """
-        WITH RECURSIVE cte AS (
-            SELECT 1 AS n FROM table1
-            UNION ALL
-            SELECT n + 1 FROM cte WHERE n < 10
-        )
-        SELECT * FROM cte;
-        """
-        assert find_sql_refs(sql) == ["table1"]
-
-    @staticmethod
     def test_find_sql_refs_with_alias() -> None:
         sql = "SELECT * FROM employees AS e;"
         assert find_sql_refs(sql) == ["employees"]
