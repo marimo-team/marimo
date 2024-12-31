@@ -62,6 +62,7 @@ export interface CellEditorProps
    * This is different from cellConfig.hide_code, since it may be temporarily shown.
    */
   hidden?: boolean;
+  hasOutput?: boolean;
   languageAdapter: LanguageAdapterType | undefined;
   setLanguageAdapter: React.Dispatch<
     React.SetStateAction<LanguageAdapterType | undefined>
@@ -95,6 +96,7 @@ const CellEditorInternal = ({
   editorViewRef,
   editorViewParentRef,
   hidden,
+  hasOutput,
   temporarilyShowCode,
   languageAdapter,
   setLanguageAdapter,
@@ -359,6 +361,17 @@ const CellEditorInternal = ({
     };
   }, [editorViewRef]);
 
+  // Completely hide the editor & icons if it's markdown and hidden. If there is output, we show.
+  const showHideButton =
+    (hidden && !isMarkdown) || (hidden && isMarkdown && !hasOutput);
+
+  let editorClassName = "";
+  if (isMarkdown && hidden && hasOutput) {
+    editorClassName = "h-0 overflow-hidden";
+  } else if (hidden) {
+    editorClassName = "opacity-20 h-8 overflow-hidden";
+  }
+
   return (
     <AiCompletionEditor
       enabled={aiCompletionCell?.cellId === cellId}
@@ -394,8 +407,7 @@ const CellEditorInternal = ({
         className="relative w-full"
         onFocus={() => setLastFocusedCellId(cellId)}
       >
-        {/* Completely hide the editor and icons when markdown is hidden. If just hidden, display. */}
-        {!isMarkdown && hidden && (
+        {showHideButton && (
           <HideCodeButton
             tooltip="Edit code"
             className="absolute inset-0 z-10"
@@ -403,11 +415,7 @@ const CellEditorInternal = ({
           />
         )}
         <CellCodeMirrorEditor
-          className={cn(
-            isMarkdown && hidden
-              ? "h-0 overflow-hidden"
-              : hidden && "opacity-20 h-8 overflow-hidden",
-          )}
+          className={editorClassName}
           editorView={editorViewRef.current}
           ref={editorViewParentRef}
         />
