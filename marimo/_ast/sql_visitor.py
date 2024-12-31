@@ -319,6 +319,7 @@ def find_sql_refs(
         return []
 
     from sqlglot import exp, parse
+    from sqlglot.errors import ParseError
     from sqlglot.optimizer.scope import build_scope
 
     refs: list[str] = []
@@ -339,7 +340,12 @@ def find_sql_refs(
             if table.name:
                 refs.append(table.name)
 
-    expression_list = parse(sql_statement)
+    try:
+        expression_list = parse(sql_statement, dialect="duckdb")
+    except ParseError as e:
+        LOGGER.error(f"Unable to parse SQL. Error: {e}")
+        return []
+
     for expression in expression_list:
         if expression is None:
             continue

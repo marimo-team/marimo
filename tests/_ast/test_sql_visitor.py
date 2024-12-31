@@ -726,3 +726,8 @@ class TestFindSQLRefs:
         );
         """
         assert find_sql_refs(sql) == ["table1", "table2"]
+
+    @staticmethod
+    def test_find_sql_refs_invalid_sql() -> None:
+        sql = "SELECT * FROM"
+        assert find_sql_refs(sql) == []
