@@ -157,6 +157,7 @@ class MarimoIslandGenerator:
 
     # Example
 
+    Using the MarimoIslandGenerator class:
     ```python
     import asyncio
     import sys
@@ -193,6 +194,41 @@ class MarimoIslandGenerator:
 
     if __name__ == '__main__':
         asyncio.run(main())
+    ```
+
+    You can also create the generator from a file:
+
+    ```python
+    from marimo import MarimoIslandGenerator
+
+    # Create the generator from file
+    generator = MarimoIslandGenerator.from_file(
+        "./<notebook-name>.py", display_code=False
+    )
+
+    # Generate and print the HTML without building
+    # This will still work for basic rendering, though without running the cells
+    html = generator.render_html(include_init_island=False)
+    print(html)
+    # Save the HTML to a file
+    output_file = "output.html"
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(html)
+    ```
+
+    Another way is to use the Islands demo page:
+
+    ```bash
+    pnpm dev:islands
+    ```
+
+    Generate an HTML page with islands:
+
+    ```bash
+    # Generate
+    uv run ./islands/generate.py > islands/__demo__/index.html
+    # Run the Vite server
+    pnpm dev:islands
     ```
     """
 
