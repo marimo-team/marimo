@@ -212,86 +212,90 @@ marimo islands are a way to embed marimo outputs and/or python code in your HTML
 
 Check out an [example island-powered document](./island_example.md).
 
-You can use `MarimoIslandGenerator` to embed marimo "islands", or blocks of marimo code and outputs, in a static web page. For example, use this class in conjunction with other static site generators (SSGs) to embed marimo into their generated content.
-
 ### Generating islands
 
 There are many ways to generate marimo islands:
 
 !!! example
 
-    === "using uv run"
+  /// tab | Using uv run
 
-        ```bash
-        pnpm dev:islands
-        ```
+  ```bash
+  pnpm dev:islands
+  ```
 
-        Generate an HTML page with islands:
+  Generate an HTML page with islands:
 
-        ```bash
-        # Generate
-        uv run ./islands/generate.py > islands/__demo__/index.html
-        # Run the Vite server
-        pnpm dev:islands
-        ```
+  ```bash
+  # Generate
+  uv run ./islands/generate.py > islands/__demo__/index.html
+  # Run the Vite server
+  pnpm dev:islands
+  ```
 
-    === "Class"
+  ///
 
-        ```python
-        import asyncio
-        import sys
-        from marimo._islands import MarimoIslandGenerator
+  /// tab | Class Implementation
 
-        if sys.platform == 'win32':
-            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+  ```python
+  import asyncio
+  import sys
+  from marimo._islands import MarimoIslandGenerator
 
-        async def main():
-            generator = MarimoIslandGenerator()
-            block1 = generator.add_code("import marimo as mo")
-            block2 = generator.add_code("mo.md('Hello, islands!')")
+  if sys.platform == 'win32':
+      asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-            # Build the app
-            app = await generator.build()
+  async def main():
+      generator = MarimoIslandGenerator()
+      block1 = generator.add_code("import marimo as mo")
+      block2 = generator.add_code("mo.md('Hello, islands!')")
 
-            # Render the app
-            output = f"""
-            <html>
-                <head>
-                    {generator.render_head()}
-                </head>
-                <body>
-                    {block1.render(display_output=False)}
-                    {block2.render()}
-                </body>
-            </html>
-            """
-            print(output)
-            # Save the HTML to a file
-            output_file = "output.html"
-            with open(output_file, "w", encoding="utf-8") as f:
-                f.write(output)
+      # Build the app
+      app = await generator.build()
 
-        if __name__ == '__main__':
-            asyncio.run(main())
-        ```
+      # Render the app
+      output = f"""
+      <html>
+          <head>
+              {generator.render_head()}
+          </head>
+          <body>
+              {block1.render(display_output=False)}
+              {block2.render()}
+          </body>
+      </html>
+      """
+      print(output)
+      # Save the HTML to a file
+      output_file = "output.html"
+      with open(output_file, "w", encoding="utf-8") as f:
+          f.write(output)
 
-    === "File Reference"
+  if __name__ == '__main__':
+      asyncio.run(main())
+  ```
 
-        ```python
-        from marimo import MarimoIslandGenerator
+  ///
 
-        # Create the generator from file
-        generator = MarimoIslandGenerator.from_file("./<notebook-name>.py", display_code=False)
+  /// tab | File Reference
 
-        # Generate and print the HTML without building
-        # This will still work for basic rendering, though without running the cells
-        html = generator.render_html(include_init_island=False)
-        print(html)
-        # Save the HTML to a file
-        output_file = "output.html"
-        with open(output_file, "w", encoding="utf-8") as f:
-            f.write(html)
-        ```
+  ```python
+  from marimo import MarimoIslandGenerator
+
+  # Create the generator from file
+  generator = MarimoIslandGenerator.from_file("./<notebook-name>.py", display_code=False)
+
+  # Generate and print the HTML without building
+  # This will still work for basic rendering, though without running the cells
+  html = generator.render_html(include_init_island=False)
+  print(html)
+  # Save the HTML to a file
+  output_file = "output.html"
+  with open(output_file, "w", encoding="utf-8") as f:
+      f.write(html)
+  ```
+
+  ///
 
 Any relevant `.html` that gets generated can be run through the [`development.md`](https://github.com/marimo-team/marimo/blob/main/frontend/islands/development.md) file instructions.
 
@@ -338,8 +342,6 @@ In order to use marimo islands, you need to import the necessary JS/CSS headers 
   </marimo-island>
 </body>
 ```
-
-### Generating islands
 
 While you can generate the HTML code for islands yourself, it is recommended to use our `MarimoIslandGenerator` class to generate the HTML code for you.
 
