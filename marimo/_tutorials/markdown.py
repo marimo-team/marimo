@@ -105,6 +105,23 @@ def __(mo):
 
 @app.cell(hide_code=True)
 def __(mo):
+    mo.accordion(
+        {
+            "Note: KaTeX": mo.md(
+                """
+                marimo actually uses KaTeX, a math typesetting library for the
+                web which supports a subset of LaTeX. For a list of
+                (un)supported commands, visit
+                https://katex.org/docs/support_table
+                """
+            )
+        }
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo):
     mo.md(
         """
         ## Interpolating Python values
@@ -137,7 +154,6 @@ def __(
         _x = np.linspace(start=0, stop=2 * np.pi)
         plt.plot(_x, np.sin(_x))
         return plt.gca()
-
 
     mo.md(
         f"""
@@ -213,7 +229,6 @@ def __(missing_numpy_msg, mo, np, numpy_installed):
         x = np.linspace(0, 2 * np.pi, 10)
         y = np.sin(x)
         return pd.DataFrame({"x": x, "sin(x)": y})
-
 
     mo.md(
         f"""
@@ -297,6 +312,7 @@ def __(
         plt.plot(x, amplitude * np.sin(2 * np.pi / period * x))
         plt.ylim(-2.2, 2.2)
         return plt.gca()
+
     return (plotsin,)
 
 
@@ -334,7 +350,9 @@ def __(amplitude, mo, period, plotsin):
 def __(mo):
     matplotlib_installed = False
     numpy_installed = False
-    missing_numpy_msg = mo.md("Oops! Looks like you don't have `numpy` installed.")
+    missing_numpy_msg = mo.md(
+        "Oops! Looks like you don't have `numpy` installed."
+    )
     missing_matplotlib_msg = mo.md(
         "Oops! Looks like you don't have `matplotlib` installed."
     )
@@ -367,6 +385,7 @@ def __():
     import math
 
     import marimo as mo
+
     return math, mo
 
 
