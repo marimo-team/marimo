@@ -16,6 +16,7 @@ import React, {
 } from "react";
 
 import { setupCodeMirror } from "@/core/codemirror/cm";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 import useEvent from "react-use-event-hook";
 import { type CellActions, useCellActions } from "@/core/cells/cells";
 import type { CellRuntimeState, CellData } from "@/core/cells/types";
@@ -257,20 +258,22 @@ const CellEditorInternal = ({
       if (editorViewRef.current === null) {
         // Otherwise, create a new editor.
 
-        let wsProvider = cellProviders.get(cellId);
-        let ytext: Y.Text;
-        if (wsProvider) {
-          ytext = wsProvider.doc.getText("code");
-        } else {
-          const ydoc = new Y.Doc();
-          ytext = ydoc.getText("code");
-          extensions.push(yCollab(ytext, null));
-          wsProvider = new WebsocketProvider("ws", cellId, ydoc, {
-            params: { session_id: getSessionId() },
-          });
-          cellProviders.set(cellId, wsProvider);
+        if (getFeatureFlag("rtc")) {
+          let wsProvider = cellProviders.get(cellId);
+          let ytext: Y.Text;
+          if (wsProvider) {
+            ytext = wsProvider.doc.getText("code");
+          } else {
+            const ydoc = new Y.Doc();
+            ytext = ydoc.getText("code");
+            extensions.push(yCollab(ytext, null));
+            wsProvider = new WebsocketProvider("ws", cellId, ydoc, {
+              params: { session_id: getSessionId() },
+            });
+            cellProviders.set(cellId, wsProvider);
+          }
+          code = ytext.toJSON();
         }
-        const code = ytext.toJSON();
 
         editorViewRef.current = new EditorView({
           state: EditorState.create({
@@ -302,6 +305,7 @@ const CellEditorInternal = ({
         state: EditorState.fromJSON(
           serializedEditorState,
           {
+            doc: code,
             extensions: extensions,
           },
           { history: historyField },

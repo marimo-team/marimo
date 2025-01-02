@@ -12,6 +12,7 @@ export interface ExperimentalFeatures {
   scratchpad: boolean;
   multi_column: boolean;
   chat_sidebar: boolean;
+  rtc: boolean;
   // Add new feature flags here
 }
 
@@ -21,6 +22,7 @@ const defaultValues: ExperimentalFeatures = {
   scratchpad: true,
   multi_column: import.meta.env.DEV,
   chat_sidebar: import.meta.env.DEV,
+  rtc: false,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(
