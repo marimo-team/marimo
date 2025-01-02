@@ -161,7 +161,7 @@ class MarimoIslandGenerator:
     ```python
     import asyncio
     import sys
-    from marimo._islands import MarimoIslandGenerator
+    from marimo import MarimoIslandGenerator
 
     if sys.platform == 'win32':
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -216,20 +216,6 @@ class MarimoIslandGenerator:
         f.write(html)
     ```
 
-    Another way is to use the Islands demo page:
-
-    ```bash
-    pnpm dev:islands
-    ```
-
-    Generate an HTML page with islands:
-
-    ```bash
-    # Generate
-    uv run ./islands/generate.py > islands/__demo__/index.html
-    # Run the Vite server
-    pnpm dev:islands
-    ```
     """
 
     def __init__(self, app_id: str = "main"):
