@@ -160,12 +160,10 @@ class MarimoIslandGenerator:
     ```python
     import asyncio
     import sys
+    from marimo._islands import MarimoIslandGenerator
 
     if sys.platform == 'win32':
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-
-    from marimo._islands import MarimoIslandGenerator
-    import asyncio
 
     async def main():
         generator = MarimoIslandGenerator()
