@@ -242,6 +242,75 @@ marimo islands are a way to embed marimo outputs and/or python code in your HTML
 
 Check out an [example island-powered document](./island_example.md).
 
+### Generating islands
+
+Use `MarimoIslandGenerator` to generate HTML for islands
+
+!!! example
+    /// tab | From code blocks
+
+    ```python
+    import asyncio
+    import sys
+    from marimo import MarimoIslandGenerator
+
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+    async def main():
+        generator = MarimoIslandGenerator()
+        block1 = generator.add_code("import marimo as mo")
+        block2 = generator.add_code("mo.md('Hello, islands!')")
+
+        # Build the app
+        app = await generator.build()
+
+        # Render the app
+        output = f"""
+        <html>
+            <head>
+                {generator.render_head()}
+            </head>
+            <body>
+                {block1.render(display_output=False)}
+                {block2.render()}
+            </body>
+        </html>
+        """
+        print(output)
+        # Save the HTML to a file
+        output_file = "output.html"
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write(output)
+
+    if __name__ == '__main__':
+        asyncio.run(main())
+    ```
+
+    ///
+
+    /// tab | From notebook files
+
+    ```python
+    from marimo import MarimoIslandGenerator
+
+    # Create the generator from file
+    generator = MarimoIslandGenerator.from_file("./<notebook-name>.py", display_code=False)
+
+    # Generate and print the HTML without building
+    # This will still work for basic rendering, though without running the cells
+    html = generator.render_html(include_init_island=False)
+    print(html)
+    # Save the HTML to a file
+    output_file = "output.html"
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(html)
+    ```
+
+    ///
+
+Any relevant `.html` that gets generated can be run through the [`development.md`](https://github.com/marimo-team/marimo/blob/main/frontend/islands/development.md) file instructions.
+
 ### Islands in action
 
 !!! warning "Advanced topic!"
@@ -286,8 +355,5 @@ In order to use marimo islands, you need to import the necessary JS/CSS headers 
 </body>
 ```
 
-### Generating islands
-
-While you can generate the HTML code for islands yourself, it it recommend to use our `MarimoIslandGenerator` class to generate the HTML code for you.
 
 ::: marimo.MarimoIslandGenerator

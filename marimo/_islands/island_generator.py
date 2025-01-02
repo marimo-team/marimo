@@ -1,7 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import json
+import sys
 from textwrap import dedent
 from typing import TYPE_CHECKING, List, Optional, Union, cast
 
@@ -17,6 +19,9 @@ from marimo._server.export import run_app_until_completion
 from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter
 from marimo._utils.marimo_path import MarimoPath
+
+if sys.platform == "win32":  # handling for windows
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 if TYPE_CHECKING:
     from marimo._server.session.session_view import SessionView
@@ -152,29 +157,62 @@ class MarimoIslandGenerator:
 
     # Example
 
+    Using the MarimoIslandGenerator class:
     ```python
-    from marimo.islands import MarimoIslandGenerator
+    import asyncio
+    import sys
+    from marimo import MarimoIslandGenerator
 
-    generator = MarimoIslandGenerator()
-    block1 = generator.add_code("import marimo as mo")
-    block2 = generator.add_code("mo.md('Hello, islands!')")
+    async def main():
+        generator = MarimoIslandGenerator()
+        block1 = generator.add_code("import marimo as mo")
+        block2 = generator.add_code("mo.md('Hello, islands!')")
 
-    # Build the app
-    app = await generator.build()
+        # Build the app
+        app = await generator.build()
 
-    # Render the app
-    output = f\"\"\"
-    <html>
-        <head>
-            {generator.render_head()}
-        </head>
-        <body>
-            {block1.render(display_output=False)}
-            {block2.render()}
-        </body>
-    </html>
-    \"\"\"
+        # Render the app
+        output = f\"\"\"
+        <html>
+            <head>
+                {generator.render_head()}
+            </head>
+            <body>
+                {block1.render(display_output=False)}
+                {block2.render()}
+            </body>
+        </html>
+        \"\"\"
+        print(output)
+        # Save the HTML to a file
+        output_file = "output.html"
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write(output)
+
+    if __name__ == '__main__':
+        asyncio.run(main())
     ```
+
+    You can also create the generator from a file:
+
+    ```python
+    from marimo import MarimoIslandGenerator
+
+    # Create the generator from file
+    generator = MarimoIslandGenerator.from_file(
+        "./<notebook-name>.py", display_code=False
+    )
+
+    # Generate and print the HTML without building
+    # This will still work for basic rendering, though without running the cells
+    html = generator.render_html(include_init_island=False)
+    print(html)
+    # Save the HTML to a file
+    output_file = "output.html"
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(html)
+    ```
+
     """
 
     def __init__(self, app_id: str = "main"):
