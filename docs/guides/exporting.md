@@ -214,7 +214,7 @@ Check out an [example island-powered document](./island_example.md).
 
 ### Generating islands
 
-There are many ways to generate marimo islands:
+Use `MarimoIslandGenerator` to generate HTML for islands
 
 !!! example
 
@@ -235,12 +235,12 @@ There are many ways to generate marimo islands:
 
   ///
 
-  /// tab | Class Implementation
+  /// tab | From code blocks
 
   ```python
   import asyncio
   import sys
-  from marimo._islands import MarimoIslandGenerator
+  from marimo import MarimoIslandGenerator
 
   if sys.platform == 'win32':
       asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -277,7 +277,7 @@ There are many ways to generate marimo islands:
 
   ///
 
-  /// tab | File Reference
+  /// tab | From notebook files
 
   ```python
   from marimo import MarimoIslandGenerator
@@ -343,6 +343,5 @@ In order to use marimo islands, you need to import the necessary JS/CSS headers 
 </body>
 ```
 
-While you can generate the HTML code for islands yourself, it is recommended to use our `MarimoIslandGenerator` class to generate the HTML code for you.
 
 ::: marimo.MarimoIslandGenerator
