@@ -158,27 +158,43 @@ class MarimoIslandGenerator:
     # Example
 
     ```python
+    import asyncio
+    import sys
+
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
     from marimo._islands import MarimoIslandGenerator
+    import asyncio
 
-    generator = MarimoIslandGenerator()
-    block1 = generator.add_code("import marimo as mo")
-    block2 = generator.add_code("mo.md('Hello, islands!')")
+    async def main():
+        generator = MarimoIslandGenerator()
+        block1 = generator.add_code("import marimo as mo")
+        block2 = generator.add_code("mo.md('Hello, islands!')")
 
-    # Build the app
-    app = await generator.build()
+        # Build the app
+        app = await generator.build()
 
-    # Render the app
-    output = f\"\"\"
-    <html>
-        <head>
-            {generator.render_head()}
-        </head>
-        <body>
-            {block1.render(display_output=False)}
-            {block2.render()}
-        </body>
-    </html>
-    \"\"\"
+        # Render the app
+        output = f\"\"\"
+        <html>
+            <head>
+                {generator.render_head()}
+            </head>
+            <body>
+                {block1.render(display_output=False)}
+                {block2.render()}
+            </body>
+        </html>
+        \"\"\"
+        print(output)
+        # Save the HTML to a file
+        output_file = "output.html"
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write(output)
+
+    if __name__ == '__main__':
+        asyncio.run(main())
     ```
     """
 
