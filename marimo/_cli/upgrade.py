@@ -73,7 +73,7 @@ def _check_for_updates_internal(on_update: Callable[[str, str], None]) -> None:
 def _update_with_latest_version(state: MarimoCLIState) -> MarimoCLIState:
     """
     If we have not saved the latest version,
-    or its newer than the one we have, update it.
+    or it's newer than the one we have, update it.
     """
     # querying pypi is +250kb and there is not a better API
     # this endpoint just returns the version
@@ -84,15 +84,18 @@ def _update_with_latest_version(state: MarimoCLIState) -> MarimoCLIState:
     else:
         api_url = "https://marimo.io/api/oss/latest-version"
 
-    # Check if it is a different day
+    # We only update the state once a day
     if state.last_checked_at:
         last_checked_date = datetime.strptime(
             state.last_checked_at, "%Y-%m-%d"
         ).date()
+        now = datetime.now()
+        year = last_checked_date.timetuple().tm_year
+        today_year = now.timetuple().tm_year
         day_of_the_year = last_checked_date.timetuple().tm_yday
-        today_day_of_the_year = datetime.now().timetuple().tm_yday
-        if today_day_of_the_year == day_of_the_year:
-            # Same day of the year, so do nothing
+        today_day_of_the_year = now.timetuple().tm_yday
+        if year == today_year and today_day_of_the_year == day_of_the_year:
+            # Same day, so do nothing
             return state
 
     # Fetch the latest version from PyPI
