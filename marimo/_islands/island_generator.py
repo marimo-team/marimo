@@ -163,9 +163,6 @@ class MarimoIslandGenerator:
     import sys
     from marimo import MarimoIslandGenerator
 
-    if sys.platform == 'win32':
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-
     async def main():
         generator = MarimoIslandGenerator()
         block1 = generator.add_code("import marimo as mo")
