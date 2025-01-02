@@ -62,7 +62,6 @@ def test_update_with_latest_version(mock_fetch_data_from_url: Any) -> None:
     )
     mock_fetch_data_from_url.return_value = {"info": {"version": "0.1.2"}}
 
-    # Run
     updated_state = _update_with_latest_version(state)
 
     # Assert that the latest_version was updated
