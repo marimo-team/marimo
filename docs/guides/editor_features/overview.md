@@ -20,7 +20,7 @@ To access these settings, click the gear icon in the top-right of the editor:
 A non-exhaustive list of settings:
 
 - Outputs above or below code cells
-- [Disable/enable autorun](../reactivity.md#runtime-configuration)
+- [Disable/enable autorun](../reactivity.md#configuring-how-marimo-runs-cells)
 - Package installation
 - Vim keybindings
 - Dark mode

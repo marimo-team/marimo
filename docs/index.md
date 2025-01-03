@@ -15,7 +15,7 @@ hide:
 
 marimo is a reactive Python notebook: run a cell or interact with a UI
 element, and marimo automatically runs dependent cells (or [marks them as
-stale](guides/reactivity.md#runtime-configuration)), keeping code and outputs
+stale](guides/reactivity.md#configuring-how-marimo-runs-cells)), keeping code and outputs
 consistent and preventing bugs before they happen. Every marimo notebook is
 stored as pure Python, executable as a script, and deployable as an app.
 

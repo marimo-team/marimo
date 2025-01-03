@@ -750,7 +750,7 @@ export const UserConfigForm: React.FC = () => {
               Learn more in the{" "}
               <a
                 className="text-link hover:underline"
-                href="https://docs.marimo.io/guides/reactivity.html#runtime-configuration"
+                href="https://docs.marimo.io/guides/reactivity/#configuring-how-marimo-runs-cells"
                 target="_blank"
                 rel="noreferrer"
               >
