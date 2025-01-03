@@ -1136,6 +1136,30 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               )}
             />
+            <FormField
+              control={form.control}
+              name="experimental.rtc"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">
+                      Real-time Collaboration
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="rtc-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <FormDescription>
+                    Enable experimental real-time collaboration to allow editing
+                    cell inputs by multiple users.
+                  </FormDescription>
+                </div>
+              )}
+            />
           </SettingGroup>
         );
     }

@@ -1,10 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import { WebsocketProvider } from "y-websocket";
+import { yCollab } from "y-codemirror.next";
+import * as Y from "yjs";
+import { getSessionId } from "../../../../core/kernel/session";
 import { historyField } from "@codemirror/commands";
 import { EditorState, StateEffect } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
 import React, { memo, useCallback, useEffect, useRef, useMemo } from "react";
 
 import { setupCodeMirror } from "@/core/codemirror/cm";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 import useEvent from "react-use-event-hook";
 import { type CellActions, useCellActions } from "@/core/cells/cells";
 import type { CellRuntimeState, CellData } from "@/core/cells/types";
@@ -72,6 +77,8 @@ export interface CellEditorProps
   editorViewParentRef?: React.MutableRefObject<HTMLDivElement | null>;
   temporarilyShowCode: () => void;
 }
+
+const cellProviders = new Map<string, WebsocketProvider>();
 
 const CellEditorInternal = ({
   theme,
@@ -259,6 +266,24 @@ const CellEditorInternal = ({
   ]);
 
   const handleInitializeEditor = useEvent(() => {
+    // If rtc is enabled, use collaborative editing
+    if (getFeatureFlag("rtc")) {
+      let wsProvider = cellProviders.get(cellId);
+      let ytext: Y.Text;
+      if (wsProvider) {
+        ytext = wsProvider.doc.getText("code");
+      } else {
+        const ydoc = new Y.Doc();
+        ytext = ydoc.getText("code");
+        extensions.push(yCollab(ytext, null));
+        wsProvider = new WebsocketProvider("ws", cellId, ydoc, {
+          params: { session_id: getSessionId() },
+        });
+        cellProviders.set(cellId, wsProvider);
+      }
+      code = ytext.toJSON();
+    }
+
     // Create a new editor
     const ev = new EditorView({
       state: EditorState.create({

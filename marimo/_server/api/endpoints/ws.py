@@ -3,9 +3,20 @@ from __future__ import annotations
 
 import asyncio
 import json
+from dataclasses import dataclass
 from enum import IntEnum
+from functools import partial
 from typing import Any, Callable, Optional
 
+from pycrdt import (
+    Doc,
+    Text,
+    TransactionEvent,
+    YMessageType,
+    create_sync_message,
+    create_update_message,
+    handle_sync_message,
+)
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
 from marimo import _loggers
@@ -93,6 +104,118 @@ async def websocket_endpoint(
         file_key=file_key,
         kiosk=kiosk,
     ).start()
+
+
+@dataclass
+class YCell:
+    ydoc: Doc
+    clients: int
+    cleaner: asyncio.Task[None] | None = None
+
+
+ycells: dict[str, YCell] = {}
+ycell_lock = asyncio.Lock()
+
+
+def put_updates(
+    update_queue: asyncio.Queue[bytes], event: TransactionEvent
+) -> None:
+    update = event.update
+    update_queue.put_nowait(update)
+
+
+async def send_updates(
+    websocket: WebSocket,
+    update_queue: asyncio.Queue[bytes],
+    cell_id: str,
+) -> None:
+    try:
+        while True:
+            update = await update_queue.get()
+            message = create_update_message(update)
+            await websocket.send_bytes(message)
+    except Exception:
+        LOGGER.debug(
+            f"Could not send Y update to client for cell with ID {cell_id}",
+        )
+
+
+async def clean_cell(cell_id: str) -> None:
+    # Clients disconnect/reconnect to keep the WebSocket connection alive,
+    # or because of network issues.
+    # Keep the ycell in memory for one minute after client disconnects,
+    # so that it can be synchronized and to prevent content duplication.
+    # This task will be cancelled when any client reconnets.
+    await asyncio.sleep(60)
+    async with ycell_lock:
+        ycell = ycells[cell_id]
+        if not ycell.clients:
+            del ycells[cell_id]
+
+
+@router.websocket("/ws/{cell_id}")
+async def ycell_provider(
+    websocket: WebSocket,
+) -> None:
+    app_state = AppState(websocket)
+    session_id = app_state.query_params(SESSION_QUERY_PARAM_KEY)
+    if session_id is None:
+        await websocket.close(
+            WebSocketCodes.NORMAL_CLOSE, "MARIMO_NO_SESSION_ID"
+        )
+        return
+    manager = app_state.session_manager
+    session = manager.get_session(session_id)
+    if session is None:
+        await websocket.close(WebSocketCodes.FORBIDDEN, "MARIMO_NOT_ALLOWED")
+        return
+    await websocket.accept()
+    cell_id = websocket.path_params["cell_id"]
+    async with ycell_lock:
+        if cell_id in ycells:
+            ycell = ycells[cell_id]
+            ydoc = ycell.ydoc
+            ycell.clients += 1
+            if ycell.cleaner is not None:
+                ycell.cleaner.cancel()
+                ycell.cleaner = None
+        else:
+            file_manager = session.app_file_manager
+            mgr = file_manager.app.cell_manager
+            if cell_id in mgr.cell_ids():
+                code = mgr.cell_data_at(cell_id).code
+            else:
+                code = ""
+            ydoc = Doc()
+            ytext = ydoc.get("code", type=Text)
+            ytext += code
+            ycell = YCell(ydoc=ydoc, clients=1)
+            ycells[cell_id] = ycell
+    update_queue: asyncio.Queue[bytes] = asyncio.Queue()
+    task = asyncio.create_task(send_updates(websocket, update_queue, cell_id))
+    subscription = ydoc.observe(partial(put_updates, update_queue))
+    sync_message = create_sync_message(ydoc)
+    try:
+        await websocket.send_bytes(sync_message)
+        while True:
+            message = await websocket.receive_bytes()
+            message_type = message[0]
+            if message_type == YMessageType.SYNC:
+                reply = handle_sync_message(message[1:], ydoc)
+                if reply is not None:
+                    await websocket.send_bytes(reply)
+    except Exception:
+        pass
+    finally:
+        task.cancel()
+        ydoc.unobserve(subscription)
+        async with ycell_lock:
+            ycell.clients -= 1
+            if not ycell.clients:
+                if ycell.cleaner is not None:
+                    ycell.cleaner.cancel()
+                    ycell.cleaner = None
+                ycell.cleaner = asyncio.create_task(clean_cell(cell_id))
 
 
 KIOSK_ONLY_OPERATIONS = {

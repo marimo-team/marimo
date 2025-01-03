@@ -141,6 +141,9 @@
     "vega-loader": "^4.5.2",
     "vscode-languageserver-protocol": "^3.17.5",
     "web-vitals": "^4.2.3",
+    "y-codemirror.next": "^0.3.5",
+    "y-websocket": "^2.1.0",
+    "yjs": "^13.6.21",
     "zod": "^3.23.8"
   },
   "scripts": {
