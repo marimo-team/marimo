@@ -193,7 +193,12 @@ const PanelSlot = (props: Props) => {
       }
 
       if (buffers && buffers.length > 0) {
-        receiver.consume(buffers[0].buffer);
+        // Convert ArrayBufferLike to ArrayBuffer if needed
+        const bufferData = buffers[0].buffer as ArrayBufferLike;
+        // Create a new ArrayBuffer from the ArrayBufferLike
+        const arrayBuffer = new ArrayBuffer(bufferData.byteLength);
+        new Uint8Array(arrayBuffer).set(new Uint8Array(bufferData));
+        receiver.consume(arrayBuffer);
       } else if (content && typeof content === "string") {
         receiver.consume(content);
       } else {
