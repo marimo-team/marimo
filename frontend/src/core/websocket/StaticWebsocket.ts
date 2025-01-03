@@ -39,7 +39,7 @@ export class StaticWebsocket implements IReconnectingWebSocket {
   reconnect(code?: number | undefined, reason?: string | undefined): void {
     // Noop
   }
-  send(data: string | ArrayBufferLike | Blob | ArrayBufferView) {
+  send(data: string | ArrayBuffer | Blob | ArrayBufferView) {
     // Noop
   }
   close() {
