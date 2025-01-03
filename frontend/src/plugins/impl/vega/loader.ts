@@ -70,8 +70,18 @@ const DATE_MIDDLEWARE: Middleware = () => {
     if (value == null) {
       return null;
     }
+    // Only parse strings that look like ISO dates (YYYY-MM-DD with optional time)
+    const isoDateRegex = /^\d{4}-\d{2}-\d{2}(T[\d.:]+(Z|[+-]\d{2}:?\d{2})?)?$/;
+    if (!isoDateRegex.test(value)) {
+      return value;
+    }
     try {
-      return new Date(value);
+      const date = new Date(value);
+      // Ensure the date is valid by checking if it can be converted back to ISO
+      if (Number.isNaN(date.getTime())) {
+        return value;
+      }
+      return date;
     } catch {
       Logger.warn(`Failed to parse date: ${value}`);
       return value;
