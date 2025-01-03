@@ -193,12 +193,14 @@ const PanelSlot = (props: Props) => {
       }
 
       if (buffers && buffers.length > 0) {
-        // Convert ArrayBufferLike to ArrayBuffer if needed
-        const bufferData = buffers[0].buffer as ArrayBufferLike;
-        // Create a new ArrayBuffer from the ArrayBufferLike
-        const arrayBuffer = new ArrayBuffer(bufferData.byteLength);
-        new Uint8Array(arrayBuffer).set(new Uint8Array(bufferData));
-        receiver.consume(arrayBuffer);
+        // Check if we already have an ArrayBuffer
+        const buffer = buffers[0];
+        if (buffer instanceof ArrayBuffer) {
+          receiver.consume(buffer);
+        } else if (buffer.buffer instanceof ArrayBuffer) {
+          // If we have an ArrayBufferView, use its buffer
+          receiver.consume(buffer.buffer);
+        }
       } else if (content && typeof content === "string") {
         receiver.consume(content);
       } else {
