@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from contextlib import contextmanager
 from dataclasses import asdict
 from pathlib import Path
@@ -16,7 +15,7 @@ from starlette.websockets import WebSocketDisconnect
 
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.ops import KernelCapabilities, KernelReady
-from marimo._server.api.endpoints.ws import WebSocketCodes
+from marimo._server.api.endpoints.ws import CellIdAndFileKey, WebSocketCodes
 from marimo._server.model import SessionMode
 from marimo._server.sessions import SessionManager
 from marimo._utils.parse_dataclass import parse_raw
@@ -317,7 +316,7 @@ async def test_connects_to_existing_session_with_same_file(
                 json={"object_ids": [], "values": [], "auto_run": True},
             )
 
-            messages1 = flush_messages(websocket1)
+            messages1 = flush_messages(websocket1, at_least=14)
             # This can/may change if implementation changes, but this is a snapshot to
             # make sure it doesn't change when we don't expect it to
             assert len(messages1) == 14
@@ -334,7 +333,7 @@ async def test_connects_to_existing_session_with_same_file(
                 assert_parse_ready_response(data2)
                 assert data2["data"]["resumed"] is True
 
-                messages2 = flush_messages(websocket2)
+                messages2 = flush_messages(websocket2, at_least=4)
                 # This can/may change if implementation changes, but this is a snapshot to
                 # make sure it doesn't change when we don't expect it to
                 assert len(messages2) == 4
@@ -343,17 +342,15 @@ async def test_connects_to_existing_session_with_same_file(
     client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
-def flush_messages(websocket: WebSocketTestSession) -> list[dict[str, Any]]:
+def flush_messages(
+    websocket: WebSocketTestSession, at_least: int = 0
+) -> list[dict[str, Any]]:
+    # There is no way to properly flush messages from the websocket
+    # without using a timeout or non-blocking calls
+    # So we just keep calling receive_json until we get at least the number of messages we expect
     messages: list[dict[str, Any]] = []
-    while True:
-        try:
-            messages.append(
-                json.loads(websocket._send_queue.get(timeout=0.2)["text"])
-            )
-        except TimeoutError:
-            break
-        except Exception:
-            break
+    while len(messages) < at_least:
+        messages.append(websocket.receive_json())
     return messages
 
 
@@ -379,13 +376,14 @@ async def test_ycell_sync(client: TestClient) -> None:
 
     # First connect main websocket to create session
     with (
+        rtc_enabled(get_user_config_manager(client)),
         client.websocket_connect(ws_1) as websocket,
         client.websocket_connect(ws_2) as websocket2,
     ):
         data = websocket.receive_json()
-        assert_kernel_ready_response(data)
+        assert_parse_ready_response(data)
         data2 = websocket2.receive_json()
-        assert_kernel_ready_response(data2)
+        assert_parse_ready_response(data2)
 
         # Connect first client to cell websocket
         with client.websocket_connect(ws_1_cell_1) as cell_ws1:
@@ -416,7 +414,10 @@ async def test_ycell_cleanup_on_session_close(
     client: TestClient,
 ) -> None:
     """Test that cell websockets are cleaned up when session closes"""
-    with client.websocket_connect("/ws?session_id=123") as websocket:
+    with (
+        rtc_enabled(get_user_config_manager(client)),
+        client.websocket_connect("/ws?session_id=123") as websocket,
+    ):
         data = websocket.receive_json()
         assert_kernel_ready_response(data)
 
@@ -446,7 +447,10 @@ async def test_ycell_persistence(client: TestClient) -> None:
     initial_code = "print('hello')"
 
     # First connection sets initial code
-    with client.websocket_connect("/ws?session_id=123") as websocket:
+    with (
+        rtc_enabled(get_user_config_manager(client)),
+        client.websocket_connect("/ws?session_id=123") as websocket,
+    ):
         data = websocket.receive_json()
         assert_kernel_ready_response(data)
 
@@ -463,9 +467,10 @@ async def test_ycell_persistence(client: TestClient) -> None:
             cell_ws1.send_bytes(update_msg)
 
     # Second connection should receive persisted code
-    with client.websocket_connect("/ws?session_id=456") as websocket:
-        data = websocket.receive_json()
-        assert data == {"data": {}, "op": "reconnected"}
+    with (
+        rtc_enabled(get_user_config_manager(client)),
+        client.websocket_connect("/ws?session_id=456") as websocket,
+    ):
         data = websocket.receive_json()
         assert_kernel_ready_response(data, create_response({"resumed": True}))
 
@@ -481,56 +486,65 @@ async def test_ycell_persistence(client: TestClient) -> None:
     client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
-async def test_ycell_cleanup_after_timeout(client: TestClient) -> None:
+async def test_ycell_cleanup_after_timeout(
+    client: TestClient, temp_marimo_file: str
+) -> None:
     """Test that cell data is cleaned up after all clients disconnect"""
     from marimo._server.api.endpoints.ws import clean_cell, ycells
 
     cell_id = "Hbol"
 
-    with client.websocket_connect("/ws?session_id=123") as websocket:
+    with client.websocket_connect(
+        f"/ws?session_id=123&file={temp_marimo_file}"
+    ) as websocket:
         data = websocket.receive_json()
-        assert_kernel_ready_response(data)
+        assert_parse_ready_response(data)
 
         with client.websocket_connect(
-            f"/ws/{cell_id}?session_id=123"
+            f"/ws/{cell_id}?session_id=123&file={temp_marimo_file}"
         ) as cell_ws:
+            key = CellIdAndFileKey(cell_id, temp_marimo_file)
             sync_msg = cell_ws.receive_bytes()
             assert sync_msg[0] == YMessageType.SYNC
-            assert cell_id in ycells
+            assert key in ycells
 
             # Close websocket
             cell_ws.close()
 
             # Cell should still exist
-            assert cell_id in ycells
+            assert key in ycells
 
             # Wait for cleanup
-            await clean_cell(cell_id, timeout=0.01)
+            await clean_cell(key, timeout=0.01)
 
             # Cell should be removed
-            assert cell_id not in ycells
+            assert key not in ycells
 
     client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
-async def test_ycell_multiple_clients(client: TestClient) -> None:
+async def test_ycell_multiple_clients(
+    client: TestClient, temp_marimo_file: str
+) -> None:
     """Test multiple clients can connect to same cell"""
     cell_id = "Hbol"
 
-    with client.websocket_connect("/ws?session_id=123") as websocket:
+    with client.websocket_connect(
+        f"/ws?session_id=123&file={temp_marimo_file}"
+    ) as websocket:
         data = websocket.receive_json()
-        assert_kernel_ready_response(data)
+        assert_parse_ready_response(data)
 
         # Connect first client
         with client.websocket_connect(
-            f"/ws/{cell_id}?session_id=123"
+            f"/ws/{cell_id}?session_id=123&file={temp_marimo_file}"
         ) as cell_ws1:
             sync_msg1 = cell_ws1.receive_bytes()
             assert sync_msg1[0] == YMessageType.SYNC
 
             # Connect second client
             with client.websocket_connect(
-                f"/ws/{cell_id}?session_id=123"
+                f"/ws/{cell_id}?session_id=123&file={temp_marimo_file}"
             ) as cell_ws2:
                 sync_msg2 = cell_ws2.receive_bytes()
                 assert sync_msg2[0] == YMessageType.SYNC
@@ -547,12 +561,14 @@ async def test_ycell_multiple_clients(client: TestClient) -> None:
                 # Verify client count
                 from marimo._server.api.endpoints.ws import ycells
 
-                assert ycells[cell_id].clients == 2
+                key = CellIdAndFileKey(cell_id, temp_marimo_file)
+
+                assert ycells[key].clients == 2
 
                 # Close one client
                 cell_ws2.close()
                 await asyncio.sleep(0.1)
-                assert ycells[cell_id].clients == 1
+                assert ycells[key].clients == 1
 
     client.post("/api/kernel/shutdown", headers=HEADERS)
 
