@@ -15,7 +15,7 @@ export interface CellRun {
 
 export interface Run {
   runId: RunId;
-  cellRuns: CellRun[];
+  cellRuns: Map<CellId, CellRun>;
   runStartTime: number;
 }
 
@@ -49,34 +49,13 @@ const {
     if (!runId) {
       return state;
     }
-    let runIds: RunId[];
 
-    let run = state.runMap.get(runId);
-    if (run) {
-      runIds = state.runIds;
-      // Shallow copy the run to avoid mutating the existing run
-      run = { ...run };
-    } else {
-      // If it is a brand new run and the cell code is "pure markdown",
-      // we don't want to show the trace since it's not helpful.
-      // This spams the tracing because we re-render pure markdown on keystrokes.
-      if (isPureMarkdown(code)) {
-        return state;
-      }
-
-      run = {
-        runId: runId,
-        cellRuns: [],
-        runStartTime: cellOperation.timestamp,
-      };
-
-      runIds = [runId, ...state.runIds];
-      if (runIds.length > MAX_RUNS) {
-        const oldestRunId = runIds.pop();
-        if (oldestRunId) {
-          state.runMap.delete(oldestRunId);
-        }
-      }
+    const existingRun = state.runMap.get(runId);
+    // If it is a brand new run and the cell code is "pure markdown",
+    // we don't want to show the trace since it's not helpful.
+    // This spams the tracing because we re-render pure markdown on keystrokes.
+    if (!existingRun && isPureMarkdown(code)) {
+      return state;
     }
 
     // We determine if the cell operation errored by looking at the output
@@ -85,55 +64,87 @@ const {
       (cellOperation.output.channel === "marimo-error" ||
         cellOperation.output.channel === "stderr");
 
-    const nextRuns: CellRun[] = [];
-    let found = false;
-    for (const existingCellRun of run.cellRuns) {
-      if (existingCellRun.cellId === cellOperation.cell_id) {
-        const hasErroredPreviously = existingCellRun.status === "error";
-        let status: CellRun["status"];
-        let startTime = existingCellRun.startTime;
+    let status: CellRun["status"] = erroredOutput
+      ? "error"
+      : cellOperation.status === "queued"
+        ? "queued"
+        : cellOperation.status === "running"
+          ? "running"
+          : "success";
 
-        if (hasErroredPreviously || erroredOutput) {
-          status = "error";
-        } else if (cellOperation.status === "queued") {
-          status = "queued";
-        } else if (cellOperation.status === "running") {
-          status = "running";
-          startTime = cellOperation.timestamp;
-        } else {
-          status = "success";
+    // Create new run if needed
+    if (!existingRun) {
+      const newRun: Run = {
+        runId,
+        cellRuns: new Map([
+          [
+            cellOperation.cell_id as CellId,
+            {
+              cellId: cellOperation.cell_id as CellId,
+              code: code.slice(0, MAX_CODE_LENGTH),
+              elapsedTime: 0,
+              status: status,
+              startTime: cellOperation.timestamp,
+            },
+          ],
+        ]),
+        runStartTime: cellOperation.timestamp,
+      };
+
+      // Manage run history size
+      const runIds = [runId, ...state.runIds];
+      const nextRunMap = new Map(state.runMap);
+      if (runIds.length > MAX_RUNS) {
+        const oldestRunId = runIds.pop();
+        if (oldestRunId) {
+          nextRunMap.delete(oldestRunId);
         }
-
-        let elapsedTime: number | undefined = undefined;
-        if (status === "success" || status === "error") {
-          elapsedTime = cellOperation.timestamp - existingCellRun.startTime;
-        }
-
-        nextRuns.push({
-          ...existingCellRun,
-          startTime: startTime,
-          elapsedTime: elapsedTime,
-          status: status,
-        });
-        found = true;
-      } else {
-        nextRuns.push(existingCellRun);
       }
+
+      nextRunMap.set(runId, newRun);
+      return {
+        runIds,
+        runMap: nextRunMap,
+      };
     }
-    if (!found) {
-      let status: CellRun["status"];
 
-      if (erroredOutput) {
-        status = "error";
-      } else if (cellOperation.status === "queued") {
-        status = "queued";
-      } else if (cellOperation.status === "running") {
-        status = "running";
-      } else {
-        status = "success";
-      }
+    // Update existing run
+    const nextCellRuns = new Map(existingRun.cellRuns);
+    const existingCellRun = nextCellRuns.get(cellOperation.cell_id as CellId);
 
-      nextRuns.push({
+    // Early return if nothing changed
+    if (
+      existingCellRun &&
+      !erroredOutput &&
+      cellOperation.status === "queued"
+    ) {
+      return state;
+    }
+
+    if (existingCellRun) {
+      const hasErroredPreviously = existingCellRun.status === "error";
+
+      // Compute new status and timing
+      status = hasErroredPreviously || erroredOutput ? "error" : status;
+
+      const startTime =
+        cellOperation.status === "running"
+          ? cellOperation.timestamp
+          : existingCellRun.startTime;
+
+      const elapsedTime =
+        status === "success" || status === "error"
+          ? cellOperation.timestamp - existingCellRun.startTime
+          : undefined;
+
+      nextCellRuns.set(cellOperation.cell_id as CellId, {
+        ...existingCellRun,
+        startTime,
+        elapsedTime,
+        status,
+      });
+    } else {
+      nextCellRuns.set(cellOperation.cell_id as CellId, {
         cellId: cellOperation.cell_id as CellId,
         code: code.slice(0, MAX_CODE_LENGTH),
         elapsedTime: 0,
@@ -142,14 +153,14 @@ const {
       });
     }
 
-    run.cellRuns = nextRuns;
-
     const nextRunMap = new Map(state.runMap);
-    nextRunMap.set(runId, run);
+    nextRunMap.set(runId, {
+      ...existingRun,
+      cellRuns: nextCellRuns,
+    });
 
     return {
       ...state,
-      runIds: runIds,
       runMap: nextRunMap,
     };
   },
