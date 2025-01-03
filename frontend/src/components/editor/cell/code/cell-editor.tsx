@@ -1,8 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { WebsocketProvider } from "y-websocket";
-import { yCollab } from "y-codemirror.next";
-import * as Y from "yjs";
-import { getSessionId } from "../../../../core/kernel/session";
 import { historyField } from "@codemirror/commands";
 import { EditorState, StateEffect } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
@@ -36,6 +32,9 @@ import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { useSplitCellCallback } from "../useSplitCell";
 import { invariant } from "@/utils/invariant";
+import { connectionAtom } from "@/core/network/connection";
+import { WebSocketState } from "@/core/websocket/types";
+import { realTimeCollaboration } from "@/core/codemirror/rtc/extension";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -77,8 +76,6 @@ export interface CellEditorProps
   editorViewParentRef?: React.MutableRefObject<HTMLDivElement | null>;
   temporarilyShowCode: () => void;
 }
-
-const cellProviders = new Map<string, WebsocketProvider>();
 
 const CellEditorInternal = ({
   theme,
@@ -268,20 +265,9 @@ const CellEditorInternal = ({
   const handleInitializeEditor = useEvent(() => {
     // If rtc is enabled, use collaborative editing
     if (getFeatureFlag("rtc")) {
-      let wsProvider = cellProviders.get(cellId);
-      let ytext: Y.Text;
-      if (wsProvider) {
-        ytext = wsProvider.doc.getText("code");
-      } else {
-        const ydoc = new Y.Doc();
-        ytext = ydoc.getText("code");
-        extensions.push(yCollab(ytext, null));
-        wsProvider = new WebsocketProvider("ws", cellId, ydoc, {
-          params: { session_id: getSessionId() },
-        });
-        cellProviders.set(cellId, wsProvider);
-      }
-      code = ytext.toJSON();
+      const rtc = realTimeCollaboration(cellId);
+      extensions.push(rtc.extension);
+      code = rtc.code;
     }
 
     // Create a new editor
@@ -298,6 +284,12 @@ const CellEditorInternal = ({
 
   const handleReconfigureEditor = useEvent(() => {
     invariant(editorViewRef.current !== null, "Editor view is not initialized");
+    // If rtc is enabled, use collaborative editing
+    if (getFeatureFlag("rtc")) {
+      const rtc = realTimeCollaboration(cellId);
+      extensions.push(rtc.extension);
+    }
+
     editorViewRef.current.dispatch({
       effects: [
         StateEffect.reconfigure.of([extensions]),
@@ -312,6 +304,11 @@ const CellEditorInternal = ({
 
   const handleDeserializeEditor = useEvent(() => {
     invariant(serializedEditorState, "Editor view is not initialized");
+    if (getFeatureFlag("rtc")) {
+      const rtc = realTimeCollaboration(cellId, code);
+      extensions.push(rtc.extension);
+    }
+
     const ev = new EditorView({
       state: EditorState.fromJSON(
         serializedEditorState,
@@ -501,4 +498,26 @@ const CellCodeMirrorEditor = React.forwardRef(
 );
 CellCodeMirrorEditor.displayName = "CellCodeMirrorEditor";
 
-export const CellEditor = memo(CellEditorInternal);
+// Wait until the websocket connection is open before rendering the editor
+// This is used for real-time collaboration since the backend needs the connection started
+// before connecting the rtc websockets
+function WithWaitUntilConnected<T extends {}>(
+  Component: React.ComponentType<T>,
+) {
+  const WaitUntilConnectedComponent = (props: T) => {
+    const connection = useAtomValue(connectionAtom);
+
+    if (connection.state === WebSocketState.CONNECTING) {
+      return null;
+    }
+
+    return <Component {...props} />;
+  };
+
+  WaitUntilConnectedComponent.displayName = `WithWaitUntilConnected(${Component.displayName})`;
+  return WaitUntilConnectedComponent;
+}
+
+export const CellEditor = getFeatureFlag("rtc")
+  ? WithWaitUntilConnected(memo(CellEditorInternal))
+  : memo(CellEditorInternal);

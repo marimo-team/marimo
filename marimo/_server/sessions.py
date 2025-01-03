@@ -350,6 +350,10 @@ class Room:
         self.consumers: Dict[SessionConsumer, ConsumerId] = {}
         self.disposables: Dict[SessionConsumer, Disposable] = {}
 
+    @property
+    def size(self) -> int:
+        return len(self.consumers)
+
     def add_consumer(
         self,
         consumer: SessionConsumer,
@@ -391,7 +395,8 @@ class Room:
         for consumer in self.consumers:
             if consumer.consumer_id == except_consumer:
                 continue
-            consumer.write_operation(operation)
+            if consumer.connection_state() == ConnectionState.OPEN:
+                consumer.write_operation(operation)
 
     def close(self) -> None:
         for consumer in self.consumers:

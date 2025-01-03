@@ -589,6 +589,9 @@ class CellManager:
         """Cell IDs in the order they were registered."""
         return self._cell_data.keys()
 
+    def has_cell(self, cell_id: CellId_t) -> bool:
+        return cell_id in self._cell_data
+
     def cells(
         self,
     ) -> Iterable[Optional[Cell]]:
