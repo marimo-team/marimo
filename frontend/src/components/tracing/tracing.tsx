@@ -209,17 +209,19 @@ const TraceBlockBody: React.FC<{
 
   const cellIds = useCellIds();
 
-  const chartValues: ChartValues[] = run.cellRuns.map((cellRun) => {
-    const elapsedTime = cellRun.elapsedTime ?? 0;
-    return {
-      cell: cellRun.cellId,
-      cellNum: cellIds.inOrderIds.indexOf(cellRun.cellId),
-      startTimestamp: formatChartTime(cellRun.startTime),
-      endTimestamp: formatChartTime(cellRun.startTime + elapsedTime),
-      elapsedTime: formatElapsedTime(elapsedTime * 1000),
-      status: cellRun.status,
-    };
-  });
+  const chartValues: ChartValues[] = [...run.cellRuns.values()].map(
+    (cellRun) => {
+      const elapsedTime = cellRun.elapsedTime ?? 0;
+      return {
+        cell: cellRun.cellId,
+        cellNum: cellIds.inOrderIds.indexOf(cellRun.cellId),
+        startTimestamp: formatChartTime(cellRun.startTime),
+        endTimestamp: formatChartTime(cellRun.startTime + elapsedTime),
+        elapsedTime: formatElapsedTime(elapsedTime * 1000),
+        status: cellRun.status,
+      };
+    },
+  );
 
   const hiddenInputElementId = `hiddenInputElement-${run.runId}`;
   const vegaSpec = compile(
@@ -301,7 +303,7 @@ const TraceRows = (props: {
         hidden={true}
         ref={hiddenInputRef}
       />
-      {run.cellRuns.map((cellRun) => (
+      {[...run.cellRuns.values()].map((cellRun) => (
         <TraceRow
           key={cellRun.cellId}
           cellRun={cellRun}

@@ -9,8 +9,14 @@ import {
   type RunsState,
 } from "../runs";
 import type { CellMessage } from "@/core/kernel/messages";
+import { invariant } from "@/utils/invariant";
 
 const { reducer, initialState, isPureMarkdown } = exportedForTesting;
+
+function first<T>(map: Map<string, T> | undefined): T {
+  invariant(map, "Map is undefined");
+  return map.values().next().value;
+}
 
 describe("RunsState Reducer", () => {
   let state: RunsState;
@@ -53,15 +59,18 @@ describe("RunsState Reducer", () => {
     expect(nextState.runMap.get(runId)).toEqual({
       runId,
       runStartTime: timestamp,
-      cellRuns: [
-        {
+      cellRuns: new Map([
+        [
           cellId,
-          code: code.slice(0, MAX_CODE_LENGTH),
-          elapsedTime: 0,
-          startTime: timestamp,
-          status: "queued",
-        },
-      ],
+          {
+            cellId,
+            code: code.slice(0, MAX_CODE_LENGTH),
+            elapsedTime: 0,
+            startTime: timestamp,
+            status: "queued",
+          },
+        ],
+      ]),
     });
   });
 
@@ -124,8 +133,10 @@ describe("RunsState Reducer", () => {
     });
 
     expect(updatedState.runIds).toEqual([runId]);
-    expect(updatedState.runMap.get(runId)?.cellRuns[0].status).toBe("running");
-    expect(updatedState.runMap.get(runId)?.cellRuns[0].startTime).toBe(
+    expect(first(updatedState.runMap.get(runId)?.cellRuns).status).toBe(
+      "running",
+    );
+    expect(first(updatedState.runMap.get(runId)?.cellRuns).startTime).toBe(
       runStartTimestamp,
     );
 
@@ -143,11 +154,15 @@ describe("RunsState Reducer", () => {
     });
 
     expect(successState.runIds).toEqual([runId]);
-    expect(successState.runMap.get(runId)?.cellRuns[0].status).toBe("success");
-    expect(successState.runMap.get(runId)?.cellRuns[0].startTime).toBe(
+    expect(first(successState.runMap.get(runId)?.cellRuns).status).toBe(
+      "success",
+    );
+    expect(first(successState.runMap.get(runId)?.cellRuns).startTime).toBe(
       runStartTimestamp,
     );
-    expect(successState.runMap.get(runId)?.cellRuns[0].elapsedTime).toBe(5000);
+    expect(first(successState.runMap.get(runId)?.cellRuns).elapsedTime).toBe(
+      5000,
+    );
   });
 
   it("should limit the number of runs to MAX_RUNS", () => {
@@ -191,7 +206,9 @@ describe("RunsState Reducer", () => {
       },
     });
 
-    expect(nextState.runMap.get(runId)?.cellRuns[0].code).toBe(truncatedCode);
+    expect(first(nextState.runMap.get(runId)?.cellRuns).code).toBe(
+      truncatedCode,
+    );
   });
 
   it("should update the run status to error when stderr occurs", () => {
@@ -216,8 +233,8 @@ describe("RunsState Reducer", () => {
     });
 
     expect(errorState.runIds).toEqual([runId]);
-    expect(errorState.runMap.get(runId)?.cellRuns[0].status).toBe("error");
-    expect(errorState.runMap.get(runId)?.cellRuns[0].elapsedTime).toBe(
+    expect(first(errorState.runMap.get(runId)?.cellRuns).status).toBe("error");
+    expect(first(errorState.runMap.get(runId)?.cellRuns).elapsedTime).toBe(
       errorTimestamp - timestamp,
     );
   });
@@ -244,8 +261,8 @@ describe("RunsState Reducer", () => {
     });
 
     expect(errorState.runIds).toEqual([runId]);
-    expect(errorState.runMap.get(runId)?.cellRuns[0].status).toBe("error");
-    expect(errorState.runMap.get(runId)?.cellRuns[0].elapsedTime).toBe(
+    expect(first(errorState.runMap.get(runId)?.cellRuns).status).toBe("error");
+    expect(first(errorState.runMap.get(runId)?.cellRuns).elapsedTime).toBe(
       errorTimestamp - timestamp,
     );
   });
@@ -280,7 +297,7 @@ describe("RunsState Reducer", () => {
     });
 
     expect(finalState.runIds).toEqual([runId]);
-    expect(finalState.runMap.get(runId)?.cellRuns[0].status).toBe("error");
+    expect(first(finalState.runMap.get(runId)?.cellRuns).status).toBe("error");
   });
 
   it("should order runs from newest to oldest", () => {
@@ -412,7 +429,7 @@ describe("RunsState Reducer", () => {
 
     expect(nextState.runIds).toEqual([runId]);
     expect(nextState.runMap.size).toBe(1);
-    expect(nextState.runMap.get(runId)?.cellRuns.length).toBe(2);
+    expect(nextState.runMap.get(runId)?.cellRuns.size).toBe(2);
   });
 });
 
