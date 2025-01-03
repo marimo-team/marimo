@@ -17,6 +17,14 @@ def __():
     plt.title("Random Bar Chart")
     plt.xlabel("Categories")
     plt.ylabel("Values")
+    def simple_echo_model(messages, config):
+        return f"You said: {messages[-1].content}"
+
+    chat = mo.ui.chat(
+        simple_echo_model,
+        prompts=["Hello", "How are you?"],
+        show_configuration_controls=True
+    )
     None
     return
 
@@ -25,7 +33,7 @@ def __():
     mo.ui.tabs(
         {
             "📈 Sales": bar,
-            "📊 Subscriptions": bar,
+            "📊 Data Explorer": chat,
             "💻 Settings": mo.ui.text(placeholder="Key"),
         }
     )
