@@ -33,7 +33,7 @@ def __():
     mo.ui.tabs(
         {
             "📈 Sales": bar,
-            "📊 Data Explorer": chat,
+            "📊 Chatbot": chat,
             "💻 Settings": mo.ui.text(placeholder="Key"),
         }
     )
