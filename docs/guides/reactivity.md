@@ -132,7 +132,6 @@ or try creating a new variable instead.
         df["another_column"] = [3, 4]
         ```
 
-
 ## Global variable names must be unique
 
 **marimo requires that every global variable be defined by only one cell.**
@@ -141,7 +140,6 @@ This lets marimo keep code and outputs consistent.
 !!! tip "Global variables"
     A variable can refer to any Python object. Functions, classes, and imported
     names are all variables.
-
 
 This rule encourages you to keep the number of global variables in your
 program small, which is generally considered good practice.
@@ -177,7 +175,6 @@ _()
 ```
 
 Here, the variables `plt`, `fig`, and `ax` aren't added to the globals.
-
 
 ## Configuring how marimo runs cells
 
