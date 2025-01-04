@@ -536,7 +536,7 @@ Example:
     help="Include notebook code in the app.",
 )
 @click.option(
-    "--ttl",
+    "--session-ttl",
     default=120,
     show_default=True,
     type=int,
@@ -596,7 +596,7 @@ def run(
     token: bool,
     token_password: Optional[str],
     include_code: bool,
-    ttl: int,
+    session_ttl: int,
     watch: bool,
     base_url: str,
     allow_origins: tuple[str, ...],
@@ -645,7 +645,7 @@ def run(
         headless=headless,
         mode=SessionMode.RUN,
         include_code=include_code,
-        ttl_seconds=ttl,
+        ttl_seconds=session_ttl,
         watch=watch,
         base_url=base_url,
         allow_origins=allow_origins,
