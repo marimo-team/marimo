@@ -51,7 +51,6 @@ from marimo._runtime.requests import (
     ExecuteMultipleRequest,
     ExecutionRequest,
     SerializedCLIArgs,
-    SerializedQueryParams,
     SetUIElementValueRequest,
 )
 from marimo._server.exceptions import InvalidSessionException
@@ -416,6 +415,7 @@ class Session:
         user_config_manager: MarimoConfigReader,
         virtual_files_supported: bool,
         redirect_console_to_browser: bool,
+        ttl_seconds: Optional[int] = None,
     ) -> Session:
         """
         Create a new session.
@@ -432,13 +432,16 @@ class Session:
             virtual_files_supported=virtual_files_supported,
             redirect_console_to_browser=redirect_console_to_browser,
         )
-        return cls(
+        session = cls(
             initialization_id,
             session_consumer,
             queue_manager,
             kernel_manager,
             app_file_manager,
         )
+        if ttl_seconds is not None:
+            session.TTL_SECONDS = ttl_seconds
+        return session
 
     def __init__(
         self,
@@ -673,6 +676,7 @@ class SessionManager:
         cli_args: SerializedCLIArgs,
         auth_token: Optional[AuthToken],
         redirect_console_to_browser: bool,
+        session_ttl: Optional[int] = None,
     ) -> None:
         self.file_router = file_router
         self.mode = mode
@@ -686,6 +690,7 @@ class SessionManager:
         self.user_config_manager = user_config_manager
         self.cli_args = cli_args
         self.redirect_console_to_browser = redirect_console_to_browser
+        self.session_ttl = session_ttl
 
         # Auth token and Skew-protection token
         if auth_token is not None:
@@ -722,39 +727,37 @@ class SessionManager:
 
     def create_session(
         self,
-        session_id: SessionId,
+        query_params: dict[str, str],
+        session_id: str,
         session_consumer: SessionConsumer,
-        query_params: SerializedQueryParams,
         file_key: MarimoFileKey,
     ) -> Session:
-        """Create a new session"""
+        """Create a new session."""
         LOGGER.debug("Creating new session for id %s", session_id)
-        if session_id not in self.sessions:
-            app_file_manager = self.file_router.get_file_manager(
-                file_key,
-                default_width=self.user_config_manager.get_config()["display"][
-                    "default_width"
-                ],
-            )
+        app_file_manager = self.file_router.get_file_manager(
+            file_key,
+            default_width=self.user_config_manager.get_config()["display"][
+                "default_width"
+            ],
+        )
 
-            if app_file_manager.path:
-                self.recents.touch(app_file_manager.path)
-
-            self.sessions[session_id] = Session.create(
-                initialization_id=file_key,
-                session_consumer=session_consumer,
-                mode=self.mode,
-                app_metadata=AppMetadata(
-                    query_params=query_params,
-                    filename=app_file_manager.path,
-                    cli_args=self.cli_args,
-                ),
-                app_file_manager=app_file_manager,
-                user_config_manager=self.user_config_manager,
-                virtual_files_supported=True,
-                redirect_console_to_browser=self.redirect_console_to_browser,
-            )
-        return self.sessions[session_id]
+        session = Session.create(
+            initialization_id=str(uuid4()),
+            session_consumer=session_consumer,
+            mode=self.mode,
+            app_metadata=AppMetadata(
+                query_params=query_params,
+                filename=app_file_manager.path,
+                cli_args=self.cli_args,
+            ),
+            app_file_manager=app_file_manager,
+            user_config_manager=self.user_config_manager,
+            virtual_files_supported=True,
+            redirect_console_to_browser=self.redirect_console_to_browser,
+            ttl_seconds=self.session_ttl,
+        )
+        self.sessions[session_id] = session
+        return session
 
     def get_session(self, session_id: SessionId) -> Optional[Session]:
         session = self.sessions.get(session_id)
