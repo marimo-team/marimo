@@ -330,8 +330,10 @@ class WebsocketHandler(SessionConsumer):
                     self.manager.close_session(self.session_id)
 
             session = self.manager.get_session(self.session_id)
+            # Use the configured TTL from the session
+            ttl = session.ttl_seconds if session else Session.TTL_SECONDS
             cancellation_handle = asyncio.get_event_loop().call_later(
-                Session.TTL_SECONDS, _close
+                ttl, _close
             )
             if session is not None:
                 self.cancel_close_handle = cancellation_handle
