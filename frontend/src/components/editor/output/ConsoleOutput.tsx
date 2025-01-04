@@ -75,12 +75,6 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
     return null;
   }
 
-  const renderText = (text: string) => {
-    return (
-      <span dangerouslySetInnerHTML={{ __html: ansiUp.ansi_to_html(text) }} />
-    );
-  };
-
   const reversedOutputs = [...consoleOutputs].reverse();
 
   return (
@@ -99,7 +93,6 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
         if (output.channel === "pdb") {
           return null;
         }
-        const originalIdx = consoleOutputs.length - idx - 1;
 
         if (output.channel === "stdin") {
           invariant(
@@ -107,31 +100,24 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
             "Expected data to be a string",
           );
 
+          const originalIdx = consoleOutputs.length - idx - 1;
+
           if (output.response == null) {
             return (
-              <div key={idx} className="flex gap-2 items-center">
-                {renderText(output.data)}
-                <Input
-                  data-testid="console-input"
-                  type="text"
-                  autoComplete="off"
-                  autoFocus={true}
-                  className="m-0"
-                  placeholder="stdin"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      onSubmitDebugger(e.currentTarget.value, originalIdx);
-                    }
-                  }}
-                />
-              </div>
+              <StdInput
+                key={idx}
+                output={output.data}
+                onSubmit={(text) => onSubmitDebugger(text, originalIdx)}
+              />
             );
           }
+
           return (
-            <div key={idx} className="flex gap-2 items-center">
-              {renderText(output.data)}
-              <span className="text-[var(--sky-11)]">{output.response}</span>
-            </div>
+            <StdInputWithResponse
+              key={idx}
+              output={output.data}
+              response={output.response}
+            />
           );
         }
 
@@ -150,5 +136,48 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
         className="bg-[var(--slate-4)] border-[var(--slate-4)] hover:bg-[var(--slate-5)] dark:border-[var(--sky-5)] dark:bg-[var(--sky-6)] dark:text-[var(--sky-12)] text-[var(--slate-12)] rounded-tl rounded-br-lg absolute right-0 bottom-0 text-xs px-1.5 py-0.5 font-mono"
       />
     </div>
+  );
+};
+
+const StdInput = (props: {
+  onSubmit: (text: string) => void;
+  output: string;
+  response?: string;
+}) => {
+  return (
+    <div className="flex gap-2 items-center">
+      {renderText(props.output)}
+      <Input
+        data-testid="console-input"
+        type="text"
+        autoComplete="off"
+        autoFocus={true}
+        className="m-0"
+        placeholder="stdin"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            props.onSubmit(e.currentTarget.value);
+          }
+        }}
+      />
+    </div>
+  );
+};
+
+const StdInputWithResponse = (props: {
+  output: string;
+  response?: string;
+}) => {
+  return (
+    <div className="flex gap-2 items-center">
+      {renderText(props.output)}
+      <span className="text-[var(--sky-11)]">{props.response}</span>
+    </div>
+  );
+};
+
+const renderText = (text: string) => {
+  return (
+    <span dangerouslySetInnerHTML={{ __html: ansiUp.ansi_to_html(text) }} />
   );
 };
