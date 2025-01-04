@@ -138,6 +138,7 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
         return (
           <React.Fragment key={idx}>
             <OutputRenderer
+              cellId={cellId}
               onRefactorWithAI={onRefactorWithAI}
               message={output}
             />

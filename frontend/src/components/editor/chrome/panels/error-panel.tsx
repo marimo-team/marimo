@@ -21,7 +21,11 @@ export const ErrorsPanel: React.FC = () => {
             <CellLinkError cellId={error.cellId} />
           </div>
           <div key={error.cellId} className="px-2">
-            <MarimoErrorOutput key={error.cellId} errors={error.output.data} />
+            <MarimoErrorOutput
+              key={error.cellId}
+              errors={error.output.data}
+              cellId={error.cellId}
+            />
           </div>
         </div>
       ))}

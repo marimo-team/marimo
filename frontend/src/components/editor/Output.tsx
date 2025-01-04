@@ -48,9 +48,10 @@ type MimeBundleOrTuple = MimeBundle | [MimeBundle, { [key: string]: unknown }];
  */
 export const OutputRenderer: React.FC<{
   message: Pick<OutputMessage, "channel" | "data" | "mimetype">;
+  cellId?: CellId;
   onRefactorWithAI?: (opts: { prompt: string }) => void;
 }> = memo((props) => {
-  const { message, onRefactorWithAI } = props;
+  const { message, onRefactorWithAI, cellId } = props;
   const { theme } = useTheme();
 
   // Memoize parsing the json data
@@ -123,7 +124,7 @@ export const OutputRenderer: React.FC<{
 
     case "application/vnd.marimo+error":
       invariant(Array.isArray(data), "Expected array data");
-      return <MarimoErrorOutput errors={data} />;
+      return <MarimoErrorOutput cellId={cellId} errors={data} />;
 
     case "application/vnd.marimo+traceback":
       invariant(
@@ -190,7 +191,8 @@ OutputRenderer.displayName = "OutputRenderer";
 const MimeBundleOutputRenderer: React.FC<{
   channel: OutputMessage["channel"];
   data: MimeBundleOrTuple;
-}> = memo(({ data, channel }) => {
+  cellId?: CellId;
+}> = memo(({ data, channel, cellId }) => {
   const mimebundle = Array.isArray(data) ? data[0] : data;
 
   // If there is none, return null
@@ -203,6 +205,7 @@ const MimeBundleOutputRenderer: React.FC<{
   if (Object.keys(mimebundle).length === 1) {
     return (
       <OutputRenderer
+        cellId={cellId}
         message={{
           channel: channel,
           data: mimebundle[first],
@@ -242,6 +245,7 @@ const MimeBundleOutputRenderer: React.FC<{
             <TabsContent key={mime} value={mime}>
               <ErrorBoundary>
                 <OutputRenderer
+                  cellId={cellId}
                   message={{
                     channel: channel,
                     data: output,
@@ -307,7 +311,7 @@ export const OutputArea = React.memo(
           id={CellOutputId.create(cellId)}
           className={cn(stale && "marimo-output-stale", className)}
         >
-          <OutputRenderer message={output} />
+          <OutputRenderer cellId={cellId} message={output} />
         </Container>
       </ErrorBoundary>
     );
