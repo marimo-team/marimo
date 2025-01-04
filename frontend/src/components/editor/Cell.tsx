@@ -11,7 +11,6 @@ import {
   useRef,
   useState,
 } from "react";
-
 import { saveCellConfig, sendRun, sendStdin } from "@/core/network/requests";
 import { autocompletionKeymap } from "@/core/codemirror/cm";
 import type { UserConfig } from "../../core/config/config-schema";
@@ -520,6 +519,10 @@ const CellComponent = (
       : {}),
   });
 
+  const handleRefactorWithAI = useEvent((opts: { prompt: string }) => {
+    setAiCompletionCell({ cellId, initialPrompt: opts.prompt });
+  });
+
   if (!editing) {
     const outputIsError = isErrorMime(output?.mimetype);
     const hidden = errored || interrupted || stopped || outputIsError;
@@ -544,10 +547,6 @@ const CellComponent = (
       return "This cell has a disabled ancestor";
     }
     return undefined;
-  };
-
-  const handleRefactorWithAI = (opts: { prompt: string }) => {
-    setAiCompletionCell({ cellId, initialPrompt: opts.prompt });
   };
 
   const cellStatusComponent = (
