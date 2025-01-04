@@ -575,6 +575,14 @@ Example:
     type=bool,
     help=sandbox_message,
 )
+@click.option(
+    "--session-ttl",
+    default=120,
+    show_default=True,
+    type=click.IntRange(min=1),
+    help="Session time-to-live in seconds for run mode. "
+    "Controls how long a session remains active after disconnection.",
+)
 @click.argument("name", required=True, type=click.Path())
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def run(
@@ -592,6 +600,7 @@ def run(
     sandbox: bool,
     name: str,
     args: tuple[str, ...],
+    session_ttl: int,
 ) -> None:
     from marimo._cli.sandbox import prompt_run_in_sandbox
 
@@ -639,6 +648,7 @@ def run(
         cli_args=parse_args(args),
         auth_token=_resolve_token(token, token_password),
         redirect_console_to_browser=redirect_console_to_browser,
+        session_ttl=session_ttl,
     )
 
 
