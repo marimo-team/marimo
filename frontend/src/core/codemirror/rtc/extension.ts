@@ -5,10 +5,22 @@ import { yCollab } from "y-codemirror.next";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import type { CellId } from "@/core/cells/ids";
+import { isWasm } from "@/core/wasm/utils";
+import type { Extension } from "@codemirror/state";
 
 const cellProviders = new Map<CellId, WebsocketProvider>();
 
-export function realTimeCollaboration(cellId: CellId, initialCode = "") {
+export function realTimeCollaboration(
+  cellId: CellId,
+  initialCode = "",
+): { extension: Extension; code: string } {
+  if (isWasm()) {
+    return {
+      extension: [],
+      code: initialCode,
+    };
+  }
+
   let wsProvider = cellProviders.get(cellId);
   let ytext: Y.Text;
 
