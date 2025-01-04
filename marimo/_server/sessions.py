@@ -77,7 +77,6 @@ from marimo._utils.repr import format_repr
 from marimo._utils.typed_connection import TypedConnection
 
 LOGGER = _loggers.marimo_logger()
-SESSION_MANAGER: Optional["SessionManager"] = None
 
 
 class QueueManager:

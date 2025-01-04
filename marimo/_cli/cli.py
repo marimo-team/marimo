@@ -541,8 +541,7 @@ Example:
     show_default=True,
     type=int,
     help=(
-        "Seconds to wait before closing a session on "
-        "websocket disconnect."
+        "Seconds to wait before closing a session on " "websocket disconnect."
     ),
 )
 @click.option(
