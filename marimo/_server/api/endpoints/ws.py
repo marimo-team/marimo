@@ -315,9 +315,9 @@ class WebsocketHandler(SessionConsumer):
             session.disconnect_consumer(self)
 
         if self.manager.mode == SessionMode.RUN:
-            # When the websocket is closed, we wait TTL_SECONDS before
-            # closing the session. This is to prevent the session from
-            # being closed if the during an intermittent network issue.
+            # When the websocket is closed, we wait session.ttl_seconds before
+            # closing the session. This is to prevent the session from being
+            # closed if the during an intermittent network issue.
             def _close() -> None:
                 if self.status != ConnectionState.OPEN:
                     LOGGER.debug(
@@ -330,11 +330,13 @@ class WebsocketHandler(SessionConsumer):
                     self.manager.close_session(self.session_id)
 
             session = self.manager.get_session(self.session_id)
-            cancellation_handle = asyncio.get_event_loop().call_later(
-                Session.TTL_SECONDS, _close
-            )
             if session is not None:
+                cancellation_handle = asyncio.get_event_loop().call_later(
+                    session.ttl_seconds, _close
+                )
                 self.cancel_close_handle = cancellation_handle
+            else:
+                _close()
         else:
             cleanup_fn()
 

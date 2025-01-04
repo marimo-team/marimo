@@ -462,6 +462,7 @@ def create_asgi_app(
                 cli_args={},
                 auth_token=auth_token,
                 redirect_console_to_browser=False,
+                ttl_seconds=None,
             )
             app = create_starlette_app(
                 base_url="",

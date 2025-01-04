@@ -45,6 +45,7 @@ def session_manager():
         cli_args={},
         auth_token=None,
         redirect_console_to_browser=False,
+        ttl_seconds=None,
     )
 
 
