@@ -237,6 +237,7 @@ def test_session() -> None:
         queue_manager,
         kernel_manager,
         AppFileManager.from_app(InternalApp(App())),
+        ttl_seconds=None,
     )
 
     # Assert startup
@@ -282,6 +283,7 @@ def test_session_disconnect_reconnect() -> None:
         queue_manager,
         kernel_manager,
         AppFileManager.from_app(InternalApp(App())),
+        ttl_seconds=None,
     )
 
     # Assert startup
@@ -338,6 +340,7 @@ def test_session_with_kiosk_consumers() -> None:
         queue_manager,
         kernel_manager,
         AppFileManager.from_app(InternalApp(App())),
+        ttl_seconds=None,
     )
 
     # Assert startup

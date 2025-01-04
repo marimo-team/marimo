@@ -396,14 +396,15 @@ class Room:
         self.main_consumer = None
 
 
+_DEFAULT_TTL_SECONDS = 120
+
+
 class Session:
     """A client session.
 
     Each session has its own Python kernel, for editing and running the app,
     and its own websocket, for sending messages to the client.
     """
-
-    TTL_SECONDS = 120
 
     @classmethod
     def create(
@@ -416,6 +417,7 @@ class Session:
         user_config_manager: MarimoConfigReader,
         virtual_files_supported: bool,
         redirect_console_to_browser: bool,
+        ttl_seconds: Optional[int],
     ) -> Session:
         """
         Create a new session.
@@ -438,6 +440,7 @@ class Session:
             queue_manager,
             kernel_manager,
             app_file_manager,
+            ttl_seconds,
         )
 
     def __init__(
@@ -447,6 +450,7 @@ class Session:
         queue_manager: QueueManager,
         kernel_manager: KernelManager,
         app_file_manager: AppFileManager,
+        ttl_seconds: Optional[int],
     ) -> None:
         """Initialize kernel and client connection to it."""
         # This is some unique ID that we can use to identify the session
@@ -457,6 +461,9 @@ class Session:
         self.room = Room()
         self._queue_manager = queue_manager
         self.kernel_manager = kernel_manager
+        self.ttl_seconds = (
+            ttl_seconds if ttl_seconds is not None else _DEFAULT_TTL_SECONDS
+        )
         self.session_view = SessionView()
 
         self.kernel_manager.start_kernel()
@@ -673,6 +680,7 @@ class SessionManager:
         cli_args: SerializedCLIArgs,
         auth_token: Optional[AuthToken],
         redirect_console_to_browser: bool,
+        ttl_seconds: Optional[int],
     ) -> None:
         self.file_router = file_router
         self.mode = mode
@@ -680,6 +688,7 @@ class SessionManager:
         self.quiet = quiet
         self.sessions: dict[SessionId, Session] = {}
         self.include_code = include_code
+        self.ttl_seconds = ttl_seconds
         self.lsp_server = lsp_server
         self.watcher: Optional[FileWatcher] = None
         self.recents = RecentFilesManager()
@@ -753,6 +762,7 @@ class SessionManager:
                 user_config_manager=self.user_config_manager,
                 virtual_files_supported=True,
                 redirect_console_to_browser=self.redirect_console_to_browser,
+                ttl_seconds=self.ttl_seconds,
             )
         return self.sessions[session_id]
 

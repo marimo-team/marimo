@@ -375,6 +375,7 @@ def edit(
         base_url=base_url,
         allow_origins=allow_origins,
         redirect_console_to_browser=True,
+        ttl_seconds=None,
     )
 
 
@@ -469,6 +470,7 @@ def new(
         auth_token=_resolve_token(token, token_password),
         base_url=base_url,
         redirect_console_to_browser=True,
+        ttl_seconds=None,
     )
 
 
@@ -534,6 +536,16 @@ Example:
     help="Include notebook code in the app.",
 )
 @click.option(
+    "--ttl",
+    default=120,
+    show_default=True,
+    type=int,
+    help=(
+        "Seconds to wait before closing a session on "
+        "websocket disconnect."
+    ),
+)
+@click.option(
     "--watch",
     is_flag=True,
     default=False,
@@ -585,6 +597,7 @@ def run(
     token: bool,
     token_password: Optional[str],
     include_code: bool,
+    ttl: int,
     watch: bool,
     base_url: str,
     allow_origins: tuple[str, ...],
@@ -633,6 +646,7 @@ def run(
         headless=headless,
         mode=SessionMode.RUN,
         include_code=include_code,
+        ttl_seconds=ttl,
         watch=watch,
         base_url=base_url,
         allow_origins=allow_origins,
@@ -742,6 +756,7 @@ def tutorial(
         cli_args={},
         auth_token=_resolve_token(token, token_password),
         redirect_console_to_browser=False,
+        ttl_seconds=None,
     )
 
 

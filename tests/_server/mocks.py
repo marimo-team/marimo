@@ -57,6 +57,7 @@ if __name__ == "__main__":
         cli_args={},
         auth_token=AuthToken("fake-token"),
         redirect_console_to_browser=False,
+        ttl_seconds=None,
     )
     sm.skew_protection_token = SkewProtectionToken("skew-id-1")
     return sm
