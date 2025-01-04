@@ -14,7 +14,6 @@ export function realTimeCollaboration(cellId: CellId, initialCode = "") {
 
   if (wsProvider) {
     ytext = wsProvider.doc.getText("code");
-    console.log("using existing wsProvider", ytext);
   } else {
     const ydoc = new Y.Doc();
     ytext = ydoc.getText("code");
@@ -33,7 +32,6 @@ export function realTimeCollaboration(cellId: CellId, initialCode = "") {
       params,
     });
     cellProviders.set(cellId, wsProvider);
-    console.log("created new wsProvider", ytext);
   }
 
   const extension = yCollab(ytext, null);
