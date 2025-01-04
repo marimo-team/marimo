@@ -15,9 +15,10 @@ if TYPE_CHECKING:
 class ConnectionState(Enum):
     """Connection state for a session"""
 
-    OPEN = 0
-    CLOSED = 1
-    ORPHANED = 2
+    CONNECTING = 0
+    OPEN = 1
+    CLOSED = 2
+    ORPHANED = 3
 
 
 class SessionMode(str, Enum):

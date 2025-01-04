@@ -41,9 +41,7 @@ import {
   updateEditorCodeFromPython,
 } from "../codemirror/language/utils";
 import { invariant } from "@/utils/invariant";
-import type { CellConfig, UpdateCellIdsRequest } from "../network/types";
-import { syncCellIds } from "../network/requests";
-import { kioskModeAtom } from "../mode";
+import type { CellConfig } from "../network/types";
 import {
   type CellColumnId,
   type CellIndex,
@@ -712,6 +710,11 @@ const {
     };
   },
   setCellIds: (state, action: { cellIds: CellId[] }) => {
+    const isTheSame = isEqual(state.cellIds.inOrderIds, action.cellIds);
+    if (isTheSame) {
+      return state;
+    }
+
     // Create new cell data and runtime states for the new cell IDs
     const nextCellData = { ...state.cellData };
     const nextCellRuntime = { ...state.cellRuntime };
@@ -1359,35 +1362,6 @@ export function useCellActions(): CellActions {
  * Map of cell actions
  */
 export type CellActions = ReturnType<typeof createActions>;
-
-export const CellEffects = {
-  onCellIdsChange: (
-    cellIds: MultiColumn<CellId>,
-    prevCellIds: MultiColumn<CellId>,
-  ) => {
-    const kioskMode = store.get(kioskModeAtom);
-    if (kioskMode) {
-      return;
-    }
-    // If cellIds is empty, return early
-    if (cellIds.isEmpty()) {
-      return;
-    }
-    // If prevCellIds is empty, also return early
-    // this means that the notebook was just created
-    if (prevCellIds.isEmpty()) {
-      return;
-    }
-
-    // If they are different references, send an update to the server
-    if (!isEqual(cellIds.inOrderIds, prevCellIds.inOrderIds)) {
-      // "name" property is not actually required
-      void syncCellIds({
-        cell_ids: cellIds.inOrderIds,
-      } as unknown as UpdateCellIdsRequest);
-    }
-  },
-};
 
 /**
  * This is exported for testing purposes only.

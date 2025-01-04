@@ -13,6 +13,7 @@ export interface ExperimentalFeatures {
   multi_column: boolean;
   chat_sidebar: boolean;
   tracing: boolean;
+  rtc: boolean;
   // Add new feature flags here
 }
 
@@ -23,6 +24,7 @@ const defaultValues: ExperimentalFeatures = {
   multi_column: import.meta.env.DEV,
   chat_sidebar: import.meta.env.DEV,
   tracing: import.meta.env.DEV,
+  rtc: false,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(

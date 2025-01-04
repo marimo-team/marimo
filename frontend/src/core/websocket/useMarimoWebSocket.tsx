@@ -116,6 +116,9 @@ export function useMarimoWebSocket(opts: {
       case "cell-op": {
         handleCellOperation(msg.data, handleCellMessage);
         const cellData = getNotebook().cellData[msg.data.cell_id as CellId];
+        if (!cellData) {
+          return;
+        }
         if (getFeatureFlag("tracing")) {
           addCellOperation({ cellOperation: msg.data, code: cellData.code });
         }
@@ -243,6 +246,7 @@ export function useMarimoWebSocket(opts: {
       try {
         handleMessage(e);
       } catch (error) {
+        Logger.error("Failed to handle message", error);
         toast({
           title: "Failed to handle message",
           description: prettyError(error),

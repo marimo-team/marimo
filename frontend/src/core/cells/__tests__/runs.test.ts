@@ -15,7 +15,7 @@ const { reducer, initialState, isPureMarkdown } = exportedForTesting;
 
 function first<T>(map: Map<string, T> | undefined): T {
   invariant(map, "Map is undefined");
-  return map.values().next().value;
+  return map.values().next().value as T;
 }
 
 describe("RunsState Reducer", () => {
