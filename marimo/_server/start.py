@@ -81,6 +81,7 @@ def start(
     allow_origins: Optional[tuple[str, ...]] = None,
     auth_token: Optional[AuthToken],
     redirect_console_to_browser: bool,
+    session_ttl: Optional[int] = None,
 ) -> None:
     """
     Start the server.
@@ -113,6 +114,7 @@ def start(
         cli_args=cli_args,
         auth_token=auth_token,
         redirect_console_to_browser=redirect_console_to_browser,
+        session_ttl=session_ttl,
     )
 
     log_level = "info" if development_mode else "error"
