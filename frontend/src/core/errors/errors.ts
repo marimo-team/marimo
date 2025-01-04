@@ -44,7 +44,7 @@ export function getAutoFixes(error: MarimoError): AutoFix[] {
       return [];
     }
 
-    const cellCode = IMPORT_MAPPING[name];
+    const cellCode = getImportCode(name);
 
     return [
       {
@@ -60,30 +60,37 @@ export function getAutoFixes(error: MarimoError): AutoFix[] {
   return [];
 }
 
+export function getImportCode(name: string): string {
+  const moduleName = IMPORT_MAPPING[name];
+  return moduleName === name
+    ? `import ${moduleName}`
+    : `import ${moduleName} as ${name}`;
+}
+
 const IMPORT_MAPPING: Record<string, string> = {
-  // marimo
-  mo: "import marimo as mo",
-  // others
-  alt: "import altair as alt",
-  bokeh: "import bokeh",
-  dask: "import dask",
-  dt: "import datetime as dt",
-  json: "import json",
-  math: "import math",
-  np: "import numpy as np",
-  os: "import os",
-  pd: "import pandas as pd",
-  pl: "import polars as pl",
-  plotly: "import plotly",
-  plt: "import matplotlib.pyplot as plt",
-  px: "import plotly.express as px",
-  re: "import re",
-  scipy: "import scipy",
-  sk: "import sklearn as sk",
-  sns: "import seaborn as sns",
-  stats: "import scipy.stats as stats",
-  sys: "import sys",
-  tf: "import tensorflow as tf",
-  torch: "import torch",
-  xr: "import xarray as xr",
+  // libraries
+  mo: "marimo",
+  alt: "altair",
+  bokeh: "bokeh",
+  dask: "dask",
+  np: "numpy",
+  pd: "pandas",
+  pl: "polars",
+  plotly: "plotly",
+  plt: "matplotlib.pyplot",
+  px: "plotly.express",
+  scipy: "scipy",
+  sk: "sklearn",
+  sns: "seaborn",
+  stats: "scipy.stats",
+  tf: "tensorflow",
+  torch: "torch",
+  xr: "xarray",
+  // built-ins
+  dt: "datetime",
+  json: "json",
+  math: "math",
+  os: "os",
+  re: "re",
+  sys: "sys",
 };
