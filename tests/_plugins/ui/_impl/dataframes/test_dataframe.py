@@ -280,10 +280,12 @@ class TestDataframes:
         import marimo as mo
 
         # Create a test dataframe with age and group columns
-        df = pl.DataFrame({
-            "group": ["a", "a", "b", "b"],
-            "age": [10, 20, 30, 40],
-        })
+        df = pl.DataFrame(
+            {
+                "group": ["a", "a", "b", "b"],
+                "age": [10, 20, 30, 40],
+            }
+        )
         # Test the transformation directly using TransformsContainer
         from marimo._plugins.ui._impl.dataframes.transforms.apply import (
             TransformsContainer,
@@ -291,13 +293,13 @@ class TestDataframes:
         )
         from marimo._plugins.ui._impl.dataframes.transforms.types import (
             GroupByTransform,
-            TransformType,
             Transformations,
+            TransformType,
         )
 
         handler = get_handler_for_dataframe(df)
         transform_container = TransformsContainer(df, handler)
-        
+
         # Create and apply the transformation
         transform = GroupByTransform(
             type=TransformType.GROUP_BY,
@@ -313,7 +315,10 @@ class TestDataframes:
         assert "group" in transformed_df.columns
         assert "age_max" in transformed_df.columns
         assert transformed_df.shape == (2, 2)
-        assert transformed_df["age_max"].to_list() == [20, 40]  # max age for each group
+        assert transformed_df["age_max"].to_list() == [
+            20,
+            40,
+        ]  # max age for each group
 
         # The resulting frame should have correct column names and values
         # Convert to dict and verify values
@@ -330,6 +335,7 @@ class TestDataframes:
         from marimo._plugins.ui._impl.dataframes.transforms.print_code import (
             python_print_polars,
         )
+
         code = python_print_polars(
             "df",
             ["group", "age"],

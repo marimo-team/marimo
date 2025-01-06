@@ -282,29 +282,29 @@ def python_print_polars(
                 agg_alias = f"{column_id}_{aggregation}"
                 if aggregation == "count":
                     aggs.append(
-                        f'pl.col({col_ref}).count().alias({_as_literal(agg_alias)})'
+                        f"pl.col({col_ref}).count().alias({_as_literal(agg_alias)})"
                     )
                 elif aggregation == "sum":
                     aggs.append(
-                        f'pl.col({col_ref}).sum().alias({_as_literal(agg_alias)})'
+                        f"pl.col({col_ref}).sum().alias({_as_literal(agg_alias)})"
                     )
                 elif aggregation == "mean":
                     aggs.append(
-                        f'pl.col({col_ref}).mean().alias({_as_literal(agg_alias)})'
+                        f"pl.col({col_ref}).mean().alias({_as_literal(agg_alias)})"
                     )
                 elif aggregation == "median":
                     aggs.append(
-                        f'pl.col({col_ref}).median().alias({_as_literal(agg_alias)})'
+                        f"pl.col({col_ref}).median().alias({_as_literal(agg_alias)})"
                     )
                 elif aggregation == "min":
                     aggs.append(
-                        f'pl.col({col_ref}).min().alias({_as_literal(agg_alias)})'
+                        f"pl.col({col_ref}).min().alias({_as_literal(agg_alias)})"
                     )
                 elif aggregation == "max":
                     aggs.append(
-                        f'pl.col({col_ref}).max().alias({_as_literal(agg_alias)})'
+                        f"pl.col({col_ref}).max().alias({_as_literal(agg_alias)})"
                     )
-        group_cols = [f'pl.col({_as_literal(col)})' for col in column_ids]
+        group_cols = [f"pl.col({_as_literal(col)})" for col in column_ids]
         return f"{df_name}.group_by([{', '.join(group_cols)}], maintain_order=True).agg([{', '.join(aggs)}])"  # noqa: E501
 
     elif transform.type == TransformType.SELECT_COLUMNS:
