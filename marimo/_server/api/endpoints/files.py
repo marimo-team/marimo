@@ -13,6 +13,7 @@ from marimo._ast import codegen
 from marimo._server.api.deps import AppState
 from marimo._server.api.status import HTTPStatus
 from marimo._server.api.utils import parse_request
+from marimo._server.ids import ConsumerId
 from marimo._server.models.models import (
     BaseResponse,
     CopyNotebookRequest,
@@ -99,7 +100,8 @@ async def rename_file(
         app_state.session_manager.recents.touch(new_path)
 
     app_state.require_current_session().put_control_request(
-        body.as_execution_request()
+        body.as_execution_request(),
+        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
     )
 
     return SuccessResponse()

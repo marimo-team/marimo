@@ -13,6 +13,7 @@ from marimo._messaging.ops import (
     Datasets,
     Interrupted,
     MessageOperation,
+    UpdateCellIdsRequest,
     Variables,
     VariableValue,
     VariableValues,
@@ -35,6 +36,8 @@ class SessionView:
     """
 
     def __init__(self) -> None:
+        # Last seen cell IDs
+        self.cell_ids: Optional[UpdateCellIdsRequest] = None
         # List of operations we care about keeping track of.
         self.cell_operations: dict[CellId_t, CellOp] = {}
         # The most recent datasets operation.
@@ -166,6 +169,9 @@ class SessionView:
                 tables[table.name] = table
             self.datasets = Datasets(tables=list(tables.values()))
 
+        elif isinstance(operation, UpdateCellIdsRequest):
+            self.cell_ids = operation
+
     def get_cell_outputs(
         self, ids: list[CellId_t]
     ) -> dict[CellId_t, CellOutput]:
@@ -209,6 +215,8 @@ class SessionView:
     @property
     def operations(self) -> list[MessageOperation]:
         all_ops: list[MessageOperation] = []
+        if self.cell_ids:
+            all_ops.append(self.cell_ids)
         if self.variable_operations.variables:
             all_ops.append(self.variable_operations)
         if self.variable_values:

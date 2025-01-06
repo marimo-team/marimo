@@ -5,6 +5,7 @@ import { EditorView, ViewPlugin } from "@codemirror/view";
 import React, { memo, useCallback, useEffect, useRef, useMemo } from "react";
 
 import { setupCodeMirror } from "@/core/codemirror/cm";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 import useEvent from "react-use-event-hook";
 import { type CellActions, useCellActions } from "@/core/cells/cells";
 import type { CellRuntimeState, CellData } from "@/core/cells/types";
@@ -31,6 +32,9 @@ import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { useSplitCellCallback } from "../useSplitCell";
 import { invariant } from "@/utils/invariant";
+import { connectionAtom } from "@/core/network/connection";
+import { WebSocketState } from "@/core/websocket/types";
+import { realTimeCollaboration } from "@/core/codemirror/rtc/extension";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -259,6 +263,13 @@ const CellEditorInternal = ({
   ]);
 
   const handleInitializeEditor = useEvent(() => {
+    // If rtc is enabled, use collaborative editing
+    if (getFeatureFlag("rtc")) {
+      const rtc = realTimeCollaboration(cellId);
+      extensions.push(rtc.extension);
+      code = rtc.code;
+    }
+
     // Create a new editor
     const ev = new EditorView({
       state: EditorState.create({
@@ -273,6 +284,12 @@ const CellEditorInternal = ({
 
   const handleReconfigureEditor = useEvent(() => {
     invariant(editorViewRef.current !== null, "Editor view is not initialized");
+    // If rtc is enabled, use collaborative editing
+    if (getFeatureFlag("rtc")) {
+      const rtc = realTimeCollaboration(cellId);
+      extensions.push(rtc.extension);
+    }
+
     editorViewRef.current.dispatch({
       effects: [
         StateEffect.reconfigure.of([extensions]),
@@ -287,6 +304,11 @@ const CellEditorInternal = ({
 
   const handleDeserializeEditor = useEvent(() => {
     invariant(serializedEditorState, "Editor view is not initialized");
+    if (getFeatureFlag("rtc")) {
+      const rtc = realTimeCollaboration(cellId, code);
+      extensions.push(rtc.extension);
+    }
+
     const ev = new EditorView({
       state: EditorState.fromJSON(
         serializedEditorState,
@@ -476,4 +498,26 @@ const CellCodeMirrorEditor = React.forwardRef(
 );
 CellCodeMirrorEditor.displayName = "CellCodeMirrorEditor";
 
-export const CellEditor = memo(CellEditorInternal);
+// Wait until the websocket connection is open before rendering the editor
+// This is used for real-time collaboration since the backend needs the connection started
+// before connecting the rtc websockets
+function WithWaitUntilConnected<T extends {}>(
+  Component: React.ComponentType<T>,
+) {
+  const WaitUntilConnectedComponent = (props: T) => {
+    const connection = useAtomValue(connectionAtom);
+
+    if (connection.state === WebSocketState.CONNECTING) {
+      return null;
+    }
+
+    return <Component {...props} />;
+  };
+
+  WaitUntilConnectedComponent.displayName = `WithWaitUntilConnected(${Component.displayName})`;
+  return WaitUntilConnectedComponent;
+}
+
+export const CellEditor = getFeatureFlag("rtc")
+  ? WithWaitUntilConnected(memo(CellEditorInternal))
+  : memo(CellEditorInternal);

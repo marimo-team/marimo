@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+from dataclasses import dataclass
 from enum import IntEnum
-from typing import Any, Callable, Optional
+from functools import partial
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
@@ -21,8 +23,6 @@ from marimo._messaging.ops import (
     KernelReady,
     MessageOperation,
     Reconnected,
-    UpdateCellCodes,
-    UpdateCellIdsRequest,
     serialize,
 )
 from marimo._messaging.types import KernelMessage, NoopStream
@@ -39,6 +39,9 @@ from marimo._server.model import (
 )
 from marimo._server.router import APIRouter
 from marimo._server.sessions import Session, SessionManager
+
+if TYPE_CHECKING:
+    from pycrdt import Doc, Text, TransactionEvent
 
 LOGGER = _loggers.marimo_logger()
 
@@ -85,9 +88,16 @@ async def websocket_endpoint(
 
     kiosk = app_state.query_params(KIOSK_QUERY_PARAM_KEY) == "true"
 
+    rtc_enabled: bool = (
+        app_state.config_manager.get_config()
+        .get("experimental", {})
+        .get("rtc", False)
+    )
+
     await WebsocketHandler(
         websocket=websocket,
         manager=app_state.session_manager,
+        rtc_enabled=rtc_enabled,
         session_id=session_id,
         mode=app_state.mode,
         file_key=file_key,
@@ -95,10 +105,149 @@ async def websocket_endpoint(
     ).start()
 
 
+@dataclass
+class YCell:
+    ydoc: Doc[Text]
+    clients: int
+    cleaner: asyncio.Task[None] | None = None
+
+
+# TODO: we should use a more robust key type than the filename
+# since renaming the file will break RTC.
+@dataclass
+class CellIdAndFileKey:
+    cell_id: str
+    file_key: MarimoFileKey
+
+    def __hash__(self) -> int:
+        return hash((self.cell_id, self.file_key))
+
+
+ycells: dict[CellIdAndFileKey, YCell] = {}
+ycell_lock = asyncio.Lock()
+
+
+def put_updates(
+    update_queue: asyncio.Queue[bytes], event: TransactionEvent
+) -> None:
+    update = event.update
+    update_queue.put_nowait(update)
+
+
+async def send_updates(
+    websocket: WebSocket,
+    update_queue: asyncio.Queue[bytes],
+    cell_id: str,
+) -> None:
+    from pycrdt import create_update_message
+
+    try:
+        while True:
+            update = await update_queue.get()
+            message = create_update_message(update)
+            await websocket.send_bytes(message)
+    except Exception:
+        LOGGER.debug(
+            f"Could not send Y update to client for cell with ID {cell_id}",
+        )
+
+
+async def clean_cell(
+    cell_id_and_file_key: CellIdAndFileKey, timeout: float = 60
+) -> None:
+    # Clients disconnect/reconnect to keep the WebSocket connection alive,
+    # or because of network issues.
+    # Keep the ycell in memory for one minute after client disconnects,
+    # so that it can be synchronized and to prevent content duplication.
+    # This task will be cancelled when any client reconnets.
+    await asyncio.sleep(timeout)
+    async with ycell_lock:
+        ycell = ycells[cell_id_and_file_key]
+        if not ycell.clients:
+            del ycells[cell_id_and_file_key]
+
+
+@router.websocket("/ws/{cell_id}")
+async def ycell_provider(
+    websocket: WebSocket,
+) -> None:
+    from pycrdt import (
+        Doc,
+        Text,
+        YMessageType,
+        create_sync_message,
+        handle_sync_message,
+    )
+
+    app_state = AppState(websocket)
+    file_key: Optional[MarimoFileKey] = (
+        app_state.query_params(FILE_QUERY_PARAM_KEY)
+        or app_state.session_manager.file_router.get_unique_file_key()
+    )
+
+    if file_key is None:
+        await websocket.close(
+            WebSocketCodes.NORMAL_CLOSE, "MARIMO_NO_FILE_KEY"
+        )
+        return
+
+    manager = app_state.session_manager
+    session = manager.get_session_by_file_key(file_key)
+    if session is None:
+        await websocket.close(WebSocketCodes.FORBIDDEN, "MARIMO_NOT_ALLOWED")
+        return
+    await websocket.accept()
+    cell_id: str = websocket.path_params["cell_id"]
+    key = CellIdAndFileKey(cell_id, file_key)
+    async with ycell_lock:
+        if key in ycells:
+            ycell = ycells[key]
+            ydoc = ycell.ydoc
+            ycell.clients += 1
+            if ycell.cleaner is not None:
+                ycell.cleaner.cancel()
+                ycell.cleaner = None
+        else:
+            file_manager = session.app_file_manager
+            mgr = file_manager.app.cell_manager
+            if mgr.has_cell(cell_id):
+                code = mgr.cell_data_at(cell_id).code
+            else:
+                code = ""
+            ydoc = Doc[Text]()
+            ytext = ydoc.get("code", type=Text)
+            ytext += code
+            ycell = YCell(ydoc=ydoc, clients=1)
+            ycells[key] = ycell
+    update_queue: asyncio.Queue[bytes] = asyncio.Queue()
+    task = asyncio.create_task(send_updates(websocket, update_queue, cell_id))
+    subscription = ydoc.observe(partial(put_updates, update_queue))
+    sync_message = create_sync_message(ydoc)
+    try:
+        await websocket.send_bytes(sync_message)
+        while True:
+            message = await websocket.receive_bytes()
+            message_type = message[0]
+            if message_type == YMessageType.SYNC:
+                reply = handle_sync_message(message[1:], ydoc)
+                if reply is not None:
+                    await websocket.send_bytes(reply)
+    except Exception:
+        pass
+    finally:
+        task.cancel()
+        ydoc.unobserve(subscription)
+        async with ycell_lock:
+            ycell.clients -= 1
+            if not ycell.clients:
+                if ycell.cleaner is not None:
+                    ycell.cleaner.cancel()
+                    ycell.cleaner = None
+                ycell.cleaner = asyncio.create_task(clean_cell(key))
+
+
 KIOSK_ONLY_OPERATIONS = {
     FocusCell.name,
-    UpdateCellCodes.name,
-    UpdateCellIdsRequest.name,
 }
 KIOSK_EXCLUDED_OPERATIONS = {
     CompletionResult.name,
@@ -114,8 +263,10 @@ class WebsocketHandler(SessionConsumer):
 
     def __init__(
         self,
+        *,
         websocket: WebSocket,
         manager: SessionManager,
+        rtc_enabled: bool,
         session_id: str,
         mode: SessionMode,
         file_key: MarimoFileKey,
@@ -123,6 +274,7 @@ class WebsocketHandler(SessionConsumer):
     ):
         self.websocket = websocket
         self.manager = manager
+        self.rtc_enabled = rtc_enabled
         self.session_id = session_id
         self.file_key = file_key
         self.mode = mode
@@ -273,15 +425,8 @@ class WebsocketHandler(SessionConsumer):
         marimo kiosk/frontend to visualize the output.
         """
 
-        self.status = ConnectionState.OPEN
         session.connect_consumer(self, main=False)
-
-        operations = session.get_current_state().operations
-        # Replay the current session view
-        LOGGER.debug(
-            f"Replaying {len(operations)} operations to the kiosk consumer",
-        )
-
+        self.status = ConnectionState.CONNECTING
         self._write_kernel_ready(
             session=session,
             resumed=True,
@@ -290,7 +435,13 @@ class WebsocketHandler(SessionConsumer):
             last_execution_time=session.get_current_state().last_execution_time,
             kiosk=True,
         )
+        self.status = ConnectionState.OPEN
 
+        operations = session.get_current_state().operations
+        # Replay the current session view
+        LOGGER.debug(
+            f"Replaying {len(operations)} operations to the kiosk consumer",
+        )
         for op in operations:
             LOGGER.debug("Replaying operation %s", serialize(op))
             self.write_operation(op)
@@ -353,11 +504,13 @@ class WebsocketHandler(SessionConsumer):
         )
         LOGGER.debug("Existing sessions: %s", mgr.sessions)
 
-        # Only one frontend can be connected at a time in edit mode.
+        # Only one frontend can be connected at a time in edit mode,
+        # if RTC is not enabled.
         if (
             mgr.mode == SessionMode.EDIT
             and mgr.any_clients_connected(self.file_key)
             and not self.kiosk
+            and not self.rtc_enabled
         ):
             LOGGER.debug(
                 "Refusing connection; a frontend is already connected."
@@ -392,7 +545,6 @@ class WebsocketHandler(SessionConsumer):
                     raise WebSocketDisconnect(
                         WebSocketCodes.NORMAL_CLOSE, "MARIMO_NO_SESSION"
                     )
-                self.status = ConnectionState.OPEN
                 LOGGER.debug("Connecting to kiosk session")
                 self._connect_kiosk(kiosk_session)
                 return kiosk_session
@@ -402,7 +554,7 @@ class WebsocketHandler(SessionConsumer):
             # The session already exists, but it was disconnected.
             # This can happen in local development when the client
             # goes to sleep and wakes later. Just replace the session's
-            # socket, but keep its kernel
+            # socket, but keep its kernel.
             existing_session = mgr.get_session(session_id)
             if existing_session is not None:
                 LOGGER.debug("Reconnecting session %s", session_id)
@@ -411,9 +563,20 @@ class WebsocketHandler(SessionConsumer):
                 self._reconnect_session(existing_session, replay=False)
                 return existing_session
 
-            # 3. Handle resume
+            # 3. Check for existing session with same file
+            existing_session = mgr.get_session_by_file_key(self.file_key)
+            if (
+                existing_session is not None
+                and self.rtc_enabled
+                and self.mode == SessionMode.EDIT
+            ):
+                LOGGER.debug(
+                    "Connecting to existing session for file %s", self.file_key
+                )
+                self._connect_to_existing_session(existing_session)
+                return existing_session
 
-            # Get resumable possible resumable session
+            # 4. Handle resume
             resumable_session = mgr.maybe_resume_session(
                 session_id, self.file_key
             )
@@ -422,13 +585,7 @@ class WebsocketHandler(SessionConsumer):
                 self._reconnect_session(resumable_session, replay=True)
                 return resumable_session
 
-            # 4. Create a new session
-
-            # If the client refreshed their page, there will be one
-            # existing session with a closed socket for a different session
-            # id; that's why we call `close_all_sessions`.
-            # if mgr.mode == SessionMode.EDIT:
-            #     mgr.close_all_sessions()
+            # 5. Create new session
 
             # Grab the query params from the websocket
             # Note: if we resume a session, we don't pick up the new query
@@ -446,7 +603,7 @@ class WebsocketHandler(SessionConsumer):
                 session_consumer=self,
                 file_key=self.file_key,
             )
-            self.status = ConnectionState.OPEN
+            self.status = ConnectionState.CONNECTING
             # Let the frontend know it can instantiate the app.
             self._write_kernel_ready(
                 new_session,
@@ -456,6 +613,7 @@ class WebsocketHandler(SessionConsumer):
                 last_execution_time={},
                 kiosk=False,
             )
+            self.status = ConnectionState.OPEN
             return new_session
 
         get_session()
@@ -557,8 +715,8 @@ class WebsocketHandler(SessionConsumer):
         # If the websocket is open, send a close message
         if (
             self.status == ConnectionState.OPEN
-            and self.websocket.application_state is WebSocketState.CONNECTED
-        ):
+            or self.status == ConnectionState.CONNECTING
+        ) and self.websocket.application_state is WebSocketState.CONNECTED:
             asyncio.create_task(
                 self.websocket.close(
                     WebSocketCodes.NORMAL_CLOSE, "MARIMO_SHUTDOWN"
@@ -595,6 +753,28 @@ class WebsocketHandler(SessionConsumer):
             self.write_operation(Alert(title=title, description=description))
 
         check_for_updates(on_update)
+
+    def _connect_to_existing_session(self, session: Session) -> None:
+        """Connect to an existing session and replay all messages."""
+        self.status = ConnectionState.CONNECTING
+        session.connect_consumer(self, main=False)
+
+        # Write kernel ready with current state
+        self._write_kernel_ready(
+            session=session,
+            resumed=True,
+            ui_values=session.get_current_state().ui_values,
+            last_executed_code=session.get_current_state().last_executed_code,
+            last_execution_time=session.get_current_state().last_execution_time,
+            kiosk=False,
+        )
+        self.status = ConnectionState.OPEN
+
+        # Replay all operations
+        operations = session.get_current_state().operations
+        for op in operations:
+            LOGGER.debug("Replaying operation %s", serialize(op))
+            self.write_operation(op)
 
 
 HAS_TOASTED = False

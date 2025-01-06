@@ -10,6 +10,7 @@ from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.ops import (
     CellOp,
     Datasets,
+    UpdateCellIdsRequest,
     VariableDeclaration,
     Variables,
     VariableValue,
@@ -40,6 +41,20 @@ updated_output = CellOutput(
 
 initial_status: RuntimeStateType = "running"
 updated_status: RuntimeStateType = "running"
+
+
+def test_cell_ids() -> None:
+    session_view = SessionView()
+    assert session_view.cell_ids is None
+
+    session_view.add_operation(
+        UpdateCellIdsRequest(
+            cell_ids=[cell_id],
+        )
+    )
+    operation = session_view.operations[0]
+    assert isinstance(operation, UpdateCellIdsRequest)
+    assert operation.cell_ids == [cell_id]
 
 
 def test_session_view_cell_op() -> None:

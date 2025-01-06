@@ -14,6 +14,7 @@ from marimo._runtime.requests import (
 )
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
+from marimo._server.ids import ConsumerId
 from marimo._server.models.models import (
     BaseResponse,
     FormatRequest,
@@ -74,7 +75,10 @@ async def delete_cell(request: Request) -> BaseResponse:
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=DeleteCellRequest)
-    app_state.require_current_session().put_control_request(body)
+    app_state.require_current_session().put_control_request(
+        body,
+        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
+    )
 
     return SuccessResponse()
 
@@ -98,7 +102,10 @@ async def sync_cell_ids(request: Request) -> BaseResponse:
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=UpdateCellIdsRequest)
-    app_state.require_current_session().write_operation(body)
+    session_id = app_state.require_current_session_id()
+    app_state.require_current_session().write_operation(
+        body, from_consumer_id=ConsumerId(session_id)
+    )
     return SuccessResponse()
 
 
@@ -144,7 +151,10 @@ async def set_cell_config(request: Request) -> BaseResponse:
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=SetCellConfigRequest)
-    app_state.require_current_session().put_control_request(body)
+    app_state.require_current_session().put_control_request(
+        body,
+        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
+    )
 
     return SuccessResponse()
 
@@ -192,5 +202,8 @@ async def install_missing_packages(request: Request) -> BaseResponse:
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=InstallMissingPackagesRequest)
-    app_state.require_current_session().put_control_request(body)
+    app_state.require_current_session().put_control_request(
+        body,
+        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
+    )
     return SuccessResponse()
