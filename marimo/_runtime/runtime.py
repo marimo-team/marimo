@@ -321,12 +321,25 @@ def notebook_dir() -> pathlib.Path | None:
 def notebook_location() -> pathlib.Path | None:
     """Get the location of the currently executing notebook.
 
-    In WASM, this is the URL the webpage, for example, `https://my-site.com`.
+    In WASM, this is the URL of webpage, for example, `https://my-site.com`.
     For nested paths, this is the URL including the origin and pathname.
     `https://<my-org>.github.io/<my-repo>/folder`.
 
     In non-WASM, this is the directory of the notebook, which is the same as
     `mo.notebook_dir()`.
+
+    Examples:
+        In order to access data both locally and when a notebook runs via
+        WebAssembly (e.g. hosted on GitHub Pages), you can use this
+        approach to fetch data from the notebook's location.
+
+        ```python
+        import polars as pl
+
+        data_path = mo.notebook_location() / "public" / "data.csv"
+        df = pl.read_csv(data_path)
+        df.head()
+        ```
 
     Returns:
         pathlib.Path | None: A pathlib.Path object representing the URL or directory of the current
