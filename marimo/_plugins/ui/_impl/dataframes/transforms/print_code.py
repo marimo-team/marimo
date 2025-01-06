@@ -275,33 +275,37 @@ def python_print_polars(
     elif transform.type == TransformType.GROUP_BY:
         column_ids, aggregation = transform.column_ids, transform.aggregation
         aggs: list[str] = []
+        # Use _as_literal to properly escape column names
         for column_id in all_columns:
             if column_id not in column_ids:
+                col_ref = _as_literal(column_id)
+                agg_alias = f"{column_id}_{aggregation}"
                 if aggregation == "count":
                     aggs.append(
-                        f'pl.col("{column_id}").count().alias("{column_id}_count")'
+                        f'pl.col({col_ref}).count().alias({_as_literal(agg_alias)})'
                     )
                 elif aggregation == "sum":
                     aggs.append(
-                        f'pl.col("{column_id}").sum().alias("{column_id}_sum")'
+                        f'pl.col({col_ref}).sum().alias({_as_literal(agg_alias)})'
                     )
                 elif aggregation == "mean":
                     aggs.append(
-                        f'pl.col("{column_id}").mean().alias("{column_id}_mean")'
+                        f'pl.col({col_ref}).mean().alias({_as_literal(agg_alias)})'
                     )
                 elif aggregation == "median":
                     aggs.append(
-                        f'pl.col("{column_id}").median().alias("{column_id}_median")'
+                        f'pl.col({col_ref}).median().alias({_as_literal(agg_alias)})'
                     )
                 elif aggregation == "min":
                     aggs.append(
-                        f'pl.col("{column_id}").min().alias("{column_id}_min")'
+                        f'pl.col({col_ref}).min().alias({_as_literal(agg_alias)})'
                     )
                 elif aggregation == "max":
                     aggs.append(
-                        f'pl.col("{column_id}").max().alias("{column_id}_max")'
+                        f'pl.col({col_ref}).max().alias({_as_literal(agg_alias)})'
                     )
-        return f"{df_name}.group_by({_list_of_strings(column_ids)}, maintain_order=True).agg([{', '.join(aggs)}])"  # noqa: E501
+        group_cols = [f'pl.col({_as_literal(col)})' for col in column_ids]
+        return f"{df_name}.group_by([{', '.join(group_cols)}], maintain_order=True).agg([{', '.join(aggs)}])"  # noqa: E501
 
     elif transform.type == TransformType.SELECT_COLUMNS:
         column_ids = transform.column_ids
