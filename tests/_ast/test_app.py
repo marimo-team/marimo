@@ -508,11 +508,11 @@ class TestApp:
         assert glbls["file"] == __file__
         assert glbls["dirpath"] == pathlib.Path(glbls["file"]).parent
 
-    def test_notebook_location() -> None:
+    def test_notebook_location(self) -> None:
         app = App()
 
         @app.cell
-        def __() -> tuple[str]:
+        def __():
             import marimo as mo
 
             dirpath = mo.notebook_dir()
