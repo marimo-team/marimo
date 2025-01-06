@@ -298,6 +298,12 @@ def wasm_notebook_template(
     return body
 
 
+def inject_script(html: str, script: str) -> str:
+    """Inject a script into the HTML before the closing body tag."""
+    script_tag = f"<script>{script}</script>"
+    return html.replace("</body>", f"{script_tag}</body>")
+
+
 def _serialize_to_base64(value: str) -> str:
     # Encode the JSON string to URL-encoded format
     url_encoded = uri_encode_component(value)

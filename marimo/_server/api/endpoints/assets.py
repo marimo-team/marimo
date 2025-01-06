@@ -4,6 +4,7 @@ from __future__ import annotations
 import mimetypes
 import os
 import re
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
@@ -18,6 +19,7 @@ from marimo._server.api.deps import AppState
 from marimo._server.router import APIRouter
 from marimo._server.templates.templates import (
     home_page_template,
+    inject_script,
     notebook_page_template,
 )
 from marimo._utils.paths import import_files
@@ -95,6 +97,20 @@ async def index(request: Request) -> HTMLResponse:
             mode=app_state.mode,
         )
 
+        # Inject service worker registration with the notebook ID
+        html = inject_script(
+            html,
+            f"""
+            if ('serviceWorker' in navigator) {{
+                const notebookId = '{file_key}';
+                navigator.serviceWorker.register('./public-files-sw.js')
+                    .then(registration => {{
+                        registration.active.postMessage({{ notebookId }});
+                    }});
+            }}
+            """,
+        )
+
     return HTMLResponse(html)
 
 
@@ -160,6 +176,67 @@ def virtual_file(
         media_type=mimetype,
         headers={"Cache-Control": "max-age=86400"},
     )
+
+
+@router.get("/public-files-sw.js")
+async def public_files_service_worker(request: Request) -> Response:
+    """
+    Service worker that adds the notebook ID to the request headers.
+    """
+    del request
+    return Response(
+        content="""
+        let currentNotebookId = null;
+
+        self.addEventListener('message', (event) => {
+            if (event.data.notebookId) {
+                currentNotebookId = event.data.notebookId;
+            }
+        });
+
+        self.addEventListener('fetch', function(event) {
+            if (event.request.url.includes('/public/')) {
+                event.respondWith(
+                    fetch(event.request.url, {
+                        headers: {
+                            'X-Notebook-Id': currentNotebookId
+                        }
+                    })
+                );
+            }
+        });
+        """,
+        media_type="application/javascript",
+    )
+
+
+@router.get("/public/{filepath:path}")
+@requires("read")
+async def serve_public_file(request: Request) -> Response:
+    """Serve files from the notebook's directory under /public/"""
+    app_state = AppState(request)
+    filepath = request.path_params["filepath"]
+    # Get notebook ID from header
+    notebook_id = request.headers.get("X-Notebook-Id")
+    if notebook_id:
+        app_manager = app_state.session_manager.app_manager(notebook_id)
+        if app_manager.filename:
+            notebook_dir = Path(app_manager.filename).parent
+        else:
+            notebook_dir = Path.cwd()
+        public_dir = notebook_dir / "public"
+        file_path = (public_dir / filepath).resolve()
+
+        # Security check: ensure file is inside public directory
+        try:
+            file_path.relative_to(public_dir.resolve())
+        except ValueError:
+            return Response(status_code=403, content="Access denied")
+
+        if file_path.is_file() and not os.path.islink(str(file_path)):
+            return FileResponse(file_path)
+
+    raise HTTPException(status_code=404, detail="File not found")
 
 
 # Catch all for serving static files
