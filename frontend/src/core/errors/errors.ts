@@ -21,7 +21,7 @@ export function getAutoFixes(error: MarimoError): AutoFix[] {
       {
         title: "Wrap in a function",
         description:
-          "Wrap the cell contents in a function so they are marked as definitions of the cell.",
+          "Make this cell's variables local by wrapping the cell in a function.",
         onFix: async (ctx) => {
           invariant(ctx.editor, "Editor is null");
           const code = wrapInFunction(ctx.editor.state.doc.toString());

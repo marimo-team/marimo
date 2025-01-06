@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, it, expect } from "vitest";
-import { getImportCode } from "../errors";
+import { getAutoFixes, getImportCode } from "../errors";
+import type { MarimoError } from "@/core/kernel/messages";
 
 describe("getImportCode", () => {
   it("returns simple import for same name", () => {
@@ -12,5 +13,50 @@ describe("getImportCode", () => {
     expect(getImportCode("np")).toBe("import numpy as np");
     expect(getImportCode("pd")).toBe("import pandas as pd");
     expect(getImportCode("plt")).toBe("import matplotlib.pyplot as plt");
+  });
+});
+
+describe("getAutoFixes", () => {
+  it("returns wrap in function fix for multiple-defs error", () => {
+    const error: MarimoError = {
+      type: "multiple-defs",
+      name: "foo",
+      cells: ["foo"],
+    };
+
+    const fixes = getAutoFixes(error);
+    expect(fixes).toHaveLength(1);
+    expect(fixes[0].title).toBe("Wrap in a function");
+  });
+
+  it("returns import fix for NameError with known import", () => {
+    const error: MarimoError = {
+      type: "exception",
+      exception_type: "NameError",
+      msg: "name 'np' is not defined",
+    };
+
+    const fixes = getAutoFixes(error);
+    expect(fixes).toHaveLength(1);
+    expect(fixes[0].title).toBe("Add 'import numpy as np'");
+  });
+
+  it("returns no fixes for NameError with unknown import", () => {
+    const error: MarimoError = {
+      type: "exception",
+      exception_type: "NameError",
+      msg: "name 'unknown_module' is not defined",
+    };
+
+    expect(getAutoFixes(error)).toHaveLength(0);
+  });
+
+  it("returns no fixes for other error types", () => {
+    const error: MarimoError = {
+      type: "syntax",
+      msg: "invalid syntax",
+    };
+
+    expect(getAutoFixes(error)).toHaveLength(0);
   });
 });

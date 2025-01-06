@@ -35,6 +35,37 @@ _()`;
     expect(wrapInFunction(input)).toBe(expected);
   });
 
+  test("preserves existing indentation", () => {
+    const input = `def foo():
+    x = 1
+    y = 2`;
+    const expected = `def _():
+    def foo():
+        x = 1
+        y = 2
+    return
+_()`;
+    expect(wrapInFunction(input)).toBe(expected);
+  });
+
+  test("multi-line parentheses", () => {
+    const input = `x = "foo"
+y = "bar"
+(alt.Chart(df).mark_line().encode(
+    x="x",
+    y="y",
+))`;
+    const expected = `def _():
+    x = "foo"
+    y = "bar"
+    return (alt.Chart(df).mark_line().encode(
+        x="x",
+        y="y",
+    ))
+_()`;
+    expect(wrapInFunction(input)).toBe(expected);
+  });
+
   test("preserves empty lines", () => {
     const input = `x = 1
 
