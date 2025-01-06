@@ -271,6 +271,79 @@ class TestDataframes:
         with pytest.raises(ColumnNotFound):
             subject._get_column_values(GetColumnValuesArgs(column="C"))
 
+    @staticmethod
+    @pytest.mark.skipif(not HAS_POLARS, reason="Polars not installed")
+    def test_polars_groupby_alias() -> None:
+        """Test that group by operations use original column names correctly."""
+        import polars as pl
+
+        # Create a test dataframe with age and group columns
+        df = pl.DataFrame(
+            {
+                "group": ["a", "a", "b", "b"],
+                "age": [10, 20, 30, 40],
+            }
+        )
+        # Test the transformation directly using TransformsContainer
+        from marimo._plugins.ui._impl.dataframes.transforms.apply import (
+            TransformsContainer,
+            get_handler_for_dataframe,
+        )
+        from marimo._plugins.ui._impl.dataframes.transforms.types import (
+            GroupByTransform,
+            Transformations,
+            TransformType,
+        )
+
+        handler = get_handler_for_dataframe(df)
+        transform_container = TransformsContainer(df, handler)
+
+        # Create and apply the transformation
+        transform = GroupByTransform(
+            type=TransformType.GROUP_BY,
+            column_ids=["group"],
+            drop_na=True,
+            aggregation="max",
+        )
+        transformations = Transformations([transform])
+        transformed_df = transform_container.apply(transformations)
+
+        # Verify the transformed DataFrame
+        assert isinstance(transformed_df, pl.DataFrame)
+        assert "group" in transformed_df.columns
+        assert "age_max" in transformed_df.columns
+        assert transformed_df.shape == (2, 2)
+        assert transformed_df["age_max"].to_list() == [
+            20,
+            40,
+        ]  # max age for each group
+
+        # The resulting frame should have correct column names and values
+        # Convert to dict and verify values
+        result_dict = {
+            col: transformed_df[col].to_list()
+            for col in transformed_df.columns
+        }
+        assert result_dict == {
+            "group": ["a", "b"],
+            "age_max": [20, 40],
+        }
+
+        # Verify the generated code uses original column names
+        from marimo._plugins.ui._impl.dataframes.transforms.print_code import (
+            python_print_polars,
+        )
+
+        code = python_print_polars(
+            "df",
+            ["group", "age"],
+            transform,
+        )
+        # Code should reference original "age" column, not "age_max"
+        assert 'pl.col("age")' in code
+        assert 'alias("age_max")' in code
+        assert 'pl.col("group")' in code  # Original column name in group by
+
 
 @pytest.mark.skipif(
     not HAS_IBIS or not HAS_POLARS,
