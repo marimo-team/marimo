@@ -212,11 +212,10 @@ async def public_files_service_worker(request: Request) -> Response:
 
 @router.get("/public/{filepath:path}")
 @requires("read")
-async def serve_public_file(request: Request) -> FileResponse:
+async def serve_public_file(request: Request) -> Response:
     """Serve files from the notebook's directory under /public/"""
     app_state = AppState(request)
     filepath = request.path_params["filepath"]
-
     # Get notebook ID from header
     notebook_id = request.headers.get("X-Notebook-Id")
     if notebook_id:
@@ -225,10 +224,16 @@ async def serve_public_file(request: Request) -> FileResponse:
             notebook_dir = Path(app_manager.filename).parent
         else:
             notebook_dir = Path.cwd()
-        file_path = notebook_dir / "public" / filepath
-        LOGGER.debug(f"Serving file: {file_path}")
+        public_dir = notebook_dir / "public"
+        file_path = (public_dir / filepath).resolve()
 
-        if file_path.is_file():
+        # Security check: ensure file is inside public directory
+        try:
+            file_path.relative_to(public_dir.resolve())
+        except ValueError:
+            return Response(status_code=403, content="Access denied")
+
+        if file_path.is_file() and not os.path.islink(str(file_path)):
             return FileResponse(file_path)
 
     raise HTTPException(status_code=404, detail="File not found")
