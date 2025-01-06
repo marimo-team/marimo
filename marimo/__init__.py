@@ -56,6 +56,7 @@ __all__ = [
     "mpl",
     "nav_menu",
     "notebook_dir",
+    "notebook_location",
     "output",
     "pdf",
     "persistent_cache",
@@ -130,6 +131,7 @@ from marimo._runtime.runtime import (
     cli_args,
     defs,
     notebook_dir,
+    notebook_location,
     query_params,
     refs,
 )

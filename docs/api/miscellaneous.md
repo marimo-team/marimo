@@ -5,6 +5,9 @@
 ::: marimo.defs
 
 ::: marimo.refs
+
 ::: marimo.notebook_dir
+
+::: marimo.notebook_location
 
 ::: marimo.Thread

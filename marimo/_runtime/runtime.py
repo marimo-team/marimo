@@ -317,6 +317,35 @@ def notebook_dir() -> pathlib.Path | None:
     return None
 
 
+@mddoc
+def notebook_location() -> pathlib.Path | None:
+    """Get the location of the currently executing notebook.
+
+    In WASM, this is the URL the webpage, for example, `https://my-site.com`.
+    For nested paths, this is the URL including the origin and pathname.
+    `https://<my-org>.github.io/<my-repo>/folder`.
+
+    In non-WASM, this is the directory of the notebook, which is the same as
+    `mo.notebook_dir()`.
+
+    Returns:
+        pathlib.Path | None: A pathlib.Path object representing the URL or directory of the current
+            notebook, or None if the notebook's directory cannot be determined.
+    """
+    if is_pyodide():
+        from js import location  # type: ignore
+
+        path_location = pathlib.Path(str(location))
+        # The location looks like https://marimo-team.github.io/marimo-gh-pages-template/notebooks/assets/worker-BxJ8HeOy.js
+        # We want to crawl out of the assets/ folder
+        if "assets" in path_location.parts:
+            return path_location.parent.parent
+        return path_location
+
+    else:
+        return notebook_dir()
+
+
 @dataclasses.dataclass
 class CellMetadata:
     """CellMetadata class for storing cell metadata.

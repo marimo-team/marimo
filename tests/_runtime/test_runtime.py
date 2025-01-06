@@ -4,6 +4,7 @@ from __future__ import annotations
 import sys
 import textwrap
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Sequence
 
 import pytest
@@ -1021,6 +1022,50 @@ class TestExecution:
         )
         assert "x" in k.globals
         assert k.globals["x"] is None
+
+    async def test_notebook_location(
+        self, any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                exec_req.get("import marimo as mo"),
+                exec_req.get("loc = mo.notebook_location()"),
+                exec_req.get("dir = mo.notebook_dir()"),
+            ]
+        )
+        assert "loc" in k.globals
+        assert k.globals["loc"] is None
+        assert "dir" in k.globals
+        assert k.globals["dir"] is k.globals["loc"]
+
+    async def test_notebook_location_for_pyodide(
+        self, any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = any_kernel
+        import sys
+        from types import ModuleType
+
+        # Mock pyodide and js modules
+        sys.modules["pyodide"] = ModuleType("pyodide")
+        js = ModuleType("js")
+        js.location = "https://marimo-team.github.io/marimo-gh-pages-template/notebooks/assets/worker-BxJ8HeOy.js"
+        sys.modules["js"] = js
+
+        try:
+            await k.run(
+                [
+                    exec_req.get(
+                        "import marimo as mo; loc = mo.notebook_location()"
+                    )
+                ]
+            )
+            assert k.globals["loc"] == Path(
+                "https://marimo-team.github.io/marimo-gh-pages-template/notebooks"
+            )
+        finally:
+            del sys.modules["pyodide"]
+            del sys.modules["js"]
 
     async def test_notebook_dir_for_unnamed_notebook(
         self, tmp_path: pathlib.Path, exec_req: ExecReqProvider

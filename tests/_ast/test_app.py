@@ -508,6 +508,23 @@ class TestApp:
         assert glbls["file"] == __file__
         assert glbls["dirpath"] == pathlib.Path(glbls["file"]).parent
 
+    def test_notebook_location() -> None:
+        app = App()
+
+        @app.cell
+        def __() -> tuple[str]:
+            import marimo as mo
+
+            dirpath = mo.notebook_dir()
+            location = mo.notebook_location()
+
+        _, glbls = app.run()
+        dirpath = glbls["dirpath"]
+        location = glbls["location"]
+        assert dirpath is not None
+        assert location is not None
+        assert dirpath == location
+
 
 def test_app_config() -> None:
     config = _AppConfig.from_untrusted_dict({"width": "full"})
