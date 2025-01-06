@@ -28,6 +28,8 @@ export function wrapInFunction(code: string) {
       "def _():",
       ...indentLines(lines, indentation),
       `${indentation}return`,
+      "",
+      "",
       "_()",
     ].join("\n");
   }
@@ -42,6 +44,8 @@ export function wrapInFunction(code: string) {
     ...indentLines(linesBeforeLastStmt, indentation),
     `${indentation}return ${linesRest[0]}`,
     ...indentLines(linesRest.slice(1), indentation),
+    "",
+    "",
     "_()",
   ].join("\n");
 }

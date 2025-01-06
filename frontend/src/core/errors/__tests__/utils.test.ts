@@ -7,6 +7,8 @@ describe("wrapInFunction", () => {
     const input = "1 + 2";
     const expected = `def _():
     return 1 + 2
+
+
 _()`;
     expect(wrapInFunction(input)).toBe(expected);
   });
@@ -17,6 +19,8 @@ _()`;
     const expected = `def _():
     return (1 +
     2)
+
+
 _()`;
     expect(wrapInFunction(input)).toBe(expected);
   });
@@ -31,6 +35,8 @@ _()`;
         bar(1, 2),
         baz(3, 4)
     )
+
+
 _()`;
     expect(wrapInFunction(input)).toBe(expected);
   });
@@ -44,6 +50,8 @@ _()`;
         x = 1
         y = 2
     return
+
+
 _()`;
     expect(wrapInFunction(input)).toBe(expected);
   });
@@ -62,6 +70,8 @@ y = "bar"
         x="x",
         y="y",
     ))
+
+
 _()`;
     expect(wrapInFunction(input)).toBe(expected);
   });
@@ -75,6 +85,8 @@ y = 2`;
 
     y = 2
     return
+
+
 _()`;
     expect(wrapInFunction(input)).toBe(expected);
   });
@@ -88,6 +100,8 @@ _()`;
         x = 1
         y = 2
     return
+
+
 _()`;
     expect(wrapInFunction(input)).toBe(expected);
   });
