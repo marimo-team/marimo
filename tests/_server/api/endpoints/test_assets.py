@@ -199,7 +199,7 @@ def test_public_file_security(client: TestClient) -> None:
 
         # Test symlink attempt
         response = client.get("/public/symlink.txt", headers=headers)
-        assert response.status_code == 404
+        assert response.status_code == 403
 
     finally:
         # Cleanup
