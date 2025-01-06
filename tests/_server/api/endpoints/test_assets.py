@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any, cast
 
@@ -32,6 +33,9 @@ def test_index(client: TestClient) -> None:
     assert filename in content
     assert "<marimo-mode data-mode='edit'" in content
     assert f"<title>{title}</title>" in content
+
+    # Check for /public file service worker
+    assert "public-files-sw.js" in content
 
 
 @with_file_router(AppFileRouter.from_files([]))
@@ -109,3 +113,43 @@ def test_vfile(client: TestClient) -> None:
     assert response.status_code == 404, response.text
     assert response.headers["content-type"] == "application/json"
     assert response.json() == {"detail": "Invalid virtual file request"}
+
+
+def test_public_file_serving(client: TestClient) -> None:
+    # Setup app state with a mock notebook
+    app_state = AppState.from_app(cast(Any, client.app))
+    file_key = app_state.session_manager.file_router.get_unique_file_key()
+    assert file_key is not None
+    assert file_key.endswith(".py")
+
+    # Create a test file in a public directory
+    notebook_dir = Path(file_key).parent
+    public_dir = notebook_dir / "public"
+    public_dir.mkdir(parents=True, exist_ok=True)
+    test_file = public_dir / "test.txt"
+    test_file.write_text("test content")
+
+    # Test without notebook ID header
+    response = client.get("/public/test.txt", headers=token_header())
+    assert response.status_code == 404
+
+    # Test with notebook ID header
+    headers = {**token_header(), "X-Notebook-Id": file_key}
+    response = client.get("/public/test.txt", headers=headers)
+    assert response.status_code == 200
+    assert response.text == "test content"
+
+    # Test non-existent file
+    response = client.get("/public/nonexistent.txt", headers=headers)
+    assert response.status_code == 404
+
+    # Cleanup
+    test_file.unlink()
+
+
+def test_service_worker(client: TestClient) -> None:
+    response = client.get("/public-files-sw.js")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/javascript"
+    assert "self.addEventListener('fetch'" in response.text
+    assert "X-Notebook-Id" in response.text
