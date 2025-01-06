@@ -15,6 +15,7 @@ import {
 import { Fragment } from "react";
 import { CellLinkError } from "../links/cell-link";
 import type { CellId } from "@/core/cells/ids";
+import { AutoFixButton } from "../errors/auto-fix";
 
 const Tip = (props: {
   className?: string;
@@ -31,6 +32,7 @@ const Tip = (props: {
 };
 
 interface Props {
+  cellId: CellId | undefined;
   errors: MarimoError[];
   className?: string;
 }
@@ -40,6 +42,7 @@ interface Props {
  */
 export const MarimoErrorOutput = ({
   errors,
+  cellId,
   className,
 }: Props): JSX.Element => {
   let titleContents = "This cell wasn't run because it has errors";
@@ -55,7 +58,7 @@ export const MarimoErrorOutput = ({
       case "cycle":
         return (
           <Fragment key={idx}>
-            <p className="mt-4">{"This cell is in a cycle:"}</p>
+            <p>{"This cell is in a cycle:"}</p>
             <ul className="list-disc">
               {error.edges_with_vars.map((edge) => (
                 <li className={liStyle} key={`${edge[0]}-${edge[1]}`}>
@@ -76,9 +79,7 @@ export const MarimoErrorOutput = ({
       case "multiple-defs":
         return (
           <Fragment key={idx}>
-            <p className="mt-4">
-              {`The variable '${error.name}' was defined by another cell:`}
-            </p>
+            <p>{`The variable '${error.name}' was defined by another cell:`}</p>
             <ul className="list-disc">
               {error.cells.map((cid) => (
                 <li className={liStyle} key={cid}>
@@ -97,7 +98,7 @@ export const MarimoErrorOutput = ({
       case "delete-nonlocal":
         return (
           <Fragment key={idx}>
-            <div className="mt-4">
+            <div>
               {`The variable '${error.name}' can't be deleted because it was defined by another cell (`}
               <CellLinkError cellId={error.cells[0] as CellId} />
               {")"}
@@ -195,7 +196,7 @@ export const MarimoErrorOutput = ({
   });
 
   const title = (
-    <AlertTitle className="font-code font-bold mb-4 tracking-wide">
+    <AlertTitle className="font-code font-bold tracking-wide">
       {titleContents}
     </AlertTitle>
   );
@@ -204,7 +205,7 @@ export const MarimoErrorOutput = ({
     <Alert
       variant={alertVariant}
       className={cn(
-        `border-none font-code text-sm text-[0.84375rem] px-0 ${textColor} normal [&:has(svg)]:pl-0`,
+        `border-none font-code text-sm text-[0.84375rem] px-0 ${textColor} normal [&:has(svg)]:pl-0 space-y-4`,
         className,
       )}
     >
@@ -212,6 +213,7 @@ export const MarimoErrorOutput = ({
       <div>
         <ul>{msgs}</ul>
       </div>
+      {cellId && <AutoFixButton errors={errors} cellId={cellId} />}
     </Alert>
   );
 };
