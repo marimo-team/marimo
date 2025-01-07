@@ -36,6 +36,8 @@ def test_without_dependencies() -> None:
     with pytest.raises(ModuleNotFoundError) as excinfo:
         missing.require("for testing")
 
+    assert excinfo.value.name == "missing"
+
     assert "for testing" in str(excinfo.value)
 
 
@@ -84,6 +86,13 @@ def test_versions():
         )
         is None
     )
+
+
+def test_has_as_version_when_not_installed():
+    missing = Dependency("missing")
+    assert missing is not None
+    assert missing.has() is False
+    assert missing.has_at_version(min_version="2.0.0") is False
 
 
 def test_version_check():

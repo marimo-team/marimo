@@ -20,7 +20,7 @@ class Dependency:
             has_dep = importlib.util.find_spec(self.pkg) is not None
             if not has_dep:
                 return False
-        except ModuleNotFoundError:
+        except (ModuleNotFoundError, importlib.metadata.PackageNotFoundError):
             # Could happen for nested imports (e.g. foo.bar)
             return False
 
@@ -54,7 +54,8 @@ class Dependency:
         if not self.has():
             message = f"{self.pkg} is required {why}."
             sys.stderr.write(message + "\n\n")
-            raise ModuleNotFoundError(message) from None
+            # Including the `name` helps with auto-installations
+            raise ModuleNotFoundError(message, name=self.pkg) from None
 
     def require_at_version(
         self,

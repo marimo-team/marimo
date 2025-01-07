@@ -446,7 +446,6 @@ class TestProxyMiddleware:
                 content_length += len(chunk)
             assert content_length == 1024 * 1024
 
-    @pytest.mark.asyncio
     async def test_http_client_streaming(
         self, app_with_proxy: Starlette
     ) -> None:
@@ -465,7 +464,6 @@ class TestProxyMiddleware:
         assert len(chunks) > 0
         await response.aclose()
 
-    @pytest.mark.asyncio
     async def test_http_client_body_types(
         self, app_with_proxy: Starlette
     ) -> None:
@@ -499,7 +497,6 @@ class TestProxyMiddleware:
         assert response.status_code == 200
         await response.aclose()
 
-    @pytest.mark.asyncio
     async def test_http_client_headers(
         self, app_with_proxy: Starlette
     ) -> None:
@@ -564,7 +561,6 @@ class TestProxyMiddleware:
         assert response.status_code == 401, response.text
         assert response.headers.get("Set-Cookie") is None
 
-    @pytest.mark.asyncio
     async def test_proxy_websocket(self, app_with_proxy: Starlette) -> None:
         client = TestClient(app_with_proxy)
         with client.websocket_connect("/proxy/ws") as websocket:
