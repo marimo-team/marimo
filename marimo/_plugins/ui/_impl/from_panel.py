@@ -218,7 +218,7 @@ class panel(UIElement[T, T]):
         # This gets set to True in super().__init__()
         self._initialized = False
 
-        ref, docs_json, render_json = render_component(obj)
+        ref, docs_json, render_json = render_component(self.obj)
         self._ref = ref
         self._manager = PanelCommManager(plot_id=ref)  # type: ignore[no-untyped-call]
 
