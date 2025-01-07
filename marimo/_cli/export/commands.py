@@ -444,6 +444,8 @@ def html_wasm(
         filename = os.path.basename(output)
         ignore_index_html = True
 
+    marimo_file = MarimoPath(name)
+
     def export_callback(file_path: MarimoPath) -> ExportResult:
         return export_as_wasm(file_path, mode, show_code=show_code)
 
@@ -458,6 +460,13 @@ def html_wasm(
         f"Assets copied to {green(out_dir)}. These assets are required for the "
         "notebook to run in the browser."
     )
+
+    did_export_public = Exporter().export_public_folder(out_dir, marimo_file)
+    if did_export_public:
+        echo(
+            f"The public folder next to your notebook was copied to "
+            f"{green(out_dir)}."
+        )
 
     echo(
         "To run the exported notebook, use:\n"

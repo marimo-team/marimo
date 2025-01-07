@@ -44,6 +44,7 @@ from marimo._server.templates.templates import (
     wasm_notebook_template,
 )
 from marimo._server.tokens import SkewProtectionToken
+from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.paths import import_files
 
 LOGGER = _loggers.marimo_logger()
@@ -377,6 +378,29 @@ class Exporter:
                 else None
             ),
         )
+
+    def export_public_folder(
+        self, directory: str, marimo_file: MarimoPath
+    ) -> bool:
+        public_dir = marimo_file.path.parent / "public"
+
+        if public_dir.exists():
+            import shutil
+
+            # Copy public folder to the same directory as the notebook
+            dirpath = Path(directory)
+            if not dirpath.exists():
+                dirpath.mkdir(parents=True, exist_ok=True)
+
+            LOGGER.debug(f"Copying public folder to {dirpath}")
+            shutil.copytree(
+                public_dir,
+                dirpath / "public",
+                dirs_exist_ok=True,
+            )
+            return True
+
+        return False
 
 
 class AutoExporter:

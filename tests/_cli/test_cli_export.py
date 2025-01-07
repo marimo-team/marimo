@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import json
+import shutil
 import subprocess
 import sys
 from os import path
@@ -86,6 +87,33 @@ class TestExportHTML:
         )
         assert "<marimo-wasm" in html
         assert Path(out_dir / ".nojekyll").exists()
+
+    @staticmethod
+    def test_cli_export_html_wasm_public_folder(temp_marimo_file: str) -> None:
+        # Create public folder next to temp file with some content
+        public_dir = Path(temp_marimo_file).parent / "public"
+        public_dir.mkdir(exist_ok=True)
+        (public_dir / "test.txt").write_text("test content")
+
+        out_dir = Path(temp_marimo_file).parent / "out"
+        p = subprocess.run(
+            [
+                "marimo",
+                "export",
+                "html-wasm",
+                temp_marimo_file,
+                "--output",
+                out_dir,
+            ],
+            capture_output=True,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+        # Verify public folder was copied
+        assert (out_dir / "public" / "test.txt").exists()
+        assert (out_dir / "public" / "test.txt").read_text() == "test content"
+
+        # Clean up
+        shutil.rmtree(public_dir)
 
     @staticmethod
     def test_cli_export_html_wasm_output_is_file(
