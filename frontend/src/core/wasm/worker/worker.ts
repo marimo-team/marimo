@@ -27,6 +27,7 @@ import type {
   ListPackagesResponse,
   PackageOperationResponse,
 } from "@/core/network/types";
+import { decodeUtf8 } from "@/utils/strings";
 
 /**
  * Web worker responsible for running the notebook.
@@ -154,7 +155,7 @@ const requestHandler = createRPCRequestHandler({
     const span = t.startSpan("readFile");
     await pyodideReadyPromise; // Make sure loading is done
 
-    const file = self.pyodide.FS.readFile(filename, { encoding: "utf8" });
+    const file = decodeUtf8(self.pyodide.FS.readFile(filename));
     span.end();
     return file;
   },

@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { PyodideInterface } from "pyodide";
 import { getFS } from "./getFS";
+import { decodeUtf8 } from "@/utils/strings";
 
 const NOTEBOOK_FILENAME = "notebook.py";
 const HOME_DIR = "/marimo";
@@ -12,7 +13,7 @@ export const WasmFileSystem = {
     // Create and change to the home directory
     const FS = getFS(pyodide);
     try {
-      FS.mkdir(HOME_DIR);
+      FS.mkdirTree(HOME_DIR);
     } catch {
       // Ignore if the directory already exists
     }
@@ -32,19 +33,19 @@ export const WasmFileSystem = {
   readNotebook: (pyodide: PyodideInterface) => {
     const FS = getFS(pyodide);
     const absPath = `${HOME_DIR}/${NOTEBOOK_FILENAME}`;
-    return FS.readFile(absPath, { encoding: "utf8" });
+    return decodeUtf8(FS.readFile(absPath));
   },
   initNotebookCode: (opts: {
     pyodide: PyodideInterface;
     code: string;
     filename: string | null;
-  }) => {
+  }): { code: string; filename: string } => {
     const { pyodide, filename, code } = opts;
     const FS = getFS(pyodide);
 
-    const readIfExist = (filename: string) => {
+    const readIfExist = (filename: string): string | null => {
       try {
-        return FS.readFile(filename, { encoding: "utf8" });
+        return decodeUtf8(FS.readFile(filename));
       } catch {
         return null;
       }
@@ -78,8 +79,8 @@ function syncFileSystem(
   // Sync the filesystem. This brings IndexedDBFS up to date with the in-memory filesystem
   // `true` when starting up, `false` when shutting down
   return new Promise<void>((resolve, reject) => {
-    getFS(pyodide).syncfs(populate, (err: Error) => {
-      if (err) {
+    getFS(pyodide).syncfs(populate, (err: unknown) => {
+      if (err instanceof Error) {
         reject(err);
         return;
       }
