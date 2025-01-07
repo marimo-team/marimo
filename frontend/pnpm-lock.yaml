@@ -319,8 +319,8 @@ importers:
         specifier: ^2.35.2
         version: 2.35.2(mapbox-gl@1.13.3)(webpack@5.96.1(esbuild@0.21.5))
       pyodide:
-        specifier: ^0.26.2
-        version: 0.26.2
+        specifier: ^0.27.0
+        version: 0.27.0
       react-arborist:
         specifier: ^3.4.0
         version: 3.4.0(@types/node@20.17.6)(@types/react@18.3.12)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -463,9 +463,6 @@ importers:
       '@testing-library/react-hooks':
         specifier: ^8.0.1
         version: 8.0.1(@types/react@18.3.12)(react-dom@18.3.1(react@18.3.1))(react-test-renderer@18.3.1(react@18.3.1))(react@18.3.1)
-      '@types/emscripten':
-        specifier: ^1.39.13
-        version: 1.39.13
       '@types/katex':
         specifier: ^0.16.7
         version: 0.16.7
@@ -3492,9 +3489,6 @@ packages:
 
   '@types/doctrine@0.0.9':
     resolution: {integrity: sha512-eOIHzCUSH7SMfonMG1LsC2f8vxBFtho6NGBznK41R84YzPuvSBzrhEps33IsQiOW9+VL6NQ9DbjQJznk/S4uRA==}
-
-  '@types/emscripten@1.39.13':
-    resolution: {integrity: sha512-cFq+fO/isvhvmuP/+Sl4K4jtU6E23DoivtbO4r50e3odaxAiVdbfSYRDdJ4gCdxx+3aRjhphS5ZMwIH4hFy/Cw==}
 
   '@types/eslint-scope@3.7.7':
     resolution: {integrity: sha512-MzMFlSLBqNF2gcHWO0G1vP/YQyfvrxZ0bF+u7mzUdZ1/xK4A4sru+nraZz5i3iEIk1l1uyicaDVTB4QbbEkAYg==}
@@ -7349,8 +7343,8 @@ packages:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
 
-  pyodide@0.26.2:
-    resolution: {integrity: sha512-8VCRdFX83gBsWs6XP2rhG8HMaB+JaVyyav4q/EMzoV8fXH8HN6T5IISC92SNma6i1DRA3SVXA61S1rJcB8efgA==}
+  pyodide@0.27.0:
+    resolution: {integrity: sha512-0O992noCKqv8lPw4+QFWw8d8yrNWVtQ6zPhWNg/RNYbFohiwmV6SGlVh5fWk/4pOxyhgHbayq+ur8JoR/r5U9A==}
     engines: {node: '>=18.0.0'}
 
   qs@6.11.2:
@@ -12876,8 +12870,6 @@ snapshots:
 
   '@types/doctrine@0.0.9': {}
 
-  '@types/emscripten@1.39.13': {}
-
   '@types/eslint-scope@3.7.7':
     dependencies:
       '@types/eslint': 9.6.1
@@ -17416,7 +17408,7 @@ snapshots:
 
   punycode@2.3.1: {}
 
-  pyodide@0.26.2:
+  pyodide@0.27.0:
     dependencies:
       ws: 8.18.0
     transitivePeerDependencies:

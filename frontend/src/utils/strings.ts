@@ -44,3 +44,8 @@ export const Strings = {
     return url.startsWith("/") ? url.slice(1) : url;
   },
 };
+
+export const decodeUtf8 = (array: Uint8Array): string => {
+  const str = new TextDecoder().decode(array);
+  return str;
+};
