@@ -1,11 +1,15 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from marimo import _loggers
 from marimo._config.config import Theme
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.formatter_factory import FormatterFactory
+from marimo._output.formatting import as_html
 from marimo._plugins.ui._impl.from_panel import panel as from_panel
+
+LOGGER = _loggers.get_logger(__name__)
 
 
 class HoloViewsFormatter(FormatterFactory):
@@ -36,7 +40,15 @@ class HoloViewsFormatter(FormatterFactory):
                 | hv.core.ndmapping.NdMapping
             ),
         ) -> tuple[KnownMimeType, str]:
-            return from_panel(plot)._mime_()
+            try:
+                return from_panel(plot)._mime_()
+            except Exception as e:
+                LOGGER.exception("Failed to render holoviews plot", exc_info=e)
+                backend_output = hv.render(plot)
+                # Call as_html to recurse back into the formatter
+                # this may be bokeh, matplotlib, or plotly
+                html = as_html(backend_output)
+                return ("text/html", html.text)
 
     def apply_theme(self, theme: Theme) -> None:
         import holoviews as hv  # type: ignore
