@@ -85,7 +85,8 @@ def sql(
     else:
         raise ModuleNotFoundError(
             "pandas or polars is required to execute sql. "
-            + "You can install them with 'pip install pandas polars'"
+            + "You can install them with 'pip install pandas polars'",
+            name="polars",
         )
 
     if output:

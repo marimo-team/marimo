@@ -1,14 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
 from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.middleware.cors import CORSMiddleware
-from starlette.responses import JSONResponse
 
 from marimo import _loggers
 from marimo._server.api.auth import (
@@ -25,47 +24,13 @@ from marimo._server.api.middleware import (
 from marimo._server.api.router import build_routes
 from marimo._server.api.status import (
     HTTPException as MarimoHTTPException,
-    is_client_error,
 )
+from marimo._server.errors import handle_error
 
 if TYPE_CHECKING:
-    from starlette.requests import Request
     from starlette.types import Lifespan
 
 LOGGER = _loggers.marimo_logger()
-
-
-# Convert exceptions to JSON responses
-async def handle_error(request: Request, response: Any) -> Any:
-    del request
-    if isinstance(response, HTTPException):
-        # Turn 403s into 401s to collect auth
-        if response.status_code == 403:
-            return JSONResponse(
-                status_code=401,
-                content={"detail": "Authorization header required"},
-                headers={"WWW-Authenticate": "Basic"},
-            )
-        return JSONResponse(
-            {"detail": response.detail},
-            status_code=response.status_code,
-            headers=response.headers,
-        )
-    if isinstance(response, MarimoHTTPException):
-        # Log server errors
-        if not is_client_error(response.status_code):
-            LOGGER.exception(response)
-        return JSONResponse(
-            {"detail": response.detail},
-            status_code=response.status_code,
-        )
-    if isinstance(response, NotImplementedError):
-        return JSONResponse({"detail": "Not supported"}, status_code=501)
-    if isinstance(response, TypeError):
-        return JSONResponse({"detail": str(response)}, status_code=500)
-    if isinstance(response, Exception):
-        return JSONResponse({"detail": str(response)}, status_code=500)
-    return response
 
 
 # Create app

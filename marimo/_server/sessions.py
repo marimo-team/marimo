@@ -1046,3 +1046,14 @@ class NoopLspServer(LspServer):
 
     def stop(self) -> None:
         pass
+
+
+def send_message_to_consumer(
+    session: Session,
+    operation: MessageOperation,
+    consumer_id: Optional[ConsumerId],
+) -> None:
+    if session.connection_state() == ConnectionState.OPEN:
+        for consumer, c_id in session.room.consumers.items():
+            if c_id == consumer_id:
+                consumer.write_operation(operation)
