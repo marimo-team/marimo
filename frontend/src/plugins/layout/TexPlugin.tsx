@@ -31,7 +31,7 @@ const importKatex = once(async () => {
 });
 
 const importMhChem = once(async () => {
-  // @ts-ignore : type is not exported by katex
+  // @ts-expect-error : type is not exported by katex
   await import("katex/contrib/mhchem");
 });
 

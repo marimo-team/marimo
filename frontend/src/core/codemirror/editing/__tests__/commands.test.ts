@@ -1,3 +1,4 @@
+/* Copyright 2024 Marimo. All rights reserved. */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { EditorView } from "@codemirror/view";
 import { makeBulkCommand, foldAllBulk, unfoldAllBulk } from "../commands";
