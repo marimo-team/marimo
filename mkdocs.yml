@@ -13,7 +13,7 @@ extra:
     - icon: material/email-newsletter
       link: https://marimo.io/newsletter
     - icon: material/forum
-      link: https://marimo.hall.community
+      link: https://community.marimo.io
     - icon: fontawesome/brands/mastodon
       link: https://mastodon.social/@marimo_io
     - icon: fontawesome/brands/twitter
