@@ -6,6 +6,7 @@ import { type Extension, Prec } from "@codemirror/state";
 import { type EditorView, keymap } from "@codemirror/view";
 import { vim } from "@replit/codemirror-vim";
 import { vimKeymapExtension } from "./vim";
+import { once } from "@/utils/once";
 
 export const KEYMAP_PRESETS = ["default", "vim"] as const;
 
@@ -48,16 +49,21 @@ export function keymapBundle(
             },
           ),
         ),
+        keymap.of(defaultVimKeymap()),
         vim({ status: false }),
         // Needs to come after the vim extension
         vimKeymapExtension(callbacks),
-        keymap.of(defaultKeymap),
       ];
     default:
       logNever(config.preset);
       return [];
   }
 }
+
+const defaultVimKeymap = once(() => {
+  // Remove Enter (<CR>) from the keymap
+  return defaultKeymap.filter((k) => k.key !== "Enter");
+});
 
 /**
  * Listen for a double keypress of a character and call a callback.
