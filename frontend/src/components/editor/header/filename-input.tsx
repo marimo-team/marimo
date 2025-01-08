@@ -147,7 +147,7 @@ export const FilenameInput = ({
     Math.max(20, searchValue?.length || placeholderText?.length || 0) * 10;
 
   return (
-    <Popover open={true} modal={false}>
+    <Popover open={focused} modal={false}>
       <Command
         onFocus={onFocus}
         onBlur={onBlur}
