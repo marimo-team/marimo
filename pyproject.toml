@@ -127,7 +127,7 @@ docs = [
     "cairosvg>=2.7.1",  # for social cards
     "mdx-include>=1.4.2",
     "pymdown-extensions>=10.7",
-    "pip-system-certs", # to work in deployment provider
+    "certifi", # to work in deployment provider
 ]
 
 [tool.hatch]
