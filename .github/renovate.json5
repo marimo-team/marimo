@@ -17,9 +17,9 @@
   "packageRules": [
     // Only upgrade ruff, mkdocs, pytest
     {
-      "matchCategories": ["python"],
+      "matchManagers": ["pep621"],
       "enabled": true,
-      "matchPackageNames": ["/.*ruff.*/", "/.*mkdocs.*/", "/.*pytest.*/"]
+      "matchPackagePatterns": ["^ruff", "^mkdocs", "^pytest"]
     },
     // Don't upgrade npm peerDependencies or python project dependencies
     {
