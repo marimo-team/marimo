@@ -107,6 +107,14 @@ export const LanguageToggle: React.FC<Props> = ({
   displayName,
   onAfterToggle,
 }) => {
+  const handleClick = () => {
+    if (!editorView) {
+      return;
+    }
+    switchLanguage(editorView, toType);
+    onAfterToggle();
+  };
+
   if (!canSwitchToLanguage) {
     return null;
   }
@@ -122,13 +130,7 @@ export const LanguageToggle: React.FC<Props> = ({
         variant="text"
         size="xs"
         className="opacity-80 px-1"
-        onClick={() => {
-          if (!editorView) {
-            return;
-          }
-          switchLanguage(editorView, toType);
-          onAfterToggle();
-        }}
+        onClick={handleClick}
       >
         {icon}
       </Button>

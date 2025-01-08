@@ -108,20 +108,20 @@ export function cellMovementBundle(
       },
     },
     {
-      key: hotkeys.getHotkey("cell.moveDown").key,
-      preventDefault: true,
-      stopPropagation: true,
-      run: () => {
-        moveDown();
-        return true;
-      },
-    },
-    {
       key: hotkeys.getHotkey("cell.moveUp").key,
       preventDefault: true,
       stopPropagation: true,
       run: () => {
         moveUp();
+        return true;
+      },
+    },
+    {
+      key: hotkeys.getHotkey("cell.moveDown").key,
+      preventDefault: true,
+      stopPropagation: true,
+      run: () => {
+        moveDown();
         return true;
       },
     },

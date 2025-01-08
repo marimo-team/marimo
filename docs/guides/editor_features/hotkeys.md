@@ -20,8 +20,10 @@ You can find a list of available hotkeys below:
 | `cell.format`               |
 | `cell.goToDefinition`       |
 | `cell.hideCode`             |
-| `cell.moveDown`             |
 | `cell.moveUp`               |
+| `cell.moveDown`             |
+| `cell.moveLeft`             |
+| `cell.moveRight`            |
 | `cell.redo`                 |
 | `cell.run`                  |
 | `cell.runAndNewAbove`       |

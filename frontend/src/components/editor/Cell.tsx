@@ -439,6 +439,10 @@ const CellComponent = (
     "cell.createBelow": createBelow,
     "cell.moveUp": () => moveCell({ cellId, before: true }),
     "cell.moveDown": () => moveCell({ cellId, before: false }),
+    "cell.moveLeft": () =>
+      canMoveX ? moveCell({ cellId, direction: "left" }) : undefined,
+    "cell.moveRight": () =>
+      canMoveX ? moveCell({ cellId, direction: "right" }) : undefined,
     "cell.hideCode": () => {
       const nextHideCode = !cellConfig.hide_code;
       // Fire-and-forget

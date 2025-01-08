@@ -7,7 +7,11 @@ import React, { memo, useCallback, useEffect, useRef, useMemo } from "react";
 import { setupCodeMirror } from "@/core/codemirror/cm";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import useEvent from "react-use-event-hook";
-import { type CellActions, useCellActions } from "@/core/cells/cells";
+import {
+  type CellActions,
+  notebookAtom,
+  useCellActions,
+} from "@/core/cells/cells";
 import type { CellRuntimeState, CellData } from "@/core/cells/types";
 import type { UserConfig } from "@/core/config/config-schema";
 import type { Theme } from "@/theme/useTheme";
@@ -35,6 +39,7 @@ import { invariant } from "@/utils/invariant";
 import { connectionAtom } from "@/core/network/connection";
 import { WebSocketState } from "@/core/websocket/types";
 import { realTimeCollaboration } from "@/core/codemirror/rtc/extension";
+import { store } from "@/core/state/jotai";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -361,7 +366,12 @@ const CellEditorInternal = ({
   const shouldFocus =
     editorViewRef.current === null || serializedEditorState !== null;
   useEffect(() => {
-    if (shouldFocus && allowFocus) {
+    // Perf:
+    // We don't pass this in from the props since it causes lots of re-renders for unrelated cells
+    const hasNotebookKey = store.get(notebookAtom).scrollKey !== null;
+
+    // Only focus if the notebook does not currently have a scrollKey (which means we are focusing on another cell)
+    if (shouldFocus && allowFocus && !hasNotebookKey) {
       // Focus and scroll into view; request an animation frame to
       // avoid a race condition when new editors are created
       // very rapidly by holding a hotkey
