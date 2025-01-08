@@ -61,8 +61,17 @@ export function keymapBundle(
 }
 
 const defaultVimKeymap = once(() => {
-  // Remove Enter (<CR>) from the keymap
-  return defaultKeymap.filter((k) => k.key !== "Enter");
+  const toRemove = new Set(["Enter", "Ctrl-v", "ArrowLeft", "ArrowRight"]);
+  // Remove conflicting keys from the keymap
+  // Enter (<CR>) adds a new line
+  //   - it should just go to the next line
+  // Ctrl-v goes to the bottom of the cell
+  //   - should enter blockwise visual mode
+  // ArrowLeft/ArrowRight exit blockwise visual mode
+  //   - should keep blockwise, but continue with cursor movement
+  return defaultKeymap.filter(
+    (k) => !toRemove.has(k.key || k.mac || k.linux || k.win || ""),
+  );
 });
 
 /**

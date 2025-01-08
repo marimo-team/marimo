@@ -87,14 +87,13 @@ class CodeMirrorVimSync {
 
     // Create an event listener for Vim mode changes
     // When it changes, we broadcast it to all other CodeMirror instances
-    cm.on("vim-mode-change", (e: { mode: string }) => {
+    cm.on("vim-mode-change", (e: { mode: string; subMode?: string }) => {
       if (this.isBroadcasting) {
         return;
       }
       invariant("mode" in e, 'Expected event to have a "mode" property');
-      const mode = e.mode;
       this.isBroadcasting = true;
-      this.broadcastModeChange(instance, mode);
+      this.broadcastModeChange(instance, e.mode, e.subMode);
       this.isBroadcasting = false;
     });
   }
@@ -103,7 +102,11 @@ class CodeMirrorVimSync {
     this.instances.delete(instance);
   }
 
-  broadcastModeChange(originInstance: EditorView, mode: string) {
+  broadcastModeChange(
+    originInstance: EditorView,
+    mode: string,
+    subMode?: string,
+  ) {
     invariant(
       "exitInsertMode" in Vim,
       "Vim does not have an exitInsertMode method",
