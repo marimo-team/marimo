@@ -21,7 +21,7 @@ export function useFullScreenElement() {
  */
 export function withFullScreenAsRoot<
   T extends {
-    container?: HTMLElement | null;
+    container?: Element | DocumentFragment | null;
   },
 >(Component: React.ComponentType<T>) {
   const Comp = (props: T) => {
