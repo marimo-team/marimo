@@ -65,7 +65,9 @@ describe("RequestingTree", () => {
     expect(result).toBe(true);
     expect(sendListFiles).toHaveBeenCalledWith({ path: "/root/folder1" });
     expect(mockOnChange).toHaveBeenCalled();
-    expect(mockOnChange.mock.calls.at(-1)[0]).toMatchInlineSnapshot(`
+    const lastCall = mockOnChange.mock.calls.at(-1);
+    expect(lastCall).toBeDefined();
+    expect(lastCall![0]).toMatchInlineSnapshot(`
       [
         {
           "id": "1.1",
@@ -104,7 +106,9 @@ describe("RequestingTree", () => {
       newPath: "/root/file2",
     });
     expect(mockOnChange).toHaveBeenCalled();
-    expect(mockOnChange.mock.calls.at(-1)[0]).toMatchInlineSnapshot(`
+    const lastCall = mockOnChange.mock.calls.at(-1);
+    expect(lastCall).toBeDefined();
+    expect(lastCall![0]).toMatchInlineSnapshot(`
       [
         {
           "id": "1.1",
@@ -133,7 +137,9 @@ describe("RequestingTree", () => {
     await requestingTree.move(["1.1"], "1.2");
     expect(sendRenameFileOrFolder).toHaveBeenCalled();
     expect(mockOnChange).toHaveBeenCalled();
-    expect(mockOnChange.mock.calls.at(-1)[0]).toMatchInlineSnapshot(`
+    const lastCall = mockOnChange.mock.calls.at(-1);
+    expect(lastCall).toBeDefined();
+    expect(lastCall![0]).toMatchInlineSnapshot(`
       [
         {
           "id": "1.1",
@@ -183,7 +189,9 @@ describe("RequestingTree", () => {
     await requestingTree.refreshAll(["1.1"]);
     expect(sendListFiles).toHaveBeenCalled();
     expect(mockOnChange).toHaveBeenCalled();
-    expect(mockOnChange.mock.calls.at(-1)[0]).toMatchInlineSnapshot(`
+    const lastCall = mockOnChange.mock.calls.at(-1);
+    expect(lastCall).toBeDefined();
+    expect(lastCall![0]).toMatchInlineSnapshot(`
       [
         {
           "id": "1.1",
