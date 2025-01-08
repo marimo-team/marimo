@@ -78,23 +78,37 @@ nav:
       - User Guide: guides/index.md
       - Running cells: guides/reactivity.md
       - Interactive elements: guides/interactivity.md
-      - Visualizing outputs: guides/outputs.md
-      - Migrating from Jupyter: guides/coming_from/jupyter.md
+      - Visualize outputs: guides/outputs.md
+      - Migrate from Jupyter: guides/coming_from/jupyter.md
       - Expensive notebooks: guides/expensive_notebooks.md
       - SQL, dataframes, and plots:
           - SQL, dataframes, and plots: guides/working_with_data/index.md
           - DataFrames: guides/working_with_data/dataframes.md
           - SQL: guides/working_with_data/sql.md
           - Plotting: guides/working_with_data/plotting.md
+      - Editor features:
+          - Editor features: guides/editor_features/index.md
+          - Editor overview: guides/editor_features/overview.md
+          - AI Completion: guides/editor_features/ai_completion.md
+          - Hotkeys: guides/editor_features/hotkeys.md
+          - Package Management: guides/editor_features/package_management.md
       - Run notebooks as apps: guides/apps.md
       - Run notebooks as scripts: guides/scripts.md
-      - Testing notebooks:
+      - Test notebooks:
           - Testing notebooks: guides/testing/index.md
           - pytest: guides/testing/pytest.md
           - doctest: guides/testing/doctest.md
-      - Export to HTML and other formats: guides/exporting.md
-      - Run notebooks with WebAssembly: guides/wasm.md
-      - Deploy notebooks:
+      - Export to other formats: guides/exporting.md
+      - Publish to the web:
+          - Publish to the web: guides/publishing/index.md
+          - Embedding: guides/publishing/embedding.md
+          - GitHub Pages: guides/publishing/github_pages.md
+          - Online playground: guides/publishing/playground.md
+          - Community Cloud: guides/publishing/community_cloud/index.md
+          - Self-host WASM: guides/publishing/self_host_wasm.md
+          - View outputs on GitHub: guides/publishing/view_outputs_on_github.md
+          - Deploy a backend: guides/publishing/deploying.md
+      - Deployment:
           - Deploy notebooks: guides/deploying/index.md
           - Authentication: guides/deploying/authentication.md
           - Docker: guides/deploying/deploying_docker.md
@@ -104,12 +118,7 @@ nav:
           - Railway: guides/deploying/deploying_railway.md
           - Prebuilt containers: guides/deploying/prebuilt_containers.md
           - Programmatic: guides/deploying/programmatically.md
-      - Editor features:
-          - Editor features: guides/editor_features/index.md
-          - Editor overview: guides/editor_features/overview.md
-          - AI Completion: guides/editor_features/ai_completion.md
-          - Hotkeys: guides/editor_features/hotkeys.md
-          - Package Management: guides/editor_features/package_management.md
+      - WebAssembly notebooks: guides/wasm.md
       - Configuration:
           - Configuration: guides/configuration/index.md
           - Runtime configuration: guides/configuration/runtime_configuration.md
@@ -283,11 +292,8 @@ theme:
     - search.suggest # search suggestions
     - toc.follow # auto-scroll TOC
   font:
-    code:
-      - Roboto Mono
-    text:
-      - Inter
-      - Roboto
+    code: Fira Mono
+    text: 
   logo: _static/marimo-logotype-horizontal.png
   name: material
   palette:

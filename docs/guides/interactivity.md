@@ -1,7 +1,7 @@
 # Interactive elements
 
 One of marimo's most powerful features is its first-class support for
-interactive, stateful user interface (UI) elements, or "widgets": create them using
+interactive user interface (UI) elements, or "widgets", created using
 [`marimo.ui`](../api/inputs/index.md). **Interacting with a UI element bound to a
 global variable automatically runs all cells that reference it.**
 
@@ -11,9 +11,14 @@ global variable automatically runs all cells that reference it.**
 </figure>
 </div>
 
+!!! example "Examples"
+    See the [API reference](http://127.0.0.1:8000/api/inputs/) or our [GitHub
+    repo](https://github.com/marimo-team/marimo/tree/main/examples/ui) for
+    bite-sized examples on using input elements.
+
 ## How interactions run cells
 
-Every UI element you make using `marimo.ui` has a value, accessible via its
+Every UI element you make using [`marimo.ui`](../api/inputs/index.md) has a value, accessible via its
 `value` attribute. When you interact with a UI element bound to a global
 variable, its value is sent back to Python. A single rule determines what
 happens next:
@@ -84,5 +89,5 @@ value on form submission.
 ## Building custom UI elements using our plugin API
 
 You can build your own reactive and interactive UI elements using
-[anywidget](https://github.com/manzt/anywidget)! See [our docs on
+[anywidget](https://github.com/manzt/anywidget). See [our docs on
 building custom UI elements](../guides/integrating_with_marimo/custom_ui_plugins.md) to learn more.
