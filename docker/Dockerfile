@@ -1,5 +1,5 @@
-# syntax=docker/dockerfile:1.9
-FROM python:3.12-slim AS base
+# syntax=docker/dockerfile:1.12
+FROM python:3.13-slim AS base
 
 # Create a non-root user
 RUN useradd -m appuser
