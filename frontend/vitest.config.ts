@@ -7,6 +7,9 @@ export default defineConfig({
     environment: "jsdom",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     setupFiles: ["src/__tests__/setup.ts"],
+    sequence: {
+      hooks: "parallel", // Maintain parallel hook execution from Vitest 1.x
+    },
   },
   plugins: [tsconfigPaths()],
 });
