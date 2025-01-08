@@ -102,6 +102,7 @@ nav:
           - Ploomber: guides/deploying/deploying_ploomber.md
           - Public gallery: guides/deploying/deploying_public_gallery.md
           - Railway: guides/deploying/deploying_railway.md
+          - nginx: guides/deploying/deploying_nginx.md
           - Prebuilt containers: guides/deploying/prebuilt_containers.md
           - Programmatic: guides/deploying/programmatically.md
       - Editor features:
