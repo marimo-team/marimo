@@ -90,7 +90,7 @@ recommended = [
     "altair>=5.4.0",            # Plotting in datasource viewer
     "polars[pyarrow]>=1.9.0",   # SQL output back in Python
     "sqlglot>=23.4",            # SQL cells parsing
-    "openai>=1.41.1",           # AI features
+    "openai>=1.55.3",           # AI features
     "ruff",                     # Formatting
     "nbformat>=5.7.0",          # Export as IPYNB
 ]
@@ -107,7 +107,7 @@ dev = [
     # For linting
     "ruff~=0.6.1",
     # For AI
-    "openai~=1.41.1",
+    "openai>=1.55.3",
 ]
 
 docs = [
@@ -240,7 +240,7 @@ extra-dependencies = [
     "anywidget~=0.9.13",
     "ipython~=8.12.3",
     # testing gen ai
-    "openai~=1.41.1",
+    "openai>=1.55.3",
     "anthropic==0.34.1",
     "google-generativeai==0.8.2",
     # exporting as ipynb
