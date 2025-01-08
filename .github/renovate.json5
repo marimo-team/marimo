@@ -1,0 +1,128 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "schedule:monthly"],
+  "minReleaseAge": "3 days",
+  "labels": ["dependencies"],
+  "pin": {
+    "enabled": false
+  },
+  "rangeStrategy": "bump",
+  "postUpdateOptions": ["pnpmDedupe"],
+  "pre-commit": {
+    "enabled": true
+  },
+  "pep621": {
+    "enabled": true
+  },
+  "packageRules": [
+    // Only upgrade ruff, mkdocs, pytest
+    {
+      "matchCategories": ["python"],
+      "enabled": true,
+      "matchPackageNames": ["/.*ruff.*/", "/.*mkdocs.*/", "/.*pytest.*/"]
+    },
+    // Don't upgrade npm peerDependencies or python project dependencies
+    {
+      "matchDepTypes": ["peerDependencies", "project.dependencies"],
+      "enabled": false
+    },
+    // Upgrade pre-commit dependencies weekly
+    {
+      "groupName": "pre-commit dependencies",
+      "matchManagers": ["pre-commit"],
+      "description": "Weekly update of pre-commit dependencies"
+    },
+    // Don't upgrade node
+    {
+      "matchPackageNames": ["node"],
+      "enabled": false
+    },
+    // Group all GitHub Actions dependencies
+    {
+      "groupName": "GitHub Actions",
+      "matchManagers": ["github-actions"],
+      "groupSlug": "github-actions",
+      "matchUpdateTypes": ["minor", "patch", "major"]
+    },
+    // Group all Docker dependencies
+    {
+      "groupName": "Docker updates",
+      "matchDatasources": ["docker"],
+      "groupSlug": "docker",
+      "matchUpdateTypes": ["minor", "patch", "major"]
+    },
+    // Upgrade all npm non-major dependencies
+    {
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "all npm non-major dependencies",
+      "groupSlug": "all-npm-minor-patch",
+      "matchPackageNames": [
+        "!/.*eslint.*/",
+        "!/.*radix.*/",
+        "!/.*storybook.*/",
+        "!/.*geopandas.*/",
+        "!/.*typescript.*/",
+        "!/.*openapi-fetch.*/",
+        "!/.*react-aria.*/"
+      ],
+      "schedule": ["on the 1st day of the month"]
+    },
+    // Group all CodeMirror dependencies
+    {
+      "groupName": "codemirror dependencies",
+      "matchPackagePatterns": ["^@codemirror/", "^@lezer/", "^@uiw/codemirror-", "codemirror-"],
+      "groupSlug": "codemirror",
+      "matchUpdateTypes": ["minor", "patch", "major"],
+      "schedule": ["on the 7th day of the month"]
+    },
+    // Group React Aria dependencies
+    {
+      "groupName": "react-aria dependencies",
+      "matchPackagePatterns": ["^@react-aria/", "^react-aria-"],
+      "groupSlug": "react-aria",
+      "matchUpdateTypes": ["minor", "patch", "major"],
+      "schedule": ["on the 14th day of the month"]
+    },
+    // Group testing dependencies
+    {
+      "groupName": "testing dependencies",
+      "matchPackagePatterns": ["^@testing-library/", "^@playwright/", "vitest"],
+      "groupSlug": "testing",
+      "matchDepTypes": ["devDependencies"],
+      "schedule": ["on the 21st day of the month"]
+    },
+    // Group build tools
+    {
+      "groupName": "build tools",
+      "matchPackageNames": ["vite", "typescript", "postcss", "tailwindcss", "autoprefixer"],
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "schedule": ["on the 23rd day of the month"]
+    },
+    // Group all radix dependencies
+    {
+      "groupName": "all radix dependencies",
+      "groupSlug": "all-radix",
+      "matchUpdateTypes": ["patch", "minor", "major"],
+      "matchPackageNames": ["/.*radix.*/"],
+      "schedule": ["on the 25th day of the month"]
+    },
+    // Group all storybook dependencies
+    {
+      "groupName": "all storybook dependencies",
+      "groupSlug": "all-storybook",
+      "matchUpdateTypes": ["minor", "patch", "major"],
+      "matchPackageNames": ["/.*storybook.*/"],
+      "schedule": ["on the 27th day of the month"]
+    },
+    // Group all eslint dependencies
+    {
+      "groupName": "all eslint dependencies",
+      "groupSlug": "all-eslint",
+      "matchUpdateTypes": ["minor", "patch", "major"],
+      "matchPackageNames": ["/.*eslint.*/"],
+      "schedule": ["on the 28th day of the month"]
+    }
+  ]
+}
