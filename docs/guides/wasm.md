@@ -14,9 +14,9 @@ for short.
 WASM notebooks have three main benefits compared to notebooks hosted using a
 traditional client-server model. WASM notebooks:
 
-1.   eliminate the need to install Python, making scientific computing accessible;
-2.   eliminate the cost and complexity of deploying backend infrastructure, making it easy to share notebooks;
-3.   eliminate network requests to a remote Python runner, making development feel snappy.
+1. eliminate the need to install Python, making scientific computing accessible;
+2. eliminate the cost and complexity of deploying backend infrastructure, making it easy to share notebooks;
+3. eliminate network requests to a remote Python runner, making development feel snappy.
 
 !!! question "When should I use WASM notebooks?"
 
@@ -83,6 +83,14 @@ documentation on supported packages.](https://pyodide.org/en/stable/usage/packag
 
 If you want a package to be supported, consider [filing an issue](https://github.com/pyodide/pyodide/issues/new?assignees=&labels=new+package+request&projects=&template=package_request.md&title=).
 
+## Including data
+
+XXX
+
+## Creating notebooks from GitHub
+
+XXX
+
 ## Limitations
 
 While WASM notebooks let you get up and running with marimo instantly, and
@@ -92,6 +100,10 @@ make it extremely easy to share, they have some limitations.
 
 **Threading and multi-processing.** WASM notebooks do not support multithreading
 and multiprocessing. [This may be fixed in the future](https://github.com/pyodide/pyodide/issues/237).
+
+**Memory.** WASM notebooks have a memory limit of 2GB; this may be increased
+in the future. If memory consumption is an issue, try offloading memory-intensive
+computations to hosted APIs or precomputing expensive operations.
 
 ## Browser support
 
