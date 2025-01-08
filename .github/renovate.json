@@ -1,14 +1,12 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:base", "schedule:monthly"],
+  "extends": ["config:recommended", "schedule:monthly"],
   "labels": ["dependencies"],
-  "pin": false,
+  "pin": {
+    "enabled": false
+  },
   "rangeStrategy": "bump",
   "postUpdateOptions": ["pnpmDedupe"],
-  "python": {
-    "enabled": true,
-    "packagePatterns": [".*sphinx.*", ".*ruff.*"]
-  },
   "pre-commit": {
     "enabled": true
   },
@@ -17,7 +15,12 @@
   },
   "packageRules": [
     {
-      "depTypeList": ["peerDependencies", "project.dependencies"],
+      "matchCategories": ["python"],
+      "enabled": true,
+      "matchPackageNames": ["/.*sphinx.*/", "/.*ruff.*/"]
+    },
+    {
+      "matchDepTypes": ["peerDependencies", "project.dependencies"],
       "enabled": false
     },
     {
@@ -26,38 +29,40 @@
       "description": "Weekly update of pre-commit dependencies"
     },
     {
-      "packageNames": ["node"],
+      "matchPackageNames": ["node"],
       "enabled": false
     },
     {
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "all non-major dependencies",
       "groupSlug": "all-minor-patch",
-      "excludePackagePatterns": [".*eslint.*", ".*radix.*", ".*storybook.*"],
-      "excludePackageNames": [
-        "geopandas",
-        "typescript",
-        "react-resizable-panels",
-        "openapi-fetch"
+      "matchPackageNames": [
+        "!/.*eslint.*/",
+        "!/.*radix.*/",
+        "!/.*storybook.*/",
+        "!geopandas",
+        "!typescript",
+        "!react-resizable-panels",
+        "!openapi-fetch"
       ]
     },
     {
-      "packagePatterns": [".*radix.*"],
       "groupName": "all radix dependencies",
       "groupSlug": "all-radix",
-      "matchUpdateTypes": ["patch"]
+      "matchUpdateTypes": ["patch"],
+      "matchPackageNames": ["/.*radix.*/"]
     },
     {
-      "packagePatterns": [".*storybook.*"],
       "groupName": "all storybook dependencies",
       "groupSlug": "all-storybook",
-      "matchUpdateTypes": ["minor", "patch", "major"]
+      "matchUpdateTypes": ["minor", "patch", "major"],
+      "matchPackageNames": ["/.*storybook.*/"]
     },
     {
-      "packagePatterns": [".*eslint.*"],
       "groupName": "all eslint dependencies",
       "groupSlug": "all-eslint",
-      "matchUpdateTypes": ["minor", "patch", "major"]
+      "matchUpdateTypes": ["minor", "patch", "major"],
+      "matchPackageNames": ["/.*eslint.*/"]
     }
   ]
 }
