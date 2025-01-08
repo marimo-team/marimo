@@ -216,13 +216,17 @@ export const KeyboardShortcuts: React.FC = () => {
         key={action}
         className="grid grid-cols-[auto,2fr,3fr] gap-2 items-center"
       >
-        <EditIcon
-          className="cursor-pointer opacity-60 hover:opacity-100 text-muted-foreground w-3 h-3"
-          onClick={() => {
-            setNewShortcut([]);
-            setEditingShortcut(action);
-          }}
-        />
+        {hotkeys.isEditable(action) ? (
+          <EditIcon
+            className="cursor-pointer opacity-60 hover:opacity-100 text-muted-foreground w-3 h-3"
+            onClick={() => {
+              setNewShortcut([]);
+              setEditingShortcut(action);
+            }}
+          />
+        ) : (
+          <div className="w-3 h-3" />
+        )}
         <KeyboardHotkeys className="justify-end" shortcut={hotkey.key} />
         <span>{hotkey.name.toLowerCase()}</span>
       </div>
