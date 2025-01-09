@@ -293,7 +293,7 @@ theme:
     - toc.follow # auto-scroll TOC
   font:
     code: Fira Mono
-    text: 
+    text: PT Sans
   logo: _static/marimo-logotype-horizontal.png
   name: material
   palette:
