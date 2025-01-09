@@ -75,5 +75,5 @@ jobs:
 
 ## Publish manually
 
-You can also publish an exported notebook manually, through your repostiory
+You can also publish an exported notebook manually, through your repository
 settings. Read [GitHub's documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site) to learn more.
