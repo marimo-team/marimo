@@ -153,8 +153,8 @@ Options:
     cannot be opened directly from the filesystem (`file://`). Your server must
     also serve the assets in the `assets` directory, next to the HTML file. For
     a simpler publishing experience, publish to [GitHub
-    Pages](../publishing/github_pages) or use the [online
-    playground](../publishing/playground.md).
+    Pages](publishing/github_pages.md) or use the [online
+    playground](publishing/playground.md).
 
 ### Testing the export
 
@@ -169,7 +169,7 @@ python -m http.server
 
 After exporting your notebook to WASM HTML, you can publish it to
 [GitHub Pages](https://pages.github.com/) for free. See our [guide on
-GitHub Pages](../publishing/github_pages.md) to learn more.
+GitHub Pages](publishing/github_pages.md) to learn more.
 
 
 ### Exporting multiple notebooks

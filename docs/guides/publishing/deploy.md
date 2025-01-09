@@ -6,4 +6,4 @@ traditional client-server model.
 Both the edit server can be deployed as well as individual notebooks (as
 readonly apps).
 
-Learn more in our [Deployment Guide](../deploying/).
+Learn more in our [Deployment Guide](../deploying/index.md).

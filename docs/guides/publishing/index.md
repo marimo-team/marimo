@@ -1,9 +1,9 @@
 # Publishing notebooks to the web
 
 You can publish marimo notebooks to the web as interactive editable notebooks,
-readonly web apps, or [static documents](../guides/exporting.md).
+readonly web apps, or [static documents](../exporting.md).
 
-Thanks to [WebAssembly](../guides/wasm.md), you can even share executable
+Thanks to [WebAssembly](../wasm.md), you can even share executable
 notebooks on GitHub Pages or other static sites without paying for backend
 infrastrcture. This makes it easy to share your work with colleagues, embed
 executable notebooks in web documentation or educational websites, and more.

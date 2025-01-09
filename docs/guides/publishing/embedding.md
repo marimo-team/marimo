@@ -6,7 +6,7 @@ are two ways:
 
 * Host on [GitHub Pages](github_pages.md) or [self-host WASM HTML](self_host_wasm.md),
   and `<iframe>` the published notebook.
-* `<iframe>` a playground notebook, and [customize the embedding](playground.md#embedding) with query params.
+* `<iframe>` a playground notebook, and [customize the embedding](playground.md#embedding-in-other-web-pages) with query params.
   (This is what we do throughout docs.marimo.io.)
 
 We plan to provide more turn-key solutions for static site generation with

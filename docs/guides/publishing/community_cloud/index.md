@@ -8,8 +8,8 @@ and upload a limited amount of data.
 
 !!! note "WebAssembly notebooks only"
 
-    Currently, the Community Cloud only allows the creation of [WebAssembly
-    notebooks](../wasm.md). These are easy to share and embed in other
+    Currently, the Communty Cloud only allows the creation of [WebAssembly
+    notebooks](../../wasm.md). These are easy to share and embed in other
     web pages, but have some limitations in packages and performance.
 
 Note: unlike our other publishing options, it is not possible to embed

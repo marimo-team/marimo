@@ -38,7 +38,7 @@ tools, available to you at all times and on all devices.
     web browser's local storage. When you return to
     [marimo.app](https://marimo.app), the last notebook you worked on will be
     re-opened. You can also click a button to save your notebook to
-    the [Community Cloud](guides/publishing/community_cloud/index.md).
+    the [Community Cloud](community_cloud/index.md).
 
 ### Share via links
 
@@ -64,11 +64,11 @@ link` to get a `marimo.app/...` URL representing your notebook:
 </div>
 
 WASM notebooks come with common Python packages installed, but you may need to
-[install additional packages using micropip](#installing-packages).
+[install additional packages using micropip](../wasm.md#supported-packages).
 
 The obtained URL encodes your notebook code as a parameter, so it can be
 quite long. If you want a URL that's easier to share, you can [create a
-shareable permalink](#creating-shareable-permalinks).
+shareable permalink](#share-via-links).
 
 ## Configuration
 
@@ -84,7 +84,7 @@ Example:
 
 - `https://marimo.app/l/83qamt?mode=read`
 
-### Embed
+### Hide header for embedding
 
 To hide the `marimo.app` header, append `&embed=true` to your URL's list of query
 parameters (or `?embed=true` if your URL doesn't have a query string).
@@ -94,8 +94,8 @@ Example:
 - `https://marimo.app/l/83qamt?embed=true`
 - `https://marimo.app/l/83qamt?mode=read&embed=true`
 
-See the [section on embedding](#embedding) for examples of how to embed marimo
-notebooks in your own webpages.
+See the [section on embedding](#embedding-in-other-web-pages) for examples of
+how to embed marimo notebooks in your own webpages.
 
 ### Excluding code
 
@@ -163,5 +163,3 @@ You can optionally render embedded notebooks in read-only mode by appending
 ```
 
 <iframe src="https://marimo.app/l/c7h6pz?mode=read&embed=true" width="100%" height="600" class="demo" frameBorder="0"></iframe>
-
-

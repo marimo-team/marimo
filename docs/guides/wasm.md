@@ -9,7 +9,7 @@ for short.
 
     To create your first WASM notebook, try our online playground
     at [marimo.new](https://marimo.new). Read the [playground
-    docs](../guides/publishing/playground.md) to learn more.
+    docs](publishing/playground.md) to learn more.
 
 WASM notebooks have three benefits compared to notebooks hosted using a
 traditional client-server model. WASM notebooks:
@@ -37,16 +37,16 @@ of Python to WebAssembly that enables browsers to run Python code._
 
 marimo provides three ways to create and share WASM notebooks:
 
-1. [Export to WASM HTML](../guides/exporting/#export-to-wasm-powered-html),
+1. [Export to WASM HTML](exporting.md#export-to-wasm-powered-html),
    which you can host on GitHub Pages or self-host. This is great for
    publishing companion notebooks for research papers that are automatically
    updated on Git push, or for embedding interactive notebooks as part of other
    websites.
-2. The [online playground](../guides/publishing/playground.md), which lets you
+2. The [online playground](publishing/playground.md), which lets you
    create one-off notebooks and share via links, no login required. The
    playground is also great for embedding editable notebooks in
    documentation.
-3. The [Community Cloud](../guides/publishing/community_cloud/index.md), which
+3. The [Community Cloud](publishing/community_cloud/index.md), which
    lets you save a collection of notebook to a workspace (for free!) and share
    publicly or privately with sensible URLs.
 
@@ -54,9 +54,9 @@ marimo provides three ways to create and share WASM notebooks:
 
 marimo provides three ways to share notebooks stored on GitHub as WASM notebooks:
 
-1. Automatically publish to GitHub Pages on git push with [our GitHub action](../guides/publishing/github_pages.md).
+1. Automatically publish to GitHub Pages on git push with [our GitHub action](publishing/github_pages.md).
 2. Load a notebook by URL into the online playground (New > Open from URL ...)
-3. Load a notebook from GitHub in the [Community Cloud](../guides/publishing/community_cloud/index.md).
+3. Load a notebook from GitHub in the [Community Cloud](publishing/community_cloud/index.md).
 
 ## Packages
 
@@ -100,8 +100,8 @@ If you want a package to be supported, consider [filing an issue](https://github
 ## Including data
 
 **For notebooks exported to WASM HTML.**
-To include data files in notebooks [exported to WASM
-HTML](../guides/exporting/#export-to-wasm-powered-html), place them
+To inlcude data files in notebooks [exported to WASM
+HTML](exporting.md#export-to-wasm-powered-html), place them
 in a `public/` folder in the same directory as your notebook. When you
 export to WASM HTML, the public folder will be copied to the export directory.
 
@@ -125,12 +125,12 @@ hosted, you may need to use a CORS Proxy; see the [Pyodide
 documentation](https://pyodide.org/en/stable/usage/loading-packages.html#installing-wheels-from-arbitrary-urls)
 for more details.
 
-**Playground notebooks.** When opening [playground notebook](../guides/publishing/playground.md)
+**Playground notebooks.** When opening [playground notebook](publishing/playground.md)
 from GitHub, the data files in the notebook directory are automatically
 downloaded and made available to your notebook.
 
 **Community Cloud notebooks.** Our free [Community
-Cloud](../guides/publishing/community_cloud/index.md) lets you upload a limited
+Cloud](publishing/community_cloud/index.md) lets you upload a limited
 amount of data, and also lets you sync notebooks (and their data) from GitHub.
 
 ## Limitations
