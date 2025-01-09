@@ -297,8 +297,6 @@ class Exporter:
                 except SyntaxError:
                     pass
 
-            # Definitely no "cell"; as such, treat as code, as everything in
-            # marimo is code.
             if cell:
                 markdown = get_markdown_from_cell(cell, code)
                 # Unsanitized markdown is forced to code.
@@ -309,6 +307,8 @@ class Exporter:
                     previous_was_markdown = True
                     document.append(markdown)
                     continue
+            # Definitely no "cell"; as such, treat as code, as everything in
+            # marimo is code.
             else:
                 attributes["unparsable"] = "true"
             # Add a blank line between markdown and code
