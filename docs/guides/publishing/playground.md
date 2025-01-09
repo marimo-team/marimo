@@ -122,12 +122,12 @@ providing your users with an interactive code playground.
 <iframe
   src="https://marimo.app/l/aojjhb?embed=true"
   width="100%"
-  height="300"
+  height="500"
   frameborder="0"
 ></iframe>
 ```
 
-<iframe src="https://marimo.app/l/aojjhb?embed=true" width="100%" height="300" class="demo" frameBorder="0"></iframe>
+<iframe src="https://marimo.app/l/aojjhb?embed=true" width="100%" height="500" frameBorder="0"></iframe>
 
 ### Embedding an existing notebook
 
@@ -138,15 +138,12 @@ URL to your notebook](#creating-and-sharing-wasm-notebooks), then put it in an i
 <iframe
   src="https://marimo.app/l/c7h6pz?embed=true"
   width="100%"
-  height="300"
+  height="500"
   frameborder="0"
 ></iframe>
 ```
 
-<iframe src="https://marimo.app/l/c7h6pz?embed=true" width="100%" height="600" class="demo" frameBorder="0"></iframe>
-
-After obtaining a URL to your
-notebook,
+<iframe src="https://marimo.app/l/c7h6pz?embed=true" width="100%" height="500" frameBorder="0"></iframe>
 
 ### Embedding an existing notebook in read-only mode
 
@@ -157,9 +154,9 @@ You can optionally render embedded notebooks in read-only mode by appending
 <iframe
   src="https://marimo.app/l/c7h6pz?mode=read&embed=true"
   width="100%"
-  height="300"
+  height="500"
   frameborder="0"
 ></iframe>
 ```
 
-<iframe src="https://marimo.app/l/c7h6pz?mode=read&embed=true" width="100%" height="600" class="demo" frameBorder="0"></iframe>
+<iframe src="https://marimo.app/l/c7h6pz?mode=read&embed=true" width="100%" height="500" frameBorder="0"></iframe>
