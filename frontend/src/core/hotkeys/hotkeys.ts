@@ -65,6 +65,16 @@ const DEFAULT_HOT_KEY = {
     group: "Creation and Ordering",
     key: "Mod-Shift-0",
   },
+  "cell.moveLeft": {
+    name: "Move left",
+    group: "Creation and Ordering",
+    key: "Mod-Shift-7",
+  },
+  "cell.moveRight": {
+    name: "Move right",
+    group: "Creation and Ordering",
+    key: "Mod-Shift-8",
+  },
   "cell.createAbove": {
     name: "New cell above",
     group: "Creation and Ordering",

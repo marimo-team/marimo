@@ -3,11 +3,7 @@ import { downloadCellOutput } from "@/components/export/export-output-button";
 import { Switch } from "@/components/ui/switch";
 import { formatEditorViews } from "@/core/codemirror/format";
 import { toggleToLanguage } from "@/core/codemirror/language/commands";
-import {
-  hasOnlyOneCellAtom,
-  useCellActions,
-  useCellIds,
-} from "@/core/cells/cells";
+import { hasOnlyOneCellAtom, useCellActions } from "@/core/cells/cells";
 import {
   ImageIcon,
   Code2Icon,
@@ -27,6 +23,8 @@ import {
   DatabaseIcon,
   Columns2Icon,
   XCircleIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from "lucide-react";
 import type { ActionButton } from "./types";
 import { MultiIcon } from "@/components/icons/multi-icon";
@@ -89,7 +87,6 @@ export function useCellActionButtons({ cell }: Props) {
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
   const aiEnabled = useAtomValue(aiEnabledAtom);
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
-  const cellIds = useCellIds();
   const kioskMode = useAtomValue(kioskModeAtom);
   const appWidth = useAtomValue(appWidthAtom);
 
@@ -98,7 +95,6 @@ export function useCellActionButtons({ cell }: Props) {
   }
 
   const { cellId, config, getEditorView, name, hasOutput, status } = cell;
-  const cellIdx = cellIds.inOrderIds.indexOf(cellId);
 
   const toggleDisabled = async () => {
     const newConfig = { disabled: !config.disabled };
@@ -142,7 +138,7 @@ export function useCellActionButtons({ cell }: Props) {
               <div className="flex items-center justify-between">
                 <Label htmlFor="cell-name">Cell name</Label>
                 <NameCellInput
-                  placeholder={`cell_${cellIdx}`}
+                  placeholder={"cell name"}
                   value={name}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
@@ -161,7 +157,7 @@ export function useCellActionButtons({ cell }: Props) {
         },
         rightElement: (
           <NameCellInput
-            placeholder={`cell_${cellIdx}`}
+            placeholder={"cell name"}
             value={name}
             onChange={(newName) => updateCellName({ cellId, name: newName })}
           />
@@ -320,6 +316,20 @@ export function useCellActionButtons({ cell }: Props) {
         label: "Move cell down",
         hotkey: "cell.moveDown",
         handle: () => moveCell({ cellId, before: false }),
+      },
+      {
+        icon: <ChevronLeftIcon size={13} strokeWidth={1.5} />,
+        label: "Move cell left",
+        hotkey: "cell.moveLeft",
+        handle: () => moveCell({ cellId, direction: "left" }),
+        hidden: appWidth !== "columns",
+      },
+      {
+        icon: <ChevronRightIcon size={13} strokeWidth={1.5} />,
+        label: "Move cell right",
+        hotkey: "cell.moveRight",
+        handle: () => moveCell({ cellId, direction: "right" }),
+        hidden: appWidth !== "columns",
       },
       {
         icon: <ChevronsUpIcon size={13} strokeWidth={1.5} />,

@@ -214,7 +214,7 @@ const SortableColumn: React.FC<{
               key={cellData.id.toString()}
               theme={theme}
               showPlaceholder={hasOnlyOneCell}
-              allowFocus={!invisible && !notebook.scrollKey}
+              allowFocus={!invisible}
               id={cellData.id}
               code={cellData.code}
               outline={cellRuntime.outline}

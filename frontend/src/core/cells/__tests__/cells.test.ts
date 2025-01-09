@@ -321,6 +321,80 @@ describe("cell reducer", () => {
       [1] ''
       "
     `);
+
+    // Add a column breakpoint to test left/right movement
+    actions.addColumnBreakpoint({ cellId: "1" as CellId });
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      > col 0
+      [0] ''
+
+      > col 1
+      [1] ''
+      "
+    `);
+
+    // Move cell right
+    actions.moveCell({
+      cellId: firstCellId,
+      direction: "right",
+    });
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      > col 0
+
+
+      > col 1
+      [0] ''
+
+      [1] ''
+      "
+    `);
+
+    // Move cell left
+    actions.moveCell({
+      cellId: firstCellId,
+      direction: "left",
+    });
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      > col 0
+      [0] ''
+
+      > col 1
+      [1] ''
+      "
+    `);
+
+    // Try to move cell left when it's already in leftmost column (should noop)
+    actions.moveCell({
+      cellId: firstCellId,
+      direction: "left",
+    });
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      > col 0
+      [0] ''
+
+      > col 1
+      [1] ''
+      "
+    `);
+
+    // Try to move cell right when it's already in rightmost column (should noop)
+    actions.moveCell({
+      cellId: "1" as CellId,
+      direction: "right",
+    });
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      > col 0
+      [0] ''
+
+      > col 1
+      [1] ''
+      "
+    `);
   });
 
   it("can drag and drop a cell", () => {

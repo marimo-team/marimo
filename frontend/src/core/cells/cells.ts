@@ -281,8 +281,48 @@ const {
       scrollKey: autoFocus ? newCellId : null,
     };
   },
-  moveCell: (state, action: { cellId: CellId; before: boolean }) => {
-    const { cellId, before } = action;
+  moveCell: (
+    state,
+    action: {
+      cellId: CellId;
+      before?: boolean;
+      direction?: "left" | "right";
+    },
+  ) => {
+    const { cellId, before, direction } = action;
+
+    if (before !== undefined && direction !== undefined) {
+      Logger.warn(
+        "Both before and direction specified for moveCell. Ignoring one.",
+      );
+    }
+
+    // Handle left/right movement
+    if (direction) {
+      const fromColumn = state.cellIds.findWithId(cellId);
+      const fromColumnIndex = state.cellIds.indexOf(fromColumn);
+      const toColumnIndex =
+        direction === "left" ? fromColumnIndex - 1 : fromColumnIndex + 1;
+      const toColumn = state.cellIds.at(toColumnIndex);
+
+      // If no column to move to, return unchanged state
+      if (!toColumn) {
+        return state;
+      }
+
+      return {
+        ...state,
+        cellIds: state.cellIds.moveAcrossColumns(
+          fromColumn.id,
+          cellId,
+          toColumn.id,
+          undefined,
+        ),
+        scrollKey: cellId,
+      };
+    }
+
+    // Handle up/down movement
     const column = state.cellIds.findWithId(cellId);
     const cellIndex = column.indexOfOrThrow(cellId);
 

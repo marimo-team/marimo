@@ -59,11 +59,14 @@ export function useHotkey(shortcut: HotkeyAction, callback: HotkeyHandler) {
  */
 export function useHotkeysOnElement<T extends HotkeyAction>(
   element: RefObject<HTMLElement> | null,
-  handlers: Record<T, HotkeyHandler>,
+  handlers: Record<T, HotkeyHandler | undefined>,
 ) {
   const hotkeys = useAtomValue(hotkeysAtom);
   useEventListener(element, "keydown", (e) => {
     for (const [shortcut, callback] of Objects.entries(handlers)) {
+      if (callback === undefined) {
+        continue;
+      }
       const key = hotkeys.getHotkey(shortcut).key;
       if (parseShortcut(key)(e)) {
         Logger.debug("Satisfied", key, e);
