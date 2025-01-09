@@ -57,7 +57,7 @@ reproducibility, maintainability, composability, and shareability.
 - 🚀 **batteries-included:** replaces `jupyter`, `streamlit`, `jupytext`, `ipywidgets`, `papermill`, and more
 - ⚡️ **reactive**: run a cell, and marimo reactively [runs all dependent cells](guides/reactivity.md) or <a href="#expensive-notebooks">marks them as stale</a>
 - 🖐️ **interactive:** [bind sliders, tables, plots, and more](guides/interactivity.md) to Python — no callbacks required
-- 🔬 **reproducible:** [no hidden state](guides/reactivity.md#no-hidden-state), deterministic execution, [built-in package management](guides/editor_features/package_management.md)
+- 🔬 **reproducible:** [no hidden state](guides/reactivity.md), deterministic execution, [built-in package management](guides/editor_features/package_management.md)
 - 🏃 **executable:** [execute as a Python script](guides/scripts.md), parameterized by CLI args
 - 🧪 **testable:** [run your favorite test suite](guides/testing/index.md), verify your notebook's correctness
 - 🛜 **shareable**: [deploy as an interactive web app](guides/apps.md) or [slides](guides/apps.md#slides-layout), [run in the browser via WASM](guides/wasm.md)

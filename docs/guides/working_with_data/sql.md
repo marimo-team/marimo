@@ -31,7 +31,7 @@ conda install -c conda-forge marimo duckdb polars
 
 ///
 
-!!! tip "Examples"
+!!! example "Examples"
 
     For example notebooks, check out
     [`examples/sql/` on GitHub](https://github.com/marimo-team/marimo/tree/main/examples/sql/).
