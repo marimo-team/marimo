@@ -1,39 +1,41 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#     "pandas",
-#     "altair",
+#     "pandas==2.2.3",
+#     "altair==5.5.0",
 #     "marimo",
-#     "vegafusion",
+#     "vegafusion==2.0.1",
+#     "pyarrow==18.1.0",
+#     "vl-convert-python==1.7.0",
 # ]
 # ///
 
 import marimo
 
-__generated_with = "0.8.14"
+__generated_with = "0.10.9"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""# Basic examples""")
     return
 
 
 @app.cell
-def __():
+def _():
     import pandas as pd
     import altair as alt
     import vegafusion as vf
 
     # Comment out to disable duckdb connection
-    vf.runtime.set_connection("duckdb")
+    # vf.runtime.set_connection("duckdb")
 
     flights = pd.read_parquet(
         "https://vegafusion-datasets.s3.amazonaws.com/vega/flights_1m.parquet"
@@ -42,7 +44,7 @@ def __():
 
 
 @app.cell
-def __(alt, flights, mo):
+def _(alt, flights, mo):
     delay_hist = (
         alt.Chart(flights)
         .mark_bar()
@@ -51,32 +53,32 @@ def __(alt, flights, mo):
 
     with alt.data_transformers.enable("vegafusion"):
         mo.output.replace(delay_hist)
-    return delay_hist,
+    return (delay_hist,)
 
 
 @app.cell
-def __(alt, delay_hist, mo):
+def _(alt, delay_hist, mo):
     alt.data_transformers.enable("vegafusion")
     mo.as_html(delay_hist)
     return
 
 
 @app.cell
-def __(alt, delay_hist):
+def _(alt, delay_hist):
     alt.data_transformers.enable("vegafusion")
     delay_hist
     return
 
 
 @app.cell
-def __(alt, delay_hist, mo):
+def _(alt, delay_hist, mo):
     alt.data_transformers.enable("vegafusion")
     mo.ui.altair_chart(delay_hist)
     return
 
 
 @app.cell
-def __(alt, delay_hist, mo):
+def _(alt, delay_hist, mo):
     # This should throw an error
     try:
         alt.data_transformers.enable("default")
@@ -87,8 +89,8 @@ def __(alt, delay_hist, mo):
     return
 
 
-@app.cell
-def __(mo):
+@app.cell(hide_code=True)
+def _(mo):
     mo.md(
         r"""
         # Examples from vegafusion
@@ -104,13 +106,13 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""## Interactive Cross-filter""")
     return
 
 
 @app.cell
-def __(alt):
+def _(alt):
     def make_cross_filter_chart(source):
         brush = alt.selection_interval(encodings=["x"])
 
@@ -142,27 +144,27 @@ def __(alt):
             .transform_calculate("time", "hours(datum.date)")
             .repeat(column=["distance", "delay", "time"])
         )
-    return make_cross_filter_chart,
+    return (make_cross_filter_chart,)
 
 
 @app.cell
-def __(alt, make_cross_filter_chart, pd):
+def _(alt, make_cross_filter_chart, pd):
     alt.data_transformers.enable("vegafusion")
     source_data = pd.read_parquet(
         "https://vegafusion-datasets.s3.amazonaws.com/vega/flights_200k.parquet"
     )
     make_cross_filter_chart(source_data)
-    return source_data,
+    return (source_data,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""## Interactive average""")
     return
 
 
 @app.cell
-def __(alt):
+def _(alt):
     def make_average_chart(source):
         brush = alt.selection_interval(encodings=["x"])
 
@@ -187,11 +189,11 @@ def __(alt):
         )
 
         return alt.layer(bars, line, data=source).properties(height=200)
-    return make_average_chart,
+    return (make_average_chart,)
 
 
 @app.cell
-def __(alt, make_average_chart, pd):
+def _(alt, make_average_chart, pd):
     alt.data_transformers.enable("vegafusion")
     _source_data = pd.read_parquet(
         "https://vegafusion-datasets.s3.amazonaws.com/vega/seattle_weather_200k.parquet"
@@ -201,13 +203,13 @@ def __(alt, make_average_chart, pd):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""## Interactive Chart with Cross-Highlight""")
     return
 
 
 @app.cell
-def __(alt):
+def _(alt):
     def make_movie_chart(data_source):
         pts = alt.selection_point(encodings=["x"])
 
@@ -255,11 +257,11 @@ def __(alt):
             bar,
             rect + circ,
         ).resolve_legend(color="independent", size="independent")
-    return make_movie_chart,
+    return (make_movie_chart,)
 
 
 @app.cell
-def __(alt, make_movie_chart, pd):
+def _(alt, make_movie_chart, pd):
     alt.data_transformers.enable("vegafusion")
     _source_data = pd.read_parquet(
         "https://vegafusion-datasets.s3.amazonaws.com/vega/movies_201k.parquet"
@@ -268,14 +270,14 @@ def __(alt, make_movie_chart, pd):
     return
 
 
-@app.cell
-def __(mo):
+@app.cell(hide_code=True)
+def _(mo):
     mo.md(r"""# Vega fusion mimes""")
     return
 
 
 @app.cell
-def __(alt, flights, vf):
+def _(alt, flights, vf):
     vf.enable(mimetype="html")
     alt.data_transformers.enable("vegafusion")
     alt.Chart(flights).mark_bar().encode(
@@ -285,7 +287,7 @@ def __(alt, flights, vf):
 
 
 @app.cell
-def __(alt, flights, vf):
+def _(alt, flights, vf):
     vf.enable(mimetype="svg")
     alt.Chart(flights).mark_bar().encode(
         alt.X("delay", bin=alt.Bin(maxbins=30)), alt.Y("count()")
@@ -294,7 +296,7 @@ def __(alt, flights, vf):
 
 
 @app.cell
-def __(alt, flights, vf):
+def _(alt, flights, vf):
     vf.enable(mimetype="vega")
     alt.Chart(flights).mark_bar().encode(
         alt.X("delay", bin=alt.Bin(maxbins=30)), alt.Y("count()")
@@ -303,7 +305,7 @@ def __(alt, flights, vf):
 
 
 @app.cell
-def __(alt, flights, vf):
+def _(alt, flights, vf):
     vf.enable(mimetype="png")
     alt.Chart(flights).mark_bar().encode(
         alt.X("delay", bin=alt.Bin(maxbins=30)), alt.Y("count()")
