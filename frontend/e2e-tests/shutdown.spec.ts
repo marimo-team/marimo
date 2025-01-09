@@ -36,9 +36,20 @@ test("restart kernel", async ({ page }) => {
   const appUrl = getAppUrl("shutdown.py");
   await page.goto(appUrl);
 
+  // Wait for page to be fully loaded
+  await page.waitForLoadState("networkidle");
+
   await page.getByTestId("notebook-menu-dropdown").click();
-  await page.getByText("Restart kernel").click();
-  await page.getByLabel("Confirm Restart").click();
+  // Wait for dropdown to be visible and stable
+  await page.waitForTimeout(100);
+
+  const restartButton = page.getByRole("menuitem", { name: "Restart kernel" });
+  await restartButton.waitFor({ state: "visible" });
+  await restartButton.click();
+
+  const confirmButton = page.getByRole("button", { name: "Confirm Restart" });
+  await confirmButton.waitFor({ state: "visible" });
+  await confirmButton.click();
 
   await expect(page.getByText("None", { exact: true })).toBeVisible();
 });
