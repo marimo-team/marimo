@@ -45,9 +45,14 @@ class PandasTableManagerFactory(TableManagerFactory):
                 self, format_mapping: Optional[FormatMapping] = None
             ) -> bytes:
                 has_headers = len(self.get_row_headers()) > 0
+                # Pandas omits H:M:S for datetimes when H:M:S is identically
+                # 0; this doesn't play well with our frontend table component,
+                # so we use an explicit date format.
                 return (
                     self.apply_formatting(format_mapping)
-                    ._original_data.to_csv(index=has_headers)
+                    ._original_data.to_csv(
+                        index=has_headers, date_format="%Y-%m-%d %H:%M:%S"
+                    )
                     .encode("utf-8")
                 )
 
