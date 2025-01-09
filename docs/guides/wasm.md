@@ -100,7 +100,7 @@ If you want a package to be supported, consider [filing an issue](https://github
 ## Including data
 
 **For notebooks exported to WASM HTML.**
-To inlcude data files in notebooks [exported to WASM
+To include data files in notebooks [exported to WASM
 HTML](exporting.md#export-to-wasm-powered-html), place them
 in a `public/` folder in the same directory as your notebook. When you
 export to WASM HTML, the public folder will be copied to the export directory.
