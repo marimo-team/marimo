@@ -157,7 +157,7 @@ const CellEditorInternal = ({
   const toggleHideCode = useEvent(() => {
     // Use cellConfig.hide_code instead of hidden, since it may be temporarily shown
     const nextHidden = !cellConfig.hide_code;
-    
+
     // For markdown cells, ensure the cell is run before hiding
     if (nextHidden && languageAdapter === "markdown") {
       runCell();
