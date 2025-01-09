@@ -4,6 +4,8 @@ import {
   closeBrackets,
   closeBracketsKeymap,
   startCompletion,
+  moveCompletionSelection,
+  completionStatus,
 } from "@codemirror/autocomplete";
 import {
   history,
@@ -167,6 +169,30 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
             startCompletionAtEndOfLine(cm) ||
             indentMore(cm)
           );
+        },
+        preventDefault: true,
+      },
+      {
+        key: "Alt-j",
+        mac: "Ctrl-j",
+        run: (cm) => {
+          if (completionStatus(cm.state) !== null) {
+            moveCompletionSelection(true)(cm);
+            return true;
+          }
+          return false;
+        },
+        preventDefault: true,
+      },
+      {
+        key: "Alt-k",
+        mac: "Ctrl-k",
+        run: (cm) => {
+          if (completionStatus(cm.state) !== null) {
+            moveCompletionSelection(false)(cm);
+            return true;
+          }
+          return false;
         },
         preventDefault: true,
       },
