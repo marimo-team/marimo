@@ -120,8 +120,20 @@ class TestPandasTableManager(unittest.TestCase):
         assert self.factory.package_name() == "pandas"
 
     def test_to_csv(self) -> None:
-        expected_csv = self.data.to_csv(index=False).encode("utf-8")
+        expected_csv = self.data.to_csv(
+            index=False, date_format="%Y-%m-%d %H:%M:%S"
+        ).encode("utf-8")
         assert self.manager.to_csv() == expected_csv
+
+    def test_to_csv_datetime(self) -> None:
+        D = pd.to_datetime("2024-12-17", errors="coerce")
+
+        data = {
+            "D timestamp": [D],
+        }
+        df = pd.DataFrame(data)
+        manager = PandasTableManagerFactory.create()(df)
+        assert "2024-12-17 00:00:00" in manager.to_csv().decode("utf-8")
 
     def test_to_csv_complex(self) -> None:
         complex_data = self.get_complex_data()
