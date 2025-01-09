@@ -107,7 +107,7 @@ nav:
           - Community Cloud: guides/publishing/community_cloud/index.md
           - Self-host WASM: guides/publishing/self_host_wasm.md
           - View outputs on GitHub: guides/publishing/view_outputs_on_github.md
-          - Deploy a backend: guides/publishing/deploying.md
+          - Deploy a backend: guides/publishing/deploy.md
       - Deployment:
           - Deploy notebooks: guides/deploying/index.md
           - Authentication: guides/deploying/authentication.md

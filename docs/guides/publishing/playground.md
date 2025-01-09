@@ -1,37 +1,24 @@
 # Online playground
 
-We've built an [online playground](https://marimo.app) that lets you
+Our [online playground](https://marimo.app) lets you
 create and share marimo notebooks for free, without creating an account.
 
-marimo notebooks that run entirely in the browser are called **WebAssembly
-notebooks**, or **WASM notebooks** for short.
-
-In contrast to marimo notebooks that you create with the CLI, WASM notebooks
-run without a web server and Python process; instead, the web browser executes
-your Python code. For this reason, WASM makes it extremely easy to
-share marimo notebooks, and makes it possible to tinker with notebooks without
-having to install Python on your machine.
+Playground notebooks are great for embedding in other web pages — all the
+notebooks embedding in marimo's own docs are playground notebooks. They
+are also great for sharing via links.
 
 **Try our playground!** Just navigate to
 [https://marimo.new](https://marimo.new).
 
-!!! note "WASM?"
+!!! note "WebAssembly notebooks only"
 
-    marimo-in-the-browser is powered by a technology called
-    [WebAssembly](https://webassembly.org/), or "WASM" for short. Hence the
-    name "WASM notebook".
+    Currently, the online playground only allows the creation of [WebAssembly
+    notebooks](../wasm.md). These are easy to share and embed in other
+    web pages, but have some limitations in packages and performance.
 
-!!! note "When should I use WASM notebooks?"
+_The notebook embedded below is a playground notebook!_
 
-    WASM notebooks are excellent for sharing your work, quickly experimenting with
-    code and models, doing lightweight data exploration, authoring blog posts,
-    tutorials, and educational materials, and even building tools. They are
-    not well-suited for notebooks that do heavy computation.
-
-!!! warning "Issues?"
-
-    WASM notebooks are a new feature. If you run into
-    problems, please open a [GitHub issue](https://github.com/marimo-team/marimo/issues).
+<iframe src="https://marimo.app/l/upciwv?embed=true" width="100%" height=400 frameBorder="0"></iframe>
 
 ## Creating and sharing WASM notebooks
 
@@ -39,7 +26,7 @@ WASM notebooks run at [marimo.app](https://marimo.app).
 
 ### New notebooks
 
-To create a new playground notebook, just visit [https://marimo.new](https://marimo.new).
+To create a new playground notebook, visit <https://marimo.new>.
 
 Think of [marimo.new](https://marimo.new) as a
 scratchpad for experimenting with code, data, and models and for prototyping
@@ -63,7 +50,7 @@ Please be aware that marimo permalinks are publicly accessible.
 
 ### Creating playground notebooks from GitHub
 
-XXX
+Use the "New > Open from URL" menu item to paste a link to a GitHub notebook.
 
 ### Creating playground notebooks from local notebooks
 
@@ -121,7 +108,7 @@ A sufficiently determined user would still be able
 to obtain your code, so **don't** think of this as a security feature; instead,
 think of it as an aesthetic or practical choice.
 
-## Embedding
+## Embedding in other web pages
 
 WASM notebooks can be embedded into other webpages using the HTML `<iframe>`
 tag.
