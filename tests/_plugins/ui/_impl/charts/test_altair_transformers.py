@@ -201,9 +201,9 @@ def test_data_to_json_string_with_special_characters(
             "float": [1.1, 2.2, 3.3],
             "bool": [True, False, True],
             "datetime": [
-                datetime.datetime(2023, 1, 1),
-                datetime.datetime(2023, 1, 2),
-                datetime.datetime(2023, 1, 3),
+                datetime.datetime(2023, 1, 1, 1),
+                datetime.datetime(2023, 1, 2, 1),
+                datetime.datetime(2023, 1, 3, 1),
             ],
             "category": ["a", "b", "c"],
         },
@@ -213,6 +213,8 @@ def test_data_to_json_string_with_special_characters(
 def test_data_to_csv_string_with_different_dtypes(df: IntoDataFrame):
     result = _data_to_csv_string(df)
     assert isinstance(result, str)
+    # NB: These can differ based on datetime canonicalization --- our table
+    # manager always includes H:M:S:.f for pandas, but narwhals doesn't.
     assert result == dataframe_to_csv(df)
 
 
