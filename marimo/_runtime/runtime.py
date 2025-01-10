@@ -326,8 +326,13 @@ class URLPath(pathlib.Path):
         return super().__str__().replace(":/", "://")
 
 
+# HACK: _flavour is needed on URLPath to make .parent work
+if hasattr(pathlib.PurePosixPath, "_flavour"):
+    URLPath._flavour = pathlib.PurePosixPath._flavour  # type: ignore
+
+
 @mddoc
-def notebook_location() -> URLPath | None:
+def notebook_location() -> pathlib.Path | None:
     """Get the location of the currently executing notebook.
 
     In WASM, this is the URL of webpage, for example, `https://my-site.com`.
@@ -351,23 +356,23 @@ def notebook_location() -> URLPath | None:
         ```
 
     Returns:
-        URLPath | None: A URLPath object representing the URL or directory of the current
+        Path | None: A Path object representing the URL or directory of the current
             notebook, or None if the notebook's directory cannot be determined.
     """
     if is_pyodide():
         from js import location  # type: ignore
 
-        path_location = URLPath(str(location))
+        path_location = pathlib.Path(str(location))
         # The location looks like https://marimo-team.github.io/marimo-gh-pages-template/notebooks/assets/worker-BxJ8HeOy.js
         # We want to crawl out of the assets/ folder
         if "assets" in path_location.parts:
-            return path_location.parent.parent
-        return path_location
+            return URLPath(str(path_location.parent.parent))
+        return URLPath(str(path_location))
 
     else:
         nb_dir = notebook_dir()
         if nb_dir is not None:
-            return URLPath(nb_dir)
+            return nb_dir
         return None
 
 
