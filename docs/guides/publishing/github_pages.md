@@ -75,5 +75,10 @@ jobs:
 
 ## Publish manually
 
-You can also publish an exported notebook manually, through your repository
+You can also publish an exported notebook manually through your repository
 settings. Read [GitHub's documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site) to learn more.
+
+Make sure to [include a `.nojekyll`
+file](https://github.blog/news-insights/bypassing-jekyll-on-github-pages/) in
+root folder from which your site is built to prevent GitHub from interfering
+with your site.
