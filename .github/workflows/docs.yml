@@ -23,17 +23,14 @@ jobs:
           python-version: 3.12
           cache: 'pip'
 
-      - name: 🥚 Install hatch
-        run: pip install hatch
-
-      - name: 📚 Build docs
-        run: hatch run docs:build
-
       - name: ⚡ Install Vercel CLI
         run: npm install --global vercel@latest
 
       - name: ⬇️ Pull Vercel Environment Information
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: 📚 Build docs
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: 🚀 Deploy to Vercel
         if: github.ref == 'refs/heads/main'
