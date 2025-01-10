@@ -10959,7 +10959,7 @@ snapshots:
       '@swc/helpers': 0.5.1
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
-      use-sync-external-store: 1.2.0(react@18.3.1)
+      use-sync-external-store: 1.4.0(react@18.3.1)
 
   '@react-aria/color@3.0.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
@@ -17094,7 +17094,7 @@ snapshots:
       react-dom: 18.3.1(react@18.3.1)
       react-window: 1.8.10(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       redux: 5.0.1
-      use-sync-external-store: 1.2.0(react@18.3.1)
+      use-sync-external-store: 1.4.0(react@18.3.1)
     transitivePeerDependencies:
       - '@types/hoist-non-react-statics'
       - '@types/node'
@@ -17135,7 +17135,7 @@ snapshots:
       react-aria: 3.36.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-dom: 18.3.1(react@18.3.1)
       react-stately: 3.34.0(react@18.3.1)
-      use-sync-external-store: 1.2.0(react@18.3.1)
+      use-sync-external-store: 1.4.0(react@18.3.1)
 
   react-aria@3.36.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
@@ -18195,7 +18195,7 @@ snapshots:
     dependencies:
       client-only: 0.0.1
       react: 18.3.1
-      use-sync-external-store: 1.2.0(react@18.3.1)
+      use-sync-external-store: 1.4.0(react@18.3.1)
 
   swrev@4.0.0: {}
 
