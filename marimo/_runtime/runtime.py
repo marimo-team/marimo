@@ -317,18 +317,13 @@ def notebook_dir() -> pathlib.Path | None:
     return None
 
 
-class URLPath(pathlib.Path):
+class URLPath(pathlib.PurePosixPath):
     """
     Wrapper around pathlib.Path that preserves the "://" in the URL protocol.
     """
 
     def __str__(self) -> str:
         return super().__str__().replace(":/", "://")
-
-
-# HACK: _flavour is needed on URLPath to make .parent work
-if hasattr(pathlib.PurePosixPath, "_flavour"):
-    URLPath._flavour = pathlib.PurePosixPath._flavour  # type: ignore
 
 
 @mddoc
