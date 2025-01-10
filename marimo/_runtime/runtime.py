@@ -365,7 +365,10 @@ def notebook_location() -> URLPath | None:
         return path_location
 
     else:
-        return notebook_dir()
+        nb_dir = notebook_dir()
+        if nb_dir is not None:
+            return URLPath(nb_dir)
+        return None
 
 
 @dataclasses.dataclass
