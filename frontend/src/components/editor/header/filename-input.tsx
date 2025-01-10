@@ -152,6 +152,7 @@ export const FilenameInput = ({
         onFocus={onFocus}
         onBlur={onBlur}
         shouldFilter={false}
+        id="filename-input"
         className="bg-transparent group filename-input"
       >
         <CommandList>
