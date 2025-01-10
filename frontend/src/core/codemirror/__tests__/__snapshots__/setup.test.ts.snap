@@ -166,6 +166,17 @@ exports[`snapshot all duplicate keymaps > vim keymaps 2`] = `
       "shift": "deleteCharBackward",
     },
   ],
+  "Enter": [
+    {
+      "key": "Enter",
+      "run": "acceptCompletion",
+    },
+    {
+      "key": "Enter",
+      "run": "<no name>",
+      "shift": "<no name>",
+    },
+  ],
   "Escape": [
     {
       "key": "Escape",
