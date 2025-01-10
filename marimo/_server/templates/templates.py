@@ -273,6 +273,19 @@ def wasm_notebook_template(
     """
     body = body.replace("</head>", f"{warning_script}</head>")
 
+    # Hide save button in WASM mode
+    wasm_styles = """
+    <style>
+        #save-button {
+            display: none !important;
+        }
+        #filename-input {
+            display: none !important;
+        }
+    </style>
+    """
+    body = body.replace("</head>", f"{wasm_styles}</head>")
+
     # If has custom css, inline the css and add to the head
     if app_config.css_file:
         css_contents = read_css_file(app_config.css_file, filename=filename)
