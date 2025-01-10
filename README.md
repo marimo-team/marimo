@@ -104,11 +104,11 @@ order, based on variable references instead of cells' positions on the page.
 Organize your notebooks to best fit the stories you'd like to tell.
 
 **Built-in package management.** marimo has built-in support for all major
-package managers, letting you install packages on import. marimo can even
+package managers, letting you [install packages on import](https://docs.marimo.io/guides/editor_features/package_management.html). marimo can even
 [serialize package
-requirements](https://docs.marimo.io/guides/editor_features/package_management.html#auto-tracking-inline-script-metadata)
+requirements](https://docs.marimo.io/guides/package_reproducibility.html)
 in notebook files, and auto install them in
-[isolated venv sandboxes](https://docs.marimo.io/guides/editor_features/package_management.html#running-marimo-in-a-sandbox-environment-uv-only).
+isolated venv sandboxes.
 
 **Batteries-included.** marimo comes with GitHub Copilot, AI assistants, Ruff
 code formatting, HTML export, fast code completion, a [VS Code
