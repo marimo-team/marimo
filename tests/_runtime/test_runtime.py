@@ -1038,6 +1038,9 @@ class TestExecution:
         assert "dir" in k.globals
         assert k.globals["dir"] is k.globals["loc"]
 
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Windows paths behave differently"
+    )
     async def test_notebook_location_for_pyodide(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:
