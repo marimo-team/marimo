@@ -125,9 +125,10 @@ hosted, you may need to use a CORS Proxy; see the [Pyodide
 documentation](https://pyodide.org/en/stable/usage/loading-packages.html#installing-wheels-from-arbitrary-urls)
 for more details.
 
-**Playground notebooks.** When opening [playground notebook](publishing/playground.md)
-from GitHub, the data files in the notebook directory are automatically
-downloaded and made available to your notebook.
+**Playground notebooks.** When opening a playground
+notebook from GitHub, all the files in the GitHub repo are made available to
+your notebook. See the [Playground
+Guide](publishing/playground.md#including-data-files) for more info.
 
 **Community Cloud notebooks.** Our free [Community
 Cloud](publishing/community_cloud/index.md) lets you upload a limited
