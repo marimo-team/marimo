@@ -4,7 +4,6 @@ from __future__ import annotations
 import sys
 import textwrap
 from dataclasses import dataclass
-from pathlib import Path
 from typing import TYPE_CHECKING, Sequence
 
 import pytest
@@ -1060,8 +1059,13 @@ class TestExecution:
                     )
                 ]
             )
-            assert k.globals["loc"] == Path(
-                "https://marimo-team.github.io/marimo-gh-pages-template/notebooks"
+            assert (
+                str(k.globals["loc"])
+                == "https://marimo-team.github.io/marimo-gh-pages-template/notebooks"
+            )
+            assert (
+                str(k.globals["loc"] / "public" / "data.csv")
+                == "https://marimo-team.github.io/marimo-gh-pages-template/notebooks/public/data.csv"
             )
         finally:
             del sys.modules["pyodide"]
