@@ -327,7 +327,7 @@ class URLPath(pathlib.PurePosixPath):
 
 
 @mddoc
-def notebook_location() -> pathlib.Path | None:
+def notebook_location() -> pathlib.PurePath | None:
     """Get the location of the currently executing notebook.
 
     In WASM, this is the URL of webpage, for example, `https://my-site.com`.
