@@ -21,6 +21,7 @@ import type { FileInfo } from "@/core/network/types";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 
 import "./filename-input.css";
+import { ErrorBoundary } from "../boundary/ErrorBoundary";
 
 interface FilenameInputProps {
   resetOnBlur?: boolean;
@@ -147,53 +148,55 @@ export const FilenameInput = ({
     Math.max(20, searchValue?.length || placeholderText?.length || 0) * 10;
 
   return (
-    <Popover open={focused} modal={false}>
-      <Command
-        onFocus={onFocus}
-        onBlur={onBlur}
-        shouldFilter={false}
-        id="filename-input"
-        className="bg-transparent group filename-input"
-      >
-        <CommandList>
-          <PopoverAnchor>
-            <CommandInput
-              data-testid="dir-completion-input"
-              tabIndex={-1}
-              rootClassName="border-none justify-center px-1"
-              spellCheck="false"
-              value={focused ? searchValue || "" : initialValue || ""}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  e.currentTarget.blur();
-                }
-              }}
-              icon={null}
-              ref={inputRef}
-              onValueChange={setSearchValue}
-              placeholder={placeholderText}
-              autoComplete="off"
-              style={flexibleWidth ? { maxWidth: size } : undefined}
-              className={cn(
-                className,
-                "w-full px-4 py-1 my-1 h-9 font-mono text-foreground/60",
-              )}
-            />
-          </PopoverAnchor>
+    <ErrorBoundary>
+      <Popover open={focused} modal={false}>
+        <Command
+          onFocus={onFocus}
+          onBlur={onBlur}
+          shouldFilter={false}
+          id="filename-input"
+          className="bg-transparent group filename-input"
+        >
+          <CommandList>
+            <PopoverAnchor>
+              <CommandInput
+                data-testid="dir-completion-input"
+                tabIndex={-1}
+                rootClassName="border-none justify-center px-1"
+                spellCheck="false"
+                value={focused ? searchValue || "" : initialValue || ""}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    e.currentTarget.blur();
+                  }
+                }}
+                icon={null}
+                ref={inputRef}
+                onValueChange={setSearchValue}
+                placeholder={placeholderText}
+                autoComplete="off"
+                style={flexibleWidth ? { maxWidth: size } : undefined}
+                className={cn(
+                  className,
+                  "w-full px-4 py-1 my-1 h-9 font-mono text-foreground/60",
+                )}
+              />
+            </PopoverAnchor>
 
-          <PopoverContent
-            side="bottom"
-            className={cn(
-              "p-0 w-full min-w-80 max-w-80vw hidden",
-              suggestionsList && "group-focus-within:block",
-            )}
-            portal={false}
-          >
-            {suggestionsList}
-          </PopoverContent>
-        </CommandList>
-      </Command>
-    </Popover>
+            <PopoverContent
+              side="bottom"
+              className={cn(
+                "p-0 w-full min-w-80 max-w-80vw hidden",
+                suggestionsList && "group-focus-within:block",
+              )}
+              portal={false}
+            >
+              {suggestionsList}
+            </PopoverContent>
+          </CommandList>
+        </Command>
+      </Popover>
+    </ErrorBoundary>
   );
 };
 
