@@ -50,7 +50,7 @@ Please be aware that marimo permalinks are publicly accessible.
 
 ### Open notebooks hosted on GitHub
 
-TO open notebooks hosted on GitHub in the playground, just
+To open notebooks hosted on GitHub in the playground, just
 navigate to `https://marimo.app/path/to/notebook.py`. For example:
 <https://marimo.app/github.com/marimo-team/marimo/blob/main/examples/ui/slider.py>.
 
