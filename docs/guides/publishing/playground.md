@@ -59,7 +59,7 @@ navigate to `https://marimo.app/path/to/notebook.py`. For example:
     For a convenient way to create notebooks from GitHub, drag and drop the
     following button to your bookmarks bar:
 
-    <a href="javascript:(function(e){if(!location.hostname.includes('github.com')||(!location.href.endsWith('.py')&&!location.href.endsWith('.ipynb'))){alert('Please use this bookmarklet on a GitHub marimo notebook URL (.py or .ipynb file)');e.preventDefault();return;}const newUrl=location.href.replace('github.com', 'marimo.app/github.com');window.open(newUrl,'_blank');})(event);" 
+    <a href="javascript:(function(e){if(!location.hostname.includes('github.com')||(!location.href.endsWith('.py')&&!location.href.endsWith('.ipynb'))){alert('Please use this bookmarklet on a GitHub notebook URL (.py or .ipynb file)');e.preventDefault();return;}const newUrl=location.href.replace('github.com', 'marimo.app/github.com');window.open(newUrl,'_blank');})(event);" 
           style="padding: 5px 10px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
     Open in marimo
     </a>
