@@ -165,6 +165,11 @@ cd path/to/output_dir
 python -m http.server
 ```
 
+### Including data files
+
+See the docs for [mo.notebook_location][marimo.notebook_location] to learn how
+to include data files in exported WASM HTML notebooks.
+
 ### Publishing to GitHub Pages
 
 After exporting your notebook to WASM HTML, you can publish it to
