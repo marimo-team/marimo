@@ -3,11 +3,11 @@ title: Test Notebook
 marimo-version: 0.0.0
 ---
 
-```{.python.marimo}
+```python {.marimo}
 import marimo as mo
 ```
 
-````{.python.marimo}
+````python {.marimo}
 mo.md("""
     # Code blocks in code blocks
     Output code for Hello World!
@@ -21,7 +21,7 @@ mo.md("""
 """)
 ````
 
-````{.python.marimo}
+````python {.marimo}
 mo.md(f"""
     with f-string too!
     ```{{python}}
@@ -30,7 +30,7 @@ mo.md(f"""
 """)
 ````
 
-````{.python.marimo}
+````python {.marimo}
 mo.md(f"""
     Not markdown
     ```{{python}}
@@ -45,24 +45,24 @@ The guards are
 ```{python}
 ````
 
-````{.python.marimo}
+````python {.marimo}
 """
 ```
 """
 ````
 
-````{.python.marimo}
+````python {.marimo}
 mo.md("""
     Cross cell injection
     ```python
 """)
 ````
 
-```{.python.marimo}
+```python {.marimo}
 1 + 1
 ```
 
-```{.python.marimo}
+```python {.marimo}
 # Actual print
 print("Hello World")
 ```

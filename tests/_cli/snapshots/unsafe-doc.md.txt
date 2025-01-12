@@ -10,7 +10,7 @@ What happens if I just leave a \"\"\"
 <!--
 \
 
-```{.python.marimo}
+```python {.marimo}
 print("Hello, World!")
 ```
 
@@ -18,7 +18,7 @@ print("Hello, World!")
 
 ```marimo run convert document.md```
 
-```{.python.marimo unparsable="true"}
+```python {.marimo unparsable="true"}
 it's an unparsable cell
 ```
 
@@ -28,25 +28,25 @@ it's an unparsable cell
 
 <!-- Disabled code block -->
 
-```{.python.marimo disabled="true"}
+```python {.marimo disabled="true"}
 1 + 1
 ```
 
 <!-- Hidden code block -->
 
-```{.python.marimo hide_code="true"}
+```python {.marimo hide_code="true"}
 1 + 1
 ```
 
 <!-- Empty code block -->
 
-```{.python.marimo}
+```python {.marimo}
 
 ```
 
 <!-- Improperly nested code block -->
 
-````{.python.marimo unparsable="true"}
+````python {.marimo unparsable="true"}
 """
 ```{python}
 print("Hello, World!")
@@ -66,7 +66,7 @@ print("Hello, World!")
 
 <!-- from the notebook, should remain unchanged -->
 
-````{.python.marimo}
+````python {.marimo}
 mo.md("""
   This is a markdown cell with an execution block in it
   ```{python}
@@ -75,6 +75,6 @@ mo.md("""
   """)
 ````
 
-```{.python.marimo}
+```python {.marimo}
 
 ```

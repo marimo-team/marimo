@@ -6,9 +6,6 @@ from typing import Literal, Optional
 
 import markdown  # type: ignore
 import pymdownx.emoji  # type: ignore
-from pymdownx.superfences import (  # type: ignore
-    SuperFencesCodeExtension,
-)
 
 from marimo._output.hypertext import Html
 from marimo._output.md_extensions.external_links import ExternalLinksExtension
@@ -111,8 +108,6 @@ class _md(Html):
                 ExternalLinksExtension(),
                 # Iconify
                 IconifyExtension(),
-                # Code fences for consistent syntax highlighting
-                SuperFencesCodeExtension(),
             ],
             extension_configs=extension_configs,  # type: ignore[arg-type]
         ).strip()
