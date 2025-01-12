@@ -341,7 +341,7 @@ export const Chatbot: React.FC<Props> = (props) => {
           />
         )}
         <PromptInput
-          className="rounded-sm"
+          className="rounded-sm mr-2"
           placeholder="Type your message here, / for prompts"
           value={input}
           inputRef={codeMirrorInputRef}
