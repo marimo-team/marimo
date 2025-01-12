@@ -351,9 +351,7 @@ export const Chatbot: React.FC<Props> = (props) => {
             if (!newValue.trim()) {
               return;
             }
-            if (formRef.current) {
-              formRef.current.requestSubmit();
-            }
+            formRef.current?.requestSubmit();
           }}
           onClose={() => {
             // no-op
