@@ -213,9 +213,6 @@ importers:
       '@uiw/codemirror-extensions-langs':
         specifier: ^4.23.5
         version: 4.23.5(@codemirror/autocomplete@6.18.3(@codemirror/language@6.10.3)(@codemirror/state@6.4.1)(@codemirror/view@6.34.3)(@lezer/common@1.2.1))(@codemirror/language-data@6.5.1(@codemirror/view@6.34.3))(@codemirror/language@6.10.3)(@codemirror/legacy-modes@6.4.1)(@codemirror/state@6.4.1)(@codemirror/view@6.34.3)(@lezer/common@1.2.1)(@lezer/highlight@1.2.1)(@lezer/javascript@1.4.18)(@lezer/lr@1.4.2)
-      '@uiw/codemirror-extensions-mentions':
-        specifier: ^4.23.5
-        version: 4.23.5(@codemirror/state@6.4.1)(@codemirror/view@6.34.3)
       '@uiw/react-codemirror':
         specifier: ^4.23.5
         version: 4.23.5(@babel/runtime@7.25.6)(@codemirror/autocomplete@6.18.3(@codemirror/language@6.10.3)(@codemirror/state@6.4.1)(@codemirror/view@6.34.3)(@lezer/common@1.2.1))(@codemirror/language@6.10.3)(@codemirror/lint@6.8.2)(@codemirror/search@6.5.7)(@codemirror/state@6.4.1)(@codemirror/theme-one-dark@6.1.2)(@codemirror/view@6.34.3)(codemirror@6.0.1(@lezer/common@1.2.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3653,12 +3650,6 @@ packages:
     peerDependencies:
       '@codemirror/language-data': '>=6.0.0'
       '@codemirror/legacy-modes': '>=6.0.0'
-
-  '@uiw/codemirror-extensions-mentions@4.23.5':
-    resolution: {integrity: sha512-ZxX/KXY9qmgb32u4Py/+MYqKL9ln13zJBjr/G/GFDjyUBGA4I5XWv4yQczBdXg+kyAyiP2tqWURoQfvSGtV12g==}
-    peerDependencies:
-      '@codemirror/state': '>=6.0.0'
-      '@codemirror/view': '>=6.0.0'
 
   '@uiw/react-codemirror@4.23.5':
     resolution: {integrity: sha512-2zzGpx61L4mq9zDG/hfsO4wAH209TBE8VVsoj/qrccRe6KfcneCwKgRxtQjxBCCnO0Q5S+IP+uwCx5bXRzgQFQ==}
@@ -12905,11 +12896,6 @@ snapshots:
       - '@lezer/highlight'
       - '@lezer/javascript'
       - '@lezer/lr'
-
-  '@uiw/codemirror-extensions-mentions@4.23.5(@codemirror/state@6.4.1)(@codemirror/view@6.34.3)':
-    dependencies:
-      '@codemirror/state': 6.4.1
-      '@codemirror/view': 6.34.3
 
   '@uiw/react-codemirror@4.23.5(@babel/runtime@7.25.6)(@codemirror/autocomplete@6.18.3(@codemirror/language@6.10.3)(@codemirror/state@6.4.1)(@codemirror/view@6.34.3)(@lezer/common@1.2.1))(@codemirror/language@6.10.3)(@codemirror/lint@6.8.2)(@codemirror/search@6.5.7)(@codemirror/state@6.4.1)(@codemirror/theme-one-dark@6.1.2)(@codemirror/view@6.34.3)(codemirror@6.0.1(@lezer/common@1.2.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
