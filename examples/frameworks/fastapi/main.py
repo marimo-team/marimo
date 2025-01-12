@@ -10,6 +10,7 @@
 #     "python-multipart",
 #     "passlib",
 #     "pydantic",
+#     "vega-datasets==0.9.0",
 # ]
 # ///
 from typing import Callable, Coroutine
