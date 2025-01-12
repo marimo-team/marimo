@@ -242,7 +242,11 @@ export const Chatbot: React.FC<Props> = (props) => {
                   : "bg-[var(--slate-4)] text-[var(--slate-12)]"
               }`}
             >
-              <p>{renderMessage(message)}</p>
+              <p
+                className={cn(message.role === "user" && "whitespace-pre-wrap")}
+              >
+                {renderMessage(message)}
+              </p>
             </div>
             <div className="flex justify-end text-xs gap-2 invisible group-hover:visible">
               <button
