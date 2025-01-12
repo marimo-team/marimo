@@ -47,6 +47,14 @@ import { renderHTML } from "@/plugins/core/RenderHTML";
 import { Input } from "@/components/ui/input";
 import { PopoverAnchor } from "@radix-ui/react-popover";
 import { copyToClipboard } from "@/utils/copy";
+import {
+  type AdditionalCompletions,
+  PromptInput,
+} from "@/components/editor/ai/add-cell-with-ai";
+import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
+import { useTheme } from "@/theme/useTheme";
+import { moveToEndOfEditor } from "@/core/codemirror/utils";
+import type { Completion } from "@codemirror/autocomplete";
 
 interface Props {
   prompts: string[];
@@ -60,18 +68,19 @@ interface Props {
 }
 
 export const Chatbot: React.FC<Props> = (props) => {
-  const inputRef = React.useRef<HTMLInputElement>(null);
   const [config, setConfig] = useState<ChatConfig>(props.config);
   const [files, setFiles] = useState<FileList | undefined>(undefined);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const codeMirrorInputRef = useRef<ReactCodeMirrorRef>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const { theme } = useTheme();
 
   const {
     messages,
     setMessages,
     input,
     setInput,
-    handleInputChange,
     handleSubmit,
     isLoading,
     stop,
@@ -196,6 +205,17 @@ export const Chatbot: React.FC<Props> = (props) => {
       props.allowAttachments.length > 0) ||
     props.allowAttachments === true;
 
+  const promptCompletions: AdditionalCompletions = {
+    triggerSymbol: "/",
+    completions: props.prompts.map(
+      (prompt): Completion => ({
+        label: `/${prompt}`,
+        displayLabel: prompt,
+        apply: prompt,
+      }),
+    ),
+  };
+
   useEffect(() => {
     // When the message length changes, scroll to the bottom
     scrollContainerRef.current?.scrollTo({
@@ -302,6 +322,7 @@ export const Chatbot: React.FC<Props> = (props) => {
             experimental_attachments: files,
           });
         }}
+        ref={formRef}
         className="flex w-full border-t border-[var(--slate-6)] px-2 py-1 items-center"
       >
         {props.showConfigurationControls && (
@@ -313,22 +334,31 @@ export const Chatbot: React.FC<Props> = (props) => {
             onSelect={(prompt) => {
               setInput(prompt);
               requestAnimationFrame(() => {
-                inputRef.current?.focus();
-                inputRef.current?.setSelectionRange(
-                  prompt.length,
-                  prompt.length,
-                );
+                codeMirrorInputRef.current?.view?.focus();
+                moveToEndOfEditor(codeMirrorInputRef.current?.view);
               });
             }}
           />
         )}
-        <input
-          name="prompt"
-          ref={inputRef}
+        <PromptInput
+          className="rounded-sm"
+          placeholder="Type your message here, / for prompts"
           value={input}
-          onChange={handleInputChange}
-          className="flex w-full outline-none bg-transparent ml-2 text-[var(--slate-12)] mr-2"
-          placeholder="Type your message..."
+          inputRef={codeMirrorInputRef}
+          theme={theme}
+          onChange={setInput}
+          onSubmit={(_evt, newValue) => {
+            if (!newValue.trim()) {
+              return;
+            }
+            if (formRef.current) {
+              formRef.current.requestSubmit();
+            }
+          }}
+          onClose={() => {
+            // no-op
+          }}
+          additionalCompletions={promptCompletions}
         />
         {files && files.length === 1 && (
           <span

@@ -16,7 +16,6 @@ import ReactCodeMirror, {
 import { Prec } from "@codemirror/state";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/python";
 import { asURL } from "@/utils/url";
-import { mentions } from "@uiw/codemirror-extensions-mentions";
 import { useMemo, useState } from "react";
 import { datasetTablesAtom } from "@/core/datasets/state";
 import { useAtom, useAtomValue } from "jotai";
@@ -31,7 +30,7 @@ import { sql } from "@codemirror/lang-sql";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
 import { atomWithStorage } from "jotai/utils";
 import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
-import { getAICompletionBody } from "./completion-utils";
+import { getAICompletionBody, mentions } from "./completion-utils";
 
 const pythonExtensions = [
   customPythonLanguageSupport(),
@@ -190,6 +189,11 @@ export const AddCellWithAI: React.FC<{
   );
 };
 
+export interface AdditionalCompletions {
+  triggerSymbol: string; // Text that begins with triggerSymbol will trigger autocompletion
+  completions: Completion[];
+}
+
 interface PromptInputProps {
   inputRef?: React.RefObject<ReactCodeMirrorRef>;
   placeholder?: string;
@@ -198,6 +202,7 @@ interface PromptInputProps {
   onClose: () => void;
   onChange: (value: string) => void;
   onSubmit: (e: KeyboardEvent | undefined, value: string) => void;
+  additionalCompletions?: AdditionalCompletions;
   theme: ResolvedTheme;
 }
 
@@ -215,6 +220,7 @@ export const PromptInput = ({
   onChange,
   onSubmit,
   onClose,
+  additionalCompletions,
   theme,
 }: PromptInputProps) => {
   const handleSubmit = onSubmit;
@@ -277,8 +283,17 @@ export const PromptInput = ({
       }),
     );
 
+    // Trigger autocompletion for text that begins with @ or
+    // @ + additional symbols specified
+    const matchBeforeRegex = additionalCompletions
+      ? new RegExp(`[@${additionalCompletions.triggerSymbol}](\\w+)?`)
+      : /@(\w+)?/;
+    const allCompletions = additionalCompletions
+      ? [...completions, ...additionalCompletions.completions]
+      : completions;
+
     return [
-      mentions(completions),
+      mentions(matchBeforeRegex, allCompletions),
       EditorView.lineWrapping,
       minimalSetup(),
       Prec.highest(
@@ -349,7 +364,7 @@ export const PromptInput = ({
         },
       ]),
     ];
-  }, [tables, handleSubmit, handleEscape]);
+  }, [tables, additionalCompletions, handleSubmit, handleEscape]);
 
   return (
     <ReactCodeMirror
