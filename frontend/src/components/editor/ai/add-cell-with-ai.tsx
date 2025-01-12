@@ -190,7 +190,7 @@ export const AddCellWithAI: React.FC<{
 };
 
 export interface AdditionalCompletions {
-  triggerSymbol: string; // Text that begins with triggerSymbol will trigger autocompletion
+  triggerSymbol: string; // Symbol that will trigger autocompletion when text begins with it
   completions: Completion[];
 }
 
