@@ -3,6 +3,7 @@
 # dependencies = [
 #     "python-fasthtml",
 #     "marimo",
+#     "vega-datasets==0.9.0",
 # ]
 # ///
 from fasthtml.common import *
