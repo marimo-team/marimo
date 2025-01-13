@@ -16,7 +16,6 @@ import ReactCodeMirror, {
 import { Prec } from "@codemirror/state";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/python";
 import { asURL } from "@/utils/url";
-import { mentions } from "@uiw/codemirror-extensions-mentions";
 import { useMemo, useState } from "react";
 import { datasetTablesAtom } from "@/core/datasets/state";
 import { useAtom, useAtomValue } from "jotai";
@@ -31,7 +30,7 @@ import { sql } from "@codemirror/lang-sql";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
 import { atomWithStorage } from "jotai/utils";
 import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
-import { getAICompletionBody } from "./completion-utils";
+import { getAICompletionBody, mentions } from "./completion-utils";
 
 const pythonExtensions = [
   customPythonLanguageSupport(),
@@ -190,6 +189,11 @@ export const AddCellWithAI: React.FC<{
   );
 };
 
+export interface AdditionalCompletions {
+  triggerCompletionRegex: RegExp;
+  completions: Completion[];
+}
+
 interface PromptInputProps {
   inputRef?: React.RefObject<ReactCodeMirrorRef>;
   placeholder?: string;
@@ -198,7 +202,9 @@ interface PromptInputProps {
   onClose: () => void;
   onChange: (value: string) => void;
   onSubmit: (e: KeyboardEvent | undefined, value: string) => void;
+  additionalCompletions?: AdditionalCompletions;
   theme: ResolvedTheme;
+  maxHeight?: string;
 }
 
 /**
@@ -215,7 +221,9 @@ export const PromptInput = ({
   onChange,
   onSubmit,
   onClose,
+  additionalCompletions,
   theme,
+  maxHeight,
 }: PromptInputProps) => {
   const handleSubmit = onSubmit;
   const handleEscape = onClose;
@@ -277,8 +285,16 @@ export const PromptInput = ({
       }),
     );
 
+    const matchBeforeRegexes = [/@(\w+)?/]; // Trigger autocompletion for text that begins with @
+    if (additionalCompletions) {
+      matchBeforeRegexes.push(additionalCompletions.triggerCompletionRegex);
+    }
+    const allCompletions = additionalCompletions
+      ? [...completions, ...additionalCompletions.completions]
+      : completions;
+
     return [
-      mentions(completions),
+      mentions(matchBeforeRegexes, allCompletions),
       EditorView.lineWrapping,
       minimalSetup(),
       Prec.highest(
@@ -349,7 +365,7 @@ export const PromptInput = ({
         },
       ]),
     ];
-  }, [tables, handleSubmit, handleEscape]);
+  }, [tables, additionalCompletions, handleSubmit, handleEscape]);
 
   return (
     <ReactCodeMirror
@@ -357,6 +373,7 @@ export const PromptInput = ({
       className={cn("flex-1 font-sans overflow-auto my-1", className)}
       autoFocus={true}
       width="100%"
+      maxHeight={maxHeight}
       value={value}
       basicSetup={false}
       extensions={extensions}

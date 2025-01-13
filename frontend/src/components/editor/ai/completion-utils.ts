@@ -6,6 +6,12 @@ import type { AiCompletionRequest } from "@/core/network/types";
 import { store } from "@/core/state/jotai";
 import { Logger } from "@/utils/Logger";
 import { Maps } from "@/utils/maps";
+import {
+  autocompletion,
+  type Completion,
+  type CompletionContext,
+} from "@codemirror/autocomplete";
+import type { Extension } from "@codemirror/state";
 
 /**
  * Gets the request body for the AI completion API.
@@ -47,4 +53,33 @@ function extractDatasets(input: string): DataTable[] {
     .map((mention) => mention.slice(1))
     .map((name) => existingDatasets.get(name))
     .filter(Boolean);
+}
+
+/**
+ * Adapted from @uiw/codemirror-extensions-mentions
+ * Allows you to specify a custom regex to trigger the autocompletion.
+ */
+export function mentions(
+  matchBeforeRegexes: RegExp[],
+  data: Completion[] = [],
+): Extension {
+  return autocompletion({
+    override: [
+      (context: CompletionContext) => {
+        const word = matchBeforeRegexes
+          .map((regex) => context.matchBefore(regex))
+          .find(Boolean);
+        if (!word) {
+          return null;
+        }
+        if (word && word.from === word.to && !context.explicit) {
+          return null;
+        }
+        return {
+          from: word?.from,
+          options: [...data],
+        };
+      },
+    ],
+  });
 }
