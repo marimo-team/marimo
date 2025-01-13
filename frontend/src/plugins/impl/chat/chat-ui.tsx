@@ -215,6 +215,10 @@ export const Chatbot: React.FC<Props> = (props) => {
       }),
     ),
   };
+  const promptInputPlaceholder =
+    props.prompts.length > 0
+      ? "Type your message here, / for prompts"
+      : "Type your message here...";
 
   useEffect(() => {
     // When the message length changes, scroll to the bottom
@@ -342,10 +346,11 @@ export const Chatbot: React.FC<Props> = (props) => {
         )}
         <PromptInput
           className="rounded-sm mr-2"
-          placeholder="Type your message here, / for prompts"
+          placeholder={promptInputPlaceholder}
           value={input}
           inputRef={codeMirrorInputRef}
           theme={theme}
+          maxHeight={props.maxHeight ? `${props.maxHeight / 2}px` : undefined}
           onChange={setInput}
           onSubmit={(_evt, newValue) => {
             if (!newValue.trim()) {

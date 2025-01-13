@@ -204,6 +204,7 @@ interface PromptInputProps {
   onSubmit: (e: KeyboardEvent | undefined, value: string) => void;
   additionalCompletions?: AdditionalCompletions;
   theme: ResolvedTheme;
+  maxHeight?: string;
 }
 
 /**
@@ -222,6 +223,7 @@ export const PromptInput = ({
   onClose,
   additionalCompletions,
   theme,
+  maxHeight,
 }: PromptInputProps) => {
   const handleSubmit = onSubmit;
   const handleEscape = onClose;
@@ -372,6 +374,7 @@ export const PromptInput = ({
       className={cn("flex-1 font-sans overflow-auto my-1", className)}
       autoFocus={true}
       width="100%"
+      maxHeight={maxHeight}
       value={value}
       basicSetup={false}
       extensions={extensions}
