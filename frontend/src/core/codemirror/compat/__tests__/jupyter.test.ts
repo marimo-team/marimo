@@ -71,8 +71,8 @@ describe("jupyterHelpExtension", () => {
 
     // Test autorun mode
     view.dispatch({
-      changes: { from: 0, insert: "%load_ext autoreload 2" },
-      selection: { anchor: "%load_ext autoreload 2".length },
+      changes: { from: 0, insert: "%autoreload 2" },
+      selection: { anchor: "%autoreload 2".length },
     });
 
     expect(saveUserConfig).toHaveBeenCalledWith({
@@ -83,8 +83,8 @@ describe("jupyterHelpExtension", () => {
 
     // Test lazy mode
     view.dispatch({
-      changes: { from: 0, insert: "%load_ext autoreload 1" },
-      selection: { anchor: "%load_ext autoreload 1".length },
+      changes: { from: 0, insert: "%autoreload 1" },
+      selection: { anchor: "%autoreload 1".length },
     });
 
     expect(saveUserConfig).toHaveBeenCalledWith({
@@ -95,8 +95,8 @@ describe("jupyterHelpExtension", () => {
 
     // Test off mode
     view.dispatch({
-      changes: { from: 0, insert: "%load_ext autoreload 0" },
-      selection: { anchor: "%load_ext autoreload 0".length },
+      changes: { from: 0, insert: "%autoreload 0" },
+      selection: { anchor: "%autoreload 0".length },
     });
 
     expect(saveUserConfig).toHaveBeenCalledWith({
