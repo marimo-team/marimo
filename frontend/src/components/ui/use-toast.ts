@@ -6,7 +6,7 @@ import type { ToastActionElement, ToastProps } from "@/components/ui/toast";
 const TOAST_LIMIT = 1;
 const TOAST_REMOVE_DELAY = 10_000; // 10 seconds
 
-type ToasterToast = ToastProps & {
+type ToasterToast = Omit<ToastProps, "title"> & {
   id: string;
   title?: React.ReactNode;
   description?: React.ReactNode;
@@ -18,6 +18,7 @@ const actionTypes = {
   UPDATE_TOAST: "UPDATE_TOAST",
   DISMISS_TOAST: "DISMISS_TOAST",
   REMOVE_TOAST: "REMOVE_TOAST",
+  UPSERT_TOAST: "UPSERT_TOAST",
 } as const;
 
 let count = 0;
@@ -45,6 +46,10 @@ type Action =
   | {
       type: ActionType["REMOVE_TOAST"];
       toastId?: ToasterToast["id"];
+    }
+  | {
+      type: ActionType["UPSERT_TOAST"];
+      toast: ToasterToast;
     };
 
 interface State {
@@ -121,6 +126,23 @@ export const reducer = (state: State, action: Action): State => {
         ...state,
         toasts: state.toasts.filter((t) => t.id !== action.toastId),
       };
+    case "UPSERT_TOAST": {
+      const existingIndex = state.toasts.findIndex(
+        (t) => t.id === action.toast.id,
+      );
+      if (existingIndex > -1) {
+        return {
+          ...state,
+          toasts: state.toasts.map((t) =>
+            t.id === action.toast.id ? { ...t, ...action.toast } : t,
+          ),
+        };
+      }
+      return {
+        ...state,
+        toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
+      };
+    }
   }
 };
 
@@ -137,21 +159,35 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">;
 
-function toast({ ...props }: Toast) {
-  const id = genId();
+function toast({ id, ...props }: Toast & { id?: string }) {
+  const toastId = id || genId();
 
   const update = (props: Toast) =>
     dispatch({
       type: "UPDATE_TOAST",
-      toast: { ...props, id },
+      toast: { ...props, id: toastId },
     });
-  const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id });
+  const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId });
+  const upsert = (props: Toast) =>
+    dispatch({
+      type: "UPSERT_TOAST",
+      toast: {
+        ...props,
+        id: toastId,
+        open: true,
+        onOpenChange: (open) => {
+          if (!open) {
+            dismiss();
+          }
+        },
+      },
+    });
 
   dispatch({
     type: "ADD_TOAST",
     toast: {
       ...props,
-      id,
+      id: toastId,
       open: true,
       onOpenChange: (open) => {
         if (!open) {
@@ -162,9 +198,10 @@ function toast({ ...props }: Toast) {
   });
 
   return {
-    id: id,
+    id: toastId,
     dismiss,
     update,
+    upsert,
   };
 }
 
