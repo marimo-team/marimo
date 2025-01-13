@@ -12,8 +12,6 @@ import {
   LanguageSupport,
 } from "@codemirror/language";
 import type { CompletionConfig } from "@/core/config/config-schema";
-import { autocompletion } from "@codemirror/autocomplete";
-import { completer } from "../completion/completer";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import type { PlaceholderType } from "../config/extension";
 import {
@@ -21,6 +19,8 @@ import {
   clickablePlaceholderExtension,
 } from "../placeholder/extensions";
 import type { MovementCallbacks } from "../cells/extensions";
+import { languageServer } from "codemirror-languageserver";
+import { resolveToWsUrl } from "@/core/websocket/createWsUrl";
 
 /**
  * Language adapter for Python.
@@ -50,16 +50,23 @@ export class PythonLanguageAdapter implements LanguageAdapter {
     return [
       // Whether or not to require keypress to activate autocompletion (default
       // keymap is Ctrl+Space)
-      autocompletion({
-        activateOnTyping: completionConfig.activate_on_typing,
-        // The Cell component handles the blur event. `closeOnBlur` is too
-        // aggressive and doesn't let the user click into the completion info
-        // element (which contains the docstring/type --- users might want to
-        // copy paste from the docstring). The main issue is that the completion
-        // tooltip is not part of the editable DOM tree:
-        // https://discuss.codemirror.net/t/adding-click-event-listener-to-autocomplete-tooltip-info-panel-is-not-working/4741
-        closeOnBlur: false,
-        override: [completer],
+      // autocompletion({
+      //   activateOnTyping: completionConfig.activate_on_typing,
+      //   // The Cell component handles the blur event. `closeOnBlur` is too
+      //   // aggressive and doesn't let the user click into the completion info
+      //   // element (which contains the docstring/type --- users might want to
+      //   // copy paste from the docstring). The main issue is that the completion
+      //   // tooltip is not part of the editable DOM tree:
+      //   // https://discuss.codemirror.net/t/adding-click-event-listener-to-autocomplete-tooltip-info-panel-is-not-working/4741
+      //   closeOnBlur: false,
+      //   override: [completer],
+      // }),
+      languageServer({
+        serverUri: resolveToWsUrl("/lsp/pylsp"),
+        rootUri: "file:///",
+        documentUri: "file:///marimo",
+        languageId: "python",
+        workspaceFolders: null,
       }),
       customPythonLanguageSupport(),
       placeholderType === "marimo-import"

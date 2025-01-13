@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, Optional
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, List, Optional, Union
 
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
@@ -33,6 +34,12 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 
+@dataclass
+class LspPorts:
+    pylsp_port: Optional[int]
+    copilot_lsp_port: Optional[int]
+
+
 # Create app
 def create_starlette_app(
     *,
@@ -42,7 +49,7 @@ def create_starlette_app(
     lifespan: Optional[Lifespan[Starlette]] = None,
     enable_auth: bool = True,
     allow_origins: Optional[tuple[str, ...]] = None,
-    lsp_port: Optional[int] = None,
+    lsp_ports: Optional[LspPorts] = None,
 ) -> Starlette:
     final_middlewares: List[Middleware] = []
 
@@ -81,8 +88,13 @@ def create_starlette_app(
         ]
     )
 
-    if lsp_port is not None:
-        final_middlewares.append(_create_lsp_proxy_middleware(lsp_port))
+    if lsp_ports is not None:
+        final_middlewares.extend(
+            _create_lsps_proxy_middleware(
+                pylsp_port=lsp_ports.pylsp_port,
+                copilot_lsp_port=lsp_ports.copilot_lsp_port,
+            )
+        )
 
     if middleware:
         final_middlewares.extend(middleware)
@@ -119,11 +131,30 @@ def _create_mpl_proxy_middleware() -> Middleware:
     )
 
 
-def _create_lsp_proxy_middleware(lsp_port: int) -> Middleware:
-    return Middleware(
-        ProxyMiddleware,
-        proxy_path="/lsp",
-        target_url=f"http://localhost:{lsp_port}",
-        # Remove the /lsp prefix
-        path_rewrite=lambda path: path.replace("/lsp", ""),
-    )
+def _create_lsps_proxy_middleware(
+    *,
+    pylsp_port: Union[int, None],
+    copilot_lsp_port: Union[int, None],
+) -> List[Middleware]:
+    middlewares: List[Middleware] = []
+    if pylsp_port is not None:
+        middlewares.append(
+            Middleware(
+                ProxyMiddleware,
+                proxy_path="/lsp/pylsp",
+                target_url=f"http://localhost:{pylsp_port}",
+                # Remove the /lsp/pylsp prefix
+                path_rewrite=lambda path: path.replace("/lsp/pylsp", ""),
+            )
+        )
+    if copilot_lsp_port is not None:
+        middlewares.append(
+            Middleware(
+                ProxyMiddleware,
+                proxy_path="/lsp/copilot",
+                target_url=f"http://localhost:{copilot_lsp_port}",
+                # Remove the /lsp prefix
+                path_rewrite=lambda path: path.replace("/lsp", ""),
+            )
+        )
+    return middlewares

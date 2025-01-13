@@ -9,9 +9,11 @@ export function createWsUrl(sessionId: string): string {
   return resolveToWsUrl(`ws?${searchParams.toString()}`);
 }
 
-export function resolveToWsUrl(relativeUrl: string): string {
+export function resolveToWsUrl(
+  relativeUrl: string,
+): `ws://${string}` | `wss://${string}` {
   if (relativeUrl.startsWith("ws:") || relativeUrl.startsWith("wss:")) {
-    return relativeUrl;
+    return relativeUrl as `ws://${string}` | `wss://${string}`;
   }
   const baseUri = new URL(document.baseURI);
   const protocol = baseUri.protocol === "https:" ? "wss:" : "ws:";

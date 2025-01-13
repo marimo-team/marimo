@@ -3,7 +3,7 @@
     "lib": ["ES2022", "DOM"],
     "noEmit": true,
     "module": "ESNext",
-    "moduleResolution": "node",
+    "moduleResolution": "Bundler",
     "types": ["@types/node"],
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
