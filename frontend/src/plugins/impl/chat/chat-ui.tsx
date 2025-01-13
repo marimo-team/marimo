@@ -54,7 +54,6 @@ import {
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { useTheme } from "@/theme/useTheme";
 import { moveToEndOfEditor } from "@/core/codemirror/utils";
-import type { Completion } from "@codemirror/autocomplete";
 
 interface Props {
   prompts: string[];
@@ -206,14 +205,13 @@ export const Chatbot: React.FC<Props> = (props) => {
     props.allowAttachments === true;
 
   const promptCompletions: AdditionalCompletions = {
-    triggerSymbol: "/",
-    completions: props.prompts.map(
-      (prompt): Completion => ({
-        label: `/${prompt}`,
-        displayLabel: prompt,
-        apply: prompt,
-      }),
-    ),
+    // sentence has to begin with '/' to trigger autocomplete
+    triggerCompletionRegex: /^\/(\w+)?/,
+    completions: props.prompts.map((prompt) => ({
+      label: `/${prompt}`,
+      displayLabel: prompt,
+      apply: prompt,
+    })),
   };
   const promptInputPlaceholder =
     props.prompts.length > 0

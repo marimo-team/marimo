@@ -190,7 +190,7 @@ export const AddCellWithAI: React.FC<{
 };
 
 export interface AdditionalCompletions {
-  triggerSymbol: string; // Symbol that will trigger autocompletion when text begins with it
+  triggerCompletionRegex: RegExp;
   completions: Completion[];
 }
 
@@ -285,17 +285,16 @@ export const PromptInput = ({
       }),
     );
 
-    // Trigger autocompletion for text that begins with @ or
-    // @ + additional symbols specified
-    const matchBeforeRegex = additionalCompletions
-      ? new RegExp(`[@${additionalCompletions.triggerSymbol}](\\w+)?`)
-      : /@(\w+)?/;
+    const matchBeforeRegexes = [/@(\w+)?/]; // Trigger autocompletion for text that begins with @
+    if (additionalCompletions) {
+      matchBeforeRegexes.push(additionalCompletions.triggerCompletionRegex);
+    }
     const allCompletions = additionalCompletions
       ? [...completions, ...additionalCompletions.completions]
       : completions;
 
     return [
-      mentions(matchBeforeRegex, allCompletions),
+      mentions(matchBeforeRegexes, allCompletions),
       EditorView.lineWrapping,
       minimalSetup(),
       Prec.highest(

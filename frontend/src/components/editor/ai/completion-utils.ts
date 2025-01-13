@@ -60,13 +60,15 @@ function extractDatasets(input: string): DataTable[] {
  * Allows you to specify a custom regex to trigger the autocompletion.
  */
 export function mentions(
-  matchBeforeRegex: RegExp,
+  matchBeforeRegexes: RegExp[],
   data: Completion[] = [],
 ): Extension {
   return autocompletion({
     override: [
       (context: CompletionContext) => {
-        const word = context.matchBefore(matchBeforeRegex);
+        const word = matchBeforeRegexes
+          .map((regex) => context.matchBefore(regex))
+          .find(Boolean);
         if (!word) {
           return null;
         }
