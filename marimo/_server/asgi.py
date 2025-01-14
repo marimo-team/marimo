@@ -572,8 +572,38 @@ def create_asgi_app(
                         create_redirect_to_slash(path),
                     )
 
-            # Add dynamic directory middleware for each directory config
+            # Start with the base app and prepare mounted apps
             app: ASGIApp = base_app
+            mounted_apps = []
+
+            # First create all static apps with their middleware
+            for path, root, middleware in self._mount_configs:
+                if root not in self._app_cache:
+                    # Create the app with the correct base_url
+                    # Remove trailing slash for consistent path handling
+                    base_url = path.rstrip("/")
+                    mounted_app = self._create_app_for_file(
+                        base_url=base_url, file_path=root
+                    )
+                    # Apply middleware if provided
+                    if middleware:
+                        # Apply middleware in reverse order so the first middleware in the list is outermost
+                        for m in reversed(middleware):
+                            mounted_app = StatePreservingMiddleware(mounted_app, m)
+                    self._app_cache[root] = mounted_app
+                mounted_apps.append((path, self._app_cache[root]))
+
+            # Then mount all apps after middleware is applied
+            for path, mounted_app in mounted_apps:
+                app.mount(path, mounted_app)
+                # Add redirect for paths without trailing slash
+                if path and not path.endswith("/"):
+                    app.add_route(
+                        path,
+                        create_redirect_to_slash(path),
+                    )
+
+            # Then add dynamic directory middleware for each directory config
             for (
                 path,
                 directory,
@@ -599,7 +629,6 @@ def create_asgi_app(
                             dynamic_app = StatePreservingMiddleware(dynamic_app, m)
                     return dynamic_app
 
-                # This comes after the middleware, so it's applied first.
                 # Create dynamic directory middleware and update the app chain
                 app = DynamicDirectoryMiddleware(
                     app=app,  # Use current app in the chain
