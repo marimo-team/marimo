@@ -118,7 +118,7 @@
     "react-aria-components": "^1.5.0",
     "react-codemirror-merge": "^4.23.5",
     "react-dropzone": "^14.2.3",
-    "react-error-boundary": "^4.0.13",
+    "react-error-boundary": "^5.0.0",
     "react-grid-layout": "^1.4.4",
     "react-hook-form": "^7.52.2",
     "react-markdown": "^9.0.1",
