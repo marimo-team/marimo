@@ -223,17 +223,23 @@ class DynamicDirectoryMiddleware:
         request_path = path.rstrip("/")
 
         # Check if the path matches our base path
-        if not request_path.startswith(base_path):
+        if not request_path.startswith(base_path + "/"):
             await self.app(scope, receive, send)
             return
 
         # Get the app-specific part of the path
-        app_path = request_path[len(base_path):].lstrip("/")
+        app_path = request_path[len(base_path + "/"):].split("/")[0]
 
         # Empty path or starts with an underscore is not a valid app
         if not app_path or app_path.startswith("_"):
             await self.app(scope, receive, send)
             return
+
+        # Update scope with the correct base URL for mounted apps
+        scope["base_url"] = base_path + "/" + app_path
+
+        # Continue the middleware chain with the updated scope
+        await self.app(scope, receive, send)
 
         # Add validation check
         if self.validate_callback:
