@@ -103,6 +103,7 @@ nav:
       - Publish to the web:
           - Publish to the web: guides/publishing/index.md
           - Embedding: guides/publishing/embedding.md
+          - From GitHub: guides/publishing/from_github.md
           - GitHub Pages: guides/publishing/github_pages.md
           - Online playground: guides/publishing/playground.md
           - Community Cloud: guides/publishing/community_cloud/index.md
