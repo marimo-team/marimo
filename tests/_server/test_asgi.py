@@ -148,20 +148,26 @@ class TestASGIAppBuilder(unittest.TestCase):
         builder = builder.with_app(path="/marimo/motest", root=self.app1)
         app = builder.build()
         client = TestClient(app)
-        
+
         # First request to create the app
         response = client.get("/marimo/motest")
         assert response.status_code == 200, response.text
-        
+
         # Test asset request
         response = client.get("/marimo/motest/assets/test.css")
-        assert response.status_code == 404, "Asset should 404 but path should be correct"
-        
+        assert response.status_code == 404, (
+            "Asset should 404 but path should be correct"
+        )
+
         # Verify that the HTML contains correct asset paths
         response = client.get("/marimo/motest")
         assert response.status_code == 200, response.text
-        assert "/marimo/motest/assets/" in response.text, "Asset paths should include full mount path"
-        assert "/motest/assets/" not in response.text, "Asset paths should not use incorrect mount path"
+        assert "/marimo/motest/assets/" in response.text, (
+            "Asset paths should include full mount path"
+        )
+        assert "/motest/assets/" not in response.text, (
+            "Asset paths should not use incorrect mount path"
+        )
 
     def test_app_with_middleware(self):
         # Create a simple middleware

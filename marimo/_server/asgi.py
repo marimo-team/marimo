@@ -513,8 +513,12 @@ def create_asgi_app(
                         # Mount with the same base_url
                         mount_app.mount("/", single_asgi_app)
                         mount_app.state.base_url = path
-                        mount_app.state.session_manager = single_asgi_app.state.session_manager
-                        mount_app.state.config_manager = single_asgi_app.state.config_manager
+                        mount_app.state.session_manager = (
+                            single_asgi_app.state.session_manager
+                        )
+                        mount_app.state.config_manager = (
+                            single_asgi_app.state.config_manager
+                        )
                         self._app_cache[root] = mount_app
                     else:
                         self._app_cache[root] = single_asgi_app
@@ -556,8 +560,12 @@ def create_asgi_app(
                         # Mount with the same base_url
                         mount_app.mount("/", single_asgi_app)
                         mount_app.state.base_url = path
-                        mount_app.state.session_manager = single_asgi_app.state.session_manager
-                        mount_app.state.config_manager = single_asgi_app.state.config_manager
+                        mount_app.state.session_manager = (
+                            single_asgi_app.state.session_manager
+                        )
+                        mount_app.state.config_manager = (
+                            single_asgi_app.state.config_manager
+                        )
                         return mount_app
                     return single_asgi_app
 
