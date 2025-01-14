@@ -495,6 +495,9 @@ def create_asgi_app(
 
         @staticmethod
         def _create_app_for_file(base_url: str, file_path: str) -> ASGIApp:
+            # Ensure base_url has trailing slash for consistency
+            normalized_base_url = base_url.rstrip("/") + "/"
+            
             session_manager = SessionManager(
                 file_router=AppFileRouter.from_filename(MarimoPath(file_path)),
                 mode=SessionMode.RUN,
@@ -514,7 +517,7 @@ def create_asgi_app(
                 ttl_seconds=None,
             )
             app = create_starlette_app(
-                base_url=base_url,
+                base_url=normalized_base_url,
                 lifespan=lifespans.Lifespans(
                     [
                         # Not all lifespans are needed for run mode
@@ -526,7 +529,7 @@ def create_asgi_app(
                 allow_origins=("*",),
             )
             app.state.session_manager = session_manager
-            app.state.base_url = base_url
+            app.state.base_url = normalized_base_url
             app.state.config_manager = config_reader
             return app
 
@@ -550,25 +553,24 @@ def create_asgi_app(
                     # Create the base app with the correct base_url
                     # Remove trailing slash for consistent path handling
                     base_url = path.rstrip("/")
-                    app = self._create_app_for_file(
+                    mounted_app = self._create_app_for_file(
                         base_url=base_url, file_path=root
                     )
                     # Apply middleware if provided
                     if middleware:
                         # Apply middleware in reverse order so the first middleware in the list is outermost
                         for m in reversed(middleware):
-                            app = StatePreservingMiddleware(app, m)
-                    self._app_cache[root] = app
-                # Mount the app and ensure trailing slash
-                if not path.endswith("/"):
-                    base_app.mount(path + "/", self._app_cache[root])
-                    # Add redirect for path without trailing slash
+                            mounted_app = StatePreservingMiddleware(mounted_app, m)
+                    self._app_cache[root] = mounted_app
+                # Mount the app at the original path
+                base_app.mount(path, self._app_cache[root])
+
+                # Add redirect for paths without trailing slash
+                if path and not path.endswith("/"):
                     base_app.add_route(
                         path,
                         create_redirect_to_slash(path),
                     )
-                else:
-                    base_app.mount(path, self._app_cache[root])
 
             # Add dynamic directory middleware for each directory config
             app: ASGIApp = base_app
@@ -579,7 +581,7 @@ def create_asgi_app(
                 middleware,
             ) in self._dynamic_directory_configs:
 
-                def app_builder(
+                def dynamic_app_builder(
                     middleware: list[MiddlewareFactory],
                     path: str,
                     file_path: str,
@@ -587,26 +589,27 @@ def create_asgi_app(
                     # Create the base app with the correct base_url
                     # Remove trailing slash for consistent path handling
                     base_url = path.rstrip("/")
-                    app = self._create_app_for_file(
+                    dynamic_app = self._create_app_for_file(
                         base_url=base_url, file_path=file_path
                     )
                     # Apply middleware if provided
                     if middleware:
                         # Apply middleware in reverse order so the first middleware in the list is outermost
                         for m in reversed(middleware):
-                            app = StatePreservingMiddleware(app, m)
-                    return app
+                            dynamic_app = StatePreservingMiddleware(dynamic_app, m)
+                    return dynamic_app
 
                 # This comes after the middleware, so it's applied first.
+                # Create dynamic directory middleware and update the app chain
                 app = DynamicDirectoryMiddleware(
-                    app=app,
+                    app=app,  # Use current app in the chain
                     base_path=path,
                     directory=directory,
-                    app_builder=partial(app_builder, middleware or []),
+                    app_builder=partial(dynamic_app_builder, middleware or []),
                     validate_callback=validate_callback,
                 )
 
-            return app
+            return app  # Return the final app with all middleware applied
 
     initialize_asyncio()
     return Builder()
