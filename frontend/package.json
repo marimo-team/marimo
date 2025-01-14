@@ -72,7 +72,7 @@
     "@replit/codemirror-vim": "^6.2.1",
     "@tailwindcss/typography": "^0.5.14",
     "@tanstack/react-table": "^8.20.1",
-    "@textea/json-viewer": "^3.4.1",
+    "@textea/json-viewer": "^4.0.1",
     "@types/humanize-duration": "^3.27.4",
     "@types/js-cookie": "^3.0.6",
     "@types/jsdom": "^21.1.7",
