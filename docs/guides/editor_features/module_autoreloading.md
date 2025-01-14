@@ -6,9 +6,11 @@ When you make edits to Python modules that your notebook has imported, the
 module autoreloader will automatically mark cells that use them as stale and,
 optionally, automatically run them.
 
-Autoreloading enables a workflow that many developers find
-productive: develop complex logic in Python modules, and use the marimo
-notebook as a DAG or main script that orchestrates your logic.
+!!! question "Why autoreload?"
+
+    Autoreloading enables a workflow that many developers find
+    productive: develop complex logic in Python modules, and use the marimo
+    notebook as a DAG or main script that orchestrates your logic.
 
 Based on static analysis, the reloader only runs cells affected by your edits.
 The reloader is recursive, meaning that marimo tracks modifications for modules
