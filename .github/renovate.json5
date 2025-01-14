@@ -33,18 +33,21 @@
     {
       "groupName": "pre-commit dependencies",
       "matchManagers": ["pre-commit"],
+      "matchPackagePatterns": ["*"],
       "description": "Weekly update of pre-commit dependencies"
     },
     // Group all GitHub Actions dependencies
     {
       "groupName": "GitHub Actions",
       "matchManagers": ["github-actions"],
+      "matchPackagePatterns": ["*"],
       "matchUpdateTypes": ["minor", "patch", "major"]
     },
     // Group all Docker dependencies
     {
       "groupName": "Docker updates",
       "matchDatasources": ["docker"],
+      "matchPackagePatterns": ["*"],
       "matchUpdateTypes": ["minor", "patch", "major"]
     },
     // Upgrade all npm non-major dependencies
