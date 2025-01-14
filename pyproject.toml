@@ -115,12 +115,12 @@ docs = [
     "mkdocs-material>=9.5.49",
     "mkdocstrings[python]>=0.27.0",
     "mkdocs-material-extensions>=1.3.1",
-    "mkdocs-autorefs>=1.0.1",
-    "mkdocs-git-revision-date-localized-plugin>=1.2.4",
+    "mkdocs-autorefs>=1.2.0",
+    "mkdocs-git-revision-date-localized-plugin>=1.3.0",
     "mkdocs-minify-plugin>=0.8.0",
-    "mkdocs-glightbox>=0.3.7",
-    "mkdocs-macros-plugin>=1.3.0",
-    "mkdocs-redirects>=1.0.0",
+    "mkdocs-glightbox>=0.4.0",
+    "mkdocs-macros-plugin>=1.3.7",
+    "mkdocs-redirects>=1.2.2",
     "mkdocs-click>=0.8.1",
     "mike>=2.0.0",  # for versioning
     "pillow>=10.2.0",  # for social cards
@@ -192,10 +192,10 @@ extra-dependencies = [
     # For server testing
     "httpx~=0.27.0",
     "matplotlib~=3.9.2",
-    "pytest~=8.3.2",
+    "pytest~=8.3.4",
     "pytest-timeout~=2.3.1",
-    "pytest-codecov~=0.5.1",
-    "pytest-asyncio~=0.23.8",
+    "pytest-codecov~=0.6.1",
+    "pytest-asyncio~=0.25.2",
 ]
 
 [[tool.hatch.envs.test.matrix]]
@@ -220,10 +220,10 @@ extra-dependencies = [
     "hypothesis~=6.102.1",
     "httpx~=0.27.0",
     "matplotlib~=3.9.2",
-    "pytest~=8.3.2",
+    "pytest~=8.3.4",
     "pytest-timeout~=2.3.1",
-    "pytest-codecov~=0.5.1",
-    "pytest-asyncio~=0.23.8",
+    "pytest-codecov~=0.6.1",
+    "pytest-asyncio~=0.25.2",
     # For testing mo.ui.chart, table, ...
     "vl-convert-python",
     "pyarrow",
